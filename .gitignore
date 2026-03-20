@@ -1,0 +1,19 @@
+# .NET build outputs
+**/bin/
+**/obj/
+
+# IDE
+.vs/
+.idea/
+*.user
+
+# Secrets — никогда не коммитим
+**/appsettings.Development.json
+**/keys/
+**/*.pem
+**/.env
+**/.env.*
+
+# OS
+.DS_Store
+Thumbs.db
