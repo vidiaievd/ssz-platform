@@ -1,0 +1,118 @@
+using AuthService.Application.Commands;
+using AuthService.Application.DTOs;
+using AuthService.API.Extensions;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace AuthService.API.Controllers;
+
+[ApiController]
+[Route("api/v1/auth")]
+[Produces("application/json")]
+public sealed class AuthController(ISender mediator) : ControllerBase
+{
+    /// <summary>Register a new user account.</summary>
+    [HttpPost("register")]
+    [ProducesResponseType(typeof(RegisterResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Register(
+        [FromBody] RegisterRequest request,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(
+            new RegisterUserCommand(request.Email, request.Password), ct);
+
+        return CreatedAtAction(nameof(Register), new { id = result.UserId }, result);
+    }
+
+    /// <summary>
+    /// Authenticate with email and password.
+    /// Returns tokens or MFA challenge if 2FA is enabled.
+    /// </summary>
+    [HttpPost("login")]
+    [ProducesResponseType(typeof(AuthTokensResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status423Locked)]
+    public async Task<IActionResult> Login(
+        [FromBody] LoginRequest request,
+        CancellationToken ct)
+    {
+        var deviceInfo = Request.Headers.UserAgent.ToString();
+        var result = await mediator.Send(
+            new LoginCommand(request.Email, request.Password, deviceInfo), ct);
+
+        return result switch
+        {
+            LoginSuccessResult success => Ok(success.Tokens),
+            MfaRequiredResult mfa => Ok(new
+            {
+                mfaRequired = true,
+                challenge = mfa.Challenge,
+            }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError),
+        };
+    }
+
+    /// <summary>Complete login with TOTP code.</summary>
+    [HttpPost("mfa/challenge")]
+    [ProducesResponseType(typeof(AuthTokensResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> CompleteMfaLogin(
+        [FromBody] MfaChallengeRequest request,
+        CancellationToken ct)
+    {
+        var deviceInfo = Request.Headers.UserAgent.ToString();
+        var tokens = await mediator.Send(
+            new CompleteMfaLoginCommand(
+                request.MfaChallengeToken,
+                request.Code,
+                deviceInfo), ct);
+
+        return Ok(tokens);
+    }
+
+    /// <summary>Complete login using a backup recovery code.</summary>
+    [HttpPost("mfa/backup")]
+    [ProducesResponseType(typeof(AuthTokensResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> LoginWithBackupCode(
+        [FromBody] BackupCodeLoginRequest request,
+        CancellationToken ct)
+    {
+        var deviceInfo = Request.Headers.UserAgent.ToString();
+        var tokens = await mediator.Send(
+            new LoginWithBackupCodeCommand(
+                request.MfaChallengeToken,
+                request.BackupCode,
+                deviceInfo), ct);
+
+        return Ok(tokens);
+    }
+
+    /// <summary>Issue new access token using a valid refresh token.</summary>
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(AuthTokensResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Refresh(
+        [FromBody] RefreshTokenRequest request,
+        CancellationToken ct)
+    {
+        var tokens = await mediator.Send(
+            new RefreshTokenCommand(request.RefreshToken), ct);
+
+        return Ok(tokens);
+    }
+
+    /// <summary>Revoke all sessions for the authenticated user.</summary>
+    [HttpPost("logout")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Logout(CancellationToken ct)
+    {
+        var userId = User.GetUserId();
+        await mediator.Send(new RevokeAllSessionsCommand(userId), ct);
+        return NoContent();
+    }
+}
