@@ -32,4 +32,6 @@ public sealed class UserRepository(AuthDbContext db) : IUserRepository
             .AnyAsync(u => u.NormalizedEmail == email.ToUpperInvariant(), ct);
 
     public void Add(User user) => db.Users.Add(user);
+    public void AddRefreshToken(Domain.Entities.RefreshToken token) =>
+        db.RefreshTokens.Add(token);
 }
