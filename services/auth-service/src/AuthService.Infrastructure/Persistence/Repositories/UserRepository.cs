@@ -32,4 +32,10 @@ public sealed class UserRepository(AuthDbContext db) : IUserRepository
             .AnyAsync(u => u.NormalizedEmail == email.ToUpperInvariant(), ct);
 
     public void Add(User user) => db.Users.Add(user);
+    public void AddRefreshToken(Domain.Entities.RefreshToken token) =>
+        db.RefreshTokens.Add(token);
+    public void AddBackupCode(Domain.Entities.BackupCode backupCode) =>
+        db.BackupCodes.Add(backupCode);
+    public void RemoveBackupCodesForUser(Guid userId) =>
+        db.BackupCodes.RemoveRange(db.BackupCodes.Where(bc => bc.UserId == userId));
 }

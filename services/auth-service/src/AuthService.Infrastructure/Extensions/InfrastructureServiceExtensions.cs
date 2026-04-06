@@ -57,6 +57,8 @@ public static class InfrastructureServiceExtensions
                         maxRetryDelay: TimeSpan.FromSeconds(10),
                         errorCodesToAdd: null);
                 });
+            opts.EnableSensitiveDataLogging();
+            opts.LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Information);
         });
 
         return services;

@@ -31,32 +31,37 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.EmailVerified)
             .HasColumnName("email_verified")
-            .HasDefaultValue(false);
+            .HasDefaultValue(false)
+            .ValueGeneratedNever();
 
         builder.Property(u => u.IsLocked)
             .HasColumnName("is_locked")
-            .HasDefaultValue(false);
+            .HasDefaultValue(false)
+            .ValueGeneratedNever();
 
         builder.Property(u => u.LockedUntil)
             .HasColumnName("locked_until");
 
         builder.Property(u => u.FailedLoginAttempts)
             .HasColumnName("failed_login_attempts")
-            .HasDefaultValue(0);
+            .HasDefaultValue(0)
+            .ValueGeneratedNever();
 
         builder.Property(u => u.LastFailedLoginAt)
             .HasColumnName("last_failed_login_at");
 
         builder.Property(u => u.TwoFactorEnabled)
             .HasColumnName("two_factor_enabled")
-            .HasDefaultValue(false);
+            .HasDefaultValue(false)
+            .ValueGeneratedNever();
 
         builder.Property(u => u.TotpSecretEncrypted)
             .HasColumnName("totp_secret_encrypted");
 
         builder.Property(u => u.TotpVerified)
             .HasColumnName("totp_verified")
-            .HasDefaultValue(false);
+            .HasDefaultValue(false)
+            .ValueGeneratedNever();
 
         builder.Property(u => u.LastLoginAt)
             .HasColumnName("last_login_at");
@@ -87,12 +92,15 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Navigation(u => u.RefreshTokens)
-            .UsePropertyAccessMode(PropertyAccessMode.Field);
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasField("_refreshTokens");
 
         builder.Navigation(u => u.BackupCodes)
-            .UsePropertyAccessMode(PropertyAccessMode.Field);
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasField("_backupCodes");
 
         builder.Navigation(u => u.Roles)
-            .UsePropertyAccessMode(PropertyAccessMode.Field);
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasField("_roles");
     }
 }
