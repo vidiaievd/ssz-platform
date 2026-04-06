@@ -132,7 +132,8 @@ public sealed class CompleteMfaLoginCommandHandler(
             throw new DomainException("2FA is not configured.", "MFA_NOT_CONFIGURED");
 
         // Replay protection — same code cannot be used twice
-        if (await replayGuard.HasBeenUsedAsync(userId.ToString(), command.Code, ct))
+        var isReplay = await replayGuard.HasBeenUsedAsync(userId.ToString(), command.Code, ct);
+        if (isReplay)
             throw new InvalidTotpCodeException();
 
         var secret = encryptionService.Decrypt(user.TotpSecretEncrypted);
