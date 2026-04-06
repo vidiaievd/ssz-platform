@@ -19,6 +19,9 @@ public sealed class JwtTokenService : ITokenService
     {
         _opts = opts.Value;
 
+        // Prevent JWT handler from mapping standard claim types (e.g. sub -> nameid)
+        _handler.InboundClaimTypeMap.Clear();
+
         // Load RSA keys from PEM files
         var privateRsa = RSA.Create();
         privateRsa.ImportFromPem(File.ReadAllText(_opts.PrivateKeyPath));
@@ -122,14 +125,20 @@ public sealed class JwtTokenService : ITokenService
 
             // Ensure this is actually an MFA challenge token
             var tokenType = principal.FindFirstValue("token_type");
-            if (tokenType != "mfa_challenge") return null;
+            if (tokenType != "mfa_challenge")
+                return null;
 
-            var sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
-            return Guid.TryParse(sub, out var id) ? id : null;
+            var sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(sub, out var id))
+                return null;
+
+            return id;
         }
         catch
         {
             return null;
         }
     }
+
 }
