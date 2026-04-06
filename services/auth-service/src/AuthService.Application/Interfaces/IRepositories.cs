@@ -14,6 +14,10 @@ public interface IUserRepository
     Task<bool> ExistsByEmailAsync(string email, CancellationToken ct = default);
 
     void Add(User user);
+    
+    void AddRefreshToken(Domain.Entities.RefreshToken token);
+    void AddBackupCode(Domain.Entities.BackupCode backupCode);
+    void RemoveBackupCodesForUser(Guid userId);
 }
 
 public interface IRoleRepository

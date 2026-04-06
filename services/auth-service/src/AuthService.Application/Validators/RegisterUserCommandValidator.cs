@@ -23,3 +23,33 @@ public sealed class RegisterUserCommandValidator
             .Matches("[^a-zA-Z0-9]").WithMessage("Password must contain at least one special character.");
     }
 }
+
+public sealed class VerifyAndEnableTotpCommandValidator
+    : AbstractValidator<VerifyAndEnableTotpCommand>
+{
+    public VerifyAndEnableTotpCommandValidator()
+    {
+        RuleFor(x => x.UserId)
+            .NotEmpty().WithMessage("User ID is required.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("TOTP code is required.")
+            .Length(6).WithMessage("TOTP code must be exactly 6 digits.")
+            .Matches("^[0-9]{6}$").WithMessage("TOTP code must contain only digits.");
+    }
+}
+
+public sealed class DisableTwoFactorCommandValidator
+    : AbstractValidator<DisableTwoFactorCommand>
+{
+    public DisableTwoFactorCommandValidator()
+    {
+        RuleFor(x => x.UserId)
+            .NotEmpty().WithMessage("User ID is required.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("TOTP code is required.")
+            .Length(6).WithMessage("TOTP code must be exactly 6 digits.")
+            .Matches("^[0-9]{6}$").WithMessage("TOTP code must contain only digits.");
+    }
+}

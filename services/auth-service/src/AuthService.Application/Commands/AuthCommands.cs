@@ -77,12 +77,13 @@ public sealed class LoginCommandHandler(
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
 
         user.RecordSuccessfulLogin();
-        user.AddRefreshToken(
+        var refreshToken = user.AddRefreshToken(
             tokenHash,
             familyId,
             DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime),
             deviceInfo);
 
+        userRepository.AddRefreshToken(refreshToken);
         await unitOfWork.SaveChangesAsync(ct);
 
         foreach (var evt in user.DomainEvents)
@@ -131,7 +132,8 @@ public sealed class CompleteMfaLoginCommandHandler(
             throw new DomainException("2FA is not configured.", "MFA_NOT_CONFIGURED");
 
         // Replay protection — same code cannot be used twice
-        if (await replayGuard.HasBeenUsedAsync(userId.ToString(), command.Code, ct))
+        var isReplay = await replayGuard.HasBeenUsedAsync(userId.ToString(), command.Code, ct);
+        if (isReplay)
             throw new InvalidTotpCodeException();
 
         var secret = encryptionService.Decrypt(user.TotpSecretEncrypted);
@@ -147,12 +149,13 @@ public sealed class CompleteMfaLoginCommandHandler(
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
 
         user.RecordSuccessfulLogin();
-        user.AddRefreshToken(
+        var refreshToken = user.AddRefreshToken(
             tokenHash,
             familyId,
             DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime),
             command.DeviceInfo);
 
+        userRepository.AddRefreshToken(refreshToken);
         await unitOfWork.SaveChangesAsync(ct);
 
         foreach (var evt in user.DomainEvents)
@@ -210,12 +213,13 @@ public sealed class LoginWithBackupCodeCommandHandler(
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
 
         user.RecordSuccessfulLogin();
-        user.AddRefreshToken(
+        var refreshToken = user.AddRefreshToken(
             tokenHash,
             familyId,
             DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime),
             command.DeviceInfo);
 
+        userRepository.AddRefreshToken(refreshToken);
         await unitOfWork.SaveChangesAsync(ct);
 
         foreach (var evt in user.DomainEvents)
@@ -279,11 +283,12 @@ public sealed class RefreshTokenCommandHandler(
         // Rotate — revoke old, issue new in same family
         existingToken.Revoke();
         var (rawRefreshToken, newTokenHash, _) = tokenService.GenerateRefreshToken();
-        user.AddRefreshToken(
+        var refreshToken = user.AddRefreshToken(
             newTokenHash,
             existingToken.FamilyId,
             DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime));
 
+        userRepository.AddRefreshToken(refreshToken);
         var accessToken = tokenService.GenerateAccessToken(user.Id, user.Email, roles);
 
         await unitOfWork.SaveChangesAsync(ct);
