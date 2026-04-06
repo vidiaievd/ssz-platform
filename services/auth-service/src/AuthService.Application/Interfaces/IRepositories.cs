@@ -14,6 +14,8 @@ public interface IUserRepository
     Task<bool> ExistsByEmailAsync(string email, CancellationToken ct = default);
 
     void Add(User user);
+    
+    void AddRefreshToken(Domain.Entities.RefreshToken token);
 }
 
 public interface IRoleRepository
