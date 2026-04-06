@@ -75,6 +75,9 @@ public sealed class VerifyAndEnableTotpCommandHandler(
         // Mark TOTP as verified so EnableTwoFactor invariant passes
         user.ConfirmTotpVerification();
 
+        // Remove existing backup codes from database
+        userRepository.RemoveBackupCodesForUser(user.Id);
+
         // Generate 8 backup codes
         var generatedCodes = backupCodeService.GenerateCodes(8).ToList();
         var backupCodeEntities = generatedCodes
@@ -82,6 +85,11 @@ public sealed class VerifyAndEnableTotpCommandHandler(
             .ToList();
 
         user.EnableTwoFactor(backupCodeEntities);
+        
+        // Add backup codes to EF context
+        foreach (var backupCode in backupCodeEntities)
+            userRepository.AddBackupCode(backupCode);
+        
         await unitOfWork.SaveChangesAsync(ct);
 
         foreach (var evt in user.DomainEvents)
@@ -125,6 +133,7 @@ public sealed class DisableTwoFactorCommandHandler(
             throw new InvalidTotpCodeException();
 
         user.DisableTwoFactor();
+        userRepository.RemoveBackupCodesForUser(user.Id);
         await unitOfWork.SaveChangesAsync(ct);
 
         foreach (var evt in user.DomainEvents)
