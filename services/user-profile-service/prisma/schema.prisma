@@ -1,0 +1,184 @@
+// Prisma schema for User Profile Service
+// Database: profiles_db (PostgreSQL)
+// Each enum and model maps to a separate table
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum ProfileType {
+  STUDENT
+  TUTOR
+}
+
+enum LanguageLevel {
+  A1
+  A2
+  B1
+  B2
+  C1
+  C2
+}
+
+enum TutorProficiency {
+  NATIVE
+  C2
+  C1
+  B2
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// ─── Base Profile ─────────────────────────────────────────────────────────────
+
+model Profile {
+  id          String      @id @default(uuid())
+  // Reference to user in Auth Service — intentionally no foreign key (cross-service boundary)
+  userId      String      @unique @map("user_id")
+  displayName String      @map("display_name")
+  firstName   String?     @map("first_name")
+  lastName    String?     @map("last_name")
+  avatarUrl   String?     @map("avatar_url")
+  bio         String?
+  timezone    String      @default("UTC")
+  locale      String      @default("en")
+  profileType ProfileType @map("profile_type")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  // Relations
+  studentProfile          StudentProfile?
+  tutorProfile            TutorProfile?
+  notificationPreferences NotificationPreferences?
+
+  @@index([userId])
+  @@index([profileType])
+  @@index([deletedAt])
+  @@map("profiles")
+}
+
+// ─── Student Profile ──────────────────────────────────────────────────────────
+
+model StudentProfile {
+  id                 String    @id @default(uuid())
+  profileId          String    @unique @map("profile_id")
+  nativeLanguage     String    @map("native_language")
+  currentStreakDays  Int       @default(0) @map("current_streak_days")
+  totalStudyMinutes  Int       @default(0) @map("total_study_minutes")
+  xpPoints           Int       @default(0) @map("xp_points")
+
+  // Relations
+  profile         Profile                 @relation(fields: [profileId], references: [id])
+  targetLanguages StudentTargetLanguage[]
+
+  @@map("student_profiles")
+}
+
+model StudentTargetLanguage {
+  id               String        @id @default(uuid())
+  studentProfileId String        @map("student_profile_id")
+  languageCode     String        @map("language_code")
+  currentLevel     LanguageLevel @map("current_level")
+  targetLevel      LanguageLevel? @map("target_level")
+  startedAt        DateTime      @default(now()) @map("started_at")
+
+  // Relations
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id])
+
+  @@unique([studentProfileId, languageCode])
+  @@map("student_target_languages")
+}
+
+// ─── Tutor Profile ────────────────────────────────────────────────────────────
+
+model TutorProfile {
+  id                  String   @id @default(uuid())
+  profileId           String   @unique @map("profile_id")
+  headline            String
+  yearsOfExperience   Int      @map("years_of_experience")
+  hourlyRate          Decimal? @map("hourly_rate") @db.Decimal(10, 2)
+  currency            String?  @db.Char(3)
+  isAvailableForHire  Boolean  @default(true) @map("is_available_for_hire")
+
+  // Relations
+  profile        Profile              @relation(fields: [profileId], references: [id])
+  languages      TutorLanguage[]
+  qualifications TutorQualification[]
+
+  @@map("tutor_profiles")
+}
+
+model TutorLanguage {
+  id             String           @id @default(uuid())
+  tutorProfileId String           @map("tutor_profile_id")
+  languageCode   String           @map("language_code")
+  proficiency    TutorProficiency
+  // Array of level codes the tutor is willing to teach, e.g. ["A1","A2","B1"]
+  teachesLevels  String[]         @map("teaches_levels")
+
+  // Relations
+  tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id])
+
+  @@unique([tutorProfileId, languageCode])
+  @@map("tutor_languages")
+}
+
+model TutorQualification {
+  id                 String             @id @default(uuid())
+  tutorProfileId     String             @map("tutor_profile_id")
+  title              String
+  institution        String
+  year               Int
+  verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
+  documentUrl        String?            @map("document_url")
+  createdAt          DateTime           @default(now()) @map("created_at")
+
+  // Relations
+  tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id])
+
+  @@map("tutor_qualifications")
+}
+
+// ─── Notification Preferences ─────────────────────────────────────────────────
+
+model NotificationPreferences {
+  id                    String   @id @default(uuid())
+  profileId             String   @unique @map("profile_id")
+  emailEnabled          Boolean  @default(true) @map("email_enabled")
+  pushEnabled           Boolean  @default(true) @map("push_enabled")
+  studyRemindersEnabled Boolean  @default(true) @map("study_reminders_enabled")
+  // Time in "HH:mm" format, e.g. "09:00"
+  reminderTime          String?  @map("reminder_time")
+  quietHoursStart       String?  @map("quiet_hours_start")
+  quietHoursEnd         String?  @map("quiet_hours_end")
+
+  // Relations
+  profile Profile @relation(fields: [profileId], references: [id])
+
+  @@map("notification_preferences")
+}
+
+// ─── Idempotency ──────────────────────────────────────────────────────────────
+
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  // Unique event ID from the message broker (used for deduplication)
+  eventId     String   @unique @map("event_id")
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@index([eventId])
+  @@map("processed_events")
+}
