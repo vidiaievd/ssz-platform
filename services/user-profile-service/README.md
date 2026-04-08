@@ -1,178 +1,98 @@
-# User Profile Service
+<p align="center">
+  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+</p>
 
-NestJS microservice for managing user profiles on the SSZ EdTech platform.
-Handles student and tutor profiles, target languages, qualifications, and notification preferences.
+[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+[circleci-url]: https://circleci.com/gh/nestjs/nest
 
-## Tech Stack
+  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p align="center">
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
+<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
+<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
+<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
+  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
+    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
+  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+</p>
+  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
+  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-- **Framework**: NestJS (TypeScript)
-- **ORM**: Prisma 5
-- **Database**: PostgreSQL 16 (`profiles_db`)
-- **Messaging**: RabbitMQ (AMQP via `amqplib`)
-- **Cache**: Redis (ioredis)
-- **Auth**: JWT RS256 validation via RSA public key (no Auth Service round-trip)
-- **Logging**: Pino (`nestjs-pino`)
-- **Docs**: Swagger at `/api/docs`
+## Description
 
-## Getting Started
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-### Prerequisites
-
-- Node.js 20+
-- Docker + Docker Compose
-- Running infrastructure (postgres, rabbitmq, redis) from `../../infrastructure/docker-compose.yml`
-
-### 1. Install dependencies
-
-```bash
-npm install
-```
-
-### 2. Configure environment
+## Project setup
 
 ```bash
-cp .env.example .env
-# Edit .env — set DATABASE_URL, RABBITMQ_URL, REDIS_PASSWORD, JWT_PUBLIC_KEY
+$ npm install
 ```
 
-The `JWT_PUBLIC_KEY` must be the RSA-4096 public key exported from the Auth Service in PEM format.
-Replace newlines with `\n` when putting it in the `.env` file.
-
-### 3. Run database migrations
+## Compile and run the project
 
 ```bash
-# Creates tables in profiles_db
-npx prisma migrate dev --name InitialCreate
+# development
+$ npm run start
+
+# watch mode
+$ npm run start:dev
+
+# production mode
+$ npm run start:prod
 ```
 
-### 4. Start in development mode
+## Run tests
 
 ```bash
-npm run start:dev
+# unit tests
+$ npm run test
+
+# e2e tests
+$ npm run test:e2e
+
+# test coverage
+$ npm run test:cov
 ```
 
-Service starts on `http://localhost:3001`  
-Swagger UI: `http://localhost:3001/api/docs`
+## Deployment
 
-### 5. Run with Docker Compose (standalone)
+When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
 
-First create the shared Docker network if it doesn't exist:
+If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
 
 ```bash
-docker network create ssz_network
+$ npm install -g @nestjs/mau
+$ mau deploy
 ```
 
-Then start the service and its dedicated DB:
+With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
-```bash
-docker compose up --build
-```
+## Resources
 
-> Note: This compose file spins up only `user-profile-service` + `profiles_db`.
-> RabbitMQ and Redis must be running via `../../infrastructure/docker-compose.yml`.
+Check out a few resources that may come in handy when working with NestJS:
 
-## Environment Variables
+- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
+- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
+- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
+- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
+- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
+- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
+- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
+- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `NODE_ENV` | No | `development` | `development` / `production` / `test` |
-| `PORT` | No | `3001` | HTTP port |
-| `DATABASE_URL` | **Yes** | — | PostgreSQL connection string |
-| `RABBITMQ_URL` | **Yes** | — | AMQP URL, e.g. `amqp://user:pass@host:5672` |
-| `RABBITMQ_QUEUE_PROFILES` | No | `profile_service_queue` | Incoming queue name |
-| `RABBITMQ_EXCHANGE_USERS` | No | `users_exchange` | Exchange to consume from |
-| `RABBITMQ_EXCHANGE_PROFILES` | No | `profiles_exchange` | Exchange to publish to |
-| `REDIS_HOST` | No | `localhost` | Redis host |
-| `REDIS_PORT` | No | `6379` | Redis port |
-| `REDIS_PASSWORD` | No | — | Redis password |
-| `REDIS_TTL_SECONDS` | No | `3600` | Default cache TTL |
-| `JWT_PUBLIC_KEY` | **Yes** | — | RSA PEM public key from Auth Service |
-| `JWT_ALGORITHM` | No | `RS256` | JWT algorithm |
-| `LOG_LEVEL` | No | `info` | `fatal`/`error`/`warn`/`info`/`debug`/`trace` |
+## Support
 
-## API Endpoints
+Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
 
-All routes are prefixed with `/api/v1/`. Protected routes require `Authorization: Bearer <JWT>`.
+## Stay in touch
 
-### Profiles
+- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
+- Website - [https://nestjs.com](https://nestjs.com/)
+- Twitter - [@nestframework](https://twitter.com/nestframework)
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `GET` | `/profiles/me` | ✅ | Get own profile |
-| `PATCH` | `/profiles/me` | ✅ | Update own profile base fields |
-| `GET` | `/profiles/:userId` | ✅ | Get public profile by userId |
+## License
 
-### Student Profiles
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `GET` | `/profiles/me/student` | ✅ | Get own student profile |
-| `POST` | `/profiles/me/student` | ✅ | Create or update student profile |
-| `POST` | `/profiles/me/student/languages` | ✅ | Add target language |
-| `DELETE` | `/profiles/me/student/languages/:code` | ✅ | Remove target language |
-
-### Tutor Profiles
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `GET` | `/profiles/me/tutor` | ✅ | Get own tutor profile |
-| `POST` | `/profiles/me/tutor` | ✅ | Create or update tutor profile |
-| `POST` | `/profiles/me/tutor/languages` | ✅ | Add teaching language |
-| `POST` | `/profiles/me/tutor/qualifications` | ✅ | Add qualification |
-| `GET` | `/tutors` | — | Search tutors (public) |
-
-### Preferences
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `GET` | `/preferences/me` | ✅ | Get notification preferences |
-| `PATCH` | `/preferences/me` | ✅ | Update notification preferences |
-
-## RabbitMQ Events
-
-### Consumed (from `users_exchange`)
-
-| Routing Key | Payload | Action |
-|---|---|---|
-| `user.registered` | `{ userId, email, role, timestamp }` | Creates a new profile |
-| `user.deleted` | `{ userId, timestamp }` | Soft-deletes the profile |
-
-Event deduplication is handled via the `processed_events` table.
-
-### Published (to `profiles_exchange`)
-
-| Routing Key | Trigger |
-|---|---|
-| `profile.created` | After profile created from `user.registered` event |
-| `profile.updated` | After `PATCH /profiles/me` |
-| `student.profile.completed` | When student profile + at least one language set |
-| `tutor.profile.completed` | When tutor profile + at least one language set |
-
-## Running Tests
-
-```bash
-# Unit tests
-npm test
-
-# Unit tests with coverage
-npm run test:cov
-
-# Watch mode
-npm run test:watch
-```
-
-## Database Commands
-
-```bash
-# Generate Prisma client after schema changes
-npm run db:generate
-
-# Create and apply a new migration (dev only)
-npm run db:migrate
-
-# Apply pending migrations (production)
-npm run db:migrate:prod
-
-# Open Prisma Studio (visual DB browser)
-npm run db:studio
-```
+Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
