@@ -1,13 +1,16 @@
 import { NestFactory } from '@nestjs/core';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Disable default Nest logger during bootstrap; Pino takes over after init
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  const port = process.env.PORT ?? 3000;
+  // Replace Nest's built-in logger with Pino for all framework-level logs
+  app.useLogger(app.get(Logger));
+
+  const port = process.env.PORT ?? 3001;
   await app.listen(port);
-
-  console.log(`User Profile Service running on port ${port}`);
 }
 
 bootstrap();
