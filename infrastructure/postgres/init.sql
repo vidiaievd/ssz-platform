@@ -1,28 +1,27 @@
--- Create separate databases for each service
--- Each service connects only to its own database
+-- Create separate databases for each service.
+-- Each service connects only to its own database and user.
+-- Principle of least privilege: one service cannot touch another service's data.
 
-CREATE DATABASE auth_db;
-CREATE DATABASE learning_db;
-CREATE DATABASE profiles_db;
-
--- Create dedicated users per service
--- Principle of least privilege — auth_service cannot touch learning_db
-
+-- ============================================================================
+-- Auth Service
+-- ============================================================================
 CREATE USER auth_service WITH PASSWORD 'auth_service_password';
-GRANT ALL PRIVILEGES ON DATABASE auth_db TO auth_service;
+CREATE DATABASE auth_db OWNER auth_service;
 
-CREATE USER learning_service WITH PASSWORD 'learning_service_password';
-GRANT ALL PRIVILEGES ON DATABASE learning_db TO learning_service;
-
+-- ============================================================================
+-- User Profile Service
+-- ============================================================================
 CREATE USER profile_service WITH PASSWORD 'profile_service_password';
-GRANT ALL PRIVILEGES ON DATABASE profiles_db TO profile_service;
+CREATE DATABASE profiles_db OWNER profile_service;
 
--- Required for PostgreSQL 15+ — grant schema usage
+-- ============================================================================
+-- Schema permissions (required for PostgreSQL 15+)
+-- Even with OWNER set above, explicit schema grants make intent clear
+-- and protect against edge cases when databases are restored from dumps.
+-- ============================================================================
+
 \c auth_db
 GRANT ALL ON SCHEMA public TO auth_service;
-
-\c learning_db
-GRANT ALL ON SCHEMA public TO learning_service;
 
 \c profiles_db
 GRANT ALL ON SCHEMA public TO profile_service;
