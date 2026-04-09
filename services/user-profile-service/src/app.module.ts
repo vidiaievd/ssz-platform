@@ -1,13 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
-import { AppController } from './app.controller';
-import { AppConfigModule } from './config/app-config.module';
-import { Env } from './config/configuration';
+import { AppController } from './app.controller.js';
+import { AppConfigModule } from './config/app-config.module.js';
+import { Env } from './config/configuration.js';
+import { PrismaModule } from './infrastructure/database/prisma.module.js';
 
 @Module({
   imports: [
     AppConfigModule,
+    PrismaModule,
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env>) => {
@@ -17,7 +19,10 @@ import { Env } from './config/configuration';
             // Pretty-print in development, plain JSON in production.
             // pino-pretty is a dev dependency and is never bundled in prod.
             transport: isDev
-              ? { target: 'pino-pretty', options: { colorize: true, singleLine: false } }
+              ? {
+                  target: 'pino-pretty',
+                  options: { colorize: true, singleLine: false },
+                }
               : undefined,
             level: isDev ? 'debug' : 'info',
             // Redact sensitive headers from logs
