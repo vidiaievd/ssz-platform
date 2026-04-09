@@ -1,20 +1,14 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
   ApiOperation,
-  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
+import { Public } from '../../../../common/decorators/public.decorator.js';
+import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { CreateProfileCommand } from '../../application/commands/create-profile/create-profile.command.js';
 import { UpdateProfileCommand } from '../../application/commands/update-profile/update-profile.command.js';
 import { GetProfileByUserIdQuery } from '../../application/queries/get-profile-by-user-id/get-profile-by-user-id.query.js';
@@ -31,37 +25,29 @@ export class ProfilesController {
     private readonly queryBus: QueryBus,
   ) {}
 
-  // Temporary endpoint for manual testing before JWT guard is added in Step 10.
-  // userId is passed as a query param — will be replaced by @CurrentUser() decorator.
   @Get('me')
   @ApiOperation({ summary: 'Get my profile' })
-  @ApiQuery({
-    name: 'userId',
-    description: 'Temporary: pass userId until JWT guard is added',
-  })
   @ApiResponse({ status: 200, type: ProfileResponseDto })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Profile not found' })
   async getMyProfile(
-    @Query('userId') userId: string,
+    @CurrentUser() user: JwtPayload,
   ): Promise<ProfileResponseDto> {
-    return this.queryBus.execute(new GetProfileByUserIdQuery(userId));
+    return this.queryBus.execute(new GetProfileByUserIdQuery(user.sub));
   }
 
   @Patch('me')
   @ApiOperation({ summary: 'Update my profile' })
-  @ApiQuery({
-    name: 'userId',
-    description: 'Temporary: pass userId until JWT guard is added',
-  })
   @ApiResponse({ status: 200, description: 'Profile updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Profile not found' })
   async updateMyProfile(
-    @Query('userId') userId: string,
+    @CurrentUser() user: JwtPayload,
     @Body() dto: UpdateProfileRequestDto,
   ): Promise<void> {
     await this.commandBus.execute(
       new UpdateProfileCommand(
-        userId,
+        user.sub,
         dto.displayName,
         dto.firstName,
         dto.lastName,
@@ -73,10 +59,11 @@ export class ProfilesController {
     );
   }
 
-  // Temporary test endpoint — creates a profile without auth.
-  // Removed in Step 10 when JWT guard is wired.
+  // Temporary test endpoint — public so it can be called without a real JWT.
+  // Used to seed profiles during development. Remove before production.
+  @Public()
   @Post('test')
-  @ApiOperation({ summary: '[TEST ONLY] Create a profile manually' })
+  @ApiOperation({ summary: '[TEST ONLY] Create a profile without auth' })
   @ApiResponse({
     status: 201,
     description: 'Profile created, returns profile id',
@@ -84,11 +71,11 @@ export class ProfilesController {
   @ApiResponse({ status: 409, description: 'Profile already exists' })
   async createTestProfile(
     @Body() dto: CreateProfileRequestDto,
-    @Headers('x-user-id') userId: string,
   ): Promise<{ id: string }> {
+    // userId comes from the DTO for testing purposes only
     const id = await this.commandBus.execute(
       new CreateProfileCommand(
-        userId,
+        dto.userId,
         dto.displayName,
         dto.profileType,
         dto.firstName,
