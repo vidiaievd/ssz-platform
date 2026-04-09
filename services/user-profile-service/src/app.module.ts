@@ -8,6 +8,8 @@ import { AppConfigModule } from './config/app-config.module.js';
 import type { Env } from './config/configuration.js';
 import { AuthModule } from './infrastructure/auth/auth.module.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
+import { RabbitMqModule } from './infrastructure/messaging/rabbitmq.module.js';
+import { EventsModule } from './modules/events/events.module.js';
 import { ProfilesModule } from './modules/profiles/profiles.module.js';
 
 @Module({
@@ -15,7 +17,9 @@ import { ProfilesModule } from './modules/profiles/profiles.module.js';
     AppConfigModule,
     AuthModule,
     PrismaModule,
+    RabbitMqModule,
     ProfilesModule,
+    EventsModule,
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env>) => {
@@ -37,8 +41,6 @@ import { ProfilesModule } from './modules/profiles/profiles.module.js';
   ],
   controllers: [AppController],
   providers: [
-    // Register JwtAuthGuard as a global guard via APP_GUARD token.
-    // Every route is protected by default; use @Public() to opt out.
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
