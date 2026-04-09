@@ -1,7 +1,9 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
+import { DomainExceptionFilter } from './common/filters/domain-exception.filter.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -11,6 +13,14 @@ async function bootstrap() {
   // Global prefix for all versioned API routes.
   // /health is excluded so load balancers can reach it without the prefix.
   app.setGlobalPrefix('api/v1', { exclude: ['health'] });
+
+  // Validate and transform all incoming request bodies.
+  // whitelist: strip properties not in the DTO.
+  // transform: convert plain objects to DTO class instances.
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
+  // Map domain exceptions to HTTP responses globally.
+  app.useGlobalFilters(new DomainExceptionFilter());
 
   // Swagger / OpenAPI
   const swaggerConfig = new DocumentBuilder()
