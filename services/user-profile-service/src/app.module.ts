@@ -1,15 +1,19 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller.js';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { AppConfigModule } from './config/app-config.module.js';
-import { Env } from './config/configuration.js';
+import type { Env } from './config/configuration.js';
+import { AuthModule } from './infrastructure/auth/auth.module.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { ProfilesModule } from './modules/profiles/profiles.module.js';
 
 @Module({
   imports: [
     AppConfigModule,
+    AuthModule,
     PrismaModule,
     ProfilesModule,
     LoggerModule.forRootAsync({
@@ -18,8 +22,6 @@ import { ProfilesModule } from './modules/profiles/profiles.module.js';
         const isDev = config.get('NODE_ENV') !== 'production';
         return {
           pinoHttp: {
-            // Pretty-print in development, plain JSON in production.
-            // pino-pretty is a dev dependency and is never bundled in prod.
             transport: isDev
               ? {
                   target: 'pino-pretty',
@@ -27,7 +29,6 @@ import { ProfilesModule } from './modules/profiles/profiles.module.js';
                 }
               : undefined,
             level: isDev ? 'debug' : 'info',
-            // Redact sensitive headers from logs
             redact: ['req.headers.authorization'],
           },
         };
@@ -35,6 +36,13 @@ import { ProfilesModule } from './modules/profiles/profiles.module.js';
     }),
   ],
   controllers: [AppController],
-  providers: [],
+  providers: [
+    // Register JwtAuthGuard as a global guard via APP_GUARD token.
+    // Every route is protected by default; use @Public() to opt out.
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
 export class AppModule {}
