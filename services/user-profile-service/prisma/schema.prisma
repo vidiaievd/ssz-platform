@@ -29,3 +29,15 @@ model Profile {
 
   @@map("profiles")
 }
+
+// Stores IDs of already-processed RabbitMQ events.
+// Checked before handling any incoming event to guarantee idempotency —
+// duplicate deliveries are silently ignored.
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique
+  eventType   String
+  processedAt DateTime @default(now())
+
+  @@map("processed_events")
+}
