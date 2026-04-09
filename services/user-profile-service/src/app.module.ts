@@ -5,11 +5,13 @@ import { AppController } from './app.controller.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import { Env } from './config/configuration.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
+import { ProfilesModule } from './modules/profiles/profiles.module.js';
 
 @Module({
   imports: [
     AppConfigModule,
     PrismaModule,
+    ProfilesModule,
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env>) => {
