@@ -36,7 +36,9 @@ public sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
         builder.HasData(
             CreateRole("00000000-0000-0000-0001-000000000001", "User", "Standard user"),
             CreateRole("00000000-0000-0000-0001-000000000002", "Admin", "Administrator"),
-            CreateRole("00000000-0000-0000-0001-000000000003", "Premium", "Premium subscriber")
+            CreateRole("00000000-0000-0000-0001-000000000003", "Premium", "Premium subscriber"),
+            CreateRole("00000000-0000-0000-0001-000000000004", "Student", "Language learner"),
+            CreateRole("00000000-0000-0000-0001-000000000005", "Tutor", "Language teacher")
         );
     }
 

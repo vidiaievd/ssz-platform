@@ -8,6 +8,7 @@ import {
 import type { Response } from 'express';
 import { ProfileAlreadyExistsException } from '../../modules/profiles/domain/exceptions/profile-already-exists.exception.js';
 import { ProfileNotFoundException } from '../../modules/profiles/domain/exceptions/profile-not-found.exception.js';
+import { ProfileTypeMismatchException } from '../../modules/profiles/domain/exceptions/profile-type-mismatch.exception.js';
 import { StudentProfileAlreadyExistsException } from '../../modules/students/domain/exceptions/student-profile-already-exists.exception.js';
 import { StudentProfileNotFoundException } from '../../modules/students/domain/exceptions/student-profile-not-found.exception.js';
 import { TutorProfileAlreadyExistsException } from '../../modules/tutors/domain/exceptions/tutor-profile-already-exists.exception.js';
@@ -18,6 +19,7 @@ import { TutorProfileNotFoundException } from '../../modules/tutors/domain/excep
 @Catch(
   ProfileNotFoundException,
   ProfileAlreadyExistsException,
+  ProfileTypeMismatchException,
   StudentProfileNotFoundException,
   StudentProfileAlreadyExistsException,
   TutorProfileNotFoundException,
@@ -48,6 +50,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
     if (exception instanceof ProfileAlreadyExistsException) {
       return { status: HttpStatus.CONFLICT, code: 'PROFILE_ALREADY_EXISTS' };
+    }
+    if (exception instanceof ProfileTypeMismatchException) {
+      return { status: HttpStatus.CONFLICT, code: 'PROFILE_TYPE_MISMATCH' };
     }
     if (exception instanceof StudentProfileNotFoundException) {
       return {

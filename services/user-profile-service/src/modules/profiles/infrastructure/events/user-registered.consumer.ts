@@ -17,6 +17,7 @@ import { ProfileType } from '../../domain/value-objects/profile-type.vo.js';
 interface UserRegisteredPayload {
   user_id: string;
   email: string;
+  role?: string; // 'student' | 'tutor' — present in events v2+
 }
 
 interface UserRegisteredEnvelope {
@@ -107,12 +108,19 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
                 `Processing user.registered for userId: ${data.payload.user_id}`,
               );
 
+              // Map auth-service role to domain ProfileType.
+              // Defaults to STUDENT if role is absent or unrecognised.
+              const profileType =
+                data.payload.role?.toLowerCase() === 'tutor'
+                  ? ProfileType.TUTOR
+                  : ProfileType.STUDENT;
+
               await this.commandBus.execute(
                 new CreateProfileCommand(
                   data.payload.user_id,
                   // Use email prefix as initial display name — user updates via PATCH /me
                   data.payload.email.split('@')[0],
-                  ProfileType.STUDENT,
+                  profileType,
                 ),
               );
 
