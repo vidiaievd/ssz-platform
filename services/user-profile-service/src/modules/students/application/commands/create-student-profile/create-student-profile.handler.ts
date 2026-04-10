@@ -2,6 +2,7 @@ import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { randomUUID } from 'crypto';
 import { ProfileNotFoundException } from '../../../../profiles/domain/exceptions/profile-not-found.exception.js';
+import { ProfileTypeMismatchException } from '../../../../profiles/domain/exceptions/profile-type-mismatch.exception.js';
 import type { IProfileRepository } from '../../../../profiles/domain/repositories/profile.repository.interface.js';
 import { PROFILE_REPOSITORY } from '../../../../profiles/domain/repositories/profile.repository.interface.js';
 import { ProfileType } from '../../../../profiles/domain/value-objects/profile-type.vo.js';
@@ -31,8 +32,10 @@ export class CreateStudentProfileHandler implements ICommandHandler<CreateStuden
     }
 
     if (profile.profileType !== ProfileType.STUDENT) {
-      throw new ProfileNotFoundException(
-        `Profile ${command.userId} is not a student profile`,
+      throw new ProfileTypeMismatchException(
+        command.userId,
+        ProfileType.STUDENT,
+        profile.profileType,
       );
     }
 

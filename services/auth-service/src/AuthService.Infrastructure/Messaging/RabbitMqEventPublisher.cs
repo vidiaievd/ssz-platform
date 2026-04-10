@@ -163,7 +163,7 @@ public sealed record EventEnvelope
     // Each event type exposes only what consumers need
     private static object MapPayload(IDomainEvent e) => e switch
     {
-        UserRegisteredEvent ev => new { ev.UserId, ev.Email },
+        UserRegisteredEvent ev => new { ev.UserId, ev.Email, ev.Role },
         UserLoggedInEvent ev => new { ev.UserId, ev.MfaUsed },
         User2FAEnabledEvent ev => new { ev.UserId },
         User2FADisabledEvent ev => new { ev.UserId },

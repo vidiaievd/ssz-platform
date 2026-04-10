@@ -22,7 +22,7 @@ public sealed class AuthController(ISender mediator) : ControllerBase
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new RegisterUserCommand(request.Email, request.Password), ct);
+            new RegisterUserCommand(request.Email, request.Password, request.Role), ct);
 
         return CreatedAtAction(nameof(Register), new { id = result.UserId }, result);
     }
