@@ -1,19 +1,21 @@
-import { Inject, Logger } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { randomUUID } from 'crypto';
 import { Profile } from '../../../domain/entities/profile.entity.js';
 import { ProfileAlreadyExistsException } from '../../../domain/exceptions/profile-already-exists.exception.js';
 import type { IProfileRepository } from '../../../domain/repositories/profile.repository.interface.js';
 import { PROFILE_REPOSITORY } from '../../../domain/repositories/profile.repository.interface.js';
+import type { IEventPublisher } from '../../../../../shared/application/ports/event-publisher.interface.js';
+import { EVENT_PUBLISHER } from '../../../../../shared/application/ports/event-publisher.interface.js';
 import { CreateProfileCommand } from './create-profile.command.js';
 
 @CommandHandler(CreateProfileCommand)
 export class CreateProfileHandler implements ICommandHandler<CreateProfileCommand> {
-  private readonly logger = new Logger(CreateProfileHandler.name);
-
   constructor(
     @Inject(PROFILE_REPOSITORY)
     private readonly profileRepository: IProfileRepository,
+    @Inject(EVENT_PUBLISHER)
+    private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(command: CreateProfileCommand): Promise<string> {
@@ -33,16 +35,14 @@ export class CreateProfileHandler implements ICommandHandler<CreateProfileComman
         timezone: command.timezone,
         locale: command.locale,
       },
-      randomUUID(), // eventId
+      randomUUID(),
     );
 
     await this.profileRepository.save(profile);
 
-    // Log domain events — real publishing comes in Step 13
+    // Publish all domain events raised during entity creation
     for (const event of profile.getDomainEvents()) {
-      this.logger.log(
-        `Domain event raised: ${event.eventType} [${event.eventId}]`,
-      );
+      await this.eventPublisher.publish(event);
     }
     profile.clearDomainEvents();
 

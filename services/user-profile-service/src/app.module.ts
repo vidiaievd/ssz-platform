@@ -11,6 +11,8 @@ import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { RabbitMqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { EventsModule } from './modules/events/events.module.js';
 import { ProfilesModule } from './modules/profiles/profiles.module.js';
+import { StudentsModule } from './modules/students/students.module.js';
+import { TutorsModule } from './modules/tutors/tutors.module.js';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { ProfilesModule } from './modules/profiles/profiles.module.js';
     PrismaModule,
     RabbitMqModule,
     ProfilesModule,
+    StudentsModule,
+    TutorsModule,
     EventsModule,
     LoggerModule.forRootAsync({
       inject: [ConfigService],
