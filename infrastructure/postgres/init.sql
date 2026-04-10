@@ -25,3 +25,12 @@ GRANT ALL ON SCHEMA public TO auth_service;
 
 \c profiles_db
 GRANT ALL ON SCHEMA public TO profile_service;
+
+-- ============================================================================
+-- Organization Service
+-- ============================================================================
+CREATE USER org_service WITH PASSWORD 'org_service_password';
+CREATE DATABASE organizations_db OWNER org_service;
+
+\c organizations_db
+GRANT ALL ON SCHEMA public TO org_service;
