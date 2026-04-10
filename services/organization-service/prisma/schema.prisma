@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  TEACHER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+model School {
+  id          String    @id @default(uuid())
+  name        String
+  description String?   @db.Text
+  ownerId     String    // userId from user-profile-service
+  avatarUrl   String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  members     SchoolMember[]
+  invitations SchoolInvitation[]
+
+  @@map("schools")
+}
+
+model SchoolMember {
+  id        String     @id @default(uuid())
+  schoolId  String
+  school    School     @relation(fields: [schoolId], references: [id])
+  userId    String     // userId from user-profile-service
+  role      MemberRole
+  joinedAt  DateTime   @default(now())
+
+  @@unique([schoolId, userId])
+  @@map("school_members")
+}
+
+model SchoolInvitation {
+  id        String           @id @default(uuid())
+  schoolId  String
+  school    School           @relation(fields: [schoolId], references: [id])
+  email     String
+  role      MemberRole       @default(TEACHER)
+  token     String           @unique @default(uuid())
+  status    InvitationStatus @default(PENDING)
+  expiresAt DateTime
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@map("school_invitations")
+}
+
+// Idempotency guard for RabbitMQ event consumers
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique
+  eventType   String
+  processedAt DateTime @default(now())
+
+  @@map("processed_events")
+}
