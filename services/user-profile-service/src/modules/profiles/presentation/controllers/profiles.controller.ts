@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
@@ -10,6 +19,7 @@ import { CurrentUser } from '../../../../common/decorators/current-user.decorato
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { CreateProfileCommand } from '../../application/commands/create-profile/create-profile.command.js';
+import { DeleteProfileCommand } from '../../application/commands/delete-profile/delete-profile.command.js';
 import { UpdateProfileCommand } from '../../application/commands/update-profile/update-profile.command.js';
 import { GetProfileByUserIdQuery } from '../../application/queries/get-profile-by-user-id/get-profile-by-user-id.query.js';
 import { CreateProfileRequestDto } from '../dto/create-profile.request.dto.js';
@@ -57,6 +67,16 @@ export class ProfilesController {
         dto.locale,
       ),
     );
+  }
+
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Soft-delete my profile' })
+  @ApiResponse({ status: 204, description: 'Profile deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Profile not found' })
+  async deleteMyProfile(@CurrentUser() user: JwtPayload): Promise<void> {
+    await this.commandBus.execute(new DeleteProfileCommand(user.sub));
   }
 
   // Temporary test endpoint — public so it can be called without a real JWT.
