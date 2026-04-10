@@ -10,6 +10,7 @@ import { GetStudentProfileByUserIdHandler } from '../students/application/querie
 import { STUDENT_PROFILE_REPOSITORY } from '../students/domain/repositories/student-profile.repository.interface.js';
 import { StudentProfilePrismaRepository } from '../students/infrastructure/persistence/student-profile.prisma.repository.js';
 import { GetTutorProfileByUserIdHandler } from '../tutors/application/queries/get-tutor-profile-by-user-id/get-tutor-profile-by-user-id.handler.js';
+import { ListTutorsHandler } from '../tutors/application/queries/list-tutors/list-tutors.handler.js';
 import { TUTOR_PROFILE_REPOSITORY } from '../tutors/domain/repositories/tutor-profile.repository.interface.js';
 import { TutorProfilePrismaRepository } from '../tutors/infrastructure/persistence/tutor-profile.prisma.repository.js';
 import { ProfilesController } from './presentation/controllers/profiles.controller.js';
@@ -24,6 +25,7 @@ const QueryHandlers = [
   GetProfileByUserIdHandler,
   GetStudentProfileByUserIdHandler,
   GetTutorProfileByUserIdHandler,
+  ListTutorsHandler,
 ];
 
 @Module({
