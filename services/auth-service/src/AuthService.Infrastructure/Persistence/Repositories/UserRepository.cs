@@ -27,6 +27,11 @@ public sealed class UserRepository(AuthDbContext db) : IUserRepository
             .Include(u => u.Roles).ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.Id == id, ct);
 
+    public async Task<User?> FindByIdWithRolesAsync(Guid id, CancellationToken ct = default) =>
+        await db.Users
+            .Include(u => u.Roles).ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.Id == id, ct);
+
     public async Task<bool> ExistsByEmailAsync(string email, CancellationToken ct = default) =>
         await db.Users
             .AnyAsync(u => u.NormalizedEmail == email.ToUpperInvariant(), ct);

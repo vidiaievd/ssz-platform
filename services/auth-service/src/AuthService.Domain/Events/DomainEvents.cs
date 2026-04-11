@@ -5,7 +5,7 @@ namespace AuthService.Domain.Events;
 public sealed record UserRegisteredEvent(
     Guid UserId,
     string Email,
-    string Role
+    IReadOnlyList<string> Roles
 ) : IDomainEvent
 {
     public Guid EventId { get; } = Guid.NewGuid();
