@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProfileType {
+  STUDENT
+  TUTOR
+}
+
+model Profile {
+  id          String      @id @default(uuid())
+  userId      String      @unique
+  displayName String
+  firstName   String?
+  lastName    String?
+  avatarUrl   String?
+  bio         String?     @db.Text
+  timezone    String      @default("UTC")
+  locale      String      @default("en")
+  profileType ProfileType
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt      DateTime?
+  studentProfile StudentProfile?
+  tutorProfile   TutorProfile?
+
+  @@map("profiles")
+}
+
+model StudentProfile {
+  id             String                  @id @default(uuid())
+  profileId      String                  @unique
+  profile        Profile                 @relation(fields: [profileId], references: [id])
+  nativeLanguage String?
+  targetLanguages StudentTargetLanguage[]
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@map("student_profiles")
+}
+
+model StudentTargetLanguage {
+  id               String         @id @default(uuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
+  languageCode     String
+  createdAt        DateTime       @default(now())
+
+  @@unique([studentProfileId, languageCode])
+  @@map("student_target_languages")
+}
+
+model TutorProfile {
+  id                   String                 @id @default(uuid())
+  profileId            String                 @unique
+  profile              Profile                @relation(fields: [profileId], references: [id])
+  hourlyRate           Decimal?               @db.Decimal(10, 2)
+  yearsOfExperience    Int?
+  teachingLanguages    TutorTeachingLanguage[]
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  @@map("tutor_profiles")
+}
+
+model TutorTeachingLanguage {
+  id             String       @id @default(uuid())
+  tutorProfileId String
+  tutorProfile   TutorProfile @relation(fields: [tutorProfileId], references: [id])
+  languageCode   String
+  proficiency    String       // NATIVE | FLUENT | ADVANCED | INTERMEDIATE
+  createdAt      DateTime     @default(now())
+
+  @@unique([tutorProfileId, languageCode])
+  @@map("tutor_teaching_languages")
+}
+
+// Stores IDs of already-processed RabbitMQ events.
+// Checked before handling any incoming event to guarantee idempotency —
+// duplicate deliveries are silently ignored.
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique
+  eventType   String
+  processedAt DateTime @default(now())
+
+  @@map("processed_events")
+}

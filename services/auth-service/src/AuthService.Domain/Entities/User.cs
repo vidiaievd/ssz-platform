@@ -29,7 +29,7 @@ public sealed class User : AggregateRoot
     public IReadOnlyList<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
     public IReadOnlyList<BackupCode> BackupCodes => _backupCodes.AsReadOnly();
 
-    public static User Create(string email, string passwordHash)
+    public static User Create(string email, string passwordHash, string role = "student")
     {
         var user = new User
         {
@@ -38,7 +38,7 @@ public sealed class User : AggregateRoot
             PasswordHash = passwordHash,
         };
 
-        user.AddDomainEvent(new UserRegisteredEvent(user.Id, user.Email));
+        user.AddDomainEvent(new UserRegisteredEvent(user.Id, user.Email, role));
         return user;
     }
 
