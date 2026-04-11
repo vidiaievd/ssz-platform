@@ -8,7 +8,8 @@ namespace AuthService.Application.Commands;
 
 public sealed record RegisterUserCommand(
     string Email,
-    string Password) : IRequest<RegisterResponse>;
+    string Password,
+    string Role = "student") : IRequest<RegisterResponse>;
 
 public sealed class RegisterUserCommandHandler(
     IUserRepository userRepository,
@@ -29,9 +30,18 @@ public sealed class RegisterUserCommandHandler(
 
         var passwordHash = passwordHasher.Hash(command.Password);
 
-        var user = User.Create(email, passwordHash);
+        var role = command.Role.Trim().ToLowerInvariant();
+        var user = User.Create(email, passwordHash, role);
 
-        var defaultRole = await roleRepository.FindByNameAsync("User", ct);
+        var roleName = role switch
+        {
+            "tutor" => "Tutor",
+            "student" => "Student",
+            _ => "Student",
+        };
+        var defaultRole = await roleRepository.FindByNameAsync(roleName, ct)
+            ?? await roleRepository.FindByNameAsync("Student", ct)
+            ?? await roleRepository.FindByNameAsync("User", ct);
         if (defaultRole is not null)
             user.AssignRole(defaultRole);
 

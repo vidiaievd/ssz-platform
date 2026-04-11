@@ -2,7 +2,8 @@ namespace AuthService.Application.DTOs;
 
 public sealed record RegisterRequest(
     string Email,
-    string Password);
+    string Password,
+    string Role = "student");
 
 public sealed record LoginRequest(
     string Email,

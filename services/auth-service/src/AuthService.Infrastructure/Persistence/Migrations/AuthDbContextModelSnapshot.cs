@@ -191,6 +191,22 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                             Description = "Premium subscriber",
                             Name = "Premium",
                             NormalizedName = "PREMIUM"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0001-000000000004"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "Language learner",
+                            Name = "Student",
+                            NormalizedName = "STUDENT"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0001-000000000005"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "Language teacher",
+                            Name = "Tutor",
+                            NormalizedName = "TUTOR"
                         });
                 });
 
@@ -212,19 +228,16 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                         .HasColumnName("email");
 
                     b.Property<bool>("EmailVerified")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("email_verified");
 
                     b.Property<int>("FailedLoginAttempts")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("failed_login_attempts");
 
                     b.Property<bool>("IsLocked")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_locked");
@@ -257,13 +270,11 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                         .HasColumnName("totp_secret_encrypted");
 
                     b.Property<bool>("TotpVerified")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("totp_verified");
 
                     b.Property<bool>("TwoFactorEnabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("two_factor_enabled");
