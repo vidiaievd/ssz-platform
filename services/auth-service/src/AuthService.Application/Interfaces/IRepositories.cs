@@ -11,6 +11,8 @@ public interface IUserRepository
 
     Task<User?> FindByIdWithBackupCodesAsync(Guid id, CancellationToken ct = default);
 
+    Task<User?> FindByIdWithRolesAsync(Guid id, CancellationToken ct = default);
+
     Task<bool> ExistsByEmailAsync(string email, CancellationToken ct = default);
 
     void Add(User user);

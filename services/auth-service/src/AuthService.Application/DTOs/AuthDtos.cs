@@ -44,3 +44,9 @@ public sealed record TotpSetupResponse(
 
 public sealed record Enable2FAResponse(
     string[] BackupCodes);
+
+public sealed record AssignRoleRequest(
+    string RoleName);
+
+public sealed record UserRolesResponse(
+    string[] Roles);

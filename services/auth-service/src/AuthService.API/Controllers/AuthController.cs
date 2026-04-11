@@ -4,6 +4,7 @@ using AuthService.API.Extensions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AuthService.API.Controllers;
 
@@ -114,5 +115,40 @@ public sealed class AuthController(ISender mediator) : ControllerBase
         var userId = User.GetUserId();
         await mediator.Send(new RevokeAllSessionsCommand(userId), ct);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Assign a role to the authenticated user.
+    /// Student and Tutor can be self-assigned. Admin and Premium require the Admin role.
+    /// Idempotent — returns 200 OK if the role is already assigned.
+    /// </summary>
+    [HttpPost("roles")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AssignRole(
+        [FromBody] AssignRoleRequest request,
+        CancellationToken ct)
+    {
+        var userId = User.GetUserId();
+        var actorIsAdmin = User.IsInRole("Admin");
+
+        await mediator.Send(new AssignRoleCommand(userId, request.RoleName, actorIsAdmin), ct);
+
+        return Ok();
+    }
+
+    /// <summary>Return the role list from the authenticated user's JWT claims.</summary>
+    [HttpGet("roles")]
+    [Authorize]
+    [ProducesResponseType(typeof(UserRolesResponse), StatusCodes.Status200OK)]
+    public IActionResult GetMyRoles()
+    {
+        var roles = User.FindAll(ClaimTypes.Role)
+            .Select(c => c.Value)
+            .ToArray();
+
+        return Ok(new UserRolesResponse(roles));
     }
 }
