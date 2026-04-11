@@ -5,13 +5,17 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using AuthService.Application.Interfaces;
+using AuthService.Domain.Exceptions;
 
 namespace AuthService.API.Controllers;
 
 [ApiController]
 [Route("api/v1/auth")]
 [Produces("application/json")]
-public sealed class AuthController(ISender mediator) : ControllerBase
+public sealed class AuthController(
+    ISender mediator,
+    IUserRepository userRepository) : ControllerBase
 {
     /// <summary>Register a new user account.</summary>
     [HttpPost("register")]
@@ -139,14 +143,20 @@ public sealed class AuthController(ISender mediator) : ControllerBase
         return Ok();
     }
 
-    /// <summary>Return the role list from the authenticated user's JWT claims.</summary>
+    /// <summary>Return the current role list for the authenticated user, loaded from the database.</summary>
     [HttpGet("roles")]
     [Authorize]
     [ProducesResponseType(typeof(UserRolesResponse), StatusCodes.Status200OK)]
-    public IActionResult GetMyRoles()
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMyRoles(CancellationToken ct)
     {
-        var roles = User.FindAll(ClaimTypes.Role)
-            .Select(c => c.Value)
+        var userId = User.GetUserId();
+
+        var user = await userRepository.FindByIdWithRolesAsync(userId, ct)
+            ?? throw new DomainException("User not found.", "USER_NOT_FOUND");
+
+        var roles = user.Roles
+            .Select(ur => ur.Role.Name)
             .ToArray();
 
         return Ok(new UserRolesResponse(roles));
