@@ -7,25 +7,20 @@ datasource db {
   provider = "postgresql"
 }
 
-enum ProfileType {
-  STUDENT
-  TUTOR
-}
-
 model Profile {
-  id          String      @id @default(uuid())
-  userId      String      @unique
+  id          String    @id @default(uuid())
+  userId      String    @unique
   displayName String
   firstName   String?
   lastName    String?
   avatarUrl   String?
-  bio         String?     @db.Text
-  timezone    String      @default("UTC")
-  locale      String      @default("en")
-  profileType ProfileType
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  deletedAt      DateTime?
+  bio         String?   @db.Text
+  timezone    String    @default("UTC")
+  locale      String    @default("en")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
   studentProfile StudentProfile?
   tutorProfile   TutorProfile?
 
@@ -33,13 +28,13 @@ model Profile {
 }
 
 model StudentProfile {
-  id             String                  @id @default(uuid())
-  profileId      String                  @unique
-  profile        Profile                 @relation(fields: [profileId], references: [id])
-  nativeLanguage String?
+  id              String                  @id @default(uuid())
+  profileId       String                  @unique
+  profile         Profile                 @relation(fields: [profileId], references: [id])
+  nativeLanguage  String?
   targetLanguages StudentTargetLanguage[]
-  createdAt      DateTime                @default(now())
-  updatedAt      DateTime                @updatedAt
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
 
   @@map("student_profiles")
 }
@@ -56,14 +51,14 @@ model StudentTargetLanguage {
 }
 
 model TutorProfile {
-  id                   String                 @id @default(uuid())
-  profileId            String                 @unique
-  profile              Profile                @relation(fields: [profileId], references: [id])
-  hourlyRate           Decimal?               @db.Decimal(10, 2)
-  yearsOfExperience    Int?
-  teachingLanguages    TutorTeachingLanguage[]
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
+  id                String                 @id @default(uuid())
+  profileId         String                 @unique
+  profile           Profile                @relation(fields: [profileId], references: [id])
+  hourlyRate        Decimal?               @db.Decimal(10, 2)
+  yearsOfExperience Int?
+  teachingLanguages TutorTeachingLanguage[]
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
   @@map("tutor_profiles")
 }

@@ -2,10 +2,8 @@ import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { randomUUID } from 'crypto';
 import { ProfileNotFoundException } from '../../../../profiles/domain/exceptions/profile-not-found.exception.js';
-import { ProfileTypeMismatchException } from '../../../../profiles/domain/exceptions/profile-type-mismatch.exception.js';
 import type { IProfileRepository } from '../../../../profiles/domain/repositories/profile.repository.interface.js';
 import { PROFILE_REPOSITORY } from '../../../../profiles/domain/repositories/profile.repository.interface.js';
-import { ProfileType } from '../../../../profiles/domain/value-objects/profile-type.vo.js';
 import { TutorProfile } from '../../../domain/entities/tutor-profile.entity.js';
 import { TutorProfileAlreadyExistsException } from '../../../domain/exceptions/tutor-profile-already-exists.exception.js';
 import type { ITutorProfileRepository } from '../../../domain/repositories/tutor-profile.repository.interface.js';
@@ -31,17 +29,7 @@ export class CreateTutorProfileHandler implements ICommandHandler<CreateTutorPro
       throw new ProfileNotFoundException(command.userId);
     }
 
-    if (profile.profileType !== ProfileType.TUTOR) {
-      throw new ProfileTypeMismatchException(
-        command.userId,
-        ProfileType.TUTOR,
-        profile.profileType,
-      );
-    }
-
-    const existing = await this.tutorProfileRepository.findByProfileId(
-      profile.id,
-    );
+    const existing = await this.tutorProfileRepository.findByProfileId(profile.id);
     if (existing) {
       throw new TutorProfileAlreadyExistsException(profile.id);
     }

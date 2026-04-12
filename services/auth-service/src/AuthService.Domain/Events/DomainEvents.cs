@@ -5,12 +5,12 @@ namespace AuthService.Domain.Events;
 public sealed record UserRegisteredEvent(
     Guid UserId,
     string Email,
-    string Role
+    IReadOnlyList<string> Roles
 ) : IDomainEvent
 {
     public Guid EventId { get; } = Guid.NewGuid();
     public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
-    public int Version => 1;
+    public int Version => 2;
 }
 
 public sealed record UserLoggedInEvent(

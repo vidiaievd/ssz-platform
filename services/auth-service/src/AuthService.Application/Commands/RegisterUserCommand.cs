@@ -31,19 +31,18 @@ public sealed class RegisterUserCommandHandler(
         var passwordHash = passwordHasher.Hash(command.Password);
 
         var role = command.Role.Trim().ToLowerInvariant();
-        var user = User.Create(email, passwordHash, role);
 
+        var user = User.Create(email, passwordHash, new[] { role }.AsReadOnly());
+
+        // Assign exactly the role the user registered with
         var roleName = role switch
         {
             "tutor" => "Tutor",
-            "student" => "Student",
             _ => "Student",
         };
-        var defaultRole = await roleRepository.FindByNameAsync(roleName, ct)
-            ?? await roleRepository.FindByNameAsync("Student", ct)
-            ?? await roleRepository.FindByNameAsync("User", ct);
-        if (defaultRole is not null)
-            user.AssignRole(defaultRole);
+        var assignedRole = await roleRepository.FindByNameAsync(roleName, ct)
+            ?? throw new DomainException($"Role '{roleName}' not found.", "ROLE_NOT_FOUND");
+        user.AssignRole(assignedRole);
 
         userRepository.Add(user);
 

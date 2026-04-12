@@ -1,13 +1,11 @@
 import { BaseEntity } from '../../../../shared/domain/base.entity.js';
 import { ProfileCreatedEvent } from '../events/profile-created.event.js';
 import { ProfileUpdatedEvent } from '../events/profile-updated.event.js';
-import { ProfileType } from '../value-objects/profile-type.vo.js';
 
 export interface CreateProfileProps {
   id: string;
   userId: string;
   displayName: string;
-  profileType: ProfileType;
   firstName?: string;
   lastName?: string;
   avatarUrl?: string;
@@ -35,7 +33,6 @@ export interface RehydrateProfileProps extends CreateProfileProps {
 export class Profile extends BaseEntity {
   private _userId: string;
   private _displayName: string;
-  private _profileType: ProfileType;
   private _firstName: string | undefined;
   private _lastName: string | undefined;
   private _avatarUrl: string | undefined;
@@ -48,7 +45,6 @@ export class Profile extends BaseEntity {
     id: string,
     userId: string,
     displayName: string,
-    profileType: ProfileType,
     firstName: string | undefined,
     lastName: string | undefined,
     avatarUrl: string | undefined,
@@ -62,7 +58,6 @@ export class Profile extends BaseEntity {
     super(id, createdAt, updatedAt);
     this._userId = userId;
     this._displayName = displayName;
-    this._profileType = profileType;
     this._firstName = firstName;
     this._lastName = lastName;
     this._avatarUrl = avatarUrl;
@@ -79,7 +74,6 @@ export class Profile extends BaseEntity {
       props.id,
       props.userId,
       props.displayName,
-      props.profileType,
       props.firstName,
       props.lastName,
       props.avatarUrl,
@@ -92,13 +86,7 @@ export class Profile extends BaseEntity {
     );
 
     profile.addDomainEvent(
-      new ProfileCreatedEvent(
-        eventId,
-        props.id,
-        props.userId,
-        props.displayName,
-        props.profileType,
-      ),
+      new ProfileCreatedEvent(eventId, props.id, props.userId, props.displayName),
     );
 
     return profile;
@@ -110,7 +98,6 @@ export class Profile extends BaseEntity {
       props.id,
       props.userId,
       props.displayName,
-      props.profileType,
       props.firstName,
       props.lastName,
       props.avatarUrl,
@@ -143,38 +130,14 @@ export class Profile extends BaseEntity {
     this._updatedAt = new Date();
   }
 
-  // Getters
-  get userId(): string {
-    return this._userId;
-  }
-  get displayName(): string {
-    return this._displayName;
-  }
-  get profileType(): ProfileType {
-    return this._profileType;
-  }
-  get firstName(): string | undefined {
-    return this._firstName;
-  }
-  get lastName(): string | undefined {
-    return this._lastName;
-  }
-  get avatarUrl(): string | undefined {
-    return this._avatarUrl;
-  }
-  get bio(): string | undefined {
-    return this._bio;
-  }
-  get timezone(): string {
-    return this._timezone;
-  }
-  get locale(): string {
-    return this._locale;
-  }
-  get deletedAt(): Date | undefined {
-    return this._deletedAt;
-  }
-  get isDeleted(): boolean {
-    return this._deletedAt !== undefined;
-  }
+  get userId(): string { return this._userId; }
+  get displayName(): string { return this._displayName; }
+  get firstName(): string | undefined { return this._firstName; }
+  get lastName(): string | undefined { return this._lastName; }
+  get avatarUrl(): string | undefined { return this._avatarUrl; }
+  get bio(): string | undefined { return this._bio; }
+  get timezone(): string { return this._timezone; }
+  get locale(): string { return this._locale; }
+  get deletedAt(): Date | undefined { return this._deletedAt; }
+  get isDeleted(): boolean { return this._deletedAt !== undefined; }
 }

@@ -4,9 +4,9 @@ import jwt from 'jsonwebtoken';
 import type { Env } from '../../config/configuration.js';
 
 export interface JwtPayload {
-  sub: string; // userId
+  sub: string;    // userId
   email: string;
-  role: string;
+  roles: string[]; // normalized — always an array regardless of token format
 }
 
 const { verify, decode } = jwt;
@@ -43,11 +43,24 @@ export class JwtVerifierService {
     );
 
     try {
-      const payload = verify(token, this.publicKey, {
+      const raw = verify(token, this.publicKey, {
         algorithms: ['RS256'],
-      }) as JwtPayload;
+      }) as Record<string, unknown>;
 
-      this.logger.debug(`Token verified successfully for sub: ${payload.sub}`);
+      // jsonwebtoken deserializes repeated claims as a string (single) or array (multiple).
+      // Normalize to always be an array so callers never need to handle both cases.
+      const rawRoles = raw['role'] ?? raw['roles'] ?? [];
+      const roles = Array.isArray(rawRoles) ? rawRoles : [rawRoles];
+
+      const payload: JwtPayload = {
+        sub: raw['sub'] as string,
+        email: raw['email'] as string,
+        roles: roles as string[],
+      };
+
+      this.logger.debug(
+        `Token verified successfully for sub: ${payload.sub}, roles: [${payload.roles.join(', ')}]`,
+      );
       return payload;
     } catch (err) {
       this.logger.warn(
