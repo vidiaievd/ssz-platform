@@ -1,0 +1,167 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "services: all",
+      "dependsOn": [
+        "infra: up",
+        "auth: watch",
+        "profile-service: dev",
+        "organization-service: dev"
+      ],
+      "dependsOrder": "parallel",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "auth: build",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/services/auth-service/src/AuthService.API/AuthService.API.csproj",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "auth: run",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/services/auth-service/src/AuthService.API"
+      ],
+      "options": {
+        "env": {
+          "ASPNETCORE_ENVIRONMENT": "Development"
+        }
+      },
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "auth: watch",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "watch",
+        "run",
+        "--project",
+        "${workspaceFolder}/services/auth-service/src/AuthService.API"
+      ],
+      "options": {
+        "env": {
+          "ASPNETCORE_ENVIRONMENT": "Development"
+        }
+      },
+      "problemMatcher": "$msCompile",
+      "isBackground": true
+    },
+    {
+      "label": "auth: ef migrate",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "ef",
+        "database",
+        "update",
+        "--project",
+        "${workspaceFolder}/services/auth-service/src/AuthService.Infrastructure",
+        "--startup-project",
+        "${workspaceFolder}/services/auth-service/src/AuthService.API"
+      ],
+      "options": {
+        "env": {
+          "ASPNETCORE_ENVIRONMENT": "Development"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "infra: up",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "up",
+        "-d"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/infrastructure"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "infra: down",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "down"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/infrastructure"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "infra: reset (down -v)",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "down",
+        "-v"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/infrastructure"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "profile-service: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "start:dev"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/services/user-profile-service"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "profile-service: debug",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "start:debug"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/services/user-profile-service"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "organization-service: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "start:dev"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/services/organization-service"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
