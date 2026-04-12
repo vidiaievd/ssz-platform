@@ -11,13 +11,15 @@ import type { ConfirmChannel } from 'amqplib';
 import type { IProcessedEventsRepository } from '../../../../shared/application/ports/processed-events.repository.interface.js';
 import { PROCESSED_EVENTS_REPOSITORY } from '../../../../shared/application/ports/processed-events.repository.interface.js';
 import { CreateProfileCommand } from '../../application/commands/create-profile/create-profile.command.js';
-import { ProfileType } from '../../domain/value-objects/profile-type.vo.js';
+import { CreateStudentProfileCommand } from '../../../students/application/commands/create-student-profile/create-student-profile.command.js';
+import { CreateTutorProfileCommand } from '../../../tutors/application/commands/create-tutor-profile/create-tutor-profile.command.js';
 
 // Envelope shape published by Auth Service (snake_case JSON)
 interface UserRegisteredPayload {
   user_id: string;
   email: string;
-  role?: string; // 'student' | 'tutor' — present in events v2+
+  roles?: string[]; // v2 — array of lowercase role names
+  role?: string;    // v1 — kept for backward compatibility
 }
 
 interface UserRegisteredEnvelope {
@@ -108,21 +110,34 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
                 `Processing user.registered for userId: ${data.payload.user_id}`,
               );
 
-              // Map auth-service role to domain ProfileType.
-              // Defaults to STUDENT if role is absent or unrecognised.
-              const profileType =
-                data.payload.role?.toLowerCase() === 'tutor'
-                  ? ProfileType.TUTOR
-                  : ProfileType.STUDENT;
+              // Determine roles — support both v2 (roles array) and v1 (single role) formats
+              const roles: string[] =
+                data.payload.roles ??
+                (data.payload.role ? [data.payload.role] : ['student']);
 
+              const normalizedRoles = roles.map((r) => r.toLowerCase());
+
+              // Always create the base profile — use email prefix as initial display name
               await this.commandBus.execute(
                 new CreateProfileCommand(
                   data.payload.user_id,
-                  // Use email prefix as initial display name — user updates via PATCH /me
                   data.payload.email.split('@')[0],
-                  profileType,
                 ),
               );
+
+              // Create student profile if user has the student role
+              if (normalizedRoles.includes('student')) {
+                await this.commandBus.execute(
+                  new CreateStudentProfileCommand(data.payload.user_id, undefined),
+                );
+              }
+
+              // Create tutor profile if user has the tutor role
+              if (normalizedRoles.includes('tutor')) {
+                await this.commandBus.execute(
+                  new CreateTutorProfileCommand(data.payload.user_id, undefined, undefined),
+                );
+              }
 
               await this.processedEvents.markProcessed(
                 data.event_id,
@@ -131,7 +146,7 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
 
               channel.ack(msg);
               this.logger.log(
-                `Profile created for userId: ${data.payload.user_id}`,
+                `Profiles created for userId: ${data.payload.user_id} with roles: [${normalizedRoles.join(', ')}]`,
               );
             } catch (err) {
               this.logger.error(

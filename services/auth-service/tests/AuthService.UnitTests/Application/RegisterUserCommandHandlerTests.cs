@@ -110,12 +110,10 @@ public sealed class RegisterUserCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_TutorRegistration_ShouldAssignBothStudentAndTutorRoles()
+    public async Task Handle_TutorRegistration_ShouldAssignOnlyTutorRole()
     {
-        var studentRole = Role.Create("Student");
         var tutorRole = Role.Create("Tutor");
         _userRepo.ExistsByEmailAsync(Arg.Any<string>(), default).Returns(false);
-        _roleRepo.FindByNameAsync("Student", default).Returns(studentRole);
         _roleRepo.FindByNameAsync("Tutor", default).Returns(tutorRole);
         _hasher.Hash(Arg.Any<string>()).Returns("hash");
         _unitOfWork.SaveChangesAsync(default).Returns(1);
@@ -124,18 +122,20 @@ public sealed class RegisterUserCommandHandlerTests
             new RegisterUserCommand("tutor@example.com", "Password1!", "tutor"),
             default);
 
+        // Only Tutor role assigned — not Student
         _userRepo.Received(1).Add(Arg.Is<User>(u =>
-            u.Roles.Any(r => r.RoleId == studentRole.Id) &&
-            u.Roles.Any(r => r.RoleId == tutorRole.Id)));
+            u.Roles.Any(r => r.RoleId == tutorRole.Id) &&
+            u.Roles.All(r => r.RoleId == tutorRole.Id)));
+
+        // Student role never looked up
+        await _roleRepo.DidNotReceive().FindByNameAsync("Student", default);
     }
 
     [Fact]
-    public async Task Handle_TutorRegistration_ShouldIncludeBothRolesInEvent()
+    public async Task Handle_TutorRegistration_ShouldIncludeOnlyTutorRoleInEvent()
     {
-        var studentRole = Role.Create("Student");
         var tutorRole = Role.Create("Tutor");
         _userRepo.ExistsByEmailAsync(Arg.Any<string>(), default).Returns(false);
-        _roleRepo.FindByNameAsync("Student", default).Returns(studentRole);
         _roleRepo.FindByNameAsync("Tutor", default).Returns(tutorRole);
         _hasher.Hash(Arg.Any<string>()).Returns("hash");
         _unitOfWork.SaveChangesAsync(default).Returns(1);
@@ -146,7 +146,7 @@ public sealed class RegisterUserCommandHandlerTests
 
         await _publisher.Received(1).PublishAsync(
             Arg.Is<UserRegisteredEvent>(e =>
-                e.Roles.Contains("student") && e.Roles.Contains("tutor")),
+                e.Roles.Contains("tutor") && !e.Roles.Contains("student")),
             default);
     }
 
@@ -158,10 +158,25 @@ public sealed class RegisterUserCommandHandlerTests
         _hasher.Hash(Arg.Any<string>()).Returns("hash");
 
         var act = async () => await CreateHandler().Handle(
-            new RegisterUserCommand("new@example.com", "Password1!"),
+            new RegisterUserCommand("new@example.com", "Password1!", "student"),
             default);
 
         await act.Should().ThrowAsync<DomainException>()
             .WithMessage("*Student*");
+    }
+
+    [Fact]
+    public async Task Handle_MissingTutorRole_ShouldThrowDomainException()
+    {
+        _userRepo.ExistsByEmailAsync(Arg.Any<string>(), default).Returns(false);
+        _roleRepo.FindByNameAsync("Tutor", default).Returns((Role?)null);
+        _hasher.Hash(Arg.Any<string>()).Returns("hash");
+
+        var act = async () => await CreateHandler().Handle(
+            new RegisterUserCommand("tutor@example.com", "Password1!", "tutor"),
+            default);
+
+        await act.Should().ThrowAsync<DomainException>()
+            .WithMessage("*Tutor*");
     }
 }

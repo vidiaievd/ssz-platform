@@ -2,10 +2,8 @@ import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { randomUUID } from 'crypto';
 import { ProfileNotFoundException } from '../../../../profiles/domain/exceptions/profile-not-found.exception.js';
-import { ProfileTypeMismatchException } from '../../../../profiles/domain/exceptions/profile-type-mismatch.exception.js';
 import type { IProfileRepository } from '../../../../profiles/domain/repositories/profile.repository.interface.js';
 import { PROFILE_REPOSITORY } from '../../../../profiles/domain/repositories/profile.repository.interface.js';
-import { ProfileType } from '../../../../profiles/domain/value-objects/profile-type.vo.js';
 import { StudentProfile } from '../../../domain/entities/student-profile.entity.js';
 import { StudentProfileAlreadyExistsException } from '../../../domain/exceptions/student-profile-already-exists.exception.js';
 import type { IStudentProfileRepository } from '../../../domain/repositories/student-profile.repository.interface.js';
@@ -31,17 +29,7 @@ export class CreateStudentProfileHandler implements ICommandHandler<CreateStuden
       throw new ProfileNotFoundException(command.userId);
     }
 
-    if (profile.profileType !== ProfileType.STUDENT) {
-      throw new ProfileTypeMismatchException(
-        command.userId,
-        ProfileType.STUDENT,
-        profile.profileType,
-      );
-    }
-
-    const existing = await this.studentProfileRepository.findByProfileId(
-      profile.id,
-    );
+    const existing = await this.studentProfileRepository.findByProfileId(profile.id);
     if (existing) {
       throw new StudentProfileAlreadyExistsException(profile.id);
     }
