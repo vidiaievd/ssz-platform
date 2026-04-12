@@ -92,12 +92,10 @@ export class ProfilesController {
   async createTestProfile(
     @Body() dto: CreateProfileRequestDto,
   ): Promise<{ id: string }> {
-    // userId comes from the DTO for testing purposes only
     const id = await this.commandBus.execute(
       new CreateProfileCommand(
         dto.userId,
         dto.displayName,
-        dto.profileType,
         dto.firstName,
         dto.lastName,
         dto.timezone,

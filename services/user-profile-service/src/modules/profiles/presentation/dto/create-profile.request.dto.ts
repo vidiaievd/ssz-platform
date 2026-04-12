@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
-import { ProfileType } from '../../domain/value-objects/profile-type.vo.js';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateProfileRequestDto {
   @ApiProperty({
@@ -14,10 +13,6 @@ export class CreateProfileRequestDto {
   @IsString()
   @MaxLength(100)
   displayName: string;
-
-  @ApiProperty({ enum: ProfileType, example: ProfileType.STUDENT })
-  @IsEnum(ProfileType)
-  profileType: ProfileType;
 
   @ApiPropertyOptional({ example: 'John', maxLength: 50 })
   @IsOptional()
