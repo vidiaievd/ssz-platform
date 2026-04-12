@@ -13,7 +13,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void Create_ShouldNormalizeEmail()
     {
-        var user = User.Create("User@EXAMPLE.COM", "hash");
+        var user = User.Create("User@EXAMPLE.COM", "hash", ["student"]);
 
         user.Email.Should().Be("user@example.com");
         user.NormalizedEmail.Should().Be("USER@EXAMPLE.COM");
@@ -22,7 +22,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void Create_ShouldEmitUserRegisteredEvent()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
 
         user.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<UserRegisteredEvent>();
@@ -31,11 +31,29 @@ public sealed class UserAggregateTests
     [Fact]
     public void Create_ShouldSetCorrectEmailInEvent()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
 
         var evt = user.DomainEvents.OfType<UserRegisteredEvent>().Single();
         evt.Email.Should().Be("test@example.com");
         evt.UserId.Should().Be(user.Id);
+    }
+
+    [Fact]
+    public void Create_ShouldIncludeSingleRoleInEvent()
+    {
+        var user = User.Create("test@example.com", "hash", ["student"]);
+
+        var evt = user.DomainEvents.OfType<UserRegisteredEvent>().Single();
+        evt.Roles.Should().ContainSingle().Which.Should().Be("student");
+    }
+
+    [Fact]
+    public void Create_ShouldIncludeMultipleRolesInEvent()
+    {
+        var user = User.Create("tutor@example.com", "hash", ["student", "tutor"]);
+
+        var evt = user.DomainEvents.OfType<UserRegisteredEvent>().Single();
+        evt.Roles.Should().BeEquivalentTo(["student", "tutor"]);
     }
 
     // ── Lockout ───────────────────────────────────────────────────────────────
@@ -43,7 +61,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void RecordFailedLogin_BelowThreshold_ShouldNotLock()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
 
         user.RecordFailedLogin(maxAttempts: 5, lockoutDuration: TimeSpan.FromMinutes(15));
 
@@ -54,7 +72,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void RecordFailedLogin_AtThreshold_ShouldLockAccount()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
 
         for (var i = 0; i < 5; i++)
             user.RecordFailedLogin(maxAttempts: 5, lockoutDuration: TimeSpan.FromMinutes(15));
@@ -68,7 +86,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void RecordSuccessfulLogin_ShouldResetFailedAttempts()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         user.RecordFailedLogin(maxAttempts: 5, lockoutDuration: TimeSpan.FromMinutes(15));
 
         user.RecordSuccessfulLogin();
@@ -81,7 +99,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void RecordSuccessfulLogin_ShouldEmitUserLoggedInEvent()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         user.ClearDomainEvents();
 
         user.RecordSuccessfulLogin();
@@ -93,7 +111,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void UnlockIfExpired_WhenLockoutExpired_ShouldUnlock()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
 
         // Simulate lockout that already expired
         for (var i = 0; i < 5; i++)
@@ -112,7 +130,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void EnableTwoFactor_WithoutVerifiedTotp_ShouldThrow()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         user.SetTotpSecret("encrypted-secret");
         // ConfirmTotpVerification NOT called
 
@@ -125,7 +143,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void EnableTwoFactor_WithVerifiedTotp_ShouldEnable()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         user.SetTotpSecret("encrypted-secret");
         user.ConfirmTotpVerification();
         var backupCodes = CreateBackupCodes(user.Id, 8);
@@ -139,7 +157,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void EnableTwoFactor_ShouldEmit2FAEnabledEvent()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         user.SetTotpSecret("encrypted-secret");
         user.ConfirmTotpVerification();
         user.ClearDomainEvents();
@@ -179,7 +197,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void SetTotpSecret_ShouldResetVerification()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         user.SetTotpSecret("first-secret");
         user.ConfirmTotpVerification();
 
@@ -220,7 +238,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void RevokeRefreshTokenFamily_ShouldOnlyRevokeMatchingFamily()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         user.AddRefreshToken("hash-a1", "family-A", DateTimeOffset.UtcNow.AddDays(7));
         user.AddRefreshToken("hash-a2", "family-A", DateTimeOffset.UtcNow.AddDays(7));
         user.AddRefreshToken("hash-b1", "family-B", DateTimeOffset.UtcNow.AddDays(7));
@@ -239,7 +257,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void RevokeAllRefreshTokens_ShouldRevokeAll_AndEmitLoggedOutEvent()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         user.AddRefreshToken("hash-1", "family-A", DateTimeOffset.UtcNow.AddDays(7));
         user.AddRefreshToken("hash-2", "family-B", DateTimeOffset.UtcNow.AddDays(7));
         user.ClearDomainEvents();
@@ -254,7 +272,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void ChangePassword_ShouldRevokeAllSessions()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         user.AddRefreshToken("hash-1", "family-A", DateTimeOffset.UtcNow.AddDays(7));
 
         user.ChangePassword("new-hash");
@@ -268,7 +286,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void AssignRole_ShouldAddRole()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         var role = Role.Create("Admin");
 
         user.AssignRole(role);
@@ -279,7 +297,7 @@ public sealed class UserAggregateTests
     [Fact]
     public void AssignRole_Duplicate_ShouldNotAddTwice()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         var role = Role.Create("Admin");
 
         user.AssignRole(role);
@@ -292,7 +310,7 @@ public sealed class UserAggregateTests
 
     private static User CreateUserWith2FA()
     {
-        var user = User.Create("test@example.com", "hash");
+        var user = User.Create("test@example.com", "hash", ["student"]);
         user.SetTotpSecret("encrypted-secret");
         user.ConfirmTotpVerification();
         user.EnableTwoFactor(CreateBackupCodes(user.Id, 8));

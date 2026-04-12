@@ -26,7 +26,6 @@ export class GetProfileByUserIdHandler implements IQueryHandler<
     dto.id = profile.id;
     dto.userId = profile.userId;
     dto.displayName = profile.displayName;
-    dto.profileType = profile.profileType;
     dto.firstName = profile.firstName;
     dto.lastName = profile.lastName;
     dto.avatarUrl = profile.avatarUrl;

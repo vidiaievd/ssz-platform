@@ -34,7 +34,7 @@ public sealed class LoginCommandHandlerTests
 
     private User CreateUser(string email = "test@example.com", string hash = "hash")
     {
-        var user = User.Create(email, hash);
+        var user = User.Create(email, hash, ["student"]);
         user.ClearDomainEvents();
         return user;
     }

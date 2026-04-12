@@ -1,6 +1,4 @@
-import type { Prisma } from '../../../../../generated/prisma/client.js';
 import { Profile } from '../../domain/entities/profile.entity.js';
-import { ProfileType } from '../../domain/value-objects/profile-type.vo.js';
 
 // Prisma model shape inferred from the generated payload type
 type PrismaProfile = {
@@ -13,14 +11,10 @@ type PrismaProfile = {
   bio: string | null;
   timezone: string;
   locale: string;
-  profileType: string;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
 };
-
-// Prisma create input shape
-type ProfileCreateInput = Prisma.ProfileUncheckedCreateInput;
 
 // Maps between the Prisma model (infrastructure) and the domain Profile entity.
 // Neither layer is aware of the other directly — this mapper sits in between.
@@ -31,8 +25,6 @@ export class ProfileMapper {
       id: raw.id,
       userId: raw.userId,
       displayName: raw.displayName,
-      // Prisma and domain enum values are identical strings (STUDENT / TUTOR)
-      profileType: raw.profileType as ProfileType,
       firstName: raw.firstName ?? undefined,
       lastName: raw.lastName ?? undefined,
       avatarUrl: raw.avatarUrl ?? undefined,
@@ -45,13 +37,12 @@ export class ProfileMapper {
     });
   }
 
-  // Domain entity → Prisma create input
-  static toPersistence(profile: Profile): ProfileCreateInput {
+  // Domain entity → Prisma persistence data
+  static toPersistence(profile: Profile): Record<string, unknown> {
     return {
       id: profile.id,
       userId: profile.userId,
       displayName: profile.displayName,
-      profileType: profile.profileType,
       firstName: profile.firstName ?? null,
       lastName: profile.lastName ?? null,
       avatarUrl: profile.avatarUrl ?? null,

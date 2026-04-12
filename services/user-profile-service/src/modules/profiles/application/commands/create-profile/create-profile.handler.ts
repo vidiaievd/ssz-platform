@@ -29,7 +29,6 @@ export class CreateProfileHandler implements ICommandHandler<CreateProfileComman
         id: randomUUID(),
         userId: command.userId,
         displayName: command.displayName,
-        profileType: command.profileType,
         firstName: command.firstName,
         lastName: command.lastName,
         timezone: command.timezone,

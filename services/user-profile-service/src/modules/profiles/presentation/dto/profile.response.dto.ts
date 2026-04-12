@@ -1,5 +1,4 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ProfileType } from '../../domain/value-objects/profile-type.vo.js';
 
 export class ProfileResponseDto {
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
@@ -10,9 +9,6 @@ export class ProfileResponseDto {
 
   @ApiProperty({ example: 'John Doe' })
   displayName: string;
-
-  @ApiProperty({ enum: ProfileType })
-  profileType: ProfileType;
 
   @ApiPropertyOptional({ example: 'John' })
   firstName?: string;
