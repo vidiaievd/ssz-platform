@@ -1,0 +1,55 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Auth Service (Debug)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "auth: build",
+      "program": "${workspaceFolder}/services/auth-service/src/AuthService.API/bin/Debug/net8.0/AuthService.API.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/services/auth-service/src/AuthService.API",
+      "stopAtEntry": false,
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "%s/swagger"
+      }
+    },
+    {
+      "name": "User Profile Service (Debug)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:debug"],
+      "cwd": "${workspaceFolder}/services/user-profile-service",
+      "console": "integratedTerminal",
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Organization Service (Debug)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:debug"],
+      "cwd": "${workspaceFolder}/services/organization-service",
+      "console": "integratedTerminal",
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "All Services",
+      "configurations": [
+        "Auth Service (Debug)",
+        "User Profile Service (Debug)",
+        "Organization Service (Debug)"
+      ]
+    }
+  ]
+}
