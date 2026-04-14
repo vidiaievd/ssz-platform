@@ -34,3 +34,12 @@ CREATE DATABASE organizations_db OWNER org_service;
 
 \c organizations_db
 GRANT ALL ON SCHEMA public TO org_service;
+
+-- ============================================================================
+-- Content Service
+-- ============================================================================
+CREATE USER content_service WITH PASSWORD 'content_service_password';
+CREATE DATABASE content_db OWNER content_service;
+
+\c content_db
+GRANT ALL ON SCHEMA public TO content_service;
