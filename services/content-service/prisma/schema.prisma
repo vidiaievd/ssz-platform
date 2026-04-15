@@ -1,0 +1,12 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Models will be added in Prompt 2 (Containers + Versioning).
+// Run `npm run prisma:generate` after adding models.
+// Run `npm run prisma:migrate:dev` to apply migrations (requires DATABASE_URL).
