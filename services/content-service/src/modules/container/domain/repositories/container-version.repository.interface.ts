@@ -22,5 +22,7 @@ export interface IContainerVersionRepository {
     previousVersionId: string | null;
     sunsetDays: number;
     publishedByUserId: string;
+    /** Resolved unique slug — set atomically on first publication of a public container. */
+    slug?: string;
   }): Promise<{ sunsetAt: Date | null }>;
 }
