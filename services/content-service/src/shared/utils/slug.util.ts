@@ -22,17 +22,16 @@ export function generateSlug(title: string): string {
 }
 
 /**
- * Given a base slug and a set of already-taken slugs, returns a unique slug
- * by appending "-2", "-3", etc. until a free value is found.
+ * Given a base slug, returns a unique slug by appending "-2", "-3", etc.
+ * until the async `isTaken` predicate returns false.
  *
- * Designed to be called by repository implementations that have access to
- * the actual DB state.
+ * The predicate performs a DB lookup, so it must be async.
  */
-export function resolveUniqueSlug(
+export async function resolveUniqueSlug(
   baseSlug: string,
-  isTaken: (candidate: string) => boolean,
-): string {
-  if (!isTaken(baseSlug)) return baseSlug;
+  isTaken: (candidate: string) => Promise<boolean>,
+): Promise<string> {
+  if (!(await isTaken(baseSlug))) return baseSlug;
 
   let counter = 2;
   while (true) {
@@ -41,7 +40,7 @@ export function resolveUniqueSlug(
     const truncatedBase = baseSlug.slice(0, MAX_SLUG_LENGTH - suffix.length);
     const candidate = `${truncatedBase}${suffix}`;
 
-    if (!isTaken(candidate)) return candidate;
+    if (!(await isTaken(candidate))) return candidate;
     counter++;
   }
 }
