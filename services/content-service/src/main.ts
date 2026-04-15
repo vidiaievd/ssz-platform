@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
@@ -15,6 +16,15 @@ async function bootstrap() {
 
   // All HTTP endpoints are prefixed with /api/v1
   app.setGlobalPrefix('api/v1');
+
+  // Validate and transform request DTOs globally
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // Global exception filter — unified error response shape
   app.useGlobalFilters(new AllExceptionsFilter());

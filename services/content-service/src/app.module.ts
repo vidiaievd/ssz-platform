@@ -11,6 +11,7 @@ import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { RabbitmqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { RedisModule } from './infrastructure/cache/redis.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { ContainerModule } from './modules/container/container.module.js';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { HealthModule } from './modules/health/health.module.js';
     RedisModule,
     CqrsModule,
     HealthModule,
+    ContainerModule,
   ],
   controllers: [],
   providers: [
