@@ -9,7 +9,7 @@ export interface IVocabularyItemRepository {
     listId: string,
     options?: { page?: number; limit?: number; includeDeleted?: boolean },
   ): Promise<PaginatedResult<VocabularyItemEntity>>;
-  findByIds(ids: string[]): Promise<VocabularyItemEntity[]>;
+  findByIds(ids: string[], includeChildren?: boolean): Promise<VocabularyItemEntity[]>;
   save(entity: VocabularyItemEntity): Promise<VocabularyItemEntity>;
   saveBatch(entities: VocabularyItemEntity[]): Promise<VocabularyItemEntity[]>;
   softDelete(id: string): Promise<void>;
@@ -21,4 +21,6 @@ export interface IVocabularyItemRepository {
    */
   reorder(listId: string, items: { id: string; position: number }[]): Promise<void>;
   wordExists(listId: string, word: string, excludeItemId?: string): Promise<boolean>;
+  /** Bulk soft-deletes all non-deleted items in a list. Used when a list is soft-deleted. */
+  softDeleteByListId(listId: string): Promise<void>;
 }
