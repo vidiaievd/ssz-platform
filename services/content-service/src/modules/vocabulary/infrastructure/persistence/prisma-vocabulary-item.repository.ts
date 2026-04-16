@@ -87,12 +87,39 @@ export class PrismaVocabularyItemRepository implements IVocabularyItemRepository
     };
   }
 
-  async findByIds(ids: string[]): Promise<VocabularyItemEntity[]> {
+  async findByIds(ids: string[], includeChildren = false): Promise<VocabularyItemEntity[]> {
     if (ids.length === 0) return [];
+
+    if (!includeChildren) {
+      const rows = await this.prisma.vocabularyItem.findMany({
+        where: { id: { in: ids }, deletedAt: null },
+      });
+      return rows.map((row) => VocabularyItemMapper.toDomain(row));
+    }
+
     const rows = await this.prisma.vocabularyItem.findMany({
       where: { id: { in: ids }, deletedAt: null },
+      include: {
+        translations: true,
+        usageExamples: {
+          orderBy: { position: 'asc' },
+          include: { translations: true },
+        },
+      },
     });
-    return rows.map((row) => VocabularyItemMapper.toDomain(row));
+
+    return rows.map((raw) => {
+      const translationEntities = raw.translations.map((t) =>
+        VocabularyItemTranslationMapper.toDomain(t),
+      );
+      const exampleEntities = raw.usageExamples.map((ex) => {
+        const exTranslations = ex.translations.map((t) =>
+          VocabularyExampleTranslationMapper.toDomain(t),
+        );
+        return VocabularyUsageExampleMapper.toDomain(ex, exTranslations);
+      });
+      return VocabularyItemMapper.toDomain(raw, translationEntities, exampleEntities);
+    });
   }
 
   async save(entity: VocabularyItemEntity): Promise<VocabularyItemEntity> {
@@ -183,6 +210,14 @@ export class PrismaVocabularyItemRepository implements IVocabularyItemRepository
           data: { position: item.position },
         });
       }
+    });
+  }
+
+  async softDeleteByListId(listId: string): Promise<void> {
+    const now = new Date();
+    await this.prisma.vocabularyItem.updateMany({
+      where: { vocabularyListId: listId, deletedAt: null },
+      data: { deletedAt: now, updatedAt: now },
     });
   }
 
