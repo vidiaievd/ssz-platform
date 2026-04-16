@@ -186,6 +186,35 @@ model ContainerLocalization {
   @@map("container_localizations")
 }
 
+enum PartOfSpeech {
+  NOUN          @map("noun")
+  VERB          @map("verb")
+  ADJECTIVE     @map("adjective")
+  ADVERB        @map("adverb")
+  PRONOUN       @map("pronoun")
+  PREPOSITION   @map("preposition")
+  CONJUNCTION   @map("conjunction")
+  INTERJECTION  @map("interjection")
+  NUMERAL       @map("numeral")
+  PARTICLE      @map("particle")
+  PHRASE        @map("phrase")
+  OTHER         @map("other")
+
+  @@map("part_of_speech")
+}
+
+enum Register {
+  FORMAL     @map("formal")
+  INFORMAL   @map("informal")
+  NEUTRAL    @map("neutral")
+  COLLOQUIAL @map("colloquial")
+  SLANG      @map("slang")
+  ARCHAIC    @map("archaic")
+  DIALECT    @map("dialect")
+
+  @@map("register")
+}
+
 // ─── Block 2: Lessons + Content Variants ──────────────────────────────────────
 
 // Lesson is a language-neutral entity — metadata only. All student-facing
@@ -269,4 +298,131 @@ model LessonVariantMediaRef {
   @@index([lessonContentVariantId])
   @@index([mediaId])
   @@map("lesson_variant_media_refs")
+}
+
+// ─── Block 3: Vocabulary ──────────────────────────────────────────────────────
+
+// A named collection of vocabulary items owned by a user or school.
+// slug is NULL for non-public lists; generated at creation if visibility = PUBLIC,
+// or at the moment visibility is changed to PUBLIC. Immutable after first assignment.
+// Partial unique index on (slug) WHERE slug IS NOT NULL AND deleted_at IS NULL
+// is enforced via raw SQL migration (add-vocabulary-constraints).
+model VocabularyList {
+  id                String          @id @default(uuid()) @db.Uuid
+  slug              String?         @db.VarChar(120)
+  title             String          @db.VarChar(200)
+  description       String?         @db.Text
+  targetLanguage    String          @map("target_language") @db.VarChar(10)
+  difficultyLevel   DifficultyLevel @map("difficulty_level")
+  ownerUserId       String          @map("owner_user_id") @db.Uuid
+  ownerSchoolId     String?         @map("owner_school_id") @db.Uuid
+  // CHECK constraints (raw SQL):
+  //   owner_school_id IS NULL     → visibility IN ('public','shared','private')
+  //   owner_school_id IS NOT NULL → visibility IN ('public','school_private','shared','private')
+  visibility        Visibility
+  autoAddToSrs      Boolean         @default(true) @map("auto_add_to_srs")
+  coverImageMediaId String?         @map("cover_image_media_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz
+
+  items VocabularyItem[]
+
+  @@index([ownerUserId])
+  @@index([ownerSchoolId])
+  @@index([visibility])
+  @@index([targetLanguage, difficultyLevel])
+  @@index([deletedAt, visibility, targetLanguage])
+  @@map("vocabulary_lists")
+}
+
+// A single word/phrase entry within a vocabulary list.
+// word is case-preserved. position is 0-based.
+// Unique constraints: (vocabularyListId, position) and (vocabularyListId, word).
+// CHECK constraint (raw SQL): length(trim(word)) > 0
+model VocabularyItem {
+  id                         String        @id @default(uuid()) @db.Uuid
+  vocabularyListId           String        @map("vocabulary_list_id") @db.Uuid
+  word                       String        @db.VarChar(200)
+  position                   Int
+  partOfSpeech               PartOfSpeech? @map("part_of_speech")
+  ipaTranscription           String?       @map("ipa_transcription") @db.VarChar(200)
+  pronunciationAudioMediaId  String?       @map("pronunciation_audio_media_id") @db.Uuid
+  // JSONB; validated against a per-language schema in application code (not DB).
+  grammaticalProperties      Json?         @map("grammatical_properties")
+  register                   Register?
+  notes                      String?       @db.Text
+  createdAt                  DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                  DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt                  DateTime?     @map("deleted_at") @db.Timestamptz
+
+  vocabularyList VocabularyList              @relation(fields: [vocabularyListId], references: [id], onDelete: Cascade)
+  translations   VocabularyItemTranslation[]
+  usageExamples  VocabularyUsageExample[]
+
+  @@unique([vocabularyListId, position])
+  @@unique([vocabularyListId, word])
+  @@index([vocabularyListId])
+  @@index([vocabularyListId, deletedAt])
+  @@index([partOfSpeech])
+  @@map("vocabulary_items")
+}
+
+// One translation row per (item, language). Upserted — never duplicated.
+model VocabularyItemTranslation {
+  id                     String   @id @default(uuid()) @db.Uuid
+  vocabularyItemId       String   @map("vocabulary_item_id") @db.Uuid
+  translationLanguage    String   @map("translation_language") @db.VarChar(10)
+  primaryTranslation     String   @map("primary_translation") @db.VarChar(300)
+  alternativeTranslations String[] @default([]) @map("alternative_translations")
+  definition             String?  @db.Text
+  usageNotes             String?  @map("usage_notes") @db.Text
+  falseFriendWarning     String?  @map("false_friend_warning") @db.Text
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId        String   @map("created_by_user_id") @db.Uuid
+  lastEditedByUserId     String   @map("last_edited_by_user_id") @db.Uuid
+
+  vocabularyItem VocabularyItem @relation(fields: [vocabularyItemId], references: [id], onDelete: Cascade)
+
+  @@unique([vocabularyItemId, translationLanguage])
+  @@index([vocabularyItemId])
+  @@index([translationLanguage])
+  @@map("vocabulary_item_translations")
+}
+
+// Example sentence illustrating how the word is used in context.
+// position is 0-based within the parent item.
+model VocabularyUsageExample {
+  id               String    @id @default(uuid()) @db.Uuid
+  vocabularyItemId String    @map("vocabulary_item_id") @db.Uuid
+  exampleText      String    @map("example_text") @db.Text
+  position         Int       @default(0)
+  audioMediaId     String?   @map("audio_media_id") @db.Uuid
+  contextNote      String?   @map("context_note") @db.VarChar(200)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  vocabularyItem VocabularyItem                 @relation(fields: [vocabularyItemId], references: [id], onDelete: Cascade)
+  translations   VocabularyExampleTranslation[]
+
+  @@unique([vocabularyItemId, position])
+  @@index([vocabularyItemId])
+  @@map("vocabulary_usage_examples")
+}
+
+// Translation of a usage example into a student's language.
+model VocabularyExampleTranslation {
+  id                       String   @id @default(uuid()) @db.Uuid
+  vocabularyUsageExampleId String   @map("vocabulary_usage_example_id") @db.Uuid
+  translationLanguage      String   @map("translation_language") @db.VarChar(10)
+  translatedText           String   @map("translated_text") @db.Text
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  usageExample VocabularyUsageExample @relation(fields: [vocabularyUsageExampleId], references: [id], onDelete: Cascade)
+
+  @@unique([vocabularyUsageExampleId, translationLanguage])
+  @@index([vocabularyUsageExampleId])
+  @@map("vocabulary_example_translations")
 }
