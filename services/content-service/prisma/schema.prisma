@@ -68,6 +68,21 @@ enum ContainerItemType {
   @@map("container_item_type")
 }
 
+enum VariantStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+
+  @@map("variant_status")
+}
+
+enum MediaRefType {
+  IMAGE @map("image")
+  AUDIO @map("audio")
+  VIDEO @map("video")
+
+  @@map("media_ref_type")
+}
+
 // ─── Models ────────────────────────────────────────────────────────────────
 
 // Container is an "idea" entity — metadata shell around versioned content.
@@ -169,4 +184,89 @@ model ContainerLocalization {
 
   @@unique([containerId, languageCode])
   @@map("container_localizations")
+}
+
+// ─── Block 2: Lessons + Content Variants ──────────────────────────────────────
+
+// Lesson is a language-neutral entity — metadata only. All student-facing
+// content lives in LessonContentVariant (one per explanation_language × level_range).
+// slug is NULL until the first variant is published for a public lesson;
+// immutable after that. Partial unique index on slug is added via raw SQL migration.
+model Lesson {
+  id                String          @id @default(uuid()) @db.Uuid
+  targetLanguage    String          @map("target_language") @db.VarChar(10)
+  difficultyLevel   DifficultyLevel @map("difficulty_level")
+  // Partial unique index: WHERE slug IS NOT NULL AND deleted_at IS NULL (raw SQL migration).
+  slug              String?         @db.VarChar(120)
+  title             String          @db.VarChar(200)
+  description       String?         @db.Text
+  coverImageMediaId String?         @map("cover_image_media_id") @db.Uuid
+  ownerUserId       String          @map("owner_user_id") @db.Uuid
+  ownerSchoolId     String?         @map("owner_school_id") @db.Uuid
+  // CHECK constraint (raw SQL): owner_school_id IS NULL → visibility ∈ {public,shared,private}
+  //                             owner_school_id IS NOT NULL → visibility ∈ {public,school_private,shared,private}
+  visibility        Visibility
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz
+
+  variants LessonContentVariant[]
+
+  @@index([ownerUserId])
+  @@index([ownerSchoolId])
+  @@index([visibility])
+  @@index([targetLanguage, difficultyLevel])
+  @@index([deletedAt, visibility, targetLanguage])
+  @@map("lessons")
+}
+
+// One variant per (lesson_id, explanation_language, min_level, max_level) combination.
+// Silent updates are allowed even when status = published (typo fixes, clarifications).
+// deletedAt is set via cascade when the parent lesson is soft-deleted.
+// Hard delete is used for direct DELETE /lessons/:id/variants/:vid requests.
+model LessonContentVariant {
+  id                      String        @id @default(uuid()) @db.Uuid
+  lessonId                String        @map("lesson_id") @db.Uuid
+  explanationLanguage     String        @map("explanation_language") @db.VarChar(10)
+  minLevel                DifficultyLevel @map("min_level")
+  maxLevel                DifficultyLevel @map("max_level")
+  // CHECK constraint (raw SQL): ordinal(min_level) <= ordinal(max_level) via CASE mapping.
+  displayTitle            String        @map("display_title") @db.VarChar(200)
+  displayDescription      String?       @map("display_description") @db.Text
+  bodyMarkdown            String        @map("body_markdown") @db.Text
+  estimatedReadingMinutes Int?          @map("estimated_reading_minutes")
+  status                  VariantStatus @default(DRAFT)
+  createdAt               DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId         String        @map("created_by_user_id") @db.Uuid
+  lastEditedByUserId      String        @map("last_edited_by_user_id") @db.Uuid
+  publishedAt             DateTime?     @map("published_at") @db.Timestamptz
+  // Set via bulk updateMany when parent lesson is soft-deleted.
+  deletedAt               DateTime?     @map("deleted_at") @db.Timestamptz
+
+  lesson    Lesson                 @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  mediaRefs LessonVariantMediaRef[]
+
+  @@unique([lessonId, explanationLanguage, minLevel, maxLevel])
+  @@index([lessonId])
+  @@index([lessonId, status])
+  @@map("lesson_content_variants")
+}
+
+// Denormalized table extracted from body_markdown on every save.
+// Enables fast reverse lookups: "which lessons use media asset X?"
+// Replaced atomically (delete+createMany in a transaction) on every variant save.
+model LessonVariantMediaRef {
+  id                     String       @id @default(uuid()) @db.Uuid
+  lessonContentVariantId String       @map("lesson_content_variant_id") @db.Uuid
+  mediaId                String       @map("media_id") @db.Uuid
+  mediaType              MediaRefType @map("media_type")
+  positionInText         Int          @map("position_in_text")
+  extractedAt            DateTime     @map("extracted_at") @db.Timestamptz
+
+  variant LessonContentVariant @relation(fields: [lessonContentVariantId], references: [id], onDelete: Cascade)
+
+  @@index([lessonContentVariantId])
+  @@index([mediaId])
+  @@map("lesson_variant_media_refs")
 }

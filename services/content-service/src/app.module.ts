@@ -12,6 +12,7 @@ import { RabbitmqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { RedisModule } from './infrastructure/cache/redis.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { ContainerModule } from './modules/container/container.module.js';
+import { LessonModule } from './modules/lesson/lesson.module.js';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { ContainerModule } from './modules/container/container.module.js';
     CqrsModule,
     HealthModule,
     ContainerModule,
+    LessonModule,
   ],
   controllers: [],
   providers: [
