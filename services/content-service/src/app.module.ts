@@ -13,6 +13,7 @@ import { RedisModule } from './infrastructure/cache/redis.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { ContainerModule } from './modules/container/container.module.js';
 import { LessonModule } from './modules/lesson/lesson.module.js';
+import { VocabularyModule } from './modules/vocabulary/vocabulary.module.js';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { LessonModule } from './modules/lesson/lesson.module.js';
     HealthModule,
     ContainerModule,
     LessonModule,
+    VocabularyModule,
   ],
   controllers: [],
   providers: [
