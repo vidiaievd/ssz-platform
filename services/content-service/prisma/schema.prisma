@@ -426,3 +426,191 @@ model VocabularyExampleTranslation {
   @@index([vocabularyUsageExampleId])
   @@map("vocabulary_example_translations")
 }
+
+// ─── Block 4 Enums ─────────────────────────────────────────────────────────────
+
+enum GrammarTopic {
+  VERBS        @map("verbs")
+  NOUNS        @map("nouns")
+  ADJECTIVES   @map("adjectives")
+  ADVERBS      @map("adverbs")
+  PRONOUNS     @map("pronouns")
+  ARTICLES     @map("articles")
+  PREPOSITIONS @map("prepositions")
+  CONJUNCTIONS @map("conjunctions")
+  WORD_ORDER   @map("word_order")
+  TENSES       @map("tenses")
+  CASES        @map("cases")
+  MOOD         @map("mood")
+  VOICE        @map("voice")
+  NUMERALS     @map("numerals")
+  OTHER        @map("other")
+
+  @@map("grammar_topic")
+}
+
+// ─── Block 4: Exercise Templates (read-only seed data) ────────────────────────
+// Templates define the JSON schema for exercise content and answers.
+// supportedLanguages: null = all languages supported; non-null = restricted list.
+// No CRUD mutations at runtime — only GET list/by-code endpoints.
+model ExerciseTemplate {
+  id                   String    @id @default(uuid()) @db.Uuid
+  code                 String    @unique @db.VarChar(50)
+  name                 String    @db.VarChar(100)
+  description          String?   @db.Text
+  contentSchema        Json      @map("content_schema")
+  answerSchema         Json      @map("answer_schema")
+  defaultCheckSettings Json?     @map("default_check_settings")
+  // Nullable JSON array of BCP-47 language tags. null = all languages supported.
+  supportedLanguages   Json?     @map("supported_languages")
+  isActive             Boolean   @default(true) @map("is_active")
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  exercises Exercise[]
+
+  @@map("exercise_templates")
+}
+
+// ─── Block 4: Exercises ───────────────────────────────────────────────────────
+// content validated against template.content_schema in application layer.
+// expectedAnswers validated against template.answer_schema.
+// answerCheckSettings overrides template.defaultCheckSettings at read time (shallow merge).
+// CHECK constraints (raw SQL):
+//   visibility vs owner_school_id (same pattern as lessons/vocabulary)
+model Exercise {
+  id                       String          @id @default(uuid()) @db.Uuid
+  exerciseTemplateId       String          @map("exercise_template_id") @db.Uuid
+  targetLanguage           String          @map("target_language") @db.VarChar(10)
+  difficultyLevel          DifficultyLevel @map("difficulty_level")
+  content                  Json
+  expectedAnswers          Json            @map("expected_answers")
+  answerCheckSettings      Json?           @map("answer_check_settings")
+  ownerUserId              String          @map("owner_user_id") @db.Uuid
+  ownerSchoolId            String?         @map("owner_school_id") @db.Uuid
+  visibility               Visibility
+  estimatedDurationSeconds Int?            @map("estimated_duration_seconds")
+  createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt                DateTime?       @map("deleted_at") @db.Timestamptz
+
+  template     ExerciseTemplate          @relation(fields: [exerciseTemplateId], references: [id])
+  instructions ExerciseInstruction[]
+  poolEntries  GrammarRuleExercisePool[]
+
+  @@index([exerciseTemplateId])
+  @@index([ownerUserId])
+  @@index([ownerSchoolId])
+  @@index([visibility])
+  @@index([targetLanguage, difficultyLevel])
+  @@index([deletedAt, visibility, targetLanguage])
+  @@map("exercises")
+}
+
+// Per-language instruction for an exercise.
+// instructionLanguage × exerciseId must be unique (@@unique below).
+// text_overrides JSONB: keys are placeholder tokens ($$token$$), values are per-language strings.
+// Content Service stores and returns them; frontend resolves substitution client-side.
+model ExerciseInstruction {
+  id                  String   @id @default(uuid()) @db.Uuid
+  exerciseId          String   @map("exercise_id") @db.Uuid
+  instructionLanguage String   @map("instruction_language") @db.VarChar(10)
+  instructionText     String   @map("instruction_text") @db.Text
+  hintText            String?  @map("hint_text") @db.Text
+  textOverrides       Json?    @map("text_overrides")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([exerciseId, instructionLanguage])
+  @@index([exerciseId])
+  @@map("exercise_instructions")
+}
+
+// ─── Block 4: Grammar Rules ───────────────────────────────────────────────────
+// Language-neutral rule with topic categorization.
+// slug: NULL until first published explanation if visibility = PUBLIC; immutable after.
+// Partial unique index on slug WHERE slug IS NOT NULL AND deleted_at IS NULL (raw SQL).
+// CHECK constraints (raw SQL): visibility vs owner_school_id.
+model GrammarRule {
+  id              String          @id @default(uuid()) @db.Uuid
+  slug            String?         @db.VarChar(120)
+  targetLanguage  String          @map("target_language") @db.VarChar(10)
+  difficultyLevel DifficultyLevel @map("difficulty_level")
+  topic           GrammarTopic
+  subtopic        String?         @db.VarChar(100)
+  title           String          @db.VarChar(200)
+  description     String?         @db.Text
+  ownerUserId     String          @map("owner_user_id") @db.Uuid
+  ownerSchoolId   String?         @map("owner_school_id") @db.Uuid
+  visibility      Visibility
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz
+
+  explanations GrammarRuleExplanation[]
+  exercisePool GrammarRuleExercisePool[]
+
+  @@index([ownerUserId])
+  @@index([ownerSchoolId])
+  @@index([visibility])
+  @@index([targetLanguage, difficultyLevel])
+  @@index([topic])
+  @@index([deletedAt, visibility, targetLanguage])
+  @@map("grammar_rules")
+}
+
+// One explanation per (grammar_rule_id, explanation_language, min_level, max_level).
+// Mirrors the LessonContentVariant pattern: same DRAFT/PUBLISHED lifecycle,
+// same best-variant selection algorithm (BestVariantSelectorService).
+// displaySummary: short summary shown in grammar rule lists (no bodyMarkdown).
+// deletedAt: set via cascade when parent grammar rule is soft-deleted.
+// CHECK constraint (raw SQL): ordinal(min_level) <= ordinal(max_level).
+model GrammarRuleExplanation {
+  id                      String          @id @default(uuid()) @db.Uuid
+  grammarRuleId           String          @map("grammar_rule_id") @db.Uuid
+  explanationLanguage     String          @map("explanation_language") @db.VarChar(10)
+  minLevel                DifficultyLevel @map("min_level")
+  maxLevel                DifficultyLevel @map("max_level")
+  displayTitle            String          @map("display_title") @db.VarChar(200)
+  displaySummary          String?         @map("display_summary") @db.Text
+  bodyMarkdown            String          @map("body_markdown") @db.Text
+  estimatedReadingMinutes Int?            @map("estimated_reading_minutes")
+  status                  VariantStatus   @default(DRAFT)
+  createdAt               DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId         String          @map("created_by_user_id") @db.Uuid
+  lastEditedByUserId      String          @map("last_edited_by_user_id") @db.Uuid
+  publishedAt             DateTime?       @map("published_at") @db.Timestamptz
+  deletedAt               DateTime?       @map("deleted_at") @db.Timestamptz
+
+  grammarRule GrammarRule @relation(fields: [grammarRuleId], references: [id], onDelete: Cascade)
+
+  @@unique([grammarRuleId, explanationLanguage, minLevel, maxLevel])
+  @@index([grammarRuleId])
+  @@index([grammarRuleId, status])
+  @@map("grammar_rule_explanations")
+}
+
+// Many-to-many join between grammar rules and exercises.
+// weight (default 1.0) drives weighted random exercise selection.
+// position is 0-based; gaps allowed after removal; restored to continuous by reorder.
+// Soft-deleted exercises remain in pool rows but are excluded at query time.
+// CHECK constraint (raw SQL): weight > 0.
+model GrammarRuleExercisePool {
+  id            String   @id @default(uuid()) @db.Uuid
+  grammarRuleId String   @map("grammar_rule_id") @db.Uuid
+  exerciseId    String   @map("exercise_id") @db.Uuid
+  position      Int
+  weight        Float    @default(1.0)
+  addedAt       DateTime @default(now()) @map("added_at") @db.Timestamptz
+  addedByUserId String   @map("added_by_user_id") @db.Uuid
+
+  grammarRule GrammarRule @relation(fields: [grammarRuleId], references: [id], onDelete: Cascade)
+  exercise    Exercise    @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([grammarRuleId, exerciseId])
+  @@index([grammarRuleId])
+  @@index([exerciseId])
+  @@map("grammar_rule_exercise_pool")
+}

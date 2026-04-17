@@ -1,0 +1,17 @@
+export enum GrammarTopic {
+  VERBS = 'verbs',
+  NOUNS = 'nouns',
+  ADJECTIVES = 'adjectives',
+  ADVERBS = 'adverbs',
+  PRONOUNS = 'pronouns',
+  ARTICLES = 'articles',
+  PREPOSITIONS = 'prepositions',
+  CONJUNCTIONS = 'conjunctions',
+  WORD_ORDER = 'word_order',
+  TENSES = 'tenses',
+  CASES = 'cases',
+  MOOD = 'mood',
+  VOICE = 'voice',
+  NUMERALS = 'numerals',
+  OTHER = 'other',
+}
