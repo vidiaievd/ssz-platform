@@ -18,6 +18,9 @@
 **/.env.local
 **/.env.production
 
+# Prompts
+prompts/
+
 
 # OS
 .DS_Store
