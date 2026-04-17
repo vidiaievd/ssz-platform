@@ -14,6 +14,9 @@ import { HealthModule } from './modules/health/health.module.js';
 import { ContainerModule } from './modules/container/container.module.js';
 import { LessonModule } from './modules/lesson/lesson.module.js';
 import { VocabularyModule } from './modules/vocabulary/vocabulary.module.js';
+import { ExerciseTemplateModule } from './modules/exercise-template/exercise-template.module.js';
+import { ExerciseModule } from './modules/exercise/exercise.module.js';
+import { GrammarRuleModule } from './modules/grammar-rule/grammar-rule.module.js';
 
 @Module({
   imports: [
@@ -47,6 +50,9 @@ import { VocabularyModule } from './modules/vocabulary/vocabulary.module.js';
     ContainerModule,
     LessonModule,
     VocabularyModule,
+    ExerciseTemplateModule,
+    ExerciseModule,
+    GrammarRuleModule,
   ],
   controllers: [],
   providers: [
