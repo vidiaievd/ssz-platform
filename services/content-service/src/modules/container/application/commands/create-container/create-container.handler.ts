@@ -12,8 +12,8 @@ import type { IContainerVersionRepository } from '../../../domain/repositories/c
 import { getDefaultAccessTier } from '../../../domain/value-objects/access-tier.vo.js';
 
 export interface CreateContainerResult {
-  containerId: string;
-  versionId: string;
+  container: ContainerEntity;
+  version: ContainerVersionEntity;
 }
 
 @CommandHandler(CreateContainerCommand)
@@ -62,6 +62,6 @@ export class CreateContainerHandler implements ICommandHandler<
     await this.containerRepo.save(container);
     await this.versionRepo.save(version);
 
-    return Result.ok({ containerId: container.id, versionId: version.id });
+    return Result.ok({ container, version });
   }
 }
