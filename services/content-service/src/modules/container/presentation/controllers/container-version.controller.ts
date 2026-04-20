@@ -16,6 +16,7 @@ import {
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
@@ -36,6 +37,7 @@ import { throwHttpException } from '../utils/domain-error.mapper.js';
 
 @ApiTags('Container Versions')
 @ApiBearerAuth()
+@ApiParam({ name: 'containerId', type: String, description: 'Container ID' })
 @UseGuards(JwtAuthGuard)
 @Controller('containers/:containerId/versions')
 export class ContainerVersionController {

@@ -5,37 +5,37 @@ import { ContainerLocalizationResponseDto } from './container-localization.respo
 
 export class ContainerResponseDto {
   @ApiProperty({ example: 'a1b2c3d4-e5f6-...' })
-  id: string;
+  id!: string;
 
   @ApiPropertyOptional({ example: 'norwegian-for-beginners' })
-  slug: string | null;
+  slug!: string | null;
 
   @ApiProperty({ example: 'course', enum: ['course', 'module', 'collection'] })
-  containerType: string;
+  containerType!: string;
 
   @ApiProperty({ example: 'no' })
-  targetLanguage: string;
+  targetLanguage!: string;
 
   @ApiProperty({ example: 'A1', enum: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] })
-  difficultyLevel: string;
+  difficultyLevel!: string;
 
   @ApiProperty({ example: 'Norwegian for Beginners' })
-  title: string;
+  title!: string;
 
   @ApiPropertyOptional({ example: 'A comprehensive course for absolute beginners.' })
-  description: string | null;
+  description!: string | null;
 
   @ApiPropertyOptional({ example: 'uuid-of-cover-image' })
-  coverImageMediaId: string | null;
+  coverImageMediaId!: string | null;
 
   @ApiProperty({ example: 'uuid-of-owner-user' })
-  ownerUserId: string;
+  ownerUserId!: string;
 
   @ApiPropertyOptional({ example: 'uuid-of-owner-school' })
-  ownerSchoolId: string | null;
+  ownerSchoolId!: string | null;
 
   @ApiProperty({ example: 'public', enum: ['public', 'school_private', 'shared', 'private'] })
-  visibility: string;
+  visibility!: string;
 
   @ApiProperty({
     example: 'public_free',
@@ -47,22 +47,22 @@ export class ContainerResponseDto {
       'public_paid',
     ],
   })
-  accessTier: string;
+  accessTier!: string;
 
   @ApiPropertyOptional({ example: 'uuid-of-current-published-version' })
-  currentPublishedVersionId: string | null;
+  currentPublishedVersionId!: string | null;
 
   @ApiProperty()
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty()
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiPropertyOptional()
-  deletedAt: Date | null;
+  deletedAt!: Date | null;
 
   @ApiProperty({ type: () => ContainerLocalizationResponseDto, isArray: true })
-  localizations: ContainerLocalizationResponseDto[];
+  localizations!: ContainerLocalizationResponseDto[];
 
   static from(
     entity: ContainerEntity,

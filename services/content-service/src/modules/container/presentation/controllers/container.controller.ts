@@ -65,7 +65,7 @@ export class ContainerController {
   async create(
     @Body() dto: CreateContainerRequestDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<{ containerId: string; versionId: string }> {
+  ): Promise<ContainerResponseDto> {
     const result = await this.commandBus.execute<
       CreateContainerCommand,
       Result<CreateContainerResult, ContainerDomainError>
@@ -85,7 +85,8 @@ export class ContainerController {
     );
 
     if (result.isFail) throwHttpException(result.error);
-    return result.value;
+    const { container } = result.value;
+    return ContainerResponseDto.from(container);
   }
 
   @Get()
@@ -107,6 +108,7 @@ export class ContainerController {
       }),
     );
 
+    console.log(`[[ Found ]] ${paged.total}`);
     return new PaginatedResponseDto({
       items: paged.items.map((c) => ContainerResponseDto.from(c)),
       total: paged.total,

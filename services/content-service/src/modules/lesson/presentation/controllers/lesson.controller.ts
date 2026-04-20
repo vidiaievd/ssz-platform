@@ -18,6 +18,7 @@ import {
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
@@ -276,6 +277,7 @@ export class LessonController {
   @Get(':id/variants/:variantId')
   @ApiOperation({ summary: 'Get a single lesson variant by ID' })
   @ApiOkResponse({ type: LessonVariantResponseDto })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
   async findVariant(@Param('variantId') variantId: string): Promise<LessonVariantResponseDto> {
     const result = await this.queryBus.execute<
       GetLessonVariantQuery,
@@ -290,6 +292,7 @@ export class LessonController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update a content variant (allowed on both draft and published)' })
   @ApiNoContentResponse()
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
   async updateVariant(
     @Param('variantId') variantId: string,
     @Body() dto: UpdateVariantRequestDto,
@@ -316,6 +319,7 @@ export class LessonController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Publish a draft variant (DRAFT → PUBLISHED)' })
   @ApiNoContentResponse()
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
   async publishVariant(
     @Param('variantId') variantId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -332,6 +336,7 @@ export class LessonController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Hard-delete a content variant' })
   @ApiNoContentResponse()
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
   async deleteVariant(
     @Param('variantId') variantId: string,
     @CurrentUser() user: AuthenticatedUser,
