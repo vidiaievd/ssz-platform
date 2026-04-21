@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
+import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import type { AppConfig } from './config/configuration.js';
 import { AppConfigModule } from './config/app-config.module.js';
@@ -17,6 +18,9 @@ import { VocabularyModule } from './modules/vocabulary/vocabulary.module.js';
 import { ExerciseTemplateModule } from './modules/exercise-template/exercise-template.module.js';
 import { ExerciseModule } from './modules/exercise/exercise.module.js';
 import { GrammarRuleModule } from './modules/grammar-rule/grammar-rule.module.js';
+import { AccessControlModule } from './shared/access-control/access-control.module.js';
+import { AccessControlWiringModule } from './shared/access-control/access-control-wiring.module.js';
+import { TagModule } from './modules/tag/tag.module.js';
 
 @Module({
   imports: [
@@ -46,6 +50,7 @@ import { GrammarRuleModule } from './modules/grammar-rule/grammar-rule.module.js
     RabbitmqModule,
     RedisModule,
     CqrsModule,
+    ScheduleModule.forRoot(),
     HealthModule,
     ContainerModule,
     LessonModule,
@@ -53,6 +58,9 @@ import { GrammarRuleModule } from './modules/grammar-rule/grammar-rule.module.js
     ExerciseTemplateModule,
     ExerciseModule,
     GrammarRuleModule,
+    AccessControlModule,
+    AccessControlWiringModule,
+    TagModule,
   ],
   controllers: [],
   providers: [
