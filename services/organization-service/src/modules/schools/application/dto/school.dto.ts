@@ -14,6 +14,8 @@ export interface SchoolDto {
   ownerId: string;
   avatarUrl?: string;
   isActive: boolean;
+  requireTutorReviewForSelfPaced: boolean;
+  defaultExplanationLanguage?: string;
   createdAt: Date;
   updatedAt: Date;
   members: SchoolMemberDto[];

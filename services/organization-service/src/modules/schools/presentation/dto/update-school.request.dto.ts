@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsUrl, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsUrl, MinLength, MaxLength, IsBoolean } from 'class-validator';
 
 export class UpdateSchoolRequestDto {
   @ApiPropertyOptional({ example: 'New School Name' })
@@ -19,4 +19,21 @@ export class UpdateSchoolRequestDto {
   @IsOptional()
   @IsUrl()
   avatarUrl?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'If true, tutors must review student self-paced exercises before they are marked complete',
+  })
+  @IsOptional()
+  @IsBoolean()
+  requireTutorReviewForSelfPaced?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'uk',
+    description: 'Default language for exercise explanations (ISO 639-1 code). Null to use student locale.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  defaultExplanationLanguage?: string | null;
 }

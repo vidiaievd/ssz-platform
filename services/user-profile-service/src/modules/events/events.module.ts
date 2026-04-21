@@ -6,11 +6,11 @@ import { CreateProfileHandler } from '../profiles/application/commands/create-pr
 import { PROFILE_REPOSITORY } from '../profiles/domain/repositories/profile.repository.interface.js';
 import { ProfilePrismaRepository } from '../profiles/infrastructure/persistence/profile.prisma.repository.js';
 import { UserRegisteredConsumer } from '../profiles/infrastructure/events/user-registered.consumer.js';
+import { UserPlatformRoleAssignedConsumer } from '../profiles/infrastructure/events/user-platform-role-assigned.consumer.js';
 
 @Module({
   imports: [CqrsModule],
   providers: [
-    // Provide RABBITMQ_URL as an injectable string token
     {
       provide: 'RABBITMQ_URL',
       inject: [ConfigService],
@@ -18,6 +18,7 @@ import { UserRegisteredConsumer } from '../profiles/infrastructure/events/user-r
         config.get('RABBITMQ_URL') as string,
     },
     UserRegisteredConsumer,
+    UserPlatformRoleAssignedConsumer,
     CreateProfileHandler,
     {
       provide: PROFILE_REPOSITORY,

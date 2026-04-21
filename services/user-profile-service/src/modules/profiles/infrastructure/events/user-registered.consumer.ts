@@ -19,7 +19,7 @@ interface UserRegisteredPayload {
   user_id: string;
   email: string;
   roles?: string[]; // v2 — array of lowercase role names
-  role?: string;    // v1 — kept for backward compatibility
+  role?: string; // v1 — kept for backward compatibility
 }
 
 interface UserRegisteredEnvelope {
@@ -51,7 +51,6 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit(): void {
-    // Connect using amqp-connection-manager — reconnects automatically on failure
     this.connection = amqp.connect([this.rabbitmqUrl]);
 
     this.connection.on('connect', () =>
@@ -65,22 +64,13 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
 
     const channelWrapper = this.connection.createChannel({
       setup: async (channel: ConfirmChannel) => {
-        // Declare exchange — safe to call every startup (idempotent)
         await channel.assertExchange(EXCHANGE, EXCHANGE_TYPE, {
           durable: true,
         });
-
-        // Declare durable queue
         await channel.assertQueue(QUEUE, { durable: true });
-
-        // Bind queue to exchange with routing key
         await channel.bindQueue(QUEUE, EXCHANGE, ROUTING_KEY);
-
-        // Process one message at a time
         await channel.prefetch(1);
 
-        // Start consuming — amqplib types the callback as void, so we wrap
-        // the async logic in a void IIFE to avoid the ESLint warning
         await channel.consume(QUEUE, (msg) => {
           void (async () => {
             if (!msg) return;
@@ -98,7 +88,6 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
               return;
             }
 
-            // Idempotency check
             if (await this.processedEvents.isProcessed(data.event_id)) {
               this.logger.warn(`Duplicate event ignored: ${data.event_id}`);
               channel.ack(msg);
@@ -110,14 +99,13 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
                 `Processing user.registered for userId: ${data.payload.user_id}`,
               );
 
-              // Determine roles — support both v2 (roles array) and v1 (single role) formats
+              // Support both v2 (roles array) and v1 (single role) formats
               const roles: string[] =
                 data.payload.roles ??
                 (data.payload.role ? [data.payload.role] : ['student']);
-
               const normalizedRoles = roles.map((r) => r.toLowerCase());
 
-              // Always create the base profile — use email prefix as initial display name
+              // Always create the base profile
               await this.commandBus.execute(
                 new CreateProfileCommand(
                   data.payload.user_id,
@@ -125,17 +113,22 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
                 ),
               );
 
-              // Create student profile if user has the student role
-              if (normalizedRoles.includes('student')) {
-                await this.commandBus.execute(
-                  new CreateStudentProfileCommand(data.payload.user_id, undefined),
-                );
-              }
+              // Student is always present per ROLES.md — every registered user gets a StudentProfile
+              await this.commandBus.execute(
+                new CreateStudentProfileCommand(
+                  data.payload.user_id,
+                  undefined,
+                ),
+              );
 
-              // Create tutor profile if user has the tutor role
+              // Create TutorProfile only if user registered with tutor role
               if (normalizedRoles.includes('tutor')) {
                 await this.commandBus.execute(
-                  new CreateTutorProfileCommand(data.payload.user_id, undefined, undefined),
+                  new CreateTutorProfileCommand(
+                    data.payload.user_id,
+                    undefined,
+                    undefined,
+                  ),
                 );
               }
 
@@ -143,8 +136,8 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
                 data.event_id,
                 data.event_type,
               );
-
               channel.ack(msg);
+
               this.logger.log(
                 `Profiles created for userId: ${data.payload.user_id} with roles: [${normalizedRoles.join(', ')}]`,
               );
@@ -152,7 +145,6 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
               this.logger.error(
                 `Failed to process event ${data.event_id}: ${err instanceof Error ? err.message : String(err)}`,
               );
-              // Nack without requeue — prevents poison message loops
               channel.nack(msg, false, false);
             }
           })();
@@ -164,7 +156,6 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    // Surface channel setup errors
     channelWrapper.on('error', (err: Error) =>
       this.logger.error(`RabbitMQ channel error: ${err.message}`),
     );

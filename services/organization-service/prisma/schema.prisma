@@ -10,7 +10,9 @@ datasource db {
 enum MemberRole {
   OWNER
   ADMIN
+  CONTENT_ADMIN
   TEACHER
+  STUDENT
 }
 
 enum InvitationStatus {
@@ -27,6 +29,9 @@ model School {
   ownerId     String    // userId from user-profile-service
   avatarUrl   String?
   isActive    Boolean   @default(true)
+  // School policies
+  requireTutorReviewForSelfPaced Boolean @default(false)
+  defaultExplanationLanguage     String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
@@ -55,7 +60,7 @@ model SchoolInvitation {
   school    School           @relation(fields: [schoolId], references: [id])
   email     String
   role      MemberRole       @default(TEACHER)
-  token     String           @unique @default(uuid())
+  token     String           @unique  // signed JWT containing invitation metadata
   status    InvitationStatus @default(PENDING)
   expiresAt DateTime
   createdAt DateTime         @default(now())

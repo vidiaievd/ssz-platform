@@ -46,12 +46,14 @@ export class InvitationsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Accept an invitation by token' })
   @ApiResponse({ status: 204 })
-  @ApiResponse({ status: 403, description: 'Invitation expired or already used' })
+  @ApiResponse({ status: 403, description: 'Invitation expired, already used, or email mismatch' })
   @ApiResponse({ status: 404, description: 'Invitation not found' })
   async acceptInvitation(
     @CurrentUser() user: JwtPayload,
     @Param('token') token: string,
   ): Promise<void> {
-    await this.commandBus.execute(new AcceptInvitationCommand(user.sub, token));
+    await this.commandBus.execute(
+      new AcceptInvitationCommand(user.sub, user.email, token),
+    );
   }
 }
