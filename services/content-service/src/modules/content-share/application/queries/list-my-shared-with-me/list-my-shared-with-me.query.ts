@@ -1,0 +1,7 @@
+export class ListMySharedWithMeQuery {
+  constructor(
+    public readonly userId: string,
+    public readonly page: number,
+    public readonly limit: number,
+  ) {}
+}

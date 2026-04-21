@@ -101,6 +101,32 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  content_service:
+    build:
+      context: ../services/content-service
+      dockerfile: Dockerfile
+    container_name: ssz-content-service
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      DATABASE_URL: postgresql://content_service:${CONTENT_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/content_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3003/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: ssz-pgadmin
