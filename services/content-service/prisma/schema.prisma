@@ -527,6 +527,54 @@ model ExerciseInstruction {
   @@map("exercise_instructions")
 }
 
+// ─── Block 5 Enums ─────────────────────────────────────────────────────────────
+
+enum TagCategory {
+  TOPIC     @map("topic")
+  SITUATION @map("situation")
+  SKILL     @map("skill")
+  LEVEL     @map("level")
+  OTHER     @map("other")
+
+  @@map("tag_category")
+}
+
+enum TagScope {
+  GLOBAL @map("global")
+  SCHOOL @map("school")
+
+  @@map("tag_scope")
+}
+
+// Reused for both tag_assignments.entity_type and content_shares.entity_type.
+// Single-sourced here; if split later add a comment explaining divergence.
+enum TaggableEntityType {
+  CONTAINER       @map("container")
+  LESSON          @map("lesson")
+  VOCABULARY_LIST @map("vocabulary_list")
+  GRAMMAR_RULE    @map("grammar_rule")
+  EXERCISE        @map("exercise")
+
+  @@map("taggable_entity_type")
+}
+
+enum SharePermission {
+  READ            @map("read")
+  READ_AND_REVIEW @map("read_and_review")
+
+  @@map("share_permission")
+}
+
+enum EntitlementType {
+  MANUAL           @map("manual")
+  SUBSCRIPTION     @map("subscription")
+  ONE_TIME_PURCHASE @map("one_time_purchase")
+  PROMOTIONAL      @map("promotional")
+  FREE_GRANTED     @map("free_granted")
+
+  @@map("entitlement_type")
+}
+
 // ─── Block 4: Grammar Rules ───────────────────────────────────────────────────
 // Language-neutral rule with topic categorization.
 // slug: NULL until first published explanation if visibility = PUBLIC; immutable after.
@@ -613,4 +661,103 @@ model GrammarRuleExercisePool {
   @@index([grammarRuleId])
   @@index([exerciseId])
   @@map("grammar_rule_exercise_pool")
+}
+
+// ─── Block 5: Tags ─────────────────────────────────────────────────────────────
+
+// Global tags are created by platform_admin (owner_school_id IS NULL).
+// School-scoped tags are created by school content_admin/owner (owner_school_id IS NOT NULL).
+// Partial unique index on (slug, scope, owner_school_id) WHERE deleted_at IS NULL
+// is enforced via raw SQL migration (block-5-constraints) — Prisma cannot express this.
+// CHECK constraint tags_scope_owner_consistent also added via raw SQL:
+//   (scope='global' AND owner_school_id IS NULL) OR (scope='school' AND owner_school_id IS NOT NULL)
+model Tag {
+  id              String      @id @default(uuid()) @db.Uuid
+  slug            String      @db.VarChar(80)
+  name            String      @db.VarChar(100)
+  category        TagCategory
+  scope           TagScope
+  ownerSchoolId   String?     @map("owner_school_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt       DateTime?   @map("deleted_at") @db.Timestamptz
+  createdByUserId String      @map("created_by_user_id") @db.Uuid
+
+  assignments TagAssignment[]
+
+  @@index([scope, deletedAt])
+  @@index([ownerSchoolId])
+  @@map("tags")
+}
+
+// Polymorphic assignments of tags to any taggable entity.
+// entityId is a raw UUID — no Prisma relation (polymorphic FK not supported by Prisma).
+// Uniqueness enforced by @@unique([tagId, entityType, entityId]).
+model TagAssignment {
+  id              String             @id @default(uuid()) @db.Uuid
+  tagId           String             @map("tag_id") @db.Uuid
+  entityType      TaggableEntityType @map("entity_type")
+  // Polymorphic reference — validated in application layer; no Prisma FK.
+  entityId        String             @map("entity_id") @db.Uuid
+  assignedAt      DateTime           @default(now()) @map("assigned_at") @db.Timestamptz
+  assignedByUserId String            @map("assigned_by_user_id") @db.Uuid
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, entityType, entityId])
+  @@index([entityType, entityId])
+  @@index([tagId])
+  @@map("tag_assignments")
+}
+
+// ─── Block 5: Content Shares ──────────────────────────────────────────────────
+
+// Grants per-user read access to entities with visibility='shared'.
+// Partial unique index on (entity_type, entity_id, shared_with_user_id) WHERE revoked_at IS NULL
+// is enforced via raw SQL migration (block-5-constraints).
+// CHECK constraint content_shares_expires_after_created added via raw SQL:
+//   expires_at IS NULL OR expires_at > created_at
+model ContentShare {
+  id              String             @id @default(uuid()) @db.Uuid
+  entityType      TaggableEntityType @map("entity_type")
+  // Polymorphic reference — no Prisma FK.
+  entityId        String             @map("entity_id") @db.Uuid
+  sharedWithUserId String            @map("shared_with_user_id") @db.Uuid
+  sharedByUserId  String             @map("shared_by_user_id") @db.Uuid
+  permission      SharePermission    @default(READ)
+  expiresAt       DateTime?          @map("expires_at") @db.Timestamptz
+  revokedAt       DateTime?          @map("revoked_at") @db.Timestamptz
+  note            String?            @db.Text
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([sharedWithUserId, revokedAt])
+  @@index([entityType, entityId])
+  @@index([expiresAt])
+  @@map("content_shares")
+}
+
+// ─── Block 5: Content Entitlements ────────────────────────────────────────────
+
+// Paid or granted access to containers with specific access_tier requirements.
+// containerId is stored as a raw UUID — raw FK (ON DELETE RESTRICT) added via raw SQL
+// migration (block-5-constraints) named content_entitlements_container_fk.
+// Partial unique index on (user_id, container_id) WHERE revoked_at IS NULL enforced via raw SQL.
+// CHECK constraint content_entitlements_expires_after_granted added via raw SQL:
+//   expires_at IS NULL OR expires_at > granted_at
+model ContentEntitlement {
+  id               String          @id @default(uuid()) @db.Uuid
+  userId           String          @map("user_id") @db.Uuid
+  // Polymorphic-style FK to containers.id — no Prisma relation; raw FK added via migration.
+  containerId      String          @map("container_id") @db.Uuid
+  entitlementType  EntitlementType @map("entitlement_type")
+  grantedAt        DateTime        @default(now()) @map("granted_at") @db.Timestamptz
+  expiresAt        DateTime?       @map("expires_at") @db.Timestamptz
+  revokedAt        DateTime?       @map("revoked_at") @db.Timestamptz
+  grantedByUserId  String?         @map("granted_by_user_id") @db.Uuid
+  sourceReference  String?         @map("source_reference") @db.VarChar(200)
+  metadata         Json?
+
+  @@index([userId, containerId])
+  @@index([userId, expiresAt])
+  @@index([containerId])
+  @@map("content_entitlements")
 }
