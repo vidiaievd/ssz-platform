@@ -1,0 +1,763 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ─────────────────────────────────────────────────────────────────
+// Prisma enum identifiers are SCREAMING_SNAKE_CASE; DB values are lowercase
+// via @map so application code always works with the Prisma representation.
+
+enum ContainerType {
+  COURSE     @map("course")
+  MODULE     @map("module")
+  COLLECTION @map("collection")
+
+  @@map("container_type")
+}
+
+enum DifficultyLevel {
+  A1
+  A2
+  B1
+  B2
+  C1
+  C2
+
+  @@map("difficulty_level")
+}
+
+enum Visibility {
+  PUBLIC         @map("public")
+  SCHOOL_PRIVATE @map("school_private")
+  SHARED         @map("shared")
+  PRIVATE        @map("private")
+
+  @@map("visibility")
+}
+
+enum AccessTier {
+  ASSIGNED_ONLY        @map("assigned_only")
+  ENTITLEMENT_REQUIRED @map("entitlement_required")
+  FREE_WITHIN_SCHOOL   @map("free_within_school")
+  PUBLIC_FREE          @map("public_free")
+  PUBLIC_PAID          @map("public_paid")
+
+  @@map("access_tier")
+}
+
+enum VersionStatus {
+  DRAFT      @map("draft")
+  PUBLISHED  @map("published")
+  DEPRECATED @map("deprecated")
+  ARCHIVED   @map("archived")
+
+  @@map("version_status")
+}
+
+enum ContainerItemType {
+  CONTAINER       @map("container")
+  LESSON          @map("lesson")
+  VOCABULARY_LIST @map("vocabulary_list")
+  GRAMMAR_RULE    @map("grammar_rule")
+  EXERCISE        @map("exercise")
+
+  @@map("container_item_type")
+}
+
+enum VariantStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+
+  @@map("variant_status")
+}
+
+enum MediaRefType {
+  IMAGE @map("image")
+  AUDIO @map("audio")
+  VIDEO @map("video")
+
+  @@map("media_ref_type")
+}
+
+// ─── Models ────────────────────────────────────────────────────────────────
+
+// Container is an "idea" entity — metadata shell around versioned content.
+// currentPublishedVersionId is intentionally NOT a Prisma @relation to avoid
+// a circular dependency with ContainerVersion. A DEFERRABLE FK is added via
+// raw SQL in the follow-up migration (add-container-constraints).
+model Container {
+  id                        String          @id @default(uuid()) @db.Uuid
+  // Partial unique index on (slug) WHERE slug IS NOT NULL AND deleted_at IS NULL
+  // is enforced via raw SQL — Prisma does not support partial unique indexes.
+  slug                      String?         @db.VarChar(120)
+  containerType             ContainerType   @map("container_type")
+  targetLanguage            String          @map("target_language") @db.VarChar(10)
+  difficultyLevel           DifficultyLevel @map("difficulty_level")
+  title                     String          @db.VarChar(200)
+  description               String?         @db.Text
+  coverImageMediaId         String?         @map("cover_image_media_id") @db.Uuid
+  ownerUserId               String          @map("owner_user_id") @db.Uuid
+  ownerSchoolId             String?         @map("owner_school_id") @db.Uuid
+  visibility                Visibility
+  accessTier                AccessTier      @map("access_tier")
+  // Raw FK to container_versions.id (DEFERRABLE INITIALLY DEFERRED) added via migration.
+  currentPublishedVersionId String?         @map("current_published_version_id") @db.Uuid
+  createdAt                 DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                 DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt                 DateTime?       @map("deleted_at") @db.Timestamptz
+
+  versions      ContainerVersion[]
+  localizations ContainerLocalization[]
+
+  @@index([ownerUserId])
+  @@index([ownerSchoolId])
+  @@index([visibility])
+  @@index([targetLanguage, difficultyLevel])
+  @@index([deletedAt, visibility, targetLanguage])
+  @@map("containers")
+}
+
+// One container can have many versions. Only one draft and one published version
+// are allowed at a time — enforced via partial unique indexes in raw SQL migration.
+model ContainerVersion {
+  id                String        @id @default(uuid()) @db.Uuid
+  containerId       String        @map("container_id") @db.Uuid
+  versionNumber     Int           @map("version_number")
+  status            VersionStatus
+  changelog         String?       @db.Text
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  createdByUserId   String        @map("created_by_user_id") @db.Uuid
+  publishedAt       DateTime?     @map("published_at") @db.Timestamptz
+  publishedByUserId String?       @map("published_by_user_id") @db.Uuid
+  deprecatedAt      DateTime?     @map("deprecated_at") @db.Timestamptz
+  sunsetAt          DateTime?     @map("sunset_at") @db.Timestamptz
+  archivedAt        DateTime?     @map("archived_at") @db.Timestamptz
+  // Incremented on every item mutation; used for optimistic concurrency on reorder.
+  revisionCount     Int           @default(0) @map("revision_count")
+
+  container Container      @relation(fields: [containerId], references: [id])
+  items     ContainerItem[]
+
+  @@unique([containerId, versionNumber])
+  @@index([containerId])
+  @@index([status, sunsetAt])
+  @@map("container_versions")
+}
+
+// Ordered list of references inside a version. Position gaps are allowed after
+// remove; reorder restores continuous numbering. Cascade-deleted with the version.
+model ContainerItem {
+  id                 String            @id @default(uuid()) @db.Uuid
+  containerVersionId String            @map("container_version_id") @db.Uuid
+  position           Int
+  itemType           ContainerItemType @map("item_type")
+  // Polymorphic reference — no Prisma relation; item_id is validated in application layer.
+  itemId             String            @map("item_id") @db.Uuid
+  isRequired         Boolean           @default(true) @map("is_required")
+  sectionLabel       String?           @map("section_label") @db.VarChar(100)
+  addedAt            DateTime          @default(now()) @map("added_at") @db.Timestamptz
+
+  containerVersion ContainerVersion @relation(fields: [containerVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([containerVersionId, position])
+  @@index([containerVersionId])
+  @@index([itemType, itemId])
+  @@map("container_items")
+}
+
+// Optional translated titles/descriptions for containers. One row per language.
+model ContainerLocalization {
+  id              String   @id @default(uuid()) @db.Uuid
+  containerId     String   @map("container_id") @db.Uuid
+  languageCode    String   @map("language_code") @db.VarChar(10)
+  title           String   @db.VarChar(200)
+  description     String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+
+  container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@unique([containerId, languageCode])
+  @@map("container_localizations")
+}
+
+enum PartOfSpeech {
+  NOUN          @map("noun")
+  VERB          @map("verb")
+  ADJECTIVE     @map("adjective")
+  ADVERB        @map("adverb")
+  PRONOUN       @map("pronoun")
+  PREPOSITION   @map("preposition")
+  CONJUNCTION   @map("conjunction")
+  INTERJECTION  @map("interjection")
+  NUMERAL       @map("numeral")
+  PARTICLE      @map("particle")
+  PHRASE        @map("phrase")
+  OTHER         @map("other")
+
+  @@map("part_of_speech")
+}
+
+enum Register {
+  FORMAL     @map("formal")
+  INFORMAL   @map("informal")
+  NEUTRAL    @map("neutral")
+  COLLOQUIAL @map("colloquial")
+  SLANG      @map("slang")
+  ARCHAIC    @map("archaic")
+  DIALECT    @map("dialect")
+
+  @@map("register")
+}
+
+// ─── Block 2: Lessons + Content Variants ──────────────────────────────────────
+
+// Lesson is a language-neutral entity — metadata only. All student-facing
+// content lives in LessonContentVariant (one per explanation_language × level_range).
+// slug is NULL until the first variant is published for a public lesson;
+// immutable after that. Partial unique index on slug is added via raw SQL migration.
+model Lesson {
+  id                String          @id @default(uuid()) @db.Uuid
+  targetLanguage    String          @map("target_language") @db.VarChar(10)
+  difficultyLevel   DifficultyLevel @map("difficulty_level")
+  // Partial unique index: WHERE slug IS NOT NULL AND deleted_at IS NULL (raw SQL migration).
+  slug              String?         @db.VarChar(120)
+  title             String          @db.VarChar(200)
+  description       String?         @db.Text
+  coverImageMediaId String?         @map("cover_image_media_id") @db.Uuid
+  ownerUserId       String          @map("owner_user_id") @db.Uuid
+  ownerSchoolId     String?         @map("owner_school_id") @db.Uuid
+  // CHECK constraint (raw SQL): owner_school_id IS NULL → visibility ∈ {public,shared,private}
+  //                             owner_school_id IS NOT NULL → visibility ∈ {public,school_private,shared,private}
+  visibility        Visibility
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz
+
+  variants LessonContentVariant[]
+
+  @@index([ownerUserId])
+  @@index([ownerSchoolId])
+  @@index([visibility])
+  @@index([targetLanguage, difficultyLevel])
+  @@index([deletedAt, visibility, targetLanguage])
+  @@map("lessons")
+}
+
+// One variant per (lesson_id, explanation_language, min_level, max_level) combination.
+// Silent updates are allowed even when status = published (typo fixes, clarifications).
+// deletedAt is set via cascade when the parent lesson is soft-deleted.
+// Hard delete is used for direct DELETE /lessons/:id/variants/:vid requests.
+model LessonContentVariant {
+  id                      String        @id @default(uuid()) @db.Uuid
+  lessonId                String        @map("lesson_id") @db.Uuid
+  explanationLanguage     String        @map("explanation_language") @db.VarChar(10)
+  minLevel                DifficultyLevel @map("min_level")
+  maxLevel                DifficultyLevel @map("max_level")
+  // CHECK constraint (raw SQL): ordinal(min_level) <= ordinal(max_level) via CASE mapping.
+  displayTitle            String        @map("display_title") @db.VarChar(200)
+  displayDescription      String?       @map("display_description") @db.Text
+  bodyMarkdown            String        @map("body_markdown") @db.Text
+  estimatedReadingMinutes Int?          @map("estimated_reading_minutes")
+  status                  VariantStatus @default(DRAFT)
+  createdAt               DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId         String        @map("created_by_user_id") @db.Uuid
+  lastEditedByUserId      String        @map("last_edited_by_user_id") @db.Uuid
+  publishedAt             DateTime?     @map("published_at") @db.Timestamptz
+  // Set via bulk updateMany when parent lesson is soft-deleted.
+  deletedAt               DateTime?     @map("deleted_at") @db.Timestamptz
+
+  lesson    Lesson                 @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  mediaRefs LessonVariantMediaRef[]
+
+  @@unique([lessonId, explanationLanguage, minLevel, maxLevel])
+  @@index([lessonId])
+  @@index([lessonId, status])
+  @@map("lesson_content_variants")
+}
+
+// Denormalized table extracted from body_markdown on every save.
+// Enables fast reverse lookups: "which lessons use media asset X?"
+// Replaced atomically (delete+createMany in a transaction) on every variant save.
+model LessonVariantMediaRef {
+  id                     String       @id @default(uuid()) @db.Uuid
+  lessonContentVariantId String       @map("lesson_content_variant_id") @db.Uuid
+  mediaId                String       @map("media_id") @db.Uuid
+  mediaType              MediaRefType @map("media_type")
+  positionInText         Int          @map("position_in_text")
+  extractedAt            DateTime     @map("extracted_at") @db.Timestamptz
+
+  variant LessonContentVariant @relation(fields: [lessonContentVariantId], references: [id], onDelete: Cascade)
+
+  @@index([lessonContentVariantId])
+  @@index([mediaId])
+  @@map("lesson_variant_media_refs")
+}
+
+// ─── Block 3: Vocabulary ──────────────────────────────────────────────────────
+
+// A named collection of vocabulary items owned by a user or school.
+// slug is NULL for non-public lists; generated at creation if visibility = PUBLIC,
+// or at the moment visibility is changed to PUBLIC. Immutable after first assignment.
+// Partial unique index on (slug) WHERE slug IS NOT NULL AND deleted_at IS NULL
+// is enforced via raw SQL migration (add-vocabulary-constraints).
+model VocabularyList {
+  id                String          @id @default(uuid()) @db.Uuid
+  slug              String?         @db.VarChar(120)
+  title             String          @db.VarChar(200)
+  description       String?         @db.Text
+  targetLanguage    String          @map("target_language") @db.VarChar(10)
+  difficultyLevel   DifficultyLevel @map("difficulty_level")
+  ownerUserId       String          @map("owner_user_id") @db.Uuid
+  ownerSchoolId     String?         @map("owner_school_id") @db.Uuid
+  // CHECK constraints (raw SQL):
+  //   owner_school_id IS NULL     → visibility IN ('public','shared','private')
+  //   owner_school_id IS NOT NULL → visibility IN ('public','school_private','shared','private')
+  visibility        Visibility
+  autoAddToSrs      Boolean         @default(true) @map("auto_add_to_srs")
+  coverImageMediaId String?         @map("cover_image_media_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz
+
+  items VocabularyItem[]
+
+  @@index([ownerUserId])
+  @@index([ownerSchoolId])
+  @@index([visibility])
+  @@index([targetLanguage, difficultyLevel])
+  @@index([deletedAt, visibility, targetLanguage])
+  @@map("vocabulary_lists")
+}
+
+// A single word/phrase entry within a vocabulary list.
+// word is case-preserved. position is 0-based.
+// Unique constraints: (vocabularyListId, position) and (vocabularyListId, word).
+// CHECK constraint (raw SQL): length(trim(word)) > 0
+model VocabularyItem {
+  id                         String        @id @default(uuid()) @db.Uuid
+  vocabularyListId           String        @map("vocabulary_list_id") @db.Uuid
+  word                       String        @db.VarChar(200)
+  position                   Int
+  partOfSpeech               PartOfSpeech? @map("part_of_speech")
+  ipaTranscription           String?       @map("ipa_transcription") @db.VarChar(200)
+  pronunciationAudioMediaId  String?       @map("pronunciation_audio_media_id") @db.Uuid
+  // JSONB; validated against a per-language schema in application code (not DB).
+  grammaticalProperties      Json?         @map("grammatical_properties")
+  register                   Register?
+  notes                      String?       @db.Text
+  createdAt                  DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                  DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt                  DateTime?     @map("deleted_at") @db.Timestamptz
+
+  vocabularyList VocabularyList              @relation(fields: [vocabularyListId], references: [id], onDelete: Cascade)
+  translations   VocabularyItemTranslation[]
+  usageExamples  VocabularyUsageExample[]
+
+  @@unique([vocabularyListId, position])
+  @@unique([vocabularyListId, word])
+  @@index([vocabularyListId])
+  @@index([vocabularyListId, deletedAt])
+  @@index([partOfSpeech])
+  @@map("vocabulary_items")
+}
+
+// One translation row per (item, language). Upserted — never duplicated.
+model VocabularyItemTranslation {
+  id                     String   @id @default(uuid()) @db.Uuid
+  vocabularyItemId       String   @map("vocabulary_item_id") @db.Uuid
+  translationLanguage    String   @map("translation_language") @db.VarChar(10)
+  primaryTranslation     String   @map("primary_translation") @db.VarChar(300)
+  alternativeTranslations String[] @default([]) @map("alternative_translations")
+  definition             String?  @db.Text
+  usageNotes             String?  @map("usage_notes") @db.Text
+  falseFriendWarning     String?  @map("false_friend_warning") @db.Text
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId        String   @map("created_by_user_id") @db.Uuid
+  lastEditedByUserId     String   @map("last_edited_by_user_id") @db.Uuid
+
+  vocabularyItem VocabularyItem @relation(fields: [vocabularyItemId], references: [id], onDelete: Cascade)
+
+  @@unique([vocabularyItemId, translationLanguage])
+  @@index([vocabularyItemId])
+  @@index([translationLanguage])
+  @@map("vocabulary_item_translations")
+}
+
+// Example sentence illustrating how the word is used in context.
+// position is 0-based within the parent item.
+model VocabularyUsageExample {
+  id               String    @id @default(uuid()) @db.Uuid
+  vocabularyItemId String    @map("vocabulary_item_id") @db.Uuid
+  exampleText      String    @map("example_text") @db.Text
+  position         Int       @default(0)
+  audioMediaId     String?   @map("audio_media_id") @db.Uuid
+  contextNote      String?   @map("context_note") @db.VarChar(200)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  vocabularyItem VocabularyItem                 @relation(fields: [vocabularyItemId], references: [id], onDelete: Cascade)
+  translations   VocabularyExampleTranslation[]
+
+  @@unique([vocabularyItemId, position])
+  @@index([vocabularyItemId])
+  @@map("vocabulary_usage_examples")
+}
+
+// Translation of a usage example into a student's language.
+model VocabularyExampleTranslation {
+  id                       String   @id @default(uuid()) @db.Uuid
+  vocabularyUsageExampleId String   @map("vocabulary_usage_example_id") @db.Uuid
+  translationLanguage      String   @map("translation_language") @db.VarChar(10)
+  translatedText           String   @map("translated_text") @db.Text
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  usageExample VocabularyUsageExample @relation(fields: [vocabularyUsageExampleId], references: [id], onDelete: Cascade)
+
+  @@unique([vocabularyUsageExampleId, translationLanguage])
+  @@index([vocabularyUsageExampleId])
+  @@map("vocabulary_example_translations")
+}
+
+// ─── Block 4 Enums ─────────────────────────────────────────────────────────────
+
+enum GrammarTopic {
+  VERBS        @map("verbs")
+  NOUNS        @map("nouns")
+  ADJECTIVES   @map("adjectives")
+  ADVERBS      @map("adverbs")
+  PRONOUNS     @map("pronouns")
+  ARTICLES     @map("articles")
+  PREPOSITIONS @map("prepositions")
+  CONJUNCTIONS @map("conjunctions")
+  WORD_ORDER   @map("word_order")
+  TENSES       @map("tenses")
+  CASES        @map("cases")
+  MOOD         @map("mood")
+  VOICE        @map("voice")
+  NUMERALS     @map("numerals")
+  OTHER        @map("other")
+
+  @@map("grammar_topic")
+}
+
+// ─── Block 4: Exercise Templates (read-only seed data) ────────────────────────
+// Templates define the JSON schema for exercise content and answers.
+// supportedLanguages: null = all languages supported; non-null = restricted list.
+// No CRUD mutations at runtime — only GET list/by-code endpoints.
+model ExerciseTemplate {
+  id                   String    @id @default(uuid()) @db.Uuid
+  code                 String    @unique @db.VarChar(50)
+  name                 String    @db.VarChar(100)
+  description          String?   @db.Text
+  contentSchema        Json      @map("content_schema")
+  answerSchema         Json      @map("answer_schema")
+  defaultCheckSettings Json?     @map("default_check_settings")
+  // Nullable JSON array of BCP-47 language tags. null = all languages supported.
+  supportedLanguages   Json?     @map("supported_languages")
+  isActive             Boolean   @default(true) @map("is_active")
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  exercises Exercise[]
+
+  @@map("exercise_templates")
+}
+
+// ─── Block 4: Exercises ───────────────────────────────────────────────────────
+// content validated against template.content_schema in application layer.
+// expectedAnswers validated against template.answer_schema.
+// answerCheckSettings overrides template.defaultCheckSettings at read time (shallow merge).
+// CHECK constraints (raw SQL):
+//   visibility vs owner_school_id (same pattern as lessons/vocabulary)
+model Exercise {
+  id                       String          @id @default(uuid()) @db.Uuid
+  exerciseTemplateId       String          @map("exercise_template_id") @db.Uuid
+  targetLanguage           String          @map("target_language") @db.VarChar(10)
+  difficultyLevel          DifficultyLevel @map("difficulty_level")
+  content                  Json
+  expectedAnswers          Json            @map("expected_answers")
+  answerCheckSettings      Json?           @map("answer_check_settings")
+  ownerUserId              String          @map("owner_user_id") @db.Uuid
+  ownerSchoolId            String?         @map("owner_school_id") @db.Uuid
+  visibility               Visibility
+  estimatedDurationSeconds Int?            @map("estimated_duration_seconds")
+  createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt                DateTime?       @map("deleted_at") @db.Timestamptz
+
+  template     ExerciseTemplate          @relation(fields: [exerciseTemplateId], references: [id])
+  instructions ExerciseInstruction[]
+  poolEntries  GrammarRuleExercisePool[]
+
+  @@index([exerciseTemplateId])
+  @@index([ownerUserId])
+  @@index([ownerSchoolId])
+  @@index([visibility])
+  @@index([targetLanguage, difficultyLevel])
+  @@index([deletedAt, visibility, targetLanguage])
+  @@map("exercises")
+}
+
+// Per-language instruction for an exercise.
+// instructionLanguage × exerciseId must be unique (@@unique below).
+// text_overrides JSONB: keys are placeholder tokens ($$token$$), values are per-language strings.
+// Content Service stores and returns them; frontend resolves substitution client-side.
+model ExerciseInstruction {
+  id                  String   @id @default(uuid()) @db.Uuid
+  exerciseId          String   @map("exercise_id") @db.Uuid
+  instructionLanguage String   @map("instruction_language") @db.VarChar(10)
+  instructionText     String   @map("instruction_text") @db.Text
+  hintText            String?  @map("hint_text") @db.Text
+  textOverrides       Json?    @map("text_overrides")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([exerciseId, instructionLanguage])
+  @@index([exerciseId])
+  @@map("exercise_instructions")
+}
+
+// ─── Block 5 Enums ─────────────────────────────────────────────────────────────
+
+enum TagCategory {
+  TOPIC     @map("topic")
+  SITUATION @map("situation")
+  SKILL     @map("skill")
+  LEVEL     @map("level")
+  OTHER     @map("other")
+
+  @@map("tag_category")
+}
+
+enum TagScope {
+  GLOBAL @map("global")
+  SCHOOL @map("school")
+
+  @@map("tag_scope")
+}
+
+// Reused for both tag_assignments.entity_type and content_shares.entity_type.
+// Single-sourced here; if split later add a comment explaining divergence.
+enum TaggableEntityType {
+  CONTAINER       @map("container")
+  LESSON          @map("lesson")
+  VOCABULARY_LIST @map("vocabulary_list")
+  GRAMMAR_RULE    @map("grammar_rule")
+  EXERCISE        @map("exercise")
+
+  @@map("taggable_entity_type")
+}
+
+enum SharePermission {
+  READ            @map("read")
+  READ_AND_REVIEW @map("read_and_review")
+
+  @@map("share_permission")
+}
+
+enum EntitlementType {
+  MANUAL           @map("manual")
+  SUBSCRIPTION     @map("subscription")
+  ONE_TIME_PURCHASE @map("one_time_purchase")
+  PROMOTIONAL      @map("promotional")
+  FREE_GRANTED     @map("free_granted")
+
+  @@map("entitlement_type")
+}
+
+// ─── Block 4: Grammar Rules ───────────────────────────────────────────────────
+// Language-neutral rule with topic categorization.
+// slug: NULL until first published explanation if visibility = PUBLIC; immutable after.
+// Partial unique index on slug WHERE slug IS NOT NULL AND deleted_at IS NULL (raw SQL).
+// CHECK constraints (raw SQL): visibility vs owner_school_id.
+model GrammarRule {
+  id              String          @id @default(uuid()) @db.Uuid
+  slug            String?         @db.VarChar(120)
+  targetLanguage  String          @map("target_language") @db.VarChar(10)
+  difficultyLevel DifficultyLevel @map("difficulty_level")
+  topic           GrammarTopic
+  subtopic        String?         @db.VarChar(100)
+  title           String          @db.VarChar(200)
+  description     String?         @db.Text
+  ownerUserId     String          @map("owner_user_id") @db.Uuid
+  ownerSchoolId   String?         @map("owner_school_id") @db.Uuid
+  visibility      Visibility
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz
+
+  explanations GrammarRuleExplanation[]
+  exercisePool GrammarRuleExercisePool[]
+
+  @@index([ownerUserId])
+  @@index([ownerSchoolId])
+  @@index([visibility])
+  @@index([targetLanguage, difficultyLevel])
+  @@index([topic])
+  @@index([deletedAt, visibility, targetLanguage])
+  @@map("grammar_rules")
+}
+
+// One explanation per (grammar_rule_id, explanation_language, min_level, max_level).
+// Mirrors the LessonContentVariant pattern: same DRAFT/PUBLISHED lifecycle,
+// same best-variant selection algorithm (BestVariantSelectorService).
+// displaySummary: short summary shown in grammar rule lists (no bodyMarkdown).
+// deletedAt: set via cascade when parent grammar rule is soft-deleted.
+// CHECK constraint (raw SQL): ordinal(min_level) <= ordinal(max_level).
+model GrammarRuleExplanation {
+  id                      String          @id @default(uuid()) @db.Uuid
+  grammarRuleId           String          @map("grammar_rule_id") @db.Uuid
+  explanationLanguage     String          @map("explanation_language") @db.VarChar(10)
+  minLevel                DifficultyLevel @map("min_level")
+  maxLevel                DifficultyLevel @map("max_level")
+  displayTitle            String          @map("display_title") @db.VarChar(200)
+  displaySummary          String?         @map("display_summary") @db.Text
+  bodyMarkdown            String          @map("body_markdown") @db.Text
+  estimatedReadingMinutes Int?            @map("estimated_reading_minutes")
+  status                  VariantStatus   @default(DRAFT)
+  createdAt               DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId         String          @map("created_by_user_id") @db.Uuid
+  lastEditedByUserId      String          @map("last_edited_by_user_id") @db.Uuid
+  publishedAt             DateTime?       @map("published_at") @db.Timestamptz
+  deletedAt               DateTime?       @map("deleted_at") @db.Timestamptz
+
+  grammarRule GrammarRule @relation(fields: [grammarRuleId], references: [id], onDelete: Cascade)
+
+  @@unique([grammarRuleId, explanationLanguage, minLevel, maxLevel])
+  @@index([grammarRuleId])
+  @@index([grammarRuleId, status])
+  @@map("grammar_rule_explanations")
+}
+
+// Many-to-many join between grammar rules and exercises.
+// weight (default 1.0) drives weighted random exercise selection.
+// position is 0-based; gaps allowed after removal; restored to continuous by reorder.
+// Soft-deleted exercises remain in pool rows but are excluded at query time.
+// CHECK constraint (raw SQL): weight > 0.
+model GrammarRuleExercisePool {
+  id            String   @id @default(uuid()) @db.Uuid
+  grammarRuleId String   @map("grammar_rule_id") @db.Uuid
+  exerciseId    String   @map("exercise_id") @db.Uuid
+  position      Int
+  weight        Float    @default(1.0)
+  addedAt       DateTime @default(now()) @map("added_at") @db.Timestamptz
+  addedByUserId String   @map("added_by_user_id") @db.Uuid
+
+  grammarRule GrammarRule @relation(fields: [grammarRuleId], references: [id], onDelete: Cascade)
+  exercise    Exercise    @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([grammarRuleId, exerciseId])
+  @@index([grammarRuleId])
+  @@index([exerciseId])
+  @@map("grammar_rule_exercise_pool")
+}
+
+// ─── Block 5: Tags ─────────────────────────────────────────────────────────────
+
+// Global tags are created by platform_admin (owner_school_id IS NULL).
+// School-scoped tags are created by school content_admin/owner (owner_school_id IS NOT NULL).
+// Partial unique index on (slug, scope, owner_school_id) WHERE deleted_at IS NULL
+// is enforced via raw SQL migration (block-5-constraints) — Prisma cannot express this.
+// CHECK constraint tags_scope_owner_consistent also added via raw SQL:
+//   (scope='global' AND owner_school_id IS NULL) OR (scope='school' AND owner_school_id IS NOT NULL)
+model Tag {
+  id              String      @id @default(uuid()) @db.Uuid
+  slug            String      @db.VarChar(80)
+  name            String      @db.VarChar(100)
+  category        TagCategory
+  scope           TagScope
+  ownerSchoolId   String?     @map("owner_school_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt       DateTime?   @map("deleted_at") @db.Timestamptz
+  createdByUserId String      @map("created_by_user_id") @db.Uuid
+
+  assignments TagAssignment[]
+
+  @@index([scope, deletedAt])
+  @@index([ownerSchoolId])
+  @@map("tags")
+}
+
+// Polymorphic assignments of tags to any taggable entity.
+// entityId is a raw UUID — no Prisma relation (polymorphic FK not supported by Prisma).
+// Uniqueness enforced by @@unique([tagId, entityType, entityId]).
+model TagAssignment {
+  id              String             @id @default(uuid()) @db.Uuid
+  tagId           String             @map("tag_id") @db.Uuid
+  entityType      TaggableEntityType @map("entity_type")
+  // Polymorphic reference — validated in application layer; no Prisma FK.
+  entityId        String             @map("entity_id") @db.Uuid
+  assignedAt      DateTime           @default(now()) @map("assigned_at") @db.Timestamptz
+  assignedByUserId String            @map("assigned_by_user_id") @db.Uuid
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, entityType, entityId])
+  @@index([entityType, entityId])
+  @@index([tagId])
+  @@map("tag_assignments")
+}
+
+// ─── Block 5: Content Shares ──────────────────────────────────────────────────
+
+// Grants per-user read access to entities with visibility='shared'.
+// Partial unique index on (entity_type, entity_id, shared_with_user_id) WHERE revoked_at IS NULL
+// is enforced via raw SQL migration (block-5-constraints).
+// CHECK constraint content_shares_expires_after_created added via raw SQL:
+//   expires_at IS NULL OR expires_at > created_at
+model ContentShare {
+  id              String             @id @default(uuid()) @db.Uuid
+  entityType      TaggableEntityType @map("entity_type")
+  // Polymorphic reference — no Prisma FK.
+  entityId        String             @map("entity_id") @db.Uuid
+  sharedWithUserId String            @map("shared_with_user_id") @db.Uuid
+  sharedByUserId  String             @map("shared_by_user_id") @db.Uuid
+  permission      SharePermission    @default(READ)
+  expiresAt       DateTime?          @map("expires_at") @db.Timestamptz
+  revokedAt       DateTime?          @map("revoked_at") @db.Timestamptz
+  note            String?            @db.Text
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([sharedWithUserId, revokedAt])
+  @@index([entityType, entityId])
+  @@index([expiresAt])
+  @@map("content_shares")
+}
+
+// ─── Block 5: Content Entitlements ────────────────────────────────────────────
+
+// Paid or granted access to containers with specific access_tier requirements.
+// containerId is stored as a raw UUID — raw FK (ON DELETE RESTRICT) added via raw SQL
+// migration (block-5-constraints) named content_entitlements_container_fk.
+// Partial unique index on (user_id, container_id) WHERE revoked_at IS NULL enforced via raw SQL.
+// CHECK constraint content_entitlements_expires_after_granted added via raw SQL:
+//   expires_at IS NULL OR expires_at > granted_at
+model ContentEntitlement {
+  id               String          @id @default(uuid()) @db.Uuid
+  userId           String          @map("user_id") @db.Uuid
+  // Polymorphic-style FK to containers.id — no Prisma relation; raw FK added via migration.
+  containerId      String          @map("container_id") @db.Uuid
+  entitlementType  EntitlementType @map("entitlement_type")
+  grantedAt        DateTime        @default(now()) @map("granted_at") @db.Timestamptz
+  expiresAt        DateTime?       @map("expires_at") @db.Timestamptz
+  revokedAt        DateTime?       @map("revoked_at") @db.Timestamptz
+  grantedByUserId  String?         @map("granted_by_user_id") @db.Uuid
+  sourceReference  String?         @map("source_reference") @db.VarChar(200)
+  metadata         Json?
+
+  @@index([userId, containerId])
+  @@index([userId, expiresAt])
+  @@index([containerId])
+  @@map("content_entitlements")
+}
