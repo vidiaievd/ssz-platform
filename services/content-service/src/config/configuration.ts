@@ -29,6 +29,12 @@ export const envSchema = z.object({
   JWT_PUBLIC_KEY_PATH: z.string().optional(),
   JWT_ISSUER: z.string().default('https://auth.ssz-platform.internal'),
   JWT_AUDIENCE: z.string().default('ssz-services'),
+
+  // Organization Service (synchronous role checks for VisibilityGuard)
+  ORGANIZATION_SERVICE_URL: z.string().min(1, 'ORGANIZATION_SERVICE_URL is required'),
+  ORGANIZATION_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
+  ORGANIZATION_SERVICE_RETRIES: z.coerce.number().int().min(0).default(2),
+  INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -78,6 +84,12 @@ export interface AppConfig {
     issuer: string | undefined;
     audience: string | undefined;
   };
+  organization: {
+    baseUrl: string;
+    timeoutMs: number;
+    retries: number;
+    internalAuthToken: string;
+  };
 }
 
 export default (): AppConfig => {
@@ -108,6 +120,12 @@ export default (): AppConfig => {
       publicKeyPath: env.JWT_PUBLIC_KEY_PATH,
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,
+    },
+    organization: {
+      baseUrl: env.ORGANIZATION_SERVICE_URL,
+      timeoutMs: env.ORGANIZATION_SERVICE_TIMEOUT_MS,
+      retries: env.ORGANIZATION_SERVICE_RETRIES,
+      internalAuthToken: env.INTERNAL_SERVICE_TOKEN,
     },
   };
 };
