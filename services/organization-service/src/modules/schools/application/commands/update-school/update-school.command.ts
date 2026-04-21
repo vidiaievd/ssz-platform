@@ -5,5 +5,7 @@ export class UpdateSchoolCommand {
     public readonly name?: string,
     public readonly description?: string,
     public readonly avatarUrl?: string,
+    public readonly requireTutorReviewForSelfPaced?: boolean,
+    public readonly defaultExplanationLanguage?: string | null,
   ) {}
 }

@@ -21,6 +21,8 @@ export interface RehydrateSchoolProps extends CreateSchoolProps {
   updatedAt: Date;
   deletedAt?: Date;
   members: SchoolMember[];
+  requireTutorReviewForSelfPaced: boolean;
+  defaultExplanationLanguage?: string;
 }
 
 export class School extends BaseEntity {
@@ -31,6 +33,8 @@ export class School extends BaseEntity {
   private _isActive: boolean;
   private _deletedAt: Date | undefined;
   private _members: SchoolMember[];
+  private _requireTutorReviewForSelfPaced: boolean;
+  private _defaultExplanationLanguage: string | undefined;
 
   private constructor(
     id: string,
@@ -43,6 +47,8 @@ export class School extends BaseEntity {
     updatedAt: Date,
     deletedAt: Date | undefined,
     members: SchoolMember[],
+    requireTutorReviewForSelfPaced: boolean,
+    defaultExplanationLanguage: string | undefined,
   ) {
     super(id, createdAt, updatedAt);
     this._name = name;
@@ -52,6 +58,8 @@ export class School extends BaseEntity {
     this._isActive = isActive;
     this._deletedAt = deletedAt;
     this._members = members;
+    this._requireTutorReviewForSelfPaced = requireTutorReviewForSelfPaced;
+    this._defaultExplanationLanguage = defaultExplanationLanguage;
   }
 
   static create(props: CreateSchoolProps, eventId: string): School {
@@ -67,6 +75,8 @@ export class School extends BaseEntity {
       now,
       undefined,
       [],
+      false,
+      undefined,
     );
 
     school.addDomainEvent(
@@ -88,17 +98,28 @@ export class School extends BaseEntity {
       props.updatedAt,
       props.deletedAt,
       props.members,
+      props.requireTutorReviewForSelfPaced,
+      props.defaultExplanationLanguage,
     );
   }
 
-  update(props: { name?: string; description?: string; avatarUrl?: string }): void {
+  update(props: {
+    name?: string;
+    description?: string;
+    avatarUrl?: string;
+    requireTutorReviewForSelfPaced?: boolean;
+    defaultExplanationLanguage?: string | null;
+  }): void {
     if (props.name !== undefined) this._name = props.name;
     if (props.description !== undefined) this._description = props.description;
     if (props.avatarUrl !== undefined) this._avatarUrl = props.avatarUrl;
+    if (props.requireTutorReviewForSelfPaced !== undefined)
+      this._requireTutorReviewForSelfPaced = props.requireTutorReviewForSelfPaced;
+    if (props.defaultExplanationLanguage !== undefined)
+      this._defaultExplanationLanguage = props.defaultExplanationLanguage ?? undefined;
     this._updatedAt = new Date();
   }
 
-  // Adds a new member. Raises SchoolMemberAddedEvent.
   addMember(member: SchoolMember, actorId: string, eventId: string): void {
     const actor = this._members.find((m) => m.userId === actorId);
     if (!actor && actorId !== this._ownerId) {
@@ -117,7 +138,6 @@ export class School extends BaseEntity {
     );
   }
 
-  // Removes a member by userId. Only owner/admin can remove others.
   removeMember(userId: string, actorId: string, eventId: string): void {
     if (userId === this._ownerId) {
       throw new ForbiddenOperationException('Owner cannot be removed from the school');
@@ -127,7 +147,7 @@ export class School extends BaseEntity {
     const canRemove =
       actorId === this._ownerId ||
       actor?.role === MemberRole.ADMIN ||
-      actorId === userId; // members can leave on their own
+      actorId === userId;
 
     if (!canRemove) {
       throw new ForbiddenOperationException('Insufficient permissions to remove this member');
@@ -168,4 +188,6 @@ export class School extends BaseEntity {
   get deletedAt(): Date | undefined { return this._deletedAt; }
   get isDeleted(): boolean { return this._deletedAt !== undefined; }
   get members(): SchoolMember[] { return [...this._members]; }
+  get requireTutorReviewForSelfPaced(): boolean { return this._requireTutorReviewForSelfPaced; }
+  get defaultExplanationLanguage(): string | undefined { return this._defaultExplanationLanguage; }
 }

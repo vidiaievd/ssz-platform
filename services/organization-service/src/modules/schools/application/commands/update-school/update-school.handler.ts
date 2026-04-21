@@ -6,6 +6,8 @@ import {
   type ISchoolRepository,
 } from '../../../domain/repositories/school.repository.interface.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
+import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
+import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 
 @CommandHandler(UpdateSchoolCommand)
 export class UpdateSchoolHandler implements ICommandHandler<UpdateSchoolCommand> {
@@ -17,12 +19,20 @@ export class UpdateSchoolHandler implements ICommandHandler<UpdateSchoolCommand>
     const school = await this.schoolRepository.findById(command.schoolId);
     if (!school) throw new SchoolNotFoundException(command.schoolId);
 
-    // softDelete checks ownership internally via ForbiddenOperationException
-    // update does not have authorization guard — owner/admin check done in controller
+    const actorRole = school.getMemberRole(command.actorId);
+    const canUpdate =
+      command.actorId === school.ownerId || actorRole === MemberRole.ADMIN;
+
+    if (!canUpdate) {
+      throw new ForbiddenOperationException('Only owner or admin can update school settings');
+    }
+
     school.update({
       name: command.name,
       description: command.description,
       avatarUrl: command.avatarUrl,
+      requireTutorReviewForSelfPaced: command.requireTutorReviewForSelfPaced,
+      defaultExplanationLanguage: command.defaultExplanationLanguage,
     });
 
     await this.schoolRepository.save(school);
