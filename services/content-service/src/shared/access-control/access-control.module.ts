@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
@@ -37,6 +37,7 @@ import type { AppConfig } from '../../config/configuration.js';
 //
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Global()
 @Module({
   imports: [
     HttpModule.registerAsync({
