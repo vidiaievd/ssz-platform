@@ -113,6 +113,9 @@ public static class InfrastructureServiceExtensions
         // Singleton — one RabbitMQ connection for the lifetime of the app
         services.AddSingleton<IDomainEventPublisher, RabbitMqEventPublisher>();
 
+        // Background consumer — listens for platform role assignments from Organization Service
+        services.AddHostedService<UserPlatformRoleAssignedConsumer>();
+
         return services;
     }
 

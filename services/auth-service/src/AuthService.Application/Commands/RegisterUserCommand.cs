@@ -29,23 +29,31 @@ public sealed class RegisterUserCommandHandler(
             throw new UserAlreadyExistsException();
 
         var passwordHash = passwordHasher.Hash(command.Password);
+        var requestedRole = command.Role.Trim().ToLowerInvariant();
 
-        var role = command.Role.Trim().ToLowerInvariant();
+        // Student is always present — every registered user can learn (ROLES.md)
+        // Tutor is additionally assigned when explicitly registering as tutor
+        var roleNames = requestedRole == "tutor"
+            ? new[] { "Student", "Tutor" }
+            : new[] { "Student" };
 
-        var user = User.Create(email, passwordHash, new[] { role }.AsReadOnly());
+        var eventRoles = roleNames
+            .Select(r => r.ToLowerInvariant())
+            .ToArray()
+            .AsReadOnly() as IReadOnlyList<string>;
 
-        // Assign exactly the role the user registered with
-        var roleName = role switch
+        var user = User.Create(email, passwordHash, eventRoles!);
+
+        foreach (var roleName in roleNames)
         {
-            "tutor" => "Tutor",
-            _ => "Student",
-        };
-        var assignedRole = await roleRepository.FindByNameAsync(roleName, ct)
-            ?? throw new DomainException($"Role '{roleName}' not found.", "ROLE_NOT_FOUND");
-        user.AssignRole(assignedRole);
+            var role = await roleRepository.FindByNameAsync(roleName, ct)
+                ?? throw new DomainException(
+                    $"Role '{roleName}' not found.",
+                    "ROLE_NOT_FOUND");
+            user.AssignRole(role);
+        }
 
         userRepository.Add(user);
-
         await unitOfWork.SaveChangesAsync(ct);
 
         foreach (var domainEvent in user.DomainEvents)
