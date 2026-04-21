@@ -16,6 +16,8 @@ type PrismaSchool = {
   ownerId: string;
   avatarUrl: string | null;
   isActive: boolean;
+  requireTutorReviewForSelfPaced: boolean;
+  defaultExplanationLanguage: string | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -41,6 +43,8 @@ export class SchoolMapper {
       ownerId: raw.ownerId,
       avatarUrl: raw.avatarUrl ?? undefined,
       isActive: raw.isActive,
+      requireTutorReviewForSelfPaced: raw.requireTutorReviewForSelfPaced,
+      defaultExplanationLanguage: raw.defaultExplanationLanguage ?? undefined,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt ?? undefined,

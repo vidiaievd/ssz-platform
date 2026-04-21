@@ -19,7 +19,6 @@ export class GetSchoolHandler implements IQueryHandler<GetSchoolQuery> {
     const school = await this.schoolRepository.findById(query.schoolId);
     if (!school || school.isDeleted) throw new SchoolNotFoundException(query.schoolId);
 
-    // Only members and owner can view school details
     if (!school.isMember(query.actorId) && school.ownerId !== query.actorId) {
       throw new ForbiddenOperationException('You are not a member of this school');
     }
@@ -31,6 +30,8 @@ export class GetSchoolHandler implements IQueryHandler<GetSchoolQuery> {
       ownerId: school.ownerId,
       avatarUrl: school.avatarUrl,
       isActive: school.isActive,
+      requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
+      defaultExplanationLanguage: school.defaultExplanationLanguage,
       createdAt: school.createdAt,
       updatedAt: school.updatedAt,
       members: school.members.map((m) => ({

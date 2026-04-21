@@ -79,7 +79,7 @@ export class SchoolsController {
 
   @Patch(':schoolId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Update school details (owner/admin)' })
+  @ApiOperation({ summary: 'Update school details and policies (owner/admin)' })
   @ApiResponse({ status: 204 })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'School not found' })
@@ -89,7 +89,15 @@ export class SchoolsController {
     @Body() dto: UpdateSchoolRequestDto,
   ): Promise<void> {
     await this.commandBus.execute(
-      new UpdateSchoolCommand(user.sub, schoolId, dto.name, dto.description, dto.avatarUrl),
+      new UpdateSchoolCommand(
+        user.sub,
+        schoolId,
+        dto.name,
+        dto.description,
+        dto.avatarUrl,
+        dto.requireTutorReviewForSelfPaced,
+        dto.defaultExplanationLanguage,
+      ),
     );
   }
 
@@ -108,7 +116,7 @@ export class SchoolsController {
 
   @Post(':schoolId/members')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Add a member to the school' })
+  @ApiOperation({ summary: 'Add a member directly (owner/admin only)' })
   @ApiResponse({ status: 204 })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'School not found' })

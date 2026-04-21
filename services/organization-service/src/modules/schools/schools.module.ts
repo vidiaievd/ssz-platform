@@ -1,15 +1,13 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 
-// Domain tokens
 import { SCHOOL_REPOSITORY } from './domain/repositories/school.repository.interface.js';
 import { SCHOOL_INVITATION_REPOSITORY } from './domain/repositories/school-invitation.repository.interface.js';
 
-// Infrastructure
 import { SchoolPrismaRepository } from './infrastructure/persistence/school.prisma.repository.js';
 import { SchoolInvitationPrismaRepository } from './infrastructure/persistence/school-invitation.prisma.repository.js';
+import { InvitationTokenService } from './infrastructure/invitation-token.service.js';
 
-// Commands
 import { CreateSchoolHandler } from './application/commands/create-school/create-school.handler.js';
 import { UpdateSchoolHandler } from './application/commands/update-school/update-school.handler.js';
 import { DeleteSchoolHandler } from './application/commands/delete-school/delete-school.handler.js';
@@ -18,13 +16,12 @@ import { RemoveMemberHandler } from './application/commands/remove-member/remove
 import { SendInvitationHandler } from './application/commands/send-invitation/send-invitation.handler.js';
 import { AcceptInvitationHandler } from './application/commands/accept-invitation/accept-invitation.handler.js';
 
-// Queries
 import { GetSchoolHandler } from './application/queries/get-school/get-school.handler.js';
 import { ListMySchoolsHandler } from './application/queries/list-my-schools/list-my-schools.handler.js';
 
-// Presentation
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
+import { InternalController } from './presentation/controllers/internal.controller.js';
 
 const CommandHandlers = [
   CreateSchoolHandler,
@@ -43,10 +40,11 @@ const QueryHandlers = [
 
 @Module({
   imports: [CqrsModule],
-  controllers: [SchoolsController, InvitationsController],
+  controllers: [SchoolsController, InvitationsController, InternalController],
   providers: [
     ...CommandHandlers,
     ...QueryHandlers,
+    InvitationTokenService,
     {
       provide: SCHOOL_REPOSITORY,
       useClass: SchoolPrismaRepository,
