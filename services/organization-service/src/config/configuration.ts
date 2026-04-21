@@ -6,6 +6,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   RABBITMQ_URL: z.string().min(1),
   JWT_PUBLIC_KEY: z.string().min(1),
+  INVITATION_JWT_SECRET: z.string().min(32),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -24,4 +25,5 @@ export default (): Env => ({
   DATABASE_URL: process.env['DATABASE_URL'] ?? '',
   RABBITMQ_URL: process.env['RABBITMQ_URL'] ?? '',
   JWT_PUBLIC_KEY: process.env['JWT_PUBLIC_KEY'] ?? '',
+  INVITATION_JWT_SECRET: process.env['INVITATION_JWT_SECRET'] ?? '',
 });
