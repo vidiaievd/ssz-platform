@@ -1,5 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit, Inject } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
+import { EntityResolverRegistry } from '../../shared/access-control/infrastructure/registry/entity-resolver-registry.js';
+import { TaggableEntityType } from '../../shared/access-control/domain/types/taggable-entity-type.js';
+import type { IContainerRepository } from './domain/repositories/container.repository.interface.js';
 
 // Infrastructure — Prisma repositories
 import { PrismaContainerRepository } from './infrastructure/persistence/prisma-container.repository.js';
@@ -83,4 +86,25 @@ const QueryHandlers = [
     ...QueryHandlers,
   ],
 })
-export class ContainerModule {}
+export class ContainerModule implements OnModuleInit {
+  constructor(
+    private readonly registry: EntityResolverRegistry,
+    @Inject(CONTAINER_REPOSITORY) private readonly containerRepo: IContainerRepository,
+  ) {}
+
+  onModuleInit(): void {
+    this.registry.register(TaggableEntityType.CONTAINER, async (id) => {
+      const container = await this.containerRepo.findById(id);
+      if (!container) return null;
+      return {
+        id: container.id,
+        entityType: TaggableEntityType.CONTAINER,
+        ownerUserId: container.ownerUserId,
+        ownerSchoolId: container.ownerSchoolId,
+        visibility: container.visibility,
+        deletedAt: container.deletedAt,
+        accessTier: container.accessTier,
+      };
+    });
+  }
+}

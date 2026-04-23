@@ -1,5 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit, Inject } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
+import { EntityResolverRegistry } from '../../shared/access-control/infrastructure/registry/entity-resolver-registry.js';
+import { TaggableEntityType } from '../../shared/access-control/domain/types/taggable-entity-type.js';
+import type { ILessonRepository } from './domain/repositories/lesson.repository.interface.js';
 
 // Infrastructure — Prisma repositories
 import { PrismaLessonRepository } from './infrastructure/persistence/prisma-lesson.repository.js';
@@ -67,4 +70,24 @@ const QueryHandlers = [
     ...QueryHandlers,
   ],
 })
-export class LessonModule {}
+export class LessonModule implements OnModuleInit {
+  constructor(
+    private readonly registry: EntityResolverRegistry,
+    @Inject(LESSON_REPOSITORY) private readonly lessonRepo: ILessonRepository,
+  ) {}
+
+  onModuleInit(): void {
+    this.registry.register(TaggableEntityType.LESSON, async (id) => {
+      const lesson = await this.lessonRepo.findById(id);
+      if (!lesson) return null;
+      return {
+        id: lesson.id,
+        entityType: TaggableEntityType.LESSON,
+        ownerUserId: lesson.ownerUserId,
+        ownerSchoolId: lesson.ownerSchoolId,
+        visibility: lesson.visibility,
+        deletedAt: lesson.deletedAt,
+      };
+    });
+  }
+}
