@@ -21,6 +21,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
+import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
+import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { CreateContainerCommand } from '../../application/commands/create-container/create-container.command.js';
@@ -108,7 +111,6 @@ export class ContainerController {
       }),
     );
 
-    console.log(`[[ Found ]] ${paged.total}`);
     return new PaginatedResponseDto({
       items: paged.items.map((c) => ContainerResponseDto.from(c)),
       total: paged.total,
@@ -132,6 +134,8 @@ export class ContainerController {
   }
 
   @Get(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER })
   @ApiOperation({ summary: 'Get a container by ID' })
   @ApiOkResponse({ type: ContainerResponseDto })
   async findOne(
@@ -149,6 +153,8 @@ export class ContainerController {
   }
 
   @Patch(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update container metadata' })
   @ApiNoContentResponse()
@@ -177,6 +183,8 @@ export class ContainerController {
   }
 
   @Delete(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete a container' })
   @ApiNoContentResponse()
@@ -190,6 +198,8 @@ export class ContainerController {
   }
 
   @Post(':id/draft')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
   @ApiOperation({ summary: 'Create a new draft by copying the current published version' })
   @ApiCreatedResponse({ description: 'Returns the new draft version ID' })
   async createDraft(
@@ -206,6 +216,8 @@ export class ContainerController {
   }
 
   @Post(':id/localizations')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
   @ApiOperation({ summary: 'Add a localization (translated title/description) for a container' })
   @ApiCreatedResponse({ type: ContainerLocalizationResponseDto })
   async createLocalization(
@@ -223,6 +235,8 @@ export class ContainerController {
   }
 
   @Patch(':id/localizations/:languageCode')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update an existing localization' })
   @ApiNoContentResponse()
@@ -241,6 +255,8 @@ export class ContainerController {
   }
 
   @Delete(':id/localizations/:languageCode')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a localization' })
   @ApiNoContentResponse()

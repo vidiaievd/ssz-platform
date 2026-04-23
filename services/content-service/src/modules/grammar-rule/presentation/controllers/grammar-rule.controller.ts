@@ -21,6 +21,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
+import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
+import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../../shared/kernel/result.js';
@@ -157,6 +160,8 @@ export class GrammarRuleController {
   }
 
   @Get(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @ApiOperation({ summary: 'Get a grammar rule by ID' })
   @ApiOkResponse({ type: GrammarRuleResponseDto })
   async findOne(@Param('id') id: string): Promise<GrammarRuleResponseDto> {
@@ -170,6 +175,8 @@ export class GrammarRuleController {
   }
 
   @Patch(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update grammar rule metadata' })
   @ApiNoContentResponse()
@@ -198,6 +205,8 @@ export class GrammarRuleController {
   }
 
   @Delete(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete a grammar rule and all its explanations' })
   @ApiNoContentResponse()
@@ -213,6 +222,8 @@ export class GrammarRuleController {
   // ── Explanations sub-resource ──────────────────────────────────────────────
 
   @Post(':id/explanations')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @ApiOperation({ summary: 'Add a new explanation variant to a grammar rule' })
   @ApiCreatedResponse({ description: 'Returns the new explanation ID' })
   async createExplanation(
@@ -242,6 +253,8 @@ export class GrammarRuleController {
   }
 
   @Get(':id/explanations')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @ApiOperation({ summary: 'List all explanations for a grammar rule' })
   @ApiOkResponse({ type: GrammarRuleExplanationResponseDto, isArray: true })
   async findExplanations(
@@ -258,6 +271,8 @@ export class GrammarRuleController {
   }
 
   @Get(':id/explanations/best')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @ApiOperation({ summary: 'Select the best explanation for a student based on their profile' })
   @ApiOkResponse({ type: GrammarRuleExplanationResponseDto })
   async findBestExplanation(
@@ -286,6 +301,8 @@ export class GrammarRuleController {
   }
 
   @Get(':id/explanations/:explanationId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @ApiOperation({ summary: 'Get a single explanation by ID' })
   @ApiOkResponse({ type: GrammarRuleExplanationResponseDto })
   async findExplanation(
@@ -302,6 +319,8 @@ export class GrammarRuleController {
   }
 
   @Patch(':id/explanations/:explanationId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update an explanation (allowed on draft and published)' })
   @ApiNoContentResponse()
@@ -330,6 +349,8 @@ export class GrammarRuleController {
   }
 
   @Post(':id/explanations/:explanationId/publish')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Publish a draft explanation (DRAFT → PUBLISHED)' })
   @ApiNoContentResponse()
@@ -347,6 +368,8 @@ export class GrammarRuleController {
   }
 
   @Delete(':id/explanations/:explanationId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Hard-delete an explanation' })
   @ApiNoContentResponse()
@@ -366,6 +389,8 @@ export class GrammarRuleController {
   // ── Exercise pool sub-resource ─────────────────────────────────────────────
 
   @Post(':id/pool')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @ApiOperation({ summary: 'Add an exercise to the grammar rule exercise pool' })
   @ApiCreatedResponse({ description: 'Returns the new pool entry ID' })
   async addPoolEntry(
@@ -383,6 +408,8 @@ export class GrammarRuleController {
   }
 
   @Get(':id/pool')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @ApiOperation({ summary: 'List all pool entries with their exercises' })
   @ApiOkResponse({ type: PoolEntryResponseDto, isArray: true })
   async findPoolEntries(@Param('id') ruleId: string): Promise<PoolEntryResponseDto[]> {
@@ -396,6 +423,8 @@ export class GrammarRuleController {
   }
 
   @Get(':id/pool/random')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @ApiOperation({ summary: 'Get a weighted-random exercise from the pool' })
   @ApiOkResponse({ type: ExerciseResponseDto })
   async getRandomExercise(
@@ -413,6 +442,8 @@ export class GrammarRuleController {
   }
 
   @Patch(':id/pool/:exerciseId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update the weight of a pool entry' })
   @ApiNoContentResponse()
@@ -431,6 +462,8 @@ export class GrammarRuleController {
   }
 
   @Post(':id/pool/reorder')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Reorder pool entries' })
   @ApiNoContentResponse()
@@ -448,6 +481,8 @@ export class GrammarRuleController {
   }
 
   @Delete(':id/pool/:exerciseId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove an exercise from the pool' })
   @ApiNoContentResponse()

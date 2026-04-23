@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -45,6 +46,8 @@ import { ListTagsRequestDto } from '../dto/requests/list-tags.request.dto.js';
 import { TagResponseDto } from '../dto/responses/tag.response.dto.js';
 import type { TagEntity } from '../../domain/entities/tag.entity.js';
 import type { PaginatedResult } from '../../../../shared/kernel/pagination.js';
+import { Result } from '../../../../shared/kernel/result.js';
+import { TagDomainError } from '../../domain/exceptions/tag-domain.exceptions.js';
 
 @ApiTags('tags')
 @ApiBearerAuth()
@@ -95,7 +98,10 @@ export class TagController {
     @Body() dto: CreateTagRequestDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<TagResponseDto> {
-    const tag = await this.commandBus.execute<CreateTagCommand, TagEntity>(
+    const result = await this.commandBus.execute<
+      CreateTagCommand,
+      Result<TagEntity, TagDomainError>
+    >(
       new CreateTagCommand(
         user.userId,
         user.isPlatformAdmin,
@@ -105,7 +111,8 @@ export class TagController {
         dto.ownerSchoolId,
       ),
     );
-    return TagResponseDto.fromEntity(tag);
+    if (result.isFail) throw new BadRequestException(result.error);
+    return TagResponseDto.fromEntity(result.value);
   }
 
   @Patch('tags/:id')
@@ -116,10 +123,12 @@ export class TagController {
     @Body() dto: UpdateTagRequestDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<TagResponseDto> {
-    const tag = await this.commandBus.execute<UpdateTagCommand, TagEntity>(
-      new UpdateTagCommand(id, user.userId, user.isPlatformAdmin, dto.name, dto.category),
-    );
-    return TagResponseDto.fromEntity(tag);
+    const result = await this.commandBus.execute<
+      UpdateTagCommand,
+      Result<TagEntity, TagDomainError>
+    >(new UpdateTagCommand(id, user.userId, user.isPlatformAdmin, dto.name, dto.category));
+    if (result.isFail) throw new BadRequestException(result.error);
+    return TagResponseDto.fromEntity(result.value);
   }
 
   @Delete('tags/:id')

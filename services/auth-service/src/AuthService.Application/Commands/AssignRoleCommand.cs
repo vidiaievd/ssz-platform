@@ -1,4 +1,5 @@
 using AuthService.Application.Interfaces;
+using AuthService.Domain.Entities;
 using AuthService.Domain.Exceptions;
 using MediatR;
 
@@ -16,9 +17,7 @@ public sealed class AssignRoleCommandHandler(
     IUnitOfWork unitOfWork)
     : IRequestHandler<AssignRoleCommand, Unit>
 {
-    // Roles that any user can assign to themselves
-    private static readonly HashSet<string> SelfAssignableRoles =
-        new(StringComparer.OrdinalIgnoreCase) { "Student", "Tutor" };
+    private static readonly IReadOnlySet<string> SelfAssignableRoles = RoleNames.SelfAssignable;
 
     public async Task<Unit> Handle(AssignRoleCommand command, CancellationToken ct)
     {
