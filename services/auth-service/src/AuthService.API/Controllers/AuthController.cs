@@ -1,6 +1,7 @@
 using AuthService.Application.Commands;
 using AuthService.Application.DTOs;
 using AuthService.API.Extensions;
+using AuthService.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -136,7 +137,7 @@ public sealed class AuthController(
         CancellationToken ct)
     {
         var userId = User.GetUserId();
-        var actorIsAdmin = User.IsInRole("Admin");
+        var actorIsAdmin = User.IsInRole(RoleNames.PlatformAdmin);
 
         await mediator.Send(new AssignRoleCommand(userId, request.RoleName, actorIsAdmin), ct);
 
