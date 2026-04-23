@@ -1,0 +1,3 @@
+export enum EntitlementDomainError {
+  ENTITLEMENT_ALREADY_REVOKED = 'ENTITLEMENT_ALREADY_REVOKED',
+}

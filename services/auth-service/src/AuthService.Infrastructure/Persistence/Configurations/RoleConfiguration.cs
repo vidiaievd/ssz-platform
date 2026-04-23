@@ -34,11 +34,11 @@ public sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
             .HasDatabaseName("ix_roles_normalized_name");
 
         builder.HasData(
-            CreateRole("00000000-0000-0000-0001-000000000001", "User", "Standard user"),
-            CreateRole("00000000-0000-0000-0001-000000000002", "Admin", "Administrator"),
-            CreateRole("00000000-0000-0000-0001-000000000003", "Premium", "Premium subscriber"),
-            CreateRole("00000000-0000-0000-0001-000000000004", "Student", "Language learner"),
-            CreateRole("00000000-0000-0000-0001-000000000005", "Tutor", "Language teacher")
+            CreateRole("00000000-0000-0000-0001-000000000002", "platform_admin",   "Platform administrator — full access"),
+            CreateRole("00000000-0000-0000-0001-000000000006", "manager_platform", "Platform manager — elevated access, cannot manage admins"),
+            CreateRole("00000000-0000-0000-0001-000000000004", "student",          "Language learner"),
+            CreateRole("00000000-0000-0000-0001-000000000005", "tutor",            "Language teacher — creates personal content"),
+            CreateRole("00000000-0000-0000-0001-000000000003", "premium",          "Premium subscriber")
         );
     }
 

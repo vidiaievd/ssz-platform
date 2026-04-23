@@ -170,43 +170,43 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("00000000-0000-0000-0001-000000000001"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Description = "Standard user",
-                            Name = "User",
-                            NormalizedName = "USER"
-                        },
-                        new
-                        {
                             Id = new Guid("00000000-0000-0000-0001-000000000002"),
                             CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Description = "Administrator",
-                            Name = "Admin",
-                            NormalizedName = "ADMIN"
+                            Description = "Platform administrator — full access",
+                            Name = "platform_admin",
+                            NormalizedName = "PLATFORM_ADMIN"
                         },
                         new
                         {
-                            Id = new Guid("00000000-0000-0000-0001-000000000003"),
+                            Id = new Guid("00000000-0000-0000-0001-000000000006"),
                             CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Description = "Premium subscriber",
-                            Name = "Premium",
-                            NormalizedName = "PREMIUM"
+                            Description = "Platform manager — elevated access, cannot manage admins",
+                            Name = "manager_platform",
+                            NormalizedName = "MANAGER_PLATFORM"
                         },
                         new
                         {
                             Id = new Guid("00000000-0000-0000-0001-000000000004"),
                             CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Language learner",
-                            Name = "Student",
+                            Name = "student",
                             NormalizedName = "STUDENT"
                         },
                         new
                         {
                             Id = new Guid("00000000-0000-0000-0001-000000000005"),
                             CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Description = "Language teacher",
-                            Name = "Tutor",
+                            Description = "Language teacher — creates personal content",
+                            Name = "tutor",
                             NormalizedName = "TUTOR"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0001-000000000003"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "Premium subscriber",
+                            Name = "premium",
+                            NormalizedName = "PREMIUM"
                         });
                 });
 

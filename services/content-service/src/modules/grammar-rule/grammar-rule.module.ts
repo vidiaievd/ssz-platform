@@ -1,5 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit, Inject } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
+import { EntityResolverRegistry } from '../../shared/access-control/infrastructure/registry/entity-resolver-registry.js';
+import { TaggableEntityType } from '../../shared/access-control/domain/types/taggable-entity-type.js';
+import type { IGrammarRuleRepository } from './domain/repositories/grammar-rule.repository.interface.js';
 
 // Infrastructure — Prisma repositories
 import { PrismaGrammarRuleRepository } from './infrastructure/persistence/prisma-grammar-rule.repository.js';
@@ -83,4 +86,24 @@ const QueryHandlers = [
     ...QueryHandlers,
   ],
 })
-export class GrammarRuleModule {}
+export class GrammarRuleModule implements OnModuleInit {
+  constructor(
+    private readonly registry: EntityResolverRegistry,
+    @Inject(GRAMMAR_RULE_REPOSITORY) private readonly grammarRuleRepo: IGrammarRuleRepository,
+  ) {}
+
+  onModuleInit(): void {
+    this.registry.register(TaggableEntityType.GRAMMAR_RULE, async (id) => {
+      const rule = await this.grammarRuleRepo.findById(id);
+      if (!rule) return null;
+      return {
+        id: rule.id,
+        entityType: TaggableEntityType.GRAMMAR_RULE,
+        ownerUserId: rule.ownerUserId,
+        ownerSchoolId: rule.ownerSchoolId,
+        visibility: rule.visibility,
+        deletedAt: rule.deletedAt,
+      };
+    });
+  }
+}

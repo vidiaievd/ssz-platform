@@ -21,6 +21,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
+import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
+import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../../shared/kernel/result.js';
@@ -141,6 +144,8 @@ export class VocabularyListController {
   }
 
   @Get(':listId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @ApiOperation({ summary: 'Get a vocabulary list by ID' })
   @ApiOkResponse({ type: VocabularyListResponseDto })
   async findOne(@Param('listId') listId: string): Promise<VocabularyListResponseDto> {
@@ -154,6 +159,8 @@ export class VocabularyListController {
   }
 
   @Patch(':listId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update vocabulary list metadata' })
   @ApiNoContentResponse()
@@ -182,6 +189,8 @@ export class VocabularyListController {
   }
 
   @Delete(':listId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete a vocabulary list and all its items' })
   @ApiNoContentResponse()
@@ -198,6 +207,8 @@ export class VocabularyListController {
   }
 
   @Get(':listId/items')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @ApiOperation({ summary: 'Get paginated items in a vocabulary list (summary, no children)' })
   @ApiOkResponse({ type: PaginatedResponseDto })
   async findItems(

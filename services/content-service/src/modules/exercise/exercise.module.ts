@@ -1,5 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit, Inject } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
+import { EntityResolverRegistry } from '../../shared/access-control/infrastructure/registry/entity-resolver-registry.js';
+import { TaggableEntityType } from '../../shared/access-control/domain/types/taggable-entity-type.js';
+import type { IExerciseRepository } from './domain/repositories/exercise.repository.interface.js';
 
 // Infrastructure — Prisma repositories
 import { PrismaExerciseRepository } from './infrastructure/persistence/prisma-exercise.repository.js';
@@ -59,4 +62,24 @@ const QueryHandlers = [
   ],
   exports: [EXERCISE_REPOSITORY],
 })
-export class ExerciseModule {}
+export class ExerciseModule implements OnModuleInit {
+  constructor(
+    private readonly registry: EntityResolverRegistry,
+    @Inject(EXERCISE_REPOSITORY) private readonly exerciseRepo: IExerciseRepository,
+  ) {}
+
+  onModuleInit(): void {
+    this.registry.register(TaggableEntityType.EXERCISE, async (id) => {
+      const exercise = await this.exerciseRepo.findById(id);
+      if (!exercise) return null;
+      return {
+        id: exercise.id,
+        entityType: TaggableEntityType.EXERCISE,
+        ownerUserId: exercise.ownerUserId,
+        ownerSchoolId: exercise.ownerSchoolId,
+        visibility: exercise.visibility,
+        deletedAt: exercise.deletedAt,
+      };
+    });
+  }
+}

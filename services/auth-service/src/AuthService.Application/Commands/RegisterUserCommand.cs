@@ -33,9 +33,9 @@ public sealed class RegisterUserCommandHandler(
 
         // Student is always present — every registered user can learn (ROLES.md)
         // Tutor is additionally assigned when explicitly registering as tutor
-        var roleNames = requestedRole == "tutor"
-            ? new[] { "Student", "Tutor" }
-            : new[] { "Student" };
+        var roleNames = requestedRole == RoleNames.Tutor
+            ? new[] { RoleNames.Student, RoleNames.Tutor }
+            : new[] { RoleNames.Student };
 
         var eventRoles = roleNames
             .Select(r => r.ToLowerInvariant())

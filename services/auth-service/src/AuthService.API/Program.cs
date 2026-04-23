@@ -1,6 +1,7 @@
 using HealthChecks.NpgSql;
 using AuthService.Application.Extensions;
 using AuthService.Application.Options;
+using AuthService.Domain.Entities;
 using AuthService.Infrastructure.Extensions;
 using AuthService.API.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -66,8 +67,8 @@ builder.Services
 
 builder.Services.AddAuthorization(opts =>
 {
-    opts.AddPolicy("AdminOnly", p => p.RequireRole("Admin"));
-    opts.AddPolicy("PremiumOrAdmin", p => p.RequireRole("Premium", "Admin"));
+    opts.AddPolicy("AdminOnly",      p => p.RequireRole(RoleNames.PlatformAdmin));
+    opts.AddPolicy("PremiumOrAdmin", p => p.RequireRole(RoleNames.Premium, RoleNames.PlatformAdmin));
 });
 
 // ── Controllers + Swagger ─────────────────────────────────────────────────────

@@ -22,6 +22,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
+import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
+import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../../shared/kernel/result.js';
@@ -79,6 +82,8 @@ export class VocabularyItemController {
   // ── Item CRUD ──────────────────────────────────────────────────────────────
 
   @Post()
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @ApiOperation({ summary: 'Add a vocabulary item to a list' })
   @ApiCreatedResponse({ description: 'Returns the new item ID' })
   async create(
@@ -109,6 +114,8 @@ export class VocabularyItemController {
   }
 
   @Post('bulk')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @ApiOperation({ summary: 'Bulk-add vocabulary items to a list (max 500)' })
   @ApiCreatedResponse({ description: 'Returns the IDs of the created items' })
   async bulkCreate(
@@ -126,6 +133,8 @@ export class VocabularyItemController {
   }
 
   @Patch('reorder')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Reorder all items in a vocabulary list' })
   @ApiNoContentResponse()
@@ -143,6 +152,8 @@ export class VocabularyItemController {
   }
 
   @Get(':itemId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @ApiOperation({
     summary: 'Get a full vocabulary item (authoring — all translations and examples)',
   })
@@ -158,6 +169,8 @@ export class VocabularyItemController {
   }
 
   @Get(':itemId/display')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @ApiOperation({
     summary:
       'Get a vocabulary item formatted for student display (cached, with translation fallback)',
@@ -186,6 +199,8 @@ export class VocabularyItemController {
   }
 
   @Post('batch-display')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @ApiOperation({
     summary: 'Batch-fetch vocabulary items for student display (max 200 IDs, cache-aware)',
   })
@@ -212,6 +227,8 @@ export class VocabularyItemController {
   }
 
   @Patch(':itemId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update vocabulary item metadata' })
   @ApiNoContentResponse()
@@ -243,6 +260,8 @@ export class VocabularyItemController {
   }
 
   @Delete(':itemId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete a vocabulary item' })
   @ApiNoContentResponse()
@@ -262,6 +281,8 @@ export class VocabularyItemController {
   // ── Item translation sub-resources ────────────────────────────────────────
 
   @Put(':itemId/translations/:lang')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @ApiOperation({
     summary: 'Create or update the translation for a vocabulary item in a given language',
   })
@@ -293,6 +314,8 @@ export class VocabularyItemController {
   }
 
   @Delete(':itemId/translations/:lang')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete the translation of a vocabulary item for a given language' })
   @ApiNoContentResponse()
