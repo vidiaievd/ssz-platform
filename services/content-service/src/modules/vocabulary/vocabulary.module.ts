@@ -1,5 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit, Inject } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
+import { EntityResolverRegistry } from '../../shared/access-control/infrastructure/registry/entity-resolver-registry.js';
+import { TaggableEntityType } from '../../shared/access-control/domain/types/taggable-entity-type.js';
+import type { IVocabularyListRepository } from './domain/repositories/vocabulary-list.repository.interface.js';
 
 // Infrastructure — Prisma repositories
 import { PrismaVocabularyListRepository } from './infrastructure/persistence/prisma-vocabulary-list.repository.js';
@@ -126,4 +129,24 @@ const QueryHandlers = [
     ...QueryHandlers,
   ],
 })
-export class VocabularyModule {}
+export class VocabularyModule implements OnModuleInit {
+  constructor(
+    private readonly registry: EntityResolverRegistry,
+    @Inject(VOCABULARY_LIST_REPOSITORY) private readonly vocabListRepo: IVocabularyListRepository,
+  ) {}
+
+  onModuleInit(): void {
+    this.registry.register(TaggableEntityType.VOCABULARY_LIST, async (id) => {
+      const list = await this.vocabListRepo.findById(id);
+      if (!list) return null;
+      return {
+        id: list.id,
+        entityType: TaggableEntityType.VOCABULARY_LIST,
+        ownerUserId: list.ownerUserId,
+        ownerSchoolId: list.ownerSchoolId,
+        visibility: list.visibility,
+        deletedAt: list.deletedAt,
+      };
+    });
+  }
+}
