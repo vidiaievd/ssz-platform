@@ -21,6 +21,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
+import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
+import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../../shared/kernel/result.js';
@@ -137,6 +140,8 @@ export class ExerciseController {
   }
 
   @Get(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.EXERCISE })
   @ApiOperation({ summary: 'Get an exercise by ID (no instructions)' })
   @ApiOkResponse({ type: ExerciseResponseDto })
   async findOne(@Param('id') id: string): Promise<ExerciseResponseDto> {
@@ -150,6 +155,8 @@ export class ExerciseController {
   }
 
   @Get(':id/display')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.EXERCISE })
   @ApiOperation({
     summary: 'Get an exercise with instructions for student display (answers omitted)',
   })
@@ -168,6 +175,8 @@ export class ExerciseController {
   }
 
   @Get(':id/answers')
+  // TODO(block-5-followup): gate with InternalAuthGuard once implemented.
+  // Currently protected only by JwtAuthGuard — acceptable for dev/staging.
   @ApiOperation({
     summary: 'Get an exercise with instructions and expected answers (owner/engine)',
   })
@@ -183,6 +192,8 @@ export class ExerciseController {
   }
 
   @Patch(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update exercise metadata, content or answers' })
   @ApiNoContentResponse()
@@ -211,6 +222,8 @@ export class ExerciseController {
   }
 
   @Delete(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete an exercise' })
   @ApiNoContentResponse()
@@ -226,6 +239,8 @@ export class ExerciseController {
   // ── Instructions sub-resource ──────────────────────────────────────────────
 
   @Get(':id/instructions')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.EXERCISE })
   @ApiOperation({ summary: 'List all instructions for an exercise' })
   @ApiOkResponse({ type: ExerciseInstructionResponseDto, isArray: true })
   async findInstructions(@Param('id') id: string): Promise<ExerciseInstructionResponseDto[]> {
@@ -239,6 +254,8 @@ export class ExerciseController {
   }
 
   @Post(':id/instructions')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
   @ApiOperation({ summary: 'Create or update an instruction for a language' })
   @ApiCreatedResponse({ description: 'Returns instructionId and wasCreated flag' })
   async upsertInstruction(
@@ -265,6 +282,8 @@ export class ExerciseController {
   }
 
   @Delete(':id/instructions/:instructionId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an exercise instruction' })
   @ApiNoContentResponse()

@@ -22,6 +22,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
+import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
+import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../../shared/kernel/result.js';
@@ -152,6 +155,8 @@ export class LessonController {
   }
 
   @Get(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
   @ApiOperation({ summary: 'Get a lesson by ID' })
   @ApiOkResponse({ type: LessonResponseDto })
   async findOne(@Param('id') id: string): Promise<LessonResponseDto> {
@@ -165,6 +170,8 @@ export class LessonController {
   }
 
   @Patch(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update lesson metadata' })
   @ApiNoContentResponse()
@@ -192,6 +199,8 @@ export class LessonController {
   }
 
   @Delete(':id')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete a lesson and all its variants' })
   @ApiNoContentResponse()
@@ -210,6 +219,8 @@ export class LessonController {
   // ── Variant sub-resources ──────────────────────────────────────────────────
 
   @Post(':id/variants')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
   @ApiOperation({ summary: 'Create a new content variant for a lesson' })
   @ApiCreatedResponse({ description: 'Returns the new variant ID' })
   async createVariant(
@@ -239,6 +250,8 @@ export class LessonController {
   }
 
   @Get(':id/variants')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
   @ApiOperation({ summary: 'List all variants for a lesson' })
   @ApiOkResponse({ type: LessonVariantResponseDto, isArray: true })
   async findVariants(@Param('id') lessonId: string): Promise<LessonVariantResponseDto[]> {
@@ -252,6 +265,8 @@ export class LessonController {
   }
 
   @Get(':id/variants/best')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
   @ApiOperation({ summary: 'Select the best variant for a student based on their profile' })
   @ApiOkResponse({ type: BestVariantResponseDto })
   async findBestVariant(
@@ -275,6 +290,8 @@ export class LessonController {
   }
 
   @Get(':id/variants/:variantId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
   @ApiOperation({ summary: 'Get a single lesson variant by ID' })
   @ApiOkResponse({ type: LessonVariantResponseDto })
   @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
@@ -289,6 +306,8 @@ export class LessonController {
   }
 
   @Patch(':id/variants/:variantId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update a content variant (allowed on both draft and published)' })
   @ApiNoContentResponse()
@@ -316,6 +335,8 @@ export class LessonController {
   }
 
   @Post(':id/variants/:variantId/publish')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Publish a draft variant (DRAFT → PUBLISHED)' })
   @ApiNoContentResponse()
@@ -333,6 +354,8 @@ export class LessonController {
   }
 
   @Delete(':id/variants/:variantId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Hard-delete a content variant' })
   @ApiNoContentResponse()
