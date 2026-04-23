@@ -20,6 +20,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
+import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
+import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../../shared/kernel/result.js';
@@ -56,6 +59,8 @@ export class VocabularyExampleController {
   // ── Usage examples ─────────────────────────────────────────────────────────
 
   @Post()
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @ApiOperation({ summary: 'Add a usage example to a vocabulary item' })
   @ApiCreatedResponse({ description: 'Returns the new example ID' })
   async createExample(
@@ -82,6 +87,8 @@ export class VocabularyExampleController {
   }
 
   @Patch(':exampleId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update a usage example' })
   @ApiNoContentResponse()
@@ -109,6 +116,8 @@ export class VocabularyExampleController {
   }
 
   @Delete(':exampleId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a usage example (cascades to all its translations)' })
   @ApiNoContentResponse()
@@ -128,6 +137,8 @@ export class VocabularyExampleController {
   // ── Example translations ───────────────────────────────────────────────────
 
   @Put(':exampleId/translations/:lang')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @ApiOperation({ summary: 'Create or update a translation for a usage example' })
   @ApiOkResponse({ description: 'Returns the translation ID' })
   async upsertExampleTranslation(
@@ -149,6 +160,8 @@ export class VocabularyExampleController {
   }
 
   @Delete(':exampleId/translations/:lang')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete the translation of a usage example for a given language' })
   @ApiNoContentResponse()

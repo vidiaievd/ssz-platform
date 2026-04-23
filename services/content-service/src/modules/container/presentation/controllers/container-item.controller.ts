@@ -22,6 +22,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
+import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
+import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { AddContainerItemCommand } from '../../application/commands/add-container-item/add-container-item.command.js';
@@ -50,6 +53,8 @@ export class ContainerItemController {
   ) {}
 
   @Get()
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
   @ApiOperation({ summary: 'List all items in a container version' })
   @ApiOkResponse({ type: ContainerItemResponseDto, isArray: true })
   async findAll(@Param('versionId') versionId: string): Promise<ContainerItemResponseDto[]> {
@@ -63,6 +68,8 @@ export class ContainerItemController {
   }
 
   @Post()
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
   @ApiOperation({ summary: 'Add an item to a draft version' })
   @ApiCreatedResponse({ type: ContainerItemResponseDto })
   async addItem(
@@ -89,6 +96,8 @@ export class ContainerItemController {
   }
 
   @Patch(':itemId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update an item in a draft version' })
   @ApiNoContentResponse()
@@ -106,6 +115,8 @@ export class ContainerItemController {
   }
 
   @Delete(':itemId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove an item from a draft version' })
   @ApiNoContentResponse()
@@ -122,6 +133,8 @@ export class ContainerItemController {
   }
 
   @Put('reorder')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Reorder items within a draft version' })
   @ApiNoContentResponse()

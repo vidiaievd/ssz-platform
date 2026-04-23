@@ -20,6 +20,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
+import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
+import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
@@ -47,6 +50,8 @@ export class ContainerVersionController {
   ) {}
 
   @Get()
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
   @ApiOperation({ summary: 'List all versions for a container' })
   @ApiOkResponse({ type: ContainerVersionResponseDto, isArray: true })
   async findAll(@Param('containerId') containerId: string): Promise<ContainerVersionResponseDto[]> {
@@ -60,6 +65,8 @@ export class ContainerVersionController {
   }
 
   @Get(':versionId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
   @ApiOperation({ summary: 'Get a specific version by ID' })
   @ApiOkResponse({ type: ContainerVersionResponseDto })
   async findOne(@Param('versionId') versionId: string): Promise<ContainerVersionResponseDto> {
@@ -73,6 +80,8 @@ export class ContainerVersionController {
   }
 
   @Post(':versionId/publish')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
   @ApiOperation({ summary: 'Publish a draft version, deprecating the currently published one' })
   @ApiCreatedResponse({ description: 'Version published successfully' })
   async publish(
@@ -90,6 +99,8 @@ export class ContainerVersionController {
   }
 
   @Delete(':versionId/cancel')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Cancel (delete) a draft version' })
   @ApiNoContentResponse()
@@ -108,6 +119,8 @@ export class ContainerVersionController {
   @Post(':versionId/archive')
   @Public()
   @HttpCode(HttpStatus.NO_CONTENT)
+  // TODO(block-5-followup): gate with InternalAuthGuard once implemented.
+  // Currently protected only by @Public() — acceptable for dev/staging.
   @ApiOperation({
     summary: 'Archive a deprecated version (internal service-to-service endpoint)',
   })
