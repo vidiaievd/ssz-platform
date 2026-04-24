@@ -2,13 +2,8 @@ import { DifficultyLevel } from '../../modules/container/domain/value-objects/di
 import { ContainerType } from '../../modules/container/domain/value-objects/container-type.vo.js';
 import { Visibility } from '../../modules/container/domain/value-objects/visibility.vo.js';
 
-export interface PaginatedResult<T> {
-  items: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
+// Re-exported from canonical location; import from shared/discovery for new code.
+export type { PaginatedResult } from '../discovery/domain/types/pagination.js';
 
 export interface ContainerFilter {
   targetLanguage?: string;

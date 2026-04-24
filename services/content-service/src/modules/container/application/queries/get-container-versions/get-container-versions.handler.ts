@@ -1,35 +1,56 @@
 import { QueryHandler, IQueryHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+import type { Prisma } from '../../../../../../generated/prisma/client.js';
+import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
+import { PaginationService } from '../../../../../shared/discovery/application/services/pagination.service.js';
+import { SortParserService } from '../../../../../shared/discovery/application/services/sort-parser.service.js';
 import { GetContainerVersionsQuery } from './get-container-versions.query.js';
-import { Result } from '../../../../../shared/kernel/result.js';
-import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
+import type { PaginatedResult } from '../../../../../shared/discovery/domain/types/pagination.js';
 import { ContainerVersionEntity } from '../../../domain/entities/container-version.entity.js';
-import { CONTAINER_REPOSITORY } from '../../../domain/repositories/container.repository.interface.js';
-import type { IContainerRepository } from '../../../domain/repositories/container.repository.interface.js';
-import { CONTAINER_VERSION_REPOSITORY } from '../../../domain/repositories/container-version.repository.interface.js';
-import type { IContainerVersionRepository } from '../../../domain/repositories/container-version.repository.interface.js';
+import { ContainerVersionMapper } from '../../../infrastructure/persistence/mappers/container-version.mapper.js';
+import { domainVersionStatusToPrisma } from '../../../infrastructure/persistence/mappers/enum-converters.js';
+
+const ALLOWED_SORT_FIELDS = ['version_number', 'created_at'];
+const DEFAULT_SORT = [{ field: 'versionNumber', direction: 'desc' as const }];
 
 @QueryHandler(GetContainerVersionsQuery)
 export class GetContainerVersionsHandler implements IQueryHandler<
   GetContainerVersionsQuery,
-  Result<ContainerVersionEntity[], ContainerDomainError>
+  PaginatedResult<ContainerVersionEntity>
 > {
+  private readonly logger = new Logger(GetContainerVersionsHandler.name);
+
   constructor(
-    @Inject(CONTAINER_REPOSITORY)
-    private readonly containerRepo: IContainerRepository,
-    @Inject(CONTAINER_VERSION_REPOSITORY)
-    private readonly versionRepo: IContainerVersionRepository,
+    private readonly prisma: PrismaService,
+    private readonly pagination: PaginationService,
+    private readonly sortParser: SortParserService,
   ) {}
 
   async execute(
     query: GetContainerVersionsQuery,
-  ): Promise<Result<ContainerVersionEntity[], ContainerDomainError>> {
-    const container = await this.containerRepo.findById(query.containerId);
-    if (!container || container.deletedAt !== null) {
-      return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
-    }
+  ): Promise<PaginatedResult<ContainerVersionEntity>> {
+    const { containerId, dto } = query;
 
-    const versions = await this.versionRepo.findByContainerId(query.containerId);
-    return Result.ok(versions);
+    const params = this.pagination.normalize(dto.page, dto.limit);
+    const sortParams = this.sortParser.parse(dto.sort, ALLOWED_SORT_FIELDS, DEFAULT_SORT);
+    const orderBy =
+      this.sortParser.toPrismaOrderBy<Prisma.ContainerVersionOrderByWithRelationInput>(sortParams);
+    const { skip, take } = this.pagination.toSkipTake(params);
+
+    const where: Prisma.ContainerVersionWhereInput = {
+      containerId,
+      ...(dto.status ? { status: domainVersionStatusToPrisma(dto.status) } : {}),
+    };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.containerVersion.findMany({ where, orderBy, skip, take }),
+      this.prisma.containerVersion.count({ where }),
+    ]);
+
+    return this.pagination.toPaginatedResult(
+      rows.map((row) => ContainerVersionMapper.toDomain(row)),
+      total,
+      params,
+    );
   }
 }
