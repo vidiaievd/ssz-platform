@@ -127,6 +127,110 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  media-service:
+    build:
+      context: ../services/media-service
+      dockerfile: Dockerfile
+    container_name: ssz-media-service
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+      DATABASE_URL: postgresql://media_service:${MEDIA_SERVICE_DB_PASSWORD:-media_service_password}@postgres:5432/media_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      MINIO_ENDPOINT: ssz-minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET_PUBLIC: ssz-public
+      MINIO_BUCKET_PRIVATE: ssz-private
+      REDIS_URL: redis://:${REDIS_PASSWORD:-localdevpassword}@redis:6379
+    ports:
+      - "3004:3004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3004/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: ../services/notification-service
+      dockerfile: Dockerfile
+    container_name: ssz-notification-service
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      DATABASE_URL: postgresql://notifications_service:${NOTIFICATIONS_SERVICE_DB_PASSWORD:-notifications_service_password}@postgres:5432/notifications_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-localdevpassword}@redis:6379
+      SMTP_HOST: ssz-mailhog
+      SMTP_PORT: 1025
+      SMTP_SECURE: "false"
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      EMAIL_FROM_NAME: SSZ Platform
+      EMAIL_FROM_ADDRESS: noreply@ssz.local
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+    ports:
+      - "3005:3005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3005/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: ssz-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ssz-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: ssz-pgadmin
@@ -143,3 +247,4 @@ volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
+  minio_data:
