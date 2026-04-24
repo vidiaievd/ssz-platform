@@ -35,6 +35,10 @@ export const envSchema = z.object({
   ORGANIZATION_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
   ORGANIZATION_SERVICE_RETRIES: z.coerce.number().int().min(0).default(2),
   INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
+
+  // Discovery / catalog pagination
+  DISCOVERY_DEFAULT_LIMIT: z.coerce.number().int().min(1).max(100).default(20),
+  DISCOVERY_MAX_LIMIT: z.coerce.number().int().min(1).max(500).default(100),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -90,6 +94,12 @@ export interface AppConfig {
     retries: number;
     internalAuthToken: string;
   };
+  discovery: {
+    pagination: {
+      defaultLimit: number;
+      maxLimit: number;
+    };
+  };
 }
 
 export default (): AppConfig => {
@@ -126,6 +136,12 @@ export default (): AppConfig => {
       timeoutMs: env.ORGANIZATION_SERVICE_TIMEOUT_MS,
       retries: env.ORGANIZATION_SERVICE_RETRIES,
       internalAuthToken: env.INTERNAL_SERVICE_TOKEN,
+    },
+    discovery: {
+      pagination: {
+        defaultLimit: env.DISCOVERY_DEFAULT_LIMIT,
+        maxLimit: env.DISCOVERY_MAX_LIMIT,
+      },
     },
   };
 };

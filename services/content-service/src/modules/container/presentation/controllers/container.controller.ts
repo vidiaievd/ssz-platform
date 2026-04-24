@@ -39,15 +39,16 @@ import type { GetContainerResult } from '../../application/queries/get-container
 import { GetContainersQuery } from '../../application/queries/get-containers/get-containers.query.js';
 import { GetContainerBySlugQuery } from '../../application/queries/get-container-by-slug/get-container-by-slug.query.js';
 import type { Result } from '../../../../shared/kernel/result.js';
-import type { PaginatedResult } from '../../../../shared/kernel/pagination.js';
+import type { PaginatedResult } from '../../../../shared/discovery/domain/types/pagination.js';
 import type { ContainerDomainError } from '../../domain/exceptions/container-domain.exceptions.js';
 import type { ContainerEntity } from '../../domain/entities/container.entity.js';
 import { ContainerResponseDto } from '../dto/responses/container.response.dto.js';
 import { ContainerLocalizationResponseDto } from '../dto/responses/container-localization.response.dto.js';
 import { PaginatedResponseDto } from '../dto/responses/paginated.response.dto.js';
+import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 import { CreateContainerRequestDto } from '../dto/requests/create-container.request.dto.js';
 import { UpdateContainerRequestDto } from '../dto/requests/update-container.request.dto.js';
-import { GetContainersFilterRequestDto } from '../dto/requests/get-containers-filter.request.dto.js';
+import { ContainerListQueryDto } from '../dto/requests/container-list-query.dto.js';
 import { CreateLocalizationRequestDto } from '../dto/requests/create-localization.request.dto.js';
 import { UpdateLocalizationRequestDto } from '../dto/requests/update-localization.request.dto.js';
 import { throwHttpException } from '../utils/domain-error.mapper.js';
@@ -93,22 +94,14 @@ export class ContainerController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List containers with optional filters and pagination' })
-  @ApiOkResponse({ type: PaginatedResponseDto })
+  @ApiOperation({ summary: 'List containers with optional filters, sorting, and pagination' })
+  @ApiPaginatedResponse(ContainerResponseDto)
   async findAll(
-    @Query() filter: GetContainersFilterRequestDto,
+    @Query() dto: ContainerListQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<PaginatedResponseDto<ContainerResponseDto>> {
     const paged = await this.queryBus.execute<GetContainersQuery, PaginatedResult<ContainerEntity>>(
-      new GetContainersQuery({
-        containerType: filter.containerType,
-        targetLanguage: filter.targetLanguage,
-        difficultyLevel: filter.difficultyLevel,
-        visibility: filter.visibility,
-        ownerUserId: filter.ownerUserId,
-        ownerSchoolId: filter.ownerSchoolId,
-        page: filter.page ?? 1,
-        limit: filter.limit ?? 20,
-      }),
+      new GetContainersQuery(dto, user),
     );
 
     return new PaginatedResponseDto({

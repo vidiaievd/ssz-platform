@@ -27,7 +27,9 @@ import { TaggableEntityType } from '../../../../shared/access-control/domain/typ
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../../shared/kernel/result.js';
-import type { PaginatedResult } from '../../../../shared/kernel/pagination.js';
+import type { PaginatedResult } from '../../../../shared/discovery/domain/types/pagination.js';
+import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
+import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 
 // Commands — rule
 import { CreateGrammarRuleCommand } from '../../application/commands/create-grammar-rule/create-grammar-rule.command.js';
@@ -70,19 +72,20 @@ import { DifficultyLevel } from '../../../container/domain/value-objects/difficu
 // Request DTOs
 import { CreateGrammarRuleRequestDto } from '../dto/requests/create-grammar-rule.request.dto.js';
 import { UpdateGrammarRuleRequestDto } from '../dto/requests/update-grammar-rule.request.dto.js';
-import { GetGrammarRulesFilterRequestDto } from '../dto/requests/get-grammar-rules-filter.request.dto.js';
+import { GrammarRuleListQueryDto } from '../dto/requests/grammar-rule-list-query.dto.js';
 import { CreateExplanationRequestDto } from '../dto/requests/create-explanation.request.dto.js';
 import { UpdateExplanationRequestDto } from '../dto/requests/update-explanation.request.dto.js';
 import { AddPoolEntryRequestDto } from '../dto/requests/add-pool-entry.request.dto.js';
 import { UpdatePoolEntryRequestDto } from '../dto/requests/update-pool-entry.request.dto.js';
 import { ReorderPoolRequestDto } from '../dto/requests/reorder-pool.request.dto.js';
+import { GrammarRuleExplanationsQueryDto } from '../dto/requests/grammar-rule-explanations-query.dto.js';
+import { GrammarRulePoolQueryDto } from '../dto/requests/grammar-rule-pool-query.dto.js';
 
 // Response DTOs
 import { GrammarRuleResponseDto } from '../dto/responses/grammar-rule.response.dto.js';
 import { GrammarRuleExplanationResponseDto } from '../dto/responses/grammar-rule-explanation.response.dto.js';
 import { PoolEntryResponseDto } from '../dto/responses/pool-entry.response.dto.js';
 import { ExerciseResponseDto } from '../../../exercise/presentation/dto/responses/exercise.response.dto.js';
-import { PaginatedResponseDto } from '../../../container/presentation/dto/responses/paginated.response.dto.js';
 
 // Error mapper
 import { throwHttpException } from '../utils/domain-error.mapper.js';
@@ -129,26 +132,15 @@ export class GrammarRuleController {
 
   @Get()
   @ApiOperation({ summary: 'List grammar rules with optional filters' })
-  @ApiOkResponse({ type: PaginatedResponseDto })
+  @ApiPaginatedResponse(GrammarRuleResponseDto)
   async findAll(
-    @Query() filter: GetGrammarRulesFilterRequestDto,
+    @Query() dto: GrammarRuleListQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<PaginatedResponseDto<GrammarRuleResponseDto>> {
     const paged = await this.queryBus.execute<
       GetGrammarRulesQuery,
       PaginatedResult<GrammarRuleEntity>
-    >(
-      new GetGrammarRulesQuery({
-        targetLanguage: filter.targetLanguage,
-        difficultyLevel: filter.difficultyLevel,
-        topic: filter.topic,
-        visibility: filter.visibility,
-        ownerUserId: filter.ownerUserId,
-        ownerSchoolId: filter.ownerSchoolId,
-        search: filter.search,
-        page: filter.page ?? 1,
-        limit: filter.limit ?? 20,
-      }),
-    );
+    >(new GetGrammarRulesQuery(dto, user));
 
     return new PaginatedResponseDto({
       items: paged.items.map((r) => GrammarRuleResponseDto.from(r)),
@@ -255,19 +247,24 @@ export class GrammarRuleController {
   @Get(':id/explanations')
   @UseGuards(VisibilityGuard)
   @RequireAccess('view', { entityType: TaggableEntityType.GRAMMAR_RULE })
-  @ApiOperation({ summary: 'List all explanations for a grammar rule' })
-  @ApiOkResponse({ type: GrammarRuleExplanationResponseDto, isArray: true })
+  @ApiOperation({ summary: 'List explanations for a grammar rule with optional filters and pagination' })
+  @ApiPaginatedResponse(GrammarRuleExplanationResponseDto)
   async findExplanations(
     @Param('id') ruleId: string,
-    @Query('onlyPublished') onlyPublished?: string,
-  ): Promise<GrammarRuleExplanationResponseDto[]> {
-    const result = await this.queryBus.execute<
+    @Query() dto: GrammarRuleExplanationsQueryDto,
+  ): Promise<PaginatedResponseDto<GrammarRuleExplanationResponseDto>> {
+    const paged = await this.queryBus.execute<
       GetGrammarRuleExplanationsQuery,
-      Result<GrammarRuleExplanationEntity[], GrammarRuleDomainError>
-    >(new GetGrammarRuleExplanationsQuery(ruleId, onlyPublished === 'true'));
+      PaginatedResult<GrammarRuleExplanationEntity>
+    >(new GetGrammarRuleExplanationsQuery(ruleId, dto));
 
-    if (result.isFail) throwHttpException(result.error);
-    return result.value.map((e) => GrammarRuleExplanationResponseDto.from(e));
+    return new PaginatedResponseDto({
+      items: paged.items.map((e) => GrammarRuleExplanationResponseDto.from(e)),
+      total: paged.total,
+      page: paged.page,
+      limit: paged.limit,
+      totalPages: paged.totalPages,
+    });
   }
 
   @Get(':id/explanations/best')
@@ -410,16 +407,24 @@ export class GrammarRuleController {
   @Get(':id/pool')
   @UseGuards(VisibilityGuard)
   @RequireAccess('view', { entityType: TaggableEntityType.GRAMMAR_RULE })
-  @ApiOperation({ summary: 'List all pool entries with their exercises' })
-  @ApiOkResponse({ type: PoolEntryResponseDto, isArray: true })
-  async findPoolEntries(@Param('id') ruleId: string): Promise<PoolEntryResponseDto[]> {
-    const result = await this.queryBus.execute<
+  @ApiOperation({ summary: 'List pool entries for a grammar rule with pagination' })
+  @ApiPaginatedResponse(PoolEntryResponseDto)
+  async findPoolEntries(
+    @Param('id') ruleId: string,
+    @Query() dto: GrammarRulePoolQueryDto,
+  ): Promise<PaginatedResponseDto<PoolEntryResponseDto>> {
+    const paged = await this.queryBus.execute<
       GetPoolEntriesQuery,
-      Result<PoolEntryWithExercise[], GrammarRuleDomainError>
-    >(new GetPoolEntriesQuery(ruleId));
+      PaginatedResult<PoolEntryWithExercise>
+    >(new GetPoolEntriesQuery(ruleId, dto));
 
-    if (result.isFail) throwHttpException(result.error);
-    return result.value.map((item) => PoolEntryResponseDto.fromPoolEntryWithExercise(item));
+    return new PaginatedResponseDto({
+      items: paged.items.map((item) => PoolEntryResponseDto.fromPoolEntryWithExercise(item)),
+      total: paged.total,
+      page: paged.page,
+      limit: paged.limit,
+      totalPages: paged.totalPages,
+    });
   }
 
   @Get(':id/pool/random')

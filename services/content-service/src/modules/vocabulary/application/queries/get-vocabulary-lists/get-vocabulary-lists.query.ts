@@ -1,5 +1,9 @@
-import { VocabularyListFilter } from '../../../domain/repositories/vocabulary-list.repository.interface.js';
+import type { AuthenticatedUser } from '../../../../../infrastructure/auth/jwt-verifier.service.js';
+import type { VocabularyListQueryDto } from '../../../presentation/dto/requests/vocabulary-list-query.dto.js';
 
 export class GetVocabularyListsQuery {
-  constructor(public readonly filter: VocabularyListFilter) {}
+  constructor(
+    public readonly dto: VocabularyListQueryDto,
+    public readonly user: AuthenticatedUser,
+  ) {}
 }
