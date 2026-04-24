@@ -1,37 +1,60 @@
 import { QueryHandler, IQueryHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+import type { Prisma } from '../../../../../../generated/prisma/client.js';
+import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
+import { PaginationService } from '../../../../../shared/discovery/application/services/pagination.service.js';
+import { SortParserService } from '../../../../../shared/discovery/application/services/sort-parser.service.js';
 import { GetLessonVariantsQuery } from './get-lesson-variants.query.js';
-import { Result } from '../../../../../shared/kernel/result.js';
-import { LessonDomainError } from '../../../domain/exceptions/lesson-domain.exceptions.js';
+import type { PaginatedResult } from '../../../../../shared/discovery/domain/types/pagination.js';
 import { LessonContentVariantEntity } from '../../../domain/entities/lesson-content-variant.entity.js';
-import { LESSON_REPOSITORY } from '../../../domain/repositories/lesson.repository.interface.js';
-import type { ILessonRepository } from '../../../domain/repositories/lesson.repository.interface.js';
-import { LESSON_CONTENT_VARIANT_REPOSITORY } from '../../../domain/repositories/lesson-content-variant.repository.interface.js';
-import type { ILessonContentVariantRepository } from '../../../domain/repositories/lesson-content-variant.repository.interface.js';
+import { LessonContentVariantMapper } from '../../../infrastructure/persistence/mappers/lesson-content-variant.mapper.js';
+import { domainVariantStatusToPrisma } from '../../../infrastructure/persistence/mappers/enum-converters.js';
+
+const ALLOWED_SORT_FIELDS = ['created_at', 'updated_at'];
+const DEFAULT_SORT = [{ field: 'createdAt', direction: 'asc' as const }];
 
 @QueryHandler(GetLessonVariantsQuery)
 export class GetLessonVariantsHandler implements IQueryHandler<
   GetLessonVariantsQuery,
-  Result<LessonContentVariantEntity[], LessonDomainError>
+  PaginatedResult<LessonContentVariantEntity>
 > {
+  private readonly logger = new Logger(GetLessonVariantsHandler.name);
+
   constructor(
-    @Inject(LESSON_REPOSITORY)
-    private readonly lessonRepo: ILessonRepository,
-    @Inject(LESSON_CONTENT_VARIANT_REPOSITORY)
-    private readonly variantRepo: ILessonContentVariantRepository,
+    private readonly prisma: PrismaService,
+    private readonly pagination: PaginationService,
+    private readonly sortParser: SortParserService,
   ) {}
 
   async execute(
     query: GetLessonVariantsQuery,
-  ): Promise<Result<LessonContentVariantEntity[], LessonDomainError>> {
-    const lesson = await this.lessonRepo.findById(query.lessonId);
+  ): Promise<PaginatedResult<LessonContentVariantEntity>> {
+    const { lessonId, dto } = query;
 
-    if (!lesson || lesson.deletedAt !== null) {
-      return Result.fail(LessonDomainError.LESSON_NOT_FOUND);
-    }
+    const params = this.pagination.normalize(dto.page, dto.limit);
+    const sortParams = this.sortParser.parse(dto.sort, ALLOWED_SORT_FIELDS, DEFAULT_SORT);
+    const orderBy =
+      this.sortParser.toPrismaOrderBy<Prisma.LessonContentVariantOrderByWithRelationInput>(
+        sortParams,
+      );
+    const { skip, take } = this.pagination.toSkipTake(params);
 
-    const variants = await this.variantRepo.findByLessonId(query.lessonId, query.onlyPublished);
+    const where: Prisma.LessonContentVariantWhereInput = {
+      lessonId,
+      deletedAt: null,
+      ...(dto.status ? { status: domainVariantStatusToPrisma(dto.status) } : {}),
+      ...(dto.explanationLanguage ? { explanationLanguage: dto.explanationLanguage } : {}),
+    };
 
-    return Result.ok(variants);
+    const [rows, total] = await Promise.all([
+      this.prisma.lessonContentVariant.findMany({ where, orderBy, skip, take }),
+      this.prisma.lessonContentVariant.count({ where }),
+    ]);
+
+    return this.pagination.toPaginatedResult(
+      rows.map((row) => LessonContentVariantMapper.toDomain(row)),
+      total,
+      params,
+    );
   }
 }
