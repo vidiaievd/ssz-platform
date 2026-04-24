@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
@@ -34,7 +35,11 @@ import { GetContainerVersionQuery } from '../../application/queries/get-containe
 import type { Result } from '../../../../shared/kernel/result.js';
 import type { ContainerDomainError } from '../../domain/exceptions/container-domain.exceptions.js';
 import type { ContainerVersionEntity } from '../../domain/entities/container-version.entity.js';
+import type { PaginatedResult } from '../../../../shared/discovery/domain/types/pagination.js';
+import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
+import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 import { ContainerVersionResponseDto } from '../dto/responses/container-version.response.dto.js';
+import { ContainerVersionsQueryDto } from '../dto/requests/container-versions-query.dto.js';
 import { PublishVersionRequestDto } from '../dto/requests/publish-version.request.dto.js';
 import { throwHttpException } from '../utils/domain-error.mapper.js';
 
@@ -52,16 +57,24 @@ export class ContainerVersionController {
   @Get()
   @UseGuards(VisibilityGuard)
   @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
-  @ApiOperation({ summary: 'List all versions for a container' })
-  @ApiOkResponse({ type: ContainerVersionResponseDto, isArray: true })
-  async findAll(@Param('containerId') containerId: string): Promise<ContainerVersionResponseDto[]> {
-    const result = await this.queryBus.execute<
+  @ApiOperation({ summary: 'List versions for a container with optional filters and pagination' })
+  @ApiPaginatedResponse(ContainerVersionResponseDto)
+  async findAll(
+    @Param('containerId') containerId: string,
+    @Query() dto: ContainerVersionsQueryDto,
+  ): Promise<PaginatedResponseDto<ContainerVersionResponseDto>> {
+    const paged = await this.queryBus.execute<
       GetContainerVersionsQuery,
-      Result<ContainerVersionEntity[], ContainerDomainError>
-    >(new GetContainerVersionsQuery(containerId));
+      PaginatedResult<ContainerVersionEntity>
+    >(new GetContainerVersionsQuery(containerId, dto));
 
-    if (result.isFail) throwHttpException(result.error);
-    return result.value.map((v) => ContainerVersionResponseDto.from(v));
+    return new PaginatedResponseDto({
+      items: paged.items.map((v) => ContainerVersionResponseDto.from(v)),
+      total: paged.total,
+      page: paged.page,
+      limit: paged.limit,
+      totalPages: paged.totalPages,
+    });
   }
 
   @Get(':versionId')

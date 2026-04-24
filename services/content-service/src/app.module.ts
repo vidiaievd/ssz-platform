@@ -20,6 +20,7 @@ import { ExerciseModule } from './modules/exercise/exercise.module.js';
 import { GrammarRuleModule } from './modules/grammar-rule/grammar-rule.module.js';
 import { AccessControlModule } from './shared/access-control/access-control.module.js';
 import { AccessControlWiringModule } from './shared/access-control/access-control-wiring.module.js';
+import { DiscoveryModule } from './shared/discovery/discovery.module.js';
 import { TagModule } from './modules/tag/tag.module.js';
 
 @Module({
@@ -60,6 +61,7 @@ import { TagModule } from './modules/tag/tag.module.js';
     GrammarRuleModule,
     AccessControlModule,
     AccessControlWiringModule,
+    DiscoveryModule,
     TagModule,
   ],
   controllers: [],

@@ -27,7 +27,7 @@ import { TaggableEntityType } from '../../../../shared/access-control/domain/typ
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../../shared/kernel/result.js';
-import type { PaginatedResult } from '../../../../shared/kernel/pagination.js';
+import type { PaginatedResult } from '../../../../shared/discovery/domain/types/pagination.js';
 
 // Commands
 import { CreateVocabularyListCommand } from '../../application/commands/create-vocabulary-list/create-vocabulary-list.command.js';
@@ -49,13 +49,14 @@ import type { VocabularyItemEntity } from '../../domain/entities/vocabulary-item
 // Request DTOs
 import { CreateVocabularyListRequestDto } from '../dto/requests/create-vocabulary-list.request.dto.js';
 import { UpdateVocabularyListRequestDto } from '../dto/requests/update-vocabulary-list.request.dto.js';
-import { GetVocabularyListsFilterRequestDto } from '../dto/requests/get-vocabulary-lists-filter.request.dto.js';
+import { VocabularyListQueryDto } from '../dto/requests/vocabulary-list-query.dto.js';
 import { GetVocabularyListItemsRequestDto } from '../dto/requests/get-vocabulary-list-items.request.dto.js';
 
 // Response DTOs
 import { VocabularyListResponseDto } from '../dto/responses/vocabulary-list.response.dto.js';
 import { VocabularyItemSummaryResponseDto } from '../dto/responses/vocabulary-item-summary.response.dto.js';
-import { PaginatedResponseDto } from '../../../container/presentation/dto/responses/paginated.response.dto.js';
+import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
+import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 
 // Error mapper
 import { throwHttpException } from '../utils/domain-error.mapper.js';
@@ -100,26 +101,15 @@ export class VocabularyListController {
 
   @Get()
   @ApiOperation({ summary: 'List vocabulary lists with optional filters and pagination' })
-  @ApiOkResponse({ type: PaginatedResponseDto })
+  @ApiPaginatedResponse(VocabularyListResponseDto)
   async findAll(
-    @Query() filter: GetVocabularyListsFilterRequestDto,
+    @Query() dto: VocabularyListQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<PaginatedResponseDto<VocabularyListResponseDto>> {
     const paged = await this.queryBus.execute<
       GetVocabularyListsQuery,
       PaginatedResult<VocabularyListEntity>
-    >(
-      new GetVocabularyListsQuery({
-        targetLanguage: filter.targetLanguage,
-        difficultyLevel: filter.difficultyLevel,
-        visibility: filter.visibility,
-        ownerUserId: filter.ownerUserId,
-        ownerSchoolId: filter.ownerSchoolId,
-        search: filter.search,
-        page: filter.page ?? 1,
-        limit: filter.limit ?? 20,
-        sort: filter.sort,
-      }),
-    );
+    >(new GetVocabularyListsQuery(dto, user));
 
     return new PaginatedResponseDto({
       items: paged.items.map((l) => VocabularyListResponseDto.from(l)),

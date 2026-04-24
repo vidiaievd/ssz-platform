@@ -28,7 +28,7 @@ import { TaggableEntityType } from '../../../../shared/access-control/domain/typ
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../../shared/kernel/result.js';
-import type { PaginatedResult } from '../../../../shared/kernel/pagination.js';
+import type { PaginatedResult } from '../../../../shared/discovery/domain/types/pagination.js';
 
 // Commands — lessons
 import { CreateLessonCommand } from '../../application/commands/create-lesson/create-lesson.command.js';
@@ -60,16 +60,18 @@ import type { LessonContentVariantEntity } from '../../domain/entities/lesson-co
 // Request DTOs
 import { CreateLessonRequestDto } from '../dto/requests/create-lesson.request.dto.js';
 import { UpdateLessonRequestDto } from '../dto/requests/update-lesson.request.dto.js';
-import { GetLessonsFilterRequestDto } from '../dto/requests/get-lessons-filter.request.dto.js';
+import { LessonListQueryDto } from '../dto/requests/lesson-list-query.dto.js';
 import { CreateVariantRequestDto } from '../dto/requests/create-variant.request.dto.js';
 import { UpdateVariantRequestDto } from '../dto/requests/update-variant.request.dto.js';
 import { GetBestVariantRequestDto } from '../dto/requests/get-best-variant.request.dto.js';
+import { LessonVariantsQueryDto } from '../dto/requests/lesson-variants-query.dto.js';
 
 // Response DTOs
 import { LessonResponseDto } from '../dto/responses/lesson.response.dto.js';
 import { LessonVariantResponseDto } from '../dto/responses/lesson-variant.response.dto.js';
 import { BestVariantResponseDto } from '../dto/responses/best-variant.response.dto.js';
-import { PaginatedResponseDto } from '../../../container/presentation/dto/responses/paginated.response.dto.js';
+import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
+import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 
 // Error mapper
 import { throwHttpException } from '../utils/domain-error.mapper.js';
@@ -115,21 +117,13 @@ export class LessonController {
 
   @Get()
   @ApiOperation({ summary: 'List lessons with optional filters and pagination' })
-  @ApiOkResponse({ type: PaginatedResponseDto })
+  @ApiPaginatedResponse(LessonResponseDto)
   async findAll(
-    @Query() filter: GetLessonsFilterRequestDto,
+    @Query() dto: LessonListQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<PaginatedResponseDto<LessonResponseDto>> {
     const paged = await this.queryBus.execute<GetLessonsQuery, PaginatedResult<LessonEntity>>(
-      new GetLessonsQuery({
-        targetLanguage: filter.targetLanguage,
-        difficultyLevel: filter.difficultyLevel,
-        visibility: filter.visibility,
-        ownerUserId: filter.ownerUserId,
-        ownerSchoolId: filter.ownerSchoolId,
-        search: filter.search,
-        page: filter.page ?? 1,
-        limit: filter.limit ?? 20,
-      }),
+      new GetLessonsQuery(dto, user),
     );
 
     return new PaginatedResponseDto({
@@ -252,16 +246,24 @@ export class LessonController {
   @Get(':id/variants')
   @UseGuards(VisibilityGuard)
   @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
-  @ApiOperation({ summary: 'List all variants for a lesson' })
-  @ApiOkResponse({ type: LessonVariantResponseDto, isArray: true })
-  async findVariants(@Param('id') lessonId: string): Promise<LessonVariantResponseDto[]> {
-    const result = await this.queryBus.execute<
+  @ApiOperation({ summary: 'List variants for a lesson with optional filters and pagination' })
+  @ApiPaginatedResponse(LessonVariantResponseDto)
+  async findVariants(
+    @Param('id') lessonId: string,
+    @Query() dto: LessonVariantsQueryDto,
+  ): Promise<PaginatedResponseDto<LessonVariantResponseDto>> {
+    const paged = await this.queryBus.execute<
       GetLessonVariantsQuery,
-      Result<LessonContentVariantEntity[], LessonDomainError>
-    >(new GetLessonVariantsQuery(lessonId));
+      PaginatedResult<LessonContentVariantEntity>
+    >(new GetLessonVariantsQuery(lessonId, dto));
 
-    if (result.isFail) throwHttpException(result.error);
-    return result.value.map((v) => LessonVariantResponseDto.from(v));
+    return new PaginatedResponseDto({
+      items: paged.items.map((v) => LessonVariantResponseDto.from(v)),
+      total: paged.total,
+      page: paged.page,
+      limit: paged.limit,
+      totalPages: paged.totalPages,
+    });
   }
 
   @Get(':id/variants/best')
