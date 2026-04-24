@@ -14,6 +14,7 @@ import { StorageModule } from './infrastructure/storage/storage.module.js';
 import { QueuesModule } from './infrastructure/queues/queues.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AssetsModule } from './modules/assets/assets.module.js';
+import { ProcessingModule } from './modules/processing/processing.module.js';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { AssetsModule } from './modules/assets/assets.module.js';
     CqrsModule,
     HealthModule,
     AssetsModule,
+    ProcessingModule,
   ],
   providers: [
     {

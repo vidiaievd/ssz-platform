@@ -39,6 +39,12 @@ export interface IStorageService {
   getObjectMetadata(key: string, isPublic: boolean): Promise<ObjectMetadata | null>;
 
   deleteObject(key: string, isPublic: boolean): Promise<void>;
+
+  /** Download object content as a Buffer (used by processing workers). */
+  getObject(key: string, isPublic: boolean): Promise<Buffer>;
+
+  /** Upload raw bytes as an object (used by processing workers for variants). */
+  uploadObject(key: string, data: Buffer, mimeType: string, isPublic: boolean): Promise<void>;
 }
 
 // Determines which bucket an asset belongs to based on entityType.
