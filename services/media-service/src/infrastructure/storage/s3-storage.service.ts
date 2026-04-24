@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'minio';
+import type { Readable } from 'stream';
 import type { AppConfig } from '../../config/configuration.js';
 import type {
   IStorageService,
@@ -49,8 +50,17 @@ export class S3StorageService implements IStorageService, OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
-    await this.ensureBucket(this.bucketPublic, true);
-    await this.ensureBucket(this.bucketPrivate, false);
+    try {
+      await this.ensureBucket(this.bucketPublic, true);
+      await this.ensureBucket(this.bucketPrivate, false);
+    } catch (err) {
+      // Non-fatal on startup — MinIO may not be running in local dev without Docker.
+      // Upload/download operations will fail at request time with a clear error.
+      this.logger.warn(
+        `MinIO is not reachable at startup: ${err instanceof Error ? err.message : String(err)}. ` +
+          'Start MinIO (docker compose up minio) before using upload endpoints.',
+      );
+    }
   }
 
   async generatePresignedUploadUrl(
@@ -102,6 +112,23 @@ export class S3StorageService implements IStorageService, OnModuleInit {
   async deleteObject(key: string, isPublic: boolean): Promise<void> {
     await this.client.removeObject(this.bucket(isPublic), key);
     this.logger.debug(`Deleted object "${key}" from bucket "${this.bucket(isPublic)}"`);
+  }
+
+  async getObject(key: string, isPublic: boolean): Promise<Buffer> {
+    const stream = await this.client.getObject(this.bucket(isPublic), key) as Readable;
+    return new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+      stream.on('error', reject);
+    });
+  }
+
+  async uploadObject(key: string, data: Buffer, mimeType: string, isPublic: boolean): Promise<void> {
+    await this.client.putObject(this.bucket(isPublic), key, data, data.length, {
+      'Content-Type': mimeType,
+    });
+    this.logger.debug(`Uploaded object "${key}" (${data.length} bytes) to bucket "${this.bucket(isPublic)}"`);
   }
 
   private bucket(isPublic: boolean): string {
