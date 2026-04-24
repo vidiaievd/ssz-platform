@@ -1,5 +1,12 @@
 {
-  "include": ["src/**/*", "generated/**/*", "prisma.config.ts"],
+  "include": [
+    "src/**/*",
+    "generated/**/*",
+    "test/**/*",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "prisma.config.ts"
+  ],
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
     "module": "nodenext",
