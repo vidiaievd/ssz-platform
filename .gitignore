@@ -21,6 +21,12 @@
 # Prompts
 prompts/
 
+#Roadmap
+.roadmap/
+
+# Documentation
+docs/
+
 
 # OS
 .DS_Store
