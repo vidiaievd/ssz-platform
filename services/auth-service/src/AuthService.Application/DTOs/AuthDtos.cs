@@ -50,3 +50,13 @@ public sealed record AssignRoleRequest(
 
 public sealed record UserRolesResponse(
     string[] Roles);
+
+public sealed record ForgotPasswordRequest(
+    string Email);
+
+public sealed record ResetPasswordRequest(
+    string Token,
+    string NewPassword);
+
+public sealed record VerifyEmailRequest(
+    string Token);

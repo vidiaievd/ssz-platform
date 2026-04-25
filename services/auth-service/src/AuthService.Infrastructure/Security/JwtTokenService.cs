@@ -106,6 +106,43 @@ public sealed class JwtTokenService : ITokenService
     }
 
     public Guid? ValidateMfaChallengeToken(string token)
+        => ValidateShortLivedToken(token, "mfa_challenge");
+
+    public string GeneratePasswordResetToken(Guid userId)
+        => GenerateShortLivedToken(userId, "password_reset", _opts.PasswordResetTokenLifetime);
+
+    public Guid? ValidatePasswordResetToken(string token)
+        => ValidateShortLivedToken(token, "password_reset");
+
+    public string GenerateEmailVerificationToken(Guid userId)
+        => GenerateShortLivedToken(userId, "email_verification", _opts.EmailVerificationTokenLifetime);
+
+    public Guid? ValidateEmailVerificationToken(string token)
+        => ValidateShortLivedToken(token, "email_verification");
+
+    private string GenerateShortLivedToken(Guid userId, string tokenType, TimeSpan lifetime)
+    {
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new Claim("token_type", tokenType),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        };
+
+        var key = new SymmetricSecurityKey(
+            System.Text.Encoding.UTF8.GetBytes(_opts.MfaChallengeSecret));
+
+        var descriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.Add(lifetime),
+            SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256),
+        };
+
+        return _handler.WriteToken(_handler.CreateToken(descriptor));
+    }
+
+    private Guid? ValidateShortLivedToken(string token, string expectedTokenType)
     {
         var key = new SymmetricSecurityKey(
             System.Text.Encoding.UTF8.GetBytes(_opts.MfaChallengeSecret));
@@ -123,9 +160,8 @@ public sealed class JwtTokenService : ITokenService
         {
             var principal = _handler.ValidateToken(token, parameters, out _);
 
-            // Ensure this is actually an MFA challenge token
             var tokenType = principal.FindFirstValue("token_type");
-            if (tokenType != "mfa_challenge")
+            if (tokenType != expectedTokenType)
                 return null;
 
             var sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub)
@@ -140,5 +176,4 @@ public sealed class JwtTokenService : ITokenService
             return null;
         }
     }
-
 }

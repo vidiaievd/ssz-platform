@@ -46,8 +46,9 @@ public sealed class AuthController(
         CancellationToken ct)
     {
         var deviceInfo = Request.Headers.UserAgent.ToString();
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var result = await mediator.Send(
-            new LoginCommand(request.Email, request.Password, deviceInfo), ct);
+            new LoginCommand(request.Email, request.Password, deviceInfo, clientIp), ct);
 
         return result switch
         {
@@ -161,5 +162,57 @@ public sealed class AuthController(
             .ToArray();
 
         return Ok(new UserRolesResponse(roles));
+    }
+
+    /// <summary>
+    /// Request a password reset email.
+    /// Always returns 204 — user enumeration is prevented by design.
+    /// </summary>
+    [HttpPost("password/forgot")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request,
+        CancellationToken ct)
+    {
+        await mediator.Send(new ForgotPasswordCommand(request.Email), ct);
+        return NoContent();
+    }
+
+    /// <summary>Reset password using a token received by email.</summary>
+    [HttpPost("password/reset")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ResetPassword(
+        [FromBody] ResetPasswordRequest request,
+        CancellationToken ct)
+    {
+        await mediator.Send(new ResetPasswordCommand(request.Token, request.NewPassword), ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Re-send the email verification link for the authenticated user.
+    /// Idempotent — returns 204 if the email is already verified.
+    /// </summary>
+    [HttpPost("email/verify/request")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RequestEmailVerification(CancellationToken ct)
+    {
+        var userId = User.GetUserId();
+        await mediator.Send(new RequestEmailVerificationCommand(userId), ct);
+        return NoContent();
+    }
+
+    /// <summary>Confirm email ownership using the token from the verification email.</summary>
+    [HttpPost("email/verify/confirm")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> VerifyEmail(
+        [FromBody] VerifyEmailRequest request,
+        CancellationToken ct)
+    {
+        await mediator.Send(new VerifyEmailCommand(request.Token), ct);
+        return NoContent();
     }
 }

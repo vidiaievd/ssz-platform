@@ -25,7 +25,7 @@ public sealed class RabbitMqEventPublisher : IDomainEventPublisher, IDisposable
     private readonly IConnection _connection;
     private readonly IModel _channel;
     private readonly ILogger<RabbitMqEventPublisher> _logger;
-    private const string ExchangeName = "auth.events";
+    private const string ExchangeName = "ssz.events";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -127,6 +127,10 @@ public sealed class RabbitMqEventPublisher : IDomainEventPublisher, IDisposable
         User2FAEnabledEvent => "auth.user.2fa_enabled",
         User2FADisabledEvent => "auth.user.2fa_disabled",
         UserLoggedOutEvent => "auth.user.logout",
+        PasswordResetRequestedEvent => "auth.password_reset_requested",
+        PasswordChangedEvent => "auth.password_changed",
+        EmailVerificationRequestedEvent => "auth.email_verification_requested",
+        EmailVerifiedEvent => "auth.email_verified",
         _ => null,
     };
 
@@ -168,6 +172,16 @@ public sealed record EventEnvelope
         User2FAEnabledEvent ev => new { ev.UserId },
         User2FADisabledEvent ev => new { ev.UserId },
         UserLoggedOutEvent ev => new { ev.UserId },
+        PasswordResetRequestedEvent ev => new
+        {
+            ev.UserId, ev.Email, ev.ResetUrl, ev.ExpiresInMinutes,
+        },
+        PasswordChangedEvent ev => new { ev.UserId, ev.Email },
+        EmailVerificationRequestedEvent ev => new
+        {
+            ev.UserId, ev.Email, ev.VerificationUrl, ev.ExpiresInMinutes,
+        },
+        EmailVerifiedEvent ev => new { ev.UserId, ev.Email },
         _ => new { },
     };
 }

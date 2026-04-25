@@ -17,6 +17,11 @@ public sealed class AuthOptions
     public int MfaChallengeLifetimeMinutes { get; set; } = 5;
     public int MaxFailedLoginAttempts { get; set; } = 5;
     public int LockoutDurationMinutes { get; set; } = 15;
+    public int PasswordResetTokenLifetimeMinutes { get; set; } = 30;
+    public int EmailVerificationTokenLifetimeMinutes { get; set; } = 1440;
+    public string AppBaseUrl { get; set; } = "http://localhost:3000";
+    public int LoginRateLimitMaxAttempts { get; set; } = 10;
+    public int LoginRateLimitWindowSeconds { get; set; } = 300;
 
     public TimeSpan AccessTokenLifetime =>
         TimeSpan.FromMinutes(AccessTokenLifetimeMinutes);
@@ -26,4 +31,10 @@ public sealed class AuthOptions
         TimeSpan.FromMinutes(LockoutDurationMinutes);
     public TimeSpan MfaChallengeLifetime =>
         TimeSpan.FromMinutes(MfaChallengeLifetimeMinutes);
+    public TimeSpan PasswordResetTokenLifetime =>
+        TimeSpan.FromMinutes(PasswordResetTokenLifetimeMinutes);
+    public TimeSpan EmailVerificationTokenLifetime =>
+        TimeSpan.FromMinutes(EmailVerificationTokenLifetimeMinutes);
+    public TimeSpan LoginRateLimitWindow =>
+        TimeSpan.FromSeconds(LoginRateLimitWindowSeconds);
 }

@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum NotificationType {
+  WELCOME_EMAIL
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  PASSWORD_CHANGED
+  STUDY_REMINDER
+  GENERAL
+
+  @@map("notification_type")
+}
+
+enum NotificationChannel {
+  EMAIL
+  PUSH
+  IN_APP
+
+  @@map("notification_channel")
+}
+
+enum NotificationStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  PERMANENTLY_FAILED
+
+  @@map("notification_status")
+}
+
+model Notification {
+  id             String              @id @default(uuid())
+  type           NotificationType
+  channel        NotificationChannel @default(EMAIL)
+  recipientId    String              @map("recipient_id")
+  recipientEmail String?             @map("recipient_email")
+  subject        String?
+  templateKey    String              @map("template_key")
+  templateData   Json                @default("{}") @map("template_data")
+  status         NotificationStatus  @default(PENDING)
+  attempts       Int                 @default(0)
+  maxAttempts    Int                 @default(3) @map("max_attempts")
+  lastError      String?             @map("last_error")
+  sentAt         DateTime?           @map("sent_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  @@index([recipientId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique @map("event_id")
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("processed_events")
+}

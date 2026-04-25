@@ -1,6 +1,7 @@
 using AuthService.Application.DTOs;
 using AuthService.Application.Interfaces;
 using AuthService.Application.Options;
+using AuthService.Domain.Events;
 using AuthService.Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Options;
@@ -12,7 +13,8 @@ namespace AuthService.Application.Commands;
 public sealed record LoginCommand(
     string Email,
     string Password,
-    string? DeviceInfo = null
+    string? DeviceInfo = null,
+    string? ClientIp = null
 ) : IRequest<LoginResult>;
 
 // Discriminated union — either full tokens or MFA challenge
@@ -26,6 +28,7 @@ public sealed class LoginCommandHandler(
     IPasswordHasher passwordHasher,
     ITokenService tokenService,
     IDomainEventPublisher eventPublisher,
+    IRateLimitStore rateLimitStore,
     IUnitOfWork unitOfWork,
     IOptions<AuthOptions> authOptions)
     : IRequestHandler<LoginCommand, LoginResult>
@@ -33,6 +36,12 @@ public sealed class LoginCommandHandler(
     public async Task<LoginResult> Handle(LoginCommand command, CancellationToken ct)
     {
         var email = command.Email.Trim().ToLowerInvariant();
+        var opts = authOptions.Value;
+        var ipKey = command.ClientIp is not null ? $"login:ip:{command.ClientIp}" : null;
+
+        // IP-level rate limiting — checked before DB to stop brute-force bursts
+        if (ipKey is not null && await rateLimitStore.IsLockedOutAsync(ipKey, ct))
+            throw new AccountLockedException(null);
 
         var user = await userRepository.FindByEmailAsync(email, ct)
             ?? throw new InvalidCredentialsException();
@@ -45,13 +54,19 @@ public sealed class LoginCommandHandler(
 
         if (!passwordHasher.Verify(command.Password, user.PasswordHash))
         {
-            var opts = authOptions.Value;
-            user.RecordFailedLogin(
-                opts.MaxFailedLoginAttempts,
-                opts.LockoutDuration);
+            user.RecordFailedLogin(opts.MaxFailedLoginAttempts, opts.LockoutDuration);
             await unitOfWork.SaveChangesAsync(ct);
+
+            if (ipKey is not null)
+                await rateLimitStore.RecordAttemptAsync(
+                    ipKey, opts.LoginRateLimitMaxAttempts, opts.LoginRateLimitWindow, ct);
+
             throw new InvalidCredentialsException();
         }
+
+        // Success — reset IP rate limit counter
+        if (ipKey is not null)
+            await rateLimitStore.ResetAsync(ipKey, ct);
 
         // Password valid — check if 2FA is required
         if (user.TwoFactorEnabled)
@@ -322,5 +337,133 @@ public sealed class RevokeAllSessionsCommandHandler(
         foreach (var evt in user.DomainEvents)
             await eventPublisher.PublishAsync(evt, ct);
         user.ClearDomainEvents();
+    }
+}
+
+// ── Forgot password ───────────────────────────────────────────────────────────
+
+public sealed record ForgotPasswordCommand(string Email) : IRequest;
+
+public sealed class ForgotPasswordCommandHandler(
+    IUserRepository userRepository,
+    ITokenService tokenService,
+    IDomainEventPublisher eventPublisher,
+    IOptions<AuthOptions> authOptions)
+    : IRequestHandler<ForgotPasswordCommand>
+{
+    public async Task Handle(ForgotPasswordCommand command, CancellationToken ct)
+    {
+        var email = command.Email.Trim().ToLowerInvariant();
+        var user = await userRepository.FindByEmailAsync(email, ct);
+
+        // Always return success to prevent user enumeration
+        if (user is null) return;
+
+        var opts = authOptions.Value;
+        var token = tokenService.GeneratePasswordResetToken(user.Id);
+        var resetUrl = $"{opts.AppBaseUrl}/reset-password?token={Uri.EscapeDataString(token)}";
+
+        var domainEvent = new PasswordResetRequestedEvent(
+            user.Id,
+            user.Email,
+            resetUrl,
+            opts.PasswordResetTokenLifetimeMinutes);
+
+        await eventPublisher.PublishAsync(domainEvent, ct);
+    }
+}
+
+// ── Reset password ────────────────────────────────────────────────────────────
+
+public sealed record ResetPasswordCommand(string Token, string NewPassword) : IRequest;
+
+public sealed class ResetPasswordCommandHandler(
+    IUserRepository userRepository,
+    ITokenService tokenService,
+    IPasswordHasher passwordHasher,
+    IDomainEventPublisher eventPublisher,
+    IUnitOfWork unitOfWork)
+    : IRequestHandler<ResetPasswordCommand>
+{
+    public async Task Handle(ResetPasswordCommand command, CancellationToken ct)
+    {
+        var userId = tokenService.ValidatePasswordResetToken(command.Token)
+            ?? throw new InvalidTokenException();
+
+        var user = await userRepository.FindByIdWithTokensAsync(userId, ct)
+            ?? throw new UserNotFoundException();
+
+        var newHash = passwordHasher.Hash(command.NewPassword);
+        user.ChangePassword(newHash);
+
+        await unitOfWork.SaveChangesAsync(ct);
+
+        // ChangePassword internally calls RevokeAllRefreshTokens which raises UserLoggedOutEvent
+        foreach (var evt in user.DomainEvents)
+            await eventPublisher.PublishAsync(evt, ct);
+        user.ClearDomainEvents();
+
+        await eventPublisher.PublishAsync(
+            new PasswordChangedEvent(user.Id, user.Email), ct);
+    }
+}
+
+// ── Request email verification ────────────────────────────────────────────────
+
+public sealed record RequestEmailVerificationCommand(Guid UserId) : IRequest;
+
+public sealed class RequestEmailVerificationCommandHandler(
+    IUserRepository userRepository,
+    ITokenService tokenService,
+    IDomainEventPublisher eventPublisher,
+    IOptions<AuthOptions> authOptions)
+    : IRequestHandler<RequestEmailVerificationCommand>
+{
+    public async Task Handle(RequestEmailVerificationCommand command, CancellationToken ct)
+    {
+        var user = await userRepository.FindByIdAsync(command.UserId, ct)
+            ?? throw new UserNotFoundException();
+
+        if (user.EmailVerified) return;
+
+        var opts = authOptions.Value;
+        var token = tokenService.GenerateEmailVerificationToken(user.Id);
+        var verifyUrl = $"{opts.AppBaseUrl}/verify-email?token={Uri.EscapeDataString(token)}";
+
+        await eventPublisher.PublishAsync(
+            new EmailVerificationRequestedEvent(
+                user.Id,
+                user.Email,
+                verifyUrl,
+                opts.EmailVerificationTokenLifetimeMinutes),
+            ct);
+    }
+}
+
+// ── Verify email ──────────────────────────────────────────────────────────────
+
+public sealed record VerifyEmailCommand(string Token) : IRequest;
+
+public sealed class VerifyEmailCommandHandler(
+    IUserRepository userRepository,
+    ITokenService tokenService,
+    IDomainEventPublisher eventPublisher,
+    IUnitOfWork unitOfWork)
+    : IRequestHandler<VerifyEmailCommand>
+{
+    public async Task Handle(VerifyEmailCommand command, CancellationToken ct)
+    {
+        var userId = tokenService.ValidateEmailVerificationToken(command.Token)
+            ?? throw new InvalidTokenException();
+
+        var user = await userRepository.FindByIdAsync(userId, ct)
+            ?? throw new UserNotFoundException();
+
+        if (user.EmailVerified) return;
+
+        user.VerifyEmail();
+        await unitOfWork.SaveChangesAsync(ct);
+
+        await eventPublisher.PublishAsync(new EmailVerifiedEvent(user.Id, user.Email), ct);
     }
 }
