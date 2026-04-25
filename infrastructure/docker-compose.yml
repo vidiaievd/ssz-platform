@@ -1,5 +1,7 @@
 services:
 
+  # ── Infrastructure ─────────────────────────────────────────────────────────
+
   postgres:
     image: postgres:16-alpine
     container_name: ssz-postgres
@@ -48,6 +50,49 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
+
+  # ── Services ───────────────────────────────────────────────────────────────
+
+  auth-service:
+    build:
+      context: ../services/auth-service
+      dockerfile: Dockerfile
+    container_name: ssz-auth-service
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=auth_db;Username=auth_service;Password=${AUTH_SERVICE_DB_PASSWORD:-auth_service_password}
+      ConnectionStrings__Redis: redis:6379,password=${REDIS_PASSWORD:-localdevpassword}
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__Username: ssz_admin
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:-localdevpassword}
+      Auth__Issuer: https://auth.ssz-platform.internal
+      Auth__Audience: ssz-services
+      Auth__PrivateKeyPath: /app/keys/jwt_private_key.pem
+      Auth__PublicKeyPath: /app/keys/jwt_public_key.pem
+      Auth__MfaChallengeSecret: ${MFA_CHALLENGE_SECRET}
+      Auth__EncryptionKey: ${TOTP_ENCRYPTION_KEY}
+      Auth__TotpIssuer: SSZPlatform
+      Auth__AppBaseUrl: ${APP_BASE_URL:-http://localhost:3000}
+    volumes:
+      - ../services/auth-service/keys:/app/keys:ro
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
   organization-service:
     build:
@@ -101,7 +146,7 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  content_service:
+  content-service:
     build:
       context: ../services/content-service
       dockerfile: Dockerfile
@@ -229,6 +274,22 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ssz-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - user-profile-service
+      - organization-service
+      - content-service
+      - media-service
+      - notification-service
     restart: unless-stopped
 
   pgadmin:
