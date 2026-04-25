@@ -16,6 +16,12 @@ public interface ITokenService
 
     string GenerateMfaChallengeToken(Guid userId);
     Guid? ValidateMfaChallengeToken(string token);
+
+    string GeneratePasswordResetToken(Guid userId);
+    Guid? ValidatePasswordResetToken(string token);
+
+    string GenerateEmailVerificationToken(Guid userId);
+    Guid? ValidateEmailVerificationToken(string token);
 }
 
 public interface ITotpService

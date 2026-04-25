@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AssetStatus {
+  PENDING_UPLOAD
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+  DELETED
+
+  @@map("asset_status")
+}
+
+enum ProcessingJobType {
+  IMAGE_RESIZE
+  AUDIO_CONVERT
+  VIDEO_TRANSCODE
+
+  @@map("processing_job_type")
+}
+
+enum ProcessingJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+
+  @@map("processing_job_status")
+}
+
+model MediaAsset {
+  id               String      @id @default(uuid())
+  ownerId          String      @map("owner_id")
+  entityType       String?     @map("entity_type")
+  entityId         String?     @map("entity_id")
+  mimeType         String      @map("mime_type")
+  sizeBytes        BigInt      @map("size_bytes")
+  storageKey       String      @unique @map("storage_key")
+  originalFilename String?     @map("original_filename")
+  status           AssetStatus @default(PENDING_UPLOAD)
+  uploadedAt       DateTime?   @map("uploaded_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  deletedAt        DateTime?   @map("deleted_at")
+
+  variants AssetVariant[]
+  jobs     ProcessingJob[]
+
+  @@index([ownerId])
+  @@index([entityType, entityId])
+  @@index([deletedAt])
+  @@map("media_assets")
+}
+
+model AssetVariant {
+  id          String   @id @default(uuid())
+  assetId     String   @map("asset_id")
+  variantType String   @map("variant_type")
+  storageKey  String   @unique @map("storage_key")
+  mimeType    String   @map("mime_type")
+  sizeBytes   BigInt   @map("size_bytes")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  asset MediaAsset @relation(fields: [assetId], references: [id])
+
+  @@index([assetId])
+  @@map("asset_variants")
+}
+
+model ProcessingJob {
+  id          String              @id @default(uuid())
+  assetId     String              @map("asset_id")
+  type        ProcessingJobType
+  status      ProcessingJobStatus @default(PENDING)
+  attempts    Int                 @default(0)
+  lastError   String?             @map("last_error")
+  startedAt   DateTime?           @map("started_at")
+  completedAt DateTime?           @map("completed_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  asset MediaAsset @relation(fields: [assetId], references: [id])
+
+  @@index([status])
+  @@map("processing_jobs")
+}
+
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique @map("event_id")
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("processed_events")
+}

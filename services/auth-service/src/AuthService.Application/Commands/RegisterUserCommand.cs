@@ -3,6 +3,7 @@ using AuthService.Application.Interfaces;
 using AuthService.Domain.Entities;
 using AuthService.Domain.Exceptions;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AuthService.Application.Commands;
 
@@ -16,7 +17,8 @@ public sealed class RegisterUserCommandHandler(
     IRoleRepository roleRepository,
     IPasswordHasher passwordHasher,
     IDomainEventPublisher eventPublisher,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    ISender mediator)
     : IRequestHandler<RegisterUserCommand, RegisterResponse>
 {
     public async Task<RegisterResponse> Handle(
@@ -60,6 +62,9 @@ public sealed class RegisterUserCommandHandler(
             await eventPublisher.PublishAsync(domainEvent, ct);
 
         user.ClearDomainEvents();
+
+        // Fire-and-forget email verification — non-fatal if it fails
+        _ = mediator.Send(new RequestEmailVerificationCommand(user.Id), ct);
 
         return new RegisterResponse(user.Id, user.Email);
     }
