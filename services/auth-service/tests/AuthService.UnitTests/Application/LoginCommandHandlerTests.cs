@@ -18,6 +18,7 @@ public sealed class LoginCommandHandlerTests
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
     private readonly ITokenService _tokenService = Substitute.For<ITokenService>();
     private readonly IDomainEventPublisher _publisher = Substitute.For<IDomainEventPublisher>();
+    private readonly IRateLimitStore _rateLimitStore = Substitute.For<IRateLimitStore>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     private readonly IOptions<AuthOptions> _opts = Options.Create(new AuthOptions
@@ -26,11 +27,13 @@ public sealed class LoginCommandHandlerTests
         LockoutDurationMinutes = 15,
         AccessTokenLifetimeMinutes = 15,
         RefreshTokenLifetimeDays = 7,
+        LoginRateLimitMaxAttempts = 10,
+        LoginRateLimitWindowSeconds = 300,
     });
 
     private LoginCommandHandler CreateHandler() => new(
         _userRepo, _roleRepo, _hasher, _tokenService,
-        _publisher, _unitOfWork, _opts);
+        _publisher, _rateLimitStore, _unitOfWork, _opts);
 
     private User CreateUser(string email = "test@example.com", string hash = "hash")
     {
