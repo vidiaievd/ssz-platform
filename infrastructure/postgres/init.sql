@@ -43,3 +43,21 @@ CREATE DATABASE content_db OWNER content_service;
 
 \c content_db
 GRANT ALL ON SCHEMA public TO content_service;
+
+-- ============================================================================
+-- Media Service
+-- ============================================================================
+CREATE USER media_service WITH PASSWORD 'media_service_password';
+CREATE DATABASE media_db OWNER media_service;
+
+\c media_db
+GRANT ALL ON SCHEMA public TO media_service;
+
+-- ============================================================================
+-- Notification Service
+-- ============================================================================
+CREATE USER notifications_service WITH PASSWORD 'notifications_service_password';
+CREATE DATABASE notifications_db OWNER notifications_service;
+
+\c notifications_db
+GRANT ALL ON SCHEMA public TO notifications_service;

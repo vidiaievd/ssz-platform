@@ -53,3 +53,47 @@ public sealed record UserLoggedOutEvent(
     public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
     public int Version => 1;
 }
+
+public sealed record PasswordResetRequestedEvent(
+    Guid UserId,
+    string Email,
+    string ResetUrl,
+    int ExpiresInMinutes
+) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
+    public int Version => 1;
+}
+
+public sealed record PasswordChangedEvent(
+    Guid UserId,
+    string Email
+) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
+    public int Version => 1;
+}
+
+public sealed record EmailVerificationRequestedEvent(
+    Guid UserId,
+    string Email,
+    string VerificationUrl,
+    int ExpiresInMinutes
+) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
+    public int Version => 1;
+}
+
+public sealed record EmailVerifiedEvent(
+    Guid UserId,
+    string Email
+) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
+    public int Version => 1;
+}
