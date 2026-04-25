@@ -61,3 +61,12 @@ CREATE DATABASE notifications_db OWNER notifications_service;
 
 \c notifications_db
 GRANT ALL ON SCHEMA public TO notifications_service;
+
+-- ============================================================================
+-- Learning Service
+-- ============================================================================
+CREATE USER learning_service WITH PASSWORD 'learning_service_password';
+CREATE DATABASE learning_db OWNER learning_service;
+
+\c learning_db
+GRANT ALL ON SCHEMA public TO learning_service;
