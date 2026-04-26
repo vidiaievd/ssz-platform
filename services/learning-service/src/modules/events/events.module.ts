@@ -1,5 +1,10 @@
 import { Module } from '@nestjs/common';
+import { CqrsModule } from '@nestjs/cqrs';
+import { ExerciseAttemptedConsumer } from './consumers/exercise-attempted.consumer.js';
+import { ContainerPublishedConsumer } from './consumers/container-published.consumer.js';
 
-// RabbitMQ consumer module — implemented in Step 8.
-@Module({})
+@Module({
+  imports: [CqrsModule],
+  providers: [ExerciseAttemptedConsumer, ContainerPublishedConsumer],
+})
 export class EventsModule {}
