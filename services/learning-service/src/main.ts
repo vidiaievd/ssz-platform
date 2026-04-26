@@ -1,0 +1,51 @@
+import { NestFactory } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
+import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Logger } from 'nestjs-pino';
+import { AppModule } from './app.module.js';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor.js';
+import type { AppConfig } from './config/configuration.js';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+
+  app.useLogger(app.get(Logger));
+  app.setGlobalPrefix('api/v1', { exclude: ['health'] });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalInterceptors(new LoggingInterceptor());
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Learning Service')
+    .setDescription(
+      'Assignments, enrollments, progress tracking, and free-form submission review',
+    )
+    .setVersion('0.1.0')
+    .addBearerAuth()
+    .addTag('Assignments', 'Tutor-driven assignment of content to students')
+    .addTag('Enrollments', 'Student-driven self-paced enrollment')
+    .addTag('Progress', 'Progress tracking across all content types')
+    .addTag('Submissions', 'Free-form submission review workflow')
+    .addTag('health', 'Service health')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
+
+  const config = app.get(ConfigService<AppConfig>);
+  const port = config.get<AppConfig['app']>('app')?.port ?? 3007;
+
+  await app.listen(port);
+}
+
+void bootstrap();
