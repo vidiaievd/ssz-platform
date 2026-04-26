@@ -1,7 +1,7 @@
 # SSZ Platform — Project Status
 
-> **Last updated**: 2026-04-25
-> **Branch**: feature/media-service
+> **Last updated**: 2026-04-26
+> **Branch**: feature/sprint-03-04-learning-core
 
 ## Overall Progress
 
@@ -9,7 +9,7 @@
 |-------|-------|--------|
 | Phase 1 | User Profile Service + Organization Service + API Docs Service | ~70% |
 | Phase 2 | Content Service + Media Service | Complete |
-| Phase 3 | Exercise Engine Service + Learning Service | Not started |
+| Phase 3 | Exercise Engine Service + Learning Service | ~50% (Learning Service core complete; SRS + Exercise Engine not started) |
 | Phase 4 | Notification Service + Analytics Service | Notification complete; Analytics not started |
 
 ---
@@ -25,7 +25,7 @@
 | Media Service | NestJS | Complete | [details](services/media-service.md) |
 | Notification Service | NestJS | Complete (email; push/in-app deferred) | — |
 | Exercise Engine Service | NestJS | Not started | — |
-| Learning Service | NestJS | Not started | — |
+| Learning Service | NestJS | Complete (core, no SRS) | [details](services/learning-service.md) |
 | Analytics Service | NestJS | Not started | — |
 | API Docs Service | nginx + static HTML | Not started | — |
 | VoxOrd (Mobile) | React Native 0.84 | Not started | — |
@@ -111,11 +111,29 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 
 ---
 
+## Learning Service — Implemented Features
+
+- **Assignments** — tutor-driven content assignment with due dates, status lifecycle (ACTIVE → COMPLETED / CANCELLED / OVERDUE), school role authorization
+- **Enrollments** — student-driven self-paced enrollment with access-tier enforcement (PUBLIC_FREE, FREE_WITHIN_SCHOOL, ASSIGNED_ONLY, etc.)
+- **Progress tracking** — unified `UserProgress` per (user, content_type, content_id); `recordAttempt`, `markNeedsReview`, `resolveReview` state machine
+- **Free-form submission review** — `Submission` aggregate with revision history; PENDING_REVIEW → APPROVED / REJECTED / REVISION_REQUESTED → RESUBMITTED cycle
+- **Scheduled jobs** — BullMQ repeating job every 5 minutes to detect and mark overdue assignments
+- **RabbitMQ consumers** — `exercise.attempt.completed` (updates progress); `container.published` (skeleton)
+- **Health checks** — `/health/live` (liveness) and `/health/ready` (DB + Redis + RabbitMQ via `@nestjs/terminus`)
+- **Swagger** — full OpenAPI at `/api/docs` covering Assignments, Enrollments, Progress, Submissions
+- **Structured logging** — `nestjs-pino` with correlation IDs propagated via `x-correlation-id` header
+
+**Published events**: `learning.assignment.created`, `learning.assignment.completed`, `learning.assignment.cancelled`, `learning.assignment.overdue`, `learning.assignment.due_date_updated`, `learning.enrollment.created`, `learning.enrollment.completed`, `learning.enrollment.unenrolled`, `learning.progress.completed`, `learning.progress.updated`, `learning.submission.created`, `learning.submission.reviewed`, `learning.submission.resubmitted`
+
+**Deferred to Sprint 6**: SRS (FSRS algorithm, spaced repetition queue, Redis-backed due-item cache)
+
+---
+
 ## What Comes Next
 
-### Phase 3 (Sprint 3–4)
+### Phase 3 (Sprint 5)
 - **Exercise Engine Service** — exercise generation, answer validation, scoring, LLM integration
-- **Learning Service** — material assignment, enrollment, SRS queue (FSRS), progress tracking
+- **Learning Service — SRS** (Sprint 6) — FSRS algorithm, spaced repetition queue, Redis-backed due-item cache
 
 ### Phase 4 (Sprint 5–6)
 - **Analytics Service** — aggregation, school/tutor dashboards, student reports, export
@@ -133,5 +151,6 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 - Notification Service: push, in-app, preferences/unsubscribe, school invitation email, MJML templates — all deferred
 - Auth Service: `email_verified` is tracked but login is not blocked for unverified accounts (by design for MVP)
 - Content Service: no full-text search, no batch tag assignment, media reference integrity not yet integrated
+- Learning Service: no SRS (deferred Sprint 6); docker-compose entry not yet added; ADR-007 and ADR-008 not yet written; `@ssz/contracts` event types not yet formally declared; no e2e integration tests with real infrastructure
 - All services: no end-to-end integration tests across services
 - Media Service: shadow database issue (P3014) blocks `prisma migrate dev` — workaround: grant `CREATEDB` to `media_service` user or use `shadowDatabaseUrl`

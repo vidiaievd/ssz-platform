@@ -1,0 +1,197 @@
+// Connection URL is configured in prisma.config.ts (Prisma 7).
+// Run `npx prisma generate` after schema changes, `npx prisma migrate dev` to apply.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+// Prisma enum names: SCREAMING_SNAKE_CASE  |  DB values: lowercase via @map
+
+enum ContentType {
+  CONTAINER       @map("container")
+  LESSON          @map("lesson")
+  VOCABULARY_LIST @map("vocabulary_list")
+  GRAMMAR_RULE    @map("grammar_rule")
+  EXERCISE        @map("exercise")
+
+  @@map("content_type")
+}
+
+enum AssignmentStatus {
+  ACTIVE    @map("active")
+  COMPLETED @map("completed")
+  CANCELLED @map("cancelled")
+  OVERDUE   @map("overdue")
+
+  @@map("assignment_status")
+}
+
+enum EnrollmentStatus {
+  ACTIVE     @map("active")
+  COMPLETED  @map("completed")
+  UNENROLLED @map("unenrolled")
+
+  @@map("enrollment_status")
+}
+
+enum ProgressStatus {
+  NOT_STARTED  @map("not_started")
+  IN_PROGRESS  @map("in_progress")
+  COMPLETED    @map("completed")
+  NEEDS_REVIEW @map("needs_review")
+
+  @@map("progress_status")
+}
+
+enum SubmissionStatus {
+  PENDING_REVIEW     @map("pending_review")
+  APPROVED           @map("approved")
+  REJECTED           @map("rejected")
+  REVISION_REQUESTED @map("revision_requested")
+  RESUBMITTED        @map("resubmitted")
+
+  @@map("submission_status")
+}
+
+enum RevisionDecision {
+  APPROVED           @map("approved")
+  REJECTED           @map("rejected")
+  REVISION_REQUESTED @map("revision_requested")
+
+  @@map("revision_decision")
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+// Tutor-created assignment of specific content to a student.
+// school_id is nullable: required for school-based tutors (MVP), reserved-null for
+// future private 1-on-1 tutor relationships (ADR-006).
+model Assignment {
+  id              String           @id @default(uuid())
+  assignerId      String           @map("assigner_id")
+  assigneeId      String           @map("assignee_id")
+  schoolId        String?          @map("school_id")
+  contentType     ContentType      @map("content_type")
+  contentId       String           @map("content_id")
+  status          AssignmentStatus @default(ACTIVE)
+  assignedAt      DateTime         @default(now()) @map("assigned_at")
+  dueAt           DateTime         @map("due_at")
+  completedAt     DateTime?        @map("completed_at")
+  cancelledAt     DateTime?        @map("cancelled_at")
+  cancelledReason String?          @map("cancelled_reason")
+  notes           String?
+  deletedAt       DateTime?        @map("deleted_at")
+
+  submissions Submission[]
+
+  @@index([assigneeId, status])
+  @@index([assignerId, status])
+  @@index([dueAt, status])
+  @@index([contentType, contentId])
+  @@map("assignments")
+}
+
+// Self-paced enrollment of a student in a container (course/module/collection).
+// Only CONTAINER content type is valid here — enforced in the domain layer.
+// Unique per (user, container) — cannot enroll twice.
+model Enrollment {
+  id             String           @id @default(uuid())
+  userId         String           @map("user_id")
+  containerId    String           @map("container_id")
+  schoolId       String?          @map("school_id")
+  status         EnrollmentStatus @default(ACTIVE)
+  enrolledAt     DateTime         @default(now()) @map("enrolled_at")
+  completedAt    DateTime?        @map("completed_at")
+  unenrolledAt   DateTime?        @map("unenrolled_at")
+  unenrollReason String?          @map("unenroll_reason")
+  deletedAt      DateTime?        @map("deleted_at")
+
+  @@unique([userId, containerId])
+  @@index([userId, status])
+  @@map("enrollments")
+}
+
+// One progress record per (user, content item). Unique constraint prevents duplicates.
+// score is 0–100 integer. time_spent_seconds is cumulative across all attempts.
+model UserProgress {
+  id               String         @id @default(uuid())
+  userId           String         @map("user_id")
+  contentType      ContentType    @map("content_type")
+  contentId        String         @map("content_id")
+  status           ProgressStatus @default(NOT_STARTED)
+  attemptsCount    Int            @default(0) @map("attempts_count")
+  lastAttemptAt    DateTime?      @map("last_attempt_at")
+  timeSpentSeconds Int            @default(0) @map("time_spent_seconds")
+  score            Int?
+  completedAt      DateTime?      @map("completed_at")
+  needsReviewSince DateTime?      @map("needs_review_since")
+  reviewResolvedAt DateTime?      @map("review_resolved_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  @@unique([userId, contentType, contentId])
+  @@index([userId])
+  @@index([contentType, contentId])
+  @@map("user_progress")
+}
+
+// Free-form exercise submission. Tracks current revision number;
+// full history is in submission_revisions.
+// school_id is set when routing to school teachers (no specific reviewer_id).
+model Submission {
+  id                    String           @id @default(uuid())
+  userId                String           @map("user_id")
+  exerciseId            String           @map("exercise_id")
+  assignmentId          String?          @map("assignment_id")
+  schoolId              String?          @map("school_id")
+  status                SubmissionStatus @default(PENDING_REVIEW)
+  currentRevisionNumber Int              @default(1) @map("current_revision_number")
+  submittedAt           DateTime         @default(now()) @map("submitted_at")
+  deletedAt             DateTime?        @map("deleted_at")
+
+  assignment Assignment?         @relation(fields: [assignmentId], references: [id])
+  revisions  SubmissionRevision[]
+
+  @@index([userId, status])
+  @@index([assignmentId])
+  @@index([schoolId, status])
+  @@map("submissions")
+}
+
+// One row per submit/resubmit. decision is null until reviewed.
+// content JSON shape: { text?: string; mediaRefs?: string[] }
+model SubmissionRevision {
+  id             String            @id @default(uuid())
+  submissionId   String            @map("submission_id")
+  revisionNumber Int               @map("revision_number")
+  content        Json
+  submittedAt    DateTime          @default(now()) @map("submitted_at")
+  reviewedBy     String?           @map("reviewed_by")
+  reviewedAt     DateTime?         @map("reviewed_at")
+  feedback       String?
+  score          Int?
+  decision       RevisionDecision?
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+
+  @@unique([submissionId, revisionNumber])
+  @@index([submissionId])
+  @@map("submission_revisions")
+}
+
+// RabbitMQ consumer idempotency — one row per processed event.
+// Consumers check this table before handling; insert on success.
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique @map("event_id")
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("processed_events")
+}
