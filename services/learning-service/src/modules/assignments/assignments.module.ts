@@ -14,6 +14,7 @@ import { GetAssignmentByIdHandler } from './application/queries/get-assignment-b
 import { ListStudentAssignmentsHandler } from './application/queries/list-student-assignments.handler.js';
 import { ListTutorAssignmentsHandler } from './application/queries/list-tutor-assignments.handler.js';
 import { ListOverdueAssignmentsHandler } from './application/queries/list-overdue-assignments.handler.js';
+import { AssignmentsController } from './presentation/assignments.controller.js';
 
 const CommandHandlers = [
   CreateAssignmentHandler,
@@ -31,6 +32,7 @@ const QueryHandlers = [
 
 @Module({
   imports: [CqrsModule, PrismaModule, HttpClientsModule, RabbitmqModule],
+  controllers: [AssignmentsController],
   providers: [
     {
       provide: ASSIGNMENT_REPOSITORY,
