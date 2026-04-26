@@ -17,6 +17,7 @@ import { EnrollmentsModule } from './modules/enrollments/enrollments.module.js';
 import { ProgressModule } from './modules/progress/progress.module.js';
 import { ReviewModule } from './modules/review/review.module.js';
 import { EventsModule } from './modules/events/events.module.js';
+import { JobsModule } from './modules/jobs/jobs.module.js';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { EventsModule } from './modules/events/events.module.js';
     ProgressModule,
     ReviewModule,
     EventsModule,
+    JobsModule,
   ],
   providers: [
     {
