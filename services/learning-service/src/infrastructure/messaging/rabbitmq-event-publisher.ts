@@ -94,6 +94,10 @@ export class RabbitmqEventPublisher implements IEventPublisher, OnModuleInit, On
     }
   }
 
+  isConnected(): boolean {
+    return this.connection?.isConnected() ?? false;
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.channelWrapper?.close();
     await this.connection?.close();
