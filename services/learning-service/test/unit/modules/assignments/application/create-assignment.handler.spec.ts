@@ -24,6 +24,9 @@ const CONTENT_ID  = 'dddddddd-0000-4000-8000-000000000004';
 const NOW  = new Date('2026-01-01T12:00:00Z');
 const FUTURE = new Date('2026-06-01T12:00:00Z');
 
+// jest.fn typed as returning Promise<unknown> so mockResolvedValue accepts any value
+const mockFn = () => jest.fn<() => Promise<unknown>>();
+
 const makeHandler = (overrides: Partial<{
   repo: IAssignmentRepository;
   contentClient: IContentClient;
@@ -31,31 +34,31 @@ const makeHandler = (overrides: Partial<{
   publisher: IEventPublisher;
   clock: IClock;
 }> = {}) => {
-  const repo: IAssignmentRepository = overrides.repo ?? {
+  const repo = (overrides.repo ?? {
     findById: jest.fn(),
     findByAssignee: jest.fn(),
     findByAssigner: jest.fn(),
     findOverdueCandidates: jest.fn(),
-    save: jest.fn().mockResolvedValue(undefined),
+    save: mockFn().mockResolvedValue(undefined),
     softDelete: jest.fn(),
-  };
+  }) as unknown as IAssignmentRepository;
 
-  const contentClient: IContentClient = overrides.contentClient ?? {
+  const contentClient = (overrides.contentClient ?? {
     getContentMetadata: jest.fn(),
-    checkVisibilityForUser: jest.fn().mockResolvedValue(Result.ok({ isVisible: true })),
+    checkVisibilityForUser: mockFn().mockResolvedValue(Result.ok({ isVisible: true })),
     getAccessTier: jest.fn(),
     getContainerLeafItems: jest.fn(),
-  };
+  }) as unknown as IContentClient;
 
-  const orgClient: IOrganizationClient = overrides.orgClient ?? {
-    getMemberRole: jest.fn()
-      .mockResolvedValueOnce(Result.ok('TEACHER'))  // assigner role
-      .mockResolvedValueOnce(Result.ok('STUDENT')), // assignee role
-  };
+  const orgClient = (overrides.orgClient ?? {
+    getMemberRole: mockFn()
+      .mockResolvedValueOnce(Result.ok('TEACHER'))
+      .mockResolvedValueOnce(Result.ok('STUDENT')),
+  }) as unknown as IOrganizationClient;
 
-  const publisher: IEventPublisher = overrides.publisher ?? {
-    publish: jest.fn().mockResolvedValue(undefined),
-  };
+  const publisher = (overrides.publisher ?? {
+    publish: mockFn().mockResolvedValue(undefined),
+  }) as unknown as IEventPublisher;
 
   const clock: IClock = overrides.clock ?? { now: () => NOW };
 
@@ -63,7 +66,7 @@ const makeHandler = (overrides: Partial<{
   return { handler, repo, contentClient, orgClient, publisher };
 };
 
-const makeCommand = (overrides: Partial<ConstructorParameters<typeof CreateAssignmentCommand>[0]> = {}) =>
+const makeCommand = () =>
   new CreateAssignmentCommand(
     ASSIGNER_ID,
     ASSIGNEE_ID,
@@ -102,10 +105,10 @@ describe('CreateAssignmentHandler', () => {
     const { handler } = makeHandler({
       contentClient: {
         getContentMetadata: jest.fn(),
-        checkVisibilityForUser: jest.fn().mockResolvedValue(Result.ok({ isVisible: false, reason: 'private' })),
+        checkVisibilityForUser: mockFn().mockResolvedValue(Result.ok({ isVisible: false, reason: 'private' })),
         getAccessTier: jest.fn(),
         getContainerLeafItems: jest.fn(),
-      },
+      } as unknown as IContentClient,
     });
 
     const result = await handler.execute(makeCommand());
@@ -118,12 +121,10 @@ describe('CreateAssignmentHandler', () => {
     const { handler } = makeHandler({
       contentClient: {
         getContentMetadata: jest.fn(),
-        checkVisibilityForUser: jest.fn().mockResolvedValue(
-          Result.fail(new ContentClientError('timeout')),
-        ),
+        checkVisibilityForUser: mockFn().mockResolvedValue(Result.fail(new ContentClientError('timeout'))),
         getAccessTier: jest.fn(),
         getContainerLeafItems: jest.fn(),
-      },
+      } as unknown as IContentClient,
     });
 
     const result = await handler.execute(makeCommand());
@@ -135,10 +136,10 @@ describe('CreateAssignmentHandler', () => {
   it('fails when assigner is not a teacher in the school', async () => {
     const { handler } = makeHandler({
       orgClient: {
-        getMemberRole: jest.fn()
-          .mockResolvedValueOnce(Result.ok('STUDENT')) // assigner is a student, not teacher
+        getMemberRole: mockFn()
+          .mockResolvedValueOnce(Result.ok('STUDENT'))
           .mockResolvedValueOnce(Result.ok('STUDENT')),
-      },
+      } as unknown as IOrganizationClient,
     });
 
     const result = await handler.execute(makeCommand());
@@ -150,10 +151,10 @@ describe('CreateAssignmentHandler', () => {
   it('fails when assignee is not a student in the school', async () => {
     const { handler } = makeHandler({
       orgClient: {
-        getMemberRole: jest.fn()
-          .mockResolvedValueOnce(Result.ok('TEACHER')) // assigner OK
-          .mockResolvedValueOnce(Result.ok('TEACHER')), // assignee is teacher, not student
-      },
+        getMemberRole: mockFn()
+          .mockResolvedValueOnce(Result.ok('TEACHER'))
+          .mockResolvedValueOnce(Result.ok('TEACHER')),
+      } as unknown as IOrganizationClient,
     });
 
     const result = await handler.execute(makeCommand());
@@ -165,10 +166,8 @@ describe('CreateAssignmentHandler', () => {
   it('fails when Organization Service is unavailable', async () => {
     const { handler } = makeHandler({
       orgClient: {
-        getMemberRole: jest.fn().mockResolvedValue(
-          Result.fail(new OrganizationClientError('timeout')),
-        ),
-      },
+        getMemberRole: mockFn().mockResolvedValue(Result.fail(new OrganizationClientError('timeout'))),
+      } as unknown as IOrganizationClient,
     });
 
     const result = await handler.execute(makeCommand());
@@ -181,10 +180,10 @@ describe('CreateAssignmentHandler', () => {
     for (const role of ['OWNER', 'ADMIN'] as const) {
       const { handler } = makeHandler({
         orgClient: {
-          getMemberRole: jest.fn()
+          getMemberRole: mockFn()
             .mockResolvedValueOnce(Result.ok(role))
             .mockResolvedValueOnce(Result.ok('STUDENT')),
-        },
+        } as unknown as IOrganizationClient,
       });
 
       const result = await handler.execute(makeCommand());

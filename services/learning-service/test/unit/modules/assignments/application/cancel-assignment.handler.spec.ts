@@ -39,26 +39,29 @@ const makeActiveAssignment = () =>
     deletedAt: null,
   });
 
+// jest.fn typed as returning Promise<unknown> so mockResolvedValue accepts any value
+const mockFn = () => jest.fn<() => Promise<unknown>>();
+
 const makeHandler = (
   assignment: ReturnType<typeof makeActiveAssignment> | null,
   orgClientRole: string | null = null,
 ) => {
-  const repo: IAssignmentRepository = {
-    findById: jest.fn().mockResolvedValue(assignment),
+  const repo = {
+    findById: mockFn().mockResolvedValue(assignment),
     findByAssignee: jest.fn(),
     findByAssigner: jest.fn(),
     findOverdueCandidates: jest.fn(),
-    save: jest.fn().mockResolvedValue(undefined),
+    save: mockFn().mockResolvedValue(undefined),
     softDelete: jest.fn(),
-  };
+  } as unknown as IAssignmentRepository;
 
-  const orgClient: IOrganizationClient = {
-    getMemberRole: jest.fn().mockResolvedValue(Result.ok(orgClientRole)),
-  };
+  const orgClient = {
+    getMemberRole: mockFn().mockResolvedValue(Result.ok(orgClientRole)),
+  } as unknown as IOrganizationClient;
 
-  const publisher: IEventPublisher = {
-    publish: jest.fn().mockResolvedValue(undefined),
-  };
+  const publisher = {
+    publish: mockFn().mockResolvedValue(undefined),
+  } as unknown as IEventPublisher;
 
   return { handler: new CancelAssignmentHandler(repo, orgClient, publisher), repo, publisher };
 };
