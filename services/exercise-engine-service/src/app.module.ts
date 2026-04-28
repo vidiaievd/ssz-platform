@@ -11,6 +11,10 @@ import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { RabbitmqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { RedisModule } from './infrastructure/cache/redis.module.js';
 import { HttpClientsModule } from './infrastructure/http/http.module.js';
+import { ValidationModule } from './infrastructure/validation/validation.module.js';
+import { FeedbackModule } from './infrastructure/feedback/feedback.module.js';
+import { AttemptsModule } from './modules/attempts/attempts.module.js';
+import { EventsModule } from './modules/events/events.module.js';
 
 @Module({
   imports: [
@@ -37,8 +41,11 @@ import { HttpClientsModule } from './infrastructure/http/http.module.js';
     RabbitmqModule,
     RedisModule,
     HttpClientsModule,
+    ValidationModule,
+    FeedbackModule,
     CqrsModule.forRoot(),
-    // Feature modules wired in Steps 8+
+    AttemptsModule,
+    EventsModule,
   ],
   providers: [
     {
