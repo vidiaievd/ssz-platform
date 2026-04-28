@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker exec *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('jest', {}\\), indent=2\\)\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in d.items\\(\\) if k in ['scripts','type','ts-node']}, indent=2\\)\\)\")",
+      "Bash(python3 -c \"import json; json.load\\(open\\('package.json'\\)\\); print\\('valid JSON'\\)\")"
+    ]
+  }
+}

@@ -41,9 +41,15 @@ const templates = [
     },
     answerSchema: {
       type: 'object',
-      required: ['correct_option_id'],
+      required: ['correct_option_ids'],
       properties: {
-        correct_option_id: { type: 'string' },
+        // Array to support both single-answer and multi-select variants.
+        // Single-answer exercises have exactly one element.
+        correct_option_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: 1,
+        },
         explanation: { type: 'string' },
       },
     },
