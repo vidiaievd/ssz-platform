@@ -2,21 +2,26 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   NotFoundException,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Post,
+  Query,
   UnprocessableEntityException,
   ForbiddenException,
   BadRequestException,
   ConflictException,
+  DefaultValuePipe,
 } from '@nestjs/common';
-import { CommandBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -28,17 +33,47 @@ import { SubmitAnswerCommand } from '../../application/commands/submit-answer/su
 import type { SubmitAnswerResult, SubmitAnswerError } from '../../application/commands/submit-answer/submit-answer.handler.js';
 import { AbandonAttemptCommand } from '../../application/commands/abandon-attempt/abandon-attempt.command.js';
 import type { AbandonAttemptError } from '../../application/commands/abandon-attempt/abandon-attempt.handler.js';
+import { GetAttemptByIdQuery } from '../../application/queries/get-attempt-by-id/get-attempt-by-id.query.js';
+import type { GetAttemptByIdError } from '../../application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
+import { ListUserAttemptsQuery } from '../../application/queries/list-user-attempts/list-user-attempts.query.js';
+import type { ListUserAttemptsResult } from '../../application/queries/list-user-attempts/list-user-attempts.handler.js';
 import { StartAttemptRequestDto, StartAttemptResponseDto } from '../dto/start-attempt.dto.js';
 import { SubmitAnswerRequestDto, SubmitAnswerResponseDto } from '../dto/submit-answer.dto.js';
+import { AttemptResponseDto, ListAttemptsResponseDto } from '../dto/attempt-response.dto.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import { ContentClientError } from '../../../../shared/application/ports/content-client.port.js';
 import { ValidationError } from '../../../../shared/application/ports/answer-validator.port.js';
+import type { Attempt, AttemptStatus } from '../../domain/entities/attempt.entity.js';
+
+function toAttemptDto(attempt: Attempt): AttemptResponseDto {
+  return {
+    id: attempt.id,
+    userId: attempt.userId,
+    exerciseId: attempt.exerciseId,
+    assignmentId: attempt.assignmentId,
+    enrollmentId: attempt.enrollmentId,
+    templateCode: attempt.templateCode,
+    targetLanguage: attempt.targetLanguage,
+    difficultyLevel: attempt.difficultyLevel,
+    status: attempt.status,
+    score: attempt.scoreValue,
+    passed: attempt.passed,
+    timeSpentSeconds: attempt.timeSpentSeconds,
+    startedAt: attempt.startedAt.toISOString(),
+    submittedAt: attempt.submittedAt?.toISOString() ?? null,
+    scoredAt: attempt.scoredAt?.toISOString() ?? null,
+    feedback: attempt.feedback,
+  };
+}
 
 @ApiTags('attempts')
 @ApiBearerAuth()
 @Controller('api/v1/exercises/:exerciseId/attempts')
 export class AttemptsController {
-  constructor(private readonly commandBus: CommandBus) {}
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Start a new exercise attempt' })
@@ -96,7 +131,7 @@ export class AttemptsController {
           user.userId,
           dto.submittedAnswer,
           dto.timeSpentSeconds,
-          dto.locale ?? user.userId, // fall back to userId locale context; real l10n uses Accept-Language
+          dto.locale ?? 'en',
         ),
       );
 
@@ -143,5 +178,59 @@ export class AttemptsController {
       }
       throw new UnprocessableEntityException('Cannot abandon attempt in current state');
     }
+  }
+
+  @Get(':attemptId')
+  @ApiOperation({ summary: 'Get attempt details' })
+  @ApiResponse({ status: 200, type: AttemptResponseDto })
+  @ApiResponse({ status: 404, description: 'Attempt not found' })
+  @ApiResponse({ status: 403, description: 'Not your attempt' })
+  async getAttempt(
+    @Param('exerciseId') _exerciseId: string,
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<AttemptResponseDto> {
+    const result: Result<Attempt, GetAttemptByIdError> =
+      await this.queryBus.execute(new GetAttemptByIdQuery(attemptId, user.userId));
+
+    if (result.isFail) {
+      const err = result.error;
+      if (err.code === 'ATTEMPT_NOT_FOUND') throw new NotFoundException('Attempt not found');
+      throw new ForbiddenException('Not your attempt');
+    }
+
+    return toAttemptDto(result.value);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'List my attempts for this exercise (paginated)' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by attempt status' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Page size (max 100)', type: Number })
+  @ApiQuery({ name: 'offset', required: false, description: 'Pagination offset', type: Number })
+  @ApiResponse({ status: 200, type: ListAttemptsResponseDto })
+  async listAttempts(
+    @Param('exerciseId') exerciseId: string,
+    @Query('status') status: string | undefined,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ListAttemptsResponseDto> {
+    const safeLimit = Math.min(limit, 100);
+    const result: ListUserAttemptsResult = await this.queryBus.execute(
+      new ListUserAttemptsQuery(
+        user.userId,
+        exerciseId,
+        status as AttemptStatus | undefined,
+        safeLimit,
+        offset,
+      ),
+    );
+
+    return {
+      items: result.items.map(toAttemptDto),
+      total: result.total,
+      limit: result.limit,
+      offset: result.offset,
+    };
   }
 }
