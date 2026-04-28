@@ -1,8 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import { Allow, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
 export class SubmitAnswerRequestDto {
   @ApiProperty({ description: 'Submitted answer payload — shape depends on templateCode' })
+  @Allow()
   submittedAnswer!: unknown;
 
   @ApiProperty({ description: 'Time spent on this submission in seconds', minimum: 0 })

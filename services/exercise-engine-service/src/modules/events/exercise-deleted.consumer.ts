@@ -1,10 +1,11 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Inject, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import amqp from 'amqp-connection-manager';
 import type { ConfirmChannel, ConsumeMessage } from 'amqplib';
 import type { AppConfig } from '../../config/configuration.js';
 import { ExerciseDefinitionCache } from '../../infrastructure/cache/exercise-definition-cache.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { ATTEMPT_REPOSITORY, type IAttemptRepository } from '../attempts/domain/repositories/attempt.repository.js';
 
 interface ExerciseDeletedPayload {
   exerciseId: string;
@@ -24,13 +25,14 @@ export class ExerciseDeletedConsumer implements OnModuleInit, OnModuleDestroy {
   private channelWrapper: ReturnType<ReturnType<typeof amqp.connect>['createChannel']> | null = null;
 
   private readonly exchangeName: string;
-  private readonly queueName = 'exercise-engine.exercise.deleted';
-  private readonly routingKey = 'exercise.deleted';
+  private readonly queueName = 'exercise-engine.content-exercise-deleted';
+  private readonly routingKey = 'content.exercise.deleted';
 
   constructor(
     private readonly config: ConfigService<AppConfig>,
     private readonly cache: ExerciseDefinitionCache,
     private readonly prisma: PrismaService,
+    @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
   ) {
     const rabbitmqConfig = this.config.get<AppConfig['rabbitmq']>('rabbitmq');
     this.exchangeName = rabbitmqConfig?.exchange ?? 'ssz.events';
@@ -41,7 +43,7 @@ export class ExerciseDeletedConsumer implements OnModuleInit, OnModuleDestroy {
     const url = rabbitmqConfig?.url;
 
     if (!url) {
-      this.logger.warn('RABBITMQ_URL not configured — exercise.deleted consumer disabled');
+      this.logger.warn('RABBITMQ_URL not configured — content.exercise.deleted consumer disabled');
       return;
     }
 
@@ -74,7 +76,7 @@ export class ExerciseDeletedConsumer implements OnModuleInit, OnModuleDestroy {
       exerciseId = envelope.payload?.exerciseId;
 
       if (!exerciseId) {
-        this.logger.warn(`exercise.deleted event missing exerciseId — discarding (eventId=${eventId})`);
+        this.logger.warn(`content.exercise.deleted event missing exerciseId — discarding (eventId=${eventId})`);
         channel.ack(msg);
         return;
       }
@@ -84,25 +86,39 @@ export class ExerciseDeletedConsumer implements OnModuleInit, OnModuleDestroy {
         where: { eventId: eventId! },
       });
       if (alreadyProcessed) {
-        this.logger.debug(`exercise.deleted already processed: eventId=${eventId}`);
+        this.logger.debug(`content.exercise.deleted already processed: eventId=${eventId}`);
         channel.ack(msg);
         return;
       }
 
+      // 1. Invalidate Redis cache for this exercise
       await this.cache.invalidate(exerciseId);
       this.logger.log(`Cache invalidated for exercise ${exerciseId} (eventId=${eventId})`);
 
+      // 2. Abandon all in-progress attempts for the deleted exercise
+      const inProgress = await this.attempts.findAllInProgressByExercise(exerciseId);
+      if (inProgress.length > 0) {
+        for (const attempt of inProgress) {
+          attempt.abandon({ reason: 'exercise_deleted' });
+        }
+        await this.attempts.saveAll(inProgress);
+        this.logger.log(
+          `Abandoned ${inProgress.length} in-progress attempt(s) for deleted exercise ${exerciseId}`,
+        );
+      }
+
+      // 3. Mark event as processed
       await this.prisma.processedEvent.create({
         data: {
           eventId: eventId!,
-          eventType: 'exercise.deleted',
+          eventType: 'content.exercise.deleted',
         },
       });
 
       channel.ack(msg);
     } catch (err) {
       this.logger.error(
-        `Failed to process exercise.deleted (eventId=${eventId}, exerciseId=${exerciseId}): ${String(err)}`,
+        `Failed to process content.exercise.deleted (eventId=${eventId}, exerciseId=${exerciseId}): ${String(err)}`,
       );
       channel.nack(msg, false, false); // dead-letter, no requeue
     }
