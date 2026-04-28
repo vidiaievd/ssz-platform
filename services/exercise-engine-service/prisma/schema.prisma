@@ -1,0 +1,117 @@
+// Connection URL is configured in prisma.config.ts (Prisma 7).
+// Run `npx prisma generate` after schema changes, `npx prisma migrate dev` to apply.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+// Prisma enum names: SCREAMING_SNAKE_CASE  |  DB values: lowercase via @map
+
+// Status lifecycle: IN_PROGRESS → SUBMITTED → SCORED (closed-form)
+//                                           → ROUTED_FOR_REVIEW (free-form)
+//                 IN_PROGRESS → ABANDONED
+enum AttemptStatus {
+  IN_PROGRESS       @map("in_progress")
+  SUBMITTED         @map("submitted")
+  SCORED            @map("scored")
+  ROUTED_FOR_REVIEW @map("routed_for_review")
+  ABANDONED         @map("abandoned")
+
+  @@map("attempt_status")
+}
+
+// Mirrors Learning Service ContentType — kept in sync for forward-compat.
+// Exercise Engine only uses EXERCISE in Sprint 5, but the full enum is declared
+// so shared code (contracts package) can reference a single source of truth.
+enum ContentType {
+  CONTAINER       @map("container")
+  LESSON          @map("lesson")
+  VOCABULARY_LIST @map("vocabulary_list")
+  GRAMMAR_RULE    @map("grammar_rule")
+  EXERCISE        @map("exercise")
+
+  @@map("content_type")
+}
+
+// CEFR difficulty levels — mirrors Content Service DifficultyLevel enum.
+enum DifficultyLevel {
+  A1 @map("a1")
+  A2 @map("a2")
+  B1 @map("b1")
+  B2 @map("b2")
+  C1 @map("c1")
+  C2 @map("c2")
+
+  @@map("difficulty_level")
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+// One row per student exercise attempt.
+// Closed-form attempts reach SCORED; free-form reach ROUTED_FOR_REVIEW.
+// Fields marked // EVENT are included in exercise.attempt.completed payload —
+// MUST match Learning Service's ExerciseAttemptedConsumer contract exactly.
+model Attempt {
+  id String @id @default(uuid())
+
+  // EVENT — identifying fields published in exercise.attempt.completed
+  userId     String @map("user_id")     // EVENT
+  exerciseId String @map("exercise_id") // EVENT
+
+  // Optional — present when attempt is linked to a tutor assignment or enrollment.
+  assignmentId String? @map("assignment_id")
+  enrollmentId String? @map("enrollment_id")
+
+  // Exercise metadata snapshotted from Content Service at attempt start.
+  templateCode    String          @map("template_code")
+  targetLanguage  String          @map("target_language")
+  difficultyLevel DifficultyLevel @map("difficulty_level")
+
+  status AttemptStatus @default(IN_PROGRESS)
+
+  // EVENT — score and completion flag published in exercise.attempt.completed
+  score  Int?  // EVENT: 0–100; null for free-form attempts
+  passed Boolean? // derived from score >= passingThreshold; not published
+
+  // EVENT — cumulative time across all addTimeSpent calls
+  timeSpentSeconds Int @default(0) @map("time_spent_seconds") // EVENT
+
+  // JSON payloads — shapes depend on template type, never leave infrastructure layer.
+  submittedAnswer   Json? @map("submitted_answer")
+  validationDetails Json? @map("validation_details")
+  feedback          Json? // produced by IFeedbackGenerator
+
+  // Answer hash for idempotency check on re-submission (SHA-256 of submittedAnswer JSON).
+  answerHash String? @map("answer_hash")
+
+  // Reserved for future resubmission support.
+  revisionCount Int @default(0) @map("revision_count")
+
+  startedAt   DateTime  @default(now()) @map("started_at")
+  submittedAt DateTime? @map("submitted_at")
+  scoredAt    DateTime? @map("scored_at")
+
+  @@index([userId, status])
+  @@index([exerciseId])
+  @@index([assignmentId, status])
+  @@index([userId, exerciseId, startedAt])
+  @@map("attempts")
+}
+
+// RabbitMQ consumer idempotency — one row per processed event.
+// Consumers check this table before handling; insert on success.
+// Shape is identical to Learning Service to allow shared documentation.
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique @map("event_id")
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("processed_events")
+}

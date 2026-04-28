@@ -1,0 +1,36 @@
+import { Global, Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
+import { CONTENT_CLIENT } from '../../shared/application/ports/content-client.port.js';
+import { LEARNING_CLIENT } from '../../shared/application/ports/learning-client.port.js';
+import { ORGANIZATION_CLIENT } from '../../shared/application/ports/organization-client.port.js';
+import { HttpContentClient } from './http-content-client.js';
+import { HttpLearningClient } from './http-learning-client.js';
+import { HttpOrganizationClient } from './http-organization-client.js';
+import { ExerciseDefinitionCache } from '../cache/exercise-definition-cache.js';
+import { CachedContentClient } from '../cache/cached-content-client.js';
+
+@Global()
+@Module({
+  imports: [HttpModule],
+  providers: [
+    // Raw HTTP client — internal dependency of CachedContentClient, not exported directly.
+    HttpContentClient,
+    ExerciseDefinitionCache,
+    CachedContentClient,
+    { provide: CONTENT_CLIENT, useExisting: CachedContentClient },
+
+    HttpLearningClient,
+    { provide: LEARNING_CLIENT, useExisting: HttpLearningClient },
+
+    HttpOrganizationClient,
+    { provide: ORGANIZATION_CLIENT, useExisting: HttpOrganizationClient },
+  ],
+  exports: [
+    CONTENT_CLIENT,
+    LEARNING_CLIENT,
+    ORGANIZATION_CLIENT,
+    // Exported so the events consumer (Step 19) can call invalidate() on exercise delete.
+    ExerciseDefinitionCache,
+  ],
+})
+export class HttpClientsModule {}
