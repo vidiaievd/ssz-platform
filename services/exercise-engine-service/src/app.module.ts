@@ -15,6 +15,7 @@ import { ValidationModule } from './infrastructure/validation/validation.module.
 import { FeedbackModule } from './infrastructure/feedback/feedback.module.js';
 import { AttemptsModule } from './modules/attempts/attempts.module.js';
 import { EventsModule } from './modules/events/events.module.js';
+import { HealthModule } from './modules/health/health.module.js';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { EventsModule } from './modules/events/events.module.js';
     CqrsModule.forRoot(),
     AttemptsModule,
     EventsModule,
+    HealthModule,
   ],
   providers: [
     {

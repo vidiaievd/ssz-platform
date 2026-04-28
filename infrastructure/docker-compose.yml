@@ -249,6 +249,79 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  learning-service:
+    build:
+      context: ../services/learning-service
+      dockerfile: Dockerfile
+    container_name: ssz-learning-service
+    environment:
+      NODE_ENV: production
+      PORT: 3007
+      DATABASE_URL: postgresql://learning_service:${LEARNING_SERVICE_DB_PASSWORD:-learning_service_password}@postgres:5432/learning_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-localdevpassword}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      CONTENT_SERVICE_BASE_URL: http://content-service:3003
+      ORGANIZATION_SERVICE_BASE_URL: http://organization-service:3002
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
+    ports:
+      - "3007:3007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3007/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  exercise-engine-service:
+    build:
+      context: ../services/exercise-engine-service
+      dockerfile: Dockerfile
+    container_name: ssz-exercise-engine-service
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+      DATABASE_URL: postgresql://exercise_engine_service:${EXERCISE_ENGINE_SERVICE_DB_PASSWORD:-exercise_engine_service_password}@postgres:5432/exercises_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: ssz.events
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-localdevpassword}
+      REDIS_DB: 5
+      REDIS_KEY_PREFIX: "exercise-engine:"
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      CONTENT_SERVICE_BASE_URL: http://content-service:3003
+      ORGANIZATION_SERVICE_BASE_URL: http://organization-service:3002
+      LEARNING_SERVICE_BASE_URL: http://learning-service:3007
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
+      EXERCISE_DEFINITION_CACHE_TTL_SECONDS: 300
+    ports:
+      - "3006:3006"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3006/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
   minio:
     image: minio/minio:latest
     container_name: ssz-minio
@@ -290,6 +363,8 @@ services:
       - content-service
       - media-service
       - notification-service
+      - learning-service
+      - exercise-engine-service
     restart: unless-stopped
 
   pgadmin:

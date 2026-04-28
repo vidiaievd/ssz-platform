@@ -6,7 +6,6 @@ import {
   AttemptAlreadySubmittedError,
   InvalidAttemptTransitionError,
   InvalidScoreError,
-  type AttemptDomainError,
 } from '../exceptions/attempt.errors.js';
 import { AttemptStartedEvent } from '../events/attempt-started.event.js';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
@@ -230,7 +229,7 @@ export class Attempt extends AggregateRoot {
   }
 
   // Idempotent: abandoning an already-abandoned attempt is a no-op.
-  abandon(): Result<void, InvalidAttemptTransitionError> {
+  abandon(details?: unknown): Result<void, InvalidAttemptTransitionError> {
     if (this._status === 'ABANDONED') {
       return Result.ok();
     }
@@ -243,6 +242,9 @@ export class Attempt extends AggregateRoot {
     }
 
     this._status = 'ABANDONED';
+    if (details !== undefined) {
+      this._validationDetails = details;
+    }
     return Result.ok();
   }
 

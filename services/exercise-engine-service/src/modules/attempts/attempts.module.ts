@@ -5,9 +5,12 @@ import { PrismaAttemptRepository } from './infrastructure/persistence/prisma-att
 import { StartAttemptHandler } from './application/commands/start-attempt/start-attempt.handler.js';
 import { SubmitAnswerHandler } from './application/commands/submit-answer/submit-answer.handler.js';
 import { AbandonAttemptHandler } from './application/commands/abandon-attempt/abandon-attempt.handler.js';
+import { GetAttemptByIdHandler } from './application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
+import { ListUserAttemptsHandler } from './application/queries/list-user-attempts/list-user-attempts.handler.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
 
 const CommandHandlers = [StartAttemptHandler, SubmitAnswerHandler, AbandonAttemptHandler];
+const QueryHandlers = [GetAttemptByIdHandler, ListUserAttemptsHandler];
 
 @Module({
   imports: [CqrsModule],
@@ -16,6 +19,7 @@ const CommandHandlers = [StartAttemptHandler, SubmitAnswerHandler, AbandonAttemp
     PrismaAttemptRepository,
     { provide: ATTEMPT_REPOSITORY, useExisting: PrismaAttemptRepository },
     ...CommandHandlers,
+    ...QueryHandlers,
   ],
   exports: [ATTEMPT_REPOSITORY],
 })

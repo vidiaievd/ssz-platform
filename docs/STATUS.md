@@ -1,7 +1,7 @@
 # SSZ Platform — Project Status
 
-> **Last updated**: 2026-04-26
-> **Branch**: feature/sprint-03-04-learning-core
+> **Last updated**: 2026-04-28
+> **Branch**: feature/sprint-03-04-learning-core (Learning); feature/sprint-05-exercise-engine (Exercise Engine)
 
 ## Overall Progress
 
@@ -9,7 +9,7 @@
 |-------|-------|--------|
 | Phase 1 | User Profile Service + Organization Service + API Docs Service | ~70% |
 | Phase 2 | Content Service + Media Service | Complete |
-| Phase 3 | Exercise Engine Service + Learning Service | ~50% (Learning Service core complete; SRS + Exercise Engine not started) |
+| Phase 3 | Exercise Engine Service + Learning Service | ~90% (Exercise Engine complete; SRS deferred to Sprint 6) |
 | Phase 4 | Notification Service + Analytics Service | Notification complete; Analytics not started |
 
 ---
@@ -24,7 +24,7 @@
 | Content Service | NestJS | Complete (Blocks 1–6) | [details](services/content-service.md) |
 | Media Service | NestJS | Complete | [details](services/media-service.md) |
 | Notification Service | NestJS | Complete (email; push/in-app deferred) | — |
-| Exercise Engine Service | NestJS | Not started | — |
+| Exercise Engine Service | NestJS | Complete (Sprint 5) | [details](services/exercise-engine-service.md) |
 | Learning Service | NestJS | Complete (core, no SRS) | [details](services/learning-service.md) |
 | Analytics Service | NestJS | Not started | — |
 | API Docs Service | nginx + static HTML | Not started | — |
@@ -131,9 +131,8 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 
 ## What Comes Next
 
-### Phase 3 (Sprint 5)
-- **Exercise Engine Service** — exercise generation, answer validation, scoring, LLM integration
-- **Learning Service — SRS** (Sprint 6) — FSRS algorithm, spaced repetition queue, Redis-backed due-item cache
+### Phase 3 remaining (Sprint 6)
+- **Learning Service — SRS** — FSRS algorithm, spaced repetition queue, Redis-backed due-item cache
 
 ### Phase 4 (Sprint 5–6)
 - **Analytics Service** — aggregation, school/tutor dashboards, student reports, export
@@ -151,6 +150,7 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 - Notification Service: push, in-app, preferences/unsubscribe, school invitation email, MJML templates — all deferred
 - Auth Service: `email_verified` is tracked but login is not blocked for unverified accounts (by design for MVP)
 - Content Service: no full-text search, no batch tag assignment, media reference integrity not yet integrated
-- Learning Service: no SRS (deferred Sprint 6); docker-compose entry not yet added; ADR-007 and ADR-008 not yet written; `@ssz/contracts` event types not yet formally declared; no e2e integration tests with real infrastructure
+- Learning Service: no SRS (deferred Sprint 6); ADR-007 and ADR-008 not yet written; no e2e integration tests with real infrastructure
+- Exercise Engine Service: no `content.exercise.updated` consumer; no `ordering` template validator; no GET query endpoints (list/get attempt); no integration tests; LLM validator deferred to Sprint 7
 - All services: no end-to-end integration tests across services
 - Media Service: shadow database issue (P3014) blocks `prisma migrate dev` — workaround: grant `CREATEDB` to `media_service` user or use `shadowDatabaseUrl`
