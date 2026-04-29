@@ -16,4 +16,18 @@ export interface BaseEvent<TPayload = unknown> {
   payload: TPayload;
 }
 
+/**
+ * Generic domain event envelope as specified in CLAUDE.md.
+ * Use this type when defining new event contracts going forward.
+ * Existing services use BaseEvent<T> on the wire; the field names differ
+ * (timestamp vs occurredAt, version vs eventVersion) — see MIGRATION_NOTES.md.
+ */
+export interface DomainEvent<TPayload = unknown> {
+  eventId: string;    // UUID v4
+  eventType: string;  // routing key, e.g. "auth.user.registered"
+  timestamp: string;  // ISO 8601
+  version: number;    // schema version, e.g. 1
+  payload: TPayload;
+}
+
 export type EventType = string;
