@@ -36,7 +36,7 @@
 
 ## Infrastructure
 
-- **docker-compose.yml** — orchestrates all services:
+- **docker-compose.yml** — orchestrates all services (learning-service and exercise-engine-service entries complete ✅):
   - PostgreSQL 16 (`ssz-postgres`) — primary database cluster
   - Redis 7 (`ssz-redis`) — cache, rate limiting, OTP replay guard
   - RabbitMQ 3 with management plugin (`ssz-rabbitmq`) — async events on `ssz.events` topic exchange
@@ -44,7 +44,7 @@
   - MailHog (`ssz-mailhog`) — local SMTP trap, web UI on :8025
   - nginx (`ssz-nginx`) — API gateway, rate limiting, upstream routing
   - pgAdmin 4 — database administration
-  - NestJS services: user-profile, organization, content, media, notification
+  - NestJS services: user-profile, organization, content, media, notification, learning ✅, exercise-engine ✅
   - Auth service: ASP.NET Core 8
 - **postgres/init.sql** — creates databases and users per service (least-privilege)
 - **Dockerfiles** — all six application services have multi-stage production Dockerfiles
@@ -133,6 +133,7 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 
 ### Phase 3 remaining (Sprint 6)
 - **`@ssz/contracts` — formal event types** ✅ Done (Sprint 6 / Step 1) — all Learning Service and Exercise Engine events typed; 7 shared enums; `BaseEvent<T>` / `DomainEvent<T>` envelopes; both services compile and test green
+- **Infrastructure: learning-service + exercise-engine-service in docker-compose + nginx** ✅ Done (Sprint 6 / Step 2)
 - **Learning Service — SRS** — FSRS algorithm, spaced repetition queue, Redis-backed due-item cache
 
 ### Phase 4 (Sprint 5–6)
