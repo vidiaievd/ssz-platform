@@ -39,6 +39,17 @@ export class PrismaEnrollmentRepository implements IEnrollmentRepository {
     return rows.map(EnrollmentMapper.toDomain);
   }
 
+  async findActiveByContainerId(containerId: string): Promise<Enrollment[]> {
+    const rows = await this.prisma.enrollment.findMany({
+      where: {
+        containerId,
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+    });
+    return rows.map(EnrollmentMapper.toDomain);
+  }
+
   async save(enrollment: Enrollment): Promise<void> {
     const data = EnrollmentMapper.toPersistence(enrollment);
     await this.prisma.enrollment.upsert({

@@ -12,6 +12,7 @@ import { GetUserProgressHandler } from './application/queries/get-user-progress.
 import { GetContentProgressHandler } from './application/queries/get-content-progress.handler.js';
 import { GetAssignmentProgressHandler } from './application/queries/get-assignment-progress.handler.js';
 import { ProgressController } from './presentation/progress.controller.js';
+import { ContainerCompletionService } from './application/services/container-completion.service.js';
 
 const CommandHandlers = [
   UpsertProgressHandler,
@@ -31,8 +32,10 @@ const QueryHandlers = [
   providers: [
     { provide: PROGRESS_REPOSITORY, useClass: PrismaProgressRepository },
     { provide: CLOCK, useClass: SystemClock },
+    ContainerCompletionService,
     ...CommandHandlers,
     ...QueryHandlers,
   ],
+  exports: [ContainerCompletionService],
 })
 export class ProgressModule {}
