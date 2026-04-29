@@ -11,6 +11,7 @@ import { Result } from '../../shared/kernel/result.js';
 import { MultipleChoiceValidator } from './validators/multiple-choice.validator.js';
 import { FillInBlankValidator } from './validators/fill-in-blank.validator.js';
 import { MatchPairsValidator } from './validators/match-pairs.validator.js';
+import { OrderingValidator } from './validators/ordering.validator.js';
 import type { IPerTypeValidator } from './validators/per-type-validator.interface.js';
 
 // Template codes that require human review — not scored by rule-based logic.
@@ -28,6 +29,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     mcValidator: MultipleChoiceValidator,
     fibValidator: FillInBlankValidator,
     mpValidator: MatchPairsValidator,
+    orderingValidator: OrderingValidator,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     this.ajv = new (Ajv as any)({ allErrors: true, strict: false });
@@ -38,6 +40,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       ['multiple_choice', mcValidator],
       ['fill_in_blank', fibValidator],
       ['match_pairs', mpValidator],
+      ['ordering', orderingValidator],
     ]);
   }
 
