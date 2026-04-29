@@ -7,14 +7,16 @@ import { SubmitAnswerHandler } from './application/commands/submit-answer/submit
 import { AbandonAttemptHandler } from './application/commands/abandon-attempt/abandon-attempt.handler.js';
 import { GetAttemptByIdHandler } from './application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
 import { ListUserAttemptsHandler } from './application/queries/list-user-attempts/list-user-attempts.handler.js';
+import { ListMyAttemptsHandler } from './application/queries/list-my-attempts/list-my-attempts.handler.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
+import { MyAttemptsController } from './presentation/controllers/my-attempts.controller.js';
 
 const CommandHandlers = [StartAttemptHandler, SubmitAnswerHandler, AbandonAttemptHandler];
-const QueryHandlers = [GetAttemptByIdHandler, ListUserAttemptsHandler];
+const QueryHandlers = [GetAttemptByIdHandler, ListUserAttemptsHandler, ListMyAttemptsHandler];
 
 @Module({
   imports: [CqrsModule],
-  controllers: [AttemptsController],
+  controllers: [AttemptsController, MyAttemptsController],
   providers: [
     PrismaAttemptRepository,
     { provide: ATTEMPT_REPOSITORY, useExisting: PrismaAttemptRepository },

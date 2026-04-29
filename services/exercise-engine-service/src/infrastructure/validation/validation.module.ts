@@ -4,6 +4,7 @@ import { SchemaBasedAnswerValidator } from './schema-based-answer-validator.js';
 import { MultipleChoiceValidator } from './validators/multiple-choice.validator.js';
 import { FillInBlankValidator } from './validators/fill-in-blank.validator.js';
 import { MatchPairsValidator } from './validators/match-pairs.validator.js';
+import { OrderingValidator } from './validators/ordering.validator.js';
 
 @Global()
 @Module({
@@ -11,6 +12,7 @@ import { MatchPairsValidator } from './validators/match-pairs.validator.js';
     MultipleChoiceValidator,
     FillInBlankValidator,
     MatchPairsValidator,
+    OrderingValidator,
     SchemaBasedAnswerValidator,
     { provide: ANSWER_VALIDATOR, useExisting: SchemaBasedAnswerValidator },
   ],

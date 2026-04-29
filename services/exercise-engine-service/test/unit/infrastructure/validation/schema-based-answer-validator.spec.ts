@@ -3,6 +3,7 @@ import { SchemaBasedAnswerValidator } from '../../../../src/infrastructure/valid
 import { MultipleChoiceValidator } from '../../../../src/infrastructure/validation/validators/multiple-choice.validator.js';
 import { FillInBlankValidator } from '../../../../src/infrastructure/validation/validators/fill-in-blank.validator.js';
 import { MatchPairsValidator } from '../../../../src/infrastructure/validation/validators/match-pairs.validator.js';
+import { OrderingValidator } from '../../../../src/infrastructure/validation/validators/ordering.validator.js';
 import { ValidationError } from '../../../../src/shared/application/ports/answer-validator.port.js';
 import { Result } from '../../../../src/shared/kernel/result.js';
 
@@ -19,6 +20,7 @@ const makeValidator = () =>
     new MultipleChoiceValidator(),
     new FillInBlankValidator(),
     new MatchPairsValidator(),
+    new OrderingValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {
@@ -110,7 +112,7 @@ describe('SchemaBasedAnswerValidator', () => {
     it('returns UNSUPPORTED_TEMPLATE error for unknown template code', async () => {
       const validator = makeValidator();
       const result = await validator.validate({
-        templateCode: 'ordering', // not registered
+        templateCode: 'unknown_template',
         answerSchema: { type: 'object' },
         expectedAnswers: {},
         submittedAnswer: {},
@@ -130,6 +132,27 @@ describe('SchemaBasedAnswerValidator', () => {
         answerSchema: mcAnswerSchema,
         expectedAnswers: { correct_option_ids: ['A'] },
         submittedAnswer: { correct_option_ids: ['A'] },
+        checkSettings: {},
+        targetLanguage: 'no',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value.score).toBe(100);
+      expect(result.value.requiresReview).toBe(false);
+    });
+
+    it('delegates ordering to OrderingValidator', async () => {
+      const validator = makeValidator();
+      const result = await validator.validate({
+        templateCode: 'ordering',
+        answerSchema: {
+          type: 'object',
+          required: ['ordered_ids'],
+          properties: {
+            ordered_ids: { type: 'array', items: { type: 'string' } },
+          },
+        },
+        expectedAnswers: { ordered_ids: ['a', 'b', 'c'] },
+        submittedAnswer: { ordered_ids: ['a', 'b', 'c'] },
         checkSettings: {},
         targetLanguage: 'no',
       });
