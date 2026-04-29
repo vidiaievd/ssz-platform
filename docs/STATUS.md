@@ -134,6 +134,7 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 ### Phase 3 remaining (Sprint 6)
 - **`@ssz/contracts` — formal event types** ✅ Done (Sprint 6 / Step 1) — all Learning Service and Exercise Engine events typed; 7 shared enums; `BaseEvent<T>` / `DomainEvent<T>` envelopes; both services compile and test green
 - **Infrastructure: learning-service + exercise-engine-service in docker-compose + nginx** ✅ Done (Sprint 6 / Step 2)
+- **Learning Service — content sync consumers + ADR-007** ✅ Done (Sprint 6 / Step 3) — `ContainerPublishedConsumer` (cache invalidation), `ContainerDeletedConsumer` (cascade cancel/unenrol), `IContainerItemListCache` + Redis impl, `ContainerCompletionService`, ADR-007; 122 tests green
 - **Learning Service — SRS** — FSRS algorithm, spaced repetition queue, Redis-backed due-item cache
 
 ### Phase 4 (Sprint 5–6)
@@ -152,7 +153,7 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 - Notification Service: push, in-app, preferences/unsubscribe, school invitation email, MJML templates — all deferred
 - Auth Service: `email_verified` is tracked but login is not blocked for unverified accounts (by design for MVP)
 - Content Service: no full-text search, no batch tag assignment, media reference integrity not yet integrated
-- Learning Service: no SRS (deferred Sprint 6); ADR-007 and ADR-008 not yet written; no e2e integration tests with real infrastructure
+- Learning Service: no SRS (deferred Sprint 6); ADR-008 not yet written; no e2e integration tests with real infrastructure
 - Exercise Engine Service: no `content.exercise.updated` consumer; no `ordering` template validator; no GET query endpoints (list/get attempt); no integration tests; LLM validator deferred to Sprint 7
 - All services: no end-to-end integration tests across services
 - Media Service: shadow database issue (P3014) blocks `prisma migrate dev` — workaround: grant `CREATEDB` to `media_service` user or use `shadowDatabaseUrl`

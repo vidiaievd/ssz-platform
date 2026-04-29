@@ -12,6 +12,8 @@ export interface IEnrollmentRepository {
   findById(id: string): Promise<Enrollment | null>;
   findByUserAndContainer(userId: string, containerId: string): Promise<Enrollment | null>;
   findByUser(userId: string, options?: FindByUserOptions): Promise<Enrollment[]>;
+  // Returns ACTIVE enrollments referencing the given container.
+  findActiveByContainerId(containerId: string): Promise<Enrollment[]>;
   save(enrollment: Enrollment): Promise<void>;
   softDelete(id: string): Promise<void>;
 }
