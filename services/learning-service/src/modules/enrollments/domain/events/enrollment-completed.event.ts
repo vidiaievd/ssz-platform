@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
 
 export interface EnrollmentCompletedPayload {
+  enrollmentId: string;
   userId: string;
   containerId: string;
   schoolId: string | null;
-  completedAt: Date;
+  completedAt: string;
 }
 
 export class EnrollmentCompletedEvent implements IDomainEvent {

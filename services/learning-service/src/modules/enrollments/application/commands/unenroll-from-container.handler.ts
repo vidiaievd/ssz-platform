@@ -43,7 +43,7 @@ export class UnenrollFromContainerHandler
     for (const event of enrollment.getDomainEvents()) {
       await this.publisher.publish(
         (event as { eventType: string }).eventType,
-        event,
+        (event as any).payload,
       );
     }
     enrollment.clearDomainEvents();
