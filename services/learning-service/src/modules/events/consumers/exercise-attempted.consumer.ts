@@ -6,19 +6,12 @@ import type { ConfirmChannel, ConsumeMessage } from 'amqplib';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import { UpsertProgressCommand } from '../../progress/application/commands/upsert-progress.command.js';
+import type { ExerciseAttemptCompletedPayload } from '@ssz/contracts';
 
 interface EventEnvelope {
   eventId: string;
   eventType: string;
   payload: unknown;
-}
-
-interface ExerciseAttemptedPayload {
-  userId: string;
-  exerciseId: string;
-  score: number | null;
-  timeSpentSeconds: number;
-  completed: boolean;
 }
 
 const QUEUE = 'learning-service.exercise-attempted';
@@ -85,7 +78,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
         return;
       }
 
-      const p = payload as ExerciseAttemptedPayload;
+      const p = payload as ExerciseAttemptCompletedPayload;
       const result = await this.commandBus.execute(
         new UpsertProgressCommand(
           p.userId,
@@ -107,7 +100,6 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       this.logger.error(
         `Error handling ${eventType} [${eventId}]: ${err instanceof Error ? err.message : String(err)}`,
       );
-      // nack without requeue — goes to DLQ if configured, otherwise discarded
       channel.nack(msg, false, false);
     }
   }

@@ -4,17 +4,12 @@ import amqp from 'amqp-connection-manager';
 import type { ConfirmChannel, ConsumeMessage } from 'amqplib';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
+import type { ContainerPublishedPayload } from '@ssz/contracts';
 
 interface EventEnvelope {
   eventId: string;
   eventType: string;
   payload: unknown;
-}
-
-interface ContainerPublishedPayload {
-  containerId: string;
-  publishedBy: string;
-  publishedAt: string;
 }
 
 const QUEUE = 'learning-service.container-published';
