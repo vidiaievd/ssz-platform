@@ -5,16 +5,7 @@ import type { ConfirmChannel } from 'amqplib';
 import { randomUUID } from 'crypto';
 import type { AppConfig } from '../../config/configuration.js';
 import type { IEventPublisher } from '../../shared/application/ports/event-publisher.port.js';
-
-interface EventEnvelope<T> {
-  eventId: string;
-  eventType: string;
-  eventVersion: string;
-  occurredAt: string;
-  source: string;
-  correlationId?: string;
-  payload: T;
-}
+import type { BaseEvent } from '@ssz/contracts';
 
 @Injectable()
 export class RabbitmqEventPublisher implements IEventPublisher, OnModuleInit, OnModuleDestroy {
@@ -61,7 +52,7 @@ export class RabbitmqEventPublisher implements IEventPublisher, OnModuleInit, On
       return;
     }
 
-    const envelope: EventEnvelope<T> = {
+    const envelope: BaseEvent<T> = {
       eventId: randomUUID(),
       eventType,
       eventVersion: '1.0',

@@ -64,6 +64,7 @@ export class Enrollment extends AggregateRoot {
 
     enrollment.addDomainEvent(
       new EnrollmentCreatedEvent(enrollment.id, {
+        enrollmentId: enrollment.id,
         userId: enrollment._userId,
         containerId: enrollment._containerId,
         schoolId: enrollment._schoolId,
@@ -101,10 +102,11 @@ export class Enrollment extends AggregateRoot {
 
     this.addDomainEvent(
       new EnrollmentCompletedEvent(this.id, {
+        enrollmentId: this.id,
         userId: this._userId,
         containerId: this._containerId,
         schoolId: this._schoolId,
-        completedAt: now,
+        completedAt: now.toISOString(),
       }),
     );
 
@@ -125,6 +127,7 @@ export class Enrollment extends AggregateRoot {
 
     this.addDomainEvent(
       new EnrollmentUnenrolledEvent(this.id, {
+        enrollmentId: this.id,
         userId: this._userId,
         containerId: this._containerId,
         reason: this._unenrollReason,
