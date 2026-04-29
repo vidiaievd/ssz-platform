@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
 
 export interface AttemptStartedPayload {
+  attemptId: string;
   userId: string;
   exerciseId: string;
   templateCode: string;

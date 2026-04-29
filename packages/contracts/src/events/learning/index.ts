@@ -18,35 +18,35 @@ export const LEARNING_EVENT_TYPES = {
   SUBMISSION_RESUBMITTED: 'learning.submission.resubmitted',
 } as const;
 
-// ─── Payload interfaces ───────────────────────────────────────────────────────
+// ─── Assignment payload interfaces ────────────────────────────────────────────
 
 export interface AssignmentCreatedPayload {
   assignmentId: string;
-  exerciseId: string;
-  assignedByUserId: string;
-  assignedToUserId: string;
+  assignerId: string;
+  assigneeId: string;
   schoolId: string | null;
+  contentType: string;
+  contentId: string;
   dueAt: string | null;
 }
 
 export interface AssignmentCompletedPayload {
   assignmentId: string;
-  exerciseId: string;
-  userId: string;
-  completedAt: string;
+  assignerId: string;
+  assigneeId: string;
 }
 
 export interface AssignmentCancelledPayload {
   assignmentId: string;
-  exerciseId: string;
-  userId: string;
-  cancelledByUserId: string;
+  assignerId: string;
+  assigneeId: string;
+  reason: string | null;
 }
 
 export interface AssignmentOverduePayload {
   assignmentId: string;
-  exerciseId: string;
-  userId: string;
+  assignerId: string;
+  assigneeId: string;
   dueAt: string;
 }
 
@@ -56,66 +56,75 @@ export interface AssignmentDueDateUpdatedPayload {
   newDueAt: string | null;
 }
 
+// ─── Enrollment payload interfaces ───────────────────────────────────────────
+
 export interface EnrollmentCreatedPayload {
   enrollmentId: string;
   userId: string;
-  contentId: string;
-  contentType: string;
+  containerId: string;
   schoolId: string | null;
 }
 
 export interface EnrollmentCompletedPayload {
   enrollmentId: string;
   userId: string;
-  contentId: string;
-  contentType: string;
+  containerId: string;
+  schoolId: string | null;
+  completedAt: string;
 }
 
 export interface EnrollmentUnenrolledPayload {
   enrollmentId: string;
   userId: string;
-  contentId: string;
-  contentType: string;
+  containerId: string;
+  reason: string | null;
 }
+
+// ─── Progress payload interfaces ──────────────────────────────────────────────
 
 export interface ProgressCompletedPayload {
   userId: string;
-  contentId: string;
   contentType: string;
-  score: number;
-  attemptsCount: number;
+  contentId: string;
   completedAt: string;
+  score: number | null;
 }
 
 export interface ProgressUpdatedPayload {
   userId: string;
-  contentId: string;
   contentType: string;
-  score: number;
+  contentId: string;
+  status: string;
   attemptsCount: number;
+  score: number | null;
 }
+
+// ─── Submission payload interfaces ────────────────────────────────────────────
 
 export interface SubmissionCreatedPayload {
   submissionId: string;
-  assignmentId: string | null;
-  exerciseId: string;
   userId: string;
-  attemptId: string;
+  exerciseId: string;
+  assignmentId: string | null;
+  schoolId: string | null;
 }
 
 export interface SubmissionReviewedPayload {
   submissionId: string;
-  exerciseId: string;
   userId: string;
-  reviewedByUserId: string;
-  decision: 'approved' | 'rejected' | 'revision_requested';
+  exerciseId: string;
+  assignmentId: string | null;
+  reviewerId: string;
+  decision: string;
+  feedback: string | null;
+  score: number | null;
 }
 
 export interface SubmissionResubmittedPayload {
   submissionId: string;
-  exerciseId: string;
   userId: string;
-  revisionCount: number;
+  exerciseId: string;
+  revisionNumber: number;
 }
 
 // ─── Typed event interfaces ───────────────────────────────────────────────────
@@ -125,11 +134,14 @@ export type AssignmentCompletedEvent = BaseEvent<AssignmentCompletedPayload>;
 export type AssignmentCancelledEvent = BaseEvent<AssignmentCancelledPayload>;
 export type AssignmentOverdueEvent = BaseEvent<AssignmentOverduePayload>;
 export type AssignmentDueDateUpdatedEvent = BaseEvent<AssignmentDueDateUpdatedPayload>;
+
 export type EnrollmentCreatedEvent = BaseEvent<EnrollmentCreatedPayload>;
 export type EnrollmentCompletedEvent = BaseEvent<EnrollmentCompletedPayload>;
 export type EnrollmentUnenrolledEvent = BaseEvent<EnrollmentUnenrolledPayload>;
+
 export type ProgressCompletedEvent = BaseEvent<ProgressCompletedPayload>;
 export type ProgressUpdatedEvent = BaseEvent<ProgressUpdatedPayload>;
+
 export type SubmissionCreatedEvent = BaseEvent<SubmissionCreatedPayload>;
 export type SubmissionReviewedEvent = BaseEvent<SubmissionReviewedPayload>;
 export type SubmissionResubmittedEvent = BaseEvent<SubmissionResubmittedPayload>;

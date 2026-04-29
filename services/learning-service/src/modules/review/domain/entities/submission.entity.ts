@@ -89,6 +89,7 @@ export class Submission extends AggregateRoot {
 
     submission.addDomainEvent(
       new SubmissionCreatedEvent(id, {
+        submissionId: id,
         userId: props.userId,
         exerciseId: props.exerciseId,
         assignmentId: props.assignmentId ?? null,
@@ -139,6 +140,7 @@ export class Submission extends AggregateRoot {
 
     this.addDomainEvent(
       new SubmissionResubmittedEvent(this.id, {
+        submissionId: this.id,
         userId: this._userId,
         exerciseId: this._exerciseId,
         revisionNumber: newNumber,
@@ -173,6 +175,7 @@ export class Submission extends AggregateRoot {
 
     this.addDomainEvent(
       new SubmissionReviewedEvent(this.id, {
+        submissionId: this.id,
         userId: this._userId,
         exerciseId: this._exerciseId,
         assignmentId: this._assignmentId,

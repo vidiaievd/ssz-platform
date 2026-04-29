@@ -249,8 +249,8 @@ describe('Assignment#updateDueDate', () => {
     const events = a.getDomainEvents();
     const event = events[events.length - 1];
     expect(event.eventType).toBe('learning.assignment.due_date_updated');
-    expect((event as any).payload.previousDueAt).toEqual(FUTURE);
-    expect((event as any).payload.newDueAt).toEqual(newDue);
+    expect((event as any).payload.previousDueAt).toEqual(FUTURE.toISOString());
+    expect((event as any).payload.newDueAt).toEqual(newDue.toISOString());
   });
 
   it('fails when new due date is in the past', () => {

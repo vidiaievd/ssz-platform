@@ -97,11 +97,13 @@ export class Assignment extends AggregateRoot {
 
     assignment.addDomainEvent(
       new AssignmentCreatedEvent(assignment.id, {
+        assignmentId: assignment.id,
         assignerId: assignment._assignerId,
         assigneeId: assignment._assigneeId,
         schoolId: assignment._schoolId,
-        contentRef: assignment._contentRef,
-        dueAt: assignment._dueAt,
+        contentType: assignment._contentRef.type,
+        contentId: assignment._contentRef.id,
+        dueAt: assignment._dueAt.toISOString(),
       }),
     );
 
@@ -143,6 +145,7 @@ export class Assignment extends AggregateRoot {
 
     this.addDomainEvent(
       new AssignmentCancelledEvent(this.id, {
+        assignmentId: this.id,
         assignerId: this._assignerId,
         assigneeId: this._assigneeId,
         reason: this._cancelledReason,
@@ -170,6 +173,7 @@ export class Assignment extends AggregateRoot {
 
     this.addDomainEvent(
       new AssignmentCompletedEvent(this.id, {
+        assignmentId: this.id,
         assignerId: this._assignerId,
         assigneeId: this._assigneeId,
       }),
@@ -195,9 +199,10 @@ export class Assignment extends AggregateRoot {
 
     this.addDomainEvent(
       new AssignmentMarkedOverdueEvent(this.id, {
+        assignmentId: this.id,
         assignerId: this._assignerId,
         assigneeId: this._assigneeId,
-        dueAt: this._dueAt,
+        dueAt: this._dueAt.toISOString(),
       }),
     );
 
@@ -226,8 +231,9 @@ export class Assignment extends AggregateRoot {
 
     this.addDomainEvent(
       new AssignmentDueDateUpdatedEvent(this.id, {
-        previousDueAt,
-        newDueAt,
+        assignmentId: this.id,
+        previousDueAt: previousDueAt.toISOString(),
+        newDueAt: newDueAt.toISOString(),
       }),
     );
 

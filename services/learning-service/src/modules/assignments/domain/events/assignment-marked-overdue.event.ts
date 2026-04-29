@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
 
 export interface AssignmentMarkedOverduePayload {
+  assignmentId: string;
   assignerId: string;
   assigneeId: string;
-  dueAt: Date;
+  dueAt: string;
 }
 
 export class AssignmentMarkedOverdueEvent implements IDomainEvent {

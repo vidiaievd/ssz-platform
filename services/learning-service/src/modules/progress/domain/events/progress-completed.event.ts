@@ -5,7 +5,7 @@ export interface ProgressCompletedPayload {
   userId: string;
   contentType: string;
   contentId: string;
-  completedAt: Date;
+  completedAt: string;
   score: number | null;
 }
 

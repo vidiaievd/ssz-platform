@@ -1,7 +1,7 @@
 # SSZ Platform — Project Status
 
-> **Last updated**: 2026-04-28
-> **Branch**: feature/sprint-03-04-learning-core (Learning); feature/sprint-05-exercise-engine (Exercise Engine)
+> **Last updated**: 2026-04-29
+> **Branch**: feature/sprint-06-contracts
 
 ## Overall Progress
 
@@ -132,6 +132,7 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 ## What Comes Next
 
 ### Phase 3 remaining (Sprint 6)
+- **`@ssz/contracts` — formal event types** ✅ Done (Sprint 6 / Step 1) — all Learning Service and Exercise Engine events typed; 7 shared enums; `BaseEvent<T>` / `DomainEvent<T>` envelopes; both services compile and test green
 - **Learning Service — SRS** — FSRS algorithm, spaced repetition queue, Redis-backed due-item cache
 
 ### Phase 4 (Sprint 5–6)
