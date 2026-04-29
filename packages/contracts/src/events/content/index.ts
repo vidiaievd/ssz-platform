@@ -54,6 +54,14 @@ export interface ContainerPayload {
   visibility: string;
 }
 
+// Dedicated payload for content.container.published — richer than ContainerPayload
+// because it records who triggered the publish action and when.
+export interface ContainerPublishedPayload {
+  containerId: string;
+  publishedBy: string;  // userId of the publisher
+  publishedAt: string;  // ISO 8601
+}
+
 export interface ContainerUpdatedPayload {
   containerId: string;
   updatedFields: string[];
@@ -223,7 +231,7 @@ export interface EntitlementRevokedPayload {
 
 export type ContainerCreatedEvent = BaseEvent<ContainerPayload>;
 export type ContainerUpdatedEvent = BaseEvent<ContainerUpdatedPayload>;
-export type ContainerPublishedEvent = BaseEvent<ContainerPayload>;
+export type ContainerPublishedEvent = BaseEvent<ContainerPublishedPayload>;
 export type ContainerArchivedEvent = BaseEvent<ContainerPayload>;
 export type ContainerDeprecatedEvent = BaseEvent<ContainerPayload>;
 export type ContainerDeletedEvent = BaseEvent<ContainerDeletedPayload>;

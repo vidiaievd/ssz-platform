@@ -106,7 +106,7 @@ export class UserProgress extends AggregateRoot {
         userId: this._userId,
         contentType: this._contentRef.type,
         contentId: this._contentRef.id,
-        completedAt: this._completedAt!,
+        completedAt: this._completedAt!.toISOString(),
         score: this._score,
       }));
     } else {

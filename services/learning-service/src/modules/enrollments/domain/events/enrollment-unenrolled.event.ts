@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
 
 export interface EnrollmentUnenrolledPayload {
+  enrollmentId: string;
   userId: string;
   containerId: string;
   reason: string | null;

@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
-import type { ContentRef } from '../../../../shared/domain/value-objects/content-ref.js';
 
 export interface AssignmentCreatedPayload {
+  assignmentId: string;
   assignerId: string;
   assigneeId: string;
   schoolId: string | null;
-  contentRef: ContentRef;
-  dueAt: Date;
+  contentType: string;
+  contentId: string;
+  dueAt: string | null;
 }
 
 export class AssignmentCreatedEvent implements IDomainEvent {

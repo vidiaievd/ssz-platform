@@ -6,10 +6,7 @@ import type { AppConfig } from '../../config/configuration.js';
 import { ExerciseDefinitionCache } from '../../infrastructure/cache/exercise-definition-cache.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { ATTEMPT_REPOSITORY, type IAttemptRepository } from '../attempts/domain/repositories/attempt.repository.js';
-
-interface ExerciseDeletedPayload {
-  exerciseId: string;
-}
+import type { ExerciseDeletedPayload } from '@ssz/contracts';
 
 interface EventEnvelope<T> {
   eventId: string;

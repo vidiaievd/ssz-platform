@@ -105,6 +105,7 @@ export class Attempt extends AggregateRoot {
 
     attempt.addDomainEvent(
       new AttemptStartedEvent(attempt.id, {
+        attemptId: attempt.id,
         userId: attempt._userId,
         exerciseId: attempt._exerciseId,
         templateCode: attempt._templateCode,
