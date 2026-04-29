@@ -6,6 +6,7 @@ import type {
 } from '../../domain/repositories/progress.repository.interface.js';
 import { UserProgress } from '../../domain/entities/user-progress.entity.js';
 import { ProgressMapper } from './progress.mapper.js';
+import type { ContentRef } from '../../../../shared/domain/value-objects/content-ref.js';
 
 @Injectable()
 export class PrismaProgressRepository implements IProgressRepository {
@@ -38,6 +39,17 @@ export class PrismaProgressRepository implements IProgressRepository {
       take: options.limit,
     });
     return rows.map(ProgressMapper.toDomain);
+  }
+
+  async findCompletedCountForUser(userId: string, refs: ContentRef[]): Promise<number> {
+    if (refs.length === 0) return 0;
+    return this.prisma.userProgress.count({
+      where: {
+        userId,
+        status: 'COMPLETED',
+        OR: refs.map((r) => ({ contentType: r.type as any, contentId: r.id })),
+      },
+    });
   }
 
   async save(progress: UserProgress): Promise<void> {

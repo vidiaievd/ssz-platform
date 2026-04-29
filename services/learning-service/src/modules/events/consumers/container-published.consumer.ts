@@ -1,10 +1,14 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Inject, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import amqp from 'amqp-connection-manager';
 import type { ConfirmChannel, ConsumeMessage } from 'amqplib';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import type { ContainerPublishedPayload } from '@ssz/contracts';
+import {
+  CONTAINER_ITEM_LIST_CACHE,
+  type IContainerItemListCache,
+} from '../../../shared/application/ports/container-item-list-cache.port.js';
 
 interface EventEnvelope {
   eventId: string;
@@ -24,6 +28,7 @@ export class ContainerPublishedConsumer implements OnModuleInit, OnModuleDestroy
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig>,
+    @Inject(CONTAINER_ITEM_LIST_CACHE) private readonly cache: IContainerItemListCache,
   ) {}
 
   onModuleInit(): void {
@@ -80,7 +85,8 @@ export class ContainerPublishedConsumer implements OnModuleInit, OnModuleDestroy
         `Container published: ${p.containerId} by ${p.publishedBy} at ${p.publishedAt}`,
       );
 
-      // Future: invalidate enrollment caches, notify enrolled students, etc.
+      await this.cache.invalidate(p.containerId);
+      this.logger.debug(`Cache invalidated for container ${p.containerId}`);
 
       await this.prisma.processedEvent.create({ data: { eventId, eventType } });
       channel.ack(msg);

@@ -7,6 +7,7 @@ import type {
 } from '../../domain/repositories/assignment.repository.interface.js';
 import { Assignment } from '../../domain/entities/assignment.entity.js';
 import { AssignmentMapper } from './assignment.mapper.js';
+import type { ContentType } from '../../../../shared/domain/value-objects/content-ref.js';
 
 @Injectable()
 export class PrismaAssignmentRepository implements IAssignmentRepository {
@@ -59,6 +60,18 @@ export class PrismaAssignmentRepository implements IAssignmentRepository {
       where: {
         status: 'ACTIVE',
         dueAt: { lt: now },
+        deletedAt: null,
+      },
+    });
+    return rows.map(AssignmentMapper.toDomain);
+  }
+
+  async findActiveByContent(contentType: ContentType, contentId: string): Promise<Assignment[]> {
+    const rows = await this.prisma.assignment.findMany({
+      where: {
+        contentType: contentType as any,
+        contentId,
+        status: { in: ['ACTIVE', 'OVERDUE'] },
         deletedAt: null,
       },
     });
