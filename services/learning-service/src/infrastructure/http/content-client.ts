@@ -98,6 +98,32 @@ export class ContentClient implements IContentClient {
     }
   }
 
+  async getVocabularyListItems(
+    listId: string,
+  ): Promise<Result<string[], ContentClientError>> {
+    try {
+      const { data } = await this.http.get<Array<{ id: string }>>(
+        `/vocabulary-lists/${listId}/items`,
+      );
+      return Result.ok(data.map((item) => item.id));
+    } catch (err) {
+      return this.mapError(err, `getVocabularyListItems(${listId})`);
+    }
+  }
+
+  async getVocabularyListAutoAddToSrs(
+    listId: string,
+  ): Promise<Result<boolean, ContentClientError>> {
+    try {
+      const { data } = await this.http.get<{ autoAddToSrs: boolean }>(
+        `/vocabulary-lists/${listId}`,
+      );
+      return Result.ok(data.autoAddToSrs);
+    } catch (err) {
+      return this.mapError(err, `getVocabularyListAutoAddToSrs(${listId})`);
+    }
+  }
+
   private mapError(err: unknown, context: string): Result<never, ContentClientError> {
     if (axios.isAxiosError(err)) {
       const status = err.response?.status;
