@@ -30,6 +30,10 @@ export const envSchema = z.object({
   ORGANIZATION_SERVICE_RETRIES: z.coerce.number().int().min(0).default(2),
 
   INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
+
+  SRS_MAX_INTERVAL_DAYS: z.coerce.number().int().positive().default(365),
+  SRS_DAILY_NEW_CARDS_LIMIT: z.coerce.number().int().positive().default(20),
+  SRS_DAILY_REVIEWS_LIMIT: z.coerce.number().int().positive().default(200),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -84,6 +88,11 @@ export interface AppConfig {
     retries: number;
   };
   internalServiceToken: string;
+  srs: {
+    maxIntervalDays: number;
+    dailyNewCardsLimit: number;
+    dailyReviewsLimit: number;
+  };
 }
 
 export default (): AppConfig => {
@@ -126,5 +135,10 @@ export default (): AppConfig => {
       retries: env.ORGANIZATION_SERVICE_RETRIES,
     },
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
+    srs: {
+      maxIntervalDays: env.SRS_MAX_INTERVAL_DAYS,
+      dailyNewCardsLimit: env.SRS_DAILY_NEW_CARDS_LIMIT,
+      dailyReviewsLimit: env.SRS_DAILY_REVIEWS_LIMIT,
+    },
   };
 };
