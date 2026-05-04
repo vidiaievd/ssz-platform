@@ -6,6 +6,9 @@ import type { ConfirmChannel, ConsumeMessage } from 'amqplib';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import { UpsertProgressCommand } from '../../progress/application/commands/upsert-progress.command.js';
+import { IntroduceCardCommand } from '../../srs/application/commands/introduce-card.command.js';
+import { ReviewCardCommand } from '../../srs/application/commands/review-card.command.js';
+import type { ReviewRatingValue } from '../../srs/domain/value-objects/review-rating.vo.js';
 import type { ExerciseAttemptCompletedPayload } from '@ssz/contracts';
 
 interface EventEnvelope {
@@ -16,6 +19,21 @@ interface EventEnvelope {
 
 const QUEUE = 'learning-service.exercise-attempted';
 const ROUTING_KEY = 'exercise.attempt.completed';
+
+/**
+ * Score → SRS rating mapping (MVP, for closed-form auto-scored exercises):
+ *   score null or completed=false → no SRS update (free-form, awaiting human review)
+ *   score < 60                   → AGAIN
+ *   60 ≤ score < 80              → HARD
+ *   80 ≤ score < 95              → GOOD
+ *   score ≥ 95                   → EASY
+ */
+function scoreToRating(score: number): ReviewRatingValue {
+  if (score < 60) return 'AGAIN';
+  if (score < 80) return 'HARD';
+  if (score < 95) return 'GOOD';
+  return 'EASY';
+}
 
 @Injectable()
 export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy {
@@ -79,7 +97,9 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       }
 
       const p = payload as ExerciseAttemptCompletedPayload;
-      const result = await this.commandBus.execute(
+
+      // 1. Progress tracking (existing behaviour — unchanged).
+      const progressResult = await this.commandBus.execute(
         new UpsertProgressCommand(
           p.userId,
           'EXERCISE',
@@ -89,9 +109,31 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
           p.completed ?? false,
         ),
       );
+      if (progressResult.isFail) {
+        this.logger.warn(`UpsertProgress failed for event ${eventId}: ${progressResult.error?.message}`);
+      }
 
-      if (result.isFail) {
-        this.logger.warn(`UpsertProgress failed for event ${eventId}: ${result.error?.message}`);
+      // 2. SRS introduction (idempotent — all exercises are SRS-eligible by default in MVP).
+      //    See docs/research/sprint-06-srs-content-flags.md for rationale.
+      const introduceResult = await this.commandBus.execute(
+        new IntroduceCardCommand(p.userId, 'EXERCISE', p.exerciseId),
+      );
+
+      // 3. SRS review — only for closed-form attempts that have a score.
+      //    Free-form (completed=false, score=null) awaits human review; no auto-rating.
+      //    We need the card's UUID (not the content ID) to call ReviewCardCommand.
+      if (p.completed === true && p.score !== null && introduceResult.isOk) {
+        const rating = scoreToRating(p.score);
+        const cardId = introduceResult.value.id;
+        const reviewResult = await this.commandBus.execute(
+          new ReviewCardCommand(p.userId, cardId, rating),
+        );
+        if (reviewResult.isFail) {
+          // Non-fatal: daily limit hit or card suspended. Log and continue.
+          this.logger.debug(
+            `SRS review skipped for exercise ${p.exerciseId} / user ${p.userId}: ${reviewResult.error?.message}`,
+          );
+        }
       }
 
       await this.prisma.processedEvent.create({ data: { eventId, eventType } });

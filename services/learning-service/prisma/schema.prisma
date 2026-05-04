@@ -195,3 +195,49 @@ model ProcessedEvent {
 
   @@map("processed_events")
 }
+
+// ─── SRS ──────────────────────────────────────────────────────────────────────
+
+enum SrsContentType {
+  EXERCISE        @map("exercise")
+  VOCABULARY_WORD @map("vocabulary_word")
+
+  @@map("srs_content_type")
+}
+
+enum SrsCardState {
+  NEW        @map("new")
+  LEARNING   @map("learning")
+  REVIEW     @map("review")
+  RELEARNING @map("relearning")
+  SUSPENDED  @map("suspended")
+
+  @@map("srs_card_state")
+}
+
+// One card per (user × content item). Unique constraint enforces idempotent introduction.
+// FSRS scheduling fields (stability, difficulty, elapsed_days, scheduled_days,
+// learning_steps) are opaque to the application layer — only FsrsScheduler reads them.
+model SrsReviewCard {
+  id             String         @id @default(uuid())
+  userId         String         @map("user_id")
+  contentType    SrsContentType @map("content_type")
+  contentId      String         @map("content_id")
+  state          SrsCardState   @default(NEW) @map("state")
+  dueAt          DateTime       @map("due_at")
+  stability      Float          @default(0)
+  difficulty     Float          @default(0)
+  elapsedDays    Float          @default(0) @map("elapsed_days")
+  scheduledDays  Int            @default(0) @map("scheduled_days")
+  reps           Int            @default(0)
+  lapses         Int            @default(0)
+  learningSteps  Int            @default(0) @map("learning_steps")
+  lastReviewedAt DateTime?      @map("last_reviewed_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  // (userId, dueAt, state) — the primary query for "what is due now".
+  @@index([userId, dueAt, state])
+  @@unique([userId, contentType, contentId])
+  @@map("srs_review_cards")
+}
