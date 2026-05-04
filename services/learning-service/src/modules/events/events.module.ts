@@ -5,9 +5,15 @@ import { EnrollmentsModule } from '../enrollments/enrollments.module.js';
 import { ExerciseAttemptedConsumer } from './consumers/exercise-attempted.consumer.js';
 import { ContainerPublishedConsumer } from './consumers/container-published.consumer.js';
 import { ContainerDeletedConsumer } from './consumers/container-deleted.consumer.js';
+import { VocabularyEnrollmentConsumer } from './consumers/vocabulary-enrollment.consumer.js';
 
 @Module({
   imports: [CqrsModule, AssignmentsModule, EnrollmentsModule],
-  providers: [ExerciseAttemptedConsumer, ContainerPublishedConsumer, ContainerDeletedConsumer],
+  providers: [
+    ExerciseAttemptedConsumer,
+    ContainerPublishedConsumer,
+    ContainerDeletedConsumer,
+    VocabularyEnrollmentConsumer,
+  ],
 })
 export class EventsModule {}
