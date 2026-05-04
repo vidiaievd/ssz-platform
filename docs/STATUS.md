@@ -1,7 +1,7 @@
 # SSZ Platform — Project Status
 
-> **Last updated**: 2026-04-29
-> **Branch**: feature/sprint-06-contracts
+> **Last updated**: 2026-05-04
+> **Branch**: feature/sprint-06-learning-srs
 
 ## Overall Progress
 
@@ -9,7 +9,7 @@
 |-------|-------|--------|
 | Phase 1 | User Profile Service + Organization Service + API Docs Service | ~70% |
 | Phase 2 | Content Service + Media Service | Complete |
-| Phase 3 | Exercise Engine Service + Learning Service | ~90% (Exercise Engine complete; SRS deferred to Sprint 6) |
+| Phase 3 | Exercise Engine Service + Learning Service | Complete |
 | Phase 4 | Notification Service + Analytics Service | Notification complete; Analytics not started |
 
 ---
@@ -25,7 +25,7 @@
 | Media Service | NestJS | Complete | [details](services/media-service.md) |
 | Notification Service | NestJS | Complete (email; push/in-app deferred) | — |
 | Exercise Engine Service | NestJS | Complete (Sprint 5) | [details](services/exercise-engine-service.md) |
-| Learning Service | NestJS | Complete (core, no SRS) | [details](services/learning-service.md) |
+| Learning Service | NestJS | Complete | [details](services/learning-service.md) |
 | Analytics Service | NestJS | Not started | — |
 | API Docs Service | nginx + static HTML | Not started | — |
 | VoxOrd (Mobile) | React Native 0.84 | Not started | — |
@@ -118,14 +118,13 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 - **Progress tracking** — unified `UserProgress` per (user, content_type, content_id); `recordAttempt`, `markNeedsReview`, `resolveReview` state machine
 - **Free-form submission review** — `Submission` aggregate with revision history; PENDING_REVIEW → APPROVED / REJECTED / REVISION_REQUESTED → RESUBMITTED cycle
 - **Scheduled jobs** — BullMQ repeating job every 5 minutes to detect and mark overdue assignments
-- **RabbitMQ consumers** — `exercise.attempt.completed` (updates progress); `container.published` (skeleton)
+- **RabbitMQ consumers** — `exercise.attempt.completed` (progress + SRS introduce + review); `learning.enrollment.created` (vocabulary list SRS bulk-introduce); `container.published` (cache invalidation); `container.deleted` (cascade cancel/unenrol)
+- **SRS** — FSRS-6 algorithm (`ts-fsrs ^5.3.2`); `ReviewCard` aggregate; Redis due queue (sorted set); Redis daily limits; `GET /srs/due`, `POST /srs/cards/:id/review`, suspend/unsuspend, stats
 - **Health checks** — `/health/live` (liveness) and `/health/ready` (DB + Redis + RabbitMQ via `@nestjs/terminus`)
-- **Swagger** — full OpenAPI at `/api/docs` covering Assignments, Enrollments, Progress, Submissions
+- **Swagger** — full OpenAPI at `/api/docs` covering Assignments, Enrollments, Progress, Submissions, SRS
 - **Structured logging** — `nestjs-pino` with correlation IDs propagated via `x-correlation-id` header
 
-**Published events**: `learning.assignment.created`, `learning.assignment.completed`, `learning.assignment.cancelled`, `learning.assignment.overdue`, `learning.assignment.due_date_updated`, `learning.enrollment.created`, `learning.enrollment.completed`, `learning.enrollment.unenrolled`, `learning.progress.completed`, `learning.progress.updated`, `learning.submission.created`, `learning.submission.reviewed`, `learning.submission.resubmitted`
-
-**Deferred to Sprint 6**: SRS (FSRS algorithm, spaced repetition queue, Redis-backed due-item cache)
+**Published events**: `learning.assignment.created`, `learning.assignment.completed`, `learning.assignment.cancelled`, `learning.assignment.overdue`, `learning.assignment.due_date_updated`, `learning.enrollment.created`, `learning.enrollment.completed`, `learning.enrollment.unenrolled`, `learning.progress.completed`, `learning.progress.updated`, `learning.submission.created`, `learning.submission.reviewed`, `learning.submission.resubmitted`, `learning.srs.card.created`, `learning.srs.card.reviewed`, `learning.srs.card.suspended`
 
 ---
 
@@ -135,7 +134,7 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 - **`@ssz/contracts` — formal event types** ✅ Done (Sprint 6 / Step 1) — all Learning Service and Exercise Engine events typed; 7 shared enums; `BaseEvent<T>` / `DomainEvent<T>` envelopes; both services compile and test green
 - **Infrastructure: learning-service + exercise-engine-service in docker-compose + nginx** ✅ Done (Sprint 6 / Step 2)
 - **Learning Service — content sync consumers + ADR-007** ✅ Done (Sprint 6 / Step 3) — `ContainerPublishedConsumer` (cache invalidation), `ContainerDeletedConsumer` (cascade cancel/unenrol), `IContainerItemListCache` + Redis impl, `ContainerCompletionService`, ADR-007; 122 tests green
-- **Learning Service — SRS** — FSRS algorithm, spaced repetition queue, Redis-backed due-item cache
+- **Learning Service — SRS** ✅ Done (Sprint 6 / Step 5) — FSRS-6 algorithm, spaced repetition queue, Redis-backed due queue, daily limits, SRS event integration; 203 tests green
 
 ### Phase 4 (Sprint 5–6)
 - **Analytics Service** — aggregation, school/tutor dashboards, student reports, export
@@ -153,7 +152,7 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 - Notification Service: push, in-app, preferences/unsubscribe, school invitation email, MJML templates — all deferred
 - Auth Service: `email_verified` is tracked but login is not blocked for unverified accounts (by design for MVP)
 - Content Service: no full-text search, no batch tag assignment, media reference integrity not yet integrated
-- Learning Service: no SRS (deferred Sprint 6); ADR-008 not yet written; no e2e integration tests with real infrastructure
+- Learning Service: ADR-008 not yet written; no e2e integration tests with real infrastructure; Content Service `GET /api/internal/vocabulary-lists/{id}` endpoints not yet implemented (called by SRS consumers)
 - Exercise Engine Service: no `content.exercise.updated` consumer; no `ordering` template validator; no GET query endpoints (list/get attempt); no integration tests; LLM validator deferred to Sprint 7
 - All services: no end-to-end integration tests across services
 - Media Service: shadow database issue (P3014) blocks `prisma migrate dev` — workaround: grant `CREATEDB` to `media_service` user or use `shadowDatabaseUrl`

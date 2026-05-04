@@ -52,4 +52,16 @@ export interface IContentClient {
   getContainerLeafItems(
     containerId: string,
   ): Promise<Result<ContentRef[], ContentClientError>>;
+
+  // Returns vocabulary item IDs for a list. Used by BulkIntroduceFromVocabularyListHandler.
+  // Calls GET /api/internal/vocabulary-lists/{listId}/items on Content Service.
+  getVocabularyListItems(
+    listId: string,
+  ): Promise<Result<string[], ContentClientError>>;
+
+  // Returns whether a vocabulary list has auto_add_to_srs = true.
+  // Calls GET /api/internal/vocabulary-lists/{listId} on Content Service.
+  getVocabularyListAutoAddToSrs(
+    listId: string,
+  ): Promise<Result<boolean, ContentClientError>>;
 }
