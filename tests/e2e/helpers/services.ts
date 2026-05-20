@@ -39,7 +39,7 @@ export class ServiceProcess {
       stdio: 'pipe',
     });
 
-    this.proc = spawn('node', ['dist/main.js'], {
+    this.proc = spawn('node', ['dist/src/main.js'], {
       cwd: dir,
       env: resolved,
       stdio: ['ignore', 'pipe', 'pipe'],

@@ -44,7 +44,8 @@ describe('Scenario 2 — Free-form submission cycle', () => {
 
     // Org Service stub: tutor is a TEACHER, student is a STUDENT in the school
     orgStub.register('GET', /\/schools\/.*\/members\/.*\/role/, (url) => {
-      const userId = url.pathname.split('/').pop()!;
+      const parts = url.pathname.split('/');
+      const userId = parts[parts.indexOf('members') + 1];
       const role = userId === TUTOR_ID ? 'TEACHER' : 'STUDENT';
       return { status: 200, body: { role } };
     });
@@ -84,8 +85,15 @@ describe('Scenario 2 — Free-form submission cycle', () => {
     const studentClient = createClient(learningUrl, jwtHelper.makeToken(STUDENT_ID, ['student']));
     const tutorClient = createClient(learningUrl, jwtHelper.makeToken(TUTOR_ID, ['tutor']));
 
+    // 0. Seed a progress record in NEEDS_REVIEW state so ResolveReviewCommand can transition it
+    await db.query(
+      `INSERT INTO user_progress (id, user_id, content_type, content_id, status, needs_review_since, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, 'exercise', $2, 'needs_review', NOW(), NOW(), NOW())`,
+      [STUDENT_ID, EXERCISE_ID],
+    );
+
     // 1. Student submits free-form exercise
-    const submitRes = await studentClient.post('/review/submissions', {
+    const submitRes = await studentClient.post('/api/v1/review/submissions', {
       exerciseId: EXERCISE_ID,
       schoolId: SCHOOL_ID,
       text: 'My answer to the free-form exercise.',
@@ -102,7 +110,7 @@ describe('Scenario 2 — Free-form submission cycle', () => {
     expect(dbRow!['status']).toBe('pending_review');
 
     // 3. Tutor approves
-    const reviewRes = await tutorClient.patch(`/review/submissions/${submissionId}/review`, {
+    const reviewRes = await tutorClient.patch(`/api/v1/review/submissions/${submissionId}/review`, {
       decision: 'APPROVED',
       feedback: 'Well done.',
       score: 90,

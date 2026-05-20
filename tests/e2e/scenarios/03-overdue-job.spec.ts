@@ -62,7 +62,8 @@ describe('Scenario 3 — Overdue assignment job', () => {
     );
     // Org stub: tutor = TEACHER, student = STUDENT
     orgStub.register('GET', /\/schools\/.*\/members\/.*\/role/, (url) => {
-      const userId = url.pathname.split('/').pop()!;
+      const parts = url.pathname.split('/');
+      const userId = parts[parts.indexOf('members') + 1];
       const role = userId === TUTOR_ID ? 'TEACHER' : 'STUDENT';
       return { status: 200, body: { role } };
     });
@@ -95,23 +96,32 @@ describe('Scenario 3 — Overdue assignment job', () => {
   it('marks overdue assignment exactly once; re-run produces no duplicate event', async () => {
     const tutorClient = createClient(learningUrl, jwtHelper.makeToken(TUTOR_ID, ['tutor']));
 
-    // 1. Create assignment with dueAt in the past
-    const pastDueAt = new Date(Date.now() - 3_600_000).toISOString(); // 1 hour ago
-    const createRes = await tutorClient.post('/assignments', {
+    // 1. Create assignment with a valid future dueAt, then backdate via DB so the
+    //    overdue worker sees it as past-due without hitting domain validation.
+    const futureDueAt = new Date(Date.now() + 86_400_000).toISOString(); // 24h ahead
+    const createRes = await tutorClient.post('/api/v1/assignments', {
       assigneeId: STUDENT_ID,
       schoolId: SCHOOL_ID,
       contentType: 'EXERCISE',
       contentId: CONTENT_ID,
-      dueAt: pastDueAt,
+      dueAt: futureDueAt,
     });
     expect(createRes.status).toBe(201);
     const assignmentId: string = createRes.data.id;
 
+    // Backdate the due_at so the worker treats it as overdue
+    await db.query(
+      `UPDATE assignments SET due_at = NOW() - INTERVAL '1 hour' WHERE id = $1`,
+      [assignmentId],
+    );
+
     // 2. Trigger the worker by enqueuing a job directly on the BullMQ queue via Redis
+    // DB must match the service's REDIS_DB (4) so the worker picks up the job.
     const redis = new Redis({
       host: '127.0.0.1',
       port: redisPort,
       password: redisPassword,
+      db: 4,
       lazyConnect: true,
     });
     await redis.connect();
