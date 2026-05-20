@@ -103,7 +103,7 @@ describe('Scenario 1 — Closed-form attempt loop', () => {
         CONTENT_SERVICE_BASE_URL: contentStub.url,
         ORGANIZATION_SERVICE_BASE_URL: orgStub.url,
         LEARNING_SERVICE_BASE_URL: learningUrl,
-        EXERCISE_DEFINITION_CACHE_TTL_SECONDS: '0',
+        EXERCISE_DEFINITION_CACHE_TTL_SECONDS: '1',
       },
     });
 

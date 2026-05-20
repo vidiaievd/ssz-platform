@@ -136,6 +136,16 @@ export class UserProgress extends AggregateRoot {
     }
     this._reviewResolvedAt = now;
     this._status = approved ? 'COMPLETED' : 'IN_PROGRESS';
+    if (approved) {
+      this._completedAt = this._completedAt ?? now;
+      this.addDomainEvent(new ProgressCompletedEvent(this.id, {
+        userId: this._userId,
+        contentType: this._contentRef.type,
+        contentId: this._contentRef.id,
+        completedAt: this._completedAt.toISOString(),
+        score: this._score,
+      }));
+    }
     return Result.ok();
   }
 
