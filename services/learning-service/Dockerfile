@@ -15,22 +15,24 @@ RUN npm run build
 # ── Stage 2: build service ────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder
 ARG NODE_ENV=development
+# Prisma 7 loads prisma.config.ts (which calls env('DATABASE_URL')) even during generate.
+# A placeholder satisfies the config loader — no real DB connection is made at build time.
+ARG DATABASE_URL="postgresql://build:build@localhost:5432/build"
+ENV DATABASE_URL=$DATABASE_URL
 
 # Mirror monorepo layout so file:../../packages/contracts resolves within /workspace
 COPY --from=contracts-builder /workspace/packages/contracts/package.json /workspace/packages/contracts/package.json
 COPY --from=contracts-builder /workspace/packages/contracts/dist         /workspace/packages/contracts/dist
 
-WORKDIR /workspace/services/notification-service
+WORKDIR /workspace/services/learning-service
 
-COPY services/notification-service/package*.json ./
-COPY services/notification-service/package-lock.json ./
+COPY services/learning-service/package*.json ./
 
-# --install-links: install file: deps as regular copies, not symlinks
-RUN npm ci --install-links
+RUN npm ci
 
-COPY services/notification-service/tsconfig*.json services/notification-service/nest-cli.json ./
-COPY services/notification-service/prisma/ ./prisma/
-COPY services/notification-service/src/ ./src/
+COPY services/learning-service/tsconfig*.json services/learning-service/nest-cli.json services/learning-service/prisma.config.ts ./
+COPY services/learning-service/prisma/ ./prisma/
+COPY services/learning-service/src/ ./src/
 
 RUN npx prisma generate
 RUN npm run build
@@ -46,13 +48,14 @@ ENV NODE_ENV=$NODE_ENV
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /workspace/services/notification-service/node_modules ./node_modules
-COPY --from=builder /workspace/services/notification-service/dist         ./dist
-COPY --from=builder /workspace/services/notification-service/generated    ./generated
-COPY --from=builder /workspace/services/notification-service/prisma       ./prisma
-COPY services/notification-service/prisma.config.ts ./
-COPY services/notification-service/package.json services/notification-service/tsconfig.json ./
+COPY --from=builder /workspace/services/learning-service/node_modules  ./node_modules
+COPY --from=builder /workspace/services/learning-service/dist          ./dist
+COPY --from=builder /workspace/services/learning-service/prisma        ./prisma
+COPY --from=builder /workspace/services/learning-service/package.json  ./
+COPY --from=builder /workspace/services/learning-service/tsconfig.json ./
+COPY --from=builder /workspace/services/learning-service/prisma.config.ts ./
 
-EXPOSE 3005
+
+EXPOSE 3007
 
 CMD ["sh", "-c", "npx prisma migrate deploy --schema prisma/schema.prisma && node dist/src/main.js"]

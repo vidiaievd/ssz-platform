@@ -2,6 +2,7 @@
   "include": ["src/**/*", "generated/**/*", "prisma.config.ts"],
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
+    "rootDir": ".",
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "resolvePackageJsonExports": true,
