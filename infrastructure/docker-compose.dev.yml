@@ -97,6 +97,7 @@ services:
       DATABASE_URL: postgresql://org_service:${ORG_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/organizations_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INVITATION_JWT_SECRET: ${INVITATION_JWT_SECRET:-dev-invitation-secret-32-chars!!}
     ports:
       - "3002:3002"
     depends_on:
@@ -121,6 +122,8 @@ services:
       DATABASE_URL: postgresql://content_service:${CONTENT_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/content_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
     ports:
       - "3003:3003"
     depends_on:
