@@ -1,0 +1,33 @@
+# Git internals
+.git/
+
+# Dependencies — always rebuilt inside Docker
+**/node_modules/
+
+# Compiled output — always rebuilt inside Docker
+**/dist/
+**/generated/
+
+# .NET build artifacts
+**/bin/
+**/obj/
+
+# Test artifacts
+**/coverage/
+**/.nyc_output/
+
+# E2E tests (not needed for any service build)
+tests/
+
+# Infrastructure config (not part of any service)
+infrastructure/
+
+# Keys — never copy into image via context (mounted at runtime)
+**/keys/
+**/*.pem
+
+# IDE and OS
+**/.idea/
+**/.DS_Store
+**/Thumbs.db
+**/*.tsbuildinfo

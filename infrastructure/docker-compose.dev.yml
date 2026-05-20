@@ -1,66 +1,36 @@
 services:
 
-  # ── Infrastructure ─────────────────────────────────────────────────────────
+  # ── Infrastructure port overrides (dev only) ────────────────────────────────
+  # Extends base services to expose ports on the host for local tooling
+  # (IDE DB connections, RabbitMQ management UI, MinIO console).
 
   postgres:
-    image: postgres:16-alpine
-    container_name: ssz-postgres
-    environment:
-      POSTGRES_USER: ssz_admin
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdevpassword}
-      POSTGRES_DB: postgres
     ports:
       - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ssz_admin"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   redis:
-    image: redis:7-alpine
-    container_name: ssz-redis
-    command: redis-server --requirepass ${REDIS_PASSWORD:-localdevpassword}
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-localdevpassword}", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
 
   rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: ssz-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: ssz_admin
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-localdevpassword}
     ports:
       - "5672:5672"
       - "15672:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
 
-  # ── Services ───────────────────────────────────────────────────────────────
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  # ── Application services (development) ─────────────────────────────────────
 
   auth-service:
     build:
       context: ../services/auth-service
       dockerfile: Dockerfile
-    container_name: ssz-auth-service
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://+:5000
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5062
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=auth_db;Username=auth_service;Password=${AUTH_SERVICE_DB_PASSWORD:-auth_service_password}
       ConnectionStrings__Redis: redis:6379,password=${REDIS_PASSWORD:-localdevpassword}
       RabbitMq__Host: rabbitmq
@@ -71,14 +41,14 @@ services:
       Auth__Audience: ssz-services
       Auth__PrivateKeyPath: /app/keys/jwt_private_key.pem
       Auth__PublicKeyPath: /app/keys/jwt_public_key.pem
-      Auth__MfaChallengeSecret: ${MFA_CHALLENGE_SECRET}
-      Auth__EncryptionKey: ${TOTP_ENCRYPTION_KEY}
+      Auth__MfaChallengeSecret: ${MFA_CHALLENGE_SECRET:-dev-mfa-secret}
+      Auth__EncryptionKey: ${TOTP_ENCRYPTION_KEY:-dev-totp-key-32-chars-minimum!!}
       Auth__TotpIssuer: SSZPlatform
       Auth__AppBaseUrl: ${APP_BASE_URL:-http://localhost:3000}
     volumes:
       - ../services/auth-service/keys:/app/keys:ro
     ports:
-      - "5000:5000"
+      - "5062:5062"
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,46 +57,18 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:5062/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
-
-  organization-service:
-    build:
-      context: ../services/organization-service
-      dockerfile: Dockerfile
-    container_name: ssz-organization-service
-    environment:
-      NODE_ENV: production
-      PORT: 3002
-      DATABASE_URL: postgresql://org_service:${ORG_SERVICE_DB_PASSWORD:-org_service_password}@postgres:5432/organizations_db
-      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
-      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
-    ports:
-      - "3002:3002"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3002/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    restart: unless-stopped
 
   user-profile-service:
     build:
       context: ../services/user-profile-service
       dockerfile: Dockerfile
-    container_name: ssz-user-profile-service
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3001
       DATABASE_URL: postgresql://profile_service:${PROFILE_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/profiles_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
@@ -144,19 +86,44 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    restart: unless-stopped
+
+  organization-service:
+    build:
+      context: ../services/organization-service
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3002
+      DATABASE_URL: postgresql://org_service:${ORG_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/organizations_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INVITATION_JWT_SECRET: ${INVITATION_JWT_SECRET:-dev-invitation-secret-32-chars!!}
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3002/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   content-service:
     build:
       context: ../services/content-service
       dockerfile: Dockerfile
-    container_name: ssz-content-service
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3003
       DATABASE_URL: postgresql://content_service:${CONTENT_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/content_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
     ports:
       - "3003:3003"
     depends_on:
@@ -170,20 +137,18 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    restart: unless-stopped
 
   media-service:
     build:
-      context: ../services/media-service
-      dockerfile: Dockerfile
-    container_name: ssz-media-service
+      context: ../
+      dockerfile: services/media-service/Dockerfile
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3004
-      DATABASE_URL: postgresql://media_service:${MEDIA_SERVICE_DB_PASSWORD:-media_service_password}@postgres:5432/media_db
+      DATABASE_URL: postgresql://media_service:${MEDIA_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/media_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
-      MINIO_ENDPOINT: ssz-minio
+      MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_USE_SSL: "false"
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
@@ -208,21 +173,19 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    restart: unless-stopped
 
   notification-service:
     build:
-      context: ../services/notification-service
-      dockerfile: Dockerfile
-    container_name: ssz-notification-service
+      context: ../
+      dockerfile: services/notification-service/Dockerfile
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3005
-      DATABASE_URL: postgresql://notifications_service:${NOTIFICATIONS_SERVICE_DB_PASSWORD:-notifications_service_password}@postgres:5432/notifications_db
+      DATABASE_URL: postgresql://notifications_service:${NOTIFICATIONS_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/notifications_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       REDIS_URL: redis://:${REDIS_PASSWORD:-localdevpassword}@redis:6379
-      SMTP_HOST: ssz-mailhog
+      SMTP_HOST: mailhog
       SMTP_PORT: 1025
       SMTP_SECURE: "false"
       SMTP_USER: ""
@@ -247,51 +210,15 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    restart: unless-stopped
-
-  learning-service:
-    build:
-      context: ../services/learning-service
-      dockerfile: Dockerfile
-    container_name: ssz-learning-service
-    environment:
-      NODE_ENV: production
-      PORT: 3007
-      DATABASE_URL: postgresql://learning_service:${LEARNING_SERVICE_DB_PASSWORD:-learning_service_password}@postgres:5432/learning_db
-      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-localdevpassword}
-      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
-      CONTENT_SERVICE_BASE_URL: http://content-service:3003
-      ORGANIZATION_SERVICE_BASE_URL: http://organization-service:3002
-      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
-    ports:
-      - "3007:3007"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3007/health/live || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    restart: unless-stopped
 
   exercise-engine-service:
     build:
-      context: ../services/exercise-engine-service
-      dockerfile: Dockerfile
-    container_name: ssz-exercise-engine-service
+      context: ../
+      dockerfile: services/exercise-engine-service/Dockerfile
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3006
-      DATABASE_URL: postgresql://exercise_engine_service:${EXERCISE_ENGINE_SERVICE_DB_PASSWORD:-exercise_engine_service_password}@postgres:5432/exercises_db
+      DATABASE_URL: postgresql://exercise_engine_service:${EXERCISE_ENGINE_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/exercises_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       RABBITMQ_EXCHANGE: ssz.events
       REDIS_HOST: redis
@@ -320,38 +247,43 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    restart: unless-stopped
 
-  minio:
-    image: minio/minio:latest
-    container_name: ssz-minio
-    command: server /data --console-address ":9001"
+  learning-service:
+    build:
+      context: ../
+      dockerfile: services/learning-service/Dockerfile
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+      NODE_ENV: development
+      PORT: 3007
+      DATABASE_URL: postgresql://learning_service:${LEARNING_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/learning_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-localdevpassword}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      CONTENT_SERVICE_URL: http://content-service:3003
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
     ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
+      - "3007:3007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 10s
+      test: ["CMD-SHELL", "curl -f http://localhost:3007/health/live || exit 1"]
+      interval: 15s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+      start_period: 20s
 
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: ssz-mailhog
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    restart: unless-stopped
+  # ── Gateway ─────────────────────────────────────────────────────────────────
 
   nginx:
     image: nginx:1.27-alpine
-    container_name: ssz-nginx
     ports:
       - "80:80"
     volumes:
@@ -365,22 +297,22 @@ services:
       - notification-service
       - learning-service
       - exercise-engine-service
-    restart: unless-stopped
+
+  # ── Dev-only tools ──────────────────────────────────────────────────────────
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: ssz-pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@ssz.local
+      PGADMIN_DEFAULT_EMAIL: admin@ssz.dev
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
     depends_on:
       postgres:
         condition: service_healthy
-
-volumes:
-  postgres_data:
-  redis_data:
-  rabbitmq_data:
-  minio_data:

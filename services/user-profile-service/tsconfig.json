@@ -1,6 +1,7 @@
 {
   "include": ["src/**/*", "generated/**/*"],
   "compilerOptions": {
+    "rootDir": ".",
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "resolvePackageJsonExports": true,
