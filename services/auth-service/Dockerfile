@@ -4,19 +4,17 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS builder
 WORKDIR /src
 
 # Restore — layer-cached unless .csproj files change
-COPY AuthService.sln ./
 COPY src/AuthService.Domain/AuthService.Domain.csproj               src/AuthService.Domain/
 COPY src/AuthService.Application/AuthService.Application.csproj     src/AuthService.Application/
 COPY src/AuthService.Infrastructure/AuthService.Infrastructure.csproj src/AuthService.Infrastructure/
 COPY src/AuthService.API/AuthService.API.csproj                     src/AuthService.API/
-RUN dotnet restore
+RUN dotnet restore src/AuthService.API/AuthService.API.csproj
 
-# Copy everything and publish
-COPY . .
+# Copy src only (tests are not needed in the image)
+COPY src/ src/
 RUN dotnet publish src/AuthService.API/AuthService.API.csproj \
     -c Release \
-    -o /app/publish \
-    --no-restore
+    -o /app/publish
 
 # ── Stage 2: runtime ───────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runner
