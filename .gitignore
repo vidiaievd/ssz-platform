@@ -12,6 +12,7 @@
 **/*.pem
 **/.env
 **/.env.*
+!**/.env.example
 
 # Environment variables
 **/.env
