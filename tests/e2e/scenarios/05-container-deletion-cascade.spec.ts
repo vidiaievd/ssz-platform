@@ -62,7 +62,8 @@ describe('Scenario 5 — Container deletion cascade', () => {
 
     // Org stub: tutor = TEACHER, student = STUDENT
     orgStub.register('GET', /\/schools\/.*\/members\/.*\/role/, (url) => {
-      const userId = url.pathname.split('/').pop()!;
+      const parts = url.pathname.split('/');
+      const userId = parts[parts.indexOf('members') + 1];
       const role = userId === TUTOR_ID ? 'TEACHER' : 'STUDENT';
       return { status: 200, body: { role } };
     });
@@ -102,7 +103,7 @@ describe('Scenario 5 — Container deletion cascade', () => {
 
     // 1. Create active assignment (CONTAINER content type)
     const futureDueAt = new Date(Date.now() + 7 * 86_400_000).toISOString();
-    const assignRes = await tutorClient.post('/assignments', {
+    const assignRes = await tutorClient.post('/api/v1/assignments', {
       assigneeId: STUDENT_ID,
       schoolId: SCHOOL_ID,
       contentType: 'CONTAINER',
@@ -113,7 +114,7 @@ describe('Scenario 5 — Container deletion cascade', () => {
     const assignmentId: string = assignRes.data.id;
 
     // 2. Student enrolls in the same container
-    const enrollRes = await studentClient.post('/enrollments', {
+    const enrollRes = await studentClient.post('/api/v1/enrollments', {
       containerId: CONTAINER_ID,
       schoolId: SCHOOL_ID,
     });

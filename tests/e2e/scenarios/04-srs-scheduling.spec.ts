@@ -109,7 +109,7 @@ describe('Scenario 4 — SRS scheduling after attempt', () => {
     const repsAfterFirst = Number(card!['reps']);
 
     // 3. Second review: GOOD rating via HTTP
-    const reviewRes = await studentClient.post(`/srs/cards/${cardId}/review`, {
+    const reviewRes = await studentClient.post(`/api/v1/srs/cards/${cardId}/review`, {
       rating: 'GOOD',
     });
     expect(reviewRes.status).toBe(200);

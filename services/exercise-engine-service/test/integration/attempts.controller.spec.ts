@@ -116,14 +116,14 @@ describe('AttemptsController (integration)', () => {
 
   afterEach(() => app.close());
 
-  describe('POST /api/v1/exercises/:exerciseId/attempts', () => {
+  describe('POST /exercises/:exerciseId/attempts', () => {
     it('201 — creates attempt and returns exercise content', async () => {
       mockRepo.findInProgress.mockResolvedValue(null);
       mockContentClient.getExerciseForAttempt.mockResolvedValue(Result.ok(makeDef()));
       mockRepo.save.mockResolvedValue(undefined);
 
       const res = await request(app.getHttpServer())
-        .post('/api/v1/exercises/ex-1/attempts')
+        .post('/exercises/ex-1/attempts')
         .send({ language: 'no' });
 
       expect(res.status).toBe(HttpStatus.CREATED);
@@ -141,7 +141,7 @@ describe('AttemptsController (integration)', () => {
       );
 
       const res = await request(app.getHttpServer())
-        .post('/api/v1/exercises/missing/attempts')
+        .post('/exercises/missing/attempts')
         .send({ language: 'no' });
 
       expect(res.status).toBe(HttpStatus.NOT_FOUND);
@@ -151,14 +151,14 @@ describe('AttemptsController (integration)', () => {
       mockRepo.findInProgress.mockResolvedValue(makeAttempt({ status: 'IN_PROGRESS', score: null, passed: null, scoredAt: null, submittedAt: null }));
 
       const res = await request(app.getHttpServer())
-        .post('/api/v1/exercises/ex-1/attempts')
+        .post('/exercises/ex-1/attempts')
         .send({ language: 'no' });
 
       expect(res.status).toBe(HttpStatus.CONFLICT);
     });
   });
 
-  describe('POST /api/v1/exercises/:exerciseId/attempts/:attemptId/submit', () => {
+  describe('POST /exercises/:exerciseId/attempts/:attemptId/submit', () => {
     const attemptId = 'a0000000-0000-0000-0000-000000000001';
 
     it('200 — scores a correct closed-form answer', async () => {
@@ -171,7 +171,7 @@ describe('AttemptsController (integration)', () => {
       mockLearning.createSubmission.mockResolvedValue(Result.ok({ submissionId: 'sub-1' }));
 
       const res = await request(app.getHttpServer())
-        .post(`/api/v1/exercises/ex-1/attempts/${attemptId}/submit`)
+        .post(`/exercises/ex-1/attempts/${attemptId}/submit`)
         .send({ submittedAnswer: { correct_option_ids: ['A'] }, timeSpentSeconds: 30 });
 
       expect(res.status).toBe(HttpStatus.OK);
@@ -184,14 +184,14 @@ describe('AttemptsController (integration)', () => {
       mockRepo.findById.mockResolvedValue(null);
 
       const res = await request(app.getHttpServer())
-        .post(`/api/v1/exercises/ex-1/attempts/${attemptId}/submit`)
+        .post(`/exercises/ex-1/attempts/${attemptId}/submit`)
         .send({ submittedAnswer: {}, timeSpentSeconds: 0 });
 
       expect(res.status).toBe(HttpStatus.NOT_FOUND);
     });
   });
 
-  describe('DELETE /api/v1/exercises/:exerciseId/attempts/:attemptId', () => {
+  describe('DELETE /exercises/:exerciseId/attempts/:attemptId', () => {
     const attemptId = 'a0000000-0000-0000-0000-000000000001';
 
     it('204 — abandons in-progress attempt', async () => {
@@ -200,7 +200,7 @@ describe('AttemptsController (integration)', () => {
       );
 
       const res = await request(app.getHttpServer())
-        .delete(`/api/v1/exercises/ex-1/attempts/${attemptId}`);
+        .delete(`/exercises/ex-1/attempts/${attemptId}`);
 
       expect(res.status).toBe(HttpStatus.NO_CONTENT);
       expect(mockRepo.save).toHaveBeenCalled();
@@ -210,20 +210,20 @@ describe('AttemptsController (integration)', () => {
       mockRepo.findById.mockResolvedValue(null);
 
       const res = await request(app.getHttpServer())
-        .delete(`/api/v1/exercises/ex-1/attempts/${attemptId}`);
+        .delete(`/exercises/ex-1/attempts/${attemptId}`);
 
       expect(res.status).toBe(HttpStatus.NOT_FOUND);
     });
   });
 
-  describe('GET /api/v1/exercises/:exerciseId/attempts/:attemptId', () => {
+  describe('GET /exercises/:exerciseId/attempts/:attemptId', () => {
     const attemptId = 'a0000000-0000-0000-0000-000000000001';
 
     it('200 — returns attempt details', async () => {
       mockRepo.findById.mockResolvedValue(makeAttempt({ id: attemptId }));
 
       const res = await request(app.getHttpServer())
-        .get(`/api/v1/exercises/ex-1/attempts/${attemptId}`);
+        .get(`/exercises/ex-1/attempts/${attemptId}`);
 
       expect(res.status).toBe(HttpStatus.OK);
       expect(res.body.id).toBe(attemptId);
@@ -234,7 +234,7 @@ describe('AttemptsController (integration)', () => {
       mockRepo.findById.mockResolvedValue(null);
 
       const res = await request(app.getHttpServer())
-        .get(`/api/v1/exercises/ex-1/attempts/${attemptId}`);
+        .get(`/exercises/ex-1/attempts/${attemptId}`);
 
       expect(res.status).toBe(HttpStatus.NOT_FOUND);
     });
@@ -243,13 +243,13 @@ describe('AttemptsController (integration)', () => {
       mockRepo.findById.mockResolvedValue(makeAttempt({ id: attemptId, userId: 'other-user' }));
 
       const res = await request(app.getHttpServer())
-        .get(`/api/v1/exercises/ex-1/attempts/${attemptId}`);
+        .get(`/exercises/ex-1/attempts/${attemptId}`);
 
       expect(res.status).toBe(HttpStatus.FORBIDDEN);
     });
   });
 
-  describe('GET /api/v1/exercises/:exerciseId/attempts', () => {
+  describe('GET /exercises/:exerciseId/attempts', () => {
     it('200 — returns paginated list', async () => {
       mockRepo.findAllByUser.mockResolvedValue({
         items: [makeAttempt()],
@@ -257,7 +257,7 @@ describe('AttemptsController (integration)', () => {
       });
 
       const res = await request(app.getHttpServer())
-        .get('/api/v1/exercises/ex-1/attempts');
+        .get('/exercises/ex-1/attempts');
 
       expect(res.status).toBe(HttpStatus.OK);
       expect(res.body.total).toBe(1);
@@ -269,7 +269,7 @@ describe('AttemptsController (integration)', () => {
       mockRepo.findAllByUser.mockResolvedValue({ items: [], total: 0 });
 
       await request(app.getHttpServer())
-        .get('/api/v1/exercises/ex-1/attempts?limit=5&offset=10');
+        .get('/exercises/ex-1/attempts?limit=5&offset=10');
 
       expect(mockRepo.findAllByUser).toHaveBeenCalledWith(
         'user-1',
@@ -281,7 +281,7 @@ describe('AttemptsController (integration)', () => {
       mockRepo.findAllByUser.mockResolvedValue({ items: [], total: 0 });
 
       await request(app.getHttpServer())
-        .get('/api/v1/exercises/ex-1/attempts?limit=999');
+        .get('/exercises/ex-1/attempts?limit=999');
 
       expect(mockRepo.findAllByUser).toHaveBeenCalledWith(
         'user-1',
