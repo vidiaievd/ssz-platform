@@ -1,7 +1,7 @@
 {
   "name": "media-service",
   "version": "0.1.0",
-  "description": "SSZ Platform — Media Service. Handles file uploads, S3-compatible storage, and media processing.",
+  "description": "SSZ Platform \u2014 Media Service. Handles file uploads, S3-compatible storage, and media processing.",
   "author": "",
   "private": true,
   "license": "UNLICENSED",

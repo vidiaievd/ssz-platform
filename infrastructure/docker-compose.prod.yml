@@ -1,0 +1,350 @@
+services:
+
+  # ── Application services (production) ──────────────────────────────────────
+  # All services use pre-built images — build happens in CI/CD, not here.
+  # Services use expose (not ports); nginx handles all external traffic.
+
+  auth-service:
+    image: ssz/auth-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "5000"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=auth_db;Username=auth_service;Password=${AUTH_SERVICE_DB_PASSWORD}
+      ConnectionStrings__Redis: redis:6379,password=${REDIS_PASSWORD}
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__Username: ssz_admin
+      RabbitMq__Password: ${RABBITMQ_PASSWORD}
+      Auth__Issuer: ${AUTH_ISSUER}
+      Auth__Audience: ssz-services
+      Auth__PrivateKeyPath: /app/keys/jwt_private_key.pem
+      Auth__PublicKeyPath: /app/keys/jwt_public_key.pem
+      Auth__MfaChallengeSecret: ${MFA_CHALLENGE_SECRET}
+      Auth__EncryptionKey: ${TOTP_ENCRYPTION_KEY}
+      Auth__TotpIssuer: SSZPlatform
+      Auth__AppBaseUrl: ${APP_BASE_URL}
+    volumes:
+      - ../services/auth-service/keys:/app/keys:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  user-profile-service:
+    image: ssz/user-profile-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://profile_service:${PROFILE_SERVICE_DB_PASSWORD}@postgres:5432/profiles_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  organization-service:
+    image: ssz/organization-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "3002"
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DATABASE_URL: postgresql://org_service:${ORG_SERVICE_DB_PASSWORD}@postgres:5432/organizations_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3002/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  content-service:
+    image: ssz/content-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "3003"
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      DATABASE_URL: postgresql://content_service:${CONTENT_SERVICE_DB_PASSWORD}@postgres:5432/content_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3003/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  media-service:
+    image: ssz/media-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "3004"
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+      DATABASE_URL: postgresql://media_service:${MEDIA_SERVICE_DB_PASSWORD}@postgres:5432/media_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_PUBLIC: ssz-public
+      MINIO_BUCKET_PRIVATE: ssz-private
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3004/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  notification-service:
+    image: ssz/notification-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "3005"
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      DATABASE_URL: postgresql://notifications_service:${NOTIFICATIONS_SERVICE_DB_PASSWORD}@postgres:5432/notifications_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS}
+      APP_BASE_URL: ${APP_BASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3005/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  exercise-engine-service:
+    image: ssz/exercise-engine-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "3006"
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+      DATABASE_URL: postgresql://exercise_engine_service:${EXERCISE_ENGINE_SERVICE_DB_PASSWORD}@postgres:5432/exercises_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: ssz.events
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: 5
+      REDIS_KEY_PREFIX: "exercise-engine:"
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      CONTENT_SERVICE_BASE_URL: http://content-service:3003
+      ORGANIZATION_SERVICE_BASE_URL: http://organization-service:3002
+      LEARNING_SERVICE_BASE_URL: http://learning-service:3007
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      EXERCISE_DEFINITION_CACHE_TTL_SECONDS: 300
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3006/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  learning-service:
+    image: ssz/learning-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "3007"
+    environment:
+      NODE_ENV: production
+      PORT: 3007
+      DATABASE_URL: postgresql://learning_service:${LEARNING_SERVICE_DB_PASSWORD}@postgres:5432/learning_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      CONTENT_SERVICE_BASE_URL: http://content-service:3003
+      ORGANIZATION_SERVICE_BASE_URL: http://organization-service:3002
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3007/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Gateway ─────────────────────────────────────────────────────────────────
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      user-profile-service:
+        condition: service_healthy
+      organization-service:
+        condition: service_healthy
+      content-service:
+        condition: service_healthy
+      media-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      learning-service:
+        condition: service_healthy
+      exercise-engine-service:
+        condition: service_healthy
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  ssz-network:
+    driver: bridge

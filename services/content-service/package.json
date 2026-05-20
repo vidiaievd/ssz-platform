@@ -1,7 +1,7 @@
 {
   "name": "content-service",
   "version": "0.1.0",
-  "description": "SSZ Platform — Content Service. Manages courses, lessons, vocabulary, grammar rules, and exercises.",
+  "description": "SSZ Platform \u2014 Content Service. Manages courses, lessons, vocabulary, grammar rules, and exercises.",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
