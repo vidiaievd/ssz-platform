@@ -84,6 +84,38 @@
       "problemMatcher": []
     },
     {
+      "label": "docker: up (all services)",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "up", "-d", "--build"],
+      "options": { "cwd": "${workspaceFolder}/infrastructure" },
+      "problemMatcher": []
+    },
+    {
+      "label": "docker: up (infra only — postgres, redis, rabbitmq, minio)",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "up", "-d", "postgres", "redis", "rabbitmq", "minio"],
+      "options": { "cwd": "${workspaceFolder}/infrastructure" },
+      "problemMatcher": []
+    },
+    {
+      "label": "docker: up auth-service",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "up", "-d", "--build", "auth-service"],
+      "options": { "cwd": "${workspaceFolder}/infrastructure" },
+      "problemMatcher": []
+    },
+    {
+      "label": "docker: logs auth-service",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "logs", "-f", "auth-service"],
+      "options": { "cwd": "${workspaceFolder}/infrastructure" },
+      "problemMatcher": []
+    },
+    {
       "label": "infra: up",
       "type": "shell",
       "command": "docker",

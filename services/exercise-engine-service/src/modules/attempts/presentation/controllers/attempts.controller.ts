@@ -68,7 +68,7 @@ function toAttemptDto(attempt: Attempt): AttemptResponseDto {
 
 @ApiTags('attempts')
 @ApiBearerAuth()
-@Controller('api/v1/exercises/:exerciseId/attempts')
+@Controller('exercises/:exerciseId/attempts')
 export class AttemptsController {
   constructor(
     private readonly commandBus: CommandBus,
