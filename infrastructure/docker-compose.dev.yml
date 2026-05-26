@@ -190,6 +190,7 @@ services:
       PORT: 3005
       DATABASE_URL: postgresql://notifications_service:${NOTIFICATIONS_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/notifications_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: ssz.events
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       REDIS_HOST: redis
       REDIS_PORT: 6379
