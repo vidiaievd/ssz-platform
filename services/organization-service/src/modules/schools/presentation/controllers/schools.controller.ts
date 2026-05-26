@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
@@ -18,7 +19,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../../../common/decorators/roles.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
+import { CheckNameAvailableQuery } from '../../application/queries/check-name-available/check-name-available.query.js';
 import { CreateSchoolCommand } from '../../application/commands/create-school/create-school.command.js';
 import { UpdateSchoolCommand } from '../../application/commands/update-school/update-school.command.js';
 import { DeleteSchoolCommand } from '../../application/commands/delete-school/delete-school.command.js';
@@ -45,8 +48,10 @@ export class SchoolsController {
   ) {}
 
   @Post()
+  @Roles('school_admin')
   @ApiOperation({ summary: 'Create a new school' })
   @ApiResponse({ status: 201, type: CreateSchoolResponseDto })
+  @ApiResponse({ status: 403, description: 'Requires school_admin platform role' })
   async createSchool(
     @CurrentUser() user: JwtPayload,
     @Body() dto: CreateSchoolRequestDto,
@@ -63,6 +68,15 @@ export class SchoolsController {
     @CurrentUser() user: JwtPayload,
   ): Promise<SchoolSummaryResponseDto[]> {
     return this.queryBus.execute(new ListMySchoolsQuery(user.sub));
+  }
+
+  @Get('name-available')
+  @ApiOperation({ summary: 'Check whether a school name is available' })
+  @ApiResponse({ status: 200, schema: { example: { available: true } } })
+  async checkNameAvailable(
+    @Query('name') name: string,
+  ): Promise<{ available: boolean }> {
+    return this.queryBus.execute(new CheckNameAvailableQuery(name));
   }
 
   @Get(':schoolId')

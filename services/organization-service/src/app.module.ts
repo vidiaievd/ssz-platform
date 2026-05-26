@@ -4,12 +4,14 @@ import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
+import { RolesGuard } from './common/guards/roles.guard.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import type { Env } from './config/configuration.js';
 import { AuthModule } from './infrastructure/auth/auth.module.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { RabbitMqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { SchoolsModule } from './modules/schools/schools.module.js';
+import { TutoringModule } from './modules/tutoring/tutoring.module.js';
 
 @Module({
   imports: [
@@ -18,6 +20,7 @@ import { SchoolsModule } from './modules/schools/schools.module.js';
     PrismaModule,
     RabbitMqModule,
     SchoolsModule,
+    TutoringModule,
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env>) => {
@@ -39,6 +42,10 @@ import { SchoolsModule } from './modules/schools/schools.module.js';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })
