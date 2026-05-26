@@ -1,4 +1,5 @@
 using AuthService.Application.Commands;
+using AuthService.Domain.Entities;
 using FluentValidation;
 
 namespace AuthService.Application.Validators;
@@ -21,6 +22,14 @@ public sealed class RegisterUserCommandValidator
             .Matches("[a-z]").WithMessage("Password must contain at least one lowercase letter.")
             .Matches("[0-9]").WithMessage("Password must contain at least one digit.")
             .Matches("[^a-zA-Z0-9]").WithMessage("Password must contain at least one special character.");
+
+        // Only self-assignable roles (student, tutor) are allowed at registration.
+        // Without this rule, the handler silently coerces any non-"tutor" string to
+        // [student], so a "school" registration would actually create a plain student.
+        RuleFor(x => x.Role)
+            .NotEmpty().WithMessage("Role is required.")
+            .Must(role => RoleNames.SelfAssignable.Contains(role.Trim()))
+            .WithMessage($"Role must be one of: {string.Join(", ", RoleNames.SelfAssignable)}.");
     }
 }
 
