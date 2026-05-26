@@ -39,6 +39,7 @@ export class CreateStudentProfileHandler implements ICommandHandler<CreateStuden
         id: randomUUID(),
         profileId: profile.id,
         nativeLanguage: command.nativeLanguage,
+        targetLanguages: command.targetLanguages,
       },
       randomUUID(),
     );

@@ -44,6 +44,7 @@ model StudentTargetLanguage {
   studentProfileId String
   studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
   languageCode     String
+  level            String?        // CEFR: A1 | A2 | B1 | B2 | C1 | C2
   createdAt        DateTime       @default(now())
 
   @@unique([studentProfileId, languageCode])
