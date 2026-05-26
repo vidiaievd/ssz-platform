@@ -60,7 +60,11 @@ export class StudentsController {
     @Body() dto: CreateStudentProfileRequestDto,
   ): Promise<{ id: string }> {
     const id = await this.commandBus.execute(
-      new CreateStudentProfileCommand(user.sub, dto.nativeLanguage),
+      new CreateStudentProfileCommand(
+        user.sub,
+        dto.nativeLanguage,
+        dto.targetLanguages?.map((l) => ({ languageCode: l.code, level: l.level as any })),
+      ),
     );
     return { id };
   }
@@ -76,7 +80,7 @@ export class StudentsController {
     @Body() dto: AddTargetLanguageRequestDto,
   ): Promise<void> {
     await this.commandBus.execute(
-      new AddTargetLanguageCommand(user.sub, dto.languageCode),
+      new AddTargetLanguageCommand(user.sub, dto.languageCode, dto.level as any),
     );
   }
 
