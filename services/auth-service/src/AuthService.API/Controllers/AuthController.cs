@@ -219,19 +219,23 @@ public sealed class AuthController(
     public async Task<IActionResult> RequestEmailVerification(CancellationToken ct)
     {
         var userId = User.GetUserId();
-        await mediator.Send(new RequestEmailVerificationCommand(userId), ct);
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+        await mediator.Send(new RequestEmailVerificationCommand(userId, role), ct);
         return NoContent();
     }
 
-    /// <summary>Confirm email ownership using the token from the verification email.</summary>
+    /// <summary>
+    /// Confirm email ownership using the token from the verification email.
+    /// Returns auth tokens on success so the client can log in immediately.
+    /// </summary>
     [HttpPost("email/verify/confirm")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(AuthTokensResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> VerifyEmail(
         [FromBody] VerifyEmailRequest request,
         CancellationToken ct)
     {
-        await mediator.Send(new VerifyEmailCommand(request.Token), ct);
-        return NoContent();
+        var tokens = await mediator.Send(new VerifyEmailCommand(request.Token), ct);
+        return Ok(tokens);
     }
 }

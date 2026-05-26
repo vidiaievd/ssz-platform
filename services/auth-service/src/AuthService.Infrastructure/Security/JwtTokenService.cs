@@ -114,11 +114,64 @@ public sealed class JwtTokenService : ITokenService
     public Guid? ValidatePasswordResetToken(string token)
         => ValidateShortLivedToken(token, "password_reset");
 
-    public string GenerateEmailVerificationToken(Guid userId)
-        => GenerateShortLivedToken(userId, "email_verification", _opts.EmailVerificationTokenLifetime);
+    public string GenerateEmailVerificationToken(Guid userId, string? role = null)
+    {
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new("token_type", "email_verification"),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        };
 
-    public Guid? ValidateEmailVerificationToken(string token)
-        => ValidateShortLivedToken(token, "email_verification");
+        if (role is not null)
+            claims.Add(new Claim("role", role));
+
+        var key = new SymmetricSecurityKey(
+            System.Text.Encoding.UTF8.GetBytes(_opts.MfaChallengeSecret));
+
+        var descriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.Add(_opts.EmailVerificationTokenLifetime),
+            SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256),
+        };
+
+        return _handler.WriteToken(_handler.CreateToken(descriptor));
+    }
+
+    public EmailVerificationData? ValidateEmailVerificationToken(string token)
+    {
+        var key = new SymmetricSecurityKey(
+            System.Text.Encoding.UTF8.GetBytes(_opts.MfaChallengeSecret));
+
+        var parameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            IssuerSigningKey = key,
+            ClockSkew = TimeSpan.Zero,
+        };
+
+        try
+        {
+            var principal = _handler.ValidateToken(token, parameters, out _);
+
+            if (principal.FindFirstValue("token_type") != "email_verification")
+                return null;
+
+            var sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(sub, out var id))
+                return null;
+
+            return new EmailVerificationData(id, principal.FindFirstValue("role"));
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     private string GenerateShortLivedToken(Guid userId, string tokenType, TimeSpan lifetime)
     {
