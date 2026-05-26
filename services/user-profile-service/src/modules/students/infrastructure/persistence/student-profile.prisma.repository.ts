@@ -36,12 +36,13 @@ export class StudentProfilePrismaRepository implements IStudentProfileRepository
       await tx.studentTargetLanguage.deleteMany({
         where: { studentProfileId: studentProfile.id },
       });
-      const codes = studentProfile.targetLanguages;
-      if (codes.length > 0) {
+      const langs = studentProfile.targetLanguages;
+      if (langs.length > 0) {
         await tx.studentTargetLanguage.createMany({
-          data: codes.map((languageCode: string) => ({
+          data: langs.map((l) => ({
             studentProfileId: studentProfile.id,
-            languageCode,
+            languageCode: l.languageCode,
+            level: l.level ?? null,
           })),
         });
       }

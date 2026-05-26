@@ -196,9 +196,17 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                         {
                             Id = new Guid("00000000-0000-0000-0001-000000000005"),
                             CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Description = "Language teacher — creates personal content",
+                            Description = "Private language teacher — individual content and students",
                             Name = "tutor",
                             NormalizedName = "TUTOR"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0001-000000000007"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "School owner or manager — creates and administers a school organisation",
+                            Name = "school_admin",
+                            NormalizedName = "SCHOOL_ADMIN"
                         },
                         new
                         {

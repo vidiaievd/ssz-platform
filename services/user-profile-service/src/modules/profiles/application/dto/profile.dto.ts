@@ -12,4 +12,6 @@ export class ProfileDto {
   locale: string;
   createdAt: Date;
   updatedAt: Date;
+  hasStudentProfile: boolean;
+  hasTutorProfile: boolean;
 }

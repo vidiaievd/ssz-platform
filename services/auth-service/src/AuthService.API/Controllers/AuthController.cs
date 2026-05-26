@@ -145,6 +145,25 @@ public sealed class AuthController(
         return Ok();
     }
 
+    /// <summary>Return the current authenticated user: id, email, roles, and email verification status.</summary>
+    [HttpGet("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(CurrentUserResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMe(CancellationToken ct)
+    {
+        var userId = User.GetUserId();
+
+        var user = await userRepository.FindByIdWithRolesAsync(userId, ct)
+            ?? throw new DomainException("User not found.", "USER_NOT_FOUND");
+
+        var roles = user.Roles
+            .Select(ur => ur.Role.Name)
+            .ToArray();
+
+        return Ok(new CurrentUserResponse(user.Id, user.Email, roles, user.EmailVerified));
+    }
+
     /// <summary>Return the current role list for the authenticated user, loaded from the database.</summary>
     [HttpGet("roles")]
     [Authorize]

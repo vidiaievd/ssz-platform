@@ -30,7 +30,7 @@ export class AddTargetLanguageHandler implements ICommandHandler<AddTargetLangua
       throw new StudentProfileNotFoundException(profile.id);
     }
 
-    studentProfile.addTargetLanguage(command.languageCode);
+    studentProfile.addTargetLanguage({ languageCode: command.languageCode, level: command.level });
     await this.studentProfileRepository.save(studentProfile);
   }
 }

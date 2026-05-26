@@ -38,8 +38,18 @@ export class CreateSchoolResponseDto {
 }
 
 export class SendInvitationResponseDto {
-  @ApiProperty({
-    description: "Signed JWT invitation token to include in the invite link",
-  })
+  @ApiProperty({ description: 'Invitation UUID' })
+  invitationId!: string;
+
+  @ApiProperty({ description: 'Signed JWT token to embed in the invite link' })
   token!: string;
+
+  @ApiProperty({ description: 'Invitation expiry (ISO 8601)' })
+  expiresAt!: string;
+
+  @ApiProperty({
+    description: 'Email delivery status: "queued" until Notification Service confirms',
+    enum: ['queued'],
+  })
+  deliveryStatus!: 'queued';
 }
