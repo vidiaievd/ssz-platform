@@ -37,7 +37,10 @@ export class GetStudentProfileByUserIdHandler implements IQueryHandler<GetStuden
       id: studentProfile.id,
       profileId: studentProfile.profileId,
       nativeLanguage: studentProfile.nativeLanguage,
-      targetLanguages: studentProfile.targetLanguages,
+      targetLanguages: studentProfile.targetLanguages.map((l) => ({
+        code: l.languageCode,
+        level: l.level,
+      })),
       createdAt: studentProfile.createdAt.toISOString(),
       updatedAt: studentProfile.updatedAt.toISOString(),
     };
