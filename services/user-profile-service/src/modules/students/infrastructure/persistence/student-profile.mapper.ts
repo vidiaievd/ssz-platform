@@ -1,4 +1,5 @@
 import { StudentProfile } from '../../domain/entities/student-profile.entity.js';
+import type { CefrLevel } from '../../domain/value-objects/target-language.vo.js';
 
 // Prisma model shape including the related target languages
 export type PrismaStudentProfile = {
@@ -11,6 +12,7 @@ export type PrismaStudentProfile = {
     id: string;
     studentProfileId: string;
     languageCode: string;
+    level: string | null;
     createdAt: Date;
   }>;
 };
@@ -21,7 +23,10 @@ export class StudentProfileMapper {
       id: raw.id,
       profileId: raw.profileId,
       nativeLanguage: raw.nativeLanguage ?? undefined,
-      targetLanguages: raw.targetLanguages.map((l) => l.languageCode),
+      targetLanguages: raw.targetLanguages.map((l) => ({
+        languageCode: l.languageCode,
+        level: (l.level ?? undefined) as CefrLevel | undefined,
+      })),
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });

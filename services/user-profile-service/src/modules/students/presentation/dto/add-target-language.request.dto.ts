@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, Length } from 'class-validator';
+import { IsIn, IsOptional, IsString, Length } from 'class-validator';
+import { CefrLevel } from '../../domain/value-objects/target-language.vo.js';
 
 export class AddTargetLanguageRequestDto {
   @ApiProperty({
@@ -9,4 +10,14 @@ export class AddTargetLanguageRequestDto {
   @IsString()
   @Length(2, 5)
   languageCode!: string;
+
+  @ApiProperty({
+    description: 'CEFR proficiency level',
+    enum: Object.values(CefrLevel),
+    example: CefrLevel.B1,
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(Object.values(CefrLevel))
+  level?: string;
 }
