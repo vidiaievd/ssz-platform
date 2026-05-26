@@ -33,11 +33,15 @@ public sealed class RegisterUserCommandHandler(
         var passwordHash = passwordHasher.Hash(command.Password);
         var requestedRole = command.Role.Trim().ToLowerInvariant();
 
-        // Student is always present — every registered user can learn (ROLES.md)
-        // Tutor is additionally assigned when explicitly registering as tutor
-        var roleNames = requestedRole == RoleNames.Tutor
-            ? new[] { RoleNames.Student, RoleNames.Tutor }
-            : new[] { RoleNames.Student };
+        // student  → [student]
+        // tutor    → [student, tutor]  (tutors can also be learners)
+        // school_admin → [school_admin]  (org managers are not assumed to be learners)
+        var roleNames = requestedRole switch
+        {
+            RoleNames.Tutor        => new[] { RoleNames.Student, RoleNames.Tutor },
+            RoleNames.SchoolAdmin  => new[] { RoleNames.SchoolAdmin },
+            _                      => new[] { RoleNames.Student },
+        };
 
         var eventRoles = roleNames
             .Select(r => r.ToLowerInvariant())
@@ -58,10 +62,23 @@ public sealed class RegisterUserCommandHandler(
         userRepository.Add(user);
         await unitOfWork.SaveChangesAsync(ct);
 
-        foreach (var domainEvent in user.DomainEvents)
-            await eventPublisher.PublishAsync(domainEvent, ct);
-
-        user.ClearDomainEvents();
+        // Publishing is best-effort: user is already persisted.
+        // A transient broker failure must not roll back a successful registration.
+        // The publisher already logs the error before rethrowing.
+        // TODO: replace with outbox pattern for guaranteed delivery.
+        try
+        {
+            foreach (var domainEvent in user.DomainEvents)
+                await eventPublisher.PublishAsync(domainEvent, ct);
+        }
+        catch
+        {
+            // swallow — error already logged by RabbitMqEventPublisher
+        }
+        finally
+        {
+            user.ClearDomainEvents();
+        }
 
         // Fire-and-forget email verification — non-fatal if it fails
         _ = mediator.Send(new RequestEmailVerificationCommand(user.Id), ct);
