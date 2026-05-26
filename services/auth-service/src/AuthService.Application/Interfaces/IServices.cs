@@ -2,6 +2,8 @@ using AuthService.Domain.Common;
 
 namespace AuthService.Application.Interfaces;
 
+public sealed record EmailVerificationData(Guid UserId, string? Role);
+
 public interface IPasswordHasher
 {
     string Hash(string password);
@@ -20,8 +22,8 @@ public interface ITokenService
     string GeneratePasswordResetToken(Guid userId);
     Guid? ValidatePasswordResetToken(string token);
 
-    string GenerateEmailVerificationToken(Guid userId);
-    Guid? ValidateEmailVerificationToken(string token);
+    string GenerateEmailVerificationToken(Guid userId, string? role = null);
+    EmailVerificationData? ValidateEmailVerificationToken(string token);
 }
 
 public interface ITotpService
