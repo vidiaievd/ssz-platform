@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import amqp from 'amqp-connection-manager';
 import type { ConfirmChannel, ConsumeMessage } from 'amqplib';
@@ -20,15 +21,25 @@ export class RabbitmqConsumerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly config: ConfigService<AppConfig>,
     private readonly prisma: PrismaService,
-    @Optional() @Inject(RABBITMQ_HANDLERS) handlers: IMessageHandler[] = [],
+    private readonly moduleRef: ModuleRef,
+    @Optional() @Inject(RABBITMQ_HANDLERS) private readonly injectedHandlers: IMessageHandler[] = [],
   ) {
     this.exchangeName = this.config.get<AppConfig['rabbitmq']>('rabbitmq')?.exchange ?? 'ssz.events';
-    for (const handler of handlers) {
-      this.handlerMap.set(handler.routingKey, handler);
-    }
   }
 
   onModuleInit(): void {
+    // Resolve handlers after all modules are initialized; fall back to constructor-injected list.
+    let handlers = this.injectedHandlers;
+    try {
+      const resolved = this.moduleRef.get<IMessageHandler[]>(RABBITMQ_HANDLERS, { strict: false });
+      if (Array.isArray(resolved) && resolved.length > 0) handlers = resolved;
+    } catch {
+      // token not registered — use injected list (may be empty)
+    }
+    for (const handler of handlers) {
+      this.handlerMap.set(handler.routingKey, handler);
+    }
+
     const url = this.config.get<AppConfig['rabbitmq']>('rabbitmq')?.url;
 
     if (!url) {

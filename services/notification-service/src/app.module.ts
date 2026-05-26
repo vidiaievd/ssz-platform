@@ -8,6 +8,11 @@ import { RabbitmqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { EmailModule } from './infrastructure/email/email.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { RABBITMQ_HANDLERS } from './infrastructure/messaging/message-handler.interface.js';
+import type { IMessageHandler } from './infrastructure/messaging/message-handler.interface.js';
+import { UserRegisteredHandler } from './modules/notifications/handlers/user-registered.handler.js';
+import { EmailVerificationHandler } from './modules/notifications/handlers/email-verification.handler.js';
+import { PasswordResetHandler } from './modules/notifications/handlers/password-reset.handler.js';
 
 @Module({
   imports: [
@@ -33,6 +38,13 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     EmailModule,
     HealthModule,
     NotificationsModule,
+  ],
+  providers: [
+    {
+      provide: RABBITMQ_HANDLERS,
+      useFactory: (h1: UserRegisteredHandler, h2: EmailVerificationHandler, h3: PasswordResetHandler): IMessageHandler[] => [h1, h2, h3],
+      inject: [UserRegisteredHandler, EmailVerificationHandler, PasswordResetHandler],
+    },
   ],
 })
 export class AppModule {}
