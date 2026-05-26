@@ -33,4 +33,10 @@ export class ProfileResponseDto {
 
   @ApiProperty()
   updatedAt: Date;
+
+  @ApiProperty({ description: 'Whether the user has completed student profile setup' })
+  hasStudentProfile: boolean;
+
+  @ApiProperty({ description: 'Whether the user has completed tutor profile setup' })
+  hasTutorProfile: boolean;
 }

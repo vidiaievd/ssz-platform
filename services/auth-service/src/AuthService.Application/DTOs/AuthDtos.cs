@@ -51,6 +51,12 @@ public sealed record AssignRoleRequest(
 public sealed record UserRolesResponse(
     string[] Roles);
 
+public sealed record CurrentUserResponse(
+    Guid UserId,
+    string Email,
+    string[] Roles,
+    bool EmailVerified);
+
 public sealed record ForgotPasswordRequest(
     string Email);
 

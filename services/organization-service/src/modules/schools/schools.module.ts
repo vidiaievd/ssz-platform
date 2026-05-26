@@ -18,6 +18,7 @@ import { AcceptInvitationHandler } from './application/commands/accept-invitatio
 
 import { GetSchoolHandler } from './application/queries/get-school/get-school.handler.js';
 import { ListMySchoolsHandler } from './application/queries/list-my-schools/list-my-schools.handler.js';
+import { CheckNameAvailableHandler } from './application/queries/check-name-available/check-name-available.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
@@ -36,6 +37,7 @@ const CommandHandlers = [
 const QueryHandlers = [
   GetSchoolHandler,
   ListMySchoolsHandler,
+  CheckNameAvailableHandler,
 ];
 
 @Module({

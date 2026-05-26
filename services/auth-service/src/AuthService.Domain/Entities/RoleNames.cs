@@ -4,6 +4,7 @@ public static class RoleNames
 {
     public const string Student         = "student";
     public const string Tutor           = "tutor";
+    public const string SchoolAdmin     = "school_admin";
     public const string PlatformAdmin   = "platform_admin";
     public const string ManagerPlatform = "manager_platform";
     public const string Premium         = "premium";
@@ -13,5 +14,6 @@ public static class RoleNames
         {
             Student,
             Tutor,
+            SchoolAdmin,
         };
 }

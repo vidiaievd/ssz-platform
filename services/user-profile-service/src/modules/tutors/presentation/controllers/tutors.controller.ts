@@ -18,6 +18,7 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
+import type { Proficiency } from '../../domain/value-objects/teaching-language.vo.js';
 import { AddTeachingLanguageCommand } from '../../application/commands/add-teaching-language/add-teaching-language.command.js';
 import { CreateTutorProfileCommand } from '../../application/commands/create-tutor-profile/create-tutor-profile.command.js';
 import { RemoveTeachingLanguageCommand } from '../../application/commands/remove-teaching-language/remove-teaching-language.command.js';
@@ -64,6 +65,10 @@ export class TutorsController {
         user.sub,
         dto.hourlyRate,
         dto.yearsOfExperience,
+        dto.teachingLanguages?.map((l) => ({
+          languageCode: l.code,
+          proficiency: l.proficiency as Proficiency,
+        })),
       ),
     );
     return { id };

@@ -1,11 +1,12 @@
 import { BaseEntity } from '../../../../shared/domain/base.entity.js';
 import { StudentProfileCompletedEvent } from '../events/student-profile-completed.event.js';
+import type { TargetLanguage } from '../value-objects/target-language.vo.js';
 
 export interface CreateStudentProfileProps {
   id: string;
   profileId: string;
   nativeLanguage?: string;
-  targetLanguages?: string[];
+  targetLanguages?: TargetLanguage[];
 }
 
 export interface RehydrateStudentProfileProps extends CreateStudentProfileProps {
@@ -16,13 +17,13 @@ export interface RehydrateStudentProfileProps extends CreateStudentProfileProps 
 export class StudentProfile extends BaseEntity {
   private _profileId: string;
   private _nativeLanguage: string | undefined;
-  private _targetLanguages: string[];
+  private _targetLanguages: TargetLanguage[];
 
   private constructor(
     id: string,
     profileId: string,
     nativeLanguage: string | undefined,
-    targetLanguages: string[],
+    targetLanguages: TargetLanguage[],
     createdAt: Date,
     updatedAt: Date,
   ) {
@@ -62,19 +63,19 @@ export class StudentProfile extends BaseEntity {
     );
   }
 
-  // Adds a language code if not already present. Returns true if added.
-  addTargetLanguage(code: string): boolean {
-    if (this._targetLanguages.includes(code)) {
+  // Adds a target language. Returns true if added, false if code already exists.
+  addTargetLanguage(lang: TargetLanguage): boolean {
+    if (this._targetLanguages.some((l) => l.languageCode === lang.languageCode)) {
       return false;
     }
-    this._targetLanguages.push(code);
+    this._targetLanguages.push(lang);
     this._updatedAt = new Date();
     return true;
   }
 
-  // Removes a language code. Returns true if removed, false if not found.
+  // Removes a target language by code. Returns true if removed, false if not found.
   removeTargetLanguage(code: string): boolean {
-    const idx = this._targetLanguages.indexOf(code);
+    const idx = this._targetLanguages.findIndex((l) => l.languageCode === code);
     if (idx === -1) {
       return false;
     }
@@ -89,7 +90,7 @@ export class StudentProfile extends BaseEntity {
   get nativeLanguage(): string | undefined {
     return this._nativeLanguage;
   }
-  get targetLanguages(): string[] {
+  get targetLanguages(): TargetLanguage[] {
     return [...this._targetLanguages];
   }
 }

@@ -33,7 +33,7 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
     private readonly tokenService: InvitationTokenService,
   ) {}
 
-  async execute(command: SendInvitationCommand): Promise<{ token: string }> {
+  async execute(command: SendInvitationCommand): Promise<{ invitationId: string; token: string; expiresAt: string; deliveryStatus: 'queued' }> {
     const school = await this.schoolRepository.findById(command.schoolId);
     if (!school) throw new SchoolNotFoundException(command.schoolId);
 
@@ -86,6 +86,6 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
       ),
     );
 
-    return { token };
+    return { invitationId, token, expiresAt: expiresAt.toISOString(), deliveryStatus: 'queued' };
   }
 }

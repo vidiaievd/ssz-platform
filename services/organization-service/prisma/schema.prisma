@@ -69,6 +69,48 @@ model SchoolInvitation {
   @@map("school_invitations")
 }
 
+model TutoringGroup {
+  id          String    @id @default(uuid())
+  tutorId     String    @unique  // one group per tutor
+  name        String?
+  description String?   @db.Text
+  avatarUrl   String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  students    TutoringStudent[]
+  invitations TutoringInvitation[]
+
+  @@map("tutoring_groups")
+}
+
+model TutoringStudent {
+  id           String        @id @default(uuid())
+  tutorGroupId String
+  tutorGroup   TutoringGroup @relation(fields: [tutorGroupId], references: [id])
+  userId       String
+  joinedAt     DateTime      @default(now())
+
+  @@unique([tutorGroupId, userId])
+  @@map("tutoring_students")
+}
+
+model TutoringInvitation {
+  id           String           @id @default(uuid())
+  tutorGroupId String
+  tutorGroup   TutoringGroup    @relation(fields: [tutorGroupId], references: [id])
+  email        String
+  token        String           @unique
+  status       InvitationStatus @default(PENDING)
+  expiresAt    DateTime
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@map("tutoring_invitations")
+}
+
 // Idempotency guard for RabbitMQ event consumers
 model ProcessedEvent {
   id          String   @id @default(uuid())

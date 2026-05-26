@@ -40,6 +40,7 @@ export class CreateTutorProfileHandler implements ICommandHandler<CreateTutorPro
         profileId: profile.id,
         hourlyRate: command.hourlyRate,
         yearsOfExperience: command.yearsOfExperience,
+        teachingLanguages: command.teachingLanguages,
       },
       randomUUID(),
     );
