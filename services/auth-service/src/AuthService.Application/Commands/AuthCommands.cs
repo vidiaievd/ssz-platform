@@ -410,7 +410,7 @@ public sealed class ResetPasswordCommandHandler(
 
 // ── Request email verification ────────────────────────────────────────────────
 
-public sealed record RequestEmailVerificationCommand(Guid UserId) : IRequest;
+public sealed record RequestEmailVerificationCommand(Guid UserId, string? Role = null) : IRequest;
 
 public sealed class RequestEmailVerificationCommandHandler(
     IUserRepository userRepository,
@@ -427,7 +427,7 @@ public sealed class RequestEmailVerificationCommandHandler(
         if (user.EmailVerified) return;
 
         var opts = authOptions.Value;
-        var token = tokenService.GenerateEmailVerificationToken(user.Id);
+        var token = tokenService.GenerateEmailVerificationToken(user.Id, command.Role);
         var verifyUrl = $"{opts.AppBaseUrl}/verify-email?token={Uri.EscapeDataString(token)}";
 
         await eventPublisher.PublishAsync(
@@ -442,28 +442,54 @@ public sealed class RequestEmailVerificationCommandHandler(
 
 // ── Verify email ──────────────────────────────────────────────────────────────
 
-public sealed record VerifyEmailCommand(string Token) : IRequest;
+public sealed record VerifyEmailCommand(string Token) : IRequest<AuthTokensResponse>;
 
 public sealed class VerifyEmailCommandHandler(
     IUserRepository userRepository,
+    IRoleRepository roleRepository,
     ITokenService tokenService,
     IDomainEventPublisher eventPublisher,
-    IUnitOfWork unitOfWork)
-    : IRequestHandler<VerifyEmailCommand>
+    IUnitOfWork unitOfWork,
+    IOptions<AuthOptions> authOptions)
+    : IRequestHandler<VerifyEmailCommand, AuthTokensResponse>
 {
-    public async Task Handle(VerifyEmailCommand command, CancellationToken ct)
+    public async Task<AuthTokensResponse> Handle(VerifyEmailCommand command, CancellationToken ct)
     {
-        var userId = tokenService.ValidateEmailVerificationToken(command.Token)
+        var data = tokenService.ValidateEmailVerificationToken(command.Token)
             ?? throw new InvalidTokenException();
 
-        var user = await userRepository.FindByIdAsync(userId, ct)
+        var user = await userRepository.FindByIdWithTokensAsync(data.UserId, ct)
             ?? throw new UserNotFoundException();
 
-        if (user.EmailVerified) return;
+        if (!user.EmailVerified)
+        {
+            user.VerifyEmail();
+            await eventPublisher.PublishAsync(new EmailVerifiedEvent(user.Id, user.Email), ct);
+        }
 
-        user.VerifyEmail();
+        var roles = await roleRepository.GetRoleNamesForUserAsync(user.Id, ct);
+        var opts = authOptions.Value;
+
+        var accessToken = tokenService.GenerateAccessToken(user.Id, user.Email, roles);
+        var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
+
+        user.RecordSuccessfulLogin();
+        var refreshToken = user.AddRefreshToken(
+            tokenHash,
+            familyId,
+            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime));
+
+        userRepository.AddRefreshToken(refreshToken);
         await unitOfWork.SaveChangesAsync(ct);
 
-        await eventPublisher.PublishAsync(new EmailVerifiedEvent(user.Id, user.Email), ct);
+        foreach (var evt in user.DomainEvents)
+            await eventPublisher.PublishAsync(evt, ct);
+        user.ClearDomainEvents();
+
+        return new AuthTokensResponse(
+            accessToken,
+            rawRefreshToken,
+            DateTimeOffset.UtcNow.Add(opts.AccessTokenLifetime),
+            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime));
     }
 }

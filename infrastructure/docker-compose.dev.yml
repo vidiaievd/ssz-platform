@@ -65,8 +65,8 @@ services:
 
   user-profile-service:
     build:
-      context: ../services/user-profile-service
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: services/user-profile-service/Dockerfile
     environment:
       NODE_ENV: development
       PORT: 3001
@@ -114,8 +114,8 @@ services:
 
   content-service:
     build:
-      context: ../services/content-service
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: services/content-service/Dockerfile
     environment:
       NODE_ENV: development
       PORT: 3003
@@ -190,6 +190,7 @@ services:
       PORT: 3005
       DATABASE_URL: postgresql://notifications_service:${NOTIFICATIONS_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/notifications_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: notification.events
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -229,7 +230,7 @@ services:
       PORT: 3006
       DATABASE_URL: postgresql://exercise_engine_service:${EXERCISE_ENGINE_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/exercises_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
-      RABBITMQ_EXCHANGE: ssz.events
+      RABBITMQ_EXCHANGE: exercise-engine.events
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-localdevpassword}

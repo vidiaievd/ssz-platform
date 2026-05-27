@@ -18,7 +18,7 @@ public sealed class RegisterUserCommandHandler(
     IPasswordHasher passwordHasher,
     IDomainEventPublisher eventPublisher,
     IUnitOfWork unitOfWork,
-    ISender mediator)
+    IServiceScopeFactory scopeFactory)
     : IRequestHandler<RegisterUserCommand, RegisterResponse>
 {
     public async Task<RegisterResponse> Handle(
@@ -80,8 +80,16 @@ public sealed class RegisterUserCommandHandler(
             user.ClearDomainEvents();
         }
 
-        // Fire-and-forget email verification — non-fatal if it fails
-        _ = mediator.Send(new RequestEmailVerificationCommand(user.Id), ct);
+        // Fire-and-forget in a new DI scope so that the HTTP request scope disposal
+        // does not cause ObjectDisposedException on repository/mediator dependencies.
+        var userId = user.Id;
+        var registrationRole = command.Role;
+        _ = Task.Run(async () =>
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var sender = scope.ServiceProvider.GetRequiredService<ISender>();
+            await sender.Send(new RequestEmailVerificationCommand(userId, registrationRole));
+        });
 
         return new RegisterResponse(user.Id, user.Email);
     }
