@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
@@ -22,9 +23,11 @@ import type { Proficiency } from '../../domain/value-objects/teaching-language.v
 import { AddTeachingLanguageCommand } from '../../application/commands/add-teaching-language/add-teaching-language.command.js';
 import { CreateTutorProfileCommand } from '../../application/commands/create-tutor-profile/create-tutor-profile.command.js';
 import { RemoveTeachingLanguageCommand } from '../../application/commands/remove-teaching-language/remove-teaching-language.command.js';
+import { UpdateTutorProfileCommand } from '../../application/commands/update-tutor-profile/update-tutor-profile.command.js';
 import { GetTutorProfileQuery } from '../../application/queries/get-tutor-profile/get-tutor-profile.query.js';
 import { AddTeachingLanguageRequestDto } from '../dto/add-teaching-language.request.dto.js';
 import { CreateTutorProfileRequestDto } from '../dto/create-tutor-profile.request.dto.js';
+import { UpdateTutorProfileRequestDto } from '../dto/update-tutor-profile.request.dto.js';
 import { TutorProfileResponseDto } from '../dto/tutor-profile.response.dto.js';
 
 @ApiTags('tutor-profiles')
@@ -72,6 +75,25 @@ export class TutorsController {
       ),
     );
     return { id };
+  }
+
+  @Patch()
+  @ApiOperation({ summary: 'Update my tutor profile' })
+  @ApiResponse({ status: 200, type: TutorProfileResponseDto })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Tutor profile not found' })
+  async updateMyTutorProfile(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdateTutorProfileRequestDto,
+  ): Promise<TutorProfileResponseDto> {
+    await this.commandBus.execute(
+      new UpdateTutorProfileCommand(
+        user.sub,
+        dto.hourlyRate,
+        dto.yearsOfExperience,
+      ),
+    );
+    return this.queryBus.execute(new GetTutorProfileQuery(user.sub));
   }
 
   @Post('languages')
