@@ -1,5 +1,29 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { MemberRole } from "../../domain/value-objects/member-role.vo.js";
+import { InvitationStatus } from "../../domain/value-objects/invitation-status.vo.js";
+
+export class InvitationResponseDto {
+  @ApiProperty({ description: 'Invitation UUID' })
+  id!: string;
+
+  @ApiProperty({ description: 'School UUID' })
+  schoolId!: string;
+
+  @ApiProperty({ description: 'Invitee email address' })
+  email!: string;
+
+  @ApiProperty({ enum: MemberRole, description: 'Role assigned on acceptance' })
+  role!: MemberRole;
+
+  @ApiProperty({ enum: InvitationStatus, description: 'Current invitation status' })
+  status!: InvitationStatus;
+
+  @ApiProperty({ description: 'Invitation expiry (ISO 8601)' })
+  expiresAt!: string;
+
+  @ApiProperty({ description: 'Creation timestamp (ISO 8601)' })
+  createdAt!: string;
+}
 
 export class SchoolMemberResponseDto {
   @ApiProperty() id!: string;
