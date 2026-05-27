@@ -34,7 +34,7 @@ export class ProfilePrismaRepository implements IProfileRepository {
         avatarUrl: data.avatarUrl,
         bio: data.bio,
         timezone: data.timezone,
-        locale: data.locale,
+        uiLocale: data.uiLocale,
         deletedAt: data.deletedAt,
       },
     });

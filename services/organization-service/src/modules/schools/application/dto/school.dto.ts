@@ -10,9 +10,13 @@ export interface SchoolMemberDto {
 export interface SchoolDto {
   id: string;
   name: string;
+  slug: string;
   description?: string;
   ownerId: string;
   avatarUrl?: string;
+  website?: string;
+  contactEmail?: string;
+  city?: string;
   isActive: boolean;
   requireTutorReviewForSelfPaced: boolean;
   defaultExplanationLanguage?: string;
@@ -24,9 +28,13 @@ export interface SchoolDto {
 export interface SchoolSummaryDto {
   id: string;
   name: string;
+  slug: string;
   description?: string;
   ownerId: string;
   avatarUrl?: string;
+  website?: string;
+  contactEmail?: string;
+  city?: string;
   memberCount: number;
   createdAt: Date;
 }

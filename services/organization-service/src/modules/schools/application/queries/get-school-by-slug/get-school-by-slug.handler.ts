@@ -1,6 +1,6 @@
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
-import { GetSchoolQuery } from './get-school.query.js';
+import { GetSchoolBySlugQuery } from './get-school-by-slug.query.js';
 import {
   SCHOOL_REPOSITORY,
   type ISchoolRepository,
@@ -9,15 +9,15 @@ import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-f
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import type { SchoolDto } from '../../dto/school.dto.js';
 
-@QueryHandler(GetSchoolQuery)
-export class GetSchoolHandler implements IQueryHandler<GetSchoolQuery> {
+@QueryHandler(GetSchoolBySlugQuery)
+export class GetSchoolBySlugHandler implements IQueryHandler<GetSchoolBySlugQuery> {
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
   ) {}
 
-  async execute(query: GetSchoolQuery): Promise<SchoolDto> {
-    const school = await this.schoolRepository.findById(query.schoolId);
-    if (!school || school.isDeleted) throw new SchoolNotFoundException(query.schoolId);
+  async execute(query: GetSchoolBySlugQuery): Promise<SchoolDto> {
+    const school = await this.schoolRepository.findBySlug(query.slug);
+    if (!school || school.isDeleted) throw new SchoolNotFoundException(query.slug);
 
     if (!school.isMember(query.actorId) && school.ownerId !== query.actorId) {
       throw new ForbiddenOperationException('You are not a member of this school');

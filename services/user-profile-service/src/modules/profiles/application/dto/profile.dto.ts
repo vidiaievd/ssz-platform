@@ -9,7 +9,7 @@ export class ProfileDto {
   avatarUrl?: string;
   bio?: string;
   timezone: string;
-  locale: string;
+  uiLocale: string;
   createdAt: Date;
   updatedAt: Date;
   hasStudentProfile: boolean;

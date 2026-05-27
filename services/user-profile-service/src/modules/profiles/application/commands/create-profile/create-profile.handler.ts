@@ -32,7 +32,7 @@ export class CreateProfileHandler implements ICommandHandler<CreateProfileComman
         firstName: command.firstName,
         lastName: command.lastName,
         timezone: command.timezone,
-        locale: command.locale,
+        uiLocale: command.uiLocale,
       },
       randomUUID(),
     );
