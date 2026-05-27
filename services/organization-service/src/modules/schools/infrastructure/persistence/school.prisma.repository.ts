@@ -18,6 +18,14 @@ export class SchoolPrismaRepository implements ISchoolRepository {
     return raw ? SchoolMapper.toDomain(raw) : null;
   }
 
+  async findBySlug(slug: string): Promise<School | null> {
+    const raw = await (this.prisma as any).school.findFirst({
+      where: { slug, deletedAt: null },
+      include: INCLUDE_MEMBERS,
+    });
+    return raw ? SchoolMapper.toDomain(raw) : null;
+  }
+
   async findByName(name: string): Promise<School | null> {
     const raw = await (this.prisma as any).school.findFirst({
       where: { name, deletedAt: null },
@@ -54,9 +62,13 @@ export class SchoolPrismaRepository implements ISchoolRepository {
         create: {
           id: school.id,
           name: school.name,
+          slug: school.slug,
           description: school.description ?? null,
           ownerId: school.ownerId,
           avatarUrl: school.avatarUrl ?? null,
+          website: school.website ?? null,
+          contactEmail: school.contactEmail ?? null,
+          city: school.city ?? null,
           isActive: school.isActive,
           requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
           defaultExplanationLanguage: school.defaultExplanationLanguage ?? null,
@@ -66,8 +78,12 @@ export class SchoolPrismaRepository implements ISchoolRepository {
         },
         update: {
           name: school.name,
+          slug: school.slug,
           description: school.description ?? null,
           avatarUrl: school.avatarUrl ?? null,
+          website: school.website ?? null,
+          contactEmail: school.contactEmail ?? null,
+          city: school.city ?? null,
           isActive: school.isActive,
           requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
           defaultExplanationLanguage: school.defaultExplanationLanguage ?? null,

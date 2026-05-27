@@ -17,8 +17,10 @@ import { SendInvitationHandler } from './application/commands/send-invitation/se
 import { AcceptInvitationHandler } from './application/commands/accept-invitation/accept-invitation.handler.js';
 
 import { GetSchoolHandler } from './application/queries/get-school/get-school.handler.js';
+import { GetSchoolBySlugHandler } from './application/queries/get-school-by-slug/get-school-by-slug.handler.js';
 import { ListMySchoolsHandler } from './application/queries/list-my-schools/list-my-schools.handler.js';
 import { CheckNameAvailableHandler } from './application/queries/check-name-available/check-name-available.handler.js';
+import { CheckSlugAvailableHandler } from './application/queries/check-slug-available/check-slug-available.handler.js';
 import { ListSchoolInvitationsHandler } from './application/queries/list-school-invitations/list-school-invitations.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
@@ -37,8 +39,10 @@ const CommandHandlers = [
 
 const QueryHandlers = [
   GetSchoolHandler,
+  GetSchoolBySlugHandler,
   ListMySchoolsHandler,
   CheckNameAvailableHandler,
+  CheckSlugAvailableHandler,
   ListSchoolInvitationsHandler,
 ];
 

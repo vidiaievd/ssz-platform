@@ -16,7 +16,7 @@ model Profile {
   avatarUrl   String?
   bio         String?   @db.Text
   timezone    String    @default("UTC")
-  locale      String    @default("en")
+  uiLocale    String    @default("en") @map("locale")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?

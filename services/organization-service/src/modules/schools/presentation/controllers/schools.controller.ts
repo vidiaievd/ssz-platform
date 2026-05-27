@@ -22,6 +22,8 @@ import { CurrentUser } from '../../../../common/decorators/current-user.decorato
 import { Roles } from '../../../../common/decorators/roles.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { CheckNameAvailableQuery } from '../../application/queries/check-name-available/check-name-available.query.js';
+import { CheckSlugAvailableQuery } from '../../application/queries/check-slug-available/check-slug-available.query.js';
+import { GetSchoolBySlugQuery } from '../../application/queries/get-school-by-slug/get-school-by-slug.query.js';
 import { CreateSchoolCommand } from '../../application/commands/create-school/create-school.command.js';
 import { UpdateSchoolCommand } from '../../application/commands/update-school/update-school.command.js';
 import { DeleteSchoolCommand } from '../../application/commands/delete-school/delete-school.command.js';
@@ -33,9 +35,9 @@ import { CreateSchoolRequestDto } from '../dto/create-school.request.dto.js';
 import { UpdateSchoolRequestDto } from '../dto/update-school.request.dto.js';
 import { AddMemberRequestDto } from '../dto/add-member.request.dto.js';
 import {
-  CreateSchoolResponseDto,
   SchoolResponseDto,
   SchoolSummaryResponseDto,
+  SlugAvailabilityResponseDto,
 } from '../dto/school.response.dto.js';
 
 @ApiTags('Schools')
@@ -50,14 +52,24 @@ export class SchoolsController {
   @Post()
   @Roles('school_admin')
   @ApiOperation({ summary: 'Create a new school' })
-  @ApiResponse({ status: 201, type: CreateSchoolResponseDto })
+  @ApiResponse({ status: 201, type: SchoolResponseDto })
   @ApiResponse({ status: 403, description: 'Requires school_admin platform role' })
+  @ApiResponse({ status: 409, description: 'Name or slug already taken' })
   async createSchool(
     @CurrentUser() user: JwtPayload,
     @Body() dto: CreateSchoolRequestDto,
-  ): Promise<CreateSchoolResponseDto> {
+  ): Promise<SchoolResponseDto> {
     return this.commandBus.execute(
-      new CreateSchoolCommand(user.sub, dto.name, dto.description, dto.avatarUrl),
+      new CreateSchoolCommand(
+        user.sub,
+        dto.name,
+        dto.slug,
+        dto.description,
+        dto.avatarUrl,
+        dto.website,
+        dto.contactEmail,
+        dto.city,
+      ),
     );
   }
 
@@ -79,6 +91,27 @@ export class SchoolsController {
     return this.queryBus.execute(new CheckNameAvailableQuery(name));
   }
 
+  @Get('slug-available')
+  @ApiOperation({ summary: 'Check whether a school slug is available' })
+  @ApiResponse({ status: 200, type: SlugAvailabilityResponseDto })
+  async checkSlugAvailable(
+    @Query('slug') slug: string,
+  ): Promise<SlugAvailabilityResponseDto> {
+    return this.queryBus.execute(new CheckSlugAvailableQuery(slug));
+  }
+
+  @Get('by-slug/:slug')
+  @ApiOperation({ summary: 'Get school by URL slug (members only)' })
+  @ApiResponse({ status: 200, type: SchoolResponseDto })
+  @ApiResponse({ status: 403, description: 'Not a member' })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async getSchoolBySlug(
+    @CurrentUser() user: JwtPayload,
+    @Param('slug') slug: string,
+  ): Promise<SchoolResponseDto> {
+    return this.queryBus.execute(new GetSchoolBySlugQuery(slug, user.sub));
+  }
+
   @Get(':schoolId')
   @ApiOperation({ summary: 'Get school details (members only)' })
   @ApiResponse({ status: 200, type: SchoolResponseDto })
@@ -97,6 +130,7 @@ export class SchoolsController {
   @ApiResponse({ status: 204 })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'School not found' })
+  @ApiResponse({ status: 409, description: 'Slug already taken' })
   async updateSchool(
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,
@@ -107,8 +141,12 @@ export class SchoolsController {
         user.sub,
         schoolId,
         dto.name,
+        dto.slug,
         dto.description,
         dto.avatarUrl,
+        dto.website,
+        dto.contactEmail,
+        dto.city,
         dto.requireTutorReviewForSelfPaced,
         dto.defaultExplanationLanguage,
       ),

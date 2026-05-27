@@ -31,7 +31,7 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
         avatarUrl: command.avatarUrl,
         bio: command.bio,
         timezone: command.timezone,
-        locale: command.locale,
+        uiLocale: command.uiLocale,
       },
       randomUUID(),
     );
