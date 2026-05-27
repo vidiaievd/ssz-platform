@@ -5,6 +5,6 @@ export class CreateProfileCommand {
     readonly firstName?: string,
     readonly lastName?: string,
     readonly timezone?: string,
-    readonly locale?: string,
+    readonly uiLocale?: string,
   ) {}
 }

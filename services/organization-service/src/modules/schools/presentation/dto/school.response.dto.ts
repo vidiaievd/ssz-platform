@@ -35,9 +35,13 @@ export class SchoolMemberResponseDto {
 export class SchoolResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() name!: string;
+  @ApiProperty() slug!: string;
   @ApiPropertyOptional() description?: string;
   @ApiProperty() ownerId!: string;
   @ApiPropertyOptional() avatarUrl?: string;
+  @ApiPropertyOptional() website?: string;
+  @ApiPropertyOptional() contactEmail?: string;
+  @ApiPropertyOptional() city?: string;
   @ApiProperty() isActive!: boolean;
   @ApiProperty({ default: false }) requireTutorReviewForSelfPaced!: boolean;
   @ApiPropertyOptional() defaultExplanationLanguage?: string;
@@ -50,15 +54,15 @@ export class SchoolResponseDto {
 export class SchoolSummaryResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() name!: string;
+  @ApiProperty() slug!: string;
   @ApiPropertyOptional() description?: string;
   @ApiProperty() ownerId!: string;
   @ApiPropertyOptional() avatarUrl?: string;
+  @ApiPropertyOptional() website?: string;
+  @ApiPropertyOptional() contactEmail?: string;
+  @ApiPropertyOptional() city?: string;
   @ApiProperty() memberCount!: number;
   @ApiProperty() createdAt!: Date;
-}
-
-export class CreateSchoolResponseDto {
-  @ApiProperty() id!: string;
 }
 
 export class SendInvitationResponseDto {
@@ -76,4 +80,10 @@ export class SendInvitationResponseDto {
     enum: ['queued'],
   })
   deliveryStatus!: 'queued';
+}
+
+export class SlugAvailabilityResponseDto {
+  @ApiProperty({ example: true }) available!: boolean;
+  @ApiPropertyOptional({ type: [String], example: ['my-school-2', 'my-school-3'] })
+  suggestions?: string[];
 }
