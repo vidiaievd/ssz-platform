@@ -63,9 +63,19 @@ export class StudentProfile extends BaseEntity {
     );
   }
 
+  // Updates mutable scalar fields. Pass undefined to leave a field unchanged.
+  update(nativeLanguage?: string): void {
+    if (nativeLanguage !== undefined) {
+      this._nativeLanguage = nativeLanguage;
+    }
+    this._updatedAt = new Date();
+  }
+
   // Adds a target language. Returns true if added, false if code already exists.
   addTargetLanguage(lang: TargetLanguage): boolean {
-    if (this._targetLanguages.some((l) => l.languageCode === lang.languageCode)) {
+    if (
+      this._targetLanguages.some((l) => l.languageCode === lang.languageCode)
+    ) {
       return false;
     }
     this._targetLanguages.push(lang);

@@ -5,6 +5,7 @@ import { ProfilePrismaRepository } from '../profiles/infrastructure/persistence/
 import { AddTargetLanguageHandler } from './application/commands/add-target-language/add-target-language.handler.js';
 import { CreateStudentProfileHandler } from './application/commands/create-student-profile/create-student-profile.handler.js';
 import { RemoveTargetLanguageHandler } from './application/commands/remove-target-language/remove-target-language.handler.js';
+import { UpdateStudentProfileHandler } from './application/commands/update-student-profile/update-student-profile.handler.js';
 import { GetStudentProfileHandler } from './application/queries/get-student-profile/get-student-profile.handler.js';
 import { STUDENT_PROFILE_REPOSITORY } from './domain/repositories/student-profile.repository.interface.js';
 import { StudentProfilePrismaRepository } from './infrastructure/persistence/student-profile.prisma.repository.js';
@@ -12,6 +13,7 @@ import { StudentsController } from './presentation/controllers/students.controll
 
 const CommandHandlers = [
   CreateStudentProfileHandler,
+  UpdateStudentProfileHandler,
   AddTargetLanguageHandler,
   RemoveTargetLanguageHandler,
 ];

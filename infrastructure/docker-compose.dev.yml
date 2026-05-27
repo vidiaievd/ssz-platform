@@ -137,7 +137,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3003/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3003/api/v1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -175,7 +175,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3004/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3004/api/v1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -215,7 +215,7 @@ services:
       mailhog:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3005/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3005/api/v1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
