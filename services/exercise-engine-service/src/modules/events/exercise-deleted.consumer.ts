@@ -7,6 +7,7 @@ import { ExerciseDefinitionCache } from '../../infrastructure/cache/exercise-def
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { ATTEMPT_REPOSITORY, type IAttemptRepository } from '../attempts/domain/repositories/attempt.repository.js';
 import type { ExerciseDeletedPayload } from '@ssz/contracts';
+import { EXCHANGES } from '@ssz/contracts';
 
 interface EventEnvelope<T> {
   eventId: string;
@@ -32,7 +33,7 @@ export class ExerciseDeletedConsumer implements OnModuleInit, OnModuleDestroy {
     @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
   ) {
     const rabbitmqConfig = this.config.get<AppConfig['rabbitmq']>('rabbitmq');
-    this.exchangeName = rabbitmqConfig?.exchange ?? 'ssz.events';
+    this.exchangeName = EXCHANGES.CONTENT;
   }
 
   onModuleInit(): void {
