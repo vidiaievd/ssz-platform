@@ -1,5 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsUrl, MinLength, MaxLength, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsUrl,
+  IsEmail,
+  MinLength,
+  MaxLength,
+  IsBoolean,
+  Matches,
+} from 'class-validator';
 
 export class UpdateSchoolRequestDto {
   @ApiPropertyOptional({ example: 'New School Name' })
@@ -8,6 +17,19 @@ export class UpdateSchoolRequestDto {
   @MinLength(2)
   @MaxLength(100)
   name?: string;
+
+  @ApiPropertyOptional({
+    example: 'new-school-name',
+    description: 'URL slug (3–60 chars, a-z0-9 and hyphens). Changing it breaks old links — warn the user.',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(60)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: 'slug must be lowercase alphanumeric with hyphens only',
+  })
+  slug?: string;
 
   @ApiPropertyOptional({ example: 'Updated description' })
   @IsOptional()
@@ -19,6 +41,22 @@ export class UpdateSchoolRequestDto {
   @IsOptional()
   @IsUrl()
   avatarUrl?: string;
+
+  @ApiPropertyOptional({ example: 'https://new-school.ua' })
+  @IsOptional()
+  @IsUrl()
+  website?: string;
+
+  @ApiPropertyOptional({ example: 'info@new-school.ua' })
+  @IsOptional()
+  @IsEmail()
+  contactEmail?: string;
+
+  @ApiPropertyOptional({ example: 'Lviv' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string;
 
   @ApiPropertyOptional({
     example: false,

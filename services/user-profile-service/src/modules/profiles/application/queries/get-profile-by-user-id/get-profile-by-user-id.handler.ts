@@ -44,7 +44,7 @@ export class GetProfileByUserIdHandler implements IQueryHandler<
     dto.avatarUrl = profile.avatarUrl;
     dto.bio = profile.bio;
     dto.timezone = profile.timezone;
-    dto.locale = profile.locale;
+    dto.uiLocale = profile.uiLocale;
     dto.createdAt = profile.createdAt;
     dto.updatedAt = profile.updatedAt;
     dto.hasStudentProfile = studentProfile !== null;

@@ -31,9 +31,13 @@ export class ListMySchoolsHandler implements IQueryHandler<ListMySchoolsQuery> {
     return all.map((s) => ({
       id: s.id,
       name: s.name,
+      slug: s.slug,
       description: s.description,
       ownerId: s.ownerId,
       avatarUrl: s.avatarUrl,
+      website: s.website,
+      contactEmail: s.contactEmail,
+      city: s.city,
       memberCount: s.members.length,
       createdAt: s.createdAt,
     }));
