@@ -13,7 +13,7 @@ export const envSchema = z.object({
 
   // RabbitMQ
   RABBITMQ_URL: z.string().optional(),
-  RABBITMQ_EXCHANGE: z.string().default('ssz.events'),
+  RABBITMQ_EXCHANGE: z.string().default('content.events'),
 
   // Redis
   REDIS_HOST: z.string().default('localhost'),

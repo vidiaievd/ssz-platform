@@ -8,6 +8,7 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service.j
 import { CONTENT_CLIENT, type IContentClient } from '../../../shared/application/ports/content-client.port.js';
 import { BulkIntroduceFromVocabularyListCommand } from '../../srs/application/commands/bulk-introduce-from-vocabulary-list.command.js';
 import type { EnrollmentCreatedPayload } from '@ssz/contracts';
+import { EXCHANGES } from '@ssz/contracts';
 
 interface EventEnvelope {
   eventId: string;
@@ -38,7 +39,7 @@ export class VocabularyEnrollmentConsumer implements OnModuleInit, OnModuleDestr
       this.logger.warn('RABBITMQ_URL not configured — VocabularyEnrollmentConsumer disabled');
       return;
     }
-    const exchange = rabbitmqCfg?.exchange ?? 'ssz.events';
+    const exchange = EXCHANGES.LEARNING;
 
     this.connection = amqp.connect([url]);
     this.connection.on('connect', () => this.logger.log('RabbitMQ connected'));

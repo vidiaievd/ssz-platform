@@ -5,6 +5,7 @@ import type { ConfirmChannel, ConsumeMessage } from 'amqplib';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import type { ContainerPublishedPayload } from '@ssz/contracts';
+import { EXCHANGES } from '@ssz/contracts';
 import {
   CONTAINER_ITEM_LIST_CACHE,
   type IContainerItemListCache,
@@ -38,7 +39,7 @@ export class ContainerPublishedConsumer implements OnModuleInit, OnModuleDestroy
       this.logger.warn('RABBITMQ_URL not configured — ContainerPublishedConsumer disabled');
       return;
     }
-    const exchange = rabbitmqCfg?.exchange ?? 'ssz.events';
+    const exchange = EXCHANGES.CONTENT;
 
     this.connection = amqp.connect([url]);
     this.connection.on('connect', () => this.logger.log('RabbitMQ connected'));

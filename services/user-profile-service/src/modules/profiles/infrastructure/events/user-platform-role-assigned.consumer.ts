@@ -12,6 +12,7 @@ import type { IProcessedEventsRepository } from '../../../../shared/application/
 import { PROCESSED_EVENTS_REPOSITORY } from '../../../../shared/application/ports/processed-events.repository.interface.js';
 import { CreateTutorProfileCommand } from '../../../tutors/application/commands/create-tutor-profile/create-tutor-profile.command.js';
 import { TutorProfileAlreadyExistsException } from '../../../tutors/domain/exceptions/tutor-profile-already-exists.exception.js';
+import { EXCHANGES } from '@ssz/contracts';
 
 interface UserPlatformRoleAssignedPayload {
   userId: string;
@@ -27,7 +28,7 @@ interface UserPlatformRoleAssignedEnvelope {
   payload: UserPlatformRoleAssignedPayload;
 }
 
-const EXCHANGE = 'organization.events';
+const EXCHANGE = EXCHANGES.ORGANIZATION;
 const EXCHANGE_TYPE = 'topic';
 const QUEUE = 'user_profile_service_platform_role_queue';
 const ROUTING_KEY = 'user.platform.role.assigned';

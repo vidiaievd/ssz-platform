@@ -8,7 +8,7 @@ export const envSchema = z.object({
   DATABASE_URL: z.string().optional(),
 
   RABBITMQ_URL: z.string().optional(),
-  RABBITMQ_EXCHANGE: z.string().default('ssz.events'),
+  RABBITMQ_EXCHANGE: z.string().default('media.events'),
 
   // Redis — shared for BullMQ queues and cache
   REDIS_HOST: z.string().default('localhost'),
