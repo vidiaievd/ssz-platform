@@ -13,26 +13,27 @@ import { PROCESSED_EVENTS_REPOSITORY } from '../../../../shared/application/port
 import { CreateProfileCommand } from '../../application/commands/create-profile/create-profile.command.js';
 import { CreateStudentProfileCommand } from '../../../students/application/commands/create-student-profile/create-student-profile.command.js';
 import { CreateTutorProfileCommand } from '../../../tutors/application/commands/create-tutor-profile/create-tutor-profile.command.js';
+import { EXCHANGES } from '@ssz/contracts';
 
-// Envelope shape published by Auth Service (snake_case JSON)
+// Envelope shape published by Auth Service (camelCase JSON via JsonNamingPolicy.CamelCase)
 interface UserRegisteredPayload {
-  user_id: string;
+  userId: string;
   email: string;
   roles?: string[]; // v2 — array of lowercase role names
   role?: string; // v1 — kept for backward compatibility
 }
 
 interface UserRegisteredEnvelope {
-  event_id: string;
-  event_type: string;
-  routing_key: string;
-  occurred_at: string;
+  eventId: string;
+  eventType: string;
+  routingKey: string;
+  occurredAt: string;
   version: number;
   source: string;
   payload: UserRegisteredPayload;
 }
 
-const EXCHANGE = 'auth.events';
+const EXCHANGE = EXCHANGES.AUTH;
 const EXCHANGE_TYPE = 'topic';
 const QUEUE = 'user_profile_service_queue';
 const ROUTING_KEY = 'auth.user.registered';
@@ -88,15 +89,15 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
               return;
             }
 
-            if (await this.processedEvents.isProcessed(data.event_id)) {
-              this.logger.warn(`Duplicate event ignored: ${data.event_id}`);
+            if (await this.processedEvents.isProcessed(data.eventId)) {
+              this.logger.warn(`Duplicate event ignored: ${data.eventId}`);
               channel.ack(msg);
               return;
             }
 
             try {
               this.logger.log(
-                `Processing user.registered for userId: ${data.payload.user_id}`,
+                `Processing user.registered for userId: ${data.payload.userId}`,
               );
 
               // Support both v2 (roles array) and v1 (single role) formats
@@ -108,24 +109,21 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
               // Always create the base profile
               await this.commandBus.execute(
                 new CreateProfileCommand(
-                  data.payload.user_id,
+                  data.payload.userId,
                   data.payload.email.split('@')[0],
                 ),
               );
 
               // Student is always present per ROLES.md — every registered user gets a StudentProfile
               await this.commandBus.execute(
-                new CreateStudentProfileCommand(
-                  data.payload.user_id,
-                  undefined,
-                ),
+                new CreateStudentProfileCommand(data.payload.userId, undefined),
               );
 
               // Create TutorProfile only if user registered with tutor role
               if (normalizedRoles.includes('tutor')) {
                 await this.commandBus.execute(
                   new CreateTutorProfileCommand(
-                    data.payload.user_id,
+                    data.payload.userId,
                     undefined,
                     undefined,
                   ),
@@ -133,17 +131,17 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
               }
 
               await this.processedEvents.markProcessed(
-                data.event_id,
-                data.event_type,
+                data.eventId,
+                data.eventType,
               );
               channel.ack(msg);
 
               this.logger.log(
-                `Profiles created for userId: ${data.payload.user_id} with roles: [${normalizedRoles.join(', ')}]`,
+                `Profiles created for userId: ${data.payload.userId} with roles: [${normalizedRoles.join(', ')}]`,
               );
             } catch (err) {
               this.logger.error(
-                `Failed to process event ${data.event_id}: ${err instanceof Error ? err.message : String(err)}`,
+                `Failed to process event ${data.eventId}: ${err instanceof Error ? err.message : String(err)}`,
               );
               channel.nack(msg, false, false);
             }

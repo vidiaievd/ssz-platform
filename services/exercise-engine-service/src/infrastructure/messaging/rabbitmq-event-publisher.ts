@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import type { AppConfig } from '../../config/configuration.js';
 import type { IEventPublisher } from '../../shared/application/ports/event-publisher.port.js';
 import type { BaseEvent } from '@ssz/contracts';
+import { EXCHANGES } from '@ssz/contracts';
 
 @Injectable()
 export class RabbitmqEventPublisher implements IEventPublisher, OnModuleInit, OnModuleDestroy {
@@ -14,14 +15,14 @@ export class RabbitmqEventPublisher implements IEventPublisher, OnModuleInit, On
   private connection: ReturnType<typeof amqp.connect> | null = null;
   private channelWrapper: ReturnType<ReturnType<typeof amqp.connect>['createChannel']> | null =
     null;
-  private exchangeName: string = 'ssz.events';
+  private exchangeName: string = EXCHANGES.EXERCISE_ENGINE;
 
   constructor(private readonly config: ConfigService<AppConfig>) {}
 
   onModuleInit(): void {
     const rabbitmqConfig = this.config.get<AppConfig['rabbitmq']>('rabbitmq');
     const url = rabbitmqConfig?.url;
-    this.exchangeName = rabbitmqConfig?.exchange ?? 'ssz.events';
+    this.exchangeName = rabbitmqConfig?.exchange ?? EXCHANGES.EXERCISE_ENGINE;
 
     if (!url) {
       this.logger.warn('RABBITMQ_URL is not configured — event publishing disabled');
