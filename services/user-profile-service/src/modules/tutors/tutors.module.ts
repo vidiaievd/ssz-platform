@@ -5,6 +5,7 @@ import { ProfilePrismaRepository } from '../profiles/infrastructure/persistence/
 import { AddTeachingLanguageHandler } from './application/commands/add-teaching-language/add-teaching-language.handler.js';
 import { CreateTutorProfileHandler } from './application/commands/create-tutor-profile/create-tutor-profile.handler.js';
 import { RemoveTeachingLanguageHandler } from './application/commands/remove-teaching-language/remove-teaching-language.handler.js';
+import { UpdateTutorProfileHandler } from './application/commands/update-tutor-profile/update-tutor-profile.handler.js';
 import { GetTutorProfileHandler } from './application/queries/get-tutor-profile/get-tutor-profile.handler.js';
 import { ListTutorsHandler } from './application/queries/list-tutors/list-tutors.handler.js';
 import { TUTOR_PROFILE_REPOSITORY } from './domain/repositories/tutor-profile.repository.interface.js';
@@ -13,6 +14,7 @@ import { TutorsController } from './presentation/controllers/tutors.controller.j
 
 const CommandHandlers = [
   CreateTutorProfileHandler,
+  UpdateTutorProfileHandler,
   AddTeachingLanguageHandler,
   RemoveTeachingLanguageHandler,
 ];

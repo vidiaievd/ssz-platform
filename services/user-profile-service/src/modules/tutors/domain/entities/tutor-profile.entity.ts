@@ -66,6 +66,17 @@ export class TutorProfile extends BaseEntity {
     );
   }
 
+  // Updates mutable scalar fields. Pass undefined to leave a field unchanged.
+  update(hourlyRate?: number, yearsOfExperience?: number): void {
+    if (hourlyRate !== undefined) {
+      this._hourlyRate = hourlyRate;
+    }
+    if (yearsOfExperience !== undefined) {
+      this._yearsOfExperience = yearsOfExperience;
+    }
+    this._updatedAt = new Date();
+  }
+
   // Adds a teaching language. Returns false if the language code already exists.
   addTeachingLanguage(lang: TeachingLanguage): boolean {
     if (
