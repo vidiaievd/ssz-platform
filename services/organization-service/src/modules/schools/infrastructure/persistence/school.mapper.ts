@@ -12,9 +12,13 @@ type PrismaSchoolMember = {
 type PrismaSchool = {
   id: string;
   name: string;
+  slug: string;
   description: string | null;
   ownerId: string;
   avatarUrl: string | null;
+  website: string | null;
+  contactEmail: string | null;
+  city: string | null;
   isActive: boolean;
   requireTutorReviewForSelfPaced: boolean;
   defaultExplanationLanguage: string | null;
@@ -39,9 +43,13 @@ export class SchoolMapper {
     return School.rehydrate({
       id: raw.id,
       name: raw.name,
+      slug: raw.slug,
       description: raw.description ?? undefined,
       ownerId: raw.ownerId,
       avatarUrl: raw.avatarUrl ?? undefined,
+      website: raw.website ?? undefined,
+      contactEmail: raw.contactEmail ?? undefined,
+      city: raw.city ?? undefined,
       isActive: raw.isActive,
       requireTutorReviewForSelfPaced: raw.requireTutorReviewForSelfPaced,
       defaultExplanationLanguage: raw.defaultExplanationLanguage ?? undefined,

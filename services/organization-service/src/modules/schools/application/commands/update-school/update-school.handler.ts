@@ -7,6 +7,7 @@ import {
 } from '../../../domain/repositories/school.repository.interface.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
+import { SchoolSlugAlreadyExistsException } from '../../../domain/exceptions/school-slug-already-exists.exception.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 
 @CommandHandler(UpdateSchoolCommand)
@@ -27,10 +28,19 @@ export class UpdateSchoolHandler implements ICommandHandler<UpdateSchoolCommand>
       throw new ForbiddenOperationException('Only owner or admin can update school settings');
     }
 
+    if (command.slug !== undefined && command.slug !== school.slug) {
+      const taken = await this.schoolRepository.findBySlug(command.slug);
+      if (taken) throw new SchoolSlugAlreadyExistsException(command.slug);
+    }
+
     school.update({
       name: command.name,
+      slug: command.slug,
       description: command.description,
       avatarUrl: command.avatarUrl,
+      website: command.website,
+      contactEmail: command.contactEmail,
+      city: command.city,
       requireTutorReviewForSelfPaced: command.requireTutorReviewForSelfPaced,
       defaultExplanationLanguage: command.defaultExplanationLanguage,
     });

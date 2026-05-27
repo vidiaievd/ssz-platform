@@ -1,6 +1,5 @@
 import { Profile } from '../../domain/entities/profile.entity.js';
 
-// Prisma model shape inferred from the generated payload type
 type PrismaProfile = {
   id: string;
   userId: string;
@@ -10,16 +9,13 @@ type PrismaProfile = {
   avatarUrl: string | null;
   bio: string | null;
   timezone: string;
-  locale: string;
+  uiLocale: string;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
 };
 
-// Maps between the Prisma model (infrastructure) and the domain Profile entity.
-// Neither layer is aware of the other directly — this mapper sits in between.
 export class ProfileMapper {
-  // Prisma model → domain entity (rehydrate: no domain events raised)
   static toDomain(raw: PrismaProfile): Profile {
     return Profile.rehydrate({
       id: raw.id,
@@ -30,14 +26,13 @@ export class ProfileMapper {
       avatarUrl: raw.avatarUrl ?? undefined,
       bio: raw.bio ?? undefined,
       timezone: raw.timezone,
-      locale: raw.locale,
+      uiLocale: raw.uiLocale,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt ?? undefined,
     });
   }
 
-  // Domain entity → Prisma persistence data
   static toPersistence(profile: Profile): Record<string, unknown> {
     return {
       id: profile.id,
@@ -48,7 +43,7 @@ export class ProfileMapper {
       avatarUrl: profile.avatarUrl ?? null,
       bio: profile.bio ?? null,
       timezone: profile.timezone,
-      locale: profile.locale,
+      uiLocale: profile.uiLocale,
       deletedAt: profile.deletedAt ?? null,
     };
   }

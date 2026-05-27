@@ -10,9 +10,13 @@ import type { SchoolMember } from './school-member.entity.js';
 export interface CreateSchoolProps {
   id: string;
   name: string;
+  slug: string;
   ownerId: string;
   description?: string;
   avatarUrl?: string;
+  website?: string;
+  contactEmail?: string;
+  city?: string;
 }
 
 export interface RehydrateSchoolProps extends CreateSchoolProps {
@@ -27,9 +31,13 @@ export interface RehydrateSchoolProps extends CreateSchoolProps {
 
 export class School extends BaseEntity {
   private _name: string;
+  private _slug: string;
   private _ownerId: string;
   private _description: string | undefined;
   private _avatarUrl: string | undefined;
+  private _website: string | undefined;
+  private _contactEmail: string | undefined;
+  private _city: string | undefined;
   private _isActive: boolean;
   private _deletedAt: Date | undefined;
   private _members: SchoolMember[];
@@ -39,9 +47,13 @@ export class School extends BaseEntity {
   private constructor(
     id: string,
     name: string,
+    slug: string,
     ownerId: string,
     description: string | undefined,
     avatarUrl: string | undefined,
+    website: string | undefined,
+    contactEmail: string | undefined,
+    city: string | undefined,
     isActive: boolean,
     createdAt: Date,
     updatedAt: Date,
@@ -52,9 +64,13 @@ export class School extends BaseEntity {
   ) {
     super(id, createdAt, updatedAt);
     this._name = name;
+    this._slug = slug;
     this._ownerId = ownerId;
     this._description = description;
     this._avatarUrl = avatarUrl;
+    this._website = website;
+    this._contactEmail = contactEmail;
+    this._city = city;
     this._isActive = isActive;
     this._deletedAt = deletedAt;
     this._members = members;
@@ -67,9 +83,13 @@ export class School extends BaseEntity {
     const school = new School(
       props.id,
       props.name,
+      props.slug,
       props.ownerId,
       props.description,
       props.avatarUrl,
+      props.website,
+      props.contactEmail,
+      props.city,
       true,
       now,
       now,
@@ -90,9 +110,13 @@ export class School extends BaseEntity {
     return new School(
       props.id,
       props.name,
+      props.slug,
       props.ownerId,
       props.description,
       props.avatarUrl,
+      props.website,
+      props.contactEmail,
+      props.city,
       props.isActive,
       props.createdAt,
       props.updatedAt,
@@ -105,14 +129,22 @@ export class School extends BaseEntity {
 
   update(props: {
     name?: string;
+    slug?: string;
     description?: string;
     avatarUrl?: string;
+    website?: string | null;
+    contactEmail?: string | null;
+    city?: string | null;
     requireTutorReviewForSelfPaced?: boolean;
     defaultExplanationLanguage?: string | null;
   }): void {
     if (props.name !== undefined) this._name = props.name;
+    if (props.slug !== undefined) this._slug = props.slug;
     if (props.description !== undefined) this._description = props.description;
     if (props.avatarUrl !== undefined) this._avatarUrl = props.avatarUrl;
+    if (props.website !== undefined) this._website = props.website ?? undefined;
+    if (props.contactEmail !== undefined) this._contactEmail = props.contactEmail ?? undefined;
+    if (props.city !== undefined) this._city = props.city ?? undefined;
     if (props.requireTutorReviewForSelfPaced !== undefined)
       this._requireTutorReviewForSelfPaced = props.requireTutorReviewForSelfPaced;
     if (props.defaultExplanationLanguage !== undefined)
@@ -181,9 +213,13 @@ export class School extends BaseEntity {
   }
 
   get name(): string { return this._name; }
+  get slug(): string { return this._slug; }
   get ownerId(): string { return this._ownerId; }
   get description(): string | undefined { return this._description; }
   get avatarUrl(): string | undefined { return this._avatarUrl; }
+  get website(): string | undefined { return this._website; }
+  get contactEmail(): string | undefined { return this._contactEmail; }
+  get city(): string | undefined { return this._city; }
   get isActive(): boolean { return this._isActive; }
   get deletedAt(): Date | undefined { return this._deletedAt; }
   get isDeleted(): boolean { return this._deletedAt !== undefined; }
