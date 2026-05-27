@@ -6,6 +6,7 @@ import type { ConfirmChannel, ConsumeMessage } from 'amqplib';
 import type { AppConfig } from '../../config/configuration.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { RABBITMQ_HANDLERS, type IMessageHandler, type MessageMeta } from './message-handler.interface.js';
+import { EXCHANGES } from '@ssz/contracts';
 
 const QUEUE_NAME = 'notification-service';
 const DLX_NAME = 'ssz.events.dlx';
@@ -24,7 +25,7 @@ export class RabbitmqConsumerService implements OnModuleInit, OnModuleDestroy {
     private readonly moduleRef: ModuleRef,
     @Optional() @Inject(RABBITMQ_HANDLERS) private readonly injectedHandlers: IMessageHandler[] = [],
   ) {
-    this.exchangeName = this.config.get<AppConfig['rabbitmq']>('rabbitmq')?.exchange ?? 'ssz.events';
+    this.exchangeName = EXCHANGES.AUTH;
   }
 
   onModuleInit(): void {
@@ -62,6 +63,7 @@ export class RabbitmqConsumerService implements OnModuleInit, OnModuleDestroy {
 
     this.channelWrapper = this.connection.createChannel({
       setup: async (channel: ConfirmChannel) => {
+        await channel.assertExchange(this.exchangeName, 'topic', { durable: true });
         await channel.assertExchange(DLX_NAME, 'fanout', { durable: true });
         await channel.assertQueue(`${QUEUE_NAME}.dead-letters`, { durable: true });
         await channel.bindQueue(`${QUEUE_NAME}.dead-letters`, DLX_NAME, '');

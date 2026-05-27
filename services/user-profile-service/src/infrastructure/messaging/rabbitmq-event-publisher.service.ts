@@ -10,6 +10,7 @@ import type { ConfirmChannel } from 'amqplib';
 import { randomUUID } from 'crypto';
 import type { Env } from '../../config/configuration.js';
 import type { IDomainEvent } from '../../shared/domain/domain-event.interface.js';
+import { EXCHANGES } from '@ssz/contracts';
 import type { IEventPublisher } from '../../shared/application/ports/event-publisher.interface.js';
 
 // Routing key map — each domain event type maps to a RabbitMQ routing key.
@@ -21,7 +22,7 @@ const ROUTING_KEYS: Record<string, string> = {
   'tutor.profile.completed': 'tutor.profile.completed',
 };
 
-const EXCHANGE = 'profile.events';
+const EXCHANGE = EXCHANGES.PROFILE;
 const EXCHANGE_TYPE = 'topic';
 
 @Injectable()

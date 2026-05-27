@@ -5,6 +5,7 @@ import type { ConfirmChannel } from 'amqplib';
 import { randomUUID } from 'crypto';
 import type { AppConfig } from '../../config/configuration.js';
 import type { IEventPublisher } from '../../shared/application/ports/event-publisher.port.js';
+import { EXCHANGES } from '@ssz/contracts';
 
 // Platform-standard event envelope (see CONTENT_SERVICE_ARCHITECTURE.md §Inter-Service Communication)
 interface EventEnvelope<T> {
@@ -23,14 +24,14 @@ export class RabbitmqEventPublisher implements IEventPublisher, OnModuleInit, On
   private connection: ReturnType<typeof amqp.connect> | null = null;
   private channelWrapper: ReturnType<ReturnType<typeof amqp.connect>['createChannel']> | null =
     null;
-  private exchangeName: string = 'ssz.events';
+  private exchangeName: string = EXCHANGES.CONTENT;
 
   constructor(private readonly config: ConfigService<AppConfig>) {}
 
   onModuleInit(): void {
     const rabbitmqConfig = this.config.get<AppConfig['rabbitmq']>('rabbitmq');
     const url = rabbitmqConfig?.url;
-    this.exchangeName = rabbitmqConfig?.exchange ?? 'ssz.events';
+    this.exchangeName = rabbitmqConfig?.exchange ?? EXCHANGES.CONTENT;
 
     if (!url) {
       this.logger.warn(

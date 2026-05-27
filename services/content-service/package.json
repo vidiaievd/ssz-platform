@@ -1,7 +1,7 @@
 {
   "name": "content-service",
   "version": "0.1.0",
-  "description": "SSZ Platform \u2014 Content Service. Manages courses, lessons, vocabulary, grammar rules, and exercises.",
+  "description": "SSZ Platform — Content Service. Manages courses, lessons, vocabulary, grammar rules, and exercises.",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
@@ -38,6 +38,7 @@
     "@nestjs/swagger": "^11.2.6",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
+    "@ssz/contracts": "file:../../packages/contracts",
     "ajv": "^8.18.0",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^1.0.3",
