@@ -7,6 +7,6 @@ export class UpdateProfileCommand {
     readonly avatarUrl?: string,
     readonly bio?: string,
     readonly timezone?: string,
-    readonly locale?: string,
+    readonly uiLocale?: string,
   ) {}
 }

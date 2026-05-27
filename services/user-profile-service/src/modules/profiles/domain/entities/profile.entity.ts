@@ -11,7 +11,7 @@ export interface CreateProfileProps {
   avatarUrl?: string;
   bio?: string;
   timezone?: string;
-  locale?: string;
+  uiLocale?: string;
 }
 
 export interface UpdateProfileProps {
@@ -21,7 +21,7 @@ export interface UpdateProfileProps {
   avatarUrl?: string;
   bio?: string;
   timezone?: string;
-  locale?: string;
+  uiLocale?: string;
 }
 
 export interface RehydrateProfileProps extends CreateProfileProps {
@@ -38,7 +38,7 @@ export class Profile extends BaseEntity {
   private _avatarUrl: string | undefined;
   private _bio: string | undefined;
   private _timezone: string;
-  private _locale: string;
+  private _uiLocale: string;
   private _deletedAt: Date | undefined;
 
   private constructor(
@@ -50,7 +50,7 @@ export class Profile extends BaseEntity {
     avatarUrl: string | undefined,
     bio: string | undefined,
     timezone: string,
-    locale: string,
+    uiLocale: string,
     createdAt: Date,
     updatedAt: Date,
     deletedAt: Date | undefined,
@@ -63,11 +63,10 @@ export class Profile extends BaseEntity {
     this._avatarUrl = avatarUrl;
     this._bio = bio;
     this._timezone = timezone;
-    this._locale = locale;
+    this._uiLocale = uiLocale;
     this._deletedAt = deletedAt;
   }
 
-  // Factory method for creating a new profile (raises domain event)
   static create(props: CreateProfileProps, eventId: string): Profile {
     const now = new Date();
     const profile = new Profile(
@@ -79,7 +78,7 @@ export class Profile extends BaseEntity {
       props.avatarUrl,
       props.bio,
       props.timezone ?? 'UTC',
-      props.locale ?? 'en',
+      props.uiLocale ?? 'en',
       now,
       now,
       undefined,
@@ -92,7 +91,6 @@ export class Profile extends BaseEntity {
     return profile;
   }
 
-  // Rehydrate a profile from persistence — no domain event raised
   static rehydrate(props: RehydrateProfileProps): Profile {
     return new Profile(
       props.id,
@@ -103,7 +101,7 @@ export class Profile extends BaseEntity {
       props.avatarUrl,
       props.bio,
       props.timezone ?? 'UTC',
-      props.locale ?? 'en',
+      props.uiLocale ?? 'en',
       props.createdAt,
       props.updatedAt,
       props.deletedAt,
@@ -117,7 +115,7 @@ export class Profile extends BaseEntity {
     if (props.avatarUrl !== undefined) this._avatarUrl = props.avatarUrl;
     if (props.bio !== undefined) this._bio = props.bio;
     if (props.timezone !== undefined) this._timezone = props.timezone;
-    if (props.locale !== undefined) this._locale = props.locale;
+    if (props.uiLocale !== undefined) this._uiLocale = props.uiLocale;
     this._updatedAt = new Date();
 
     this.addDomainEvent(
@@ -137,7 +135,7 @@ export class Profile extends BaseEntity {
   get avatarUrl(): string | undefined { return this._avatarUrl; }
   get bio(): string | undefined { return this._bio; }
   get timezone(): string { return this._timezone; }
-  get locale(): string { return this._locale; }
+  get uiLocale(): string { return this._uiLocale; }
   get deletedAt(): Date | undefined { return this._deletedAt; }
   get isDeleted(): boolean { return this._deletedAt !== undefined; }
 }

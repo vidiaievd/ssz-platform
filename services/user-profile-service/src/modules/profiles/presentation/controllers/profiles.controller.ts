@@ -64,7 +64,7 @@ export class ProfilesController {
         dto.avatarUrl,
         dto.bio,
         dto.timezone,
-        dto.locale,
+        dto.uiLocale,
       ),
     );
   }
@@ -99,7 +99,7 @@ export class ProfilesController {
         dto.firstName,
         dto.lastName,
         dto.timezone,
-        dto.locale,
+        dto.uiLocale,
       ),
     );
     return { id };

@@ -26,7 +26,7 @@ export class ProfileResponseDto {
   timezone: string;
 
   @ApiProperty({ example: 'uk' })
-  locale: string;
+  uiLocale: string;
 
   @ApiProperty()
   createdAt: Date;

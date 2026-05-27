@@ -40,5 +40,5 @@ export class UpdateProfileRequestDto {
   @IsOptional()
   @IsString()
   @MaxLength(10)
-  locale?: string;
+  uiLocale?: string;
 }
