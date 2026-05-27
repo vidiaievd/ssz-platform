@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
@@ -21,9 +22,11 @@ import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.se
 import { AddTargetLanguageCommand } from '../../application/commands/add-target-language/add-target-language.command.js';
 import { CreateStudentProfileCommand } from '../../application/commands/create-student-profile/create-student-profile.command.js';
 import { RemoveTargetLanguageCommand } from '../../application/commands/remove-target-language/remove-target-language.command.js';
+import { UpdateStudentProfileCommand } from '../../application/commands/update-student-profile/update-student-profile.command.js';
 import { GetStudentProfileQuery } from '../../application/queries/get-student-profile/get-student-profile.query.js';
 import { AddTargetLanguageRequestDto } from '../dto/add-target-language.request.dto.js';
 import { CreateStudentProfileRequestDto } from '../dto/create-student-profile.request.dto.js';
+import { UpdateStudentProfileRequestDto } from '../dto/update-student-profile.request.dto.js';
 import { StudentProfileResponseDto } from '../dto/student-profile.response.dto.js';
 
 @ApiTags('student-profiles')
@@ -63,10 +66,28 @@ export class StudentsController {
       new CreateStudentProfileCommand(
         user.sub,
         dto.nativeLanguage,
-        dto.targetLanguages?.map((l) => ({ languageCode: l.code, level: l.level as any })),
+        dto.targetLanguages?.map((l) => ({
+          languageCode: l.code,
+          level: l.level as any,
+        })),
       ),
     );
     return { id };
+  }
+
+  @Patch()
+  @ApiOperation({ summary: 'Update my student profile' })
+  @ApiResponse({ status: 200, type: StudentProfileResponseDto })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Student profile not found' })
+  async updateMyStudentProfile(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdateStudentProfileRequestDto,
+  ): Promise<StudentProfileResponseDto> {
+    await this.commandBus.execute(
+      new UpdateStudentProfileCommand(user.sub, dto.nativeLanguage),
+    );
+    return this.queryBus.execute(new GetStudentProfileQuery(user.sub));
   }
 
   @Post('languages')
@@ -80,7 +101,11 @@ export class StudentsController {
     @Body() dto: AddTargetLanguageRequestDto,
   ): Promise<void> {
     await this.commandBus.execute(
-      new AddTargetLanguageCommand(user.sub, dto.languageCode, dto.level as any),
+      new AddTargetLanguageCommand(
+        user.sub,
+        dto.languageCode,
+        dto.level as any,
+      ),
     );
   }
 
