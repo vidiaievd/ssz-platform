@@ -10,6 +10,7 @@ import { IntroduceCardCommand } from '../../srs/application/commands/introduce-c
 import { ReviewCardCommand } from '../../srs/application/commands/review-card.command.js';
 import type { ReviewRatingValue } from '../../srs/domain/value-objects/review-rating.vo.js';
 import type { ExerciseAttemptCompletedPayload } from '@ssz/contracts';
+import { EXCHANGES } from '@ssz/contracts';
 
 interface EventEnvelope {
   eventId: string;
@@ -54,7 +55,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       this.logger.warn('RABBITMQ_URL not configured — ExerciseAttemptedConsumer disabled');
       return;
     }
-    const exchange = rabbitmqCfg?.exchange ?? 'ssz.events';
+    const exchange = EXCHANGES.EXERCISE_ENGINE;
 
     this.connection = amqp.connect([url]);
     this.connection.on('connect', () => this.logger.log('RabbitMQ connected'));

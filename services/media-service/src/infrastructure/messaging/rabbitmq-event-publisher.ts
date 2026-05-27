@@ -5,20 +5,21 @@ import type { ConfirmChannel } from 'amqplib';
 import { randomUUID } from 'crypto';
 import type { AppConfig } from '../../config/configuration.js';
 import type { IEventPublisher } from '../../shared/application/ports/event-publisher.port.js';
+import { EXCHANGES } from '@ssz/contracts';
 
 @Injectable()
 export class RabbitmqEventPublisher implements IEventPublisher, OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RabbitmqEventPublisher.name);
   private connection: ReturnType<typeof amqp.connect> | null = null;
   private channelWrapper: ReturnType<ReturnType<typeof amqp.connect>['createChannel']> | null = null;
-  private exchangeName = 'ssz.events';
+  private exchangeName = EXCHANGES.MEDIA;
 
   constructor(private readonly config: ConfigService<AppConfig>) {}
 
   onModuleInit(): void {
     const rmqConfig = this.config.get<AppConfig['rabbitmq']>('rabbitmq');
     const url = rmqConfig?.url;
-    this.exchangeName = rmqConfig?.exchange ?? 'ssz.events';
+    this.exchangeName = rmqConfig?.exchange ?? EXCHANGES.MEDIA;
 
     if (!url) {
       this.logger.warn('RABBITMQ_URL is not configured — event publishing is disabled');

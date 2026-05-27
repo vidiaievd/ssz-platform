@@ -8,7 +8,7 @@ export const envSchema = z.object({
   DATABASE_URL: z.string().optional(),
 
   RABBITMQ_URL: z.string().optional(),
-  RABBITMQ_EXCHANGE: z.string().default('ssz.events'),
+  RABBITMQ_EXCHANGE: z.string().default('exercise-engine.events'),
 
   REDIS_HOST: z.string().default('localhost'),
   REDIS_PORT: z.coerce.number().int().positive().default(6379),
