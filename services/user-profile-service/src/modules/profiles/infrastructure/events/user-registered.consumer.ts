@@ -114,12 +114,12 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
                 ),
               );
 
-              // Student is always present per ROLES.md — every registered user gets a StudentProfile
-              await this.commandBus.execute(
-                new CreateStudentProfileCommand(data.payload.userId, undefined),
-              );
+              if (normalizedRoles.includes('student')) {
+                await this.commandBus.execute(
+                  new CreateStudentProfileCommand(data.payload.userId, undefined),
+                );
+              }
 
-              // Create TutorProfile only if user registered with tutor role
               if (normalizedRoles.includes('tutor')) {
                 await this.commandBus.execute(
                   new CreateTutorProfileCommand(
