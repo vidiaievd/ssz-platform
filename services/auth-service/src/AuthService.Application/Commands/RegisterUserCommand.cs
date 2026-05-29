@@ -33,12 +33,12 @@ public sealed class RegisterUserCommandHandler(
         var passwordHash = passwordHasher.Hash(command.Password);
         var requestedRole = command.Role.Trim().ToLowerInvariant();
 
-        // student  → [student]
-        // tutor    → [student, tutor]  (tutors can also be learners)
-        // school_admin → [school_admin]  (org managers are not assumed to be learners)
+        // student      → [student]
+        // tutor        → [tutor]        (student role must be added explicitly later)
+        // school_admin → [school_admin]
         var roleNames = requestedRole switch
         {
-            RoleNames.Tutor        => new[] { RoleNames.Student, RoleNames.Tutor },
+            RoleNames.Tutor        => new[] { RoleNames.Tutor },
             RoleNames.SchoolAdmin  => new[] { RoleNames.SchoolAdmin },
             _                      => new[] { RoleNames.Student },
         };
