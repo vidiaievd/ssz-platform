@@ -6,7 +6,6 @@ import { CreateProfileHandler } from '../profiles/application/commands/create-pr
 import { PROFILE_REPOSITORY } from '../profiles/domain/repositories/profile.repository.interface.js';
 import { ProfilePrismaRepository } from '../profiles/infrastructure/persistence/profile.prisma.repository.js';
 import { UserRegisteredConsumer } from '../profiles/infrastructure/events/user-registered.consumer.js';
-import { UserPlatformRoleAssignedConsumer } from '../profiles/infrastructure/events/user-platform-role-assigned.consumer.js';
 
 @Module({
   imports: [CqrsModule],
@@ -18,7 +17,6 @@ import { UserPlatformRoleAssignedConsumer } from '../profiles/infrastructure/eve
         config.get('RABBITMQ_URL') as string,
     },
     UserRegisteredConsumer,
-    UserPlatformRoleAssignedConsumer,
     CreateProfileHandler,
     {
       provide: PROFILE_REPOSITORY,
