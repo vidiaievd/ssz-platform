@@ -18,6 +18,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../../../common/decorators/roles.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Proficiency } from '../../domain/value-objects/teaching-language.vo.js';
 import { AddTeachingLanguageCommand } from '../../application/commands/add-teaching-language/add-teaching-language.command.js';
@@ -51,12 +52,14 @@ export class TutorsController {
   }
 
   @Post()
+  @Roles('tutor')
   @ApiOperation({ summary: 'Create my tutor profile' })
   @ApiResponse({
     status: 201,
     description: 'Tutor profile created, returns id',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — requires tutor role' })
   @ApiResponse({ status: 404, description: 'Base profile not found' })
   @ApiResponse({ status: 409, description: 'Tutor profile already exists' })
   async createMyTutorProfile(
