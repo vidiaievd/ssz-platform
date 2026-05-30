@@ -17,6 +17,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Roles } from '../../../../common/decorators/roles.decorator.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { AddTargetLanguageCommand } from '../../application/commands/add-target-language/add-target-language.command.js';
@@ -50,12 +51,14 @@ export class StudentsController {
   }
 
   @Post()
+  @Roles('student')
   @ApiOperation({ summary: 'Create my student profile' })
   @ApiResponse({
     status: 201,
     description: 'Student profile created, returns id',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — requires student role' })
   @ApiResponse({ status: 404, description: 'Base profile not found' })
   @ApiResponse({ status: 409, description: 'Student profile already exists' })
   async createMyStudentProfile(
