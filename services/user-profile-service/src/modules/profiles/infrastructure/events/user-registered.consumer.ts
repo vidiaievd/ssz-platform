@@ -11,8 +11,6 @@ import type { ConfirmChannel } from 'amqplib';
 import type { IProcessedEventsRepository } from '../../../../shared/application/ports/processed-events.repository.interface.js';
 import { PROCESSED_EVENTS_REPOSITORY } from '../../../../shared/application/ports/processed-events.repository.interface.js';
 import { CreateProfileCommand } from '../../application/commands/create-profile/create-profile.command.js';
-import { CreateStudentProfileCommand } from '../../../students/application/commands/create-student-profile/create-student-profile.command.js';
-import { CreateTutorProfileCommand } from '../../../tutors/application/commands/create-tutor-profile/create-tutor-profile.command.js';
 import { EXCHANGES } from '@ssz/contracts';
 
 // Envelope shape published by Auth Service (camelCase JSON via JsonNamingPolicy.CamelCase)
@@ -100,35 +98,12 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
                 `Processing user.registered for userId: ${data.payload.userId}`,
               );
 
-              // Support both v2 (roles array) and v1 (single role) formats
-              const roles: string[] =
-                data.payload.roles ??
-                (data.payload.role ? [data.payload.role] : ['student']);
-              const normalizedRoles = roles.map((r) => r.toLowerCase());
-
-              // Always create the base profile
               await this.commandBus.execute(
                 new CreateProfileCommand(
                   data.payload.userId,
                   data.payload.email.split('@')[0],
                 ),
               );
-
-              if (normalizedRoles.includes('student')) {
-                await this.commandBus.execute(
-                  new CreateStudentProfileCommand(data.payload.userId, undefined),
-                );
-              }
-
-              if (normalizedRoles.includes('tutor')) {
-                await this.commandBus.execute(
-                  new CreateTutorProfileCommand(
-                    data.payload.userId,
-                    undefined,
-                    undefined,
-                  ),
-                );
-              }
 
               await this.processedEvents.markProcessed(
                 data.eventId,
@@ -137,7 +112,7 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
               channel.ack(msg);
 
               this.logger.log(
-                `Profiles created for userId: ${data.payload.userId} with roles: [${normalizedRoles.join(', ')}]`,
+                `Base profile created for userId: ${data.payload.userId}`,
               );
             } catch (err) {
               this.logger.error(
