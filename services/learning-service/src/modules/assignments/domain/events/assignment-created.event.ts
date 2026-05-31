@@ -6,6 +6,7 @@ export interface AssignmentCreatedPayload {
   assignerId: string;
   assigneeId: string;
   schoolId: string | null;
+  groupId?: string | null;
   contentType: string;
   contentId: string;
   dueAt: string | null;

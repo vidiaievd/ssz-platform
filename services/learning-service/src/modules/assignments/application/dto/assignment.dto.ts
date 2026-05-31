@@ -5,6 +5,7 @@ export interface AssignmentDto {
   assignerId: string;
   assigneeId: string;
   schoolId: string | null;
+  groupId: string | null;
   contentRef: { type: string; id: string };
   status: string;
   assignedAt: string;
@@ -21,6 +22,7 @@ export function toAssignmentDto(assignment: Assignment): AssignmentDto {
     assignerId: assignment.assignerId,
     assigneeId: assignment.assigneeId,
     schoolId: assignment.schoolId,
+    groupId: assignment.groupId,
     contentRef: { type: assignment.contentRef.type, id: assignment.contentRef.id },
     status: assignment.status,
     assignedAt: assignment.assignedAt.toISOString(),

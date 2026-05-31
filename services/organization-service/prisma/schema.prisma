@@ -42,6 +42,7 @@ model School {
 
   members     SchoolMember[]
   invitations SchoolInvitation[]
+  groups      SchoolGroup[]
 
   @@map("schools")
 }
@@ -71,6 +72,34 @@ model SchoolInvitation {
   updatedAt DateTime         @updatedAt
 
   @@map("school_invitations")
+}
+
+model SchoolGroup {
+  id          String    @id @default(uuid())
+  schoolId    String    @map("school_id")
+  school      School    @relation(fields: [schoolId], references: [id])
+  name        String
+  description String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  members SchoolGroupMember[]
+
+  @@index([schoolId])
+  @@map("school_groups")
+}
+
+model SchoolGroupMember {
+  id       String      @id @default(uuid())
+  groupId  String      @map("group_id")
+  group    SchoolGroup @relation(fields: [groupId], references: [id])
+  userId   String      @map("user_id")
+  addedAt  DateTime    @default(now()) @map("added_at")
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("school_group_members")
 }
 
 model TutoringGroup {

@@ -14,7 +14,7 @@ export class PrismaAssignmentRepository implements IAssignmentRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findById(id: string): Promise<Assignment | null> {
-    const row = await this.prisma.assignment.findFirst({
+    const row = await (this.prisma.assignment as any).findFirst({
       where: { id, deletedAt: null },
     });
     return row ? AssignmentMapper.toDomain(row) : null;
@@ -24,7 +24,7 @@ export class PrismaAssignmentRepository implements IAssignmentRepository {
     assigneeId: string,
     options: FindByAssigneeOptions = {},
   ): Promise<Assignment[]> {
-    const rows = await this.prisma.assignment.findMany({
+    const rows = await (this.prisma.assignment as any).findMany({
       where: {
         assigneeId,
         deletedAt: null,
@@ -41,7 +41,7 @@ export class PrismaAssignmentRepository implements IAssignmentRepository {
     assignerId: string,
     options: FindByAssignerOptions = {},
   ): Promise<Assignment[]> {
-    const rows = await this.prisma.assignment.findMany({
+    const rows = await (this.prisma.assignment as any).findMany({
       where: {
         assignerId,
         deletedAt: null,
@@ -56,7 +56,7 @@ export class PrismaAssignmentRepository implements IAssignmentRepository {
   }
 
   async findOverdueCandidates(now: Date): Promise<Assignment[]> {
-    const rows = await this.prisma.assignment.findMany({
+    const rows = await (this.prisma.assignment as any).findMany({
       where: {
         status: 'ACTIVE',
         dueAt: { lt: now },
@@ -67,7 +67,7 @@ export class PrismaAssignmentRepository implements IAssignmentRepository {
   }
 
   async findActiveByContent(contentType: ContentType, contentId: string): Promise<Assignment[]> {
-    const rows = await this.prisma.assignment.findMany({
+    const rows = await (this.prisma.assignment as any).findMany({
       where: {
         contentType: contentType as any,
         contentId,
@@ -80,7 +80,7 @@ export class PrismaAssignmentRepository implements IAssignmentRepository {
 
   async save(assignment: Assignment): Promise<void> {
     const data = AssignmentMapper.toPersistence(assignment);
-    await this.prisma.assignment.upsert({
+    await (this.prisma.assignment as any).upsert({
       where: { id: data.id },
       create: data,
       update: data,
