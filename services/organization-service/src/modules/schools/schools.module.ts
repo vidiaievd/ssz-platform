@@ -3,9 +3,11 @@ import { CqrsModule } from '@nestjs/cqrs';
 
 import { SCHOOL_REPOSITORY } from './domain/repositories/school.repository.interface.js';
 import { SCHOOL_INVITATION_REPOSITORY } from './domain/repositories/school-invitation.repository.interface.js';
+import { SCHOOL_GROUP_REPOSITORY } from './domain/repositories/school-group.repository.interface.js';
 
 import { SchoolPrismaRepository } from './infrastructure/persistence/school.prisma.repository.js';
 import { SchoolInvitationPrismaRepository } from './infrastructure/persistence/school-invitation.prisma.repository.js';
+import { SchoolGroupPrismaRepository } from './infrastructure/persistence/school-group.prisma.repository.js';
 import { InvitationTokenService } from './infrastructure/invitation-token.service.js';
 
 import { CreateSchoolHandler } from './application/commands/create-school/create-school.handler.js';
@@ -15,6 +17,11 @@ import { AddMemberHandler } from './application/commands/add-member/add-member.h
 import { RemoveMemberHandler } from './application/commands/remove-member/remove-member.handler.js';
 import { SendInvitationHandler } from './application/commands/send-invitation/send-invitation.handler.js';
 import { AcceptInvitationHandler } from './application/commands/accept-invitation/accept-invitation.handler.js';
+import { CreateSchoolGroupHandler } from './application/commands/create-school-group/create-school-group.handler.js';
+import { UpdateSchoolGroupHandler } from './application/commands/update-school-group/update-school-group.handler.js';
+import { DeleteSchoolGroupHandler } from './application/commands/delete-school-group/delete-school-group.handler.js';
+import { AddGroupMemberHandler } from './application/commands/add-group-member/add-group-member.handler.js';
+import { RemoveGroupMemberHandler } from './application/commands/remove-group-member/remove-group-member.handler.js';
 
 import { GetSchoolHandler } from './application/queries/get-school/get-school.handler.js';
 import { GetSchoolBySlugHandler } from './application/queries/get-school-by-slug/get-school-by-slug.handler.js';
@@ -22,10 +29,13 @@ import { ListMySchoolsHandler } from './application/queries/list-my-schools/list
 import { CheckNameAvailableHandler } from './application/queries/check-name-available/check-name-available.handler.js';
 import { CheckSlugAvailableHandler } from './application/queries/check-slug-available/check-slug-available.handler.js';
 import { ListSchoolInvitationsHandler } from './application/queries/list-school-invitations/list-school-invitations.handler.js';
+import { GetSchoolGroupHandler } from './application/queries/get-school-group/get-school-group.handler.js';
+import { ListSchoolGroupsHandler } from './application/queries/list-school-groups/list-school-groups.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
 import { InternalController } from './presentation/controllers/internal.controller.js';
+import { SchoolGroupsController } from './presentation/controllers/school-groups.controller.js';
 
 const CommandHandlers = [
   CreateSchoolHandler,
@@ -35,6 +45,11 @@ const CommandHandlers = [
   RemoveMemberHandler,
   SendInvitationHandler,
   AcceptInvitationHandler,
+  CreateSchoolGroupHandler,
+  UpdateSchoolGroupHandler,
+  DeleteSchoolGroupHandler,
+  AddGroupMemberHandler,
+  RemoveGroupMemberHandler,
 ];
 
 const QueryHandlers = [
@@ -44,11 +59,13 @@ const QueryHandlers = [
   CheckNameAvailableHandler,
   CheckSlugAvailableHandler,
   ListSchoolInvitationsHandler,
+  GetSchoolGroupHandler,
+  ListSchoolGroupsHandler,
 ];
 
 @Module({
   imports: [CqrsModule],
-  controllers: [SchoolsController, InvitationsController, InternalController],
+  controllers: [SchoolsController, InvitationsController, InternalController, SchoolGroupsController],
   providers: [
     ...CommandHandlers,
     ...QueryHandlers,
@@ -60,6 +77,10 @@ const QueryHandlers = [
     {
       provide: SCHOOL_INVITATION_REPOSITORY,
       useClass: SchoolInvitationPrismaRepository,
+    },
+    {
+      provide: SCHOOL_GROUP_REPOSITORY,
+      useClass: SchoolGroupPrismaRepository,
     },
   ],
 })

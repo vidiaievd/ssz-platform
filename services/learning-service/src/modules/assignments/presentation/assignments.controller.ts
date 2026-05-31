@@ -29,6 +29,8 @@ import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifie
 import { CreateAssignmentCommand } from '../application/commands/create-assignment.command.js';
 import { CancelAssignmentCommand } from '../application/commands/cancel-assignment.command.js';
 import { UpdateAssignmentDueDateCommand } from '../application/commands/update-assignment-due-date.command.js';
+import { CreateGroupAssignmentCommand } from '../application/commands/create-group-assignment/create-group-assignment.command.js';
+import { GroupEmptyError, GroupNotFoundError } from '../application/commands/create-group-assignment/create-group-assignment.handler.js';
 import { GetAssignmentByIdQuery } from '../application/queries/get-assignment-by-id.query.js';
 import { ListStudentAssignmentsQuery } from '../application/queries/list-student-assignments.query.js';
 import { ListTutorAssignmentsQuery } from '../application/queries/list-tutor-assignments.query.js';
@@ -44,6 +46,7 @@ import {
   OrganizationServiceUnavailableError,
 } from '../application/errors/assignment-application.errors.js';
 import { CreateAssignmentRequest } from './dto/create-assignment.request.js';
+import { CreateGroupAssignmentRequest } from './dto/create-group-assignment.request.js';
 import { CancelAssignmentRequest } from './dto/cancel-assignment.request.js';
 import { UpdateDueDateRequest } from './dto/update-due-date.request.js';
 import { AssignmentResponse } from './dto/assignment.response.js';
@@ -81,6 +84,31 @@ export class AssignmentsController {
       ),
     );
     return this.unwrap(result);
+  }
+
+  @Post('group')
+  @ApiOperation({ summary: 'Assign content to all members of a school group' })
+  @ApiResponse({ status: 201, type: [AssignmentResponse], description: 'Assignments created for each group member' })
+  @ApiResponse({ status: 400, description: 'Invalid content reference' })
+  @ApiResponse({ status: 403, description: 'Insufficient school role or group not found' })
+  @ApiResponse({ status: 422, description: 'Group has no members' })
+  @ApiResponse({ status: 502, description: 'Upstream service unavailable' })
+  async createForGroup(
+    @Body() body: CreateGroupAssignmentRequest,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<AssignmentResponse[]> {
+    const result = await this.commandBus.execute(
+      new CreateGroupAssignmentCommand(
+        user.userId,
+        body.schoolId,
+        body.groupId,
+        body.contentType,
+        body.contentId,
+        new Date(body.dueAt),
+        body.notes,
+      ),
+    );
+    return this.unwrapGroup(result);
   }
 
   @Get('mine')
@@ -187,6 +215,22 @@ export class AssignmentsController {
     if (err instanceof AssignmentDomainValidationError) throw new UnprocessableEntityException(err.message);
     if (err instanceof InvalidContentRefError) throw new BadRequestException(err.message);
     if (err instanceof ContentNotVisibleForAssigneeError) throw new UnprocessableEntityException(err.message);
+    if (err instanceof InsufficientSchoolRoleError) throw new ForbiddenException(err.message);
+    if (err instanceof ContentServiceUnavailableError) throw new BadGatewayException(err.message);
+    if (err instanceof OrganizationServiceUnavailableError) throw new BadGatewayException(err.message);
+
+    throw new UnprocessableEntityException(err.message ?? 'Unhandled business error');
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private unwrapGroup(result: Result<AssignmentResponse[], any>): AssignmentResponse[] {
+    if (result.isOk) return result.value;
+
+    const err = result.error as AssignmentApplicationError;
+
+    if (err instanceof GroupNotFoundError) throw new NotFoundException(err.message);
+    if (err instanceof GroupEmptyError) throw new UnprocessableEntityException(err.message);
+    if (err instanceof InvalidContentRefError) throw new BadRequestException(err.message);
     if (err instanceof InsufficientSchoolRoleError) throw new ForbiddenException(err.message);
     if (err instanceof ContentServiceUnavailableError) throw new BadGatewayException(err.message);
     if (err instanceof OrganizationServiceUnavailableError) throw new BadGatewayException(err.message);
