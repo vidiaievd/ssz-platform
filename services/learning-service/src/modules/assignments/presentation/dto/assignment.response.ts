@@ -22,6 +22,9 @@ export class AssignmentResponse implements AssignmentDto {
   @ApiPropertyOptional({ format: 'uuid', nullable: true })
   schoolId!: string | null;
 
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  groupId!: string | null;
+
   @ApiProperty({ type: ContentRefResponse })
   contentRef!: { type: string; id: string };
 

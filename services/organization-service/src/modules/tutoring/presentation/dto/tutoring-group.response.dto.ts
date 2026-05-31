@@ -38,3 +38,10 @@ export class SendTutoringInvitationResponseDto {
   @ApiProperty({ description: 'Invitation expiry (ISO 8601)' }) expiresAt!: string;
   @ApiProperty({ enum: ['queued'] }) deliveryStatus!: 'queued';
 }
+
+export class PendingTutoringInvitationResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() email!: string;
+  @ApiProperty() expiresAt!: Date;
+  @ApiProperty() createdAt!: Date;
+}
