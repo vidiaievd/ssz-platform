@@ -77,6 +77,7 @@ model Assignment {
   assignerId      String           @map("assigner_id")
   assigneeId      String           @map("assignee_id")
   schoolId        String?          @map("school_id")
+  groupId         String?          @map("group_id")
   contentType     ContentType      @map("content_type")
   contentId       String           @map("content_id")
   status          AssignmentStatus @default(ACTIVE)

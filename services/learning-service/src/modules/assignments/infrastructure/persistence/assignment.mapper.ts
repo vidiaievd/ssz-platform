@@ -7,6 +7,7 @@ type PrismaAssignmentModel = {
   assignerId: string;
   assigneeId: string;
   schoolId: string | null;
+  groupId: string | null;
   contentType: string;
   contentId: string;
   status: string;
@@ -27,6 +28,7 @@ export class AssignmentMapper {
       assignerId: row.assignerId,
       assigneeId: row.assigneeId,
       schoolId: row.schoolId,
+      groupId: row.groupId,
       contentRef,
       status: row.status as AssignmentStatus,
       assignedAt: row.assignedAt,
@@ -45,6 +47,7 @@ export class AssignmentMapper {
       assignerId: assignment.assignerId,
       assigneeId: assignment.assigneeId,
       schoolId: assignment.schoolId,
+      groupId: assignment.groupId,
       contentType: assignment.contentRef.type,
       contentId: assignment.contentRef.id,
       status: assignment.status,
