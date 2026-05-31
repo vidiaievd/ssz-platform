@@ -7,9 +7,14 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
+import { Inject } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import { GetSchoolQuery } from '../../application/queries/get-school/get-school.query.js';
+import {
+  SCHOOL_GROUP_REPOSITORY,
+  type ISchoolGroupRepository,
+} from '../../domain/repositories/school-group.repository.interface.js';
 import type { SchoolDto } from '../../application/dto/school.dto.js';
 
 interface MemberRoleResponse {
@@ -26,7 +31,11 @@ interface BatchMemberRoleResponse {
 @Public()
 @Controller('internal/schools')
 export class InternalController {
-  constructor(private readonly queryBus: QueryBus) {}
+  constructor(
+    private readonly queryBus: QueryBus,
+    @Inject(SCHOOL_GROUP_REPOSITORY)
+    private readonly groupRepository: ISchoolGroupRepository,
+  ) {}
 
   /**
    * Returns the school role of a specific user within a specific school.
@@ -55,6 +64,22 @@ export class InternalController {
     }
 
     return { schoolId, userId, role };
+  }
+
+  /**
+   * Returns all member userIds in a school group.
+   * Used by Learning Service for bulk group assignment creation.
+   */
+  @Get(':schoolId/groups/:groupId/members')
+  async getGroupMembers(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+  ): Promise<{ userIds: string[] }> {
+    const group = await this.groupRepository.findById(groupId);
+    if (!group || group.isDeleted || group.schoolId !== schoolId) {
+      throw new NotFoundException(`Group ${groupId} not found in school ${schoolId}`);
+    }
+    return { userIds: group.memberUserIds };
   }
 
   /**

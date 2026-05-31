@@ -10,6 +10,7 @@ import { CreateAssignmentHandler } from './application/commands/create-assignmen
 import { CancelAssignmentHandler } from './application/commands/cancel-assignment.handler.js';
 import { UpdateAssignmentDueDateHandler } from './application/commands/update-assignment-due-date.handler.js';
 import { MarkAssignmentCompleteHandler } from './application/commands/mark-assignment-complete.handler.js';
+import { CreateGroupAssignmentHandler } from './application/commands/create-group-assignment/create-group-assignment.handler.js';
 import { GetAssignmentByIdHandler } from './application/queries/get-assignment-by-id.handler.js';
 import { ListStudentAssignmentsHandler } from './application/queries/list-student-assignments.handler.js';
 import { ListTutorAssignmentsHandler } from './application/queries/list-tutor-assignments.handler.js';
@@ -21,6 +22,7 @@ const CommandHandlers = [
   CancelAssignmentHandler,
   UpdateAssignmentDueDateHandler,
   MarkAssignmentCompleteHandler,
+  CreateGroupAssignmentHandler,
 ];
 
 const QueryHandlers = [

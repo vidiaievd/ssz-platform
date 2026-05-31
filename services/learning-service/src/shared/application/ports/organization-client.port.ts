@@ -19,4 +19,9 @@ export interface IOrganizationClient {
     schoolId: string,
     userId: string,
   ): Promise<Result<SchoolRole | null, OrganizationClientError>>;
+
+  getGroupMemberIds(
+    schoolId: string,
+    groupId: string,
+  ): Promise<Result<string[], OrganizationClientError>>;
 }

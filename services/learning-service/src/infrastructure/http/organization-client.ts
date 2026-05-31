@@ -46,6 +46,20 @@ export class OrganizationClient implements IOrganizationClient {
     }
   }
 
+  async getGroupMemberIds(
+    schoolId: string,
+    groupId: string,
+  ): Promise<Result<string[], OrganizationClientError>> {
+    try {
+      const { data } = await this.http.get<{ userIds: string[] }>(
+        `/schools/${schoolId}/groups/${groupId}/members`,
+      );
+      return Result.ok(data.userIds);
+    } catch (err) {
+      return this.mapError(err, `getGroupMemberIds(${schoolId}, ${groupId})`);
+    }
+  }
+
   private mapError(
     err: unknown,
     context: string,
