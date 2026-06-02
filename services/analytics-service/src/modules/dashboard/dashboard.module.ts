@@ -4,10 +4,12 @@ import { DashboardController } from './controllers/dashboard.controller.js';
 import { GetKpisHandler } from './queries/get-kpis.handler.js';
 import { GetAtRiskHandler } from './queries/get-at-risk.handler.js';
 import { GetCourseHealthHandler } from './queries/get-course-health.handler.js';
+import { NudgeAtRiskHandler } from './commands/nudge-at-risk.handler.js';
+import { EventPublisherService } from '../../infrastructure/messaging/event-publisher.service.js';
 
 @Module({
   imports: [CqrsModule],
   controllers: [DashboardController],
-  providers: [GetKpisHandler, GetAtRiskHandler, GetCourseHealthHandler],
+  providers: [GetKpisHandler, GetAtRiskHandler, GetCourseHealthHandler, NudgeAtRiskHandler, EventPublisherService],
 })
 export class DashboardModule {}
