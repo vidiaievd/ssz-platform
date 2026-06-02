@@ -4,6 +4,7 @@ import { IDomainEvent } from '../../../../shared/domain/domain-event.interface.j
 export interface ContainerUpdatedPayload {
   containerId: string;
   updatedFields: string[];
+  title?: string;
 }
 
 export class ContainerUpdatedEvent implements IDomainEvent {
