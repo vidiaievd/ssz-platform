@@ -186,6 +186,28 @@ model SubmissionRevision {
   @@map("submission_revisions")
 }
 
+// ─── Outbox ───────────────────────────────────────────────────────────────────
+// Transactional outbox: events written here atomically with the domain change.
+// OutboxRelayService polls and publishes to RabbitMQ with publisher confirms.
+// publishedAt IS NULL means pending. See ADR-011.
+
+model Outbox {
+  id            String    @id @default(uuid())
+  eventId       String    @unique @map("event_id")
+  eventType     String    @map("event_type")
+  exchange      String
+  routingKey    String    @map("routing_key")
+  payload       String    @db.Text          // JSON-serialised BaseEvent envelope
+  correlationId String?   @map("correlation_id")
+  occurredAt    DateTime  @map("occurred_at")
+  publishedAt   DateTime? @map("published_at")
+  attempts      Int       @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox")
+}
+
 // RabbitMQ consumer idempotency — one row per processed event.
 // Consumers check this table before handling; insert on success.
 model ProcessedEvent {
