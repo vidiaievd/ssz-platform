@@ -4,10 +4,12 @@ import {
   IsOptional,
   IsUrl,
   IsEmail,
+  IsEnum,
   MinLength,
   MaxLength,
   Matches,
 } from 'class-validator';
+import { SchoolType } from '../../domain/value-objects/school-type.vo.js';
 
 export class CreateSchoolRequestDto {
   @ApiProperty({ example: 'Sunrise Language School', description: 'Unique school name' })
@@ -55,4 +57,9 @@ export class CreateSchoolRequestDto {
   @IsString()
   @MaxLength(100)
   city?: string;
+
+  @ApiPropertyOptional({ enum: SchoolType, default: SchoolType.ONLINE, description: 'ONLINE (default) or HYBRID (has physical sessions)' })
+  @IsOptional()
+  @IsEnum(SchoolType)
+  type?: SchoolType;
 }
