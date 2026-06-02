@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { MemberRole } from "../../domain/value-objects/member-role.vo.js";
 import { InvitationStatus } from "../../domain/value-objects/invitation-status.vo.js";
+import { SchoolType } from "../../domain/value-objects/school-type.vo.js";
 
 export class InvitationResponseDto {
   @ApiProperty({ description: 'Invitation UUID' })
@@ -42,6 +43,7 @@ export class SchoolResponseDto {
   @ApiPropertyOptional() website?: string;
   @ApiPropertyOptional() contactEmail?: string;
   @ApiPropertyOptional() city?: string;
+  @ApiProperty({ enum: SchoolType, default: SchoolType.ONLINE }) type!: SchoolType;
   @ApiProperty() isActive!: boolean;
   @ApiProperty({ default: false }) requireTutorReviewForSelfPaced!: boolean;
   @ApiPropertyOptional() defaultExplanationLanguage?: string;
