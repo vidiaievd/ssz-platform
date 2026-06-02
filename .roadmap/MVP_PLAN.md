@@ -1,7 +1,7 @@
 # SSZ Platform — MVP Plan
 
 > **Last updated**: 2026-06-02
-> **Active sprint**: Post-MVP — School Dashboard UI
+> **Active sprint**: Sprint 10 — API Docs Service + Infrastructure Polish
 > **Status snapshot**: see `docs/STATUS.md`
 
 ---
@@ -107,27 +107,7 @@ The MVP is feature-complete when:
 
 ---
 
-### Sprint 10 — School Dashboard UI (current)
-
-**Goal**: implement the school admin dashboard UI components and page in ssz-platform-web.
-
-**BFF backend complete** (C.1). Next: build the UI.
-
-**Scope**:
-1. `<KpiCard>` component — stat + delta chip + inline `<Sparkline>`
-2. `<Sparkline>` — 7-point SVG bar chart (no chart lib)
-3. `<ActivityFeed>` / `<ActivityRow>` — tone-colored icon + actor + verb + target + timestamp
-4. `<CourseHealthRow>` — grid row with completion `Progress` bar + trend + dropoff badge
-5. `<AtRiskList>` — avatar + name + course + lastSeen + progress % + "Nudge all" button
-6. Dashboard `page.tsx` — orchestrates `GET /api/schools/[id]/dashboard` + per-widget Suspense boundaries
-7. Role-based widget visibility (teacher sees subset; owner/admin sees all)
-8. Loading skeletons (per-widget Suspense fallbacks)
-9. Empty + error states per widget
-10. `POST /api/schools/[id]/nudge` Server Action with optimistic update + `revalidateTag('at-risk')`
-
----
-
-### Sprint 11 — API Docs Service + Infrastructure Polish
+### Sprint 10 — API Docs Service + Infrastructure Polish
 
 **Goal**: consolidate developer experience.
 
@@ -151,8 +131,7 @@ The MVP is feature-complete when:
 | ADR-011 (event archive + outbox, no Kafka) | A.1 | ✅ Done |
 | `leafItemCount` population via container-item events | TBD | ⏳ Pending |
 | e2e integration tests across services | Sprint 6+ | Planned |
-| API Docs aggregator | Sprint 11 | Planned |
-| Mobile app (VoxOrd) full integration | Sprint 8+ | Planned |
+| API Docs aggregator | Sprint 10 | Planned |
 | LLM integration | Sprint 7 | Planned |
 
 ---
