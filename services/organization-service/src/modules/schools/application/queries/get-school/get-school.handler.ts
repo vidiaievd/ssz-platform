@@ -33,6 +33,7 @@ export class GetSchoolHandler implements IQueryHandler<GetSchoolQuery> {
       website: school.website,
       contactEmail: school.contactEmail,
       city: school.city,
+      type: school.type,
       isActive: school.isActive,
       requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
       defaultExplanationLanguage: school.defaultExplanationLanguage,

@@ -17,7 +17,7 @@ export class RabbitmqEventPublisher implements IEventPublisher, OnModuleInit, On
   private readonly logger = new Logger(RabbitmqEventPublisher.name);
   private connection: ReturnType<typeof amqp.connect> | null = null;
   private channelWrapper: ReturnType<ReturnType<typeof amqp.connect>['createChannel']> | null = null;
-  private exchangeName = EXCHANGES.NOTIFICATION;
+  private exchangeName: string = EXCHANGES.NOTIFICATION;
 
   constructor(private readonly config: ConfigService<AppConfig>) {}
 

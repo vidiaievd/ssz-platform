@@ -1,7 +1,7 @@
 # SSZ Platform — Frontend API Guide
 
 > Инструкция для Claude Code при работе над фронтендом (веб или мобайл).
-> Последнее обновление: 2026-05-31
+> Последнее обновление: 2026-06-02
 
 ---
 
@@ -26,9 +26,10 @@ docker compose --env-file .env.dev -f docker-compose.base.yml -f docker-compose.
 | Organization Service | NestJS | :3002 | Running |
 | Content Service | NestJS | :3003 | Running |
 | Media Service | NestJS | :3004 | Running |
-| Notification Service | NestJS | :3005 | Running (только email) |
+| Notification Service | NestJS | :3005 | Running (email + in-app nudge) |
 | Exercise Engine Service | NestJS | :3006 | Running |
 | Learning Service | NestJS | :3007 | Running |
+| Analytics Service | NestJS | :3008 | Running |
 
 ---
 
@@ -379,9 +380,10 @@ Authorization: Bearer <accessToken>
   "avatarUrl": "https://...",          // опционально
   "website": "https://myschool.com",   // опционально
   "contactEmail": "info@myschool.com", // опционально
-  "city": "Kyiv"                       // опционально, «Online» для дистанционных
+  "city": "Kyiv",                      // опционально
+  "type": "ONLINE"                     // опционально — "ONLINE" (default) | "HYBRID"
 }
-// 201 → SchoolResponseDto (id, name, slug, website, contactEmail, city, ownerId, members, ...)
+// 201 → SchoolResponseDto (id, name, slug, website, contactEmail, city, type, ownerId, members, ...)
 ```
 
 #### GET /api/v1/schools
@@ -409,7 +411,7 @@ Resolve slug → объект School. `200`, `403` (не участник), `404
 
 #### PATCH /api/v1/schools/{schoolId}
 
-Обновить данные школы (только OWNER/ADMIN). Все поля опциональны: `name`, `slug`, `description`, `avatarUrl`, `website`, `contactEmail`, `city`. `204`.
+Обновить данные школы (только OWNER/ADMIN). Все поля опциональны: `name`, `slug`, `description`, `avatarUrl`, `website`, `contactEmail`, `city`, `type` (`"ONLINE"` | `"HYBRID"`). `204`.
 
 > При изменении `slug` старые ссылки перестают работать — предупредить пользователя на фронте.
 
@@ -1236,6 +1238,182 @@ POST /api/v1/srs/cards/{id}/unsuspend  Возобновить карточку
 
 ---
 
+## 8. Analytics Service — School Dashboard
+
+🔒 Все эндпоинты требуют Authorization (Bearer JWT). Доступ проверяется через SchoolMembership проекцию.
+
+**Base path**: `/api/v1/schools/{schoolId}/dashboard` и `/api/v1/schools/{schoolId}/activity`.
+
+> Фронтенд использует эти эндпоинты **не напрямую**, а через BFF-композит `GET /api/schools/[id]/dashboard` (ssz-platform-web Route Handler). Для прямого вызова при разработке — см. ниже.
+
+---
+
+### GET /api/v1/schools/{schoolId}/dashboard/kpis
+
+Ключевые метрики школы. Роль `TEACHER` не получает `at_risk`.
+
+```json
+// 200
+{
+  "role": "OWNER",
+  "kpis": [
+    {
+      "key": "active_students_7d",
+      "label": "Active students · 7d",
+      "value": 412,
+      "delta": "+18",           // null если история < 14 дней
+      "trend": "up",            // "up" | "down" | "flat" | null
+      "hint": "of 487 enrolled",
+      "spark": [35, 42, 38, 55, 48, 62, 70]  // 7 точек, нормализованы 0–100, oldest→newest
+    },
+    {
+      "key": "lessons_completed_7d",
+      "label": "Lessons completed · 7d",
+      "value": 1247,
+      "delta": "+7%",
+      "trend": "up",
+      "hint": "across 14 courses",
+      "spark": [28, 40, 32, 55, 48, 52, 68]
+    },
+    {
+      "key": "pending_reviews",
+      "label": "Pending reviews",
+      "value": 7,
+      "hint": "writing + speaking submissions",
+      "sub": "oldest: 18 hours"  // опционально, только если value > 0
+    },
+    {
+      "key": "at_risk",          // только для OWNER и ADMIN
+      "label": "At-risk students",
+      "value": 12,
+      "delta": "-3",
+      "trend": "up",
+      "hint": "haven't logged in 7+ days"
+    }
+  ]
+}
+// 403 — не участник школы или недостаточная роль
+// 404 — школа не найдена
+```
+
+---
+
+### GET /api/v1/schools/{schoolId}/dashboard/at-risk
+
+Только для OWNER и ADMIN. Студенты без активности 7+ дней, сортировка по наибольшей неактивности.
+
+```
+?limit=10   // max 50, default 10
+```
+
+```json
+// 200
+{
+  "students": [
+    {
+      "userId": "uuid",
+      "name": "Maria Singh",
+      "course": "Spanish Beginner (A1)",   // основной курс (последний по enrolledAt)
+      "lastSeen": "2026-05-26T10:00:00.000Z",  // ISO, null если никогда не был активен
+      "progress": 0.35,    // 0.0–1.0; 0 пока leafItemCount не заполнен
+      "lang": "es"         // язык основного курса
+    }
+  ],
+  "total": 12    // общий count до limit
+}
+// 403 — требуется OWNER или ADMIN
+```
+
+---
+
+### GET /api/v1/schools/{schoolId}/dashboard/courses/health
+
+Доступен всем ролям дашборда. Сортировка по enrollment desc.
+
+```json
+// 200
+{
+  "courses": [
+    {
+      "courseId": "uuid",
+      "name": "Spanish Beginner (A1)",
+      "lang": "es",
+      "enrollment": 48,        // активных студентов
+      "completion": 0.62,      // 0.0–1.0; 0 пока leafItemCount = 0
+      "trend": "up",           // "up" | "down" | "flat"
+      "dropoff": true          // только если completion < порогового значения (default 0.3)
+    }
+  ]
+}
+```
+
+---
+
+### GET /api/v1/schools/{schoolId}/activity
+
+Лента событий школы. Курсорная пагинация, новые первые.
+
+```
+?limit=6        // max 50, default 6
+?cursor=<ISO>   // occurredAt последнего полученного элемента для следующей страницы
+```
+
+```json
+// 200
+{
+  "items": [
+    {
+      "id": "uuid",
+      "who": "Maria Singh",              // null если актор неизвестен
+      "what": "published lesson",
+      "target": "A2 · Restaurant role-play",  // null для событий без цели
+      "occurredAt": "2026-06-02T16:00:00.000Z",
+      "tag": "content"  // "people" | "content" | "review" | "milestone"
+    }
+  ],
+  "nextCursor": "2026-06-02T15:00:00.000Z"  // null если больше нет
+}
+```
+
+---
+
+### POST /api/v1/schools/{schoolId}/dashboard/nudge
+
+Только OWNER и ADMIN. Отправляет study-reminder всем at-risk студентам.
+
+```json
+// Request
+{ "scope": "all-at-risk" }
+
+// 200
+{ "nudged": 12 }   // количество уведомлённых студентов (0 если нет at-risk)
+// 403 — требуется OWNER или ADMIN
+```
+
+---
+
+### BFF-композит (ssz-platform-web)
+
+`GET /api/schools/[id]/dashboard` — объединяет все 4 виджета в один запрос.
+
+```ts
+// src/lib/dashboard/types.ts
+type DashboardCompositeResponse = {
+  schoolId: string;
+  role: string;
+  kpis: KpisPayload | { status: 'unavailable' };
+  atRisk: AtRiskPayload | { status: 'unavailable' };
+  courseHealth: CourseHealthPayload | { status: 'unavailable' };
+  activity: ActivityPayload | { status: 'unavailable' };
+  todaysClasses: { status: 'unavailable' };  // pending scheduling service
+  trial: { status: 'unavailable' };          // pending billing service
+};
+```
+
+`[id]` может быть UUID или slug — BFF резолвит через org-service. Каждый виджет независимо fault-tolerant.
+
+---
+
 ## Форматы ошибок
 
 ### Auth Service (C# / ProblemDetails — RFC 7807)
@@ -1275,6 +1453,7 @@ POST /api/v1/srs/cards/{id}/unsuspend  Возобновить карточку
 | Notification Service | http://localhost:3005/api/docs |
 | Exercise Engine Service | http://localhost:3006/api/docs |
 | Learning Service | http://localhost:3007/api/docs |
+| Analytics Service | http://localhost:3008/api/docs |
 
 ---
 
@@ -1303,11 +1482,25 @@ POST /api/v1/srs/cards/{id}/unsuspend  Возобновить карточку
 ### Репетитор (школа): создание задания для группы
 
 1. `POST /api/v1/auth/register` с `role: "school_admin"` → создать аккаунт
-2. `POST /api/v1/schools` → создать школу
+2. `POST /api/v1/schools` с `{ "type": "ONLINE" }` → создать школу
 3. `POST /api/v1/schools/{schoolId}/invitations` → пригласить студентов
 4. `POST /api/v1/schools/{schoolId}/groups` → создать группу
 5. `POST /api/v1/schools/{schoolId}/groups/{groupId}/members` → добавить студентов в группу
 6. `POST /api/v1/assignments/group` → выдать задание всей группе
+
+### Школьный администратор: мониторинг дашборда
+
+Через BFF-композит (ssz-platform-web):
+1. `GET /api/schools/{slugOrId}/dashboard` → composite response со всеми виджетами
+   - `kpis.kpis` → KPI strip (4 метрики с трендами)
+   - `atRisk.students` → список неактивных студентов
+   - `courseHealth.courses` → health каждого курса
+   - `activity.items` → лента событий
+
+Напрямую к Analytics Service:
+1. `GET /api/v1/schools/{id}/dashboard/kpis` → KPI с value + delta + trend + spark
+2. `GET /api/v1/schools/{id}/dashboard/at-risk?limit=3` → top at-risk студенты
+3. `POST /api/v1/schools/{id}/dashboard/nudge { "scope": "all-at-risk" }` → разослать напоминания
 
 ### Репетитор (частный): пригласить студента
 

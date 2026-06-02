@@ -1,16 +1,16 @@
 # SSZ Platform — Project Status
 
-> **Last updated**: 2026-05-04
-> **Branch**: feature/sprint-06-learning-srs
+> **Last updated**: 2026-06-02
+> **Branch**: feature/analytics-service-projections (→ dev)
 
 ## Overall Progress
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| Phase 1 | User Profile Service + Organization Service + API Docs Service | ~70% |
+| Phase 1 | User Profile Service + Organization Service + API Docs Service | ~75% |
 | Phase 2 | Content Service + Media Service | Complete |
 | Phase 3 | Exercise Engine Service + Learning Service | Complete |
-| Phase 4 | Notification Service + Analytics Service | Notification complete; Analytics not started |
+| Phase 4 | Notification Service + Analytics Service | Complete (core) |
 
 ---
 
@@ -20,35 +20,29 @@
 |---------|-------|--------|--------|
 | Auth Service | C# / ASP.NET Core 8 | Complete | [details](services/auth-service.md) |
 | User Profile Service | NestJS | Complete | [details](services/user-profile-service.md) |
-| Organization Service | NestJS | Complete | [details](services/organization-service.md) |
+| Organization Service | NestJS | Complete (+ school type) | [details](services/organization-service.md) |
 | Content Service | NestJS | Complete (Blocks 1–6) | [details](services/content-service.md) |
 | Media Service | NestJS | Complete | [details](services/media-service.md) |
-| Notification Service | NestJS | Complete (email; push/in-app deferred) | — |
+| Notification Service | NestJS | Complete (email + in-app nudge) | — |
 | Exercise Engine Service | NestJS | Complete (Sprint 5) | [details](services/exercise-engine-service.md) |
-| Learning Service | NestJS | Complete | [details](services/learning-service.md) |
-| Analytics Service | NestJS | Not started | — |
+| Learning Service | NestJS | Complete (+ internal snapshot API) | [details](services/learning-service.md) |
+| Analytics Service | NestJS | **Complete (Phase B–D)** | — |
 | API Docs Service | nginx + static HTML | Not started | — |
-| VoxOrd (Mobile) | React Native 0.84 | Not started | — |
-| Web (Tutor/School) | TBD | Not started | — |
-| Web (Student) | TBD | Not started | — |
 
 ---
 
 ## Infrastructure
 
-- **docker-compose.yml** — orchestrates all services (learning-service and exercise-engine-service entries complete ✅):
-  - PostgreSQL 16 (`ssz-postgres`) — primary database cluster
-  - Redis 7 (`ssz-redis`) — cache, rate limiting, OTP replay guard
-  - RabbitMQ 3 with management plugin (`ssz-rabbitmq`) — async events on `ssz.events` topic exchange
-  - MinIO (`ssz-minio`) — S3-compatible object storage; two buckets: `ssz-public` (avatars), `ssz-private` (presigned)
-  - MailHog (`ssz-mailhog`) — local SMTP trap, web UI on :8025
-  - nginx (`ssz-nginx`) — API gateway, rate limiting, upstream routing
-  - pgAdmin 4 — database administration
-  - NestJS services: user-profile, organization, content, media, notification, learning ✅, exercise-engine ✅
-  - Auth service: ASP.NET Core 8
-- **postgres/init.sql** — creates databases and users per service (least-privilege)
-- **Dockerfiles** — all six application services have multi-stage production Dockerfiles
-- **.env.example** — root file documenting all docker-compose secrets
+- **docker-compose.dev.yml** — orchestrates all services:
+  - PostgreSQL 16 — primary database cluster (includes `analytics_db`)
+  - Redis 7 — cache, rate limiting, OTP replay guard
+  - RabbitMQ 3 — async events; exchanges: auth, profile, organization, content, learning, exercise-engine, media, notification, **analytics** (new)
+  - MinIO — S3-compatible object storage
+  - MailHog — local SMTP trap
+  - nginx — API gateway; `nginx.dev.conf` is the active dev config (mounted by `docker-compose.dev.yml`); both `nginx.conf` and `nginx.dev.conf` synchronized: analytics-service routes added (`/api/v1/schools/*/dashboard`, `/api/v1/schools/*/activity`, `/api/v1/internal/events`), content-service catch-all `/api/v1/content` replaced with individual prefix routes, stale `/api/v1/organizations` and `/api/v1/submissions` removed, `/api/v1/tutoring` + `/api/v1/internal/schools` + `/api/v1/review` + `/api/v1/srs` added
+  - pgAdmin 4
+- **postgres/init.sql** — `analytics_db` / `analytics_service` user added
+- **infrastructure/.env.dev** — `ANALYTICS_SERVICE_DB_PASSWORD` added
 
 ---
 
@@ -60,13 +54,17 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 - **Repository pattern** — Prisma repos implement domain interfaces; injected via DI tokens (Symbols)
 - **Result\<T, E\>** — functional business error handling; exceptions only for infrastructure failures
 - **Soft deletes** — `deleted_at` timestamp on all entities
-- **RabbitMQ events** — domain entities raise events; published after persistence to `ssz.events` topic exchange
-- **Idempotent consumers** — `processed_events` table prevents duplicate processing on all consumers
+- **RabbitMQ events** — domain entities raise events; published after persistence
+- **Transactional outbox** — `outbox` table + relay worker for at-least-once delivery (content, learning, organization services)
+- **Idempotent consumers** — `processed_events` table; analytics uses per-processor composite key `(eventId, processorId)` so multiple projections can independently track the same event
 - **DLX (dead-letter exchange)** — `ssz.events.dlx` for failed messages; requeue-once-then-dead-letter
+- **Event archive** — Analytics Service stores every domain event from all exchanges for replay (`event_archive` with monotonic `sequence` cursor)
+- **Event-driven read models (projections)** — Analytics builds denormalized read models from events; zero cross-service DB reads
+- **BFF composite pattern** — ssz-platform-web aggregates multiple analytics endpoints in a single Route Handler; each widget is independently fault-tolerant
 - **Visibility Guard** — polymorphic access control across all content read endpoints
 - **BullMQ queues** — async media processing (image resize, audio conversion)
-- **Short-lived JWT tokens** — password reset and email verification use symmetric JWT (same key as MFA challenge tokens), no DB table required
 - **IP-level rate limiting** — `RedisRateLimitStore` on login endpoint; progressive lockout
+- **Short-lived JWT tokens** — password reset and email verification use symmetric JWT
 
 ---
 
@@ -77,22 +75,32 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 - MFA: TOTP setup, verification, backup codes
 - JWT RS256 (RSA-4096): access token (15 min) + refresh token rotation with family theft detection
 - Logout (revokes all refresh tokens)
-- Forgot password → `POST /api/v1/auth/password/forgot` (anti-enumeration: always 204) → publishes `auth.password_reset_requested`
-- Reset password → `POST /api/v1/auth/password/reset`
-- Email verification request → `POST /api/v1/auth/email/verify/request` (authenticated)
-- Email verification confirm → `POST /api/v1/auth/email/verify/confirm`
+- Forgot password / reset password
+- Email verification request / confirm
 - Role assignment (self-service for student/tutor; admin-gated for others)
 - Consumes `user.platform.role.assigned` from Organization Service
+
+---
+
+## Organization Service — Implemented Features
+
+- Schools CRUD (create/read/update/soft-delete), slug uniqueness, auto-generation
+- **School type** `ONLINE | HYBRID` (default `ONLINE`) — unlocks Today's classes conditional render
+- School members (add/remove), invitations by email (JWT token in link)
+- School groups / cohorts (create/read/update/delete, members management)
+- Tutoring groups (private tutor ↔ students outside school)
+- Transactional outbox for all domain events
+- Publishes: `school.created`, `school.member.added`, `school.member.removed`, `school.invitation.sent`, `user.platform.role.assigned`
 
 ---
 
 ## Media Service — Implemented Features
 
 - Pre-signed upload URL generation (`POST /api/v1/media/uploads/request`)
-- Upload finalization with S3 existence check (`POST /api/v1/media/uploads/:assetId/finalize`)
+- Upload finalization with S3 existence check
 - Image processing: webp variants at 256/512/1024px via Sharp (BullMQ worker)
 - Audio processing: opus (64kbps) + mp3 (128kbps) with loudnorm via fluent-ffmpeg (BullMQ worker)
-- Asset queries with presigned download URLs for private assets, public URLs for avatars
+- Asset queries with presigned download URLs for private assets
 - Soft delete with storage key cleanup
 - Publishes: `media.uploaded`, `media.processing_completed`, `media.processing_failed`, `media.deleted`
 
@@ -100,59 +108,113 @@ All NestJS services follow **Clean Architecture** (Domain → Application → In
 
 ## Notification Service — Implemented Features
 
-- Consumes `auth.user.registered` → sends welcome email
-- Consumes `auth.email_verification_requested` → sends verification email
-- Consumes `auth.password_reset_requested` → sends password reset email
+- Consumes `auth.user.registered` → welcome email
+- Consumes `auth.email_verification_requested` → verification email
+- Consumes `auth.password_reset_requested` → password reset email
+- **Consumes `analytics.nudge.requested`** → creates `STUDY_REMINDER` in-app notification record (D.1)
 - Notification status lifecycle: PENDING → SENDING → SENT / FAILED / PERMANENTLY_FAILED (max 3 attempts)
-- MailHog for local SMTP; production SMTP via environment config
-- Idempotent RabbitMQ consumer with DLX
+- Idempotent consumers with DLX; separate `AnalyticsConsumerService` for `analytics.events` exchange
 
-**Deferred to later sprint**: push notifications (FCM), in-app notifications, user preferences/unsubscribe, MJML template engine, BullMQ email queuing, school invitation emails.
+**Deferred**: push notifications (FCM), in-app delivery pipeline, user preferences/unsubscribe, MJML template engine.
 
 ---
 
 ## Learning Service — Implemented Features
 
-- **Assignments** — tutor-driven content assignment with due dates, status lifecycle (ACTIVE → COMPLETED / CANCELLED / OVERDUE), school role authorization
-- **Enrollments** — student-driven self-paced enrollment with access-tier enforcement (PUBLIC_FREE, FREE_WITHIN_SCHOOL, ASSIGNED_ONLY, etc.)
-- **Progress tracking** — unified `UserProgress` per (user, content_type, content_id); `recordAttempt`, `markNeedsReview`, `resolveReview` state machine
-- **Free-form submission review** — `Submission` aggregate with revision history; PENDING_REVIEW → APPROVED / REJECTED / REVISION_REQUESTED → RESUBMITTED cycle
-- **Scheduled jobs** — BullMQ repeating job every 5 minutes to detect and mark overdue assignments
-- **RabbitMQ consumers** — `exercise.attempt.completed` (progress + SRS introduce + review); `learning.enrollment.created` (vocabulary list SRS bulk-introduce); `container.published` (cache invalidation); `container.deleted` (cascade cancel/unenrol)
-- **SRS** — FSRS-6 algorithm (`ts-fsrs ^5.3.2`); `ReviewCard` aggregate; Redis due queue (sorted set); Redis daily limits; `GET /srs/due`, `POST /srs/cards/:id/review`, suspend/unsuspend, stats
-- **Health checks** — `/health/live` (liveness) and `/health/ready` (DB + Redis + RabbitMQ via `@nestjs/terminus`)
-- **Swagger** — full OpenAPI at `/api/docs` covering Assignments, Enrollments, Progress, Submissions, SRS
-- **Structured logging** — `nestjs-pino` with correlation IDs propagated via `x-correlation-id` header
+- **Assignments** — tutor-driven content assignment with due dates, status lifecycle, school role authorization
+- **Enrollments** — student-driven self-paced enrollment with access-tier enforcement
+- **Progress tracking** — unified `UserProgress` per (user, content_type, content_id)
+- **Submission review** — `Submission` aggregate with revision history; full status machine
+- **Scheduled jobs** — BullMQ repeating job to detect and mark overdue assignments
+- **SRS** — FSRS-6 algorithm; `ReviewCard` aggregate; Redis due queue; daily limits
+- **Internal snapshot API** — `GET /internal/analytics/snapshot/{enrollments|progress|submissions}` (cursor-paginated, `x-service-token` protected) for Analytics initial seed
+- **RabbitMQ consumers** — `exercise.attempt.completed`, vocabulary enrollment, container published/deleted
+- Transactional outbox for all domain events
+- Published events: all `learning.enrollment.*`, `learning.progress.*`, `learning.submission.*`, `learning.assignment.*`, `learning.srs.*`
 
-**Published events**: `learning.assignment.created`, `learning.assignment.completed`, `learning.assignment.cancelled`, `learning.assignment.overdue`, `learning.assignment.due_date_updated`, `learning.enrollment.created`, `learning.enrollment.completed`, `learning.enrollment.unenrolled`, `learning.progress.completed`, `learning.progress.updated`, `learning.submission.created`, `learning.submission.reviewed`, `learning.submission.resubmitted`, `learning.srs.card.created`, `learning.srs.card.reviewed`, `learning.srs.card.suspended`
+---
+
+## Analytics Service — Implemented Features
+
+New service on port `3008`. Database `analytics_db`. Clean Architecture. JWT RS256 guard (global). Swagger at `/api/docs`.
+
+### Event Archive (A.2)
+- Wildcard consumer on every exchange → append-only `event_archive` (monotonic `sequence`, dedup by `eventId`)
+- Replay API: `GET /internal/events?fromSeq=&types=&limit=`
+
+### Directory Projections (B.2)
+- `SchoolMembership { schoolId, userId, role, joinedAt }` — from `school.member.*`, `school.created`
+- `UserDirectory { userId, displayName }` — from `profile.created/updated` (displayName added to `ProfileUpdatedEvent`)
+- `ContainerDirectory { containerId, title, lang, containerType, leafItemCount=0 }` — from `content.container.*` (title added to `ContainerCreated/UpdatedEvent`)
+- `ProcessedEvent` uses composite key `(eventId, processorId)` for multi-consumer idempotency
+
+### Metric Projections + Initial Seed (B.3)
+- `EnrollmentProjection` — from `learning.enrollment.*`; canonical school student set `schoolStudents(S)`
+- `ProgressActivity` (append-only) — from `learning.progress.*`; source for sparklines, active counts, `lastActivity`
+- `SubmissionProjection` — from `learning.submission.*`; pending reviews + age
+- `SeedService` — idempotent on startup; calls learning-service snapshot API; populates all three projections from pre-archive data
+
+### Dashboard Read API (B.4–B.7)
+Authorization: `SchoolMembership` projection (no external HTTP call needed). Bearer JWT.
+
+| Endpoint | Owner | Description |
+|----------|-------|-------------|
+| `GET /api/v1/schools/:id/dashboard/kpis` | all dashboard roles | 4 KPIs: value + delta + trend + spark[7] (0–100 normalized) |
+| `GET /api/v1/schools/:id/dashboard/at-risk?limit=` | owner/admin | At-risk students: name (UserDirectory), course/lang (ContainerDirectory), lastSeen, progress |
+| `GET /api/v1/schools/:id/dashboard/courses/health` | all | Per-course: enrollment, completion, trend (recent vs prev 7d), dropoff flag |
+| `GET /api/v1/schools/:id/activity?limit=&cursor=` | all | Activity feed, cursor-paginated newest-first |
+| `POST /api/v1/schools/:id/dashboard/nudge` | owner/admin | Nudge all at-risk → publish `analytics.nudge.requested` per student → `{ nudged: n }` |
+
+**KPI definitions:**
+- `active_students_7d` — DISTINCT userId in ProgressActivity last 7d scoped via EnrollmentProjection; hint: `of N enrolled`
+- `lessons_completed_7d` — ProgressActivity `kind=completed` last 7d; hint: `across N courses`
+- `pending_reviews` — SubmissionProjection `PENDING_REVIEW|RESUBMITTED` by schoolId; `sub: oldest: X hours`
+- `at_risk` (owner/admin only) — active enrollees with no ProgressActivity in last `AT_RISK_THRESHOLD_DAYS` days
+
+Delta: present when ≥14d of history; null before. Trend: up/down/flat from delta sign.
+
+### School Activity Feed (B.7 — Audit Module)
+Events captured: `school.member.added`, `content.container.published`, `learning.enrollment.created`, `learning.submission.{created,reviewed}`. actorName denormalized from UserDirectory at write time.
+
+---
+
+## Web App (ssz-platform-web) — School Dashboard BFF (C.1)
+
+- `GET /api/schools/[id]/dashboard` — composite BFF endpoint
+  - Resolves slug → schoolId (getMySchools fallback)
+  - Parallel: kpis, at-risk (limit 3), course-health, activity (limit 6)
+  - Each widget independently fault-tolerant: upstream error → `{ status: 'unavailable' }`
+  - `todaysClasses` and `trial` always `{ status: 'unavailable' }` (pending D.3)
+- `src/lib/dashboard/types.ts` — full TypeScript types
+- `src/lib/dashboard/queries.ts` — per-widget `serverFetch` wrappers (server-only)
+- 7 MSW integration tests (`queries.test.ts`)
+- `analytics` added to `ServiceName` + env; `ANALYTICS_SERVICE_URL` in vitest.setup
 
 ---
 
 ## What Comes Next
 
-### Phase 3 remaining (Sprint 6)
-- **`@ssz/contracts` — formal event types** ✅ Done (Sprint 6 / Step 1) — all Learning Service and Exercise Engine events typed; 7 shared enums; `BaseEvent<T>` / `DomainEvent<T>` envelopes; both services compile and test green
-- **Infrastructure: learning-service + exercise-engine-service in docker-compose + nginx** ✅ Done (Sprint 6 / Step 2)
-- **Learning Service — content sync consumers + ADR-007** ✅ Done (Sprint 6 / Step 3) — `ContainerPublishedConsumer` (cache invalidation), `ContainerDeletedConsumer` (cascade cancel/unenrol), `IContainerItemListCache` + Redis impl, `ContainerCompletionService`, ADR-007; 122 tests green
-- **Learning Service — SRS** ✅ Done (Sprint 6 / Step 5) — FSRS-6 algorithm, spaced repetition queue, Redis-backed due queue, daily limits, SRS event integration; 203 tests green
+### Immediate
+- **PR**: merge `feature/analytics-service-projections` → `dev`
 
-### Phase 4 (Sprint 5–6)
-- **Analytics Service** — aggregation, school/tutor dashboards, student reports, export
-- **Notification Service additions** — SRS study reminders, school invitations, push (FCM), in-app
+### Near-term
+- **leafItemCount**: add `content.container.item.*` events to content-service so `ContainerDirectory.leafItemCount` is populated (completion ratio becomes meaningful)
+- **Nudge email**: extend `UserDirectory` with email (from profile.created) so nudge can send email in addition to in-app notification
+- **Phase D.3 — Scheduling / Today's classes** — separate scheduling service; `School.type: HYBRID` field is ready
+- **Phase D.3 — Trial/billing** — separate billing service
+- **Publish-approval (#5)** — content governance; own workstream/PR
 
-### Infrastructure / Cross-cutting
-- **API Docs Service** — aggregated Swagger UI with multi-spec dropdown
-- **VoxOrd mobile app** — React Native student interface
-- **Web apps** — tutor/school dashboard, student learning interface
+### Deferred
+- Sprint 10: API Docs Service — aggregated Swagger UI with multi-spec dropdown
+- Sprint 7: LLM integration — exercise generation, free-form feedback
 
 ---
 
 ## Known Outstanding Gaps
 
-- Notification Service: push, in-app, preferences/unsubscribe, school invitation email, MJML templates — all deferred
-- Auth Service: `email_verified` is tracked but login is not blocked for unverified accounts (by design for MVP)
-- Content Service: no full-text search, no batch tag assignment, media reference integrity not yet integrated
-- Learning Service: ADR-008 not yet written; no e2e integration tests with real infrastructure; Content Service `GET /api/internal/vocabulary-lists/{id}` endpoints not yet implemented (called by SRS consumers)
-- Exercise Engine Service: no `content.exercise.updated` consumer; no `ordering` template validator; no GET query endpoints (list/get attempt); no integration tests; LLM validator deferred to Sprint 7
+- `ContainerDirectory.leafItemCount` always `0` — content-service emits no container-item events; completion ratio will be 0 until implemented
+- `UserDirectory` has no email — nudge creates in-app notification only; email nudge deferred
+- Notification Service: push (FCM), in-app delivery, preferences — deferred
+- Auth Service: `email_verified` tracked but login not blocked for unverified accounts (MVP by design)
+- Content Service: no full-text search, no batch tag assignment
 - All services: no end-to-end integration tests across services
-- Media Service: shadow database issue (P3014) blocks `prisma migrate dev` — workaround: grant `CREATEDB` to `media_service` user or use `shadowDatabaseUrl`
