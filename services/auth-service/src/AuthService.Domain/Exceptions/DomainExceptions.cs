@@ -55,3 +55,9 @@ public sealed class TwoFactorRequiredException : DomainException
         : base("Two-factor authentication is required.", "MFA_REQUIRED")
         => MfaChallengeToken = mfaChallengeToken;
 }
+
+public sealed class EmailNotVerifiedException : DomainException
+{
+    public EmailNotVerifiedException()
+        : base("Email address is not verified. Please check your inbox.", "EMAIL_NOT_VERIFIED") { }
+}

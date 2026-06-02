@@ -51,6 +51,10 @@ public sealed class ExceptionHandlingMiddleware(
                 CreateProblem(ex.Message, ex.Code, StatusCodes.Status423Locked,
                     lockedUntil: ex.LockedUntil)),
 
+            EmailNotVerifiedException ex => (
+                StatusCodes.Status403Forbidden,
+                CreateProblem(ex.Message, ex.Code, StatusCodes.Status403Forbidden)),
+
             InvalidCredentialsException ex => (
                 StatusCodes.Status401Unauthorized,
                 CreateProblem(ex.Message, ex.Code, StatusCodes.Status401Unauthorized)),
@@ -121,6 +125,7 @@ public sealed class ExceptionHandlingMiddleware(
     {
         400 => "Bad Request",
         401 => "Unauthorized",
+        403 => "Forbidden",
         404 => "Not Found",
         409 => "Conflict",
         422 => "Validation Error",
