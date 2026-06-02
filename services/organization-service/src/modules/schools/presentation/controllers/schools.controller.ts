@@ -69,6 +69,7 @@ export class SchoolsController {
         dto.website,
         dto.contactEmail,
         dto.city,
+        dto.type,
       ),
     );
   }
@@ -147,6 +148,7 @@ export class SchoolsController {
         dto.website,
         dto.contactEmail,
         dto.city,
+        dto.type,
         dto.requireTutorReviewForSelfPaced,
         dto.defaultExplanationLanguage,
       ),

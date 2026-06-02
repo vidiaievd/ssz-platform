@@ -1,5 +1,6 @@
 import { School } from '../../domain/entities/school.entity.js';
 import { SchoolMember } from '../../domain/entities/school-member.entity.js';
+import { SchoolType } from '../../domain/value-objects/school-type.vo.js';
 
 type PrismaSchoolMember = {
   id: string;
@@ -19,6 +20,7 @@ type PrismaSchool = {
   website: string | null;
   contactEmail: string | null;
   city: string | null;
+  type: string;
   isActive: boolean;
   requireTutorReviewForSelfPaced: boolean;
   defaultExplanationLanguage: string | null;
@@ -50,6 +52,7 @@ export class SchoolMapper {
       website: raw.website ?? undefined,
       contactEmail: raw.contactEmail ?? undefined,
       city: raw.city ?? undefined,
+      type: (raw.type as SchoolType) ?? SchoolType.ONLINE,
       isActive: raw.isActive,
       requireTutorReviewForSelfPaced: raw.requireTutorReviewForSelfPaced,
       defaultExplanationLanguage: raw.defaultExplanationLanguage ?? undefined,

@@ -5,6 +5,7 @@ import { SchoolMemberRemovedEvent } from '../events/school-member-removed.event.
 import { ForbiddenOperationException } from '../exceptions/forbidden-operation.exception.js';
 import { MemberAlreadyExistsException } from '../exceptions/member-already-exists.exception.js';
 import { MemberRole } from '../value-objects/member-role.vo.js';
+import { SchoolType } from '../value-objects/school-type.vo.js';
 import type { SchoolMember } from './school-member.entity.js';
 
 export interface CreateSchoolProps {
@@ -17,6 +18,7 @@ export interface CreateSchoolProps {
   website?: string;
   contactEmail?: string;
   city?: string;
+  type?: SchoolType;
 }
 
 export interface RehydrateSchoolProps extends CreateSchoolProps {
@@ -27,6 +29,7 @@ export interface RehydrateSchoolProps extends CreateSchoolProps {
   members: SchoolMember[];
   requireTutorReviewForSelfPaced: boolean;
   defaultExplanationLanguage?: string;
+  type: SchoolType;
 }
 
 export class School extends BaseEntity {
@@ -38,6 +41,7 @@ export class School extends BaseEntity {
   private _website: string | undefined;
   private _contactEmail: string | undefined;
   private _city: string | undefined;
+  private _type: SchoolType;
   private _isActive: boolean;
   private _deletedAt: Date | undefined;
   private _members: SchoolMember[];
@@ -54,6 +58,7 @@ export class School extends BaseEntity {
     website: string | undefined,
     contactEmail: string | undefined,
     city: string | undefined,
+    type: SchoolType,
     isActive: boolean,
     createdAt: Date,
     updatedAt: Date,
@@ -71,6 +76,7 @@ export class School extends BaseEntity {
     this._website = website;
     this._contactEmail = contactEmail;
     this._city = city;
+    this._type = type;
     this._isActive = isActive;
     this._deletedAt = deletedAt;
     this._members = members;
@@ -90,6 +96,7 @@ export class School extends BaseEntity {
       props.website,
       props.contactEmail,
       props.city,
+      props.type ?? SchoolType.ONLINE,
       true,
       now,
       now,
@@ -117,6 +124,7 @@ export class School extends BaseEntity {
       props.website,
       props.contactEmail,
       props.city,
+      props.type,
       props.isActive,
       props.createdAt,
       props.updatedAt,
@@ -135,6 +143,7 @@ export class School extends BaseEntity {
     website?: string | null;
     contactEmail?: string | null;
     city?: string | null;
+    type?: SchoolType;
     requireTutorReviewForSelfPaced?: boolean;
     defaultExplanationLanguage?: string | null;
   }): void {
@@ -145,6 +154,7 @@ export class School extends BaseEntity {
     if (props.website !== undefined) this._website = props.website ?? undefined;
     if (props.contactEmail !== undefined) this._contactEmail = props.contactEmail ?? undefined;
     if (props.city !== undefined) this._city = props.city ?? undefined;
+    if (props.type !== undefined) this._type = props.type;
     if (props.requireTutorReviewForSelfPaced !== undefined)
       this._requireTutorReviewForSelfPaced = props.requireTutorReviewForSelfPaced;
     if (props.defaultExplanationLanguage !== undefined)
@@ -220,6 +230,7 @@ export class School extends BaseEntity {
   get website(): string | undefined { return this._website; }
   get contactEmail(): string | undefined { return this._contactEmail; }
   get city(): string | undefined { return this._city; }
+  get type(): SchoolType { return this._type; }
   get isActive(): boolean { return this._isActive; }
   get deletedAt(): Date | undefined { return this._deletedAt; }
   get isDeleted(): boolean { return this._deletedAt !== undefined; }
