@@ -32,6 +32,9 @@ export const envSchema = z.object({
   MINIO_SECRET_KEY: z.string().min(1, 'MINIO_SECRET_KEY is required'),
   MINIO_BUCKET_PUBLIC: z.string().default('ssz-public'),
   MINIO_BUCKET_PRIVATE: z.string().default('ssz-private'),
+  // External URL reachable by browsers — overrides internal endpoint in presigned URLs.
+  // In Docker dev: http://localhost:9000. In prod: your S3/MinIO public hostname.
+  MINIO_PUBLIC_BASE_URL: z.string().optional(),
 
   // Pre-signed URL TTLs (seconds)
   PRESIGNED_UPLOAD_TTL_SECONDS: z.coerce.number().int().positive().default(900),   // 15 min
@@ -93,6 +96,7 @@ export interface AppConfig {
     secretKey: string;
     bucketPublic: string;
     bucketPrivate: string;
+    publicBaseUrl: string | undefined;
   };
   upload: {
     presignedUploadTtlSeconds: number;
@@ -141,6 +145,7 @@ export default (): AppConfig => {
       secretKey: env.MINIO_SECRET_KEY,
       bucketPublic: env.MINIO_BUCKET_PUBLIC,
       bucketPrivate: env.MINIO_BUCKET_PRIVATE,
+      publicBaseUrl: env.MINIO_PUBLIC_BASE_URL,
     },
     upload: {
       presignedUploadTtlSeconds: env.PRESIGNED_UPLOAD_TTL_SECONDS,
