@@ -134,6 +134,27 @@ model ProgressActivity {
   @@map("progress_activity")
 }
 
+// ─── Audit: SchoolActivity ────────────────────────────────────────────────────
+// Human-readable activity feed for the school dashboard.
+// actorName is denormalized from UserDirectory at write time.
+// Separate from metric projections — qualitative context, not counts.
+
+model SchoolActivity {
+  id         String   @id @default(uuid())
+  schoolId   String   @map("school_id")
+  actorId    String?  @map("actor_id")
+  actorName  String?  @map("actor_name")
+  eventType  String   @map("event_type")
+  tag        String   // people | content | review | milestone
+  what       String
+  target     String?
+  targetId   String?  @map("target_id")
+  occurredAt DateTime @map("occurred_at")
+
+  @@index([schoolId, occurredAt(sort: Desc)])
+  @@map("school_activity")
+}
+
 // ─── Projection: SubmissionProjection ─────────────────────────────────────────
 // Built from learning.submission.* events + seed.
 // Used for pending_reviews count and oldest-pending age.

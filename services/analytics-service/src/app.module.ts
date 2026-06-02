@@ -13,6 +13,7 @@ import { EventArchiveModule } from './modules/event-archive/event-archive.module
 import { ProjectionsModule } from './modules/projections/projections.module.js';
 import { MetricsModule } from './modules/metrics/metrics.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { AuditModule } from './modules/audit/audit.module.js';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module.js';
     ProjectionsModule,
     MetricsModule,
     DashboardModule,
+    AuditModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
