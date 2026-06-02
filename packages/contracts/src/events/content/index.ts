@@ -51,6 +51,8 @@ export interface ContainerPayload {
   ownerUserId: string;
   ownerSchoolId: string | null;
   type: string;
+  title: string;
+  targetLanguage: string;
   visibility: string;
 }
 
@@ -65,6 +67,7 @@ export interface ContainerPublishedPayload {
 export interface ContainerUpdatedPayload {
   containerId: string;
   updatedFields: string[];
+  title?: string;
 }
 
 export interface ContainerDeletedPayload {

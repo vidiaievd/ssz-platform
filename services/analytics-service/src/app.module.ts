@@ -6,6 +6,7 @@ import { AppConfigModule } from './config/app-config.module.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { EventArchiveModule } from './modules/event-archive/event-archive.module.js';
+import { ProjectionsModule } from './modules/projections/projections.module.js';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { EventArchiveModule } from './modules/event-archive/event-archive.module
     PrismaModule,
     HealthModule,
     EventArchiveModule,
+    ProjectionsModule,
   ],
 })
 export class AppModule {}
