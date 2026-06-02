@@ -28,9 +28,6 @@
 | Learning Service | NestJS | Complete (+ internal snapshot API) | [details](services/learning-service.md) |
 | Analytics Service | NestJS | **Complete (Phase B–D)** | — |
 | API Docs Service | nginx + static HTML | Not started | — |
-| VoxOrd (Mobile) | React Native 0.84 | Not started | — |
-| Web (Tutor/School) | Next.js 16 | School dashboard BFF complete | — |
-| Web (Student) | Next.js 16 | In progress | — |
 
 ---
 
@@ -199,7 +196,6 @@ Events captured: `school.member.added`, `content.container.published`, `learning
 
 ### Immediate
 - **PR**: merge `feature/analytics-service-projections` → `dev`
-- **Dashboard UI**: build `KpiCard`, `Sparkline`, `ActivityFeed`, `CourseHealthRow`, `AtRiskList` components in ssz-platform-web using the BFF composite
 
 ### Near-term
 - **leafItemCount**: add `content.container.item.*` events to content-service so `ContainerDirectory.leafItemCount` is populated (completion ratio becomes meaningful)
@@ -209,9 +205,8 @@ Events captured: `school.member.added`, `content.container.published`, `learning
 - **Publish-approval (#5)** — content governance; own workstream/PR
 
 ### Deferred
-- API Docs Service — aggregated Swagger UI
-- VoxOrd mobile app — React Native student interface
-- LLM integration (Sprint 7) — exercise generation, free-form feedback
+- Sprint 10: API Docs Service — aggregated Swagger UI with multi-spec dropdown
+- Sprint 7: LLM integration — exercise generation, free-form feedback
 
 ---
 
