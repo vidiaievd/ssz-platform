@@ -291,6 +291,34 @@ services:
       retries: 5
       start_period: 20s
 
+  analytics-service:
+    build:
+      context: ../
+      dockerfile: services/analytics-service/Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3008
+      DATABASE_URL: postgresql://analytics_service:${ANALYTICS_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/analytics_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
+      AT_RISK_THRESHOLD_DAYS: 7
+      DROPOFF_COMPLETION_THRESHOLD: 0.3
+    ports:
+      - "3008:3008"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3008/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   # ── Gateway ─────────────────────────────────────────────────────────────────
 
   nginx:
@@ -308,6 +336,7 @@ services:
       - notification-service
       - learning-service
       - exercise-engine-service
+      - analytics-service
 
   # ── Dev-only tools ──────────────────────────────────────────────────────────
 

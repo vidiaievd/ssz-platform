@@ -82,3 +82,12 @@ CREATE DATABASE exercises_db OWNER exercise_engine_service;
 
 \c exercises_db
 GRANT ALL ON SCHEMA public TO exercise_engine_service;
+
+-- ============================================================================
+-- Analytics Service
+-- ============================================================================
+CREATE USER analytics_service WITH PASSWORD 'localdevpassword' CREATEDB;
+CREATE DATABASE analytics_db OWNER analytics_service;
+
+\c analytics_db
+GRANT ALL ON SCHEMA public TO analytics_service;
