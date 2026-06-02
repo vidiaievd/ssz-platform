@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Event Archive ────────────────────────────────────────────────────────────
+// Append-only store of every domain event received from all RabbitMQ exchanges.
+// sequence is the monotonic replay cursor. eventId deduplicates at-least-once delivery.
+// The archive is the single source of truth for replay; projections read from it.
+
+model EventArchive {
+  id         String   @id @default(uuid())
+  sequence   BigInt   @default(autoincrement()) @unique
+  eventId    String   @unique @map("event_id")
+  eventType  String   @map("event_type")
+  exchange   String
+  routingKey String   @map("routing_key")
+  source     String
+  payload    Json
+  occurredAt DateTime @map("occurred_at")
+  archivedAt DateTime @default(now()) @map("archived_at")
+
+  @@index([eventType, occurredAt])
+  @@index([occurredAt])
+  @@map("event_archive")
+}
+
+// ─── Idempotency ──────────────────────────────────────────────────────────────
+// Standard processed_events table: every consumer writes here on success to
+// prevent duplicate processing on redelivery.
+
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique @map("event_id")
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("processed_events")
+}
