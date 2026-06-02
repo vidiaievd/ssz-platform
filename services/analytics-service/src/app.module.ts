@@ -7,6 +7,7 @@ import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { EventArchiveModule } from './modules/event-archive/event-archive.module.js';
 import { ProjectionsModule } from './modules/projections/projections.module.js';
+import { MetricsModule } from './modules/metrics/metrics.module.js';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ProjectionsModule } from './modules/projections/projections.module.js';
     HealthModule,
     EventArchiveModule,
     ProjectionsModule,
+    MetricsModule,
   ],
 })
 export class AppModule {}

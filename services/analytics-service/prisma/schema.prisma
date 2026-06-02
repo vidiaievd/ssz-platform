@@ -93,3 +93,62 @@ model ContainerDirectory {
   @@index([ownerSchoolId])
   @@map("container_directory")
 }
+
+// ─── Projection: EnrollmentProjection ────────────────────────────────────────
+// Built from learning.enrollment.* events + seed.
+// Canonical set of active enrollments — basis for schoolStudents(S) and course-health.
+
+model EnrollmentProjection {
+  enrollmentId String    @id @map("enrollment_id")
+  userId       String    @map("user_id")
+  containerId  String    @map("container_id")
+  schoolId     String?   @map("school_id")
+  status       String    // ACTIVE | COMPLETED | UNENROLLED
+  enrolledAt   DateTime  @map("enrolled_at")
+  completedAt  DateTime? @map("completed_at")
+  unenrolledAt DateTime? @map("unenrolled_at")
+
+  @@index([userId])
+  @@index([schoolId])
+  @@index([containerId])
+  @@index([schoolId, status])
+  @@map("enrollment_projection")
+}
+
+// ─── Projection: ProgressActivity ─────────────────────────────────────────────
+// Append-only log of learning activity events + seed.
+// Used for active_students_7d counts, sparklines, and lastActivity (at-risk).
+// schoolId is intentionally null — dashboard scopes via SchoolMembership.userId join.
+
+model ProgressActivity {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  contentType String   @map("content_type")
+  contentId   String   @map("content_id")
+  kind        String   // updated | completed
+  occurredAt  DateTime @map("occurred_at")
+
+  @@index([userId])
+  @@index([userId, kind, occurredAt])
+  @@index([occurredAt])
+  @@map("progress_activity")
+}
+
+// ─── Projection: SubmissionProjection ─────────────────────────────────────────
+// Built from learning.submission.* events + seed.
+// Used for pending_reviews count and oldest-pending age.
+
+model SubmissionProjection {
+  submissionId String    @id @map("submission_id")
+  userId       String    @map("user_id")
+  exerciseId   String    @map("exercise_id")
+  assignmentId String?   @map("assignment_id")
+  schoolId     String?   @map("school_id")
+  status       String    // PENDING_REVIEW | APPROVED | REJECTED | REVISION_REQUESTED | RESUBMITTED
+  submittedAt  DateTime  @map("submitted_at")
+  reviewedAt   DateTime? @map("reviewed_at")
+
+  @@index([schoolId, status])
+  @@index([userId])
+  @@map("submission_projection")
+}
