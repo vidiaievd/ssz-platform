@@ -30,6 +30,9 @@ export class S3StorageService implements IStorageService, OnModuleInit {
   private readonly bucketPublic: string;
   private readonly bucketPrivate: string;
   private readonly publicBaseUrl: string;
+  // External origin to substitute into presigned URLs so browsers can reach MinIO.
+  // Undefined means no substitution (internal endpoint is already reachable).
+  private readonly externalOrigin: string | undefined;
 
   constructor(private readonly config: ConfigService<AppConfig>) {
     const minio = this.config.get<AppConfig['minio']>('minio')!;
@@ -45,8 +48,16 @@ export class S3StorageService implements IStorageService, OnModuleInit {
     this.bucketPublic = minio.bucketPublic;
     this.bucketPrivate = minio.bucketPrivate;
 
-    const protocol = minio.useSsl ? 'https' : 'http';
-    this.publicBaseUrl = `${protocol}://${minio.endpoint}:${minio.port}/${minio.bucketPublic}`;
+    if (minio.publicBaseUrl) {
+      // Strip trailing slash for consistent concatenation.
+      const base = minio.publicBaseUrl.replace(/\/$/, '');
+      this.externalOrigin = base;
+      this.publicBaseUrl = `${base}/${minio.bucketPublic}`;
+    } else {
+      this.externalOrigin = undefined;
+      const protocol = minio.useSsl ? 'https' : 'http';
+      this.publicBaseUrl = `${protocol}://${minio.endpoint}:${minio.port}/${minio.bucketPublic}`;
+    }
   }
 
   async onModuleInit(): Promise<void> {
@@ -70,15 +81,17 @@ export class S3StorageService implements IStorageService, OnModuleInit {
     ttlSeconds: number,
   ): Promise<PresignedUploadResult> {
     const bucket = this.bucket(isPublic);
-    const url = await this.client.presignedPutObject(bucket, key, ttlSeconds);
+    const raw = await this.client.presignedPutObject(bucket, key, ttlSeconds);
+    const uploadUrl = this.rewriteToExternalOrigin(raw);
     const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
 
     this.logger.debug(`Generated upload URL for key "${key}" in bucket "${bucket}"`);
-    return { uploadUrl: url, expiresAt };
+    return { uploadUrl, expiresAt };
   }
 
   async generatePresignedDownloadUrl(key: string, ttlSeconds: number): Promise<string> {
-    const url = await this.client.presignedGetObject(this.bucketPrivate, key, ttlSeconds);
+    const raw = await this.client.presignedGetObject(this.bucketPrivate, key, ttlSeconds);
+    const url = this.rewriteToExternalOrigin(raw);
     this.logger.debug(`Generated download URL for key "${key}"`);
     return url;
   }
@@ -133,6 +146,18 @@ export class S3StorageService implements IStorageService, OnModuleInit {
 
   private bucket(isPublic: boolean): string {
     return isPublic ? this.bucketPublic : this.bucketPrivate;
+  }
+
+  // Replaces the internal MinIO origin in a presigned URL with the external one
+  // so browsers outside Docker can reach MinIO directly.
+  private rewriteToExternalOrigin(url: string): string {
+    if (!this.externalOrigin) return url;
+    const parsed = new URL(url);
+    const external = new URL(this.externalOrigin);
+    parsed.protocol = external.protocol;
+    parsed.hostname = external.hostname;
+    parsed.port = external.port;
+    return parsed.toString();
   }
 
   private async ensureBucket(name: string, isPublic: boolean): Promise<void> {
