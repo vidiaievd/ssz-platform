@@ -745,48 +745,253 @@ DELETE /api/v1/content-shares/{id}                  Отозвать досту�
 
 🔒 Все эндпоинты требуют Authorization.
 
-Загрузка файлов через S3-совместимый MinIO (два шага: presigned URL → upload → finalize).
+Сервис хранит файлы в MinIO (S3-совместимый object storage). Фронтенд **не загружает файл через API Gateway** — он загружает напрямую на MinIO по presigned PUT URL. API нужен только чтобы получить этот URL и подтвердить загрузку.
+
+### Dev окружение
+
+MinIO поднимается вместе с docker-compose:
+- **API (загрузка/скачивание)**: `http://localhost:9000`
+- **Консоль администратора**: `http://localhost:9001` (login: `minioadmin` / `minioadmin`)
+- **Публичные файлы** доступны напрямую: `http://localhost:9000/ssz-public/{key}`
+
+### Жизненный цикл загрузки
+
+```
+1. POST /api/v1/media/uploads/request   ← создаём запись, получаем presigned URL
+2. PUT {uploadUrl}                       ← загружаем файл НАПРЯМУЮ на MinIO (без Authorization)
+3. POST /api/v1/media/uploads/{id}/finalize  ← подтверждаем, запускаем обработку
+```
+
+### Статусы ассета
+
+| Статус | Описание |
+|--------|----------|
+| `PENDING_UPLOAD` | Создан, ожидает загрузки файла |
+| `UPLOADED` | Файл загружен, ожидает обработки |
+| `PROCESSING` | Идёт ресайз/конвертация (BullMQ) |
+| `READY` | Готов к использованию, варианты доступны |
+| `FAILED` | Ошибка обработки |
+| `DELETED` | Мягко удалён |
+
+Изображения и аудио: `UPLOADED → PROCESSING → READY`.
+Видео и SVG: `UPLOADED → READY` (без обработки).
+
+### Публичные vs приватные ассеты
+
+Bucket определяется по `entityType`:
+
+| `entityType` | Bucket | URL |
+|---|---|---|
+| `profile_avatar` | `ssz-public` | Прямой URL, не истекает |
+| Всё остальное | `ssz-private` | Presigned URL, TTL 1 час |
+
+### Допустимые MIME-типы
+
+| Категория | MIME-типы | Лимит |
+|---|---|---|
+| Изображения | `image/jpeg`, `image/png`, `image/gif`, `image/webp`, `image/svg+xml` | 20 МБ |
+| Аудио | `audio/mpeg`, `audio/ogg`, `audio/wav`, `audio/opus`, `audio/aac`, `audio/flac`, `audio/mp4` | 100 МБ |
+| Видео | `video/mp4`, `video/webm`, `video/ogg`, `video/quicktime` | 500 МБ |
+
+Любой другой MIME-тип → `422 MIME_TYPE_NOT_ALLOWED`.
+
+### Формат storageKey
+
+Ключ объекта в MinIO: `{ownerId}/{uuid}/{sanitized_filename}`
+
+Например: `a1b2c3d4.../e5f6.../avatar.jpg`
+
+Варианты (после обработки) хранятся рядом: `{ownerId}/{uuid}/variants/{variantType}.{ext}`
+
+---
 
 ### POST /api/v1/media/uploads/request
 
-Запросить presigned URL для загрузки.
+Создать запись ассета и получить presigned PUT URL.
 
 ```json
 // Request
 {
-  "mimeType": "image/jpeg",
-  "sizeBytes": 204800,
-  "originalFilename": "avatar.jpg",
-  "entityType": "profile_avatar",  // тип сущности
-  "entityId": "uuid-пользователя"
+  "mimeType": "image/jpeg",          // обязательно
+  "sizeBytes": 204800,               // обязательно, в байтах
+  "originalFilename": "avatar.jpg",  // опционально, до 256 символов
+  "entityType": "profile_avatar",    // опционально — определяет публичность bucket
+  "entityId": "uuid-профиля"         // опционально — для последующей фильтрации
 }
 
-// 201 → { "assetId": "uuid", "uploadUrl": "https://minio/...", "expiresAt": "..." }
+// 201 Created
+{
+  "assetId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "uploadUrl": "http://localhost:9000/ssz-public/...?X-Amz-Signature=...",
+  "expiresAt": "2026-06-02T10:15:00Z",   // TTL 15 минут
+  "finalizeUrl": "/api/v1/media/uploads/{assetId}/finalize"
+}
+
+// 422 — MIME_TYPE_NOT_ALLOWED или FILE_TOO_LARGE
 ```
 
-Затем сделать PUT на `uploadUrl` с бинарным телом файла (без токена авторизации, прямо на MinIO).
+**Важно**: `uploadUrl` истекает через 15 минут. Не кешировать — запрашивать перед каждой загрузкой.
+
+---
+
+### PUT {uploadUrl}
+
+Загрузить файл напрямую в MinIO. Выполняется **без** заголовка Authorization.
+
+```
+PUT http://localhost:9000/ssz-public/...?X-Amz-Signature=...
+Content-Type: image/jpeg      ← должен совпадать с mimeType из запроса
+Body: <binary file content>
+
+200 OK  ← MinIO возвращает пустое тело при успехе
+```
+
+Пример на TypeScript:
+
+```ts
+async function uploadToMinIO(uploadUrl: string, file: File): Promise<void> {
+  const response = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type },
+    body: file,
+  });
+  if (!response.ok) {
+    throw new Error(`MinIO upload failed: ${response.status}`);
+  }
+}
+```
+
+---
 
 ### POST /api/v1/media/uploads/{assetId}/finalize
 
-Сообщить серверу что файл загружен. Запускает фоновую обработку.
+Подтвердить загрузку. Сервис проверяет наличие файла в MinIO, переводит ассет в `UPLOADED` и ставит в очередь обработки (для изображений и аудио).
 
 ```
-// 204 No Content
-// 404 — assetId не найден
-// 422 — файл не обнаружен в хранилище
+// 204 No Content — успешно
+
+// 404 — assetId не найден или не принадлежит текущему пользователю
+// 422 — файл ещё не появился в MinIO (нужно сначала сделать PUT)
+// 422 — неверный переход статуса (finalize уже был вызван)
 ```
+
+---
+
+### Полный flow загрузки (TypeScript)
+
+```ts
+async function uploadAvatar(file: File, profileId: string): Promise<string> {
+  // 1. Запросить presigned URL
+  const { assetId, uploadUrl } = await api.post('/api/v1/media/uploads/request', {
+    mimeType: file.type,
+    sizeBytes: file.size,
+    originalFilename: file.name,
+    entityType: 'profile_avatar',
+    entityId: profileId,
+  });
+
+  // 2. Загрузить напрямую в MinIO (без Authorization)
+  await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type },
+    body: file,
+  });
+
+  // 3. Подтвердить загрузку
+  await api.post(`/api/v1/media/uploads/${assetId}/finalize`);
+
+  // 4. Получить финальный URL (или опросить до статуса READY)
+  const asset = await api.get(`/api/v1/media/assets/${assetId}`);
+  return asset.url;  // для profile_avatar — прямой публичный URL
+}
+```
+
+---
 
 ### GET /api/v1/media/assets
 
-Список своих файлов. `200`.
+Список своих ассетов с пагинацией.
+
+```
+?entityType=profile_avatar     // фильтр по типу сущности (опционально)
+?entityId=uuid                 // фильтр по ID сущности (опционально, нужен entityType)
+?limit=20&offset=0             // пагинация, limit максимум 100
+
+// 200 OK
+{
+  "items": [ AssetResponseDto ],
+  "total": 42,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+---
 
 ### GET /api/v1/media/assets/{assetId}
 
-Конкретный ассет с URL для скачивания (presigned для приватных). `200` или `404`.
+Получить один ассет. Для приватных ассетов поле `url` содержит presigned GET URL с TTL 1 час.
+
+```json
+// 200 OK
+{
+  "id": "3fa85f64-...",
+  "ownerId": "user-uuid",
+  "mimeType": "image/jpeg",
+  "sizeBytes": 204800,
+  "storageKey": "user-uuid/uuid/avatar.jpg",
+  "originalFilename": "avatar.jpg",
+  "status": "READY",                          // см. таблицу статусов
+  "entityType": "profile_avatar",
+  "entityId": "profile-uuid",
+  "url": "http://localhost:9000/ssz-public/user-uuid/.../avatar.jpg",
+  "uploadedAt": "2026-06-02T10:00:00.000Z",
+  "createdAt": "2026-06-02T09:59:45.000Z",
+  "variants": [
+    {
+      "variantType": "thumb_256",
+      "mimeType": "image/webp",
+      "sizeBytes": 12800,
+      "url": "http://localhost:9000/ssz-public/user-uuid/.../variants/thumb_256.webp"
+    }
+  ]
+}
+
+// 404 — не найден или не принадлежит текущему пользователю
+```
+
+**Важно**: поле `url` для публичных ассетов (`profile_avatar`) — постоянная ссылка, можно сохранять в профиле. Для приватных — ссылка живёт 1 час, получать при каждом показе.
+
+---
 
 ### DELETE /api/v1/media/assets/{assetId}
 
-Удалить ассет. `204`.
+Мягкое удаление. Файл физически удаляется из MinIO.
+
+```
+// 204 No Content
+// 404 — не найден или не принадлежит текущему пользователю
+```
+
+---
+
+### Ожидание обработки (polling)
+
+После `finalize` для изображений и аудио запускается фоновая обработка. Если нужен вариант (thumbnail), нужно подождать статуса `READY`:
+
+```ts
+async function waitForReady(assetId: string, maxAttempts = 10): Promise<AssetResponseDto> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const asset = await api.get(`/api/v1/media/assets/${assetId}`);
+    if (asset.status === 'READY') return asset;
+    if (asset.status === 'FAILED') throw new Error('Asset processing failed');
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  throw new Error('Asset processing timeout');
+}
+```
+
+SVG и видео переходят в `READY` сразу без обработки — polling для них не нужен.
 
 ---
 
@@ -1112,9 +1317,12 @@ POST /api/v1/srs/cards/{id}/unsuspend  Возобновить карточку
 4. Студент: `POST /api/v1/tutoring/invitations/{token}/accept` → принять
 5. `POST /api/v1/assignments` → выдать задание конкретному студенту
 
-### Загрузка файла (аватар)
+### Загрузка аватара пользователя
 
-1. `POST /api/v1/media/uploads/request` → получить `{ assetId, uploadUrl }`
-2. `PUT {uploadUrl}` с бинарным телом файла (без Authorization — прямо на MinIO)
-3. `POST /api/v1/media/uploads/{assetId}/finalize` → запустить обработку
-4. `PATCH /api/v1/profiles/me` → обновить `avatarUrl` значением из ассета
+1. `POST /api/v1/media/uploads/request` с `entityType: "profile_avatar"` → получить `{ assetId, uploadUrl }`
+2. `PUT {uploadUrl}` с бинарным телом файла (без Authorization — прямо на MinIO :9000)
+3. `POST /api/v1/media/uploads/{assetId}/finalize` → подтвердить загрузку
+4. `GET /api/v1/media/assets/{assetId}` → дождаться `status: "READY"`, взять `url`
+5. `PATCH /api/v1/profiles/me` с `{ "avatarUrl": "<url из шага 4>" }` → сохранить в профиле
+
+> `profile_avatar` → публичный bucket → `url` постоянный, не истекает. Можно сразу писать в профиль.

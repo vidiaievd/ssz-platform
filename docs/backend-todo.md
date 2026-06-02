@@ -1,7 +1,7 @@
 # Backend TODO
 
 > Задачи для бэкенда, которые нужны для реализации фич на фронте.
-> Последнее обновление: 2026-05-31
+> Последнее обновление: 2026-06-02
 
 ---
 
@@ -137,17 +137,132 @@ PATCH /api/v1/progress/{contentType}/{contentId}/resolve снять флаг п�
 
 ---
 
-## Открытые вопросы
+## School Dashboard — данные для дашборда школы — ❗ Требует реализации
 
-### `GET /api/v1/schools/{schoolId}/overview` — ❓ Ожидает решения
+> Источник требований: [`docs/plan/spec/School-Dashboard-Implementation-Spec.md`](plan/spec/School-Dashboard-Implementation-Spec.md).
+> Frontend-план: [`docs/plan/school-dashboard/`](plan/school-dashboard/).
+> Фронт спроектирован так, что **собирается и мёржится до готовности бэкенда**: BFF-композит
+> `GET /api/schools/[id]/dashboard` возвращает недоступные секции как `{ status: 'unavailable' }`,
+> виджеты рендерят per-widget empty/«скоро». Ниже — что нужно, чтобы наполнить их реальными данными.
 
-Для дашборда школы нужны агрегированные метрики без N+1 запросов с фронта: число участников по ролям, активные enrollments, ожидающие приглашения, недавняя активность.
+Дашборд состоит из 8 источников данных + 1 мутация. Готовность бэкенда сильно разнится — поэтому
+разбито на три категории: ✅ выводимо из existing · ⚠️ частично есть / нужно решение · ❌ нет, нужна
+реализация.
 
-Варианты:
-- Фронт собирает kompozit из существующих GET-ов (быстро, N запросов)
-- Новый `GET /api/v1/schools/{schoolId}/overview` (рекомендуется при росте)
+### Рекомендуемый контракт: `GET /api/v1/schools/{schoolId}/dashboard?role={role}`
 
-**Нужно решение**: нужен серверный `overview` или фронт делает композит сам?
+Один агрегирующий эндпоинт (расширение давно обсуждаемого `/overview`), отдающий всё под форму
+виджетов, **без N+1 с фронта**. Альтернатива — отдельные эндпоинты на виджет (ниже в каждом пункте
+указан путь по спеке). Решение за бэкендом; фронту достаточно одного композита.
+
+---
+
+### 0. ⚠️ Гранулярная роль зрителя в школе — частично выводимо, нужно подтвердить shape
+
+Условная отрисовка дашборда завязана на роль зрителя **в этой школе**
+(`OWNER/ADMIN/TEACHER/CONTENT_ADMIN`). В JWT — только глобальные роли (`tutor`/`school_admin`).
+
+**Что уже есть (по гайду):** `SchoolResponseDto` возвращает `ownerId` (и `members`) — см.
+`POST /api/v1/schools` → «id, name, slug, …, ownerId, members, …». Значит:
+- **OWNER ↔ не-OWNER различается уже сейчас:** `school.ownerId === me.userId`. Мой `userId` берётся из
+  `GET /profiles/me` (layout его уже префетчит), `ownerId` — из уже загруженного списка `/schools`.
+  **N+1 не нужен, бэкенду делать ничего не надо.**
+
+**Что под вопросом:** форма встроенного школьного `members[]` в гайде не задокументирована (показано
+только «members, …»). Единственный конкретный member-shape в гайде — групповой `{ id, userId, addedAt }`
+— **без `role`**. Нужно подтвердить: содержит ли школьный `members[]` поле `role` на участника?
+- **Если да** → все роли (admin/teacher/editor) выводятся на фронте из уже полученного объекта школы.
+  Бэкенду делать **нечего** — на фронте только расширить тип `School` (`ownerId`, `members[].role`).
+- **Если нет** → маленькая правка: добавить `role` во встроенный `members[]`, **или** отдать
+  `GET /api/v1/schools/{schoolId}/me` → `{ role, joinedAt }` (предпочтительно, без вытягивания всех
+  участников).
+
+**Действие:** подтвердить shape школьного `members[]` (есть ли `role`). До подтверждения фронт
+определяет OWNER через `ownerId`, остальных — деградирует до минимальных прав.
+
+---
+
+### 1. ❌ KPI strip — `GET /dashboard/kpis?role=`
+
+4 headline-метрики с **7-дневными окнами, дельтами, трендом и sparkline-серией (7 точек)**:
+`active_students_7d`, `lessons_completed_7d`, `pending_reviews`, `at_risk`.
+
+Counts можно посчитать из existing, но **дельты (vs прошлый период), тренд и тайм-серии для sparkline
+требуют серверной агрегации** по активности/прогрессу. Форма ответа — см. пример в спеке §6.
+Owner-only метрики не должны уходить в payload не-owner ролей.
+
+### 2. ❌ Activity feed — `GET /activity?limit=6` (+ `/audit` для full)
+
+Хронология событий школы (people / content / review / milestone): кто · что · цель · время · тип.
+**Audit/events-стрима сейчас нет** — лента пуста. Нужен источник событий (публикация урока,
+запись студентов, сабмишен на ревью, майлстоун) + пагинация курсором (`nextCursor`). Форма — спека §6.
+
+### 3. ❌ Course health — `GET /courses/health`
+
+Per-course: enrollment, **completion % (агрегат), тренд, флаг `dropoff`**. Сортировка по enrollment на
+сервере. Completion/тренд требуют агрегации прогресса по курсу — сейчас нет.
+
+### 4. ❌ At-risk students — `GET /students/at-risk`
+
+Студенты, **неактивные 7+ дней**, отсортированные по худшему прогрессу / самой долгой неактивности:
+`{ name, course, lastSeen, progress, lang }` + `total`. Нужен per-student `lastActivity`/`lastSeen` и
+запрос-агрегация. Сейчас нет.
+
+### 5. ⚠️ Review queue (publish-approval) — `GET /moderation/queue?owner=1` — нужно решение
+
+Спека описывает **контент (lesson/rubric), ждущий owner-апрува перед публикацией**. Это **не то же**,
+что существующий `/api/v1/review/submissions/` (свободные ответы студентов на проверку, флоу 05).
+
+**Нужно решение:** существует ли workflow «контент на апрув перед публикацией»?
+- если да — отдать `GET /moderation/queue` (`{ kind, title, author, age }`);
+- если нет — это новый флоу (статусы контента `draft/pending_approval/published` + права апрува).
+
+Отдельно: **TeacherQueue** (сабмишены на проверку конкретному преподавателю) — вероятно выводимо из
+`/review/submissions` с фильтром по преподавателю; подтвердить наличие фильтра.
+
+### 6. ❌ Today's classes (hybrid) — `GET /schedule/today`
+
+Сегодняшние занятия (комнаты + онлайн): время, название, преподаватель, комната, mode, students/cap,
+status. **Scheduling-сервиса нет** (см. ниже «Scheduling / live-уроки»). Нужен также **тип школы
+(`online`/`hybrid`)** в объекте школы — сейчас отсутствует, фронт дефолтит в `online`.
+
+### 7. ✅ Onboarding status — выводимо из existing (бэкенд не нужен)
+
+Чеклист новой школы фронт считает сам из наличных данных: есть ли курсы (`/containers`), участники
+(`/members`/`invitations`), заполнен ли брендинг (поля school: `avatarUrl`, `description`). Отдельный
+`GET /onboarding/status` **не требуется** (но можно добавить позже для единого источника правды).
+
+### 8. ❌ Trial status — нет billing-сервиса — продуктовое решение
+
+`trial: { daysLeft }` для TrialBanner. **Billing/subscription-сервиса нет.** До решения фронт держит
+`trial = null` (баннер скрыт). Нужно: модель подписки/триала + источник `daysLeft`.
+
+### 9. ❌ Mutation: nudge at-risk — `POST /api/v1/schools/{schoolId}/students/nudge`
+
+`{ scope: 'all-at-risk' }` → `{ nudged: n }`. Рассылка напоминаний неактивным студентам (через
+notification-service). Сейчас нет. Фронт реализует optimistic UI + Server Action; нужен реальный
+эндпоинт.
+
+---
+
+### Сводка приоритетов для бэкенда
+
+| # | Что | Приоритет | Блокирует |
+|---|-----|-----------|-----------|
+| 0 | Подтвердить `role` в школьном `members[]` (OWNER уже выводим из `ownerId`) | 🟡 уточнить | гранулярные не-owner роли |
+| 1 | KPI-агрегаты + sparkline-серии | 🔴 высокий | KPI strip |
+| 4 | At-risk (lastActivity + агрегация) | 🟠 средний | At-risk + KPI `at_risk` |
+| 3 | Course-health агрегаты | 🟠 средний | Course health |
+| 2 | Activity feed / audit events | 🟠 средний | Activity feed |
+| 9 | Nudge at-risk mutation | 🟠 средний | Nudge-кнопка |
+| 5 | Publish-approval queue (решение) | 🟡 уточнить | Review queue |
+| 6 | Scheduling + тип школы | 🟢 низкий | Today's classes (hybrid) |
+| 8 | Trial/billing | 🟢 низкий | Trial banner |
+| 7 | Onboarding status | — | не требуется (frontend-композит) |
+
+> **Рекомендация:** закрыть #0 и #1 первыми — без них дашборд показывает в основном онбординг +
+> degraded-виджеты. Остальное подключается инкрементально без изменений на фронте (контракт
+> `DashboardData` + degraded-режим уже это предусматривают).
 
 ---
 
@@ -191,7 +306,16 @@ PATCH /api/v1/progress/{contentType}/{contentId}/resolve снять флаг п�
 | `GET` responses — включить новые поля | ✅ Готово |
 | `GET /api/v1/schools/by-slug/{slug}` — для slug-routing | ✅ Готово |
 | `PATCH /api/v1/profiles/me` — поле `uiLocale` (было `locale`) | ✅ Готово |
-| `GET /api/v1/schools/{id}/overview` (метрики) | ❓ Ожидает решения (флоу 06) |
+| `GET /api/v1/schools/{id}/overview` (метрики) | ❓ Заменено детальным разделом «School Dashboard» (см. выше) |
+| Роль зрителя в школе | ⚠️ OWNER выводим из `ownerId`; подтвердить `role` в `members[]` для остальных |
+| KPI-агрегаты + sparkline-серии (`/dashboard/kpis`) | ❌ Нужно |
+| At-risk students (`/students/at-risk`) | ❌ Нужно |
+| Course health (`/courses/health`) | ❌ Нужно |
+| Activity feed / audit (`/activity`) | ❌ Нужно |
+| Publish-approval queue (`/moderation/queue`) | 🟡 Нужно решение (≠ `/review/submissions`) |
+| Nudge at-risk (`POST /schools/{id}/students/nudge`) | ❌ Нужно |
+| Тип школы `online`/`hybrid` + scheduling (`/schedule/today`) | ❌ Нужно (Today's classes) |
+| Trial/billing (`trial.daysLeft`) | ❌ Нужно (продуктовое решение) |
 
 > **Pending migrations:**
 > ```bash
