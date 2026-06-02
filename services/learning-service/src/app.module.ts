@@ -19,6 +19,7 @@ import { ReviewModule } from './modules/review/review.module.js';
 import { EventsModule } from './modules/events/events.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
 import { SrsModule } from './modules/srs/srs.module.js';
+import { InternalModule } from './modules/internal/internal.module.js';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { SrsModule } from './modules/srs/srs.module.js';
     SrsModule,
     EventsModule,
     JobsModule,
+    InternalModule,
   ],
   providers: [
     {
