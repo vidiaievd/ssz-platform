@@ -140,6 +140,7 @@ export class ContainerEntity extends AggregateRoot {
       new ContainerCreatedEvent({
         containerId: entity.id,
         containerType: p.containerType,
+        title: p.title,
         ownerUserId: p.ownerUserId,
         ownerSchoolId: p.ownerSchoolId ?? null,
         visibility: p.visibility,
@@ -204,7 +205,11 @@ export class ContainerEntity extends AggregateRoot {
 
     if (updatedFields.length > 0) {
       this.props.updatedAt = new Date();
-      this.addDomainEvent(new ContainerUpdatedEvent({ containerId: this.id, updatedFields }));
+      this.addDomainEvent(new ContainerUpdatedEvent({
+        containerId: this.id,
+        updatedFields,
+        ...(updatedFields.includes('title') ? { title: this.props.title } : {}),
+      }));
     }
 
     return Result.ok();

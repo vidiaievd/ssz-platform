@@ -119,7 +119,7 @@ export class Profile extends BaseEntity {
     this._updatedAt = new Date();
 
     this.addDomainEvent(
-      new ProfileUpdatedEvent(eventId, this._id, this._userId),
+      new ProfileUpdatedEvent(eventId, this._id, this._userId, this._displayName),
     );
   }
 

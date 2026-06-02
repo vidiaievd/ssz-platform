@@ -1,11 +1,19 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { CqrsModule } from '@nestjs/cqrs';
 import { LoggerModule } from 'nestjs-pino';
 import type { AppConfig } from './config/configuration.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
+import { JwtModule } from './infrastructure/auth/jwt.module.js';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { EventArchiveModule } from './modules/event-archive/event-archive.module.js';
+import { ProjectionsModule } from './modules/projections/projections.module.js';
+import { MetricsModule } from './modules/metrics/metrics.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { AuditModule } from './modules/audit/audit.module.js';
 
 @Module({
   imports: [
@@ -26,9 +34,18 @@ import { EventArchiveModule } from './modules/event-archive/event-archive.module
         };
       },
     }),
+    CqrsModule,
     PrismaModule,
+    JwtModule,
     HealthModule,
     EventArchiveModule,
+    ProjectionsModule,
+    MetricsModule,
+    DashboardModule,
+    AuditModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })
 export class AppModule {}
