@@ -39,7 +39,7 @@
   - RabbitMQ 3 — async events; exchanges: auth, profile, organization, content, learning, exercise-engine, media, notification, **analytics** (new)
   - MinIO — S3-compatible object storage
   - MailHog — local SMTP trap
-  - nginx — API gateway; **`/api/v1/schools/*/dashboard` + `/api/v1/schools/*/activity` routing to analytics-service** added; `/api/v1/schools` prefix for org-service fixed
+  - nginx — API gateway; `nginx.dev.conf` is the active dev config (mounted by `docker-compose.dev.yml`); both `nginx.conf` and `nginx.dev.conf` synchronized: analytics-service routes added (`/api/v1/schools/*/dashboard`, `/api/v1/schools/*/activity`, `/api/v1/internal/events`), content-service catch-all `/api/v1/content` replaced with individual prefix routes, stale `/api/v1/organizations` and `/api/v1/submissions` removed, `/api/v1/tutoring` + `/api/v1/internal/schools` + `/api/v1/review` + `/api/v1/srs` added
   - pgAdmin 4
 - **postgres/init.sql** — `analytics_db` / `analytics_service` user added
 - **infrastructure/.env.dev** — `ANALYTICS_SERVICE_DB_PASSWORD` added
