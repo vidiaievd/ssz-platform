@@ -1,13 +1,17 @@
 import {
+  Body,
   Controller,
   DefaultValuePipe,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
+  Post,
   Query,
 } from '@nestjs/common';
-import { QueryBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -18,6 +22,8 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { NudgeAtRiskCommand } from '../commands/nudge-at-risk.command.js';
+import { NudgeRequestDto, NudgeResponseDto } from '../dto/nudge-request.dto.js';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
 import { GetKpisQuery } from '../queries/get-kpis.query.js';
@@ -31,7 +37,10 @@ import { GetCourseHealthResponseDto } from '../dto/course-health-response.dto.js
 @ApiBearerAuth()
 @Controller('schools/:schoolId/dashboard')
 export class DashboardController {
-  constructor(private readonly queryBus: QueryBus) {}
+  constructor(
+    private readonly queryBus: QueryBus,
+    private readonly commandBus: CommandBus,
+  ) {}
 
   @Get('kpis')
   @ApiOperation({ summary: 'Get school dashboard KPIs (value, delta, trend, sparkline)' })
@@ -71,5 +80,19 @@ export class DashboardController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<GetAtRiskResponseDto> {
     return this.queryBus.execute(new GetAtRiskQuery(schoolId, user.userId, Math.min(limit, 50)));
+  }
+
+  @Post('nudge')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Nudge all at-risk students (owner/admin only) — publishes study-reminder event per student' })
+  @ApiParam({ name: 'schoolId', format: 'uuid' })
+  @ApiOkResponse({ type: NudgeResponseDto })
+  @ApiForbiddenResponse({ description: 'Owner or admin role required' })
+  async nudgeAtRisk(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Body() _dto: NudgeRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<NudgeResponseDto> {
+    return this.commandBus.execute(new NudgeAtRiskCommand(schoolId, user.userId));
   }
 }

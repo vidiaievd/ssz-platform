@@ -1,4 +1,5 @@
 import type { MemberRole } from '../../domain/value-objects/member-role.vo.js';
+import type { SchoolType } from '../../domain/value-objects/school-type.vo.js';
 
 export interface SchoolMemberDto {
   id: string;
@@ -17,6 +18,7 @@ export interface SchoolDto {
   website?: string;
   contactEmail?: string;
   city?: string;
+  type: SchoolType;
   isActive: boolean;
   requireTutorReviewForSelfPaced: boolean;
   defaultExplanationLanguage?: string;
