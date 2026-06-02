@@ -1,3 +1,5 @@
+import type { SchoolType } from '../../../domain/value-objects/school-type.vo.js';
+
 export class UpdateSchoolCommand {
   constructor(
     public readonly actorId: string,
@@ -9,6 +11,7 @@ export class UpdateSchoolCommand {
     public readonly website?: string | null,
     public readonly contactEmail?: string | null,
     public readonly city?: string | null,
+    public readonly type?: SchoolType,
     public readonly requireTutorReviewForSelfPaced?: boolean,
     public readonly defaultExplanationLanguage?: string | null,
   ) {}

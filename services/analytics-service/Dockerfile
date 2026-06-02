@@ -23,7 +23,11 @@ WORKDIR /workspace/services/analytics-service
 
 COPY services/analytics-service/package*.json ./
 
-RUN npm ci --install-links
+# --install-links: install file: deps as regular copies, not symlinks
+# npm install instead of npm ci: npm 10 records the wasm32-only @unrs/resolver-binding-wasm32-wasi
+# in the lockfile but omits its deps (@emnapi/core, @emnapi/runtime) since they're never
+# installed on amd64 — npm ci rejects that inconsistency, npm install does not.
+RUN npm install --install-links
 
 COPY services/analytics-service/tsconfig*.json services/analytics-service/nest-cli.json ./
 COPY services/analytics-service/prisma/ ./prisma/

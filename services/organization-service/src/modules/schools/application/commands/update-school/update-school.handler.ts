@@ -41,6 +41,7 @@ export class UpdateSchoolHandler implements ICommandHandler<UpdateSchoolCommand>
       website: command.website,
       contactEmail: command.contactEmail,
       city: command.city,
+      type: command.type,
       requireTutorReviewForSelfPaced: command.requireTutorReviewForSelfPaced,
       defaultExplanationLanguage: command.defaultExplanationLanguage,
     });
