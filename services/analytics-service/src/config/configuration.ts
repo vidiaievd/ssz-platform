@@ -15,6 +15,7 @@ export const envSchema = z.object({
   JWT_AUDIENCE: z.string().default('ssz-services'),
 
   ORGANIZATION_SERVICE_URL: z.string().default('http://organization-service:3002'),
+  LEARNING_SERVICE_URL: z.string().default('http://learning-service:3005'),
   INTERNAL_SERVICE_TOKEN: z.string().default('internal-dev-token'),
 
   AT_RISK_THRESHOLD_DAYS: z.coerce.number().int().positive().default(7),
@@ -40,6 +41,7 @@ export interface AppConfig {
   rabbitmq: { url: string | undefined };
   jwt: { publicKey: string | undefined; publicKeyPath: string | undefined; issuer: string; audience: string };
   organization: { baseUrl: string; token: string };
+  learning: { baseUrl: string };
   metrics: { atRiskThresholdDays: number; dropoffCompletionThreshold: number };
 }
 
@@ -56,6 +58,7 @@ export default (): AppConfig => {
       audience: env.JWT_AUDIENCE,
     },
     organization: { baseUrl: env.ORGANIZATION_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
+    learning: { baseUrl: env.LEARNING_SERVICE_URL },
     metrics: {
       atRiskThresholdDays: env.AT_RISK_THRESHOLD_DAYS,
       dropoffCompletionThreshold: env.DROPOFF_COMPLETION_THRESHOLD,
