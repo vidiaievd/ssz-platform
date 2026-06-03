@@ -33,17 +33,17 @@ import { GetAtRiskResponseDto } from '../dto/at-risk-response.dto.js';
 import { GetCourseHealthQuery } from '../queries/get-course-health.query.js';
 import { GetCourseHealthResponseDto } from '../dto/course-health-response.dto.js';
 
-@ApiTags('Dashboard')
+@ApiTags('Analytics')
 @ApiBearerAuth()
-@Controller('schools/:schoolId/dashboard')
-export class DashboardController {
+@Controller('analytics/schools/:schoolId')
+export class SchoolAnalyticsController {
   constructor(
     private readonly queryBus: QueryBus,
     private readonly commandBus: CommandBus,
   ) {}
 
   @Get('kpis')
-  @ApiOperation({ summary: 'Get school dashboard KPIs (value, delta, trend, sparkline)' })
+  @ApiOperation({ summary: 'Get school KPIs (value, delta, trend, sparkline)' })
   @ApiParam({ name: 'schoolId', format: 'uuid' })
   @ApiOkResponse({ type: GetKpisResponseDto })
   @ApiForbiddenResponse({ description: 'Not a member or insufficient role' })
