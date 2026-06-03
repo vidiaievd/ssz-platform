@@ -3,10 +3,11 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import type { AppConfig } from '../../../config/configuration.js';
+import { SchoolRole } from '@ssz/contracts';
 import { GetCourseHealthQuery } from './get-course-health.query.js';
 import type { GetCourseHealthResponseDto, CourseHealthDto } from '../dto/course-health-response.dto.js';
 
-const ALLOWED_ROLES = new Set(['OWNER', 'ADMIN', 'TEACHER', 'CONTENT_ADMIN']);
+const ALLOWED_ROLES = new Set<SchoolRole>([SchoolRole.OWNER, SchoolRole.ADMIN, SchoolRole.TEACHER, SchoolRole.CONTENT_ADMIN]);
 
 @QueryHandler(GetCourseHealthQuery)
 @Injectable()

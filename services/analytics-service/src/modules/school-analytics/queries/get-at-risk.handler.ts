@@ -3,10 +3,11 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import type { AppConfig } from '../../../config/configuration.js';
+import { SchoolRole } from '@ssz/contracts';
 import { GetAtRiskQuery } from './get-at-risk.query.js';
 import type { GetAtRiskResponseDto, AtRiskStudentDto } from '../dto/at-risk-response.dto.js';
 
-const OWNER_ADMIN = new Set(['OWNER', 'ADMIN']);
+const OWNER_ADMIN = new Set<SchoolRole>([SchoolRole.OWNER, SchoolRole.ADMIN]);
 
 @QueryHandler(GetAtRiskQuery)
 @Injectable()

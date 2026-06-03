@@ -1,13 +1,13 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { ANALYTICS_EVENT_TYPES } from '@ssz/contracts';
+import { ANALYTICS_EVENT_TYPES, SchoolRole } from '@ssz/contracts';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import { EventPublisherService } from '../../../infrastructure/messaging/event-publisher.service.js';
 import { NudgeAtRiskCommand } from './nudge-at-risk.command.js';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../../config/configuration.js';
 
-const OWNER_ADMIN = new Set(['OWNER', 'ADMIN']);
+const OWNER_ADMIN = new Set<SchoolRole>([SchoolRole.OWNER, SchoolRole.ADMIN]);
 
 export interface NudgeAtRiskResult {
   nudged: number;
