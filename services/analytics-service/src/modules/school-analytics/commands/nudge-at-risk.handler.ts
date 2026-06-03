@@ -34,7 +34,7 @@ export class NudgeAtRiskHandler implements ICommandHandler<NudgeAtRiskCommand, N
       where: { schoolId_userId: { schoolId, userId: requestedBy } },
     });
     if (!membership) throw new NotFoundException('School not found or access denied');
-    if (!OWNER_ADMIN.has(membership.role)) throw new ForbiddenException('Owner or admin role required');
+    if (!OWNER_ADMIN.has(membership.role as SchoolRole)) throw new ForbiddenException('Owner or admin role required');
 
     // ── 2. At-risk student ids ─────────────────────────────────────────────
     const enrollments = await this.prisma.enrollmentProjection.findMany({
