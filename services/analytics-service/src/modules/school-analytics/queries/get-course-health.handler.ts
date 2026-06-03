@@ -3,10 +3,11 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import type { AppConfig } from '../../../config/configuration.js';
+import { SchoolRole } from '@ssz/contracts';
 import { GetCourseHealthQuery } from './get-course-health.query.js';
 import type { GetCourseHealthResponseDto, CourseHealthDto } from '../dto/course-health-response.dto.js';
 
-const ALLOWED_ROLES = new Set(['OWNER', 'ADMIN', 'TEACHER', 'CONTENT_ADMIN']);
+const ALLOWED_ROLES = new Set<SchoolRole>([SchoolRole.OWNER, SchoolRole.ADMIN, SchoolRole.TEACHER, SchoolRole.CONTENT_ADMIN]);
 
 @QueryHandler(GetCourseHealthQuery)
 @Injectable()
@@ -29,7 +30,7 @@ export class GetCourseHealthHandler implements IQueryHandler<GetCourseHealthQuer
       where: { schoolId_userId: { schoolId, userId: viewerUserId } },
     });
     if (!membership) throw new NotFoundException('School not found or access denied');
-    if (!ALLOWED_ROLES.has(membership.role)) throw new ForbiddenException('Insufficient role');
+    if (!ALLOWED_ROLES.has(membership.role as SchoolRole)) throw new ForbiddenException('Insufficient role');
 
     // ── 2. Active enrollments grouped by containerId ─────────────────────────
     const enrollments = await this.prisma.enrollmentProjection.findMany({

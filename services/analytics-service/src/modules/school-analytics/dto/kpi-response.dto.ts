@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SchoolRole } from '@ssz/contracts';
 
 export class KpiDto {
   @ApiProperty({ example: 'active_students_7d' })
@@ -27,7 +28,7 @@ export class KpiDto {
 }
 
 export class GetKpisResponseDto {
-  @ApiProperty({ enum: ['OWNER', 'ADMIN', 'TEACHER', 'CONTENT_ADMIN'] })
+  @ApiProperty({ enum: [SchoolRole.OWNER, SchoolRole.ADMIN, SchoolRole.TEACHER, SchoolRole.CONTENT_ADMIN] })
   role!: string;
 
   @ApiProperty({ type: [KpiDto] })
