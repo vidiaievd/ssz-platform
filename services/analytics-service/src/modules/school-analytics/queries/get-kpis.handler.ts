@@ -3,11 +3,12 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import type { AppConfig } from '../../../config/configuration.js';
+import { SchoolRole } from '@ssz/contracts';
 import { GetKpisQuery } from './get-kpis.query.js';
 import type { GetKpisResponseDto, KpiDto } from '../dto/kpi-response.dto.js';
 
-const OWNER_ADMIN = new Set(['OWNER', 'ADMIN']);
-const DASHBOARD_ROLES = new Set(['OWNER', 'ADMIN', 'TEACHER', 'CONTENT_ADMIN']);
+const OWNER_ADMIN = new Set<SchoolRole>([SchoolRole.OWNER, SchoolRole.ADMIN]);
+const ANALYTICS_VIEWER_ROLES = new Set<SchoolRole>([SchoolRole.OWNER, SchoolRole.ADMIN, SchoolRole.TEACHER, SchoolRole.CONTENT_ADMIN]);
 
 function dayBuckets(now: Date, days: number): Date[] {
   return Array.from({ length: days }, (_, i) => {
@@ -57,9 +58,9 @@ export class GetKpisHandler implements IQueryHandler<GetKpisQuery, GetKpisRespon
       where: { schoolId_userId: { schoolId, userId: viewerUserId } },
     });
     if (!membership) throw new NotFoundException('School not found or access denied');
-    if (!DASHBOARD_ROLES.has(membership.role)) throw new ForbiddenException('Insufficient role');
+    const role = membership.role as SchoolRole;
+    if (!ANALYTICS_VIEWER_ROLES.has(role)) throw new ForbiddenException('Insufficient role');
 
-    const role = membership.role;
     const isOwnerAdmin = OWNER_ADMIN.has(role);
 
     // ── 2. School students = DISTINCT userId of active enrollments ───────────
@@ -281,7 +282,7 @@ export class GetKpisHandler implements IQueryHandler<GetKpisQuery, GetKpisRespon
     return result;
   }
 
-  private emptyResponse(role: string): GetKpisResponseDto {
+  private emptyResponse(role: SchoolRole): GetKpisResponseDto {
     const base: KpiDto[] = [
       { key: 'active_students_7d', label: 'Active students · 7d', value: 0, hint: 'of 0 enrolled' },
       { key: 'lessons_completed_7d', label: 'Lessons completed · 7d', value: 0, hint: 'across 0 courses' },
