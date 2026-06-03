@@ -29,7 +29,7 @@ export class GetAtRiskHandler implements IQueryHandler<GetAtRiskQuery, GetAtRisk
       where: { schoolId_userId: { schoolId, userId: viewerUserId } },
     });
     if (!membership) throw new NotFoundException('School not found or access denied');
-    if (!OWNER_ADMIN.has(membership.role)) throw new ForbiddenException('Owner or admin role required');
+    if (!OWNER_ADMIN.has(membership.role as SchoolRole)) throw new ForbiddenException('Owner or admin role required');
 
     // ── 2. Active enrollments for this school ────────────────────────────────
     const enrollments = await this.prisma.enrollmentProjection.findMany({
