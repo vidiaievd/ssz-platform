@@ -23,13 +23,13 @@ import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifie
 import { GetActivityQuery } from '../queries/get-activity.query.js';
 import { GetActivityResponseDto } from '../dto/activity-response.dto.js';
 
-@ApiTags('Activity')
+@ApiTags('Analytics')
 @ApiBearerAuth()
-@Controller('schools/:schoolId/activity')
+@Controller('analytics/schools/:schoolId')
 export class ActivityController {
   constructor(private readonly queryBus: QueryBus) {}
 
-  @Get()
+  @Get('activity')
   @ApiOperation({ summary: 'Get school activity feed (cursor-paginated, newest first)' })
   @ApiParam({ name: 'schoolId', format: 'uuid' })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 6 })
