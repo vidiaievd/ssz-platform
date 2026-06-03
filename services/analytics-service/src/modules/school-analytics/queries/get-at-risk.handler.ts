@@ -3,10 +3,11 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import type { AppConfig } from '../../../config/configuration.js';
+import { SchoolRole } from '@ssz/contracts';
 import { GetAtRiskQuery } from './get-at-risk.query.js';
 import type { GetAtRiskResponseDto, AtRiskStudentDto } from '../dto/at-risk-response.dto.js';
 
-const OWNER_ADMIN = new Set(['OWNER', 'ADMIN']);
+const OWNER_ADMIN = new Set<SchoolRole>([SchoolRole.OWNER, SchoolRole.ADMIN]);
 
 @QueryHandler(GetAtRiskQuery)
 @Injectable()
@@ -28,7 +29,7 @@ export class GetAtRiskHandler implements IQueryHandler<GetAtRiskQuery, GetAtRisk
       where: { schoolId_userId: { schoolId, userId: viewerUserId } },
     });
     if (!membership) throw new NotFoundException('School not found or access denied');
-    if (!OWNER_ADMIN.has(membership.role)) throw new ForbiddenException('Owner or admin role required');
+    if (!OWNER_ADMIN.has(membership.role as SchoolRole)) throw new ForbiddenException('Owner or admin role required');
 
     // ── 2. Active enrollments for this school ────────────────────────────────
     const enrollments = await this.prisma.enrollmentProjection.findMany({
