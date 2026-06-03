@@ -12,4 +12,4 @@ import { EventPublisherService } from '../../infrastructure/messaging/event-publ
   controllers: [SchoolAnalyticsController],
   providers: [GetKpisHandler, GetAtRiskHandler, GetCourseHealthHandler, NudgeAtRiskHandler, EventPublisherService],
 })
-export class DashboardModule {}
+export class SchoolAnalyticsModule {}
