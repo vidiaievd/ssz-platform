@@ -12,7 +12,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { EventArchiveModule } from './modules/event-archive/event-archive.module.js';
 import { ProjectionsModule } from './modules/projections/projections.module.js';
 import { MetricsModule } from './modules/metrics/metrics.module.js';
-import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { SchoolAnalyticsModule } from './modules/school-analytics/school-analytics.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 
 @Module({
@@ -41,7 +41,7 @@ import { AuditModule } from './modules/audit/audit.module.js';
     EventArchiveModule,
     ProjectionsModule,
     MetricsModule,
-    DashboardModule,
+    SchoolAnalyticsModule,
     AuditModule,
   ],
   providers: [
