@@ -47,7 +47,7 @@ model ProcessedEvent {
 
 // ─── Projection: SchoolMembership ─────────────────────────────────────────────
 // Built from school.member.added / school.member.removed / school.created events.
-// Used for dashboard authorization and attribution (ownerId → schoolId).
+// Used for analytics authorization and attribution (ownerId → schoolId).
 
 model SchoolMembership {
   id       String   @id @default(uuid())

@@ -282,7 +282,7 @@ export class GetKpisHandler implements IQueryHandler<GetKpisQuery, GetKpisRespon
     return result;
   }
 
-  private emptyResponse(role: string): GetKpisResponseDto {
+  private emptyResponse(role: SchoolRole): GetKpisResponseDto {
     const base: KpiDto[] = [
       { key: 'active_students_7d', label: 'Active students · 7d', value: 0, hint: 'of 0 enrolled' },
       { key: 'lessons_completed_7d', label: 'Lessons completed · 7d', value: 0, hint: 'across 0 courses' },

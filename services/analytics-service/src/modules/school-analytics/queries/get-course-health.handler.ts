@@ -30,7 +30,7 @@ export class GetCourseHealthHandler implements IQueryHandler<GetCourseHealthQuer
       where: { schoolId_userId: { schoolId, userId: viewerUserId } },
     });
     if (!membership) throw new NotFoundException('School not found or access denied');
-    if (!ALLOWED_ROLES.has(membership.role)) throw new ForbiddenException('Insufficient role');
+    if (!ALLOWED_ROLES.has(membership.role as SchoolRole)) throw new ForbiddenException('Insufficient role');
 
     // ── 2. Active enrollments grouped by containerId ─────────────────────────
     const enrollments = await this.prisma.enrollmentProjection.findMany({
