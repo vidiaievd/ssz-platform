@@ -83,8 +83,25 @@ model SchoolMember {
   role      MemberRole
   joinedAt  DateTime   @default(now())
 
+  teacherAttrs SchoolTeacher?
+
   @@unique([schoolId, userId])
   @@map("school_members")
+}
+
+// Teacher-specific attributes (workload + availability windows) scoped per school.
+// Linked to SchoolMember to ensure the user is actually a TEACHER in this school.
+model SchoolTeacher {
+  schoolId        String  @map("school_id")
+  userId          String  @map("user_id")
+  memberId        String  @unique @map("member_id")
+  member          SchoolMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  maxWeeklyHours  Int?    @map("max_weekly_hours")
+  availability    Json?   // [{ weekday: 1-7, start: "HH:mm", end: "HH:mm" }]
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@id([schoolId, userId])
+  @@map("school_teachers")
 }
 
 model SchoolInvitation {
