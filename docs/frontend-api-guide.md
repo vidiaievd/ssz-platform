@@ -1,7 +1,7 @@
 # SSZ Platform — Frontend API Guide
 
 > Инструкция для Claude Code при работе над фронтендом (веб или мобайл).
-> Последнее обновление: 2026-06-02
+> Последнее обновление: 2026-06-03
 
 ---
 
@@ -1238,17 +1238,13 @@ POST /api/v1/srs/cards/{id}/unsuspend  Возобновить карточку
 
 ---
 
-## 8. Analytics Service — School Dashboard
+## 8. Analytics Service
 
 🔒 Все эндпоинты требуют Authorization (Bearer JWT). Доступ проверяется через SchoolMembership проекцию.
 
-**Base path**: `/api/v1/schools/{schoolId}/dashboard` и `/api/v1/schools/{schoolId}/activity`.
+**Base path**: `/api/v1/analytics/schools/{schoolId}`.
 
-> Фронтенд использует эти эндпоинты **не напрямую**, а через BFF-композит `GET /api/schools/[id]/dashboard` (ssz-platform-web Route Handler). Для прямого вызова при разработке — см. ниже.
-
----
-
-### GET /api/v1/schools/{schoolId}/dashboard/kpis
+### GET /api/v1/analytics/schools/{schoolId}/kpis
 
 Ключевые метрики школы. Роль `TEACHER` не получает `at_risk`.
 
@@ -1298,7 +1294,7 @@ POST /api/v1/srs/cards/{id}/unsuspend  Возобновить карточку
 
 ---
 
-### GET /api/v1/schools/{schoolId}/dashboard/at-risk
+### GET /api/v1/analytics/schools/{schoolId}/at-risk
 
 Только для OWNER и ADMIN. Студенты без активности 7+ дней, сортировка по наибольшей неактивности.
 
@@ -1326,7 +1322,7 @@ POST /api/v1/srs/cards/{id}/unsuspend  Возобновить карточку
 
 ---
 
-### GET /api/v1/schools/{schoolId}/dashboard/courses/health
+### GET /api/v1/analytics/schools/{schoolId}/courses/health
 
 Доступен всем ролям дашборда. Сортировка по enrollment desc.
 
@@ -1349,7 +1345,7 @@ POST /api/v1/srs/cards/{id}/unsuspend  Возобновить карточку
 
 ---
 
-### GET /api/v1/schools/{schoolId}/activity
+### GET /api/v1/analytics/schools/{schoolId}/activity
 
 Лента событий школы. Курсорная пагинация, новые первые.
 
@@ -1377,7 +1373,7 @@ POST /api/v1/srs/cards/{id}/unsuspend  Возобновить карточку
 
 ---
 
-### POST /api/v1/schools/{schoolId}/dashboard/nudge
+### POST /api/v1/analytics/schools/{schoolId}/nudge
 
 Только OWNER и ADMIN. Отправляет study-reminder всем at-risk студентам.
 

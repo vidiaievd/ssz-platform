@@ -20,6 +20,8 @@ import { AcceptInvitationHandler } from './application/commands/accept-invitatio
 import { CreateSchoolGroupHandler } from './application/commands/create-school-group/create-school-group.handler.js';
 import { UpdateSchoolGroupHandler } from './application/commands/update-school-group/update-school-group.handler.js';
 import { DeleteSchoolGroupHandler } from './application/commands/delete-school-group/delete-school-group.handler.js';
+import { PublishSchoolGroupHandler } from './application/commands/publish-school-group/publish-school-group.handler.js';
+import { ArchiveSchoolGroupHandler } from './application/commands/archive-school-group/archive-school-group.handler.js';
 import { AddGroupMemberHandler } from './application/commands/add-group-member/add-group-member.handler.js';
 import { RemoveGroupMemberHandler } from './application/commands/remove-group-member/remove-group-member.handler.js';
 
@@ -48,6 +50,8 @@ const CommandHandlers = [
   CreateSchoolGroupHandler,
   UpdateSchoolGroupHandler,
   DeleteSchoolGroupHandler,
+  PublishSchoolGroupHandler,
+  ArchiveSchoolGroupHandler,
   AddGroupMemberHandler,
   RemoveGroupMemberHandler,
 ];
