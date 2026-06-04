@@ -4,7 +4,7 @@ import type { ISchoolGroupRepository } from '../../domain/repositories/school-gr
 import type { SchoolGroup } from '../../domain/entities/school-group.entity.js';
 import { SchoolGroupMapper } from './school-group.mapper.js';
 
-const GROUP_INCLUDE = { members: true } as const;
+const GROUP_INCLUDE = { members: true, teachers: true } as const;
 
 @Injectable()
 export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {

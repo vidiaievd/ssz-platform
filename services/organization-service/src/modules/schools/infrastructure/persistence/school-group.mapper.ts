@@ -1,4 +1,4 @@
-import type { GroupMode, GroupStatus } from '../../domain/entities/school-group.entity.js';
+import type { GroupMode, GroupStatus, GroupTeacherRole } from '../../domain/entities/school-group.entity.js';
 import { SchoolGroup } from '../../domain/entities/school-group.entity.js';
 
 type PrismaSchoolGroupMember = {
@@ -6,6 +6,17 @@ type PrismaSchoolGroupMember = {
   groupId: string;
   userId: string;
   addedAt: Date;
+};
+
+type PrismaGroupTeacher = {
+  id: string;
+  groupId: string;
+  userId: string;
+  role: string;
+  fromDate: Date | null;
+  toDate: Date | null;
+  reason: string | null;
+  createdAt: Date;
 };
 
 type PrismaSchoolGroup = {
@@ -26,6 +37,7 @@ type PrismaSchoolGroup = {
   updatedAt: Date;
   deletedAt: Date | null;
   members: PrismaSchoolGroupMember[];
+  teachers: PrismaGroupTeacher[];
 };
 
 export class SchoolGroupMapper {
@@ -52,6 +64,16 @@ export class SchoolGroupMapper {
         groupId: m.groupId,
         userId: m.userId,
         addedAt: m.addedAt,
+      })),
+      teachers: raw.teachers.map((t) => ({
+        id: t.id,
+        groupId: t.groupId,
+        userId: t.userId,
+        role: t.role as GroupTeacherRole,
+        fromDate: t.fromDate,
+        toDate: t.toDate,
+        reason: t.reason,
+        createdAt: t.createdAt,
       })),
     });
   }
