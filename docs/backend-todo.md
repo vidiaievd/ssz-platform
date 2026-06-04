@@ -1,7 +1,7 @@
 # Backend TODO
 
 > Задачи для бэкенда, которые нужны для реализации фич на фронте.
-> Последнее обновление: 2026-06-004
+> Последнее обновление: 2026-06-04
 
 ---
 
@@ -32,21 +32,27 @@ Resolve slug → объект School.
 
 ---
 
-## Школьные группы/когорты (`organization-service`) — ✅ Базовый CRUD / ⏳ требует расширения
+## Школьные группы/когорты (`organization-service`) — ✅ Полностью реализовано
 
-> Базовый CRUD реализован. Для Group Management спеки группа должна стать **полноценной когортой**
-> (курс, учителя, ёмкость, статус, term-даты). Детальное расширение модели — ниже в разделе
-> **«Group Management — расширение когорты»**. Расписание выносится в **scheduling-service** (новый).
+> Группа является полноценной когортой: курс, учителя, ёмкость, статус, term-даты.
+> Расписание выносится в **scheduling-service** (новый, фронт мокает).
 
 ```
-POST   /api/v1/schools/{schoolId}/groups
-GET    /api/v1/schools/{schoolId}/groups
-GET    /api/v1/schools/{schoolId}/groups/{groupId}
-PATCH  /api/v1/schools/{schoolId}/groups/{groupId}
-DELETE /api/v1/schools/{schoolId}/groups/{groupId}
-POST   /api/v1/schools/{schoolId}/groups/{groupId}/members  { userId }
+POST   /api/v1/schools/{schoolId}/groups               { name, description?, mode?, courseId?, lang?, level?, capacityMin?, capacityMax?, startDate?, endDate? }
+GET    /api/v1/schools/{schoolId}/groups               → SchoolGroupSummaryResponseDto[] (все поля когорты + teachers[])
+GET    /api/v1/schools/{schoolId}/groups/{groupId}     → SchoolGroupResponseDto (все поля + members[] + teachers[])
+PATCH  /api/v1/schools/{schoolId}/groups/{groupId}     { все поля опциональны }
+POST   /api/v1/schools/{schoolId}/groups/{groupId}/publish   → 200 | 409 { blockers: ['no-course'|'no-primary'] }
+POST   /api/v1/schools/{schoolId}/groups/{groupId}/archive   → 204
+DELETE /api/v1/schools/{schoolId}/groups/{groupId}     Hard-delete только для пустых draft/archived групп
+POST   /api/v1/schools/{schoolId}/groups/{groupId}/members   { userId }
 DELETE /api/v1/schools/{schoolId}/groups/{groupId}/members/{userId}
+POST   /api/v1/schools/{schoolId}/groups/{groupId}/teachers  { userId, role, fromDate?, toDate?, reason?, override? }
+DELETE /api/v1/schools/{schoolId}/groups/{groupId}/teachers/{userId}?role=...
 ```
+
+Учительские роли: `primary` | `co_primary` | `substitute`. Валидация: language fit (hard, от profile-service), workload (warn, overridable).
+Teacher attrs школы: `GET /api/v1/schools/{schoolId}/teachers`, `PATCH /api/v1/schools/{schoolId}/teachers/{userId}`.
 
 ---
 
@@ -233,9 +239,9 @@ Scheduling-сервиса нет. `School.type: ONLINE|HYBRID` добавлен 
 | Publish-approval queue                            | ⚠️ Нужно решение (отдельный workstream)             |
 | Scheduling / Today's classes                      | ❌ Отдельный сервис (см. ниже «Scheduling-service») |
 | Trial/billing                                     | ❌ Отдельный сервис                                 |
-| Group Management — расширение когорты             | ❌ Нужно (см. ниже)                                 |
+| Group Management — расширение когорты (1.1–1.5)  | ✅ Готово (2026-06-04)                              |
+| Student Management — доработки (2.1–2.3)          | ✅ Готово (2026-06-04)                              |
 | Scheduling-service (slots/lessons/conflicts)      | ❌ Новый сервис (см. ниже)                          |
-| Student Management — доработки                    | ⏳ Частично (invite/lookup нужны)                   |
 
 ---
 
@@ -258,9 +264,9 @@ Scheduling-сервиса нет. `School.type: ONLINE|HYBRID` добавлен 
 
 ---
 
-## 1. Group Management — расширение когорты (`organization-service`)
+## 1. Group Management — расширение когорты (`organization-service`) — ✅ Готово
 
-### 1.1 Расширить сущность `Group`
+### 1.1 Расширить сущность `Group` ✅
 
 К существующей таблице группы добавить поля:
 
@@ -294,7 +300,7 @@ POST /api/v1/schools/{schoolId}/groups/{groupId}/archive   → 204
 `DELETE` (hard) — только если группа `draft`/`archived` и пуста и не имела уроков; иначе только
 `archive` (мягко). Фронт это отражает (спека §7: «hard-delete only when empty + never run»).
 
-### 1.2 `group_teacher` — junction-таблица ролей учителей (NEW)
+### 1.2 `group_teacher` — junction-таблица ролей учителей ✅
 
 Одна таблица на все три роли (primary / co-primary / substitute):
 
@@ -340,7 +346,7 @@ DELETE /api/v1/schools/{schoolId}/groups/{groupId}/teachers/{userId}?role=...
 > **Substitutes layer, never swap.** Primary — teacher-of-record для отчётности. Замена накладывается
 > окном `[from,to]`; внутри окна урок рендерит substitute, вне — primary. Это логика scheduling-service.
 
-### 1.3 `school_teacher` — атрибуты нагрузки (NEW)
+### 1.3 `school_teacher` — атрибуты нагрузки ✅
 
 ```
 school_teacher
@@ -359,7 +365,7 @@ PATCH /api/v1/schools/{schoolId}/teachers/{userId}   { maxWeeklyHours?, availabi
 
 `langs` денормализуем из profile-service (tutor languages) при ответе.
 
-### 1.4 Авто-доступ к курсу по членству в группе (оркестрация)
+### 1.4 Авто-доступ к курсу по членству в группе (оркестрация) ✅
 
 > Решение №2: пока группа активна, её `course_id` доступен всем участникам.
 
@@ -375,7 +381,7 @@ PATCH /api/v1/schools/{schoolId}/teachers/{userId}   { maxWeeklyHours?, availabi
 Реализовать через доменные события (`group.member.added`, `group.member.removed`, `group.archived`)
 и подписчика в content-service, либо синхронно в org-service. Идемпотентно.
 
-### 1.5 GET-ответы должны вернуть расширенную форму
+### 1.5 GET-ответы должны вернуть расширенную форму ✅
 
 `GET /groups` (список) и `GET /groups/{id}` (детали) дополнить полями: `courseId, courseName, lang,
 level, status, mode, capacity{min,max}, startDate, endDate, studentCount, teachers:[{userId, role,
@@ -383,9 +389,9 @@ from, to, reason}]`. Слоты/конфликты/уроки — из schedulin
 
 ---
 
-## 2. Student Management — доработки
+## 2. Student Management — доработки — ✅ Готово (2.1–2.3)
 
-### 2.1 Список студентов школы с производным статусом
+### 2.1 Список студентов школы с производным статусом ✅
 
 Спека §6: `GET /schools/{slug}/students` → студенты + статус + членства. Сейчас отдельного
 эндпоинта нет (есть только `at-risk` из analytics и `members` из org).
@@ -414,13 +420,13 @@ GET /api/v1/schools/{schoolId}/students?segment=&search=&limit=&cursor=
 **Рекомендация:** агрегировать в analytics-service (у него уже есть проекции активности и членства),
 либо собирать BFF-композитом на фронте. Зафиксировать при реализации.
 
-### 2.2 `GET /schools/{schoolId}/students/{userId}` — детали
+### 2.2 `GET /analytics/schools/{schoolId}/students/{userId}` — детали ✅
 
 `{ userId, name, email, avatarUrl, lang, level, status, progress, lastSeen, enrolledAt,
    groups:[{ id, name, lang, level, schedule, teachers:[{userId,name,role}] }], clashes:[...] }`.
 Учителя выводятся из членства в группах (read-only, спека: «teachers are read-only here»).
 
-### 2.3 Добавление студентов в группу — 3-веточный flow (КЛЮЧЕВОЕ)
+### 2.3 Добавление студентов в группу — 3-веточный flow ✅
 
 Пользовательский сценарий (требование владельца):
 
@@ -464,7 +470,7 @@ GET /api/v1/users/lookup?email=...        (auth- или profile-service, тре�
 ре-валидирует ёмкость + кросс-групповой клэш (clash — из scheduling-service), `200 { ok, warnings:[...] }`
 или `409`. Удаление участника — мягко, с Undo на фронте (просто повторный POST при отмене).
 
-### 2.4 Bulk message + сегменты (спека §6) — низкий приоритет
+### 2.4 Bulk message + сегменты (спека §6) — ❌ отложено (фиче-флаг)
 
 ```
 POST /schools/{schoolId}/students/message   { audience:{segment|userIds[]}, subject, body }
@@ -477,7 +483,7 @@ GET  /schools/{schoolId}/students/segments
 
 ---
 
-## 3. Scheduling-service (НОВЫЙ сервис) — требования
+## 3. Scheduling-service (НОВЫЙ сервис) — ❌ не реализован, фронт мокает
 
 > Владеет **всем волатильным таймтейблом**: недельный паттерн (slots) → датированные уроки (lessons)
 > → конфликты → нагрузка учителей → бронь комнат → (позже) календарь/видео.
@@ -571,17 +577,17 @@ ICS-экспорт, синхронизация с внешними календ�
 
 ---
 
-## Сводка новых задач (Group/Student Management)
+## Сводка задач (Group/Student Management)
 
-| #   | Сервис                 | Задача                                                                                 | Приоритет  | Блокирует фронт             |
+| #   | Сервис                 | Задача                                                                                 | Статус     | Блокирует фронт             |
 | --- | ---------------------- | -------------------------------------------------------------------------------------- | ---------- | --------------------------- |
-| 1.1 | org                    | Расширить `Group` (course/lang/level/status/mode/capacity/term-даты) + publish/archive | 🔴 высокий | список, детали, визард      |
-| 1.2 | org                    | `group_teacher` junction + assign/remove + валидация                                   | 🔴 высокий | teacher-assign, detail      |
-| 1.3 | org                    | `school_teacher` (maxWeeklyHours/availability) + GET teachers                          | 🟠 средний | timetable, нагрузка         |
-| 1.4 | org+content            | Авто-entitlement курса по членству                                                     | 🟠 средний | (фоновая логика)            |
-| 1.5 | org                    | Расширенные GET-ответы групп                                                           | 🔴 высокий | список, детали              |
-| 2.1 | analytics/BFF          | Список студентов + производный статус                                                  | 🔴 высокий | students list               |
-| 2.2 | analytics/org          | Детали студента                                                                        | 🔴 высокий | student detail              |
-| 2.3 | auth/org               | email-lookup + 3-веточный invite/accept                                                | 🔴 высокий | enroll/add-student          |
-| 2.4 | notif/org              | Bulk message + сегменты                                                                | 🟢 низкий  | (фиче-флаг)                 |
-| 3.x | **scheduling (новый)** | slots/lessons/conflicts/load/timetable/clashes                                         | 🟠 средний | расписание, timetable (мок) |
+| 1.1 | org                    | Расширить `Group` (course/lang/level/status/mode/capacity/term-даты) + publish/archive | ✅ Готово  | список, детали, визард      |
+| 1.2 | org                    | `group_teacher` junction + assign/remove + валидация                                   | ✅ Готово  | teacher-assign, detail      |
+| 1.3 | org                    | `school_teacher` (maxWeeklyHours/availability) + GET teachers                          | ✅ Готово  | timetable, нагрузка         |
+| 1.4 | org+content            | Авто-entitlement курса по членству (события + consumer)                                | ✅ Готово  | (фоновая логика)            |
+| 1.5 | org                    | Расширенные GET-ответы групп                                                           | ✅ Готово  | список, детали              |
+| 2.1 | analytics              | `GET /analytics/schools/{id}/students` — список + производный статус                  | ✅ Готово  | students list               |
+| 2.2 | analytics              | `GET /analytics/schools/{id}/students/{userId}` — детали студента                     | ✅ Готово  | student detail              |
+| 2.3 | profile/org            | `GET /users/lookup?email=` + 3-веточный invite/accept (kind + targetGroupId)           | ✅ Готово  | enroll/add-student          |
+| 2.4 | notif/org              | Bulk message + сегменты                                                                | 🟢 отложен | (фиче-флаг)                 |
+| 3.x | **scheduling (новый)** | slots/lessons/conflicts/load/timetable/clashes                                         | ❌ Новый сервис | расписание, timetable (мок) |
