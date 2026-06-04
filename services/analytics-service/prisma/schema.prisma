@@ -94,6 +94,40 @@ model ContainerDirectory {
   @@map("container_directory")
 }
 
+// ─── Projection: GroupDirectory ──────────────────────────────────────────────
+// Built from school.group.published / school.group.archived events.
+// Provides group metadata for student list responses.
+
+model GroupDirectory {
+  groupId   String    @id @map("group_id")
+  schoolId  String    @map("school_id")
+  name      String
+  lang      String?
+  level     String?
+  courseId  String?   @map("course_id")
+  status    String    // active | archived | draft
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([schoolId])
+  @@map("group_directory")
+}
+
+// ─── Projection: GroupMembership ─────────────────────────────────────────────
+// Built from school.group.member.added / school.group.member.removed events.
+// Used for unassigned-status derivation and student→group attribution.
+
+model GroupMembership {
+  id       String @id @default(uuid())
+  groupId  String @map("group_id")
+  schoolId String @map("school_id")
+  userId   String @map("user_id")
+
+  @@unique([groupId, userId])
+  @@index([schoolId, userId])
+  @@index([groupId])
+  @@map("group_membership")
+}
+
 // ─── Projection: EnrollmentProjection ────────────────────────────────────────
 // Built from learning.enrollment.* events + seed.
 // Canonical set of active enrollments — basis for schoolStudents(S) and course-health.
