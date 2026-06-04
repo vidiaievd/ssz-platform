@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
@@ -28,6 +29,8 @@ import { UpdateSchoolGroupCommand } from '../../application/commands/update-scho
 import { DeleteSchoolGroupCommand } from '../../application/commands/delete-school-group/delete-school-group.command.js';
 import { PublishSchoolGroupCommand } from '../../application/commands/publish-school-group/publish-school-group.command.js';
 import { ArchiveSchoolGroupCommand } from '../../application/commands/archive-school-group/archive-school-group.command.js';
+import { AssignGroupTeacherCommand } from '../../application/commands/assign-group-teacher/assign-group-teacher.command.js';
+import { RemoveGroupTeacherCommand } from '../../application/commands/remove-group-teacher/remove-group-teacher.command.js';
 import { AddGroupMemberCommand } from '../../application/commands/add-group-member/add-group-member.command.js';
 import { RemoveGroupMemberCommand } from '../../application/commands/remove-group-member/remove-group-member.command.js';
 import { GetSchoolGroupQuery } from '../../application/queries/get-school-group/get-school-group.query.js';
@@ -37,6 +40,7 @@ import {
   CreateSchoolGroupRequestDto,
   UpdateSchoolGroupRequestDto,
   AddGroupMemberRequestDto,
+  AssignGroupTeacherRequestDto,
 } from '../dto/school-group.request.dto.js';
 import {
   SchoolGroupResponseDto,
@@ -171,6 +175,47 @@ export class SchoolGroupsController {
   ): Promise<void> {
     await this.commandBus.execute(
       new DeleteSchoolGroupCommand(user.sub, schoolId, groupId),
+    );
+  }
+
+  @Post(':groupId/teachers')
+  @ApiOperation({ summary: 'Assign a teacher to this group (owner/admin only). Returns warnings if override used.' })
+  @ApiOkResponse({ schema: { properties: { ok: { type: 'boolean' }, warnings: { type: 'array', items: { type: 'object' } } } } })
+  @ApiConflictResponse({ description: 'language-mismatch | primary-already-assigned | substitute requires reason' })
+  async assignTeacher(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Body() dto: AssignGroupTeacherRequestDto,
+  ): Promise<{ ok: boolean; warnings: Array<{ type: string }> }> {
+    return this.commandBus.execute(
+      new AssignGroupTeacherCommand(
+        user.sub,
+        schoolId,
+        groupId,
+        dto.userId,
+        dto.role,
+        dto.fromDate ? new Date(dto.fromDate) : undefined,
+        dto.toDate ? new Date(dto.toDate) : undefined,
+        dto.reason,
+        dto.override,
+      ),
+    );
+  }
+
+  @Delete(':groupId/teachers/:userId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove a teacher from this group (owner/admin only)' })
+  @ApiNoContentResponse()
+  async removeTeacher(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query('role') role: 'primary' | 'co_primary' | 'substitute',
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new RemoveGroupTeacherCommand(user.sub, schoolId, groupId, userId, role),
     );
   }
 

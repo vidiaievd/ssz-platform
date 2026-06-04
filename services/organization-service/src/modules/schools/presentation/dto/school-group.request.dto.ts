@@ -131,3 +131,33 @@ export class AddGroupMemberRequestDto {
   @IsString()
   userId!: string;
 }
+
+export class AssignGroupTeacherRequestDto {
+  @ApiProperty({ description: 'userId of the teacher (must be a TEACHER school member)' })
+  @IsString()
+  userId!: string;
+
+  @ApiProperty({ enum: ['primary', 'co_primary', 'substitute'] })
+  @IsEnum(['primary', 'co_primary', 'substitute'])
+  role!: 'primary' | 'co_primary' | 'substitute';
+
+  @ApiPropertyOptional({ description: 'Start date for substitute window (ISO date)' })
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string | null;
+
+  @ApiPropertyOptional({ description: 'End date for substitute window (ISO date)' })
+  @IsOptional()
+  @IsDateString()
+  toDate?: string | null;
+
+  @ApiPropertyOptional({ description: 'Required for substitute role' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string | null;
+
+  @ApiPropertyOptional({ description: 'Override existing primary/co_primary assignment' })
+  @IsOptional()
+  override?: boolean;
+}

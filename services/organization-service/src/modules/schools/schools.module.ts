@@ -4,11 +4,15 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { SCHOOL_REPOSITORY } from './domain/repositories/school.repository.interface.js';
 import { SCHOOL_INVITATION_REPOSITORY } from './domain/repositories/school-invitation.repository.interface.js';
 import { SCHOOL_GROUP_REPOSITORY } from './domain/repositories/school-group.repository.interface.js';
+import { GROUP_TEACHER_REPOSITORY } from './domain/repositories/group-teacher.repository.interface.js';
+import { PROFILE_SERVICE_PORT } from '../../shared/application/ports/profile-service.interface.js';
 
 import { SchoolPrismaRepository } from './infrastructure/persistence/school.prisma.repository.js';
 import { SchoolInvitationPrismaRepository } from './infrastructure/persistence/school-invitation.prisma.repository.js';
 import { SchoolGroupPrismaRepository } from './infrastructure/persistence/school-group.prisma.repository.js';
+import { GroupTeacherPrismaRepository } from './infrastructure/persistence/group-teacher.prisma.repository.js';
 import { InvitationTokenService } from './infrastructure/invitation-token.service.js';
+import { ProfileServiceHttpClient } from '../../infrastructure/profile/profile-service.http-client.js';
 
 import { CreateSchoolHandler } from './application/commands/create-school/create-school.handler.js';
 import { UpdateSchoolHandler } from './application/commands/update-school/update-school.handler.js';
@@ -22,6 +26,8 @@ import { UpdateSchoolGroupHandler } from './application/commands/update-school-g
 import { DeleteSchoolGroupHandler } from './application/commands/delete-school-group/delete-school-group.handler.js';
 import { PublishSchoolGroupHandler } from './application/commands/publish-school-group/publish-school-group.handler.js';
 import { ArchiveSchoolGroupHandler } from './application/commands/archive-school-group/archive-school-group.handler.js';
+import { AssignGroupTeacherHandler } from './application/commands/assign-group-teacher/assign-group-teacher.handler.js';
+import { RemoveGroupTeacherHandler } from './application/commands/remove-group-teacher/remove-group-teacher.handler.js';
 import { AddGroupMemberHandler } from './application/commands/add-group-member/add-group-member.handler.js';
 import { RemoveGroupMemberHandler } from './application/commands/remove-group-member/remove-group-member.handler.js';
 
@@ -52,6 +58,8 @@ const CommandHandlers = [
   DeleteSchoolGroupHandler,
   PublishSchoolGroupHandler,
   ArchiveSchoolGroupHandler,
+  AssignGroupTeacherHandler,
+  RemoveGroupTeacherHandler,
   AddGroupMemberHandler,
   RemoveGroupMemberHandler,
 ];
@@ -74,6 +82,7 @@ const QueryHandlers = [
     ...CommandHandlers,
     ...QueryHandlers,
     InvitationTokenService,
+    ProfileServiceHttpClient,
     {
       provide: SCHOOL_REPOSITORY,
       useClass: SchoolPrismaRepository,
@@ -85,6 +94,14 @@ const QueryHandlers = [
     {
       provide: SCHOOL_GROUP_REPOSITORY,
       useClass: SchoolGroupPrismaRepository,
+    },
+    {
+      provide: GROUP_TEACHER_REPOSITORY,
+      useClass: GroupTeacherPrismaRepository,
+    },
+    {
+      provide: PROFILE_SERVICE_PORT,
+      useClass: ProfileServiceHttpClient,
     },
   ],
 })
