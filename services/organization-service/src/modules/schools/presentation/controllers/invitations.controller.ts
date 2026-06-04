@@ -67,7 +67,7 @@ export class InvitationsController {
     @Body() dto: SendInvitationRequestDto,
   ): Promise<SendInvitationResponseDto> {
     return this.commandBus.execute(
-      new SendInvitationCommand(user.sub, schoolId, dto.email, dto.role),
+      new SendInvitationCommand(user.sub, schoolId, dto.email, dto.role, dto.kind ?? 'register', dto.targetGroupId),
     );
   }
 

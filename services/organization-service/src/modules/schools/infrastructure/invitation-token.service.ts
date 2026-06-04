@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import jwt from 'jsonwebtoken';
 import type { Env } from '../../../config/configuration.js';
 import type { MemberRole } from '../domain/value-objects/member-role.vo.js';
+import type { InvitationKind } from '../domain/entities/school-invitation.entity.js';
 
 const { sign, verify } = jwt;
 
@@ -11,6 +12,8 @@ export interface InvitationTokenPayload {
   schoolId: string;
   role: MemberRole;
   email: string;
+  kind: InvitationKind;
+  targetGroupId?: string | null;
   iat: number;
   exp: number;
 }
@@ -25,11 +28,13 @@ export class InvitationTokenService {
     role: MemberRole,
     email: string,
     expiresAt: Date,
+    kind: InvitationKind = 'register',
+    targetGroupId?: string | null,
   ): string {
     const secret = this.config.get('INVITATION_JWT_SECRET') as string;
     const ttlSeconds = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
 
-    return sign({ schoolId, role, email }, secret, {
+    return sign({ schoolId, role, email, kind, targetGroupId: targetGroupId ?? null }, secret, {
       algorithm: 'HS256',
       jwtid: invitationId,
       expiresIn: ttlSeconds,
