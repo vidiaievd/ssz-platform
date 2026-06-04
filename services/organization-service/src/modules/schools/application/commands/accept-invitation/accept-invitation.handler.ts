@@ -21,9 +21,15 @@ import { SchoolMember } from '../../../domain/entities/school-member.entity.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { UserPlatformRoleAssignedEvent } from '../../../domain/events/user-platform-role-assigned.event.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
+import {
+  SCHOOL_GROUP_REPOSITORY,
+  type ISchoolGroupRepository,
+} from '../../../domain/repositories/school-group.repository.interface.js';
 
 // School roles that grant the platform Tutor role
 const ROLES_REQUIRING_TUTOR: ReadonlySet<MemberRole> = new Set([MemberRole.TEACHER]);
+// School roles that grant the platform Student role
+const ROLES_REQUIRING_STUDENT: ReadonlySet<MemberRole> = new Set([MemberRole.STUDENT]);
 
 @CommandHandler(AcceptInvitationCommand)
 export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitationCommand> {
@@ -31,6 +37,7 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
     @Inject(SCHOOL_INVITATION_REPOSITORY)
     private readonly invitationRepository: ISchoolInvitationRepository,
+    @Inject(SCHOOL_GROUP_REPOSITORY) private readonly groupRepository: ISchoolGroupRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
     private readonly tokenService: InvitationTokenService,
   ) {}
@@ -94,6 +101,21 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
       await this.eventPublisher.publish(
         new UserPlatformRoleAssignedEvent(randomUUID(), command.actorId, 'Tutor'),
       );
+    }
+
+    // Assign platform Student role for student invitations (register + onboard-existing)
+    if (ROLES_REQUIRING_STUDENT.has(invitation.role)) {
+      await this.eventPublisher.publish(
+        new UserPlatformRoleAssignedEvent(randomUUID(), command.actorId, 'Student'),
+      );
+    }
+
+    // Add to target group if specified (both register and onboard-existing branches)
+    if (invitation.targetGroupId) {
+      const group = await this.groupRepository.findById(invitation.targetGroupId);
+      if (group && !group.isDeleted && group.schoolId === school.id) {
+        await this.groupRepository.saveWithMember(group, command.actorId, randomUUID());
+      }
     }
   }
 }

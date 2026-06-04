@@ -12,6 +12,7 @@ import type { IProcessedEventsRepository } from '../../../../shared/application/
 import { PROCESSED_EVENTS_REPOSITORY } from '../../../../shared/application/ports/processed-events.repository.interface.js';
 import { CreateProfileCommand } from '../../application/commands/create-profile/create-profile.command.js';
 import { EXCHANGES } from '@ssz/contracts';
+import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 
 // Envelope shape published by Auth Service (camelCase JSON via JsonNamingPolicy.CamelCase)
 interface UserRegisteredPayload {
@@ -43,6 +44,7 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly commandBus: CommandBus,
+    private readonly prisma: PrismaService,
     @Inject(PROCESSED_EVENTS_REPOSITORY)
     private readonly processedEvents: IProcessedEventsRepository,
     @Inject('RABBITMQ_URL')
@@ -104,6 +106,14 @@ export class UserRegisteredConsumer implements OnModuleInit, OnModuleDestroy {
                   data.payload.email.split('@')[0],
                 ),
               );
+
+              // Upsert email index for lookup endpoint
+              const roles = data.payload.roles ?? (data.payload.role ? [data.payload.role] : []);
+              await (this.prisma as any).userEmailIndex.upsert({
+                where: { userId: data.payload.userId },
+                create: { userId: data.payload.userId, email: data.payload.email, roles },
+                update: { email: data.payload.email, roles },
+              });
 
               await this.processedEvents.markProcessed(
                 data.eventId,

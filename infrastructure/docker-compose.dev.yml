@@ -89,8 +89,8 @@ services:
 
   organization-service:
     build:
-      context: ../services/organization-service
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: services/organization-service/Dockerfile
     environment:
       NODE_ENV: development
       PORT: 3002

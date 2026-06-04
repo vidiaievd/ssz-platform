@@ -38,6 +38,14 @@ export class CreateSchoolGroupHandler implements ICommandHandler<CreateSchoolGro
       schoolId: command.schoolId,
       name: command.name,
       description: command.description,
+      mode: command.mode,
+      courseId: command.courseId,
+      lang: command.lang,
+      level: command.level,
+      capacityMin: command.capacityMin,
+      capacityMax: command.capacityMax,
+      startDate: command.startDate,
+      endDate: command.endDate,
     });
 
     await this.groupRepository.save(group);

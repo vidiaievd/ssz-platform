@@ -10,15 +10,21 @@ import {
   SCHOOL_GROUP_REPOSITORY,
   type ISchoolGroupRepository,
 } from '../../../domain/repositories/school-group.repository.interface.js';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../../../shared/application/ports/event-publisher.interface.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
+import { GroupMemberAddedEvent } from '../../../domain/events/group-member-added.event.js';
 
 @CommandHandler(AddGroupMemberCommand)
 export class AddGroupMemberHandler implements ICommandHandler<AddGroupMemberCommand> {
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
     @Inject(SCHOOL_GROUP_REPOSITORY) private readonly groupRepository: ISchoolGroupRepository,
+    @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(command: AddGroupMemberCommand): Promise<void> {
@@ -32,7 +38,6 @@ export class AddGroupMemberHandler implements ICommandHandler<AddGroupMemberComm
       throw new ForbiddenOperationException('Only owner, admin, or teacher can manage group members');
     }
 
-    // The target user must already be a school member
     const targetRole = school.getMemberRole(command.userId);
     if (!targetRole) {
       throw new ForbiddenOperationException('User is not a member of this school');
@@ -43,7 +48,18 @@ export class AddGroupMemberHandler implements ICommandHandler<AddGroupMemberComm
       throw new NotFoundException(`Group ${command.groupId} not found`);
     }
 
-    const memberId = randomUUID();
-    await this.groupRepository.saveWithMember(group, command.userId, memberId);
+    await this.groupRepository.saveWithMember(group, command.userId, randomUUID());
+
+    await this.eventPublisher.publish(
+      new GroupMemberAddedEvent(
+        randomUUID(),
+        command.schoolId,
+        command.groupId,
+        command.userId,
+        group.courseId ?? null,
+        group.status,
+        new Date().toISOString(),
+      ),
+    );
   }
 }

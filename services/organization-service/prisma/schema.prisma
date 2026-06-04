@@ -27,6 +27,28 @@ enum SchoolType {
   HYBRID
 }
 
+enum GroupStatus {
+  draft
+  active
+  archived
+}
+
+enum GroupMode {
+  online
+  in_person
+}
+
+enum GroupTeacherRole {
+  primary
+  co_primary
+  substitute
+}
+
+enum InvitationKind {
+  register
+  onboard_existing
+}
+
 model School {
   id           String     @id @default(uuid())
   name         String
@@ -61,38 +83,68 @@ model SchoolMember {
   role      MemberRole
   joinedAt  DateTime   @default(now())
 
+  teacherAttrs SchoolTeacher?
+
   @@unique([schoolId, userId])
   @@map("school_members")
 }
 
+// Teacher-specific attributes (workload + availability windows) scoped per school.
+// Linked to SchoolMember to ensure the user is actually a TEACHER in this school.
+model SchoolTeacher {
+  schoolId        String  @map("school_id")
+  userId          String  @map("user_id")
+  memberId        String  @unique @map("member_id")
+  member          SchoolMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  maxWeeklyHours  Int?    @map("max_weekly_hours")
+  availability    Json?   // [{ weekday: 1-7, start: "HH:mm", end: "HH:mm" }]
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@id([schoolId, userId])
+  @@map("school_teachers")
+}
+
 model SchoolInvitation {
-  id        String           @id @default(uuid())
-  schoolId  String
-  school    School           @relation(fields: [schoolId], references: [id])
-  email     String
-  role      MemberRole       @default(TEACHER)
-  token     String           @unique  // signed JWT containing invitation metadata
-  status    InvitationStatus @default(PENDING)
-  expiresAt DateTime
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id            String           @id @default(uuid())
+  schoolId      String
+  school        School           @relation(fields: [schoolId], references: [id])
+  email         String
+  role          MemberRole       @default(TEACHER)
+  kind          InvitationKind   @default(register)
+  targetGroupId String?          @map("target_group_id")
+  token         String           @unique  // signed JWT containing invitation metadata
+  status        InvitationStatus @default(PENDING)
+  expiresAt     DateTime
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@map("school_invitations")
 }
 
 model SchoolGroup {
-  id          String    @id @default(uuid())
-  schoolId    String    @map("school_id")
-  school      School    @relation(fields: [schoolId], references: [id])
+  id          String      @id @default(uuid())
+  schoolId    String      @map("school_id")
+  school      School      @relation(fields: [schoolId], references: [id])
   name        String
-  description String?   @db.Text
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
+  description String?     @db.Text
+  status      GroupStatus @default(draft)
+  mode        GroupMode   @default(online)
+  courseId    String?     @map("course_id")
+  lang        String?     @db.Char(2)
+  level       String?
+  capacityMin Int?        @map("capacity_min")
+  capacityMax Int?        @map("capacity_max")
+  startDate   DateTime?   @map("start_date") @db.Date
+  endDate     DateTime?   @map("end_date") @db.Date
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
 
-  members SchoolGroupMember[]
+  members  SchoolGroupMember[]
+  teachers GroupTeacher[]
 
   @@index([schoolId])
+  @@index([schoolId, status])
   @@map("school_groups")
 }
 
@@ -106,6 +158,23 @@ model SchoolGroupMember {
   @@unique([groupId, userId])
   @@index([userId])
   @@map("school_group_members")
+}
+
+model GroupTeacher {
+  id        String           @id @default(uuid())
+  groupId   String           @map("group_id")
+  group     SchoolGroup      @relation(fields: [groupId], references: [id])
+  userId    String           @map("user_id")
+  role      GroupTeacherRole
+  fromDate  DateTime?        @map("from_date") @db.Date
+  toDate    DateTime?        @map("to_date") @db.Date
+  reason    String?          @db.Text
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@unique([groupId, userId, role])
+  @@index([groupId])
+  @@index([userId])
+  @@map("group_teachers")
 }
 
 model TutoringGroup {
