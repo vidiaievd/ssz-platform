@@ -38,6 +38,12 @@ enum GroupMode {
   in_person
 }
 
+enum GroupTeacherRole {
+  primary
+  co_primary
+  substitute
+}
+
 model School {
   id           String     @id @default(uuid())
   name         String
@@ -110,7 +116,8 @@ model SchoolGroup {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   deletedAt   DateTime?   @map("deleted_at")
 
-  members SchoolGroupMember[]
+  members  SchoolGroupMember[]
+  teachers GroupTeacher[]
 
   @@index([schoolId])
   @@index([schoolId, status])
@@ -127,6 +134,23 @@ model SchoolGroupMember {
   @@unique([groupId, userId])
   @@index([userId])
   @@map("school_group_members")
+}
+
+model GroupTeacher {
+  id        String           @id @default(uuid())
+  groupId   String           @map("group_id")
+  group     SchoolGroup      @relation(fields: [groupId], references: [id])
+  userId    String           @map("user_id")
+  role      GroupTeacherRole
+  fromDate  DateTime?        @map("from_date") @db.Date
+  toDate    DateTime?        @map("to_date") @db.Date
+  reason    String?          @db.Text
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@unique([groupId, userId, role])
+  @@index([groupId])
+  @@index([userId])
+  @@map("group_teachers")
 }
 
 model TutoringGroup {

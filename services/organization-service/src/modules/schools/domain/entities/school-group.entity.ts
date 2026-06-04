@@ -7,6 +7,18 @@ export interface SchoolGroupMemberProps {
 
 export type GroupStatus = 'draft' | 'active' | 'archived';
 export type GroupMode = 'online' | 'in_person';
+export type GroupTeacherRole = 'primary' | 'co_primary' | 'substitute';
+
+export interface GroupTeacherProps {
+  id: string;
+  groupId: string;
+  userId: string;
+  role: GroupTeacherRole;
+  fromDate?: Date | null;
+  toDate?: Date | null;
+  reason?: string | null;
+  createdAt: Date;
+}
 
 export interface SchoolGroupProps {
   id: string;
@@ -26,6 +38,7 @@ export interface SchoolGroupProps {
   updatedAt: Date;
   deletedAt?: Date | null;
   members: SchoolGroupMemberProps[];
+  teachers: GroupTeacherProps[];
 }
 
 export interface UpdateGroupProps {
@@ -58,7 +71,7 @@ export class SchoolGroup {
   }
 
   static create(
-    props: Omit<SchoolGroupProps, 'createdAt' | 'updatedAt' | 'deletedAt' | 'members' | 'status' | 'mode'> & { mode?: GroupMode },
+    props: Omit<SchoolGroupProps, 'createdAt' | 'updatedAt' | 'deletedAt' | 'members' | 'teachers' | 'status' | 'mode'> & { mode?: GroupMode },
   ): SchoolGroup {
     const now = new Date();
     return new SchoolGroup({
@@ -69,6 +82,7 @@ export class SchoolGroup {
       updatedAt: now,
       deletedAt: null,
       members: [],
+      teachers: [],
     });
   }
 
@@ -97,6 +111,7 @@ export class SchoolGroup {
   publish(): string[] {
     const blockers: string[] = [];
     if (!this._props.courseId) blockers.push('no-course');
+    if (!this.primaryTeacherId) blockers.push('no-primary');
     if (this._props.status === 'archived') blockers.push('already-archived');
     if (blockers.length > 0) return blockers;
     this._props.status = 'active';
@@ -156,4 +171,12 @@ export class SchoolGroup {
   get members(): SchoolGroupMemberProps[] { return [...this._props.members]; }
   get memberUserIds(): string[] { return this._props.members.map((m) => m.userId); }
   get studentCount(): number { return this._props.members.length; }
+  get teachers(): GroupTeacherProps[] { return [...this._props.teachers]; }
+  get primaryTeacherId(): string | undefined {
+    return this._props.teachers.find((t) => t.role === 'primary')?.userId;
+  }
+
+  setTeachers(teachers: GroupTeacherProps[]): void {
+    this._props.teachers = teachers;
+  }
 }
