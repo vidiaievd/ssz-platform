@@ -76,6 +76,17 @@ model TutorTeachingLanguage {
   @@map("tutor_teaching_languages")
 }
 
+// Projection: userId → email + roles, built from auth.user.registered events.
+// Used exclusively for the internal email-lookup endpoint (school admin / invite flow).
+model UserEmailIndex {
+  userId    String   @id @map("user_id")
+  email     String   @unique
+  roles     String[] // e.g. ["student", "tutor"]
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("user_email_index")
+}
+
 // Stores IDs of already-processed RabbitMQ events.
 // Checked before handling any incoming event to guarantee idempotency —
 // duplicate deliveries are silently ignored.
