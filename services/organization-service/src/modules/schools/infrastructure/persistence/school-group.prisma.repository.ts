@@ -4,6 +4,8 @@ import type { ISchoolGroupRepository } from '../../domain/repositories/school-gr
 import type { SchoolGroup } from '../../domain/entities/school-group.entity.js';
 import { SchoolGroupMapper } from './school-group.mapper.js';
 
+const GROUP_INCLUDE = { members: true } as const;
+
 @Injectable()
 export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -11,15 +13,15 @@ export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
   async findById(id: string): Promise<SchoolGroup | null> {
     const raw = await (this.prisma as any).schoolGroup.findUnique({
       where: { id },
-      include: { members: true },
+      include: GROUP_INCLUDE,
     });
     return raw ? SchoolGroupMapper.toDomain(raw) : null;
   }
 
   async findBySchoolId(schoolId: string): Promise<SchoolGroup[]> {
     const rows = await (this.prisma as any).schoolGroup.findMany({
-      where: { schoolId },
-      include: { members: true },
+      where: { schoolId, deletedAt: null },
+      include: GROUP_INCLUDE,
       orderBy: { createdAt: 'asc' },
     });
     return rows.map(SchoolGroupMapper.toDomain);
@@ -33,6 +35,15 @@ export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
         schoolId: group.schoolId,
         name: group.name,
         description: group.description ?? null,
+        status: group.status,
+        mode: group.mode,
+        courseId: group.courseId ?? null,
+        lang: group.lang ?? null,
+        level: group.level ?? null,
+        capacityMin: group.capacityMin ?? null,
+        capacityMax: group.capacityMax ?? null,
+        startDate: group.startDate ?? null,
+        endDate: group.endDate ?? null,
         createdAt: group.createdAt,
         updatedAt: group.updatedAt,
         deletedAt: group.deletedAt ?? null,
@@ -40,6 +51,15 @@ export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
       update: {
         name: group.name,
         description: group.description ?? null,
+        status: group.status,
+        mode: group.mode,
+        courseId: group.courseId ?? null,
+        lang: group.lang ?? null,
+        level: group.level ?? null,
+        capacityMin: group.capacityMin ?? null,
+        capacityMax: group.capacityMax ?? null,
+        startDate: group.startDate ?? null,
+        endDate: group.endDate ?? null,
         updatedAt: group.updatedAt,
         deletedAt: group.deletedAt ?? null,
       },

@@ -8,6 +8,10 @@ export const ORGANIZATION_EVENT_TYPES = {
   SCHOOL_MEMBER_REMOVED: 'school.member.removed',
   SCHOOL_INVITATION_SENT: 'school.invitation.sent',
   USER_PLATFORM_ROLE_ASSIGNED: 'user.platform.role.assigned',
+  GROUP_PUBLISHED: 'school.group.published',
+  GROUP_ARCHIVED: 'school.group.archived',
+  GROUP_MEMBER_ADDED: 'school.group.member.added',
+  GROUP_MEMBER_REMOVED: 'school.group.member.removed',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -46,6 +50,34 @@ export interface UserPlatformRoleAssignedPayload {
   platformRole: string;
 }
 
+export interface GroupPublishedPayload {
+  schoolId: string;
+  groupId: string;
+  groupName: string;
+  courseId: string | null;
+  lang: string | null;
+  level: string | null;
+}
+
+export interface GroupArchivedPayload {
+  schoolId: string;
+  groupId: string;
+}
+
+export interface GroupMemberAddedPayload {
+  schoolId: string;
+  groupId: string;
+  userId: string;
+  /** ISO 8601 */
+  addedAt: string;
+}
+
+export interface GroupMemberRemovedPayload {
+  schoolId: string;
+  groupId: string;
+  userId: string;
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type SchoolCreatedEvent = BaseEvent<SchoolCreatedPayload>;
@@ -53,10 +85,18 @@ export type SchoolMemberAddedEvent = BaseEvent<SchoolMemberAddedPayload>;
 export type SchoolMemberRemovedEvent = BaseEvent<SchoolMemberRemovedPayload>;
 export type SchoolInvitationSentEvent = BaseEvent<SchoolInvitationSentPayload>;
 export type UserPlatformRoleAssignedEvent = BaseEvent<UserPlatformRoleAssignedPayload>;
+export type GroupPublishedEvent = BaseEvent<GroupPublishedPayload>;
+export type GroupArchivedEvent = BaseEvent<GroupArchivedPayload>;
+export type GroupMemberAddedEvent = BaseEvent<GroupMemberAddedPayload>;
+export type GroupMemberRemovedEvent = BaseEvent<GroupMemberRemovedPayload>;
 
 export type AnyOrganizationEvent =
   | SchoolCreatedEvent
   | SchoolMemberAddedEvent
   | SchoolMemberRemovedEvent
   | SchoolInvitationSentEvent
-  | UserPlatformRoleAssignedEvent;
+  | UserPlatformRoleAssignedEvent
+  | GroupPublishedEvent
+  | GroupArchivedEvent
+  | GroupMemberAddedEvent
+  | GroupMemberRemovedEvent;
