@@ -1,7 +1,7 @@
 # SSZ Platform — Frontend API Guide
 
 > Инструкция для Claude Code при работе над фронтендом (веб или мобайл).
-> Последнее обновление: 2026-06-03
+> Последнее обновление: 2026-06-04
 
 ---
 
@@ -360,6 +360,22 @@ Authorization: Bearer <accessToken>
 
 Профиль репетитора по userId. `200` или `404`.
 
+### GET /api/v1/users/lookup?email={email}
+
+🔒 Только для пользователей с ролью `tutor` или `school_admin`. Поиск пользователя по email для 3-веточного invite-flow.
+
+```json
+// 200 — пользователь найден
+{ "userId": "uuid", "roles": ["student", "tutor"], "displayName": "Maria Singh" }
+
+// 404 — нет такого email в системе → ветка A (register)
+```
+
+Используется перед `POST /schools/{schoolId}/invitations` чтобы выбрать ветку:
+- **404** → kind `register` (новый пользователь)
+- **200, roles включает `student`** → прямое добавление через `POST /groups/{id}/members`
+- **200, roles без `student`** → kind `onboard_existing`
+
 ---
 
 ## 3. Organization Service `/api/v1/`
@@ -438,33 +454,53 @@ Resolve slug → объект School. `200`, `403` (не участник), `404
 
 #### POST /api/v1/schools/{schoolId}/invitations
 
-Отправить приглашение по email.
+Отправить приглашение по email. Расширен для 3-веточного student-flow.
 
 ```json
 {
-  "email": "teacher@example.com",
-  "role": "TEACHER"  // ADMIN | CONTENT_ADMIN | TEACHER | STUDENT (не OWNER)
+  "email": "student@example.com",
+  "role": "STUDENT",           // ADMIN | CONTENT_ADMIN | TEACHER | STUDENT (не OWNER)
+  "kind": "register",          // "register" (default) | "onboard_existing"
+  "targetGroupId": "uuid"      // опционально — авто-добавить в группу после accept
 }
-// 201 → InvitationResponseDto (с токеном для ссылки)
+// 201 → { invitationId, token, kind, expiresAt, deliveryStatus: "queued" }
 ```
+
+**Ветки (выбрать kind через `/users/lookup`):**
+- `kind=register` — email не в системе; студент получает ссылку регистрации → после accept добавляется в школу + `targetGroupId`
+- `kind=onboard_existing` — пользователь есть, но без роли `student`; получает ссылку онбординга → после accept роль `student` добавляется, студент попадает в школу + `targetGroupId`
+- Прямое добавление (ветка B) — `POST /groups/{groupId}/members` без письма
 
 #### POST /api/v1/schools/invitations/{token}/accept
 
 Принять приглашение по токену из письма. `204`.
+Обе ветки (`register` и `onboard_existing`) добавляют пользователя в школу как STUDENT и, если задан `targetGroupId`, в группу. Публикуется платформенная роль `Student`.
 
 ---
 
-### Группы в школе — `/api/v1/schools/{schoolId}/groups/`
+### Группы-когорты в школе — `/api/v1/schools/{schoolId}/groups/`
 
-Студент может состоять в нескольких группах одновременно.
+Студент может состоять в нескольких группах. Группа — полноценная когорта: связана с курсом, имеет статус жизненного цикла, учителей, ёмкость и term-даты.
 
-**Права:** создание/редактирование/удаление групп — OWNER/ADMIN; управление участниками — OWNER/ADMIN/TEACHER; просмотр — любой участник школы.
+**Права:** создание/редактирование/публикация/архивация — OWNER/ADMIN; управление участниками и учителями — OWNER/ADMIN/TEACHER; просмотр — любой участник школы.
 
 #### POST /api/v1/schools/{schoolId}/groups
 
 ```json
-{ "name": "Level A2 — Spring 2026", "description": "..." }
+{
+  "name": "Level A2 — Spring 2026",
+  "description": "...",             // опционально
+  "mode": "online",                 // "online" (default) | "in_person"
+  "courseId": "uuid",               // опционально, UUID курса (content container)
+  "lang": "en",                     // опционально, ISO 639-1
+  "level": "A2",                    // опционально, CEFR A1–C2
+  "capacityMin": 4,                 // опционально
+  "capacityMax": 12,                // опционально
+  "startDate": "2026-09-01",        // опционально, ISO date
+  "endDate": "2026-12-31"           // опционально, ISO date
+}
 // 201 → { "id": "uuid" }
+// Новые группы всегда создаются со статусом "draft"
 ```
 
 #### GET /api/v1/schools/{schoolId}/groups
@@ -472,32 +508,62 @@ Resolve slug → объект School. `200`, `403` (не участник), `404
 Список групп (summary). `200 → SchoolGroupSummaryResponseDto[]`
 
 ```json
-[{ "id": "uuid", "name": "...", "description": "...", "memberCount": 12, "createdAt": "..." }]
+[{
+  "id": "uuid", "schoolId": "uuid", "name": "Level A2 — Spring 2026",
+  "description": "...",
+  "status": "draft",          // "draft" | "active" | "archived"
+  "mode": "online",           // "online" | "in_person"
+  "courseId": "uuid | null",
+  "lang": "en | null",
+  "level": "A2 | null",
+  "capacityMin": 4, "capacityMax": 12,
+  "startDate": "2026-09-01 | null", "endDate": "2026-12-31 | null",
+  "studentCount": 8,
+  "teachers": [{ "id": "uuid", "userId": "uuid", "role": "primary", "fromDate": null, "toDate": null, "reason": null }],
+  "createdAt": "..."
+}]
 ```
 
 #### GET /api/v1/schools/{schoolId}/groups/{groupId}
 
-Детали группы + список участников. `200 → SchoolGroupResponseDto`
+Детали группы + список участников + учителей. `200 → SchoolGroupResponseDto`
 
 ```json
 {
-  "id": "uuid", "schoolId": "uuid", "name": "...", "description": "...",
+  // ... все поля summary ...
   "members": [{ "id": "uuid", "userId": "uuid", "addedAt": "..." }],
-  "createdAt": "...", "updatedAt": "..."
+  "updatedAt": "..."
 }
 ```
 
 #### PATCH /api/v1/schools/{schoolId}/groups/{groupId}
 
-Обновить `name` и/или `description`. `204`.
+Обновить любые поля когорты (все опциональны): `name`, `description`, `mode`, `courseId`, `lang`, `level`, `capacityMin`, `capacityMax`, `startDate`, `endDate`. `204`.
+
+> Смена `status` — только через `/publish` и `/archive`, не через PATCH.
+
+#### POST /api/v1/schools/{schoolId}/groups/{groupId}/publish
+
+Перевод `draft → active`. Проверяет инварианты: есть `courseId`, есть primary-учитель.
+
+```json
+// 200 — успешно опубликована
+// 409 → { "blockers": ["no-course", "no-primary"] }  // одно или несколько
+```
+
+При публикации автоматически выдаются entitlements на курс всем уже добавленным студентам.
+
+#### POST /api/v1/schools/{schoolId}/groups/{groupId}/archive
+
+Архивация группы (любой статус → archived). `204`. Публикует `school.group.archived` → content-service отзывает entitlements.
 
 #### DELETE /api/v1/schools/{schoolId}/groups/{groupId}
 
-Мягкое удаление группы. `204`.
+Hard-delete — только для пустых `draft`/`archived` групп. Для активных групп — сначала `/archive`. `204` или `409`.
 
 #### POST /api/v1/schools/{schoolId}/groups/{groupId}/members
 
-Добавить участника школы в группу.
+Добавить участника школы в группу. Публикует `school.group.member.added` → content-service выдаёт entitlement на курс (если группа активна и имеет courseId).
 
 ```json
 { "userId": "uuid" }  // userId должен быть членом школы
@@ -507,7 +573,62 @@ Resolve slug → объект School. `200`, `403` (не участник), `404
 
 #### DELETE /api/v1/schools/{schoolId}/groups/{groupId}/members/{userId}
 
-Удалить участника из группы (или уйти самому). `204`.
+Удалить участника из группы (или уйти самому). `204`. Публикует `school.group.member.removed` → entitlement отзывается если нет другой активной группы с тем же курсом.
+
+#### POST /api/v1/schools/{schoolId}/groups/{groupId}/teachers
+
+Назначить учителя (должен быть TEACHER-членом школы).
+
+```json
+{
+  "userId": "uuid",
+  "role": "primary",           // "primary" | "co_primary" | "substitute"
+  "fromDate": "2026-10-01",    // опционально, только для substitute
+  "toDate": "2026-10-15",      // опционально, только для substitute
+  "reason": "Отпуск",          // обязательно для substitute
+  "override": false            // true — заменить существующего primary/co_primary
+}
+// 200 → { "ok": true, "warnings": [{ "type": "replaced-primary" }] }
+// 409 → { "error": "language-mismatch", "teacherLangs": ["uk"], "requiredLang": "en" }
+//        { "error": "primary-already-assigned", "existingUserId": "uuid" }
+```
+
+Валидация: язык преподавания учителя должен совпадать с `group.lang` (hard block, не overridable).
+
+#### DELETE /api/v1/schools/{schoolId}/groups/{groupId}/teachers/{userId}?role=primary
+
+Удалить назначение учителя. `?role=` обязателен. `204`.
+
+---
+
+### Учителя школы — `/api/v1/schools/{schoolId}/teachers/`
+
+Нагрузка и доступность учителей для timetable/assign-модалок.
+
+#### GET /api/v1/schools/{schoolId}/teachers
+
+Все TEACHER-члены школы с атрибутами нагрузки.
+
+```json
+[{
+  "userId": "uuid",
+  "maxWeeklyHours": 20,           // null если не задано
+  "availability": [
+    { "weekday": 1, "start": "09:00", "end": "17:00" }  // weekday: 1=Пн … 7=Вс
+  ]
+}]
+```
+
+#### PATCH /api/v1/schools/{schoolId}/teachers/{userId}
+
+Обновить нагрузку/доступность учителя (OWNER/ADMIN). `204`.
+
+```json
+{
+  "maxWeeklyHours": 20,     // опционально
+  "availability": [{ "weekday": 1, "start": "09:00", "end": "17:00" }]  // опционально
+}
+```
 
 ---
 
@@ -1373,6 +1494,72 @@ POST /api/v1/srs/cards/{id}/unsuspend  Возобновить карточку
 
 ---
 
+### GET /api/v1/analytics/schools/{schoolId}/students
+
+Список студентов школы с производным статусом. Доступен любому участнику школы. Курсорная пагинация.
+
+```
+?segment=all        // "all" | "active" | "at-risk" | "new" | "finished" | "unassigned"
+?search=Maria       // поиск по имени (опционально)
+?limit=20           // max 100, default 20
+?cursor=<userId>    // курсор пагинации (userId последнего элемента предыдущей страницы)
+```
+
+```json
+// 200
+{
+  "items": [{
+    "userId": "uuid",
+    "name": "Maria Singh",
+    "status": "active",       // "active" | "at-risk" | "new" | "finished" | "unassigned"
+    "groups": [{ "id": "uuid", "name": "Level A2", "lang": "en", "level": "A2" }],
+    "progress": 0.35,         // 0.0–1.0
+    "lastSeen": "2026-06-03T10:00:00.000Z",  // null если не было активности
+    "enrolledAt": "2026-05-01T00:00:00.000Z"
+  }],
+  "total": 48,
+  "nextCursor": "uuid"   // null если последняя страница
+}
+// 404 — школа не найдена или нет доступа
+```
+
+**Правила производного статуса (сервер):**
+- `finished` — enrollment COMPLETED
+- `unassigned` — состоит в 0 группах
+- `active` — последняя активность ≤ 7 дней
+- `new` — enrolled ≤ 14 дней, активности не было
+- `at-risk` — всё остальное (нет активности > 7 дней)
+- `clash` — не выставляется до готовности scheduling-service
+
+---
+
+### GET /api/v1/analytics/schools/{schoolId}/students/{userId}
+
+Детали студента: статус, группы, прогресс. Доступен любому участнику школы.
+
+```json
+// 200
+{
+  "userId": "uuid",
+  "name": "Maria Singh",
+  "status": "active",
+  "progress": 0.35,
+  "lastSeen": "2026-06-03T10:00:00.000Z",
+  "enrolledAt": "2026-05-01T00:00:00.000Z",
+  "completedAt": null,
+  "groups": [{
+    "id": "uuid",
+    "name": "Level A2 — Spring 2026",
+    "lang": "en",
+    "level": "A2",
+    "courseId": "uuid"
+  }]
+}
+// 404 — школа не найдена, нет доступа, или userId не является студентом этой школы
+```
+
+---
+
 ### POST /api/v1/analytics/schools/{schoolId}/nudge
 
 Только OWNER и ADMIN. Отправляет study-reminder всем at-risk студентам.
@@ -1475,6 +1662,23 @@ type DashboardCompositeResponse = {
 1. `GET /api/v1/srs/due` → список карточек на сегодня
 2. Для каждой: показать слово → `POST /api/v1/srs/cards/{id}/review` с rating
 
+### Школьный администратор: добавить студента в группу (3-веточный flow)
+
+1. `GET /api/v1/users/lookup?email=student@example.com`
+   - **404** → `POST /api/v1/schools/{schoolId}/invitations` с `{ role:"STUDENT", kind:"register", targetGroupId }` → студент получает письмо регистрации
+   - **200, roles включает "student"** → напрямую: `POST /api/v1/schools/{schoolId}/members { userId, role:"STUDENT" }` + `POST /api/v1/schools/{schoolId}/groups/{groupId}/members { userId }`
+   - **200, roles без "student"** → `POST /api/v1/schools/{schoolId}/invitations` с `{ role:"STUDENT", kind:"onboard_existing", targetGroupId }` → пользователь получает ссылку онбординга
+2. После `accept` (ветки A/C): пользователь попадает в школу и группу автоматически
+
+### Школьный администратор: создать и опубликовать группу-когорту
+
+1. `POST /api/v1/schools/{schoolId}/groups` с `{ name, courseId, lang, level, mode, capacityMax, startDate, endDate }`
+2. `POST /api/v1/schools/{schoolId}/groups/{groupId}/teachers` с `{ userId, role:"primary" }` → назначить primary-учителя
+3. `POST /api/v1/schools/{schoolId}/groups/{groupId}/members` → добавить студентов
+4. `POST /api/v1/schools/{schoolId}/groups/{groupId}/publish` → перевести в `active` (проверяет courseId + primary)
+   - При публикации: entitlements на курс выдаются всем участникам автоматически
+5. `POST /api/v1/assignments/group` → выдать задание всей группе
+
 ### Репетитор (школа): создание задания для группы
 
 1. `POST /api/v1/auth/register` с `role: "school_admin"` → создать аккаунт
@@ -1494,9 +1698,11 @@ type DashboardCompositeResponse = {
    - `activity.items` → лента событий
 
 Напрямую к Analytics Service:
-1. `GET /api/v1/schools/{id}/dashboard/kpis` → KPI с value + delta + trend + spark
-2. `GET /api/v1/schools/{id}/dashboard/at-risk?limit=3` → top at-risk студенты
-3. `POST /api/v1/schools/{id}/dashboard/nudge { "scope": "all-at-risk" }` → разослать напоминания
+1. `GET /api/v1/analytics/schools/{id}/kpis` → KPI с value + delta + trend + spark
+2. `GET /api/v1/analytics/schools/{id}/at-risk?limit=3` → top at-risk студенты
+3. `GET /api/v1/analytics/schools/{id}/students?segment=at-risk` → полный список с фильтром по сегменту
+4. `GET /api/v1/analytics/schools/{id}/students/{userId}` → детали конкретного студента
+5. `POST /api/v1/analytics/schools/{id}/nudge { "scope": "all-at-risk" }` → разослать напоминания
 
 ### Репетитор (частный): пригласить студента
 
