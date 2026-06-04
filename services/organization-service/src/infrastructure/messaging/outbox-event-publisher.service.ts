@@ -14,6 +14,10 @@ const ROUTING_KEYS: Record<string, string> = {
   'school.member.removed': 'school.member.removed',
   'school.invitation.sent': 'school.invitation.sent',
   'user.platform.role.assigned': 'user.platform.role.assigned',
+  'school.group.published': 'school.group.published',
+  'school.group.archived': 'school.group.archived',
+  'school.group.member.added': 'school.group.member.added',
+  'school.group.member.removed': 'school.group.member.removed',
 };
 
 @Injectable()

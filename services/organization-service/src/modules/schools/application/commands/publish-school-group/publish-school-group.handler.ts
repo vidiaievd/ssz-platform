@@ -1,5 +1,6 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject, NotFoundException, ConflictException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PublishSchoolGroupCommand } from './publish-school-group.command.js';
 import {
   SCHOOL_REPOSITORY,
@@ -9,15 +10,22 @@ import {
   SCHOOL_GROUP_REPOSITORY,
   type ISchoolGroupRepository,
 } from '../../../domain/repositories/school-group.repository.interface.js';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../../../shared/application/ports/event-publisher.interface.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
+import { GroupPublishedEvent } from '../../../domain/events/group-published.event.js';
+import { GroupMemberAddedEvent } from '../../../domain/events/group-member-added.event.js';
 
 @CommandHandler(PublishSchoolGroupCommand)
 export class PublishSchoolGroupHandler implements ICommandHandler<PublishSchoolGroupCommand> {
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
     @Inject(SCHOOL_GROUP_REPOSITORY) private readonly groupRepository: ISchoolGroupRepository,
+    @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(command: PublishSchoolGroupCommand): Promise<void> {
@@ -44,5 +52,33 @@ export class PublishSchoolGroupHandler implements ICommandHandler<PublishSchoolG
     }
 
     await this.groupRepository.save(group);
+
+    await this.eventPublisher.publish(
+      new GroupPublishedEvent(
+        randomUUID(),
+        command.schoolId,
+        group.id,
+        group.name,
+        group.courseId ?? null,
+        group.lang ?? null,
+        group.level ?? null,
+      ),
+    );
+
+    // Grant entitlements to all existing members now that group is active
+    const now = new Date().toISOString();
+    for (const member of group.members) {
+      await this.eventPublisher.publish(
+        new GroupMemberAddedEvent(
+          randomUUID(),
+          command.schoolId,
+          group.id,
+          member.userId,
+          group.courseId ?? null,
+          'active',
+          now,
+        ),
+      );
+    }
   }
 }
