@@ -1,5 +1,5 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Inject, NotFoundException } from '@nestjs/common';
 import { UpdateSchoolGroupCommand } from './update-school-group.command.js';
 import {
   SCHOOL_REPOSITORY,
@@ -12,7 +12,6 @@ import {
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
-import { NotFoundException } from '@nestjs/common';
 
 @CommandHandler(UpdateSchoolGroupCommand)
 export class UpdateSchoolGroupHandler implements ICommandHandler<UpdateSchoolGroupCommand> {
@@ -37,7 +36,19 @@ export class UpdateSchoolGroupHandler implements ICommandHandler<UpdateSchoolGro
       throw new NotFoundException(`Group ${command.groupId} not found`);
     }
 
-    group.update(command.name, command.description);
+    group.update({
+      name: command.name,
+      description: command.description,
+      mode: command.mode,
+      courseId: command.courseId,
+      lang: command.lang,
+      level: command.level,
+      capacityMin: command.capacityMin,
+      capacityMax: command.capacityMax,
+      startDate: command.startDate,
+      endDate: command.endDate,
+    });
+
     await this.groupRepository.save(group);
   }
 }

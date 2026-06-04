@@ -27,6 +27,17 @@ enum SchoolType {
   HYBRID
 }
 
+enum GroupStatus {
+  draft
+  active
+  archived
+}
+
+enum GroupMode {
+  online
+  in_person
+}
+
 model School {
   id           String     @id @default(uuid())
   name         String
@@ -81,18 +92,28 @@ model SchoolInvitation {
 }
 
 model SchoolGroup {
-  id          String    @id @default(uuid())
-  schoolId    String    @map("school_id")
-  school      School    @relation(fields: [schoolId], references: [id])
+  id          String      @id @default(uuid())
+  schoolId    String      @map("school_id")
+  school      School      @relation(fields: [schoolId], references: [id])
   name        String
-  description String?   @db.Text
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
+  description String?     @db.Text
+  status      GroupStatus @default(draft)
+  mode        GroupMode   @default(online)
+  courseId    String?     @map("course_id")
+  lang        String?     @db.Char(2)
+  level       String?
+  capacityMin Int?        @map("capacity_min")
+  capacityMax Int?        @map("capacity_max")
+  startDate   DateTime?   @map("start_date") @db.Date
+  endDate     DateTime?   @map("end_date") @db.Date
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
 
   members SchoolGroupMember[]
 
   @@index([schoolId])
+  @@index([schoolId, status])
   @@map("school_groups")
 }
 
