@@ -68,6 +68,9 @@ export interface GroupMemberAddedPayload {
   schoolId: string;
   groupId: string;
   userId: string;
+  /** courseId of the group (null if not set) — used by content-service to grant entitlement */
+  courseId: string | null;
+  groupStatus: string; // 'draft' | 'active' | 'archived'
   /** ISO 8601 */
   addedAt: string;
 }
@@ -76,6 +79,7 @@ export interface GroupMemberRemovedPayload {
   schoolId: string;
   groupId: string;
   userId: string;
+  courseId: string | null;
 }
 
 // ─── Typed event interfaces ───────────────────────────────────────────────────
