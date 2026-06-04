@@ -28,6 +28,7 @@ import { PublishSchoolGroupHandler } from './application/commands/publish-school
 import { ArchiveSchoolGroupHandler } from './application/commands/archive-school-group/archive-school-group.handler.js';
 import { AssignGroupTeacherHandler } from './application/commands/assign-group-teacher/assign-group-teacher.handler.js';
 import { RemoveGroupTeacherHandler } from './application/commands/remove-group-teacher/remove-group-teacher.handler.js';
+import { UpdateTeacherAttrsHandler } from './application/commands/update-teacher-attrs/update-teacher-attrs.handler.js';
 import { AddGroupMemberHandler } from './application/commands/add-group-member/add-group-member.handler.js';
 import { RemoveGroupMemberHandler } from './application/commands/remove-group-member/remove-group-member.handler.js';
 
@@ -39,11 +40,13 @@ import { CheckSlugAvailableHandler } from './application/queries/check-slug-avai
 import { ListSchoolInvitationsHandler } from './application/queries/list-school-invitations/list-school-invitations.handler.js';
 import { GetSchoolGroupHandler } from './application/queries/get-school-group/get-school-group.handler.js';
 import { ListSchoolGroupsHandler } from './application/queries/list-school-groups/list-school-groups.handler.js';
+import { ListSchoolTeachersHandler } from './application/queries/list-school-teachers/list-school-teachers.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
 import { InternalController } from './presentation/controllers/internal.controller.js';
 import { SchoolGroupsController } from './presentation/controllers/school-groups.controller.js';
+import { SchoolTeachersController } from './presentation/controllers/school-teachers.controller.js';
 
 const CommandHandlers = [
   CreateSchoolHandler,
@@ -60,6 +63,7 @@ const CommandHandlers = [
   ArchiveSchoolGroupHandler,
   AssignGroupTeacherHandler,
   RemoveGroupTeacherHandler,
+  UpdateTeacherAttrsHandler,
   AddGroupMemberHandler,
   RemoveGroupMemberHandler,
 ];
@@ -73,11 +77,12 @@ const QueryHandlers = [
   ListSchoolInvitationsHandler,
   GetSchoolGroupHandler,
   ListSchoolGroupsHandler,
+  ListSchoolTeachersHandler,
 ];
 
 @Module({
   imports: [CqrsModule],
-  controllers: [SchoolsController, InvitationsController, InternalController, SchoolGroupsController],
+  controllers: [SchoolsController, InvitationsController, InternalController, SchoolGroupsController, SchoolTeachersController],
   providers: [
     ...CommandHandlers,
     ...QueryHandlers,
