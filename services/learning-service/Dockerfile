@@ -12,7 +12,21 @@ COPY packages/contracts/src ./src
 COPY packages/contracts/tsconfig.json ./
 RUN npm run build
 
-# ── Stage 2: build service ────────────────────────────────────────────────────
+# ── Stage 2: build messaging ───────────────────────────────────────────────────
+FROM node:22-bookworm-slim AS messaging-builder
+
+COPY --from=contracts-builder /workspace/packages/contracts/package.json /workspace/packages/contracts/package.json
+COPY --from=contracts-builder /workspace/packages/contracts/dist         /workspace/packages/contracts/dist
+
+WORKDIR /workspace/packages/messaging
+
+COPY packages/messaging/package*.json ./
+RUN npm install --install-links
+COPY packages/messaging/src ./src
+COPY packages/messaging/tsconfig.json ./
+RUN npm run build
+
+# ── Stage 3: build service ────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder
 ARG NODE_ENV=development
 # Prisma 7 loads prisma.config.ts (which calls env('DATABASE_URL')) even during generate.
@@ -20,15 +34,17 @@ ARG NODE_ENV=development
 ARG DATABASE_URL="postgresql://build:build@localhost:5432/build"
 ENV DATABASE_URL=$DATABASE_URL
 
-# Mirror monorepo layout so file:../../packages/contracts resolves within /workspace
+# Mirror monorepo layout so file: deps resolve within /workspace
 COPY --from=contracts-builder /workspace/packages/contracts/package.json /workspace/packages/contracts/package.json
 COPY --from=contracts-builder /workspace/packages/contracts/dist         /workspace/packages/contracts/dist
+COPY --from=messaging-builder /workspace/packages/messaging/package.json /workspace/packages/messaging/package.json
+COPY --from=messaging-builder /workspace/packages/messaging/dist         /workspace/packages/messaging/dist
 
 WORKDIR /workspace/services/learning-service
 
 COPY services/learning-service/package*.json ./
 
-RUN npm ci
+RUN npm install --install-links
 
 COPY services/learning-service/tsconfig*.json services/learning-service/nest-cli.json services/learning-service/prisma.config.ts ./
 COPY services/learning-service/prisma/ ./prisma/
@@ -38,7 +54,7 @@ RUN npx prisma generate
 RUN npm run build
 RUN if [ "$NODE_ENV" = "production" ]; then npm prune --production; fi
 
-# ── Stage 3: runtime ──────────────────────────────────────────────────────────
+# ── Stage 4: runtime ──────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
