@@ -35,6 +35,8 @@ import { GetCourseHealthResponseDto } from '../dto/course-health-response.dto.js
 import { GetSchoolStudentsQuery } from '../queries/get-school-students.query.js';
 import type { StudentSegment } from '../queries/get-school-students.query.js';
 import { SchoolStudentsResponseDto } from '../dto/school-students-response.dto.js';
+import { GetStudentDetailQuery } from '../queries/get-student-detail.query.js';
+import { StudentDetailResponseDto } from '../dto/student-detail-response.dto.js';
 
 @ApiTags('Analytics')
 @ApiBearerAuth()
@@ -105,6 +107,20 @@ export class SchoolAnalyticsController {
     return this.queryBus.execute(
       new GetSchoolStudentsQuery(schoolId, user.userId, segment ?? 'all', search, limit ?? 20, cursor),
     );
+  }
+
+  @Get('students/:userId')
+  @ApiOperation({ summary: 'Get student detail — groups, status, progress, lastSeen (any school member)' })
+  @ApiParam({ name: 'schoolId', format: 'uuid' })
+  @ApiParam({ name: 'userId', format: 'uuid' })
+  @ApiOkResponse({ type: StudentDetailResponseDto })
+  @ApiNotFoundResponse({ description: 'School or student not found' })
+  async getStudentDetail(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<StudentDetailResponseDto> {
+    return this.queryBus.execute(new GetStudentDetailQuery(schoolId, user.userId, userId));
   }
 
   @Post('nudge')
