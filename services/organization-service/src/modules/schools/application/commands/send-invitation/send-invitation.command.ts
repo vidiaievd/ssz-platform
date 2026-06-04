@@ -1,4 +1,5 @@
 import type { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
+import type { InvitationKind } from '../../../domain/entities/school-invitation.entity.js';
 
 export class SendInvitationCommand {
   constructor(
@@ -6,5 +7,7 @@ export class SendInvitationCommand {
     public readonly schoolId: string,
     public readonly email: string,
     public readonly role: MemberRole,
+    public readonly kind: InvitationKind = 'register',
+    public readonly targetGroupId?: string | null,
   ) {}
 }

@@ -44,6 +44,11 @@ enum GroupTeacherRole {
   substitute
 }
 
+enum InvitationKind {
+  register
+  onboard_existing
+}
+
 model School {
   id           String     @id @default(uuid())
   name         String
@@ -83,16 +88,18 @@ model SchoolMember {
 }
 
 model SchoolInvitation {
-  id        String           @id @default(uuid())
-  schoolId  String
-  school    School           @relation(fields: [schoolId], references: [id])
-  email     String
-  role      MemberRole       @default(TEACHER)
-  token     String           @unique  // signed JWT containing invitation metadata
-  status    InvitationStatus @default(PENDING)
-  expiresAt DateTime
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id            String           @id @default(uuid())
+  schoolId      String
+  school        School           @relation(fields: [schoolId], references: [id])
+  email         String
+  role          MemberRole       @default(TEACHER)
+  kind          InvitationKind   @default(register)
+  targetGroupId String?          @map("target_group_id")
+  token         String           @unique  // signed JWT containing invitation metadata
+  status        InvitationStatus @default(PENDING)
+  expiresAt     DateTime
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@map("school_invitations")
 }

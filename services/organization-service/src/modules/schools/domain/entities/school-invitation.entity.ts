@@ -1,11 +1,15 @@
 import { InvitationStatus } from '../value-objects/invitation-status.vo.js';
 import type { MemberRole } from '../value-objects/member-role.vo.js';
 
+export type InvitationKind = 'register' | 'onboard_existing';
+
 export interface SchoolInvitationProps {
   id: string;
   schoolId: string;
   email: string;
   role: MemberRole;
+  kind: InvitationKind;
+  targetGroupId?: string | null;
   token: string;
   status: InvitationStatus;
   expiresAt: Date;
@@ -18,6 +22,8 @@ export class SchoolInvitation {
   private readonly _schoolId: string;
   private readonly _email: string;
   private readonly _role: MemberRole;
+  private readonly _kind: InvitationKind;
+  private readonly _targetGroupId: string | null | undefined;
   private readonly _token: string;
   private _status: InvitationStatus;
   private readonly _expiresAt: Date;
@@ -29,6 +35,8 @@ export class SchoolInvitation {
     this._schoolId = props.schoolId;
     this._email = props.email;
     this._role = props.role;
+    this._kind = props.kind;
+    this._targetGroupId = props.targetGroupId;
     this._token = props.token;
     this._status = props.status;
     this._expiresAt = props.expiresAt;
@@ -71,6 +79,8 @@ export class SchoolInvitation {
   get schoolId(): string { return this._schoolId; }
   get email(): string { return this._email; }
   get role(): MemberRole { return this._role; }
+  get kind(): InvitationKind { return this._kind; }
+  get targetGroupId(): string | null | undefined { return this._targetGroupId; }
   get token(): string { return this._token; }
   get status(): InvitationStatus { return this._status; }
   get expiresAt(): Date { return this._expiresAt; }

@@ -34,6 +34,8 @@ export class SchoolInvitationPrismaRepository implements ISchoolInvitationReposi
         schoolId: invitation.schoolId,
         email: invitation.email,
         role: invitation.role,
+        kind: invitation.kind,
+        targetGroupId: invitation.targetGroupId ?? null,
         token: invitation.token,
         status: invitation.status,
         expiresAt: invitation.expiresAt,
