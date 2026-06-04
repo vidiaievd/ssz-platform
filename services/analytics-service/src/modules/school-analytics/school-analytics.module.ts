@@ -4,12 +4,20 @@ import { SchoolAnalyticsController } from './controllers/school-analytics.contro
 import { GetKpisHandler } from './queries/get-kpis.handler.js';
 import { GetAtRiskHandler } from './queries/get-at-risk.handler.js';
 import { GetCourseHealthHandler } from './queries/get-course-health.handler.js';
+import { GetSchoolStudentsHandler } from './queries/get-school-students.handler.js';
 import { NudgeAtRiskHandler } from './commands/nudge-at-risk.handler.js';
 import { EventPublisherService } from '../../infrastructure/messaging/event-publisher.service.js';
 
 @Module({
   imports: [CqrsModule],
   controllers: [SchoolAnalyticsController],
-  providers: [GetKpisHandler, GetAtRiskHandler, GetCourseHealthHandler, NudgeAtRiskHandler, EventPublisherService],
+  providers: [
+    GetKpisHandler,
+    GetAtRiskHandler,
+    GetCourseHealthHandler,
+    GetSchoolStudentsHandler,
+    NudgeAtRiskHandler,
+    EventPublisherService,
+  ],
 })
 export class SchoolAnalyticsModule {}
