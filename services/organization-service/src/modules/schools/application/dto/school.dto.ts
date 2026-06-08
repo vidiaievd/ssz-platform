@@ -1,6 +1,20 @@
 import type { MemberRole } from '../../domain/value-objects/member-role.vo.js';
 import type { SchoolType } from '../../domain/value-objects/school-type.vo.js';
 
+export interface AvailabilityWindow {
+  weekday: number; // 1-7
+  start: string;   // "HH:mm"
+  end: string;     // "HH:mm"
+}
+
+export interface SchoolTeacherDto {
+  userId: string;
+  maxWeeklyHours: number | null;
+  availability: AvailabilityWindow[];
+  employmentType: 'full' | 'part' | 'contract' | null;
+  status: 'active' | 'invited' | 'inactive';
+}
+
 export interface SchoolMemberDto {
   id: string;
   userId: string;
