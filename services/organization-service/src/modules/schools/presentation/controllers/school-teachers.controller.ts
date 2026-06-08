@@ -18,12 +18,22 @@ import {
   ApiPropertyOptional,
   ApiTags,
 } from '@nestjs/swagger';
-import { IsInt, IsOptional, Min, Max, IsArray, ValidateNested, IsString, Matches } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  Min,
+  Max,
+  IsArray,
+  ValidateNested,
+  IsString,
+  Matches,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { ListSchoolTeachersQuery } from '../../application/queries/list-school-teachers/list-school-teachers.query.js';
-import type { SchoolTeacherDto } from '../../application/queries/list-school-teachers/list-school-teachers.handler.js';
+import type { SchoolTeacherDto } from '../../application/dto/school.dto.js';
 import { UpdateTeacherAttrsCommand } from '../../application/commands/update-teacher-attrs/update-teacher-attrs.command.js';
 
 class AvailabilityWindowDto {
@@ -56,12 +66,24 @@ class UpdateTeacherAttrsRequestDto {
   @ValidateNested({ each: true })
   @Type(() => AvailabilityWindowDto)
   availability?: AvailabilityWindowDto[] | null;
+
+  @ApiPropertyOptional({ enum: ['full', 'part', 'contract'] })
+  @IsOptional()
+  @IsEnum(['full', 'part', 'contract'])
+  employmentType?: 'full' | 'part' | 'contract' | null;
+
+  @ApiPropertyOptional({ enum: ['active', 'invited', 'inactive'] })
+  @IsOptional()
+  @IsEnum(['active', 'invited', 'inactive'])
+  status?: 'active' | 'invited' | 'inactive';
 }
 
 class SchoolTeacherResponseDto {
   @ApiProperty() userId!: string;
   @ApiPropertyOptional() maxWeeklyHours?: number | null;
   @ApiProperty({ type: [AvailabilityWindowDto] }) availability!: AvailabilityWindowDto[];
+  @ApiPropertyOptional({ enum: ['full', 'part', 'contract'] }) employmentType?: string | null;
+  @ApiProperty({ enum: ['active', 'invited', 'inactive'], default: 'active' }) status!: string;
 }
 
 @ApiTags('School Teachers')
@@ -85,7 +107,7 @@ export class SchoolTeachersController {
 
   @Patch(':userId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Update teacher workload/availability (owner/admin only)' })
+  @ApiOperation({ summary: 'Update teacher workload/availability/employment (owner/admin only)' })
   @ApiNoContentResponse()
   async updateTeacherAttrs(
     @CurrentUser() user: JwtPayload,
@@ -100,6 +122,8 @@ export class SchoolTeachersController {
         userId,
         dto.maxWeeklyHours,
         dto.availability,
+        dto.employmentType,
+        dto.status,
       ),
     );
   }

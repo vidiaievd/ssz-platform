@@ -1,5 +1,5 @@
 import type { ICommand } from '@nestjs/cqrs';
-import type { AvailabilityWindow } from '../../queries/list-school-teachers/list-school-teachers.handler.js';
+import type { AvailabilityWindow } from '../../dto/school.dto.js';
 
 export class UpdateTeacherAttrsCommand implements ICommand {
   constructor(
@@ -8,5 +8,7 @@ export class UpdateTeacherAttrsCommand implements ICommand {
     public readonly userId: string,
     public readonly maxWeeklyHours?: number | null,
     public readonly availability?: AvailabilityWindow[] | null,
+    public readonly employmentType?: 'full' | 'part' | 'contract' | null,
+    public readonly status?: 'active' | 'invited' | 'inactive',
   ) {}
 }

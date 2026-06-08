@@ -19,6 +19,7 @@ import { ForbiddenOperationException } from '../../../domain/exceptions/forbidde
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { GroupPublishedEvent } from '../../../domain/events/group-published.event.js';
 import { GroupMemberAddedEvent } from '../../../domain/events/group-member-added.event.js';
+import { SchedulingServiceHttpClient } from '../../../../../infrastructure/scheduling/scheduling-service.http-client.js';
 
 @CommandHandler(PublishSchoolGroupCommand)
 export class PublishSchoolGroupHandler implements ICommandHandler<PublishSchoolGroupCommand> {
@@ -26,6 +27,7 @@ export class PublishSchoolGroupHandler implements ICommandHandler<PublishSchoolG
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
     @Inject(SCHOOL_GROUP_REPOSITORY) private readonly groupRepository: ISchoolGroupRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
+    private readonly schedulingClient: SchedulingServiceHttpClient,
   ) {}
 
   async execute(command: PublishSchoolGroupCommand): Promise<void> {
@@ -47,6 +49,15 @@ export class PublishSchoolGroupHandler implements ICommandHandler<PublishSchoolG
     if (group.status === 'active') return;
 
     const blockers = group.publish();
+
+    // §3.6: for in-person groups, require ≥1 slot in scheduling-service
+    if (group.mode !== 'online') {
+      const slotCount = await this.schedulingClient.getGroupSlotCount(command.schoolId, command.groupId);
+      if (slotCount !== null && slotCount === 0) {
+        blockers.push('no-slots');
+      }
+    }
+
     if (blockers.length > 0) {
       throw new ConflictException({ blockers });
     }

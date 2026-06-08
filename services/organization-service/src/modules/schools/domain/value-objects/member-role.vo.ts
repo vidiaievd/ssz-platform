@@ -4,6 +4,7 @@ export const MemberRole = {
   CONTENT_ADMIN: 'CONTENT_ADMIN',
   TEACHER: 'TEACHER',
   STUDENT: 'STUDENT',
+  SCHEDULER: 'SCHEDULER',
 } as const;
 
 export type MemberRole = (typeof MemberRole)[keyof typeof MemberRole];
@@ -14,6 +15,7 @@ export const InvitableRoles = [
   MemberRole.CONTENT_ADMIN,
   MemberRole.TEACHER,
   MemberRole.STUDENT,
+  MemberRole.SCHEDULER,
 ] as const;
 
 export type InvitableRole = (typeof InvitableRoles)[number];

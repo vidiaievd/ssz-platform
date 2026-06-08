@@ -9,18 +9,9 @@ import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-f
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
+import type { SchoolTeacherDto } from '../../dto/school.dto.js';
 
-export interface AvailabilityWindow {
-  weekday: number; // 1=Mon .. 7=Sun
-  start: string;   // "HH:mm"
-  end: string;
-}
-
-export interface SchoolTeacherDto {
-  userId: string;
-  maxWeeklyHours: number | null;
-  availability: AvailabilityWindow[];
-}
+export type { AvailabilityWindow, SchoolTeacherDto } from '../../dto/school.dto.js';
 
 @QueryHandler(ListSchoolTeachersQuery)
 export class ListSchoolTeachersHandler implements IQueryHandler<ListSchoolTeachersQuery> {
@@ -49,7 +40,9 @@ export class ListSchoolTeachersHandler implements IQueryHandler<ListSchoolTeache
     return rows.map((r: any) => ({
       userId: r.userId,
       maxWeeklyHours: r.teacherAttrs?.maxWeeklyHours ?? null,
-      availability: (r.teacherAttrs?.availability as AvailabilityWindow[]) ?? [],
+      availability: r.teacherAttrs?.availability ?? [],
+      employmentType: r.teacherAttrs?.employmentType ?? null,
+      status: r.teacherAttrs?.status ?? 'active',
     }));
   }
 }

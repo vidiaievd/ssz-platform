@@ -39,6 +39,8 @@ export class UpdateTeacherAttrsHandler implements ICommandHandler<UpdateTeacherA
     const update: Record<string, unknown> = {};
     if (command.maxWeeklyHours !== undefined) update['maxWeeklyHours'] = command.maxWeeklyHours;
     if (command.availability !== undefined) update['availability'] = command.availability;
+    if (command.employmentType !== undefined) update['employmentType'] = command.employmentType;
+    if (command.status !== undefined) update['status'] = command.status;
 
     await (this.prisma as any).schoolTeacher.upsert({
       where: { schoolId_userId: { schoolId: command.schoolId, userId: command.userId } },
@@ -48,6 +50,8 @@ export class UpdateTeacherAttrsHandler implements ICommandHandler<UpdateTeacherA
         memberId: member.id,
         maxWeeklyHours: command.maxWeeklyHours ?? null,
         availability: command.availability ?? null,
+        employmentType: command.employmentType ?? null,
+        status: command.status ?? 'active',
       },
       update,
     });

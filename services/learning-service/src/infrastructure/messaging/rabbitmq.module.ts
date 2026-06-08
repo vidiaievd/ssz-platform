@@ -5,6 +5,7 @@ import type { AppConfig } from '../../config/configuration.js';
 import { LEARNING_EVENT_PUBLISHER } from '../../shared/application/ports/event-publisher.port.js';
 import { PrismaOutboxStore } from './prisma-outbox.store.js';
 import { OutboxEventPublisher } from './outbox-event-publisher.js';
+import { RabbitmqEventPublisher } from './rabbitmq-event-publisher.js';
 
 @Global()
 @Module({
@@ -30,7 +31,8 @@ import { OutboxEventPublisher } from './outbox-event-publisher.js';
       provide: LEARNING_EVENT_PUBLISHER,
       useExisting: OutboxEventPublisher,
     },
+    RabbitmqEventPublisher,
   ],
-  exports: [LEARNING_EVENT_PUBLISHER, OutboxEventPublisher, PrismaOutboxStore],
+  exports: [LEARNING_EVENT_PUBLISHER, OutboxEventPublisher, PrismaOutboxStore, RabbitmqEventPublisher],
 })
 export class RabbitmqModule {}

@@ -1,0 +1,331 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum WeekDay {
+  mon
+  tue
+  wed
+  thu
+  fri
+  sat
+  sun
+
+  @@map("week_day")
+}
+
+enum LessonStatus {
+  scheduled
+  moved
+  cancelled
+
+  @@map("lesson_status")
+}
+
+enum AbsenceKind {
+  sick
+  leave
+  vacancy
+
+  @@map("absence_kind")
+}
+
+enum AbsenceScope {
+  today
+  window
+  permanent
+
+  @@map("absence_scope")
+}
+
+enum SubUrgency {
+  today
+  upcoming
+  open
+
+  @@map("sub_urgency")
+}
+
+enum SubRequestStatus {
+  open
+  closed
+  cancelled
+
+  @@map("sub_request_status")
+}
+
+enum SubAssignmentStatus {
+  proposed
+  confirmed
+  rejected
+  expired
+
+  @@map("sub_assignment_status")
+}
+
+enum UnitStatus {
+  planned
+  active
+  done
+  overridden
+
+  @@map("unit_status")
+}
+
+enum AlertKind {
+  overload
+  near_cap
+  daily_cap
+  consec
+  conflict
+  vacancy
+  uncovered
+  sub_overload
+  bottleneck
+
+  @@map("alert_kind")
+}
+
+enum AlertSeverity {
+  warn
+  danger
+
+  @@map("alert_severity")
+}
+
+enum AlertStatus {
+  raised
+  acknowledged
+  resolved
+
+  @@map("alert_status")
+}
+
+// ─── Slots ────────────────────────────────────────────────────────────────────
+
+model Slot {
+  id        String   @id @default(uuid())
+  groupId   String   @map("group_id")
+  schoolId  String   @map("school_id")
+  weekday   WeekDay
+  startTime String   @map("start_time") // "HH:MM"
+  endTime   String   @map("end_time")
+  room      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lessons Lesson[]
+
+  @@index([groupId])
+  @@index([schoolId])
+  @@map("slots")
+}
+
+// ─── Lessons ──────────────────────────────────────────────────────────────────
+
+model Lesson {
+  id               String          @id @default(uuid())
+  groupId          String          @map("group_id")
+  schoolId         String          @map("school_id")
+  slotId           String?         @map("slot_id")
+  slot             Slot?           @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  date             DateTime        @db.Date
+  startTime        String          @map("start_time")
+  endTime          String          @map("end_time")
+  teacherId        String          @map("teacher_id")
+  room             String?
+  status           LessonStatus    @default(scheduled)
+  curriculumUnitId String?         @map("curriculum_unit_id")
+  curriculumUnit   CurriculumUnit? @relation(fields: [curriculumUnitId], references: [id], onDelete: SetNull)
+
+  substituteRequests SubstituteRequest[]
+
+  @@index([groupId, date])
+  @@index([schoolId, date])
+  @@index([teacherId, date])
+  @@map("lessons")
+}
+
+// ─── Workload policy (per school, with defaults) ──────────────────────────────
+
+model WorkloadPolicy {
+  schoolId        String   @id @map("school_id")
+  prepFactor      Float    @default(0.30) @map("prep_factor")
+  dailyContactCap Float    @default(6.0) @map("daily_contact_cap")
+  maxConsecutive  Int      @default(3) @map("max_consecutive")
+  nearCapRatio    Float    @default(0.85) @map("near_cap_ratio")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("workload_policies")
+}
+
+// ─── Teacher absences ─────────────────────────────────────────────────────────
+
+model TeacherAbsence {
+  id        String       @id @default(uuid())
+  schoolId  String       @map("school_id")
+  teacherId String       @map("teacher_id")
+  kind      AbsenceKind
+  scope     AbsenceScope
+  fromDate  DateTime     @map("from_date") @db.Date
+  toDate    DateTime?    @map("to_date") @db.Date
+  reason    String       @db.Text
+  createdBy String       @map("created_by")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  substituteRequests SubstituteRequest[]
+
+  @@index([schoolId, teacherId])
+  @@index([schoolId, fromDate])
+  @@map("teacher_absences")
+}
+
+// ─── Substitute requests & assignments ───────────────────────────────────────
+
+model SubstituteRequest {
+  id                String           @id @default(uuid())
+  schoolId          String           @map("school_id")
+  lessonId          String           @map("lesson_id")
+  lesson            Lesson           @relation(fields: [lessonId], references: [id])
+  absenceId         String?          @map("absence_id")
+  absence           TeacherAbsence?  @relation(fields: [absenceId], references: [id])
+  groupId           String           @map("group_id")
+  originalTeacherId String           @map("original_teacher_id")
+  coverFrom         DateTime         @map("cover_from") @db.Date
+  coverTo           DateTime         @map("cover_to") @db.Date
+  urgency           SubUrgency
+  status            SubRequestStatus @default(open)
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  assignments SubstituteAssignment[]
+
+  @@index([schoolId, status])
+  @@index([originalTeacherId])
+  @@map("substitute_requests")
+}
+
+model SubstituteAssignment {
+  id                  String              @id @default(uuid())
+  requestId           String              @map("request_id")
+  request             SubstituteRequest   @relation(fields: [requestId], references: [id])
+  originalTeacherId   String              @map("original_teacher_id")
+  substituteTeacherId String              @map("substitute_teacher_id")
+  lessonId            String              @map("lesson_id")
+  coverFrom           DateTime            @map("cover_from") @db.Date
+  coverTo             DateTime            @map("cover_to") @db.Date
+  fitScore            Float               @map("fit_score")
+  status              SubAssignmentStatus @default(proposed)
+  createdAt           DateTime            @default(now()) @map("created_at")
+
+  @@index([requestId])
+  @@index([substituteTeacherId])
+  @@map("substitute_assignments")
+}
+
+// ─── Curriculum plan ─────────────────────────────────────────────────────────
+
+model CurriculumPlan {
+  id                String   @id @default(uuid())
+  groupId           String   @unique @map("group_id")
+  schoolId          String   @map("school_id")
+  targetWeeklyHours Float    @map("target_weekly_hours")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  units CurriculumUnit[]
+
+  @@index([schoolId])
+  @@map("curriculum_plans")
+}
+
+model CurriculumUnit {
+  id                String     @id @default(uuid())
+  planId            String     @map("plan_id")
+  plan              CurriculumPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  title             String
+  order             Int
+  plannedSessions   Int        @default(1) @map("planned_sessions")
+  deliveredSessions Int        @default(0) @map("delivered_sessions")
+  requiredLevel     String?    @map("required_level")
+  status            UnitStatus @default(planned)
+  overrideReason    String?    @db.Text @map("override_reason")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  lessons Lesson[]
+
+  @@index([planId, order])
+  @@map("curriculum_units")
+}
+
+// ─── Alerts ───────────────────────────────────────────────────────────────────
+
+model Alert {
+  id             String        @id @default(uuid())
+  schoolId       String        @map("school_id")
+  kind           AlertKind
+  severity       AlertSeverity
+  entityType     String?       @map("entity_type")
+  entityId       String?       @map("entity_id")
+  payload        Json          @default("{}")
+  status         AlertStatus   @default(raised)
+  occurredAt     DateTime      @map("occurred_at")
+  acknowledgedAt DateTime?     @map("acknowledged_at")
+  acknowledgedBy String?       @map("acknowledged_by")
+  resolvedAt     DateTime?     @map("resolved_at")
+  resolvedBy     String?       @map("resolved_by")
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  @@index([schoolId, status])
+  @@index([schoolId, occurredAt])
+  @@map("alerts")
+}
+
+// ─── School membership projection ────────────────────────────────────────────
+// Maintained by consuming school.member.added/removed events from org-service.
+// Used for authorization without calling org-service on every request.
+
+model SchoolMembership {
+  id       String @id @default(uuid())
+  schoolId String @map("school_id")
+  userId   String @map("user_id")
+  role     String // mirrors org-service MemberRole
+
+  @@unique([schoolId, userId])
+  @@index([userId])
+  @@map("school_memberships")
+}
+
+// ─── Infrastructure ───────────────────────────────────────────────────────────
+
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique @map("event_id")
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("processed_events")
+}
+
+model Outbox {
+  id            String    @id @default(uuid())
+  eventId       String    @unique @map("event_id")
+  eventType     String    @map("event_type")
+  exchange      String
+  routingKey    String    @map("routing_key")
+  payload       String    @db.Text
+  correlationId String?   @map("correlation_id")
+  occurredAt    DateTime  @map("occurred_at")
+  publishedAt   DateTime? @map("published_at")
+  attempts      Int       @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox")
+}

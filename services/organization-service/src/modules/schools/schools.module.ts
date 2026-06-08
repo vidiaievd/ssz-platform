@@ -13,6 +13,7 @@ import { SchoolGroupPrismaRepository } from './infrastructure/persistence/school
 import { GroupTeacherPrismaRepository } from './infrastructure/persistence/group-teacher.prisma.repository.js';
 import { InvitationTokenService } from './infrastructure/invitation-token.service.js';
 import { ProfileServiceHttpClient } from '../../infrastructure/profile/profile-service.http-client.js';
+import { SchedulingServiceHttpClient } from '../../infrastructure/scheduling/scheduling-service.http-client.js';
 
 import { CreateSchoolHandler } from './application/commands/create-school/create-school.handler.js';
 import { UpdateSchoolHandler } from './application/commands/update-school/update-school.handler.js';
@@ -88,6 +89,7 @@ const QueryHandlers = [
     ...QueryHandlers,
     InvitationTokenService,
     ProfileServiceHttpClient,
+    SchedulingServiceHttpClient,
     {
       provide: SCHOOL_REPOSITORY,
       useClass: SchoolPrismaRepository,
