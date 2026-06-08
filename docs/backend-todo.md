@@ -1,7 +1,7 @@
 # Backend TODO
 
 > Задачи для бэкенда, которые нужны для реализации фич на фронте.
-> Последнее обновление: 2026-06-04
+> Последнее обновление: 2026-06-08
 
 ---
 
@@ -153,10 +153,9 @@ Sorted by longest inactivity. Owner/admin only.
 Это **отдельный workstream** (content-governance), не данные дашборда.
 Отдельная спека/PR. До реализации — `{ status: 'unavailable' }` в BFF.
 
-### ❌ 6. Today's classes — `GET /schedule/today` — вне scope
+### ✅ 6. Today's classes — `GET /scheduling/schools/{id}/...` — реализовано в scheduling-service
 
-Scheduling-сервиса нет. `School.type: ONLINE|HYBRID` добавлен (D.2) — условный рендер будет работать как только scheduling появится.
-До реализации — `{ status: 'unavailable' }` в BFF.
+`School.type: ONLINE|HYBRID` добавлен (D.2). Scheduling-service реализован (2026-06-08).
 
 ### ✅ 7. Onboarding status — frontend-композит (бэкенд не нужен)
 
@@ -183,7 +182,7 @@ Scheduling-сервиса нет. `School.type: ONLINE|HYBRID` добавлен 
 | 3   | Course health                   | ✅ Готово                                 |
 | 4   | At-risk students                | ✅ Готово                                 |
 | 5   | Publish-approval queue          | ⚠️ Отдельный workstream                   |
-| 6   | Scheduling + тип школы          | `type` ✅; scheduling ❌ отдельный сервис |
+| 6   | Scheduling + тип школы          | `type` ✅; scheduling ✅ (2026-06-08)    |
 | 7   | Onboarding status               | ✅ Frontend-композит                      |
 | 8   | Trial/billing                   | ❌ Отдельный billing-сервис               |
 | 9   | Nudge at-risk mutation          | ✅ Готово                                 |
@@ -194,7 +193,8 @@ Scheduling-сервиса нет. `School.type: ONLINE|HYBRID` добавлен 
 
 ### Scheduling / live-уроки / календарь
 
-Нет API бронирования. `School.type: HYBRID` добавлен. Нужен новый сервис (слоты, бронь, видеозвонок).
+Нет API бронирования. `School.type: HYBRID` добавлен. Нужен новый сервис (слоты, бронь, видеозвонок,
+absence/подмены/forecast). Полный план — §3 + §4 «Teacher Management».
 
 ### Trial/billing
 
@@ -241,7 +241,8 @@ Scheduling-сервиса нет. `School.type: ONLINE|HYBRID` добавлен 
 | Trial/billing                                     | ❌ Отдельный сервис                                 |
 | Group Management — расширение когорты (1.1–1.5)  | ✅ Готово (2026-06-04)                              |
 | Student Management — доработки (2.1–2.3)          | ✅ Готово (2026-06-04)                              |
-| Scheduling-service (slots/lessons/conflicts)      | ❌ Новый сервис (см. ниже)                          |
+| Scheduling-service (slots/lessons/conflicts/absences/substitutions/curriculum/alerts) | ✅ Готово (2026-06-08) |
+| Teacher Management (absence/подмены/forecast/roles) | ✅ Готово (2026-06-08) |
 
 ---
 
@@ -483,12 +484,28 @@ GET  /schools/{schoolId}/students/segments
 
 ---
 
-## 3. Scheduling-service (НОВЫЙ сервис) — ❌ не реализован, фронт мокает
+## 3. Scheduling-service (НОВЫЙ сервис) — ✅ Реализован (2026-06-08)
 
 > Владеет **всем волатильным таймтейблом**: недельный паттерн (slots) → датированные уроки (lessons)
-> → конфликты → нагрузка учителей → бронь комнат → (позже) календарь/видео.
-> До готовности сервиса фронт мокает весь слой детерминированно; референс-математика конфликтов/нагрузки
-> уже есть в [`src/lib/dashboard/operations.ts`](../src/lib/dashboard/operations.ts) — её портировать на сервер.
+> → конфликты → нагрузка учителей → **отпуска (absence) → подмены (substitution engine)** → бронь комнат
+> → прогноз нагрузки → (позже) календарь/видео.
+> До готовности сервиса фронт мокает весь слой детерминированно; референс-математика конфликтов/нагрузки/
+> ранжирования/прогноза уже есть в [`src/lib/groups/operations.ts`](../src/lib/groups/operations.ts)
+> (расширяется формулами спеки) — её портировать на сервер.
+>
+> **Обновлено 2026-06-08 под спеку Teacher Management**
+> ([`plan/spec/teacher-workload-and-resourcing/`](plan/spec/teacher-workload-and-resourcing/),
+> frontend-план [`plan/teacher-management/`](plan/teacher-management/)). Согласованные решения:
+>
+> 1. **Объём** — полная спека (5 поверхностей): Workload Command Center, Teacher Schedule View, Substitute
+>    Console, Curriculum Planner, Forecast.
+> 2. **Absence + substitution-движок живут в scheduling-service** (он владеет уроками/нагрузкой).
+>    `group_teacher role=substitute` (org-service) — **teacher-of-record-проекция** результата:
+>    scheduling-service материализует per-lesson `lesson.teacher_id` override и публикует событие назад.
+> 3. **Модель — REST + server-derived проекции** (не event-sourcing). Имена событий из спеки §3
+>    (`TEACHER_ABSENCE_REPORTED`, `SUBSTITUTE_ASSIGNED`, `SCHEDULE_RECALCULATED`, …) — доменные события
+>    для notification/analytics-консьюмеров.
+> 4. **Новая роль `SCHEDULER`** в org-service (см. §4 ниже).
 
 ### 3.1 `slot` — недельный паттерн (привязан к группе)
 
@@ -544,6 +561,20 @@ GET /api/v1/scheduling/schools/{schoolId}/timetable     -- для Teacher Timeta
 
 Конфликт = пересечение слотов одного учителя по разным активным группам (тот же weekday + пересечение времени).
 
+> **Расширение под Teacher Management (спека §5, §6):** базовый `load` = contact-часы недостаточен.
+> Добавить **prep-часы** (`contact·0.30 + 1.0·distinctCourses`), `effectiveLoad`, `dayPeak`, `consecPeak`,
+> `softCost` и **`healthState` (`ok|warn|danger`)** по классификации §5. Константы политики (`PREP_FACTOR`,
+> `DAILY_CONTACT_CAP`, `MAX_CONSECUTIVE`, `NEAR_CAP_RATIO`, …) — **редактируемы admin/principal** (Appendix B),
+> хранить per-school с дефолтами. `validateAssignment` (§6.1) hard-constraints: `overlap | room_double_book |
+> availability | language | cap_exceeded`. Math зеркалит фронтовый `src/lib/groups/operations.ts`.
+
+```
+GET   /api/v1/scheduling/schools/{schoolId}/command-center   -- composite для §4.1
+      → { kpis:{utilization,spareCap,overloaded,clashes,vacancies}, teachers:[loadRow+health], violations:[...], vacancies:[...], roomLoad:[...] }
+GET   /api/v1/scheduling/schools/{schoolId}/workload-policy
+PATCH /api/v1/scheduling/schools/{schoolId}/workload-policy   { prepFactor?, dailyCap?, maxConsecutive?, nearCapRatio?, ... }  -- admin/principal
+```
+
 ### 3.4 Кросс-групповой клэш студента (для статуса `clash`)
 
 ```
@@ -577,6 +608,181 @@ ICS-экспорт, синхронизация с внешними календ�
 
 ---
 
+### 3.9 Absence / leave (график отпусков) — НОВОЕ (спека §3.2, §7 step 1)
+
+Сущность отсутствия учителя (sick / leave / vacancy). Владелец — scheduling-service (резолвит затронутые уроки).
+
+```
+teacher_absence
+├─ id, school_id, teacher_id
+├─ kind     ENUM(sick | leave | vacancy)
+├─ scope    ENUM(today | window | permanent)
+├─ from     DATE,  to DATE NULL    -- permanent → to=null
+├─ reason   TEXT
+└─ created_by, created_at
+```
+
+```
+GET  /api/v1/scheduling/schools/{schoolId}/absences          -- график отпусков (лента/календарь)
+GET  /api/v1/scheduling/teachers/{teacherId}/absences
+POST /api/v1/scheduling/teachers/{teacherId}/absences
+     { kind, scope, from, to?, reason }
+     → 201 { absenceId, createdRequests:[SubstituteRequest] }   -- авто-scope уроков
+DELETE /api/v1/scheduling/absences/{absenceId}
+```
+
+**Серверный эффект `POST` (= событие `TEACHER_ABSENCE_REPORTED`):** найти уроки teacher в окне →
+пометить availability blocked → **авто-создать `SUBSTITUTE_REQUEST_CREATED` на каждый непокрытый урок** →
+синхронно запустить генерацию кандидатов (§3.10). Права (§1.2): свой absence — сам teacher; чужой —
+owner/admin/scheduler.
+
+### 3.10 Substitution engine (план подмен) — НОВОЕ (спека §7, §12.1, §12.4)
+
+```
+substitute_request
+├─ id, school_id, lesson_id, group_id, original_teacher_id
+├─ cover_window {from,to}, urgency ENUM(today|upcoming|open)
+├─ status ENUM(open|closed|cancelled)
+
+substitute_assignment
+├─ id, request_id, original_teacher_id, substitute_teacher_id, lesson_id
+├─ cover_window {from,to}, fit_score, status ENUM(proposed|confirmed|rejected|expired)
+```
+
+```
+GET  /api/v1/scheduling/schools/{schoolId}/substitutions          -- cover queue (open requests + absences)
+POST /api/v1/scheduling/schools/{schoolId}/substitutions          -- ручной "Arrange cover" → request
+GET  /api/v1/scheduling/substitutions/{requestId}/candidates      -- ранжированные кандидаты (§7.2)
+     → [{ teacherId, eligible, fitScore, classification, factors:{canLang,free,spareRatio,familiar,wouldOverload,subLoop} }]
+POST /api/v1/scheduling/substitutions/{requestId}/assign
+     { substituteTeacherId, override?:bool }
+     → 200 { ok } | 409 { conflictType }    -- confirm-time re-check (§7.3)
+POST /api/v1/scheduling/substitutions/{requestId}/cancel
+```
+
+**Candidate ranking (§7.2, детерминировано 0–100):** HARD G1 speaks lang, G2 free → fail ⇒ eligible=false.
+SOFT: `capScore(0..40)+famScore(0..25)+disrScore(0..20)+availScore(0..15)`. Кэш кандидатов с TTL,
+инвалидируется `TEACHER_AVAILABILITY_UPDATED|LESSON_*|SUBSTITUTE_ASSIGNED` в окне.
+**Confirm-time (§7.3):** на `assign` заново G1/G2 против текущего состояния; `contact(sub)+dur > cap` →
+блок, **кроме** override owner/principal-уровнем (→ аудит + overload-алерт). Fail → `409`, request open.
+**Edge:** §12.1 no-candidate → `CONFLICT_DETECTED(no_candidate)` + uncovered-alert; §12.4 sub-loop →
+candidate `eligible=false` factor `sub_loop`, движок берёт следующий.
+
+**Назад в org-service:** при `confirmed` — записать `group_teacher role=substitute` (окно+reason) как
+teacher-of-record-проекцию (событие `substitute.confirmed` → org-consumer, идемпотентно).
+
+### 3.11 Curriculum plan (операционный слой) — НОВОЕ (спека §2.5, §4.3, §12.5)
+
+> Не редактор контента (он в content-service). Это порядок прохождения / целевые часы / прогресс доставки
+> на группу. Владелец — scheduling-service (знает уроки); `requiredLevel` сверяется с content-метаданными.
+
+```
+curriculum_plan (group_id) ├─ target_weekly_hours, progress_pct(DERIVED)
+curriculum_unit  ├─ plan_id, title, order, planned_sessions, delivered_sessions, required_level, status(planned|active|done|overridden)
+```
+
+```
+GET   /api/v1/scheduling/groups/{groupId}/curriculum
+PUT   /api/v1/scheduling/groups/{groupId}/curriculum            -- units + targetWeeklyHours
+PATCH /api/v1/scheduling/curriculum/units/{unitId}              -- edit/deliver/override(reason)
+POST  /api/v1/scheduling/curriculum/units/reorder
+POST  /api/v1/scheduling/lessons/{lessonId}/curriculum-unit     { unitId }   -- unit→lesson mapping
+```
+
+**Override (§12.5):** требует reason (аудит); если поднимает `requiredLevel` выше языков/уровня учителя
+урока → `CONFLICT_DETECTED(curriculum_override)` + пометка уроков «needs reassignment» (не авто-отмена);
+если меняет `targetWeeklyHours` → forecast inputs dirty.
+
+### 3.12 Forecast (прогноз найма) — НОВОЕ (спека §10)
+
+Чистая математика §10. **Вариант A (рекомендуется для MVP):** считается на фронте (`forecast()` в
+operations) поверх текущих counts — бэкенд не нужен сразу. **Вариант B (позже):** analytics-service
+отдаёт проекцию из своих агрегатов (см. §3.7) — фронт переключается без изменения UI.
+
+```
+POST /api/v1/analytics/schools/{schoolId}/forecast    { growth, terms, groupSize, hoursPerGroup, contractPerTeacher }
+     → { projection:[...], perLanguage:[{lang,teachersNeeded,teachersHaving,gap,utilProjected,risk}], bottleneck, hireGap }
+GET/POST/DELETE /api/v1/analytics/schools/{schoolId}/forecast/scenarios   -- сохранённые сценарии
+```
+
+### 3.13 Alerts & escalation — НОВОЕ (спека §9) → notification-service
+
+Виды: overload(danger) · near-cap(warn) · daily/consec(warn) · conflict(danger) · vacancy(danger) ·
+uncovered(danger) · sub-overload(warn) · bottleneck(warn). Модель `raised→acknowledged→resolved`.
+
+```
+GET  /api/v1/scheduling/schools/{schoolId}/alerts
+POST /api/v1/scheduling/alerts/{alertId}/acknowledge      → ALERT_ACKNOWLEDGED
+POST /api/v1/scheduling/alerts/{alertId}/resolve
+```
+
+**Серверная эскалация (таймеры от `occurredAt`):** overload без ack 24h → notify Principal; vacancy
+unfilled 48h → notify Admin+Principal; uncovered lesson за <24h → escalate Principal override. Доставка —
+через **notification-service** (новые типы in-app/email).
+
+---
+
+## 4. Teacher Management — org-service / profile / notification — ✅ Реализовано (2026-06-08)
+
+> Frontend-план [`plan/teacher-management/`](plan/teacher-management/). Дополняет уже готовые
+> `school_teacher` (§1.3) и `group_teacher` (§1.2).
+
+### 4.1 Роль `SCHEDULER` (org-service + auth) — ✅
+
+Новая роль школьного членства (прецедент — `CONTENT_ADMIN`). Управляет расписанием/подменами/прогнозом,
+но **не** настройками школы. `POST /schools/{id}/members { role:'SCHEDULER' }` + инвайты `role=SCHEDULER`.
+Авторизация scheduling-эндпоинтов: `OWNER|ADMIN|SCHEDULER` — полный доступ; `TEACHER` — только свой
+график (RO) + свой absence/availability. (`Principal`→`OWNER`, отдельной роли не вводим.)
+
+### 4.2 `school_teacher` — доп. атрибуты (org-service) — ✅
+
+К существующей таблице (§1.3: `max_weekly_hours`, `availability`) добавить:
+
+```
+school_teacher  += employment_type ENUM(full|part|contract)
+                += status          ENUM(active|invited|inactive)
+```
+
+`GET /schools/{id}/teachers` дополнить `employmentType`, `status`, `name`, `avatarUrl` (денорм). Языки —
+по-прежнему из tutor-профиля (profile-service), не дублируем.
+
+### 4.3 Remove-teacher guard (org-service) — ✅
+
+`DELETE /schools/{id}/members/{userId}` для TEACHER: если учитель — `primary` хотя бы одной **активной**
+группы → `409 { error:'primary-of-active-groups', groups:[{id,name}] }`. Сначала переназначить primary.
+
+### 4.4 Add-teacher invite (org-service) — ⚠️ переиспользует существующее
+
+3-веточный flow как у студентов (lookup → invite `register`/`onboard_existing` / direct member), но
+`role=TEACHER`. `POST /schools/{id}/invitations` уже принимает `role` и `kind` — проверить, что ветка
+`onboard_existing` для TEACHER выдаёт платформенную роль `tutor` (а не только `student`) и создаёт
+tutor-профиль. Иначе — расширить accept-логику.
+
+### 4.5 notification-service — ✅ Типы добавлены
+
+Под §3.13: типы уведомлений `TEACHER_ABSENCE`, `SUBSTITUTE_REQUEST`, `SUBSTITUTE_ASSIGNED`,
+`OVERLOAD_ALERT`, `VACANCY_ALERT`, `UNCOVERED_LESSON` (in-app + email) + таймеры эскалации.
+
+---
+
+## Сводка задач (Teacher Management)
+
+| #    | Сервис            | Задача                                                              | Статус | Блокирует фронт            |
+| ---- | ----------------- | ------------------------------------------------------------------ | ------ | -------------------------- |
+| 3.3+ | scheduling        | Расширенная нагрузка (prep/effectiveLoad/healthState) + policy      | ✅     | command center, schedule   |
+| 3.9  | scheduling        | Absence / leave (график отпусков) + авто sub-requests              | ✅     | schedule view, console     |
+| 3.10 | scheduling        | Substitution engine (candidates §7, assign confirm-recheck)        | ✅     | substitute console         |
+| 3.11 | scheduling        | Curriculum plan (units/target/override/mapping)                    | ✅     | curriculum planner         |
+| 3.12 | analytics/фронт   | Forecast (§10) — фронт-компьют сейчас, analytics позже             | 🟢 фронт | forecast (swap-ready)    |
+| 3.13 | scheduling+notif  | Alerts + escalation                                                | ✅     | alerts delivery            |
+| 4.1  | org+auth          | Роль `SCHEDULER`                                                   | ✅     | role-gating                |
+| 4.2  | org               | `school_teacher` += employmentType/status                          | ✅     | roster attrs               |
+| 4.3  | org               | Remove-teacher guard (primary активной группы)                     | ✅     | roster remove              |
+| 4.4  | org/profile       | Add-teacher invite (TEACHER-ветка onboard_existing)               | ✅     | roster add                 |
+| 4.5  | notification      | Типы уведомлений + эскалация                                       | ✅     | alerts delivery            |
+
+---
+
 ## Сводка задач (Group/Student Management)
 
 | #   | Сервис                 | Задача                                                                                 | Статус     | Блокирует фронт             |
@@ -590,4 +796,4 @@ ICS-экспорт, синхронизация с внешними календ�
 | 2.2 | analytics              | `GET /analytics/schools/{id}/students/{userId}` — детали студента                     | ✅ Готово  | student detail              |
 | 2.3 | profile/org            | `GET /users/lookup?email=` + 3-веточный invite/accept (kind + targetGroupId)           | ✅ Готово  | enroll/add-student          |
 | 2.4 | notif/org              | Bulk message + сегменты                                                                | 🟢 отложен | (фиче-флаг)                 |
-| 3.x | **scheduling (новый)** | slots/lessons/conflicts/load/timetable/clashes                                         | ❌ Новый сервис | расписание, timetable (мок) |
+| 3.x | **scheduling (новый)** | slots/lessons/conflicts/load/timetable/clashes/absences/substitutions/curriculum/alerts | ✅ Готово (2026-06-08) | расписание, timetable |
