@@ -91,3 +91,12 @@ CREATE DATABASE analytics_db OWNER analytics_service;
 
 \c analytics_db
 GRANT ALL ON SCHEMA public TO analytics_service;
+
+-- ============================================================================
+-- Scheduling Service
+-- ============================================================================
+CREATE USER scheduling_service WITH PASSWORD 'localdevpassword' CREATEDB;
+CREATE DATABASE scheduling_db OWNER scheduling_service;
+
+\c scheduling_db
+GRANT ALL ON SCHEMA public TO scheduling_service;
