@@ -13,6 +13,23 @@ enum MemberRole {
   CONTENT_ADMIN
   TEACHER
   STUDENT
+  SCHEDULER
+}
+
+enum EmploymentType {
+  full
+  part
+  contract
+
+  @@map("employment_type")
+}
+
+enum TeacherStatus {
+  active
+  invited
+  inactive
+
+  @@map("teacher_status")
 }
 
 enum InvitationStatus {
@@ -92,13 +109,15 @@ model SchoolMember {
 // Teacher-specific attributes (workload + availability windows) scoped per school.
 // Linked to SchoolMember to ensure the user is actually a TEACHER in this school.
 model SchoolTeacher {
-  schoolId        String  @map("school_id")
-  userId          String  @map("user_id")
-  memberId        String  @unique @map("member_id")
-  member          SchoolMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  maxWeeklyHours  Int?    @map("max_weekly_hours")
-  availability    Json?   // [{ weekday: 1-7, start: "HH:mm", end: "HH:mm" }]
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+  schoolId        String         @map("school_id")
+  userId          String         @map("user_id")
+  memberId        String         @unique @map("member_id")
+  member          SchoolMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  maxWeeklyHours  Int?           @map("max_weekly_hours")
+  availability    Json?          // [{ weekday: 1-7, start: "HH:mm", end: "HH:mm" }]
+  employmentType  EmploymentType? @map("employment_type")
+  status          TeacherStatus  @default(active)
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at")
 
   @@id([schoolId, userId])
   @@map("school_teachers")

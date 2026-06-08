@@ -8,6 +8,7 @@ const envSchema = z.object({
   JWT_PUBLIC_KEY: z.string().min(1),
   INVITATION_JWT_SECRET: z.string().min(32),
   PROFILE_SERVICE_URL: z.string().url().optional(),
+  SCHEDULING_SERVICE_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -28,4 +29,5 @@ export default (): Env => ({
   JWT_PUBLIC_KEY: process.env['JWT_PUBLIC_KEY'] ?? '',
   INVITATION_JWT_SECRET: process.env['INVITATION_JWT_SECRET'] ?? '',
   PROFILE_SERVICE_URL: process.env['PROFILE_SERVICE_URL'],
+  SCHEDULING_SERVICE_URL: process.env['SCHEDULING_SERVICE_URL'],
 });
