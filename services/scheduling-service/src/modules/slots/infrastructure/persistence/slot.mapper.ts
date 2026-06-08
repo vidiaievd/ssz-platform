@@ -1,4 +1,4 @@
-import type { Slot as PrismaSlot } from '@prisma/client';
+import type { Slot as PrismaSlot } from '../../../../../generated/prisma/client.js';
 import { Slot, type WeekDay } from '../../domain/entities/slot.entity.js';
 
 export class SlotMapper {

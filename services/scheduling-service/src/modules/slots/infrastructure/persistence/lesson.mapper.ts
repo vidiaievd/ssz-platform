@@ -1,4 +1,4 @@
-import type { Lesson as PrismaLesson } from '@prisma/client';
+import type { Lesson as PrismaLesson } from '../../../../../generated/prisma/client.js';
 import { Lesson, type LessonStatus } from '../../domain/entities/lesson.entity.js';
 
 export class LessonMapper {

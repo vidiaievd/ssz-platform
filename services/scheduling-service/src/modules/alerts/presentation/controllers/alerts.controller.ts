@@ -63,7 +63,7 @@ export class AlertsController {
   ): Promise<void> {
     await this.prisma.alert.update({
       where: { id: alertId },
-      data: { status: 'acknowledged', acknowledgedAt: new Date(), acknowledgedBy: user.sub },
+      data: { status: 'acknowledged', acknowledgedAt: new Date(), acknowledgedBy: user.userId },
     });
   }
 
@@ -77,7 +77,7 @@ export class AlertsController {
   ): Promise<void> {
     await this.prisma.alert.update({
       where: { id: alertId },
-      data: { status: 'resolved', resolvedAt: new Date(), resolvedBy: user.sub },
+      data: { status: 'resolved', resolvedAt: new Date(), resolvedBy: user.userId },
     });
   }
 }
