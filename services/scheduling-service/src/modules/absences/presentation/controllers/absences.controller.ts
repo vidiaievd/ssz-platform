@@ -81,7 +81,7 @@ export class AbsencesController {
         fromDate: new Date(body.fromDate),
         toDate: body.toDate ? new Date(body.toDate) : null,
         reason: body.reason,
-        createdBy: user.sub,
+        createdBy: user.userId,
       },
     });
 

@@ -237,7 +237,7 @@ absence/подмены/forecast). Полный план — §3 + §4 «Teacher 
 | Nudge at-risk mutation                            | ✅ Готово (D.1)                                     |
 | BFF composite `GET /api/schools/[id]/dashboard`   | ✅ Готово (C.1, web)                                |
 | Publish-approval queue                            | ⚠️ Нужно решение (отдельный workstream)             |
-| Scheduling / Today's classes                      | ❌ Отдельный сервис (см. ниже «Scheduling-service») |
+| Scheduling / Today's classes                      | ✅ Готово (scheduling-service, 2026-06-08)          |
 | Trial/billing                                     | ❌ Отдельный сервис                                 |
 | Group Management — расширение когорты (1.1–1.5)  | ✅ Готово (2026-06-04)                              |
 | Student Management — доработки (2.1–2.3)          | ✅ Готово (2026-06-04)                              |

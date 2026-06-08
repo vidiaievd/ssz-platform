@@ -77,6 +77,6 @@ export class SlotsController {
     @Param('slotId') slotId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
-    await this.commandBus.execute(new DeleteSlotCommand(slotId, user.sub));
+    await this.commandBus.execute(new DeleteSlotCommand(slotId, user.userId));
   }
 }

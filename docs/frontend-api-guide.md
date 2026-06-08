@@ -1,7 +1,7 @@
 # SSZ Platform — Frontend API Guide
 
 > Инструкция для Claude Code при работе над фронтендом (веб или мобайл).
-> Последнее обновление: 2026-06-04
+> Последнее обновление: 2026-06-08
 
 ---
 
@@ -30,6 +30,7 @@ docker compose --env-file .env.dev -f docker-compose.base.yml -f docker-compose.
 | Exercise Engine Service | NestJS | :3006 | Running |
 | Learning Service | NestJS | :3007 | Running |
 | Analytics Service | NestJS | :3008 | Running |
+| Scheduling Service | NestJS | :3009 | Running |
 
 ---
 
@@ -442,7 +443,7 @@ Resolve slug → объект School. `200`, `403` (не участник), `404
 ```json
 {
   "userId": "uuid",
-  "role": "TEACHER"  // ADMIN | CONTENT_ADMIN | TEACHER | STUDENT
+  "role": "TEACHER"  // ADMIN | CONTENT_ADMIN | TEACHER | STUDENT | SCHEDULER
 }
 // 204 No Content
 // 409 — уже участник
@@ -451,6 +452,8 @@ Resolve slug → объект School. `200`, `403` (не участник), `404
 #### DELETE /api/v1/schools/{schoolId}/members/{userId}
 
 Удалить участника из школы или самостоятельно покинуть. `204`.
+
+> **Guard для TEACHER (§4.3):** если учитель является `primary` хотя бы одной **активной** группы → `409 { "error": "primary-of-active-groups", "groups": [{ "id": "uuid", "name": "Level A2" }] }`. Сначала нужно переназначить primary в этих группах.
 
 #### POST /api/v1/schools/{schoolId}/invitations
 
@@ -548,7 +551,8 @@ Resolve slug → объект School. `200`, `403` (не участник), `404
 
 ```json
 // 200 — успешно опубликована
-// 409 → { "blockers": ["no-course", "no-primary"] }  // одно или несколько
+// 409 → { "blockers": ["no-course", "no-primary", "no-slots"] }  // одно или несколько
+// "no-slots" — в scheduling-service нет ни одного слота у группы (только для не-ONLINE групп)
 ```
 
 При публикации автоматически выдаются entitlements на курс всем уже добавленным студентам.
@@ -612,21 +616,27 @@ Hard-delete — только для пустых `draft`/`archived` групп. 
 ```json
 [{
   "userId": "uuid",
-  "maxWeeklyHours": 20,           // null если не задано
+  "name": "Ivan Petrenko",          // денормализовано из profile-service
+  "avatarUrl": "https://... | null",
+  "maxWeeklyHours": 20,             // null если не задано
   "availability": [
     { "weekday": 1, "start": "09:00", "end": "17:00" }  // weekday: 1=Пн … 7=Вс
-  ]
+  ],
+  "employmentType": "full",         // "full" | "part" | "contract" | null
+  "status": "active"                // "active" | "invited" | "inactive"
 }]
 ```
 
 #### PATCH /api/v1/schools/{schoolId}/teachers/{userId}
 
-Обновить нагрузку/доступность учителя (OWNER/ADMIN). `204`.
+Обновить нагрузку/доступность/тип занятости учителя (OWNER/ADMIN). `204`.
 
 ```json
 {
-  "maxWeeklyHours": 20,     // опционально
-  "availability": [{ "weekday": 1, "start": "09:00", "end": "17:00" }]  // опционально
+  "maxWeeklyHours": 20,            // опционально
+  "availability": [{ "weekday": 1, "start": "09:00", "end": "17:00" }],  // опционально
+  "employmentType": "part",        // опционально: "full" | "part" | "contract"
+  "status": "inactive"             // опционально: "active" | "invited" | "inactive"
 }
 ```
 
@@ -1588,12 +1598,455 @@ type DashboardCompositeResponse = {
   atRisk: AtRiskPayload | { status: 'unavailable' };
   courseHealth: CourseHealthPayload | { status: 'unavailable' };
   activity: ActivityPayload | { status: 'unavailable' };
-  todaysClasses: { status: 'unavailable' };  // pending scheduling service
+  todaysClasses: TodaysClassesPayload | { status: 'unavailable' };  // scheduling-service: GET /api/v1/scheduling/groups/{groupId}/lessons/next
   trial: { status: 'unavailable' };          // pending billing service
 };
 ```
 
 `[id]` может быть UUID или slug — BFF резолвит через org-service. Каждый виджет независимо fault-tolerant.
+
+---
+
+## 9. Scheduling Service `/api/v1/scheduling/`
+
+🔒 Все эндпоинты требуют Authorization (Bearer JWT).
+
+Сервис владеет всем волатильным таймтейблом: слоты (недельный паттерн) → уроки (датированные занятия) → конфликты → нагрузка учителей → отпуска → подмены → учебный план → алерты.
+
+**Порт**: `:3009`. Swagger: `http://localhost:3009/api/docs`.
+
+---
+
+### Слоты — `/api/v1/scheduling/schools/{schoolId}/groups/{groupId}/slots`
+
+#### GET /api/v1/scheduling/schools/{schoolId}/groups/{groupId}/slots
+
+Список слотов группы.
+
+```json
+// 200 → SlotResponseDto[]
+[{
+  "id": "uuid",
+  "groupId": "uuid",
+  "schoolId": "uuid",
+  "weekday": "mon",      // "mon"|"tue"|"wed"|"thu"|"fri"|"sat"|"sun"
+  "startTime": "09:00",  // HH:MM
+  "endTime": "10:30",
+  "room": "Room 101",    // null для online-групп
+  "createdAt": "..."
+}]
+```
+
+#### PUT /api/v1/scheduling/schools/{schoolId}/groups/{groupId}/slots
+
+Заменить весь набор слотов (slot-editor сохраняет целиком). Автоматически пересоздаёт уроки в окне [startDate, endDate] группы.
+
+```json
+// Request
+{
+  "slots": [
+    { "weekday": "mon", "startTime": "09:00", "endTime": "10:30", "room": "Room 101" },
+    { "weekday": "wed", "startTime": "18:00", "endTime": "19:30" }
+  ]
+}
+// 200 → SlotResponseDto[]
+```
+
+#### POST /api/v1/scheduling/schools/{schoolId}/groups/{groupId}/slots
+
+Добавить одиночный слот. `201 → SlotResponseDto`.
+
+#### DELETE /api/v1/scheduling/schools/{schoolId}/groups/{groupId}/slots/{slotId}
+
+Удалить слот. `204`.
+
+---
+
+### Уроки
+
+#### GET /api/v1/scheduling/groups/{groupId}/lessons
+
+Уроки группы в диапазоне дат. Query params: `?from=YYYY-MM-DD&to=YYYY-MM-DD` (обязательны).
+
+```json
+// 200 → LessonResponseDto[]
+[{
+  "id": "uuid",
+  "groupId": "uuid",
+  "schoolId": "uuid",
+  "slotId": "uuid | null",
+  "date": "2026-09-01",
+  "startTime": "09:00",
+  "endTime": "10:30",
+  "teacherId": "uuid",
+  "room": "Room 101 | null",
+  "status": "scheduled",    // "scheduled" | "moved" | "cancelled"
+  "curriculumUnitId": "uuid | null"
+}]
+```
+
+#### GET /api/v1/scheduling/groups/{groupId}/lessons/next
+
+Ближайшие N уроков группы. `?limit=5` (default 5). `200 → LessonResponseDto[]`.
+
+#### PATCH /api/v1/scheduling/lessons/{lessonId}
+
+Override одного урока. `200 → LessonResponseDto`.
+
+```json
+{
+  "status": "cancelled",   // опционально: "scheduled" | "moved" | "cancelled"
+  "teacherId": "uuid",     // опционально — override учителя
+  "room": "Room 202"       // опционально
+}
+```
+
+---
+
+### Нагрузка и конфликты
+
+#### GET /api/v1/scheduling/schools/{schoolId}/command-center
+
+Агрегированный дашборд планировщика. `?from=YYYY-MM-DD&to=YYYY-MM-DD` (default — текущая неделя).
+
+```json
+// 200
+{
+  "conflictCount": 2,
+  "overloadedTeachers": 1,
+  "nearCapTeachers": 3,
+  "teacherLoads": [{
+    "teacherId": "uuid",
+    "contactHours": 18.0,
+    "prepHours": 6.4,         // contactHours * prepFactor + distinctGroups * 1.0
+    "effectiveHours": 24.4,
+    "maxWeeklyHours": 25,
+    "pct": 0.72,
+    "overloaded": false,
+    "health": "warn",          // "ok" | "warn" | "danger"
+    "groups": ["uuid1", "uuid2"],
+    "conflicts": []
+  }]
+}
+```
+
+#### GET /api/v1/scheduling/schools/{schoolId}/conflicts
+
+Список конфликтов расписания (учителя с пересекающимися слотами). `?from=&to=`.
+
+```json
+// 200 → ConflictEntryDto[]
+[{
+  "teacherId": "uuid",
+  "groupAId": "uuid",
+  "groupBId": "uuid",
+  "weekday": "mon",
+  "overlapStart": "09:00",
+  "overlapEnd": "10:00"
+}]
+```
+
+#### GET /api/v1/scheduling/schools/{schoolId}/teachers/{teacherId}/load
+
+Нагрузка одного учителя. `?from=&to=`.
+
+```json
+// 200
+{
+  "teacherId": "uuid",
+  "contactHours": 18.0,
+  "prepHours": 6.4,
+  "effectiveHours": 24.4,
+  "maxWeeklyHours": 25,
+  "pct": 0.72,
+  "overloaded": false,
+  "health": "ok",   // "ok" | "warn" | "danger"
+  "groups": ["uuid1"],
+  "conflicts": []
+}
+```
+
+#### GET /api/v1/scheduling/schools/{schoolId}/timetable
+
+Все слоты школы, сгруппированные по дням и учителям. `200`.
+
+#### GET /api/v1/scheduling/schools/{schoolId}/workload-policy
+
+Политика нагрузки школы.
+
+```json
+// 200
+{
+  "schoolId": "uuid",
+  "prepFactor": 0.30,       // коэффициент подготовки (default 0.30)
+  "dailyContactCap": 6.0,   // дневной лимит контактных часов
+  "maxConsecutive": 3,       // максимум уроков подряд
+  "nearCapRatio": 0.85       // порог warn (85% от maxWeeklyHours)
+}
+```
+
+#### PATCH /api/v1/scheduling/schools/{schoolId}/workload-policy
+
+Обновить политику нагрузки (OWNER/ADMIN). `200`.
+
+```json
+{
+  "prepFactor": 0.25,         // опционально
+  "dailyContactCap": 8.0,     // опционально
+  "maxConsecutive": 4,        // опционально
+  "nearCapRatio": 0.80        // опционально
+}
+```
+
+---
+
+### Клэши студентов
+
+#### GET /api/v1/scheduling/schools/{schoolId}/students/{userId}/clashes
+
+Пересечения расписания студента (состоит в группах с пересекающимися слотами).
+
+```json
+// 200
+[{
+  "groupAId": "uuid",
+  "groupBId": "uuid",
+  "weekday": "tue",
+  "overlapStart": "10:00",
+  "overlapEnd": "11:00"
+}]
+// [] — нет клэшей
+```
+
+---
+
+### Отпуска учителей
+
+#### GET /api/v1/scheduling/schools/{schoolId}/absences
+
+График отпусков учителей школы. `200 → TeacherAbsenceDto[]`.
+
+#### GET /api/v1/scheduling/teachers/{teacherId}/absences
+
+Отпуска конкретного учителя. `200 → TeacherAbsenceDto[]`.
+
+#### POST /api/v1/scheduling/teachers/{teacherId}/absences
+
+Зарегистрировать отпуск/больничный. Автоматически создаёт `SubstituteRequest` для каждого затронутого урока.
+
+```json
+// Request
+{
+  "kind": "sick",           // "sick" | "leave" | "vacancy"
+  "scope": "window",        // "today" | "window" | "permanent"
+  "from": "2026-09-15",
+  "to": "2026-09-19",       // обязательно для scope="window"
+  "reason": "Больничный"
+}
+
+// 201
+{
+  "absenceId": "uuid",
+  "createdRequests": [
+    { "id": "uuid", "lessonId": "uuid", "urgency": "upcoming" }
+  ]
+}
+```
+
+Права: свой absence — сам TEACHER; чужой absence — OWNER/ADMIN/SCHEDULER.
+
+#### DELETE /api/v1/scheduling/absences/{absenceId}
+
+Удалить отпуск. `204`.
+
+---
+
+### Подмены (Substitute Console)
+
+#### GET /api/v1/scheduling/schools/{schoolId}/substitutions
+
+Очередь подмен — открытые запросы на покрытие.
+
+```json
+// 200 → SubstituteRequestDto[]
+[{
+  "id": "uuid",
+  "lessonId": "uuid",
+  "groupId": "uuid",
+  "originalTeacherId": "uuid",
+  "urgency": "upcoming",    // "today" | "upcoming" | "open"
+  "status": "open",         // "open" | "closed" | "cancelled"
+  "coverFrom": "2026-09-16",
+  "coverTo": "2026-09-16",
+  "createdAt": "..."
+}]
+```
+
+#### POST /api/v1/scheduling/schools/{schoolId}/substitutions
+
+Ручной «Arrange cover» — создать запрос на подмену.
+
+```json
+{ "lessonId": "uuid", "urgency": "today" }
+// 201 → SubstituteRequestDto
+```
+
+#### GET /api/v1/scheduling/substitutions/{requestId}/candidates
+
+Ранжированные кандидаты на подмену.
+
+```json
+// 200
+[{
+  "teacherId": "uuid",
+  "eligible": true,
+  "fitScore": 87,              // 0–100 (только для eligible=true)
+  "classification": "top",    // "top" | "available" | "ineligible"
+  "factors": {
+    "canLang": true,           // говорит язык группы (G1 hard gate)
+    "free": true,              // нет конфликта расписания (G2 hard gate)
+    "spareRatio": 0.4,         // остаток недельной ёмкости (0.0–1.0)
+    "familiar": 2,             // кол-во раз вёл эту группу
+    "wouldOverload": false,    // привысит ли maxWeeklyHours
+    "subLoop": false           // сам уже подменяет в это окно
+  }
+}]
+```
+
+#### POST /api/v1/scheduling/substitutions/{requestId}/assign
+
+Назначить замену. Confirm-time re-check G1/G2 по актуальному состоянию.
+
+```json
+// Request
+{ "substituteTeacherId": "uuid", "override": false }
+
+// 200 → { "ok": true }
+// 409 → { "conflictType": "schedule_conflict" | "cap_exceeded" | "language_mismatch" }
+// override: true — разрешает cap_exceeded (только OWNER/ADMIN, создаёт overload-алерт)
+```
+
+#### POST /api/v1/scheduling/substitutions/{requestId}/cancel
+
+Отменить запрос на подмену. `204`.
+
+---
+
+### Учебный план группы (Curriculum Planner)
+
+#### GET /api/v1/scheduling/groups/{groupId}/curriculum
+
+```json
+// 200
+{
+  "id": "uuid",
+  "groupId": "uuid",
+  "targetWeeklyHours": 4.5,
+  "progressPct": 0.32,    // DERIVED: deliveredSessions / plannedSessions
+  "units": [{
+    "id": "uuid",
+    "title": "Unit 1 — Introduction",
+    "order": 1,
+    "plannedSessions": 8,
+    "deliveredSessions": 3,
+    "requiredLevel": "A2",       // null если не задан
+    "status": "active",          // "planned" | "active" | "done" | "overridden"
+    "overrideReason": null
+  }]
+}
+// 404 — план ещё не создан
+```
+
+#### PUT /api/v1/scheduling/groups/{groupId}/curriculum
+
+Полная замена учебного плана. `200 → CurriculumPlanDto`.
+
+```json
+{
+  "targetWeeklyHours": 4.5,
+  "units": [
+    { "title": "Unit 1", "order": 1, "plannedSessions": 8, "requiredLevel": "A2" },
+    { "title": "Unit 2", "order": 2, "plannedSessions": 6 }
+  ]
+}
+```
+
+#### PATCH /api/v1/scheduling/curriculum/units/{unitId}
+
+Обновить/завершить/override юнит. `200`.
+
+```json
+{
+  "status": "done",            // опционально
+  "deliveredSessions": 8,      // опционально
+  "requiredLevel": "B1",       // опционально
+  "overrideReason": "Решение методиста"  // обязательно при status="overridden"
+}
+```
+
+#### POST /api/v1/scheduling/curriculum/units/reorder
+
+Переупорядочить юниты. `200`.
+
+```json
+{ "unitIds": ["uuid1", "uuid2", "uuid3"] }
+```
+
+#### POST /api/v1/scheduling/lessons/{lessonId}/curriculum-unit
+
+Привязать урок к юниту. `200`.
+
+```json
+{ "unitId": "uuid" }
+```
+
+---
+
+### Алерты
+
+#### GET /api/v1/scheduling/schools/{schoolId}/alerts
+
+Список алертов школы.
+
+```json
+// 200
+[{
+  "id": "uuid",
+  "kind": "overload",      // "overload"|"near_cap"|"daily_cap"|"consec"|"conflict"|
+                           //   "vacancy"|"uncovered"|"sub_overload"|"bottleneck"
+  "severity": "danger",   // "warn" | "danger"
+  "entityType": "teacher",
+  "entityId": "uuid",
+  "status": "raised",     // "raised" | "acknowledged" | "resolved"
+  "occurredAt": "2026-09-15T09:00:00Z",
+  "acknowledgedAt": null,
+  "resolvedAt": null,
+  "payload": {}
+}]
+```
+
+#### POST /api/v1/scheduling/alerts/{alertId}/acknowledge
+
+Подтвердить получение алерта (`raised → acknowledged`). `200`.
+
+#### POST /api/v1/scheduling/alerts/{alertId}/resolve
+
+Закрыть алерт (`* → resolved`). `200`.
+
+---
+
+### Уведомления о расписании (notification-service)
+
+Scheduling-service публикует события в `scheduling.events`, notification-service создаёт in-app уведомления:
+
+| Тип уведомления | Когда | Кому |
+|---|---|---|
+| `TEACHER_ABSENCE` | POST absence | admin/scheduler школы |
+| `SUBSTITUTE_REQUEST` | Создан запрос на подмену | кандидатам-учителям |
+| `SUBSTITUTE_ASSIGNED` | Подмена подтверждена | substitute + original teacher |
+| `OVERLOAD_ALERT` | Alert overload без ack 24ч (эскалация) | OWNER |
+| `VACANCY_ALERT` | Alert vacancy без ack 48ч (эскалация) | ADMIN + OWNER |
+| `UNCOVERED_LESSON` | Урок без учителя за <24ч | OWNER (для override) |
 
 ---
 
@@ -1637,6 +2090,7 @@ type DashboardCompositeResponse = {
 | Exercise Engine Service | http://localhost:3006/api/docs |
 | Learning Service | http://localhost:3007/api/docs |
 | Analytics Service | http://localhost:3008/api/docs |
+| Scheduling Service | http://localhost:3009/api/docs |
 
 ---
 
@@ -1711,6 +2165,20 @@ type DashboardCompositeResponse = {
 3. `POST /api/v1/tutoring/group/invitations` → пригласить студента по email
 4. Студент: `POST /api/v1/tutoring/invitations/{token}/accept` → принять
 5. `POST /api/v1/assignments` → выдать задание конкретному студенту
+
+### Школьный администратор: настроить расписание и опубликовать группу
+
+1. `PUT /api/v1/scheduling/schools/{schoolId}/groups/{groupId}/slots` с набором слотов → слоты сохранены, уроки пересозданы
+2. `POST /api/v1/schools/{schoolId}/groups/{groupId}/publish` → проверяет courseId + primary + ≥1 slot → `200` или `409 { blockers }`
+3. `GET /api/v1/scheduling/groups/{groupId}/lessons?from=2026-09-01&to=2026-12-31` → список всех занятий term
+4. `GET /api/v1/scheduling/schools/{schoolId}/command-center` → дашборд нагрузки
+
+### Scheduler: оформить отпуск и найти замену
+
+1. `POST /api/v1/scheduling/teachers/{teacherId}/absences` с `{ kind, scope, from, to, reason }` → автоматически создаются SubstituteRequest-ы
+2. `GET /api/v1/scheduling/schools/{schoolId}/substitutions` → очередь открытых запросов
+3. `GET /api/v1/scheduling/substitutions/{requestId}/candidates` → ранжированные кандидаты
+4. `POST /api/v1/scheduling/substitutions/{requestId}/assign` с `{ substituteTeacherId }` → назначение с re-check
 
 ### Загрузка аватара пользователя
 
