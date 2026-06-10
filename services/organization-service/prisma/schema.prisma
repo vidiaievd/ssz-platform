@@ -36,7 +36,7 @@ enum InvitationStatus {
   PENDING
   ACCEPTED
   EXPIRED
-  CANCELLED
+  REVOKED
 }
 
 enum SchoolType {
@@ -131,12 +131,18 @@ model SchoolInvitation {
   role          MemberRole       @default(TEACHER)
   kind          InvitationKind   @default(register)
   targetGroupId String?          @map("target_group_id")
-  token         String           @unique  // signed JWT containing invitation metadata
+  invitedBy     String?          @map("invited_by")
+  token         String           @unique
   status        InvitationStatus @default(PENDING)
-  expiresAt     DateTime
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  expiresAt     DateTime         @map("expires_at")
+  acceptedAt    DateTime?        @map("accepted_at")
+  lastSentAt    DateTime         @default(now()) @map("last_sent_at")
+  resendCount   Int              @default(0) @map("resend_count")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
 
+  @@index([schoolId, status])
+  @@index([schoolId, email, role])
   @@map("school_invitations")
 }
 
@@ -226,15 +232,19 @@ model TutoringStudent {
 
 model TutoringInvitation {
   id           String           @id @default(uuid())
-  tutorGroupId String
+  tutorGroupId String           @map("tutor_group_id")
   tutorGroup   TutoringGroup    @relation(fields: [tutorGroupId], references: [id])
   email        String
   token        String           @unique
   status       InvitationStatus @default(PENDING)
-  expiresAt    DateTime
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  expiresAt    DateTime         @map("expires_at")
+  acceptedAt   DateTime?        @map("accepted_at")
+  lastSentAt   DateTime         @default(now()) @map("last_sent_at")
+  resendCount  Int              @default(0) @map("resend_count")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
 
+  @@index([tutorGroupId, status])
   @@map("tutoring_invitations")
 }
 

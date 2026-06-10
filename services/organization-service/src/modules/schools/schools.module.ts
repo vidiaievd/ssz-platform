@@ -22,6 +22,8 @@ import { AddMemberHandler } from './application/commands/add-member/add-member.h
 import { RemoveMemberHandler } from './application/commands/remove-member/remove-member.handler.js';
 import { SendInvitationHandler } from './application/commands/send-invitation/send-invitation.handler.js';
 import { AcceptInvitationHandler } from './application/commands/accept-invitation/accept-invitation.handler.js';
+import { ResendSchoolInvitationHandler } from './application/commands/resend-invitation/resend-invitation.handler.js';
+import { RevokeSchoolInvitationHandler } from './application/commands/revoke-invitation/revoke-invitation.handler.js';
 import { CreateSchoolGroupHandler } from './application/commands/create-school-group/create-school-group.handler.js';
 import { UpdateSchoolGroupHandler } from './application/commands/update-school-group/update-school-group.handler.js';
 import { DeleteSchoolGroupHandler } from './application/commands/delete-school-group/delete-school-group.handler.js';
@@ -57,6 +59,8 @@ const CommandHandlers = [
   RemoveMemberHandler,
   SendInvitationHandler,
   AcceptInvitationHandler,
+  ResendSchoolInvitationHandler,
+  RevokeSchoolInvitationHandler,
   CreateSchoolGroupHandler,
   UpdateSchoolGroupHandler,
   DeleteSchoolGroupHandler,

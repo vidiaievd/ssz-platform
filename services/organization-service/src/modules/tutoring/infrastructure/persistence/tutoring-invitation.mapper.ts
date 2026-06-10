@@ -7,6 +7,9 @@ type PrismaTutoringInvitation = {
   token: string;
   status: string;
   expiresAt: Date;
+  acceptedAt: Date | null;
+  lastSentAt: Date;
+  resendCount: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -20,6 +23,9 @@ export class TutoringInvitationMapper {
       token: raw.token,
       status: raw.status as any,
       expiresAt: raw.expiresAt,
+      acceptedAt: raw.acceptedAt,
+      lastSentAt: raw.lastSentAt,
+      resendCount: raw.resendCount,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });

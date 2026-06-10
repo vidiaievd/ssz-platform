@@ -5,10 +5,7 @@ import { SchoolType } from "../../domain/value-objects/school-type.vo.js";
 
 export class InvitationResponseDto {
   @ApiProperty({ description: 'Invitation UUID' })
-  id!: string;
-
-  @ApiProperty({ description: 'School UUID' })
-  schoolId!: string;
+  invitationId!: string;
 
   @ApiProperty({ description: 'Invitee email address' })
   email!: string;
@@ -16,14 +13,42 @@ export class InvitationResponseDto {
   @ApiProperty({ enum: MemberRole, description: 'Role assigned on acceptance' })
   role!: MemberRole;
 
+  @ApiPropertyOptional({ enum: ['register', 'onboard_existing'] })
+  kind?: string;
+
   @ApiProperty({ enum: InvitationStatus, description: 'Current invitation status' })
   status!: InvitationStatus;
 
-  @ApiProperty({ description: 'Invitation expiry (ISO 8601)' })
-  expiresAt!: string;
+  @ApiPropertyOptional({ description: 'Target group UUID (students only)' })
+  targetGroupId?: string | null;
+
+  @ApiPropertyOptional({ description: 'Target group name (denormalized)' })
+  targetGroupName?: string | null;
+
+  @ApiPropertyOptional({ description: 'Display name of the user who sent the invite' })
+  invitedByName?: string | null;
 
   @ApiProperty({ description: 'Creation timestamp (ISO 8601)' })
   createdAt!: string;
+
+  @ApiProperty({ description: 'Expiry timestamp (ISO 8601)' })
+  expiresAt!: string;
+
+  @ApiPropertyOptional({ description: 'Accept timestamp (ISO 8601), null if not yet accepted' })
+  acceptedAt?: string | null;
+
+  @ApiProperty({ description: 'Last send timestamp (ISO 8601)' })
+  lastSentAt!: string;
+
+  @ApiProperty({ description: 'How many times the invite was resent', default: 0 })
+  resendCount!: number;
+}
+
+export class ResendInvitationResponseDto {
+  @ApiProperty() invitationId!: string;
+  @ApiProperty() expiresAt!: string;
+  @ApiProperty({ enum: ['queued'] }) deliveryStatus!: 'queued';
+  @ApiProperty() resendCount!: number;
 }
 
 export class SchoolMemberResponseDto {

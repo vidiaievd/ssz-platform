@@ -39,6 +39,25 @@ export class SendTutoringInvitationResponseDto {
   @ApiProperty({ enum: ['queued'] }) deliveryStatus!: 'queued';
 }
 
+export class TutoringInvitationResponseDto {
+  @ApiProperty() invitationId!: string;
+  @ApiProperty() email!: string;
+  @ApiProperty({ enum: ['pending', 'accepted', 'expired', 'revoked'] }) status!: string;
+  @ApiProperty() createdAt!: string;
+  @ApiProperty() expiresAt!: string;
+  @ApiPropertyOptional() acceptedAt?: string | null;
+  @ApiProperty() lastSentAt!: string;
+  @ApiProperty() resendCount!: number;
+}
+
+export class ResendTutoringInvitationResponseDto {
+  @ApiProperty() invitationId!: string;
+  @ApiProperty() expiresAt!: string;
+  @ApiProperty({ enum: ['queued'] }) deliveryStatus!: 'queued';
+  @ApiProperty() resendCount!: number;
+}
+
+/** @deprecated use TutoringInvitationResponseDto */
 export class PendingTutoringInvitationResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() email!: string;

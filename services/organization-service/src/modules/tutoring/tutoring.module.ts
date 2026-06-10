@@ -14,6 +14,8 @@ import { DeleteTutoringGroupHandler } from './application/commands/delete-tutori
 import { RemoveStudentHandler } from './application/commands/remove-student/remove-student.handler.js';
 import { SendTutoringInvitationHandler } from './application/commands/send-invitation/send-invitation.handler.js';
 import { AcceptTutoringInvitationHandler } from './application/commands/accept-invitation/accept-invitation.handler.js';
+import { ResendTutoringInvitationHandler } from './application/commands/resend-invitation/resend-tutoring-invitation.handler.js';
+import { RevokeTutoringInvitationHandler } from './application/commands/revoke-invitation/revoke-tutoring-invitation.handler.js';
 
 import { GetMyGroupHandler } from './application/queries/get-my-group/get-my-group.handler.js';
 import { GetMyTutorHandler } from './application/queries/get-my-tutor/get-my-tutor.handler.js';
@@ -29,6 +31,8 @@ const CommandHandlers = [
   RemoveStudentHandler,
   SendTutoringInvitationHandler,
   AcceptTutoringInvitationHandler,
+  ResendTutoringInvitationHandler,
+  RevokeTutoringInvitationHandler,
 ];
 
 const QueryHandlers = [

@@ -45,6 +45,11 @@ export class SendTutoringInvitationHandler implements ICommandHandler<SendTutori
       throw new ForbiddenOperationException('Only the tutor can send invitations');
     }
 
+    const existing = await this.invitationRepository.findActivePendingByEmail(group.id, command.email);
+    if (existing) {
+      throw new ForbiddenOperationException(`A pending invitation for ${command.email} already exists`);
+    }
+
     const now = new Date();
     const expiresAt = new Date(now.getTime() + INVITATION_TTL_MS);
     const invitationId = randomUUID();
@@ -58,6 +63,9 @@ export class SendTutoringInvitationHandler implements ICommandHandler<SendTutori
       token,
       status: 'PENDING',
       expiresAt,
+      acceptedAt: null,
+      lastSentAt: now,
+      resendCount: 0,
       createdAt: now,
       updatedAt: now,
     });

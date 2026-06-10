@@ -16,6 +16,7 @@ import {
 } from '../../../../../shared/application/ports/event-publisher.interface.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
+import { InvitationAlreadyPendingException } from '../../../domain/exceptions/invitation-already-pending.exception.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { SchoolInvitation } from '../../../domain/entities/school-invitation.entity.js';
 import { SchoolInvitationSentEvent } from '../../../domain/events/school-invitation-sent.event.js';
@@ -41,13 +42,21 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
     const isOwner = command.actorId === school.ownerId;
     const isAdmin = actorRole === MemberRole.ADMIN;
 
-    // Only owner can invite admins; owner or admin can invite everyone else
     if (command.role === MemberRole.ADMIN && !isOwner) {
       throw new ForbiddenOperationException('Only the school owner can invite administrators');
     }
 
     if (!isOwner && !isAdmin) {
       throw new ForbiddenOperationException('Only owner or admin can send invitations');
+    }
+
+    const existing = await this.invitationRepository.findActivePendingByEmailAndRole(
+      command.schoolId,
+      command.email,
+      command.role,
+    );
+    if (existing) {
+      throw new InvitationAlreadyPendingException(command.email);
     }
 
     const now = new Date();
@@ -71,9 +80,13 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
       role: command.role,
       kind: command.kind,
       targetGroupId: command.targetGroupId,
+      invitedBy: command.actorId,
       token,
       status: 'PENDING',
       expiresAt,
+      acceptedAt: null,
+      lastSentAt: now,
+      resendCount: 0,
       createdAt: now,
       updatedAt: now,
     });

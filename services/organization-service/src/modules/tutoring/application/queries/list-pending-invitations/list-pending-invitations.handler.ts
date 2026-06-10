@@ -27,6 +27,6 @@ export class ListPendingInvitationsHandler
     const group = await this.groupRepository.findByTutorId(query.tutorId);
     if (!group || group.isDeleted) throw new TutoringGroupNotFoundException(query.tutorId);
 
-    return this.invitationRepository.findPendingByGroupId(group.id);
+    return this.invitationRepository.findAllByGroupId(group.id);
   }
 }

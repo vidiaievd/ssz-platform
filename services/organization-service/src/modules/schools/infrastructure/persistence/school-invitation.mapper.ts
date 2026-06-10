@@ -8,9 +8,13 @@ type PrismaSchoolInvitation = {
   role: string;
   kind: string;
   targetGroupId: string | null;
+  invitedBy: string | null;
   token: string;
   status: string;
   expiresAt: Date;
+  acceptedAt: Date | null;
+  lastSentAt: Date;
+  resendCount: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -24,9 +28,13 @@ export class SchoolInvitationMapper {
       role: raw.role as any,
       kind: raw.kind as InvitationKind,
       targetGroupId: raw.targetGroupId,
+      invitedBy: raw.invitedBy,
       token: raw.token,
       status: raw.status as any,
       expiresAt: raw.expiresAt,
+      acceptedAt: raw.acceptedAt,
+      lastSentAt: raw.lastSentAt,
+      resendCount: raw.resendCount,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });

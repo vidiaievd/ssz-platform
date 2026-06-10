@@ -16,6 +16,8 @@ import {
 } from '../../../../../shared/application/ports/event-publisher.interface.js';
 import { InvitationNotFoundException } from '../../../domain/exceptions/invitation-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
+import { InvitationExpiredException } from '../../../domain/exceptions/invitation-expired.exception.js';
+import { InvitationRevokedException } from '../../../domain/exceptions/invitation-revoked.exception.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { SchoolMember } from '../../../domain/entities/school-member.entity.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
@@ -26,9 +28,7 @@ import {
   type ISchoolGroupRepository,
 } from '../../../domain/repositories/school-group.repository.interface.js';
 
-// School roles that grant the platform Tutor role
 const ROLES_REQUIRING_TUTOR: ReadonlySet<MemberRole> = new Set([MemberRole.TEACHER]);
-// School roles that grant the platform Student role
 const ROLES_REQUIRING_STUDENT: ReadonlySet<MemberRole> = new Set([MemberRole.STUDENT]);
 
 @CommandHandler(AcceptInvitationCommand)
@@ -43,7 +43,6 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
   ) {}
 
   async execute(command: AcceptInvitationCommand): Promise<void> {
-    // Verify JWT signature and expiry first — rejects tampered or expired tokens
     let decoded: ReturnType<InvitationTokenService['verify']>;
     try {
       decoded = this.tokenService.verify(command.token);
@@ -51,7 +50,6 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
       throw new ForbiddenOperationException('Invitation token is invalid or has expired');
     }
 
-    // Enforce email binding — invitation is for a specific person
     if (decoded.email.toLowerCase() !== command.actorEmail.toLowerCase()) {
       throw new ForbiddenOperationException('This invitation was sent to a different email address');
     }
@@ -59,17 +57,16 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
     const invitation = await this.invitationRepository.findByToken(command.token);
     if (!invitation) throw new InvitationNotFoundException(command.token);
 
-    if (!invitation.isPending()) {
-      throw new ForbiddenOperationException(
-        `Invitation is not pending (status: ${invitation.status})`,
-      );
+    if (invitation.isRevoked()) {
+      throw new InvitationRevokedException(invitation.id);
     }
 
-    // Guard against clock-skew edge case: JWT may still be valid but DB record expired
-    if (invitation.isExpired()) {
-      invitation.expire();
-      await this.invitationRepository.save(invitation);
-      throw new ForbiddenOperationException('Invitation has expired');
+    if (invitation.isExpired() || !invitation.isPending()) {
+      if (!invitation.isAccepted()) {
+        invitation.expire();
+        await this.invitationRepository.save(invitation);
+      }
+      throw new InvitationExpiredException(invitation.id);
     }
 
     const school = await this.schoolRepository.findById(invitation.schoolId);
@@ -83,34 +80,29 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
       joinedAt: new Date(),
     });
 
-    // Bypass permission check — the invitation itself represents pre-authorization by owner/admin
     school.addMember(member, school.ownerId, randomUUID());
     invitation.accept();
 
     await this.schoolRepository.save(school);
     await this.invitationRepository.save(invitation);
 
-    // Publish school member events
     for (const event of school.getDomainEvents()) {
       await this.eventPublisher.publish(event);
     }
     school.clearDomainEvents();
 
-    // Assign platform Tutor role when the school role requires it
     if (ROLES_REQUIRING_TUTOR.has(invitation.role)) {
       await this.eventPublisher.publish(
         new UserPlatformRoleAssignedEvent(randomUUID(), command.actorId, 'Tutor'),
       );
     }
 
-    // Assign platform Student role for student invitations (register + onboard-existing)
     if (ROLES_REQUIRING_STUDENT.has(invitation.role)) {
       await this.eventPublisher.publish(
         new UserPlatformRoleAssignedEvent(randomUUID(), command.actorId, 'Student'),
       );
     }
 
-    // Add to target group if specified (both register and onboard-existing branches)
     if (invitation.targetGroupId) {
       const group = await this.groupRepository.findById(invitation.targetGroupId);
       if (group && !group.isDeleted && group.schoolId === school.id) {
