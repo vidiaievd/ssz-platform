@@ -9,6 +9,9 @@ export interface AvailabilityWindow {
 
 export interface SchoolTeacherDto {
   userId: string;
+  name: string;
+  avatarUrl: string | null;
+  langs: string[];
   maxWeeklyHours: number | null;
   availability: AvailabilityWindow[];
   employmentType: 'full' | 'part' | 'contract' | null;

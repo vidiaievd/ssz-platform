@@ -44,6 +44,7 @@ import { ListSchoolInvitationsHandler } from './application/queries/list-school-
 import { GetSchoolGroupHandler } from './application/queries/get-school-group/get-school-group.handler.js';
 import { ListSchoolGroupsHandler } from './application/queries/list-school-groups/list-school-groups.handler.js';
 import { ListSchoolTeachersHandler } from './application/queries/list-school-teachers/list-school-teachers.handler.js';
+import { GetSchoolInvitationPreviewHandler } from './application/queries/get-invitation-preview/get-invitation-preview.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
@@ -83,6 +84,7 @@ const QueryHandlers = [
   GetSchoolGroupHandler,
   ListSchoolGroupsHandler,
   ListSchoolTeachersHandler,
+  GetSchoolInvitationPreviewHandler,
 ];
 
 @Module({

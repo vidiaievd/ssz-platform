@@ -19,14 +19,17 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
+import { Public } from '../../../../common/decorators/public.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { SendInvitationCommand } from '../../application/commands/send-invitation/send-invitation.command.js';
 import { AcceptInvitationCommand } from '../../application/commands/accept-invitation/accept-invitation.command.js';
 import { ResendSchoolInvitationCommand } from '../../application/commands/resend-invitation/resend-invitation.command.js';
 import { RevokeSchoolInvitationCommand } from '../../application/commands/revoke-invitation/revoke-invitation.command.js';
 import { ListSchoolInvitationsQuery } from '../../application/queries/list-school-invitations/list-school-invitations.query.js';
+import { GetSchoolInvitationPreviewQuery } from '../../application/queries/get-invitation-preview/get-invitation-preview.query.js';
 import { SendInvitationRequestDto } from '../dto/send-invitation.request.dto.js';
 import {
+  InvitationPreviewResponseDto,
   InvitationResponseDto,
   ResendInvitationResponseDto,
   SendInvitationResponseDto,
@@ -79,7 +82,12 @@ export class InvitationsController {
     @Body() dto: SendInvitationRequestDto,
   ): Promise<SendInvitationResponseDto> {
     return this.commandBus.execute(
-      new SendInvitationCommand(user.sub, schoolId, dto.email, dto.role, dto.kind ?? 'register', dto.targetGroupId),
+      new SendInvitationCommand(
+        user.sub, schoolId, dto.email, dto.role,
+        dto.kind ?? 'register', dto.targetGroupId,
+        dto.maxWeeklyHours ?? null,
+        dto.employmentType ?? null,
+      ),
     );
   }
 
@@ -113,6 +121,17 @@ export class InvitationsController {
     await this.commandBus.execute(
       new RevokeSchoolInvitationCommand(user.sub, schoolId, invitationId),
     );
+  }
+
+  @Get('invitations/:token')
+  @Public()
+  @ApiOperation({ summary: 'Preview invitation details by token — no authentication required (§5.6)' })
+  @ApiResponse({ status: 200, type: InvitationPreviewResponseDto })
+  @ApiResponse({ status: 404, description: 'Token not found or invalid signature' })
+  async previewInvitation(
+    @Param('token') token: string,
+  ): Promise<InvitationPreviewResponseDto> {
+    return this.queryBus.execute(new GetSchoolInvitationPreviewQuery(token));
   }
 
   @Post('invitations/:token/accept')

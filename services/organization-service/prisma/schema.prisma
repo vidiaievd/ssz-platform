@@ -136,8 +136,10 @@ model SchoolInvitation {
   status        InvitationStatus @default(PENDING)
   expiresAt     DateTime         @map("expires_at")
   acceptedAt    DateTime?        @map("accepted_at")
-  lastSentAt    DateTime         @default(now()) @map("last_sent_at")
-  resendCount   Int              @default(0) @map("resend_count")
+  lastSentAt               DateTime         @default(now()) @map("last_sent_at")
+  resendCount              Int              @default(0) @map("resend_count")
+  teacherMaxWeeklyHours    Int?             @map("teacher_max_weekly_hours")
+  teacherEmploymentType    EmploymentType?  @map("teacher_employment_type")
   createdAt     DateTime         @default(now()) @map("created_at")
   updatedAt     DateTime         @updatedAt @map("updated_at")
 

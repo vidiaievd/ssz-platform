@@ -20,6 +20,7 @@ import { RevokeTutoringInvitationHandler } from './application/commands/revoke-i
 import { GetMyGroupHandler } from './application/queries/get-my-group/get-my-group.handler.js';
 import { GetMyTutorHandler } from './application/queries/get-my-tutor/get-my-tutor.handler.js';
 import { ListPendingInvitationsHandler } from './application/queries/list-pending-invitations/list-pending-invitations.handler.js';
+import { GetTutoringInvitationPreviewHandler } from './application/queries/get-invitation-preview/get-tutoring-invitation-preview.handler.js';
 
 import { TutoringController } from './presentation/controllers/tutoring.controller.js';
 import { TutoringInvitationsController } from './presentation/controllers/tutoring-invitations.controller.js';
@@ -39,6 +40,7 @@ const QueryHandlers = [
   GetMyGroupHandler,
   GetMyTutorHandler,
   ListPendingInvitationsHandler,
+  GetTutoringInvitationPreviewHandler,
 ];
 
 @Module({

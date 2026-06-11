@@ -17,6 +17,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
+import { Public } from '../../../../common/decorators/public.decorator.js';
 import { Roles } from '../../../../common/decorators/roles.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { SendTutoringInvitationCommand } from '../../application/commands/send-invitation/send-invitation.command.js';
@@ -24,9 +25,11 @@ import { AcceptTutoringInvitationCommand } from '../../application/commands/acce
 import { ResendTutoringInvitationCommand } from '../../application/commands/resend-invitation/resend-tutoring-invitation.command.js';
 import { RevokeTutoringInvitationCommand } from '../../application/commands/revoke-invitation/revoke-tutoring-invitation.command.js';
 import { ListPendingInvitationsQuery } from '../../application/queries/list-pending-invitations/list-pending-invitations.query.js';
+import { GetTutoringInvitationPreviewQuery } from '../../application/queries/get-invitation-preview/get-tutoring-invitation-preview.query.js';
 import { SendTutoringInvitationRequestDto } from '../dto/send-invitation.request.dto.js';
 import {
   SendTutoringInvitationResponseDto,
+  TutoringInvitationPreviewResponseDto,
   TutoringInvitationResponseDto,
   ResendTutoringInvitationResponseDto,
 } from '../dto/tutoring-group.response.dto.js';
@@ -100,6 +103,17 @@ export class TutoringInvitationsController {
     await this.commandBus.execute(
       new RevokeTutoringInvitationCommand(user.sub, invitationId),
     );
+  }
+
+  @Get('invitations/:token')
+  @Public()
+  @ApiOperation({ summary: 'Preview tutoring invitation details by token — no authentication required (§5.6)' })
+  @ApiResponse({ status: 200, type: TutoringInvitationPreviewResponseDto })
+  @ApiResponse({ status: 404, description: 'Token not found or invalid signature' })
+  async previewInvitation(
+    @Param('token') token: string,
+  ): Promise<TutoringInvitationPreviewResponseDto> {
+    return this.queryBus.execute(new GetTutoringInvitationPreviewQuery(token));
   }
 
   @Post('invitations/:token/accept')

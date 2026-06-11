@@ -23,6 +23,7 @@ import { SchoolMember } from '../../../domain/entities/school-member.entity.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { UserPlatformRoleAssignedEvent } from '../../../domain/events/user-platform-role-assigned.event.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
+import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import {
   SCHOOL_GROUP_REPOSITORY,
   type ISchoolGroupRepository,
@@ -40,6 +41,7 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
     @Inject(SCHOOL_GROUP_REPOSITORY) private readonly groupRepository: ISchoolGroupRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
     private readonly tokenService: InvitationTokenService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async execute(command: AcceptInvitationCommand): Promise<void> {
@@ -101,6 +103,31 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
       await this.eventPublisher.publish(
         new UserPlatformRoleAssignedEvent(randomUUID(), command.actorId, 'Student'),
       );
+    }
+
+    // Materialize teacher workload attrs from invitation into school_teacher.
+    if (invitation.role === MemberRole.TEACHER &&
+        (invitation.teacherMaxWeeklyHours != null || invitation.teacherEmploymentType != null)) {
+      const schoolMember = await (this.prisma as any).schoolMember.findUnique({
+        where: { schoolId_userId: { schoolId: school.id, userId: command.actorId } },
+      });
+      if (schoolMember) {
+        await (this.prisma as any).schoolTeacher.upsert({
+          where: { schoolId_userId: { schoolId: school.id, userId: command.actorId } },
+          create: {
+            schoolId: school.id,
+            userId: command.actorId,
+            memberId: schoolMember.id,
+            maxWeeklyHours: invitation.teacherMaxWeeklyHours ?? null,
+            employmentType: invitation.teacherEmploymentType ?? null,
+            status: 'active',
+          },
+          update: {
+            ...(invitation.teacherMaxWeeklyHours != null && { maxWeeklyHours: invitation.teacherMaxWeeklyHours }),
+            ...(invitation.teacherEmploymentType != null && { employmentType: invitation.teacherEmploymentType }),
+          },
+        });
+      }
     }
 
     if (invitation.targetGroupId) {

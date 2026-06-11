@@ -5,6 +5,10 @@ import {
   SCHOOL_REPOSITORY,
   type ISchoolRepository,
 } from '../../../domain/repositories/school.repository.interface.js';
+import {
+  PROFILE_SERVICE_PORT,
+  type IProfileServicePort,
+} from '../../../../../shared/application/ports/profile-service.interface.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
@@ -17,6 +21,7 @@ export type { AvailabilityWindow, SchoolTeacherDto } from '../../dto/school.dto.
 export class ListSchoolTeachersHandler implements IQueryHandler<ListSchoolTeachersQuery> {
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
+    @Inject(PROFILE_SERVICE_PORT) private readonly profileService: IProfileServicePort,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -37,12 +42,30 @@ export class ListSchoolTeachersHandler implements IQueryHandler<ListSchoolTeache
       orderBy: { joinedAt: 'asc' },
     });
 
-    return rows.map((r: any) => ({
-      userId: r.userId,
-      maxWeeklyHours: r.teacherAttrs?.maxWeeklyHours ?? null,
-      availability: r.teacherAttrs?.availability ?? [],
-      employmentType: r.teacherAttrs?.employmentType ?? null,
-      status: r.teacherAttrs?.status ?? 'active',
-    }));
+    if (rows.length === 0) return [];
+
+    // Enrich with profile data in parallel (name/avatarUrl + tutor langs).
+    // Both calls are best-effort — failures fall back to userId/null/[].
+    const enriched = await Promise.all(
+      rows.map(async (r: any) => {
+        const [summary, teachingLangs] = await Promise.all([
+          this.profileService.getProfileSummary(r.userId),
+          this.profileService.getTutorTeachingLanguages(r.userId),
+        ]);
+
+        return {
+          userId: r.userId,
+          name: summary?.name ?? r.userId,
+          avatarUrl: summary?.avatarUrl ?? null,
+          langs: teachingLangs?.langs ?? [],
+          maxWeeklyHours: r.teacherAttrs?.maxWeeklyHours ?? null,
+          availability: r.teacherAttrs?.availability ?? [],
+          employmentType: r.teacherAttrs?.employmentType ?? null,
+          status: r.teacherAttrs?.status ?? 'active',
+        } satisfies SchoolTeacherDto;
+      }),
+    );
+
+    return enriched;
   }
 }

@@ -57,6 +57,15 @@ export class ResendTutoringInvitationResponseDto {
   @ApiProperty() resendCount!: number;
 }
 
+export class TutoringInvitationPreviewResponseDto {
+  @ApiProperty({ enum: ['STUDENT'] }) role!: 'STUDENT';
+  @ApiProperty({ enum: ['register'] }) kind!: 'register';
+  @ApiProperty({ description: 'Email the invitation was addressed to' }) email!: string;
+  @ApiPropertyOptional({ description: 'Display name of the tutor who sent the invite' }) invitedByName!: string | null;
+  @ApiProperty({ enum: ['pending', 'accepted', 'expired', 'revoked'] }) status!: string;
+  @ApiProperty({ description: 'Invitation expiry (ISO 8601)' }) expiresAt!: string;
+}
+
 /** @deprecated use TutoringInvitationResponseDto */
 export class PendingTutoringInvitationResponseDto {
   @ApiProperty() id!: string;

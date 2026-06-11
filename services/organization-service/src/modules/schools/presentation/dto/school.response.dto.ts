@@ -114,3 +114,29 @@ export class SlugAvailabilityResponseDto {
   @ApiPropertyOptional({ type: [String], example: ['my-school-2', 'my-school-3'] })
   suggestions?: string[];
 }
+
+export class InvitationPreviewResponseDto {
+  @ApiProperty({ description: 'School display name' })
+  schoolName!: string;
+
+  @ApiProperty({ description: 'School URL slug' })
+  schoolSlug!: string;
+
+  @ApiProperty({ enum: MemberRole, description: 'Role assigned on acceptance' })
+  role!: MemberRole;
+
+  @ApiProperty({ enum: ['register', 'onboard_existing'] })
+  kind!: string;
+
+  @ApiProperty({ description: 'Email the invitation was addressed to' })
+  email!: string;
+
+  @ApiPropertyOptional({ description: 'Display name of the inviting user' })
+  invitedByName!: string | null;
+
+  @ApiProperty({ enum: ['pending', 'accepted', 'expired', 'revoked'], description: 'Current invitation status' })
+  status!: string;
+
+  @ApiProperty({ description: 'Invitation expiry (ISO 8601)' })
+  expiresAt!: string;
+}

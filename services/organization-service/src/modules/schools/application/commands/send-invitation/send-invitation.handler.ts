@@ -22,9 +22,18 @@ import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { SchoolInvitation } from '../../../domain/entities/school-invitation.entity.js';
 import { SchoolInvitationSentEvent } from '../../../domain/events/school-invitation-sent.event.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
+import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import type { Env } from '../../../../../config/configuration.js';
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Roles that only OWNER/ADMIN may invite (staff + admin tier).
+const STAFF_ROLES: ReadonlySet<MemberRole> = new Set([
+  MemberRole.ADMIN,
+  MemberRole.CONTENT_ADMIN,
+  MemberRole.TEACHER,
+  MemberRole.SCHEDULER,
+]);
 
 @CommandHandler(SendInvitationCommand)
 export class SendInvitationHandler implements ICommandHandler<SendInvitationCommand> {
@@ -34,6 +43,7 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
     private readonly invitationRepository: ISchoolInvitationRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
     private readonly tokenService: InvitationTokenService,
+    private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env>,
   ) {}
 
@@ -44,13 +54,37 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
     const actorRole = school.getMemberRole(command.actorId);
     const isOwner = command.actorId === school.ownerId;
     const isAdmin = actorRole === MemberRole.ADMIN;
+    const isTeacher = actorRole === MemberRole.TEACHER;
 
-    if (command.role === MemberRole.ADMIN && !isOwner) {
-      throw new ForbiddenOperationException('Only the school owner can invite administrators');
-    }
-
-    if (!isOwner && !isAdmin) {
-      throw new ForbiddenOperationException('Only owner or admin can send invitations');
+    // §5.8 authorization gate
+    if (STAFF_ROLES.has(command.role)) {
+      // Staff invitations: OWNER/ADMIN only.
+      if (!isOwner && !isAdmin) {
+        throw new ForbiddenOperationException('Only the school owner or admin can invite staff members');
+      }
+      // ADMIN role: owner-only.
+      if (command.role === MemberRole.ADMIN && !isOwner) {
+        throw new ForbiddenOperationException('Only the school owner can invite administrators');
+      }
+    } else if (command.role === MemberRole.STUDENT) {
+      // STUDENT invitations: OWNER/ADMIN always; TEACHER only for their own group.
+      if (!isOwner && !isAdmin) {
+        if (!isTeacher) {
+          throw new ForbiddenOperationException('You do not have permission to invite students');
+        }
+        if (!command.targetGroupId) {
+          throw new ForbiddenOperationException('A teacher must specify targetGroupId when inviting a student');
+        }
+        // Verify the actor is a teacher of the target group.
+        const groupTeacher = await (this.prisma as any).groupTeacher.findFirst({
+          where: { groupId: command.targetGroupId, userId: command.actorId },
+        });
+        if (!groupTeacher) {
+          throw new ForbiddenOperationException('You can only invite students to groups you teach');
+        }
+      }
+    } else {
+      throw new ForbiddenOperationException('You do not have permission to send this invitation');
     }
 
     const existing = await this.invitationRepository.findActivePendingByEmailAndRole(
@@ -90,6 +124,8 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
       acceptedAt: null,
       lastSentAt: now,
       resendCount: 0,
+      teacherMaxWeeklyHours: command.teacherMaxWeeklyHours ?? null,
+      teacherEmploymentType: command.teacherEmploymentType ?? null,
       createdAt: now,
       updatedAt: now,
     });

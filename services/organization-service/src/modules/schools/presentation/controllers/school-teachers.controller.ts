@@ -80,6 +80,9 @@ class UpdateTeacherAttrsRequestDto {
 
 class SchoolTeacherResponseDto {
   @ApiProperty() userId!: string;
+  @ApiProperty({ description: 'Display name from profile-service (userId fallback)' }) name!: string;
+  @ApiPropertyOptional({ description: 'Avatar URL from profile-service' }) avatarUrl!: string | null;
+  @ApiProperty({ type: [String], description: 'Teaching languages (ISO 639-1) from tutor profile' }) langs!: string[];
   @ApiPropertyOptional() maxWeeklyHours?: number | null;
   @ApiProperty({ type: [AvailabilityWindowDto] }) availability!: AvailabilityWindowDto[];
   @ApiPropertyOptional({ enum: ['full', 'part', 'contract'] }) employmentType?: string | null;

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../config/configuration.js';
-import type { IProfileServicePort, TutorTeachingLanguages } from '../../shared/application/ports/profile-service.interface.js';
+import type { IProfileServicePort, ProfileSummary, TutorTeachingLanguages } from '../../shared/application/ports/profile-service.interface.js';
 
 @Injectable()
 export class ProfileServiceHttpClient implements IProfileServicePort {
@@ -35,6 +35,33 @@ export class ProfileServiceHttpClient implements IProfileServicePort {
       return { userId, langs };
     } catch (err) {
       this.logger.warn(`ProfileService unreachable: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
+  }
+
+  async getProfileSummary(userId: string): Promise<ProfileSummary | null> {
+    if (!this.baseUrl) return null;
+
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/profiles/${userId}`, {
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(3000),
+      });
+
+      if (res.status === 404) return null;
+      if (!res.ok) {
+        this.logger.warn(`ProfileService returned ${res.status} for profileSummary userId=${userId}`);
+        return null;
+      }
+
+      const body = await res.json() as { displayName?: string; avatarUrl?: string };
+      return {
+        userId,
+        name: body.displayName ?? userId,
+        avatarUrl: body.avatarUrl ?? null,
+      };
+    } catch (err) {
+      this.logger.warn(`ProfileService unreachable (summary): ${err instanceof Error ? err.message : String(err)}`);
       return null;
     }
   }

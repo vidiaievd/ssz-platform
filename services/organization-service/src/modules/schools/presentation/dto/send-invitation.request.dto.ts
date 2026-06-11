@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsEmail, IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 import { InvitableRoles, type InvitableRole } from '../../domain/value-objects/member-role.vo.js';
 
 export class SendInvitationRequestDto {
@@ -28,4 +28,23 @@ export class SendInvitationRequestDto {
   @IsOptional()
   @IsUUID()
   targetGroupId?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Max weekly contact hours (role=TEACHER only). For employment_type=full, 40 is assumed.',
+    minimum: 1,
+    maximum: 80,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(80)
+  maxWeeklyHours?: number;
+
+  @ApiPropertyOptional({
+    enum: ['full', 'part', 'contract'],
+    description: 'HR employment label (role=TEACHER only). Default: "part".',
+  })
+  @IsOptional()
+  @IsEnum(['full', 'part', 'contract'])
+  employmentType?: 'full' | 'part' | 'contract';
 }
