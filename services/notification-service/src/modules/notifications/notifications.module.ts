@@ -9,8 +9,10 @@ import { TeacherAbsenceHandler } from './handlers/teacher-absence.handler.js';
 import { SubstituteRequestHandler } from './handlers/substitute-request.handler.js';
 import { SubstituteAssignedHandler } from './handlers/substitute-assigned.handler.js';
 import { AlertRaisedHandler } from './handlers/alert-raised.handler.js';
+import { SchoolInvitationSentHandler } from './handlers/school-invitation-sent.handler.js';
 import { AnalyticsConsumerService } from '../../infrastructure/messaging/analytics-consumer.service.js';
 import { SchedulingConsumerService } from '../../infrastructure/messaging/scheduling-consumer.service.js';
+import { OrganizationConsumerService } from '../../infrastructure/messaging/organization-consumer.service.js';
 
 @Module({
   providers: [
@@ -24,8 +26,10 @@ import { SchedulingConsumerService } from '../../infrastructure/messaging/schedu
     SubstituteRequestHandler,
     SubstituteAssignedHandler,
     AlertRaisedHandler,
+    SchoolInvitationSentHandler,
     AnalyticsConsumerService,
     SchedulingConsumerService,
+    OrganizationConsumerService,
   ],
   exports: [NotificationsService, UserRegisteredHandler, EmailVerificationHandler, PasswordResetHandler],
 })

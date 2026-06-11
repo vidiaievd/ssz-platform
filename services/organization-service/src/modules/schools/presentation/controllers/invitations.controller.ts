@@ -55,12 +55,14 @@ export class InvitationsController {
   async listInvitations(
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,
-    @Query('role') role?: MemberRole,
-    @Query('status') status?: InvitationStatus,
+    @Query('role') role?: string,
+    @Query('status') status?: string,
     @Query('search') search?: string,
   ): Promise<InvitationResponseDto[]> {
+    const normalizedRole = role?.toUpperCase() as MemberRole | undefined;
+    const normalizedStatus = status?.toUpperCase() as InvitationStatus | undefined;
     const invitations: SchoolInvitation[] = await this.queryBus.execute(
-      new ListSchoolInvitationsQuery(user.sub, schoolId, { role, status, search }),
+      new ListSchoolInvitationsQuery(user.sub, schoolId, { role: normalizedRole, status: normalizedStatus, search }),
     );
     return invitations.map((inv) => this.toDto(inv));
   }

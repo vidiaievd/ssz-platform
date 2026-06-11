@@ -1,5 +1,4 @@
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
-import type { MemberRole } from '../value-objects/member-role.vo.js';
 
 export class SchoolInvitationSentEvent implements IDomainEvent {
   readonly eventId: string;
@@ -8,10 +7,14 @@ export class SchoolInvitationSentEvent implements IDomainEvent {
 
   constructor(
     eventId: string,
+    readonly invitationId: string,
     readonly schoolId: string,
+    readonly schoolName: string,
     readonly inviteeEmail: string,
-    readonly schoolRole: MemberRole,
-    readonly invitationToken: string,
+    readonly inviterName: string,
+    readonly invitationUrl: string,
+    readonly role: string,
+    readonly expiresAt: string,
   ) {
     this.eventId = eventId;
     this.occurredAt = new Date();

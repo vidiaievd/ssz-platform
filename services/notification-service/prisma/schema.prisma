@@ -20,6 +20,7 @@ enum NotificationType {
   OVERLOAD_ALERT
   VACANCY_ALERT
   UNCOVERED_LESSON
+  SCHOOL_INVITATION
 
   @@map("notification_type")
 }

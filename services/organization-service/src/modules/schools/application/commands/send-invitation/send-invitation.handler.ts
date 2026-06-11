@@ -1,5 +1,6 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { SendInvitationCommand } from './send-invitation.command.js';
 import {
@@ -21,6 +22,7 @@ import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { SchoolInvitation } from '../../../domain/entities/school-invitation.entity.js';
 import { SchoolInvitationSentEvent } from '../../../domain/events/school-invitation-sent.event.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
+import type { Env } from '../../../../../config/configuration.js';
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -32,6 +34,7 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
     private readonly invitationRepository: ISchoolInvitationRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
     private readonly tokenService: InvitationTokenService,
+    private readonly config: ConfigService<Env>,
   ) {}
 
   async execute(command: SendInvitationCommand): Promise<{ invitationId: string; token: string; kind: string; expiresAt: string; deliveryStatus: 'queued' }> {
@@ -93,13 +96,20 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
 
     await this.invitationRepository.save(invitation);
 
+    const appBaseUrl = this.config.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
+    const invitationUrl = `${appBaseUrl}/invitations/${token}/accept`;
+
     await this.eventPublisher.publish(
       new SchoolInvitationSentEvent(
         randomUUID(),
+        invitationId,
         command.schoolId,
+        school.name,
         command.email,
+        'School Admin',
+        invitationUrl,
         command.role,
-        token,
+        expiresAt.toISOString(),
       ),
     );
 

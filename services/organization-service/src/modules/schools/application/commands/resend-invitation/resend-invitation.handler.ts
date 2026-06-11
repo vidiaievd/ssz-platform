@@ -1,5 +1,6 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { ResendSchoolInvitationCommand } from './resend-invitation.command.js';
 import {
@@ -23,6 +24,7 @@ import { InvitationResendThrottledException } from '../../../domain/exceptions/i
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { SchoolInvitationSentEvent } from '../../../domain/events/school-invitation-sent.event.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
+import type { Env } from '../../../../../config/configuration.js';
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const RESEND_THROTTLE_MS = 5 * 60 * 1000;
@@ -35,6 +37,7 @@ export class ResendSchoolInvitationHandler implements ICommandHandler<ResendScho
     private readonly invitationRepository: ISchoolInvitationRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
     private readonly tokenService: InvitationTokenService,
+    private readonly config: ConfigService<Env>,
   ) {}
 
   async execute(command: ResendSchoolInvitationCommand): Promise<{
@@ -85,13 +88,20 @@ export class ResendSchoolInvitationHandler implements ICommandHandler<ResendScho
     invitation.rotateToken(newToken, newExpiresAt);
     await this.invitationRepository.save(invitation);
 
+    const appBaseUrl = this.config.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
+    const invitationUrl = `${appBaseUrl}/invitations/${newToken}/accept`;
+
     await this.eventPublisher.publish(
       new SchoolInvitationSentEvent(
         randomUUID(),
+        invitation.id,
         invitation.schoolId,
+        school.name,
         invitation.email,
+        'School Admin',
+        invitationUrl,
         invitation.role,
-        newToken,
+        newExpiresAt.toISOString(),
       ),
     );
 

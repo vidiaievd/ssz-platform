@@ -4,6 +4,7 @@ import { NotificationsRepository } from './notifications.repository.js';
 import { welcomeTemplate } from '../../infrastructure/email/templates/welcome.template.js';
 import { emailVerificationTemplate } from '../../infrastructure/email/templates/email-verification.template.js';
 import { passwordResetTemplate } from '../../infrastructure/email/templates/password-reset.template.js';
+import { schoolInvitationTemplate } from '../../infrastructure/email/templates/school-invitation.template.js';
 import type { NotificationType, NotificationChannel } from '../../../generated/prisma/enums.js';
 
 export interface SendWelcomeEmailInput {
@@ -23,6 +24,16 @@ export interface SendPasswordResetInput {
   email: string;
   resetUrl: string;
   expiresInMinutes: number;
+}
+
+export interface SendSchoolInvitationInput {
+  invitationId: string;
+  email: string;
+  schoolName: string;
+  inviterName: string;
+  invitationUrl: string;
+  role: string;
+  expiresAt: string;
 }
 
 @Injectable()
@@ -92,6 +103,34 @@ export class NotificationsService {
         email: input.email,
         resetUrl: input.resetUrl,
         expiresInMinutes: input.expiresInMinutes,
+      },
+    });
+
+    await this.sendEmail(notification.id, input.email, template);
+  }
+
+  async sendSchoolInvitation(input: SendSchoolInvitationInput): Promise<void> {
+    const template = schoolInvitationTemplate({
+      schoolName: input.schoolName,
+      inviterName: input.inviterName,
+      invitationUrl: input.invitationUrl,
+      role: input.role,
+      expiresAt: input.expiresAt,
+    });
+
+    const notification = await this.repo.create({
+      type: 'SCHOOL_INVITATION' as NotificationType,
+      channel: 'EMAIL' as NotificationChannel,
+      recipientId: input.invitationId,
+      recipientEmail: input.email,
+      subject: template.subject,
+      templateKey: 'school-invitation',
+      templateData: {
+        schoolName: input.schoolName,
+        inviterName: input.inviterName,
+        invitationUrl: input.invitationUrl,
+        role: input.role,
+        expiresAt: input.expiresAt,
       },
     });
 

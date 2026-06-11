@@ -98,6 +98,7 @@ services:
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       INVITATION_JWT_SECRET: ${INVITATION_JWT_SECRET:-dev-invitation-secret-32-chars!!}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       PROFILE_SERVICE_URL: http://user-profile-service:3001
       SCHEDULING_SERVICE_URL: http://scheduling-service:3009
     ports:
