@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { ArrayUnique, IsArray, IsEmail, IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { ALL_CAPABILITIES } from '../../domain/value-objects/capability.vo.js';
 import { InvitableRoles, type InvitableRole } from '../../domain/value-objects/member-role.vo.js';
 
 export class SendInvitationRequestDto {
@@ -47,4 +48,16 @@ export class SendInvitationRequestDto {
   @IsOptional()
   @IsEnum(['full', 'part', 'contract'])
   employmentType?: 'full' | 'part' | 'contract';
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Initial capability set (role=MANAGER only). Ignored for other roles.',
+    enum: ALL_CAPABILITIES,
+    example: ['invitations:create_teacher', 'groups:create'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayUnique()
+  capabilities?: string[];
 }

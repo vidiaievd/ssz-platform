@@ -85,6 +85,7 @@ export class SchoolInvitationPrismaRepository implements ISchoolInvitationReposi
         resendCount: invitation.resendCount,
         teacherMaxWeeklyHours: invitation.teacherMaxWeeklyHours ?? null,
         teacherEmploymentType: invitation.teacherEmploymentType ?? null,
+        capabilities: invitation.capabilities,
         createdAt: invitation.createdAt,
         updatedAt: invitation.updatedAt,
       },

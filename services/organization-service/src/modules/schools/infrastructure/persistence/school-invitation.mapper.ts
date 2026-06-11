@@ -17,6 +17,7 @@ type PrismaSchoolInvitation = {
   resendCount: number;
   teacherMaxWeeklyHours: number | null;
   teacherEmploymentType: string | null;
+  capabilities: string[];
   createdAt: Date;
   updatedAt: Date;
 };
@@ -39,6 +40,7 @@ export class SchoolInvitationMapper {
       resendCount: raw.resendCount,
       teacherMaxWeeklyHours: raw.teacherMaxWeeklyHours,
       teacherEmploymentType: raw.teacherEmploymentType as EmploymentType | null,
+      capabilities: raw.capabilities ?? [],
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });

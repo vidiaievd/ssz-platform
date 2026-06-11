@@ -21,9 +21,11 @@ import { TutoringInvitationRevokedException } from '../../modules/tutoring/domai
 import { TutoringInvitationExpiredException } from '../../modules/tutoring/domain/exceptions/invitation-expired.exception.js';
 import { TutoringInvitationResendThrottledException } from '../../modules/tutoring/domain/exceptions/invitation-resend-throttled.exception.js';
 import { InvitationNotFoundException as TutoringInvitationNotFoundException } from '../../modules/tutoring/domain/exceptions/invitation-not-found.exception.js';
+import { MemberNotFoundException } from '../../modules/schools/domain/exceptions/member-not-found.exception.js';
 
 @Catch(
   SchoolNotFoundException,
+  MemberNotFoundException,
   SchoolAlreadyExistsException,
   ForbiddenOperationException,
   MemberAlreadyExistsException,
@@ -57,6 +59,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
   private resolve(exception: Error): { status: number; code: string } {
     if (exception instanceof SchoolNotFoundException) {
       return { status: HttpStatus.NOT_FOUND, code: 'SCHOOL_NOT_FOUND' };
+    }
+    if (exception instanceof MemberNotFoundException) {
+      return { status: HttpStatus.NOT_FOUND, code: 'MEMBER_NOT_FOUND' };
     }
     if (exception instanceof SchoolAlreadyExistsException) {
       return { status: HttpStatus.CONFLICT, code: 'SCHOOL_ALREADY_EXISTS' };

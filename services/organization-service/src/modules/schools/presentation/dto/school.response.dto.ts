@@ -115,6 +115,18 @@ export class SlugAvailabilityResponseDto {
   suggestions?: string[];
 }
 
+export class MemberPermissionsResponseDto {
+  @ApiPropertyOptional({ enum: MemberRole, description: 'Current role of the member in this school, or null if not a member' })
+  role!: string | null;
+
+  @ApiProperty({
+    type: [String],
+    description: 'Effective capabilities. OWNER/ADMIN get all; MANAGER gets DB-stored set; others get empty array.',
+    example: ['invitations:create_teacher', 'groups:create'],
+  })
+  capabilities!: string[];
+}
+
 export class InvitationPreviewResponseDto {
   @ApiProperty({ description: 'School display name' })
   schoolName!: string;

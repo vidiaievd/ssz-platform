@@ -10,6 +10,7 @@ datasource db {
 enum MemberRole {
   OWNER
   ADMIN
+  MANAGER
   CONTENT_ADMIN
   TEACHER
   STUDENT
@@ -101,9 +102,24 @@ model SchoolMember {
   joinedAt  DateTime   @default(now())
 
   teacherAttrs SchoolTeacher?
+  permissions  SchoolMemberPermission?
 
   @@unique([schoolId, userId])
   @@map("school_members")
+}
+
+// Capability grants for MANAGER members (school-scoped).
+// OWNER / ADMIN inherit all capabilities implicitly — no row needed.
+model SchoolMemberPermission {
+  schoolId     String       @map("school_id")
+  userId       String       @map("user_id")
+  memberId     String       @unique @map("member_id")
+  member       SchoolMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  capabilities String[]     @default([])
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@id([schoolId, userId])
+  @@map("school_member_permissions")
 }
 
 // Teacher-specific attributes (workload + availability windows) scoped per school.
@@ -140,6 +156,7 @@ model SchoolInvitation {
   resendCount              Int              @default(0) @map("resend_count")
   teacherMaxWeeklyHours    Int?             @map("teacher_max_weekly_hours")
   teacherEmploymentType    EmploymentType?  @map("teacher_employment_type")
+  capabilities             String[]         @default([]) @map("capabilities")
   createdAt     DateTime         @default(now()) @map("created_at")
   updatedAt     DateTime         @updatedAt @map("updated_at")
 

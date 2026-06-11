@@ -130,6 +130,29 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
       }
     }
 
+    // Materialize capability grants for MANAGER role.
+    if (invitation.role === MemberRole.MANAGER && invitation.capabilities.length > 0) {
+      const schoolMember = await (this.prisma as any).schoolMember.findUnique({
+        where: { schoolId_userId: { schoolId: school.id, userId: command.actorId } },
+      });
+      if (schoolMember) {
+        await (this.prisma as any).schoolMemberPermission.upsert({
+          where: { schoolId_userId: { schoolId: school.id, userId: command.actorId } },
+          create: {
+            schoolId: school.id,
+            userId: command.actorId,
+            memberId: schoolMember.id,
+            capabilities: invitation.capabilities,
+            updatedAt: new Date(),
+          },
+          update: {
+            capabilities: invitation.capabilities,
+            updatedAt: new Date(),
+          },
+        });
+      }
+    }
+
     if (invitation.targetGroupId) {
       const group = await this.groupRepository.findById(invitation.targetGroupId);
       if (group && !group.isDeleted && group.schoolId === school.id) {

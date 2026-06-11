@@ -87,6 +87,7 @@ export class InvitationsController {
         dto.kind ?? 'register', dto.targetGroupId,
         dto.maxWeeklyHours ?? null,
         dto.employmentType ?? null,
+        dto.capabilities ?? [],
       ),
     );
   }

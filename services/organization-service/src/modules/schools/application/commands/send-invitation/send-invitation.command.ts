@@ -11,5 +11,6 @@ export class SendInvitationCommand {
     public readonly targetGroupId?: string | null,
     public readonly teacherMaxWeeklyHours?: number | null,
     public readonly teacherEmploymentType?: EmploymentType | null,
+    public readonly capabilities?: string[],
   ) {}
 }

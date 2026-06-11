@@ -34,6 +34,7 @@ import { RemoveGroupTeacherHandler } from './application/commands/remove-group-t
 import { UpdateTeacherAttrsHandler } from './application/commands/update-teacher-attrs/update-teacher-attrs.handler.js';
 import { AddGroupMemberHandler } from './application/commands/add-group-member/add-group-member.handler.js';
 import { RemoveGroupMemberHandler } from './application/commands/remove-group-member/remove-group-member.handler.js';
+import { UpdateMemberPermissionsHandler } from './application/commands/update-member-permissions/update-member-permissions.handler.js';
 
 import { GetSchoolHandler } from './application/queries/get-school/get-school.handler.js';
 import { GetSchoolBySlugHandler } from './application/queries/get-school-by-slug/get-school-by-slug.handler.js';
@@ -45,12 +46,15 @@ import { GetSchoolGroupHandler } from './application/queries/get-school-group/ge
 import { ListSchoolGroupsHandler } from './application/queries/list-school-groups/list-school-groups.handler.js';
 import { ListSchoolTeachersHandler } from './application/queries/list-school-teachers/list-school-teachers.handler.js';
 import { GetSchoolInvitationPreviewHandler } from './application/queries/get-invitation-preview/get-invitation-preview.handler.js';
+import { GetMyPermissionsHandler } from './application/queries/get-my-permissions/get-my-permissions.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
 import { InternalController } from './presentation/controllers/internal.controller.js';
 import { SchoolGroupsController } from './presentation/controllers/school-groups.controller.js';
 import { SchoolTeachersController } from './presentation/controllers/school-teachers.controller.js';
+import { SchoolMembersController } from './presentation/controllers/school-members.controller.js';
+import { CapabilityResolverService } from './application/services/capability-resolver.service.js';
 
 const CommandHandlers = [
   CreateSchoolHandler,
@@ -72,6 +76,7 @@ const CommandHandlers = [
   UpdateTeacherAttrsHandler,
   AddGroupMemberHandler,
   RemoveGroupMemberHandler,
+  UpdateMemberPermissionsHandler,
 ];
 
 const QueryHandlers = [
@@ -85,15 +90,17 @@ const QueryHandlers = [
   ListSchoolGroupsHandler,
   ListSchoolTeachersHandler,
   GetSchoolInvitationPreviewHandler,
+  GetMyPermissionsHandler,
 ];
 
 @Module({
   imports: [CqrsModule],
-  controllers: [SchoolsController, InvitationsController, InternalController, SchoolGroupsController, SchoolTeachersController],
+  controllers: [SchoolsController, InvitationsController, InternalController, SchoolGroupsController, SchoolTeachersController, SchoolMembersController],
   providers: [
     ...CommandHandlers,
     ...QueryHandlers,
     InvitationTokenService,
+    CapabilityResolverService,
     ProfileServiceHttpClient,
     SchedulingServiceHttpClient,
     {
