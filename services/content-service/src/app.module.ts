@@ -22,6 +22,7 @@ import { AccessControlModule } from './shared/access-control/access-control.modu
 import { AccessControlWiringModule } from './shared/access-control/access-control-wiring.module.js';
 import { DiscoveryModule } from './shared/discovery/discovery.module.js';
 import { TagModule } from './modules/tag/tag.module.js';
+import { GroupEntitlementModule } from './infrastructure/messaging/group-entitlement.module.js';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { TagModule } from './modules/tag/tag.module.js';
     AccessControlWiringModule,
     DiscoveryModule,
     TagModule,
+    GroupEntitlementModule,
   ],
   controllers: [],
   providers: [

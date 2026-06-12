@@ -1,13 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { MemberRole } from "../../domain/value-objects/member-role.vo.js";
 import { InvitationStatus } from "../../domain/value-objects/invitation-status.vo.js";
+import { SchoolType } from "../../domain/value-objects/school-type.vo.js";
 
 export class InvitationResponseDto {
   @ApiProperty({ description: 'Invitation UUID' })
-  id!: string;
-
-  @ApiProperty({ description: 'School UUID' })
-  schoolId!: string;
+  invitationId!: string;
 
   @ApiProperty({ description: 'Invitee email address' })
   email!: string;
@@ -15,14 +13,42 @@ export class InvitationResponseDto {
   @ApiProperty({ enum: MemberRole, description: 'Role assigned on acceptance' })
   role!: MemberRole;
 
+  @ApiPropertyOptional({ enum: ['register', 'onboard_existing'] })
+  kind?: string;
+
   @ApiProperty({ enum: InvitationStatus, description: 'Current invitation status' })
   status!: InvitationStatus;
 
-  @ApiProperty({ description: 'Invitation expiry (ISO 8601)' })
-  expiresAt!: string;
+  @ApiPropertyOptional({ description: 'Target group UUID (students only)' })
+  targetGroupId?: string | null;
+
+  @ApiPropertyOptional({ description: 'Target group name (denormalized)' })
+  targetGroupName?: string | null;
+
+  @ApiPropertyOptional({ description: 'Display name of the user who sent the invite' })
+  invitedByName?: string | null;
 
   @ApiProperty({ description: 'Creation timestamp (ISO 8601)' })
   createdAt!: string;
+
+  @ApiProperty({ description: 'Expiry timestamp (ISO 8601)' })
+  expiresAt!: string;
+
+  @ApiPropertyOptional({ description: 'Accept timestamp (ISO 8601), null if not yet accepted' })
+  acceptedAt?: string | null;
+
+  @ApiProperty({ description: 'Last send timestamp (ISO 8601)' })
+  lastSentAt!: string;
+
+  @ApiProperty({ description: 'How many times the invite was resent', default: 0 })
+  resendCount!: number;
+}
+
+export class ResendInvitationResponseDto {
+  @ApiProperty() invitationId!: string;
+  @ApiProperty() expiresAt!: string;
+  @ApiProperty({ enum: ['queued'] }) deliveryStatus!: 'queued';
+  @ApiProperty() resendCount!: number;
 }
 
 export class SchoolMemberResponseDto {
@@ -42,6 +68,7 @@ export class SchoolResponseDto {
   @ApiPropertyOptional() website?: string;
   @ApiPropertyOptional() contactEmail?: string;
   @ApiPropertyOptional() city?: string;
+  @ApiProperty({ enum: SchoolType, default: SchoolType.ONLINE }) type!: SchoolType;
   @ApiProperty() isActive!: boolean;
   @ApiProperty({ default: false }) requireTutorReviewForSelfPaced!: boolean;
   @ApiPropertyOptional() defaultExplanationLanguage?: string;
@@ -63,6 +90,19 @@ export class SchoolSummaryResponseDto {
   @ApiPropertyOptional() city?: string;
   @ApiProperty() memberCount!: number;
   @ApiProperty() createdAt!: Date;
+  @ApiProperty({
+    enum: MemberRole,
+    description: 'Caller\'s role in this school',
+  })
+  myRole!: MemberRole;
+  @ApiPropertyOptional({
+    type: [String],
+    nullable: true,
+    description:
+      'Caller\'s capabilities. MANAGER: DB-stored set. TEACHER/STUDENT: []. OWNER/ADMIN/CONTENT_ADMIN/SCHEDULER: null (all access is role-based).',
+    example: ['invitations:create_teacher', 'groups:create'],
+  })
+  myCapabilities!: string[] | null;
 }
 
 export class SendInvitationResponseDto {
@@ -86,4 +126,42 @@ export class SlugAvailabilityResponseDto {
   @ApiProperty({ example: true }) available!: boolean;
   @ApiPropertyOptional({ type: [String], example: ['my-school-2', 'my-school-3'] })
   suggestions?: string[];
+}
+
+export class MemberPermissionsResponseDto {
+  @ApiPropertyOptional({ enum: MemberRole, description: 'Current role of the member in this school, or null if not a member' })
+  role!: string | null;
+
+  @ApiProperty({
+    type: [String],
+    description: 'Effective capabilities. OWNER/ADMIN get all; MANAGER gets DB-stored set; others get empty array.',
+    example: ['invitations:create_teacher', 'groups:create'],
+  })
+  capabilities!: string[];
+}
+
+export class InvitationPreviewResponseDto {
+  @ApiProperty({ description: 'School display name' })
+  schoolName!: string;
+
+  @ApiProperty({ description: 'School URL slug' })
+  schoolSlug!: string;
+
+  @ApiProperty({ enum: MemberRole, description: 'Role assigned on acceptance' })
+  role!: MemberRole;
+
+  @ApiProperty({ enum: ['register', 'onboard_existing'] })
+  kind!: string;
+
+  @ApiProperty({ description: 'Email the invitation was addressed to' })
+  email!: string;
+
+  @ApiPropertyOptional({ description: 'Display name of the inviting user' })
+  invitedByName!: string | null;
+
+  @ApiProperty({ enum: ['pending', 'accepted', 'expired', 'revoked'], description: 'Current invitation status' })
+  status!: string;
+
+  @ApiProperty({ description: 'Invitation expiry (ISO 8601)' })
+  expiresAt!: string;
 }

@@ -21,8 +21,9 @@ model Profile {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  studentProfile StudentProfile?
-  tutorProfile   TutorProfile?
+  studentProfile  StudentProfile?
+  tutorProfile    TutorProfile?
+  teachingProfile TeachingProfile?
 
   @@map("profiles")
 }
@@ -74,6 +75,40 @@ model TutorTeachingLanguage {
 
   @@unique([tutorProfileId, languageCode])
   @@map("tutor_teaching_languages")
+}
+
+model TeachingProfile {
+  id        String            @id @default(uuid())
+  profileId String            @unique @map("profile_id")
+  profile   Profile           @relation(fields: [profileId], references: [id])
+  languages TeachingLanguage[]
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  @@map("teaching_profiles")
+}
+
+model TeachingLanguage {
+  id                String          @id @default(uuid())
+  teachingProfileId String          @map("teaching_profile_id")
+  teachingProfile   TeachingProfile @relation(fields: [teachingProfileId], references: [id])
+  code              String          @db.Char(2)
+  level             String?         // CEFR A1–C2
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  @@unique([teachingProfileId, code])
+  @@map("teaching_languages")
+}
+
+// Projection: userId → email + roles, built from auth.user.registered events.
+// Used exclusively for the internal email-lookup endpoint (school admin / invite flow).
+model UserEmailIndex {
+  userId    String   @id @map("user_id")
+  email     String   @unique
+  roles     String[] // e.g. ["student", "tutor"]
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("user_email_index")
 }
 
 // Stores IDs of already-processed RabbitMQ events.

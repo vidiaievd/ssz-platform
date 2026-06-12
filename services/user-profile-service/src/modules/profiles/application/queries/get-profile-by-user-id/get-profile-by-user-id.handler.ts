@@ -7,6 +7,8 @@ import type { IStudentProfileRepository } from '../../../../students/domain/repo
 import { STUDENT_PROFILE_REPOSITORY } from '../../../../students/domain/repositories/student-profile.repository.interface.js';
 import type { ITutorProfileRepository } from '../../../../tutors/domain/repositories/tutor-profile.repository.interface.js';
 import { TUTOR_PROFILE_REPOSITORY } from '../../../../tutors/domain/repositories/tutor-profile.repository.interface.js';
+import type { ITeachingProfileRepository } from '../../../../teaching/domain/repositories/teaching-profile.repository.interface.js';
+import { TEACHING_PROFILE_REPOSITORY } from '../../../../teaching/domain/repositories/teaching-profile.repository.interface.js';
 import { ProfileDto } from '../../dto/profile.dto.js';
 import { GetProfileByUserIdQuery } from './get-profile-by-user-id.query.js';
 
@@ -22,6 +24,8 @@ export class GetProfileByUserIdHandler implements IQueryHandler<
     private readonly studentProfileRepository: IStudentProfileRepository,
     @Inject(TUTOR_PROFILE_REPOSITORY)
     private readonly tutorProfileRepository: ITutorProfileRepository,
+    @Inject(TEACHING_PROFILE_REPOSITORY)
+    private readonly teachingProfileRepository: ITeachingProfileRepository,
   ) {}
 
   async execute(query: GetProfileByUserIdQuery): Promise<ProfileDto> {
@@ -30,9 +34,10 @@ export class GetProfileByUserIdHandler implements IQueryHandler<
       throw new ProfileNotFoundException(query.userId);
     }
 
-    const [studentProfile, tutorProfile] = await Promise.all([
+    const [studentProfile, tutorProfile, teachingProfile] = await Promise.all([
       this.studentProfileRepository.findByProfileId(profile.id),
       this.tutorProfileRepository.findByProfileId(profile.id),
+      this.teachingProfileRepository.findByProfileId(profile.id),
     ]);
 
     const dto = new ProfileDto();
@@ -49,6 +54,7 @@ export class GetProfileByUserIdHandler implements IQueryHandler<
     dto.updatedAt = profile.updatedAt;
     dto.hasStudentProfile = studentProfile !== null;
     dto.hasTutorProfile = tutorProfile !== null;
+    dto.hasTeachingProfile = teachingProfile !== null;
     return dto;
   }
 }

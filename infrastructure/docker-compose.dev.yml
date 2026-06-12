@@ -89,8 +89,8 @@ services:
 
   organization-service:
     build:
-      context: ../services/organization-service
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: services/organization-service/Dockerfile
     environment:
       NODE_ENV: development
       PORT: 3002
@@ -98,6 +98,9 @@ services:
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       INVITATION_JWT_SECRET: ${INVITATION_JWT_SECRET:-dev-invitation-secret-32-chars!!}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      PROFILE_SERVICE_URL: http://user-profile-service:3001
+      SCHEDULING_SERVICE_URL: http://scheduling-service:3009
     ports:
       - "3002:3002"
     depends_on:
@@ -160,6 +163,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET_PUBLIC: ssz-public
       MINIO_BUCKET_PRIVATE: ssz-private
+      MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL:-http://localhost:9000}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-localdevpassword}
@@ -290,6 +294,67 @@ services:
       retries: 5
       start_period: 20s
 
+  analytics-service:
+    build:
+      context: ../
+      dockerfile: services/analytics-service/Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3008
+      DATABASE_URL: postgresql://analytics_service:${ANALYTICS_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/analytics_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      LEARNING_SERVICE_URL: http://learning-service:3005
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
+      AT_RISK_THRESHOLD_DAYS: 7
+      DROPOFF_COMPLETION_THRESHOLD: 0.3
+    ports:
+      - "3008:3008"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3008/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  scheduling-service:
+    build:
+      context: ../
+      dockerfile: services/scheduling-service/Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3009
+      DATABASE_URL: postgresql://scheduling_service:${SCHEDULING_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/scheduling_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      PROFILE_SERVICE_URL: http://user-profile-service:3001
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-localdevpassword}
+    ports:
+      - "3009:3009"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3009/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   # ── Gateway ─────────────────────────────────────────────────────────────────
 
   nginx:
@@ -307,6 +372,8 @@ services:
       - notification-service
       - learning-service
       - exercise-engine-service
+      - analytics-service
+      - scheduling-service
 
   # ── Dev-only tools ──────────────────────────────────────────────────────────
 

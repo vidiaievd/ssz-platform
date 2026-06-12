@@ -24,6 +24,7 @@ export interface CreateAssignmentProps {
   assignerId: string;
   assigneeId: string;
   schoolId?: string | null;
+  groupId?: string | null;
   contentRef: ContentRef;
   dueAt: Date;
   notes?: string;
@@ -34,6 +35,7 @@ export interface AssignmentPersistenceProps {
   assignerId: string;
   assigneeId: string;
   schoolId: string | null;
+  groupId: string | null;
   contentRef: ContentRef;
   status: AssignmentStatus;
   assignedAt: Date;
@@ -51,6 +53,7 @@ export class Assignment extends AggregateRoot {
     private _assignerId: string,
     private _assigneeId: string,
     private _schoolId: string | null,
+    private _groupId: string | null,
     private _contentRef: ContentRef,
     private _status: AssignmentStatus,
     private _assignedAt: Date,
@@ -84,6 +87,7 @@ export class Assignment extends AggregateRoot {
       props.assignerId,
       props.assigneeId,
       props.schoolId ?? null,
+      props.groupId ?? null,
       props.contentRef,
       'ACTIVE',
       now,
@@ -101,6 +105,7 @@ export class Assignment extends AggregateRoot {
         assignerId: assignment._assignerId,
         assigneeId: assignment._assigneeId,
         schoolId: assignment._schoolId,
+        groupId: assignment._groupId,
         contentType: assignment._contentRef.type,
         contentId: assignment._contentRef.id,
         dueAt: assignment._dueAt.toISOString(),
@@ -117,6 +122,7 @@ export class Assignment extends AggregateRoot {
       props.assignerId,
       props.assigneeId,
       props.schoolId,
+      props.groupId,
       props.contentRef,
       props.status,
       props.assignedAt,
@@ -247,6 +253,7 @@ export class Assignment extends AggregateRoot {
   get assignerId(): string { return this._assignerId; }
   get assigneeId(): string { return this._assigneeId; }
   get schoolId(): string | null { return this._schoolId; }
+  get groupId(): string | null { return this._groupId; }
   get contentRef(): ContentRef { return this._contentRef; }
   get status(): AssignmentStatus { return this._status; }
   get assignedAt(): Date { return this._assignedAt; }

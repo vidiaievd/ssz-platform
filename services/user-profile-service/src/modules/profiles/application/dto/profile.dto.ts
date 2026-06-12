@@ -14,4 +14,5 @@ export class ProfileDto {
   updatedAt: Date;
   hasStudentProfile: boolean;
   hasTutorProfile: boolean;
+  hasTeachingProfile: boolean;
 }

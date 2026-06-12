@@ -68,6 +68,9 @@ public sealed class LoginCommandHandler(
         if (ipKey is not null)
             await rateLimitStore.ResetAsync(ipKey, ct);
 
+        if (!user.EmailVerified)
+            throw new EmailNotVerifiedException();
+
         // Password valid — check if 2FA is required
         if (user.TwoFactorEnabled)
         {

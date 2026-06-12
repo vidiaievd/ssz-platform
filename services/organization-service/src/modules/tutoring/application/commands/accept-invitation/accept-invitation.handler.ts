@@ -16,6 +16,8 @@ import {
 } from '../../../../../shared/application/ports/event-publisher.interface.js';
 import { InvitationNotFoundException } from '../../../domain/exceptions/invitation-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
+import { TutoringInvitationExpiredException } from '../../../domain/exceptions/invitation-expired.exception.js';
+import { TutoringInvitationRevokedException } from '../../../domain/exceptions/invitation-revoked.exception.js';
 import { TutoringGroupNotFoundException } from '../../../domain/exceptions/tutoring-group-not-found.exception.js';
 import { TutoringStudent } from '../../../domain/entities/tutoring-student.entity.js';
 import { TutoringInvitationTokenService } from '../../../infrastructure/tutoring-invitation-token.service.js';
@@ -45,16 +47,16 @@ export class AcceptTutoringInvitationHandler implements ICommandHandler<AcceptTu
     const invitation = await this.invitationRepository.findByToken(command.token);
     if (!invitation) throw new InvitationNotFoundException(command.token);
 
-    if (!invitation.isPending()) {
-      throw new ForbiddenOperationException(
-        `Invitation is not pending (status: ${invitation.status})`,
-      );
+    if (invitation.isRevoked()) {
+      throw new TutoringInvitationRevokedException(invitation.id);
     }
 
-    if (invitation.isExpired()) {
-      invitation.expire();
-      await this.invitationRepository.save(invitation);
-      throw new ForbiddenOperationException('Invitation has expired');
+    if (invitation.isExpired() || !invitation.isPending()) {
+      if (!invitation.isAccepted()) {
+        invitation.expire();
+        await this.invitationRepository.save(invitation);
+      }
+      throw new TutoringInvitationExpiredException(invitation.id);
     }
 
     const group = await this.groupRepository.findById(invitation.tutorGroupId);
@@ -67,7 +69,6 @@ export class AcceptTutoringInvitationHandler implements ICommandHandler<AcceptTu
       joinedAt: new Date(),
     });
 
-    // Invitation represents pre-authorization — bypass actor permission check
     group.addStudent(student, randomUUID());
     invitation.accept();
 

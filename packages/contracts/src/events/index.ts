@@ -6,3 +6,5 @@ export * from './media/index.js';
 export * from './notification/index.js';
 export * from './learning/index.js';
 export * from './exercise-engine/index.js';
+export * from './analytics/index.js';
+export * from './scheduling/index.js';

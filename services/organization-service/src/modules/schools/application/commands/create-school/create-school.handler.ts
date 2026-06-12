@@ -51,6 +51,7 @@ export class CreateSchoolHandler implements ICommandHandler<CreateSchoolCommand>
         website: command.website,
         contactEmail: command.contactEmail,
         city: command.city,
+        type: command.type,
       },
       randomUUID(),
     );
@@ -71,6 +72,7 @@ export class CreateSchoolHandler implements ICommandHandler<CreateSchoolCommand>
       website: school.website,
       contactEmail: school.contactEmail,
       city: school.city,
+      type: school.type,
       isActive: school.isActive,
       requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
       defaultExplanationLanguage: school.defaultExplanationLanguage,

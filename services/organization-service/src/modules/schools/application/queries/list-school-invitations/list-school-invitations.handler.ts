@@ -12,6 +12,7 @@ import {
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import type { SchoolInvitation } from '../../../domain/entities/school-invitation.entity.js';
+import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 
 @QueryHandler(ListSchoolInvitationsQuery)
 export class ListSchoolInvitationsHandler
@@ -34,6 +35,16 @@ export class ListSchoolInvitationsHandler
       throw new ForbiddenOperationException('You are not a member of this school');
     }
 
-    return this.invitationRepository.findPendingBySchoolId(query.schoolId);
+    const actorRole = school.getMemberRole(query.actorId);
+    const isOwner = query.actorId === school.ownerId;
+    const isAdmin = actorRole === MemberRole.ADMIN;
+
+    // Teachers may only see STUDENT-role invitations — restrict if neither owner nor admin
+    const filters = { ...(query.filters ?? {}) };
+    if (!isOwner && !isAdmin) {
+      filters.role = MemberRole.STUDENT;
+    }
+
+    return this.invitationRepository.findBySchoolId(query.schoolId, filters);
   }
 }

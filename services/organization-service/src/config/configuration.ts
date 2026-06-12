@@ -7,6 +7,9 @@ const envSchema = z.object({
   RABBITMQ_URL: z.string().min(1),
   JWT_PUBLIC_KEY: z.string().min(1),
   INVITATION_JWT_SECRET: z.string().min(32),
+  APP_BASE_URL: z.url().default('http://localhost:3000'),
+  PROFILE_SERVICE_URL: z.url().optional(),
+  SCHEDULING_SERVICE_URL: z.url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -26,4 +29,7 @@ export default (): Env => ({
   RABBITMQ_URL: process.env['RABBITMQ_URL'] ?? '',
   JWT_PUBLIC_KEY: process.env['JWT_PUBLIC_KEY'] ?? '',
   INVITATION_JWT_SECRET: process.env['INVITATION_JWT_SECRET'] ?? '',
+  APP_BASE_URL: process.env['APP_BASE_URL'] ?? 'http://localhost:3000',
+  PROFILE_SERVICE_URL: process.env['PROFILE_SERVICE_URL'],
+  SCHEDULING_SERVICE_URL: process.env['SCHEDULING_SERVICE_URL'],
 });
