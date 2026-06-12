@@ -20,6 +20,7 @@ const ROUTING_KEYS: Record<string, string> = {
   'school.member.removed': 'school.member.removed',
   'school.invitation.sent': 'school.invitation.sent',
   'user.platform.role.assigned': 'user.platform.role.assigned',
+  'school.teacher.accepted': 'school.teacher.accepted',
 };
 
 const EXCHANGE = 'organization.events';

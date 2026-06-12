@@ -22,6 +22,7 @@ import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-f
 import { SchoolMember } from '../../../domain/entities/school-member.entity.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { UserPlatformRoleAssignedEvent } from '../../../domain/events/user-platform-role-assigned.event.js';
+import { SchoolTeacherAcceptedEvent } from '../../../domain/events/school-teacher-accepted.event.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import {
@@ -29,7 +30,6 @@ import {
   type ISchoolGroupRepository,
 } from '../../../domain/repositories/school-group.repository.interface.js';
 
-const ROLES_REQUIRING_TUTOR: ReadonlySet<MemberRole> = new Set([MemberRole.TEACHER]);
 const ROLES_REQUIRING_STUDENT: ReadonlySet<MemberRole> = new Set([MemberRole.STUDENT]);
 
 @CommandHandler(AcceptInvitationCommand)
@@ -93,9 +93,17 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
     }
     school.clearDomainEvents();
 
-    if (ROLES_REQUIRING_TUTOR.has(invitation.role)) {
+    if (invitation.role === MemberRole.TEACHER) {
       await this.eventPublisher.publish(
-        new UserPlatformRoleAssignedEvent(randomUUID(), command.actorId, 'Tutor'),
+        new UserPlatformRoleAssignedEvent(randomUUID(), command.actorId, 'Teacher'),
+      );
+      await this.eventPublisher.publish(
+        new SchoolTeacherAcceptedEvent(
+          randomUUID(),
+          command.actorId,
+          school.id,
+          invitation.teacherLanguages ?? null,
+        ),
       );
     }
 
