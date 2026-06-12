@@ -202,6 +202,14 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("00000000-0000-0000-0001-000000000008"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "School teacher — member of a language school organisation",
+                            Name = "teacher",
+                            NormalizedName = "TEACHER"
+                        },
+                        new
+                        {
                             Id = new Guid("00000000-0000-0000-0001-000000000007"),
                             CreatedAt = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "School owner or manager — creates and administers a school organisation",

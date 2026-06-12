@@ -38,6 +38,7 @@ public sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
             CreateRole("00000000-0000-0000-0001-000000000006", "manager_platform", "Platform manager — elevated access, cannot manage admins"),
             CreateRole("00000000-0000-0000-0001-000000000004", "student",          "Language learner"),
             CreateRole("00000000-0000-0000-0001-000000000005", "tutor",            "Private language teacher — individual content and students"),
+            CreateRole("00000000-0000-0000-0001-000000000008", "teacher",          "School teacher — member of a language school organisation"),
             CreateRole("00000000-0000-0000-0001-000000000007", "school_admin",     "School owner or manager — creates and administers a school organisation"),
             CreateRole("00000000-0000-0000-0001-000000000003", "premium",          "Premium subscriber")
         );
