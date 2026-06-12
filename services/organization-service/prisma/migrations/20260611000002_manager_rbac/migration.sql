@@ -7,9 +7,9 @@ ALTER TYPE "MemberRole" ADD VALUE IF NOT EXISTS 'MANAGER';
 -- 2. Capability grants table (MANAGER members only;
 --    OWNER/ADMIN inherit all capabilities implicitly)
 CREATE TABLE IF NOT EXISTS "school_member_permissions" (
-  "school_id"    UUID        NOT NULL,
-  "user_id"      UUID        NOT NULL,
-  "member_id"    UUID        NOT NULL UNIQUE,
+  "school_id"    TEXT        NOT NULL,
+  "user_id"      TEXT        NOT NULL,
+  "member_id"    TEXT        NOT NULL UNIQUE,
   "capabilities" TEXT[]      NOT NULL DEFAULT '{}',
   "updated_at"   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY ("school_id", "user_id"),

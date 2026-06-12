@@ -55,6 +55,15 @@ export class SchoolPrismaRepository implements ISchoolRepository {
     return rows.map(SchoolMapper.toDomain);
   }
 
+  async findManagerCapabilities(userId: string, schoolIds: string[]): Promise<Map<string, string[]>> {
+    if (schoolIds.length === 0) return new Map();
+    const rows = await (this.prisma as any).schoolMemberPermission.findMany({
+      where: { userId, schoolId: { in: schoolIds } },
+      select: { schoolId: true, capabilities: true },
+    });
+    return new Map(rows.map((r: any) => [r.schoolId as string, r.capabilities as string[]]));
+  }
+
   async save(school: School): Promise<void> {
     await (this.prisma as any).$transaction(async (tx: any) => {
       await tx.school.upsert({

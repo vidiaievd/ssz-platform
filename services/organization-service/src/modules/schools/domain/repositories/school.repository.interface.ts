@@ -6,6 +6,7 @@ export interface ISchoolRepository {
   findByName(name: string): Promise<School | null>;
   findByOwnerId(ownerId: string): Promise<School[]>;
   findMemberSchools(userId: string): Promise<School[]>;
+  findManagerCapabilities(userId: string, schoolIds: string[]): Promise<Map<string, string[]>>;
   save(school: School): Promise<void>;
 }
 

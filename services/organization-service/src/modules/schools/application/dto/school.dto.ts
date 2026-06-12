@@ -56,4 +56,6 @@ export interface SchoolSummaryDto {
   city?: string;
   memberCount: number;
   createdAt: Date;
+  myRole: MemberRole;
+  myCapabilities: string[] | null;
 }

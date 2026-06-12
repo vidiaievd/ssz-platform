@@ -90,6 +90,19 @@ export class SchoolSummaryResponseDto {
   @ApiPropertyOptional() city?: string;
   @ApiProperty() memberCount!: number;
   @ApiProperty() createdAt!: Date;
+  @ApiProperty({
+    enum: MemberRole,
+    description: 'Caller\'s role in this school',
+  })
+  myRole!: MemberRole;
+  @ApiPropertyOptional({
+    type: [String],
+    nullable: true,
+    description:
+      'Caller\'s capabilities. MANAGER: DB-stored set. TEACHER/STUDENT: []. OWNER/ADMIN/CONTENT_ADMIN/SCHEDULER: null (all access is role-based).',
+    example: ['invitations:create_teacher', 'groups:create'],
+  })
+  myCapabilities!: string[] | null;
 }
 
 export class SendInvitationResponseDto {
