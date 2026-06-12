@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../config/configuration.js';
-import type { IProfileServicePort, ProfileSummary, TutorTeachingLanguages } from '../../shared/application/ports/profile-service.interface.js';
+import type { IProfileServicePort, ProfileSummary, TeachingLanguages } from '../../shared/application/ports/profile-service.interface.js';
 
 @Injectable()
 export class ProfileServiceHttpClient implements IProfileServicePort {
@@ -12,14 +12,14 @@ export class ProfileServiceHttpClient implements IProfileServicePort {
     this.baseUrl = this.config.get('PROFILE_SERVICE_URL', { infer: true });
   }
 
-  async getTutorTeachingLanguages(userId: string): Promise<TutorTeachingLanguages | null> {
+  async getTeachingLanguages(userId: string): Promise<TeachingLanguages | null> {
     if (!this.baseUrl) {
       this.logger.warn('PROFILE_SERVICE_URL not configured — skipping language validation');
       return null;
     }
 
     try {
-      const res = await fetch(`${this.baseUrl}/api/v1/profiles/${userId}/tutor`, {
+      const res = await fetch(`${this.baseUrl}/api/v1/profiles/${userId}/teaching`, {
         headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(3000),
       });
@@ -30,8 +30,8 @@ export class ProfileServiceHttpClient implements IProfileServicePort {
         return null;
       }
 
-      const body = await res.json() as { teachingLanguages?: Array<{ code: string }> };
-      const langs = (body.teachingLanguages ?? []).map((l) => l.code);
+      const body = await res.json() as { languages?: Array<{ code: string }> };
+      const langs = (body.languages ?? []).map((l) => l.code);
       return { userId, langs };
     } catch (err) {
       this.logger.warn(`ProfileService unreachable: ${err instanceof Error ? err.message : String(err)}`);

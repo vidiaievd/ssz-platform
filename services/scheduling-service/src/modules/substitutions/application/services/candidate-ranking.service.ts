@@ -43,12 +43,15 @@ export class CandidateRankingService {
     });
     if (!request) return [];
 
+    const groupInfo = await this.orgClient.getGroup(request.schoolId, request.groupId);
+
     const ctx: RequestContext = {
       schoolId: request.schoolId,
       groupId: request.groupId,
       lessonId: request.lessonId,
       coverFrom: request.coverFrom,
       coverTo: request.coverTo,
+      requiredLanguage: groupInfo?.lang ?? undefined,
     };
 
     const [allTeachers, policyRow] = await Promise.all([
@@ -74,6 +77,15 @@ export class CandidateRankingService {
     lesson: { date: Date; startTime: string; endTime: string; groupId: string },
   ): Promise<SubstitutionCandidate> {
     const reasons: string[] = [];
+
+    // Language-fit: ineligible if group requires a language the teacher doesn't teach
+    if (ctx.requiredLanguage) {
+      const teachingLangs = await this.profileClient.getTeachingLanguages(teacher.userId);
+      if (teachingLangs.length > 0 && !teachingLangs.includes(ctx.requiredLanguage)) {
+        reasons.push('language-mismatch');
+        return { teacherId: teacher.userId, eligible: false, fitScore: 0, reasons, capScore: 0, famScore: 0, disrScore: 0, availScore: 0 };
+      }
+    }
 
     // G2: Check if teacher is free during lesson time on that day
     const lessonDate = lesson.date;

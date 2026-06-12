@@ -29,6 +29,7 @@ export interface GroupInfo {
   startDate: string | null;
   endDate: string | null;
   status: string;
+  lang?: string | null;
 }
 
 export const ORG_SERVICE_PORT = Symbol('IOrgServicePort');

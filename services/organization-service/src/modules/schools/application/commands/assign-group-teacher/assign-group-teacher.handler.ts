@@ -68,7 +68,7 @@ export class AssignGroupTeacherHandler implements ICommandHandler<AssignGroupTea
 
     // ── Language fit (hard block, spec §6) ──────────────────────────────────
     if (group.lang) {
-      const profile = await this.profileService.getTutorTeachingLanguages(command.userId);
+      const profile = await this.profileService.getTeachingLanguages(command.userId);
       if (profile !== null && profile.langs.length > 0 && !profile.langs.includes(group.lang)) {
         throw new ConflictException({
           error: 'language-mismatch',

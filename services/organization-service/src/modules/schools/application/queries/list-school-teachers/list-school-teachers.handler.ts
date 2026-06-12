@@ -50,7 +50,7 @@ export class ListSchoolTeachersHandler implements IQueryHandler<ListSchoolTeache
       rows.map(async (r: any) => {
         const [summary, teachingLangs] = await Promise.all([
           this.profileService.getProfileSummary(r.userId),
-          this.profileService.getTutorTeachingLanguages(r.userId),
+          this.profileService.getTeachingLanguages(r.userId),
         ]);
 
         return {

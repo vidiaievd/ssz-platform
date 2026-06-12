@@ -2,9 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/configuration.js';
 
-export interface TutorProfile {
+export interface TeachingProfile {
   userId: string;
-  teachingLanguages: string[]; // ISO 639-1 codes
+  languages: Array<{ code: string; level?: string | null }>;
 }
 
 @Injectable()
@@ -18,17 +18,17 @@ export class ProfileServiceHttpClient {
     this.token = config.get<AppConfig['organization']>('organization')?.token ?? '';
   }
 
-  async getTutorTeachingLanguages(userId: string): Promise<string[]> {
+  async getTeachingLanguages(userId: string): Promise<string[]> {
     try {
       const res = await fetch(
-        `${this.baseUrl}/api/v1/profiles/${userId}/tutor`,
+        `${this.baseUrl}/api/v1/profiles/${userId}/teaching`,
         { headers: { Authorization: `Bearer ${this.token}` } },
       );
       if (!res.ok) return [];
-      const body = await res.json() as { teachingLanguages?: string[] };
-      return body.teachingLanguages ?? [];
+      const body = await res.json() as { languages?: Array<{ code: string }> };
+      return (body.languages ?? []).map((l) => l.code);
     } catch (err) {
-      this.logger.warn(`getTutorTeachingLanguages failed for ${userId}: ${String(err)}`);
+      this.logger.warn(`getTeachingLanguages failed for ${userId}: ${String(err)}`);
       return [];
     }
   }

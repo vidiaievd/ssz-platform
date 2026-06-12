@@ -1,4 +1,4 @@
-export interface TutorTeachingLanguages {
+export interface TeachingLanguages {
   userId: string;
   langs: string[]; // ISO 639-1 codes
 }
@@ -10,7 +10,7 @@ export interface ProfileSummary {
 }
 
 export interface IProfileServicePort {
-  getTutorTeachingLanguages(userId: string): Promise<TutorTeachingLanguages | null>;
+  getTeachingLanguages(userId: string): Promise<TeachingLanguages | null>;
   getProfileSummary(userId: string): Promise<ProfileSummary | null>;
 }
 
