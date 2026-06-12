@@ -1,4 +1,4 @@
-import type { InvitationKind, EmploymentType } from '../../domain/entities/school-invitation.entity.js';
+import type { InvitationKind, EmploymentType, TeacherLanguage } from '../../domain/entities/school-invitation.entity.js';
 import { SchoolInvitation } from '../../domain/entities/school-invitation.entity.js';
 
 type PrismaSchoolInvitation = {
@@ -17,6 +17,7 @@ type PrismaSchoolInvitation = {
   resendCount: number;
   teacherMaxWeeklyHours: number | null;
   teacherEmploymentType: string | null;
+  teacherLanguages: unknown | null;
   capabilities: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +41,9 @@ export class SchoolInvitationMapper {
       resendCount: raw.resendCount,
       teacherMaxWeeklyHours: raw.teacherMaxWeeklyHours,
       teacherEmploymentType: raw.teacherEmploymentType as EmploymentType | null,
+      teacherLanguages: Array.isArray(raw.teacherLanguages)
+        ? (raw.teacherLanguages as TeacherLanguage[])
+        : null,
       capabilities: raw.capabilities ?? [],
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,

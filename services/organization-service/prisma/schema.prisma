@@ -68,11 +68,11 @@ enum InvitationKind {
 }
 
 model School {
-  id           String     @id @default(uuid())
+  id           String     @id @default(uuid()) @db.Uuid
   name         String
   slug         String     @unique
   description  String?    @db.Text
-  ownerId      String     // userId from user-profile-service
+  ownerId      String     // userId from user-profile-service — stays TEXT (external)
   avatarUrl    String?
   website      String?
   contactEmail String?    @map("contact_email")
@@ -94,10 +94,10 @@ model School {
 }
 
 model SchoolMember {
-  id        String     @id @default(uuid())
-  schoolId  String
+  id        String     @id @default(uuid()) @db.Uuid
+  schoolId  String     @db.Uuid
   school    School     @relation(fields: [schoolId], references: [id])
-  userId    String     // userId from user-profile-service
+  userId    String     // userId from user-profile-service — stays TEXT (external)
   role      MemberRole
   joinedAt  DateTime   @default(now())
 
@@ -111,9 +111,9 @@ model SchoolMember {
 // Capability grants for MANAGER members (school-scoped).
 // OWNER / ADMIN inherit all capabilities implicitly — no row needed.
 model SchoolMemberPermission {
-  schoolId     String       @map("school_id")
-  userId       String       @map("user_id")
-  memberId     String       @unique @map("member_id")
+  schoolId     String       @map("school_id") @db.Uuid
+  userId       String       @map("user_id")              // external — stays TEXT
+  memberId     String       @unique @map("member_id") @db.Uuid
   member       SchoolMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
   capabilities String[]     @default([])
   updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at")
@@ -125,9 +125,9 @@ model SchoolMemberPermission {
 // Teacher-specific attributes (workload + availability windows) scoped per school.
 // Linked to SchoolMember to ensure the user is actually a TEACHER in this school.
 model SchoolTeacher {
-  schoolId        String         @map("school_id")
-  userId          String         @map("user_id")
-  memberId        String         @unique @map("member_id")
+  schoolId        String         @map("school_id") @db.Uuid
+  userId          String         @map("user_id")           // external — stays TEXT
+  memberId        String         @unique @map("member_id") @db.Uuid
   member          SchoolMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   maxWeeklyHours  Int?           @map("max_weekly_hours")
   availability    Json?          // [{ weekday: 1-7, start: "HH:mm", end: "HH:mm" }]
@@ -140,14 +140,14 @@ model SchoolTeacher {
 }
 
 model SchoolInvitation {
-  id            String           @id @default(uuid())
-  schoolId      String
+  id            String           @id @default(uuid()) @db.Uuid
+  schoolId      String           @db.Uuid
   school        School           @relation(fields: [schoolId], references: [id])
   email         String
   role          MemberRole       @default(TEACHER)
   kind          InvitationKind   @default(register)
-  targetGroupId String?          @map("target_group_id")
-  invitedBy     String?          @map("invited_by")
+  targetGroupId String?          @map("target_group_id") @db.Uuid
+  invitedBy     String?          @map("invited_by")      // external — stays TEXT
   token         String           @unique
   status        InvitationStatus @default(PENDING)
   expiresAt     DateTime         @map("expires_at")
@@ -156,6 +156,7 @@ model SchoolInvitation {
   resendCount              Int              @default(0) @map("resend_count")
   teacherMaxWeeklyHours    Int?             @map("teacher_max_weekly_hours")
   teacherEmploymentType    EmploymentType?  @map("teacher_employment_type")
+  teacherLanguages         Json?            @map("teacher_languages")   // [{ code, level }] for role=TEACHER
   capabilities             String[]         @default([]) @map("capabilities")
   createdAt     DateTime         @default(now()) @map("created_at")
   updatedAt     DateTime         @updatedAt @map("updated_at")
@@ -166,8 +167,8 @@ model SchoolInvitation {
 }
 
 model SchoolGroup {
-  id          String      @id @default(uuid())
-  schoolId    String      @map("school_id")
+  id          String      @id @default(uuid()) @db.Uuid
+  schoolId    String      @map("school_id") @db.Uuid
   school      School      @relation(fields: [schoolId], references: [id])
   name        String
   description String?     @db.Text
@@ -193,10 +194,10 @@ model SchoolGroup {
 }
 
 model SchoolGroupMember {
-  id       String      @id @default(uuid())
-  groupId  String      @map("group_id")
+  id       String      @id @default(uuid()) @db.Uuid
+  groupId  String      @map("group_id") @db.Uuid
   group    SchoolGroup @relation(fields: [groupId], references: [id])
-  userId   String      @map("user_id")
+  userId   String      @map("user_id")    // external — stays TEXT
   addedAt  DateTime    @default(now()) @map("added_at")
 
   @@unique([groupId, userId])
@@ -205,10 +206,10 @@ model SchoolGroupMember {
 }
 
 model GroupTeacher {
-  id        String           @id @default(uuid())
-  groupId   String           @map("group_id")
+  id        String           @id @default(uuid()) @db.Uuid
+  groupId   String           @map("group_id") @db.Uuid
   group     SchoolGroup      @relation(fields: [groupId], references: [id])
-  userId    String           @map("user_id")
+  userId    String           @map("user_id")    // external — stays TEXT
   role      GroupTeacherRole
   fromDate  DateTime?        @map("from_date") @db.Date
   toDate    DateTime?        @map("to_date") @db.Date
@@ -222,8 +223,8 @@ model GroupTeacher {
 }
 
 model TutoringGroup {
-  id          String    @id @default(uuid())
-  tutorId     String    @unique  // one group per tutor
+  id          String    @id @default(uuid()) @db.Uuid
+  tutorId     String    @unique  // external tutor userId — stays TEXT
   name        String?
   description String?   @db.Text
   avatarUrl   String?
@@ -239,10 +240,10 @@ model TutoringGroup {
 }
 
 model TutoringStudent {
-  id           String        @id @default(uuid())
-  tutorGroupId String
+  id           String        @id @default(uuid()) @db.Uuid
+  tutorGroupId String        @db.Uuid
   tutorGroup   TutoringGroup @relation(fields: [tutorGroupId], references: [id])
-  userId       String
+  userId       String        // external — stays TEXT
   joinedAt     DateTime      @default(now())
 
   @@unique([tutorGroupId, userId])
@@ -250,8 +251,8 @@ model TutoringStudent {
 }
 
 model TutoringInvitation {
-  id           String           @id @default(uuid())
-  tutorGroupId String           @map("tutor_group_id")
+  id           String           @id @default(uuid()) @db.Uuid
+  tutorGroupId String           @map("tutor_group_id") @db.Uuid
   tutorGroup   TutoringGroup    @relation(fields: [tutorGroupId], references: [id])
   email        String
   token        String           @unique
@@ -269,7 +270,7 @@ model TutoringInvitation {
 
 // Idempotency guard for RabbitMQ event consumers
 model ProcessedEvent {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid()) @db.Uuid
   eventId     String   @unique
   eventType   String
   processedAt DateTime @default(now())
@@ -282,7 +283,7 @@ model ProcessedEvent {
 // OutboxRelayService polls and publishes to RabbitMQ. See ADR-011.
 
 model Outbox {
-  id            String    @id @default(uuid())
+  id            String    @id @default(uuid()) @db.Uuid
   eventId       String    @unique @map("event_id")
   eventType     String    @map("event_type")
   exchange      String

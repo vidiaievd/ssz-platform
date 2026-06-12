@@ -94,6 +94,7 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
       resendCount: 0,
       teacherMaxWeeklyHours: command.teacherMaxWeeklyHours ?? null,
       teacherEmploymentType: command.teacherEmploymentType ?? null,
+      teacherLanguages: command.teacherLanguages ?? null,
       capabilities: command.capabilities ?? [],
       createdAt: now,
       updatedAt: now,
@@ -102,7 +103,7 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
     await this.invitationRepository.save(invitation);
 
     const appBaseUrl = this.config.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
-    const invitationUrl = `${appBaseUrl}/invitations/${token}/accept`;
+    const invitationUrl = `${appBaseUrl}/invite/${token}`;
 
     await this.eventPublisher.publish(
       new SchoolInvitationSentEvent(

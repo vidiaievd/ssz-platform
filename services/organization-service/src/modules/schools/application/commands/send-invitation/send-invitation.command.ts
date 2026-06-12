@@ -1,5 +1,5 @@
 import type { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
-import type { InvitationKind, EmploymentType } from '../../../domain/entities/school-invitation.entity.js';
+import type { InvitationKind, EmploymentType, TeacherLanguage } from '../../../domain/entities/school-invitation.entity.js';
 
 export class SendInvitationCommand {
   constructor(
@@ -11,6 +11,7 @@ export class SendInvitationCommand {
     public readonly targetGroupId?: string | null,
     public readonly teacherMaxWeeklyHours?: number | null,
     public readonly teacherEmploymentType?: EmploymentType | null,
+    public readonly teacherLanguages?: TeacherLanguage[] | null,
     public readonly capabilities?: string[],
   ) {}
 }

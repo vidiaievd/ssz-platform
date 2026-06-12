@@ -3,6 +3,7 @@ import type { MemberRole } from '../value-objects/member-role.vo.js';
 
 export type InvitationKind = 'register' | 'onboard_existing';
 export type EmploymentType = 'full' | 'part' | 'contract';
+export interface TeacherLanguage { code: string; level?: string | null; }
 
 export interface SchoolInvitationProps {
   id: string;
@@ -20,6 +21,7 @@ export interface SchoolInvitationProps {
   resendCount: number;
   teacherMaxWeeklyHours?: number | null;
   teacherEmploymentType?: EmploymentType | null;
+  teacherLanguages?: TeacherLanguage[] | null;
   capabilities?: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +43,7 @@ export class SchoolInvitation {
   private _resendCount: number;
   private readonly _teacherMaxWeeklyHours: number | null | undefined;
   private readonly _teacherEmploymentType: EmploymentType | null | undefined;
+  private readonly _teacherLanguages: TeacherLanguage[] | null | undefined;
   private readonly _capabilities: string[];
   private readonly _createdAt: Date;
   private _updatedAt: Date;
@@ -61,6 +64,7 @@ export class SchoolInvitation {
     this._resendCount = props.resendCount;
     this._teacherMaxWeeklyHours = props.teacherMaxWeeklyHours ?? null;
     this._teacherEmploymentType = props.teacherEmploymentType ?? null;
+    this._teacherLanguages = props.teacherLanguages ?? null;
     this._capabilities = props.capabilities ?? [];
     this._createdAt = props.createdAt;
     this._updatedAt = props.updatedAt;
@@ -129,6 +133,7 @@ export class SchoolInvitation {
   get resendCount(): number { return this._resendCount; }
   get teacherMaxWeeklyHours(): number | null | undefined { return this._teacherMaxWeeklyHours; }
   get teacherEmploymentType(): EmploymentType | null | undefined { return this._teacherEmploymentType; }
+  get teacherLanguages(): TeacherLanguage[] | null | undefined { return this._teacherLanguages; }
   get capabilities(): string[] { return this._capabilities; }
   get createdAt(): Date { return this._createdAt; }
   get updatedAt(): Date { return this._updatedAt; }
