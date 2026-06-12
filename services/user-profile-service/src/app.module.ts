@@ -14,6 +14,7 @@ import { EventsModule } from './modules/events/events.module.js';
 import { ProfilesModule } from './modules/profiles/profiles.module.js';
 import { StudentsModule } from './modules/students/students.module.js';
 import { TutorsModule } from './modules/tutors/tutors.module.js';
+import { TeachingModule } from './modules/teaching/teaching.module.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { TutorsModule } from './modules/tutors/tutors.module.js';
     RabbitMqModule,
     StudentsModule,
     TutorsModule,
+    TeachingModule,
     ProfilesModule,
     EventsModule,
     LoggerModule.forRootAsync({

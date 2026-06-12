@@ -14,6 +14,9 @@ import { GetTutorProfileByUserIdHandler } from '../tutors/application/queries/ge
 import { ListTutorsHandler } from '../tutors/application/queries/list-tutors/list-tutors.handler.js';
 import { TUTOR_PROFILE_REPOSITORY } from '../tutors/domain/repositories/tutor-profile.repository.interface.js';
 import { TutorProfilePrismaRepository } from '../tutors/infrastructure/persistence/tutor-profile.prisma.repository.js';
+import { TEACHING_PROFILE_REPOSITORY } from '../teaching/domain/repositories/teaching-profile.repository.interface.js';
+import { TeachingProfilePrismaRepository } from '../teaching/infrastructure/persistence/teaching-profile.prisma.repository.js';
+import { GetTeachingProfileByUserIdHandler } from '../teaching/application/queries/get-teaching-profile-by-user-id/get-teaching-profile-by-user-id.handler.js';
 import { ProfilesController } from './presentation/controllers/profiles.controller.js';
 import { PublicProfilesController } from './presentation/controllers/public-profiles.controller.js';
 import { UsersLookupController } from './presentation/controllers/users-lookup.controller.js';
@@ -27,6 +30,7 @@ const QueryHandlers = [
   GetProfileByUserIdHandler,
   GetStudentProfileByUserIdHandler,
   GetTutorProfileByUserIdHandler,
+  GetTeachingProfileByUserIdHandler,
   ListTutorsHandler,
   LookupUserByEmailHandler,
 ];
@@ -48,6 +52,10 @@ const QueryHandlers = [
     {
       provide: TUTOR_PROFILE_REPOSITORY,
       useClass: TutorProfilePrismaRepository,
+    },
+    {
+      provide: TEACHING_PROFILE_REPOSITORY,
+      useClass: TeachingProfilePrismaRepository,
     },
   ],
 })

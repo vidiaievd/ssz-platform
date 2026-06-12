@@ -39,4 +39,7 @@ export class ProfileResponseDto {
 
   @ApiProperty({ description: 'Whether the user has completed tutor profile setup' })
   hasTutorProfile: boolean;
+
+  @ApiProperty({ description: 'Whether the user has a teaching profile (teachers and tutors)' })
+  hasTeachingProfile: boolean;
 }

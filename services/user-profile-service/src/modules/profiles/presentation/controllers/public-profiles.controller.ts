@@ -14,6 +14,8 @@ import { StudentProfileResponseDto } from '../../../students/presentation/dto/st
 import { GetTutorProfileByUserIdQuery } from '../../../tutors/application/queries/get-tutor-profile-by-user-id/get-tutor-profile-by-user-id.query.js';
 import { TutorListResponseDto } from '../../../tutors/presentation/dto/tutor-list.response.dto.js';
 import { TutorProfileResponseDto } from '../../../tutors/presentation/dto/tutor-profile.response.dto.js';
+import { GetTeachingProfileByUserIdQuery } from '../../../teaching/application/queries/get-teaching-profile-by-user-id/get-teaching-profile-by-user-id.query.js';
+import { TeachingProfileResponseDto } from '../../../teaching/presentation/dto/teaching-profile.response.dto.js';
 import { GetProfileByUserIdQuery } from '../../application/queries/get-profile-by-user-id/get-profile-by-user-id.query.js';
 import { ProfileResponseDto } from '../dto/profile.response.dto.js';
 
@@ -96,5 +98,17 @@ export class PublicProfilesController {
     @Param('userId') userId: string,
   ): Promise<TutorProfileResponseDto> {
     return this.queryBus.execute(new GetTutorProfileByUserIdQuery(userId));
+  }
+
+  @Get(':userId/teaching')
+  @ApiOperation({ summary: 'Get a teaching profile by userId (teachers and tutors)' })
+  @ApiParam({ name: 'userId', description: 'UUID of the user' })
+  @ApiResponse({ status: 200, type: TeachingProfileResponseDto })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Teaching profile not found' })
+  async getTeachingProfileByUserId(
+    @Param('userId') userId: string,
+  ): Promise<TeachingProfileResponseDto> {
+    return this.queryBus.execute(new GetTeachingProfileByUserIdQuery(userId));
   }
 }
