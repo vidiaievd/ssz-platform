@@ -1,5 +1,5 @@
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { ListMySchoolsQuery } from './list-my-schools.query.js';
 import {
   SCHOOL_REPOSITORY,
@@ -17,6 +17,8 @@ const ROLES_WITH_NULL_CAPS: ReadonlySet<MemberRole> = new Set([
 
 @QueryHandler(ListMySchoolsQuery)
 export class ListMySchoolsHandler implements IQueryHandler<ListMySchoolsQuery> {
+  private readonly logger = new Logger(ListMySchoolsHandler.name);
+
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
   ) {}
@@ -56,8 +58,19 @@ export class ListMySchoolsHandler implements IQueryHandler<ListMySchoolsQuery> {
 
     const capsMap = await this.schoolRepository.findManagerCapabilities(actorId, managerSchoolIds);
 
-    return all.map((s) => {
-      const myRole = roleMap.get(s.id) ?? MemberRole.TEACHER;
+    const result: SchoolSummaryDto[] = [];
+
+    for (const s of all) {
+      const myRole = roleMap.get(s.id);
+
+      if (!myRole) {
+        // Membership projection is inconsistent — school appeared in query results
+        // but no role could be resolved. Log and skip to avoid leaking data.
+        this.logger.warn(
+          `School ${s.id} returned for actor ${actorId} but role could not be resolved — excluded from response`,
+        );
+        continue;
+      }
 
       let myCapabilities: string[] | null;
       if (myRole === MemberRole.MANAGER) {
@@ -68,7 +81,7 @@ export class ListMySchoolsHandler implements IQueryHandler<ListMySchoolsQuery> {
         myCapabilities = [];
       }
 
-      return {
+      result.push({
         id: s.id,
         name: s.name,
         slug: s.slug,
@@ -82,7 +95,9 @@ export class ListMySchoolsHandler implements IQueryHandler<ListMySchoolsQuery> {
         createdAt: s.createdAt,
         myRole,
         myCapabilities,
-      };
-    });
+      });
+    }
+
+    return result;
   }
 }
