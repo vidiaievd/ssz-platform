@@ -26,9 +26,11 @@ import { AcceptInvitationCommand } from '../../application/commands/accept-invit
 import { ResendSchoolInvitationCommand } from '../../application/commands/resend-invitation/resend-invitation.command.js';
 import { RevokeSchoolInvitationCommand } from '../../application/commands/revoke-invitation/revoke-invitation.command.js';
 import { ListSchoolInvitationsQuery } from '../../application/queries/list-school-invitations/list-school-invitations.query.js';
+import { CountSchoolInvitationsQuery } from '../../application/queries/count-school-invitations/count-school-invitations.query.js';
 import { GetSchoolInvitationPreviewQuery } from '../../application/queries/get-invitation-preview/get-invitation-preview.query.js';
 import { SendInvitationRequestDto } from '../dto/send-invitation.request.dto.js';
 import {
+  InvitationCountResponseDto,
   InvitationPreviewResponseDto,
   InvitationResponseDto,
   ResendInvitationResponseDto,
@@ -46,6 +48,28 @@ export class InvitationsController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {}
+
+  @Get(':schoolId/invitations/count')
+  @ApiOperation({ summary: 'Count invitations for a school (cheap — no payload transfer)' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by status (pending|accepted|expired|revoked)' })
+  @ApiQuery({ name: 'role', required: false, description: 'Filter by role' })
+  @ApiResponse({ status: 200, type: InvitationCountResponseDto })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async countInvitations(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Query('status') status?: string,
+    @Query('role') role?: string,
+  ): Promise<InvitationCountResponseDto> {
+    const count: number = await this.queryBus.execute(
+      new CountSchoolInvitationsQuery(user.sub, schoolId, {
+        role: role?.toUpperCase() as MemberRole | undefined,
+        status: status?.toUpperCase() as InvitationStatus | undefined,
+      }),
+    );
+    return { count };
+  }
 
   @Get(':schoolId/invitations')
   @ApiOperation({ summary: 'List all invitations for a school (owner/admin see all; teacher sees only STUDENT invitations)' })

@@ -45,6 +45,8 @@ import { ListSchoolInvitationsHandler } from './application/queries/list-school-
 import { GetSchoolGroupHandler } from './application/queries/get-school-group/get-school-group.handler.js';
 import { ListSchoolGroupsHandler } from './application/queries/list-school-groups/list-school-groups.handler.js';
 import { ListSchoolTeachersHandler } from './application/queries/list-school-teachers/list-school-teachers.handler.js';
+import { ListSchoolMembersHandler } from './application/queries/list-school-members/list-school-members.handler.js';
+import { CountSchoolInvitationsHandler } from './application/queries/count-school-invitations/count-school-invitations.handler.js';
 import { GetSchoolInvitationPreviewHandler } from './application/queries/get-invitation-preview/get-invitation-preview.handler.js';
 import { GetMyPermissionsHandler } from './application/queries/get-my-permissions/get-my-permissions.handler.js';
 
@@ -89,6 +91,8 @@ const QueryHandlers = [
   GetSchoolGroupHandler,
   ListSchoolGroupsHandler,
   ListSchoolTeachersHandler,
+  ListSchoolMembersHandler,
+  CountSchoolInvitationsHandler,
   GetSchoolInvitationPreviewHandler,
   GetMyPermissionsHandler,
 ];

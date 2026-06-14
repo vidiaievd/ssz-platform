@@ -128,6 +128,35 @@ export class SlugAvailabilityResponseDto {
   suggestions?: string[];
 }
 
+export class MemberRosterItemResponseDto {
+  @ApiProperty({ description: 'User UUID' })
+  userId!: string;
+
+  @ApiProperty({ description: 'Display name from profile-service (userId fallback)' })
+  name!: string;
+
+  @ApiPropertyOptional({ description: 'Email from profile-service', nullable: true })
+  email!: string | null;
+
+  @ApiPropertyOptional({ description: 'Avatar URL from profile-service', nullable: true })
+  avatarUrl!: string | null;
+
+  @ApiProperty({ enum: MemberRole, description: 'Role in this school' })
+  role!: MemberRole;
+
+  @ApiProperty({ type: [String], description: 'Teaching languages (ISO 639-1); empty for non-teachers' })
+  langs!: string[];
+
+  @ApiPropertyOptional({ description: 'Max weekly teaching hours; null for non-teachers', nullable: true })
+  maxWeeklyHours!: number | null;
+
+  @ApiProperty({ description: 'Member status', enum: ['active', 'invited', 'inactive', 'suspended'] })
+  status!: string;
+
+  @ApiProperty({ description: 'Join timestamp (ISO 8601)' })
+  joinedAt!: string;
+}
+
 export class MemberPermissionsResponseDto {
   @ApiPropertyOptional({ enum: MemberRole, description: 'Current role of the member in this school, or null if not a member' })
   role!: string | null;
@@ -138,6 +167,11 @@ export class MemberPermissionsResponseDto {
     example: ['invitations:create_teacher', 'groups:create'],
   })
   capabilities!: string[];
+}
+
+export class InvitationCountResponseDto {
+  @ApiProperty({ description: 'Number of matching invitations', example: 3 })
+  count!: number;
 }
 
 export class InvitationPreviewResponseDto {

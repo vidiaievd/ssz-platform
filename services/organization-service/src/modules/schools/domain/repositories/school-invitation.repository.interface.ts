@@ -13,6 +13,7 @@ export interface ISchoolInvitationRepository {
   findByToken(token: string): Promise<SchoolInvitation | null>;
   findPendingBySchoolId(schoolId: string): Promise<SchoolInvitation[]>;
   findBySchoolId(schoolId: string, filters?: InvitationFilters): Promise<SchoolInvitation[]>;
+  countBySchoolId(schoolId: string, filters?: InvitationFilters): Promise<number>;
   findActivePendingByEmailAndRole(schoolId: string, email: string, role: MemberRole): Promise<SchoolInvitation | null>;
   save(invitation: SchoolInvitation): Promise<void>;
 }

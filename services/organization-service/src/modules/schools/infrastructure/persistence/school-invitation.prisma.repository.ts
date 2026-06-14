@@ -50,6 +50,16 @@ export class SchoolInvitationPrismaRepository implements ISchoolInvitationReposi
     return rows.map(SchoolInvitationMapper.toDomain);
   }
 
+  async countBySchoolId(schoolId: string, filters?: InvitationFilters): Promise<number> {
+    const where: Record<string, unknown> = { schoolId };
+    if (filters?.role) where['role'] = filters.role;
+    if (filters?.status) where['status'] = filters.status;
+    if (filters?.search) {
+      where['email'] = { contains: filters.search.toLowerCase(), mode: 'insensitive' };
+    }
+    return (this.prisma as any).schoolInvitation.count({ where });
+  }
+
   async findActivePendingByEmailAndRole(
     schoolId: string,
     email: string,
