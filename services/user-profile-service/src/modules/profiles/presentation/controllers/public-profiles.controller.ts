@@ -1,9 +1,11 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Query } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiProperty,
+  ApiPropertyOptional,
   ApiQuery,
   ApiResponse,
   ApiTags,
@@ -17,7 +19,17 @@ import { TutorProfileResponseDto } from '../../../tutors/presentation/dto/tutor-
 import { GetTeachingProfileByUserIdQuery } from '../../../teaching/application/queries/get-teaching-profile-by-user-id/get-teaching-profile-by-user-id.query.js';
 import { TeachingProfileResponseDto } from '../../../teaching/presentation/dto/teaching-profile.response.dto.js';
 import { GetProfileByUserIdQuery } from '../../application/queries/get-profile-by-user-id/get-profile-by-user-id.query.js';
+import { GetProfilesByUserIdsQuery } from '../../application/queries/get-profiles-by-user-ids/get-profiles-by-user-ids.query.js';
+import type { ProfileSummary } from '../../application/queries/get-profiles-by-user-ids/get-profiles-by-user-ids.handler.js';
 import { ProfileResponseDto } from '../dto/profile.response.dto.js';
+
+class ProfileSummaryResponseDto {
+  @ApiProperty() userId!: string;
+  @ApiProperty() displayName!: string;
+  @ApiPropertyOptional() firstName?: string;
+  @ApiPropertyOptional() lastName?: string;
+  @ApiPropertyOptional() avatarUrl?: string;
+}
 
 @ApiTags('profiles')
 @ApiBearerAuth('JWT')
@@ -62,6 +74,21 @@ export class PublicProfilesController {
     return this.queryBus.execute(
       new ListTutorsQuery(language, parsedMaxRate, parsedLimit, parsedOffset),
     );
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Batch profile lookup by userIds (max 100)' })
+  @ApiQuery({ name: 'userIds', required: true, description: 'Comma-separated list of userIds (max 100)' })
+  @ApiResponse({ status: 200, type: [ProfileSummaryResponseDto] })
+  @ApiResponse({ status: 400, description: 'Missing or invalid userIds' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getProfilesByUserIds(
+    @Query('userIds') userIds?: string,
+  ): Promise<ProfileSummary[]> {
+    if (!userIds) throw new BadRequestException('userIds query parameter is required');
+    const ids = userIds.split(',').map((id) => id.trim()).filter(Boolean);
+    if (ids.length === 0) throw new BadRequestException('At least one userId is required');
+    return this.queryBus.execute(new GetProfilesByUserIdsQuery(ids));
   }
 
   @Get(':userId')

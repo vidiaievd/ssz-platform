@@ -3,7 +3,9 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { CreateProfileHandler } from './application/commands/create-profile/create-profile.handler.js';
 import { DeleteProfileHandler } from './application/commands/delete-profile/delete-profile.handler.js';
 import { UpdateProfileHandler } from './application/commands/update-profile/update-profile.handler.js';
+import { SeedProfileNameHandler } from './application/commands/seed-profile-name/seed-profile-name.handler.js';
 import { GetProfileByUserIdHandler } from './application/queries/get-profile-by-user-id/get-profile-by-user-id.handler.js';
+import { GetProfilesByUserIdsHandler } from './application/queries/get-profiles-by-user-ids/get-profiles-by-user-ids.handler.js';
 import { LookupUserByEmailHandler } from './application/queries/lookup-user-by-email/lookup-user-by-email.handler.js';
 import { PROFILE_REPOSITORY } from './domain/repositories/profile.repository.interface.js';
 import { ProfilePrismaRepository } from './infrastructure/persistence/profile.prisma.repository.js';
@@ -25,9 +27,11 @@ const CommandHandlers = [
   CreateProfileHandler,
   UpdateProfileHandler,
   DeleteProfileHandler,
+  SeedProfileNameHandler,
 ];
 const QueryHandlers = [
   GetProfileByUserIdHandler,
+  GetProfilesByUserIdsHandler,
   GetStudentProfileByUserIdHandler,
   GetTutorProfileByUserIdHandler,
   GetTeachingProfileByUserIdHandler,

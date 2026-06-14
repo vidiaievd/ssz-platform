@@ -13,6 +13,7 @@ import { CreateTeachingProfileCommand } from '../../application/commands/create-
 import { AddTeachingLanguageCommand } from '../../application/commands/add-teaching-language/add-teaching-language.command.js';
 import { TeachingProfileAlreadyExistsException } from '../../domain/exceptions/teaching-profile-already-exists.exception.js';
 import { TeachingLanguageAlreadyExistsException } from '../../domain/exceptions/teaching-language-already-exists.exception.js';
+import { SeedProfileNameCommand } from '../../../profiles/application/commands/seed-profile-name/seed-profile-name.command.js';
 import { EXCHANGES } from '@ssz/contracts';
 
 interface TeacherLanguagePayload {
@@ -24,6 +25,8 @@ interface SchoolTeacherAcceptedPayload {
   userId: string;
   schoolId: string;
   languages: TeacherLanguagePayload[] | null;
+  firstName?: string | null;
+  lastName?: string | null;
 }
 
 interface SchoolTeacherAcceptedEnvelope {
@@ -86,7 +89,14 @@ export class SchoolTeacherAcceptedConsumer implements OnModuleInit, OnModuleDest
             }
 
             try {
-              const { userId, languages } = envelope.payload;
+              const { userId, languages, firstName, lastName } = envelope.payload;
+
+              // Seed base profile name if not yet set (set-if-empty semantics).
+              if (firstName || lastName) {
+                await this.commandBus.execute(
+                  new SeedProfileNameCommand(userId, firstName ?? null, lastName ?? null),
+                );
+              }
 
               // Idempotent create — silently skip if profile already exists.
               try {

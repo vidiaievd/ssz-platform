@@ -3,10 +3,10 @@ import { Inject } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { CreateTeachingProfileCommand } from './create-teaching-profile.command.js';
 import { PROFILE_REPOSITORY, type IProfileRepository } from '../../../../profiles/domain/repositories/profile.repository.interface.js';
-import { TEACHING_PROFILE_REPOSITORY, type ITeachingProfileRepository } from '../../domain/repositories/teaching-profile.repository.interface.js';
+import { TEACHING_PROFILE_REPOSITORY, type ITeachingProfileRepository } from '../../../domain/repositories/teaching-profile.repository.interface.js';
 import { ProfileNotFoundException } from '../../../../profiles/domain/exceptions/profile-not-found.exception.js';
-import { TeachingProfileAlreadyExistsException } from '../../domain/exceptions/teaching-profile-already-exists.exception.js';
-import { TeachingProfile } from '../../domain/entities/teaching-profile.entity.js';
+import { TeachingProfileAlreadyExistsException } from '../../../domain/exceptions/teaching-profile-already-exists.exception.js';
+import { TeachingProfile } from '../../../domain/entities/teaching-profile.entity.js';
 
 @CommandHandler(CreateTeachingProfileCommand)
 export class CreateTeachingProfileHandler implements ICommandHandler<CreateTeachingProfileCommand> {

@@ -109,17 +109,39 @@ export class Profile extends BaseEntity {
   }
 
   updateBasicInfo(props: UpdateProfileProps, eventId: string): void {
-    if (props.displayName !== undefined) this._displayName = props.displayName;
-    if (props.firstName !== undefined) this._firstName = props.firstName;
-    if (props.lastName !== undefined) this._lastName = props.lastName;
-    if (props.avatarUrl !== undefined) this._avatarUrl = props.avatarUrl;
-    if (props.bio !== undefined) this._bio = props.bio;
-    if (props.timezone !== undefined) this._timezone = props.timezone;
-    if (props.uiLocale !== undefined) this._uiLocale = props.uiLocale;
+    const changedFields: string[] = [];
+    if (props.displayName !== undefined && props.displayName !== this._displayName) {
+      this._displayName = props.displayName;
+      changedFields.push('displayName');
+    }
+    if (props.firstName !== undefined && props.firstName !== this._firstName) {
+      this._firstName = props.firstName;
+      changedFields.push('firstName');
+    }
+    if (props.lastName !== undefined && props.lastName !== this._lastName) {
+      this._lastName = props.lastName;
+      changedFields.push('lastName');
+    }
+    if (props.avatarUrl !== undefined && props.avatarUrl !== this._avatarUrl) {
+      this._avatarUrl = props.avatarUrl;
+      changedFields.push('avatarUrl');
+    }
+    if (props.bio !== undefined && props.bio !== this._bio) {
+      this._bio = props.bio;
+      changedFields.push('bio');
+    }
+    if (props.timezone !== undefined && props.timezone !== this._timezone) {
+      this._timezone = props.timezone;
+      changedFields.push('timezone');
+    }
+    if (props.uiLocale !== undefined && props.uiLocale !== this._uiLocale) {
+      this._uiLocale = props.uiLocale;
+      changedFields.push('uiLocale');
+    }
     this._updatedAt = new Date();
 
     this.addDomainEvent(
-      new ProfileUpdatedEvent(eventId, this._id, this._userId, this._displayName),
+      new ProfileUpdatedEvent(eventId, this._id, this._userId, this._displayName, changedFields),
     );
   }
 
