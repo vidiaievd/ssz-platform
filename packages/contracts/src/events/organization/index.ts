@@ -8,6 +8,8 @@ export const ORGANIZATION_EVENT_TYPES = {
   SCHOOL_MEMBER_REMOVED: 'school.member.removed',
   SCHOOL_INVITATION_SENT: 'school.invitation.sent',
   USER_PLATFORM_ROLE_ASSIGNED: 'user.platform.role.assigned',
+  SCHOOL_TEACHER_ACCEPTED: 'school.teacher.accepted',
+  TEACHER_PROFILE_CHANGED: 'organization.teacher.profile_changed',
   GROUP_PUBLISHED: 'school.group.published',
   GROUP_ARCHIVED: 'school.group.archived',
   GROUP_MEMBER_ADDED: 'school.group.member.added',
@@ -82,6 +84,14 @@ export interface GroupMemberRemovedPayload {
   courseId: string | null;
 }
 
+export interface TeacherProfileChangedPayload {
+  schoolId: string;
+  recipientId: string;
+  teacherUserId: string;
+  changedFields: string[];
+  occurredAt: string; // ISO 8601
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type SchoolCreatedEvent = BaseEvent<SchoolCreatedPayload>;
@@ -93,6 +103,7 @@ export type GroupPublishedEvent = BaseEvent<GroupPublishedPayload>;
 export type GroupArchivedEvent = BaseEvent<GroupArchivedPayload>;
 export type GroupMemberAddedEvent = BaseEvent<GroupMemberAddedPayload>;
 export type GroupMemberRemovedEvent = BaseEvent<GroupMemberRemovedPayload>;
+export type TeacherProfileChangedEvent = BaseEvent<TeacherProfileChangedPayload>;
 
 export type AnyOrganizationEvent =
   | SchoolCreatedEvent
@@ -103,4 +114,5 @@ export type AnyOrganizationEvent =
   | GroupPublishedEvent
   | GroupArchivedEvent
   | GroupMemberAddedEvent
-  | GroupMemberRemovedEvent;
+  | GroupMemberRemovedEvent
+  | TeacherProfileChangedEvent;
