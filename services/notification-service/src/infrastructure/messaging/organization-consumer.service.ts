@@ -6,6 +6,7 @@ import { EXCHANGES } from '@ssz/contracts';
 import type { AppConfig } from '../../config/configuration.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { SchoolInvitationSentHandler } from '../../modules/notifications/handlers/school-invitation-sent.handler.js';
+import { TeacherProfileChangedHandler } from '../../modules/notifications/handlers/teacher-profile-changed.handler.js';
 import type { IMessageHandler } from './message-handler.interface.js';
 
 const QUEUE = 'notification-service.organization';
@@ -22,8 +23,9 @@ export class OrganizationConsumerService implements OnModuleInit, OnModuleDestro
     private readonly config: ConfigService<AppConfig>,
     private readonly prisma: PrismaService,
     private readonly schoolInvitationSentHandler: SchoolInvitationSentHandler,
+    private readonly teacherProfileChangedHandler: TeacherProfileChangedHandler,
   ) {
-    this.handlers = [schoolInvitationSentHandler];
+    this.handlers = [schoolInvitationSentHandler, teacherProfileChangedHandler];
   }
 
   onModuleInit(): void {
