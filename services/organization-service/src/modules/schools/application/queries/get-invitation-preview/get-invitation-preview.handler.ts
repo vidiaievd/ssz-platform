@@ -19,6 +19,8 @@ export interface InvitationPreviewResult {
   role: string;
   kind: string;
   email: string;
+  firstName: string | null;
+  lastName: string | null;
   invitedByName: string | null;
   status: string;
   expiresAt: string;
@@ -66,6 +68,8 @@ export class GetSchoolInvitationPreviewHandler implements IQueryHandler<GetSchoo
       role: invitation.role,
       kind: invitation.kind,
       email: decoded.email,
+      firstName: invitation.firstName ?? null,
+      lastName: invitation.lastName ?? null,
       invitedByName: null,
       status,
       expiresAt: invitation.expiresAt.toISOString(),

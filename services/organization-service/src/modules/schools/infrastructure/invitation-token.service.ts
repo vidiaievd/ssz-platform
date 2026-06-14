@@ -14,6 +14,8 @@ export interface InvitationTokenPayload {
   email: string;
   kind: InvitationKind;
   targetGroupId?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
   iat: number;
   exp: number;
 }
@@ -30,11 +32,23 @@ export class InvitationTokenService {
     expiresAt: Date,
     kind: InvitationKind = 'register',
     targetGroupId?: string | null,
+    firstName?: string | null,
+    lastName?: string | null,
   ): string {
     const secret = this.config.get('INVITATION_JWT_SECRET') as string;
     const ttlSeconds = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
 
-    return sign({ schoolId, role, email, kind, targetGroupId: targetGroupId ?? null }, secret, {
+    const claims: Record<string, unknown> = {
+      schoolId,
+      role,
+      email,
+      kind,
+      targetGroupId: targetGroupId ?? null,
+    };
+    if (firstName) claims['firstName'] = firstName;
+    if (lastName) claims['lastName'] = lastName;
+
+    return sign(claims, secret, {
       algorithm: 'HS256',
       jwtid: invitationId,
       expiresIn: ttlSeconds,

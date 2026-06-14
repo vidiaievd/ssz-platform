@@ -190,6 +190,12 @@ export class InvitationPreviewResponseDto {
   @ApiProperty({ description: 'Email the invitation was addressed to' })
   email!: string;
 
+  @ApiPropertyOptional({ description: 'School-provided first name hint for pre-filling registration' })
+  firstName!: string | null;
+
+  @ApiPropertyOptional({ description: 'School-provided last name hint for pre-filling registration' })
+  lastName!: string | null;
+
   @ApiPropertyOptional({ description: 'Display name of the inviting user' })
   invitedByName!: string | null;
 

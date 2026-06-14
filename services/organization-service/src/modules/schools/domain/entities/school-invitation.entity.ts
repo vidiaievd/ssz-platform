@@ -19,6 +19,9 @@ export interface SchoolInvitationProps {
   acceptedAt?: Date | null;
   lastSentAt: Date;
   resendCount: number;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
   teacherMaxWeeklyHours?: number | null;
   teacherEmploymentType?: EmploymentType | null;
   teacherLanguages?: TeacherLanguage[] | null;
@@ -41,6 +44,9 @@ export class SchoolInvitation {
   private _acceptedAt: Date | null | undefined;
   private _lastSentAt: Date;
   private _resendCount: number;
+  private readonly _firstName: string | null | undefined;
+  private readonly _lastName: string | null | undefined;
+  private readonly _phone: string | null | undefined;
   private readonly _teacherMaxWeeklyHours: number | null | undefined;
   private readonly _teacherEmploymentType: EmploymentType | null | undefined;
   private readonly _teacherLanguages: TeacherLanguage[] | null | undefined;
@@ -62,6 +68,9 @@ export class SchoolInvitation {
     this._acceptedAt = props.acceptedAt;
     this._lastSentAt = props.lastSentAt;
     this._resendCount = props.resendCount;
+    this._firstName = props.firstName ?? null;
+    this._lastName = props.lastName ?? null;
+    this._phone = props.phone ?? null;
     this._teacherMaxWeeklyHours = props.teacherMaxWeeklyHours ?? null;
     this._teacherEmploymentType = props.teacherEmploymentType ?? null;
     this._teacherLanguages = props.teacherLanguages ?? null;
@@ -131,6 +140,9 @@ export class SchoolInvitation {
   get acceptedAt(): Date | null | undefined { return this._acceptedAt; }
   get lastSentAt(): Date { return this._lastSentAt; }
   get resendCount(): number { return this._resendCount; }
+  get firstName(): string | null | undefined { return this._firstName; }
+  get lastName(): string | null | undefined { return this._lastName; }
+  get phone(): string | null | undefined { return this._phone; }
   get teacherMaxWeeklyHours(): number | null | undefined { return this._teacherMaxWeeklyHours; }
   get teacherEmploymentType(): EmploymentType | null | undefined { return this._teacherEmploymentType; }
   get teacherLanguages(): TeacherLanguage[] | null | undefined { return this._teacherLanguages; }

@@ -109,6 +109,9 @@ export class InvitationsController {
       new SendInvitationCommand(
         user.sub, schoolId, dto.email, dto.role,
         dto.kind ?? 'register', dto.targetGroupId,
+        dto.firstName ?? null,
+        dto.lastName ?? null,
+        dto.phone ?? null,
         dto.maxWeeklyHours ?? null,
         dto.employmentType ?? null,
         dto.teachingLanguages?.map((l) => ({ code: l.code, level: l.level })) ?? null,

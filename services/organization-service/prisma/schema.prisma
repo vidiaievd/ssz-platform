@@ -154,6 +154,9 @@ model SchoolInvitation {
   acceptedAt    DateTime?        @map("accepted_at")
   lastSentAt               DateTime         @default(now()) @map("last_sent_at")
   resendCount              Int              @default(0) @map("resend_count")
+  firstName                String?          @map("first_name")
+  lastName                 String?          @map("last_name")
+  phone                    String?
   teacherMaxWeeklyHours    Int?             @map("teacher_max_weekly_hours")
   teacherEmploymentType    EmploymentType?  @map("teacher_employment_type")
   teacherLanguages         Json?            @map("teacher_languages")   // [{ code, level }] for role=TEACHER

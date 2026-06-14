@@ -76,6 +76,8 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
       expiresAt,
       command.kind,
       command.targetGroupId,
+      command.firstName ?? null,
+      command.lastName ?? null,
     );
 
     const invitation = SchoolInvitation.create({
@@ -92,6 +94,9 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
       acceptedAt: null,
       lastSentAt: now,
       resendCount: 0,
+      firstName: command.firstName ?? null,
+      lastName: command.lastName ?? null,
+      phone: command.phone ?? null,
       teacherMaxWeeklyHours: command.teacherMaxWeeklyHours ?? null,
       teacherEmploymentType: command.teacherEmploymentType ?? null,
       teacherLanguages: command.teacherLanguages ?? null,

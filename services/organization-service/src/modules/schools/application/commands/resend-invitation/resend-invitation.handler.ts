@@ -83,6 +83,8 @@ export class ResendSchoolInvitationHandler implements ICommandHandler<ResendScho
       newExpiresAt,
       invitation.kind,
       invitation.targetGroupId,
+      invitation.firstName ?? null,
+      invitation.lastName ?? null,
     );
 
     invitation.rotateToken(newToken, newExpiresAt);
