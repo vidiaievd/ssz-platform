@@ -15,6 +15,8 @@ export class SchoolTeacherAcceptedEvent implements IDomainEvent {
     readonly userId: string,
     readonly schoolId: string,
     readonly languages: TeacherLanguagePayload[] | null,
+    readonly firstName: string | null = null,
+    readonly lastName: string | null = null,
   ) {
     this.eventId = eventId;
     this.occurredAt = new Date();

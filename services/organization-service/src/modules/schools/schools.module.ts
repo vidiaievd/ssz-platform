@@ -57,6 +57,7 @@ import { SchoolGroupsController } from './presentation/controllers/school-groups
 import { SchoolTeachersController } from './presentation/controllers/school-teachers.controller.js';
 import { SchoolMembersController } from './presentation/controllers/school-members.controller.js';
 import { CapabilityResolverService } from './application/services/capability-resolver.service.js';
+import { ProfileUpdatedConsumer } from './infrastructure/events/profile-updated.consumer.js';
 
 const CommandHandlers = [
   CreateSchoolHandler,
@@ -105,6 +106,7 @@ const QueryHandlers = [
     ...QueryHandlers,
     InvitationTokenService,
     CapabilityResolverService,
+    ProfileUpdatedConsumer,
     ProfileServiceHttpClient,
     SchedulingServiceHttpClient,
     {
