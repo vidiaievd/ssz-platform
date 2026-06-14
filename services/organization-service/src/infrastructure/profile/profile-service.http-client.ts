@@ -54,10 +54,11 @@ export class ProfileServiceHttpClient implements IProfileServicePort {
         return null;
       }
 
-      const body = await res.json() as { displayName?: string; avatarUrl?: string };
+      const body = await res.json() as { displayName?: string; avatarUrl?: string; email?: string };
       return {
         userId,
         name: body.displayName ?? userId,
+        email: body.email ?? null,
         avatarUrl: body.avatarUrl ?? null,
       };
     } catch (err) {
