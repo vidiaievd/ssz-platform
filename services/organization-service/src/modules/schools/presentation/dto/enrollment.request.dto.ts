@@ -84,3 +84,14 @@ export class AssignGroupRequestDto {
   @IsUUID()
   groupId: string;
 }
+
+// ── E.4 ──────────────────────────────────────────────────────────────────────
+
+export class CompleteMembershipOnboardingRequestDto {
+  @ApiProperty({
+    enum: ['active', 'placement-review'],
+    description: 'Target status after onboarding: active (auto-placed) or placement-review (awaits admin assignment)',
+  })
+  @IsEnum(['active', 'placement-review'])
+  to: 'active' | 'placement-review';
+}

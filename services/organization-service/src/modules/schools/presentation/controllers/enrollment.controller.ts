@@ -21,6 +21,7 @@ import { ApproveMembershipCommand } from '../../application/commands/approve-mem
 import { RejectMembershipCommand } from '../../application/commands/reject-membership/reject-membership.command.js';
 import { SetMembershipAvailabilityCommand } from '../../application/commands/set-membership-availability/set-membership-availability.command.js';
 import { AssignMembershipGroupCommand } from '../../application/commands/assign-membership-group/assign-membership-group.command.js';
+import { CompleteMembershipOnboardingCommand } from '../../application/commands/complete-membership-onboarding/complete-membership-onboarding.command.js';
 import { GetOnboardingSettingsQuery } from '../../application/queries/get-onboarding-settings/get-onboarding-settings.query.js';
 import { ListMembershipsQuery } from '../../application/queries/list-memberships/list-memberships.query.js';
 import { GetMyMembershipQuery } from '../../application/queries/get-my-membership/get-my-membership.query.js';
@@ -30,6 +31,7 @@ import type { SchoolMembership } from '../../domain/entities/school-membership.e
 import type { SchoolOnboardingSettings } from '../../domain/entities/school-onboarding-settings.entity.js';
 import {
   AssignGroupRequestDto,
+  CompleteMembershipOnboardingRequestDto,
   CreateMembershipRequestDto,
   SetAvailabilityRequestDto,
   UpsertOnboardingSettingsRequestDto,
@@ -220,6 +222,24 @@ export class EnrollmentController {
   ): Promise<void> {
     await this.commandBus.execute(
       new AssignMembershipGroupCommand(user.sub, schoolId, id, dto.groupId),
+    );
+  }
+
+  @Post(':schoolId/memberships/:id/complete')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Student completes onboarding → transitions membership to active or placement-review' })
+  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 403, description: 'Caller is not the membership owner' })
+  @ApiResponse({ status: 404, description: 'Membership not found' })
+  @ApiResponse({ status: 409, description: 'Invalid transition from current status' })
+  async completeMembershipOnboarding(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CompleteMembershipOnboardingRequestDto,
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new CompleteMembershipOnboardingCommand(user.sub, schoolId, id, dto.to),
     );
   }
 }

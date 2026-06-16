@@ -45,6 +45,7 @@ import { ApproveMembershipHandler } from './application/commands/approve-members
 import { RejectMembershipHandler } from './application/commands/reject-membership/reject-membership.handler.js';
 import { SetMembershipAvailabilityHandler } from './application/commands/set-membership-availability/set-membership-availability.handler.js';
 import { AssignMembershipGroupHandler } from './application/commands/assign-membership-group/assign-membership-group.handler.js';
+import { CompleteMembershipOnboardingHandler } from './application/commands/complete-membership-onboarding/complete-membership-onboarding.handler.js';
 
 import { GetSchoolHandler } from './application/queries/get-school/get-school.handler.js';
 import { GetSchoolBySlugHandler } from './application/queries/get-school-by-slug/get-school-by-slug.handler.js';
@@ -102,6 +103,7 @@ const CommandHandlers = [
   RejectMembershipHandler,
   SetMembershipAvailabilityHandler,
   AssignMembershipGroupHandler,
+  CompleteMembershipOnboardingHandler,
 ];
 
 const QueryHandlers = [

@@ -1,5 +1,5 @@
-import { Inject } from '@nestjs/common';
-import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
+import { Inject, Logger } from '@nestjs/common';
+import { CommandBus, CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import { MembershipNotFoundException } from '../../../domain/exceptions/membership-not-found.exception.js';
@@ -7,13 +7,17 @@ import { InvalidMembershipTransitionException } from '../../../domain/exceptions
 import { SCHOOL_REPOSITORY, type ISchoolRepository } from '../../../domain/repositories/school.repository.interface.js';
 import { SCHOOL_MEMBERSHIP_REPOSITORY, type ISchoolMembershipRepository } from '../../../domain/repositories/school-membership.repository.interface.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
+import { AddMemberCommand } from '../add-member/add-member.command.js';
 import { ApproveMembershipCommand } from './approve-membership.command.js';
 
 @CommandHandler(ApproveMembershipCommand)
 export class ApproveMembershipHandler implements ICommandHandler<ApproveMembershipCommand> {
+  private readonly logger = new Logger(ApproveMembershipHandler.name);
+
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepo: ISchoolRepository,
     @Inject(SCHOOL_MEMBERSHIP_REPOSITORY) private readonly membershipRepo: ISchoolMembershipRepository,
+    private readonly commandBus: CommandBus,
   ) {}
 
   async execute(command: ApproveMembershipCommand): Promise<void> {
@@ -35,5 +39,19 @@ export class ApproveMembershipHandler implements ICommandHandler<ApproveMembersh
     }
     membership.transitionTo('onboarding');
     await this.membershipRepo.save(membership);
+
+    // Ensure the student is a school member so they appear in the roster
+    // and can be added to groups later. Skip silently if already a member.
+    if (!school.getMemberRole(membership.studentId)) {
+      try {
+        await this.commandBus.execute(
+          new AddMemberCommand(command.callerId, command.schoolId, membership.studentId, MemberRole.STUDENT),
+        );
+      } catch (e) {
+        this.logger.warn(
+          `Could not add student ${membership.studentId} as school member during approval: ${(e as Error).message}`,
+        );
+      }
+    }
   }
 }

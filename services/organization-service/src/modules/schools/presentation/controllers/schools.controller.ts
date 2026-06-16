@@ -34,15 +34,18 @@ import { AddMemberCommand } from '../../application/commands/add-member/add-memb
 import { RemoveMemberCommand } from '../../application/commands/remove-member/remove-member.command.js';
 import { GetSchoolQuery } from '../../application/queries/get-school/get-school.query.js';
 import { ListMySchoolsQuery } from '../../application/queries/list-my-schools/list-my-schools.query.js';
+import { ListSchoolMembersQuery } from '../../application/queries/list-school-members/list-school-members.query.js';
 import { CreateSchoolRequestDto } from '../dto/create-school.request.dto.js';
 import { UpdateSchoolRequestDto } from '../dto/update-school.request.dto.js';
 import { AddMemberRequestDto } from '../dto/add-member.request.dto.js';
 import {
+  MemberRosterItemResponseDto,
   PublicSchoolResponseDto,
   SchoolResponseDto,
   SchoolSummaryResponseDto,
   SlugAvailabilityResponseDto,
 } from '../dto/school.response.dto.js';
+import { MemberRole } from '../../domain/value-objects/member-role.vo.js';
 
 @ApiTags('Schools')
 @ApiBearerAuth('JWT')
@@ -221,6 +224,23 @@ export class SchoolsController {
   ): Promise<void> {
     await this.commandBus.execute(
       new RemoveMemberCommand(user.sub, schoolId, userId),
+    );
+  }
+
+  @Get(':schoolId/students')
+  @ApiOperation({
+    summary: 'List students enrolled in the school (OWNER/ADMIN)',
+    description: 'Returns all school members with STUDENT role, enriched with profile data.',
+  })
+  @ApiResponse({ status: 200, type: [MemberRosterItemResponseDto] })
+  @ApiResponse({ status: 403, description: 'Not a member of this school' })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async listStudents(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+  ): Promise<MemberRosterItemResponseDto[]> {
+    return this.queryBus.execute(
+      new ListSchoolMembersQuery(user.sub, schoolId, MemberRole.STUDENT),
     );
   }
 }
