@@ -7,6 +7,11 @@ import type { AppConfig } from '../../config/configuration.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { SchoolInvitationSentHandler } from '../../modules/notifications/handlers/school-invitation-sent.handler.js';
 import { TeacherProfileChangedHandler } from '../../modules/notifications/handlers/teacher-profile-changed.handler.js';
+import { EnrollmentRequestHandler } from '../../modules/notifications/handlers/enrollment-request.handler.js';
+import { EnrollmentApprovedHandler } from '../../modules/notifications/handlers/enrollment-approved.handler.js';
+import { EnrollmentRejectedHandler } from '../../modules/notifications/handlers/enrollment-rejected.handler.js';
+import { PlacementReviewReadyHandler } from '../../modules/notifications/handlers/placement-review-ready.handler.js';
+import { GroupAssignedHandler } from '../../modules/notifications/handlers/group-assigned.handler.js';
 import type { IMessageHandler } from './message-handler.interface.js';
 
 const QUEUE = 'notification-service.organization';
@@ -24,8 +29,21 @@ export class OrganizationConsumerService implements OnModuleInit, OnModuleDestro
     private readonly prisma: PrismaService,
     private readonly schoolInvitationSentHandler: SchoolInvitationSentHandler,
     private readonly teacherProfileChangedHandler: TeacherProfileChangedHandler,
+    private readonly enrollmentRequestHandler: EnrollmentRequestHandler,
+    private readonly enrollmentApprovedHandler: EnrollmentApprovedHandler,
+    private readonly enrollmentRejectedHandler: EnrollmentRejectedHandler,
+    private readonly placementReviewReadyHandler: PlacementReviewReadyHandler,
+    private readonly groupAssignedHandler: GroupAssignedHandler,
   ) {
-    this.handlers = [schoolInvitationSentHandler, teacherProfileChangedHandler];
+    this.handlers = [
+      schoolInvitationSentHandler,
+      teacherProfileChangedHandler,
+      enrollmentRequestHandler,
+      enrollmentApprovedHandler,
+      enrollmentRejectedHandler,
+      placementReviewReadyHandler,
+      groupAssignedHandler,
+    ];
   }
 
   onModuleInit(): void {

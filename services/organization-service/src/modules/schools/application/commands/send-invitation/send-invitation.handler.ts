@@ -121,6 +121,7 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
         invitationUrl,
         command.role,
         expiresAt.toISOString(),
+        command.recipientUserId,
       ),
     );
 

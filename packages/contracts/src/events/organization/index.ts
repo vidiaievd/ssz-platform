@@ -14,6 +14,11 @@ export const ORGANIZATION_EVENT_TYPES = {
   GROUP_ARCHIVED: 'school.group.archived',
   GROUP_MEMBER_ADDED: 'school.group.member.added',
   GROUP_MEMBER_REMOVED: 'school.group.member.removed',
+  ENROLLMENT_REQUEST: 'school.enrollment.requested',
+  ENROLLMENT_APPROVED: 'school.enrollment.approved',
+  ENROLLMENT_REJECTED: 'school.enrollment.rejected',
+  PLACEMENT_REVIEW_READY: 'school.enrollment.placement_review_ready',
+  GROUP_ASSIGNED: 'school.enrollment.group_assigned',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -45,6 +50,8 @@ export interface SchoolInvitationSentPayload {
   invitationUrl: string;
   role: string;
   expiresAt: string; // ISO 8601
+  /** Present only when the invitee already has an account (kind=onboard_existing). Used to create an IN_APP notification. */
+  recipientUserId?: string;
 }
 
 export interface UserPlatformRoleAssignedPayload {
@@ -92,6 +99,51 @@ export interface TeacherProfileChangedPayload {
   occurredAt: string; // ISO 8601
 }
 
+export interface EnrollmentRequestPayload {
+  membershipId: string;
+  schoolId: string;
+  schoolName: string;
+  studentId: string;
+  /** IDs of school OWNER/ADMINs to notify */
+  adminIds: string[];
+  occurredAt: string;
+}
+
+export interface EnrollmentApprovedPayload {
+  membershipId: string;
+  schoolId: string;
+  schoolName: string;
+  studentId: string;
+  occurredAt: string;
+}
+
+export interface EnrollmentRejectedPayload {
+  membershipId: string;
+  schoolId: string;
+  schoolName: string;
+  studentId: string;
+  occurredAt: string;
+}
+
+export interface PlacementReviewReadyPayload {
+  membershipId: string;
+  schoolId: string;
+  schoolName: string;
+  studentId: string;
+  adminIds: string[];
+  occurredAt: string;
+}
+
+export interface GroupAssignedPayload {
+  membershipId: string;
+  schoolId: string;
+  schoolName: string;
+  studentId: string;
+  groupId: string;
+  groupName: string;
+  occurredAt: string;
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type SchoolCreatedEvent = BaseEvent<SchoolCreatedPayload>;
@@ -104,6 +156,11 @@ export type GroupArchivedEvent = BaseEvent<GroupArchivedPayload>;
 export type GroupMemberAddedEvent = BaseEvent<GroupMemberAddedPayload>;
 export type GroupMemberRemovedEvent = BaseEvent<GroupMemberRemovedPayload>;
 export type TeacherProfileChangedEvent = BaseEvent<TeacherProfileChangedPayload>;
+export type EnrollmentRequestEvent = BaseEvent<EnrollmentRequestPayload>;
+export type EnrollmentApprovedEvent = BaseEvent<EnrollmentApprovedPayload>;
+export type EnrollmentRejectedEvent = BaseEvent<EnrollmentRejectedPayload>;
+export type PlacementReviewReadyEvent = BaseEvent<PlacementReviewReadyPayload>;
+export type GroupAssignedEvent = BaseEvent<GroupAssignedPayload>;
 
 export type AnyOrganizationEvent =
   | SchoolCreatedEvent
@@ -115,4 +172,9 @@ export type AnyOrganizationEvent =
   | GroupArchivedEvent
   | GroupMemberAddedEvent
   | GroupMemberRemovedEvent
-  | TeacherProfileChangedEvent;
+  | TeacherProfileChangedEvent
+  | EnrollmentRequestEvent
+  | EnrollmentApprovedEvent
+  | EnrollmentRejectedEvent
+  | PlacementReviewReadyEvent
+  | GroupAssignedEvent;

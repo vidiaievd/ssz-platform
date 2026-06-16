@@ -8,18 +8,21 @@ datasource db {
 }
 
 model Profile {
-  id          String    @id @default(uuid())
-  userId      String    @unique
-  displayName String
-  firstName   String?
-  lastName    String?
-  avatarUrl   String?
-  bio         String?   @db.Text
-  timezone    String    @default("UTC")
-  uiLocale    String    @default("en") @map("locale")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  displayName         String
+  firstName           String?
+  lastName            String?
+  avatarUrl           String?
+  bio                 String?   @db.Text
+  timezone            String    @default("UTC")
+  uiLocale            String    @default("en") @map("locale")
+  guardianAccountId   String?   @map("guardian_account_id")
+  dateOfBirth         DateTime? @map("date_of_birth") @db.Date
+  languagesOfInterest String[]  @default([]) @map("languages_of_interest")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
 
   studentProfile  StudentProfile?
   tutorProfile    TutorProfile?
@@ -98,6 +101,30 @@ model TeachingLanguage {
 
   @@unique([teachingProfileId, code])
   @@map("teaching_languages")
+}
+
+enum PlacementScope {
+  platform
+  membership
+
+  @@map("placement_scope")
+}
+
+model PlacementResult {
+  id           String         @id @default(uuid())
+  userId       String         @map("user_id")
+  language     String         @db.Char(2)
+  cefrLevel    String         @map("cefr_level")
+  score        Int
+  scope        PlacementScope
+  membershipId String?        @map("membership_id")
+  sourceLabel  String         @map("source_label")
+  takenAt      DateTime       @map("taken_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  @@index([userId, language, scope])
+  @@index([userId])
+  @@map("placement_results")
 }
 
 // Projection: userId → email + roles, built from auth.user.registered events.

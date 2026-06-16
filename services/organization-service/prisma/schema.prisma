@@ -86,9 +86,11 @@ model School {
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
 
-  members     SchoolMember[]
-  invitations SchoolInvitation[]
-  groups      SchoolGroup[]
+  members             SchoolMember[]
+  invitations         SchoolInvitation[]
+  groups              SchoolGroup[]
+  onboardingSettings  SchoolOnboardingSettings?
+  memberships         SchoolMembership[]
 
   @@map("schools")
 }
@@ -223,6 +225,74 @@ model GroupTeacher {
   @@index([groupId])
   @@index([userId])
   @@map("group_teachers")
+}
+
+enum PlacementMode {
+  platform
+  school
+  none
+
+  @@map("placement_mode")
+}
+
+enum ApprovalMode {
+  auto
+  manual
+
+  @@map("approval_mode")
+}
+
+model SchoolOnboardingSettings {
+  schoolId           String       @id @map("school_id") @db.Uuid
+  school             School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  placementMode      PlacementMode @default(platform) @map("placement_mode")
+  schoolTestId       String?      @map("school_test_id") @db.Uuid
+  reusePlatform      Boolean      @default(true) @map("reuse_platform")
+  maxResultAgeDays   Int?         @map("max_result_age_days")
+  interviewRequired  Boolean      @default(true) @map("interview_required")
+  autoPlaceByScore   Boolean      @default(false) @map("auto_place_by_score")
+  collectAvailability Boolean     @default(true) @map("collect_availability")
+  approvalMode       ApprovalMode @default(manual) @map("approval_mode")
+  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@map("school_onboarding_settings")
+}
+
+enum MembershipStatus {
+  pending
+  onboarding
+  placement_review @map("placement-review")
+  active
+  rejected
+  left
+
+  @@map("membership_status")
+}
+
+enum MembershipSource {
+  public_apply @map("public-apply")
+  invite
+  direct
+
+  @@map("membership_source")
+}
+
+model SchoolMembership {
+  id           String           @id @default(uuid()) @db.Uuid
+  schoolId     String           @map("school_id") @db.Uuid
+  school       School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId    String           @map("student_id")
+  status       MembershipStatus @default(pending)
+  source       MembershipSource
+  language     String?          @db.Char(2)
+  availability Json?
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  @@index([schoolId, status])
+  @@index([schoolId, studentId])
+  @@index([studentId])
+  @@map("school_memberships")
 }
 
 model TutoringGroup {

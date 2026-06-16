@@ -19,8 +19,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
+import { Public } from '../../../../common/decorators/public.decorator.js';
 import { Roles } from '../../../../common/decorators/roles.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
+import { GetPublicSchoolQuery } from '../../application/queries/get-public-school/get-public-school.query.js';
+import { ListPublicSchoolsQuery } from '../../application/queries/list-public-schools/list-public-schools.query.js';
 import { CheckNameAvailableQuery } from '../../application/queries/check-name-available/check-name-available.query.js';
 import { CheckSlugAvailableQuery } from '../../application/queries/check-slug-available/check-slug-available.query.js';
 import { GetSchoolBySlugQuery } from '../../application/queries/get-school-by-slug/get-school-by-slug.query.js';
@@ -35,6 +38,7 @@ import { CreateSchoolRequestDto } from '../dto/create-school.request.dto.js';
 import { UpdateSchoolRequestDto } from '../dto/update-school.request.dto.js';
 import { AddMemberRequestDto } from '../dto/add-member.request.dto.js';
 import {
+  PublicSchoolResponseDto,
   SchoolResponseDto,
   SchoolSummaryResponseDto,
   SlugAvailabilityResponseDto,
@@ -99,6 +103,25 @@ export class SchoolsController {
     @Query('slug') slug: string,
   ): Promise<SlugAvailabilityResponseDto> {
     return this.queryBus.execute(new CheckSlugAvailableQuery(slug));
+  }
+
+  @Public()
+  @Get('public')
+  @ApiOperation({ summary: 'List all active schools (no auth required)' })
+  @ApiResponse({ status: 200, type: [PublicSchoolResponseDto] })
+  async listPublicSchools(): Promise<PublicSchoolResponseDto[]> {
+    return this.queryBus.execute(new ListPublicSchoolsQuery());
+  }
+
+  @Public()
+  @Get('public/:slug')
+  @ApiOperation({ summary: 'Get public school page (no auth required)' })
+  @ApiResponse({ status: 200, type: PublicSchoolResponseDto })
+  @ApiResponse({ status: 404, description: 'School not found or inactive' })
+  async getPublicSchool(
+    @Param('slug') slug: string,
+  ): Promise<PublicSchoolResponseDto> {
+    return this.queryBus.execute(new GetPublicSchoolQuery(slug));
   }
 
   @Get('by-slug/:slug')

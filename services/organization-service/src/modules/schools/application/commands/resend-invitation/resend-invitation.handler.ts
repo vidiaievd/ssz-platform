@@ -91,7 +91,7 @@ export class ResendSchoolInvitationHandler implements ICommandHandler<ResendScho
     await this.invitationRepository.save(invitation);
 
     const appBaseUrl = this.config.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
-    const invitationUrl = `${appBaseUrl}/invitations/${newToken}/accept`;
+    const invitationUrl = `${appBaseUrl}/invite/${newToken}`;
 
     await this.eventPublisher.publish(
       new SchoolInvitationSentEvent(

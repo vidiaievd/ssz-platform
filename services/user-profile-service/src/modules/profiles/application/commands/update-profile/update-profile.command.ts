@@ -8,5 +8,8 @@ export class UpdateProfileCommand {
     readonly bio?: string,
     readonly timezone?: string,
     readonly uiLocale?: string,
+    readonly guardianAccountId?: string,
+    readonly dateOfBirth?: Date,
+    readonly languagesOfInterest?: string[],
   ) {}
 }

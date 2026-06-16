@@ -16,5 +16,6 @@ export class SendInvitationCommand {
     public readonly teacherEmploymentType?: EmploymentType | null,
     public readonly teacherLanguages?: TeacherLanguage[] | null,
     public readonly capabilities?: string[],
+    public readonly recipientUserId?: string,
   ) {}
 }

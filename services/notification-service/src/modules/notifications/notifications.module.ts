@@ -12,6 +12,11 @@ import { SubstituteAssignedHandler } from './handlers/substitute-assigned.handle
 import { AlertRaisedHandler } from './handlers/alert-raised.handler.js';
 import { SchoolInvitationSentHandler } from './handlers/school-invitation-sent.handler.js';
 import { TeacherProfileChangedHandler } from './handlers/teacher-profile-changed.handler.js';
+import { EnrollmentRequestHandler } from './handlers/enrollment-request.handler.js';
+import { EnrollmentApprovedHandler } from './handlers/enrollment-approved.handler.js';
+import { EnrollmentRejectedHandler } from './handlers/enrollment-rejected.handler.js';
+import { PlacementReviewReadyHandler } from './handlers/placement-review-ready.handler.js';
+import { GroupAssignedHandler } from './handlers/group-assigned.handler.js';
 import { AnalyticsConsumerService } from '../../infrastructure/messaging/analytics-consumer.service.js';
 import { SchedulingConsumerService } from '../../infrastructure/messaging/scheduling-consumer.service.js';
 import { OrganizationConsumerService } from '../../infrastructure/messaging/organization-consumer.service.js';
@@ -31,6 +36,11 @@ import { OrganizationConsumerService } from '../../infrastructure/messaging/orga
     AlertRaisedHandler,
     SchoolInvitationSentHandler,
     TeacherProfileChangedHandler,
+    EnrollmentRequestHandler,
+    EnrollmentApprovedHandler,
+    EnrollmentRejectedHandler,
+    PlacementReviewReadyHandler,
+    GroupAssignedHandler,
     AnalyticsConsumerService,
     SchedulingConsumerService,
     OrganizationConsumerService,

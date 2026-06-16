@@ -5,12 +5,16 @@ import { SCHOOL_REPOSITORY } from './domain/repositories/school.repository.inter
 import { SCHOOL_INVITATION_REPOSITORY } from './domain/repositories/school-invitation.repository.interface.js';
 import { SCHOOL_GROUP_REPOSITORY } from './domain/repositories/school-group.repository.interface.js';
 import { GROUP_TEACHER_REPOSITORY } from './domain/repositories/group-teacher.repository.interface.js';
+import { SCHOOL_ONBOARDING_SETTINGS_REPOSITORY } from './domain/repositories/school-onboarding-settings.repository.interface.js';
+import { SCHOOL_MEMBERSHIP_REPOSITORY } from './domain/repositories/school-membership.repository.interface.js';
 import { PROFILE_SERVICE_PORT } from '../../shared/application/ports/profile-service.interface.js';
 
 import { SchoolPrismaRepository } from './infrastructure/persistence/school.prisma.repository.js';
 import { SchoolInvitationPrismaRepository } from './infrastructure/persistence/school-invitation.prisma.repository.js';
 import { SchoolGroupPrismaRepository } from './infrastructure/persistence/school-group.prisma.repository.js';
 import { GroupTeacherPrismaRepository } from './infrastructure/persistence/group-teacher.prisma.repository.js';
+import { SchoolOnboardingSettingsPrismaRepository } from './infrastructure/persistence/school-onboarding-settings.prisma.repository.js';
+import { SchoolMembershipPrismaRepository } from './infrastructure/persistence/school-membership.prisma.repository.js';
 import { InvitationTokenService } from './infrastructure/invitation-token.service.js';
 import { ProfileServiceHttpClient } from '../../infrastructure/profile/profile-service.http-client.js';
 import { SchedulingServiceHttpClient } from '../../infrastructure/scheduling/scheduling-service.http-client.js';
@@ -35,6 +39,12 @@ import { UpdateTeacherAttrsHandler } from './application/commands/update-teacher
 import { AddGroupMemberHandler } from './application/commands/add-group-member/add-group-member.handler.js';
 import { RemoveGroupMemberHandler } from './application/commands/remove-group-member/remove-group-member.handler.js';
 import { UpdateMemberPermissionsHandler } from './application/commands/update-member-permissions/update-member-permissions.handler.js';
+import { UpsertOnboardingSettingsHandler } from './application/commands/upsert-onboarding-settings/upsert-onboarding-settings.handler.js';
+import { CreateMembershipHandler } from './application/commands/create-membership/create-membership.handler.js';
+import { ApproveMembershipHandler } from './application/commands/approve-membership/approve-membership.handler.js';
+import { RejectMembershipHandler } from './application/commands/reject-membership/reject-membership.handler.js';
+import { SetMembershipAvailabilityHandler } from './application/commands/set-membership-availability/set-membership-availability.handler.js';
+import { AssignMembershipGroupHandler } from './application/commands/assign-membership-group/assign-membership-group.handler.js';
 
 import { GetSchoolHandler } from './application/queries/get-school/get-school.handler.js';
 import { GetSchoolBySlugHandler } from './application/queries/get-school-by-slug/get-school-by-slug.handler.js';
@@ -49,6 +59,11 @@ import { ListSchoolMembersHandler } from './application/queries/list-school-memb
 import { CountSchoolInvitationsHandler } from './application/queries/count-school-invitations/count-school-invitations.handler.js';
 import { GetSchoolInvitationPreviewHandler } from './application/queries/get-invitation-preview/get-invitation-preview.handler.js';
 import { GetMyPermissionsHandler } from './application/queries/get-my-permissions/get-my-permissions.handler.js';
+import { GetOnboardingSettingsHandler } from './application/queries/get-onboarding-settings/get-onboarding-settings.handler.js';
+import { ListMembershipsHandler } from './application/queries/list-memberships/list-memberships.handler.js';
+import { GetMyMembershipHandler } from './application/queries/get-my-membership/get-my-membership.handler.js';
+import { GetPublicSchoolHandler } from './application/queries/get-public-school/get-public-school.handler.js';
+import { ListPublicSchoolsHandler } from './application/queries/list-public-schools/list-public-schools.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
@@ -56,6 +71,7 @@ import { InternalController } from './presentation/controllers/internal.controll
 import { SchoolGroupsController } from './presentation/controllers/school-groups.controller.js';
 import { SchoolTeachersController } from './presentation/controllers/school-teachers.controller.js';
 import { SchoolMembersController } from './presentation/controllers/school-members.controller.js';
+import { EnrollmentController } from './presentation/controllers/enrollment.controller.js';
 import { CapabilityResolverService } from './application/services/capability-resolver.service.js';
 import { ProfileUpdatedConsumer } from './infrastructure/events/profile-updated.consumer.js';
 
@@ -80,6 +96,12 @@ const CommandHandlers = [
   AddGroupMemberHandler,
   RemoveGroupMemberHandler,
   UpdateMemberPermissionsHandler,
+  UpsertOnboardingSettingsHandler,
+  CreateMembershipHandler,
+  ApproveMembershipHandler,
+  RejectMembershipHandler,
+  SetMembershipAvailabilityHandler,
+  AssignMembershipGroupHandler,
 ];
 
 const QueryHandlers = [
@@ -96,11 +118,24 @@ const QueryHandlers = [
   CountSchoolInvitationsHandler,
   GetSchoolInvitationPreviewHandler,
   GetMyPermissionsHandler,
+  GetOnboardingSettingsHandler,
+  ListMembershipsHandler,
+  GetMyMembershipHandler,
+  GetPublicSchoolHandler,
+  ListPublicSchoolsHandler,
 ];
 
 @Module({
   imports: [CqrsModule],
-  controllers: [SchoolsController, InvitationsController, InternalController, SchoolGroupsController, SchoolTeachersController, SchoolMembersController],
+  controllers: [
+    SchoolsController,
+    InvitationsController,
+    InternalController,
+    SchoolGroupsController,
+    SchoolTeachersController,
+    SchoolMembersController,
+    EnrollmentController,
+  ],
   providers: [
     ...CommandHandlers,
     ...QueryHandlers,
@@ -124,6 +159,14 @@ const QueryHandlers = [
     {
       provide: GROUP_TEACHER_REPOSITORY,
       useClass: GroupTeacherPrismaRepository,
+    },
+    {
+      provide: SCHOOL_ONBOARDING_SETTINGS_REPOSITORY,
+      useClass: SchoolOnboardingSettingsPrismaRepository,
+    },
+    {
+      provide: SCHOOL_MEMBERSHIP_REPOSITORY,
+      useClass: SchoolMembershipPrismaRepository,
     },
     {
       provide: PROFILE_SERVICE_PORT,

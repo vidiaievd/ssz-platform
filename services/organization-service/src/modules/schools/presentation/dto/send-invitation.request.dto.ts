@@ -102,4 +102,12 @@ export class SendInvitationRequestDto {
   @IsString({ each: true })
   @ArrayUnique()
   capabilities?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Resolved userId of the invitee. Provide when kind=onboard_existing. Used to deliver an IN_APP notification.',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+  })
+  @IsOptional()
+  @IsUUID()
+  recipientUserId?: string;
 }

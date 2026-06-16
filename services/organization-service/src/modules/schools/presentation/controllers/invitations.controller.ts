@@ -116,6 +116,7 @@ export class InvitationsController {
         dto.employmentType ?? null,
         dto.teachingLanguages?.map((l) => ({ code: l.code, level: l.level })) ?? null,
         dto.capabilities ?? [],
+        dto.recipientUserId,
       ),
     );
   }

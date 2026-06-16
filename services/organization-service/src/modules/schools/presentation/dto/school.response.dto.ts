@@ -204,4 +204,38 @@ export class InvitationPreviewResponseDto {
 
   @ApiProperty({ description: 'Invitation expiry (ISO 8601)' })
   expiresAt!: string;
+
+  @ApiPropertyOptional({
+    description: 'Teaching languages (TEACHER role only)',
+    type: 'array',
+    items: { type: 'object', properties: { code: { type: 'string' }, level: { type: 'string', nullable: true } } },
+    nullable: true,
+  })
+  teachingLanguages!: Array<{ code: string; level: string | null }> | null;
+}
+
+export class PublicSchoolResponseDto {
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
+  schoolId!: string;
+
+  @ApiProperty({ example: 'lingua-kyiv' })
+  schoolSlug!: string;
+
+  @ApiProperty({ example: 'Lingua Kyiv' })
+  schoolName!: string;
+
+  @ApiPropertyOptional()
+  description?: string;
+
+  @ApiPropertyOptional()
+  avatarUrl?: string;
+
+  @ApiPropertyOptional()
+  city?: string;
+
+  @ApiPropertyOptional()
+  website?: string;
+
+  @ApiProperty({ description: 'Whether the school is currently accepting applications' })
+  isOpenForApplications!: boolean;
 }

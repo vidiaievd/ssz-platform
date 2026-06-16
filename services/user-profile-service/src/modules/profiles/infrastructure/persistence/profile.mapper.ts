@@ -10,6 +10,9 @@ type PrismaProfile = {
   bio: string | null;
   timezone: string;
   uiLocale: string;
+  guardianAccountId: string | null;
+  dateOfBirth: Date | null;
+  languagesOfInterest: string[];
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -27,6 +30,9 @@ export class ProfileMapper {
       bio: raw.bio ?? undefined,
       timezone: raw.timezone,
       uiLocale: raw.uiLocale,
+      guardianAccountId: raw.guardianAccountId ?? undefined,
+      dateOfBirth: raw.dateOfBirth ?? undefined,
+      languagesOfInterest: raw.languagesOfInterest,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt ?? undefined,
@@ -44,6 +50,9 @@ export class ProfileMapper {
       bio: profile.bio ?? null,
       timezone: profile.timezone,
       uiLocale: profile.uiLocale,
+      guardianAccountId: profile.guardianAccountId ?? null,
+      dateOfBirth: profile.dateOfBirth ?? null,
+      languagesOfInterest: profile.languagesOfInterest,
       deletedAt: profile.deletedAt ?? null,
     };
   }
