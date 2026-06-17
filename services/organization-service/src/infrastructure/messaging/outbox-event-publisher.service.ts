@@ -12,6 +12,8 @@ const ROUTING_KEYS: Record<string, string> = {
   'school.created': 'school.created',
   'school.member.added': 'school.member.added',
   'school.member.removed': 'school.member.removed',
+  'school.student.removed': 'school.student.removed',
+  'school.student.nudged': 'school.student.nudged',
   'school.invitation.sent': 'school.invitation.sent',
   'user.platform.role.assigned': 'user.platform.role.assigned',
   'school.teacher.accepted': 'school.teacher.accepted',

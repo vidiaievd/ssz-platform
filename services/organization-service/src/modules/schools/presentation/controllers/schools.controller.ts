@@ -35,6 +35,12 @@ import { RemoveMemberCommand } from '../../application/commands/remove-member/re
 import { GetSchoolQuery } from '../../application/queries/get-school/get-school.query.js';
 import { ListMySchoolsQuery } from '../../application/queries/list-my-schools/list-my-schools.query.js';
 import { ListSchoolMembersQuery } from '../../application/queries/list-school-members/list-school-members.query.js';
+import { GetStudentMembershipsQuery } from '../../application/queries/get-student-memberships/get-student-memberships.query.js';
+import { GetStudentHistoryQuery } from '../../application/queries/get-student-history/get-student-history.query.js';
+import { UpdateStudentCommand } from '../../application/commands/update-student/update-student.command.js';
+import { TransferStudentCommand } from '../../application/commands/transfer-student/transfer-student.command.js';
+import { RemoveStudentCommand } from '../../application/commands/remove-student/remove-student.command.js';
+import { NudgeStudentCommand } from '../../application/commands/nudge-student/nudge-student.command.js';
 import { CreateSchoolRequestDto } from '../dto/create-school.request.dto.js';
 import { UpdateSchoolRequestDto } from '../dto/update-school.request.dto.js';
 import { AddMemberRequestDto } from '../dto/add-member.request.dto.js';
@@ -45,6 +51,11 @@ import {
   SchoolSummaryResponseDto,
   SlugAvailabilityResponseDto,
 } from '../dto/school.response.dto.js';
+import { StudentMembershipResponseDto } from '../dto/student-membership.response.dto.js';
+import { StudentLevelHistoryEntryResponseDto } from '../dto/student-level-history.response.dto.js';
+import { NudgeStudentResponseDto } from '../dto/nudge-student.response.dto.js';
+import { UpdateStudentRequestDto } from '../dto/update-student.request.dto.js';
+import { TransferStudentRequestDto } from '../dto/transfer-student.request.dto.js';
 import { MemberRole } from '../../domain/value-objects/member-role.vo.js';
 
 @ApiTags('Schools')
@@ -242,5 +253,124 @@ export class SchoolsController {
     return this.queryBus.execute(
       new ListSchoolMembersQuery(user.sub, schoolId, MemberRole.STUDENT),
     );
+  }
+
+  @Get(':schoolId/students/:userId/memberships')
+  @ApiOperation({
+    summary: 'Get a student’s group membership history (active + past)',
+    description:
+      'OWNER/ADMIN/SCHEDULER see everything; TEACHER sees only groups they teach; the student can see their own.',
+  })
+  @ApiResponse({ status: 200, type: [StudentMembershipResponseDto] })
+  @ApiResponse({ status: 403, description: 'Not authorized to view this student' })
+  @ApiResponse({ status: 404, description: 'School not found or userId is not a student of this school' })
+  async getStudentMemberships(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<StudentMembershipResponseDto[]> {
+    return this.queryBus.execute(
+      new GetStudentMembershipsQuery(user.sub, schoolId, userId),
+    );
+  }
+
+  @Get(':schoolId/students/:userId/history')
+  @ApiOperation({
+    summary: "Get a student's CEFR level progression history",
+    description:
+      'OWNER/ADMIN/SCHEDULER see everything; TEACHER sees only their own students; the student can see their own.',
+  })
+  @ApiResponse({ status: 200, type: [StudentLevelHistoryEntryResponseDto] })
+  @ApiResponse({ status: 403, description: 'Not authorized to view this student' })
+  @ApiResponse({ status: 404, description: 'School not found or userId is not a student of this school' })
+  async getStudentHistory(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<StudentLevelHistoryEntryResponseDto[]> {
+    return this.queryBus.execute(
+      new GetStudentHistoryQuery(user.sub, schoolId, userId),
+    );
+  }
+
+  @Patch(':schoolId/students/:userId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Archive/reactivate a student and/or change their CEFR level',
+    description:
+      'OWNER/ADMIN can change status and/or level. TEACHER can only change level, only for their own students.',
+  })
+  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'School not found or userId is not a student of this school' })
+  async updateStudent(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: UpdateStudentRequestDto,
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new UpdateStudentCommand(user.sub, schoolId, userId, dto.status, dto.level),
+    );
+  }
+
+  @Post(':schoolId/students/:userId/transfer')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Atomically transfer a student between two groups (owner/admin/teacher)' })
+  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'School or target group not found' })
+  @ApiResponse({ status: 409, description: 'clash | capacity — pass ?override=true to force' })
+  @ApiResponse({ status: 422, description: 'target-archived | already-member | source-not-found' })
+  async transferStudent(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: TransferStudentRequestDto,
+    @Query('override') override?: string,
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new TransferStudentCommand(
+        user.sub,
+        schoolId,
+        userId,
+        dto.fromGroupId,
+        dto.toGroupId,
+        dto.role ?? 'student',
+        override === 'true',
+      ),
+    );
+  }
+
+  @Delete(':schoolId/students/:userId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Remove a student from the school (owner/admin)',
+    description:
+      'Deactivates the student (status=archived) and exits all their active groups, preserving membership/level history. Does not erase the student record.',
+  })
+  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'School not found or userId is not a student of this school' })
+  async removeStudent(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<void> {
+    await this.commandBus.execute(new RemoveStudentCommand(user.sub, schoolId, userId));
+  }
+
+  @Post(':schoolId/students/:userId/nudge')
+  @ApiOperation({ summary: 'Send an individual study-reminder nudge to a student (owner/admin/teacher)' })
+  @ApiResponse({ status: 200, type: NudgeStudentResponseDto })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'School not found or userId is not a student of this school' })
+  @ApiResponse({ status: 429, description: 'Rate-limited — at most one nudge per student per 24h' })
+  async nudgeStudent(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<NudgeStudentResponseDto> {
+    return this.commandBus.execute(new NudgeStudentCommand(user.sub, schoolId, userId));
   }
 }

@@ -12,6 +12,7 @@ import { EnrollmentApprovedHandler } from '../../modules/notifications/handlers/
 import { EnrollmentRejectedHandler } from '../../modules/notifications/handlers/enrollment-rejected.handler.js';
 import { PlacementReviewReadyHandler } from '../../modules/notifications/handlers/placement-review-ready.handler.js';
 import { GroupAssignedHandler } from '../../modules/notifications/handlers/group-assigned.handler.js';
+import { StudentNudgedHandler } from '../../modules/notifications/handlers/student-nudged.handler.js';
 import type { IMessageHandler } from './message-handler.interface.js';
 
 const QUEUE = 'notification-service.organization';
@@ -34,6 +35,7 @@ export class OrganizationConsumerService implements OnModuleInit, OnModuleDestro
     private readonly enrollmentRejectedHandler: EnrollmentRejectedHandler,
     private readonly placementReviewReadyHandler: PlacementReviewReadyHandler,
     private readonly groupAssignedHandler: GroupAssignedHandler,
+    private readonly studentNudgedHandler: StudentNudgedHandler,
   ) {
     this.handlers = [
       schoolInvitationSentHandler,
@@ -43,6 +45,7 @@ export class OrganizationConsumerService implements OnModuleInit, OnModuleDestro
       enrollmentRejectedHandler,
       placementReviewReadyHandler,
       groupAssignedHandler,
+      studentNudgedHandler,
     ];
   }
 

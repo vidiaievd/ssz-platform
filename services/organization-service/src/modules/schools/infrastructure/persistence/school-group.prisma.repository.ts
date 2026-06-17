@@ -4,7 +4,10 @@ import type { ISchoolGroupRepository } from '../../domain/repositories/school-gr
 import type { SchoolGroup } from '../../domain/entities/school-group.entity.js';
 import { SchoolGroupMapper } from './school-group.mapper.js';
 
-const GROUP_INCLUDE = { members: true, teachers: true } as const;
+// The aggregate only ever sees active members — capacity checks, roster, and
+// publish validation must not count past (exited) memberships. History queries
+// for the Student Detail Page read school_group_members directly, bypassing this aggregate.
+const GROUP_INCLUDE = { members: { where: { status: 'active' as const } }, teachers: true } as const;
 
 @Injectable()
 export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
@@ -79,22 +82,35 @@ export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
     });
   }
 
-  async saveWithMember(group: SchoolGroup, userId: string, memberId: string): Promise<void> {
+  async saveWithMember(
+    group: SchoolGroup,
+    userId: string,
+    memberId: string,
+    role: 'student' | 'trial' | 'observer' = 'student',
+  ): Promise<void> {
     await (this.prisma as any).schoolGroupMember.upsert({
       where: { groupId_userId: { groupId: group.id, userId } },
       create: {
         id: memberId,
         groupId: group.id,
         userId,
+        role,
         addedAt: new Date(),
       },
-      update: {},
+      // Re-adding a former member: reopen as a new membership period.
+      update: {
+        role,
+        status: 'active',
+        addedAt: new Date(),
+        exitedAt: null,
+      },
     });
   }
 
   async removeMember(groupId: string, userId: string): Promise<void> {
-    await (this.prisma as any).schoolGroupMember.deleteMany({
-      where: { groupId, userId },
+    await (this.prisma as any).schoolGroupMember.updateMany({
+      where: { groupId, userId, status: 'active' },
+      data: { status: 'past', exitedAt: new Date() },
     });
   }
 }

@@ -19,6 +19,8 @@ export const ORGANIZATION_EVENT_TYPES = {
   ENROLLMENT_REJECTED: 'school.enrollment.rejected',
   PLACEMENT_REVIEW_READY: 'school.enrollment.placement_review_ready',
   GROUP_ASSIGNED: 'school.enrollment.group_assigned',
+  STUDENT_REMOVED: 'school.student.removed',
+  STUDENT_NUDGED: 'school.student.nudged',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -144,6 +146,18 @@ export interface GroupAssignedPayload {
   occurredAt: string;
 }
 
+export interface StudentRemovedPayload {
+  schoolId: string;
+  userId: string;
+}
+
+export interface StudentNudgedPayload {
+  schoolId: string;
+  studentUserId: string;
+  requestedBy: string;
+  occurredAt: string;
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type SchoolCreatedEvent = BaseEvent<SchoolCreatedPayload>;
@@ -161,6 +175,8 @@ export type EnrollmentApprovedEvent = BaseEvent<EnrollmentApprovedPayload>;
 export type EnrollmentRejectedEvent = BaseEvent<EnrollmentRejectedPayload>;
 export type PlacementReviewReadyEvent = BaseEvent<PlacementReviewReadyPayload>;
 export type GroupAssignedEvent = BaseEvent<GroupAssignedPayload>;
+export type StudentRemovedEvent = BaseEvent<StudentRemovedPayload>;
+export type StudentNudgedEvent = BaseEvent<StudentNudgedPayload>;
 
 export type AnyOrganizationEvent =
   | SchoolCreatedEvent
@@ -177,4 +193,6 @@ export type AnyOrganizationEvent =
   | EnrollmentApprovedEvent
   | EnrollmentRejectedEvent
   | PlacementReviewReadyEvent
-  | GroupAssignedEvent;
+  | GroupAssignedEvent
+  | StudentRemovedEvent
+  | StudentNudgedEvent;

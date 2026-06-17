@@ -33,6 +33,7 @@ import { AssignGroupTeacherCommand } from '../../application/commands/assign-gro
 import { RemoveGroupTeacherCommand } from '../../application/commands/remove-group-teacher/remove-group-teacher.command.js';
 import { AddGroupMemberCommand } from '../../application/commands/add-group-member/add-group-member.command.js';
 import { RemoveGroupMemberCommand } from '../../application/commands/remove-group-member/remove-group-member.command.js';
+import { UpdateGroupMemberRoleCommand } from '../../application/commands/update-group-member-role/update-group-member-role.command.js';
 import { GetSchoolGroupQuery } from '../../application/queries/get-school-group/get-school-group.query.js';
 import { ListSchoolGroupsQuery } from '../../application/queries/list-school-groups/list-school-groups.query.js';
 import type { SchoolGroup } from '../../domain/entities/school-group.entity.js';
@@ -40,6 +41,7 @@ import {
   CreateSchoolGroupRequestDto,
   UpdateSchoolGroupRequestDto,
   AddGroupMemberRequestDto,
+  UpdateGroupMemberRoleRequestDto,
   AssignGroupTeacherRequestDto,
 } from '../dto/school-group.request.dto.js';
 import {
@@ -246,6 +248,23 @@ export class SchoolGroupsController {
   ): Promise<void> {
     await this.commandBus.execute(
       new RemoveGroupMemberCommand(user.sub, schoolId, groupId, userId),
+    );
+  }
+
+  @Patch(':groupId/members/:userId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Change a member’s role in this group (owner/admin/teacher or self)' })
+  @ApiNoContentResponse()
+  @ApiResponse({ status: 404, description: 'User is not an active member of this group' })
+  async updateMemberRole(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: UpdateGroupMemberRoleRequestDto,
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new UpdateGroupMemberRoleCommand(user.sub, schoolId, groupId, userId, dto.role),
     );
   }
 }

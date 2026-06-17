@@ -72,7 +72,7 @@ export class ListSchoolMembersHandler implements IQueryHandler<ListSchoolMembers
           role: r.role as MemberRole,
           langs: teachingLangs?.langs ?? [],
           maxWeeklyHours: isTeacher ? (r.teacherAttrs?.maxWeeklyHours ?? null) : null,
-          status: isTeacher ? (r.teacherAttrs?.status ?? 'active') : 'active',
+          status: isTeacher ? (r.teacherAttrs?.status ?? 'active') : (r.status ?? 'active'),
           joinedAt: (r.joinedAt as Date).toISOString(),
         } satisfies MemberRosterItemDto;
       }),

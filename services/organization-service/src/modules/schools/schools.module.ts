@@ -24,6 +24,11 @@ import { UpdateSchoolHandler } from './application/commands/update-school/update
 import { DeleteSchoolHandler } from './application/commands/delete-school/delete-school.handler.js';
 import { AddMemberHandler } from './application/commands/add-member/add-member.handler.js';
 import { RemoveMemberHandler } from './application/commands/remove-member/remove-member.handler.js';
+import { UpdateStudentHandler } from './application/commands/update-student/update-student.handler.js';
+import { TransferStudentHandler } from './application/commands/transfer-student/transfer-student.handler.js';
+import { UpdateGroupMemberRoleHandler } from './application/commands/update-group-member-role/update-group-member-role.handler.js';
+import { RemoveStudentHandler } from './application/commands/remove-student/remove-student.handler.js';
+import { NudgeStudentHandler } from './application/commands/nudge-student/nudge-student.handler.js';
 import { SendInvitationHandler } from './application/commands/send-invitation/send-invitation.handler.js';
 import { AcceptInvitationHandler } from './application/commands/accept-invitation/accept-invitation.handler.js';
 import { ResendSchoolInvitationHandler } from './application/commands/resend-invitation/resend-invitation.handler.js';
@@ -57,6 +62,8 @@ import { GetSchoolGroupHandler } from './application/queries/get-school-group/ge
 import { ListSchoolGroupsHandler } from './application/queries/list-school-groups/list-school-groups.handler.js';
 import { ListSchoolTeachersHandler } from './application/queries/list-school-teachers/list-school-teachers.handler.js';
 import { ListSchoolMembersHandler } from './application/queries/list-school-members/list-school-members.handler.js';
+import { GetStudentMembershipsHandler } from './application/queries/get-student-memberships/get-student-memberships.handler.js';
+import { GetStudentHistoryHandler } from './application/queries/get-student-history/get-student-history.handler.js';
 import { CountSchoolInvitationsHandler } from './application/queries/count-school-invitations/count-school-invitations.handler.js';
 import { GetSchoolInvitationPreviewHandler } from './application/queries/get-invitation-preview/get-invitation-preview.handler.js';
 import { GetMyPermissionsHandler } from './application/queries/get-my-permissions/get-my-permissions.handler.js';
@@ -82,6 +89,11 @@ const CommandHandlers = [
   DeleteSchoolHandler,
   AddMemberHandler,
   RemoveMemberHandler,
+  UpdateStudentHandler,
+  TransferStudentHandler,
+  UpdateGroupMemberRoleHandler,
+  RemoveStudentHandler,
+  NudgeStudentHandler,
   SendInvitationHandler,
   AcceptInvitationHandler,
   ResendSchoolInvitationHandler,
@@ -117,6 +129,8 @@ const QueryHandlers = [
   ListSchoolGroupsHandler,
   ListSchoolTeachersHandler,
   ListSchoolMembersHandler,
+  GetStudentMembershipsHandler,
+  GetStudentHistoryHandler,
   CountSchoolInvitationsHandler,
   GetSchoolInvitationPreviewHandler,
   GetMyPermissionsHandler,

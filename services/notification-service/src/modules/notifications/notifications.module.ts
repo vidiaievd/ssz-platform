@@ -17,6 +17,7 @@ import { EnrollmentApprovedHandler } from './handlers/enrollment-approved.handle
 import { EnrollmentRejectedHandler } from './handlers/enrollment-rejected.handler.js';
 import { PlacementReviewReadyHandler } from './handlers/placement-review-ready.handler.js';
 import { GroupAssignedHandler } from './handlers/group-assigned.handler.js';
+import { StudentNudgedHandler } from './handlers/student-nudged.handler.js';
 import { AnalyticsConsumerService } from '../../infrastructure/messaging/analytics-consumer.service.js';
 import { SchedulingConsumerService } from '../../infrastructure/messaging/scheduling-consumer.service.js';
 import { OrganizationConsumerService } from '../../infrastructure/messaging/organization-consumer.service.js';
@@ -41,6 +42,7 @@ import { OrganizationConsumerService } from '../../infrastructure/messaging/orga
     EnrollmentRejectedHandler,
     PlacementReviewReadyHandler,
     GroupAssignedHandler,
+    StudentNudgedHandler,
     AnalyticsConsumerService,
     SchedulingConsumerService,
     OrganizationConsumerService,
