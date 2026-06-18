@@ -35,6 +35,7 @@ import { RemoveMemberCommand } from '../../application/commands/remove-member/re
 import { GetSchoolQuery } from '../../application/queries/get-school/get-school.query.js';
 import { ListMySchoolsQuery } from '../../application/queries/list-my-schools/list-my-schools.query.js';
 import { ListSchoolMembersQuery } from '../../application/queries/list-school-members/list-school-members.query.js';
+import { GetStudentDetailQuery } from '../../application/queries/get-student-detail/get-student-detail.query.js';
 import { GetStudentMembershipsQuery } from '../../application/queries/get-student-memberships/get-student-memberships.query.js';
 import { GetStudentHistoryQuery } from '../../application/queries/get-student-history/get-student-history.query.js';
 import { UpdateStudentCommand } from '../../application/commands/update-student/update-student.command.js';
@@ -51,6 +52,7 @@ import {
   SchoolSummaryResponseDto,
   SlugAvailabilityResponseDto,
 } from '../dto/school.response.dto.js';
+import { StudentDetailResponseDto } from '../dto/student-detail.response.dto.js';
 import { StudentMembershipResponseDto } from '../dto/student-membership.response.dto.js';
 import { StudentLevelHistoryEntryResponseDto } from '../dto/student-level-history.response.dto.js';
 import { NudgeStudentResponseDto } from '../dto/nudge-student.response.dto.js';
@@ -252,6 +254,25 @@ export class SchoolsController {
   ): Promise<MemberRosterItemResponseDto[]> {
     return this.queryBus.execute(
       new ListSchoolMembersQuery(user.sub, schoolId, MemberRole.STUDENT),
+    );
+  }
+
+  @Get(':schoolId/students/:userId')
+  @ApiOperation({
+    summary: 'Get a single student’s detail (OWNER/ADMIN/SCHEDULER/own teacher/self)',
+    description:
+      'OWNER/ADMIN/SCHEDULER see everything; TEACHER sees only their own students; the student can see their own record.',
+  })
+  @ApiResponse({ status: 200, type: StudentDetailResponseDto })
+  @ApiResponse({ status: 403, description: 'Not authorized to view this student' })
+  @ApiResponse({ status: 404, description: 'School not found or userId is not a student of this school' })
+  async getStudent(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<StudentDetailResponseDto> {
+    return this.queryBus.execute(
+      new GetStudentDetailQuery(user.sub, schoolId, userId),
     );
   }
 

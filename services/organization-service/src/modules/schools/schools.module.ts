@@ -62,6 +62,7 @@ import { GetSchoolGroupHandler } from './application/queries/get-school-group/ge
 import { ListSchoolGroupsHandler } from './application/queries/list-school-groups/list-school-groups.handler.js';
 import { ListSchoolTeachersHandler } from './application/queries/list-school-teachers/list-school-teachers.handler.js';
 import { ListSchoolMembersHandler } from './application/queries/list-school-members/list-school-members.handler.js';
+import { GetStudentDetailHandler } from './application/queries/get-student-detail/get-student-detail.handler.js';
 import { GetStudentMembershipsHandler } from './application/queries/get-student-memberships/get-student-memberships.handler.js';
 import { GetStudentHistoryHandler } from './application/queries/get-student-history/get-student-history.handler.js';
 import { CountSchoolInvitationsHandler } from './application/queries/count-school-invitations/count-school-invitations.handler.js';
@@ -129,6 +130,7 @@ const QueryHandlers = [
   ListSchoolGroupsHandler,
   ListSchoolTeachersHandler,
   ListSchoolMembersHandler,
+  GetStudentDetailHandler,
   GetStudentMembershipsHandler,
   GetStudentHistoryHandler,
   CountSchoolInvitationsHandler,
