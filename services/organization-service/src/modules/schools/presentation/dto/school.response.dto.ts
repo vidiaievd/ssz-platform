@@ -128,6 +128,35 @@ export class SlugAvailabilityResponseDto {
   suggestions?: string[];
 }
 
+export class MemberRosterItemResponseDto {
+  @ApiProperty({ description: 'User UUID' })
+  userId!: string;
+
+  @ApiProperty({ description: 'Display name from profile-service (userId fallback)' })
+  name!: string;
+
+  @ApiPropertyOptional({ description: 'Email from profile-service', nullable: true })
+  email!: string | null;
+
+  @ApiPropertyOptional({ description: 'Avatar URL from profile-service', nullable: true })
+  avatarUrl!: string | null;
+
+  @ApiProperty({ enum: MemberRole, description: 'Role in this school' })
+  role!: MemberRole;
+
+  @ApiProperty({ type: [String], description: 'Teaching languages (ISO 639-1); empty for non-teachers' })
+  langs!: string[];
+
+  @ApiPropertyOptional({ description: 'Max weekly teaching hours; null for non-teachers', nullable: true })
+  maxWeeklyHours!: number | null;
+
+  @ApiProperty({ description: 'Member status', enum: ['active', 'invited', 'inactive', 'suspended'] })
+  status!: string;
+
+  @ApiProperty({ description: 'Join timestamp (ISO 8601)' })
+  joinedAt!: string;
+}
+
 export class MemberPermissionsResponseDto {
   @ApiPropertyOptional({ enum: MemberRole, description: 'Current role of the member in this school, or null if not a member' })
   role!: string | null;
@@ -138,6 +167,11 @@ export class MemberPermissionsResponseDto {
     example: ['invitations:create_teacher', 'groups:create'],
   })
   capabilities!: string[];
+}
+
+export class InvitationCountResponseDto {
+  @ApiProperty({ description: 'Number of matching invitations', example: 3 })
+  count!: number;
 }
 
 export class InvitationPreviewResponseDto {
@@ -156,6 +190,12 @@ export class InvitationPreviewResponseDto {
   @ApiProperty({ description: 'Email the invitation was addressed to' })
   email!: string;
 
+  @ApiPropertyOptional({ description: 'School-provided first name hint for pre-filling registration' })
+  firstName!: string | null;
+
+  @ApiPropertyOptional({ description: 'School-provided last name hint for pre-filling registration' })
+  lastName!: string | null;
+
   @ApiPropertyOptional({ description: 'Display name of the inviting user' })
   invitedByName!: string | null;
 
@@ -164,4 +204,38 @@ export class InvitationPreviewResponseDto {
 
   @ApiProperty({ description: 'Invitation expiry (ISO 8601)' })
   expiresAt!: string;
+
+  @ApiPropertyOptional({
+    description: 'Teaching languages (TEACHER role only)',
+    type: 'array',
+    items: { type: 'object', properties: { code: { type: 'string' }, level: { type: 'string', nullable: true } } },
+    nullable: true,
+  })
+  teachingLanguages!: Array<{ code: string; level: string | null }> | null;
+}
+
+export class PublicSchoolResponseDto {
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
+  schoolId!: string;
+
+  @ApiProperty({ example: 'lingua-kyiv' })
+  schoolSlug!: string;
+
+  @ApiProperty({ example: 'Lingua Kyiv' })
+  schoolName!: string;
+
+  @ApiPropertyOptional()
+  description?: string;
+
+  @ApiPropertyOptional()
+  avatarUrl?: string;
+
+  @ApiPropertyOptional()
+  city?: string;
+
+  @ApiPropertyOptional()
+  website?: string;
+
+  @ApiProperty({ description: 'Whether the school is currently accepting applications' })
+  isOpenForApplications!: boolean;
 }

@@ -83,13 +83,15 @@ export class ResendSchoolInvitationHandler implements ICommandHandler<ResendScho
       newExpiresAt,
       invitation.kind,
       invitation.targetGroupId,
+      invitation.firstName ?? null,
+      invitation.lastName ?? null,
     );
 
     invitation.rotateToken(newToken, newExpiresAt);
     await this.invitationRepository.save(invitation);
 
     const appBaseUrl = this.config.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
-    const invitationUrl = `${appBaseUrl}/invitations/${newToken}/accept`;
+    const invitationUrl = `${appBaseUrl}/invite/${newToken}`;
 
     await this.eventPublisher.publish(
       new SchoolInvitationSentEvent(

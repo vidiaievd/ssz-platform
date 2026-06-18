@@ -1,0 +1,75 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class OnboardingSettingsResponseDto {
+  @ApiProperty({ enum: ['platform', 'school', 'none'] })
+  placementMode: string;
+
+  @ApiPropertyOptional()
+  schoolTestId?: string;
+
+  @ApiProperty()
+  reusePlatform: boolean;
+
+  @ApiPropertyOptional()
+  maxResultAgeDays?: number;
+
+  @ApiProperty()
+  interviewRequired: boolean;
+
+  @ApiProperty()
+  autoPlaceByScore: boolean;
+
+  @ApiProperty()
+  collectAvailability: boolean;
+
+  @ApiProperty({ enum: ['auto', 'manual'] })
+  approvalMode: string;
+}
+
+export class AvailabilitySlotResponseDto {
+  @ApiProperty()
+  day: number;
+
+  @ApiProperty()
+  from: string;
+
+  @ApiProperty()
+  to: string;
+}
+
+export class MembershipResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  schoolId: string;
+
+  @ApiProperty()
+  studentId: string;
+
+  @ApiProperty({ enum: ['pending', 'onboarding', 'placement-review', 'active', 'rejected', 'left'] })
+  status: string;
+
+  @ApiProperty({ enum: ['public-apply', 'invite', 'direct'] })
+  source: string;
+
+  @ApiPropertyOptional()
+  language?: string;
+
+  @ApiPropertyOptional({ type: [AvailabilitySlotResponseDto] })
+  availability?: AvailabilitySlotResponseDto[];
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+}
+
+export class MembershipListResponseDto {
+  @ApiProperty({ type: [MembershipResponseDto] })
+  items: MembershipResponseDto[];
+
+  @ApiPropertyOptional({ description: 'Pass as ?cursor= to get the next page' })
+  nextCursor: string | null;
+}

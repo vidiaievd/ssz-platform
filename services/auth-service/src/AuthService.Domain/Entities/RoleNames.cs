@@ -16,5 +16,6 @@ public static class RoleNames
             Student,
             Tutor,
             SchoolAdmin,
+            Teacher,
         };
 }

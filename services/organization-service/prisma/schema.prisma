@@ -62,6 +62,28 @@ enum GroupTeacherRole {
   substitute
 }
 
+enum GroupMemberRole {
+  student
+  trial
+  observer
+
+  @@map("group_member_role")
+}
+
+enum GroupMembershipStatus {
+  active
+  past
+
+  @@map("group_membership_status")
+}
+
+enum StudentStatus {
+  active
+  archived
+
+  @@map("student_status")
+}
+
 enum InvitationKind {
   register
   onboard_existing
@@ -86,9 +108,11 @@ model School {
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
 
-  members     SchoolMember[]
-  invitations SchoolInvitation[]
-  groups      SchoolGroup[]
+  members             SchoolMember[]
+  invitations         SchoolInvitation[]
+  groups              SchoolGroup[]
+  onboardingSettings  SchoolOnboardingSettings?
+  memberships         SchoolMembership[]
 
   @@map("schools")
 }
@@ -99,6 +123,8 @@ model SchoolMember {
   school    School     @relation(fields: [schoolId], references: [id])
   userId    String     // userId from user-profile-service — stays TEXT (external)
   role      MemberRole
+  status    StudentStatus @default(active)  // meaningful for STUDENT role; archived = deactivated, not removed
+  level     String?    // current CEFR level (A1–C2), STUDENT role only
   joinedAt  DateTime   @default(now())
 
   teacherAttrs SchoolTeacher?
@@ -106,6 +132,33 @@ model SchoolMember {
 
   @@unique([schoolId, userId])
   @@map("school_members")
+}
+
+// Rate-limit tracking for SD.7 individual nudge (max 1 per student per 24h).
+model StudentNudge {
+  schoolId     String   @map("school_id") @db.Uuid
+  studentId    String   @map("student_id")
+  lastNudgedAt DateTime @map("last_nudged_at")
+
+  @@id([schoolId, studentId])
+  @@map("student_nudges")
+}
+
+// One row per CEFR level period a student has held in a school. Closed (endedAt set)
+// when level changes; latest open row (endedAt = null) is the student's current level.
+model StudentLevelHistory {
+  id         String    @id @default(uuid()) @db.Uuid
+  schoolId   String    @map("school_id") @db.Uuid
+  studentId  String    @map("student_id")           // external — stays TEXT
+  level      String
+  startedAt  DateTime  @default(now()) @map("started_at")
+  endedAt    DateTime? @map("ended_at")
+  groupId    String?   @map("group_id") @db.Uuid     // group context at the time level was set, if any
+  assessedBy String?   @map("assessed_by")           // external userId of who set it, if any
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([schoolId, studentId])
+  @@map("student_level_history")
 }
 
 // Capability grants for MANAGER members (school-scoped).
@@ -154,6 +207,9 @@ model SchoolInvitation {
   acceptedAt    DateTime?        @map("accepted_at")
   lastSentAt               DateTime         @default(now()) @map("last_sent_at")
   resendCount              Int              @default(0) @map("resend_count")
+  firstName                String?          @map("first_name")
+  lastName                 String?          @map("last_name")
+  phone                    String?
   teacherMaxWeeklyHours    Int?             @map("teacher_max_weekly_hours")
   teacherEmploymentType    EmploymentType?  @map("teacher_employment_type")
   teacherLanguages         Json?            @map("teacher_languages")   // [{ code, level }] for role=TEACHER
@@ -194,14 +250,18 @@ model SchoolGroup {
 }
 
 model SchoolGroupMember {
-  id       String      @id @default(uuid()) @db.Uuid
-  groupId  String      @map("group_id") @db.Uuid
-  group    SchoolGroup @relation(fields: [groupId], references: [id])
-  userId   String      @map("user_id")    // external — stays TEXT
-  addedAt  DateTime    @default(now()) @map("added_at")
+  id       String                @id @default(uuid()) @db.Uuid
+  groupId  String                @map("group_id") @db.Uuid
+  group    SchoolGroup           @relation(fields: [groupId], references: [id])
+  userId   String                @map("user_id")    // external — stays TEXT
+  role     GroupMemberRole       @default(student)
+  status   GroupMembershipStatus @default(active)
+  addedAt  DateTime              @default(now()) @map("added_at")
+  exitedAt DateTime?             @map("exited_at")
 
   @@unique([groupId, userId])
   @@index([userId])
+  @@index([groupId, status])
   @@map("school_group_members")
 }
 
@@ -220,6 +280,74 @@ model GroupTeacher {
   @@index([groupId])
   @@index([userId])
   @@map("group_teachers")
+}
+
+enum PlacementMode {
+  platform
+  school
+  none
+
+  @@map("placement_mode")
+}
+
+enum ApprovalMode {
+  auto
+  manual
+
+  @@map("approval_mode")
+}
+
+model SchoolOnboardingSettings {
+  schoolId           String       @id @map("school_id") @db.Uuid
+  school             School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  placementMode      PlacementMode @default(platform) @map("placement_mode")
+  schoolTestId       String?      @map("school_test_id") @db.Uuid
+  reusePlatform      Boolean      @default(true) @map("reuse_platform")
+  maxResultAgeDays   Int?         @map("max_result_age_days")
+  interviewRequired  Boolean      @default(true) @map("interview_required")
+  autoPlaceByScore   Boolean      @default(false) @map("auto_place_by_score")
+  collectAvailability Boolean     @default(true) @map("collect_availability")
+  approvalMode       ApprovalMode @default(manual) @map("approval_mode")
+  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@map("school_onboarding_settings")
+}
+
+enum MembershipStatus {
+  pending
+  onboarding
+  placement_review @map("placement-review")
+  active
+  rejected
+  left
+
+  @@map("membership_status")
+}
+
+enum MembershipSource {
+  public_apply @map("public-apply")
+  invite
+  direct
+
+  @@map("membership_source")
+}
+
+model SchoolMembership {
+  id           String           @id @default(uuid()) @db.Uuid
+  schoolId     String           @map("school_id") @db.Uuid
+  school       School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId    String           @map("student_id")
+  status       MembershipStatus @default(pending)
+  source       MembershipSource
+  language     String?          @db.Char(2)
+  availability Json?
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  @@index([schoolId, status])
+  @@index([schoolId, studentId])
+  @@index([studentId])
+  @@map("school_memberships")
 }
 
 model TutoringGroup {

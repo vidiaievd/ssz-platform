@@ -8,10 +8,19 @@ export const ORGANIZATION_EVENT_TYPES = {
   SCHOOL_MEMBER_REMOVED: 'school.member.removed',
   SCHOOL_INVITATION_SENT: 'school.invitation.sent',
   USER_PLATFORM_ROLE_ASSIGNED: 'user.platform.role.assigned',
+  SCHOOL_TEACHER_ACCEPTED: 'school.teacher.accepted',
+  TEACHER_PROFILE_CHANGED: 'organization.teacher.profile_changed',
   GROUP_PUBLISHED: 'school.group.published',
   GROUP_ARCHIVED: 'school.group.archived',
   GROUP_MEMBER_ADDED: 'school.group.member.added',
   GROUP_MEMBER_REMOVED: 'school.group.member.removed',
+  ENROLLMENT_REQUEST: 'school.enrollment.requested',
+  ENROLLMENT_APPROVED: 'school.enrollment.approved',
+  ENROLLMENT_REJECTED: 'school.enrollment.rejected',
+  PLACEMENT_REVIEW_READY: 'school.enrollment.placement_review_ready',
+  GROUP_ASSIGNED: 'school.enrollment.group_assigned',
+  STUDENT_REMOVED: 'school.student.removed',
+  STUDENT_NUDGED: 'school.student.nudged',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -43,6 +52,8 @@ export interface SchoolInvitationSentPayload {
   invitationUrl: string;
   role: string;
   expiresAt: string; // ISO 8601
+  /** Present only when the invitee already has an account (kind=onboard_existing). Used to create an IN_APP notification. */
+  recipientUserId?: string;
 }
 
 export interface UserPlatformRoleAssignedPayload {
@@ -82,6 +93,71 @@ export interface GroupMemberRemovedPayload {
   courseId: string | null;
 }
 
+export interface TeacherProfileChangedPayload {
+  schoolId: string;
+  recipientId: string;
+  teacherUserId: string;
+  changedFields: string[];
+  occurredAt: string; // ISO 8601
+}
+
+export interface EnrollmentRequestPayload {
+  membershipId: string;
+  schoolId: string;
+  schoolName: string;
+  studentId: string;
+  /** IDs of school OWNER/ADMINs to notify */
+  adminIds: string[];
+  occurredAt: string;
+}
+
+export interface EnrollmentApprovedPayload {
+  membershipId: string;
+  schoolId: string;
+  schoolName: string;
+  studentId: string;
+  occurredAt: string;
+}
+
+export interface EnrollmentRejectedPayload {
+  membershipId: string;
+  schoolId: string;
+  schoolName: string;
+  studentId: string;
+  occurredAt: string;
+}
+
+export interface PlacementReviewReadyPayload {
+  membershipId: string;
+  schoolId: string;
+  schoolName: string;
+  studentId: string;
+  adminIds: string[];
+  occurredAt: string;
+}
+
+export interface GroupAssignedPayload {
+  membershipId: string;
+  schoolId: string;
+  schoolName: string;
+  studentId: string;
+  groupId: string;
+  groupName: string;
+  occurredAt: string;
+}
+
+export interface StudentRemovedPayload {
+  schoolId: string;
+  userId: string;
+}
+
+export interface StudentNudgedPayload {
+  schoolId: string;
+  studentUserId: string;
+  requestedBy: string;
+  occurredAt: string;
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type SchoolCreatedEvent = BaseEvent<SchoolCreatedPayload>;
@@ -93,6 +169,14 @@ export type GroupPublishedEvent = BaseEvent<GroupPublishedPayload>;
 export type GroupArchivedEvent = BaseEvent<GroupArchivedPayload>;
 export type GroupMemberAddedEvent = BaseEvent<GroupMemberAddedPayload>;
 export type GroupMemberRemovedEvent = BaseEvent<GroupMemberRemovedPayload>;
+export type TeacherProfileChangedEvent = BaseEvent<TeacherProfileChangedPayload>;
+export type EnrollmentRequestEvent = BaseEvent<EnrollmentRequestPayload>;
+export type EnrollmentApprovedEvent = BaseEvent<EnrollmentApprovedPayload>;
+export type EnrollmentRejectedEvent = BaseEvent<EnrollmentRejectedPayload>;
+export type PlacementReviewReadyEvent = BaseEvent<PlacementReviewReadyPayload>;
+export type GroupAssignedEvent = BaseEvent<GroupAssignedPayload>;
+export type StudentRemovedEvent = BaseEvent<StudentRemovedPayload>;
+export type StudentNudgedEvent = BaseEvent<StudentNudgedPayload>;
 
 export type AnyOrganizationEvent =
   | SchoolCreatedEvent
@@ -103,4 +187,12 @@ export type AnyOrganizationEvent =
   | GroupPublishedEvent
   | GroupArchivedEvent
   | GroupMemberAddedEvent
-  | GroupMemberRemovedEvent;
+  | GroupMemberRemovedEvent
+  | TeacherProfileChangedEvent
+  | EnrollmentRequestEvent
+  | EnrollmentApprovedEvent
+  | EnrollmentRejectedEvent
+  | PlacementReviewReadyEvent
+  | GroupAssignedEvent
+  | StudentRemovedEvent
+  | StudentNudgedEvent;

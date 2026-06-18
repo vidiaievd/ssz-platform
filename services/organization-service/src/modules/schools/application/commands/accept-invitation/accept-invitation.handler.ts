@@ -103,6 +103,8 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
           command.actorId,
           school.id,
           invitation.teacherLanguages ?? null,
+          invitation.firstName ?? null,
+          invitation.lastName ?? null,
         ),
       );
     }

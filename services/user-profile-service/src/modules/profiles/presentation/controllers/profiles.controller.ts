@@ -65,6 +65,9 @@ export class ProfilesController {
         dto.bio,
         dto.timezone,
         dto.uiLocale,
+        dto.guardianAccountId,
+        dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+        dto.languagesOfInterest,
       ),
     );
   }

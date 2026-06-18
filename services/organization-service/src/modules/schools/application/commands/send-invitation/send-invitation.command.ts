@@ -9,9 +9,13 @@ export class SendInvitationCommand {
     public readonly role: MemberRole,
     public readonly kind: InvitationKind = 'register',
     public readonly targetGroupId?: string | null,
+    public readonly firstName?: string | null,
+    public readonly lastName?: string | null,
+    public readonly phone?: string | null,
     public readonly teacherMaxWeeklyHours?: number | null,
     public readonly teacherEmploymentType?: EmploymentType | null,
     public readonly teacherLanguages?: TeacherLanguage[] | null,
     public readonly capabilities?: string[],
+    public readonly recipientUserId?: string,
   ) {}
 }

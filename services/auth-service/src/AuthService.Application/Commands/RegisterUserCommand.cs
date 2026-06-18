@@ -34,12 +34,14 @@ public sealed class RegisterUserCommandHandler(
         var requestedRole = command.Role.Trim().ToLowerInvariant();
 
         // student      → [student]
-        // tutor        → [tutor]        (student role must be added explicitly later)
+        // tutor        → [tutor]
         // school_admin → [school_admin]
+        // teacher      → [teacher]
         var roleNames = requestedRole switch
         {
             RoleNames.Tutor        => new[] { RoleNames.Tutor },
             RoleNames.SchoolAdmin  => new[] { RoleNames.SchoolAdmin },
+            RoleNames.Teacher      => new[] { RoleNames.Teacher },
             _                      => new[] { RoleNames.Student },
         };
 

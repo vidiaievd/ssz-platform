@@ -34,6 +34,8 @@ export interface SendSchoolInvitationInput {
   invitationUrl: string;
   role: string;
   expiresAt: string;
+  /** Present when the invitee already has an account (kind=onboard_existing). Used for proper recipient tracking. */
+  recipientUserId?: string;
 }
 
 @Injectable()
@@ -121,7 +123,7 @@ export class NotificationsService {
     const notification = await this.repo.create({
       type: 'SCHOOL_INVITATION' as NotificationType,
       channel: 'EMAIL' as NotificationChannel,
-      recipientId: input.invitationId,
+      recipientId: input.recipientUserId ?? input.invitationId,
       recipientEmail: input.email,
       subject: template.subject,
       templateKey: 'school-invitation',

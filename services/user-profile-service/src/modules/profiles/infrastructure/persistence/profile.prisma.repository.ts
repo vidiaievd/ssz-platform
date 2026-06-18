@@ -22,6 +22,14 @@ export class ProfilePrismaRepository implements IProfileRepository {
     return raw ? ProfileMapper.toDomain(raw) : null;
   }
 
+  async findByUserIds(userIds: string[]): Promise<Profile[]> {
+    if (userIds.length === 0) return [];
+    const rows = await (this.prisma as any).profile.findMany({
+      where: { userId: { in: userIds }, deletedAt: null },
+    });
+    return rows.map(ProfileMapper.toDomain);
+  }
+
   async save(profile: Profile): Promise<void> {
     const data = ProfileMapper.toPersistence(profile);
     await (this.prisma as any).profile.upsert({
@@ -35,6 +43,9 @@ export class ProfilePrismaRepository implements IProfileRepository {
         bio: data.bio,
         timezone: data.timezone,
         uiLocale: data.uiLocale,
+        guardianAccountId: data.guardianAccountId,
+        dateOfBirth: data.dateOfBirth,
+        languagesOfInterest: data.languagesOfInterest,
         deletedAt: data.deletedAt,
       },
     });

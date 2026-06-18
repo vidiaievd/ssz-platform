@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { NotificationsRepository } from './notifications.repository.js';
 import { NotificationsService } from './notifications.service.js';
+import { NotificationsController } from './controllers/notifications.controller.js';
 import { UserRegisteredHandler } from './handlers/user-registered.handler.js';
 import { EmailVerificationHandler } from './handlers/email-verification.handler.js';
 import { PasswordResetHandler } from './handlers/password-reset.handler.js';
@@ -10,11 +11,19 @@ import { SubstituteRequestHandler } from './handlers/substitute-request.handler.
 import { SubstituteAssignedHandler } from './handlers/substitute-assigned.handler.js';
 import { AlertRaisedHandler } from './handlers/alert-raised.handler.js';
 import { SchoolInvitationSentHandler } from './handlers/school-invitation-sent.handler.js';
+import { TeacherProfileChangedHandler } from './handlers/teacher-profile-changed.handler.js';
+import { EnrollmentRequestHandler } from './handlers/enrollment-request.handler.js';
+import { EnrollmentApprovedHandler } from './handlers/enrollment-approved.handler.js';
+import { EnrollmentRejectedHandler } from './handlers/enrollment-rejected.handler.js';
+import { PlacementReviewReadyHandler } from './handlers/placement-review-ready.handler.js';
+import { GroupAssignedHandler } from './handlers/group-assigned.handler.js';
+import { StudentNudgedHandler } from './handlers/student-nudged.handler.js';
 import { AnalyticsConsumerService } from '../../infrastructure/messaging/analytics-consumer.service.js';
 import { SchedulingConsumerService } from '../../infrastructure/messaging/scheduling-consumer.service.js';
 import { OrganizationConsumerService } from '../../infrastructure/messaging/organization-consumer.service.js';
 
 @Module({
+  controllers: [NotificationsController],
   providers: [
     NotificationsRepository,
     NotificationsService,
@@ -27,6 +36,13 @@ import { OrganizationConsumerService } from '../../infrastructure/messaging/orga
     SubstituteAssignedHandler,
     AlertRaisedHandler,
     SchoolInvitationSentHandler,
+    TeacherProfileChangedHandler,
+    EnrollmentRequestHandler,
+    EnrollmentApprovedHandler,
+    EnrollmentRejectedHandler,
+    PlacementReviewReadyHandler,
+    GroupAssignedHandler,
+    StudentNudgedHandler,
     AnalyticsConsumerService,
     SchedulingConsumerService,
     OrganizationConsumerService,

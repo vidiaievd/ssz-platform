@@ -132,6 +132,12 @@ export class AddGroupMemberRequestDto {
   userId!: string;
 }
 
+export class UpdateGroupMemberRoleRequestDto {
+  @ApiProperty({ enum: ['student', 'trial', 'observer'] })
+  @IsEnum(['student', 'trial', 'observer'])
+  role!: 'student' | 'trial' | 'observer';
+}
+
 export class AssignGroupTeacherRequestDto {
   @ApiProperty({ description: 'userId of the teacher (must be a TEACHER school member)' })
   @IsString()

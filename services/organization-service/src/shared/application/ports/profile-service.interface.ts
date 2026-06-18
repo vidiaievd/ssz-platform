@@ -6,6 +6,7 @@ export interface TeachingLanguages {
 export interface ProfileSummary {
   userId: string;
   name: string;        // displayName
+  email: string | null;
   avatarUrl: string | null;
 }
 

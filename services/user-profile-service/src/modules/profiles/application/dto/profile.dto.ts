@@ -10,6 +10,9 @@ export class ProfileDto {
   bio?: string;
   timezone: string;
   uiLocale: string;
+  guardianAccountId?: string;
+  dateOfBirth?: Date;
+  languagesOfInterest: string[];
   createdAt: Date;
   updatedAt: Date;
   hasStudentProfile: boolean;

@@ -15,6 +15,7 @@ import { ProfilesModule } from './modules/profiles/profiles.module.js';
 import { StudentsModule } from './modules/students/students.module.js';
 import { TutorsModule } from './modules/tutors/tutors.module.js';
 import { TeachingModule } from './modules/teaching/teaching.module.js';
+import { PlacementModule } from './modules/placement/placement.module.js';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { TeachingModule } from './modules/teaching/teaching.module.js';
     TutorsModule,
     TeachingModule,
     ProfilesModule,
+    PlacementModule,
     EventsModule,
     LoggerModule.forRootAsync({
       inject: [ConfigService],

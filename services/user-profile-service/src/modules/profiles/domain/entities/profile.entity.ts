@@ -12,6 +12,9 @@ export interface CreateProfileProps {
   bio?: string;
   timezone?: string;
   uiLocale?: string;
+  guardianAccountId?: string;
+  dateOfBirth?: Date;
+  languagesOfInterest?: string[];
 }
 
 export interface UpdateProfileProps {
@@ -22,6 +25,9 @@ export interface UpdateProfileProps {
   bio?: string;
   timezone?: string;
   uiLocale?: string;
+  guardianAccountId?: string;
+  dateOfBirth?: Date;
+  languagesOfInterest?: string[];
 }
 
 export interface RehydrateProfileProps extends CreateProfileProps {
@@ -39,6 +45,9 @@ export class Profile extends BaseEntity {
   private _bio: string | undefined;
   private _timezone: string;
   private _uiLocale: string;
+  private _guardianAccountId: string | undefined;
+  private _dateOfBirth: Date | undefined;
+  private _languagesOfInterest: string[];
   private _deletedAt: Date | undefined;
 
   private constructor(
@@ -51,6 +60,9 @@ export class Profile extends BaseEntity {
     bio: string | undefined,
     timezone: string,
     uiLocale: string,
+    guardianAccountId: string | undefined,
+    dateOfBirth: Date | undefined,
+    languagesOfInterest: string[],
     createdAt: Date,
     updatedAt: Date,
     deletedAt: Date | undefined,
@@ -64,6 +76,9 @@ export class Profile extends BaseEntity {
     this._bio = bio;
     this._timezone = timezone;
     this._uiLocale = uiLocale;
+    this._guardianAccountId = guardianAccountId;
+    this._dateOfBirth = dateOfBirth;
+    this._languagesOfInterest = languagesOfInterest;
     this._deletedAt = deletedAt;
   }
 
@@ -79,6 +94,9 @@ export class Profile extends BaseEntity {
       props.bio,
       props.timezone ?? 'UTC',
       props.uiLocale ?? 'en',
+      props.guardianAccountId,
+      props.dateOfBirth,
+      props.languagesOfInterest ?? [],
       now,
       now,
       undefined,
@@ -102,6 +120,9 @@ export class Profile extends BaseEntity {
       props.bio,
       props.timezone ?? 'UTC',
       props.uiLocale ?? 'en',
+      props.guardianAccountId,
+      props.dateOfBirth,
+      props.languagesOfInterest ?? [],
       props.createdAt,
       props.updatedAt,
       props.deletedAt,
@@ -109,17 +130,51 @@ export class Profile extends BaseEntity {
   }
 
   updateBasicInfo(props: UpdateProfileProps, eventId: string): void {
-    if (props.displayName !== undefined) this._displayName = props.displayName;
-    if (props.firstName !== undefined) this._firstName = props.firstName;
-    if (props.lastName !== undefined) this._lastName = props.lastName;
-    if (props.avatarUrl !== undefined) this._avatarUrl = props.avatarUrl;
-    if (props.bio !== undefined) this._bio = props.bio;
-    if (props.timezone !== undefined) this._timezone = props.timezone;
-    if (props.uiLocale !== undefined) this._uiLocale = props.uiLocale;
+    const changedFields: string[] = [];
+    if (props.displayName !== undefined && props.displayName !== this._displayName) {
+      this._displayName = props.displayName;
+      changedFields.push('displayName');
+    }
+    if (props.firstName !== undefined && props.firstName !== this._firstName) {
+      this._firstName = props.firstName;
+      changedFields.push('firstName');
+    }
+    if (props.lastName !== undefined && props.lastName !== this._lastName) {
+      this._lastName = props.lastName;
+      changedFields.push('lastName');
+    }
+    if (props.avatarUrl !== undefined && props.avatarUrl !== this._avatarUrl) {
+      this._avatarUrl = props.avatarUrl;
+      changedFields.push('avatarUrl');
+    }
+    if (props.bio !== undefined && props.bio !== this._bio) {
+      this._bio = props.bio;
+      changedFields.push('bio');
+    }
+    if (props.timezone !== undefined && props.timezone !== this._timezone) {
+      this._timezone = props.timezone;
+      changedFields.push('timezone');
+    }
+    if (props.uiLocale !== undefined && props.uiLocale !== this._uiLocale) {
+      this._uiLocale = props.uiLocale;
+      changedFields.push('uiLocale');
+    }
+    if (props.guardianAccountId !== undefined && props.guardianAccountId !== this._guardianAccountId) {
+      this._guardianAccountId = props.guardianAccountId;
+      changedFields.push('guardianAccountId');
+    }
+    if (props.dateOfBirth !== undefined && props.dateOfBirth?.getTime() !== this._dateOfBirth?.getTime()) {
+      this._dateOfBirth = props.dateOfBirth;
+      changedFields.push('dateOfBirth');
+    }
+    if (props.languagesOfInterest !== undefined) {
+      this._languagesOfInterest = props.languagesOfInterest;
+      changedFields.push('languagesOfInterest');
+    }
     this._updatedAt = new Date();
 
     this.addDomainEvent(
-      new ProfileUpdatedEvent(eventId, this._id, this._userId, this._displayName),
+      new ProfileUpdatedEvent(eventId, this._id, this._userId, this._displayName, changedFields),
     );
   }
 
@@ -136,6 +191,9 @@ export class Profile extends BaseEntity {
   get bio(): string | undefined { return this._bio; }
   get timezone(): string { return this._timezone; }
   get uiLocale(): string { return this._uiLocale; }
+  get guardianAccountId(): string | undefined { return this._guardianAccountId; }
+  get dateOfBirth(): Date | undefined { return this._dateOfBirth; }
+  get languagesOfInterest(): string[] { return this._languagesOfInterest; }
   get deletedAt(): Date | undefined { return this._deletedAt; }
   get isDeleted(): boolean { return this._deletedAt !== undefined; }
 }

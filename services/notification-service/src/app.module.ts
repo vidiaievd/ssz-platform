@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import type { AppConfig } from './config/configuration.js';
@@ -6,6 +7,8 @@ import { AppConfigModule } from './config/app-config.module.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { RabbitmqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { EmailModule } from './infrastructure/email/email.module.js';
+import { AuthModule } from './infrastructure/auth/auth.module.js';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { RABBITMQ_HANDLERS } from './infrastructure/messaging/message-handler.interface.js';
@@ -17,6 +20,7 @@ import { PasswordResetHandler } from './modules/notifications/handlers/password-
 @Module({
   imports: [
     AppConfigModule,
+    AuthModule,
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfig>) => {
@@ -40,6 +44,10 @@ import { PasswordResetHandler } from './modules/notifications/handlers/password-
     NotificationsModule,
   ],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
     {
       provide: RABBITMQ_HANDLERS,
       useFactory: (h1: UserRegisteredHandler, h2: EmailVerificationHandler, h3: PasswordResetHandler): IMessageHandler[] => [h1, h2, h3],

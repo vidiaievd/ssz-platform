@@ -9,7 +9,8 @@ export class ProfileUpdatedEvent implements IDomainEvent {
     eventId: string,
     readonly profileId: string,
     readonly userId: string,
-    readonly displayName?: string,
+    readonly displayName: string,
+    readonly changedFields: string[],
   ) {
     this.eventId = eventId;
     this.occurredAt = new Date();

@@ -10,7 +10,6 @@ import {
   type ISchoolRepository,
 } from '../../../domain/repositories/school.repository.interface.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
-import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import { InvitationNotFoundException } from '../../../domain/exceptions/invitation-not-found.exception.js';
 
 export interface InvitationPreviewResult {
@@ -19,9 +18,12 @@ export interface InvitationPreviewResult {
   role: string;
   kind: string;
   email: string;
+  firstName: string | null;
+  lastName: string | null;
   invitedByName: string | null;
   status: string;
   expiresAt: string;
+  teachingLanguages: Array<{ code: string; level: string | null }> | null;
 }
 
 @QueryHandler(GetSchoolInvitationPreviewQuery)
@@ -66,9 +68,12 @@ export class GetSchoolInvitationPreviewHandler implements IQueryHandler<GetSchoo
       role: invitation.role,
       kind: invitation.kind,
       email: decoded.email,
+      firstName: invitation.firstName ?? null,
+      lastName: invitation.lastName ?? null,
       invitedByName: null,
       status,
       expiresAt: invitation.expiresAt.toISOString(),
+      teachingLanguages: invitation.teacherLanguages?.map((l) => ({ code: l.code, level: l.level ?? null })) ?? null,
     };
   }
 }

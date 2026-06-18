@@ -15,6 +15,7 @@ export class SchoolInvitationSentEvent implements IDomainEvent {
     readonly invitationUrl: string,
     readonly role: string,
     readonly expiresAt: string,
+    readonly recipientUserId?: string,
   ) {
     this.eventId = eventId;
     this.occurredAt = new Date();

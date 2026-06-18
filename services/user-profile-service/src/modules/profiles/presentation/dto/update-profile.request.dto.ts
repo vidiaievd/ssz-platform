@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { IsArray, IsDateString, IsOptional, IsString, IsUrl, Matches, MaxLength } from 'class-validator';
 
 export class UpdateProfileRequestDto {
   @ApiPropertyOptional({ example: 'John Doe', maxLength: 100 })
@@ -41,4 +41,29 @@ export class UpdateProfileRequestDto {
   @IsString()
   @MaxLength(10)
   uiLocale?: string;
+
+  @ApiPropertyOptional({
+    example: null,
+    description: 'Guardian account ID (seam for minors — always null for current adults-only flow)',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  guardianAccountId?: string;
+
+  @ApiPropertyOptional({ example: '1995-06-15', description: 'Date of birth (ISO 8601 date)' })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  @ApiPropertyOptional({
+    example: ['uk', 'en'],
+    description: 'Language codes the user wants to learn (ISO 639-1)',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Matches(/^[a-z]{2}$/, { each: true, message: 'Each language code must be 2 lowercase letters' })
+  languagesOfInterest?: string[];
 }

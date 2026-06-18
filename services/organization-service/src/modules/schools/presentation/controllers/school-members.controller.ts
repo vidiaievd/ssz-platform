@@ -7,20 +7,24 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Query,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { GetMyPermissionsQuery } from '../../application/queries/get-my-permissions/get-my-permissions.query.js';
+import { ListSchoolMembersQuery } from '../../application/queries/list-school-members/list-school-members.query.js';
 import { UpdateMemberPermissionsCommand } from '../../application/commands/update-member-permissions/update-member-permissions.command.js';
-import { MemberPermissionsResponseDto } from '../dto/school.response.dto.js';
+import { MemberPermissionsResponseDto, MemberRosterItemResponseDto } from '../dto/school.response.dto.js';
 import { UpdateMemberPermissionsRequestDto } from '../dto/update-member-permissions.request.dto.js';
+import type { MemberRole } from '../../domain/value-objects/member-role.vo.js';
 
 @ApiTags('School Members')
 @ApiBearerAuth('JWT')
@@ -30,6 +34,24 @@ export class SchoolMembersController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {}
+
+  @Get(':schoolId/members')
+  @ApiOperation({
+    summary: 'List school members with profile enrichment, optionally filtered by role',
+    description: 'Returns enriched member rows (name, email, avatarUrl from profile-service). Pass ?role=TEACHER to get only teachers.',
+  })
+  @ApiQuery({ name: 'role', required: false, description: 'Filter by role (e.g. TEACHER, STUDENT)' })
+  @ApiResponse({ status: 200, type: [MemberRosterItemResponseDto] })
+  @ApiResponse({ status: 403, description: 'Not a member of this school' })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async listMembers(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Query('role') role?: string,
+  ): Promise<MemberRosterItemResponseDto[]> {
+    const normalizedRole = role?.toUpperCase() as MemberRole | undefined;
+    return this.queryBus.execute(new ListSchoolMembersQuery(user.sub, schoolId, normalizedRole));
+  }
 
   @Get(':schoolId/me/permissions')
   @ApiOperation({
