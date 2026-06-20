@@ -26,10 +26,16 @@ export class ContainerItemResponseDto {
   @ApiPropertyOptional({ example: 'Introduction' })
   sectionLabel: string | null;
 
+  @ApiPropertyOptional({
+    example: 'Greetings and Introductions',
+    description: 'Display title of the referenced content, resolved server-side.',
+  })
+  title: string | null;
+
   @ApiProperty()
   addedAt: Date;
 
-  static from(entity: ContainerItemEntity): ContainerItemResponseDto {
+  static from(entity: ContainerItemEntity, title: string | null = null): ContainerItemResponseDto {
     const dto = new ContainerItemResponseDto();
     dto.id = entity.id;
     dto.containerVersionId = entity.containerVersionId;
@@ -38,6 +44,7 @@ export class ContainerItemResponseDto {
     dto.itemId = entity.itemId;
     dto.isRequired = entity.isRequired;
     dto.sectionLabel = entity.sectionLabel;
+    dto.title = title;
     dto.addedAt = entity.addedAt;
     return dto;
   }
