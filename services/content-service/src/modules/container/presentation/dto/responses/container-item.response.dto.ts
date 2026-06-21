@@ -23,7 +23,13 @@ export class ContainerItemResponseDto {
   @ApiProperty({ example: true })
   isRequired: boolean;
 
-  @ApiPropertyOptional({ example: 'Introduction' })
+  @ApiPropertyOptional({ example: 'uuid-of-section' })
+  sectionId: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Introduction',
+    description: 'Deprecated free-text fallback — prefer sectionId',
+  })
   sectionLabel: string | null;
 
   @ApiPropertyOptional({
@@ -43,6 +49,7 @@ export class ContainerItemResponseDto {
     dto.itemType = entity.itemType;
     dto.itemId = entity.itemId;
     dto.isRequired = entity.isRequired;
+    dto.sectionId = entity.sectionId;
     dto.sectionLabel = entity.sectionLabel;
     dto.title = title;
     dto.addedAt = entity.addedAt;

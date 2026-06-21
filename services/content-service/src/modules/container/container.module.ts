@@ -51,6 +51,7 @@ import { GetVersionSectionsHandler } from './application/queries/get-version-sec
 import { ContainerController } from './presentation/controllers/container.controller.js';
 import { ContainerVersionController } from './presentation/controllers/container-version.controller.js';
 import { ContainerItemController } from './presentation/controllers/container-item.controller.js';
+import { ContainerSectionController } from './presentation/controllers/container-section.controller.js';
 
 const CommandHandlers = [
   CreateContainerHandler,
@@ -85,7 +86,12 @@ const QueryHandlers = [
 
 @Module({
   imports: [CqrsModule],
-  controllers: [ContainerController, ContainerVersionController, ContainerItemController],
+  controllers: [
+    ContainerController,
+    ContainerVersionController,
+    ContainerItemController,
+    ContainerSectionController,
+  ],
   providers: [
     // Repository bindings
     { provide: CONTAINER_REPOSITORY, useClass: PrismaContainerRepository },
