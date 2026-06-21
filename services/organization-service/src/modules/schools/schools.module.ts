@@ -5,6 +5,7 @@ import { SCHOOL_REPOSITORY } from './domain/repositories/school.repository.inter
 import { SCHOOL_INVITATION_REPOSITORY } from './domain/repositories/school-invitation.repository.interface.js';
 import { SCHOOL_GROUP_REPOSITORY } from './domain/repositories/school-group.repository.interface.js';
 import { GROUP_TEACHER_REPOSITORY } from './domain/repositories/group-teacher.repository.interface.js';
+import { GROUP_MATERIAL_REPOSITORY } from './domain/repositories/group-material.repository.interface.js';
 import { SCHOOL_ONBOARDING_SETTINGS_REPOSITORY } from './domain/repositories/school-onboarding-settings.repository.interface.js';
 import { SCHOOL_MEMBERSHIP_REPOSITORY } from './domain/repositories/school-membership.repository.interface.js';
 import { PROFILE_SERVICE_PORT } from '../../shared/application/ports/profile-service.interface.js';
@@ -13,6 +14,7 @@ import { SchoolPrismaRepository } from './infrastructure/persistence/school.pris
 import { SchoolInvitationPrismaRepository } from './infrastructure/persistence/school-invitation.prisma.repository.js';
 import { SchoolGroupPrismaRepository } from './infrastructure/persistence/school-group.prisma.repository.js';
 import { GroupTeacherPrismaRepository } from './infrastructure/persistence/group-teacher.prisma.repository.js';
+import { GroupMaterialPrismaRepository } from './infrastructure/persistence/group-material.prisma.repository.js';
 import { SchoolOnboardingSettingsPrismaRepository } from './infrastructure/persistence/school-onboarding-settings.prisma.repository.js';
 import { SchoolMembershipPrismaRepository } from './infrastructure/persistence/school-membership.prisma.repository.js';
 import { InvitationTokenService } from './infrastructure/invitation-token.service.js';
@@ -40,6 +42,8 @@ import { PublishSchoolGroupHandler } from './application/commands/publish-school
 import { ArchiveSchoolGroupHandler } from './application/commands/archive-school-group/archive-school-group.handler.js';
 import { AssignGroupTeacherHandler } from './application/commands/assign-group-teacher/assign-group-teacher.handler.js';
 import { RemoveGroupTeacherHandler } from './application/commands/remove-group-teacher/remove-group-teacher.handler.js';
+import { AddGroupMaterialHandler } from './application/commands/add-group-material/add-group-material.handler.js';
+import { RemoveGroupMaterialHandler } from './application/commands/remove-group-material/remove-group-material.handler.js';
 import { UpdateTeacherAttrsHandler } from './application/commands/update-teacher-attrs/update-teacher-attrs.handler.js';
 import { AddGroupMemberHandler } from './application/commands/add-group-member/add-group-member.handler.js';
 import { RemoveGroupMemberHandler } from './application/commands/remove-group-member/remove-group-member.handler.js';
@@ -106,6 +110,8 @@ const CommandHandlers = [
   ArchiveSchoolGroupHandler,
   AssignGroupTeacherHandler,
   RemoveGroupTeacherHandler,
+  AddGroupMaterialHandler,
+  RemoveGroupMaterialHandler,
   UpdateTeacherAttrsHandler,
   AddGroupMemberHandler,
   RemoveGroupMemberHandler,
@@ -177,6 +183,10 @@ const QueryHandlers = [
     {
       provide: GROUP_TEACHER_REPOSITORY,
       useClass: GroupTeacherPrismaRepository,
+    },
+    {
+      provide: GROUP_MATERIAL_REPOSITORY,
+      useClass: GroupMaterialPrismaRepository,
     },
     {
       provide: SCHOOL_ONBOARDING_SETTINGS_REPOSITORY,

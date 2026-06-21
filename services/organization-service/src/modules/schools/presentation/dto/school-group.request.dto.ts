@@ -167,3 +167,9 @@ export class AssignGroupTeacherRequestDto {
   @IsOptional()
   override?: boolean;
 }
+
+export class AddGroupMaterialRequestDto {
+  @ApiProperty({ description: 'UUID of the content container (course) to attach' })
+  @IsUUID()
+  courseId!: string;
+}

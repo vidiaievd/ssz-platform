@@ -19,6 +19,13 @@ type PrismaGroupTeacher = {
   createdAt: Date;
 };
 
+type PrismaGroupMaterial = {
+  id: string;
+  groupId: string;
+  courseId: string;
+  addedAt: Date;
+};
+
 type PrismaSchoolGroup = {
   id: string;
   schoolId: string;
@@ -38,6 +45,7 @@ type PrismaSchoolGroup = {
   deletedAt: Date | null;
   members: PrismaSchoolGroupMember[];
   teachers: PrismaGroupTeacher[];
+  materials: PrismaGroupMaterial[];
 };
 
 export class SchoolGroupMapper {
@@ -74,6 +82,12 @@ export class SchoolGroupMapper {
         toDate: t.toDate,
         reason: t.reason,
         createdAt: t.createdAt,
+      })),
+      materials: raw.materials.map((m) => ({
+        id: m.id,
+        groupId: m.groupId,
+        courseId: m.courseId,
+        addedAt: m.addedAt,
       })),
     });
   }

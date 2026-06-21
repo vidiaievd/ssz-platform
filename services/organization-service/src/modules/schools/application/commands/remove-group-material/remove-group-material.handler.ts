@@ -1,6 +1,6 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject, NotFoundException, ConflictException } from '@nestjs/common';
-import { UpdateSchoolGroupCommand } from './update-school-group.command.js';
+import { Inject, NotFoundException } from '@nestjs/common';
+import { RemoveGroupMaterialCommand } from './remove-group-material.command.js';
 import {
   SCHOOL_REPOSITORY,
   type ISchoolRepository,
@@ -9,18 +9,23 @@ import {
   SCHOOL_GROUP_REPOSITORY,
   type ISchoolGroupRepository,
 } from '../../../domain/repositories/school-group.repository.interface.js';
+import {
+  GROUP_MATERIAL_REPOSITORY,
+  type IGroupMaterialRepository,
+} from '../../../domain/repositories/group-material.repository.interface.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 
-@CommandHandler(UpdateSchoolGroupCommand)
-export class UpdateSchoolGroupHandler implements ICommandHandler<UpdateSchoolGroupCommand> {
+@CommandHandler(RemoveGroupMaterialCommand)
+export class RemoveGroupMaterialHandler implements ICommandHandler<RemoveGroupMaterialCommand> {
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
     @Inject(SCHOOL_GROUP_REPOSITORY) private readonly groupRepository: ISchoolGroupRepository,
+    @Inject(GROUP_MATERIAL_REPOSITORY) private readonly materialRepository: IGroupMaterialRepository,
   ) {}
 
-  async execute(command: UpdateSchoolGroupCommand): Promise<void> {
+  async execute(command: RemoveGroupMaterialCommand): Promise<void> {
     const school = await this.schoolRepository.findById(command.schoolId);
     if (!school) throw new SchoolNotFoundException(command.schoolId);
 
@@ -28,7 +33,7 @@ export class UpdateSchoolGroupHandler implements ICommandHandler<UpdateSchoolGro
     const isOwner = command.actorId === school.ownerId;
     const isAdmin = actorRole === MemberRole.ADMIN;
     if (!isOwner && !isAdmin) {
-      throw new ForbiddenOperationException('Only owner or admin can manage school groups');
+      throw new ForbiddenOperationException('Only owner or admin can manage group materials');
     }
 
     const group = await this.groupRepository.findById(command.groupId);
@@ -36,29 +41,11 @@ export class UpdateSchoolGroupHandler implements ICommandHandler<UpdateSchoolGro
       throw new NotFoundException(`Group ${command.groupId} not found`);
     }
 
-    // Main material can be reassigned but never cleared back to "no course"
-    // once set — see school-group.entity.ts's update() for the same guard
-    // (defense in depth); this is where the HTTP-meaningful 409 originates.
-    if (command.courseId === null && group.courseId != null) {
-      throw new ConflictException({
-        error: 'main-material-required',
-        message: 'The main material cannot be removed once set — reassign it instead',
-      });
+    const existing = group.materials.find((m) => m.id === command.materialId);
+    if (!existing) {
+      throw new NotFoundException('Material not found');
     }
 
-    group.update({
-      name: command.name,
-      description: command.description,
-      mode: command.mode,
-      courseId: command.courseId,
-      lang: command.lang,
-      level: command.level,
-      capacityMin: command.capacityMin,
-      capacityMax: command.capacityMax,
-      startDate: command.startDate,
-      endDate: command.endDate,
-    });
-
-    await this.groupRepository.save(group);
+    await this.materialRepository.remove(command.groupId, command.materialId);
   }
 }

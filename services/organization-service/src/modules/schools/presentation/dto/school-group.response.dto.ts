@@ -16,6 +16,12 @@ export class GroupTeacherResponseDto {
   @ApiPropertyOptional() reason?: string | null;
 }
 
+export class GroupMaterialResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() courseId!: string;
+  @ApiProperty() addedAt!: Date;
+}
+
 export class SchoolGroupResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() schoolId!: string;
@@ -33,6 +39,7 @@ export class SchoolGroupResponseDto {
   @ApiProperty() studentCount!: number;
   @ApiProperty({ type: [SchoolGroupMemberResponseDto] }) members!: SchoolGroupMemberResponseDto[];
   @ApiProperty({ type: [GroupTeacherResponseDto] }) teachers!: GroupTeacherResponseDto[];
+  @ApiProperty({ type: [GroupMaterialResponseDto] }) materials!: GroupMaterialResponseDto[];
   @ApiProperty() createdAt!: Date;
   @ApiProperty() updatedAt!: Date;
 
@@ -61,6 +68,11 @@ export class SchoolGroupResponseDto {
       toDate: t.toDate,
       reason: t.reason,
     }));
+    dto.materials = group.materials.map((m) => ({
+      id: m.id,
+      courseId: m.courseId,
+      addedAt: m.addedAt,
+    }));
     dto.createdAt = group.createdAt;
     dto.updatedAt = group.updatedAt;
     return dto;
@@ -83,6 +95,7 @@ export class SchoolGroupSummaryResponseDto {
   @ApiPropertyOptional() endDate?: Date | null;
   @ApiProperty() studentCount!: number;
   @ApiProperty({ type: [GroupTeacherResponseDto] }) teachers!: GroupTeacherResponseDto[];
+  @ApiProperty({ type: [GroupMaterialResponseDto] }) materials!: GroupMaterialResponseDto[];
   @ApiProperty() createdAt!: Date;
 
   static fromDomain(group: SchoolGroup): SchoolGroupSummaryResponseDto {
@@ -108,6 +121,11 @@ export class SchoolGroupSummaryResponseDto {
       fromDate: t.fromDate,
       toDate: t.toDate,
       reason: t.reason,
+    }));
+    dto.materials = group.materials.map((m) => ({
+      id: m.id,
+      courseId: m.courseId,
+      addedAt: m.addedAt,
     }));
     dto.createdAt = group.createdAt;
     return dto;

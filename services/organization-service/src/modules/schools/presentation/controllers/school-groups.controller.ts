@@ -31,6 +31,8 @@ import { PublishSchoolGroupCommand } from '../../application/commands/publish-sc
 import { ArchiveSchoolGroupCommand } from '../../application/commands/archive-school-group/archive-school-group.command.js';
 import { AssignGroupTeacherCommand } from '../../application/commands/assign-group-teacher/assign-group-teacher.command.js';
 import { RemoveGroupTeacherCommand } from '../../application/commands/remove-group-teacher/remove-group-teacher.command.js';
+import { AddGroupMaterialCommand } from '../../application/commands/add-group-material/add-group-material.command.js';
+import { RemoveGroupMaterialCommand } from '../../application/commands/remove-group-material/remove-group-material.command.js';
 import { AddGroupMemberCommand } from '../../application/commands/add-group-member/add-group-member.command.js';
 import { RemoveGroupMemberCommand } from '../../application/commands/remove-group-member/remove-group-member.command.js';
 import { UpdateGroupMemberRoleCommand } from '../../application/commands/update-group-member-role/update-group-member-role.command.js';
@@ -43,6 +45,7 @@ import {
   AddGroupMemberRequestDto,
   UpdateGroupMemberRoleRequestDto,
   AssignGroupTeacherRequestDto,
+  AddGroupMaterialRequestDto,
 } from '../dto/school-group.request.dto.js';
 import {
   SchoolGroupResponseDto,
@@ -218,6 +221,36 @@ export class SchoolGroupsController {
   ): Promise<void> {
     await this.commandBus.execute(
       new RemoveGroupTeacherCommand(user.sub, schoolId, groupId, userId, role),
+    );
+  }
+
+  @Post(':groupId/materials')
+  @ApiOperation({ summary: 'Attach an additional course material to this group (owner/admin only)' })
+  @ApiCreatedResponse({ schema: { properties: { id: { type: 'string' } } } })
+  @ApiConflictResponse({ description: 'Course is already the main material or already attached' })
+  async addMaterial(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Body() dto: AddGroupMaterialRequestDto,
+  ): Promise<{ id: string }> {
+    return this.commandBus.execute(
+      new AddGroupMaterialCommand(user.sub, schoolId, groupId, dto.courseId),
+    );
+  }
+
+  @Delete(':groupId/materials/:materialId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove an additional course material from this group (owner/admin only)' })
+  @ApiNoContentResponse()
+  async removeMaterial(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Param('materialId', ParseUUIDPipe) materialId: string,
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new RemoveGroupMaterialCommand(user.sub, schoolId, groupId, materialId),
     );
   }
 
