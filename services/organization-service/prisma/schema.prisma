@@ -127,10 +127,17 @@ model SchoolMember {
   level     String?    // current CEFR level (A1–C2), STUDENT role only
   joinedAt  DateTime   @default(now())
 
+  // Denormalized from user-profile-service (set at member-creation time, kept in
+  // sync via profile.created/profile.updated RabbitMQ events). Avoids a live
+  // profile-service call on every roster read. Null until first synced.
+  name      String?
+  avatarUrl String?
+
   teacherAttrs SchoolTeacher?
   permissions  SchoolMemberPermission?
 
   @@unique([schoolId, userId])
+  @@index([userId])
   @@map("school_members")
 }
 

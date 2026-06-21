@@ -10,6 +10,7 @@ export class ProfileCreatedEvent implements IDomainEvent {
     readonly profileId: string,
     readonly userId: string,
     readonly displayName: string,
+    readonly avatarUrl?: string,
   ) {
     this.eventId = eventId;
     this.occurredAt = new Date();

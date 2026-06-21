@@ -55,20 +55,20 @@ export class ListSchoolMembersHandler implements IQueryHandler<ListSchoolMembers
 
     if (rows.length === 0) return [];
 
+    // name/avatarUrl are denormalized onto SchoolMember (synced via profile.* events) —
+    // no live profile-service call needed for those. Teaching languages aren't
+    // denormalized yet, so that one stays a live, best-effort lookup (teachers only).
     return Promise.all(
       rows.map(async (r: any) => {
         const isTeacher = r.role === MemberRole.TEACHER;
 
-        const [summary, teachingLangs] = await Promise.all([
-          this.profileService.getProfileSummary(r.userId),
-          isTeacher ? this.profileService.getTeachingLanguages(r.userId) : Promise.resolve(null),
-        ]);
+        const teachingLangs = isTeacher ? await this.profileService.getTeachingLanguages(r.userId) : null;
 
         return {
           userId: r.userId,
-          name: summary?.name ?? r.userId,
-          email: summary?.email ?? null,
-          avatarUrl: summary?.avatarUrl ?? null,
+          name: r.name ?? r.userId,
+          email: null,
+          avatarUrl: r.avatarUrl ?? null,
           role: r.role as MemberRole,
           langs: teachingLangs?.langs ?? [],
           maxWeeklyHours: isTeacher ? (r.teacherAttrs?.maxWeeklyHours ?? null) : null,

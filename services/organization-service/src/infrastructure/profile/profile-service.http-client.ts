@@ -8,8 +8,18 @@ export class ProfileServiceHttpClient implements IProfileServicePort {
   private readonly logger = new Logger(ProfileServiceHttpClient.name);
   private readonly baseUrl: string | undefined;
 
+  private readonly internalServiceToken: string | undefined;
+
   constructor(private readonly config: ConfigService<Env>) {
     this.baseUrl = this.config.get('PROFILE_SERVICE_URL', { infer: true });
+    this.internalServiceToken = this.config.get('INTERNAL_SERVICE_TOKEN', { infer: true });
+  }
+
+  private internalHeaders(): Record<string, string> {
+    return {
+      'Content-Type': 'application/json',
+      ...(this.internalServiceToken ? { 'x-service-token': this.internalServiceToken } : {}),
+    };
   }
 
   async getTeachingLanguages(userId: string): Promise<TeachingLanguages | null> {
@@ -19,8 +29,8 @@ export class ProfileServiceHttpClient implements IProfileServicePort {
     }
 
     try {
-      const res = await fetch(`${this.baseUrl}/api/v1/profiles/${userId}/teaching`, {
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(`${this.baseUrl}/api/v1/internal/profiles/${userId}/teaching`, {
+        headers: this.internalHeaders(),
         signal: AbortSignal.timeout(3000),
       });
 
@@ -43,8 +53,8 @@ export class ProfileServiceHttpClient implements IProfileServicePort {
     if (!this.baseUrl) return null;
 
     try {
-      const res = await fetch(`${this.baseUrl}/api/v1/profiles/${userId}`, {
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(`${this.baseUrl}/api/v1/internal/profiles/${userId}`, {
+        headers: this.internalHeaders(),
         signal: AbortSignal.timeout(3000),
       });
 

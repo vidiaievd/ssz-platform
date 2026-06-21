@@ -29,6 +29,10 @@ import {
   SCHOOL_GROUP_REPOSITORY,
   type ISchoolGroupRepository,
 } from '../../../domain/repositories/school-group.repository.interface.js';
+import {
+  PROFILE_SERVICE_PORT,
+  type IProfileServicePort,
+} from '../../../../../shared/application/ports/profile-service.interface.js';
 
 const ROLES_REQUIRING_STUDENT: ReadonlySet<MemberRole> = new Set([MemberRole.STUDENT]);
 
@@ -40,6 +44,7 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
     private readonly invitationRepository: ISchoolInvitationRepository,
     @Inject(SCHOOL_GROUP_REPOSITORY) private readonly groupRepository: ISchoolGroupRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
+    @Inject(PROFILE_SERVICE_PORT) private readonly profileService: IProfileServicePort,
     private readonly tokenService: InvitationTokenService,
     private readonly prisma: PrismaService,
   ) {}
@@ -74,12 +79,21 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
     const school = await this.schoolRepository.findById(invitation.schoolId);
     if (!school) throw new SchoolNotFoundException(invitation.schoolId);
 
+    // Snapshot the display name/avatar once at creation time — kept in sync
+    // afterwards via profile.updated events (see ProfileUpdatedConsumer). Falls
+    // back to the inviter-supplied name if profile-service has nothing yet
+    // (registration and profile creation can race with invitation acceptance).
+    const profileSummary = await this.profileService.getProfileSummary(command.actorId);
+    const invitedName = [invitation.firstName, invitation.lastName].filter(Boolean).join(' ').trim();
+
     const member = SchoolMember.create({
       id: randomUUID(),
       schoolId: school.id,
       userId: command.actorId,
       role: invitation.role,
       joinedAt: new Date(),
+      name: profileSummary?.name ?? (invitedName || null),
+      avatarUrl: profileSummary?.avatarUrl ?? null,
     });
 
     school.addMember(member, school.ownerId, randomUUID());

@@ -10,6 +10,7 @@ const envSchema = z.object({
   APP_BASE_URL: z.url().default('http://localhost:3000'),
   PROFILE_SERVICE_URL: z.url().optional(),
   SCHEDULING_SERVICE_URL: z.url().optional(),
+  INTERNAL_SERVICE_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -32,4 +33,5 @@ export default (): Env => ({
   APP_BASE_URL: process.env['APP_BASE_URL'] ?? 'http://localhost:3000',
   PROFILE_SERVICE_URL: process.env['PROFILE_SERVICE_URL'],
   SCHEDULING_SERVICE_URL: process.env['SCHEDULING_SERVICE_URL'],
+  INTERNAL_SERVICE_TOKEN: process.env['INTERNAL_SERVICE_TOKEN'],
 });

@@ -73,6 +73,7 @@ services:
       DATABASE_URL: postgresql://profile_service:${PROFILE_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/profiles_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-service-token}
     ports:
       - "3001:3001"
     depends_on:
@@ -101,6 +102,7 @@ services:
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       PROFILE_SERVICE_URL: http://user-profile-service:3001
       SCHEDULING_SERVICE_URL: http://scheduling-service:3009
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-service-token}
     ports:
       - "3002:3002"
     depends_on:

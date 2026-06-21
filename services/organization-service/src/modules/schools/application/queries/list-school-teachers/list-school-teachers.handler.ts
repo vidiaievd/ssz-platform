@@ -44,19 +44,17 @@ export class ListSchoolTeachersHandler implements IQueryHandler<ListSchoolTeache
 
     if (rows.length === 0) return [];
 
-    // Enrich with profile data in parallel (name/avatarUrl + tutor langs).
-    // Both calls are best-effort — failures fall back to userId/null/[].
+    // name/avatarUrl are denormalized onto SchoolMember (synced via profile.* events) —
+    // no live profile-service call needed for those. Teaching languages aren't
+    // denormalized yet, so that one stays a live, best-effort lookup.
     const enriched = await Promise.all(
       rows.map(async (r: any) => {
-        const [summary, teachingLangs] = await Promise.all([
-          this.profileService.getProfileSummary(r.userId),
-          this.profileService.getTeachingLanguages(r.userId),
-        ]);
+        const teachingLangs = await this.profileService.getTeachingLanguages(r.userId);
 
         return {
           userId: r.userId,
-          name: summary?.name ?? r.userId,
-          avatarUrl: summary?.avatarUrl ?? null,
+          name: r.name ?? r.userId,
+          avatarUrl: r.avatarUrl ?? null,
           langs: teachingLangs?.langs ?? [],
           maxWeeklyHours: r.teacherAttrs?.maxWeeklyHours ?? null,
           availability: r.teacherAttrs?.availability ?? [],

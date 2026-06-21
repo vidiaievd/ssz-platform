@@ -135,7 +135,9 @@ export class MemberRosterItemResponseDto {
   @ApiProperty({ description: 'Display name from profile-service (userId fallback)' })
   name!: string;
 
-  @ApiPropertyOptional({ description: 'Email from profile-service', nullable: true })
+  // Always null today — user-profile-service has no email field (email lives in
+  // auth-service, not wired up here). Kept for API stability; do not rely on it.
+  @ApiPropertyOptional({ description: 'Reserved — currently always null', nullable: true })
   email!: string | null;
 
   @ApiPropertyOptional({ description: 'Avatar URL from profile-service', nullable: true })

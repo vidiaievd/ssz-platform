@@ -22,6 +22,8 @@ import { GetTeachingProfileByUserIdHandler } from '../teaching/application/queri
 import { ProfilesController } from './presentation/controllers/profiles.controller.js';
 import { PublicProfilesController } from './presentation/controllers/public-profiles.controller.js';
 import { UsersLookupController } from './presentation/controllers/users-lookup.controller.js';
+import { InternalProfilesController } from './presentation/controllers/internal-profiles.controller.js';
+import { InternalAuthGuard } from '../../common/guards/internal-auth.guard.js';
 
 const CommandHandlers = [
   CreateProfileHandler,
@@ -41,10 +43,16 @@ const QueryHandlers = [
 
 @Module({
   imports: [CqrsModule],
-  controllers: [ProfilesController, PublicProfilesController, UsersLookupController],
+  controllers: [
+    ProfilesController,
+    PublicProfilesController,
+    UsersLookupController,
+    InternalProfilesController,
+  ],
   providers: [
     ...CommandHandlers,
     ...QueryHandlers,
+    InternalAuthGuard,
     {
       provide: PROFILE_REPOSITORY,
       useClass: ProfilePrismaRepository,
