@@ -100,6 +100,25 @@ export class PrismaContentShareRepository implements IContentShareRepository {
     return count > 0;
   }
 
+  async hasActiveEditShare(
+    entityType: TaggableEntityType,
+    entityId: string,
+    userId: string,
+  ): Promise<boolean> {
+    const now = new Date();
+    const count = await this.prisma.contentShare.count({
+      where: {
+        entityType: domainEntityTypeToPrisma(entityType),
+        entityId,
+        sharedWithUserId: userId,
+        permission: 'EDIT',
+        revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+    });
+    return count > 0;
+  }
+
   async save(entity: ContentShareEntity): Promise<ContentShareEntity> {
     const exists = await this.prisma.contentShare.findUnique({
       where: { id: entity.id },

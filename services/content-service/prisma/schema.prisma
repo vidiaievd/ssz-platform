@@ -585,6 +585,8 @@ enum TaggableEntityType {
 enum SharePermission {
   READ            @map("read")
   READ_AND_REVIEW @map("read_and_review")
+  // Co-author role: grants edit access on the shared entity.
+  EDIT            @map("edit")
 
   @@map("share_permission")
 }

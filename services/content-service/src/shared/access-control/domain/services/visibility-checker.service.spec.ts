@@ -39,6 +39,7 @@ function makeUser(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser
 function makeService(mocks?: {
   getMemberRole?: jest.Mock;
   hasActiveShare?: jest.Mock;
+  hasActiveEditShare?: jest.Mock;
   hasActiveEntitlement?: jest.Mock;
 }): VisibilityCheckerService {
   const orgClient: IOrganizationClient = {
@@ -46,6 +47,7 @@ function makeService(mocks?: {
   };
   const shareLookup: IContentShareLookup = {
     hasActiveShare: mocks?.hasActiveShare ?? jest.fn().mockResolvedValue(false),
+    hasActiveEditShare: mocks?.hasActiveEditShare ?? jest.fn().mockResolvedValue(false),
   };
   const entitlementLookup: IEntitlementLookup = {
     hasActiveEntitlement: mocks?.hasActiveEntitlement ?? jest.fn().mockResolvedValue(false),
@@ -113,6 +115,41 @@ describe('VisibilityCheckerService', () => {
       const result = await svc.canAccess(user, entity, action);
       expect(result.allowed).toBe(true);
     }
+  });
+
+  // 6b. Co-author with active EDIT share, edit on private (no school) entity → ALLOWED
+  it('allows a co-author with an active EDIT share to edit a private entity', async () => {
+    const hasActiveEditShare = jest.fn().mockResolvedValue(true);
+    const svc = makeService({ hasActiveEditShare });
+    const entity = makeEntity({ visibility: Visibility.PRIVATE });
+    const user = makeUser();
+    const result = await svc.canAccess(user, entity, 'edit');
+    expect(result.allowed).toBe(true);
+    expect(result.reason).toBe('co_author_edit');
+  });
+
+  // 6c. Co-author with active EDIT share bypasses school role checks entirely
+  it('allows a co-author with an active EDIT share to edit school-owned content without school membership', async () => {
+    const getMemberRole = jest.fn().mockResolvedValue(null);
+    const hasActiveEditShare = jest.fn().mockResolvedValue(true);
+    const svc = makeService({ getMemberRole, hasActiveEditShare });
+    const entity = makeEntity({ ownerSchoolId: SCHOOL_ID, visibility: Visibility.SCHOOL_PRIVATE });
+    const user = makeUser();
+    const result = await svc.canAccess(user, entity, 'edit');
+    expect(result.allowed).toBe(true);
+    expect(result.reason).toBe('co_author_edit');
+    expect(getMemberRole).not.toHaveBeenCalled();
+  });
+
+  // 6d. READ-only share (no EDIT) does not grant edit access
+  it('denies edit for a user with only a view-level share', async () => {
+    const hasActiveShare = jest.fn().mockResolvedValue(true);
+    const hasActiveEditShare = jest.fn().mockResolvedValue(false);
+    const svc = makeService({ hasActiveShare, hasActiveEditShare });
+    const entity = makeEntity({ visibility: Visibility.SHARED });
+    const user = makeUser();
+    const result = await svc.canAccess(user, entity, 'edit');
+    expect(result.allowed).toBe(false);
   });
 
   // 7. School content, content_admin, edit → ALLOWED
