@@ -1,6 +1,6 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
-import { UpdateContainerItemCommand } from './update-container-item.command.js';
+import { ReorderSectionsCommand } from './reorder-sections.command.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
 import { VersionStatus } from '../../../domain/value-objects/version-status.vo.js';
@@ -8,14 +8,12 @@ import { CONTAINER_REPOSITORY } from '../../../domain/repositories/container.rep
 import type { IContainerRepository } from '../../../domain/repositories/container.repository.interface.js';
 import { CONTAINER_VERSION_REPOSITORY } from '../../../domain/repositories/container-version.repository.interface.js';
 import type { IContainerVersionRepository } from '../../../domain/repositories/container-version.repository.interface.js';
-import { CONTAINER_ITEM_REPOSITORY } from '../../../domain/repositories/container-item.repository.interface.js';
-import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
 import { CONTAINER_SECTION_REPOSITORY } from '../../../domain/repositories/container-section.repository.interface.js';
 import type { IContainerSectionRepository } from '../../../domain/repositories/container-section.repository.interface.js';
 
-@CommandHandler(UpdateContainerItemCommand)
-export class UpdateContainerItemHandler implements ICommandHandler<
-  UpdateContainerItemCommand,
+@CommandHandler(ReorderSectionsCommand)
+export class ReorderSectionsHandler implements ICommandHandler<
+  ReorderSectionsCommand,
   Result<void, ContainerDomainError>
 > {
   constructor(
@@ -23,19 +21,12 @@ export class UpdateContainerItemHandler implements ICommandHandler<
     private readonly containerRepo: IContainerRepository,
     @Inject(CONTAINER_VERSION_REPOSITORY)
     private readonly versionRepo: IContainerVersionRepository,
-    @Inject(CONTAINER_ITEM_REPOSITORY)
-    private readonly itemRepo: IContainerItemRepository,
     @Inject(CONTAINER_SECTION_REPOSITORY)
     private readonly sectionRepo: IContainerSectionRepository,
   ) {}
 
-  async execute(command: UpdateContainerItemCommand): Promise<Result<void, ContainerDomainError>> {
-    const item = await this.itemRepo.findById(command.itemId);
-    if (!item) {
-      return Result.fail(ContainerDomainError.ITEM_NOT_FOUND);
-    }
-
-    const version = await this.versionRepo.findById(item.containerVersionId);
+  async execute(command: ReorderSectionsCommand): Promise<Result<void, ContainerDomainError>> {
+    const version = await this.versionRepo.findById(command.versionId);
     if (!version) {
       return Result.fail(ContainerDomainError.VERSION_NOT_FOUND);
     }
@@ -53,23 +44,30 @@ export class UpdateContainerItemHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
     }
 
-    if (command.sectionId !== undefined && command.sectionId !== null) {
-      const section = await this.sectionRepo.findById(command.sectionId);
-      if (!section) {
+    const existingSections = await this.sectionRepo.findByVersionId(command.versionId);
+    const existingIds = new Set(existingSections.map((s) => s.id));
+
+    // Validate: all provided IDs must belong to this version.
+    for (const section of command.sections) {
+      if (!existingIds.has(section.id)) {
         return Result.fail(ContainerDomainError.SECTION_NOT_FOUND);
-      }
-      if (section.containerVersionId !== item.containerVersionId) {
-        return Result.fail(ContainerDomainError.SECTION_BELONGS_TO_DIFFERENT_VERSION);
       }
     }
 
-    item.update({
-      isRequired: command.isRequired,
-      sectionId: command.sectionId,
-      sectionLabel: command.sectionLabel,
-    });
+    // Validate: positions must be unique and form a continuous 0-based sequence.
+    const positions = command.sections.map((s) => s.position).sort((a, b) => a - b);
+    for (let i = 0; i < positions.length; i++) {
+      if (positions[i] !== i) {
+        return Result.fail(ContainerDomainError.DUPLICATE_SECTION_POSITION);
+      }
+    }
 
-    await this.itemRepo.save(item);
+    // Validate: the reorder payload must cover all sections in the version.
+    if (command.sections.length !== existingSections.length) {
+      return Result.fail(ContainerDomainError.DUPLICATE_SECTION_POSITION);
+    }
+
+    await this.sectionRepo.reorder(command.versionId, command.sections);
 
     return Result.ok();
   }

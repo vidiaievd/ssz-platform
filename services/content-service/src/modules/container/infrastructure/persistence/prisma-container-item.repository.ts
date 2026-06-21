@@ -83,6 +83,10 @@ export class PrismaContainerItemRepository implements IContainerItemRepository {
         itemType: item.itemType,
         itemId: item.itemId,
         isRequired: item.isRequired,
+        // sectionId is intentionally dropped: sections belong to the source
+        // version and don't exist on the target draft yet. Cloning sections
+        // alongside items is tracked as a follow-up (course-structure-sync Phase A).
+        sectionId: null,
         sectionLabel: item.sectionLabel,
         addedAt: new Date(),
       })),

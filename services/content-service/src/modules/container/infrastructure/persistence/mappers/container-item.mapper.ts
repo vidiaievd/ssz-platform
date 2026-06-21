@@ -10,11 +10,15 @@ export interface ContainerItemCreateData {
   itemType: $Enums.ContainerItemType;
   itemId: string;
   isRequired: boolean;
+  sectionId: string | null;
   sectionLabel: string | null;
   addedAt: Date;
 }
 
-export type ContainerItemUpdateData = Pick<ContainerItemCreateData, 'isRequired' | 'sectionLabel'>;
+export type ContainerItemUpdateData = Pick<
+  ContainerItemCreateData,
+  'isRequired' | 'sectionId' | 'sectionLabel'
+>;
 
 export class ContainerItemMapper {
   static toDomain(raw: ContainerItem): ContainerItemEntity {
@@ -24,6 +28,7 @@ export class ContainerItemMapper {
       itemType: prismaItemTypeToDomain(raw.itemType),
       itemId: raw.itemId,
       isRequired: raw.isRequired,
+      sectionId: raw.sectionId,
       sectionLabel: raw.sectionLabel,
       addedAt: raw.addedAt,
     });
@@ -37,6 +42,7 @@ export class ContainerItemMapper {
       itemType: domainItemTypeToPrisma(entity.itemType),
       itemId: entity.itemId,
       isRequired: entity.isRequired,
+      sectionId: entity.sectionId,
       sectionLabel: entity.sectionLabel,
       addedAt: entity.addedAt,
     };
@@ -45,6 +51,7 @@ export class ContainerItemMapper {
   static toUpdateData(entity: ContainerItemEntity): ContainerItemUpdateData {
     return {
       isRequired: entity.isRequired,
+      sectionId: entity.sectionId,
       sectionLabel: entity.sectionLabel,
     };
   }

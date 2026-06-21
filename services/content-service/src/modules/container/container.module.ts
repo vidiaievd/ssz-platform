@@ -33,6 +33,10 @@ import { ReorderContainerItemsHandler } from './application/commands/reorder-con
 import { CreateLocalizationHandler } from './application/commands/create-localization/create-localization.handler.js';
 import { UpdateLocalizationHandler } from './application/commands/update-localization/update-localization.handler.js';
 import { DeleteLocalizationHandler } from './application/commands/delete-localization/delete-localization.handler.js';
+import { CreateSectionHandler } from './application/commands/create-section/create-section.handler.js';
+import { RenameSectionHandler } from './application/commands/rename-section/rename-section.handler.js';
+import { ReorderSectionsHandler } from './application/commands/reorder-sections/reorder-sections.handler.js';
+import { DeleteSectionHandler } from './application/commands/delete-section/delete-section.handler.js';
 
 // Query handlers
 import { GetContainerHandler } from './application/queries/get-container/get-container.handler.js';
@@ -41,6 +45,7 @@ import { GetContainerBySlugHandler } from './application/queries/get-container-b
 import { GetContainerVersionsHandler } from './application/queries/get-container-versions/get-container-versions.handler.js';
 import { GetContainerVersionHandler } from './application/queries/get-container-version/get-container-version.handler.js';
 import { GetVersionItemsHandler } from './application/queries/get-version-items/get-version-items.handler.js';
+import { GetVersionSectionsHandler } from './application/queries/get-version-sections/get-version-sections.handler.js';
 
 // Controllers
 import { ContainerController } from './presentation/controllers/container.controller.js';
@@ -62,6 +67,10 @@ const CommandHandlers = [
   CreateLocalizationHandler,
   UpdateLocalizationHandler,
   DeleteLocalizationHandler,
+  CreateSectionHandler,
+  RenameSectionHandler,
+  ReorderSectionsHandler,
+  DeleteSectionHandler,
 ];
 
 const QueryHandlers = [
@@ -71,6 +80,7 @@ const QueryHandlers = [
   GetContainerVersionsHandler,
   GetContainerVersionHandler,
   GetVersionItemsHandler,
+  GetVersionSectionsHandler,
 ];
 
 @Module({

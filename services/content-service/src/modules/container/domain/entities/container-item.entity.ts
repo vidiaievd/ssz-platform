@@ -8,6 +8,8 @@ interface ContainerItemProps {
   itemType: ContainerItemType;
   itemId: string;
   isRequired: boolean;
+  sectionId: string | null;
+  // Deprecated free-text fallback, kept for one release. Prefer sectionId.
   sectionLabel: string | null;
   addedAt: Date;
 }
@@ -18,11 +20,13 @@ export interface CreateContainerItemProps {
   itemType: ContainerItemType;
   itemId: string;
   isRequired?: boolean;
+  sectionId?: string;
   sectionLabel?: string;
 }
 
 export interface UpdateContainerItemProps {
   isRequired?: boolean;
+  sectionId?: string | null;
   sectionLabel?: string | null;
 }
 
@@ -51,6 +55,9 @@ export class ContainerItemEntity extends Entity<string> {
   get isRequired(): boolean {
     return this.props.isRequired;
   }
+  get sectionId(): string | null {
+    return this.props.sectionId;
+  }
   get sectionLabel(): string | null {
     return this.props.sectionLabel;
   }
@@ -67,6 +74,7 @@ export class ContainerItemEntity extends Entity<string> {
       itemType: p.itemType,
       itemId: p.itemId,
       isRequired: p.isRequired ?? true,
+      sectionId: p.sectionId ?? null,
       sectionLabel: p.sectionLabel ?? null,
       addedAt: new Date(),
     });
@@ -81,6 +89,9 @@ export class ContainerItemEntity extends Entity<string> {
   update(changes: UpdateContainerItemProps): void {
     if (changes.isRequired !== undefined) {
       this.props.isRequired = changes.isRequired;
+    }
+    if ('sectionId' in changes) {
+      this.props.sectionId = changes.sectionId ?? null;
     }
     if ('sectionLabel' in changes) {
       this.props.sectionLabel = changes.sectionLabel ?? null;

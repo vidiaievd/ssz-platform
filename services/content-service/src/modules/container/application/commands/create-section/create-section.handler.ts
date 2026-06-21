@@ -1,41 +1,40 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
-import { UpdateContainerItemCommand } from './update-container-item.command.js';
+import { CreateSectionCommand } from './create-section.command.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
+import { ContainerSectionEntity } from '../../../domain/entities/container-section.entity.js';
 import { VersionStatus } from '../../../domain/value-objects/version-status.vo.js';
 import { CONTAINER_REPOSITORY } from '../../../domain/repositories/container.repository.interface.js';
 import type { IContainerRepository } from '../../../domain/repositories/container.repository.interface.js';
 import { CONTAINER_VERSION_REPOSITORY } from '../../../domain/repositories/container-version.repository.interface.js';
 import type { IContainerVersionRepository } from '../../../domain/repositories/container-version.repository.interface.js';
-import { CONTAINER_ITEM_REPOSITORY } from '../../../domain/repositories/container-item.repository.interface.js';
-import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
 import { CONTAINER_SECTION_REPOSITORY } from '../../../domain/repositories/container-section.repository.interface.js';
 import type { IContainerSectionRepository } from '../../../domain/repositories/container-section.repository.interface.js';
 
-@CommandHandler(UpdateContainerItemCommand)
-export class UpdateContainerItemHandler implements ICommandHandler<
-  UpdateContainerItemCommand,
-  Result<void, ContainerDomainError>
+export interface CreateSectionResult {
+  sectionId: string;
+  position: number;
+}
+
+@CommandHandler(CreateSectionCommand)
+export class CreateSectionHandler implements ICommandHandler<
+  CreateSectionCommand,
+  Result<CreateSectionResult, ContainerDomainError>
 > {
   constructor(
     @Inject(CONTAINER_REPOSITORY)
     private readonly containerRepo: IContainerRepository,
     @Inject(CONTAINER_VERSION_REPOSITORY)
     private readonly versionRepo: IContainerVersionRepository,
-    @Inject(CONTAINER_ITEM_REPOSITORY)
-    private readonly itemRepo: IContainerItemRepository,
     @Inject(CONTAINER_SECTION_REPOSITORY)
     private readonly sectionRepo: IContainerSectionRepository,
   ) {}
 
-  async execute(command: UpdateContainerItemCommand): Promise<Result<void, ContainerDomainError>> {
-    const item = await this.itemRepo.findById(command.itemId);
-    if (!item) {
-      return Result.fail(ContainerDomainError.ITEM_NOT_FOUND);
-    }
-
-    const version = await this.versionRepo.findById(item.containerVersionId);
+  async execute(
+    command: CreateSectionCommand,
+  ): Promise<Result<CreateSectionResult, ContainerDomainError>> {
+    const version = await this.versionRepo.findById(command.versionId);
     if (!version) {
       return Result.fail(ContainerDomainError.VERSION_NOT_FOUND);
     }
@@ -53,24 +52,26 @@ export class UpdateContainerItemHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
     }
 
-    if (command.sectionId !== undefined && command.sectionId !== null) {
-      const section = await this.sectionRepo.findById(command.sectionId);
-      if (!section) {
-        return Result.fail(ContainerDomainError.SECTION_NOT_FOUND);
+    let position: number;
+    if (command.position !== undefined) {
+      const existing = await this.sectionRepo.findByVersionId(command.versionId);
+      const occupied = existing.some((s) => s.position === command.position);
+      if (occupied) {
+        return Result.fail(ContainerDomainError.DUPLICATE_SECTION_POSITION);
       }
-      if (section.containerVersionId !== item.containerVersionId) {
-        return Result.fail(ContainerDomainError.SECTION_BELONGS_TO_DIFFERENT_VERSION);
-      }
+      position = command.position;
+    } else {
+      position = (await this.sectionRepo.getMaxPosition(command.versionId)) + 1;
     }
 
-    item.update({
-      isRequired: command.isRequired,
-      sectionId: command.sectionId,
-      sectionLabel: command.sectionLabel,
+    const section = ContainerSectionEntity.create({
+      containerVersionId: command.versionId,
+      title: command.title,
+      position,
     });
 
-    await this.itemRepo.save(item);
+    await this.sectionRepo.save(section);
 
-    return Result.ok();
+    return Result.ok({ sectionId: section.id, position });
   }
 }

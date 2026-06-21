@@ -1,6 +1,6 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
-import { UpdateContainerItemCommand } from './update-container-item.command.js';
+import { RenameSectionCommand } from './rename-section.command.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
 import { VersionStatus } from '../../../domain/value-objects/version-status.vo.js';
@@ -8,14 +8,12 @@ import { CONTAINER_REPOSITORY } from '../../../domain/repositories/container.rep
 import type { IContainerRepository } from '../../../domain/repositories/container.repository.interface.js';
 import { CONTAINER_VERSION_REPOSITORY } from '../../../domain/repositories/container-version.repository.interface.js';
 import type { IContainerVersionRepository } from '../../../domain/repositories/container-version.repository.interface.js';
-import { CONTAINER_ITEM_REPOSITORY } from '../../../domain/repositories/container-item.repository.interface.js';
-import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
 import { CONTAINER_SECTION_REPOSITORY } from '../../../domain/repositories/container-section.repository.interface.js';
 import type { IContainerSectionRepository } from '../../../domain/repositories/container-section.repository.interface.js';
 
-@CommandHandler(UpdateContainerItemCommand)
-export class UpdateContainerItemHandler implements ICommandHandler<
-  UpdateContainerItemCommand,
+@CommandHandler(RenameSectionCommand)
+export class RenameSectionHandler implements ICommandHandler<
+  RenameSectionCommand,
   Result<void, ContainerDomainError>
 > {
   constructor(
@@ -23,19 +21,17 @@ export class UpdateContainerItemHandler implements ICommandHandler<
     private readonly containerRepo: IContainerRepository,
     @Inject(CONTAINER_VERSION_REPOSITORY)
     private readonly versionRepo: IContainerVersionRepository,
-    @Inject(CONTAINER_ITEM_REPOSITORY)
-    private readonly itemRepo: IContainerItemRepository,
     @Inject(CONTAINER_SECTION_REPOSITORY)
     private readonly sectionRepo: IContainerSectionRepository,
   ) {}
 
-  async execute(command: UpdateContainerItemCommand): Promise<Result<void, ContainerDomainError>> {
-    const item = await this.itemRepo.findById(command.itemId);
-    if (!item) {
-      return Result.fail(ContainerDomainError.ITEM_NOT_FOUND);
+  async execute(command: RenameSectionCommand): Promise<Result<void, ContainerDomainError>> {
+    const section = await this.sectionRepo.findById(command.sectionId);
+    if (!section) {
+      return Result.fail(ContainerDomainError.SECTION_NOT_FOUND);
     }
 
-    const version = await this.versionRepo.findById(item.containerVersionId);
+    const version = await this.versionRepo.findById(section.containerVersionId);
     if (!version) {
       return Result.fail(ContainerDomainError.VERSION_NOT_FOUND);
     }
@@ -53,23 +49,8 @@ export class UpdateContainerItemHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
     }
 
-    if (command.sectionId !== undefined && command.sectionId !== null) {
-      const section = await this.sectionRepo.findById(command.sectionId);
-      if (!section) {
-        return Result.fail(ContainerDomainError.SECTION_NOT_FOUND);
-      }
-      if (section.containerVersionId !== item.containerVersionId) {
-        return Result.fail(ContainerDomainError.SECTION_BELONGS_TO_DIFFERENT_VERSION);
-      }
-    }
-
-    item.update({
-      isRequired: command.isRequired,
-      sectionId: command.sectionId,
-      sectionLabel: command.sectionLabel,
-    });
-
-    await this.itemRepo.save(item);
+    section.rename(command.title);
+    await this.sectionRepo.save(section);
 
     return Result.ok();
   }
