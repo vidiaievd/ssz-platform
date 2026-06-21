@@ -139,13 +139,32 @@ model ContainerVersion {
   // Incremented on every item mutation; used for optimistic concurrency on reorder.
   revisionCount     Int           @default(0) @map("revision_count")
 
-  container Container      @relation(fields: [containerId], references: [id])
+  container Container          @relation(fields: [containerId], references: [id])
   items     ContainerItem[]
+  sections  ContainerSection[]
 
   @@unique([containerId, versionNumber])
   @@index([containerId])
   @@index([status, sunsetAt])
   @@map("container_versions")
+}
+
+// Named, ordered grouping of items within a version (e.g. CEFR levels / modules).
+// Cascade-deleted with the version. Deleting a single section reassigns its items
+// to sectionId = null (handled in the application layer), so items are never lost.
+model ContainerSection {
+  id                 String   @id @default(uuid()) @db.Uuid
+  containerVersionId String   @map("container_version_id") @db.Uuid
+  title              String   @db.VarChar(100)
+  position           Int
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  containerVersion ContainerVersion @relation(fields: [containerVersionId], references: [id], onDelete: Cascade)
+  items            ContainerItem[]
+
+  @@unique([containerVersionId, position])
+  @@index([containerVersionId])
+  @@map("container_sections")
 }
 
 // Ordered list of references inside a version. Position gaps are allowed after
@@ -158,14 +177,19 @@ model ContainerItem {
   // Polymorphic reference — no Prisma relation; item_id is validated in application layer.
   itemId             String            @map("item_id") @db.Uuid
   isRequired         Boolean           @default(true) @map("is_required")
+  // First-class section grouping. Nullable = ungrouped. Replaces sectionLabel,
+  // which is kept one release for back-compat (drop in course-structure-sync Phase E).
+  sectionId          String?           @map("section_id") @db.Uuid
   sectionLabel       String?           @map("section_label") @db.VarChar(100)
   addedAt            DateTime          @default(now()) @map("added_at") @db.Timestamptz
 
-  containerVersion ContainerVersion @relation(fields: [containerVersionId], references: [id], onDelete: Cascade)
+  containerVersion ContainerVersion  @relation(fields: [containerVersionId], references: [id], onDelete: Cascade)
+  section          ContainerSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
 
   @@unique([containerVersionId, position])
   @@index([containerVersionId])
   @@index([itemType, itemId])
+  @@index([sectionId])
   @@map("container_items")
 }
 
