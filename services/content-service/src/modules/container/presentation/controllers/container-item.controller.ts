@@ -90,6 +90,7 @@ export class ContainerItemController {
         dto.itemType,
         dto.itemId,
         dto.isRequired,
+        dto.sectionId,
         dto.sectionLabel,
       ),
     );
@@ -112,7 +113,15 @@ export class ContainerItemController {
     const result = await this.commandBus.execute<
       UpdateContainerItemCommand,
       Result<void, ContainerDomainError>
-    >(new UpdateContainerItemCommand(user.userId, itemId, dto.isRequired, dto.sectionLabel));
+    >(
+      new UpdateContainerItemCommand(
+        user.userId,
+        itemId,
+        dto.isRequired,
+        dto.sectionId,
+        dto.sectionLabel,
+      ),
+    );
 
     if (result.isFail) throwHttpException(result.error);
   }

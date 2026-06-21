@@ -16,7 +16,15 @@ export class AddContainerItemRequestDto {
   @IsBoolean()
   isRequired?: boolean;
 
-  @ApiPropertyOptional({ example: 'Introduction' })
+  @ApiPropertyOptional({ example: 'uuid-of-section', description: 'Section to attach this item to' })
+  @IsOptional()
+  @IsUUID()
+  sectionId?: string;
+
+  @ApiPropertyOptional({
+    example: 'Introduction',
+    description: 'Deprecated free-text fallback — prefer sectionId',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)

@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class UpdateContainerItemRequestDto {
   @ApiPropertyOptional({ example: true })
@@ -7,7 +7,19 @@ export class UpdateContainerItemRequestDto {
   @IsBoolean()
   isRequired?: boolean;
 
-  @ApiPropertyOptional({ example: 'Introduction' })
+  @ApiPropertyOptional({
+    example: 'uuid-of-section',
+    description: 'Section to attach this item to; pass null to ungroup',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsUUID()
+  sectionId?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Introduction',
+    description: 'Deprecated free-text fallback — prefer sectionId',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)
