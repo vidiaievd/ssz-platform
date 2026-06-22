@@ -53,6 +53,7 @@ export class UpdateSchoolGroupHandler implements ICommandHandler<UpdateSchoolGro
       courseId: command.courseId,
       lang: command.lang,
       level: command.level,
+      ageBand: command.ageBand,
       capacityMin: command.capacityMin,
       capacityMax: command.capacityMax,
       startDate: command.startDate,

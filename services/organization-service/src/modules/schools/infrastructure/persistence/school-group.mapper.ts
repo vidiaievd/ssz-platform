@@ -1,4 +1,4 @@
-import type { GroupMode, GroupStatus, GroupTeacherRole } from '../../domain/entities/school-group.entity.js';
+import type { AgeBand, GroupMode, GroupStatus, GroupTeacherRole } from '../../domain/entities/school-group.entity.js';
 import { SchoolGroup } from '../../domain/entities/school-group.entity.js';
 
 type PrismaSchoolGroupMember = {
@@ -36,6 +36,7 @@ type PrismaSchoolGroup = {
   courseId: string | null;
   lang: string | null;
   level: string | null;
+  ageBand: string | null;
   capacityMin: number | null;
   capacityMax: number | null;
   startDate: Date | null;
@@ -60,6 +61,7 @@ export class SchoolGroupMapper {
       courseId: raw.courseId,
       lang: raw.lang,
       level: raw.level,
+      ageBand: raw.ageBand as AgeBand | null,
       capacityMin: raw.capacityMin,
       capacityMax: raw.capacityMax,
       startDate: raw.startDate,

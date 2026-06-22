@@ -32,6 +32,7 @@ export class SchoolGroupResponseDto {
   @ApiPropertyOptional() courseId?: string | null;
   @ApiPropertyOptional() lang?: string | null;
   @ApiPropertyOptional() level?: string | null;
+  @ApiPropertyOptional({ enum: ['kids', 'teens', 'adults'] }) ageBand?: string | null;
   @ApiPropertyOptional() capacityMin?: number | null;
   @ApiPropertyOptional() capacityMax?: number | null;
   @ApiPropertyOptional() startDate?: Date | null;
@@ -54,6 +55,7 @@ export class SchoolGroupResponseDto {
     dto.courseId = group.courseId;
     dto.lang = group.lang;
     dto.level = group.level;
+    dto.ageBand = group.ageBand;
     dto.capacityMin = group.capacityMin;
     dto.capacityMax = group.capacityMax;
     dto.startDate = group.startDate;
@@ -89,6 +91,7 @@ export class SchoolGroupSummaryResponseDto {
   @ApiPropertyOptional() courseId?: string | null;
   @ApiPropertyOptional() lang?: string | null;
   @ApiPropertyOptional() level?: string | null;
+  @ApiPropertyOptional({ enum: ['kids', 'teens', 'adults'] }) ageBand?: string | null;
   @ApiPropertyOptional() capacityMin?: number | null;
   @ApiPropertyOptional() capacityMax?: number | null;
   @ApiPropertyOptional() startDate?: Date | null;
@@ -109,6 +112,7 @@ export class SchoolGroupSummaryResponseDto {
     dto.courseId = group.courseId;
     dto.lang = group.lang;
     dto.level = group.level;
+    dto.ageBand = group.ageBand;
     dto.capacityMin = group.capacityMin;
     dto.capacityMax = group.capacityMax;
     dto.startDate = group.startDate;

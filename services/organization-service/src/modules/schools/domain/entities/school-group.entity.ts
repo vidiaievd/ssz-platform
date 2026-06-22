@@ -8,6 +8,7 @@ export interface SchoolGroupMemberProps {
 export type GroupStatus = 'draft' | 'active' | 'archived';
 export type GroupMode = 'online' | 'in_person';
 export type GroupTeacherRole = 'primary' | 'co_primary' | 'substitute';
+export type AgeBand = 'kids' | 'teens' | 'adults';
 
 export interface GroupTeacherProps {
   id: string;
@@ -44,6 +45,7 @@ export interface SchoolGroupProps {
   courseId?: string | null;
   lang?: string | null;
   level?: string | null;
+  ageBand?: AgeBand | null;
   capacityMin?: number | null;
   capacityMax?: number | null;
   startDate?: Date | null;
@@ -63,6 +65,7 @@ export interface UpdateGroupProps {
   courseId?: string | null;
   lang?: string | null;
   level?: string | null;
+  ageBand?: AgeBand | null;
   capacityMin?: number | null;
   capacityMax?: number | null;
   startDate?: Date | null;
@@ -122,6 +125,7 @@ export class SchoolGroup {
     if (fields.courseId !== undefined) this._props.courseId = fields.courseId;
     if (fields.lang !== undefined) this._props.lang = fields.lang;
     if (fields.level !== undefined) this._props.level = fields.level;
+    if (fields.ageBand !== undefined) this._props.ageBand = fields.ageBand;
     if (fields.capacityMin !== undefined) this._props.capacityMin = fields.capacityMin;
     if (fields.capacityMax !== undefined) this._props.capacityMax = fields.capacityMax;
     if (fields.startDate !== undefined) this._props.startDate = fields.startDate;
@@ -185,6 +189,7 @@ export class SchoolGroup {
   get courseId(): string | null | undefined { return this._props.courseId; }
   get lang(): string | null | undefined { return this._props.lang; }
   get level(): string | null | undefined { return this._props.level; }
+  get ageBand(): AgeBand | null | undefined { return this._props.ageBand; }
   get capacityMin(): number | null | undefined { return this._props.capacityMin; }
   get capacityMax(): number | null | undefined { return this._props.capacityMax; }
   get startDate(): Date | null | undefined { return this._props.startDate; }

@@ -56,6 +56,12 @@ enum GroupMode {
   in_person
 }
 
+enum AgeBand {
+  kids
+  teens
+  adults
+}
+
 enum GroupTeacherRole {
   primary
   co_primary
@@ -240,6 +246,7 @@ model SchoolGroup {
   courseId    String?     @map("course_id")
   lang        String?     @db.Char(2)
   level       String?
+  ageBand     AgeBand?    @map("age_band")
   capacityMin Int?        @map("capacity_min")
   capacityMax Int?        @map("capacity_max")
   startDate   DateTime?   @map("start_date") @db.Date
