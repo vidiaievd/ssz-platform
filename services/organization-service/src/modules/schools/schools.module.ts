@@ -53,6 +53,7 @@ import { CreateMembershipHandler } from './application/commands/create-membershi
 import { ApproveMembershipHandler } from './application/commands/approve-membership/approve-membership.handler.js';
 import { RejectMembershipHandler } from './application/commands/reject-membership/reject-membership.handler.js';
 import { SetMembershipAvailabilityHandler } from './application/commands/set-membership-availability/set-membership-availability.handler.js';
+import { SetMembershipAgeBandHandler } from './application/commands/set-membership-age-band/set-membership-age-band.handler.js';
 import { AssignMembershipGroupHandler } from './application/commands/assign-membership-group/assign-membership-group.handler.js';
 import { CompleteMembershipOnboardingHandler } from './application/commands/complete-membership-onboarding/complete-membership-onboarding.handler.js';
 
@@ -121,6 +122,7 @@ const CommandHandlers = [
   ApproveMembershipHandler,
   RejectMembershipHandler,
   SetMembershipAvailabilityHandler,
+  SetMembershipAgeBandHandler,
   AssignMembershipGroupHandler,
   CompleteMembershipOnboardingHandler,
 ];

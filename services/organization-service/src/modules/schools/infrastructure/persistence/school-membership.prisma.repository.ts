@@ -14,6 +14,7 @@ function rowToEntity(row: any): SchoolMembership {
     source: row.source,
     language: row.language ?? undefined,
     availability: row.availability ?? undefined,
+    ageBand: row.ageBand ?? undefined,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
@@ -34,12 +35,14 @@ export class SchoolMembershipPrismaRepository implements ISchoolMembershipReposi
         source: membership.source,
         language: membership.language ?? null,
         availability: membership.availability ?? null,
+        ageBand: membership.ageBand ?? null,
         createdAt: membership.createdAt,
         updatedAt: membership.updatedAt,
       },
       update: {
         status: membership.status,
         availability: membership.availability ?? null,
+        ageBand: membership.ageBand ?? null,
         updatedAt: membership.updatedAt,
       },
     });

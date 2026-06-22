@@ -65,6 +65,9 @@ export class MembershipResponseDto {
   @ApiPropertyOptional({ type: [AvailabilitySlotResponseDto] })
   availability?: AvailabilitySlotResponseDto[];
 
+  @ApiPropertyOptional({ enum: ['kids', 'teens', 'adults'] })
+  ageBand?: string;
+
   @ApiProperty()
   createdAt: Date;
 

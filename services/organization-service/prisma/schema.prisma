@@ -373,6 +373,7 @@ model SchoolMembership {
   source       MembershipSource
   language     String?          @db.Char(2)
   availability Json?
+  ageBand      AgeBand?         @map("age_band")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
