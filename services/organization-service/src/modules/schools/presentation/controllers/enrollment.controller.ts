@@ -65,6 +65,8 @@ function toSettingsResponse(s: SchoolOnboardingSettings): OnboardingSettingsResp
     interviewRequired: s.interviewRequired,
     autoPlaceByScore: s.autoPlaceByScore,
     collectAvailability: s.collectAvailability,
+    ageBands: s.ageBands,
+    collectAgeBand: s.collectAgeBand,
     approvalMode: s.approvalMode,
   };
 }
@@ -111,6 +113,8 @@ export class EnrollmentController {
         dto.interviewRequired,
         dto.autoPlaceByScore,
         dto.collectAvailability,
+        dto.ageBands,
+        dto.collectAgeBand,
         dto.approvalMode,
       ),
     );

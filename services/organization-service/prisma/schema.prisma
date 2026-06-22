@@ -337,6 +337,8 @@ model SchoolOnboardingSettings {
   interviewRequired  Boolean      @default(true) @map("interview_required")
   autoPlaceByScore   Boolean      @default(false) @map("auto_place_by_score")
   collectAvailability Boolean     @default(true) @map("collect_availability")
+  ageBands           AgeBand[]    @default([]) @map("age_bands")
+  collectAgeBand     Boolean      @default(false) @map("collect_age_band")
   approvalMode       ApprovalMode @default(manual) @map("approval_mode")
   updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at")
 

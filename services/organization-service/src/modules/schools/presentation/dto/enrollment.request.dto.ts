@@ -3,6 +3,7 @@ import { IsArray, IsEnum, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min
 import { Type } from 'class-transformer';
 import type { MembershipSource } from '../../domain/entities/school-membership.entity.js';
 import type { ApprovalMode, PlacementMode } from '../../domain/entities/school-onboarding-settings.entity.js';
+import type { AgeBand } from '../../domain/entities/school-group.entity.js';
 
 // ── E.2 ──────────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,14 @@ export class UpsertOnboardingSettingsRequestDto {
 
   @ApiProperty({ example: true })
   collectAvailability: boolean;
+
+  @ApiProperty({ enum: ['kids', 'teens', 'adults'], isArray: true, example: ['kids', 'teens'] })
+  @IsArray()
+  @IsEnum(['kids', 'teens', 'adults'], { each: true })
+  ageBands: AgeBand[];
+
+  @ApiProperty({ example: false })
+  collectAgeBand: boolean;
 
   @ApiProperty({ enum: ['auto', 'manual'], example: 'manual' })
   @IsEnum(['auto', 'manual'])

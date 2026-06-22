@@ -22,6 +22,12 @@ export class OnboardingSettingsResponseDto {
   @ApiProperty()
   collectAvailability: boolean;
 
+  @ApiProperty({ enum: ['kids', 'teens', 'adults'], isArray: true })
+  ageBands: string[];
+
+  @ApiProperty()
+  collectAgeBand: boolean;
+
   @ApiProperty({ enum: ['auto', 'manual'] })
   approvalMode: string;
 }
