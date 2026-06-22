@@ -30,6 +30,25 @@ export interface ConflictEntry {
   lessonBId: string;
 }
 
+export interface ProposedSlot {
+  weekday: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+  startTime: string;
+  endTime: string;
+}
+
+export interface TeacherAvailabilityEntry {
+  teacherId: string;
+  status: 'free' | 'conflict' | 'absent';
+  conflictGroupId?: string | null;
+  absenceId?: string | null;
+}
+
+const WEEKDAY_JS: Record<ProposedSlot['weekday'], number> = {
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+};
+
+const AVAILABILITY_HORIZON_DAYS = 13; // covers every weekday at least once
+
 function timeToMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
   return (h ?? 0) * 60 + (m ?? 0);
@@ -128,5 +147,69 @@ export class WorkloadCalculatorService {
     teacherIds: string[],
   ): Promise<TeacherLoadSummary[]> {
     return Promise.all(teacherIds.map((tid) => this.getTeacherLoad(tid, from, to, policy)));
+  }
+
+  /**
+   * Derived availability: no positive-availability calendar exists, so a teacher
+   * is "free" for a proposed weekly slot set unless a future Lesson (other group)
+   * overlaps one of the slots, or an absence currently covers today.
+   */
+  async getAvailability(
+    schoolId: string,
+    teacherIds: string[],
+    proposedSlots: ProposedSlot[],
+  ): Promise<TeacherAvailabilityEntry[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const horizon = new Date(today);
+    horizon.setDate(horizon.getDate() + AVAILABILITY_HORIZON_DAYS);
+
+    const [futureLessons, activeAbsences] = await Promise.all([
+      this.lessons.findBySchoolAndDateRange(schoolId, today, horizon),
+      this.prisma.teacherAbsence.findMany({
+        where: {
+          schoolId,
+          fromDate: { lte: today },
+          OR: [{ toDate: null }, { toDate: { gte: today } }],
+        },
+      }),
+    ]);
+
+    const absenceByTeacher = new Map<string, { id: string }>();
+    for (const absence of activeAbsences) {
+      if (!absenceByTeacher.has(absence.teacherId)) absenceByTeacher.set(absence.teacherId, { id: absence.id });
+    }
+
+    const lessonsByTeacher = new Map<string, Lesson[]>();
+    for (const lesson of futureLessons) {
+      if (lesson.status === 'cancelled') continue;
+      if (!lessonsByTeacher.has(lesson.teacherId)) lessonsByTeacher.set(lesson.teacherId, []);
+      lessonsByTeacher.get(lesson.teacherId)!.push(lesson);
+    }
+
+    return teacherIds.map((teacherId) => {
+      const absence = absenceByTeacher.get(teacherId);
+      if (absence) {
+        return { teacherId, status: 'absent', absenceId: absence.id };
+      }
+
+      const lessons = lessonsByTeacher.get(teacherId) ?? [];
+      for (const slot of proposedSlots) {
+        const slotDay = WEEKDAY_JS[slot.weekday];
+        const slotStart = timeToMinutes(slot.startTime);
+        const slotEnd = timeToMinutes(slot.endTime);
+        const conflicting = lessons.find((l) => {
+          if (l.date.getDay() !== slotDay) return false;
+          const lStart = timeToMinutes(l.startTime);
+          const lEnd = timeToMinutes(l.endTime);
+          return slotStart < lEnd && lStart < slotEnd;
+        });
+        if (conflicting) {
+          return { teacherId, status: 'conflict', conflictGroupId: conflicting.groupId };
+        }
+      }
+
+      return { teacherId, status: 'free' };
+    });
   }
 }

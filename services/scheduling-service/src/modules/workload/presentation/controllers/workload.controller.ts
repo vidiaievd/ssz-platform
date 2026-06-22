@@ -7,6 +7,8 @@ import {
   TeacherLoadDto,
   ConflictEntryDto,
   CommandCenterDto,
+  TeacherAvailabilityQueryDto,
+  TeacherAvailabilityEntryDto,
 } from '../dto/workload.dto.js';
 import { UpdateWorkloadPolicyCommand } from '../../application/commands/update-workload-policy/update-workload-policy.command.js';
 import { WorkloadCalculatorService } from '../../application/services/workload-calculator.service.js';
@@ -47,6 +49,17 @@ export class WorkloadController {
   ): Promise<ConflictEntryDto[]> {
     const { from, to } = resolveRange(fromStr, toStr);
     return this.calculator.getConflicts(schoolId, from, to);
+  }
+
+  @Get('teachers/availability')
+  @ApiOperation({ summary: 'Derived per-teacher availability (free/conflict/absent) for a proposed weekly slot set' })
+  @ApiResponse({ status: 200, type: [TeacherAvailabilityEntryDto] })
+  async teachersAvailability(
+    @Param('schoolId') schoolId: string,
+    @Query() query: TeacherAvailabilityQueryDto,
+  ): Promise<TeacherAvailabilityEntryDto[]> {
+    const teachers = await this.orgClient.getSchoolTeachers(schoolId);
+    return this.calculator.getAvailability(schoolId, teachers.map((t) => t.userId), query.slots);
   }
 
   @Get('teachers/:teacherId/load')
