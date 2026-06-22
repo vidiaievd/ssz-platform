@@ -43,6 +43,14 @@ export class TeacherAvailabilityEntryDto {
   absenceId?: string | null;
 }
 
+export class TeacherTimetableEntryDto {
+  @ApiProperty({ enum: WEEKDAYS }) weekday!: WeekDayEnum;
+  @ApiProperty() startTime!: string;
+  @ApiProperty() endTime!: string;
+  @ApiProperty() groupId!: string;
+  @ApiPropertyOptional() room?: string | null;
+}
+
 export class WorkloadPolicyDto {
   @ApiProperty() prepFactor!: number;
   @ApiProperty() dailyContactCap!: number;

@@ -9,6 +9,7 @@ import {
   CommandCenterDto,
   TeacherAvailabilityQueryDto,
   TeacherAvailabilityEntryDto,
+  TeacherTimetableEntryDto,
 } from '../dto/workload.dto.js';
 import { UpdateWorkloadPolicyCommand } from '../../application/commands/update-workload-policy/update-workload-policy.command.js';
 import { WorkloadCalculatorService } from '../../application/services/workload-calculator.service.js';
@@ -60,6 +61,15 @@ export class WorkloadController {
   ): Promise<TeacherAvailabilityEntryDto[]> {
     const teachers = await this.orgClient.getSchoolTeachers(schoolId);
     return this.calculator.getAvailability(schoolId, teachers.map((t) => t.userId), query.slots);
+  }
+
+  @Get('teachers/:teacherId/timetable')
+  @ApiOperation({ summary: 'Weekly timetable projected from a teacher\'s assigned future lessons' })
+  @ApiResponse({ status: 200, type: [TeacherTimetableEntryDto] })
+  async teacherTimetable(
+    @Param('teacherId') teacherId: string,
+  ): Promise<TeacherTimetableEntryDto[]> {
+    return this.calculator.getTeacherTimetable(teacherId);
   }
 
   @Get('teachers/:teacherId/load')

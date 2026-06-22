@@ -43,11 +43,24 @@ export interface TeacherAvailabilityEntry {
   absenceId?: string | null;
 }
 
+export interface TeacherTimetableEntry {
+  weekday: ProposedSlot['weekday'];
+  startTime: string;
+  endTime: string;
+  groupId: string;
+  room: string | null;
+}
+
 const WEEKDAY_JS: Record<ProposedSlot['weekday'], number> = {
   sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
 };
 
+const JS_WEEKDAY = Object.fromEntries(
+  Object.entries(WEEKDAY_JS).map(([day, jsDay]) => [jsDay, day as ProposedSlot['weekday']]),
+) as Record<number, ProposedSlot['weekday']>;
+
 const AVAILABILITY_HORIZON_DAYS = 13; // covers every weekday at least once
+const TIMETABLE_HORIZON_DAYS = 13; // same — one weekly cycle is enough to derive the recurring pattern
 
 function timeToMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
@@ -210,6 +223,41 @@ export class WorkloadCalculatorService {
       }
 
       return { teacherId, status: 'free' };
+    });
+  }
+
+  /**
+   * Pure read projection over the future Lessons assigned to this teacher —
+   * never edited directly. Dedupes occurrences of the same recurring slot
+   * (same weekday/time/group) into a single weekly entry.
+   */
+  async getTeacherTimetable(teacherId: string): Promise<TeacherTimetableEntry[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const horizon = new Date(today);
+    horizon.setDate(horizon.getDate() + TIMETABLE_HORIZON_DAYS);
+
+    const lessons = await this.lessons.findByTeacherAndDateRange(teacherId, today, horizon);
+
+    const seen = new Map<string, TeacherTimetableEntry>();
+    for (const lesson of lessons) {
+      if (lesson.status === 'cancelled') continue;
+      const weekday = JS_WEEKDAY[lesson.date.getDay()]!;
+      const key = `${weekday}::${lesson.startTime}::${lesson.endTime}::${lesson.groupId}`;
+      if (!seen.has(key)) {
+        seen.set(key, {
+          weekday,
+          startTime: lesson.startTime,
+          endTime: lesson.endTime,
+          groupId: lesson.groupId,
+          room: lesson.room,
+        });
+      }
+    }
+
+    return [...seen.values()].sort((a, b) => {
+      if (a.weekday !== b.weekday) return WEEKDAY_JS[a.weekday] - WEEKDAY_JS[b.weekday];
+      return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
     });
   }
 }
