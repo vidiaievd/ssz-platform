@@ -51,6 +51,10 @@ export class TeacherTimetableEntryDto {
   @ApiPropertyOptional() room?: string | null;
 }
 
+export class SchoolTimetableEntryDto extends TeacherTimetableEntryDto {
+  @ApiProperty() teacherId!: string;
+}
+
 export class WorkloadPolicyDto {
   @ApiProperty() prepFactor!: number;
   @ApiProperty() dailyContactCap!: number;

@@ -10,6 +10,7 @@ import {
   TeacherAvailabilityQueryDto,
   TeacherAvailabilityEntryDto,
   TeacherTimetableEntryDto,
+  SchoolTimetableEntryDto,
 } from '../dto/workload.dto.js';
 import { UpdateWorkloadPolicyCommand } from '../../application/commands/update-workload-policy/update-workload-policy.command.js';
 import { WorkloadCalculatorService } from '../../application/services/workload-calculator.service.js';
@@ -61,6 +62,13 @@ export class WorkloadController {
   ): Promise<TeacherAvailabilityEntryDto[]> {
     const teachers = await this.orgClient.getSchoolTeachers(schoolId);
     return this.calculator.getAvailability(schoolId, teachers.map((t) => t.userId), query.slots);
+  }
+
+  @Get('teachers/timetable')
+  @ApiOperation({ summary: 'Weekly timetable projected from every teacher\'s assigned future lessons (one query for the whole school)' })
+  @ApiResponse({ status: 200, type: [SchoolTimetableEntryDto] })
+  async schoolTimetable(@Param('schoolId') schoolId: string): Promise<SchoolTimetableEntryDto[]> {
+    return this.calculator.getSchoolTimetable(schoolId);
   }
 
   @Get('teachers/:teacherId/timetable')

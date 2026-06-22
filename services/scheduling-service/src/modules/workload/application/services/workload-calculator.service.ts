@@ -51,6 +51,10 @@ export interface TeacherTimetableEntry {
   room: string | null;
 }
 
+export interface SchoolTimetableEntry extends TeacherTimetableEntry {
+  teacherId: string;
+}
+
 const WEEKDAY_JS: Record<ProposedSlot['weekday'], number> = {
   sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
 };
@@ -256,6 +260,43 @@ export class WorkloadCalculatorService {
     }
 
     return [...seen.values()].sort((a, b) => {
+      if (a.weekday !== b.weekday) return WEEKDAY_JS[a.weekday] - WEEKDAY_JS[b.weekday];
+      return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+    });
+  }
+
+  /**
+   * School-wide counterpart to getTeacherTimetable — one query for every
+   * teacher's projected week instead of one query per teacher, so the admin
+   * overview stays O(1) regardless of staff size.
+   */
+  async getSchoolTimetable(schoolId: string): Promise<SchoolTimetableEntry[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const horizon = new Date(today);
+    horizon.setDate(horizon.getDate() + TIMETABLE_HORIZON_DAYS);
+
+    const lessons = await this.lessons.findBySchoolAndDateRange(schoolId, today, horizon);
+
+    const seen = new Map<string, SchoolTimetableEntry>();
+    for (const lesson of lessons) {
+      if (lesson.status === 'cancelled') continue;
+      const weekday = JS_WEEKDAY[lesson.date.getDay()]!;
+      const key = `${lesson.teacherId}::${weekday}::${lesson.startTime}::${lesson.endTime}::${lesson.groupId}`;
+      if (!seen.has(key)) {
+        seen.set(key, {
+          teacherId: lesson.teacherId,
+          weekday,
+          startTime: lesson.startTime,
+          endTime: lesson.endTime,
+          groupId: lesson.groupId,
+          room: lesson.room,
+        });
+      }
+    }
+
+    return [...seen.values()].sort((a, b) => {
+      if (a.teacherId !== b.teacherId) return a.teacherId.localeCompare(b.teacherId);
       if (a.weekday !== b.weekday) return WEEKDAY_JS[a.weekday] - WEEKDAY_JS[b.weekday];
       return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
     });
