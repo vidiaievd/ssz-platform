@@ -36,9 +36,10 @@ export class SlotsController {
   @ApiOperation({ summary: 'List slots for a group' })
   @ApiResponse({ status: 200, type: [SlotResponseDto] })
   async list(
+    @Param('schoolId') schoolId: string,
     @Param('groupId') groupId: string,
   ): Promise<SlotResponseDto[]> {
-    const slots = await this.queryBus.execute<ListSlotsQuery, Slot[]>(new ListSlotsQuery(groupId));
+    const slots = await this.queryBus.execute<ListSlotsQuery, Slot[]>(new ListSlotsQuery(schoolId, groupId));
     return slots.map(toDto);
   }
 
@@ -74,9 +75,11 @@ export class SlotsController {
   @ApiOperation({ summary: 'Delete a single slot' })
   @ApiResponse({ status: 204 })
   async remove(
+    @Param('schoolId') schoolId: string,
+    @Param('groupId') groupId: string,
     @Param('slotId') slotId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
-    await this.commandBus.execute(new DeleteSlotCommand(slotId, user.userId));
+    await this.commandBus.execute(new DeleteSlotCommand(schoolId, groupId, slotId, user.userId));
   }
 }
