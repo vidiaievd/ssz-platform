@@ -128,6 +128,20 @@ export class SlugAvailabilityResponseDto {
   suggestions?: string[];
 }
 
+export class MemberRosterGroupResponseDto {
+  @ApiProperty({ description: 'Group UUID' })
+  id!: string;
+
+  @ApiProperty({ description: 'Group name' })
+  name!: string;
+
+  @ApiPropertyOptional({ description: 'Group language (ISO 639-1)', nullable: true })
+  lang!: string | null;
+
+  @ApiPropertyOptional({ description: 'Group CEFR level', nullable: true })
+  level!: string | null;
+}
+
 export class MemberRosterItemResponseDto {
   @ApiProperty({ description: 'User UUID' })
   userId!: string;
@@ -157,6 +171,12 @@ export class MemberRosterItemResponseDto {
 
   @ApiProperty({ description: 'Join timestamp (ISO 8601)' })
   joinedAt!: string;
+
+  @ApiProperty({
+    type: [MemberRosterGroupResponseDto],
+    description: 'Active groups this student belongs to in this school; empty for non-students',
+  })
+  groups!: MemberRosterGroupResponseDto[];
 }
 
 export class MemberPermissionsResponseDto {

@@ -47,10 +47,7 @@ export class OrgServiceHttpClient {
 
   async getGroupTeachers(schoolId: string, groupId: string): Promise<GroupTeacherEntry[]> {
     try {
-      const res = await fetch(
-        `${this.baseUrl}/api/v1/schools/${schoolId}/groups/${groupId}/teachers`,
-        { headers: { Authorization: `Bearer ${this.token}` } },
-      );
+      const res = await fetch(`${this.baseUrl}/api/v1/internal/schools/${schoolId}/groups/${groupId}/teachers`);
       if (!res.ok) return [];
       return (await res.json()) as GroupTeacherEntry[];
     } catch (err) {
@@ -75,10 +72,7 @@ export class OrgServiceHttpClient {
 
   async getGroup(schoolId: string, groupId: string): Promise<GroupInfo | null> {
     try {
-      const res = await fetch(
-        `${this.baseUrl}/api/v1/schools/${schoolId}/groups/${groupId}`,
-        { headers: { Authorization: `Bearer ${this.token}` } },
-      );
+      const res = await fetch(`${this.baseUrl}/api/v1/internal/schools/${schoolId}/groups/${groupId}`);
       if (!res.ok) return null;
       return (await res.json()) as GroupInfo;
     } catch (err) {

@@ -83,6 +83,59 @@ export class InternalController {
   }
 
   /**
+   * Returns a group's scheduling-relevant fields.
+   * Used by Scheduling Service to verify group/school ownership and term dates.
+   */
+  @Get(':schoolId/groups/:groupId')
+  async getGroup(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+  ): Promise<{
+    id: string;
+    schoolId: string;
+    name: string;
+    startDate: string | null;
+    endDate: string | null;
+    status: string;
+    lang: string | null;
+  }> {
+    const group = await this.groupRepository.findById(groupId);
+    if (!group || group.isDeleted || group.schoolId !== schoolId) {
+      throw new NotFoundException(`Group ${groupId} not found in school ${schoolId}`);
+    }
+    return {
+      id: group.id,
+      schoolId: group.schoolId,
+      name: group.name,
+      startDate: group.startDate?.toISOString() ?? null,
+      endDate: group.endDate?.toISOString() ?? null,
+      status: group.status,
+      lang: group.lang ?? null,
+    };
+  }
+
+  /**
+   * Returns a group's assigned teachers (primary/co-primary/substitute).
+   * Used by Scheduling Service to find the primary teacher for lesson generation.
+   */
+  @Get(':schoolId/groups/:groupId/teachers')
+  async getGroupTeachers(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+  ): Promise<Array<{ userId: string; role: string; fromDate: string | null; toDate: string | null }>> {
+    const group = await this.groupRepository.findById(groupId);
+    if (!group || group.isDeleted || group.schoolId !== schoolId) {
+      throw new NotFoundException(`Group ${groupId} not found in school ${schoolId}`);
+    }
+    return group.teachers.map((t) => ({
+      userId: t.userId,
+      role: t.role,
+      fromDate: t.fromDate?.toISOString() ?? null,
+      toDate: t.toDate?.toISOString() ?? null,
+    }));
+  }
+
+  /**
    * Batch lookup of school roles for multiple (schoolId, userId) pairs.
    * Query: ?schoolIds=id1,id2&userId=id
    * Returns only found memberships — missing pairs are omitted.
