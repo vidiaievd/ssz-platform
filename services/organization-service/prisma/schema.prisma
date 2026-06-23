@@ -56,6 +56,12 @@ enum GroupMode {
   in_person
 }
 
+enum AgeBand {
+  kids
+  teens
+  adults
+}
+
 enum GroupTeacherRole {
   primary
   co_primary
@@ -127,10 +133,17 @@ model SchoolMember {
   level     String?    // current CEFR level (A1–C2), STUDENT role only
   joinedAt  DateTime   @default(now())
 
+  // Denormalized from user-profile-service (set at member-creation time, kept in
+  // sync via profile.created/profile.updated RabbitMQ events). Avoids a live
+  // profile-service call on every roster read. Null until first synced.
+  name      String?
+  avatarUrl String?
+
   teacherAttrs SchoolTeacher?
   permissions  SchoolMemberPermission?
 
   @@unique([schoolId, userId])
+  @@index([userId])
   @@map("school_members")
 }
 
@@ -233,6 +246,7 @@ model SchoolGroup {
   courseId    String?     @map("course_id")
   lang        String?     @db.Char(2)
   level       String?
+  ageBand     AgeBand?    @map("age_band")
   capacityMin Int?        @map("capacity_min")
   capacityMax Int?        @map("capacity_max")
   startDate   DateTime?   @map("start_date") @db.Date
@@ -241,8 +255,9 @@ model SchoolGroup {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   deletedAt   DateTime?   @map("deleted_at")
 
-  members  SchoolGroupMember[]
-  teachers GroupTeacher[]
+  members   SchoolGroupMember[]
+  teachers  GroupTeacher[]
+  materials GroupMaterial[]
 
   @@index([schoolId])
   @@index([schoolId, status])
@@ -282,6 +297,21 @@ model GroupTeacher {
   @@map("group_teachers")
 }
 
+// Additional course materials attached to a group, distinct from the
+// group's main material (school_groups.course_id) — see GroupMaterial vs
+// SchoolGroup.courseId in school-group.entity.ts.
+model GroupMaterial {
+  id       String      @id @default(uuid()) @db.Uuid
+  groupId  String      @map("group_id") @db.Uuid
+  group    SchoolGroup @relation(fields: [groupId], references: [id])
+  courseId String      @map("course_id")
+  addedAt  DateTime    @default(now()) @map("added_at")
+
+  @@unique([groupId, courseId])
+  @@index([groupId])
+  @@map("group_materials")
+}
+
 enum PlacementMode {
   platform
   school
@@ -307,6 +337,8 @@ model SchoolOnboardingSettings {
   interviewRequired  Boolean      @default(true) @map("interview_required")
   autoPlaceByScore   Boolean      @default(false) @map("auto_place_by_score")
   collectAvailability Boolean     @default(true) @map("collect_availability")
+  ageBands           AgeBand[]    @default([]) @map("age_bands")
+  collectAgeBand     Boolean      @default(false) @map("collect_age_band")
   approvalMode       ApprovalMode @default(manual) @map("approval_mode")
   updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at")
 
@@ -341,6 +373,7 @@ model SchoolMembership {
   source       MembershipSource
   language     String?          @db.Char(2)
   availability Json?
+  ageBand      AgeBand?         @map("age_band")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 

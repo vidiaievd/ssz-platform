@@ -1,5 +1,5 @@
 import type { ICommand } from '@nestjs/cqrs';
-import type { GroupMode } from '../../../domain/entities/school-group.entity.js';
+import type { AgeBand, GroupMode } from '../../../domain/entities/school-group.entity.js';
 
 export class CreateSchoolGroupCommand implements ICommand {
   constructor(
@@ -11,6 +11,7 @@ export class CreateSchoolGroupCommand implements ICommand {
     public readonly courseId?: string | null,
     public readonly lang?: string | null,
     public readonly level?: string | null,
+    public readonly ageBand?: AgeBand | null,
     public readonly capacityMin?: number | null,
     public readonly capacityMax?: number | null,
     public readonly startDate?: Date | null,

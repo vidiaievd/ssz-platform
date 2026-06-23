@@ -20,6 +20,7 @@ import { CreateMembershipCommand } from '../../application/commands/create-membe
 import { ApproveMembershipCommand } from '../../application/commands/approve-membership/approve-membership.command.js';
 import { RejectMembershipCommand } from '../../application/commands/reject-membership/reject-membership.command.js';
 import { SetMembershipAvailabilityCommand } from '../../application/commands/set-membership-availability/set-membership-availability.command.js';
+import { SetMembershipAgeBandCommand } from '../../application/commands/set-membership-age-band/set-membership-age-band.command.js';
 import { AssignMembershipGroupCommand } from '../../application/commands/assign-membership-group/assign-membership-group.command.js';
 import { CompleteMembershipOnboardingCommand } from '../../application/commands/complete-membership-onboarding/complete-membership-onboarding.command.js';
 import { GetOnboardingSettingsQuery } from '../../application/queries/get-onboarding-settings/get-onboarding-settings.query.js';
@@ -33,6 +34,7 @@ import {
   AssignGroupRequestDto,
   CompleteMembershipOnboardingRequestDto,
   CreateMembershipRequestDto,
+  SetAgeBandRequestDto,
   SetAvailabilityRequestDto,
   UpsertOnboardingSettingsRequestDto,
 } from '../dto/enrollment.request.dto.js';
@@ -51,6 +53,7 @@ function toMembershipResponse(m: SchoolMembership): MembershipResponseDto {
     source: m.source,
     language: m.language,
     availability: m.availability,
+    ageBand: m.ageBand,
     createdAt: m.createdAt,
     updatedAt: m.updatedAt,
   };
@@ -65,6 +68,8 @@ function toSettingsResponse(s: SchoolOnboardingSettings): OnboardingSettingsResp
     interviewRequired: s.interviewRequired,
     autoPlaceByScore: s.autoPlaceByScore,
     collectAvailability: s.collectAvailability,
+    ageBands: s.ageBands,
+    collectAgeBand: s.collectAgeBand,
     approvalMode: s.approvalMode,
   };
 }
@@ -111,6 +116,8 @@ export class EnrollmentController {
         dto.interviewRequired,
         dto.autoPlaceByScore,
         dto.collectAvailability,
+        dto.ageBands,
+        dto.collectAgeBand,
         dto.approvalMode,
       ),
     );
@@ -207,6 +214,21 @@ export class EnrollmentController {
   ): Promise<void> {
     await this.commandBus.execute(
       new SetMembershipAvailabilityCommand(user.sub, schoolId, id, dto.prefs),
+    );
+  }
+
+  @Post(':schoolId/memberships/:id/age-band')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Student sets their age band during onboarding' })
+  @ApiResponse({ status: 204 })
+  async setAgeBand(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetAgeBandRequestDto,
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new SetMembershipAgeBandCommand(user.sub, schoolId, id, dto.ageBand),
     );
   }
 

@@ -52,6 +52,18 @@ export class VisibilityCheckerService {
     // 3. Owner always has full access.
     if (user.userId === entity.ownerUserId) return ALLOW('owner');
 
+    // 3b. Co-author: an active EDIT-level content share grants edit access
+    // independent of visibility/school ownership. Checked before the school
+    // branch so co-authors don't need school membership at all.
+    if (action === 'edit') {
+      const hasEditShare = await this.shareLookup.hasActiveEditShare(
+        entity.entityType,
+        entity.id,
+        user.userId,
+      );
+      if (hasEditShare) return ALLOW('co_author_edit');
+    }
+
     // 4. School content — resolve member role once and cache for this request.
     let cachedRole: Awaited<ReturnType<IOrganizationClient['getMemberRole']>> | undefined;
 

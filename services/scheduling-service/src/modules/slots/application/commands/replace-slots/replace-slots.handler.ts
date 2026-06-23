@@ -1,5 +1,5 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Inject, NotFoundException } from '@nestjs/common';
 import { ReplaceSlotsCommand } from './replace-slots.command.js';
 import { SLOT_REPOSITORY, type ISlotRepository } from '../../../domain/repositories/slot.repository.interface.js';
 import { LESSON_REPOSITORY, type ILessonRepository } from '../../../domain/repositories/lesson.repository.interface.js';
@@ -17,6 +17,12 @@ export class ReplaceSlotsHandler implements ICommandHandler<ReplaceSlotsCommand,
   ) {}
 
   async execute(cmd: ReplaceSlotsCommand): Promise<Slot[]> {
+    const [group, teachers] = await Promise.all([
+      this.orgClient.getGroup(cmd.schoolId, cmd.groupId),
+      this.orgClient.getGroupTeachers(cmd.schoolId, cmd.groupId),
+    ]);
+    if (!group) throw new NotFoundException(`Group ${cmd.groupId} not found in school ${cmd.schoolId}`);
+
     await this.slots.deleteByGroup(cmd.groupId);
 
     const created = await this.slots.createMany(
@@ -31,11 +37,6 @@ export class ReplaceSlotsHandler implements ICommandHandler<ReplaceSlotsCommand,
     );
 
     // Regenerate lessons if group has term dates and a primary teacher
-    const [group, teachers] = await Promise.all([
-      this.orgClient.getGroup(cmd.schoolId, cmd.groupId),
-      this.orgClient.getGroupTeachers(cmd.schoolId, cmd.groupId),
-    ]);
-
     const primaryTeacher = teachers.find((t) => t.role === 'primary');
     if (group?.startDate && group.endDate && primaryTeacher) {
       await this.lessons.deleteFutureScheduled(cmd.groupId, new Date());

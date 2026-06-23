@@ -9,12 +9,14 @@ import { PrismaContainerRepository } from './infrastructure/persistence/prisma-c
 import { PrismaContainerVersionRepository } from './infrastructure/persistence/prisma-container-version.repository.js';
 import { PrismaContainerItemRepository } from './infrastructure/persistence/prisma-container-item.repository.js';
 import { PrismaContainerLocalizationRepository } from './infrastructure/persistence/prisma-container-localization.repository.js';
+import { PrismaContainerSectionRepository } from './infrastructure/persistence/prisma-container-section.repository.js';
 
 // DI tokens
 import { CONTAINER_REPOSITORY } from './domain/repositories/container.repository.interface.js';
 import { CONTAINER_VERSION_REPOSITORY } from './domain/repositories/container-version.repository.interface.js';
 import { CONTAINER_ITEM_REPOSITORY } from './domain/repositories/container-item.repository.interface.js';
 import { CONTAINER_LOCALIZATION_REPOSITORY } from './domain/repositories/container-localization.repository.interface.js';
+import { CONTAINER_SECTION_REPOSITORY } from './domain/repositories/container-section.repository.interface.js';
 
 // Command handlers
 import { CreateContainerHandler } from './application/commands/create-container/create-container.handler.js';
@@ -31,6 +33,10 @@ import { ReorderContainerItemsHandler } from './application/commands/reorder-con
 import { CreateLocalizationHandler } from './application/commands/create-localization/create-localization.handler.js';
 import { UpdateLocalizationHandler } from './application/commands/update-localization/update-localization.handler.js';
 import { DeleteLocalizationHandler } from './application/commands/delete-localization/delete-localization.handler.js';
+import { CreateSectionHandler } from './application/commands/create-section/create-section.handler.js';
+import { RenameSectionHandler } from './application/commands/rename-section/rename-section.handler.js';
+import { ReorderSectionsHandler } from './application/commands/reorder-sections/reorder-sections.handler.js';
+import { DeleteSectionHandler } from './application/commands/delete-section/delete-section.handler.js';
 
 // Query handlers
 import { GetContainerHandler } from './application/queries/get-container/get-container.handler.js';
@@ -39,11 +45,13 @@ import { GetContainerBySlugHandler } from './application/queries/get-container-b
 import { GetContainerVersionsHandler } from './application/queries/get-container-versions/get-container-versions.handler.js';
 import { GetContainerVersionHandler } from './application/queries/get-container-version/get-container-version.handler.js';
 import { GetVersionItemsHandler } from './application/queries/get-version-items/get-version-items.handler.js';
+import { GetVersionSectionsHandler } from './application/queries/get-version-sections/get-version-sections.handler.js';
 
 // Controllers
 import { ContainerController } from './presentation/controllers/container.controller.js';
 import { ContainerVersionController } from './presentation/controllers/container-version.controller.js';
 import { ContainerItemController } from './presentation/controllers/container-item.controller.js';
+import { ContainerSectionController } from './presentation/controllers/container-section.controller.js';
 
 const CommandHandlers = [
   CreateContainerHandler,
@@ -60,6 +68,10 @@ const CommandHandlers = [
   CreateLocalizationHandler,
   UpdateLocalizationHandler,
   DeleteLocalizationHandler,
+  CreateSectionHandler,
+  RenameSectionHandler,
+  ReorderSectionsHandler,
+  DeleteSectionHandler,
 ];
 
 const QueryHandlers = [
@@ -69,17 +81,24 @@ const QueryHandlers = [
   GetContainerVersionsHandler,
   GetContainerVersionHandler,
   GetVersionItemsHandler,
+  GetVersionSectionsHandler,
 ];
 
 @Module({
   imports: [CqrsModule],
-  controllers: [ContainerController, ContainerVersionController, ContainerItemController],
+  controllers: [
+    ContainerController,
+    ContainerVersionController,
+    ContainerItemController,
+    ContainerSectionController,
+  ],
   providers: [
     // Repository bindings
     { provide: CONTAINER_REPOSITORY, useClass: PrismaContainerRepository },
     { provide: CONTAINER_VERSION_REPOSITORY, useClass: PrismaContainerVersionRepository },
     { provide: CONTAINER_ITEM_REPOSITORY, useClass: PrismaContainerItemRepository },
     { provide: CONTAINER_LOCALIZATION_REPOSITORY, useClass: PrismaContainerLocalizationRepository },
+    { provide: CONTAINER_SECTION_REPOSITORY, useClass: PrismaContainerSectionRepository },
 
     // CQRS handlers
     ...CommandHandlers,

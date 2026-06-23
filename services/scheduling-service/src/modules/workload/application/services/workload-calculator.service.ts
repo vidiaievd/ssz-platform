@@ -30,6 +30,42 @@ export interface ConflictEntry {
   lessonBId: string;
 }
 
+export interface ProposedSlot {
+  weekday: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+  startTime: string;
+  endTime: string;
+}
+
+export interface TeacherAvailabilityEntry {
+  teacherId: string;
+  status: 'free' | 'conflict' | 'absent';
+  conflictGroupId?: string | null;
+  absenceId?: string | null;
+}
+
+export interface TeacherTimetableEntry {
+  weekday: ProposedSlot['weekday'];
+  startTime: string;
+  endTime: string;
+  groupId: string;
+  room: string | null;
+}
+
+export interface SchoolTimetableEntry extends TeacherTimetableEntry {
+  teacherId: string;
+}
+
+const WEEKDAY_JS: Record<ProposedSlot['weekday'], number> = {
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+};
+
+const JS_WEEKDAY = Object.fromEntries(
+  Object.entries(WEEKDAY_JS).map(([day, jsDay]) => [jsDay, day as ProposedSlot['weekday']]),
+) as Record<number, ProposedSlot['weekday']>;
+
+const AVAILABILITY_HORIZON_DAYS = 13; // covers every weekday at least once
+const TIMETABLE_HORIZON_DAYS = 13; // same — one weekly cycle is enough to derive the recurring pattern
+
 function timeToMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
   return (h ?? 0) * 60 + (m ?? 0);
@@ -128,5 +164,141 @@ export class WorkloadCalculatorService {
     teacherIds: string[],
   ): Promise<TeacherLoadSummary[]> {
     return Promise.all(teacherIds.map((tid) => this.getTeacherLoad(tid, from, to, policy)));
+  }
+
+  /**
+   * Derived availability: no positive-availability calendar exists, so a teacher
+   * is "free" for a proposed weekly slot set unless a future Lesson (other group)
+   * overlaps one of the slots, or an absence currently covers today.
+   */
+  async getAvailability(
+    schoolId: string,
+    teacherIds: string[],
+    proposedSlots: ProposedSlot[],
+  ): Promise<TeacherAvailabilityEntry[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const horizon = new Date(today);
+    horizon.setDate(horizon.getDate() + AVAILABILITY_HORIZON_DAYS);
+
+    const [futureLessons, activeAbsences] = await Promise.all([
+      this.lessons.findBySchoolAndDateRange(schoolId, today, horizon),
+      this.prisma.teacherAbsence.findMany({
+        where: {
+          schoolId,
+          fromDate: { lte: today },
+          OR: [{ toDate: null }, { toDate: { gte: today } }],
+        },
+      }),
+    ]);
+
+    const absenceByTeacher = new Map<string, { id: string }>();
+    for (const absence of activeAbsences) {
+      if (!absenceByTeacher.has(absence.teacherId)) absenceByTeacher.set(absence.teacherId, { id: absence.id });
+    }
+
+    const lessonsByTeacher = new Map<string, Lesson[]>();
+    for (const lesson of futureLessons) {
+      if (lesson.status === 'cancelled') continue;
+      if (!lessonsByTeacher.has(lesson.teacherId)) lessonsByTeacher.set(lesson.teacherId, []);
+      lessonsByTeacher.get(lesson.teacherId)!.push(lesson);
+    }
+
+    return teacherIds.map((teacherId) => {
+      const absence = absenceByTeacher.get(teacherId);
+      if (absence) {
+        return { teacherId, status: 'absent', absenceId: absence.id };
+      }
+
+      const lessons = lessonsByTeacher.get(teacherId) ?? [];
+      for (const slot of proposedSlots) {
+        const slotDay = WEEKDAY_JS[slot.weekday];
+        const slotStart = timeToMinutes(slot.startTime);
+        const slotEnd = timeToMinutes(slot.endTime);
+        const conflicting = lessons.find((l) => {
+          if (l.date.getDay() !== slotDay) return false;
+          const lStart = timeToMinutes(l.startTime);
+          const lEnd = timeToMinutes(l.endTime);
+          return slotStart < lEnd && lStart < slotEnd;
+        });
+        if (conflicting) {
+          return { teacherId, status: 'conflict', conflictGroupId: conflicting.groupId };
+        }
+      }
+
+      return { teacherId, status: 'free' };
+    });
+  }
+
+  /**
+   * Pure read projection over the future Lessons assigned to this teacher —
+   * never edited directly. Dedupes occurrences of the same recurring slot
+   * (same weekday/time/group) into a single weekly entry.
+   */
+  async getTeacherTimetable(teacherId: string): Promise<TeacherTimetableEntry[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const horizon = new Date(today);
+    horizon.setDate(horizon.getDate() + TIMETABLE_HORIZON_DAYS);
+
+    const lessons = await this.lessons.findByTeacherAndDateRange(teacherId, today, horizon);
+
+    const seen = new Map<string, TeacherTimetableEntry>();
+    for (const lesson of lessons) {
+      if (lesson.status === 'cancelled') continue;
+      const weekday = JS_WEEKDAY[lesson.date.getDay()]!;
+      const key = `${weekday}::${lesson.startTime}::${lesson.endTime}::${lesson.groupId}`;
+      if (!seen.has(key)) {
+        seen.set(key, {
+          weekday,
+          startTime: lesson.startTime,
+          endTime: lesson.endTime,
+          groupId: lesson.groupId,
+          room: lesson.room,
+        });
+      }
+    }
+
+    return [...seen.values()].sort((a, b) => {
+      if (a.weekday !== b.weekday) return WEEKDAY_JS[a.weekday] - WEEKDAY_JS[b.weekday];
+      return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+    });
+  }
+
+  /**
+   * School-wide counterpart to getTeacherTimetable — one query for every
+   * teacher's projected week instead of one query per teacher, so the admin
+   * overview stays O(1) regardless of staff size.
+   */
+  async getSchoolTimetable(schoolId: string): Promise<SchoolTimetableEntry[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const horizon = new Date(today);
+    horizon.setDate(horizon.getDate() + TIMETABLE_HORIZON_DAYS);
+
+    const lessons = await this.lessons.findBySchoolAndDateRange(schoolId, today, horizon);
+
+    const seen = new Map<string, SchoolTimetableEntry>();
+    for (const lesson of lessons) {
+      if (lesson.status === 'cancelled') continue;
+      const weekday = JS_WEEKDAY[lesson.date.getDay()]!;
+      const key = `${lesson.teacherId}::${weekday}::${lesson.startTime}::${lesson.endTime}::${lesson.groupId}`;
+      if (!seen.has(key)) {
+        seen.set(key, {
+          teacherId: lesson.teacherId,
+          weekday,
+          startTime: lesson.startTime,
+          endTime: lesson.endTime,
+          groupId: lesson.groupId,
+          room: lesson.room,
+        });
+      }
+    }
+
+    return [...seen.values()].sort((a, b) => {
+      if (a.teacherId !== b.teacherId) return a.teacherId.localeCompare(b.teacherId);
+      if (a.weekday !== b.weekday) return WEEKDAY_JS[a.weekday] - WEEKDAY_JS[b.weekday];
+      return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+    });
   }
 }

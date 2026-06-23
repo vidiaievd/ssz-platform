@@ -10,6 +10,10 @@ import {
   EVENT_PUBLISHER,
   type IEventPublisher,
 } from '../../../../../shared/application/ports/event-publisher.interface.js';
+import {
+  PROFILE_SERVICE_PORT,
+  type IProfileServicePort,
+} from '../../../../../shared/application/ports/profile-service.interface.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import { SchoolMember } from '../../../domain/entities/school-member.entity.js';
@@ -23,6 +27,7 @@ export class AddMemberHandler implements ICommandHandler<AddMemberCommand> {
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
+    @Inject(PROFILE_SERVICE_PORT) private readonly profileService: IProfileServicePort,
   ) {}
 
   async execute(command: AddMemberCommand): Promise<void> {
@@ -42,12 +47,18 @@ export class AddMemberHandler implements ICommandHandler<AddMemberCommand> {
       throw new ForbiddenOperationException('Only owner or admin can add members');
     }
 
+    // Snapshot the display name/avatar once at creation time — kept in sync
+    // afterwards via profile.updated events (see ProfileUpdatedConsumer).
+    const profileSummary = await this.profileService.getProfileSummary(command.userId);
+
     const member = SchoolMember.create({
       id: randomUUID(),
       schoolId: command.schoolId,
       userId: command.userId,
       role: command.role,
       joinedAt: new Date(),
+      name: profileSummary?.name ?? null,
+      avatarUrl: profileSummary?.avatarUrl ?? null,
     });
 
     school.addMember(member, command.actorId, randomUUID());

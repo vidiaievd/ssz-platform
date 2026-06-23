@@ -1,5 +1,5 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject, NotFoundException } from '@nestjs/common';
+import { Inject, NotFoundException, ConflictException } from '@nestjs/common';
 import { UpdateSchoolGroupCommand } from './update-school-group.command.js';
 import {
   SCHOOL_REPOSITORY,
@@ -36,6 +36,16 @@ export class UpdateSchoolGroupHandler implements ICommandHandler<UpdateSchoolGro
       throw new NotFoundException(`Group ${command.groupId} not found`);
     }
 
+    // Main material can be reassigned but never cleared back to "no course"
+    // once set — see school-group.entity.ts's update() for the same guard
+    // (defense in depth); this is where the HTTP-meaningful 409 originates.
+    if (command.courseId === null && group.courseId != null) {
+      throw new ConflictException({
+        error: 'main-material-required',
+        message: 'The main material cannot be removed once set — reassign it instead',
+      });
+    }
+
     group.update({
       name: command.name,
       description: command.description,
@@ -43,6 +53,7 @@ export class UpdateSchoolGroupHandler implements ICommandHandler<UpdateSchoolGro
       courseId: command.courseId,
       lang: command.lang,
       level: command.level,
+      ageBand: command.ageBand,
       capacityMin: command.capacityMin,
       capacityMax: command.capacityMax,
       startDate: command.startDate,

@@ -24,17 +24,19 @@ const SENSITIVE_FIELDS = new Set(['displayName', 'firstName', 'lastName', 'conta
 const EXCHANGE = EXCHANGES.PROFILE;
 const EXCHANGE_TYPE = 'topic';
 const QUEUE = 'organization_service.profile.updated';
-const ROUTING_KEY = 'profile.updated';
+const ROUTING_KEYS = ['profile.updated', 'profile.created'];
 
-interface ProfileUpdatedPayload {
+interface ProfileEventPayload {
   userId: string;
+  displayName?: string;
+  avatarUrl?: string;
   changedFields?: string[];
 }
 
-interface ProfileUpdatedEnvelope {
+interface ProfileEventEnvelope {
   eventId: string;
   eventType: string;
-  payload: ProfileUpdatedPayload;
+  payload: ProfileEventPayload;
 }
 
 @Injectable()
@@ -63,18 +65,20 @@ export class ProfileUpdatedConsumer implements OnModuleInit, OnModuleDestroy {
       setup: async (channel: ConfirmChannel) => {
         await channel.assertExchange(EXCHANGE, EXCHANGE_TYPE, { durable: true });
         await channel.assertQueue(QUEUE, { durable: true });
-        await channel.bindQueue(QUEUE, EXCHANGE, ROUTING_KEY);
+        for (const routingKey of ROUTING_KEYS) {
+          await channel.bindQueue(QUEUE, EXCHANGE, routingKey);
+        }
         await channel.prefetch(1);
 
         await channel.consume(QUEUE, (msg) => {
           void (async () => {
             if (!msg) return;
 
-            let envelope: ProfileUpdatedEnvelope;
+            let envelope: ProfileEventEnvelope;
             try {
-              envelope = JSON.parse(msg.content.toString()) as ProfileUpdatedEnvelope;
+              envelope = JSON.parse(msg.content.toString()) as ProfileEventEnvelope;
             } catch {
-              this.logger.error('Failed to parse profile.updated — nacking');
+              this.logger.error('Failed to parse profile event — nacking');
               channel.nack(msg, false, false);
               return;
             }
@@ -98,7 +102,7 @@ export class ProfileUpdatedConsumer implements OnModuleInit, OnModuleDestroy {
           })();
         });
 
-        this.logger.log(`Consumer ready — queue "${QUEUE}" bound to "${EXCHANGE}/${ROUTING_KEY}"`);
+        this.logger.log(`Consumer ready — queue "${QUEUE}" bound to "${EXCHANGE}/[${ROUTING_KEYS.join(', ')}]"`);
       },
     });
 
@@ -107,8 +111,22 @@ export class ProfileUpdatedConsumer implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  private async handleEvent(envelope: ProfileUpdatedEnvelope): Promise<void> {
-    const { userId, changedFields = [] } = envelope.payload;
+  private async handleEvent(envelope: ProfileEventEnvelope): Promise<void> {
+    const { userId, displayName, avatarUrl, changedFields = [] } = envelope.payload;
+
+    // Keep the roster's denormalized name/avatar in sync — this is what list/roster
+    // reads use instead of calling profile-service live (see list-school-members.handler.ts).
+    const isCreated = envelope.eventType === 'profile.created';
+    const touchesDenormalizedFields =
+      isCreated || changedFields.includes('displayName') || changedFields.includes('avatarUrl');
+    if (touchesDenormalizedFields && displayName !== undefined) {
+      await (this.prisma as any).schoolMember.updateMany({
+        where: { userId },
+        data: { name: displayName, avatarUrl: avatarUrl ?? null },
+      });
+    }
+
+    if (isCreated) return;
 
     const sensitiveDiff = changedFields.filter((f) => SENSITIVE_FIELDS.has(f));
     if (sensitiveDiff.length === 0) return;

@@ -21,6 +21,8 @@ export class SchoolOnboardingSettingsPrismaRepository implements ISchoolOnboardi
       interviewRequired: row.interviewRequired,
       autoPlaceByScore: row.autoPlaceByScore,
       collectAvailability: row.collectAvailability,
+      ageBands: row.ageBands ?? [],
+      collectAgeBand: row.collectAgeBand,
       approvalMode: row.approvalMode,
     });
   }
@@ -34,6 +36,8 @@ export class SchoolOnboardingSettingsPrismaRepository implements ISchoolOnboardi
       interviewRequired: settings.interviewRequired,
       autoPlaceByScore: settings.autoPlaceByScore,
       collectAvailability: settings.collectAvailability,
+      ageBands: settings.ageBands,
+      collectAgeBand: settings.collectAgeBand,
       approvalMode: settings.approvalMode,
     };
     await (this.prisma as any).schoolOnboardingSettings.upsert({

@@ -3,6 +3,7 @@ export class UpdateContainerItemCommand {
     public readonly userId: string,
     public readonly itemId: string,
     public readonly isRequired?: boolean,
+    public readonly sectionId?: string | null,
     public readonly sectionLabel?: string | null,
   ) {}
 }

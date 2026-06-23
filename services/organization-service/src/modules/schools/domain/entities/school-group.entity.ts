@@ -8,6 +8,7 @@ export interface SchoolGroupMemberProps {
 export type GroupStatus = 'draft' | 'active' | 'archived';
 export type GroupMode = 'online' | 'in_person';
 export type GroupTeacherRole = 'primary' | 'co_primary' | 'substitute';
+export type AgeBand = 'kids' | 'teens' | 'adults';
 
 export interface GroupTeacherProps {
   id: string;
@@ -20,6 +21,20 @@ export interface GroupTeacherProps {
   createdAt: Date;
 }
 
+/**
+ * Additional course materials attached to a group, distinct from the
+ * group's main material (SchoolGroupProps.courseId). See update()'s guard
+ * against clearing an already-set courseId — the main material can be
+ * reassigned but never removed outright; additional materials have no
+ * such restriction.
+ */
+export interface GroupMaterialProps {
+  id: string;
+  groupId: string;
+  courseId: string;
+  addedAt: Date;
+}
+
 export interface SchoolGroupProps {
   id: string;
   schoolId: string;
@@ -30,6 +45,7 @@ export interface SchoolGroupProps {
   courseId?: string | null;
   lang?: string | null;
   level?: string | null;
+  ageBand?: AgeBand | null;
   capacityMin?: number | null;
   capacityMax?: number | null;
   startDate?: Date | null;
@@ -39,6 +55,7 @@ export interface SchoolGroupProps {
   deletedAt?: Date | null;
   members: SchoolGroupMemberProps[];
   teachers: GroupTeacherProps[];
+  materials: GroupMaterialProps[];
 }
 
 export interface UpdateGroupProps {
@@ -48,6 +65,7 @@ export interface UpdateGroupProps {
   courseId?: string | null;
   lang?: string | null;
   level?: string | null;
+  ageBand?: AgeBand | null;
   capacityMin?: number | null;
   capacityMax?: number | null;
   startDate?: Date | null;
@@ -71,7 +89,7 @@ export class SchoolGroup {
   }
 
   static create(
-    props: Omit<SchoolGroupProps, 'createdAt' | 'updatedAt' | 'deletedAt' | 'members' | 'teachers' | 'status' | 'mode'> & { mode?: GroupMode },
+    props: Omit<SchoolGroupProps, 'createdAt' | 'updatedAt' | 'deletedAt' | 'members' | 'teachers' | 'materials' | 'status' | 'mode'> & { mode?: GroupMode },
   ): SchoolGroup {
     const now = new Date();
     return new SchoolGroup({
@@ -83,6 +101,7 @@ export class SchoolGroup {
       deletedAt: null,
       members: [],
       teachers: [],
+      materials: [],
     });
   }
 
@@ -90,13 +109,23 @@ export class SchoolGroup {
     return new SchoolGroup(props);
   }
 
+  /**
+   * Throws if `fields` would clear an already-assigned main material back to
+   * null. The HTTP-meaningful rejection happens at the handler level (see
+   * UpdateSchoolGroupHandler) — this is defense in depth for any other
+   * caller of update().
+   */
   update(fields: UpdateGroupProps): void {
+    if (fields.courseId === null && this._props.courseId != null) {
+      throw new Error('Main material cannot be cleared once set — reassign it instead');
+    }
     if (fields.name !== undefined) this._props.name = fields.name;
     if (fields.description !== undefined) this._props.description = fields.description;
     if (fields.mode !== undefined) this._props.mode = fields.mode;
     if (fields.courseId !== undefined) this._props.courseId = fields.courseId;
     if (fields.lang !== undefined) this._props.lang = fields.lang;
     if (fields.level !== undefined) this._props.level = fields.level;
+    if (fields.ageBand !== undefined) this._props.ageBand = fields.ageBand;
     if (fields.capacityMin !== undefined) this._props.capacityMin = fields.capacityMin;
     if (fields.capacityMax !== undefined) this._props.capacityMax = fields.capacityMax;
     if (fields.startDate !== undefined) this._props.startDate = fields.startDate;
@@ -160,6 +189,7 @@ export class SchoolGroup {
   get courseId(): string | null | undefined { return this._props.courseId; }
   get lang(): string | null | undefined { return this._props.lang; }
   get level(): string | null | undefined { return this._props.level; }
+  get ageBand(): AgeBand | null | undefined { return this._props.ageBand; }
   get capacityMin(): number | null | undefined { return this._props.capacityMin; }
   get capacityMax(): number | null | undefined { return this._props.capacityMax; }
   get startDate(): Date | null | undefined { return this._props.startDate; }
@@ -175,8 +205,13 @@ export class SchoolGroup {
   get primaryTeacherId(): string | undefined {
     return this._props.teachers.find((t) => t.role === 'primary')?.userId;
   }
+  get materials(): GroupMaterialProps[] { return [...this._props.materials]; }
 
   setTeachers(teachers: GroupTeacherProps[]): void {
     this._props.teachers = teachers;
+  }
+
+  setMaterials(materials: GroupMaterialProps[]): void {
+    this._props.materials = materials;
   }
 }

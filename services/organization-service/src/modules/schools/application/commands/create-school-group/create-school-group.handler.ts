@@ -42,6 +42,7 @@ export class CreateSchoolGroupHandler implements ICommandHandler<CreateSchoolGro
       courseId: command.courseId,
       lang: command.lang,
       level: command.level,
+      ageBand: command.ageBand,
       capacityMin: command.capacityMin,
       capacityMax: command.capacityMax,
       startDate: command.startDate,

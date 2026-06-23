@@ -1,3 +1,5 @@
+import type { AgeBand } from './school-group.entity.js';
+
 export type MembershipStatus = 'pending' | 'onboarding' | 'placement-review' | 'active' | 'rejected' | 'left';
 export type MembershipSource = 'public-apply' | 'invite' | 'direct';
 
@@ -12,6 +14,7 @@ export interface CreateMembershipProps {
 export interface RehydrateMembershipProps extends CreateMembershipProps {
   status: MembershipStatus;
   availability: AvailabilitySlot[] | undefined;
+  ageBand: AgeBand | undefined;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,6 +44,7 @@ export class SchoolMembership {
 
   private _status: MembershipStatus;
   private _availability: AvailabilitySlot[] | undefined;
+  private _ageBand: AgeBand | undefined;
   private _updatedAt: Date;
 
   private constructor(props: RehydrateMembershipProps) {
@@ -51,13 +55,21 @@ export class SchoolMembership {
     this.language = props.language;
     this._status = props.status;
     this._availability = props.availability;
+    this._ageBand = props.ageBand;
     this.createdAt = props.createdAt;
     this._updatedAt = props.updatedAt;
   }
 
   static create(props: CreateMembershipProps): SchoolMembership {
     const now = new Date();
-    return new SchoolMembership({ ...props, status: 'pending', availability: undefined, createdAt: now, updatedAt: now });
+    return new SchoolMembership({
+      ...props,
+      status: 'pending',
+      availability: undefined,
+      ageBand: undefined,
+      createdAt: now,
+      updatedAt: now,
+    });
   }
 
   static rehydrate(props: RehydrateMembershipProps): SchoolMembership {
@@ -81,7 +93,13 @@ export class SchoolMembership {
     this._updatedAt = new Date();
   }
 
+  setAgeBand(ageBand: AgeBand): void {
+    this._ageBand = ageBand;
+    this._updatedAt = new Date();
+  }
+
   get status(): MembershipStatus { return this._status; }
   get availability(): AvailabilitySlot[] | undefined { return this._availability; }
+  get ageBand(): AgeBand | undefined { return this._ageBand; }
   get updatedAt(): Date { return this._updatedAt; }
 }

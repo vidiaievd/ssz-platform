@@ -22,6 +22,9 @@ export const envSchema = z.object({
 
   // Auth / JWT (PEM public key, newlines encoded as \n in env)
   JWT_PUBLIC_KEY: z.string().optional(),
+
+  // Shared secret for service-to-service calls (e.g. organization-service → /internal/*)
+  INTERNAL_SERVICE_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

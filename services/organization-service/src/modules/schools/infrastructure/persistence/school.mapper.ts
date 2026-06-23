@@ -8,6 +8,8 @@ type PrismaSchoolMember = {
   userId: string;
   role: string;
   joinedAt: Date;
+  name?: string | null;
+  avatarUrl?: string | null;
 };
 
 type PrismaSchool = {
@@ -39,6 +41,8 @@ export class SchoolMapper {
         userId: m.userId,
         role: m.role as any,
         joinedAt: m.joinedAt,
+        name: m.name,
+        avatarUrl: m.avatarUrl,
       }),
     );
 

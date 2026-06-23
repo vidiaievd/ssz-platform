@@ -1,5 +1,59 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, Max, Min } from 'class-validator';
+import { IsArray, IsEnum, IsNumber, IsOptional, IsString, Matches, Max, Min, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+
+const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+type WeekDayEnum = (typeof WEEKDAYS)[number];
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export class ProposedSlotDto {
+  @ApiProperty({ enum: WEEKDAYS, example: 'mon' })
+  @IsEnum(WEEKDAYS)
+  weekday!: WeekDayEnum;
+
+  @ApiProperty({ example: '09:00' })
+  @IsString()
+  @Matches(TIME_PATTERN, { message: 'startTime must be HH:MM' })
+  startTime!: string;
+
+  @ApiProperty({ example: '10:30' })
+  @IsString()
+  @Matches(TIME_PATTERN, { message: 'endTime must be HH:MM' })
+  endTime!: string;
+}
+
+export class TeacherAvailabilityQueryDto {
+  @ApiProperty({
+    type: [ProposedSlotDto],
+    description: 'JSON-encoded array of proposed weekly slots, e.g. slots=[{"weekday":"mon","startTime":"09:00","endTime":"10:00"}]',
+  })
+  @Transform(({ value }) => (typeof value === 'string' ? JSON.parse(value) : value))
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProposedSlotDto)
+  slots!: ProposedSlotDto[];
+}
+
+export class TeacherAvailabilityEntryDto {
+  @ApiProperty() teacherId!: string;
+  @ApiProperty({ enum: ['free', 'conflict', 'absent'] }) status!: 'free' | 'conflict' | 'absent';
+  @ApiPropertyOptional({ description: 'Group whose lesson overlaps a proposed slot, when status is conflict' })
+  conflictGroupId?: string | null;
+  @ApiPropertyOptional({ description: 'Absence record covering today, when status is absent' })
+  absenceId?: string | null;
+}
+
+export class TeacherTimetableEntryDto {
+  @ApiProperty({ enum: WEEKDAYS }) weekday!: WeekDayEnum;
+  @ApiProperty() startTime!: string;
+  @ApiProperty() endTime!: string;
+  @ApiProperty() groupId!: string;
+  @ApiPropertyOptional() room?: string | null;
+}
+
+export class SchoolTimetableEntryDto extends TeacherTimetableEntryDto {
+  @ApiProperty() teacherId!: string;
+}
 
 export class WorkloadPolicyDto {
   @ApiProperty() prepFactor!: number;

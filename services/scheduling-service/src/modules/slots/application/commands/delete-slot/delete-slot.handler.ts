@@ -11,7 +11,9 @@ export class DeleteSlotHandler implements ICommandHandler<DeleteSlotCommand, voi
 
   async execute(cmd: DeleteSlotCommand): Promise<void> {
     const slot = await this.slots.findById(cmd.slotId);
-    if (!slot) throw new NotFoundException(`Slot ${cmd.slotId} not found`);
+    if (!slot || slot.groupId !== cmd.groupId || slot.schoolId !== cmd.schoolId) {
+      throw new NotFoundException(`Slot ${cmd.slotId} not found`);
+    }
     await this.slots.deleteById(cmd.slotId);
   }
 }

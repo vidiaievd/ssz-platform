@@ -124,6 +124,8 @@ export class SchoolPrismaRepository implements ISchoolRepository {
             userId: m.userId,
             role: m.role,
             joinedAt: m.joinedAt,
+            name: m.name,
+            avatarUrl: m.avatarUrl,
           })),
         });
       }

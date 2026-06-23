@@ -7,7 +7,11 @@ import { SchoolGroupMapper } from './school-group.mapper.js';
 // The aggregate only ever sees active members — capacity checks, roster, and
 // publish validation must not count past (exited) memberships. History queries
 // for the Student Detail Page read school_group_members directly, bypassing this aggregate.
-const GROUP_INCLUDE = { members: { where: { status: 'active' as const } }, teachers: true } as const;
+const GROUP_INCLUDE = {
+  members: { where: { status: 'active' as const } },
+  teachers: true,
+  materials: true,
+} as const;
 
 @Injectable()
 export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
@@ -56,6 +60,7 @@ export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
         courseId: group.courseId ?? null,
         lang: group.lang ?? null,
         level: group.level ?? null,
+        ageBand: group.ageBand ?? null,
         capacityMin: group.capacityMin ?? null,
         capacityMax: group.capacityMax ?? null,
         startDate: group.startDate ?? null,
@@ -72,6 +77,7 @@ export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
         courseId: group.courseId ?? null,
         lang: group.lang ?? null,
         level: group.level ?? null,
+        ageBand: group.ageBand ?? null,
         capacityMin: group.capacityMin ?? null,
         capacityMax: group.capacityMax ?? null,
         startDate: group.startDate ?? null,

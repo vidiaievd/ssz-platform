@@ -11,6 +11,8 @@ import { CONTAINER_VERSION_REPOSITORY } from '../../../domain/repositories/conta
 import type { IContainerVersionRepository } from '../../../domain/repositories/container-version.repository.interface.js';
 import { CONTAINER_ITEM_REPOSITORY } from '../../../domain/repositories/container-item.repository.interface.js';
 import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
+import { CONTAINER_SECTION_REPOSITORY } from '../../../domain/repositories/container-section.repository.interface.js';
+import type { IContainerSectionRepository } from '../../../domain/repositories/container-section.repository.interface.js';
 
 export interface AddContainerItemResult {
   itemId: string;
@@ -29,6 +31,8 @@ export class AddContainerItemHandler implements ICommandHandler<
     private readonly versionRepo: IContainerVersionRepository,
     @Inject(CONTAINER_ITEM_REPOSITORY)
     private readonly itemRepo: IContainerItemRepository,
+    @Inject(CONTAINER_SECTION_REPOSITORY)
+    private readonly sectionRepo: IContainerSectionRepository,
   ) {}
 
   async execute(
@@ -52,6 +56,16 @@ export class AddContainerItemHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
     }
 
+    if (command.sectionId !== undefined) {
+      const section = await this.sectionRepo.findById(command.sectionId);
+      if (!section) {
+        return Result.fail(ContainerDomainError.SECTION_NOT_FOUND);
+      }
+      if (section.containerVersionId !== command.versionId) {
+        return Result.fail(ContainerDomainError.SECTION_BELONGS_TO_DIFFERENT_VERSION);
+      }
+    }
+
     // Resolve position: use provided value or append after last item.
     let position: number;
     if (command.position !== undefined) {
@@ -72,6 +86,7 @@ export class AddContainerItemHandler implements ICommandHandler<
       itemType: command.itemType,
       itemId: command.itemId,
       isRequired: command.isRequired,
+      sectionId: command.sectionId,
       sectionLabel: command.sectionLabel,
     });
 

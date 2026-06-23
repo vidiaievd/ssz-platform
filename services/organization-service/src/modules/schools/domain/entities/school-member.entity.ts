@@ -6,6 +6,10 @@ export interface SchoolMemberProps {
   userId: string;
   role: MemberRole;
   joinedAt: Date;
+  // Denormalized snapshot from user-profile-service at creation time — kept in
+  // sync afterwards via profile.created/profile.updated events, not re-read here.
+  name?: string | null;
+  avatarUrl?: string | null;
 }
 
 export class SchoolMember {
@@ -14,6 +18,8 @@ export class SchoolMember {
   private readonly _userId: string;
   private _role: MemberRole;
   private readonly _joinedAt: Date;
+  private readonly _name: string | null;
+  private readonly _avatarUrl: string | null;
 
   private constructor(props: SchoolMemberProps) {
     this._id = props.id;
@@ -21,6 +27,8 @@ export class SchoolMember {
     this._userId = props.userId;
     this._role = props.role;
     this._joinedAt = props.joinedAt;
+    this._name = props.name ?? null;
+    this._avatarUrl = props.avatarUrl ?? null;
   }
 
   static create(props: SchoolMemberProps): SchoolMember {
@@ -36,4 +44,6 @@ export class SchoolMember {
   get userId(): string { return this._userId; }
   get role(): MemberRole { return this._role; }
   get joinedAt(): Date { return this._joinedAt; }
+  get name(): string | null { return this._name; }
+  get avatarUrl(): string | null { return this._avatarUrl; }
 }

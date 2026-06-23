@@ -12,6 +12,7 @@ const NOT_FOUND_ERRORS = new Set<ContainerDomainError>([
   ContainerDomainError.VERSION_NOT_FOUND,
   ContainerDomainError.ITEM_NOT_FOUND,
   ContainerDomainError.LOCALIZATION_NOT_FOUND,
+  ContainerDomainError.SECTION_NOT_FOUND,
 ]);
 
 const CONFLICT_ERRORS = new Set<ContainerDomainError>([
@@ -30,6 +31,8 @@ const UNPROCESSABLE_ERRORS = new Set<ContainerDomainError>([
   ContainerDomainError.CANNOT_MODIFY_NON_DRAFT_VERSION,
   ContainerDomainError.CANNOT_CANCEL_ONLY_VERSION,
   ContainerDomainError.DUPLICATE_ITEM_POSITION,
+  ContainerDomainError.DUPLICATE_SECTION_POSITION,
+  ContainerDomainError.SECTION_BELONGS_TO_DIFFERENT_VERSION,
 ]);
 
 export function throwHttpException(error: ContainerDomainError): never {

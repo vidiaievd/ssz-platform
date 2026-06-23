@@ -32,9 +32,9 @@ import { UpdateContainerItemCommand } from '../../application/commands/update-co
 import { RemoveContainerItemCommand } from '../../application/commands/remove-container-item/remove-container-item.command.js';
 import { ReorderContainerItemsCommand } from '../../application/commands/reorder-container-items/reorder-container-items.command.js';
 import { GetVersionItemsQuery } from '../../application/queries/get-version-items/get-version-items.query.js';
+import type { VersionItemsResult } from '../../application/queries/get-version-items/get-version-items.handler.js';
 import type { Result } from '../../../../shared/kernel/result.js';
 import type { ContainerDomainError } from '../../domain/exceptions/container-domain.exceptions.js';
-import type { ContainerItemEntity } from '../../domain/entities/container-item.entity.js';
 import { ContainerItemResponseDto } from '../dto/responses/container-item.response.dto.js';
 import { AddContainerItemRequestDto } from '../dto/requests/add-container-item.request.dto.js';
 import { UpdateContainerItemRequestDto } from '../dto/requests/update-container-item.request.dto.js';
@@ -60,11 +60,14 @@ export class ContainerItemController {
   async findAll(@Param('versionId') versionId: string): Promise<ContainerItemResponseDto[]> {
     const result = await this.queryBus.execute<
       GetVersionItemsQuery,
-      Result<ContainerItemEntity[], ContainerDomainError>
+      Result<VersionItemsResult, ContainerDomainError>
     >(new GetVersionItemsQuery(versionId));
 
     if (result.isFail) throwHttpException(result.error);
-    return result.value.map((item) => ContainerItemResponseDto.from(item));
+    const { items, titles } = result.value;
+    return items.map((item) =>
+      ContainerItemResponseDto.from(item, titles.get(item.itemId) ?? null),
+    );
   }
 
   @Post()
@@ -87,6 +90,7 @@ export class ContainerItemController {
         dto.itemType,
         dto.itemId,
         dto.isRequired,
+        dto.sectionId,
         dto.sectionLabel,
       ),
     );
@@ -109,7 +113,15 @@ export class ContainerItemController {
     const result = await this.commandBus.execute<
       UpdateContainerItemCommand,
       Result<void, ContainerDomainError>
-    >(new UpdateContainerItemCommand(user.userId, itemId, dto.isRequired, dto.sectionLabel));
+    >(
+      new UpdateContainerItemCommand(
+        user.userId,
+        itemId,
+        dto.isRequired,
+        dto.sectionId,
+        dto.sectionLabel,
+      ),
+    );
 
     if (result.isFail) throwHttpException(result.error);
   }

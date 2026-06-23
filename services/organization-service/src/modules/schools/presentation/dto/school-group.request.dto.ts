@@ -45,6 +45,11 @@ export class CreateSchoolGroupRequestDto {
   @MaxLength(10)
   level?: string | null;
 
+  @ApiPropertyOptional({ enum: ['kids', 'teens', 'adults'], description: 'Age band (soft signal, not a hard filter)' })
+  @IsOptional()
+  @IsEnum(['kids', 'teens', 'adults'])
+  ageBand?: 'kids' | 'teens' | 'adults' | null;
+
   @ApiPropertyOptional({ example: 4 })
   @IsOptional()
   @IsInt()
@@ -102,6 +107,11 @@ export class UpdateSchoolGroupRequestDto {
   @IsString()
   @MaxLength(10)
   level?: string | null;
+
+  @ApiPropertyOptional({ enum: ['kids', 'teens', 'adults'], description: 'Age band (soft signal, not a hard filter)' })
+  @IsOptional()
+  @IsEnum(['kids', 'teens', 'adults'])
+  ageBand?: 'kids' | 'teens' | 'adults' | null;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -166,4 +176,10 @@ export class AssignGroupTeacherRequestDto {
   @ApiPropertyOptional({ description: 'Override existing primary/co_primary assignment' })
   @IsOptional()
   override?: boolean;
+}
+
+export class AddGroupMaterialRequestDto {
+  @ApiProperty({ description: 'UUID of the content container (course) to attach' })
+  @IsUUID()
+  courseId!: string;
 }

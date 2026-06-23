@@ -4,11 +4,13 @@ import { SharePermission } from '../../../domain/value-objects/share-permission.
 const PRISMA_TO_DOMAIN: Record<$Enums.SharePermission, SharePermission> = {
   READ: SharePermission.READ,
   READ_AND_REVIEW: SharePermission.READ_AND_REVIEW,
+  EDIT: SharePermission.EDIT,
 };
 
 const DOMAIN_TO_PRISMA: Record<SharePermission, $Enums.SharePermission> = {
   [SharePermission.READ]: 'READ',
   [SharePermission.READ_AND_REVIEW]: 'READ_AND_REVIEW',
+  [SharePermission.EDIT]: 'EDIT',
 };
 
 export function prismaSharePermissionToDomain(v: $Enums.SharePermission): SharePermission {

@@ -7,6 +7,7 @@ export class AddContainerItemCommand {
     public readonly itemType: ContainerItemType,
     public readonly itemId: string,
     public readonly isRequired?: boolean,
+    public readonly sectionId?: string,
     public readonly sectionLabel?: string,
     public readonly position?: number,
   ) {}

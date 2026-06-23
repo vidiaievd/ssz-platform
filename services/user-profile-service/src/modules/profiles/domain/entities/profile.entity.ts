@@ -103,7 +103,7 @@ export class Profile extends BaseEntity {
     );
 
     profile.addDomainEvent(
-      new ProfileCreatedEvent(eventId, props.id, props.userId, props.displayName),
+      new ProfileCreatedEvent(eventId, props.id, props.userId, props.displayName, props.avatarUrl),
     );
 
     return profile;
@@ -174,7 +174,7 @@ export class Profile extends BaseEntity {
     this._updatedAt = new Date();
 
     this.addDomainEvent(
-      new ProfileUpdatedEvent(eventId, this._id, this._userId, this._displayName, changedFields),
+      new ProfileUpdatedEvent(eventId, this._id, this._userId, this._displayName, changedFields, this._avatarUrl),
     );
   }
 

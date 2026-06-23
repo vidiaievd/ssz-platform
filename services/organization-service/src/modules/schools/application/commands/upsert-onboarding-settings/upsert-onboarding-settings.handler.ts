@@ -33,6 +33,8 @@ export class UpsertOnboardingSettingsHandler implements ICommandHandler<UpsertOn
       interviewRequired: command.interviewRequired,
       autoPlaceByScore: command.autoPlaceByScore,
       collectAvailability: command.collectAvailability,
+      ageBands: command.ageBands,
+      collectAgeBand: command.collectAgeBand,
       approvalMode: command.approvalMode,
     });
 

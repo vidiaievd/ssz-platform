@@ -23,13 +23,25 @@ export class ContainerItemResponseDto {
   @ApiProperty({ example: true })
   isRequired: boolean;
 
-  @ApiPropertyOptional({ example: 'Introduction' })
+  @ApiPropertyOptional({ example: 'uuid-of-section' })
+  sectionId: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Introduction',
+    description: 'Deprecated free-text fallback — prefer sectionId',
+  })
   sectionLabel: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Greetings and Introductions',
+    description: 'Display title of the referenced content, resolved server-side.',
+  })
+  title: string | null;
 
   @ApiProperty()
   addedAt: Date;
 
-  static from(entity: ContainerItemEntity): ContainerItemResponseDto {
+  static from(entity: ContainerItemEntity, title: string | null = null): ContainerItemResponseDto {
     const dto = new ContainerItemResponseDto();
     dto.id = entity.id;
     dto.containerVersionId = entity.containerVersionId;
@@ -37,7 +49,9 @@ export class ContainerItemResponseDto {
     dto.itemType = entity.itemType;
     dto.itemId = entity.itemId;
     dto.isRequired = entity.isRequired;
+    dto.sectionId = entity.sectionId;
     dto.sectionLabel = entity.sectionLabel;
+    dto.title = title;
     dto.addedAt = entity.addedAt;
     return dto;
   }

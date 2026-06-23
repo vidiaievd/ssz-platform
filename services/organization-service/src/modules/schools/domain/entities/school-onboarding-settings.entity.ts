@@ -1,3 +1,5 @@
+import type { AgeBand } from './school-group.entity.js';
+
 export type PlacementMode = 'platform' | 'school' | 'none';
 export type ApprovalMode = 'auto' | 'manual';
 
@@ -10,6 +12,8 @@ export interface SchoolOnboardingSettingsProps {
   interviewRequired: boolean;
   autoPlaceByScore: boolean;
   collectAvailability: boolean;
+  ageBands: AgeBand[];
+  collectAgeBand: boolean;
   approvalMode: ApprovalMode;
 }
 
@@ -22,6 +26,8 @@ export class SchoolOnboardingSettings {
   interviewRequired: boolean;
   autoPlaceByScore: boolean;
   collectAvailability: boolean;
+  ageBands: AgeBand[];
+  collectAgeBand: boolean;
   approvalMode: ApprovalMode;
 
   constructor(props: SchoolOnboardingSettingsProps) {
@@ -33,6 +39,8 @@ export class SchoolOnboardingSettings {
     this.interviewRequired = props.interviewRequired;
     this.autoPlaceByScore = props.autoPlaceByScore;
     this.collectAvailability = props.collectAvailability;
+    this.ageBands = props.ageBands;
+    this.collectAgeBand = props.collectAgeBand;
     this.approvalMode = props.approvalMode;
   }
 
@@ -44,6 +52,8 @@ export class SchoolOnboardingSettings {
       interviewRequired: true,
       autoPlaceByScore: false,
       collectAvailability: true,
+      ageBands: [],
+      collectAgeBand: false,
       approvalMode: 'manual',
     });
   }

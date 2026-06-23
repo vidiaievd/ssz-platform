@@ -1,4 +1,4 @@
-import type { GroupMode, GroupStatus, GroupTeacherRole } from '../../domain/entities/school-group.entity.js';
+import type { AgeBand, GroupMode, GroupStatus, GroupTeacherRole } from '../../domain/entities/school-group.entity.js';
 import { SchoolGroup } from '../../domain/entities/school-group.entity.js';
 
 type PrismaSchoolGroupMember = {
@@ -19,6 +19,13 @@ type PrismaGroupTeacher = {
   createdAt: Date;
 };
 
+type PrismaGroupMaterial = {
+  id: string;
+  groupId: string;
+  courseId: string;
+  addedAt: Date;
+};
+
 type PrismaSchoolGroup = {
   id: string;
   schoolId: string;
@@ -29,6 +36,7 @@ type PrismaSchoolGroup = {
   courseId: string | null;
   lang: string | null;
   level: string | null;
+  ageBand: string | null;
   capacityMin: number | null;
   capacityMax: number | null;
   startDate: Date | null;
@@ -38,6 +46,7 @@ type PrismaSchoolGroup = {
   deletedAt: Date | null;
   members: PrismaSchoolGroupMember[];
   teachers: PrismaGroupTeacher[];
+  materials: PrismaGroupMaterial[];
 };
 
 export class SchoolGroupMapper {
@@ -52,6 +61,7 @@ export class SchoolGroupMapper {
       courseId: raw.courseId,
       lang: raw.lang,
       level: raw.level,
+      ageBand: raw.ageBand as AgeBand | null,
       capacityMin: raw.capacityMin,
       capacityMax: raw.capacityMax,
       startDate: raw.startDate,
@@ -74,6 +84,12 @@ export class SchoolGroupMapper {
         toDate: t.toDate,
         reason: t.reason,
         createdAt: t.createdAt,
+      })),
+      materials: raw.materials.map((m) => ({
+        id: m.id,
+        groupId: m.groupId,
+        courseId: m.courseId,
+        addedAt: m.addedAt,
       })),
     });
   }

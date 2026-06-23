@@ -10,6 +10,8 @@ import { CONTAINER_VERSION_REPOSITORY } from '../../../domain/repositories/conta
 import type { IContainerVersionRepository } from '../../../domain/repositories/container-version.repository.interface.js';
 import { CONTAINER_ITEM_REPOSITORY } from '../../../domain/repositories/container-item.repository.interface.js';
 import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
+import { CONTAINER_SECTION_REPOSITORY } from '../../../domain/repositories/container-section.repository.interface.js';
+import type { IContainerSectionRepository } from '../../../domain/repositories/container-section.repository.interface.js';
 
 @CommandHandler(UpdateContainerItemCommand)
 export class UpdateContainerItemHandler implements ICommandHandler<
@@ -23,6 +25,8 @@ export class UpdateContainerItemHandler implements ICommandHandler<
     private readonly versionRepo: IContainerVersionRepository,
     @Inject(CONTAINER_ITEM_REPOSITORY)
     private readonly itemRepo: IContainerItemRepository,
+    @Inject(CONTAINER_SECTION_REPOSITORY)
+    private readonly sectionRepo: IContainerSectionRepository,
   ) {}
 
   async execute(command: UpdateContainerItemCommand): Promise<Result<void, ContainerDomainError>> {
@@ -49,8 +53,19 @@ export class UpdateContainerItemHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
     }
 
+    if (command.sectionId !== undefined && command.sectionId !== null) {
+      const section = await this.sectionRepo.findById(command.sectionId);
+      if (!section) {
+        return Result.fail(ContainerDomainError.SECTION_NOT_FOUND);
+      }
+      if (section.containerVersionId !== item.containerVersionId) {
+        return Result.fail(ContainerDomainError.SECTION_BELONGS_TO_DIFFERENT_VERSION);
+      }
+    }
+
     item.update({
       isRequired: command.isRequired,
+      sectionId: command.sectionId,
       sectionLabel: command.sectionLabel,
     });
 
