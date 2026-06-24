@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Inject, Logger } from '@nestjs/common';
 import { CommandBus, CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
@@ -9,6 +10,11 @@ import { SCHOOL_MEMBERSHIP_REPOSITORY, type ISchoolMembershipRepository } from '
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { AddMemberCommand } from '../add-member/add-member.command.js';
 import { ApproveMembershipCommand } from './approve-membership.command.js';
+import { EnrollmentApprovedEvent } from '../../../domain/events/enrollment-approved.event.js';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../../../shared/application/ports/event-publisher.interface.js';
 
 @CommandHandler(ApproveMembershipCommand)
 export class ApproveMembershipHandler implements ICommandHandler<ApproveMembershipCommand> {
@@ -17,6 +23,7 @@ export class ApproveMembershipHandler implements ICommandHandler<ApproveMembersh
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepo: ISchoolRepository,
     @Inject(SCHOOL_MEMBERSHIP_REPOSITORY) private readonly membershipRepo: ISchoolMembershipRepository,
+    @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
     private readonly commandBus: CommandBus,
   ) {}
 
@@ -53,5 +60,9 @@ export class ApproveMembershipHandler implements ICommandHandler<ApproveMembersh
         );
       }
     }
+
+    await this.eventPublisher.publish(
+      new EnrollmentApprovedEvent(randomUUID(), membership.id, school.id, school.name, membership.studentId),
+    );
   }
 }

@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Inject } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
@@ -7,7 +8,14 @@ import {
   SCHOOL_MEMBERSHIP_REPOSITORY,
   type ISchoolMembershipRepository,
 } from '../../../domain/repositories/school-membership.repository.interface.js';
+import { SCHOOL_REPOSITORY, type ISchoolRepository } from '../../../domain/repositories/school.repository.interface.js';
+import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { CompleteMembershipOnboardingCommand } from './complete-membership-onboarding.command.js';
+import { PlacementReviewReadyEvent } from '../../../domain/events/placement-review-ready.event.js';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../../../shared/application/ports/event-publisher.interface.js';
 
 @CommandHandler(CompleteMembershipOnboardingCommand)
 export class CompleteMembershipOnboardingHandler
@@ -16,6 +24,10 @@ export class CompleteMembershipOnboardingHandler
   constructor(
     @Inject(SCHOOL_MEMBERSHIP_REPOSITORY)
     private readonly membershipRepo: ISchoolMembershipRepository,
+    @Inject(SCHOOL_REPOSITORY)
+    private readonly schoolRepo: ISchoolRepository,
+    @Inject(EVENT_PUBLISHER)
+    private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(command: CompleteMembershipOnboardingCommand): Promise<void> {
@@ -34,5 +46,27 @@ export class CompleteMembershipOnboardingHandler
 
     membership.transitionTo(command.to);
     await this.membershipRepo.save(membership);
+
+    if (command.to === 'placement-review') {
+      const school = await this.schoolRepo.findById(command.schoolId);
+      if (school) {
+        const adminIds = [
+          school.ownerId,
+          ...school.members
+            .filter((m) => m.role === MemberRole.ADMIN || m.role === MemberRole.MANAGER)
+            .map((m) => m.userId),
+        ];
+        await this.eventPublisher.publish(
+          new PlacementReviewReadyEvent(
+            randomUUID(),
+            membership.id,
+            school.id,
+            school.name,
+            membership.studentId,
+            [...new Set(adminIds)],
+          ),
+        );
+      }
+    }
   }
 }
