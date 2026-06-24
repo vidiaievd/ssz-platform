@@ -136,6 +136,19 @@ export class NotificationsRepository {
     });
   }
 
+  /** Archives every ENROLLMENT_REQUEST notification for a membership, regardless of recipient — a request handled in one surface must clear its badge everywhere. */
+  async archiveByMembershipId(membershipId: string): Promise<void> {
+    const now = new Date();
+    await this.prisma.notification.updateMany({
+      where: {
+        type: 'ENROLLMENT_REQUEST',
+        archivedAt: null,
+        templateData: { path: ['membershipId'], equals: membershipId },
+      },
+      data: { archivedAt: now, isRead: true, readAt: now, updatedAt: now },
+    });
+  }
+
   async delete(id: string, recipientId: string): Promise<void> {
     await this.prisma.notification.deleteMany({
       where: { id, recipientId },

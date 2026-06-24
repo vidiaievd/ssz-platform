@@ -14,6 +14,8 @@ export class EnrollmentRejectedHandler implements IMessageHandler<EnrollmentReje
   async handle(payload: EnrollmentRejectedPayload, meta: MessageMeta): Promise<void> {
     this.logger.log(`Enrollment rejected: membershipId=${payload.membershipId} [${meta.eventId}]`);
 
+    await this.repo.archiveByMembershipId(payload.membershipId);
+
     await this.repo.create({
       recipientId: payload.studentId,
       type: NotificationType.ENROLLMENT_REJECTED,

@@ -14,6 +14,8 @@ export class EnrollmentApprovedHandler implements IMessageHandler<EnrollmentAppr
   async handle(payload: EnrollmentApprovedPayload, meta: MessageMeta): Promise<void> {
     this.logger.log(`Enrollment approved: membershipId=${payload.membershipId} [${meta.eventId}]`);
 
+    await this.repo.archiveByMembershipId(payload.membershipId);
+
     await this.repo.create({
       recipientId: payload.studentId,
       type: NotificationType.ENROLLMENT_APPROVED,
