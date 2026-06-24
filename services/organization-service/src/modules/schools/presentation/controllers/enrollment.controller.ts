@@ -52,6 +52,7 @@ function toMembershipResponse(m: SchoolMembership): MembershipResponseDto {
     status: m.status,
     source: m.source,
     language: m.language,
+    selfReportedLevel: m.selfReportedLevel,
     availability: m.availability,
     ageBand: m.ageBand,
     createdAt: m.createdAt,
@@ -137,7 +138,7 @@ export class EnrollmentController {
     @Body() dto: CreateMembershipRequestDto,
   ): Promise<MembershipResponseDto> {
     const membership = await this.commandBus.execute(
-      new CreateMembershipCommand(user.sub, schoolId, dto.source, dto.language),
+      new CreateMembershipCommand(user.sub, schoolId, dto.source, dto.language, dto.selfReportedLevel),
     );
     return toMembershipResponse(membership);
   }

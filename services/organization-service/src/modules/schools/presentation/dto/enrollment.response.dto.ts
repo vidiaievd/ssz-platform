@@ -62,6 +62,9 @@ export class MembershipResponseDto {
   @ApiPropertyOptional()
   language?: string;
 
+  @ApiPropertyOptional({ enum: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'], description: "Student's own guess at their level; not authoritative" })
+  selfReportedLevel?: string;
+
   @ApiPropertyOptional({ type: [AvailabilitySlotResponseDto] })
   availability?: AvailabilitySlotResponseDto[];
 

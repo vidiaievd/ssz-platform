@@ -372,6 +372,7 @@ model SchoolMembership {
   status       MembershipStatus @default(pending)
   source       MembershipSource
   language     String?          @db.Char(2)
+  selfReportedLevel String?     @map("self_reported_level") @db.VarChar(2)
   availability Json?
   ageBand      AgeBand?         @map("age_band")
   createdAt    DateTime         @default(now()) @map("created_at")

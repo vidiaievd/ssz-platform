@@ -60,6 +60,12 @@ export class CreateMembershipRequestDto {
   @IsString()
   @Matches(/^[a-z]{2}$/)
   language?: string;
+
+  @ApiPropertyOptional({ example: 'A2', description: "Student's own guess at their level; not authoritative" })
+  @IsOptional()
+  @IsString()
+  @Matches(/^(A1|A2|B1|B2|C1|C2)$/)
+  selfReportedLevel?: string;
 }
 
 export class AvailabilitySlotDto {

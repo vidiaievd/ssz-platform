@@ -9,6 +9,8 @@ export interface CreateMembershipProps {
   studentId: string;
   source: MembershipSource;
   language?: string;
+  /** Student's own guess at their level when applying (e.g. "A1"). Not authoritative — superseded by placement results. */
+  selfReportedLevel?: string;
 }
 
 export interface RehydrateMembershipProps extends CreateMembershipProps {
@@ -40,6 +42,7 @@ export class SchoolMembership {
   readonly studentId: string;
   readonly source: MembershipSource;
   readonly language: string | undefined;
+  readonly selfReportedLevel: string | undefined;
   readonly createdAt: Date;
 
   private _status: MembershipStatus;
@@ -53,6 +56,7 @@ export class SchoolMembership {
     this.studentId = props.studentId;
     this.source = props.source;
     this.language = props.language;
+    this.selfReportedLevel = props.selfReportedLevel;
     this._status = props.status;
     this._availability = props.availability;
     this._ageBand = props.ageBand;

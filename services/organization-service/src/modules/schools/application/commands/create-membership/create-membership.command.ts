@@ -6,5 +6,6 @@ export class CreateMembershipCommand {
     readonly schoolId: string,
     readonly source: MembershipSource,
     readonly language: string | undefined,
+    readonly selfReportedLevel: string | undefined = undefined,
   ) {}
 }

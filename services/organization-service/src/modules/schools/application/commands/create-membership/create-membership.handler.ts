@@ -46,6 +46,7 @@ export class CreateMembershipHandler implements ICommandHandler<CreateMembership
       studentId: command.studentId,
       source: command.source,
       language: command.language,
+      selfReportedLevel: command.selfReportedLevel,
     });
 
     if (settings.approvalMode === 'auto') {
