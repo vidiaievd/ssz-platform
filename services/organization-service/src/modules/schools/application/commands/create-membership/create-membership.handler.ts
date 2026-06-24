@@ -15,6 +15,10 @@ import {
   EVENT_PUBLISHER,
   type IEventPublisher,
 } from '../../../../../shared/application/ports/event-publisher.interface.js';
+import {
+  PROFILE_SERVICE_PORT,
+  type IProfileServicePort,
+} from '../../../../../shared/application/ports/profile-service.interface.js';
 
 @CommandHandler(CreateMembershipCommand)
 export class CreateMembershipHandler implements ICommandHandler<CreateMembershipCommand, SchoolMembership> {
@@ -25,6 +29,7 @@ export class CreateMembershipHandler implements ICommandHandler<CreateMembership
     @Inject(SCHOOL_MEMBERSHIP_REPOSITORY) private readonly membershipRepo: ISchoolMembershipRepository,
     @Inject(SCHOOL_ONBOARDING_SETTINGS_REPOSITORY) private readonly settingsRepo: ISchoolOnboardingSettingsRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
+    @Inject(PROFILE_SERVICE_PORT) private readonly profileService: IProfileServicePort,
     private readonly commandBus: CommandBus,
   ) {}
 
@@ -74,6 +79,8 @@ export class CreateMembershipHandler implements ICommandHandler<CreateMembership
         .map((m) => m.userId),
     ];
 
+    const profileSummary = await this.profileService.getProfileSummary(command.studentId);
+
     await this.eventPublisher.publish(
       new EnrollmentRequestEvent(
         randomUUID(),
@@ -82,6 +89,12 @@ export class CreateMembershipHandler implements ICommandHandler<CreateMembership
         school.name,
         command.studentId,
         [...new Set(adminIds)],
+        profileSummary?.name ?? command.studentId,
+        command.source,
+        profileSummary?.avatarUrl ?? undefined,
+        profileSummary?.email ?? undefined,
+        membership.language,
+        membership.ageBand,
       ),
     );
 

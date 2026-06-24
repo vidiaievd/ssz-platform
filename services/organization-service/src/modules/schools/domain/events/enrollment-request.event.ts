@@ -12,6 +12,12 @@ export class EnrollmentRequestEvent implements IDomainEvent {
     readonly schoolName: string,
     readonly studentId: string,
     readonly adminIds: string[],
+    readonly studentName: string,
+    readonly source: string,
+    readonly studentAvatarUrl?: string,
+    readonly studentEmail?: string,
+    readonly language?: string,
+    readonly ageBand?: string,
   ) {
     this.eventId = eventId;
     this.occurredAt = new Date();
