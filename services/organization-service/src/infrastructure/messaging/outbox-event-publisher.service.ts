@@ -22,6 +22,8 @@ const ROUTING_KEYS: Record<string, string> = {
   'school.group.archived': 'school.group.archived',
   'school.group.member.added': 'school.group.member.added',
   'school.group.member.removed': 'school.group.member.removed',
+  'school.enrollment.requested': 'school.enrollment.requested',
+  'school.enrollment.approved': 'school.enrollment.approved',
 };
 
 @Injectable()

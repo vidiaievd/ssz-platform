@@ -20,9 +20,15 @@ import { InvitationExpiredException } from '../../../domain/exceptions/invitatio
 import { InvitationRevokedException } from '../../../domain/exceptions/invitation-revoked.exception.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { SchoolMember } from '../../../domain/entities/school-member.entity.js';
+import { SchoolMembership } from '../../../domain/entities/school-membership.entity.js';
+import {
+  SCHOOL_MEMBERSHIP_REPOSITORY,
+  type ISchoolMembershipRepository,
+} from '../../../domain/repositories/school-membership.repository.interface.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { UserPlatformRoleAssignedEvent } from '../../../domain/events/user-platform-role-assigned.event.js';
 import { SchoolTeacherAcceptedEvent } from '../../../domain/events/school-teacher-accepted.event.js';
+import { EnrollmentApprovedEvent } from '../../../domain/events/enrollment-approved.event.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import {
@@ -43,6 +49,7 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
     @Inject(SCHOOL_INVITATION_REPOSITORY)
     private readonly invitationRepository: ISchoolInvitationRepository,
     @Inject(SCHOOL_GROUP_REPOSITORY) private readonly groupRepository: ISchoolGroupRepository,
+    @Inject(SCHOOL_MEMBERSHIP_REPOSITORY) private readonly membershipRepository: ISchoolMembershipRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
     @Inject(PROFILE_SERVICE_PORT) private readonly profileService: IProfileServicePort,
     private readonly tokenService: InvitationTokenService,
@@ -126,6 +133,27 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
     if (ROLES_REQUIRING_STUDENT.has(invitation.role)) {
       await this.eventPublisher.publish(
         new UserPlatformRoleAssignedEvent(randomUUID(), command.actorId, 'Student'),
+      );
+
+      // An invited student has no public-apply membership yet — create or
+      // activate it here so the dashboard's "am I a member of this school"
+      // check (which reads SchoolMembership, not SchoolMember) reflects reality.
+      let membership = await this.membershipRepository.findBySchoolAndStudent(school.id, command.actorId);
+      if (!membership) {
+        membership = SchoolMembership.create({
+          id: randomUUID(),
+          schoolId: school.id,
+          studentId: command.actorId,
+          source: 'invite',
+        });
+      }
+      if (membership.canTransitionTo('onboarding')) {
+        membership.transitionTo('onboarding');
+      }
+      await this.membershipRepository.save(membership);
+
+      await this.eventPublisher.publish(
+        new EnrollmentApprovedEvent(randomUUID(), membership.id, school.id, school.name, command.actorId),
       );
     }
 
