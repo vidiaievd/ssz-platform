@@ -18,7 +18,7 @@ export class EnrollmentApprovedHandler implements IMessageHandler<EnrollmentAppr
       recipientId: payload.studentId,
       type: NotificationType.ENROLLMENT_APPROVED,
       channel: NotificationChannel.IN_APP,
-      subject: `Your application to ${payload.schoolName} was approved`,
+      subject: `Your application to ${payload.schoolName} was accepted — placement in progress`,
       templateKey: 'enrollment_approved',
       templateData: {
         membershipId: payload.membershipId,
