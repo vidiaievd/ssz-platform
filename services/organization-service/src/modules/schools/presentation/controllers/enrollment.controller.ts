@@ -32,7 +32,6 @@ import type { SchoolMembership } from '../../domain/entities/school-membership.e
 import type { SchoolOnboardingSettings } from '../../domain/entities/school-onboarding-settings.entity.js';
 import {
   AssignGroupRequestDto,
-  CompleteMembershipOnboardingRequestDto,
   CreateMembershipRequestDto,
   SetAgeBandRequestDto,
   SetAvailabilityRequestDto,
@@ -250,7 +249,7 @@ export class EnrollmentController {
 
   @Post(':schoolId/memberships/:id/complete')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Student completes onboarding → transitions membership to active or placement-review' })
+  @ApiOperation({ summary: 'Student completes onboarding → transitions membership to placement-review' })
   @ApiResponse({ status: 204 })
   @ApiResponse({ status: 403, description: 'Caller is not the membership owner' })
   @ApiResponse({ status: 404, description: 'Membership not found' })
@@ -259,10 +258,9 @@ export class EnrollmentController {
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: CompleteMembershipOnboardingRequestDto,
   ): Promise<void> {
     await this.commandBus.execute(
-      new CompleteMembershipOnboardingCommand(user.sub, schoolId, id, dto.to),
+      new CompleteMembershipOnboardingCommand(user.sub, schoolId, id),
     );
   }
 }

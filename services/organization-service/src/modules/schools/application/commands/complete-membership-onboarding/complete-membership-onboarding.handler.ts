@@ -40,33 +40,31 @@ export class CompleteMembershipOnboardingHandler
       throw new ForbiddenOperationException('Only the student can complete their own onboarding');
     }
 
-    if (!membership.canTransitionTo(command.to)) {
-      throw new InvalidMembershipTransitionException(membership.status, command.to);
+    if (!membership.canTransitionTo('placement-review')) {
+      throw new InvalidMembershipTransitionException(membership.status, 'placement-review');
     }
 
-    membership.transitionTo(command.to);
+    membership.transitionTo('placement-review');
     await this.membershipRepo.save(membership);
 
-    if (command.to === 'placement-review') {
-      const school = await this.schoolRepo.findById(command.schoolId);
-      if (school) {
-        const adminIds = [
-          school.ownerId,
-          ...school.members
-            .filter((m) => m.role === MemberRole.ADMIN || m.role === MemberRole.MANAGER)
-            .map((m) => m.userId),
-        ];
-        await this.eventPublisher.publish(
-          new PlacementReviewReadyEvent(
-            randomUUID(),
-            membership.id,
-            school.id,
-            school.name,
-            membership.studentId,
-            [...new Set(adminIds)],
-          ),
-        );
-      }
+    const school = await this.schoolRepo.findById(command.schoolId);
+    if (school) {
+      const adminIds = [
+        school.ownerId,
+        ...school.members
+          .filter((m) => m.role === MemberRole.ADMIN || m.role === MemberRole.MANAGER)
+          .map((m) => m.userId),
+      ];
+      await this.eventPublisher.publish(
+        new PlacementReviewReadyEvent(
+          randomUUID(),
+          membership.id,
+          school.id,
+          school.name,
+          membership.studentId,
+          [...new Set(adminIds)],
+        ),
+      );
     }
   }
 }

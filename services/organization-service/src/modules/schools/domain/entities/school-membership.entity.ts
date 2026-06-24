@@ -29,7 +29,7 @@ export interface AvailabilitySlot {
 
 const ALLOWED_TRANSITIONS: Record<MembershipStatus, MembershipStatus[]> = {
   pending: ['onboarding', 'rejected'],
-  onboarding: ['placement-review', 'active'],
+  onboarding: ['placement-review'],
   'placement-review': ['active'],
   active: ['left'],
   rejected: [],
