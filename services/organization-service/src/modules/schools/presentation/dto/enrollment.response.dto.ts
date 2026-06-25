@@ -71,6 +71,9 @@ export class MembershipResponseDto {
   @ApiPropertyOptional({ enum: ['kids', 'teens', 'adults'] })
   ageBand?: string;
 
+  @ApiPropertyOptional({ description: 'When the student dismissed the one-time group-assigned banner' })
+  groupAssignedSeenAt?: Date;
+
   @ApiProperty()
   createdAt: Date;
 

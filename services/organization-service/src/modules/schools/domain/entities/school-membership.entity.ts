@@ -17,6 +17,7 @@ export interface RehydrateMembershipProps extends CreateMembershipProps {
   status: MembershipStatus;
   availability: AvailabilitySlot[] | undefined;
   ageBand: AgeBand | undefined;
+  groupAssignedSeenAt: Date | undefined;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +49,7 @@ export class SchoolMembership {
   private _status: MembershipStatus;
   private _availability: AvailabilitySlot[] | undefined;
   private _ageBand: AgeBand | undefined;
+  private _groupAssignedSeenAt: Date | undefined;
   private _updatedAt: Date;
 
   private constructor(props: RehydrateMembershipProps) {
@@ -60,6 +62,7 @@ export class SchoolMembership {
     this._status = props.status;
     this._availability = props.availability;
     this._ageBand = props.ageBand;
+    this._groupAssignedSeenAt = props.groupAssignedSeenAt;
     this.createdAt = props.createdAt;
     this._updatedAt = props.updatedAt;
   }
@@ -71,6 +74,7 @@ export class SchoolMembership {
       status: 'pending',
       availability: undefined,
       ageBand: undefined,
+      groupAssignedSeenAt: undefined,
       createdAt: now,
       updatedAt: now,
     });
@@ -102,8 +106,14 @@ export class SchoolMembership {
     this._updatedAt = new Date();
   }
 
+  markGroupAssignedSeen(): void {
+    this._groupAssignedSeenAt = new Date();
+    this._updatedAt = new Date();
+  }
+
   get status(): MembershipStatus { return this._status; }
   get availability(): AvailabilitySlot[] | undefined { return this._availability; }
   get ageBand(): AgeBand | undefined { return this._ageBand; }
+  get groupAssignedSeenAt(): Date | undefined { return this._groupAssignedSeenAt; }
   get updatedAt(): Date { return this._updatedAt; }
 }

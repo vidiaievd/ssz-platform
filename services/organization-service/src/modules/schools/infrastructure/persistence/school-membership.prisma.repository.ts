@@ -50,6 +50,7 @@ function rowToEntity(row: any): SchoolMembership {
     selfReportedLevel: row.selfReportedLevel ?? undefined,
     availability: row.availability ?? undefined,
     ageBand: row.ageBand ?? undefined,
+    groupAssignedSeenAt: row.groupAssignedSeenAt ?? undefined,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
@@ -72,6 +73,7 @@ export class SchoolMembershipPrismaRepository implements ISchoolMembershipReposi
         selfReportedLevel: membership.selfReportedLevel ?? null,
         availability: membership.availability ?? null,
         ageBand: membership.ageBand ?? null,
+        groupAssignedSeenAt: membership.groupAssignedSeenAt ?? null,
         createdAt: membership.createdAt,
         updatedAt: membership.updatedAt,
       },
@@ -79,6 +81,7 @@ export class SchoolMembershipPrismaRepository implements ISchoolMembershipReposi
         status: STATUS_TO_DB[membership.status],
         availability: membership.availability ?? null,
         ageBand: membership.ageBand ?? null,
+        groupAssignedSeenAt: membership.groupAssignedSeenAt ?? null,
         updatedAt: membership.updatedAt,
       },
     });

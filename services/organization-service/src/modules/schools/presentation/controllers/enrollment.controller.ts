@@ -23,6 +23,7 @@ import { SetMembershipAvailabilityCommand } from '../../application/commands/set
 import { SetMembershipAgeBandCommand } from '../../application/commands/set-membership-age-band/set-membership-age-band.command.js';
 import { AssignMembershipGroupCommand } from '../../application/commands/assign-membership-group/assign-membership-group.command.js';
 import { CompleteMembershipOnboardingCommand } from '../../application/commands/complete-membership-onboarding/complete-membership-onboarding.command.js';
+import { MarkGroupAssignedSeenCommand } from '../../application/commands/mark-group-assigned-seen/mark-group-assigned-seen.command.js';
 import { GetOnboardingSettingsQuery } from '../../application/queries/get-onboarding-settings/get-onboarding-settings.query.js';
 import { ListMembershipsQuery } from '../../application/queries/list-memberships/list-memberships.query.js';
 import { GetMyMembershipQuery } from '../../application/queries/get-my-membership/get-my-membership.query.js';
@@ -54,6 +55,7 @@ function toMembershipResponse(m: SchoolMembership): MembershipResponseDto {
     selfReportedLevel: m.selfReportedLevel,
     availability: m.availability,
     ageBand: m.ageBand,
+    groupAssignedSeenAt: m.groupAssignedSeenAt,
     createdAt: m.createdAt,
     updatedAt: m.updatedAt,
   };
@@ -245,6 +247,20 @@ export class EnrollmentController {
     await this.commandBus.execute(
       new AssignMembershipGroupCommand(user.sub, schoolId, id, dto.groupId),
     );
+  }
+
+  @Post(':schoolId/memberships/:id/mark-group-assigned-seen')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Student dismisses the one-time group-assigned celebratory banner' })
+  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 403, description: 'Caller is not the membership owner' })
+  @ApiResponse({ status: 404, description: 'Membership not found' })
+  async markGroupAssignedSeen(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.commandBus.execute(new MarkGroupAssignedSeenCommand(user.sub, schoolId, id));
   }
 
   @Post(':schoolId/memberships/:id/complete')

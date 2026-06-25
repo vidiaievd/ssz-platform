@@ -375,6 +375,7 @@ model SchoolMembership {
   selfReportedLevel String?     @map("self_reported_level") @db.VarChar(2)
   availability Json?
   ageBand      AgeBand?         @map("age_band")
+  groupAssignedSeenAt DateTime? @map("group_assigned_seen_at")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
