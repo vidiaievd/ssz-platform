@@ -27,6 +27,7 @@ import { GetExerciseHandler } from './application/queries/get-exercise/get-exerc
 import { GetExerciseForDisplayHandler } from './application/queries/get-exercise-for-display/get-exercise-for-display.handler.js';
 import { GetExerciseWithAnswersHandler } from './application/queries/get-exercise-with-answers/get-exercise-with-answers.handler.js';
 import { GetExerciseInstructionsHandler } from './application/queries/get-exercise-instructions/get-exercise-instructions.handler.js';
+import { GetExerciseEnvelopeHandler } from './application/queries/get-exercise-envelope/get-exercise-envelope.handler.js';
 
 // Controller
 import { ExerciseController } from './presentation/controllers/exercise.controller.js';
@@ -45,6 +46,7 @@ const QueryHandlers = [
   GetExerciseForDisplayHandler,
   GetExerciseWithAnswersHandler,
   GetExerciseInstructionsHandler,
+  GetExerciseEnvelopeHandler,
 ];
 
 @Module({
