@@ -106,6 +106,15 @@ export interface EnrollmentRequestPayload {
   schoolId: string;
   schoolName: string;
   studentId: string;
+  /** Resolved display name of the applying student */
+  studentName: string;
+  studentAvatarUrl?: string;
+  studentEmail?: string;
+  /** Onboarding intent, when captured at apply time */
+  language?: string;
+  ageBand?: string;
+  /** How the membership was created: 'public-apply' | 'invite' | 'direct' */
+  source: string;
   /** IDs of school OWNER/ADMINs to notify */
   adminIds: string[];
   occurredAt: string;

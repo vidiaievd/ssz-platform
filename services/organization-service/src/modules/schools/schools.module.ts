@@ -56,6 +56,7 @@ import { SetMembershipAvailabilityHandler } from './application/commands/set-mem
 import { SetMembershipAgeBandHandler } from './application/commands/set-membership-age-band/set-membership-age-band.handler.js';
 import { AssignMembershipGroupHandler } from './application/commands/assign-membership-group/assign-membership-group.handler.js';
 import { CompleteMembershipOnboardingHandler } from './application/commands/complete-membership-onboarding/complete-membership-onboarding.handler.js';
+import { MarkGroupAssignedSeenHandler } from './application/commands/mark-group-assigned-seen/mark-group-assigned-seen.handler.js';
 
 import { GetSchoolHandler } from './application/queries/get-school/get-school.handler.js';
 import { GetSchoolBySlugHandler } from './application/queries/get-school-by-slug/get-school-by-slug.handler.js';
@@ -125,6 +126,7 @@ const CommandHandlers = [
   SetMembershipAgeBandHandler,
   AssignMembershipGroupHandler,
   CompleteMembershipOnboardingHandler,
+  MarkGroupAssignedSeenHandler,
 ];
 
 const QueryHandlers = [

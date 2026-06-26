@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Inject } from '@nestjs/common';
 import { CommandBus, CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
@@ -6,15 +7,23 @@ import { MembershipNotFoundException } from '../../../domain/exceptions/membersh
 import { InvalidMembershipTransitionException } from '../../../domain/exceptions/invalid-membership-transition.exception.js';
 import { SCHOOL_REPOSITORY, type ISchoolRepository } from '../../../domain/repositories/school.repository.interface.js';
 import { SCHOOL_MEMBERSHIP_REPOSITORY, type ISchoolMembershipRepository } from '../../../domain/repositories/school-membership.repository.interface.js';
+import { SCHOOL_GROUP_REPOSITORY, type ISchoolGroupRepository } from '../../../domain/repositories/school-group.repository.interface.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { AddGroupMemberCommand } from '../add-group-member/add-group-member.command.js';
 import { AssignMembershipGroupCommand } from './assign-membership-group.command.js';
+import { GroupAssignedEvent } from '../../../domain/events/group-assigned.event.js';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../../../shared/application/ports/event-publisher.interface.js';
 
 @CommandHandler(AssignMembershipGroupCommand)
 export class AssignMembershipGroupHandler implements ICommandHandler<AssignMembershipGroupCommand> {
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepo: ISchoolRepository,
     @Inject(SCHOOL_MEMBERSHIP_REPOSITORY) private readonly membershipRepo: ISchoolMembershipRepository,
+    @Inject(SCHOOL_GROUP_REPOSITORY) private readonly groupRepo: ISchoolGroupRepository,
+    @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
     private readonly commandBus: CommandBus,
   ) {}
 
@@ -43,5 +52,18 @@ export class AssignMembershipGroupHandler implements ICommandHandler<AssignMembe
 
     membership.transitionTo('active');
     await this.membershipRepo.save(membership);
+
+    const group = await this.groupRepo.findById(command.groupId);
+    await this.eventPublisher.publish(
+      new GroupAssignedEvent(
+        randomUUID(),
+        membership.id,
+        school.id,
+        school.name,
+        membership.studentId,
+        command.groupId,
+        group?.name ?? '',
+      ),
+    );
   }
 }

@@ -3,11 +3,17 @@ import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { Prisma } from '../../../generated/prisma/client.js';
 import type { NotificationStatus, NotificationType, NotificationChannel } from '../../../generated/prisma/enums.js';
 
+export type InAppFeedFilter = 'all' | 'unread' | 'archived';
+
 export interface InAppFeedOptions {
   recipientId: string;
   cursor?: string;
   limit: number;
+  filter?: InAppFeedFilter;
+  type?: NotificationType;
 }
+
+export type BulkNotificationAction = 'read' | 'unread' | 'archive' | 'unarchive' | 'delete';
 
 export interface CreateNotificationData {
   type: NotificationType;
@@ -66,12 +72,14 @@ export class NotificationsRepository {
   }
 
   async listInApp(opts: InAppFeedOptions) {
-    // Cast to any: isRead/readAt exist after migration but Prisma client needs regeneration.
-    const prismaAny = this.prisma;
-    return prismaAny.notification.findMany({
+    const filter = opts.filter ?? 'all';
+    return this.prisma.notification.findMany({
       where: {
         recipientId: opts.recipientId,
         channel: 'IN_APP',
+        ...(filter === 'archived' ? { archivedAt: { not: null } } : { archivedAt: null }),
+        ...(filter === 'unread' ? { isRead: false } : {}),
+        ...(opts.type ? { type: opts.type } : {}),
         ...(opts.cursor ? { id: { lt: opts.cursor } } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -81,31 +89,103 @@ export class NotificationsRepository {
         type: true,
         templateData: true,
         isRead: true,
+        archivedAt: true,
         createdAt: true,
       },
     });
   }
 
   async countUnread(recipientId: string): Promise<number> {
-    const prismaAny = this.prisma;
-    return prismaAny.notification.count({
-      where: { recipientId, channel: 'IN_APP', isRead: false },
+    return this.prisma.notification.count({
+      where: { recipientId, channel: 'IN_APP', isRead: false, archivedAt: null },
     });
   }
 
   async markRead(id: string, recipientId: string): Promise<void> {
-    const prismaAny = this.prisma;
-    await prismaAny.notification.updateMany({
+    await this.prisma.notification.updateMany({
       where: { id, recipientId, isRead: false },
       data: { isRead: true, readAt: new Date(), updatedAt: new Date() },
     });
   }
 
   async markAllRead(recipientId: string): Promise<void> {
-    const prismaAny = this.prisma;
-    await prismaAny.notification.updateMany({
-      where: { recipientId, channel: 'IN_APP', isRead: false },
+    await this.prisma.notification.updateMany({
+      where: { recipientId, channel: 'IN_APP', isRead: false, archivedAt: null },
       data: { isRead: true, readAt: new Date(), updatedAt: new Date() },
     });
+  }
+
+  async markUnread(id: string, recipientId: string): Promise<void> {
+    await this.prisma.notification.updateMany({
+      where: { id, recipientId, isRead: true },
+      data: { isRead: false, readAt: null, updatedAt: new Date() },
+    });
+  }
+
+  async archive(id: string, recipientId: string): Promise<void> {
+    await this.prisma.notification.updateMany({
+      where: { id, recipientId, archivedAt: null },
+      data: { archivedAt: new Date(), updatedAt: new Date() },
+    });
+  }
+
+  async unarchive(id: string, recipientId: string): Promise<void> {
+    await this.prisma.notification.updateMany({
+      where: { id, recipientId, archivedAt: { not: null } },
+      data: { archivedAt: null, updatedAt: new Date() },
+    });
+  }
+
+  /** Archives every ENROLLMENT_REQUEST notification for a membership, regardless of recipient — a request handled in one surface must clear its badge everywhere. */
+  async archiveByMembershipId(membershipId: string): Promise<void> {
+    const now = new Date();
+    await this.prisma.notification.updateMany({
+      where: {
+        type: 'ENROLLMENT_REQUEST',
+        archivedAt: null,
+        templateData: { path: ['membershipId'], equals: membershipId },
+      },
+      data: { archivedAt: now, isRead: true, readAt: now, updatedAt: now },
+    });
+  }
+
+  async delete(id: string, recipientId: string): Promise<void> {
+    await this.prisma.notification.deleteMany({
+      where: { id, recipientId },
+    });
+  }
+
+  async bulk(ids: string[], recipientId: string, action: BulkNotificationAction): Promise<void> {
+    const where = { id: { in: ids }, recipientId };
+    const now = new Date();
+    switch (action) {
+      case 'read':
+        await this.prisma.notification.updateMany({
+          where: { ...where, isRead: false },
+          data: { isRead: true, readAt: now, updatedAt: now },
+        });
+        return;
+      case 'unread':
+        await this.prisma.notification.updateMany({
+          where: { ...where, isRead: true },
+          data: { isRead: false, readAt: null, updatedAt: now },
+        });
+        return;
+      case 'archive':
+        await this.prisma.notification.updateMany({
+          where: { ...where, archivedAt: null },
+          data: { archivedAt: now, updatedAt: now },
+        });
+        return;
+      case 'unarchive':
+        await this.prisma.notification.updateMany({
+          where: { ...where, archivedAt: { not: null } },
+          data: { archivedAt: null, updatedAt: now },
+        });
+        return;
+      case 'delete':
+        await this.prisma.notification.deleteMany({ where });
+        return;
+    }
   }
 }

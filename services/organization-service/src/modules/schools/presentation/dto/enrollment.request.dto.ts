@@ -60,6 +60,12 @@ export class CreateMembershipRequestDto {
   @IsString()
   @Matches(/^[a-z]{2}$/)
   language?: string;
+
+  @ApiPropertyOptional({ example: 'A2', description: "Student's own guess at their level; not authoritative" })
+  @IsOptional()
+  @IsString()
+  @Matches(/^(A1|A2|B1|B2|C1|C2)$/)
+  selfReportedLevel?: string;
 }
 
 export class AvailabilitySlotDto {
@@ -101,12 +107,3 @@ export class AssignGroupRequestDto {
 }
 
 // ── E.4 ──────────────────────────────────────────────────────────────────────
-
-export class CompleteMembershipOnboardingRequestDto {
-  @ApiProperty({
-    enum: ['active', 'placement-review'],
-    description: 'Target status after onboarding: active (auto-placed) or placement-review (awaits admin assignment)',
-  })
-  @IsEnum(['active', 'placement-review'])
-  to: 'active' | 'placement-review';
-}

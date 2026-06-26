@@ -1,4 +1,4 @@
-export class CompleteMembershipOnboardingCommand {
+export class MarkGroupAssignedSeenCommand {
   constructor(
     readonly callerId: string,
     readonly schoolId: string,

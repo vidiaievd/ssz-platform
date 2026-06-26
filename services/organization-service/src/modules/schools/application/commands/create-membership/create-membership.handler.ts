@@ -10,6 +10,15 @@ import { SchoolMembership } from '../../../domain/entities/school-membership.ent
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { AddMemberCommand } from '../add-member/add-member.command.js';
 import { CreateMembershipCommand } from './create-membership.command.js';
+import { EnrollmentRequestEvent } from '../../../domain/events/enrollment-request.event.js';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../../../shared/application/ports/event-publisher.interface.js';
+import {
+  PROFILE_SERVICE_PORT,
+  type IProfileServicePort,
+} from '../../../../../shared/application/ports/profile-service.interface.js';
 
 @CommandHandler(CreateMembershipCommand)
 export class CreateMembershipHandler implements ICommandHandler<CreateMembershipCommand, SchoolMembership> {
@@ -19,6 +28,8 @@ export class CreateMembershipHandler implements ICommandHandler<CreateMembership
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepo: ISchoolRepository,
     @Inject(SCHOOL_MEMBERSHIP_REPOSITORY) private readonly membershipRepo: ISchoolMembershipRepository,
     @Inject(SCHOOL_ONBOARDING_SETTINGS_REPOSITORY) private readonly settingsRepo: ISchoolOnboardingSettingsRepository,
+    @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
+    @Inject(PROFILE_SERVICE_PORT) private readonly profileService: IProfileServicePort,
     private readonly commandBus: CommandBus,
   ) {}
 
@@ -35,6 +46,7 @@ export class CreateMembershipHandler implements ICommandHandler<CreateMembership
       studentId: command.studentId,
       source: command.source,
       language: command.language,
+      selfReportedLevel: command.selfReportedLevel,
     });
 
     if (settings.approvalMode === 'auto') {
@@ -60,6 +72,33 @@ export class CreateMembershipHandler implements ICommandHandler<CreateMembership
     }
 
     await this.membershipRepo.save(membership);
+
+    const adminIds = [
+      school.ownerId,
+      ...school.members
+        .filter((m) => m.role === MemberRole.ADMIN || m.role === MemberRole.MANAGER)
+        .map((m) => m.userId),
+    ];
+
+    const profileSummary = await this.profileService.getProfileSummary(command.studentId);
+
+    await this.eventPublisher.publish(
+      new EnrollmentRequestEvent(
+        randomUUID(),
+        membership.id,
+        school.id,
+        school.name,
+        command.studentId,
+        [...new Set(adminIds)],
+        profileSummary?.name ?? command.studentId,
+        command.source,
+        profileSummary?.avatarUrl ?? undefined,
+        profileSummary?.email ?? undefined,
+        membership.language,
+        membership.ageBand,
+      ),
+    );
+
     return membership;
   }
 }
