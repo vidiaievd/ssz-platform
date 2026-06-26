@@ -1,6 +1,11 @@
 import type { AttemptModel } from '../../../../../generated/prisma/models/Attempt.js';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
-import type { AttemptStatus, DifficultyLevel } from '../../domain/entities/attempt.entity.js';
+import type {
+  AttemptStatus,
+  CheckMode,
+  DifficultyLevel,
+  PracticedAtom,
+} from '../../domain/entities/attempt.entity.js';
 
 export class AttemptMapper {
   static toDomain(row: AttemptModel): Attempt {
@@ -13,6 +18,8 @@ export class AttemptMapper {
       templateCode: row.templateCode,
       targetLanguage: row.targetLanguage,
       difficultyLevel: row.difficultyLevel as DifficultyLevel,
+      checkMode: row.checkMode as CheckMode,
+      practicedAtoms: (row.practicedAtoms as PracticedAtom[] | null) ?? [],
       status: row.status as AttemptStatus,
       score: row.score,
       passed: row.passed,
@@ -38,6 +45,8 @@ export class AttemptMapper {
       templateCode: attempt.templateCode,
       targetLanguage: attempt.targetLanguage,
       difficultyLevel: attempt.difficultyLevel as AttemptModel['difficultyLevel'],
+      checkMode: attempt.checkMode as AttemptModel['checkMode'],
+      practicedAtoms: attempt.practicedAtoms as unknown as AttemptModel['practicedAtoms'],
       status: attempt.status as AttemptModel['status'],
       score: attempt.scoreValue,
       passed: attempt.passed,

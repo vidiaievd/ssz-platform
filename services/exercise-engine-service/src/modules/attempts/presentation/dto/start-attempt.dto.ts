@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import type { CheckMode } from '../../domain/entities/attempt.entity.js';
 
 export class StartAttemptRequestDto {
   @ApiProperty({ description: 'Target language code for instructions (e.g. "no", "en")' })
@@ -16,6 +17,16 @@ export class StartAttemptRequestDto {
   @IsString()
   @IsOptional()
   enrollmentId?: string;
+
+  @ApiPropertyOptional({
+    enum: ['PRACTICE', 'GRADED'],
+    description:
+      'PRACTICE ships expectedAnswers for instant local checking; GRADED withholds them. ' +
+      'Defaults to GRADED when assignmentId is set, PRACTICE otherwise.',
+  })
+  @IsEnum(['PRACTICE', 'GRADED'])
+  @IsOptional()
+  mode?: CheckMode;
 }
 
 export class StartAttemptResponseDto {
@@ -31,10 +42,16 @@ export class StartAttemptResponseDto {
   @ApiProperty()
   difficultyLevel!: string;
 
+  @ApiProperty({ enum: ['PRACTICE', 'GRADED'] })
+  checkMode!: string;
+
   @ApiProperty({ description: 'Exercise content — shape depends on templateCode' })
   exerciseContent!: unknown;
 
-  @ApiProperty({ description: 'Expected answers — shape depends on templateCode' })
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Expected answers — shape depends on templateCode; null when checkMode is GRADED',
+  })
   expectedAnswers!: unknown;
 
   @ApiProperty({ description: 'JSON Schema for validating submitted answers' })

@@ -47,22 +47,22 @@ describe('ExerciseDefinitionCache', () => {
     it('returns null when Redis client is not available', async () => {
       const redisService = { getClient: () => null } as any;
       const cache = new ExerciseDefinitionCache(redisService, makeConfig() as any);
-      expect(await cache.get('ex-1', 'no')).toBeNull();
+      expect(await cache.get('ex-1', 'no', 'PRACTICE')).toBeNull();
     });
 
     it('returns null on cache miss', async () => {
       const client = makeRedisClient();
       client.get.mockResolvedValue(null);
       const cache = makeCache(client);
-      expect(await cache.get('ex-1', 'no')).toBeNull();
-      expect(client.get).toHaveBeenCalledWith('exercise-def:ex-1:no');
+      expect(await cache.get('ex-1', 'no', 'PRACTICE')).toBeNull();
+      expect(client.get).toHaveBeenCalledWith('exercise-def:ex-1:no:PRACTICE');
     });
 
     it('returns parsed definition on cache hit', async () => {
       const client = makeRedisClient();
       client.get.mockResolvedValue(JSON.stringify(stubDef));
       const cache = makeCache(client);
-      const result = await cache.get('ex-1', 'no');
+      const result = await cache.get('ex-1', 'no', 'PRACTICE');
       expect(result).toEqual(stubDef);
     });
 
@@ -70,7 +70,7 @@ describe('ExerciseDefinitionCache', () => {
       const client = makeRedisClient();
       client.get.mockResolvedValue('not-json');
       const cache = makeCache(client);
-      expect(await cache.get('ex-1', 'no')).toBeNull();
+      expect(await cache.get('ex-1', 'no', 'PRACTICE')).toBeNull();
     });
   });
 
@@ -79,9 +79,9 @@ describe('ExerciseDefinitionCache', () => {
       const client = makeRedisClient();
       client.set.mockResolvedValue('OK');
       const cache = makeCache(client, makeConfig(300));
-      await cache.set('ex-1', 'no', stubDef);
+      await cache.set('ex-1', 'no', 'PRACTICE', stubDef);
       expect(client.set).toHaveBeenCalledWith(
-        'exercise-def:ex-1:no',
+        'exercise-def:ex-1:no:PRACTICE',
         JSON.stringify(stubDef),
         'EX',
         300,
@@ -91,7 +91,7 @@ describe('ExerciseDefinitionCache', () => {
     it('does nothing when Redis client is not available', async () => {
       const redisService = { getClient: () => null } as any;
       const cache = new ExerciseDefinitionCache(redisService, makeConfig() as any);
-      await expect(cache.set('ex-1', 'no', stubDef)).resolves.toBeUndefined();
+      await expect(cache.set('ex-1', 'no', 'PRACTICE', stubDef)).resolves.toBeUndefined();
     });
   });
 

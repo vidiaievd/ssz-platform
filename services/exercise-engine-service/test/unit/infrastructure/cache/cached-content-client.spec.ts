@@ -42,7 +42,7 @@ describe('CachedContentClient', () => {
     cache.get.mockResolvedValue(stubDef);
     const client = new CachedContentClient(cache as any, http as any);
 
-    const result = await client.getExerciseForAttempt('ex-1', 'de');
+    const result = await client.getExerciseForAttempt('ex-1', 'de', 'PRACTICE');
 
     expect(result.isOk).toBe(true);
     expect(result.value).toEqual(stubDef);
@@ -57,12 +57,12 @@ describe('CachedContentClient', () => {
     http.getExerciseForAttempt.mockResolvedValue(Result.ok(stubDef));
     const client = new CachedContentClient(cache as any, http as any);
 
-    const result = await client.getExerciseForAttempt('ex-1', 'de');
+    const result = await client.getExerciseForAttempt('ex-1', 'de', 'PRACTICE');
 
     expect(result.isOk).toBe(true);
     expect(result.value).toEqual(stubDef);
-    expect(http.getExerciseForAttempt).toHaveBeenCalledWith('ex-1', 'de');
-    expect(cache.set).toHaveBeenCalledWith('ex-1', 'de', stubDef);
+    expect(http.getExerciseForAttempt).toHaveBeenCalledWith('ex-1', 'de', 'PRACTICE');
+    expect(cache.set).toHaveBeenCalledWith('ex-1', 'de', 'PRACTICE', stubDef);
   });
 
   it('returns HTTP error and does not populate cache when HTTP fails', async () => {
@@ -74,7 +74,7 @@ describe('CachedContentClient', () => {
     );
     const client = new CachedContentClient(cache as any, http as any);
 
-    const result = await client.getExerciseForAttempt('ex-1', 'de');
+    const result = await client.getExerciseForAttempt('ex-1', 'de', 'PRACTICE');
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBeInstanceOf(ContentClientError);
@@ -88,10 +88,10 @@ describe('CachedContentClient', () => {
     http.getExerciseForAttempt.mockResolvedValue(Result.ok(stubDef));
     const client = new CachedContentClient(cache as any, http as any);
 
-    await client.getExerciseForAttempt('ex-99', 'fr');
+    await client.getExerciseForAttempt('ex-99', 'fr', 'PRACTICE');
 
-    expect(cache.get).toHaveBeenCalledWith('ex-99', 'fr');
-    expect(http.getExerciseForAttempt).toHaveBeenCalledWith('ex-99', 'fr');
-    expect(cache.set).toHaveBeenCalledWith('ex-99', 'fr', stubDef);
+    expect(cache.get).toHaveBeenCalledWith('ex-99', 'fr', 'PRACTICE');
+    expect(http.getExerciseForAttempt).toHaveBeenCalledWith('ex-99', 'fr', 'PRACTICE');
+    expect(cache.set).toHaveBeenCalledWith('ex-99', 'fr', 'PRACTICE', stubDef);
   });
 });

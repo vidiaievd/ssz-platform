@@ -15,6 +15,8 @@ const makeAttempt = () =>
     templateCode: 'multiple_choice',
     targetLanguage: 'no',
     difficultyLevel: 'B1',
+    checkMode: 'PRACTICE',
+    practicedAtoms: [],
   });
 
 describe('Attempt entity', () => {
@@ -46,6 +48,8 @@ describe('Attempt entity', () => {
         templateCode: 'fill_in_blank',
         targetLanguage: 'de',
         difficultyLevel: 'A1',
+        checkMode: 'PRACTICE',
+        practicedAtoms: [],
         assignmentId: 'assign-99',
       });
       const ev = attempt.getDomainEvents()[0] as AttemptStartedEvent;
@@ -277,6 +281,8 @@ describe('Attempt entity', () => {
         templateCode: 'match_pairs',
         targetLanguage: 'fr',
         difficultyLevel: 'C1',
+        checkMode: 'PRACTICE',
+        practicedAtoms: [],
         status: 'SCORED',
         score: 90,
         passed: true,

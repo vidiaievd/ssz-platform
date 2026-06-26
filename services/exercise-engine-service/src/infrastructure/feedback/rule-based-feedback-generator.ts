@@ -45,6 +45,9 @@ export class RuleBasedFeedbackGenerator implements IFeedbackGenerator {
     const hint = instruction?.hint ?? null;
 
     const hintTemplate = checkSettings['hintTemplate'] as string | undefined;
+    const correctAnswer = input.revealAnswer
+      ? this.extractCorrectAnswer(input.templateCode, def)
+      : null;
     let summary: string;
 
     if (hintTemplate) {
@@ -52,14 +55,12 @@ export class RuleBasedFeedbackGenerator implements IFeedbackGenerator {
     } else if (hint) {
       summary = hint;
     } else {
-      const correctAnswer = this.extractCorrectAnswer(input.templateCode, def);
       summary = correctAnswer
         ? `Incorrect. Expected: ${correctAnswer}`
         : 'Incorrect. Please try again.';
     }
 
     const hints = hint && !hintTemplate ? undefined : (hint ? [hint] : undefined);
-    const correctAnswer = this.extractCorrectAnswer(input.templateCode, def);
 
     return Result.ok({
       summary,

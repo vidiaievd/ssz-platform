@@ -23,6 +23,8 @@ const makeInProgressAttempt = () =>
     templateCode: 'multiple_choice',
     targetLanguage: 'no',
     difficultyLevel: 'A1',
+    checkMode: 'PRACTICE',
+    practicedAtoms: [],
     status: 'IN_PROGRESS',
     score: null,
     passed: null,
@@ -66,6 +68,9 @@ const makeRepo = (attempt: Attempt | null = makeInProgressAttempt()): jest.Mocke
 
 const makeContentClient = (result = Result.ok(makeExerciseDef())): jest.Mocked<IContentClient> => ({
   getExerciseForAttempt: jest.fn<IContentClient['getExerciseForAttempt']>().mockResolvedValue(result),
+  getPracticedAtoms: jest
+    .fn<IContentClient['getPracticedAtoms']>()
+    .mockResolvedValue(Result.ok([])),
 });
 
 const makeValidator = (outcome = { correct: true, score: 100, details: null, requiresReview: false }): jest.Mocked<IAnswerValidator> => ({

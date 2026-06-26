@@ -93,6 +93,7 @@ export class AttemptsController {
           dto.language,
           dto.assignmentId ?? null,
           dto.enrollmentId ?? null,
+          dto.mode ?? (dto.assignmentId ? 'GRADED' : 'PRACTICE'),
         ),
       );
 

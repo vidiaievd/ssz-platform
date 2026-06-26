@@ -20,6 +20,15 @@ export type AttemptStatus =
 
 export type DifficultyLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
+// PRACTICE: expectedAnswers shipped to the client for instant local checking.
+// GRADED: expectedAnswers withheld; the correct answer is never revealed in feedback either.
+export type CheckMode = 'PRACTICE' | 'GRADED';
+
+export interface PracticedAtom {
+  atomType: string;
+  atomId: string;
+}
+
 export interface CreateAttemptProps {
   userId: string;
   exerciseId: string;
@@ -28,6 +37,8 @@ export interface CreateAttemptProps {
   templateCode: string;
   targetLanguage: string;
   difficultyLevel: DifficultyLevel;
+  checkMode: CheckMode;
+  practicedAtoms: PracticedAtom[];
 }
 
 export interface AttemptPersistenceProps {
@@ -39,6 +50,8 @@ export interface AttemptPersistenceProps {
   templateCode: string;
   targetLanguage: string;
   difficultyLevel: DifficultyLevel;
+  checkMode: CheckMode;
+  practicedAtoms: PracticedAtom[];
   status: AttemptStatus;
   score: number | null;
   passed: boolean | null;
@@ -63,6 +76,8 @@ export class Attempt extends AggregateRoot {
     private _templateCode: string,
     private _targetLanguage: string,
     private _difficultyLevel: DifficultyLevel,
+    private _checkMode: CheckMode,
+    private _practicedAtoms: PracticedAtom[],
     private _status: AttemptStatus,
     private _score: number | null,
     private _passed: boolean | null,
@@ -89,6 +104,8 @@ export class Attempt extends AggregateRoot {
       props.templateCode,
       props.targetLanguage,
       props.difficultyLevel,
+      props.checkMode,
+      props.practicedAtoms,
       'IN_PROGRESS',
       null,
       null,
@@ -128,6 +145,8 @@ export class Attempt extends AggregateRoot {
       props.templateCode,
       props.targetLanguage,
       props.difficultyLevel,
+      props.checkMode,
+      props.practicedAtoms,
       props.status,
       props.score,
       props.passed,
@@ -199,6 +218,7 @@ export class Attempt extends AggregateRoot {
         score: this._score,
         timeSpentSeconds: this._timeSpentSeconds,
         completed: true,
+        practicedAtoms: this._practicedAtoms,
       }),
     );
 
@@ -262,6 +282,8 @@ export class Attempt extends AggregateRoot {
   get templateCode(): string { return this._templateCode; }
   get targetLanguage(): string { return this._targetLanguage; }
   get difficultyLevel(): DifficultyLevel { return this._difficultyLevel; }
+  get checkMode(): CheckMode { return this._checkMode; }
+  get practicedAtoms(): PracticedAtom[] { return this._practicedAtoms; }
   get status(): AttemptStatus { return this._status; }
   get scoreValue(): number | null { return this._score; }
   get passed(): boolean | null { return this._passed; }

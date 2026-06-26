@@ -40,6 +40,8 @@ const makeAttempt = (overrides: Record<string, unknown> = {}) =>
     templateCode: 'multiple_choice',
     targetLanguage: 'no',
     difficultyLevel: 'A1',
+    checkMode: 'PRACTICE',
+    practicedAtoms: [],
     status: 'SCORED',
     score: 100,
     passed: true,
@@ -84,7 +86,10 @@ describe('AttemptsController (integration)', () => {
     findAllByUser: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
   };
-  const mockContentClient = { getExerciseForAttempt: jest.fn() };
+  const mockContentClient = {
+    getExerciseForAttempt: jest.fn(),
+    getPracticedAtoms: jest.fn().mockResolvedValue(Result.ok([])),
+  };
   const mockValidator = { validate: jest.fn() };
   const mockFeedback = { generate: jest.fn() };
   const mockLearning = { createSubmission: jest.fn() };

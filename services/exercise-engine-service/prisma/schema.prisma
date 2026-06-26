@@ -26,6 +26,14 @@ enum AttemptStatus {
   @@map("attempt_status")
 }
 
+// PRACTICE ships expectedAnswers for instant local checking; GRADED withholds them.
+enum CheckMode {
+  PRACTICE @map("practice")
+  GRADED   @map("graded")
+
+  @@map("check_mode")
+}
+
 // Mirrors Learning Service ContentType — kept in sync for forward-compat.
 // Exercise Engine only uses EXERCISE in Sprint 5, but the full enum is declared
 // so shared code (contracts package) can reference a single source of truth.
@@ -72,6 +80,15 @@ model Attempt {
   templateCode    String          @map("template_code")
   targetLanguage  String          @map("target_language")
   difficultyLevel DifficultyLevel @map("difficulty_level")
+
+  // Decided by the caller at start-attempt time; fixed for the attempt's lifetime —
+  // governs whether expectedAnswers were shipped to the client and whether the
+  // correct answer may be revealed in feedback.
+  checkMode CheckMode @default(PRACTICE) @map("check_mode")
+
+  // PRACTICED_BY atoms snapshotted from Content Service at attempt start —
+  // Array<{atomType, atomId}>; fans out SRS rating to vocab/grammar atoms on scoring.
+  practicedAtoms Json @default("[]") @map("practiced_atoms")
 
   status AttemptStatus @default(IN_PROGRESS)
 

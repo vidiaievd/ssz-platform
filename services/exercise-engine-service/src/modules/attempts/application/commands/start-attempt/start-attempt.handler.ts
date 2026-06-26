@@ -17,7 +17,9 @@ export interface StartAttemptResult {
   templateCode: string;
   targetLanguage: string;
   difficultyLevel: string;
+  checkMode: string;
   exerciseContent: unknown;
+  // null when checkMode is GRADED.
   expectedAnswers: unknown;
   answerSchema: unknown;
   checkSettings: Record<string, unknown>;
@@ -46,10 +48,16 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
     const defResult = await this.contentClient.getExerciseForAttempt(
       command.exerciseId,
       command.language,
+      command.checkMode,
     );
     if (defResult.isFail) {
       return Result.fail<StartAttemptResult, StartAttemptError>(defResult.error);
     }
+
+    // Best-effort — a relation-graph hiccup must not block starting the attempt;
+    // it only means this attempt won't feed the SRS fan-out on scoring.
+    const atomsResult = await this.contentClient.getPracticedAtoms(command.exerciseId);
+    const practicedAtoms = atomsResult.isOk ? atomsResult.value : [];
 
     const def = defResult.value;
     const attempt = Attempt.create({
@@ -60,6 +68,8 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       templateCode: def.exercise.templateCode,
       targetLanguage: def.exercise.targetLanguage,
       difficultyLevel: def.exercise.difficultyLevel as DifficultyLevel,
+      checkMode: command.checkMode,
+      practicedAtoms,
     });
 
     await this.attempts.save(attempt);
@@ -79,6 +89,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       templateCode: def.exercise.templateCode,
       targetLanguage: def.exercise.targetLanguage,
       difficultyLevel: def.exercise.difficultyLevel,
+      checkMode: attempt.checkMode,
       exerciseContent: def.exercise.content,
       expectedAnswers: def.exercise.expectedAnswers,
       answerSchema: def.template.answerSchema,

@@ -9,6 +9,8 @@ export interface FeedbackInput {
   validationDetails: unknown;
   exerciseDefinition: unknown; // full bundle from IContentClient
   locale: string;
+  // False for GRADED attempts — the correct answer must not leak into feedback text.
+  revealAnswer: boolean;
 }
 
 export interface FeedbackOutput {

@@ -38,6 +38,9 @@ const makeRepo = (): jest.Mocked<IAttemptRepository> => ({
 
 const makeContentClient = (): jest.Mocked<IContentClient> => ({
   getExerciseForAttempt: jest.fn<IContentClient['getExerciseForAttempt']>(),
+  getPracticedAtoms: jest
+    .fn<IContentClient['getPracticedAtoms']>()
+    .mockResolvedValue(Result.ok([])),
 });
 
 const makePublisher = (): jest.Mocked<IEventPublisher> => ({
@@ -50,7 +53,7 @@ const makeHandler = (
   publisher: IEventPublisher,
 ) => new StartAttemptHandler(repo as any, contentClient as any, publisher as any);
 
-const cmd = new StartAttemptCommand('user-1', 'ex-1', 'no', null, null);
+const cmd = new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE');
 
 describe('StartAttemptHandler', () => {
   it('returns ALREADY_IN_PROGRESS when an in-progress attempt exists', async () => {
@@ -64,6 +67,8 @@ describe('StartAttemptHandler', () => {
       templateCode: 'multiple_choice',
       targetLanguage: 'no',
       difficultyLevel: 'A1',
+      checkMode: 'PRACTICE',
+      practicedAtoms: [],
       status: 'IN_PROGRESS',
       score: null,
       passed: null,
