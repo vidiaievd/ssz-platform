@@ -29,8 +29,10 @@ import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { UserPlatformRoleAssignedEvent } from '../../../domain/events/user-platform-role-assigned.event.js';
 import { SchoolTeacherAcceptedEvent } from '../../../domain/events/school-teacher-accepted.event.js';
 import { EnrollmentApprovedEvent } from '../../../domain/events/enrollment-approved.event.js';
+import { GroupAssignedEvent } from '../../../domain/events/group-assigned.event.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
+import { SchoolGroup } from '../../../domain/entities/school-group.entity.js';
 import {
   SCHOOL_GROUP_REPOSITORY,
   type ISchoolGroupRepository,
@@ -150,11 +152,45 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
       if (membership.canTransitionTo('onboarding')) {
         membership.transitionTo('onboarding');
       }
+
+      // School pre-selected a group for this invite (e.g. teacher inviting into
+      // their own class) — placement is already decided, so skip straight past
+      // onboarding/placement-review to active rather than leaving the student
+      // stuck mid-pipeline while their group roster row already exists.
+      let assignedGroup: SchoolGroup | null = null;
+      if (invitation.targetGroupId) {
+        const group = await this.groupRepository.findById(invitation.targetGroupId);
+        if (group && !group.isDeleted && group.schoolId === school.id) {
+          await this.groupRepository.saveWithMember(group, command.actorId, randomUUID());
+          assignedGroup = group;
+          if (membership.canTransitionTo('placement-review')) {
+            membership.transitionTo('placement-review');
+          }
+          if (membership.canTransitionTo('active')) {
+            membership.transitionTo('active');
+          }
+        }
+      }
+
       await this.membershipRepository.save(membership);
 
       await this.eventPublisher.publish(
         new EnrollmentApprovedEvent(randomUUID(), membership.id, school.id, school.name, command.actorId),
       );
+
+      if (assignedGroup && membership.status === 'active') {
+        await this.eventPublisher.publish(
+          new GroupAssignedEvent(
+            randomUUID(),
+            membership.id,
+            school.id,
+            school.name,
+            command.actorId,
+            assignedGroup.id,
+            assignedGroup.name,
+          ),
+        );
+      }
     }
 
     // Materialize teacher workload attrs from invitation into school_teacher.
@@ -205,11 +241,5 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
       }
     }
 
-    if (invitation.targetGroupId) {
-      const group = await this.groupRepository.findById(invitation.targetGroupId);
-      if (group && !group.isDeleted && group.schoolId === school.id) {
-        await this.groupRepository.saveWithMember(group, command.actorId, randomUUID());
-      }
-    }
   }
 }
