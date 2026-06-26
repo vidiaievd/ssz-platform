@@ -30,6 +30,18 @@ export class PrismaSrsRepository implements ISrsRepository {
     return row ? SrsCardMapper.toDomain(row) : null;
   }
 
+  async findByUserAndContents(
+    userId: string,
+    contentType: SrsContentType,
+    contentIds: string[],
+  ): Promise<ReviewCard[]> {
+    if (contentIds.length === 0) return [];
+    const rows = await this.prisma.srsReviewCard.findMany({
+      where: { userId, contentType: contentType as any, contentId: { in: contentIds } },
+    });
+    return rows.map(SrsCardMapper.toDomain);
+  }
+
   async findDueCards(userId: string, limit: number, now: Date): Promise<ReviewCard[]> {
     const rows = await this.prisma.srsReviewCard.findMany({
       where: {

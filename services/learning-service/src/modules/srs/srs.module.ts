@@ -23,9 +23,15 @@ import { BulkIntroduceFromVocabularyListHandler } from './application/commands/b
 import { GetDueCardsHandler } from './application/queries/get-due-cards.handler.js';
 import { GetCardByIdHandler } from './application/queries/get-card-by-id.handler.js';
 import { GetUserSrsStatsHandler } from './application/queries/get-user-srs-stats.handler.js';
+import { GetGrammarRuleMasteryHandler } from './application/queries/get-grammar-rule-mastery.handler.js';
+import { GetContentMasteryHandler } from './application/queries/get-content-mastery.handler.js';
+
+// Services
+import { GrammarRuleMasteryService } from './application/services/grammar-rule-mastery.service.js';
 
 // Presentation
 import { SrsController } from './presentation/srs.controller.js';
+import { MasteryController } from './presentation/mastery.controller.js';
 
 const CommandHandlers = [
   IntroduceCardHandler,
@@ -39,17 +45,20 @@ const QueryHandlers = [
   GetDueCardsHandler,
   GetCardByIdHandler,
   GetUserSrsStatsHandler,
+  GetGrammarRuleMasteryHandler,
+  GetContentMasteryHandler,
 ];
 
 @Module({
   imports: [CqrsModule, PrismaModule],
-  controllers: [SrsController],
+  controllers: [SrsController, MasteryController],
   providers: [
     { provide: SRS_REPOSITORY, useClass: PrismaSrsRepository },
     { provide: SRS_SCHEDULER, useClass: FsrsScheduler },
     { provide: SRS_LIMITS_POLICY, useClass: RedisSrsLimitsPolicy },
     { provide: CLOCK, useClass: SystemClock },
     RedisDueQueueService,
+    GrammarRuleMasteryService,
     ...CommandHandlers,
     ...QueryHandlers,
   ],

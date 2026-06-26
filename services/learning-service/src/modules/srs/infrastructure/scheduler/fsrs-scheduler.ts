@@ -69,6 +69,26 @@ export class FsrsScheduler implements ISrsScheduler {
     };
   }
 
+  getRetrievability(card: ReviewCard, now: Date): number {
+    // A card that has never been reviewed has no forgetting curve yet.
+    if (card.state === 'NEW') return 0;
+
+    const fsrsCard: Card = {
+      due: card.dueAt,
+      stability: card.stability,
+      difficulty: card.difficulty,
+      elapsed_days: card.elapsedDays,
+      scheduled_days: card.scheduledDays,
+      reps: card.reps,
+      lapses: card.lapses,
+      learning_steps: card.learningSteps,
+      state: this.toFsrsState(card.state),
+      last_review: card.lastReviewedAt ?? undefined,
+    };
+
+    return this.fsrs.get_retrievability(fsrsCard, now, false);
+  }
+
   private toFsrsState(state: ReviewCardState): State {
     switch (state) {
       case 'NEW':        return State.New;

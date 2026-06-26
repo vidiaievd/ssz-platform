@@ -19,6 +19,13 @@ export interface ISrsRepository {
     contentType: SrsContentType,
     contentId: string,
   ): Promise<ReviewCard | null>;
+  // Batch lookup for mastery roll-ups (plan 21 §2.1/§2.2) — avoids N+1 queries
+  // when aggregating over dozens of atoms reachable through ContentRelation.
+  findByUserAndContents(
+    userId: string,
+    contentType: SrsContentType,
+    contentIds: string[],
+  ): Promise<ReviewCard[]>;
   findDueCards(userId: string, limit: number, now: Date): Promise<ReviewCard[]>;
   save(card: ReviewCard): Promise<void>;
   countNewToday(userId: string, since: Date): Promise<number>;

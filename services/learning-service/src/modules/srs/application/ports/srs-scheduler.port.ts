@@ -14,4 +14,12 @@ export interface ISrsScheduler {
     rating: ReviewRating,
     reviewedAt: Date,
   ): SchedulingResult;
+
+  /**
+   * Current recall probability (0..1) per the FSRS forgetting curve, given
+   * the card's stability and elapsed time since its last review. Used for
+   * mastery roll-ups (plan 21 §2.1/§2.2) — NEW cards (never reviewed) have
+   * retrievability 0.
+   */
+  getRetrievability(card: ReviewCard, now: Date): number;
 }
