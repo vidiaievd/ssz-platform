@@ -31,6 +31,28 @@ export type AccessTier =
   | 'ENTITLEMENT_REQUIRED'
   | 'ASSIGNED_ONLY';
 
+// Mirrors content-service's RelatableEntityType/RelationKind wire values
+// exactly (plan 21 §1) — lowercase, snake_case, as sent/received over HTTP.
+export type RelatableEntityType =
+  | 'container'
+  | 'lesson'
+  | 'vocabulary_list'
+  | 'vocabulary_item'
+  | 'grammar_rule'
+  | 'exercise'
+  | 'can_do_descriptor';
+
+export type RelationKind = 'introduces' | 'features' | 'practiced_by' | 'prerequisite' | 'related';
+
+export interface ContentRelationRef {
+  id: string;
+  sourceType: RelatableEntityType;
+  sourceId: string;
+  targetType: RelatableEntityType;
+  targetId: string;
+  relationKind: RelationKind;
+}
+
 export const CONTENT_CLIENT = Symbol('IContentClient');
 
 export interface IContentClient {
@@ -64,4 +86,26 @@ export interface IContentClient {
   getVocabularyListAutoAddToSrs(
     listId: string,
   ): Promise<Result<boolean, ContentClientError>>;
+
+  // ContentRelation graph traversal (plan 21 §1/§2.1), forward direction:
+  // "what does this atom introduce/feature/etc." Used by mastery roll-ups.
+  getRelationsBySource(
+    sourceType: RelatableEntityType,
+    sourceId: string,
+    relationKind?: RelationKind,
+  ): Promise<Result<ContentRelationRef[], ContentClientError>>;
+
+  // Reverse direction: "which atoms point at this one" — e.g. "which texts
+  // use this word", or fan-out from an EXERCISE to the atoms it practices.
+  getRelationsByTarget(
+    targetType: RelatableEntityType,
+    targetId: string,
+    relationKind?: RelationKind,
+  ): Promise<Result<ContentRelationRef[], ContentClientError>>;
+
+  // Exercise ids in a grammar rule's pool — used to derive rule mastery from
+  // the retrievability of those exercises' own SRS cards (plan 21 §2.2).
+  getGrammarRulePoolExerciseIds(
+    ruleId: string,
+  ): Promise<Result<string[], ContentClientError>>;
 }

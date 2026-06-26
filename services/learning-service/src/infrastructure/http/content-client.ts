@@ -5,7 +5,10 @@ import type { AppConfig } from '../../config/configuration.js';
 import type {
   AccessTier,
   ContentMetadata,
+  ContentRelationRef,
   IContentClient,
+  RelatableEntityType,
+  RelationKind,
   VisibilityResult,
 } from '../../shared/application/ports/content-client.port.js';
 import { ContentClientError } from '../../shared/application/ports/content-client.port.js';
@@ -25,7 +28,9 @@ export class ContentClient implements IContentClient {
     const token = config.get<string>('internalServiceToken' as any)!;
 
     this.http = axios.create({
-      baseURL: `${cfg.baseUrl}/api/internal`,
+      // Content Service mounts everything behind the 'api/v1' global prefix,
+      // including its 'internal' controller — there is no bare '/api/internal'.
+      baseURL: `${cfg.baseUrl}/api/v1/internal`,
       timeout: cfg.timeoutMs,
       headers: {
         'x-internal-token': token,
@@ -121,6 +126,49 @@ export class ContentClient implements IContentClient {
       return Result.ok(data.autoAddToSrs);
     } catch (err) {
       return this.mapError(err, `getVocabularyListAutoAddToSrs(${listId})`);
+    }
+  }
+
+  async getRelationsBySource(
+    sourceType: RelatableEntityType,
+    sourceId: string,
+    relationKind?: RelationKind,
+  ): Promise<Result<ContentRelationRef[], ContentClientError>> {
+    try {
+      const { data } = await this.http.get<ContentRelationRef[]>('/content-relations', {
+        params: { sourceType, sourceId, relationKind },
+      });
+      return Result.ok(data);
+    } catch (err) {
+      return this.mapError(err, `getRelationsBySource(${sourceType}, ${sourceId})`);
+    }
+  }
+
+  async getRelationsByTarget(
+    targetType: RelatableEntityType,
+    targetId: string,
+    relationKind?: RelationKind,
+  ): Promise<Result<ContentRelationRef[], ContentClientError>> {
+    try {
+      const { data } = await this.http.get<ContentRelationRef[]>('/content-relations', {
+        params: { targetType, targetId, relationKind },
+      });
+      return Result.ok(data);
+    } catch (err) {
+      return this.mapError(err, `getRelationsByTarget(${targetType}, ${targetId})`);
+    }
+  }
+
+  async getGrammarRulePoolExerciseIds(
+    ruleId: string,
+  ): Promise<Result<string[], ContentClientError>> {
+    try {
+      const { data } = await this.http.get<{ exerciseIds: string[] }>(
+        `/grammar-rules/${ruleId}/pool-exercise-ids`,
+      );
+      return Result.ok(data.exerciseIds);
+    } catch (err) {
+      return this.mapError(err, `getGrammarRulePoolExerciseIds(${ruleId})`);
     }
   }
 
