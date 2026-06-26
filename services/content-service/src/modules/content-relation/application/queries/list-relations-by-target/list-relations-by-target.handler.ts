@@ -8,9 +8,10 @@ import {
 } from '../../../domain/repositories/content-relation.repository.interface.js';
 
 @QueryHandler(ListRelationsByTargetQuery)
-export class ListRelationsByTargetHandler
-  implements IQueryHandler<ListRelationsByTargetQuery, ContentRelationEntity[]>
-{
+export class ListRelationsByTargetHandler implements IQueryHandler<
+  ListRelationsByTargetQuery,
+  ContentRelationEntity[]
+> {
   constructor(
     @Inject(CONTENT_RELATION_REPOSITORY) private readonly repo: IContentRelationRepository,
   ) {}

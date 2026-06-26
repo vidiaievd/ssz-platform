@@ -7,9 +7,10 @@ import {
 } from '../../../domain/repositories/content-relation.repository.interface.js';
 
 @CommandHandler(DeleteContentRelationCommand)
-export class DeleteContentRelationHandler
-  implements ICommandHandler<DeleteContentRelationCommand, void>
-{
+export class DeleteContentRelationHandler implements ICommandHandler<
+  DeleteContentRelationCommand,
+  void
+> {
   constructor(
     @Inject(CONTENT_RELATION_REPOSITORY) private readonly repo: IContentRelationRepository,
   ) {}

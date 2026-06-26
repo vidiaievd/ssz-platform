@@ -10,19 +10,17 @@ import { ContentRelationDomainError } from '../../../domain/exceptions/content-r
 import { RelatableEntityExistenceChecker } from '../../services/relatable-entity-existence-checker.service.js';
 
 @CommandHandler(CreateContentRelationCommand)
-export class CreateContentRelationHandler
-  implements ICommandHandler<CreateContentRelationCommand, ContentRelationEntity>
-{
+export class CreateContentRelationHandler implements ICommandHandler<
+  CreateContentRelationCommand,
+  ContentRelationEntity
+> {
   constructor(
     @Inject(CONTENT_RELATION_REPOSITORY) private readonly repo: IContentRelationRepository,
     private readonly existenceChecker: RelatableEntityExistenceChecker,
   ) {}
 
   async execute(command: CreateContentRelationCommand): Promise<ContentRelationEntity> {
-    if (
-      command.sourceType === command.targetType &&
-      command.sourceId === command.targetId
-    ) {
+    if (command.sourceType === command.targetType && command.sourceId === command.targetId) {
       throw new UnprocessableEntityException(ContentRelationDomainError.SOURCE_EQUALS_TARGET);
     }
 
