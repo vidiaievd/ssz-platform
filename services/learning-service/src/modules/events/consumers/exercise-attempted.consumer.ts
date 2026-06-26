@@ -135,6 +135,35 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
             `SRS review skipped for exercise ${p.exerciseId} / user ${p.userId}: ${reviewResult.error?.message}`,
           );
         }
+
+        // 4. Fan-out (plan 21 §3) — rate the VOCABULARY_WORD atoms this exercise
+        // practices, snapshotted by Exercise Engine at attempt start. Grammar rule
+        // atoms are skipped: their mastery is derived from pool-exercise
+        // retrievability (plan 21 §2), not tracked as a separate SRS card.
+        const vocabAtomIds = (p.practicedAtoms ?? [])
+          .filter((atom) => atom.atomType === 'vocabulary_item')
+          .map((atom) => atom.atomId);
+
+        for (const vocabularyItemId of vocabAtomIds) {
+          const atomIntroduceResult = await this.commandBus.execute(
+            new IntroduceCardCommand(p.userId, 'VOCABULARY_WORD', vocabularyItemId),
+          );
+          if (atomIntroduceResult.isFail) {
+            this.logger.debug(
+              `SRS fan-out introduce skipped for vocab ${vocabularyItemId} / user ${p.userId}: ${atomIntroduceResult.error?.message}`,
+            );
+            continue;
+          }
+
+          const atomReviewResult = await this.commandBus.execute(
+            new ReviewCardCommand(p.userId, atomIntroduceResult.value.id, rating),
+          );
+          if (atomReviewResult.isFail) {
+            this.logger.debug(
+              `SRS fan-out review skipped for vocab ${vocabularyItemId} / user ${p.userId}: ${atomReviewResult.error?.message}`,
+            );
+          }
+        }
       }
 
       await this.prisma.processedEvent.create({ data: { eventId, eventType } });

@@ -196,6 +196,51 @@ describe('ExerciseAttemptedConsumer', () => {
       expect(channel.ack).not.toHaveBeenCalled();
     });
 
+    it('fans out SRS rating to vocabulary_item atoms but skips grammar_rule atoms', async () => {
+      const VOCAB_CARD_ID = 'aaaaaaaa-0000-4000-8000-000000000002';
+      const { consumer, commandBus } = makeConsumer({
+        commandBusExecute: (cmd) => {
+          if (cmd instanceof IntroduceCardCommand) {
+            const cardId = cmd.contentType === 'VOCABULARY_WORD' ? VOCAB_CARD_ID : CARD_ID;
+            return Promise.resolve(Result.ok({ id: cardId, state: 'NEW', userId: USER_ID }));
+          }
+          if (cmd instanceof ReviewCardCommand) {
+            return Promise.resolve(Result.ok({ id: cmd.cardId, state: 'REVIEW', userId: USER_ID }));
+          }
+          return Promise.resolve(Result.ok({}));
+        },
+      });
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 85,
+            timeSpentSeconds: 60,
+            completed: true,
+            practicedAtoms: [
+              { atomType: 'vocabulary_item', atomId: 'vocab-1' },
+              { atomType: 'grammar_rule', atomId: 'rule-1' },
+            ],
+          }),
+        ),
+      );
+
+      const introduceCalls = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof IntroduceCardCommand) as IntroduceCardCommand[];
+      expect(introduceCalls.some((c) => c.contentType === 'VOCABULARY_WORD' && c.contentId === 'vocab-1')).toBe(true);
+      expect(introduceCalls.some((c) => c.contentId === 'rule-1')).toBe(false);
+
+      const reviewCalls = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof ReviewCardCommand) as ReviewCardCommand[];
+      expect(reviewCalls.some((c) => c.cardId === VOCAB_CARD_ID && c.rating === 'GOOD')).toBe(true);
+    });
+
     it('does not review if introduce returned a failure', async () => {
       const { consumer, commandBus } = makeConsumer({
         commandBusExecute: (cmd) => {
