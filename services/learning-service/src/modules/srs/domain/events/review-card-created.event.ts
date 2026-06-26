@@ -6,6 +6,9 @@ export interface ReviewCardCreatedPayload {
   contentType: string;
   contentId: string;
   dueAt: string;
+  // Present only when the card was created via the skip-known seed path
+  // (ReviewCard.createSeeded) rather than normal introduction.
+  seedKind?: 'DIAGNOSTIC_KNOWN' | 'CLAIMED_KNOWN';
 }
 
 export class ReviewCardCreatedEvent implements IDomainEvent {

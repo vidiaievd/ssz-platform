@@ -32,16 +32,27 @@ export class IntroduceCardHandler
       return Result.ok(toReviewCardDto(existing));
     }
 
-    const canIntroduce = await this.limitsPolicy.canIntroduceNewCard(cmd.userId, now);
-    if (!canIntroduce) {
-      return Result.fail(new SrsNewCardLimitError());
+    // Seeded (skip-known) cards bypass the daily new-card limit — they represent
+    // material the learner already knows, not new learning effort.
+    if (!cmd.seedKind) {
+      const canIntroduce = await this.limitsPolicy.canIntroduceNewCard(cmd.userId, now);
+      if (!canIntroduce) {
+        return Result.fail(new SrsNewCardLimitError());
+      }
     }
 
-    const card = ReviewCard.create(cmd.userId, cmd.contentType, cmd.contentId, now);
+    const card = cmd.seedKind
+      ? ReviewCard.createSeeded(cmd.userId, cmd.contentType, cmd.contentId, cmd.seedKind, now)
+      : ReviewCard.create(cmd.userId, cmd.contentType, cmd.contentId, now);
     await this.repo.save(card);
-    await this.limitsPolicy.incrementNewCardCount(cmd.userId, now);
+    if (!cmd.seedKind) {
+      await this.limitsPolicy.incrementNewCardCount(cmd.userId, now);
+    }
 
-    this.logger.log(`Introduced SRS card for user ${cmd.userId}: ${cmd.contentType}:${cmd.contentId}`);
+    this.logger.log(
+      `Introduced SRS card for user ${cmd.userId}: ${cmd.contentType}:${cmd.contentId}` +
+        (cmd.seedKind ? ` (seeded: ${cmd.seedKind})` : ''),
+    );
 
     for (const event of card.getDomainEvents()) {
       await this.publisher.publish(event.eventType, (event as any).payload);
