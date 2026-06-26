@@ -23,6 +23,7 @@ import { AccessControlWiringModule } from './shared/access-control/access-contro
 import { DiscoveryModule } from './shared/discovery/discovery.module.js';
 import { TagModule } from './modules/tag/tag.module.js';
 import { ContentRelationModule } from './modules/content-relation/content-relation.module.js';
+import { InternalModule } from './modules/internal/internal.module.js';
 import { GroupEntitlementModule } from './infrastructure/messaging/group-entitlement.module.js';
 
 @Module({
@@ -66,6 +67,7 @@ import { GroupEntitlementModule } from './infrastructure/messaging/group-entitle
     DiscoveryModule,
     TagModule,
     ContentRelationModule,
+    InternalModule,
     GroupEntitlementModule,
   ],
   controllers: [],
