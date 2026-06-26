@@ -22,10 +22,14 @@ import { TutoringInvitationExpiredException } from '../../modules/tutoring/domai
 import { TutoringInvitationResendThrottledException } from '../../modules/tutoring/domain/exceptions/invitation-resend-throttled.exception.js';
 import { InvitationNotFoundException as TutoringInvitationNotFoundException } from '../../modules/tutoring/domain/exceptions/invitation-not-found.exception.js';
 import { MemberNotFoundException } from '../../modules/schools/domain/exceptions/member-not-found.exception.js';
+import { MembershipNotFoundException } from '../../modules/schools/domain/exceptions/membership-not-found.exception.js';
+import { InvalidMembershipTransitionException } from '../../modules/schools/domain/exceptions/invalid-membership-transition.exception.js';
 
 @Catch(
   SchoolNotFoundException,
   MemberNotFoundException,
+  MembershipNotFoundException,
+  InvalidMembershipTransitionException,
   SchoolAlreadyExistsException,
   ForbiddenOperationException,
   MemberAlreadyExistsException,
@@ -62,6 +66,12 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
     if (exception instanceof MemberNotFoundException) {
       return { status: HttpStatus.NOT_FOUND, code: 'MEMBER_NOT_FOUND' };
+    }
+    if (exception instanceof MembershipNotFoundException) {
+      return { status: HttpStatus.NOT_FOUND, code: 'MEMBERSHIP_NOT_FOUND' };
+    }
+    if (exception instanceof InvalidMembershipTransitionException) {
+      return { status: HttpStatus.CONFLICT, code: 'INVALID_MEMBERSHIP_TRANSITION' };
     }
     if (exception instanceof SchoolAlreadyExistsException) {
       return { status: HttpStatus.CONFLICT, code: 'SCHOOL_ALREADY_EXISTS' };
