@@ -10,6 +10,8 @@ import { GetGrammarRuleMasteryQuery } from '../application/queries/get-grammar-r
 import type { GrammarRuleMasteryDto } from '../application/services/grammar-rule-mastery.service.js';
 import { GetContentMasteryQuery } from '../application/queries/get-content-mastery.query.js';
 import type { ContentMasteryDto } from '../application/queries/get-content-mastery.handler.js';
+import { GetCourseMasteryQuery } from '../application/queries/get-course-mastery.query.js';
+import type { CourseMasteryDto } from '../application/queries/get-course-mastery.handler.js';
 
 // Plan 21 §2.1/§2.2 — read-model mastery roll-ups over SrsReviewCard via the
 // ContentRelation graph. No new persisted state; computed on every request.
@@ -59,6 +61,21 @@ export class MasteryController {
       new GetContentMasteryQuery(user.userId, sourceType as RelatableEntityType, sourceId),
     );
     return this.unwrap(result);
+  }
+
+  @Get('course/:containerId')
+  @ApiOperation({
+    summary: "Get the current user's mastery breakdown by skill for a course",
+    description:
+      'Returns mastery % for vocab, grammar, reading, listening, spoken, written, and overall. ' +
+      'Vocab/grammar from SRS retrievability; reading/listening/spoken/written from can-do ACHIEVED %.',
+  })
+  @ApiParam({ name: 'containerId', format: 'uuid' })
+  async getCourseMastery(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('containerId') containerId: string,
+  ): Promise<CourseMasteryDto> {
+    return this.queryBus.execute(new GetCourseMasteryQuery(user.userId, containerId));
   }
 
   private unwrap<T>(result: Result<T, ContentClientError>): T {

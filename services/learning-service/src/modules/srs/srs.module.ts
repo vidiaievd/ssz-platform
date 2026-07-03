@@ -18,6 +18,7 @@ import { ReviewCardHandler } from './application/commands/review-card.handler.js
 import { SuspendCardHandler } from './application/commands/suspend-card.handler.js';
 import { UnsuspendCardHandler } from './application/commands/unsuspend-card.handler.js';
 import { BulkIntroduceFromVocabularyListHandler } from './application/commands/bulk-introduce-from-vocabulary-list.handler.js';
+import { ApplyPlacementHandler } from './application/commands/apply-placement/apply-placement.handler.js';
 
 // Query handlers
 import { GetDueCardsHandler } from './application/queries/get-due-cards.handler.js';
@@ -39,6 +40,7 @@ const CommandHandlers = [
   SuspendCardHandler,
   UnsuspendCardHandler,
   BulkIntroduceFromVocabularyListHandler,
+  ApplyPlacementHandler,
 ];
 
 const QueryHandlers = [
@@ -63,10 +65,15 @@ const QueryHandlers = [
     ...QueryHandlers,
   ],
   // Export command handlers so EventsModule consumers can dispatch SRS commands.
+  // Export services/repos so CanDoModule can build the course-mastery roll-up.
   exports: [
     IntroduceCardHandler,
     ReviewCardHandler,
     BulkIntroduceFromVocabularyListHandler,
+    GrammarRuleMasteryService,
+    SRS_REPOSITORY,
+    SRS_SCHEDULER,
+    CLOCK,
   ],
 })
 export class SrsModule {}

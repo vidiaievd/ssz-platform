@@ -6,6 +6,7 @@ import { CAN_DO_PROGRESS_REPOSITORY } from './domain/repositories/can-do-progres
 import { PrismaCanDoProgressRepository } from './infrastructure/persistence/prisma-can-do-progress.repository.js';
 import { CanDoEvaluatorService } from './application/services/can-do-evaluator.service.js';
 import { CanDoProgressController } from './presentation/controllers/can-do-progress.controller.js';
+import { GetCourseMasteryHandler } from '../srs/application/queries/get-course-mastery.handler.js';
 
 @Module({
   imports: [CqrsModule, PrismaModule, SrsModule],
@@ -13,6 +14,7 @@ import { CanDoProgressController } from './presentation/controllers/can-do-progr
   providers: [
     { provide: CAN_DO_PROGRESS_REPOSITORY, useClass: PrismaCanDoProgressRepository },
     CanDoEvaluatorService,
+    GetCourseMasteryHandler,
   ],
   exports: [CanDoEvaluatorService, CAN_DO_PROGRESS_REPOSITORY],
 })

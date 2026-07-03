@@ -52,6 +52,14 @@ export class PrismaProgressRepository implements IProgressRepository {
     });
   }
 
+  async findByUserAndContentIds(userId: string, contentIds: string[]): Promise<UserProgress[]> {
+    if (contentIds.length === 0) return [];
+    const rows = await this.prisma.userProgress.findMany({
+      where: { userId, contentId: { in: contentIds } },
+    });
+    return rows.map(ProgressMapper.toDomain);
+  }
+
   async save(progress: UserProgress): Promise<void> {
     const data = ProgressMapper.toPersistence(progress);
     await this.prisma.userProgress.upsert({

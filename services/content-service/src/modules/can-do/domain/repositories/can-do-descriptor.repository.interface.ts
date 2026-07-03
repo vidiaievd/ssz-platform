@@ -14,6 +14,7 @@ export interface CanDoDescriptorFilter {
 
 export interface ICanDoDescriptorRepository {
   findById(id: string): Promise<CanDoDescriptorEntity | null>;
+  findByIds(ids: string[]): Promise<CanDoDescriptorEntity[]>;
   findAll(filter: CanDoDescriptorFilter): Promise<CanDoDescriptorEntity[]>;
   findByModuleId(moduleContainerId: string): Promise<CanDoDescriptorEntity[]>;
   save(entity: CanDoDescriptorEntity): Promise<void>;

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FSRS, Grade, Rating, State, type Card } from 'ts-fsrs';
-import type { ISrsScheduler } from '../../application/ports/srs-scheduler.port.js';
+import type { ISrsScheduler, PredictedInterval } from '../../application/ports/srs-scheduler.port.js';
 import type {
   ReviewCard,
   ReviewCardState,
@@ -87,6 +87,43 @@ export class FsrsScheduler implements ISrsScheduler {
     };
 
     return this.fsrs.get_retrievability(fsrsCard, now, false);
+  }
+
+  predictIntervals(card: ReviewCard, now: Date): PredictedInterval[] {
+    const fsrsCard: Card = {
+      due: card.dueAt,
+      stability: card.stability,
+      difficulty: card.difficulty,
+      elapsed_days: card.elapsedDays,
+      scheduled_days: card.scheduledDays,
+      reps: card.reps,
+      lapses: card.lapses,
+      learning_steps: card.learningSteps,
+      state: this.toFsrsState(card.state),
+      last_review: card.lastReviewedAt ?? undefined,
+    };
+
+    const preview = this.fsrs.repeat(fsrsCard, now);
+    const ratings: Array<[Grade, 'AGAIN' | 'HARD' | 'GOOD' | 'EASY']> = [
+      [Rating.Again, 'AGAIN'],
+      [Rating.Hard, 'HARD'],
+      [Rating.Good, 'GOOD'],
+      [Rating.Easy, 'EASY'],
+    ];
+
+    return ratings.map(([grade, name]) => {
+      const scheduledDays = preview[grade].card.scheduled_days;
+      return { rating: name, scheduledDays, label: this.formatInterval(scheduledDays) };
+    });
+  }
+
+  private formatInterval(days: number): string {
+    if (days < 1) return '< 1 day';
+    if (days === 1) return '1 day';
+    if (days < 14) return `${days} days`;
+    if (days < 60) return `${Math.round(days / 7)} weeks`;
+    if (days < 365) return `${Math.round(days / 30)} months`;
+    return `${Math.round(days / 365)} years`;
   }
 
   private toFsrsState(state: ReviewCardState): State {

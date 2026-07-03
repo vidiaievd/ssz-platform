@@ -3,6 +3,12 @@ import type { ReviewRating } from '../../domain/value-objects/review-rating.vo.j
 
 export const SRS_SCHEDULER = Symbol('ISrsScheduler');
 
+export interface PredictedInterval {
+  rating: 'AGAIN' | 'HARD' | 'GOOD' | 'EASY';
+  scheduledDays: number;
+  label: string;
+}
+
 export interface ISrsScheduler {
   /**
    * Compute the next scheduling state for a card given a user rating.
@@ -22,4 +28,10 @@ export interface ISrsScheduler {
    * retrievability 0.
    */
   getRetrievability(card: ReviewCard, now: Date): number;
+
+  /**
+   * Preview all 4 FSRS rating outcomes for a card at a given time.
+   * Returns human-readable labels for the client rating buttons.
+   */
+  predictIntervals(card: ReviewCard, now: Date): PredictedInterval[];
 }

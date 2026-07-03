@@ -35,7 +35,7 @@ import { UnsuspendCardCommand } from '../application/commands/unsuspend-card.com
 import { GetDueCardsQuery } from '../application/queries/get-due-cards.query.js';
 import { GetCardByIdQuery } from '../application/queries/get-card-by-id.query.js';
 import { GetUserSrsStatsQuery } from '../application/queries/get-user-srs-stats.query.js';
-import type { ReviewCardDto, SrsStatsDto } from '../application/dto/srs.dto.js';
+import type { ReviewCardDto, SrsStatsDto, DueCardsEnvelope } from '../application/dto/srs.dto.js';
 import {
   SrsCardNotFoundError,
   SrsCardUnauthorizedError,
@@ -51,6 +51,8 @@ import {
   BulkIntroduceRequest,
 } from './dto/review-card.request.js';
 import { ReviewCardResponse, SrsStatsResponse, BulkIntroduceResponse } from './dto/srs.response.js';
+import { ApplyPlacementCommand } from '../application/commands/apply-placement/apply-placement.command.js';
+import type { ApplyPlacementResult } from '../application/commands/apply-placement/apply-placement.handler.js';
 
 @ApiTags('srs')
 @ApiBearerAuth()
@@ -65,17 +67,18 @@ export class SrsController {
 
   @Get('due')
   @ApiOperation({
-    summary: 'List cards due for review',
+    summary: 'List cards due for review with daily-limit and streak metadata',
     description:
-      'Returns up to `limit` cards due at or before now, ordered by dueAt ascending. ' +
+      'Returns up to `limit` cards due at or before now, ordered by dueAt ascending, plus ' +
+      '`reviewedToday`, `dailyLimit`, and `streakDays` for the UI progress ring. ' +
       'Backed by a Redis sorted-set cache; falls back to DB on cache miss.',
   })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
-  @ApiResponse({ status: 200, type: [ReviewCardResponse] })
+  @ApiResponse({ status: 200 })
   async getDueCards(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: GetDueCardsRequest,
-  ): Promise<ReviewCardResponse[]> {
+  ): Promise<DueCardsEnvelope> {
     return this.queryBus.execute(new GetDueCardsQuery(user.userId, query.limit ?? 20));
   }
 
@@ -211,6 +214,29 @@ export class SrsController {
     const result: Result<BulkIntroduceResult, Error> = await this.commandBus.execute(
       new BulkIntroduceFromVocabularyListCommand(user.userId, body.vocabularyListId, body.seedKind),
     );
+    if (result.isFail) {
+      throw new UnprocessableEntityException(result.error.message);
+    }
+    return result.value;
+  }
+
+  @Post('placement/apply')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Apply a placement result — seeds all course vocabulary as DIAGNOSTIC_KNOWN',
+    description:
+      'Walks the course container recursively, collects all vocabulary lists, and seeds every ' +
+      "item as DIAGNOSTIC_KNOWN so the learner's SRS queue skips vocabulary they already know.",
+  })
+  async applyPlacement(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { courseId: string; placedLevel: string },
+  ): Promise<ApplyPlacementResult> {
+    const result = await this.commandBus.execute<
+      ApplyPlacementCommand,
+      Result<ApplyPlacementResult, Error>
+    >(new ApplyPlacementCommand(user.userId, body.courseId, body.placedLevel));
+
     if (result.isFail) {
       throw new UnprocessableEntityException(result.error.message);
     }

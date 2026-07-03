@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
@@ -19,8 +19,24 @@ import type { ExerciseDomainError } from '../../../exercise/domain/exceptions/ex
 import { throwHttpException } from '../../../exercise/presentation/utils/domain-error.mapper.js';
 
 import { GetCanDoDescriptorsByModuleQuery } from '../../../can-do/application/queries/get-descriptors-by-module/get-descriptors-by-module.query.js';
+import { GetCanDoDescriptorsByIdsQuery } from '../../../can-do/application/queries/get-descriptors-by-ids/get-descriptors-by-ids.query.js';
 import type { CanDoDescriptorEntity } from '../../../can-do/domain/entities/can-do-descriptor.entity.js';
 import { CanDoDescriptorResponse } from '../../../can-do/presentation/dto/can-do-descriptor.dto.js';
+
+import { GetExpandedModuleQuery } from '../../application/queries/get-expanded-module/get-expanded-module.query.js';
+import type { ExpandedModulePayload } from '../../application/queries/get-expanded-module/get-expanded-module.handler.js';
+
+import { GetVocabularyItemForDisplayQuery } from '../../../vocabulary/application/queries/get-vocabulary-item-for-display/get-vocabulary-item-for-display.query.js';
+import type { VocabularyItemDisplayResult } from '../../../vocabulary/application/dto/vocabulary-item-display-result.js';
+
+import { GetGlossarySuggestionsQuery } from '../../application/queries/get-glossary-suggestions/get-glossary-suggestions.query.js';
+import type { GlossarySuggestion } from '../../application/queries/get-glossary-suggestions/get-glossary-suggestions.handler.js';
+
+import { GetPreflightQuery } from '../../application/queries/get-preflight/get-preflight.query.js';
+import type { PreflightResult } from '../../application/queries/get-preflight/get-preflight.handler.js';
+
+import { GetLeafItemsQuery } from '../../../container/application/queries/get-leaf-items/get-leaf-items.query.js';
+import type { LeafItem } from '../../../container/application/queries/get-leaf-items/get-leaf-items.handler.js';
 
 // Service-to-service routes only — @Public() exempts them from the global
 // JwtAuthGuard (APP_GUARD runs before any controller-level guard), and
@@ -80,6 +96,53 @@ export class InternalController {
     return { exerciseIds };
   }
 
+  @Get('lessons/:id/glossary-suggestions')
+  async getGlossarySuggestions(
+    @Param('id') lessonId: string,
+    @Query('language') language = 'nb',
+  ): Promise<GlossarySuggestion[]> {
+    return this.queryBus.execute(new GetGlossarySuggestionsQuery(lessonId, language));
+  }
+
+  @Get('vocabulary-items/:id')
+  async getVocabularyItem(
+    @Param('id') id: string,
+    @Query('language') language = 'en',
+    @Query('includeExamples') includeExamples = 'true',
+    @Query('examplesLimit') examplesLimit = '3',
+    @Query('knownLanguages') knownLanguages?: string,
+  ): Promise<VocabularyItemDisplayResult> {
+    const langs = knownLanguages ? knownLanguages.split(',') : [language];
+    const result = await this.queryBus.execute<
+      GetVocabularyItemForDisplayQuery,
+      Result<VocabularyItemDisplayResult, string>
+    >(
+      new GetVocabularyItemForDisplayQuery(
+        id,
+        language,
+        includeExamples !== 'false',
+        Number(examplesLimit),
+        false,
+        langs,
+      ),
+    );
+    if (result.isFail) throw new NotFoundException(`Vocabulary item ${id} not found`);
+    return result.value;
+  }
+
+  @Get('can-do/descriptors')
+  async getCanDoDescriptorsByIds(
+    @Query('ids') ids?: string,
+  ): Promise<CanDoDescriptorResponse[]> {
+    if (!ids) return [];
+    const idList = ids.split(',').map((s) => s.trim()).filter(Boolean);
+    const descriptors = await this.queryBus.execute<
+      GetCanDoDescriptorsByIdsQuery,
+      CanDoDescriptorEntity[]
+    >(new GetCanDoDescriptorsByIdsQuery(idList));
+    return descriptors.map(CanDoDescriptorResponse.fromEntity);
+  }
+
   @Get('modules/:id/can-do')
   async getModuleCanDo(
     @Param('id') moduleId: string,
@@ -89,5 +152,33 @@ export class InternalController {
       CanDoDescriptorEntity[]
     >(new GetCanDoDescriptorsByModuleQuery(moduleId));
     return descriptors.map(CanDoDescriptorResponse.fromEntity);
+  }
+
+  @Get('containers/:id/leaf-items')
+  async getContainerLeafItems(
+    @Param('id') containerId: string,
+  ): Promise<Array<{ type: string; id: string }>> {
+    const items = await this.queryBus.execute<GetLeafItemsQuery, LeafItem[]>(
+      new GetLeafItemsQuery(containerId),
+    );
+    return items.map((i) => ({ type: i.itemType, id: i.itemId }));
+  }
+
+  @Get('versions/:id/preflight')
+  async getPreflight(@Param('id') versionId: string): Promise<PreflightResult> {
+    return this.queryBus.execute<GetPreflightQuery, PreflightResult>(
+      new GetPreflightQuery(versionId),
+    );
+  }
+
+  @Get('modules/:id/expanded')
+  async getExpandedModule(
+    @Param('id') moduleId: string,
+    @Query('language') language = 'en',
+    @Query('level') level = 'A1',
+  ): Promise<ExpandedModulePayload> {
+    return this.queryBus.execute<GetExpandedModuleQuery, ExpandedModulePayload>(
+      new GetExpandedModuleQuery(moduleId, language, level),
+    );
   }
 }

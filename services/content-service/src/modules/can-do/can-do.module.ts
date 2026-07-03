@@ -6,10 +6,15 @@ import { PrismaCanDoDescriptorRepository } from './infrastructure/persistence/pr
 import { CreateCanDoDescriptorHandler } from './application/commands/create-descriptor/create-descriptor.handler.js';
 import { ListCanDoDescriptorsHandler } from './application/queries/list-descriptors/list-descriptors.handler.js';
 import { GetCanDoDescriptorsByModuleHandler } from './application/queries/get-descriptors-by-module/get-descriptors-by-module.handler.js';
+import { GetCanDoDescriptorsByIdsHandler } from './application/queries/get-descriptors-by-ids/get-descriptors-by-ids.handler.js';
 import { CanDoDescriptorController } from './presentation/controllers/can-do-descriptor.controller.js';
 
 const CommandHandlers = [CreateCanDoDescriptorHandler];
-const QueryHandlers = [ListCanDoDescriptorsHandler, GetCanDoDescriptorsByModuleHandler];
+const QueryHandlers = [
+  ListCanDoDescriptorsHandler,
+  GetCanDoDescriptorsByModuleHandler,
+  GetCanDoDescriptorsByIdsHandler,
+];
 
 @Module({
   imports: [CqrsModule, PrismaModule],

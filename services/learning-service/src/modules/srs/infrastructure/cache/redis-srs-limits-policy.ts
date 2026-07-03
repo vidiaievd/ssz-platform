@@ -36,6 +36,14 @@ export class RedisSrsLimitsPolicy implements ISrsLimitsPolicy {
     await this.increment(this.reviewKey(userId, today), today);
   }
 
+  async getReviewedCount(userId: string, today: Date): Promise<number> {
+    return this.getCount(this.reviewKey(userId, today));
+  }
+
+  getDailyReviewLimit(): number {
+    return this.config.get<AppConfig['srs']>('srs')?.dailyReviewsLimit ?? 200;
+  }
+
   private newCardKey(userId: string, date: Date): string {
     return `srs:limits:${userId}:new:${this.dateString(date)}`;
   }

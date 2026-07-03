@@ -31,4 +31,7 @@ export interface ISrsRepository {
   countNewToday(userId: string, since: Date): Promise<number>;
   countReviewedToday(userId: string, since: Date): Promise<number>;
   getStatsByUser(userId: string, now: Date): Promise<SrsStats>;
+  // Returns the count of consecutive days (ending today) on which the user
+  // reviewed at least one card. Uses lastReviewedAt to walk backwards.
+  getStreakDays(userId: string, now: Date): Promise<number>;
 }

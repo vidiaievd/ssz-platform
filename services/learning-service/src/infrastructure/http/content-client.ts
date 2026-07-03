@@ -4,6 +4,7 @@ import axios, { type AxiosInstance } from 'axios';
 import type { AppConfig } from '../../config/configuration.js';
 import type {
   AccessTier,
+  CanDoDescriptorRef,
   ContentMetadata,
   ContentRelationRef,
   IContentClient,
@@ -156,6 +157,20 @@ export class ContentClient implements IContentClient {
       return Result.ok(data);
     } catch (err) {
       return this.mapError(err, `getRelationsByTarget(${targetType}, ${targetId})`);
+    }
+  }
+
+  async getCanDoDescriptorsByIds(
+    ids: string[],
+  ): Promise<Result<CanDoDescriptorRef[], ContentClientError>> {
+    if (ids.length === 0) return Result.ok([]);
+    try {
+      const { data } = await this.http.get<CanDoDescriptorRef[]>('/can-do/descriptors', {
+        params: { ids: ids.join(',') },
+      });
+      return Result.ok(data);
+    } catch (err) {
+      return this.mapError(err, `getCanDoDescriptorsByIds([${ids.join(',')}])`);
     }
   }
 

@@ -19,4 +19,10 @@ export interface ISrsLimitsPolicy {
 
   /** Atomically increment the review counter for today. */
   incrementReviewCount(userId: string, today: Date): Promise<void>;
+
+  /** Current review count for today (for the /due envelope). */
+  getReviewedCount(userId: string, today: Date): Promise<number>;
+
+  /** Configured daily review cap. */
+  getDailyReviewLimit(): number;
 }

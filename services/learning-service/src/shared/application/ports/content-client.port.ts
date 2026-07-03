@@ -108,4 +108,16 @@ export interface IContentClient {
   getGrammarRulePoolExerciseIds(
     ruleId: string,
   ): Promise<Result<string[], ContentClientError>>;
+
+  // Batch-fetch can-do descriptors by IDs to resolve their skills
+  // (for the mastery-by-skill breakdown — plan 23 B5.1).
+  getCanDoDescriptorsByIds(
+    ids: string[],
+  ): Promise<Result<CanDoDescriptorRef[], ContentClientError>>;
+}
+
+export interface CanDoDescriptorRef {
+  id: string;
+  cefrLevel: string;
+  skill: string;
 }

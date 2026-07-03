@@ -21,6 +21,15 @@ export class PrismaCanDoDescriptorRepository implements ICanDoDescriptorReposito
     return row ? CanDoDescriptorMapper.toDomain(row) : null;
   }
 
+  async findByIds(ids: string[]): Promise<CanDoDescriptorEntity[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.prisma.canDoDescriptor.findMany({
+      where: { id: { in: ids }, deletedAt: null },
+      include: { localizations: true },
+    });
+    return rows.map(CanDoDescriptorMapper.toDomain);
+  }
+
   async findAll(filter: CanDoDescriptorFilter): Promise<CanDoDescriptorEntity[]> {
     const rows = await this.prisma.canDoDescriptor.findMany({
       where: {

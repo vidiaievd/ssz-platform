@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { ReviewCardDto, SrsStatsDto } from '../../application/dto/srs.dto.js';
+import type { PredictedInterval } from '../../application/ports/srs-scheduler.port.js';
 
 export class ReviewCardResponse implements ReviewCardDto {
   @ApiProperty({ format: 'uuid', description: 'Review card ID' })
@@ -55,6 +56,17 @@ export class ReviewCardResponse implements ReviewCardDto {
 
   @ApiProperty({ format: 'date-time', description: 'Last update timestamp' })
   updatedAt!: string;
+
+  @ApiProperty({
+    description: 'Predicted next interval for each of the 4 FSRS rating buttons',
+    example: [
+      { rating: 'AGAIN', scheduledDays: 0, label: '< 1 day' },
+      { rating: 'HARD', scheduledDays: 3, label: '3 days' },
+      { rating: 'GOOD', scheduledDays: 7, label: '7 days' },
+      { rating: 'EASY', scheduledDays: 14, label: '2 weeks' },
+    ],
+  })
+  predicted!: PredictedInterval[];
 }
 
 export class SrsStatsResponse implements SrsStatsDto {

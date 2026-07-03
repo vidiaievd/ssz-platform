@@ -111,6 +111,39 @@ export class PrismaSrsRepository implements ISrsRepository {
       reviewedTodayCount: reviewedToday,
     };
   }
+
+  async getStreakDays(userId: string, now: Date): Promise<number> {
+    // Find distinct UTC days on which the user completed at least one review,
+    // by fetching the most-recent distinct lastReviewedAt days and counting
+    // how many consecutive days ending on today (or yesterday) are present.
+    // We cap at 366 days of look-back to bound the query.
+    const cutoff = new Date(now.getTime() - 366 * 24 * 60 * 60 * 1000);
+    const cards = await this.prisma.srsReviewCard.findMany({
+      where: { userId, lastReviewedAt: { gte: cutoff, not: null } },
+      select: { lastReviewedAt: true },
+    });
+
+    const daySet = new Set<string>();
+    for (const { lastReviewedAt } of cards) {
+      if (lastReviewedAt) {
+        daySet.add(lastReviewedAt.toISOString().slice(0, 10));
+      }
+    }
+
+    let streak = 0;
+    const cursor = startOfDayUtc(now);
+    // Accept activity today OR ending yesterday (if the user hasn't reviewed today yet).
+    const todayStr = cursor.toISOString().slice(0, 10);
+    if (!daySet.has(todayStr)) {
+      // Nothing reviewed today — check if streak is alive from yesterday.
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+    }
+    while (daySet.has(cursor.toISOString().slice(0, 10))) {
+      streak++;
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+    }
+    return streak;
+  }
 }
 
 function startOfDayUtc(date: Date): Date {
