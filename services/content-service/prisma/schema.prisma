@@ -849,6 +849,7 @@ enum RelationKind {
   PRACTICED_BY @map("practiced_by")
   PREREQUISITE @map("prerequisite")
   RELATED      @map("related")
+  TARGETS      @map("targets")
 
   @@map("relation_kind")
 }
@@ -872,4 +873,59 @@ model ContentRelation {
   @@index([sourceType, sourceId, relationKind])
   @@index([targetType, targetId, relationKind])
   @@map("content_relations")
+}
+
+// ─── Can-do descriptors (Plan 23 B1) ─────────────────────────────────────────
+// CEFR-aligned "I can…" statements. GLOBAL descriptors form the platform library;
+// SCHOOL descriptors extend it per school. Scope CHECK mirrors the Tag pattern.
+// Localizations carry the text in each supported UI language (defaulting to `en`
+// if a locale is missing). A MODULE → TARGETS → CanDoDescriptor ContentRelation
+// links a module to the competences it develops.
+
+enum CanDoSkill {
+  LISTENING @map("listening")
+  READING   @map("reading")
+  SPOKEN    @map("spoken")
+  WRITTEN   @map("written")
+
+  @@map("can_do_skill")
+}
+
+enum CanDoScope {
+  GLOBAL @map("global")
+  SCHOOL @map("school")
+
+  @@map("can_do_scope")
+}
+
+// CHECK: (scope='global' AND owner_school_id IS NULL) OR (scope='school' AND owner_school_id IS NOT NULL)
+model CanDoDescriptor {
+  id              String          @id @default(uuid()) @db.Uuid
+  cefrLevel       DifficultyLevel @map("cefr_level")
+  skill           CanDoSkill
+  scope           CanDoScope
+  ownerSchoolId   String?         @map("owner_school_id") @db.Uuid
+  source          String?         @db.VarChar(80)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz
+  createdByUserId String          @map("created_by_user_id") @db.Uuid
+
+  localizations CanDoDescriptorLocalization[]
+
+  @@index([cefrLevel, skill, scope])
+  @@index([ownerSchoolId])
+  @@map("can_do_descriptors")
+}
+
+// One row per (descriptor, language). `text` is the "I can…" statement.
+model CanDoDescriptorLocalization {
+  id           String   @id @default(uuid()) @db.Uuid
+  descriptorId String   @map("descriptor_id") @db.Uuid
+  language     String   @db.VarChar(10)
+  text         String   @db.Text
+
+  descriptor CanDoDescriptor @relation(fields: [descriptorId], references: [id], onDelete: Cascade)
+
+  @@unique([descriptorId, language])
+  @@map("can_do_descriptor_localizations")
 }
