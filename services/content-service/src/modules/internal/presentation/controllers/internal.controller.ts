@@ -18,6 +18,10 @@ import type { ExerciseEnvelope } from '../../../exercise/application/queries/get
 import type { ExerciseDomainError } from '../../../exercise/domain/exceptions/exercise-domain.exceptions.js';
 import { throwHttpException } from '../../../exercise/presentation/utils/domain-error.mapper.js';
 
+import { GetCanDoDescriptorsByModuleQuery } from '../../../can-do/application/queries/get-descriptors-by-module/get-descriptors-by-module.query.js';
+import type { CanDoDescriptorEntity } from '../../../can-do/domain/entities/can-do-descriptor.entity.js';
+import { CanDoDescriptorResponse } from '../../../can-do/presentation/dto/can-do-descriptor.dto.js';
+
 // Service-to-service routes only — @Public() exempts them from the global
 // JwtAuthGuard (APP_GUARD runs before any controller-level guard), and
 // InternalAuthGuard takes over instead, requiring x-internal-token. Excluded
@@ -74,5 +78,16 @@ export class InternalController {
       new GetPoolExerciseIdsQuery(ruleId),
     );
     return { exerciseIds };
+  }
+
+  @Get('modules/:id/can-do')
+  async getModuleCanDo(
+    @Param('id') moduleId: string,
+  ): Promise<CanDoDescriptorResponse[]> {
+    const descriptors = await this.queryBus.execute<
+      GetCanDoDescriptorsByModuleQuery,
+      CanDoDescriptorEntity[]
+    >(new GetCanDoDescriptorsByModuleQuery(moduleId));
+    return descriptors.map(CanDoDescriptorResponse.fromEntity);
   }
 }

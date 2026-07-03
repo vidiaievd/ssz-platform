@@ -25,6 +25,7 @@ import { TagModule } from './modules/tag/tag.module.js';
 import { ContentRelationModule } from './modules/content-relation/content-relation.module.js';
 import { InternalModule } from './modules/internal/internal.module.js';
 import { GroupEntitlementModule } from './infrastructure/messaging/group-entitlement.module.js';
+import { CanDoModule } from './modules/can-do/can-do.module.js';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { GroupEntitlementModule } from './infrastructure/messaging/group-entitle
     ContentRelationModule,
     InternalModule,
     GroupEntitlementModule,
+    CanDoModule,
   ],
   controllers: [],
   providers: [

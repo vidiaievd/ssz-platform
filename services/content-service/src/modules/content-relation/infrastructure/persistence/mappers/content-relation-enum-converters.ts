@@ -39,6 +39,7 @@ const PRISMA_TO_DOMAIN_RELATION_KIND: Record<$Enums.RelationKind, RelationKind> 
   PRACTICED_BY: RelationKind.PRACTICED_BY,
   PREREQUISITE: RelationKind.PREREQUISITE,
   RELATED: RelationKind.RELATED,
+  TARGETS: RelationKind.TARGETS,
 };
 
 const DOMAIN_TO_PRISMA_RELATION_KIND: Record<RelationKind, $Enums.RelationKind> = {
@@ -47,6 +48,7 @@ const DOMAIN_TO_PRISMA_RELATION_KIND: Record<RelationKind, $Enums.RelationKind> 
   [RelationKind.PRACTICED_BY]: 'PRACTICED_BY',
   [RelationKind.PREREQUISITE]: 'PREREQUISITE',
   [RelationKind.RELATED]: 'RELATED',
+  [RelationKind.TARGETS]: 'TARGETS',
 };
 
 export function prismaRelationKindToDomain(v: $Enums.RelationKind): RelationKind {

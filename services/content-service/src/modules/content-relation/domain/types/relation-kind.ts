@@ -4,4 +4,5 @@ export enum RelationKind {
   PRACTICED_BY = 'practiced_by',
   PREREQUISITE = 'prerequisite',
   RELATED = 'related',
+  TARGETS = 'targets',
 }
