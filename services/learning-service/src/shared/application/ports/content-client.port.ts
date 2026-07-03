@@ -42,7 +42,7 @@ export type RelatableEntityType =
   | 'exercise'
   | 'can_do_descriptor';
 
-export type RelationKind = 'introduces' | 'features' | 'practiced_by' | 'prerequisite' | 'related';
+export type RelationKind = 'introduces' | 'features' | 'practiced_by' | 'prerequisite' | 'related' | 'targets';
 
 export interface ContentRelationRef {
   id: string;

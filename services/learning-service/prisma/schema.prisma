@@ -264,3 +264,33 @@ model SrsReviewCard {
   @@unique([userId, contentType, contentId])
   @@map("srs_review_cards")
 }
+
+// ─── Can-do progress (Plan 23 B1.4) ──────────────────────────────────────────
+// Tracks per-user achievement of CEFR can-do descriptors from content-service.
+// Status is append-only on ACHIEVED: once set, it never reverts on mastery decay.
+// selfAssessed is a separate confidence rating updated by the student manually.
+
+enum CanDoStatus {
+  NOT_STARTED @map("not_started")
+  IN_PROGRESS @map("in_progress")
+  ACHIEVED    @map("achieved")
+
+  @@map("can_do_status")
+}
+
+// Unique per (userId, descriptorId). achievedAt is sticky — set once and never cleared.
+model CanDoProgress {
+  id           String      @id @default(uuid())
+  userId       String      @map("user_id")
+  descriptorId String      @map("descriptor_id")
+  status       CanDoStatus @default(NOT_STARTED) @map("status")
+  achievedAt   DateTime?   @map("achieved_at")
+  // selfAssessed: null = not self-assessed; true/false = student confidence
+  selfAssessed Boolean?    @map("self_assessed")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  @@unique([userId, descriptorId])
+  @@index([userId, status])
+  @@map("can_do_progress")
+}

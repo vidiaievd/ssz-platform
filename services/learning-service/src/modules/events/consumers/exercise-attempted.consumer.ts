@@ -9,6 +9,7 @@ import { UpsertProgressCommand } from '../../progress/application/commands/upser
 import { IntroduceCardCommand } from '../../srs/application/commands/introduce-card.command.js';
 import { ReviewCardCommand } from '../../srs/application/commands/review-card.command.js';
 import type { ReviewRatingValue } from '../../srs/domain/value-objects/review-rating.vo.js';
+import { CanDoEvaluatorService } from '../../can-do/application/services/can-do-evaluator.service.js';
 import type { ExerciseAttemptCompletedPayload } from '@ssz/contracts';
 import { EXCHANGES } from '@ssz/contracts';
 
@@ -46,6 +47,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
     private readonly commandBus: CommandBus,
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig>,
+    private readonly canDoEvaluator: CanDoEvaluatorService,
   ) {}
 
   onModuleInit(): void {
@@ -164,6 +166,12 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
             );
           }
         }
+      }
+
+      // 5. Can-do progress evaluation — recompute descriptor achievement
+      //    for any modules whose atoms were practiced.
+      if (p.completed === true && p.practicedAtoms && p.practicedAtoms.length > 0) {
+        await this.canDoEvaluator.evaluateForAtoms(p.userId, p.practicedAtoms);
       }
 
       await this.prisma.processedEvent.create({ data: { eventId, eventType } });
