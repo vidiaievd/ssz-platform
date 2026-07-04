@@ -9,6 +9,7 @@ import { UpsertProgressCommand } from '../../progress/application/commands/upser
 import { IntroduceCardCommand } from '../../srs/application/commands/introduce-card.command.js';
 import { ReviewCardCommand } from '../../srs/application/commands/review-card.command.js';
 import type { ReviewRatingValue } from '../../srs/domain/value-objects/review-rating.vo.js';
+import { CanDoEvaluatorService } from '../../can-do/application/services/can-do-evaluator.service.js';
 import type { ExerciseAttemptCompletedPayload } from '@ssz/contracts';
 import { EXCHANGES } from '@ssz/contracts';
 
@@ -46,6 +47,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
     private readonly commandBus: CommandBus,
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig>,
+    private readonly canDoEvaluator: CanDoEvaluatorService,
   ) {}
 
   onModuleInit(): void {
@@ -135,6 +137,41 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
             `SRS review skipped for exercise ${p.exerciseId} / user ${p.userId}: ${reviewResult.error?.message}`,
           );
         }
+
+        // 4. Fan-out (plan 21 §3) — rate the VOCABULARY_WORD atoms this exercise
+        // practices, snapshotted by Exercise Engine at attempt start. Grammar rule
+        // atoms are skipped: their mastery is derived from pool-exercise
+        // retrievability (plan 21 §2), not tracked as a separate SRS card.
+        const vocabAtomIds = (p.practicedAtoms ?? [])
+          .filter((atom) => atom.atomType === 'vocabulary_item')
+          .map((atom) => atom.atomId);
+
+        for (const vocabularyItemId of vocabAtomIds) {
+          const atomIntroduceResult = await this.commandBus.execute(
+            new IntroduceCardCommand(p.userId, 'VOCABULARY_WORD', vocabularyItemId),
+          );
+          if (atomIntroduceResult.isFail) {
+            this.logger.debug(
+              `SRS fan-out introduce skipped for vocab ${vocabularyItemId} / user ${p.userId}: ${atomIntroduceResult.error?.message}`,
+            );
+            continue;
+          }
+
+          const atomReviewResult = await this.commandBus.execute(
+            new ReviewCardCommand(p.userId, atomIntroduceResult.value.id, rating),
+          );
+          if (atomReviewResult.isFail) {
+            this.logger.debug(
+              `SRS fan-out review skipped for vocab ${vocabularyItemId} / user ${p.userId}: ${atomReviewResult.error?.message}`,
+            );
+          }
+        }
+      }
+
+      // 5. Can-do progress evaluation — recompute descriptor achievement
+      //    for any modules whose atoms were practiced.
+      if (p.completed === true && p.practicedAtoms && p.practicedAtoms.length > 0) {
+        await this.canDoEvaluator.evaluateForAtoms(p.userId, p.practicedAtoms);
       }
 
       await this.prisma.processedEvent.create({ data: { eventId, eventType } });

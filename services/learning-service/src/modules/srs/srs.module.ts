@@ -18,14 +18,21 @@ import { ReviewCardHandler } from './application/commands/review-card.handler.js
 import { SuspendCardHandler } from './application/commands/suspend-card.handler.js';
 import { UnsuspendCardHandler } from './application/commands/unsuspend-card.handler.js';
 import { BulkIntroduceFromVocabularyListHandler } from './application/commands/bulk-introduce-from-vocabulary-list.handler.js';
+import { ApplyPlacementHandler } from './application/commands/apply-placement/apply-placement.handler.js';
 
 // Query handlers
 import { GetDueCardsHandler } from './application/queries/get-due-cards.handler.js';
 import { GetCardByIdHandler } from './application/queries/get-card-by-id.handler.js';
 import { GetUserSrsStatsHandler } from './application/queries/get-user-srs-stats.handler.js';
+import { GetGrammarRuleMasteryHandler } from './application/queries/get-grammar-rule-mastery.handler.js';
+import { GetContentMasteryHandler } from './application/queries/get-content-mastery.handler.js';
+
+// Services
+import { GrammarRuleMasteryService } from './application/services/grammar-rule-mastery.service.js';
 
 // Presentation
 import { SrsController } from './presentation/srs.controller.js';
+import { MasteryController } from './presentation/mastery.controller.js';
 
 const CommandHandlers = [
   IntroduceCardHandler,
@@ -33,31 +40,40 @@ const CommandHandlers = [
   SuspendCardHandler,
   UnsuspendCardHandler,
   BulkIntroduceFromVocabularyListHandler,
+  ApplyPlacementHandler,
 ];
 
 const QueryHandlers = [
   GetDueCardsHandler,
   GetCardByIdHandler,
   GetUserSrsStatsHandler,
+  GetGrammarRuleMasteryHandler,
+  GetContentMasteryHandler,
 ];
 
 @Module({
   imports: [CqrsModule, PrismaModule],
-  controllers: [SrsController],
+  controllers: [SrsController, MasteryController],
   providers: [
     { provide: SRS_REPOSITORY, useClass: PrismaSrsRepository },
     { provide: SRS_SCHEDULER, useClass: FsrsScheduler },
     { provide: SRS_LIMITS_POLICY, useClass: RedisSrsLimitsPolicy },
     { provide: CLOCK, useClass: SystemClock },
     RedisDueQueueService,
+    GrammarRuleMasteryService,
     ...CommandHandlers,
     ...QueryHandlers,
   ],
   // Export command handlers so EventsModule consumers can dispatch SRS commands.
+  // Export services/repos so CanDoModule can build the course-mastery roll-up.
   exports: [
     IntroduceCardHandler,
     ReviewCardHandler,
     BulkIntroduceFromVocabularyListHandler,
+    GrammarRuleMasteryService,
+    SRS_REPOSITORY,
+    SRS_SCHEDULER,
+    CLOCK,
   ],
 })
 export class SrsModule {}

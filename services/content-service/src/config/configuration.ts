@@ -100,6 +100,8 @@ export interface AppConfig {
       maxLimit: number;
     };
   };
+  // Shared secret for inbound service-to-service calls (validated by InternalAuthGuard).
+  internalServiceToken: string;
 }
 
 export default (): AppConfig => {
@@ -143,5 +145,6 @@ export default (): AppConfig => {
         maxLimit: env.DISCOVERY_MAX_LIMIT,
       },
     },
+    internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
 };

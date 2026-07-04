@@ -19,9 +19,19 @@ export interface ISrsRepository {
     contentType: SrsContentType,
     contentId: string,
   ): Promise<ReviewCard | null>;
+  // Batch lookup for mastery roll-ups (plan 21 §2.1/§2.2) — avoids N+1 queries
+  // when aggregating over dozens of atoms reachable through ContentRelation.
+  findByUserAndContents(
+    userId: string,
+    contentType: SrsContentType,
+    contentIds: string[],
+  ): Promise<ReviewCard[]>;
   findDueCards(userId: string, limit: number, now: Date): Promise<ReviewCard[]>;
   save(card: ReviewCard): Promise<void>;
   countNewToday(userId: string, since: Date): Promise<number>;
   countReviewedToday(userId: string, since: Date): Promise<number>;
   getStatsByUser(userId: string, now: Date): Promise<SrsStats>;
+  // Returns the count of consecutive days (ending today) on which the user
+  // reviewed at least one card. Uses lastReviewedAt to walk backwards.
+  getStreakDays(userId: string, now: Date): Promise<number>;
 }

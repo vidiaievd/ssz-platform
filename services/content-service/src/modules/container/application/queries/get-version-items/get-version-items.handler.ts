@@ -90,6 +90,16 @@ export class GetVersionItemsHandler implements IQueryHandler<
       rows.forEach((r) => titles.set(r.id, r.template.name ?? null));
     }
 
+    // Nested container references (e.g. MODULE items inside a COURSE version).
+    const containerIds = idsByType.get(ContainerItemType.CONTAINER) ?? [];
+    if (containerIds.length > 0) {
+      const rows = await this.prisma.container.findMany({
+        where: { id: { in: containerIds } },
+        select: { id: true, title: true },
+      });
+      rows.forEach((r) => titles.set(r.id, r.title));
+    }
+
     return titles;
   }
 }

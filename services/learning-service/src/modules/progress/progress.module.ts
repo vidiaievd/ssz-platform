@@ -11,6 +11,7 @@ import { ResolveReviewHandler } from './application/commands/resolve-review.hand
 import { GetUserProgressHandler } from './application/queries/get-user-progress.handler.js';
 import { GetContentProgressHandler } from './application/queries/get-content-progress.handler.js';
 import { GetAssignmentProgressHandler } from './application/queries/get-assignment-progress.handler.js';
+import { GetCourseProgressOverlayHandler } from './application/queries/get-course-progress-overlay.handler.js';
 import { ProgressController } from './presentation/progress.controller.js';
 import { ContainerCompletionService } from './application/services/container-completion.service.js';
 
@@ -24,6 +25,7 @@ const QueryHandlers = [
   GetUserProgressHandler,
   GetContentProgressHandler,
   GetAssignmentProgressHandler,
+  GetCourseProgressOverlayHandler,
 ];
 
 @Module({

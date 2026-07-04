@@ -20,6 +20,7 @@ import { EventsModule } from './modules/events/events.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
 import { SrsModule } from './modules/srs/srs.module.js';
 import { InternalModule } from './modules/internal/internal.module.js';
+import { CanDoModule } from './modules/can-do/can-do.module.js';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { InternalModule } from './modules/internal/internal.module.js';
     EventsModule,
     JobsModule,
     InternalModule,
+    CanDoModule,
   ],
   providers: [
     {

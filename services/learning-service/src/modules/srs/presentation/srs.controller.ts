@@ -25,13 +25,17 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator.j
 import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../shared/kernel/result.js';
 import { IntroduceCardCommand } from '../application/commands/introduce-card.command.js';
+import {
+  BulkIntroduceFromVocabularyListCommand,
+} from '../application/commands/bulk-introduce-from-vocabulary-list.command.js';
+import type { BulkIntroduceResult } from '../application/commands/bulk-introduce-from-vocabulary-list.handler.js';
 import { ReviewCardCommand } from '../application/commands/review-card.command.js';
 import { SuspendCardCommand } from '../application/commands/suspend-card.command.js';
 import { UnsuspendCardCommand } from '../application/commands/unsuspend-card.command.js';
 import { GetDueCardsQuery } from '../application/queries/get-due-cards.query.js';
 import { GetCardByIdQuery } from '../application/queries/get-card-by-id.query.js';
 import { GetUserSrsStatsQuery } from '../application/queries/get-user-srs-stats.query.js';
-import type { ReviewCardDto, SrsStatsDto } from '../application/dto/srs.dto.js';
+import type { ReviewCardDto, SrsStatsDto, DueCardsEnvelope } from '../application/dto/srs.dto.js';
 import {
   SrsCardNotFoundError,
   SrsCardUnauthorizedError,
@@ -40,8 +44,15 @@ import {
   SrsReviewLimitError,
   type SrsApplicationError,
 } from '../application/errors/srs-application.errors.js';
-import { ReviewCardRequest, GetDueCardsRequest } from './dto/review-card.request.js';
-import { ReviewCardResponse, SrsStatsResponse } from './dto/srs.response.js';
+import {
+  ReviewCardRequest,
+  GetDueCardsRequest,
+  IntroduceCardRequest,
+  BulkIntroduceRequest,
+} from './dto/review-card.request.js';
+import { ReviewCardResponse, SrsStatsResponse, BulkIntroduceResponse } from './dto/srs.response.js';
+import { ApplyPlacementCommand } from '../application/commands/apply-placement/apply-placement.command.js';
+import type { ApplyPlacementResult } from '../application/commands/apply-placement/apply-placement.handler.js';
 
 @ApiTags('srs')
 @ApiBearerAuth()
@@ -56,17 +67,18 @@ export class SrsController {
 
   @Get('due')
   @ApiOperation({
-    summary: 'List cards due for review',
+    summary: 'List cards due for review with daily-limit and streak metadata',
     description:
-      'Returns up to `limit` cards due at or before now, ordered by dueAt ascending. ' +
+      'Returns up to `limit` cards due at or before now, ordered by dueAt ascending, plus ' +
+      '`reviewedToday`, `dailyLimit`, and `streakDays` for the UI progress ring. ' +
       'Backed by a Redis sorted-set cache; falls back to DB on cache miss.',
   })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
-  @ApiResponse({ status: 200, type: [ReviewCardResponse] })
+  @ApiResponse({ status: 200 })
   async getDueCards(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: GetDueCardsRequest,
-  ): Promise<ReviewCardResponse[]> {
+  ): Promise<DueCardsEnvelope> {
     return this.queryBus.execute(new GetDueCardsQuery(user.userId, query.limit ?? 20));
   }
 
@@ -163,10 +175,73 @@ export class SrsController {
     return this.unwrap(result);
   }
 
-  // ─── Internal helper (used from event consumers via CommandBus — no HTTP route) ─
+  // ─── Skip-known introduction (plan 21 §4) ────────────────────────────────────
 
-  // IntroduceCardCommand is dispatched internally by ExerciseAttemptedConsumer
-  // and BulkIntroduceFromVocabularyListHandler. No REST endpoint is exposed.
+  @Post('cards/introduce')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Introduce a single SRS card',
+    description:
+      'Idempotent: returns the existing card if one already exists for this content. ' +
+      'Pass `seedKind` to seed the card directly in REVIEW (skip-known) instead of NEW — ' +
+      'used by the per-vocabulary-list know/new tap-through and placement-test outcomes.',
+  })
+  @ApiResponse({ status: 200, type: ReviewCardResponse })
+  @ApiResponse({ status: 429, description: 'Daily new-card limit reached (non-seeded only)' })
+  async introduceCard(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: IntroduceCardRequest,
+  ): Promise<ReviewCardResponse> {
+    const result: Result<ReviewCardDto, SrsApplicationError> = await this.commandBus.execute(
+      new IntroduceCardCommand(user.userId, body.contentType, body.contentId, body.seedKind),
+    );
+    return this.unwrap(result);
+  }
+
+  @Post('cards/bulk-introduce')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Introduce every item of a vocabulary list as SRS cards',
+    description:
+      'Pass `seedKind` to seed every card directly in REVIEW (skip-known) — used for the ' +
+      '"skip all as known" shortcut on a vocabulary list. Omit to introduce items normally.',
+  })
+  @ApiResponse({ status: 200, type: BulkIntroduceResponse })
+  async bulkIntroduce(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: BulkIntroduceRequest,
+  ): Promise<BulkIntroduceResponse> {
+    const result: Result<BulkIntroduceResult, Error> = await this.commandBus.execute(
+      new BulkIntroduceFromVocabularyListCommand(user.userId, body.vocabularyListId, body.seedKind),
+    );
+    if (result.isFail) {
+      throw new UnprocessableEntityException(result.error.message);
+    }
+    return result.value;
+  }
+
+  @Post('placement/apply')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Apply a placement result — seeds all course vocabulary as DIAGNOSTIC_KNOWN',
+    description:
+      'Walks the course container recursively, collects all vocabulary lists, and seeds every ' +
+      "item as DIAGNOSTIC_KNOWN so the learner's SRS queue skips vocabulary they already know.",
+  })
+  async applyPlacement(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { courseId: string; placedLevel: string },
+  ): Promise<ApplyPlacementResult> {
+    const result = await this.commandBus.execute<
+      ApplyPlacementCommand,
+      Result<ApplyPlacementResult, Error>
+    >(new ApplyPlacementCommand(user.userId, body.courseId, body.placedLevel));
+
+    if (result.isFail) {
+      throw new UnprocessableEntityException(result.error.message);
+    }
+    return result.value;
+  }
 
   // ─── Error mapping ────────────────────────────────────────────────────────────
 

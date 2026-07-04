@@ -41,7 +41,7 @@ export class BulkIntroduceFromVocabularyListHandler
 
     for (const itemId of items) {
       const result = await this.commandBus.execute<IntroduceCardCommand, Result<any, any>>(
-        new IntroduceCardCommand(cmd.userId, 'VOCABULARY_WORD', itemId),
+        new IntroduceCardCommand(cmd.userId, 'VOCABULARY_WORD', itemId, cmd.seedKind),
       );
       if (result.isOk) {
         introduced += 1;

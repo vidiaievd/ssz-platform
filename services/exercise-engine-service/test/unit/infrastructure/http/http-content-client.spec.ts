@@ -58,14 +58,14 @@ describe('HttpContentClient', () => {
     mockHttpService.get.mockReturnValue(of({ data: stubDefinition }));
     const client = makeClient();
 
-    const result = await client.getExerciseForAttempt('ex-1', 'no');
+    const result = await client.getExerciseForAttempt('ex-1', 'no', 'PRACTICE');
 
     expect(result.isOk).toBe(true);
     expect(result.value).toEqual(stubDefinition);
     expect(mockHttpService.get).toHaveBeenCalledWith(
       'http://content:3003/api/v1/internal/exercises/ex-1',
       expect.objectContaining({
-        params: { language: 'no' },
+        params: { language: 'no', mode: 'practice' },
         headers: { 'x-internal-token': 'test-token' },
       }),
     );
@@ -75,7 +75,7 @@ describe('HttpContentClient', () => {
     mockHttpService.get.mockReturnValue(throwError(() => makeAxiosError(404, 'Not found')));
     const client = makeClient();
 
-    const result = await client.getExerciseForAttempt('missing', 'no');
+    const result = await client.getExerciseForAttempt('missing', 'no', 'PRACTICE');
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBeInstanceOf(ContentClientError);
@@ -86,7 +86,7 @@ describe('HttpContentClient', () => {
     mockHttpService.get.mockReturnValue(throwError(() => makeAxiosError(500, 'Internal error')));
     const client = makeClient();
 
-    const result = await client.getExerciseForAttempt('ex-1', 'no');
+    const result = await client.getExerciseForAttempt('ex-1', 'no', 'PRACTICE');
 
     expect(result.isFail).toBe(true);
     expect((result.error as ContentClientError).statusCode).toBe(500);
@@ -97,7 +97,7 @@ describe('HttpContentClient', () => {
     mockHttpService.get.mockReturnValue(throwError(() => networkErr));
     const client = makeClient();
 
-    const result = await client.getExerciseForAttempt('ex-1', 'no');
+    const result = await client.getExerciseForAttempt('ex-1', 'no', 'PRACTICE');
 
     expect(result.isFail).toBe(true);
     expect((result.error as ContentClientError).statusCode).toBe(500);
@@ -107,7 +107,7 @@ describe('HttpContentClient', () => {
     mockHttpService.get.mockReturnValue(throwError(() => new Error('unexpected')));
     const client = makeClient();
 
-    const result = await client.getExerciseForAttempt('ex-1', 'no');
+    const result = await client.getExerciseForAttempt('ex-1', 'no', 'PRACTICE');
 
     expect(result.isFail).toBe(true);
     expect((result.error as ContentClientError).statusCode).toBe(500);

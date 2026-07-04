@@ -12,6 +12,21 @@ export type SrsContentType = 'EXERCISE' | 'VOCABULARY_WORD';
 // Mirrors FSRS State enum (New=0, Learning=1, Review=2, Relearning=3) plus our own Suspended.
 export type ReviewCardState = 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING' | 'SUSPENDED';
 
+// Skip-known seed paths (plan 21 §2.3): both create the card directly in REVIEW
+// instead of NEW, so it never enters the new-learner introduction queue.
+// DIAGNOSTIC_KNOWN (placement test confirmed it) gets a far-out due date;
+// CLAIMED_KNOWN (self-declared, unverified) gets a near one so FSRS re-confirms sooner.
+export type SrsSeedKind = 'DIAGNOSTIC_KNOWN' | 'CLAIMED_KNOWN';
+
+const SEED_STABILITY_DAYS: Record<SrsSeedKind, number> = {
+  DIAGNOSTIC_KNOWN: 60,
+  CLAIMED_KNOWN: 14,
+};
+
+// FSRS difficulty is on a 1-10 scale; 5 is the library's neutral default for a
+// card with no review history.
+const SEED_DIFFICULTY = 5;
+
 export interface SchedulingResult {
   state: ReviewCardState;
   dueAt: Date;
@@ -93,6 +108,44 @@ export class ReviewCard extends AggregateRoot {
       contentType,
       contentId,
       dueAt: now.toISOString(),
+    }));
+    return card;
+  }
+
+  static createSeeded(
+    userId: string,
+    contentType: SrsContentType,
+    contentId: string,
+    seedKind: SrsSeedKind,
+    now: Date,
+  ): ReviewCard {
+    const stability = SEED_STABILITY_DAYS[seedKind];
+    const dueAt = new Date(now.getTime() + stability * 24 * 60 * 60 * 1000);
+
+    const card = new ReviewCard(
+      randomUUID(),
+      userId,
+      contentType,
+      contentId,
+      'REVIEW',
+      dueAt,
+      stability,
+      SEED_DIFFICULTY,
+      0,
+      stability,
+      0,
+      0,
+      0,
+      null,
+      now,
+      now,
+    );
+    card.addDomainEvent(new ReviewCardCreatedEvent(card.id, {
+      userId,
+      contentType,
+      contentId,
+      dueAt: dueAt.toISOString(),
+      seedKind,
     }));
     return card;
   }

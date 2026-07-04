@@ -5,8 +5,10 @@ import { firstValueFrom } from 'rxjs';
 import { isAxiosError } from 'axios';
 import type { AppConfig } from '../../config/configuration.js';
 import type {
+  CheckMode,
   ExerciseDefinition,
   IContentClient,
+  PracticedAtomRef,
 } from '../../shared/application/ports/content-client.port.js';
 import { ContentClientError } from '../../shared/application/ports/content-client.port.js';
 import { Result } from '../../shared/kernel/result.js';
@@ -31,13 +33,14 @@ export class HttpContentClient implements IContentClient {
   async getExerciseForAttempt(
     exerciseId: string,
     language: string,
+    mode: CheckMode,
   ): Promise<Result<ExerciseDefinition, ContentClientError>> {
     try {
       const { data } = await firstValueFrom(
         this.httpService.get<ExerciseDefinition>(
           `${this.baseUrl}/api/v1/internal/exercises/${exerciseId}`,
           {
-            params: { language },
+            params: { language, mode: mode.toLowerCase() },
             headers: { 'x-internal-token': this.token },
             timeout: this.timeout,
           },
@@ -46,6 +49,29 @@ export class HttpContentClient implements IContentClient {
       return Result.ok(data);
     } catch (err) {
       return this.mapError(err, `getExerciseForAttempt(${exerciseId})`);
+    }
+  }
+
+  async getPracticedAtoms(
+    exerciseId: string,
+  ): Promise<Result<PracticedAtomRef[], ContentClientError>> {
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get<
+          Array<{ sourceType: string; sourceId: string }>
+        >(`${this.baseUrl}/api/v1/internal/content-relations`, {
+          params: {
+            targetType: 'exercise',
+            targetId: exerciseId,
+            relationKind: 'practiced_by',
+          },
+          headers: { 'x-internal-token': this.token },
+          timeout: this.timeout,
+        }),
+      );
+      return Result.ok(data.map((r) => ({ atomType: r.sourceType, atomId: r.sourceId })));
+    } catch (err) {
+      return this.mapError(err, `getPracticedAtoms(${exerciseId})`);
     }
   }
 

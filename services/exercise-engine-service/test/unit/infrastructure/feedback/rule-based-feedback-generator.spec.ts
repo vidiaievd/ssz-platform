@@ -10,6 +10,7 @@ const baseInput = (overrides: Partial<FeedbackInput> = {}): FeedbackInput => ({
   validationDetails: null,
   exerciseDefinition: null,
   locale: 'no',
+  revealAnswer: true,
   ...overrides,
 });
 
@@ -106,6 +107,21 @@ describe('RuleBasedFeedbackGenerator', () => {
         }),
       );
       expect(result.value.correctAnswer).toBe('cat → katt, dog → hund');
+    });
+
+    it('withholds the correct answer when revealAnswer is false (GRADED)', async () => {
+      const result = await generator.generate(
+        baseInput({
+          revealAnswer: false,
+          exerciseDefinition: {
+            exercise: {
+              expectedAnswers: { correct_option_ids: ['A', 'B'] },
+            },
+          },
+        }),
+      );
+      expect(result.value.summary).toBe('Incorrect. Please try again.');
+      expect(result.value.correctAnswer).toBeUndefined();
     });
   });
 

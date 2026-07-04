@@ -20,6 +20,8 @@ import { ResolveReviewCommand } from '../application/commands/resolve-review.com
 import { GetUserProgressQuery } from '../application/queries/get-user-progress.query.js';
 import { GetContentProgressQuery } from '../application/queries/get-content-progress.query.js';
 import { GetAssignmentProgressQuery } from '../application/queries/get-assignment-progress.query.js';
+import { GetCourseProgressOverlayQuery } from '../application/queries/get-course-progress-overlay.query.js';
+import type { CourseProgressOverlay } from '../application/queries/get-course-progress-overlay.handler.js';
 import type { ProgressDto, AssignmentProgressDto } from '../application/dto/progress.dto.js';
 import type { Result } from '../../../shared/kernel/result.js';
 import {
@@ -87,6 +89,16 @@ export class ProgressController {
     const result: Result<AssignmentProgressDto, ProgressApplicationError> =
       await this.queryBus.execute(new GetAssignmentProgressQuery(id, user.userId));
     return this.unwrap(result);
+  }
+
+  @Get('course/:containerId')
+  @ApiOperation({ summary: "Get the current user's progress overlay for all leaf items in a course container" })
+  @ApiResponse({ status: 200 })
+  async getCourseProgressOverlay(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('containerId') containerId: string,
+  ): Promise<CourseProgressOverlay> {
+    return this.queryBus.execute(new GetCourseProgressOverlayQuery(user.userId, containerId));
   }
 
   @Get(':contentType/:contentId')

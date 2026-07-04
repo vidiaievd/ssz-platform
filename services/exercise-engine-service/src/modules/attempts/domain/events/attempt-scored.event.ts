@@ -9,6 +9,10 @@ export interface AttemptScoredPayload {
   score: number;
   timeSpentSeconds: number;
   completed: true;
+  // PRACTICED_BY atoms snapshotted from Content Service at attempt start (plan 21 §3
+  // fan-out) — lets the consumer rate the related VOCABULARY_WORD SRS cards without
+  // a cross-service call in the hot path.
+  practicedAtoms: Array<{ atomType: string; atomId: string }>;
 }
 
 export class AttemptScoredEvent implements IDomainEvent {

@@ -1,5 +1,6 @@
 import type { ReviewCard } from '../../domain/entities/review-card.entity.js';
 import type { SrsStats } from '../../domain/repositories/srs-repository.interface.js';
+import type { PredictedInterval } from '../ports/srs-scheduler.port.js';
 
 export interface ReviewCardDto {
   id: string;
@@ -16,6 +17,7 @@ export interface ReviewCardDto {
   lastReviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  predicted: PredictedInterval[];
 }
 
 export interface SrsStatsDto {
@@ -28,7 +30,7 @@ export interface SrsStatsDto {
   reviewedTodayCount: number;
 }
 
-export function toReviewCardDto(card: ReviewCard): ReviewCardDto {
+export function toReviewCardDto(card: ReviewCard, predicted: PredictedInterval[] = []): ReviewCardDto {
   return {
     id: card.id,
     userId: card.userId,
@@ -44,9 +46,17 @@ export function toReviewCardDto(card: ReviewCard): ReviewCardDto {
     lastReviewedAt: card.lastReviewedAt?.toISOString() ?? null,
     createdAt: card.createdAt.toISOString(),
     updatedAt: card.updatedAt.toISOString(),
+    predicted,
   };
 }
 
 export function toSrsStatsDto(stats: SrsStats): SrsStatsDto {
   return { ...stats };
+}
+
+export interface DueCardsEnvelope {
+  cards: ReviewCardDto[];
+  reviewedToday: number;
+  dailyLimit: number;
+  streakDays: number;
 }

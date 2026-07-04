@@ -22,7 +22,10 @@ import { AccessControlModule } from './shared/access-control/access-control.modu
 import { AccessControlWiringModule } from './shared/access-control/access-control-wiring.module.js';
 import { DiscoveryModule } from './shared/discovery/discovery.module.js';
 import { TagModule } from './modules/tag/tag.module.js';
+import { ContentRelationModule } from './modules/content-relation/content-relation.module.js';
+import { InternalModule } from './modules/internal/internal.module.js';
 import { GroupEntitlementModule } from './infrastructure/messaging/group-entitlement.module.js';
+import { CanDoModule } from './modules/can-do/can-do.module.js';
 
 @Module({
   imports: [
@@ -64,7 +67,10 @@ import { GroupEntitlementModule } from './infrastructure/messaging/group-entitle
     AccessControlWiringModule,
     DiscoveryModule,
     TagModule,
+    ContentRelationModule,
+    InternalModule,
     GroupEntitlementModule,
+    CanDoModule,
   ],
   controllers: [],
   providers: [

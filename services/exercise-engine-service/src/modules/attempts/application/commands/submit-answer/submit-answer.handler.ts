@@ -60,10 +60,14 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       return Result.fail(submitResult.error as AttemptDomainError);
     }
 
-    // Fetch exercise definition for validation
+    // Fetch exercise definition for validation. Always requested as PRACTICE — the
+    // server needs the real expectedAnswers to score regardless of the attempt's
+    // checkMode; GRADED only changes what the *client* was shown at start-attempt
+    // and whether the answer may be revealed in feedback below.
     const defResult = await this.contentClient.getExerciseForAttempt(
       attempt.exerciseId,
       attempt.targetLanguage,
+      'PRACTICE',
     );
     if (defResult.isFail) {
       return Result.fail(defResult.error);
@@ -121,6 +125,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
         instruction: def.instruction,
       },
       locale: command.locale,
+      revealAnswer: attempt.checkMode === 'PRACTICE',
     });
     const feedback = feedbackResult.isOk
       ? feedbackResult.value

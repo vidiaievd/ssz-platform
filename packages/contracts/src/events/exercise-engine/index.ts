@@ -33,6 +33,9 @@ export interface ExerciseAttemptCompletedPayload {
   score: number | null;
   timeSpentSeconds: number;
   completed: boolean;
+  // Additive (plan 21 §3) — PRACTICED_BY atoms snapshotted from Content Service at
+  // attempt start. Optional so older publishers without this field stay valid.
+  practicedAtoms?: Array<{ atomType: string; atomId: string }>;
 }
 
 // ─── Typed event interfaces ───────────────────────────────────────────────────

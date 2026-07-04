@@ -15,5 +15,7 @@ export interface IProgressRepository {
   findByUser(userId: string, options?: FindByUserOptions): Promise<UserProgress[]>;
   // Returns count of COMPLETED progress records for the user across the given content refs.
   findCompletedCountForUser(userId: string, refs: ContentRef[]): Promise<number>;
+  // Batch lookup for course overlay — avoids N+1 when joining progress across all leaf items.
+  findByUserAndContentIds(userId: string, contentIds: string[]): Promise<UserProgress[]>;
   save(progress: UserProgress): Promise<void>;
 }

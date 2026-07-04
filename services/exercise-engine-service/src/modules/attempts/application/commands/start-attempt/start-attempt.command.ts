@@ -1,3 +1,5 @@
+import type { CheckMode } from '../../../domain/entities/attempt.entity.js';
+
 export class StartAttemptCommand {
   constructor(
     public readonly userId: string,
@@ -5,5 +7,6 @@ export class StartAttemptCommand {
     public readonly language: string,
     public readonly assignmentId: string | null,
     public readonly enrollmentId: string | null,
+    public readonly checkMode: CheckMode,
   ) {}
 }

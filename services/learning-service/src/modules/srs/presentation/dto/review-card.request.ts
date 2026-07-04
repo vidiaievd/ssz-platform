@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsISO8601, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsEnum, IsISO8601, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { ReviewRatingValue } from '../../domain/value-objects/review-rating.vo.js';
+import type { SrsContentType, SrsSeedKind } from '../../domain/entities/review-card.entity.js';
 
 export class ReviewCardRequest {
   @ApiProperty({
@@ -36,4 +37,45 @@ export class GetDueCardsRequest {
   @Min(1)
   @Max(100)
   limit?: number;
+}
+
+export class IntroduceCardRequest {
+  @ApiProperty({
+    enum: ['EXERCISE', 'VOCABULARY_WORD'],
+    description: 'Type of content this card tracks',
+    example: 'VOCABULARY_WORD',
+  })
+  @IsEnum(['EXERCISE', 'VOCABULARY_WORD'])
+  contentType!: SrsContentType;
+
+  @ApiProperty({ format: 'uuid', description: 'ID of the content item to introduce' })
+  @IsUUID()
+  contentId!: string;
+
+  @ApiPropertyOptional({
+    enum: ['DIAGNOSTIC_KNOWN', 'CLAIMED_KNOWN'],
+    description:
+      'Skip-known seed path (plan 21 §4): seeds the card directly in REVIEW instead of NEW. ' +
+      'DIAGNOSTIC_KNOWN = confirmed by a placement test; CLAIMED_KNOWN = self-declared via the ' +
+      'vocabulary-list tap-through. Omit for ordinary (non-skip) introduction.',
+    example: 'CLAIMED_KNOWN',
+  })
+  @IsOptional()
+  @IsEnum(['DIAGNOSTIC_KNOWN', 'CLAIMED_KNOWN'])
+  seedKind?: SrsSeedKind;
+}
+
+export class BulkIntroduceRequest {
+  @ApiProperty({ format: 'uuid', description: 'Vocabulary list whose items should be introduced' })
+  @IsUUID()
+  vocabularyListId!: string;
+
+  @ApiPropertyOptional({
+    enum: ['DIAGNOSTIC_KNOWN', 'CLAIMED_KNOWN'],
+    description: 'See IntroduceCardRequest.seedKind. Applied uniformly to every item in the list.',
+    example: 'CLAIMED_KNOWN',
+  })
+  @IsOptional()
+  @IsEnum(['DIAGNOSTIC_KNOWN', 'CLAIMED_KNOWN'])
+  seedKind?: SrsSeedKind;
 }
