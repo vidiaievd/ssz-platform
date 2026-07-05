@@ -236,6 +236,17 @@ export class InvitationPreviewResponseDto {
   teachingLanguages!: Array<{ code: string; level: string | null }> | null;
 }
 
+export class PublicSchoolTeacherDto {
+  @ApiProperty({ description: 'Teacher user ID' })
+  userId!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  name!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  avatarUrl!: string | null;
+}
+
 export class PublicSchoolResponseDto {
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   schoolId!: string;
@@ -260,4 +271,38 @@ export class PublicSchoolResponseDto {
 
   @ApiProperty({ description: 'Whether the school is currently accepting applications' })
   isOpenForApplications!: boolean;
+
+  @ApiPropertyOptional({ description: 'Number of enrolled students; present on detail endpoint only' })
+  studentCount?: number;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Distinct CEFR levels taught in active groups; present on detail endpoint only',
+  })
+  levels?: string[];
+
+  @ApiPropertyOptional({
+    type: [PublicSchoolTeacherDto],
+    description: 'Public teacher roster; present on detail endpoint only',
+  })
+  teachers?: PublicSchoolTeacherDto[];
+}
+
+export class PageInfoResponseDto {
+  @ApiPropertyOptional({ description: 'Opaque cursor for the next page; null when this is the last page', nullable: true })
+  endCursor!: string | null;
+
+  @ApiProperty({ description: 'Whether more pages exist' })
+  hasNextPage!: boolean;
+
+  @ApiProperty({ description: 'Total number of matching schools (excluding pagination)' })
+  total!: number;
+}
+
+export class PublicSchoolsPageResponseDto {
+  @ApiProperty({ type: [PublicSchoolResponseDto] })
+  items!: PublicSchoolResponseDto[];
+
+  @ApiProperty({ type: PageInfoResponseDto })
+  pageInfo!: PageInfoResponseDto;
 }
