@@ -49,7 +49,9 @@ export class SchoolOnboardingSettings {
       schoolId,
       placementMode: 'platform',
       reusePlatform: true,
-      interviewRequired: true,
+      // Interview booking has no real slot source yet (scheduling-service has no
+      // interview-slot endpoints) — schools must opt in explicitly.
+      interviewRequired: false,
       autoPlaceByScore: false,
       collectAvailability: true,
       ageBands: [],
