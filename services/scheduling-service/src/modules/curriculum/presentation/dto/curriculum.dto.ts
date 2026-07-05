@@ -1,13 +1,32 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsOptional, IsPositive, IsInt, IsEnum, Min } from 'class-validator';
+import { IsArray, IsString, IsNumber, IsOptional, IsPositive, IsInt, IsEnum, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class UpsertUnitDto {
+  @ApiProperty() @IsString() title!: string;
+  @ApiProperty() @IsInt() @Min(1) plannedSessions!: number;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) deliveredSessions?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() requiredLevel?: string;
+  @ApiPropertyOptional({ enum: ['planned', 'active', 'done', 'overridden'] })
+  @IsOptional() @IsEnum(['planned', 'active', 'done', 'overridden'])
+  status?: string;
+}
 
 export class UpsertCurriculumDto {
   @ApiProperty({ example: 5 })
   @IsNumber() @IsPositive()
   targetWeeklyHours!: number;
+
+  @ApiPropertyOptional({
+    type: [UpsertUnitDto],
+    description: 'When present, replaces the full unit list (order = array order)',
+  })
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => UpsertUnitDto)
+  units?: UpsertUnitDto[];
 }
 
 export class UnitDto {
+  @ApiProperty() id!: string;
   @ApiProperty() title!: string;
   @ApiProperty() order!: number;
   @ApiProperty() plannedSessions!: number;
