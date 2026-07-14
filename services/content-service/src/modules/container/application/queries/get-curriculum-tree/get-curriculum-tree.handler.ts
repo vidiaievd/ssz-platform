@@ -28,7 +28,10 @@ export interface CurriculumTreeItemNode {
   lessonKind: LessonKind | null;
   // Best-effort, currently derived only for LESSON items (any published variant
   // → published, else draft). Other item types have no draft/published workflow
-  // of their own yet. Teacher join arrives in Phase BE4.2.
+  // of their own yet. Assigned teacher is intentionally NOT joined here (plan 29
+  // decision BE4.2): it's an organization-service concern surfaced via
+  // IOrganizationClient.getCourseTeachers and joined in the web BFF, not in
+  // content_db or this tree query.
   state: 'draft' | 'published' | null;
   // Best-effort from any PUBLISHED variant/explanation (LESSON/GRAMMAR_RULE) or
   // the item's own estimate (EXERCISE); null for VOCABULARY_LIST.
