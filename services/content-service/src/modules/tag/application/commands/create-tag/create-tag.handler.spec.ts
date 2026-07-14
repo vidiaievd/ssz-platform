@@ -23,6 +23,7 @@ function makeHandler(overrides?: {
 
   const orgClient: IOrganizationClient = {
     getMemberRole: overrides?.getMemberRole ?? jest.fn().mockResolvedValue(null),
+    getCourseTeachers: jest.fn().mockResolvedValue([]),
   };
 
   const slugGenerator = {
