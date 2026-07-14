@@ -6,5 +6,6 @@ export class UpdateVariantCommand {
     public readonly displayDescription?: string | null,
     public readonly bodyMarkdown?: string,
     public readonly estimatedReadingMinutes?: number | null,
+    public readonly transcript?: string | null,
   ) {}
 }

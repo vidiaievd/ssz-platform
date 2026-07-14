@@ -54,4 +54,12 @@ export class CreateVariantRequestDto {
   @Min(1)
   @Max(480)
   estimatedReadingMinutes?: number;
+
+  @ApiPropertyOptional({
+    example: 'Hei, hvordan har du det?\nJeg har det bra, takk.',
+    description: 'Full transcript of the listening track — AUDIO-kind lessons only.',
+  })
+  @IsOptional()
+  @IsString()
+  transcript?: string;
 }

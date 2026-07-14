@@ -12,6 +12,7 @@ const NOT_FOUND_ERRORS = new Set<LessonDomainError>([
   LessonDomainError.LESSON_NOT_FOUND,
   LessonDomainError.VARIANT_NOT_FOUND,
   LessonDomainError.BEST_VARIANT_NOT_FOUND,
+  LessonDomainError.EXERCISE_NOT_FOUND,
 ]);
 
 const GONE_ERRORS = new Set<LessonDomainError>([
@@ -24,6 +25,7 @@ const CONFLICT_ERRORS = new Set<LessonDomainError>([
   LessonDomainError.VARIANT_ALREADY_PUBLISHED,
   LessonDomainError.SLUG_ALREADY_EXISTS,
   LessonDomainError.DUPLICATE_CUE_POSITION,
+  LessonDomainError.DUPLICATE_STAGE_POSITION,
 ]);
 
 const UNPROCESSABLE_ERRORS = new Set<LessonDomainError>([
@@ -33,6 +35,7 @@ const UNPROCESSABLE_ERRORS = new Set<LessonDomainError>([
   LessonDomainError.LESSON_HAS_PUBLISHED_REFERENCES,
   LessonDomainError.LESSON_KIND_MISMATCH,
   LessonDomainError.INVALID_CUE_DATA,
+  LessonDomainError.INVALID_STAGE_DATA,
 ]);
 
 export function throwHttpException(error: LessonDomainError): never {

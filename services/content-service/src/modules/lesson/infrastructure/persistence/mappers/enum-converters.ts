@@ -2,6 +2,7 @@ import { $Enums } from '../../../../../../generated/prisma/client.js';
 import { VariantStatus } from '../../../domain/value-objects/variant-status.vo.js';
 import { MediaRefType } from '../../../domain/value-objects/media-ref-type.vo.js';
 import { LessonKind } from '../../../domain/value-objects/lesson-kind.vo.js';
+import { ListeningStageType } from '../../../domain/value-objects/listening-stage-type.vo.js';
 
 // DifficultyLevel and Visibility conversions are shared with the container module.
 export {
@@ -78,4 +79,34 @@ export function prismaLessonKindToDomain(value: $Enums.LessonKind): LessonKind {
 
 export function domainLessonKindToPrisma(value: LessonKind): $Enums.LessonKind {
   return DOMAIN_TO_PRISMA_LESSON_KIND[value];
+}
+
+// ─── ListeningStageType ──────────────────────────────────────────────────────
+
+const PRISMA_TO_DOMAIN_LISTENING_STAGE_TYPE: Record<
+  $Enums.ListeningStageType,
+  ListeningStageType
+> = {
+  GAP_FILL: ListeningStageType.GAP_FILL,
+  COMPREHENSION: ListeningStageType.COMPREHENSION,
+};
+
+const DOMAIN_TO_PRISMA_LISTENING_STAGE_TYPE: Record<
+  ListeningStageType,
+  $Enums.ListeningStageType
+> = {
+  [ListeningStageType.GAP_FILL]: 'GAP_FILL',
+  [ListeningStageType.COMPREHENSION]: 'COMPREHENSION',
+};
+
+export function prismaListeningStageTypeToDomain(
+  value: $Enums.ListeningStageType,
+): ListeningStageType {
+  return PRISMA_TO_DOMAIN_LISTENING_STAGE_TYPE[value];
+}
+
+export function domainListeningStageTypeToPrisma(
+  value: ListeningStageType,
+): $Enums.ListeningStageType {
+  return DOMAIN_TO_PRISMA_LISTENING_STAGE_TYPE[value];
 }

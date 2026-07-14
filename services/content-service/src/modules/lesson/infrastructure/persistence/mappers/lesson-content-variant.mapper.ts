@@ -19,6 +19,7 @@ export interface LessonContentVariantCreateData {
   displayDescription: string | null;
   bodyMarkdown: string;
   estimatedReadingMinutes: number | null;
+  transcript: string | null;
   status: $Enums.VariantStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -44,6 +45,7 @@ export class LessonContentVariantMapper {
       displayDescription: raw.displayDescription,
       bodyMarkdown: raw.bodyMarkdown,
       estimatedReadingMinutes: raw.estimatedReadingMinutes,
+      transcript: raw.transcript,
       status: prismaVariantStatusToDomain(raw.status),
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
@@ -65,6 +67,7 @@ export class LessonContentVariantMapper {
       displayDescription: entity.displayDescription,
       bodyMarkdown: entity.bodyMarkdown,
       estimatedReadingMinutes: entity.estimatedReadingMinutes,
+      transcript: entity.transcript,
       status: domainVariantStatusToPrisma(entity.status),
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
@@ -84,6 +87,7 @@ export class LessonContentVariantMapper {
       displayDescription: entity.displayDescription,
       bodyMarkdown: entity.bodyMarkdown,
       estimatedReadingMinutes: entity.estimatedReadingMinutes,
+      transcript: entity.transcript,
       status: domainVariantStatusToPrisma(entity.status),
       updatedAt: entity.updatedAt,
       lastEditedByUserId: entity.lastEditedByUserId,

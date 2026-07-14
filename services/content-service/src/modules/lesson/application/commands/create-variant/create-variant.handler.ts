@@ -72,6 +72,7 @@ export class CreateVariantHandler implements ICommandHandler<
       displayDescription: command.displayDescription,
       bodyMarkdown: command.bodyMarkdown,
       estimatedReadingMinutes: command.estimatedReadingMinutes,
+      transcript: command.transcript,
       createdByUserId: command.userId,
     });
 

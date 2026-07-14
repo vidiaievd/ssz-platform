@@ -39,4 +39,13 @@ export class UpdateVariantRequestDto {
   @Min(1)
   @Max(480)
   estimatedReadingMinutes?: number | null;
+
+  @ApiPropertyOptional({
+    example: 'Updated transcript...',
+    nullable: true,
+    description: 'Pass null to clear the transcript. AUDIO-kind lessons only.',
+  })
+  @IsOptional()
+  @IsString()
+  transcript?: string | null;
 }

@@ -9,12 +9,16 @@ import { PrismaLessonRepository } from './infrastructure/persistence/prisma-less
 import { PrismaLessonContentVariantRepository } from './infrastructure/persistence/prisma-lesson-content-variant.repository.js';
 import { PrismaLessonVariantMediaRefRepository } from './infrastructure/persistence/prisma-lesson-variant-media-ref.repository.js';
 import { PrismaLessonVideoCueRepository } from './infrastructure/persistence/prisma-lesson-video-cue.repository.js';
+import { PrismaLessonListeningStageRepository } from './infrastructure/persistence/prisma-lesson-listening-stage.repository.js';
+import { PrismaExerciseRepository } from '../exercise/infrastructure/persistence/prisma-exercise.repository.js';
 
 // DI tokens
 import { LESSON_REPOSITORY } from './domain/repositories/lesson.repository.interface.js';
 import { LESSON_CONTENT_VARIANT_REPOSITORY } from './domain/repositories/lesson-content-variant.repository.interface.js';
 import { LESSON_VARIANT_MEDIA_REF_REPOSITORY } from './domain/repositories/lesson-variant-media-ref.repository.interface.js';
 import { LESSON_VIDEO_CUE_REPOSITORY } from './domain/repositories/lesson-video-cue.repository.interface.js';
+import { LESSON_LISTENING_STAGE_REPOSITORY } from './domain/repositories/lesson-listening-stage.repository.interface.js';
+import { EXERCISE_REPOSITORY } from '../exercise/domain/repositories/exercise.repository.interface.js';
 
 // Command handlers
 import { CreateLessonHandler } from './application/commands/create-lesson/create-lesson.handler.js';
@@ -25,6 +29,7 @@ import { UpdateVariantHandler } from './application/commands/update-variant/upda
 import { PublishVariantHandler } from './application/commands/publish-variant/publish-variant.handler.js';
 import { DeleteVariantHandler } from './application/commands/delete-variant/delete-variant.handler.js';
 import { CreateVideoCueHandler } from './application/commands/create-video-cue/create-video-cue.handler.js';
+import { CreateListeningStageHandler } from './application/commands/create-listening-stage/create-listening-stage.handler.js';
 
 // Query handlers
 import { GetLessonHandler } from './application/queries/get-lesson/get-lesson.handler.js';
@@ -34,6 +39,7 @@ import { GetLessonVariantsHandler } from './application/queries/get-lesson-varia
 import { GetLessonVariantHandler } from './application/queries/get-lesson-variant/get-lesson-variant.handler.js';
 import { GetBestVariantHandler } from './application/queries/get-best-variant/get-best-variant.handler.js';
 import { GetVideoCuesHandler } from './application/queries/get-video-cues/get-video-cues.handler.js';
+import { GetListeningStagesHandler } from './application/queries/get-listening-stages/get-listening-stages.handler.js';
 
 // Controller
 import { LessonController } from './presentation/controllers/lesson.controller.js';
@@ -47,6 +53,7 @@ const CommandHandlers = [
   PublishVariantHandler,
   DeleteVariantHandler,
   CreateVideoCueHandler,
+  CreateListeningStageHandler,
 ];
 
 const QueryHandlers = [
@@ -57,6 +64,7 @@ const QueryHandlers = [
   GetLessonVariantHandler,
   GetBestVariantHandler,
   GetVideoCuesHandler,
+  GetListeningStagesHandler,
 ];
 
 @Module({
@@ -71,6 +79,8 @@ const QueryHandlers = [
       useClass: PrismaLessonVariantMediaRefRepository,
     },
     { provide: LESSON_VIDEO_CUE_REPOSITORY, useClass: PrismaLessonVideoCueRepository },
+    { provide: LESSON_LISTENING_STAGE_REPOSITORY, useClass: PrismaLessonListeningStageRepository },
+    { provide: EXERCISE_REPOSITORY, useClass: PrismaExerciseRepository },
 
     // CQRS handlers
     ...CommandHandlers,

@@ -44,6 +44,8 @@ import { PublishVariantCommand } from '../../application/commands/publish-varian
 import { DeleteVariantCommand } from '../../application/commands/delete-variant/delete-variant.command.js';
 import { CreateVideoCueCommand } from '../../application/commands/create-video-cue/create-video-cue.command.js';
 import type { CreateVideoCueResult } from '../../application/commands/create-video-cue/create-video-cue.handler.js';
+import { CreateListeningStageCommand } from '../../application/commands/create-listening-stage/create-listening-stage.command.js';
+import type { CreateListeningStageResult } from '../../application/commands/create-listening-stage/create-listening-stage.handler.js';
 
 // Queries
 import { GetLessonQuery } from '../../application/queries/get-lesson/get-lesson.query.js';
@@ -54,12 +56,14 @@ import { GetLessonVariantQuery } from '../../application/queries/get-lesson-vari
 import { GetBestVariantQuery } from '../../application/queries/get-best-variant/get-best-variant.query.js';
 import type { GetBestVariantResult } from '../../application/queries/get-best-variant/get-best-variant.handler.js';
 import { GetVideoCuesQuery } from '../../application/queries/get-video-cues/get-video-cues.query.js';
+import { GetListeningStagesQuery } from '../../application/queries/get-listening-stages/get-listening-stages.query.js';
 
 // Domain types
 import type { LessonDomainError } from '../../domain/exceptions/lesson-domain.exceptions.js';
 import type { LessonEntity } from '../../domain/entities/lesson.entity.js';
 import type { LessonContentVariantEntity } from '../../domain/entities/lesson-content-variant.entity.js';
 import type { LessonVideoCueEntity } from '../../domain/entities/lesson-video-cue.entity.js';
+import type { LessonListeningStageEntity } from '../../domain/entities/lesson-listening-stage.entity.js';
 
 // Request DTOs
 import { CreateLessonRequestDto } from '../dto/requests/create-lesson.request.dto.js';
@@ -70,12 +74,14 @@ import { UpdateVariantRequestDto } from '../dto/requests/update-variant.request.
 import { GetBestVariantRequestDto } from '../dto/requests/get-best-variant.request.dto.js';
 import { LessonVariantsQueryDto } from '../dto/requests/lesson-variants-query.dto.js';
 import { CreateVideoCueRequestDto } from '../dto/requests/create-video-cue.request.dto.js';
+import { CreateListeningStageRequestDto } from '../dto/requests/create-listening-stage.request.dto.js';
 
 // Response DTOs
 import { LessonResponseDto } from '../dto/responses/lesson.response.dto.js';
 import { LessonVariantResponseDto } from '../dto/responses/lesson-variant.response.dto.js';
 import { BestVariantResponseDto } from '../dto/responses/best-variant.response.dto.js';
 import { LessonVideoCueResponseDto } from '../dto/responses/lesson-video-cue.response.dto.js';
+import { LessonListeningStageResponseDto } from '../dto/responses/lesson-listening-stage.response.dto.js';
 import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
 import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 
@@ -243,6 +249,7 @@ export class LessonController {
         dto.bodyMarkdown,
         dto.displayDescription,
         dto.estimatedReadingMinutes,
+        dto.transcript,
       ),
     );
 
@@ -337,6 +344,7 @@ export class LessonController {
         dto.displayDescription,
         dto.bodyMarkdown,
         dto.estimatedReadingMinutes,
+        dto.transcript,
       ),
     );
 
@@ -426,5 +434,52 @@ export class LessonController {
     );
 
     return cues.map((c) => LessonVideoCueResponseDto.from(c));
+  }
+
+  // ── Listening stages sub-resource (kind=AUDIO variants only) ───────────────
+
+  @Post(':id/variants/:variantId/listening-stages')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({ summary: 'Stage a gap-fill/comprehension exercise for an AUDIO lesson variant' })
+  @ApiCreatedResponse({ description: 'Returns the new stage ID' })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async createListeningStage(
+    @Param('variantId') variantId: string,
+    @Body() dto: CreateListeningStageRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ stageId: string }> {
+    const result = await this.commandBus.execute<
+      CreateListeningStageCommand,
+      Result<CreateListeningStageResult, LessonDomainError>
+    >(
+      new CreateListeningStageCommand(
+        user.userId,
+        variantId,
+        dto.exerciseId,
+        dto.position,
+        dto.stageType,
+      ),
+    );
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value;
+  }
+
+  @Get(':id/variants/:variantId/listening-stages')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({ summary: 'List staged gap-fill/comprehension exercises, ordered by position' })
+  @ApiOkResponse({ type: [LessonListeningStageResponseDto] })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async findListeningStages(
+    @Param('variantId') variantId: string,
+  ): Promise<LessonListeningStageResponseDto[]> {
+    const stages = await this.queryBus.execute<
+      GetListeningStagesQuery,
+      LessonListeningStageEntity[]
+    >(new GetListeningStagesQuery(variantId));
+
+    return stages.map((s) => LessonListeningStageResponseDto.from(s));
   }
 }

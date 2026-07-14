@@ -17,6 +17,8 @@ interface LessonContentVariantProps {
   displayDescription: string | null;
   bodyMarkdown: string;
   estimatedReadingMinutes: number | null;
+  // Populated only for AUDIO-kind lessons: full transcript of the listening track.
+  transcript: string | null;
   status: VariantStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +37,7 @@ export interface CreateVariantProps {
   displayDescription?: string;
   bodyMarkdown: string;
   estimatedReadingMinutes?: number;
+  transcript?: string;
   createdByUserId: string;
 }
 
@@ -43,6 +46,7 @@ export interface UpdateVariantProps {
   displayDescription?: string | null;
   bodyMarkdown?: string;
   estimatedReadingMinutes?: number | null;
+  transcript?: string | null;
 }
 
 export class LessonContentVariantEntity extends Entity<string> {
@@ -78,6 +82,9 @@ export class LessonContentVariantEntity extends Entity<string> {
   }
   get estimatedReadingMinutes(): number | null {
     return this.props.estimatedReadingMinutes;
+  }
+  get transcript(): string | null {
+    return this.props.transcript;
   }
   get status(): VariantStatus {
     return this.props.status;
@@ -126,6 +133,7 @@ export class LessonContentVariantEntity extends Entity<string> {
       displayDescription: p.displayDescription ?? null,
       bodyMarkdown: p.bodyMarkdown,
       estimatedReadingMinutes: p.estimatedReadingMinutes ?? null,
+      transcript: p.transcript ?? null,
       status: VariantStatus.DRAFT,
       createdAt: now,
       updatedAt: now,
@@ -166,6 +174,9 @@ export class LessonContentVariantEntity extends Entity<string> {
     }
     if ('estimatedReadingMinutes' in changes) {
       this.props.estimatedReadingMinutes = changes.estimatedReadingMinutes ?? null;
+    }
+    if ('transcript' in changes) {
+      this.props.transcript = changes.transcript ?? null;
     }
 
     this.props.lastEditedByUserId = editorUserId;
