@@ -75,6 +75,18 @@ enum VariantStatus {
   @@map("variant_status")
 }
 
+// Explicit discriminator rather than deriving from media: a TEXT lesson may embed audio
+// narration, and video/listening lessons need dedicated composite structures (cues,
+// transcript+stages) that hang off the declared kind, not off what media happens to be attached.
+enum LessonKind {
+  TEXT  @map("text")
+  VIDEO @map("video")
+  AUDIO @map("audio")
+  LIVE  @map("live")
+
+  @@map("lesson_kind")
+}
+
 enum MediaRefType {
   IMAGE @map("image")
   AUDIO @map("audio")
@@ -259,6 +271,7 @@ model Lesson {
   // CHECK constraint (raw SQL): owner_school_id IS NULL → visibility ∈ {public,shared,private}
   //                             owner_school_id IS NOT NULL → visibility ∈ {public,school_private,shared,private}
   visibility        Visibility
+  kind              LessonKind      @default(TEXT)
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz
   updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz
