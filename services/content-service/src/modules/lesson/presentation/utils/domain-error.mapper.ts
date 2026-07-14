@@ -23,6 +23,7 @@ const CONFLICT_ERRORS = new Set<LessonDomainError>([
   LessonDomainError.DUPLICATE_VARIANT,
   LessonDomainError.VARIANT_ALREADY_PUBLISHED,
   LessonDomainError.SLUG_ALREADY_EXISTS,
+  LessonDomainError.DUPLICATE_CUE_POSITION,
 ]);
 
 const UNPROCESSABLE_ERRORS = new Set<LessonDomainError>([
@@ -30,6 +31,8 @@ const UNPROCESSABLE_ERRORS = new Set<LessonDomainError>([
   LessonDomainError.EMPTY_BODY_MARKDOWN,
   LessonDomainError.VARIANT_NOT_IN_DRAFT_STATUS,
   LessonDomainError.LESSON_HAS_PUBLISHED_REFERENCES,
+  LessonDomainError.LESSON_KIND_MISMATCH,
+  LessonDomainError.INVALID_CUE_DATA,
 ]);
 
 export function throwHttpException(error: LessonDomainError): never {

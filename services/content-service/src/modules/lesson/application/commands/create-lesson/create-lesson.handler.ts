@@ -33,6 +33,7 @@ export class CreateLessonHandler implements ICommandHandler<
       ownerUserId: command.userId,
       ownerSchoolId: command.ownerSchoolId,
       visibility: command.visibility,
+      kind: command.kind,
     });
 
     if (lessonResult.isFail) {

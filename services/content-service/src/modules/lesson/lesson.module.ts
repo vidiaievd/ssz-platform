@@ -8,11 +8,13 @@ import type { ILessonRepository } from './domain/repositories/lesson.repository.
 import { PrismaLessonRepository } from './infrastructure/persistence/prisma-lesson.repository.js';
 import { PrismaLessonContentVariantRepository } from './infrastructure/persistence/prisma-lesson-content-variant.repository.js';
 import { PrismaLessonVariantMediaRefRepository } from './infrastructure/persistence/prisma-lesson-variant-media-ref.repository.js';
+import { PrismaLessonVideoCueRepository } from './infrastructure/persistence/prisma-lesson-video-cue.repository.js';
 
 // DI tokens
 import { LESSON_REPOSITORY } from './domain/repositories/lesson.repository.interface.js';
 import { LESSON_CONTENT_VARIANT_REPOSITORY } from './domain/repositories/lesson-content-variant.repository.interface.js';
 import { LESSON_VARIANT_MEDIA_REF_REPOSITORY } from './domain/repositories/lesson-variant-media-ref.repository.interface.js';
+import { LESSON_VIDEO_CUE_REPOSITORY } from './domain/repositories/lesson-video-cue.repository.interface.js';
 
 // Command handlers
 import { CreateLessonHandler } from './application/commands/create-lesson/create-lesson.handler.js';
@@ -22,6 +24,7 @@ import { CreateVariantHandler } from './application/commands/create-variant/crea
 import { UpdateVariantHandler } from './application/commands/update-variant/update-variant.handler.js';
 import { PublishVariantHandler } from './application/commands/publish-variant/publish-variant.handler.js';
 import { DeleteVariantHandler } from './application/commands/delete-variant/delete-variant.handler.js';
+import { CreateVideoCueHandler } from './application/commands/create-video-cue/create-video-cue.handler.js';
 
 // Query handlers
 import { GetLessonHandler } from './application/queries/get-lesson/get-lesson.handler.js';
@@ -30,6 +33,7 @@ import { GetLessonBySlugHandler } from './application/queries/get-lesson-by-slug
 import { GetLessonVariantsHandler } from './application/queries/get-lesson-variants/get-lesson-variants.handler.js';
 import { GetLessonVariantHandler } from './application/queries/get-lesson-variant/get-lesson-variant.handler.js';
 import { GetBestVariantHandler } from './application/queries/get-best-variant/get-best-variant.handler.js';
+import { GetVideoCuesHandler } from './application/queries/get-video-cues/get-video-cues.handler.js';
 
 // Controller
 import { LessonController } from './presentation/controllers/lesson.controller.js';
@@ -42,6 +46,7 @@ const CommandHandlers = [
   UpdateVariantHandler,
   PublishVariantHandler,
   DeleteVariantHandler,
+  CreateVideoCueHandler,
 ];
 
 const QueryHandlers = [
@@ -51,6 +56,7 @@ const QueryHandlers = [
   GetLessonVariantsHandler,
   GetLessonVariantHandler,
   GetBestVariantHandler,
+  GetVideoCuesHandler,
 ];
 
 @Module({
@@ -64,6 +70,7 @@ const QueryHandlers = [
       provide: LESSON_VARIANT_MEDIA_REF_REPOSITORY,
       useClass: PrismaLessonVariantMediaRefRepository,
     },
+    { provide: LESSON_VIDEO_CUE_REPOSITORY, useClass: PrismaLessonVideoCueRepository },
 
     // CQRS handlers
     ...CommandHandlers,

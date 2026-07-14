@@ -6,6 +6,7 @@ import {
   Visibility,
   getValidVisibilities,
 } from '../../../container/domain/value-objects/visibility.vo.js';
+import { LessonKind } from '../value-objects/lesson-kind.vo.js';
 import { LessonDomainError } from '../exceptions/lesson-domain.exceptions.js';
 import { LessonCreatedEvent } from '../events/lesson-created.event.js';
 import { LessonUpdatedEvent } from '../events/lesson-updated.event.js';
@@ -21,6 +22,7 @@ interface LessonProps {
   ownerUserId: string;
   ownerSchoolId: string | null;
   visibility: Visibility;
+  kind: LessonKind;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -35,6 +37,7 @@ export interface CreateLessonProps {
   ownerUserId: string;
   ownerSchoolId?: string;
   visibility: Visibility;
+  kind?: LessonKind;
 }
 
 export interface UpdateLessonProps {
@@ -82,6 +85,9 @@ export class LessonEntity extends AggregateRoot {
   get visibility(): Visibility {
     return this.props.visibility;
   }
+  get kind(): LessonKind {
+    return this.props.kind;
+  }
   get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -113,6 +119,7 @@ export class LessonEntity extends AggregateRoot {
       ownerUserId: p.ownerUserId,
       ownerSchoolId: p.ownerSchoolId ?? null,
       visibility: p.visibility,
+      kind: p.kind ?? LessonKind.TEXT,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,

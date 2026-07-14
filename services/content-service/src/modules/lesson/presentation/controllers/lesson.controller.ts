@@ -42,6 +42,8 @@ import type { CreateVariantResult } from '../../application/commands/create-vari
 import { UpdateVariantCommand } from '../../application/commands/update-variant/update-variant.command.js';
 import { PublishVariantCommand } from '../../application/commands/publish-variant/publish-variant.command.js';
 import { DeleteVariantCommand } from '../../application/commands/delete-variant/delete-variant.command.js';
+import { CreateVideoCueCommand } from '../../application/commands/create-video-cue/create-video-cue.command.js';
+import type { CreateVideoCueResult } from '../../application/commands/create-video-cue/create-video-cue.handler.js';
 
 // Queries
 import { GetLessonQuery } from '../../application/queries/get-lesson/get-lesson.query.js';
@@ -51,11 +53,13 @@ import { GetLessonVariantsQuery } from '../../application/queries/get-lesson-var
 import { GetLessonVariantQuery } from '../../application/queries/get-lesson-variant/get-lesson-variant.query.js';
 import { GetBestVariantQuery } from '../../application/queries/get-best-variant/get-best-variant.query.js';
 import type { GetBestVariantResult } from '../../application/queries/get-best-variant/get-best-variant.handler.js';
+import { GetVideoCuesQuery } from '../../application/queries/get-video-cues/get-video-cues.query.js';
 
 // Domain types
 import type { LessonDomainError } from '../../domain/exceptions/lesson-domain.exceptions.js';
 import type { LessonEntity } from '../../domain/entities/lesson.entity.js';
 import type { LessonContentVariantEntity } from '../../domain/entities/lesson-content-variant.entity.js';
+import type { LessonVideoCueEntity } from '../../domain/entities/lesson-video-cue.entity.js';
 
 // Request DTOs
 import { CreateLessonRequestDto } from '../dto/requests/create-lesson.request.dto.js';
@@ -65,11 +69,13 @@ import { CreateVariantRequestDto } from '../dto/requests/create-variant.request.
 import { UpdateVariantRequestDto } from '../dto/requests/update-variant.request.dto.js';
 import { GetBestVariantRequestDto } from '../dto/requests/get-best-variant.request.dto.js';
 import { LessonVariantsQueryDto } from '../dto/requests/lesson-variants-query.dto.js';
+import { CreateVideoCueRequestDto } from '../dto/requests/create-video-cue.request.dto.js';
 
 // Response DTOs
 import { LessonResponseDto } from '../dto/responses/lesson.response.dto.js';
 import { LessonVariantResponseDto } from '../dto/responses/lesson-variant.response.dto.js';
 import { BestVariantResponseDto } from '../dto/responses/best-variant.response.dto.js';
+import { LessonVideoCueResponseDto } from '../dto/responses/lesson-video-cue.response.dto.js';
 import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
 import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 
@@ -108,6 +114,7 @@ export class LessonController {
         dto.description,
         dto.coverImageMediaId,
         dto.ownerSchoolId,
+        dto.kind,
       ),
     );
 
@@ -372,5 +379,52 @@ export class LessonController {
     >(new DeleteVariantCommand(user.userId, variantId));
 
     if (result.isFail) throwHttpException(result.error);
+  }
+
+  // ── Video cues sub-resource (kind=VIDEO variants only) ─────────────────────
+
+  @Post(':id/variants/:variantId/cues')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({ summary: 'Create a transcript cue for a VIDEO lesson variant' })
+  @ApiCreatedResponse({ description: 'Returns the new cue ID' })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async createVideoCue(
+    @Param('variantId') variantId: string,
+    @Body() dto: CreateVideoCueRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ cueId: string }> {
+    const result = await this.commandBus.execute<
+      CreateVideoCueCommand,
+      Result<CreateVideoCueResult, LessonDomainError>
+    >(
+      new CreateVideoCueCommand(
+        user.userId,
+        variantId,
+        dto.position,
+        dto.startSeconds,
+        dto.targetLine,
+        dto.translationLine,
+      ),
+    );
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value;
+  }
+
+  @Get(':id/variants/:variantId/cues')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({ summary: 'List transcript cues for a VIDEO lesson variant, ordered by position' })
+  @ApiOkResponse({ type: [LessonVideoCueResponseDto] })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async findVideoCues(
+    @Param('variantId') variantId: string,
+  ): Promise<LessonVideoCueResponseDto[]> {
+    const cues = await this.queryBus.execute<GetVideoCuesQuery, LessonVideoCueEntity[]>(
+      new GetVideoCuesQuery(variantId),
+    );
+
+    return cues.map((c) => LessonVideoCueResponseDto.from(c));
   }
 }

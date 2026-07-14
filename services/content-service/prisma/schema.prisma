@@ -312,6 +312,7 @@ model LessonContentVariant {
 
   lesson    Lesson                 @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   mediaRefs LessonVariantMediaRef[]
+  videoCues LessonVideoCue[]
 
   @@unique([lessonId, explanationLanguage, minLevel, maxLevel])
   @@index([lessonId])
@@ -335,6 +336,25 @@ model LessonVariantMediaRef {
   @@index([lessonContentVariantId])
   @@index([mediaId])
   @@map("lesson_variant_media_refs")
+}
+
+// Ordered transcript cues for a VIDEO-kind lesson variant. Powers interactive
+// subtitles + synced transcript. position is 0-based within the parent variant.
+model LessonVideoCue {
+  id                      String   @id @default(uuid()) @db.Uuid
+  lessonContentVariantId  String   @map("lesson_content_variant_id") @db.Uuid
+  position                Int
+  startSeconds            Float    @map("start_seconds")
+  targetLine              String   @map("target_line") @db.Text
+  translationLine         String?  @map("translation_line") @db.Text
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  variant LessonContentVariant @relation(fields: [lessonContentVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonContentVariantId, position])
+  @@index([lessonContentVariantId])
+  @@map("lesson_video_cues")
 }
 
 // ─── Block 3: Vocabulary ──────────────────────────────────────────────────────
