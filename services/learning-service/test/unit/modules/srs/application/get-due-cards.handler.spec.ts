@@ -3,12 +3,17 @@ import { GetDueCardsHandler } from '../../../../../src/modules/srs/application/q
 import { GetDueCardsQuery } from '../../../../../src/modules/srs/application/queries/get-due-cards.query.js';
 import { ReviewCard } from '../../../../../src/modules/srs/domain/entities/review-card.entity.js';
 import type { ISrsRepository } from '../../../../../src/modules/srs/domain/repositories/srs-repository.interface.js';
+import type { ISrsScheduler } from '../../../../../src/modules/srs/application/ports/srs-scheduler.port.js';
+import type { ISrsLimitsPolicy } from '../../../../../src/modules/srs/application/ports/srs-limits-policy.port.js';
 import type { IClock } from '../../../../../src/shared/application/ports/clock.port.js';
 import type { RedisDueQueueService } from '../../../../../src/modules/srs/infrastructure/cache/redis-due-queue.service.js';
 
 const NOW        = new Date('2026-04-29T10:00:00Z');
 const USER_ID    = 'c3254eb9-3fb3-4559-9dbf-2cea12f40ed5';
 const CONTENT_ID = 'eb1aa566-c4e0-4ffa-8018-e9ce2abc5d08';
+const REVIEWED_TODAY = 4;
+const DAILY_LIMIT = 100;
+const STREAK_DAYS = 7;
 
 function makeCards(n: number): ReviewCard[] {
   return Array.from({ length: n }, () => ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, NOW));
@@ -33,6 +38,22 @@ function makeHandler(overrides: {
     countNewToday: jest.fn(),
     countReviewedToday: jest.fn(),
     getStatsByUser: jest.fn(),
+    getStreakDays: jest.fn<() => Promise<number>>().mockResolvedValue(STREAK_DAYS),
+  } as any;
+
+  const scheduler: ISrsScheduler = {
+    schedule: jest.fn(),
+    getRetrievability: jest.fn(),
+    predictIntervals: jest.fn().mockReturnValue([]),
+  } as any;
+
+  const limitsPolicy: ISrsLimitsPolicy = {
+    canIntroduceNewCard: jest.fn(),
+    canReview: jest.fn(),
+    incrementNewCardCount: jest.fn(),
+    incrementReviewCount: jest.fn(),
+    getReviewedCount: jest.fn<() => Promise<number>>().mockResolvedValue(REVIEWED_TODAY),
+    getDailyReviewLimit: jest.fn().mockReturnValue(DAILY_LIMIT),
   } as any;
 
   const clock: IClock = { now: () => NOW };
@@ -45,7 +66,7 @@ function makeHandler(overrides: {
   } as unknown as RedisDueQueueService;
 
   return {
-    handler: new GetDueCardsHandler(repo, clock, dueQueue),
+    handler: new GetDueCardsHandler(repo, scheduler, limitsPolicy, clock, dueQueue),
     repo,
     dueQueue,
   };
@@ -61,9 +82,12 @@ describe('GetDueCardsHandler', () => {
 
     const result = await handler.execute(new GetDueCardsQuery(USER_ID, 20));
 
-    expect(result).toHaveLength(2);
-    expect(result[0].id).toBe(cards[0].id);
-    expect(result[1].id).toBe(cards[1].id);
+    expect(result.cards).toHaveLength(2);
+    expect(result.cards[0].id).toBe(cards[0].id);
+    expect(result.cards[1].id).toBe(cards[1].id);
+    expect(result.reviewedToday).toBe(REVIEWED_TODAY);
+    expect(result.dailyLimit).toBe(DAILY_LIMIT);
+    expect(result.streakDays).toBe(STREAK_DAYS);
     expect(repo.findById).toHaveBeenCalledTimes(2);
     expect(repo.findDueCards).not.toHaveBeenCalled();
     expect(dueQueue.populate).not.toHaveBeenCalled();
@@ -78,8 +102,8 @@ describe('GetDueCardsHandler', () => {
 
     const result = await handler.execute(new GetDueCardsQuery(USER_ID, 20));
 
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe(card.id);
+    expect(result.cards).toHaveLength(1);
+    expect(result.cards[0].id).toBe(card.id);
     expect(repo.findById).toHaveBeenCalledTimes(2);
   });
 
@@ -92,7 +116,7 @@ describe('GetDueCardsHandler', () => {
 
     const result = await handler.execute(new GetDueCardsQuery(USER_ID, 20));
 
-    expect(result).toHaveLength(3);
+    expect(result.cards).toHaveLength(3);
     expect(repo.findDueCards).toHaveBeenCalledWith(USER_ID, 20, NOW);
     expect(dueQueue.populate).toHaveBeenCalledWith(
       USER_ID,
@@ -106,7 +130,7 @@ describe('GetDueCardsHandler', () => {
 
     const result = await handler.execute(new GetDueCardsQuery(USER_ID, 20));
 
-    expect(result).toHaveLength(0);
+    expect(result.cards).toHaveLength(0);
     expect(dueQueue.populate).not.toHaveBeenCalled();
   });
 
@@ -115,7 +139,7 @@ describe('GetDueCardsHandler', () => {
 
     const result = await handler.execute(new GetDueCardsQuery(USER_ID, 20));
 
-    expect(result).toHaveLength(0);
+    expect(result.cards).toHaveLength(0);
     expect(repo.findById).not.toHaveBeenCalled();
     expect(repo.findDueCards).not.toHaveBeenCalled();
   });
