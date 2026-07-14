@@ -60,7 +60,7 @@ export class GetPreflightHandler
     const byType = groupBy(items, (i) => i.itemType);
 
     await Promise.all([
-      this.checkLessons(byType['LESSON'] ?? [], blockers),
+      this.checkLessons(byType['LESSON'] ?? [], blockers, warnings),
       this.checkVocabularyLists(byType['VOCABULARY_LIST'] ?? [], blockers, warnings),
       this.checkExercises(byType['EXERCISE'] ?? [], blockers),
       this.checkModules(byType['CONTAINER'] ?? [], blockers),
@@ -126,6 +126,7 @@ export class GetPreflightHandler
   private async checkLessons(
     items: Array<{ itemType: string; itemId: string }>,
     blockers: RuleViolation[],
+    warnings: RuleViolation[],
   ): Promise<void> {
     if (items.length === 0) return;
 
@@ -134,7 +135,7 @@ export class GetPreflightHandler
     const [lessons, publishedVariants] = await Promise.all([
       this.prisma.lesson.findMany({
         where: { id: { in: lessonIds } },
-        select: { id: true, kind: true },
+        select: { id: true, kind: true, liveStartsAt: true },
       }),
       // Load all PUBLISHED variants for these lessons in one query.
       this.prisma.lessonContentVariant.findMany({
@@ -154,10 +155,22 @@ export class GetPreflightHandler
     ]);
 
     const kindByLesson = new Map(lessons.map((l) => [l.id, l.kind]));
+    const liveStartsAtByLesson = new Map(lessons.map((l) => [l.id, l.liveStartsAt]));
     const variantsByLesson = groupBy(publishedVariants, (v) => v.lessonId);
 
     for (const item of items) {
       const variants = variantsByLesson[item.itemId] ?? [];
+
+      // LIVE_NO_SCHEDULE: LIVE-kind lesson has no scheduled start time yet.
+      if (kindByLesson.get(item.itemId) === 'LIVE' && !liveStartsAtByLesson.get(item.itemId)) {
+        warnings.push({
+          ruleCode: 'LIVE_NO_SCHEDULE',
+          severity: 'warning',
+          itemType: 'LESSON',
+          itemId: item.itemId,
+          detail: 'Live lesson has no scheduled start time',
+        });
+      }
 
       // READ_NO_TITLE: lesson has no published variant — students see nothing.
       if (variants.length === 0) {
