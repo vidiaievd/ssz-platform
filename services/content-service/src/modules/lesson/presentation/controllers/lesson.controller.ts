@@ -64,6 +64,8 @@ import { GetTextParagraphsQuery } from '../../application/queries/get-text-parag
 import type { TextParagraphResult } from '../../application/queries/get-text-paragraphs/get-text-paragraphs.handler.js';
 import { GetGlossaryMarksQuery } from '../../application/queries/get-glossary-marks/get-glossary-marks.query.js';
 import type { GlossaryMarkRow } from '../../domain/repositories/lesson-glossary-mark.repository.interface.js';
+import { GetLessonReaderContentQuery } from '../../application/queries/get-lesson-reader-content/get-lesson-reader-content.query.js';
+import type { LessonReaderContent } from '../../application/queries/get-lesson-reader-content/get-lesson-reader-content.handler.js';
 
 // Domain types
 import type { LessonDomainError } from '../../domain/exceptions/lesson-domain.exceptions.js';
@@ -93,6 +95,7 @@ import { LessonVideoCueResponseDto } from '../dto/responses/lesson-video-cue.res
 import { LessonListeningStageResponseDto } from '../dto/responses/lesson-listening-stage.response.dto.js';
 import { TextParagraphResponseDto } from '../dto/responses/text-paragraph.response.dto.js';
 import { GlossaryMarkResponseDto } from '../dto/responses/glossary-mark.response.dto.js';
+import { LessonReaderContentResponseDto } from '../dto/responses/lesson-reader-content.response.dto.js';
 import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
 import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 
@@ -189,6 +192,35 @@ export class LessonController {
 
     if (result.isFail) throwHttpException(result.error);
     return LessonResponseDto.from(result.value);
+  }
+
+  @Get(':id/reader')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({
+    summary:
+      'Kind-aware reader payload for a lesson (TEXT: paragraphs+glossary, VIDEO: cues+glossary, ' +
+      'AUDIO: transcript+listening stages, LIVE: schedule stub) — single round trip for the reader page',
+  })
+  @ApiOkResponse({ type: LessonReaderContentResponseDto })
+  async getReaderContent(
+    @Param('id') id: string,
+    @Query() dto: GetBestVariantRequestDto,
+  ): Promise<LessonReaderContentResponseDto> {
+    const result = await this.queryBus.execute<
+      GetLessonReaderContentQuery,
+      Result<LessonReaderContent, LessonDomainError>
+    >(
+      new GetLessonReaderContentQuery(
+        id,
+        dto.studentNativeLanguage,
+        dto.studentCurrentLevel,
+        dto.studentKnownLanguages ?? [],
+      ),
+    );
+
+    if (result.isFail) throwHttpException(result.error);
+    return LessonReaderContentResponseDto.from(result.value);
   }
 
   @Patch(':id')

@@ -52,6 +52,7 @@ import { GetVideoCuesHandler } from './application/queries/get-video-cues/get-vi
 import { GetListeningStagesHandler } from './application/queries/get-listening-stages/get-listening-stages.handler.js';
 import { GetTextParagraphsHandler } from './application/queries/get-text-paragraphs/get-text-paragraphs.handler.js';
 import { GetGlossaryMarksHandler } from './application/queries/get-glossary-marks/get-glossary-marks.handler.js';
+import { GetLessonReaderContentHandler } from './application/queries/get-lesson-reader-content/get-lesson-reader-content.handler.js';
 
 // Controller
 import { LessonController } from './presentation/controllers/lesson.controller.js';
@@ -81,6 +82,7 @@ const QueryHandlers = [
   GetListeningStagesHandler,
   GetTextParagraphsHandler,
   GetGlossaryMarksHandler,
+  GetLessonReaderContentHandler,
 ];
 
 @Module({
