@@ -47,6 +47,18 @@ export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
     return rows.map(SchoolGroupMapper.toDomain);
   }
 
+  async findByCourseId(schoolId: string, courseId: string): Promise<SchoolGroup[]> {
+    const rows = await (this.prisma as any).schoolGroup.findMany({
+      where: {
+        schoolId,
+        deletedAt: null,
+        OR: [{ courseId }, { materials: { some: { courseId } } }],
+      },
+      include: GROUP_INCLUDE,
+    });
+    return rows.map(SchoolGroupMapper.toDomain);
+  }
+
   async save(group: SchoolGroup): Promise<void> {
     await (this.prisma as any).schoolGroup.upsert({
       where: { id: group.id },
