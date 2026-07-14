@@ -31,6 +31,7 @@ export class CurriculumController {
       schoolId: plan.schoolId,
       targetWeeklyHours: plan.targetWeeklyHours,
       units: plan.units.map((u) => ({
+        id: u.id,
         title: u.title,
         order: u.order,
         plannedSessions: u.plannedSessions,
@@ -52,11 +53,36 @@ export class CurriculumController {
     const slot = await this.prisma.slot.findFirst({ where: { groupId } });
     const schoolId = slot?.schoolId ?? 'unknown';
 
-    const plan = await this.prisma.curriculumPlan.upsert({
-      where: { groupId },
-      create: { groupId, schoolId, targetWeeklyHours: body.targetWeeklyHours },
-      update: { targetWeeklyHours: body.targetWeeklyHours },
-      include: { units: { orderBy: { order: 'asc' } } },
+    const plan = await this.prisma.$transaction(async (tx) => {
+      const upserted = await tx.curriculumPlan.upsert({
+        where: { groupId },
+        create: { groupId, schoolId, targetWeeklyHours: body.targetWeeklyHours },
+        update: { targetWeeklyHours: body.targetWeeklyHours },
+      });
+
+      // Full unit replace: order is the array order. Lessons keep their link
+      // via onDelete: SetNull, so replacing units never blocks on FK.
+      if (body.units) {
+        await tx.curriculumUnit.deleteMany({ where: { planId: upserted.id } });
+        if (body.units.length) {
+          await tx.curriculumUnit.createMany({
+            data: body.units.map((u, index) => ({
+              planId: upserted.id,
+              title: u.title,
+              order: index + 1,
+              plannedSessions: u.plannedSessions,
+              deliveredSessions: u.deliveredSessions ?? 0,
+              requiredLevel: u.requiredLevel ?? null,
+              status: (u.status ?? 'planned') as any,
+            })),
+          });
+        }
+      }
+
+      return tx.curriculumPlan.findUniqueOrThrow({
+        where: { id: upserted.id },
+        include: { units: { orderBy: { order: 'asc' } } },
+      });
     });
 
     return {
@@ -65,7 +91,7 @@ export class CurriculumController {
       schoolId: plan.schoolId,
       targetWeeklyHours: plan.targetWeeklyHours,
       units: plan.units.map((u) => ({
-        title: u.title, order: u.order,
+        id: u.id, title: u.title, order: u.order,
         plannedSessions: u.plannedSessions, deliveredSessions: u.deliveredSessions,
         requiredLevel: u.requiredLevel, status: u.status,
       })),
