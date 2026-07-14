@@ -108,16 +108,28 @@ export class GetPreflightHandler
 
     const lessonIds = items.map((i) => i.itemId);
 
-    // Load all PUBLISHED variants for these lessons in one query.
-    const publishedVariants = await this.prisma.lessonContentVariant.findMany({
-      where: {
-        lessonId: { in: lessonIds },
-        status: 'PUBLISHED',
-        deletedAt: null,
-      },
-      select: { lessonId: true, bodyMarkdown: true },
-    });
+    const [lessons, publishedVariants] = await Promise.all([
+      this.prisma.lesson.findMany({
+        where: { id: { in: lessonIds } },
+        select: { id: true, kind: true },
+      }),
+      // Load all PUBLISHED variants for these lessons in one query.
+      this.prisma.lessonContentVariant.findMany({
+        where: {
+          lessonId: { in: lessonIds },
+          status: 'PUBLISHED',
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          lessonId: true,
+          bodyMarkdown: true,
+          mediaRefs: { select: { mediaType: true } },
+        },
+      }),
+    ]);
 
+    const kindByLesson = new Map(lessons.map((l) => [l.id, l.kind]));
     const variantsByLesson = groupBy(publishedVariants, (v) => v.lessonId);
 
     for (const item of items) {
@@ -149,6 +161,22 @@ export class GetPreflightHandler
           break;
         }
         IMG_NO_ALT_RE.lastIndex = 0;
+      }
+
+      // VIDEO_NO_SOURCE: VIDEO-kind lesson has no published variant with a video media ref.
+      if (kindByLesson.get(item.itemId) === 'VIDEO') {
+        const hasVideoSource = variants.some((v) =>
+          v.mediaRefs.some((ref) => ref.mediaType === 'VIDEO'),
+        );
+        if (!hasVideoSource) {
+          blockers.push({
+            ruleCode: 'VIDEO_NO_SOURCE',
+            severity: 'blocker',
+            itemType: 'LESSON',
+            itemId: item.itemId,
+            detail: 'Video lesson has no video source in its published variant',
+          });
+        }
       }
     }
   }
