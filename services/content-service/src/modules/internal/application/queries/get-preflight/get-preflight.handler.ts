@@ -124,6 +124,7 @@ export class GetPreflightHandler
           id: true,
           lessonId: true,
           bodyMarkdown: true,
+          transcript: true,
           mediaRefs: { select: { mediaType: true } },
         },
       }),
@@ -175,6 +176,34 @@ export class GetPreflightHandler
             itemType: 'LESSON',
             itemId: item.itemId,
             detail: 'Video lesson has no video source in its published variant',
+          });
+        }
+      }
+
+      // AUDIO_NO_TRACK / AUDIO_NO_TRANSCRIPT: AUDIO-kind lesson missing its audio
+      // source or transcript in the published variant.
+      if (kindByLesson.get(item.itemId) === 'AUDIO') {
+        const hasAudioSource = variants.some((v) =>
+          v.mediaRefs.some((ref) => ref.mediaType === 'AUDIO'),
+        );
+        if (!hasAudioSource) {
+          blockers.push({
+            ruleCode: 'AUDIO_NO_TRACK',
+            severity: 'blocker',
+            itemType: 'LESSON',
+            itemId: item.itemId,
+            detail: 'Audio lesson has no audio track in its published variant',
+          });
+        }
+
+        const hasTranscript = variants.some((v) => !!v.transcript?.trim());
+        if (!hasTranscript) {
+          blockers.push({
+            ruleCode: 'AUDIO_NO_TRANSCRIPT',
+            severity: 'blocker',
+            itemType: 'LESSON',
+            itemId: item.itemId,
+            detail: 'Audio lesson has no transcript in its published variant',
           });
         }
       }
