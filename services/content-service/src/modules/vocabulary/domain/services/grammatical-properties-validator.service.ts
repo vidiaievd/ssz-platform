@@ -28,21 +28,31 @@ interface LanguageSchema {
  */
 @Injectable()
 export class GrammaticalPropertiesValidatorService {
-  private readonly schemas: Record<string, LanguageSchema> = {
-    no: {
-      // Norwegian
-      gender: { type: 'enum', values: ['masculine', 'feminine', 'neuter', 'common'] },
-      plural_form: { type: 'string' },
-      definite_singular: { type: 'string' },
-      definite_plural: { type: 'string' },
-      verb_class: {
-        type: 'enum',
-        values: ['weak_1', 'weak_2', 'strong', 'modal', 'irregular'],
-      },
-      present_tense: { type: 'string' },
-      past_tense: { type: 'string' },
-      perfect_tense: { type: 'string' },
+  // Norwegian schema, shared by the `no` and `nb` (Bokmål) language tags.
+  // Nouns: gender + definite/plural paradigm. Verbs: class + tenses.
+  // Adjectives: neuter_form + plural_form (also definite/plural), plus optional
+  // comparative/superlative.
+  private static readonly NORWEGIAN_SCHEMA: LanguageSchema = {
+    gender: { type: 'enum', values: ['masculine', 'feminine', 'neuter', 'common'] },
+    plural_form: { type: 'string' },
+    definite_singular: { type: 'string' },
+    definite_plural: { type: 'string' },
+    verb_class: {
+      type: 'enum',
+      values: ['weak_1', 'weak_2', 'strong', 'modal', 'irregular'],
     },
+    present_tense: { type: 'string' },
+    past_tense: { type: 'string' },
+    perfect_tense: { type: 'string' },
+    // Adjective forms
+    neuter_form: { type: 'string' },
+    comparative: { type: 'string' },
+    superlative: { type: 'string' },
+  };
+
+  private readonly schemas: Record<string, LanguageSchema> = {
+    no: GrammaticalPropertiesValidatorService.NORWEGIAN_SCHEMA,
+    nb: GrammaticalPropertiesValidatorService.NORWEGIAN_SCHEMA,
     en: {
       // English
       verb_forms: { type: 'string' }, // e.g. "go, went, gone"
