@@ -49,7 +49,7 @@ export class HttpOrganizationClient implements IOrganizationClient {
             .pipe(timeout(this.timeoutMs)),
         );
 
-        return response.data.role;
+        return response.data.role.toLowerCase() as SchoolMemberRole;
       } catch (err: unknown) {
         const status = this.extractStatus(err);
 
