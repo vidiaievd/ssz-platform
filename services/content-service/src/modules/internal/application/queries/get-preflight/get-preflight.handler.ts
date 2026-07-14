@@ -1,6 +1,11 @@
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
-import { NotFoundException } from '@nestjs/common';
+import { Inject, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
+import {
+  ORGANIZATION_CLIENT,
+  type IOrganizationClient,
+} from '../../../../../shared/access-control/domain/ports/organization-client.port.js';
+import { OrganizationServiceUnavailableException } from '../../../../../shared/access-control/infrastructure/clients/organization-service-unavailable.exception.js';
 import { GetPreflightQuery } from './get-preflight.query.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
@@ -30,12 +35,23 @@ const IMG_NO_ALT_RE = /!\[\s*\]\(/g;
 export class GetPreflightHandler
   implements IQueryHandler<GetPreflightQuery, PreflightResult>
 {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(GetPreflightHandler.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(ORGANIZATION_CLIENT) private readonly organizationClient: IOrganizationClient,
+  ) {}
 
   async execute(query: GetPreflightQuery): Promise<PreflightResult> {
     const version = await this.prisma.containerVersion.findUnique({
       where: { id: query.versionId },
-      select: { id: true, containerId: true },
+      select: {
+        id: true,
+        containerId: true,
+        container: {
+          select: { containerType: true, levelSystem: true, ownerSchoolId: true },
+        },
+      },
     });
     if (!version) throw new NotFoundException(`Version ${query.versionId} not found`);
 
@@ -81,6 +97,42 @@ export class GetPreflightHandler
           itemId: section.id,
           detail: `Section "${section.title}" has no items`,
         });
+      }
+    }
+
+    // LEVEL_NO_TEACHER: on a school-owned COURSE with explicit level sections
+    // (decision 3: top-level ContainerSection = CEFR/custom level), warn per level
+    // when no group in the school is assigned to teach the course at all.
+    if (
+      version.container.containerType === 'COURSE' &&
+      version.container.levelSystem !== 'SINGLE' &&
+      version.container.ownerSchoolId &&
+      sections.length > 0
+    ) {
+      try {
+        const teachers = await this.organizationClient.getCourseTeachers(
+          version.container.ownerSchoolId,
+          version.containerId,
+        );
+        if (teachers.length === 0) {
+          for (const section of sections) {
+            warnings.push({
+              ruleCode: 'LEVEL_NO_TEACHER',
+              severity: 'warning',
+              itemType: 'SECTION',
+              itemId: section.id,
+              detail: `Level "${section.title}" has no assigned teacher`,
+            });
+          }
+        }
+      } catch (err) {
+        if (err instanceof OrganizationServiceUnavailableException) {
+          this.logger.warn(
+            `Skipping LEVEL_NO_TEACHER check — organization-service unavailable: ${err.message}`,
+          );
+        } else {
+          throw err;
+        }
       }
     }
 
