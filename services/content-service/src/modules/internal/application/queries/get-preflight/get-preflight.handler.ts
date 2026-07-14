@@ -39,14 +39,18 @@ export class GetPreflightHandler
     });
     if (!version) throw new NotFoundException(`Version ${query.versionId} not found`);
 
-    const [items, localizations] = await Promise.all([
+    const [items, localizations, sections] = await Promise.all([
       this.prisma.containerItem.findMany({
         where: { containerVersionId: query.versionId },
-        select: { id: true, itemType: true, itemId: true },
+        select: { id: true, itemType: true, itemId: true, sectionId: true },
       }),
       this.prisma.containerLocalization.findMany({
         where: { containerId: version.containerId },
         select: { languageCode: true },
+      }),
+      this.prisma.containerSection.findMany({
+        where: { containerVersionId: query.versionId },
+        select: { id: true, title: true },
       }),
     ]);
 
@@ -59,7 +63,25 @@ export class GetPreflightHandler
       this.checkLessons(byType['LESSON'] ?? [], blockers),
       this.checkVocabularyLists(byType['VOCABULARY_LIST'] ?? [], blockers, warnings),
       this.checkExercises(byType['EXERCISE'] ?? [], blockers),
+      this.checkModules(byType['CONTAINER'] ?? [], blockers),
     ]);
+
+    // SECTION_EMPTY: a section in this version has no items assigned to it.
+    const itemsBySection = groupBy(
+      items.filter((i) => i.sectionId),
+      (i) => i.sectionId as string,
+    );
+    for (const section of sections) {
+      if ((itemsBySection[section.id] ?? []).length === 0) {
+        blockers.push({
+          ruleCode: 'SECTION_EMPTY',
+          severity: 'blocker',
+          itemType: 'SECTION',
+          itemId: section.id,
+          detail: `Section "${section.title}" has no items`,
+        });
+      }
+    }
 
     // NO_GRAMMAR: no grammar-rule items in this version.
     if ((byType['GRAMMAR_RULE'] ?? []).length === 0) {
@@ -206,6 +228,61 @@ export class GetPreflightHandler
             detail: 'Audio lesson has no transcript in its published variant',
           });
         }
+      }
+    }
+  }
+
+  private async checkModules(
+    items: Array<{ itemType: string; itemId: string }>,
+    blockers: RuleViolation[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+
+    const moduleContainerIds = items.map((i) => i.itemId);
+
+    const moduleContainers = await this.prisma.container.findMany({
+      where: { id: { in: moduleContainerIds } },
+      select: { id: true, currentPublishedVersionId: true },
+    });
+    const containerById = new Map(moduleContainers.map((c) => [c.id, c]));
+
+    // Prefer the module's own draft version (what's actually being authored);
+    // fall back to its currently published version if no draft exists.
+    const draftVersions = await this.prisma.containerVersion.findMany({
+      where: { containerId: { in: moduleContainerIds }, status: 'DRAFT' },
+      select: { id: true, containerId: true },
+    });
+    const draftVersionByContainer = new Map(draftVersions.map((v) => [v.containerId, v.id]));
+
+    const resolvedVersionIds = items
+      .map(
+        (item) =>
+          draftVersionByContainer.get(item.itemId) ??
+          containerById.get(item.itemId)?.currentPublishedVersionId,
+      )
+      .filter((id): id is string => !!id);
+
+    const itemCounts = await this.prisma.containerItem.groupBy({
+      by: ['containerVersionId'],
+      where: { containerVersionId: { in: resolvedVersionIds } },
+      _count: { id: true },
+    });
+    const countByVersion = new Map(itemCounts.map((c) => [c.containerVersionId, c._count.id]));
+
+    for (const item of items) {
+      const versionId =
+        draftVersionByContainer.get(item.itemId) ??
+        containerById.get(item.itemId)?.currentPublishedVersionId;
+
+      // MODULE_EMPTY: module has no resolvable version, or its version has no items.
+      if (!versionId || (countByVersion.get(versionId) ?? 0) === 0) {
+        blockers.push({
+          ruleCode: 'MODULE_EMPTY',
+          severity: 'blocker',
+          itemType: 'CONTAINER',
+          itemId: item.itemId,
+          detail: 'Module has no items',
+        });
       }
     }
   }
