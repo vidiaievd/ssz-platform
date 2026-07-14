@@ -46,6 +46,7 @@ import { CreateVideoCueCommand } from '../../application/commands/create-video-c
 import type { CreateVideoCueResult } from '../../application/commands/create-video-cue/create-video-cue.handler.js';
 import { CreateListeningStageCommand } from '../../application/commands/create-listening-stage/create-listening-stage.command.js';
 import type { CreateListeningStageResult } from '../../application/commands/create-listening-stage/create-listening-stage.handler.js';
+import { SetParagraphTranslationsCommand } from '../../application/commands/set-paragraph-translations/set-paragraph-translations.command.js';
 
 // Queries
 import { GetLessonQuery } from '../../application/queries/get-lesson/get-lesson.query.js';
@@ -57,6 +58,8 @@ import { GetBestVariantQuery } from '../../application/queries/get-best-variant/
 import type { GetBestVariantResult } from '../../application/queries/get-best-variant/get-best-variant.handler.js';
 import { GetVideoCuesQuery } from '../../application/queries/get-video-cues/get-video-cues.query.js';
 import { GetListeningStagesQuery } from '../../application/queries/get-listening-stages/get-listening-stages.query.js';
+import { GetTextParagraphsQuery } from '../../application/queries/get-text-paragraphs/get-text-paragraphs.query.js';
+import type { TextParagraphResult } from '../../application/queries/get-text-paragraphs/get-text-paragraphs.handler.js';
 
 // Domain types
 import type { LessonDomainError } from '../../domain/exceptions/lesson-domain.exceptions.js';
@@ -75,6 +78,7 @@ import { GetBestVariantRequestDto } from '../dto/requests/get-best-variant.reque
 import { LessonVariantsQueryDto } from '../dto/requests/lesson-variants-query.dto.js';
 import { CreateVideoCueRequestDto } from '../dto/requests/create-video-cue.request.dto.js';
 import { CreateListeningStageRequestDto } from '../dto/requests/create-listening-stage.request.dto.js';
+import { SetParagraphTranslationsRequestDto } from '../dto/requests/set-paragraph-translations.request.dto.js';
 
 // Response DTOs
 import { LessonResponseDto } from '../dto/responses/lesson.response.dto.js';
@@ -82,6 +86,7 @@ import { LessonVariantResponseDto } from '../dto/responses/lesson-variant.respon
 import { BestVariantResponseDto } from '../dto/responses/best-variant.response.dto.js';
 import { LessonVideoCueResponseDto } from '../dto/responses/lesson-video-cue.response.dto.js';
 import { LessonListeningStageResponseDto } from '../dto/responses/lesson-listening-stage.response.dto.js';
+import { TextParagraphResponseDto } from '../dto/responses/text-paragraph.response.dto.js';
 import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
 import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 
@@ -481,5 +486,45 @@ export class LessonController {
     >(new GetListeningStagesQuery(variantId));
 
     return stages.map((s) => LessonListeningStageResponseDto.from(s));
+  }
+
+  // ── Bilingual paragraph translations (kind=TEXT variants only) ─────────────
+
+  @Get(':id/variants/:variantId/paragraphs')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({ summary: 'Get body_markdown split into paragraphs with aligned translations' })
+  @ApiOkResponse({ type: [TextParagraphResponseDto] })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async findTextParagraphs(
+    @Param('variantId') variantId: string,
+  ): Promise<TextParagraphResponseDto[]> {
+    const result = await this.queryBus.execute<
+      GetTextParagraphsQuery,
+      Result<TextParagraphResult[], LessonDomainError>
+    >(new GetTextParagraphsQuery(variantId));
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value.map((p) => TextParagraphResponseDto.from(p));
+  }
+
+  @Post(':id/variants/:variantId/paragraphs')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Replace paragraph translations for a TEXT lesson variant' })
+  @ApiNoContentResponse()
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async setParagraphTranslations(
+    @Param('variantId') variantId: string,
+    @Body() dto: SetParagraphTranslationsRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      SetParagraphTranslationsCommand,
+      Result<void, LessonDomainError>
+    >(new SetParagraphTranslationsCommand(user.userId, variantId, dto.translations));
+
+    if (result.isFail) throwHttpException(result.error);
   }
 }

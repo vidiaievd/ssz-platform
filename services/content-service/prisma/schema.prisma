@@ -319,10 +319,11 @@ model LessonContentVariant {
   // Set via bulk updateMany when parent lesson is soft-deleted.
   deletedAt               DateTime?       @map("deleted_at") @db.Timestamptz
 
-  lesson          Lesson                  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  mediaRefs       LessonVariantMediaRef[]
-  videoCues       LessonVideoCue[]
-  listeningStages LessonListeningStage[]
+  lesson                Lesson                       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  mediaRefs             LessonVariantMediaRef[]
+  videoCues             LessonVideoCue[]
+  listeningStages       LessonListeningStage[]
+  paragraphTranslations LessonParagraphTranslation[]
 
   @@unique([lessonId, explanationLanguage, minLevel, maxLevel])
   @@index([lessonId])
@@ -387,6 +388,28 @@ model LessonListeningStage {
   @@index([lessonContentVariantId])
   @@index([exerciseId])
   @@map("lesson_listening_stages")
+}
+
+// Paragraph-aligned translation for Bilingual/Focus reading modes on a TEXT-kind
+// lesson variant. Keyed to the 0-based paragraph split of body_markdown (blank-line
+// delimited). Translation language is implicitly the parent variant's
+// explanation_language — one variant already represents a single explanation
+// language, so no separate language column is needed. Replaced atomically
+// (delete+createMany) whenever the author resubmits translations, mirroring
+// LessonVariantMediaRef. Missing rows degrade the reader to Immersive-only.
+model LessonParagraphTranslation {
+  id                     String   @id @default(uuid()) @db.Uuid
+  lessonContentVariantId String   @map("lesson_content_variant_id") @db.Uuid
+  paragraphIndex         Int      @map("paragraph_index")
+  translation            String   @db.Text
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  variant LessonContentVariant @relation(fields: [lessonContentVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonContentVariantId, paragraphIndex])
+  @@index([lessonContentVariantId])
+  @@map("lesson_paragraph_translations")
 }
 
 // ─── Block 3: Vocabulary ──────────────────────────────────────────────────────
