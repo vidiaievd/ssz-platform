@@ -14,9 +14,14 @@ import {
   GROUP_MATERIAL_REPOSITORY,
   type IGroupMaterialRepository,
 } from '../../../domain/repositories/group-material.repository.interface.js';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../../../shared/application/ports/event-publisher.interface.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
+import { GroupMaterialAddedEvent } from '../../../domain/events/group-material-added.event.js';
 
 export interface AddGroupMaterialResult {
   id: string;
@@ -28,6 +33,7 @@ export class AddGroupMaterialHandler implements ICommandHandler<AddGroupMaterial
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
     @Inject(SCHOOL_GROUP_REPOSITORY) private readonly groupRepository: ISchoolGroupRepository,
     @Inject(GROUP_MATERIAL_REPOSITORY) private readonly materialRepository: IGroupMaterialRepository,
+    @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(command: AddGroupMaterialCommand): Promise<AddGroupMaterialResult> {
@@ -65,6 +71,19 @@ export class AddGroupMaterialHandler implements ICommandHandler<AddGroupMaterial
       courseId: command.courseId,
       addedAt: new Date(),
     });
+
+    for (const userId of group.memberUserIds) {
+      await this.eventPublisher.publish(
+        new GroupMaterialAddedEvent(
+          randomUUID(),
+          command.schoolId,
+          command.groupId,
+          userId,
+          command.courseId,
+          group.status,
+        ),
+      );
+    }
 
     return { id };
   }

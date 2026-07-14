@@ -13,6 +13,10 @@ export interface VocabItemExpanded {
   partOfSpeech: string | null;
   ipaTranscription: string | null;
   pronunciationAudioMediaId: string | null;
+  // Per-language morphology paradigm (validated JSONB). For Norwegian this
+  // carries `gender` plus noun/verb/adjective forms; shape is language-specific,
+  // so it is passed through untyped for the student UI to render.
+  grammaticalProperties: Record<string, unknown> | null;
   translation: { language: string; text: string; definition: string | null } | null;
   usageExample: { text: string } | null;
 }
@@ -178,6 +182,8 @@ export class GetExpandedModuleHandler
         partOfSpeech: row.partOfSpeech,
         ipaTranscription: row.ipaTranscription,
         pronunciationAudioMediaId: row.pronunciationAudioMediaId,
+        grammaticalProperties:
+          (row.grammaticalProperties as Record<string, unknown> | null) ?? null,
         translation: t
           ? { language: t.translationLanguage, text: t.primaryTranslation, definition: t.definition }
           : null,

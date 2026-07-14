@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -23,7 +24,7 @@ import { Public } from '../../../../common/decorators/public.decorator.js';
 import { Roles } from '../../../../common/decorators/roles.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { GetPublicSchoolQuery } from '../../application/queries/get-public-school/get-public-school.query.js';
-import { ListPublicSchoolsQuery } from '../../application/queries/list-public-schools/list-public-schools.query.js';
+import { ListPublicSchoolsQuery, type PublicSchoolsSortOrder } from '../../application/queries/list-public-schools/list-public-schools.query.js';
 import { CheckNameAvailableQuery } from '../../application/queries/check-name-available/check-name-available.query.js';
 import { CheckSlugAvailableQuery } from '../../application/queries/check-slug-available/check-slug-available.query.js';
 import { GetSchoolBySlugQuery } from '../../application/queries/get-school-by-slug/get-school-by-slug.query.js';
@@ -48,6 +49,7 @@ import { AddMemberRequestDto } from '../dto/add-member.request.dto.js';
 import {
   MemberRosterItemResponseDto,
   PublicSchoolResponseDto,
+  PublicSchoolsPageResponseDto,
   SchoolResponseDto,
   SchoolSummaryResponseDto,
   SlugAvailabilityResponseDto,
@@ -123,10 +125,18 @@ export class SchoolsController {
 
   @Public()
   @Get('public')
-  @ApiOperation({ summary: 'List all active schools (no auth required)' })
-  @ApiResponse({ status: 200, type: [PublicSchoolResponseDto] })
-  async listPublicSchools(): Promise<PublicSchoolResponseDto[]> {
-    return this.queryBus.execute(new ListPublicSchoolsQuery());
+  @ApiOperation({ summary: 'List active schools with optional filtering and cursor pagination (no auth required)' })
+  @ApiResponse({ status: 200, type: PublicSchoolsPageResponseDto })
+  async listPublicSchools(
+    @Query('q') q?: string,
+    @Query('type') type?: 'ONLINE' | 'HYBRID',
+    @Query('sort') sort?: PublicSchoolsSortOrder,
+    @Query('cursor') cursor?: string,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ): Promise<PublicSchoolsPageResponseDto> {
+    return this.queryBus.execute(
+      new ListPublicSchoolsQuery(q, type, sort, cursor, limit ?? 20),
+    );
   }
 
   @Public()

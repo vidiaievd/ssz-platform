@@ -1,0 +1,310 @@
+{
+  "17": [
+    {
+      "key": "g17-mc-naar-da",
+      "template": "multiple_choice",
+      "instruction": "Выберите правильный союз: «da» (один раз в прошлом) или «når» (в будущем / каждый раз).",
+      "hint": "Den gang – da | Hver gang – når.",
+      "content": {
+        "question": "___ Urai kom til Norge, snakket hun ikke norsk.",
+        "options": [
+          { "id": "a", "text": "Når" },
+          { "id": "b", "text": "Da" },
+          { "id": "c", "text": "Mens" },
+          { "id": "d", "text": "Hvis" }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": ["b"],
+        "explanation": "Однократное действие в прошлом → «da»."
+      }
+    },
+    {
+      "key": "g17-mc-subjunksjon",
+      "template": "multiple_choice",
+      "instruction": "Выберите подходящий подчинительный союз.",
+      "hint": "Причина = fordi.",
+      "content": {
+        "question": "Maria skriver en e-post ___ hun vil fortelle om treningen.",
+        "options": [
+          { "id": "a", "text": "fordi" },
+          { "id": "b", "text": "selv om" },
+          { "id": "c", "text": "før" },
+          { "id": "d", "text": "hvis" }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": ["a"],
+        "explanation": "«fordi» вводит причину."
+      }
+    },
+    {
+      "key": "g17-fib-ikke",
+      "template": "fill_in_blank",
+      "instruction": "Поставьте наречие «ikke» на правильное место в придаточном предложении.",
+      "hint": "В придаточном setningsadverb (ikke) стоит ПЕРЕД глаголом.",
+      "content": {
+        "text_with_blanks": "Han kjøper grovbrød fordi det ___1___ er sunt å spise loff.",
+        "word_bank": ["ikke"]
+      },
+      "expectedAnswers": {
+        "blanks": [{ "blank_id": 1, "accepted_answers": ["ikke"] }],
+        "explanation": "В придаточном: «... fordi det ikke er sunt ...» — ikke перед er."
+      }
+    },
+    {
+      "key": "g17-fib-inversjon",
+      "template": "fill_in_blank",
+      "instruction": "Придаточное стоит первым. Поставьте глагол на позицию 2 (инверсия).",
+      "hint": "После придаточного и запятой сразу идёт глагол.",
+      "content": {
+        "text_with_blanks": "Før Urai kom til Norge, ___1___ (arbeide) hun på en stor fabrikk.",
+        "word_bank": ["arbeidet", "hun arbeidet", "arbeider"]
+      },
+      "expectedAnswers": {
+        "blanks": [{ "blank_id": 1, "accepted_answers": ["arbeidet"] }],
+        "explanation": "Придаточное на позиции 1 → глагол «arbeidet» на позиции 2, потом подлежащее «hun»."
+      }
+    },
+    {
+      "key": "g17-tr-hvis",
+      "template": "translate_to_target",
+      "instruction": "Переведите предложение на норвежский.",
+      "content": { "source_text": "Я приду, если ты позовёшь.", "source_language": "ru" },
+      "expectedAnswers": {
+        "accepted_translations": ["Jeg kommer hvis du roper.", "Jeg kommer hvis du roper"],
+        "explanation": "«hvis» + придаточное с прямым порядком слов."
+      }
+    },
+    {
+      "key": "g17-match-subjunksjon",
+      "template": "match_pairs",
+      "instruction": "Сопоставьте союз с его значением.",
+      "content": {
+        "left_items": [
+          { "id": "l1", "text": "fordi" },
+          { "id": "l2", "text": "selv om" },
+          { "id": "l3", "text": "før" },
+          { "id": "l4", "text": "hvis" }
+        ],
+        "right_items": [
+          { "id": "r1", "text": "до того как" },
+          { "id": "r2", "text": "потому что" },
+          { "id": "r3", "text": "если" },
+          { "id": "r4", "text": "хотя" }
+        ]
+      },
+      "expectedAnswers": {
+        "pairs": [
+          { "left_id": "l1", "right_id": "r2" },
+          { "left_id": "l2", "right_id": "r4" },
+          { "left_id": "l3", "right_id": "r1" },
+          { "left_id": "l4", "right_id": "r3" }
+        ]
+      }
+    }
+  ],
+  "18": [
+    {
+      "key": "g18-mc-derfor",
+      "template": "multiple_choice",
+      "instruction": "Выберите правильное слово. Помните: derfor вызывает инверсию.",
+      "hint": "После наречия «derfor» глагол идёт перед подлежащим.",
+      "content": {
+        "question": "De får så mange gjester. ___ trenger de mye mat.",
+        "options": [
+          { "id": "a", "text": "Fordi" },
+          { "id": "b", "text": "Derfor" },
+          { "id": "c", "text": "Selv om" },
+          { "id": "d", "text": "Likevel" }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": ["b"],
+        "explanation": "«Derfor» + инверсия: «Derfor trenger de ...»."
+      }
+    },
+    {
+      "key": "g18-mc-selvom",
+      "template": "multiple_choice",
+      "instruction": "Выберите подходящее слово: subjunksjon «selv om» или adverb «likevel».",
+      "hint": "Придаточное начинает subjunksjon; likevel — наречие в главном предложении.",
+      "content": {
+        "question": "De fleste feirer jul ___ de ikke er spesielt troende.",
+        "options": [
+          { "id": "a", "text": "likevel" },
+          { "id": "b", "text": "selv om" },
+          { "id": "c", "text": "derfor" },
+          { "id": "d", "text": "fordi" }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": ["b"],
+        "explanation": "«selv om» вводит придаточное: «... selv om de ikke er troende»."
+      }
+    },
+    {
+      "key": "g18-fib-derfor-inv",
+      "template": "fill_in_blank",
+      "instruction": "Поставьте глагол в скобках на правильное место после «Derfor».",
+      "hint": "Derfor + инверсия: глагол сразу после Derfor.",
+      "content": {
+        "text_with_blanks": "Robin vil prøve å stå på ski. Derfor ___1___ (skulle) de på fjellet.",
+        "word_bank": ["skal", "de skal", "skulle"]
+      },
+      "expectedAnswers": {
+        "blanks": [{ "blank_id": 1, "accepted_answers": ["skal"] }],
+        "explanation": "«Derfor skal de på fjellet» — глагол «skal» перед подлежащим «de»."
+      }
+    },
+    {
+      "key": "g18-mc-naar-future",
+      "template": "multiple_choice",
+      "instruction": "«da» или «når»? Обратите внимание на время.",
+      "hint": "Будущее / повтор → når.",
+      "content": {
+        "question": "___ dere kommer hit, får vi det hyggelig.",
+        "options": [
+          { "id": "a", "text": "Da" },
+          { "id": "b", "text": "Når" },
+          { "id": "c", "text": "Fordi" },
+          { "id": "d", "text": "Mens" }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": ["b"],
+        "explanation": "Действие в будущем → «når»."
+      }
+    },
+    {
+      "key": "g18-tr-derfor",
+      "template": "translate_to_target",
+      "instruction": "Переведите на норвежский (начните с «Derfor»).",
+      "content": { "source_text": "Поэтому им нужно много еды.", "source_language": "ru" },
+      "expectedAnswers": {
+        "accepted_translations": ["Derfor trenger de mye mat.", "Derfor trenger de mye mat"],
+        "explanation": "«Derfor» + инверсия: «Derfor trenger de ...»."
+      }
+    },
+    {
+      "key": "g18-match-pairs",
+      "template": "match_pairs",
+      "instruction": "Сопоставьте подчинительный союз с соответствующим наречием.",
+      "content": {
+        "left_items": [
+          { "id": "l1", "text": "fordi" },
+          { "id": "l2", "text": "selv om" }
+        ],
+        "right_items": [
+          { "id": "r1", "text": "likevel" },
+          { "id": "r2", "text": "derfor" }
+        ]
+      },
+      "expectedAnswers": {
+        "pairs": [
+          { "left_id": "l1", "right_id": "r2" },
+          { "left_id": "l2", "right_id": "r1" }
+        ]
+      }
+    }
+  ],
+  "19": [
+    {
+      "key": "l19-match-ord",
+      "template": "match_pairs",
+      "instruction": "Сопоставьте норвежские слова из урока с переводом.",
+      "content": {
+        "left_items": [
+          { "id": "l1", "text": "leserinnlegg" },
+          { "id": "l2", "text": "øvelse" },
+          { "id": "l3", "text": "å utsette" },
+          { "id": "l4", "text": "vane" }
+        ],
+        "right_items": [
+          { "id": "r1", "text": "упражнение" },
+          { "id": "r2", "text": "письмо читателя" },
+          { "id": "r3", "text": "привычка" },
+          { "id": "r4", "text": "откладывать" }
+        ]
+      },
+      "expectedAnswers": {
+        "pairs": [
+          { "left_id": "l1", "right_id": "r2" },
+          { "left_id": "l2", "right_id": "r1" },
+          { "left_id": "l3", "right_id": "r4" },
+          { "left_id": "l4", "right_id": "r3" }
+        ]
+      }
+    },
+    {
+      "key": "l19-match-nordmenn",
+      "template": "match_pairs",
+      "instruction": "Сопоставьте известного норвежца с его сферой (по тексту 19C).",
+      "content": {
+        "left_items": [
+          { "id": "l1", "text": "Gro Harlem Brundtland" },
+          { "id": "l2", "text": "Thor Heyerdahl" },
+          { "id": "l3", "text": "Grete Waitz" },
+          { "id": "l4", "text": "a-ha" }
+        ],
+        "right_items": [
+          { "id": "r1", "text": "oppdager" },
+          { "id": "r2", "text": "politiker" },
+          { "id": "r3", "text": "popgruppe" },
+          { "id": "r4", "text": "idrettsstjerne" }
+        ]
+      },
+      "expectedAnswers": {
+        "pairs": [
+          { "left_id": "l1", "right_id": "r2" },
+          { "left_id": "l2", "right_id": "r1" },
+          { "left_id": "l3", "right_id": "r4" },
+          { "left_id": "l4", "right_id": "r3" }
+        ]
+      }
+    },
+    {
+      "key": "l19-mc-statsminister",
+      "template": "multiple_choice",
+      "instruction": "Ответьте по тексту 19C.",
+      "hint": "Norges første kvinnelige statsminister (1981).",
+      "content": {
+        "question": "Hvem ble Norges første kvinnelige statsminister?",
+        "options": [
+          { "id": "a", "text": "Grete Waitz" },
+          { "id": "b", "text": "Gro Harlem Brundtland" },
+          { "id": "c", "text": "Anne Smith" },
+          { "id": "d", "text": "Larissa" }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": ["b"],
+        "explanation": "Gro Harlem Brundtland ble statsminister i 1981."
+      }
+    },
+    {
+      "key": "l19-fib-innlegg",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "То, что Анне хочет написать на сайте газеты.",
+      "content": {
+        "text_with_blanks": "Anne har lyst til å skrive et ___1___ om svømmehallen på Nordbypostens nettsted.",
+        "word_bank": ["innlegg", "øvelse", "vane", "flåte"]
+      },
+      "expectedAnswers": {
+        "blanks": [{ "blank_id": 1, "accepted_answers": ["innlegg", "leserinnlegg"] }],
+        "explanation": "Anne skriver et (leser)innlegg."
+      }
+    },
+    {
+      "key": "l19-tr-detsamme",
+      "template": "translate_to_target",
+      "instruction": "Переведите на норвежский.",
+      "content": { "source_text": "Это не одно и то же.", "source_language": "ru" },
+      "expectedAnswers": {
+        "accepted_translations": ["Det er ikke det samme.", "Det er ikke det samme"],
+        "explanation": "Устойчивое выражение из 19B: «Det er ikke det samme.»"
+      }
+    }
+  ]
+}

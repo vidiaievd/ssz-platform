@@ -18,6 +18,8 @@ const BINDING_KEYS = [
   'school.group.member.added',
   'school.group.member.removed',
   'school.group.archived',
+  'school.group.material.added',
+  'school.group.material.removed',
 ] as const;
 
 interface GroupMemberAddedPayload {
@@ -33,6 +35,21 @@ interface GroupMemberRemovedPayload {
   groupId: string;
   userId: string;
   courseId: string | null;
+}
+
+interface GroupMaterialAddedPayload {
+  schoolId: string;
+  groupId: string;
+  userId: string;
+  courseId: string;
+  groupStatus: string;
+}
+
+interface GroupMaterialRemovedPayload {
+  schoolId: string;
+  groupId: string;
+  userId: string;
+  courseId: string;
 }
 
 interface GroupArchivedPayload {
@@ -143,6 +160,19 @@ export class GroupEntitlementConsumer implements OnModuleInit, OnModuleDestroy {
       case 'school.group.member.removed': {
         const p = payload as unknown as GroupMemberRemovedPayload;
         if (!p.courseId) return;
+        await this.revokeIfOrphaned(p.userId, p.courseId, p.groupId);
+        break;
+      }
+
+      case 'school.group.material.added': {
+        const p = payload as unknown as GroupMaterialAddedPayload;
+        if (p.groupStatus !== 'active') return;
+        await this.grantIfNeeded(p.userId, p.courseId, p.groupId);
+        break;
+      }
+
+      case 'school.group.material.removed': {
+        const p = payload as unknown as GroupMaterialRemovedPayload;
         await this.revokeIfOrphaned(p.userId, p.courseId, p.groupId);
         break;
       }

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
-import type { ISchoolRepository } from '../../domain/repositories/school.repository.interface.js';
+import type { ISchoolRepository, PublicSchoolDetail, PublicSchoolFilter, PublicSchoolPage } from '../../domain/repositories/school.repository.interface.js';
 import type { School } from '../../domain/entities/school.entity.js';
 import { SchoolMapper } from './school.mapper.js';
 
@@ -62,6 +62,106 @@ export class SchoolPrismaRepository implements ISchoolRepository {
       orderBy: { createdAt: 'desc' },
     });
     return rows.map(SchoolMapper.toDomain);
+  }
+
+  async findPublicFiltered(filter: PublicSchoolFilter): Promise<PublicSchoolPage> {
+    const { q, type, cursor, limit } = filter;
+
+    let cursorDecoded: { name: string; id: string } | null = null;
+    if (cursor) {
+      try {
+        cursorDecoded = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+      } catch {
+        // invalid cursor — ignored, treated as first page
+      }
+    }
+
+    const baseConditions: any[] = [{ deletedAt: null, isActive: true }];
+    if (type) baseConditions.push({ type });
+    if (q) {
+      baseConditions.push({
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+          { city: { contains: q, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    const countWhere = { AND: baseConditions };
+
+    const pageConditions = [...baseConditions];
+    if (cursorDecoded) {
+      pageConditions.push({
+        OR: [
+          { name: { gt: cursorDecoded.name } },
+          { AND: [{ name: cursorDecoded.name }, { id: { gt: cursorDecoded.id } }] },
+        ],
+      });
+    }
+    const pageWhere = { AND: pageConditions };
+
+    const [total, rawItems] = await Promise.all([
+      (this.prisma as any).school.count({ where: countWhere }),
+      (this.prisma as any).school.findMany({
+        where: pageWhere,
+        include: INCLUDE_MEMBERS,
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        take: limit + 1,
+      }),
+    ]);
+
+    const hasNextPage = rawItems.length > limit;
+    const pageItems: typeof rawItems = hasNextPage ? rawItems.slice(0, limit) : rawItems;
+
+    const lastItem = pageItems.at(-1);
+    const endCursor = lastItem
+      ? Buffer.from(JSON.stringify({ name: lastItem.name, id: lastItem.id }), 'utf8').toString('base64url')
+      : null;
+
+    return {
+      items: pageItems.map(SchoolMapper.toDomain),
+      total,
+      endCursor,
+      hasNextPage,
+    };
+  }
+
+  async findPublicSchoolDetail(slug: string): Promise<PublicSchoolDetail | null> {
+    const raw = await (this.prisma as any).school.findFirst({
+      where: { slug, deletedAt: null, isActive: true },
+      include: {
+        members: true,
+        groups: {
+          where: { deletedAt: null, status: 'active' },
+          select: { level: true },
+        },
+      },
+    });
+
+    if (!raw) return null;
+
+    const teacherMembers: { userId: string; name: string | null; avatarUrl: string | null }[] = [];
+    let studentCount = 0;
+
+    for (const m of raw.members as any[]) {
+      if (m.role === 'STUDENT') {
+        studentCount++;
+      } else if (m.role === 'TEACHER') {
+        teacherMembers.push({ userId: m.userId, name: m.name ?? null, avatarUrl: m.avatarUrl ?? null });
+      }
+    }
+
+    const levels = Array.from(
+      new Set((raw.groups as any[]).map((g: any) => g.level).filter(Boolean)),
+    ).sort() as string[];
+
+    return {
+      school: SchoolMapper.toDomain(raw),
+      studentCount,
+      levels,
+      teachers: teacherMembers,
+    };
   }
 
   async findManagerCapabilities(userId: string, schoolIds: string[]): Promise<Map<string, string[]>> {
