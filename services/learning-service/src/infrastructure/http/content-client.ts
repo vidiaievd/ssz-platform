@@ -40,6 +40,7 @@ interface ModuleReaderStructureItemWireDto {
   position: number;
   lessonKind: string | null;
   durationMinutes: number | null;
+  xpReward: number | null;
 }
 
 interface ModuleReaderStructureSectionWireDto {
@@ -192,6 +193,7 @@ export class ContentClient implements IContentClient {
         position: item.position,
         lessonKind: item.lessonKind,
         durationMinutes: item.durationMinutes,
+        xpReward: item.xpReward,
       });
     }
     return Result.ok(mapped);

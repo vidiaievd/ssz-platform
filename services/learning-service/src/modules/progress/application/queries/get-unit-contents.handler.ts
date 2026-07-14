@@ -19,6 +19,7 @@ export interface UnitContentsItem {
   title: string | null;
   lessonKind: string | null;
   durationMinutes: number | null;
+  xpReward: number | null;
   status: UnitItemStatus;
 }
 
@@ -80,6 +81,7 @@ export class GetUnitContentsHandler
       title: item.title,
       lessonKind: item.lessonKind,
       durationMinutes: item.durationMinutes,
+      xpReward: item.xpReward,
       status: statusByItemId.get(item.id) ?? 'locked',
     });
 

@@ -60,6 +60,7 @@ export interface ModuleReaderStructureItemRef {
   position: number;
   lessonKind: string | null;
   durationMinutes: number | null;
+  xpReward: number | null;
 }
 
 export interface ModuleReaderStructureSectionRef {

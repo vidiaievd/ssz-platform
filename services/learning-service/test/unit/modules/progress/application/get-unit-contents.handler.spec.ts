@@ -35,6 +35,7 @@ function makeStructure(): ModuleReaderStructureRef {
             position: 0,
             lessonKind: 'text',
             durationMinutes: 6,
+            xpReward: 10,
           },
           {
             id: 'item-vocab',
@@ -43,6 +44,7 @@ function makeStructure(): ModuleReaderStructureRef {
             position: 1,
             lessonKind: null,
             durationMinutes: null,
+            xpReward: null,
           },
         ],
       },
@@ -55,6 +57,7 @@ function makeStructure(): ModuleReaderStructureRef {
         position: 2,
         lessonKind: null,
         durationMinutes: null,
+        xpReward: null,
       },
     ],
   };
@@ -85,6 +88,8 @@ describe('GetUnitContentsHandler', () => {
 
     expect(result.sections[0].items.map((i) => i.status)).toEqual(['available', 'locked']);
     expect(result.ungroupedItems[0].status).toBe('locked');
+    expect(result.sections[0].items[0].xpReward).toBe(10);
+    expect(result.sections[0].items[1].xpReward).toBeNull();
   });
 
   it('unlocks the next item once the previous one is COMPLETED', async () => {
