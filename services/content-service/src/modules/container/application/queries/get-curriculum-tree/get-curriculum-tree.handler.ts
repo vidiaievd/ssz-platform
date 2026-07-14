@@ -28,8 +28,12 @@ export interface CurriculumTreeItemNode {
   lessonKind: LessonKind | null;
   // Best-effort, currently derived only for LESSON items (any published variant
   // → published, else draft). Other item types have no draft/published workflow
-  // of their own yet. Duration/XP/teacher join arrives in Phase BE4.
+  // of their own yet. Teacher join arrives in Phase BE4.2.
   state: 'draft' | 'published' | null;
+  // Best-effort from any PUBLISHED variant/explanation (LESSON/GRAMMAR_RULE) or
+  // the item's own estimate (EXERCISE); null for VOCABULARY_LIST.
+  durationMinutes: number | null;
+  xpReward: number | null;
 }
 
 export interface CurriculumTreeSectionNode {
@@ -213,6 +217,8 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
           isRequired: item.isRequired,
           lessonKind: meta?.lessonKind ?? null,
           state: meta?.state ?? null,
+          durationMinutes: meta?.durationMinutes ?? null,
+          xpReward: item.xpReward,
         };
       };
 
@@ -250,17 +256,25 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
 
   // Batched title/kind/state resolution for leaf items across every module in the tree,
   // grouped by itemType to avoid one round-trip per item (mirrors GetVersionItemsHandler).
-  private async resolveLeafItemMeta(
-    items: ContainerItemEntity[],
-  ): Promise<
+  private async resolveLeafItemMeta(items: ContainerItemEntity[]): Promise<
     Map<
       string,
-      { title: string | null; lessonKind: LessonKind | null; state: 'draft' | 'published' | null }
+      {
+        title: string | null;
+        lessonKind: LessonKind | null;
+        state: 'draft' | 'published' | null;
+        durationMinutes: number | null;
+      }
     >
   > {
     const meta = new Map<
       string,
-      { title: string | null; lessonKind: LessonKind | null; state: 'draft' | 'published' | null }
+      {
+        title: string | null;
+        lessonKind: LessonKind | null;
+        state: 'draft' | 'published' | null;
+        durationMinutes: number | null;
+      }
     >();
 
     const idsByType = new Map<ContainerItemType, string[]>();
@@ -279,7 +293,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
         }),
         this.prisma.lessonContentVariant.findMany({
           where: { lessonId: { in: lessonRefIds } },
-          select: { lessonId: true, status: true },
+          select: { lessonId: true, status: true, estimatedReadingMinutes: true },
         }),
       ]);
 
@@ -287,6 +301,13 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
         variants.filter((v) => v.status === 'PUBLISHED').map((v) => v.lessonId),
       );
       const hasAnyVariant = new Set(variants.map((v) => v.lessonId));
+
+      const durationByLessonId = new Map<string, number>();
+      for (const v of variants) {
+        if (v.status !== 'PUBLISHED' || v.estimatedReadingMinutes == null) continue;
+        const current = durationByLessonId.get(v.lessonId);
+        if (current === undefined) durationByLessonId.set(v.lessonId, v.estimatedReadingMinutes);
+      }
 
       for (const lesson of lessons) {
         meta.set(lesson.id, {
@@ -297,6 +318,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
               ? 'published'
               : 'draft'
             : 'draft',
+          durationMinutes: durationByLessonId.get(lesson.id) ?? null,
         });
       }
     }
@@ -307,26 +329,55 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
         where: { id: { in: vocabularyListIds } },
         select: { id: true, title: true },
       });
-      rows.forEach((r) => meta.set(r.id, { title: r.title, lessonKind: null, state: null }));
+      rows.forEach((r) =>
+        meta.set(r.id, { title: r.title, lessonKind: null, state: null, durationMinutes: null }),
+      );
     }
 
     const grammarRuleIds = idsByType.get(ContainerItemType.GRAMMAR_RULE) ?? [];
     if (grammarRuleIds.length > 0) {
-      const rows = await this.prisma.grammarRule.findMany({
-        where: { id: { in: grammarRuleIds } },
-        select: { id: true, title: true },
-      });
-      rows.forEach((r) => meta.set(r.id, { title: r.title, lessonKind: null, state: null }));
+      const [rules, explanations] = await Promise.all([
+        this.prisma.grammarRule.findMany({
+          where: { id: { in: grammarRuleIds } },
+          select: { id: true, title: true },
+        }),
+        this.prisma.grammarRuleExplanation.findMany({
+          where: { grammarRuleId: { in: grammarRuleIds }, status: 'PUBLISHED' },
+          select: { grammarRuleId: true, estimatedReadingMinutes: true },
+        }),
+      ]);
+
+      const durationByRuleId = new Map<string, number>();
+      for (const e of explanations) {
+        if (e.estimatedReadingMinutes == null) continue;
+        const current = durationByRuleId.get(e.grammarRuleId);
+        if (current === undefined) durationByRuleId.set(e.grammarRuleId, e.estimatedReadingMinutes);
+      }
+
+      rules.forEach((r) =>
+        meta.set(r.id, {
+          title: r.title,
+          lessonKind: null,
+          state: null,
+          durationMinutes: durationByRuleId.get(r.id) ?? null,
+        }),
+      );
     }
 
     const exerciseIds = idsByType.get(ContainerItemType.EXERCISE) ?? [];
     if (exerciseIds.length > 0) {
       const rows = await this.prisma.exercise.findMany({
         where: { id: { in: exerciseIds } },
-        select: { id: true, template: { select: { name: true } } },
+        select: { id: true, estimatedDurationSeconds: true, template: { select: { name: true } } },
       });
       rows.forEach((r) =>
-        meta.set(r.id, { title: r.template.name ?? null, lessonKind: null, state: null }),
+        meta.set(r.id, {
+          title: r.template.name ?? null,
+          lessonKind: null,
+          state: null,
+          durationMinutes:
+            r.estimatedDurationSeconds != null ? Math.ceil(r.estimatedDurationSeconds / 60) : null,
+        }),
       );
     }
 

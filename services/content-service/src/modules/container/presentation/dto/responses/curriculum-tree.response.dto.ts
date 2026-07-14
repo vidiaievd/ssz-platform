@@ -35,6 +35,12 @@ export class CurriculumTreeItemResponseDto {
   @ApiPropertyOptional({ example: 'published', enum: ['draft', 'published'] })
   state!: string | null;
 
+  @ApiPropertyOptional({ example: 6 })
+  durationMinutes!: number | null;
+
+  @ApiPropertyOptional({ example: 10 })
+  xpReward!: number | null;
+
   static from(node: CurriculumTreeItemNode): CurriculumTreeItemResponseDto {
     const dto = new CurriculumTreeItemResponseDto();
     dto.id = node.id;
@@ -45,6 +51,8 @@ export class CurriculumTreeItemResponseDto {
     dto.isRequired = node.isRequired;
     dto.lessonKind = node.lessonKind;
     dto.state = node.state;
+    dto.durationMinutes = node.durationMinutes;
+    dto.xpReward = node.xpReward;
     return dto;
   }
 }

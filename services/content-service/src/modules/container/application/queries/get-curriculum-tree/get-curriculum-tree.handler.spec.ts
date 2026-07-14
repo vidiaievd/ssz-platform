@@ -93,6 +93,7 @@ function makeLessonItem(): ContainerItemEntity {
       itemType: ContainerItemType.LESSON,
       itemId: LESSON_ID,
       sectionId: LESSON_SECTION_ID,
+      xpReward: 10,
     },
     LESSON_ITEM_ID,
   );
@@ -161,16 +162,21 @@ function makeHandler(fixture: Fixture = {}) {
         .mockResolvedValue([{ id: LESSON_ID, title: 'En vanlig arbeidsdag', kind: 'TEXT' }]),
     },
     lessonContentVariant: {
-      findMany: jest
-        .fn()
-        .mockResolvedValue(
-          fixture.lessonVariantStatus === null
-            ? []
-            : [{ lessonId: LESSON_ID, status: fixture.lessonVariantStatus ?? 'PUBLISHED' }],
-        ),
+      findMany: jest.fn().mockResolvedValue(
+        fixture.lessonVariantStatus === null
+          ? []
+          : [
+              {
+                lessonId: LESSON_ID,
+                status: fixture.lessonVariantStatus ?? 'PUBLISHED',
+                estimatedReadingMinutes: 6,
+              },
+            ],
+      ),
     },
     vocabularyList: { findMany: jest.fn().mockResolvedValue([]) },
     grammarRule: { findMany: jest.fn().mockResolvedValue([]) },
+    grammarRuleExplanation: { findMany: jest.fn().mockResolvedValue([]) },
     exercise: { findMany: jest.fn().mockResolvedValue([]) },
   } as any;
 
@@ -232,6 +238,8 @@ describe('GetCurriculumTreeHandler', () => {
     expect(item.title).toBe('En vanlig arbeidsdag');
     expect(item.lessonKind).toBe('text');
     expect(item.state).toBe('published');
+    expect(item.durationMinutes).toBe(6);
+    expect(item.xpReward).toBe(10);
   });
 
   it('marks a lesson as draft when it has no published variant', async () => {

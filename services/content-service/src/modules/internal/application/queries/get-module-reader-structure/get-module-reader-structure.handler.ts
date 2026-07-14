@@ -15,9 +15,11 @@ export interface ReaderStructureItemNode {
   title: string | null;
   position: number;
   lessonKind: LessonKind | null;
-  // Best-effort from any PUBLISHED lesson variant (LESSON items only). Full
-  // duration resolution across item types arrives in Phase BE4.1.
+  // Best-effort from any PUBLISHED variant/explanation (LESSON/GRAMMAR_RULE) or
+  // the item's own estimate (EXERCISE); null for VOCABULARY_LIST (no single
+  // natural read-time metric).
   durationMinutes: number | null;
+  xpReward: number | null;
 }
 
 export interface ReaderStructureSectionNode {
@@ -60,6 +62,14 @@ export class GetModuleReaderStructureHandler implements IQueryHandler<
       this.prisma.containerItem.findMany({
         where: { containerVersionId: module.currentPublishedVersionId },
         orderBy: { position: 'asc' },
+        select: {
+          id: true,
+          itemType: true,
+          itemId: true,
+          position: true,
+          sectionId: true,
+          xpReward: true,
+        },
       }),
     ]);
 
@@ -75,6 +85,7 @@ export class GetModuleReaderStructureHandler implements IQueryHandler<
         position: item.position,
         lessonKind: meta?.lessonKind ?? null,
         durationMinutes: meta?.durationMinutes ?? null,
+        xpReward: item.xpReward,
       };
     };
 
@@ -166,12 +177,30 @@ export class GetModuleReaderStructureHandler implements IQueryHandler<
 
     const grammarRuleIds = idsByType.get(ContainerItemType.GRAMMAR_RULE) ?? [];
     if (grammarRuleIds.length > 0) {
-      const rows = await this.prisma.grammarRule.findMany({
-        where: { id: { in: grammarRuleIds } },
-        select: { id: true, title: true },
-      });
-      rows.forEach((r) =>
-        meta.set(r.id, { title: r.title, lessonKind: null, durationMinutes: null }),
+      const [rules, explanations] = await Promise.all([
+        this.prisma.grammarRule.findMany({
+          where: { id: { in: grammarRuleIds } },
+          select: { id: true, title: true },
+        }),
+        this.prisma.grammarRuleExplanation.findMany({
+          where: { grammarRuleId: { in: grammarRuleIds }, status: 'PUBLISHED' },
+          select: { grammarRuleId: true, estimatedReadingMinutes: true },
+        }),
+      ]);
+
+      const durationByRuleId = new Map<string, number>();
+      for (const e of explanations) {
+        if (e.estimatedReadingMinutes == null) continue;
+        const current = durationByRuleId.get(e.grammarRuleId);
+        if (current === undefined) durationByRuleId.set(e.grammarRuleId, e.estimatedReadingMinutes);
+      }
+
+      rules.forEach((r) =>
+        meta.set(r.id, {
+          title: r.title,
+          lessonKind: null,
+          durationMinutes: durationByRuleId.get(r.id) ?? null,
+        }),
       );
     }
 
@@ -179,10 +208,15 @@ export class GetModuleReaderStructureHandler implements IQueryHandler<
     if (exerciseIds.length > 0) {
       const rows = await this.prisma.exercise.findMany({
         where: { id: { in: exerciseIds } },
-        select: { id: true, template: { select: { name: true } } },
+        select: { id: true, estimatedDurationSeconds: true, template: { select: { name: true } } },
       });
       rows.forEach((r) =>
-        meta.set(r.id, { title: r.template.name ?? null, lessonKind: null, durationMinutes: null }),
+        meta.set(r.id, {
+          title: r.template.name ?? null,
+          lessonKind: null,
+          durationMinutes:
+            r.estimatedDurationSeconds != null ? Math.ceil(r.estimatedDurationSeconds / 60) : null,
+        }),
       );
     }
 
