@@ -4,6 +4,7 @@ import { ContainerType } from '../../../domain/value-objects/container-type.vo.j
 import { DifficultyLevel } from '../../../domain/value-objects/difficulty-level.vo.js';
 import { Visibility } from '../../../domain/value-objects/visibility.vo.js';
 import { AccessTier } from '../../../domain/value-objects/access-tier.vo.js';
+import { LevelSystem } from '../../../domain/value-objects/level-system.vo.js';
 
 export class CreateContainerRequestDto {
   @ApiProperty({ example: 'course', enum: ContainerType })
@@ -49,4 +50,14 @@ export class CreateContainerRequestDto {
   @ApiProperty({ example: 'public_free', enum: AccessTier })
   @IsEnum(AccessTier)
   accessTier: AccessTier;
+
+  @ApiPropertyOptional({
+    example: 'cefr',
+    enum: LevelSystem,
+    description:
+      'Drives create-time level-section scaffolding on a COURSE container. Defaults to CEFR.',
+  })
+  @IsOptional()
+  @IsEnum(LevelSystem)
+  levelSystem?: LevelSystem;
 }

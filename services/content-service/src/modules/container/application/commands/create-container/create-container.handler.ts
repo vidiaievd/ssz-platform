@@ -44,6 +44,7 @@ export class CreateContainerHandler implements ICommandHandler<
       ownerSchoolId: command.ownerSchoolId,
       visibility: command.visibility,
       accessTier,
+      levelSystem: command.levelSystem,
     });
 
     if (containerResult.isFail) {

@@ -33,6 +33,7 @@ export class UpdateContainerHandler implements ICommandHandler<
       coverImageMediaId: command.coverImageMediaId,
       visibility: command.visibility,
       accessTier: command.accessTier,
+      levelSystem: command.levelSystem,
     });
 
     if (updateResult.isFail) {

@@ -19,6 +19,17 @@ enum ContainerType {
   @@map("container_type")
 }
 
+// Drives create-time level-section scaffolding on a COURSE container (decision 3
+// in plan 29): CEFR/CUSTOM courses get top-level ContainerSections for their levels;
+// SINGLE courses stay a flat module list with no level sections.
+enum LevelSystem {
+  CEFR   @map("cefr")
+  CUSTOM @map("custom")
+  SINGLE @map("single")
+
+  @@map("level_system")
+}
+
 enum DifficultyLevel {
   A1
   A2
@@ -123,6 +134,9 @@ model Container {
   ownerSchoolId             String?         @map("owner_school_id") @db.Uuid
   visibility                Visibility
   accessTier                AccessTier      @map("access_tier")
+  // Only meaningful for containerType=COURSE (decision 3 in plan 29); default CEFR
+  // for every existing/new container is harmless on non-course containers.
+  levelSystem               LevelSystem     @default(CEFR) @map("level_system")
   // Raw FK to container_versions.id (DEFERRABLE INITIALLY DEFERRED) added via migration.
   currentPublishedVersionId String?         @map("current_published_version_id") @db.Uuid
   createdAt                 DateTime        @default(now()) @map("created_at") @db.Timestamptz

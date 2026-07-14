@@ -1,6 +1,7 @@
 import { DifficultyLevel } from '../../../domain/value-objects/difficulty-level.vo.js';
 import { Visibility } from '../../../domain/value-objects/visibility.vo.js';
 import { AccessTier } from '../../../domain/value-objects/access-tier.vo.js';
+import { LevelSystem } from '../../../domain/value-objects/level-system.vo.js';
 
 export class UpdateContainerCommand {
   constructor(
@@ -12,5 +13,6 @@ export class UpdateContainerCommand {
     public readonly coverImageMediaId?: string | null,
     public readonly visibility?: Visibility,
     public readonly accessTier?: AccessTier,
+    public readonly levelSystem?: LevelSystem,
   ) {}
 }

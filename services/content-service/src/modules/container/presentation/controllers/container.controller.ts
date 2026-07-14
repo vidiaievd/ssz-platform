@@ -85,6 +85,7 @@ export class ContainerController {
         dto.coverImageMediaId,
         dto.ownerSchoolId,
         dto.accessTier,
+        dto.levelSystem,
       ),
     );
 
@@ -169,6 +170,7 @@ export class ContainerController {
         dto.coverImageMediaId,
         dto.visibility,
         dto.accessTier,
+        dto.levelSystem,
       ),
     );
 
