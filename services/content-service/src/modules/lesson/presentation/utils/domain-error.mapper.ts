@@ -13,6 +13,7 @@ const NOT_FOUND_ERRORS = new Set<LessonDomainError>([
   LessonDomainError.VARIANT_NOT_FOUND,
   LessonDomainError.BEST_VARIANT_NOT_FOUND,
   LessonDomainError.EXERCISE_NOT_FOUND,
+  LessonDomainError.VOCABULARY_ITEM_NOT_FOUND,
 ]);
 
 const GONE_ERRORS = new Set<LessonDomainError>([

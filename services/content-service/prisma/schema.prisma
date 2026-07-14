@@ -324,6 +324,7 @@ model LessonContentVariant {
   videoCues             LessonVideoCue[]
   listeningStages       LessonListeningStage[]
   paragraphTranslations LessonParagraphTranslation[]
+  glossaryMarks         LessonVariantGlossaryMark[]
 
   @@unique([lessonId, explanationLanguage, minLevel, maxLevel])
   @@index([lessonId])
@@ -412,6 +413,31 @@ model LessonParagraphTranslation {
   @@map("lesson_paragraph_translations")
 }
 
+// Author-marked glossary words for a lesson variant (TEXT or VIDEO). Explicitly
+// marked via the authoring glossary panel rather than parsed from markdown —
+// occurrenceCount is caller-supplied per mark call, incremented on repeat marks
+// of the same word. Drives the per-lesson "marked-word count" pre-flight signal.
+// The module-level glossary itself stays on ContentRelation (INTRODUCES,
+// CONTAINER -> VOCABULARY_ITEM, already read by get-expanded-module) — marking
+// a word here also upserts that relation for every module containing this
+// lesson, resolved via ContainerItem at mark time.
+model LessonVariantGlossaryMark {
+  id                     String   @id @default(uuid()) @db.Uuid
+  lessonContentVariantId String   @map("lesson_content_variant_id") @db.Uuid
+  vocabularyItemId       String   @map("vocabulary_item_id") @db.Uuid
+  occurrenceCount        Int      @default(1) @map("occurrence_count")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  variant        LessonContentVariant @relation(fields: [lessonContentVariantId], references: [id], onDelete: Cascade)
+  vocabularyItem VocabularyItem       @relation(fields: [vocabularyItemId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonContentVariantId, vocabularyItemId])
+  @@index([lessonContentVariantId])
+  @@index([vocabularyItemId])
+  @@map("lesson_variant_glossary_marks")
+}
+
 // ─── Block 3: Vocabulary ──────────────────────────────────────────────────────
 
 // A named collection of vocabulary items owned by a user or school.
@@ -471,6 +497,7 @@ model VocabularyItem {
   vocabularyList VocabularyList              @relation(fields: [vocabularyListId], references: [id], onDelete: Cascade)
   translations   VocabularyItemTranslation[]
   usageExamples  VocabularyUsageExample[]
+  glossaryMarks  LessonVariantGlossaryMark[]
 
   @@unique([vocabularyListId, position])
   @@unique([vocabularyListId, word])

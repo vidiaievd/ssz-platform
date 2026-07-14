@@ -39,4 +39,11 @@ export interface ILessonRepository {
    * Used by PublishVariantHandler to determine whether slug generation is needed.
    */
   hasAnyPublishedVariant(lessonId: string): Promise<boolean>;
+  /**
+   * Returns distinct container IDs (modules) whose current version references this
+   * lesson via a container_item, across all version statuses — glossary marks sync
+   * to a module's ContentRelation regardless of whether that module's version is
+   * still draft. Same cross-module read rationale as hasPublishedContainerReferences.
+   */
+  findContainingModuleIds(lessonId: string): Promise<string[]>;
 }

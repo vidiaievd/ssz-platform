@@ -47,6 +47,8 @@ import type { CreateVideoCueResult } from '../../application/commands/create-vid
 import { CreateListeningStageCommand } from '../../application/commands/create-listening-stage/create-listening-stage.command.js';
 import type { CreateListeningStageResult } from '../../application/commands/create-listening-stage/create-listening-stage.handler.js';
 import { SetParagraphTranslationsCommand } from '../../application/commands/set-paragraph-translations/set-paragraph-translations.command.js';
+import { MarkGlossaryWordCommand } from '../../application/commands/mark-glossary-word/mark-glossary-word.command.js';
+import type { MarkGlossaryWordResult } from '../../application/commands/mark-glossary-word/mark-glossary-word.handler.js';
 
 // Queries
 import { GetLessonQuery } from '../../application/queries/get-lesson/get-lesson.query.js';
@@ -60,6 +62,8 @@ import { GetVideoCuesQuery } from '../../application/queries/get-video-cues/get-
 import { GetListeningStagesQuery } from '../../application/queries/get-listening-stages/get-listening-stages.query.js';
 import { GetTextParagraphsQuery } from '../../application/queries/get-text-paragraphs/get-text-paragraphs.query.js';
 import type { TextParagraphResult } from '../../application/queries/get-text-paragraphs/get-text-paragraphs.handler.js';
+import { GetGlossaryMarksQuery } from '../../application/queries/get-glossary-marks/get-glossary-marks.query.js';
+import type { GlossaryMarkRow } from '../../domain/repositories/lesson-glossary-mark.repository.interface.js';
 
 // Domain types
 import type { LessonDomainError } from '../../domain/exceptions/lesson-domain.exceptions.js';
@@ -79,6 +83,7 @@ import { LessonVariantsQueryDto } from '../dto/requests/lesson-variants-query.dt
 import { CreateVideoCueRequestDto } from '../dto/requests/create-video-cue.request.dto.js';
 import { CreateListeningStageRequestDto } from '../dto/requests/create-listening-stage.request.dto.js';
 import { SetParagraphTranslationsRequestDto } from '../dto/requests/set-paragraph-translations.request.dto.js';
+import { MarkGlossaryWordRequestDto } from '../dto/requests/mark-glossary-word.request.dto.js';
 
 // Response DTOs
 import { LessonResponseDto } from '../dto/responses/lesson.response.dto.js';
@@ -87,6 +92,7 @@ import { BestVariantResponseDto } from '../dto/responses/best-variant.response.d
 import { LessonVideoCueResponseDto } from '../dto/responses/lesson-video-cue.response.dto.js';
 import { LessonListeningStageResponseDto } from '../dto/responses/lesson-listening-stage.response.dto.js';
 import { TextParagraphResponseDto } from '../dto/responses/text-paragraph.response.dto.js';
+import { GlossaryMarkResponseDto } from '../dto/responses/glossary-mark.response.dto.js';
 import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
 import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 
@@ -526,5 +532,46 @@ export class LessonController {
     >(new SetParagraphTranslationsCommand(user.userId, variantId, dto.translations));
 
     if (result.isFail) throwHttpException(result.error);
+  }
+
+  // ── Glossary marks (kind=TEXT or VIDEO variants only) ──────────────────────
+
+  @Post(':id/variants/:variantId/glossary-marks')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({
+    summary:
+      'Mark a vocabulary item as introduced by this lesson variant; syncs to every module glossary containing the lesson',
+  })
+  @ApiCreatedResponse({ type: GlossaryMarkResponseDto })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async markGlossaryWord(
+    @Param('variantId') variantId: string,
+    @Body() dto: MarkGlossaryWordRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<GlossaryMarkResponseDto> {
+    const result = await this.commandBus.execute<
+      MarkGlossaryWordCommand,
+      Result<MarkGlossaryWordResult, LessonDomainError>
+    >(new MarkGlossaryWordCommand(user.userId, variantId, dto.vocabularyItemId));
+
+    if (result.isFail) throwHttpException(result.error);
+    return GlossaryMarkResponseDto.from(result.value.mark);
+  }
+
+  @Get(':id/variants/:variantId/glossary-marks')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({ summary: 'List glossary marks for a lesson variant' })
+  @ApiOkResponse({ type: [GlossaryMarkResponseDto] })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async findGlossaryMarks(
+    @Param('variantId') variantId: string,
+  ): Promise<GlossaryMarkResponseDto[]> {
+    const marks = await this.queryBus.execute<GetGlossaryMarksQuery, GlossaryMarkRow[]>(
+      new GetGlossaryMarksQuery(variantId),
+    );
+
+    return marks.map((m) => GlossaryMarkResponseDto.from(m));
   }
 }
