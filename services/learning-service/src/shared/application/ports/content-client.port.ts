@@ -53,6 +53,29 @@ export interface ContentRelationRef {
   relationKind: RelationKind;
 }
 
+export interface ModuleReaderStructureItemRef {
+  id: string;
+  ref: ContentRef;
+  title: string | null;
+  position: number;
+  lessonKind: string | null;
+  durationMinutes: number | null;
+}
+
+export interface ModuleReaderStructureSectionRef {
+  id: string;
+  title: string;
+  position: number;
+  items: ModuleReaderStructureItemRef[];
+}
+
+export interface ModuleReaderStructureRef {
+  moduleId: string;
+  moduleTitle: string | null;
+  sections: ModuleReaderStructureSectionRef[];
+  ungroupedItems: ModuleReaderStructureItemRef[];
+}
+
 export const CONTENT_CLIENT = Symbol('IContentClient');
 
 export interface IContentClient {
@@ -114,6 +137,12 @@ export interface IContentClient {
   getCanDoDescriptorsByIds(
     ids: string[],
   ): Promise<Result<CanDoDescriptorRef[], ContentClientError>>;
+
+  // Ordered sections → items tree for a module's published version, used by
+  // GetUnitContentsHandler to build the reader sidebar (plan 29 BE3.1).
+  getModuleReaderStructure(
+    moduleId: string,
+  ): Promise<Result<ModuleReaderStructureRef, ContentClientError>>;
 }
 
 export interface CanDoDescriptorRef {
