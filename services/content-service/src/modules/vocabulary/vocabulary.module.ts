@@ -58,6 +58,7 @@ import { GetVocabularyListItemsHandler } from './application/queries/get-vocabul
 import { GetVocabularyItemHandler } from './application/queries/get-vocabulary-item/get-vocabulary-item.handler.js';
 import { GetVocabularyItemForDisplayHandler } from './application/queries/get-vocabulary-item-for-display/get-vocabulary-item-for-display.handler.js';
 import { BatchGetVocabularyItemsForDisplayHandler } from './application/queries/batch-get-vocabulary-items-for-display/batch-get-vocabulary-items-for-display.handler.js';
+import { GetVocabularyListReaderContentHandler } from './application/queries/get-vocabulary-list-reader-content/get-vocabulary-list-reader-content.handler.js';
 
 // Controllers
 import { VocabularyListController } from './presentation/controllers/vocabulary-list.controller.js';
@@ -95,6 +96,7 @@ const QueryHandlers = [
   GetVocabularyItemHandler,
   GetVocabularyItemForDisplayHandler,
   BatchGetVocabularyItemsForDisplayHandler,
+  GetVocabularyListReaderContentHandler,
 ];
 
 @Module({

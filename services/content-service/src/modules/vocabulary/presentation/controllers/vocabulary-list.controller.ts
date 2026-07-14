@@ -40,6 +40,8 @@ import { GetVocabularyListsQuery } from '../../application/queries/get-vocabular
 import { GetVocabularyListQuery } from '../../application/queries/get-vocabulary-list/get-vocabulary-list.query.js';
 import { GetVocabularyListBySlugQuery } from '../../application/queries/get-vocabulary-list-by-slug/get-vocabulary-list-by-slug.query.js';
 import { GetVocabularyListItemsQuery } from '../../application/queries/get-vocabulary-list-items/get-vocabulary-list-items.query.js';
+import { GetVocabularyListReaderContentQuery } from '../../application/queries/get-vocabulary-list-reader-content/get-vocabulary-list-reader-content.query.js';
+import type { VocabularyListReaderContent } from '../../application/queries/get-vocabulary-list-reader-content/get-vocabulary-list-reader-content.handler.js';
 
 // Domain types
 import type { VocabularyDomainError } from '../../domain/exceptions/vocabulary-domain.exceptions.js';
@@ -51,10 +53,12 @@ import { CreateVocabularyListRequestDto } from '../dto/requests/create-vocabular
 import { UpdateVocabularyListRequestDto } from '../dto/requests/update-vocabulary-list.request.dto.js';
 import { VocabularyListQueryDto } from '../dto/requests/vocabulary-list-query.dto.js';
 import { GetVocabularyListItemsRequestDto } from '../dto/requests/get-vocabulary-list-items.request.dto.js';
+import { GetVocabularyItemForDisplayRequestDto } from '../dto/requests/get-vocabulary-item-for-display.request.dto.js';
 
 // Response DTOs
 import { VocabularyListResponseDto } from '../dto/responses/vocabulary-list.response.dto.js';
 import { VocabularyItemSummaryResponseDto } from '../dto/responses/vocabulary-item-summary.response.dto.js';
+import { VocabularyListReaderContentResponseDto } from '../dto/responses/vocabulary-list-reader-content.response.dto.js';
 import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
 import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 
@@ -146,6 +150,37 @@ export class VocabularyListController {
 
     if (result.isFail) throwHttpException(result.error);
     return VocabularyListResponseDto.from(result.value);
+  }
+
+  @Get(':listId/reader')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.VOCABULARY_LIST, idParam: 'listId' })
+  @ApiOperation({
+    summary:
+      'List metadata plus every item resolved for student display (translations, examples) — ' +
+      'single round trip for the reader page',
+  })
+  @ApiOkResponse({ type: VocabularyListReaderContentResponseDto })
+  async getReaderContent(
+    @Param('listId') listId: string,
+    @Query() dto: GetVocabularyItemForDisplayRequestDto,
+  ): Promise<VocabularyListReaderContentResponseDto> {
+    const result = await this.queryBus.execute<
+      GetVocabularyListReaderContentQuery,
+      Result<VocabularyListReaderContent, VocabularyDomainError>
+    >(
+      new GetVocabularyListReaderContentQuery(
+        listId,
+        dto.translationLanguage,
+        dto.includeExamples ?? false,
+        dto.examplesLimit ?? 3,
+        dto.examplesRandom ?? false,
+        dto.studentKnownLanguages ?? [],
+      ),
+    );
+
+    if (result.isFail) throwHttpException(result.error);
+    return VocabularyListReaderContentResponseDto.from(result.value);
   }
 
   @Patch(':listId')
