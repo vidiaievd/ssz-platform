@@ -64,6 +64,7 @@ export class GetPreflightHandler
       this.checkVocabularyLists(byType['VOCABULARY_LIST'] ?? [], blockers, warnings),
       this.checkExercises(byType['EXERCISE'] ?? [], blockers),
       this.checkModules(byType['CONTAINER'] ?? [], blockers),
+      this.checkGrammarRules(byType['GRAMMAR_RULE'] ?? [], blockers),
     ]);
 
     // SECTION_EMPTY: a section in this version has no items assigned to it.
@@ -282,6 +283,38 @@ export class GetPreflightHandler
           itemType: 'CONTAINER',
           itemId: item.itemId,
           detail: 'Module has no items',
+        });
+      }
+    }
+  }
+
+  private async checkGrammarRules(
+    items: Array<{ itemType: string; itemId: string }>,
+    blockers: RuleViolation[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+
+    const grammarRuleIds = items.map((i) => i.itemId);
+
+    const publishedExplanations = await this.prisma.grammarRuleExplanation.findMany({
+      where: {
+        grammarRuleId: { in: grammarRuleIds },
+        status: 'PUBLISHED',
+        deletedAt: null,
+      },
+      select: { grammarRuleId: true },
+    });
+    const publishedRuleIds = new Set(publishedExplanations.map((e) => e.grammarRuleId));
+
+    for (const item of items) {
+      // DRAFT_ITEM: grammar rule has no published explanation — it is still a draft.
+      if (!publishedRuleIds.has(item.itemId)) {
+        blockers.push({
+          ruleCode: 'DRAFT_ITEM',
+          severity: 'blocker',
+          itemType: 'GRAMMAR_RULE',
+          itemId: item.itemId,
+          detail: 'Grammar rule has no published explanation',
         });
       }
     }
