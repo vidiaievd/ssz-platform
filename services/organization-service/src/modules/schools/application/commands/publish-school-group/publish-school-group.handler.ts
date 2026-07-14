@@ -19,6 +19,7 @@ import { ForbiddenOperationException } from '../../../domain/exceptions/forbidde
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { GroupPublishedEvent } from '../../../domain/events/group-published.event.js';
 import { GroupMemberAddedEvent } from '../../../domain/events/group-member-added.event.js';
+import { GroupMaterialAddedEvent } from '../../../domain/events/group-material-added.event.js';
 import { SchedulingServiceHttpClient } from '../../../../../infrastructure/scheduling/scheduling-service.http-client.js';
 
 @CommandHandler(PublishSchoolGroupCommand)
@@ -90,6 +91,19 @@ export class PublishSchoolGroupHandler implements ICommandHandler<PublishSchoolG
           now,
         ),
       );
+
+      for (const material of group.materials) {
+        await this.eventPublisher.publish(
+          new GroupMaterialAddedEvent(
+            randomUUID(),
+            command.schoolId,
+            group.id,
+            member.userId,
+            material.courseId,
+            'active',
+          ),
+        );
+      }
     }
   }
 }
