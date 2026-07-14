@@ -29,6 +29,9 @@ export class LessonVariantResponseDto {
   @ApiPropertyOptional({ example: 5 })
   estimatedReadingMinutes: number | null;
 
+  @ApiPropertyOptional({ example: 'Hei, hvordan har du det?\nJeg har det bra, takk.' })
+  transcript: string | null;
+
   @ApiProperty({ example: 'draft', enum: ['draft', 'published'] })
   status: string;
 
@@ -61,6 +64,7 @@ export class LessonVariantResponseDto {
     dto.displayDescription = entity.displayDescription;
     dto.bodyMarkdown = entity.bodyMarkdown;
     dto.estimatedReadingMinutes = entity.estimatedReadingMinutes;
+    dto.transcript = entity.transcript;
     dto.status = entity.status;
     dto.createdByUserId = entity.createdByUserId;
     dto.lastEditedByUserId = entity.lastEditedByUserId;

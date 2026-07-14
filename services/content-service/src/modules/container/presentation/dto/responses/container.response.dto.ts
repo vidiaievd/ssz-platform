@@ -49,6 +49,9 @@ export class ContainerResponseDto {
   })
   accessTier!: string;
 
+  @ApiProperty({ example: 'cefr', enum: ['cefr', 'custom', 'single'] })
+  levelSystem!: string;
+
   @ApiPropertyOptional({ example: 'uuid-of-current-published-version' })
   currentPublishedVersionId!: string | null;
 
@@ -81,6 +84,7 @@ export class ContainerResponseDto {
     dto.ownerSchoolId = entity.ownerSchoolId;
     dto.visibility = entity.visibility;
     dto.accessTier = entity.accessTier;
+    dto.levelSystem = entity.levelSystem;
     dto.currentPublishedVersionId = entity.currentPublishedVersionId;
     dto.createdAt = entity.createdAt;
     dto.updatedAt = entity.updatedAt;

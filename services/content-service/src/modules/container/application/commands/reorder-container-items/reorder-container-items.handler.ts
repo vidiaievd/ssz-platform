@@ -10,6 +10,8 @@ import { CONTAINER_VERSION_REPOSITORY } from '../../../domain/repositories/conta
 import type { IContainerVersionRepository } from '../../../domain/repositories/container-version.repository.interface.js';
 import { CONTAINER_ITEM_REPOSITORY } from '../../../domain/repositories/container-item.repository.interface.js';
 import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
+import { CONTAINER_SECTION_REPOSITORY } from '../../../domain/repositories/container-section.repository.interface.js';
+import type { IContainerSectionRepository } from '../../../domain/repositories/container-section.repository.interface.js';
 
 @CommandHandler(ReorderContainerItemsCommand)
 export class ReorderContainerItemsHandler implements ICommandHandler<
@@ -23,6 +25,8 @@ export class ReorderContainerItemsHandler implements ICommandHandler<
     private readonly versionRepo: IContainerVersionRepository,
     @Inject(CONTAINER_ITEM_REPOSITORY)
     private readonly itemRepo: IContainerItemRepository,
+    @Inject(CONTAINER_SECTION_REPOSITORY)
+    private readonly sectionRepo: IContainerSectionRepository,
   ) {}
 
   async execute(
@@ -67,6 +71,21 @@ export class ReorderContainerItemsHandler implements ICommandHandler<
     // Validate: the reorder payload must cover all items in the version.
     if (command.items.length !== existingItems.length) {
       return Result.fail(ContainerDomainError.DUPLICATE_ITEM_POSITION);
+    }
+
+    // Validate: any explicit sectionId (move-between-sections) must reference
+    // a section belonging to this same version.
+    const explicitSectionIds = command.items
+      .filter((i) => 'sectionId' in i && i.sectionId !== undefined && i.sectionId !== null)
+      .map((i) => i.sectionId as string);
+    if (explicitSectionIds.length > 0) {
+      const existingSections = await this.sectionRepo.findByVersionId(command.versionId);
+      const existingSectionIds = new Set(existingSections.map((s) => s.id));
+      for (const sectionId of explicitSectionIds) {
+        if (!existingSectionIds.has(sectionId)) {
+          return Result.fail(ContainerDomainError.SECTION_NOT_FOUND);
+        }
+      }
     }
 
     await this.itemRepo.reorder(command.versionId, command.items);

@@ -1,5 +1,6 @@
 import { DifficultyLevel } from '../../../../container/domain/value-objects/difficulty-level.vo.js';
 import { Visibility } from '../../../../container/domain/value-objects/visibility.vo.js';
+import { LessonKind } from '../../../domain/value-objects/lesson-kind.vo.js';
 
 export class CreateLessonCommand {
   constructor(
@@ -11,5 +12,10 @@ export class CreateLessonCommand {
     public readonly description?: string,
     public readonly coverImageMediaId?: string,
     public readonly ownerSchoolId?: string,
+    public readonly kind?: LessonKind,
+    public readonly liveStartsAt?: Date,
+    public readonly liveDurationMinutes?: number,
+    public readonly liveJoinUrl?: string,
+    public readonly liveCapacity?: number,
   ) {}
 }

@@ -12,6 +12,7 @@ import { GetUserProgressHandler } from './application/queries/get-user-progress.
 import { GetContentProgressHandler } from './application/queries/get-content-progress.handler.js';
 import { GetAssignmentProgressHandler } from './application/queries/get-assignment-progress.handler.js';
 import { GetCourseProgressOverlayHandler } from './application/queries/get-course-progress-overlay.handler.js';
+import { GetUnitContentsHandler } from './application/queries/get-unit-contents.handler.js';
 import { ProgressController } from './presentation/progress.controller.js';
 import { ContainerCompletionService } from './application/services/container-completion.service.js';
 
@@ -26,6 +27,7 @@ const QueryHandlers = [
   GetContentProgressHandler,
   GetAssignmentProgressHandler,
   GetCourseProgressOverlayHandler,
+  GetUnitContentsHandler,
 ];
 
 @Module({

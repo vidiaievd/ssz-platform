@@ -38,6 +38,9 @@ import type { PreflightResult } from '../../application/queries/get-preflight/ge
 import { GetLeafItemsQuery } from '../../../container/application/queries/get-leaf-items/get-leaf-items.query.js';
 import type { LeafItem } from '../../../container/application/queries/get-leaf-items/get-leaf-items.handler.js';
 
+import { GetModuleReaderStructureQuery } from '../../application/queries/get-module-reader-structure/get-module-reader-structure.query.js';
+import type { ModuleReaderStructureResult } from '../../application/queries/get-module-reader-structure/get-module-reader-structure.handler.js';
+
 // Service-to-service routes only — @Public() exempts them from the global
 // JwtAuthGuard (APP_GUARD runs before any controller-level guard), and
 // InternalAuthGuard takes over instead, requiring x-internal-token. Excluded
@@ -179,6 +182,15 @@ export class InternalController {
   ): Promise<ExpandedModulePayload> {
     return this.queryBus.execute<GetExpandedModuleQuery, ExpandedModulePayload>(
       new GetExpandedModuleQuery(moduleId, language, level),
+    );
+  }
+
+  @Get('modules/:id/reader-structure')
+  async getModuleReaderStructure(
+    @Param('id') moduleId: string,
+  ): Promise<ModuleReaderStructureResult> {
+    return this.queryBus.execute<GetModuleReaderStructureQuery, ModuleReaderStructureResult>(
+      new GetModuleReaderStructureQuery(moduleId),
     );
   }
 }

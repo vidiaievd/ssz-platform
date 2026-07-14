@@ -6,6 +6,8 @@ import {
   domainDifficultyToPrisma,
   prismaVisibilityToDomain,
   domainVisibilityToPrisma,
+  prismaLessonKindToDomain,
+  domainLessonKindToPrisma,
 } from './enum-converters.js';
 
 // Shape passed to prisma.lesson.create({ data: ... })
@@ -20,6 +22,11 @@ export interface LessonCreateData {
   ownerUserId: string;
   ownerSchoolId: string | null;
   visibility: $Enums.Visibility;
+  kind: $Enums.LessonKind;
+  liveStartsAt: Date | null;
+  liveDurationMinutes: number | null;
+  liveJoinUrl: string | null;
+  liveCapacity: number | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -40,6 +47,11 @@ export class LessonMapper {
       ownerUserId: raw.ownerUserId,
       ownerSchoolId: raw.ownerSchoolId,
       visibility: prismaVisibilityToDomain(raw.visibility),
+      kind: prismaLessonKindToDomain(raw.kind),
+      liveStartsAt: raw.liveStartsAt,
+      liveDurationMinutes: raw.liveDurationMinutes,
+      liveJoinUrl: raw.liveJoinUrl,
+      liveCapacity: raw.liveCapacity,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt,
@@ -58,6 +70,11 @@ export class LessonMapper {
       ownerUserId: entity.ownerUserId,
       ownerSchoolId: entity.ownerSchoolId,
       visibility: domainVisibilityToPrisma(entity.visibility),
+      kind: domainLessonKindToPrisma(entity.kind),
+      liveStartsAt: entity.liveStartsAt,
+      liveDurationMinutes: entity.liveDurationMinutes,
+      liveJoinUrl: entity.liveJoinUrl,
+      liveCapacity: entity.liveCapacity,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,
@@ -74,6 +91,10 @@ export class LessonMapper {
       coverImageMediaId: entity.coverImageMediaId,
       ownerSchoolId: entity.ownerSchoolId,
       visibility: domainVisibilityToPrisma(entity.visibility),
+      liveStartsAt: entity.liveStartsAt,
+      liveDurationMinutes: entity.liveDurationMinutes,
+      liveJoinUrl: entity.liveJoinUrl,
+      liveCapacity: entity.liveCapacity,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,
     };

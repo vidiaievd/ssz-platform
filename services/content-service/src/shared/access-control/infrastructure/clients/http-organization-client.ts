@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom, timeout } from 'rxjs';
 import type { AppConfig } from '../../../../config/configuration.js';
 import type {
+  CourseTeacher,
   IOrganizationClient,
   SchoolMemberRole,
 } from '../../domain/ports/organization-client.port.js';
@@ -80,6 +81,63 @@ export class HttpOrganizationClient implements IOrganizationClient {
 
     this.logger.error(
       `getMemberRole exhausted ${this.retries + 1} attempts — ${this.describeError(lastError)}`,
+    );
+    throw new OrganizationServiceUnavailableException(lastError);
+  }
+
+  async getCourseTeachers(schoolId: string, courseId: string): Promise<CourseTeacher[]> {
+    const url = `${this.baseUrl}/api/v1/internal/schools/${schoolId}/courses/${courseId}/teachers`;
+
+    let lastError: unknown;
+    const delays = [250, 500, 1000];
+
+    for (let attempt = 0; attempt <= this.retries; attempt++) {
+      this.logger.debug(
+        `getCourseTeachers attempt ${attempt + 1}/${this.retries + 1} — schoolId=${schoolId} courseId=${courseId}`,
+      );
+
+      try {
+        const response = await firstValueFrom(
+          this.http
+            .get<CourseTeacher[]>(url, {
+              headers: { Authorization: `Bearer ${this.authToken}` },
+            })
+            .pipe(timeout(this.timeoutMs)),
+        );
+
+        return response.data;
+      } catch (err: unknown) {
+        const status = this.extractStatus(err);
+
+        if (status === 404) {
+          this.logger.debug(
+            `getCourseTeachers 404 — course ${courseId} not found in school ${schoolId}`,
+          );
+          return [];
+        }
+
+        if (status === 401 || status === 403) {
+          this.logger.error(
+            'getCourseTeachers auth failure — INTERNAL_SERVICE_TOKEN misconfigured',
+          );
+          throw new Error('Internal auth misconfigured');
+        }
+
+        // Network error or 5xx — retry.
+        lastError = err;
+
+        if (attempt < this.retries) {
+          const delay = delays[attempt] ?? 1000;
+          this.logger.warn(
+            `getCourseTeachers attempt ${attempt + 1} failed (${this.describeError(err)}) — retrying in ${delay}ms`,
+          );
+          await this.sleep(delay);
+        }
+      }
+    }
+
+    this.logger.error(
+      `getCourseTeachers exhausted ${this.retries + 1} attempts — ${this.describeError(lastError)}`,
     );
     throw new OrganizationServiceUnavailableException(lastError);
   }

@@ -67,6 +67,7 @@ export class UpdateContainerItemHandler implements ICommandHandler<
       isRequired: command.isRequired,
       sectionId: command.sectionId,
       sectionLabel: command.sectionLabel,
+      xpReward: command.xpReward,
     });
 
     await this.itemRepo.save(item);

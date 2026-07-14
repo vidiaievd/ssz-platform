@@ -22,6 +22,8 @@ import { GetContentProgressQuery } from '../application/queries/get-content-prog
 import { GetAssignmentProgressQuery } from '../application/queries/get-assignment-progress.query.js';
 import { GetCourseProgressOverlayQuery } from '../application/queries/get-course-progress-overlay.query.js';
 import type { CourseProgressOverlay } from '../application/queries/get-course-progress-overlay.handler.js';
+import { GetUnitContentsQuery } from '../application/queries/get-unit-contents.query.js';
+import type { UnitContentsResult } from '../application/queries/get-unit-contents.handler.js';
 import type { ProgressDto, AssignmentProgressDto } from '../application/dto/progress.dto.js';
 import type { Result } from '../../../shared/kernel/result.js';
 import {
@@ -99,6 +101,18 @@ export class ProgressController {
     @Param('containerId') containerId: string,
   ): Promise<CourseProgressOverlay> {
     return this.queryBus.execute(new GetCourseProgressOverlayQuery(user.userId, containerId));
+  }
+
+  @Get('units/:moduleId/contents')
+  @ApiOperation({
+    summary: "Get the current user's unit contents — ordered sections/items with locked/available/in_progress/completed status",
+  })
+  @ApiResponse({ status: 200 })
+  async getUnitContents(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('moduleId') moduleId: string,
+  ): Promise<UnitContentsResult> {
+    return this.queryBus.execute(new GetUnitContentsQuery(user.userId, moduleId));
   }
 
   @Get(':contentType/:contentId')

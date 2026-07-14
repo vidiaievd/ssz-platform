@@ -136,6 +136,32 @@ export class InternalController {
   }
 
   /**
+   * Returns the teachers of every group currently teaching the given course
+   * (as its main material or an additional material), across all of the
+   * school's groups. Used by Content Service to show "assigned teacher" on
+   * the authoring inspector — a module's assigned teacher is derived from
+   * the group(s) teaching its course, not a separate per-module assignment
+   * (plan 29 BE4.2).
+   */
+  @Get(':schoolId/courses/:courseId/teachers')
+  async getCourseTeachers(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+  ): Promise<
+    Array<{ groupId: string; groupName: string; userId: string; role: string }>
+  > {
+    const groups = await this.groupRepository.findByCourseId(schoolId, courseId);
+    return groups.flatMap((group) =>
+      group.teachers.map((t) => ({
+        groupId: group.id,
+        groupName: group.name,
+        userId: t.userId,
+        role: t.role,
+      })),
+    );
+  }
+
+  /**
    * Batch lookup of school roles for multiple (schoolId, userId) pairs.
    * Query: ?schoolIds=id1,id2&userId=id
    * Returns only found memberships — missing pairs are omitted.

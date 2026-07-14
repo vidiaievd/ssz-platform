@@ -23,6 +23,7 @@ function makeVariant(
     displayDescription: null,
     bodyMarkdown: '# Hello',
     estimatedReadingMinutes: null,
+    transcript: null,
     status: VariantStatus.PUBLISHED,
     createdAt: new Date(),
     updatedAt: new Date(),

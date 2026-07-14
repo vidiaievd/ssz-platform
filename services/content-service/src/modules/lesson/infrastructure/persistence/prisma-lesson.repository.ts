@@ -126,6 +126,14 @@ export class PrismaLessonRepository implements ILessonRepository {
     return count > 0;
   }
 
+  async findContainingModuleIds(lessonId: string): Promise<string[]> {
+    const items = await this.prisma.containerItem.findMany({
+      where: { itemType: 'LESSON', itemId: lessonId },
+      select: { containerVersion: { select: { containerId: true } } },
+    });
+    return [...new Set(items.map((i) => i.containerVersion.containerId))];
+  }
+
   // ── Private helpers ─────────────────────────────────────────────────────────
 
   private buildWhere(filter: LessonFilter): Prisma.LessonWhereInput {

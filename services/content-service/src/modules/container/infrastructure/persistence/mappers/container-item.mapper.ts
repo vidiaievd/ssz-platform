@@ -12,12 +12,13 @@ export interface ContainerItemCreateData {
   isRequired: boolean;
   sectionId: string | null;
   sectionLabel: string | null;
+  xpReward: number | null;
   addedAt: Date;
 }
 
 export type ContainerItemUpdateData = Pick<
   ContainerItemCreateData,
-  'isRequired' | 'sectionId' | 'sectionLabel'
+  'isRequired' | 'sectionId' | 'sectionLabel' | 'xpReward'
 >;
 
 export class ContainerItemMapper {
@@ -30,6 +31,7 @@ export class ContainerItemMapper {
       isRequired: raw.isRequired,
       sectionId: raw.sectionId,
       sectionLabel: raw.sectionLabel,
+      xpReward: raw.xpReward,
       addedAt: raw.addedAt,
     });
   }
@@ -44,6 +46,7 @@ export class ContainerItemMapper {
       isRequired: entity.isRequired,
       sectionId: entity.sectionId,
       sectionLabel: entity.sectionLabel,
+      xpReward: entity.xpReward,
       addedAt: entity.addedAt,
     };
   }
@@ -53,6 +56,7 @@ export class ContainerItemMapper {
       isRequired: entity.isRequired,
       sectionId: entity.sectionId,
       sectionLabel: entity.sectionLabel,
+      xpReward: entity.xpReward,
     };
   }
 }

@@ -5,6 +5,7 @@ import { ContainerType } from '../value-objects/container-type.vo.js';
 import { DifficultyLevel } from '../value-objects/difficulty-level.vo.js';
 import { Visibility, getValidVisibilities } from '../value-objects/visibility.vo.js';
 import { AccessTier } from '../value-objects/access-tier.vo.js';
+import { LevelSystem } from '../value-objects/level-system.vo.js';
 import { ContainerDomainError } from '../exceptions/container-domain.exceptions.js';
 import { ContainerCreatedEvent } from '../events/container-created.event.js';
 import { ContainerUpdatedEvent } from '../events/container-updated.event.js';
@@ -22,6 +23,7 @@ interface ContainerProps {
   ownerSchoolId: string | null;
   visibility: Visibility;
   accessTier: AccessTier;
+  levelSystem: LevelSystem;
   currentPublishedVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -39,6 +41,7 @@ export interface CreateContainerProps {
   ownerSchoolId?: string;
   visibility: Visibility;
   accessTier: AccessTier;
+  levelSystem?: LevelSystem;
 }
 
 export interface UpdateContainerProps {
@@ -48,6 +51,7 @@ export interface UpdateContainerProps {
   coverImageMediaId?: string | null;
   visibility?: Visibility;
   accessTier?: AccessTier;
+  levelSystem?: LevelSystem;
 }
 
 export class ContainerEntity extends AggregateRoot {
@@ -93,6 +97,9 @@ export class ContainerEntity extends AggregateRoot {
   get accessTier(): AccessTier {
     return this.props.accessTier;
   }
+  get levelSystem(): LevelSystem {
+    return this.props.levelSystem;
+  }
   get currentPublishedVersionId(): string | null {
     return this.props.currentPublishedVersionId;
   }
@@ -130,6 +137,7 @@ export class ContainerEntity extends AggregateRoot {
       ownerSchoolId: p.ownerSchoolId ?? null,
       visibility: p.visibility,
       accessTier: p.accessTier,
+      levelSystem: p.levelSystem ?? LevelSystem.CEFR,
       currentPublishedVersionId: null,
       createdAt: now,
       updatedAt: now,
@@ -202,14 +210,20 @@ export class ContainerEntity extends AggregateRoot {
       this.props.accessTier = changes.accessTier;
       updatedFields.push('accessTier');
     }
+    if (changes.levelSystem !== undefined && changes.levelSystem !== this.props.levelSystem) {
+      this.props.levelSystem = changes.levelSystem;
+      updatedFields.push('levelSystem');
+    }
 
     if (updatedFields.length > 0) {
       this.props.updatedAt = new Date();
-      this.addDomainEvent(new ContainerUpdatedEvent({
-        containerId: this.id,
-        updatedFields,
-        ...(updatedFields.includes('title') ? { title: this.props.title } : {}),
-      }));
+      this.addDomainEvent(
+        new ContainerUpdatedEvent({
+          containerId: this.id,
+          updatedFields,
+          ...(updatedFields.includes('title') ? { title: this.props.title } : {}),
+        }),
+      );
     }
 
     return Result.ok();

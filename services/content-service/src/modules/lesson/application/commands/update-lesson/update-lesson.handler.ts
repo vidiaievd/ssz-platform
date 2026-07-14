@@ -33,6 +33,10 @@ export class UpdateLessonHandler implements ICommandHandler<
       difficultyLevel: command.difficultyLevel,
       coverImageMediaId: command.coverImageMediaId,
       visibility: command.visibility,
+      liveStartsAt: command.liveStartsAt,
+      liveDurationMinutes: command.liveDurationMinutes,
+      liveJoinUrl: command.liveJoinUrl,
+      liveCapacity: command.liveCapacity,
     });
 
     if (updateResult.isFail) {

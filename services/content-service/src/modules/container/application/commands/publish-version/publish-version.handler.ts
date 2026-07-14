@@ -1,6 +1,8 @@
-import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { CommandHandler, ICommandHandler, QueryBus } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { PublishVersionCommand } from './publish-version.command.js';
+import { GetPreflightQuery } from '../../../../internal/application/queries/get-preflight/get-preflight.query.js';
+import type { PreflightResult } from '../../../../internal/application/queries/get-preflight/get-preflight.handler.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
 import { Visibility } from '../../../domain/value-objects/visibility.vo.js';
@@ -37,6 +39,7 @@ export class PublishVersionHandler implements ICommandHandler<
     private readonly itemRepo: IContainerItemRepository,
     @Inject(CONTENT_EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
+    private readonly queryBus: QueryBus,
   ) {}
 
   async execute(
@@ -70,6 +73,14 @@ export class PublishVersionHandler implements ICommandHandler<
           return Result.fail(ContainerDomainError.CANNOT_PUBLISH_WITH_BROKEN_REFERENCES);
         }
       }
+    }
+
+    // Publish gated on preflight blockers only — warnings are informational.
+    const preflight = await this.queryBus.execute<GetPreflightQuery, PreflightResult>(
+      new GetPreflightQuery(command.versionId),
+    );
+    if (preflight.blockers.length > 0) {
+      return Result.fail(ContainerDomainError.CANNOT_PUBLISH_WITH_BLOCKERS);
     }
 
     const previousVersionId = container.currentPublishedVersionId;

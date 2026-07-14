@@ -10,6 +10,8 @@ import {
   domainVisibilityToPrisma,
   prismaAccessTierToDomain,
   domainAccessTierToPrisma,
+  prismaLevelSystemToDomain,
+  domainLevelSystemToPrisma,
 } from './enum-converters.js';
 
 // Shape of data passed to prisma.container.create({ data: ... })
@@ -26,6 +28,7 @@ export interface ContainerCreateData {
   ownerSchoolId: string | null;
   visibility: $Enums.Visibility;
   accessTier: $Enums.AccessTier;
+  levelSystem: $Enums.LevelSystem;
   currentPublishedVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -49,6 +52,7 @@ export class ContainerMapper {
       ownerSchoolId: raw.ownerSchoolId,
       visibility: prismaVisibilityToDomain(raw.visibility),
       accessTier: prismaAccessTierToDomain(raw.accessTier),
+      levelSystem: prismaLevelSystemToDomain(raw.levelSystem),
       currentPublishedVersionId: raw.currentPublishedVersionId,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
@@ -70,6 +74,7 @@ export class ContainerMapper {
       ownerSchoolId: entity.ownerSchoolId,
       visibility: domainVisibilityToPrisma(entity.visibility),
       accessTier: domainAccessTierToPrisma(entity.accessTier),
+      levelSystem: domainLevelSystemToPrisma(entity.levelSystem),
       currentPublishedVersionId: entity.currentPublishedVersionId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
@@ -88,6 +93,7 @@ export class ContainerMapper {
       ownerSchoolId: entity.ownerSchoolId,
       visibility: domainVisibilityToPrisma(entity.visibility),
       accessTier: domainAccessTierToPrisma(entity.accessTier),
+      levelSystem: domainLevelSystemToPrisma(entity.levelSystem),
       currentPublishedVersionId: entity.currentPublishedVersionId,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,

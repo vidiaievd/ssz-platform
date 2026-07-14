@@ -2,6 +2,7 @@ import { ContainerType } from '../../../domain/value-objects/container-type.vo.j
 import { DifficultyLevel } from '../../../domain/value-objects/difficulty-level.vo.js';
 import { Visibility } from '../../../domain/value-objects/visibility.vo.js';
 import { AccessTier } from '../../../domain/value-objects/access-tier.vo.js';
+import { LevelSystem } from '../../../domain/value-objects/level-system.vo.js';
 
 export class CreateContainerCommand {
   constructor(
@@ -15,5 +16,6 @@ export class CreateContainerCommand {
     public readonly coverImageMediaId?: string,
     public readonly ownerSchoolId?: string,
     public readonly accessTier?: AccessTier,
+    public readonly levelSystem?: LevelSystem,
   ) {}
 }

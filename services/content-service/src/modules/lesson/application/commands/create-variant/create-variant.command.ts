@@ -11,5 +11,6 @@ export class CreateVariantCommand {
     public readonly bodyMarkdown: string,
     public readonly displayDescription?: string,
     public readonly estimatedReadingMinutes?: number,
+    public readonly transcript?: string,
   ) {}
 }

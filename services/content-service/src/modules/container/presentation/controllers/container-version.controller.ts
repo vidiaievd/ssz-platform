@@ -32,6 +32,8 @@ import { CancelDraftCommand } from '../../application/commands/cancel-draft/canc
 import { ArchiveVersionCommand } from '../../application/commands/archive-version/archive-version.command.js';
 import { GetContainerVersionsQuery } from '../../application/queries/get-container-versions/get-container-versions.query.js';
 import { GetContainerVersionQuery } from '../../application/queries/get-container-version/get-container-version.query.js';
+import { GetCurriculumTreeQuery } from '../../application/queries/get-curriculum-tree/get-curriculum-tree.query.js';
+import type { CurriculumTreeResult } from '../../application/queries/get-curriculum-tree/get-curriculum-tree.handler.js';
 import type { Result } from '../../../../shared/kernel/result.js';
 import type { ContainerDomainError } from '../../domain/exceptions/container-domain.exceptions.js';
 import type { ContainerVersionEntity } from '../../domain/entities/container-version.entity.js';
@@ -39,6 +41,7 @@ import type { PaginatedResult } from '../../../../shared/discovery/domain/types/
 import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
 import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 import { ContainerVersionResponseDto } from '../dto/responses/container-version.response.dto.js';
+import { CurriculumTreeResponseDto } from '../dto/responses/curriculum-tree.response.dto.js';
 import { ContainerVersionsQueryDto } from '../dto/requests/container-versions-query.dto.js';
 import { PublishVersionRequestDto } from '../dto/requests/publish-version.request.dto.js';
 import { throwHttpException } from '../utils/domain-error.mapper.js';
@@ -90,6 +93,24 @@ export class ContainerVersionController {
 
     if (result.isFail) throwHttpException(result.error);
     return ContainerVersionResponseDto.from(result.value);
+  }
+
+  @Get(':versionId/tree')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
+  @ApiOperation({
+    summary:
+      'Get the full editable curriculum tree for a version: levels → modules → sections → items',
+  })
+  @ApiOkResponse({ type: CurriculumTreeResponseDto })
+  async getTree(@Param('versionId') versionId: string): Promise<CurriculumTreeResponseDto> {
+    const result = await this.queryBus.execute<
+      GetCurriculumTreeQuery,
+      Result<CurriculumTreeResult, ContainerDomainError>
+    >(new GetCurriculumTreeQuery(versionId));
+
+    if (result.isFail) throwHttpException(result.error);
+    return CurriculumTreeResponseDto.from(result.value);
   }
 
   @Post(':versionId/publish')

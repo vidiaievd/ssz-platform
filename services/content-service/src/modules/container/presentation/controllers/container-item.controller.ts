@@ -120,6 +120,7 @@ export class ContainerItemController {
         dto.isRequired,
         dto.sectionId,
         dto.sectionLabel,
+        dto.xpReward,
       ),
     );
 
@@ -148,14 +149,22 @@ export class ContainerItemController {
   @UseGuards(VisibilityGuard)
   @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Reorder items within a draft version' })
+  @ApiOperation({
+    summary:
+      'Reorder items within a draft version, optionally moving items between sections atomically',
+  })
   @ApiNoContentResponse()
   async reorder(
     @Param('versionId') versionId: string,
     @Body() dto: ReorderItemsRequestDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
-    const reorderItems = dto.orderedItemIds.map((id, index) => ({ id, position: index }));
+    const sectionIdByItemId = new Map(dto.sectionMoves?.map((m) => [m.itemId, m.sectionId]) ?? []);
+    const reorderItems = dto.orderedItemIds.map((id, index) => ({
+      id,
+      position: index,
+      ...(sectionIdByItemId.has(id) ? { sectionId: sectionIdByItemId.get(id) ?? null } : {}),
+    }));
 
     const result = await this.commandBus.execute<
       ReorderContainerItemsCommand,

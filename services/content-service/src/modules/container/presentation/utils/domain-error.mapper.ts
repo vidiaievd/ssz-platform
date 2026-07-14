@@ -28,6 +28,7 @@ const UNPROCESSABLE_ERRORS = new Set<ContainerDomainError>([
   ContainerDomainError.VERSION_NOT_IN_DEPRECATED_STATUS,
   ContainerDomainError.CANNOT_PUBLISH_EMPTY_VERSION,
   ContainerDomainError.CANNOT_PUBLISH_WITH_BROKEN_REFERENCES,
+  ContainerDomainError.CANNOT_PUBLISH_WITH_BLOCKERS,
   ContainerDomainError.CANNOT_MODIFY_NON_DRAFT_VERSION,
   ContainerDomainError.CANNOT_CANCEL_ONLY_VERSION,
   ContainerDomainError.DUPLICATE_ITEM_POSITION,

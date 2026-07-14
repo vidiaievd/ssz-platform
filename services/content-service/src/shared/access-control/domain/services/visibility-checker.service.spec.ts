@@ -44,6 +44,7 @@ function makeService(mocks?: {
 }): VisibilityCheckerService {
   const orgClient: IOrganizationClient = {
     getMemberRole: mocks?.getMemberRole ?? jest.fn().mockResolvedValue(null),
+    getCourseTeachers: jest.fn().mockResolvedValue([]),
   };
   const shareLookup: IContentShareLookup = {
     hasActiveShare: mocks?.hasActiveShare ?? jest.fn().mockResolvedValue(false),

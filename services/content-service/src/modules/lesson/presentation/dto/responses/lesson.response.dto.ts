@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LessonEntity } from '../../../domain/entities/lesson.entity.js';
+import { LessonKind } from '../../../domain/value-objects/lesson-kind.vo.js';
 
 export class LessonResponseDto {
   @ApiProperty({ example: 'a1b2c3d4-e5f6-...' })
@@ -32,6 +33,21 @@ export class LessonResponseDto {
   @ApiProperty({ example: 'public', enum: ['public', 'school_private', 'shared', 'private'] })
   visibility: string;
 
+  @ApiProperty({ example: 'text', enum: LessonKind })
+  kind: LessonKind;
+
+  @ApiPropertyOptional({ example: '2026-08-01T18:00:00Z' })
+  liveStartsAt: Date | null;
+
+  @ApiPropertyOptional({ example: 60 })
+  liveDurationMinutes: number | null;
+
+  @ApiPropertyOptional({ example: 'https://meet.example.com/session-abc' })
+  liveJoinUrl: string | null;
+
+  @ApiPropertyOptional({ example: 20 })
+  liveCapacity: number | null;
+
   @ApiProperty()
   createdAt: Date;
 
@@ -53,6 +69,11 @@ export class LessonResponseDto {
     dto.ownerUserId = entity.ownerUserId;
     dto.ownerSchoolId = entity.ownerSchoolId;
     dto.visibility = entity.visibility;
+    dto.kind = entity.kind;
+    dto.liveStartsAt = entity.liveStartsAt;
+    dto.liveDurationMinutes = entity.liveDurationMinutes;
+    dto.liveJoinUrl = entity.liveJoinUrl;
+    dto.liveCapacity = entity.liveCapacity;
     dto.createdAt = entity.createdAt;
     dto.updatedAt = entity.updatedAt;
     dto.deletedAt = entity.deletedAt;

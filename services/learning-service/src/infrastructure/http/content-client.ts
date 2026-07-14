@@ -8,6 +8,8 @@ import type {
   ContentMetadata,
   ContentRelationRef,
   IContentClient,
+  ModuleReaderStructureItemRef,
+  ModuleReaderStructureRef,
   RelatableEntityType,
   RelationKind,
   VisibilityResult,
@@ -18,6 +20,42 @@ import {
   ContentRef,
   type ContentType,
 } from '../../shared/domain/value-objects/content-ref.js';
+
+// Content Service's internal reader-structure endpoint serializes ContainerItemType
+// as its lowercase domain value (e.g. 'lesson'), not the uppercase ContentType wire
+// convention used by getContainerLeafItems — translate at this boundary.
+const WIRE_ITEM_TYPE_TO_CONTENT_TYPE: Record<string, ContentType> = {
+  container: 'CONTAINER',
+  lesson: 'LESSON',
+  vocabulary_list: 'VOCABULARY_LIST',
+  grammar_rule: 'GRAMMAR_RULE',
+  exercise: 'EXERCISE',
+};
+
+interface ModuleReaderStructureItemWireDto {
+  id: string;
+  itemType: string;
+  refId: string;
+  title: string | null;
+  position: number;
+  lessonKind: string | null;
+  durationMinutes: number | null;
+  xpReward: number | null;
+}
+
+interface ModuleReaderStructureSectionWireDto {
+  id: string;
+  title: string;
+  position: number;
+  items: ModuleReaderStructureItemWireDto[];
+}
+
+interface ModuleReaderStructureWireDto {
+  moduleId: string;
+  moduleTitle: string | null;
+  sections: ModuleReaderStructureSectionWireDto[];
+  ungroupedItems: ModuleReaderStructureItemWireDto[];
+}
 
 @Injectable()
 export class ContentClient implements IContentClient {
@@ -102,6 +140,63 @@ export class ContentClient implements IContentClient {
     } catch (err) {
       return this.mapError(err, `getContainerLeafItems(${containerId})`);
     }
+  }
+
+  async getModuleReaderStructure(
+    moduleId: string,
+  ): Promise<Result<ModuleReaderStructureRef, ContentClientError>> {
+    try {
+      const { data } = await this.http.get<ModuleReaderStructureWireDto>(
+        `/modules/${moduleId}/reader-structure`,
+      );
+
+      const sections: ModuleReaderStructureRef['sections'] = [];
+      for (const section of data.sections) {
+        const items = this.mapReaderStructureItems(section.items);
+        if (items.isFail) return Result.fail(items.error);
+        sections.push({ id: section.id, title: section.title, position: section.position, items: items.value });
+      }
+
+      const ungroupedItems = this.mapReaderStructureItems(data.ungroupedItems);
+      if (ungroupedItems.isFail) return Result.fail(ungroupedItems.error);
+
+      return Result.ok({
+        moduleId: data.moduleId,
+        moduleTitle: data.moduleTitle,
+        sections,
+        ungroupedItems: ungroupedItems.value,
+      });
+    } catch (err) {
+      return this.mapError(err, `getModuleReaderStructure(${moduleId})`);
+    }
+  }
+
+  private mapReaderStructureItems(
+    items: ModuleReaderStructureItemWireDto[],
+  ): Result<ModuleReaderStructureItemRef[], ContentClientError> {
+    const mapped: ModuleReaderStructureItemRef[] = [];
+    for (const item of items) {
+      const contentType = WIRE_ITEM_TYPE_TO_CONTENT_TYPE[item.itemType];
+      if (!contentType) {
+        return Result.fail(
+          new ContentClientError(`Unknown item type from Content Service: ${item.itemType}`),
+        );
+      }
+      const ref = ContentRef.create(contentType, item.refId);
+      if (ref.isFail) {
+        return Result.fail(new ContentClientError(`Invalid content ref from Content Service: ${ref.error.message}`));
+      }
+      mapped.push({
+        id: item.id,
+        ref: ref.value,
+        title: item.title,
+        position: item.position,
+        lessonKind: item.lessonKind,
+        durationMinutes: item.durationMinutes,
+        xpReward: item.xpReward,
+      });
+    }
+    return Result.ok(mapped);
   }
 
   async getVocabularyListItems(

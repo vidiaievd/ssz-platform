@@ -3,6 +3,7 @@ import { ContainerType } from '../../../domain/value-objects/container-type.vo.j
 import { DifficultyLevel } from '../../../domain/value-objects/difficulty-level.vo.js';
 import { Visibility } from '../../../domain/value-objects/visibility.vo.js';
 import { AccessTier } from '../../../domain/value-objects/access-tier.vo.js';
+import { LevelSystem } from '../../../domain/value-objects/level-system.vo.js';
 import { VersionStatus } from '../../../domain/value-objects/version-status.vo.js';
 import { ContainerItemType } from '../../../domain/value-objects/item-type.vo.js';
 
@@ -104,6 +105,28 @@ export function prismaAccessTierToDomain(value: $Enums.AccessTier): AccessTier {
 
 export function domainAccessTierToPrisma(value: AccessTier): $Enums.AccessTier {
   return DOMAIN_TO_PRISMA_ACCESS_TIER[value];
+}
+
+// ─── LevelSystem ─────────────────────────────────────────────────────────────
+
+const PRISMA_TO_DOMAIN_LEVEL_SYSTEM: Record<$Enums.LevelSystem, LevelSystem> = {
+  CEFR: LevelSystem.CEFR,
+  CUSTOM: LevelSystem.CUSTOM,
+  SINGLE: LevelSystem.SINGLE,
+};
+
+const DOMAIN_TO_PRISMA_LEVEL_SYSTEM: Record<LevelSystem, $Enums.LevelSystem> = {
+  [LevelSystem.CEFR]: 'CEFR',
+  [LevelSystem.CUSTOM]: 'CUSTOM',
+  [LevelSystem.SINGLE]: 'SINGLE',
+};
+
+export function prismaLevelSystemToDomain(value: $Enums.LevelSystem): LevelSystem {
+  return PRISMA_TO_DOMAIN_LEVEL_SYSTEM[value];
+}
+
+export function domainLevelSystemToPrisma(value: LevelSystem): $Enums.LevelSystem {
+  return DOMAIN_TO_PRISMA_LEVEL_SYSTEM[value];
 }
 
 // ─── VersionStatus ───────────────────────────────────────────────────────────

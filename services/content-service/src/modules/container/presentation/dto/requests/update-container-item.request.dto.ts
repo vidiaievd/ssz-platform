@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, IsUUID, Min, MaxLength } from 'class-validator';
 
 export class UpdateContainerItemRequestDto {
   @ApiPropertyOptional({ example: true })
@@ -24,4 +24,14 @@ export class UpdateContainerItemRequestDto {
   @IsString()
   @MaxLength(100)
   sectionLabel?: string;
+
+  @ApiPropertyOptional({
+    example: 10,
+    description: 'XP awarded to the student on completion; pass null to clear',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  xpReward?: number | null;
 }

@@ -53,7 +53,10 @@ export class PrismaContainerItemRepository implements IContainerItemRepository {
     return result._max.position ?? -1;
   }
 
-  async reorder(versionId: string, items: { id: string; position: number }[]): Promise<void> {
+  async reorder(
+    versionId: string,
+    items: { id: string; position: number; sectionId?: string | null }[],
+  ): Promise<void> {
     // Use a transaction so the unique(containerVersionId, position) constraint
     // is not violated mid-update. Prisma defers constraint checks to commit
     // when all updates are grouped in a single interactive transaction.
@@ -61,7 +64,12 @@ export class PrismaContainerItemRepository implements IContainerItemRepository {
       items.map((item) =>
         this.prisma.containerItem.update({
           where: { id: item.id, containerVersionId: versionId },
-          data: { position: item.position },
+          data: {
+            position: item.position,
+            // 'sectionId' in item distinguishes "omitted" (keep current section)
+            // from "explicitly set to null" (ungroup).
+            ...('sectionId' in item ? { sectionId: item.sectionId ?? null } : {}),
+          },
         }),
       ),
     );

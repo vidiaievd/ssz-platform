@@ -1,6 +1,11 @@
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
-import { NotFoundException } from '@nestjs/common';
+import { Inject, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
+import {
+  ORGANIZATION_CLIENT,
+  type IOrganizationClient,
+} from '../../../../../shared/access-control/domain/ports/organization-client.port.js';
+import { OrganizationServiceUnavailableException } from '../../../../../shared/access-control/infrastructure/clients/organization-service-unavailable.exception.js';
 import { GetPreflightQuery } from './get-preflight.query.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
@@ -30,23 +35,38 @@ const IMG_NO_ALT_RE = /!\[\s*\]\(/g;
 export class GetPreflightHandler
   implements IQueryHandler<GetPreflightQuery, PreflightResult>
 {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(GetPreflightHandler.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(ORGANIZATION_CLIENT) private readonly organizationClient: IOrganizationClient,
+  ) {}
 
   async execute(query: GetPreflightQuery): Promise<PreflightResult> {
     const version = await this.prisma.containerVersion.findUnique({
       where: { id: query.versionId },
-      select: { id: true, containerId: true },
+      select: {
+        id: true,
+        containerId: true,
+        container: {
+          select: { containerType: true, levelSystem: true, ownerSchoolId: true },
+        },
+      },
     });
     if (!version) throw new NotFoundException(`Version ${query.versionId} not found`);
 
-    const [items, localizations] = await Promise.all([
+    const [items, localizations, sections] = await Promise.all([
       this.prisma.containerItem.findMany({
         where: { containerVersionId: query.versionId },
-        select: { id: true, itemType: true, itemId: true },
+        select: { id: true, itemType: true, itemId: true, sectionId: true },
       }),
       this.prisma.containerLocalization.findMany({
         where: { containerId: version.containerId },
         select: { languageCode: true },
+      }),
+      this.prisma.containerSection.findMany({
+        where: { containerVersionId: query.versionId },
+        select: { id: true, title: true },
       }),
     ]);
 
@@ -56,10 +76,65 @@ export class GetPreflightHandler
     const byType = groupBy(items, (i) => i.itemType);
 
     await Promise.all([
-      this.checkLessons(byType['LESSON'] ?? [], blockers),
+      this.checkLessons(byType['LESSON'] ?? [], blockers, warnings),
       this.checkVocabularyLists(byType['VOCABULARY_LIST'] ?? [], blockers, warnings),
       this.checkExercises(byType['EXERCISE'] ?? [], blockers),
+      this.checkModules(byType['CONTAINER'] ?? [], blockers),
+      this.checkGrammarRules(byType['GRAMMAR_RULE'] ?? [], blockers),
     ]);
+
+    // SECTION_EMPTY: a section in this version has no items assigned to it.
+    const itemsBySection = groupBy(
+      items.filter((i) => i.sectionId),
+      (i) => i.sectionId as string,
+    );
+    for (const section of sections) {
+      if ((itemsBySection[section.id] ?? []).length === 0) {
+        blockers.push({
+          ruleCode: 'SECTION_EMPTY',
+          severity: 'blocker',
+          itemType: 'SECTION',
+          itemId: section.id,
+          detail: `Section "${section.title}" has no items`,
+        });
+      }
+    }
+
+    // LEVEL_NO_TEACHER: on a school-owned COURSE with explicit level sections
+    // (decision 3: top-level ContainerSection = CEFR/custom level), warn per level
+    // when no group in the school is assigned to teach the course at all.
+    if (
+      version.container.containerType === 'COURSE' &&
+      version.container.levelSystem !== 'SINGLE' &&
+      version.container.ownerSchoolId &&
+      sections.length > 0
+    ) {
+      try {
+        const teachers = await this.organizationClient.getCourseTeachers(
+          version.container.ownerSchoolId,
+          version.containerId,
+        );
+        if (teachers.length === 0) {
+          for (const section of sections) {
+            warnings.push({
+              ruleCode: 'LEVEL_NO_TEACHER',
+              severity: 'warning',
+              itemType: 'SECTION',
+              itemId: section.id,
+              detail: `Level "${section.title}" has no assigned teacher`,
+            });
+          }
+        }
+      } catch (err) {
+        if (err instanceof OrganizationServiceUnavailableException) {
+          this.logger.warn(
+            `Skipping LEVEL_NO_TEACHER check — organization-service unavailable: ${err.message}`,
+          );
+        } else {
+          throw err;
+        }
+      }
+    }
 
     // NO_GRAMMAR: no grammar-rule items in this version.
     if ((byType['GRAMMAR_RULE'] ?? []).length === 0) {
@@ -103,25 +178,51 @@ export class GetPreflightHandler
   private async checkLessons(
     items: Array<{ itemType: string; itemId: string }>,
     blockers: RuleViolation[],
+    warnings: RuleViolation[],
   ): Promise<void> {
     if (items.length === 0) return;
 
     const lessonIds = items.map((i) => i.itemId);
 
-    // Load all PUBLISHED variants for these lessons in one query.
-    const publishedVariants = await this.prisma.lessonContentVariant.findMany({
-      where: {
-        lessonId: { in: lessonIds },
-        status: 'PUBLISHED',
-        deletedAt: null,
-      },
-      select: { lessonId: true, bodyMarkdown: true },
-    });
+    const [lessons, publishedVariants] = await Promise.all([
+      this.prisma.lesson.findMany({
+        where: { id: { in: lessonIds } },
+        select: { id: true, kind: true, liveStartsAt: true },
+      }),
+      // Load all PUBLISHED variants for these lessons in one query.
+      this.prisma.lessonContentVariant.findMany({
+        where: {
+          lessonId: { in: lessonIds },
+          status: 'PUBLISHED',
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          lessonId: true,
+          bodyMarkdown: true,
+          transcript: true,
+          mediaRefs: { select: { mediaType: true } },
+        },
+      }),
+    ]);
 
+    const kindByLesson = new Map(lessons.map((l) => [l.id, l.kind]));
+    const liveStartsAtByLesson = new Map(lessons.map((l) => [l.id, l.liveStartsAt]));
     const variantsByLesson = groupBy(publishedVariants, (v) => v.lessonId);
 
     for (const item of items) {
       const variants = variantsByLesson[item.itemId] ?? [];
+
+      // LIVE_NO_SCHEDULE: LIVE-kind lesson has no scheduled start time yet.
+      if (kindByLesson.get(item.itemId) === 'LIVE' && !liveStartsAtByLesson.get(item.itemId)) {
+        warnings.push({
+          ruleCode: 'LIVE_NO_SCHEDULE',
+          severity: 'warning',
+          itemType: 'LESSON',
+          itemId: item.itemId,
+          detail: 'Live lesson has no scheduled start time',
+        });
+      }
 
       // READ_NO_TITLE: lesson has no published variant — students see nothing.
       if (variants.length === 0) {
@@ -149,6 +250,137 @@ export class GetPreflightHandler
           break;
         }
         IMG_NO_ALT_RE.lastIndex = 0;
+      }
+
+      // VIDEO_NO_SOURCE: VIDEO-kind lesson has no published variant with a video media ref.
+      if (kindByLesson.get(item.itemId) === 'VIDEO') {
+        const hasVideoSource = variants.some((v) =>
+          v.mediaRefs.some((ref) => ref.mediaType === 'VIDEO'),
+        );
+        if (!hasVideoSource) {
+          blockers.push({
+            ruleCode: 'VIDEO_NO_SOURCE',
+            severity: 'blocker',
+            itemType: 'LESSON',
+            itemId: item.itemId,
+            detail: 'Video lesson has no video source in its published variant',
+          });
+        }
+      }
+
+      // AUDIO_NO_TRACK / AUDIO_NO_TRANSCRIPT: AUDIO-kind lesson missing its audio
+      // source or transcript in the published variant.
+      if (kindByLesson.get(item.itemId) === 'AUDIO') {
+        const hasAudioSource = variants.some((v) =>
+          v.mediaRefs.some((ref) => ref.mediaType === 'AUDIO'),
+        );
+        if (!hasAudioSource) {
+          blockers.push({
+            ruleCode: 'AUDIO_NO_TRACK',
+            severity: 'blocker',
+            itemType: 'LESSON',
+            itemId: item.itemId,
+            detail: 'Audio lesson has no audio track in its published variant',
+          });
+        }
+
+        const hasTranscript = variants.some((v) => !!v.transcript?.trim());
+        if (!hasTranscript) {
+          blockers.push({
+            ruleCode: 'AUDIO_NO_TRANSCRIPT',
+            severity: 'blocker',
+            itemType: 'LESSON',
+            itemId: item.itemId,
+            detail: 'Audio lesson has no transcript in its published variant',
+          });
+        }
+      }
+    }
+  }
+
+  private async checkModules(
+    items: Array<{ itemType: string; itemId: string }>,
+    blockers: RuleViolation[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+
+    const moduleContainerIds = items.map((i) => i.itemId);
+
+    const moduleContainers = await this.prisma.container.findMany({
+      where: { id: { in: moduleContainerIds } },
+      select: { id: true, currentPublishedVersionId: true },
+    });
+    const containerById = new Map(moduleContainers.map((c) => [c.id, c]));
+
+    // Prefer the module's own draft version (what's actually being authored);
+    // fall back to its currently published version if no draft exists.
+    const draftVersions = await this.prisma.containerVersion.findMany({
+      where: { containerId: { in: moduleContainerIds }, status: 'DRAFT' },
+      select: { id: true, containerId: true },
+    });
+    const draftVersionByContainer = new Map(draftVersions.map((v) => [v.containerId, v.id]));
+
+    const resolvedVersionIds = items
+      .map(
+        (item) =>
+          draftVersionByContainer.get(item.itemId) ??
+          containerById.get(item.itemId)?.currentPublishedVersionId,
+      )
+      .filter((id): id is string => !!id);
+
+    const itemCounts = await this.prisma.containerItem.groupBy({
+      by: ['containerVersionId'],
+      where: { containerVersionId: { in: resolvedVersionIds } },
+      _count: { id: true },
+    });
+    const countByVersion = new Map(itemCounts.map((c) => [c.containerVersionId, c._count.id]));
+
+    for (const item of items) {
+      const versionId =
+        draftVersionByContainer.get(item.itemId) ??
+        containerById.get(item.itemId)?.currentPublishedVersionId;
+
+      // MODULE_EMPTY: module has no resolvable version, or its version has no items.
+      if (!versionId || (countByVersion.get(versionId) ?? 0) === 0) {
+        blockers.push({
+          ruleCode: 'MODULE_EMPTY',
+          severity: 'blocker',
+          itemType: 'CONTAINER',
+          itemId: item.itemId,
+          detail: 'Module has no items',
+        });
+      }
+    }
+  }
+
+  private async checkGrammarRules(
+    items: Array<{ itemType: string; itemId: string }>,
+    blockers: RuleViolation[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+
+    const grammarRuleIds = items.map((i) => i.itemId);
+
+    const publishedExplanations = await this.prisma.grammarRuleExplanation.findMany({
+      where: {
+        grammarRuleId: { in: grammarRuleIds },
+        status: 'PUBLISHED',
+        deletedAt: null,
+      },
+      select: { grammarRuleId: true },
+    });
+    const publishedRuleIds = new Set(publishedExplanations.map((e) => e.grammarRuleId));
+
+    for (const item of items) {
+      // DRAFT_ITEM: grammar rule has no published explanation — it is still a draft.
+      if (!publishedRuleIds.has(item.itemId)) {
+        blockers.push({
+          ruleCode: 'DRAFT_ITEM',
+          severity: 'blocker',
+          itemType: 'GRAMMAR_RULE',
+          itemId: item.itemId,
+          detail: 'Grammar rule has no published explanation',
+        });
       }
     }
   }

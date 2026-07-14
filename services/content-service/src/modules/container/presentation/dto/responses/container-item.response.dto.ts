@@ -32,6 +32,9 @@ export class ContainerItemResponseDto {
   })
   sectionLabel: string | null;
 
+  @ApiPropertyOptional({ example: 10, description: 'XP awarded to the student on completion.' })
+  xpReward: number | null;
+
   @ApiPropertyOptional({
     example: 'Greetings and Introductions',
     description: 'Display title of the referenced content, resolved server-side.',
@@ -51,6 +54,7 @@ export class ContainerItemResponseDto {
     dto.isRequired = entity.isRequired;
     dto.sectionId = entity.sectionId;
     dto.sectionLabel = entity.sectionLabel;
+    dto.xpReward = entity.xpReward;
     dto.title = title;
     dto.addedAt = entity.addedAt;
     return dto;
