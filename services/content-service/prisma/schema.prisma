@@ -265,23 +265,30 @@ enum Register {
 // slug is NULL until the first variant is published for a public lesson;
 // immutable after that. Partial unique index on slug is added via raw SQL migration.
 model Lesson {
-  id                String          @id @default(uuid()) @db.Uuid
-  targetLanguage    String          @map("target_language") @db.VarChar(10)
-  difficultyLevel   DifficultyLevel @map("difficulty_level")
+  id                  String          @id @default(uuid()) @db.Uuid
+  targetLanguage      String          @map("target_language") @db.VarChar(10)
+  difficultyLevel     DifficultyLevel @map("difficulty_level")
   // Partial unique index: WHERE slug IS NOT NULL AND deleted_at IS NULL (raw SQL migration).
-  slug              String?         @db.VarChar(120)
-  title             String          @db.VarChar(200)
-  description       String?         @db.Text
-  coverImageMediaId String?         @map("cover_image_media_id") @db.Uuid
-  ownerUserId       String          @map("owner_user_id") @db.Uuid
-  ownerSchoolId     String?         @map("owner_school_id") @db.Uuid
+  slug                String?         @db.VarChar(120)
+  title               String          @db.VarChar(200)
+  description         String?         @db.Text
+  coverImageMediaId   String?         @map("cover_image_media_id") @db.Uuid
+  ownerUserId         String          @map("owner_user_id") @db.Uuid
+  ownerSchoolId       String?         @map("owner_school_id") @db.Uuid
   // CHECK constraint (raw SQL): owner_school_id IS NULL → visibility ∈ {public,shared,private}
   //                             owner_school_id IS NOT NULL → visibility ∈ {public,school_private,shared,private}
-  visibility        Visibility
-  kind              LessonKind      @default(TEXT)
-  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz
+  visibility          Visibility
+  kind                LessonKind      @default(TEXT)
+  // LIVE-kind stub fields only — minimal reference to an externally-scheduled
+  // session. No attendance/recording/approval subsystem (decision 2); full
+  // scheduling is organization/learning-service territory, out of scope here.
+  liveStartsAt        DateTime?       @map("live_starts_at") @db.Timestamptz
+  liveDurationMinutes Int?            @map("live_duration_minutes")
+  liveJoinUrl         String?         @map("live_join_url") @db.VarChar(500)
+  liveCapacity        Int?            @map("live_capacity")
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt           DateTime?       @map("deleted_at") @db.Timestamptz
 
   variants LessonContentVariant[]
 

@@ -10,5 +10,9 @@ export class UpdateLessonCommand {
     public readonly difficultyLevel?: DifficultyLevel,
     public readonly coverImageMediaId?: string | null,
     public readonly visibility?: Visibility,
+    public readonly liveStartsAt?: Date | null,
+    public readonly liveDurationMinutes?: number | null,
+    public readonly liveJoinUrl?: string | null,
+    public readonly liveCapacity?: number | null,
   ) {}
 }

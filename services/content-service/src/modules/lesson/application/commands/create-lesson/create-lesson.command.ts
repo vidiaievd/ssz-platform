@@ -13,5 +13,9 @@ export class CreateLessonCommand {
     public readonly coverImageMediaId?: string,
     public readonly ownerSchoolId?: string,
     public readonly kind?: LessonKind,
+    public readonly liveStartsAt?: Date,
+    public readonly liveDurationMinutes?: number,
+    public readonly liveJoinUrl?: string,
+    public readonly liveCapacity?: number,
   ) {}
 }

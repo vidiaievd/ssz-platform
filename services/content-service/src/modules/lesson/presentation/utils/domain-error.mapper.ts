@@ -38,6 +38,7 @@ const UNPROCESSABLE_ERRORS = new Set<LessonDomainError>([
   LessonDomainError.INVALID_CUE_DATA,
   LessonDomainError.INVALID_STAGE_DATA,
   LessonDomainError.INVALID_PARAGRAPH_INDEX,
+  LessonDomainError.LIVE_FIELDS_REQUIRE_LIVE_KIND,
 ]);
 
 export function throwHttpException(error: LessonDomainError): never {

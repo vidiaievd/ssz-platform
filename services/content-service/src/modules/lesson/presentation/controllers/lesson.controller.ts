@@ -132,6 +132,10 @@ export class LessonController {
         dto.coverImageMediaId,
         dto.ownerSchoolId,
         dto.kind,
+        dto.liveStartsAt,
+        dto.liveDurationMinutes,
+        dto.liveJoinUrl,
+        dto.liveCapacity,
       ),
     );
 
@@ -210,6 +214,10 @@ export class LessonController {
         dto.difficultyLevel,
         dto.coverImageMediaId,
         dto.visibility,
+        dto.liveStartsAt,
+        dto.liveDurationMinutes,
+        dto.liveJoinUrl,
+        dto.liveCapacity,
       ),
     );
 

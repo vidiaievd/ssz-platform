@@ -34,6 +34,10 @@ export class CreateLessonHandler implements ICommandHandler<
       ownerSchoolId: command.ownerSchoolId,
       visibility: command.visibility,
       kind: command.kind,
+      liveStartsAt: command.liveStartsAt,
+      liveDurationMinutes: command.liveDurationMinutes,
+      liveJoinUrl: command.liveJoinUrl,
+      liveCapacity: command.liveCapacity,
     });
 
     if (lessonResult.isFail) {
