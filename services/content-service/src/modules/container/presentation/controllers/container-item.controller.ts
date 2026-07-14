@@ -120,6 +120,7 @@ export class ContainerItemController {
         dto.isRequired,
         dto.sectionId,
         dto.sectionLabel,
+        dto.xpReward,
       ),
     );
 

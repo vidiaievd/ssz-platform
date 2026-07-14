@@ -5,5 +5,6 @@ export class UpdateContainerItemCommand {
     public readonly isRequired?: boolean,
     public readonly sectionId?: string | null,
     public readonly sectionLabel?: string | null,
+    public readonly xpReward?: number | null,
   ) {}
 }

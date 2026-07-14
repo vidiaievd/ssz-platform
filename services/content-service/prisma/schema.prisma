@@ -214,6 +214,9 @@ model ContainerItem {
   // which is kept one release for back-compat (drop in course-structure-sync Phase E).
   sectionId          String?           @map("section_id") @db.Uuid
   sectionLabel       String?           @map("section_label") @db.VarChar(100)
+  // XP awarded to the student on completion. Authored per-item via the inspector;
+  // consumed by learning-service progress (content-service does not track XP totals).
+  xpReward           Int?              @map("xp_reward")
   addedAt            DateTime          @default(now()) @map("added_at") @db.Timestamptz
 
   containerVersion ContainerVersion  @relation(fields: [containerVersionId], references: [id], onDelete: Cascade)

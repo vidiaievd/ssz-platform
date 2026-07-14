@@ -11,6 +11,9 @@ interface ContainerItemProps {
   sectionId: string | null;
   // Deprecated free-text fallback, kept for one release. Prefer sectionId.
   sectionLabel: string | null;
+  // XP awarded to the student on completion. Authored per-item via the inspector;
+  // consumed by learning-service progress.
+  xpReward: number | null;
   addedAt: Date;
 }
 
@@ -22,12 +25,14 @@ export interface CreateContainerItemProps {
   isRequired?: boolean;
   sectionId?: string;
   sectionLabel?: string;
+  xpReward?: number | null;
 }
 
 export interface UpdateContainerItemProps {
   isRequired?: boolean;
   sectionId?: string | null;
   sectionLabel?: string | null;
+  xpReward?: number | null;
 }
 
 export class ContainerItemEntity extends Entity<string> {
@@ -61,6 +66,9 @@ export class ContainerItemEntity extends Entity<string> {
   get sectionLabel(): string | null {
     return this.props.sectionLabel;
   }
+  get xpReward(): number | null {
+    return this.props.xpReward;
+  }
   get addedAt(): Date {
     return this.props.addedAt;
   }
@@ -76,6 +84,7 @@ export class ContainerItemEntity extends Entity<string> {
       isRequired: p.isRequired ?? true,
       sectionId: p.sectionId ?? null,
       sectionLabel: p.sectionLabel ?? null,
+      xpReward: p.xpReward ?? null,
       addedAt: new Date(),
     });
   }
@@ -95,6 +104,12 @@ export class ContainerItemEntity extends Entity<string> {
     }
     if ('sectionLabel' in changes) {
       this.props.sectionLabel = changes.sectionLabel ?? null;
+    }
+    // Explicit undefined check (not `'in' changes`, unlike sectionId/sectionLabel
+    // above): xpReward is set once and must survive unrelated partial updates —
+    // omitting the field means "no change", only an explicit null clears it.
+    if (changes.xpReward !== undefined) {
+      this.props.xpReward = changes.xpReward;
     }
   }
 }
