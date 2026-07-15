@@ -16,20 +16,16 @@ export class PrismaLessonVideoCueRepository implements ILessonVideoCueRepository
     return rows.map((row) => LessonVideoCueMapper.toDomain(row));
   }
 
-  async findByVariantAndPosition(
-    variantId: string,
-    position: number,
-  ): Promise<LessonVideoCueEntity | null> {
-    const row = await this.prisma.lessonVideoCue.findUnique({
-      where: { lessonContentVariantId_position: { lessonContentVariantId: variantId, position } },
-    });
-    return row ? LessonVideoCueMapper.toDomain(row) : null;
-  }
+  async replaceForVariant(variantId: string, cues: LessonVideoCueEntity[]): Promise<void> {
+    const createData = LessonVideoCueMapper.toCreateManyData(cues);
 
-  async save(entity: LessonVideoCueEntity): Promise<LessonVideoCueEntity> {
-    const raw = await this.prisma.lessonVideoCue.create({
-      data: LessonVideoCueMapper.toCreateData(entity),
-    });
-    return LessonVideoCueMapper.toDomain(raw);
+    await this.prisma.$transaction([
+      this.prisma.lessonVideoCue.deleteMany({
+        where: { lessonContentVariantId: variantId },
+      }),
+      ...(createData.length > 0
+        ? [this.prisma.lessonVideoCue.createMany({ data: createData })]
+        : []),
+    ]);
   }
 }

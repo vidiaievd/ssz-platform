@@ -36,7 +36,7 @@ import { CreateVariantHandler } from './application/commands/create-variant/crea
 import { UpdateVariantHandler } from './application/commands/update-variant/update-variant.handler.js';
 import { PublishVariantHandler } from './application/commands/publish-variant/publish-variant.handler.js';
 import { DeleteVariantHandler } from './application/commands/delete-variant/delete-variant.handler.js';
-import { CreateVideoCueHandler } from './application/commands/create-video-cue/create-video-cue.handler.js';
+import { SetVideoCuesHandler } from './application/commands/set-video-cues/set-video-cues.handler.js';
 import { CreateListeningStageHandler } from './application/commands/create-listening-stage/create-listening-stage.handler.js';
 import { SetParagraphTranslationsHandler } from './application/commands/set-paragraph-translations/set-paragraph-translations.handler.js';
 import { MarkGlossaryWordHandler } from './application/commands/mark-glossary-word/mark-glossary-word.handler.js';
@@ -65,7 +65,7 @@ const CommandHandlers = [
   UpdateVariantHandler,
   PublishVariantHandler,
   DeleteVariantHandler,
-  CreateVideoCueHandler,
+  SetVideoCuesHandler,
   CreateListeningStageHandler,
   SetParagraphTranslationsHandler,
   MarkGlossaryWordHandler,

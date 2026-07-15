@@ -42,8 +42,7 @@ import type { CreateVariantResult } from '../../application/commands/create-vari
 import { UpdateVariantCommand } from '../../application/commands/update-variant/update-variant.command.js';
 import { PublishVariantCommand } from '../../application/commands/publish-variant/publish-variant.command.js';
 import { DeleteVariantCommand } from '../../application/commands/delete-variant/delete-variant.command.js';
-import { CreateVideoCueCommand } from '../../application/commands/create-video-cue/create-video-cue.command.js';
-import type { CreateVideoCueResult } from '../../application/commands/create-video-cue/create-video-cue.handler.js';
+import { SetVideoCuesCommand } from '../../application/commands/set-video-cues/set-video-cues.command.js';
 import { CreateListeningStageCommand } from '../../application/commands/create-listening-stage/create-listening-stage.command.js';
 import type { CreateListeningStageResult } from '../../application/commands/create-listening-stage/create-listening-stage.handler.js';
 import { SetParagraphTranslationsCommand } from '../../application/commands/set-paragraph-translations/set-paragraph-translations.command.js';
@@ -82,7 +81,7 @@ import { CreateVariantRequestDto } from '../dto/requests/create-variant.request.
 import { UpdateVariantRequestDto } from '../dto/requests/update-variant.request.dto.js';
 import { GetBestVariantRequestDto } from '../dto/requests/get-best-variant.request.dto.js';
 import { LessonVariantsQueryDto } from '../dto/requests/lesson-variants-query.dto.js';
-import { CreateVideoCueRequestDto } from '../dto/requests/create-video-cue.request.dto.js';
+import { SetVideoCuesRequestDto } from '../dto/requests/set-video-cues.request.dto.js';
 import { CreateListeningStageRequestDto } from '../dto/requests/create-listening-stage.request.dto.js';
 import { SetParagraphTranslationsRequestDto } from '../dto/requests/set-paragraph-translations.request.dto.js';
 import { MarkGlossaryWordRequestDto } from '../dto/requests/mark-glossary-word.request.dto.js';
@@ -445,30 +444,21 @@ export class LessonController {
   @Post(':id/variants/:variantId/cues')
   @UseGuards(VisibilityGuard)
   @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
-  @ApiOperation({ summary: 'Create a transcript cue for a VIDEO lesson variant' })
-  @ApiCreatedResponse({ description: 'Returns the new cue ID' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Replace all transcript cues for a VIDEO lesson variant' })
+  @ApiNoContentResponse()
   @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
-  async createVideoCue(
+  async setVideoCues(
     @Param('variantId') variantId: string,
-    @Body() dto: CreateVideoCueRequestDto,
+    @Body() dto: SetVideoCuesRequestDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<{ cueId: string }> {
+  ): Promise<void> {
     const result = await this.commandBus.execute<
-      CreateVideoCueCommand,
-      Result<CreateVideoCueResult, LessonDomainError>
-    >(
-      new CreateVideoCueCommand(
-        user.userId,
-        variantId,
-        dto.position,
-        dto.startSeconds,
-        dto.targetLine,
-        dto.translationLine,
-      ),
-    );
+      SetVideoCuesCommand,
+      Result<void, LessonDomainError>
+    >(new SetVideoCuesCommand(user.userId, variantId, dto.cues));
 
     if (result.isFail) throwHttpException(result.error);
-    return result.value;
   }
 
   @Get(':id/variants/:variantId/cues')
@@ -477,9 +467,7 @@ export class LessonController {
   @ApiOperation({ summary: 'List transcript cues for a VIDEO lesson variant, ordered by position' })
   @ApiOkResponse({ type: [LessonVideoCueResponseDto] })
   @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
-  async findVideoCues(
-    @Param('variantId') variantId: string,
-  ): Promise<LessonVideoCueResponseDto[]> {
+  async findVideoCues(@Param('variantId') variantId: string): Promise<LessonVideoCueResponseDto[]> {
     const cues = await this.queryBus.execute<GetVideoCuesQuery, LessonVideoCueEntity[]>(
       new GetVideoCuesQuery(variantId),
     );

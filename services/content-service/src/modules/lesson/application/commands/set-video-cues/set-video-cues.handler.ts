@@ -1,6 +1,6 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
-import { CreateVideoCueCommand } from './create-video-cue.command.js';
+import { SetVideoCuesCommand } from './set-video-cues.command.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { LessonDomainError } from '../../../domain/exceptions/lesson-domain.exceptions.js';
 import { LessonVideoCueEntity } from '../../../domain/entities/lesson-video-cue.entity.js';
@@ -12,14 +12,10 @@ import type { ILessonContentVariantRepository } from '../../../domain/repositori
 import { LESSON_VIDEO_CUE_REPOSITORY } from '../../../domain/repositories/lesson-video-cue.repository.interface.js';
 import type { ILessonVideoCueRepository } from '../../../domain/repositories/lesson-video-cue.repository.interface.js';
 
-export interface CreateVideoCueResult {
-  cueId: string;
-}
-
-@CommandHandler(CreateVideoCueCommand)
-export class CreateVideoCueHandler implements ICommandHandler<
-  CreateVideoCueCommand,
-  Result<CreateVideoCueResult, LessonDomainError>
+@CommandHandler(SetVideoCuesCommand)
+export class SetVideoCuesHandler implements ICommandHandler<
+  SetVideoCuesCommand,
+  Result<void, LessonDomainError>
 > {
   constructor(
     @Inject(LESSON_REPOSITORY)
@@ -30,9 +26,7 @@ export class CreateVideoCueHandler implements ICommandHandler<
     private readonly cueRepo: ILessonVideoCueRepository,
   ) {}
 
-  async execute(
-    command: CreateVideoCueCommand,
-  ): Promise<Result<CreateVideoCueResult, LessonDomainError>> {
+  async execute(command: SetVideoCuesCommand): Promise<Result<void, LessonDomainError>> {
     const variant = await this.variantRepo.findById(command.variantId);
     if (!variant) {
       return Result.fail(LessonDomainError.VARIANT_NOT_FOUND);
@@ -52,28 +46,29 @@ export class CreateVideoCueHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.LESSON_KIND_MISMATCH);
     }
 
-    const existing = await this.cueRepo.findByVariantAndPosition(
-      command.variantId,
-      command.position,
-    );
-    if (existing) {
-      return Result.fail(LessonDomainError.DUPLICATE_CUE_POSITION);
+    const positions = new Set<number>();
+    const cues: LessonVideoCueEntity[] = [];
+    for (const input of command.cues) {
+      if (positions.has(input.position)) {
+        return Result.fail(LessonDomainError.DUPLICATE_CUE_POSITION);
+      }
+      positions.add(input.position);
+
+      const cueResult = LessonVideoCueEntity.create({
+        lessonContentVariantId: command.variantId,
+        position: input.position,
+        startSeconds: input.startSeconds,
+        targetLine: input.targetLine,
+        translationLine: input.translationLine,
+      });
+      if (cueResult.isFail) {
+        return Result.fail(cueResult.error);
+      }
+      cues.push(cueResult.value);
     }
 
-    const cueResult = LessonVideoCueEntity.create({
-      lessonContentVariantId: command.variantId,
-      position: command.position,
-      startSeconds: command.startSeconds,
-      targetLine: command.targetLine,
-      translationLine: command.translationLine,
-    });
+    await this.cueRepo.replaceForVariant(command.variantId, cues);
 
-    if (cueResult.isFail) {
-      return Result.fail(cueResult.error);
-    }
-
-    const cue = await this.cueRepo.save(cueResult.value);
-
-    return Result.ok({ cueId: cue.id });
+    return Result.ok();
   }
 }

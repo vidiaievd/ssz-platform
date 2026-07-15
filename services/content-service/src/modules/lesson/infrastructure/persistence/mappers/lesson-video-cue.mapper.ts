@@ -38,4 +38,8 @@ export class LessonVideoCueMapper {
       updatedAt: entity.updatedAt,
     };
   }
+
+  static toCreateManyData(entities: LessonVideoCueEntity[]): LessonVideoCueCreateData[] {
+    return entities.map((entity) => LessonVideoCueMapper.toCreateData(entity));
+  }
 }

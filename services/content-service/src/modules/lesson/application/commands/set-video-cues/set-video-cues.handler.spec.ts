@@ -1,9 +1,8 @@
-import { CreateVideoCueHandler } from './create-video-cue.handler.js';
-import { CreateVideoCueCommand } from './create-video-cue.command.js';
+import { SetVideoCuesHandler } from './set-video-cues.handler.js';
+import { SetVideoCuesCommand } from './set-video-cues.command.js';
 import { LessonDomainError } from '../../../domain/exceptions/lesson-domain.exceptions.js';
 import { LessonEntity } from '../../../domain/entities/lesson.entity.js';
 import { LessonContentVariantEntity } from '../../../domain/entities/lesson-content-variant.entity.js';
-import { LessonVideoCueEntity } from '../../../domain/entities/lesson-video-cue.entity.js';
 import { LessonKind } from '../../../domain/value-objects/lesson-kind.vo.js';
 import { DifficultyLevel } from '../../../../container/domain/value-objects/difficulty-level.vo.js';
 import { Visibility } from '../../../../container/domain/value-objects/visibility.vo.js';
@@ -43,7 +42,6 @@ function makeVariant(lessonId: string): LessonContentVariantEntity {
 function makeHandler(overrides: {
   lesson?: LessonEntity | null;
   variant?: LessonContentVariantEntity | null;
-  existingCue?: LessonVideoCueEntity | null;
 }) {
   const lessonRepo = {
     findById: jest.fn().mockResolvedValue(overrides.lesson ?? null),
@@ -54,26 +52,46 @@ function makeHandler(overrides: {
   } as unknown as ILessonContentVariantRepository;
 
   const cueRepo = {
-    findByVariantAndPosition: jest.fn().mockResolvedValue(overrides.existingCue ?? null),
-    save: jest.fn().mockImplementation((e: LessonVideoCueEntity) => Promise.resolve(e)),
     findByVariantId: jest.fn(),
+    replaceForVariant: jest.fn().mockResolvedValue(undefined),
   } as unknown as ILessonVideoCueRepository;
 
-  return { handler: new CreateVideoCueHandler(lessonRepo, variantRepo, cueRepo), cueRepo };
+  return { handler: new SetVideoCuesHandler(lessonRepo, variantRepo, cueRepo), cueRepo };
 }
 
-describe('CreateVideoCueHandler', () => {
-  it('creates a cue for a VIDEO-kind lesson variant', async () => {
+describe('SetVideoCuesHandler', () => {
+  it('replaces cues for a VIDEO-kind lesson variant', async () => {
     const lesson = makeLesson(LessonKind.VIDEO);
     const variant = makeVariant(lesson.id);
     const { handler, cueRepo } = makeHandler({ lesson, variant });
 
     const result = await handler.execute(
-      new CreateVideoCueCommand(OWNER_ID, variant.id, 0, 12.5, 'Hei!', 'Hi!'),
+      new SetVideoCuesCommand(OWNER_ID, variant.id, [
+        { position: 0, startSeconds: 0, targetLine: 'Hei!', translationLine: 'Hi!' },
+        { position: 1, startSeconds: 3.5, targetLine: 'Hvordan har du det?' },
+      ]),
     );
 
     expect(result.isOk).toBe(true);
-    expect(cueRepo.save).toHaveBeenCalledTimes(1);
+    expect(cueRepo.replaceForVariant).toHaveBeenCalledTimes(1);
+    expect(cueRepo.replaceForVariant).toHaveBeenCalledWith(
+      variant.id,
+      expect.arrayContaining([
+        expect.objectContaining({ position: 0, targetLine: 'Hei!' }),
+        expect.objectContaining({ position: 1, targetLine: 'Hvordan har du det?' }),
+      ]),
+    );
+  });
+
+  it('replaces with an empty list, clearing all cues', async () => {
+    const lesson = makeLesson(LessonKind.VIDEO);
+    const variant = makeVariant(lesson.id);
+    const { handler, cueRepo } = makeHandler({ lesson, variant });
+
+    const result = await handler.execute(new SetVideoCuesCommand(OWNER_ID, variant.id, []));
+
+    expect(result.isOk).toBe(true);
+    expect(cueRepo.replaceForVariant).toHaveBeenCalledWith(variant.id, []);
   });
 
   it('rejects when the variant belongs to a non-VIDEO lesson', async () => {
@@ -82,50 +100,57 @@ describe('CreateVideoCueHandler', () => {
     const { handler, cueRepo } = makeHandler({ lesson, variant });
 
     const result = await handler.execute(
-      new CreateVideoCueCommand(OWNER_ID, variant.id, 0, 12.5, 'Hei!'),
+      new SetVideoCuesCommand(OWNER_ID, variant.id, [
+        { position: 0, startSeconds: 0, targetLine: 'Hei!' },
+      ]),
     );
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(LessonDomainError.LESSON_KIND_MISMATCH);
-    expect(cueRepo.save).not.toHaveBeenCalled();
+    expect(cueRepo.replaceForVariant).not.toHaveBeenCalled();
   });
 
-  it('rejects a duplicate position for the same variant', async () => {
+  it('rejects duplicate positions within the same request', async () => {
     const lesson = makeLesson(LessonKind.VIDEO);
     const variant = makeVariant(lesson.id);
-    const existingCueResult = LessonVideoCueEntity.create({
-      lessonContentVariantId: variant.id,
-      position: 0,
-      startSeconds: 0,
-      targetLine: 'Hei!',
-    });
-    if (existingCueResult.isFail) throw new Error('unexpected failure building test fixture');
-
-    const { handler, cueRepo } = makeHandler({
-      lesson,
-      variant,
-      existingCue: existingCueResult.value,
-    });
+    const { handler, cueRepo } = makeHandler({ lesson, variant });
 
     const result = await handler.execute(
-      new CreateVideoCueCommand(OWNER_ID, variant.id, 0, 5, 'Duplicate!'),
+      new SetVideoCuesCommand(OWNER_ID, variant.id, [
+        { position: 0, startSeconds: 0, targetLine: 'Hei!' },
+        { position: 0, startSeconds: 5, targetLine: 'Duplicate!' },
+      ]),
     );
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(LessonDomainError.DUPLICATE_CUE_POSITION);
-    expect(cueRepo.save).not.toHaveBeenCalled();
+    expect(cueRepo.replaceForVariant).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid cue data (blank target line)', async () => {
+    const lesson = makeLesson(LessonKind.VIDEO);
+    const variant = makeVariant(lesson.id);
+    const { handler, cueRepo } = makeHandler({ lesson, variant });
+
+    const result = await handler.execute(
+      new SetVideoCuesCommand(OWNER_ID, variant.id, [
+        { position: 0, startSeconds: 0, targetLine: '   ' },
+      ]),
+    );
+
+    expect(result.isFail).toBe(true);
+    expect(result.error).toBe(LessonDomainError.INVALID_CUE_DATA);
+    expect(cueRepo.replaceForVariant).not.toHaveBeenCalled();
   });
 
   it('rejects when the variant does not exist', async () => {
     const { handler, cueRepo } = makeHandler({ variant: null });
 
-    const result = await handler.execute(
-      new CreateVideoCueCommand(OWNER_ID, 'missing-variant', 0, 0, 'Hei!'),
-    );
+    const result = await handler.execute(new SetVideoCuesCommand(OWNER_ID, 'missing-variant', []));
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(LessonDomainError.VARIANT_NOT_FOUND);
-    expect(cueRepo.save).not.toHaveBeenCalled();
+    expect(cueRepo.replaceForVariant).not.toHaveBeenCalled();
   });
 
   it('rejects when the caller does not own the lesson', async () => {
@@ -133,12 +158,10 @@ describe('CreateVideoCueHandler', () => {
     const variant = makeVariant(lesson.id);
     const { handler, cueRepo } = makeHandler({ lesson, variant });
 
-    const result = await handler.execute(
-      new CreateVideoCueCommand('someone-else', variant.id, 0, 0, 'Hei!'),
-    );
+    const result = await handler.execute(new SetVideoCuesCommand('someone-else', variant.id, []));
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    expect(cueRepo.save).not.toHaveBeenCalled();
+    expect(cueRepo.replaceForVariant).not.toHaveBeenCalled();
   });
 });
