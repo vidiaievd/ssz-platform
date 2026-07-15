@@ -346,6 +346,7 @@ model LessonContentVariant {
   lesson                Lesson                       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   mediaRefs             LessonVariantMediaRef[]
   videoCues             LessonVideoCue[]
+  videoQuestion         LessonVideoQuestion?
   listeningStages       LessonListeningStage[]
   paragraphTranslations LessonParagraphTranslation[]
   glossaryMarks         LessonVariantGlossaryMark[]
@@ -413,6 +414,24 @@ model LessonListeningStage {
   @@index([lessonContentVariantId])
   @@index([exerciseId])
   @@map("lesson_listening_stages")
+}
+
+// Single optional comprehension-check exercise for a VIDEO-kind lesson variant.
+// References Exercise by FK so grading reuses exercise-engine, mirroring
+// LessonListeningStage's link but without position/stageType since a video
+// variant carries at most one comprehension question.
+model LessonVideoQuestion {
+  id                     String   @id @default(uuid()) @db.Uuid
+  lessonContentVariantId String   @unique @map("lesson_content_variant_id") @db.Uuid
+  exerciseId             String   @map("exercise_id") @db.Uuid
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  variant  LessonContentVariant @relation(fields: [lessonContentVariantId], references: [id], onDelete: Cascade)
+  exercise Exercise             @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([exerciseId])
+  @@map("lesson_video_questions")
 }
 
 // Paragraph-aligned translation for Bilingual/Focus reading modes on a TEXT-kind
@@ -660,6 +679,7 @@ model Exercise {
   instructions    ExerciseInstruction[]
   poolEntries     GrammarRuleExercisePool[]
   listeningStages LessonListeningStage[]
+  videoQuestions  LessonVideoQuestion[]
 
   @@index([exerciseTemplateId])
   @@index([ownerUserId])

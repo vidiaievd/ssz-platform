@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -43,6 +44,9 @@ import { UpdateVariantCommand } from '../../application/commands/update-variant/
 import { PublishVariantCommand } from '../../application/commands/publish-variant/publish-variant.command.js';
 import { DeleteVariantCommand } from '../../application/commands/delete-variant/delete-variant.command.js';
 import { SetVideoCuesCommand } from '../../application/commands/set-video-cues/set-video-cues.command.js';
+import { SetVideoQuestionCommand } from '../../application/commands/set-video-question/set-video-question.command.js';
+import type { SetVideoQuestionResult } from '../../application/commands/set-video-question/set-video-question.handler.js';
+import { ClearVideoQuestionCommand } from '../../application/commands/clear-video-question/clear-video-question.command.js';
 import { CreateListeningStageCommand } from '../../application/commands/create-listening-stage/create-listening-stage.command.js';
 import type { CreateListeningStageResult } from '../../application/commands/create-listening-stage/create-listening-stage.handler.js';
 import { SetParagraphTranslationsCommand } from '../../application/commands/set-paragraph-translations/set-paragraph-translations.command.js';
@@ -58,6 +62,7 @@ import { GetLessonVariantQuery } from '../../application/queries/get-lesson-vari
 import { GetBestVariantQuery } from '../../application/queries/get-best-variant/get-best-variant.query.js';
 import type { GetBestVariantResult } from '../../application/queries/get-best-variant/get-best-variant.handler.js';
 import { GetVideoCuesQuery } from '../../application/queries/get-video-cues/get-video-cues.query.js';
+import { GetVideoQuestionQuery } from '../../application/queries/get-video-question/get-video-question.query.js';
 import { GetListeningStagesQuery } from '../../application/queries/get-listening-stages/get-listening-stages.query.js';
 import { GetTextParagraphsQuery } from '../../application/queries/get-text-paragraphs/get-text-paragraphs.query.js';
 import type { TextParagraphResult } from '../../application/queries/get-text-paragraphs/get-text-paragraphs.handler.js';
@@ -71,6 +76,7 @@ import type { LessonDomainError } from '../../domain/exceptions/lesson-domain.ex
 import type { LessonEntity } from '../../domain/entities/lesson.entity.js';
 import type { LessonContentVariantEntity } from '../../domain/entities/lesson-content-variant.entity.js';
 import type { LessonVideoCueEntity } from '../../domain/entities/lesson-video-cue.entity.js';
+import type { LessonVideoQuestionEntity } from '../../domain/entities/lesson-video-question.entity.js';
 import type { LessonListeningStageEntity } from '../../domain/entities/lesson-listening-stage.entity.js';
 
 // Request DTOs
@@ -82,6 +88,7 @@ import { UpdateVariantRequestDto } from '../dto/requests/update-variant.request.
 import { GetBestVariantRequestDto } from '../dto/requests/get-best-variant.request.dto.js';
 import { LessonVariantsQueryDto } from '../dto/requests/lesson-variants-query.dto.js';
 import { SetVideoCuesRequestDto } from '../dto/requests/set-video-cues.request.dto.js';
+import { SetVideoQuestionRequestDto } from '../dto/requests/set-video-question.request.dto.js';
 import { CreateListeningStageRequestDto } from '../dto/requests/create-listening-stage.request.dto.js';
 import { SetParagraphTranslationsRequestDto } from '../dto/requests/set-paragraph-translations.request.dto.js';
 import { MarkGlossaryWordRequestDto } from '../dto/requests/mark-glossary-word.request.dto.js';
@@ -91,6 +98,7 @@ import { LessonResponseDto } from '../dto/responses/lesson.response.dto.js';
 import { LessonVariantResponseDto } from '../dto/responses/lesson-variant.response.dto.js';
 import { BestVariantResponseDto } from '../dto/responses/best-variant.response.dto.js';
 import { LessonVideoCueResponseDto } from '../dto/responses/lesson-video-cue.response.dto.js';
+import { LessonVideoQuestionResponseDto } from '../dto/responses/lesson-video-question.response.dto.js';
 import { LessonListeningStageResponseDto } from '../dto/responses/lesson-listening-stage.response.dto.js';
 import { TextParagraphResponseDto } from '../dto/responses/text-paragraph.response.dto.js';
 import { GlossaryMarkResponseDto } from '../dto/responses/glossary-mark.response.dto.js';
@@ -473,6 +481,66 @@ export class LessonController {
     );
 
     return cues.map((c) => LessonVideoCueResponseDto.from(c));
+  }
+
+  @Put(':id/variants/:variantId/comprehension-question')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({
+    summary: 'Link (or replace) the comprehension-check exercise for a VIDEO lesson variant',
+  })
+  @ApiOkResponse({ description: 'Returns the link ID' })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async setVideoQuestion(
+    @Param('variantId') variantId: string,
+    @Body() dto: SetVideoQuestionRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ questionId: string }> {
+    const result = await this.commandBus.execute<
+      SetVideoQuestionCommand,
+      Result<SetVideoQuestionResult, LessonDomainError>
+    >(new SetVideoQuestionCommand(user.userId, variantId, dto.exerciseId));
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value;
+  }
+
+  @Delete(':id/variants/:variantId/comprehension-question')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Unlink the comprehension-check exercise from a VIDEO lesson variant' })
+  @ApiNoContentResponse()
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async clearVideoQuestion(
+    @Param('variantId') variantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      ClearVideoQuestionCommand,
+      Result<void, LessonDomainError>
+    >(new ClearVideoQuestionCommand(user.userId, variantId));
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Get(':id/variants/:variantId/comprehension-question')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({
+    summary: 'Get the comprehension-check exercise link for a VIDEO lesson variant, if any',
+  })
+  @ApiOkResponse({ type: LessonVideoQuestionResponseDto })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async findVideoQuestion(
+    @Param('variantId') variantId: string,
+  ): Promise<LessonVideoQuestionResponseDto | null> {
+    const question = await this.queryBus.execute<
+      GetVideoQuestionQuery,
+      LessonVideoQuestionEntity | null
+    >(new GetVideoQuestionQuery(variantId));
+
+    return question ? LessonVideoQuestionResponseDto.from(question) : null;
   }
 
   // ── Listening stages sub-resource (kind=AUDIO variants only) ───────────────
