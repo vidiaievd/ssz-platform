@@ -47,8 +47,7 @@ import { SetVideoCuesCommand } from '../../application/commands/set-video-cues/s
 import { SetVideoQuestionCommand } from '../../application/commands/set-video-question/set-video-question.command.js';
 import type { SetVideoQuestionResult } from '../../application/commands/set-video-question/set-video-question.handler.js';
 import { ClearVideoQuestionCommand } from '../../application/commands/clear-video-question/clear-video-question.command.js';
-import { CreateListeningStageCommand } from '../../application/commands/create-listening-stage/create-listening-stage.command.js';
-import type { CreateListeningStageResult } from '../../application/commands/create-listening-stage/create-listening-stage.handler.js';
+import { SetListeningStagesCommand } from '../../application/commands/set-listening-stages/set-listening-stages.command.js';
 import { SetParagraphTranslationsCommand } from '../../application/commands/set-paragraph-translations/set-paragraph-translations.command.js';
 import { MarkGlossaryWordCommand } from '../../application/commands/mark-glossary-word/mark-glossary-word.command.js';
 import type { MarkGlossaryWordResult } from '../../application/commands/mark-glossary-word/mark-glossary-word.handler.js';
@@ -89,7 +88,7 @@ import { GetBestVariantRequestDto } from '../dto/requests/get-best-variant.reque
 import { LessonVariantsQueryDto } from '../dto/requests/lesson-variants-query.dto.js';
 import { SetVideoCuesRequestDto } from '../dto/requests/set-video-cues.request.dto.js';
 import { SetVideoQuestionRequestDto } from '../dto/requests/set-video-question.request.dto.js';
-import { CreateListeningStageRequestDto } from '../dto/requests/create-listening-stage.request.dto.js';
+import { SetListeningStagesRequestDto } from '../dto/requests/set-listening-stages.request.dto.js';
 import { SetParagraphTranslationsRequestDto } from '../dto/requests/set-paragraph-translations.request.dto.js';
 import { MarkGlossaryWordRequestDto } from '../dto/requests/mark-glossary-word.request.dto.js';
 
@@ -548,29 +547,23 @@ export class LessonController {
   @Post(':id/variants/:variantId/listening-stages')
   @UseGuards(VisibilityGuard)
   @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
-  @ApiOperation({ summary: 'Stage a gap-fill/comprehension exercise for an AUDIO lesson variant' })
-  @ApiCreatedResponse({ description: 'Returns the new stage ID' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Replace all staged gap-fill/comprehension exercises for an AUDIO lesson variant',
+  })
+  @ApiNoContentResponse()
   @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
-  async createListeningStage(
+  async setListeningStages(
     @Param('variantId') variantId: string,
-    @Body() dto: CreateListeningStageRequestDto,
+    @Body() dto: SetListeningStagesRequestDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<{ stageId: string }> {
+  ): Promise<void> {
     const result = await this.commandBus.execute<
-      CreateListeningStageCommand,
-      Result<CreateListeningStageResult, LessonDomainError>
-    >(
-      new CreateListeningStageCommand(
-        user.userId,
-        variantId,
-        dto.exerciseId,
-        dto.position,
-        dto.stageType,
-      ),
-    );
+      SetListeningStagesCommand,
+      Result<void, LessonDomainError>
+    >(new SetListeningStagesCommand(user.userId, variantId, dto.stages));
 
     if (result.isFail) throwHttpException(result.error);
-    return result.value;
   }
 
   @Get(':id/variants/:variantId/listening-stages')

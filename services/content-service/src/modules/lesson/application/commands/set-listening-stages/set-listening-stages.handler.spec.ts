@@ -1,9 +1,8 @@
-import { CreateListeningStageHandler } from './create-listening-stage.handler.js';
-import { CreateListeningStageCommand } from './create-listening-stage.command.js';
+import { SetListeningStagesHandler } from './set-listening-stages.handler.js';
+import { SetListeningStagesCommand } from './set-listening-stages.command.js';
 import { LessonDomainError } from '../../../domain/exceptions/lesson-domain.exceptions.js';
 import { LessonEntity } from '../../../domain/entities/lesson.entity.js';
 import { LessonContentVariantEntity } from '../../../domain/entities/lesson-content-variant.entity.js';
-import { LessonListeningStageEntity } from '../../../domain/entities/lesson-listening-stage.entity.js';
 import { LessonKind } from '../../../domain/value-objects/lesson-kind.vo.js';
 import { ListeningStageType } from '../../../domain/value-objects/listening-stage-type.vo.js';
 import { DifficultyLevel } from '../../../../container/domain/value-objects/difficulty-level.vo.js';
@@ -46,7 +45,6 @@ function makeVariant(lessonId: string): LessonContentVariantEntity {
 function makeHandler(overrides: {
   lesson?: LessonEntity | null;
   variant?: LessonContentVariantEntity | null;
-  existingStage?: LessonListeningStageEntity | null;
   exercise?: { deletedAt: Date | null } | null;
 }) {
   const lessonRepo = {
@@ -58,9 +56,8 @@ function makeHandler(overrides: {
   } as unknown as ILessonContentVariantRepository;
 
   const stageRepo = {
-    findByVariantAndPosition: jest.fn().mockResolvedValue(overrides.existingStage ?? null),
-    save: jest.fn().mockImplementation((e: LessonListeningStageEntity) => Promise.resolve(e)),
     findByVariantId: jest.fn(),
+    replaceForVariant: jest.fn().mockResolvedValue(undefined),
   } as unknown as ILessonListeningStageRepository;
 
   const exerciseRepo = {
@@ -72,29 +69,44 @@ function makeHandler(overrides: {
   } as unknown as IExerciseRepository;
 
   return {
-    handler: new CreateListeningStageHandler(lessonRepo, variantRepo, stageRepo, exerciseRepo),
+    handler: new SetListeningStagesHandler(lessonRepo, variantRepo, stageRepo, exerciseRepo),
     stageRepo,
   };
 }
 
-describe('CreateListeningStageHandler', () => {
-  it('stages a gap-fill exercise for an AUDIO-kind lesson variant', async () => {
+describe('SetListeningStagesHandler', () => {
+  it('replaces staged exercises for an AUDIO-kind lesson variant', async () => {
     const lesson = makeLesson(LessonKind.AUDIO);
     const variant = makeVariant(lesson.id);
     const { handler, stageRepo } = makeHandler({ lesson, variant });
 
     const result = await handler.execute(
-      new CreateListeningStageCommand(
-        OWNER_ID,
-        variant.id,
-        EXERCISE_ID,
-        0,
-        ListeningStageType.GAP_FILL,
-      ),
+      new SetListeningStagesCommand(OWNER_ID, variant.id, [
+        { exerciseId: EXERCISE_ID, position: 0, stageType: ListeningStageType.GAP_FILL },
+        { exerciseId: EXERCISE_ID, position: 1, stageType: ListeningStageType.COMPREHENSION },
+      ]),
     );
 
     expect(result.isOk).toBe(true);
-    expect(stageRepo.save).toHaveBeenCalledTimes(1);
+    expect(stageRepo.replaceForVariant).toHaveBeenCalledTimes(1);
+    expect(stageRepo.replaceForVariant).toHaveBeenCalledWith(
+      variant.id,
+      expect.arrayContaining([
+        expect.objectContaining({ position: 0, stageType: ListeningStageType.GAP_FILL }),
+        expect.objectContaining({ position: 1, stageType: ListeningStageType.COMPREHENSION }),
+      ]),
+    );
+  });
+
+  it('replaces with an empty list, clearing all staged exercises', async () => {
+    const lesson = makeLesson(LessonKind.AUDIO);
+    const variant = makeVariant(lesson.id);
+    const { handler, stageRepo } = makeHandler({ lesson, variant });
+
+    const result = await handler.execute(new SetListeningStagesCommand(OWNER_ID, variant.id, []));
+
+    expect(result.isOk).toBe(true);
+    expect(stageRepo.replaceForVariant).toHaveBeenCalledWith(variant.id, []);
   });
 
   it('rejects when the variant belongs to a non-AUDIO lesson', async () => {
@@ -103,41 +115,50 @@ describe('CreateListeningStageHandler', () => {
     const { handler, stageRepo } = makeHandler({ lesson, variant });
 
     const result = await handler.execute(
-      new CreateListeningStageCommand(
-        OWNER_ID,
-        variant.id,
-        EXERCISE_ID,
-        0,
-        ListeningStageType.GAP_FILL,
-      ),
+      new SetListeningStagesCommand(OWNER_ID, variant.id, [
+        { exerciseId: EXERCISE_ID, position: 0, stageType: ListeningStageType.GAP_FILL },
+      ]),
     );
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(LessonDomainError.LESSON_KIND_MISMATCH);
-    expect(stageRepo.save).not.toHaveBeenCalled();
+    expect(stageRepo.replaceForVariant).not.toHaveBeenCalled();
   });
 
-  it('rejects when the exercise does not exist', async () => {
+  it('rejects duplicate positions within the same request', async () => {
+    const lesson = makeLesson(LessonKind.AUDIO);
+    const variant = makeVariant(lesson.id);
+    const { handler, stageRepo } = makeHandler({ lesson, variant });
+
+    const result = await handler.execute(
+      new SetListeningStagesCommand(OWNER_ID, variant.id, [
+        { exerciseId: EXERCISE_ID, position: 0, stageType: ListeningStageType.GAP_FILL },
+        { exerciseId: EXERCISE_ID, position: 0, stageType: ListeningStageType.COMPREHENSION },
+      ]),
+    );
+
+    expect(result.isFail).toBe(true);
+    expect(result.error).toBe(LessonDomainError.DUPLICATE_STAGE_POSITION);
+    expect(stageRepo.replaceForVariant).not.toHaveBeenCalled();
+  });
+
+  it('rejects when a staged exercise does not exist', async () => {
     const lesson = makeLesson(LessonKind.AUDIO);
     const variant = makeVariant(lesson.id);
     const { handler, stageRepo } = makeHandler({ lesson, variant, exercise: null });
 
     const result = await handler.execute(
-      new CreateListeningStageCommand(
-        OWNER_ID,
-        variant.id,
-        'missing-exercise',
-        0,
-        ListeningStageType.COMPREHENSION,
-      ),
+      new SetListeningStagesCommand(OWNER_ID, variant.id, [
+        { exerciseId: 'missing-exercise', position: 0, stageType: ListeningStageType.GAP_FILL },
+      ]),
     );
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(LessonDomainError.EXERCISE_NOT_FOUND);
-    expect(stageRepo.save).not.toHaveBeenCalled();
+    expect(stageRepo.replaceForVariant).not.toHaveBeenCalled();
   });
 
-  it('rejects when the exercise is soft-deleted', async () => {
+  it('rejects when a staged exercise is soft-deleted', async () => {
     const lesson = makeLesson(LessonKind.AUDIO);
     const variant = makeVariant(lesson.id);
     const { handler, stageRepo } = makeHandler({
@@ -147,50 +168,26 @@ describe('CreateListeningStageHandler', () => {
     });
 
     const result = await handler.execute(
-      new CreateListeningStageCommand(
-        OWNER_ID,
-        variant.id,
-        EXERCISE_ID,
-        0,
-        ListeningStageType.GAP_FILL,
-      ),
+      new SetListeningStagesCommand(OWNER_ID, variant.id, [
+        { exerciseId: EXERCISE_ID, position: 0, stageType: ListeningStageType.GAP_FILL },
+      ]),
     );
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(LessonDomainError.EXERCISE_NOT_FOUND);
-    expect(stageRepo.save).not.toHaveBeenCalled();
+    expect(stageRepo.replaceForVariant).not.toHaveBeenCalled();
   });
 
-  it('rejects a duplicate position for the same variant', async () => {
-    const lesson = makeLesson(LessonKind.AUDIO);
-    const variant = makeVariant(lesson.id);
-    const existingStageResult = LessonListeningStageEntity.create({
-      lessonContentVariantId: variant.id,
-      exerciseId: EXERCISE_ID,
-      position: 0,
-      stageType: ListeningStageType.GAP_FILL,
-    });
-    if (existingStageResult.isFail) throw new Error('unexpected failure building test fixture');
-
-    const { handler, stageRepo } = makeHandler({
-      lesson,
-      variant,
-      existingStage: existingStageResult.value,
-    });
+  it('rejects when the variant does not exist', async () => {
+    const { handler, stageRepo } = makeHandler({ variant: null });
 
     const result = await handler.execute(
-      new CreateListeningStageCommand(
-        OWNER_ID,
-        variant.id,
-        EXERCISE_ID,
-        0,
-        ListeningStageType.COMPREHENSION,
-      ),
+      new SetListeningStagesCommand(OWNER_ID, 'missing-variant', []),
     );
 
     expect(result.isFail).toBe(true);
-    expect(result.error).toBe(LessonDomainError.DUPLICATE_STAGE_POSITION);
-    expect(stageRepo.save).not.toHaveBeenCalled();
+    expect(result.error).toBe(LessonDomainError.VARIANT_NOT_FOUND);
+    expect(stageRepo.replaceForVariant).not.toHaveBeenCalled();
   });
 
   it('rejects when the caller does not own the lesson', async () => {
@@ -199,17 +196,11 @@ describe('CreateListeningStageHandler', () => {
     const { handler, stageRepo } = makeHandler({ lesson, variant });
 
     const result = await handler.execute(
-      new CreateListeningStageCommand(
-        'someone-else',
-        variant.id,
-        EXERCISE_ID,
-        0,
-        ListeningStageType.GAP_FILL,
-      ),
+      new SetListeningStagesCommand('someone-else', variant.id, []),
     );
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    expect(stageRepo.save).not.toHaveBeenCalled();
+    expect(stageRepo.replaceForVariant).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
-import { CreateListeningStageCommand } from './create-listening-stage.command.js';
+import { SetListeningStagesCommand } from './set-listening-stages.command.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { LessonDomainError } from '../../../domain/exceptions/lesson-domain.exceptions.js';
 import { LessonListeningStageEntity } from '../../../domain/entities/lesson-listening-stage.entity.js';
@@ -14,14 +14,10 @@ import type { ILessonListeningStageRepository } from '../../../domain/repositori
 import { EXERCISE_REPOSITORY } from '../../../../exercise/domain/repositories/exercise.repository.interface.js';
 import type { IExerciseRepository } from '../../../../exercise/domain/repositories/exercise.repository.interface.js';
 
-export interface CreateListeningStageResult {
-  stageId: string;
-}
-
-@CommandHandler(CreateListeningStageCommand)
-export class CreateListeningStageHandler implements ICommandHandler<
-  CreateListeningStageCommand,
-  Result<CreateListeningStageResult, LessonDomainError>
+@CommandHandler(SetListeningStagesCommand)
+export class SetListeningStagesHandler implements ICommandHandler<
+  SetListeningStagesCommand,
+  Result<void, LessonDomainError>
 > {
   constructor(
     @Inject(LESSON_REPOSITORY)
@@ -34,9 +30,7 @@ export class CreateListeningStageHandler implements ICommandHandler<
     private readonly exerciseRepo: IExerciseRepository,
   ) {}
 
-  async execute(
-    command: CreateListeningStageCommand,
-  ): Promise<Result<CreateListeningStageResult, LessonDomainError>> {
+  async execute(command: SetListeningStagesCommand): Promise<Result<void, LessonDomainError>> {
     const variant = await this.variantRepo.findById(command.variantId);
     if (!variant) {
       return Result.fail(LessonDomainError.VARIANT_NOT_FOUND);
@@ -56,32 +50,33 @@ export class CreateListeningStageHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.LESSON_KIND_MISMATCH);
     }
 
-    const exercise = await this.exerciseRepo.findById(command.exerciseId);
-    if (!exercise || exercise.deletedAt !== null) {
-      return Result.fail(LessonDomainError.EXERCISE_NOT_FOUND);
+    const positions = new Set<number>();
+    const stages: LessonListeningStageEntity[] = [];
+    for (const input of command.stages) {
+      if (positions.has(input.position)) {
+        return Result.fail(LessonDomainError.DUPLICATE_STAGE_POSITION);
+      }
+      positions.add(input.position);
+
+      const exercise = await this.exerciseRepo.findById(input.exerciseId);
+      if (!exercise || exercise.deletedAt !== null) {
+        return Result.fail(LessonDomainError.EXERCISE_NOT_FOUND);
+      }
+
+      const stageResult = LessonListeningStageEntity.create({
+        lessonContentVariantId: command.variantId,
+        exerciseId: input.exerciseId,
+        position: input.position,
+        stageType: input.stageType,
+      });
+      if (stageResult.isFail) {
+        return Result.fail(stageResult.error);
+      }
+      stages.push(stageResult.value);
     }
 
-    const existing = await this.stageRepo.findByVariantAndPosition(
-      command.variantId,
-      command.position,
-    );
-    if (existing) {
-      return Result.fail(LessonDomainError.DUPLICATE_STAGE_POSITION);
-    }
+    await this.stageRepo.replaceForVariant(command.variantId, stages);
 
-    const stageResult = LessonListeningStageEntity.create({
-      lessonContentVariantId: command.variantId,
-      exerciseId: command.exerciseId,
-      position: command.position,
-      stageType: command.stageType,
-    });
-
-    if (stageResult.isFail) {
-      return Result.fail(stageResult.error);
-    }
-
-    const stage = await this.stageRepo.save(stageResult.value);
-
-    return Result.ok({ stageId: stage.id });
+    return Result.ok();
   }
 }

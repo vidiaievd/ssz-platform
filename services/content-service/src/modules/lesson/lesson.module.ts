@@ -41,7 +41,7 @@ import { DeleteVariantHandler } from './application/commands/delete-variant/dele
 import { SetVideoCuesHandler } from './application/commands/set-video-cues/set-video-cues.handler.js';
 import { SetVideoQuestionHandler } from './application/commands/set-video-question/set-video-question.handler.js';
 import { ClearVideoQuestionHandler } from './application/commands/clear-video-question/clear-video-question.handler.js';
-import { CreateListeningStageHandler } from './application/commands/create-listening-stage/create-listening-stage.handler.js';
+import { SetListeningStagesHandler } from './application/commands/set-listening-stages/set-listening-stages.handler.js';
 import { SetParagraphTranslationsHandler } from './application/commands/set-paragraph-translations/set-paragraph-translations.handler.js';
 import { MarkGlossaryWordHandler } from './application/commands/mark-glossary-word/mark-glossary-word.handler.js';
 
@@ -73,7 +73,7 @@ const CommandHandlers = [
   SetVideoCuesHandler,
   SetVideoQuestionHandler,
   ClearVideoQuestionHandler,
-  CreateListeningStageHandler,
+  SetListeningStagesHandler,
   SetParagraphTranslationsHandler,
   MarkGlossaryWordHandler,
 ];

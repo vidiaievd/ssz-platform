@@ -16,20 +16,16 @@ export class PrismaLessonListeningStageRepository implements ILessonListeningSta
     return rows.map((row) => LessonListeningStageMapper.toDomain(row));
   }
 
-  async findByVariantAndPosition(
-    variantId: string,
-    position: number,
-  ): Promise<LessonListeningStageEntity | null> {
-    const row = await this.prisma.lessonListeningStage.findUnique({
-      where: { lessonContentVariantId_position: { lessonContentVariantId: variantId, position } },
-    });
-    return row ? LessonListeningStageMapper.toDomain(row) : null;
-  }
+  async replaceForVariant(variantId: string, stages: LessonListeningStageEntity[]): Promise<void> {
+    const createData = LessonListeningStageMapper.toCreateManyData(stages);
 
-  async save(entity: LessonListeningStageEntity): Promise<LessonListeningStageEntity> {
-    const raw = await this.prisma.lessonListeningStage.create({
-      data: LessonListeningStageMapper.toCreateData(entity),
-    });
-    return LessonListeningStageMapper.toDomain(raw);
+    await this.prisma.$transaction([
+      this.prisma.lessonListeningStage.deleteMany({
+        where: { lessonContentVariantId: variantId },
+      }),
+      ...(createData.length > 0
+        ? [this.prisma.lessonListeningStage.createMany({ data: createData })]
+        : []),
+    ]);
   }
 }

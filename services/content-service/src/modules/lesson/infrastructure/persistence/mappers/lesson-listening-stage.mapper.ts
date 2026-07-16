@@ -37,4 +37,10 @@ export class LessonListeningStageMapper {
       createdAt: entity.createdAt,
     };
   }
+
+  static toCreateManyData(
+    entities: LessonListeningStageEntity[],
+  ): LessonListeningStageCreateData[] {
+    return entities.map((entity) => LessonListeningStageMapper.toCreateData(entity));
+  }
 }
