@@ -9,6 +9,7 @@ import { UnenrollFromContainerHandler } from './application/commands/unenroll-fr
 import { MarkEnrollmentCompleteHandler } from './application/commands/mark-enrollment-complete.handler.js';
 import { GetEnrollmentHandler } from './application/queries/get-enrollment.handler.js';
 import { ListUserEnrollmentsHandler } from './application/queries/list-user-enrollments.handler.js';
+import { CountEnrollmentsByContainerHandler } from './application/queries/count-enrollments-by-container.handler.js';
 import { EnrollmentsController } from './presentation/enrollments.controller.js';
 
 const CommandHandlers = [
@@ -20,6 +21,7 @@ const CommandHandlers = [
 const QueryHandlers = [
   GetEnrollmentHandler,
   ListUserEnrollmentsHandler,
+  CountEnrollmentsByContainerHandler,
 ];
 
 @Module({

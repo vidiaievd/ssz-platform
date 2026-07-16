@@ -14,6 +14,8 @@ export interface IEnrollmentRepository {
   findByUser(userId: string, options?: FindByUserOptions): Promise<Enrollment[]>;
   // Returns ACTIVE enrollments referencing the given container.
   findActiveByContainerId(containerId: string): Promise<Enrollment[]>;
+  // Cheaper than findActiveByContainerId(...).length — does not hydrate rows.
+  countActiveByContainerId(containerId: string): Promise<number>;
   save(enrollment: Enrollment): Promise<void>;
   softDelete(id: string): Promise<void>;
 }

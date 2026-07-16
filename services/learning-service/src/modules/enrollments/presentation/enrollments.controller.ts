@@ -31,6 +31,7 @@ import { UnenrollFromContainerCommand } from '../application/commands/unenroll-f
 import { MarkEnrollmentCompleteCommand } from '../application/commands/mark-enrollment-complete.command.js';
 import { GetEnrollmentQuery } from '../application/queries/get-enrollment.query.js';
 import { ListUserEnrollmentsQuery } from '../application/queries/list-user-enrollments.query.js';
+import { CountEnrollmentsByContainerQuery } from '../application/queries/count-enrollments-by-container.query.js';
 import {
   EnrollmentApplicationError,
   EnrollmentNotFoundError,
@@ -86,6 +87,19 @@ export class EnrollmentsController {
     return this.queryBus.execute(
       new ListUserEnrollmentsQuery(user.userId, statusArr),
     );
+  }
+
+  @Get('count')
+  @ApiOperation({ summary: 'Count active enrollments for a container (e.g. for an archive-warning prompt)' })
+  @ApiQuery({ name: 'containerId', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Active enrollment count' })
+  async countByContainer(
+    @Query('containerId', ParseUUIDPipe) containerId: string,
+  ): Promise<{ count: number }> {
+    const count = await this.queryBus.execute(
+      new CountEnrollmentsByContainerQuery(containerId),
+    );
+    return { count };
   }
 
   @Get(':id')
