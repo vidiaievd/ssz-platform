@@ -10,6 +10,8 @@ import { ContainerDomainError } from '../exceptions/container-domain.exceptions.
 import { ContainerCreatedEvent } from '../events/container-created.event.js';
 import { ContainerUpdatedEvent } from '../events/container-updated.event.js';
 import { ContainerDeletedEvent } from '../events/container-deleted.event.js';
+import { CourseArchivedEvent } from '../events/course-archived.event.js';
+import { CourseRestoredEvent } from '../events/course-restored.event.js';
 
 interface ContainerProps {
   slug: string | null;
@@ -28,6 +30,7 @@ interface ContainerProps {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  archivedAt: Date | null;
 }
 
 export interface CreateContainerProps {
@@ -112,6 +115,9 @@ export class ContainerEntity extends AggregateRoot {
   get deletedAt(): Date | null {
     return this.props.deletedAt;
   }
+  get archivedAt(): Date | null {
+    return this.props.archivedAt;
+  }
 
   // ── Factory ───────────────────────────────────────────────────────────────
 
@@ -142,6 +148,7 @@ export class ContainerEntity extends AggregateRoot {
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
+      archivedAt: null,
     });
 
     entity.addDomainEvent(
@@ -239,6 +246,45 @@ export class ContainerEntity extends AggregateRoot {
 
     this.addDomainEvent(
       new ContainerDeletedEvent({
+        containerId: this.id,
+        ownerUserId: this.props.ownerUserId,
+      }),
+    );
+
+    return Result.ok();
+  }
+
+  archive(): Result<void, ContainerDomainError> {
+    if (this.props.deletedAt !== null) {
+      return Result.fail(ContainerDomainError.CONTAINER_ALREADY_DELETED);
+    }
+    if (this.props.archivedAt !== null) {
+      return Result.fail(ContainerDomainError.CONTAINER_ALREADY_ARCHIVED);
+    }
+
+    this.props.archivedAt = new Date();
+    this.props.updatedAt = new Date();
+
+    this.addDomainEvent(
+      new CourseArchivedEvent({
+        containerId: this.id,
+        ownerUserId: this.props.ownerUserId,
+      }),
+    );
+
+    return Result.ok();
+  }
+
+  restore(): Result<void, ContainerDomainError> {
+    if (this.props.archivedAt === null) {
+      return Result.fail(ContainerDomainError.CONTAINER_NOT_ARCHIVED);
+    }
+
+    this.props.archivedAt = null;
+    this.props.updatedAt = new Date();
+
+    this.addDomainEvent(
+      new CourseRestoredEvent({
         containerId: this.id,
         ownerUserId: this.props.ownerUserId,
       }),

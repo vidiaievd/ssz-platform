@@ -142,6 +142,7 @@ model Container {
   createdAt                 DateTime        @default(now()) @map("created_at") @db.Timestamptz
   updatedAt                 DateTime        @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt                 DateTime?       @map("deleted_at") @db.Timestamptz
+  archivedAt                DateTime?       @map("archived_at") @db.Timestamptz
 
   versions      ContainerVersion[]
   localizations ContainerLocalization[]

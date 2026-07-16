@@ -33,6 +33,7 @@ export interface ContainerCreateData {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  archivedAt: Date | null;
 }
 
 // Shape of data passed to prisma.container.update({ data: ... })
@@ -57,6 +58,7 @@ export class ContainerMapper {
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt,
+      archivedAt: raw.archivedAt,
     });
   }
 
@@ -79,6 +81,7 @@ export class ContainerMapper {
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,
+      archivedAt: entity.archivedAt,
     };
   }
 
@@ -97,6 +100,7 @@ export class ContainerMapper {
       currentPublishedVersionId: entity.currentPublishedVersionId,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,
+      archivedAt: entity.archivedAt,
     };
   }
 }

@@ -22,6 +22,9 @@ import { CONTAINER_SECTION_REPOSITORY } from './domain/repositories/container-se
 import { CreateContainerHandler } from './application/commands/create-container/create-container.handler.js';
 import { UpdateContainerHandler } from './application/commands/update-container/update-container.handler.js';
 import { DeleteContainerHandler } from './application/commands/delete-container/delete-container.handler.js';
+import { ArchiveContainerHandler } from './application/commands/archive-container/archive-container.handler.js';
+import { RestoreContainerHandler } from './application/commands/restore-container/restore-container.handler.js';
+import { UnpublishVersionHandler } from './application/commands/unpublish-version/unpublish-version.handler.js';
 import { PublishVersionHandler } from './application/commands/publish-version/publish-version.handler.js';
 import { CreateDraftFromPublishedHandler } from './application/commands/create-draft-from-published/create-draft-from-published.handler.js';
 import { CancelDraftHandler } from './application/commands/cancel-draft/cancel-draft.handler.js';
@@ -58,6 +61,9 @@ const CommandHandlers = [
   CreateContainerHandler,
   UpdateContainerHandler,
   DeleteContainerHandler,
+  ArchiveContainerHandler,
+  RestoreContainerHandler,
+  UnpublishVersionHandler,
   PublishVersionHandler,
   CreateDraftFromPublishedHandler,
   CancelDraftHandler,

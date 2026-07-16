@@ -113,4 +113,31 @@ export class PrismaContainerVersionRepository implements IContainerVersionReposi
       return { sunsetAt };
     });
   }
+
+  async unpublishVersion(params: { versionId: string; containerId: string }): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      // Lock the container row to prevent concurrent publish/unpublish races.
+      await tx.$queryRaw`SELECT id FROM containers WHERE id = ${params.containerId}::uuid FOR UPDATE`;
+
+      const version = await tx.containerVersion.findUnique({
+        where: { id: params.versionId },
+        select: { status: true },
+      });
+      if (!version || version.status !== 'PUBLISHED') {
+        throw new Error(`Version ${params.versionId} is not in PUBLISHED status`);
+      }
+
+      const now = new Date();
+
+      await tx.containerVersion.update({
+        where: { id: params.versionId },
+        data: { status: 'DRAFT' },
+      });
+
+      await tx.container.update({
+        where: { id: params.containerId, currentPublishedVersionId: params.versionId },
+        data: { currentPublishedVersionId: null, updatedAt: now },
+      });
+    });
+  }
 }

@@ -17,6 +17,8 @@ const NOT_FOUND_ERRORS = new Set<ContainerDomainError>([
 
 const CONFLICT_ERRORS = new Set<ContainerDomainError>([
   ContainerDomainError.CONTAINER_ALREADY_DELETED,
+  ContainerDomainError.CONTAINER_ALREADY_ARCHIVED,
+  ContainerDomainError.CONTAINER_NOT_ARCHIVED,
   ContainerDomainError.DRAFT_ALREADY_EXISTS,
   ContainerDomainError.SLUG_ALREADY_EXISTS,
   ContainerDomainError.LOCALIZATION_ALREADY_EXISTS,

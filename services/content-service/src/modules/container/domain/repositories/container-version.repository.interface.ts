@@ -25,4 +25,10 @@ export interface IContainerVersionRepository {
     /** Resolved unique slug — set atomically on first publication of a public container. */
     slug?: string;
   }): Promise<{ sunsetAt: Date | null }>;
+  /**
+   * Atomic unpublish transaction:
+   * 1. Set versionId status back to draft.
+   * 2. Clear containers.current_published_version_id (only if it still points at versionId).
+   */
+  unpublishVersion(params: { versionId: string; containerId: string }): Promise<void>;
 }

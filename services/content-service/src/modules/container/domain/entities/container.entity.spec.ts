@@ -54,3 +54,56 @@ describe('ContainerEntity — levelSystem', () => {
     expect(container.getDomainEvents()).toHaveLength(0);
   });
 });
+
+describe('ContainerEntity — archive/restore', () => {
+  it('archives a container, setting archivedAt and raising CourseArchivedEvent', () => {
+    const container = createCourse();
+    container.clearDomainEvents();
+
+    const result = container.archive();
+
+    expect(result.isOk).toBe(true);
+    expect(container.archivedAt).not.toBeNull();
+    expect(container.getDomainEvents()).toHaveLength(1);
+    expect(container.getDomainEvents()[0].eventType).toBe('content.course.archived');
+  });
+
+  it('fails to archive an already-archived container', () => {
+    const container = createCourse();
+    container.archive();
+
+    const result = container.archive();
+
+    expect(result.isFail).toBe(true);
+  });
+
+  it('fails to archive a deleted container', () => {
+    const container = createCourse();
+    container.softDelete();
+
+    const result = container.archive();
+
+    expect(result.isFail).toBe(true);
+  });
+
+  it('restores an archived container, clearing archivedAt and raising CourseRestoredEvent', () => {
+    const container = createCourse();
+    container.archive();
+    container.clearDomainEvents();
+
+    const result = container.restore();
+
+    expect(result.isOk).toBe(true);
+    expect(container.archivedAt).toBeNull();
+    expect(container.getDomainEvents()).toHaveLength(1);
+    expect(container.getDomainEvents()[0].eventType).toBe('content.course.restored');
+  });
+
+  it('fails to restore a container that is not archived', () => {
+    const container = createCourse();
+
+    const result = container.restore();
+
+    expect(result.isFail).toBe(true);
+  });
+});
