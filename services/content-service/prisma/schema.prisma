@@ -811,6 +811,11 @@ model GrammarRuleExplanation {
   displaySummary          String?         @map("display_summary") @db.Text
   bodyMarkdown            String          @map("body_markdown") @db.Text
   estimatedReadingMinutes Int?            @map("estimated_reading_minutes")
+  // Reader "anchor" block: a highlighted example sentence with substrings to
+  // highlight in it (anchorHighlights) and an optional explanatory note.
+  anchorText              String?         @map("anchor_text") @db.Text
+  anchorHighlights        String[]        @default([]) @map("anchor_highlights")
+  anchorNote              String?         @map("anchor_note") @db.Text
   status                  VariantStatus   @default(DRAFT)
   createdAt               DateTime        @default(now()) @map("created_at") @db.Timestamptz
   updatedAt               DateTime        @updatedAt @map("updated_at") @db.Timestamptz
@@ -819,12 +824,53 @@ model GrammarRuleExplanation {
   publishedAt             DateTime?       @map("published_at") @db.Timestamptz
   deletedAt               DateTime?       @map("deleted_at") @db.Timestamptz
 
-  grammarRule GrammarRule @relation(fields: [grammarRuleId], references: [id], onDelete: Cascade)
+  grammarRule     GrammarRule                 @relation(fields: [grammarRuleId], references: [id], onDelete: Cascade)
+  compareExamples GrammarRuleCompareExample[]
+  quickCheck      GrammarRuleQuickCheck?
 
   @@unique([grammarRuleId, explanationLanguage, minLevel, maxLevel])
   @@index([grammarRuleId])
   @@index([grammarRuleId, status])
   @@map("grammar_rule_explanations")
+}
+
+// Ordered correct/incorrect sentence pairs (with optional note) shown in the
+// grammar reader's "compare" list. Replaces the examples: string[] hack that
+// packed fake examples into bodyMarkdown behind an <!-- examples --> marker.
+// Replaced atomically (delete+createMany in a transaction) via a bulk-set command,
+// same shape/precedent as LessonVideoCue.
+model GrammarRuleCompareExample {
+  id            String   @id @default(uuid()) @db.Uuid
+  explanationId String   @map("explanation_id") @db.Uuid
+  position      Int
+  sentence      String   @db.Text
+  note          String?  @db.Text
+  isCorrect     Boolean  @map("is_correct")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  explanation GrammarRuleExplanation @relation(fields: [explanationId], references: [id], onDelete: Cascade)
+
+  @@unique([explanationId, position])
+  @@index([explanationId])
+  @@map("grammar_rule_compare_examples")
+}
+
+// Single optional MCQ quick-check shown at the end of the grammar reader page.
+// 0..1 per explanation (explanationId is unique). Upserted-or-cleared as a whole.
+model GrammarRuleQuickCheck {
+  id                 String   @id @default(uuid()) @db.Uuid
+  explanationId      String   @unique @map("explanation_id") @db.Uuid
+  question           String   @db.Text
+  options            String[]
+  correctOptionIndex Int      @map("correct_option_index")
+  explanation        String   @db.Text
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  grammarRuleExplanation GrammarRuleExplanation @relation(fields: [explanationId], references: [id], onDelete: Cascade)
+
+  @@map("grammar_rule_quick_checks")
 }
 
 // Many-to-many join between grammar rules and exercises.
