@@ -17,6 +17,9 @@ interface GrammarRuleExplanationProps {
   displaySummary: string | null;
   bodyMarkdown: string;
   estimatedReadingMinutes: number | null;
+  anchorText: string | null;
+  anchorHighlights: string[];
+  anchorNote: string | null;
   status: VariantStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +38,9 @@ export interface CreateExplanationProps {
   displaySummary?: string;
   bodyMarkdown: string;
   estimatedReadingMinutes?: number;
+  anchorText?: string;
+  anchorHighlights?: string[];
+  anchorNote?: string;
   createdByUserId: string;
 }
 
@@ -43,6 +49,9 @@ export interface UpdateExplanationProps {
   displaySummary?: string | null;
   bodyMarkdown?: string;
   estimatedReadingMinutes?: number | null;
+  anchorText?: string | null;
+  anchorHighlights?: string[];
+  anchorNote?: string | null;
 }
 
 export class GrammarRuleExplanationEntity extends Entity<string> {
@@ -78,6 +87,15 @@ export class GrammarRuleExplanationEntity extends Entity<string> {
   }
   get estimatedReadingMinutes(): number | null {
     return this.props.estimatedReadingMinutes;
+  }
+  get anchorText(): string | null {
+    return this.props.anchorText;
+  }
+  get anchorHighlights(): string[] {
+    return this.props.anchorHighlights;
+  }
+  get anchorNote(): string | null {
+    return this.props.anchorNote;
   }
   get status(): VariantStatus {
     return this.props.status;
@@ -126,6 +144,9 @@ export class GrammarRuleExplanationEntity extends Entity<string> {
         displaySummary: p.displaySummary ?? null,
         bodyMarkdown: p.bodyMarkdown,
         estimatedReadingMinutes: p.estimatedReadingMinutes ?? null,
+        anchorText: p.anchorText ?? null,
+        anchorHighlights: p.anchorHighlights ?? [],
+        anchorNote: p.anchorNote ?? null,
         status: VariantStatus.DRAFT,
         createdAt: now,
         updatedAt: now,
@@ -169,6 +190,15 @@ export class GrammarRuleExplanationEntity extends Entity<string> {
     }
     if ('estimatedReadingMinutes' in changes) {
       this.props.estimatedReadingMinutes = changes.estimatedReadingMinutes ?? null;
+    }
+    if ('anchorText' in changes) {
+      this.props.anchorText = changes.anchorText ?? null;
+    }
+    if (changes.anchorHighlights !== undefined) {
+      this.props.anchorHighlights = changes.anchorHighlights;
+    }
+    if ('anchorNote' in changes) {
+      this.props.anchorNote = changes.anchorNote ?? null;
     }
 
     this.props.lastEditedByUserId = editorUserId;
