@@ -7,5 +7,8 @@ export class UpdateExplanationCommand {
     public readonly displaySummary?: string | null,
     public readonly bodyMarkdown?: string,
     public readonly estimatedReadingMinutes?: number | null,
+    public readonly anchorText?: string | null,
+    public readonly anchorHighlights?: string[],
+    public readonly anchorNote?: string | null,
   ) {}
 }

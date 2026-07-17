@@ -55,6 +55,9 @@ export class CreateExplanationHandler implements ICommandHandler<
       displaySummary: command.displaySummary,
       bodyMarkdown: command.bodyMarkdown,
       estimatedReadingMinutes: command.estimatedReadingMinutes,
+      anchorText: command.anchorText,
+      anchorHighlights: command.anchorHighlights,
+      anchorNote: command.anchorNote,
       createdByUserId: command.userId,
     });
 

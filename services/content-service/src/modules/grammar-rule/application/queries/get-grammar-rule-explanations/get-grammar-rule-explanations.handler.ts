@@ -6,9 +6,14 @@ import { PaginationService } from '../../../../../shared/discovery/application/s
 import { SortParserService } from '../../../../../shared/discovery/application/services/sort-parser.service.js';
 import { GetGrammarRuleExplanationsQuery } from './get-grammar-rule-explanations.query.js';
 import type { PaginatedResult } from '../../../../../shared/discovery/domain/types/pagination.js';
-import { GrammarRuleExplanationEntity } from '../../../domain/entities/grammar-rule-explanation.entity.js';
 import { GrammarRuleExplanationMapper } from '../../../infrastructure/persistence/mappers/grammar-rule-explanation.mapper.js';
 import { domainVariantStatusToPrisma } from '../../../infrastructure/persistence/mappers/enum-converters.js';
+import { GRAMMAR_RULE_COMPARE_EXAMPLE_REPOSITORY } from '../../../domain/repositories/grammar-rule-compare-example.repository.interface.js';
+import type { IGrammarRuleCompareExampleRepository } from '../../../domain/repositories/grammar-rule-compare-example.repository.interface.js';
+import { GRAMMAR_RULE_QUICK_CHECK_REPOSITORY } from '../../../domain/repositories/grammar-rule-quick-check.repository.interface.js';
+import type { IGrammarRuleQuickCheckRepository } from '../../../domain/repositories/grammar-rule-quick-check.repository.interface.js';
+import { Inject } from '@nestjs/common';
+import type { GrammarRuleExplanationWithComposite } from '../get-grammar-rule-explanation/get-grammar-rule-explanation.handler.js';
 
 const ALLOWED_SORT_FIELDS = ['created_at', 'updated_at'];
 const DEFAULT_SORT = [{ field: 'createdAt', direction: 'asc' as const }];
@@ -16,7 +21,7 @@ const DEFAULT_SORT = [{ field: 'createdAt', direction: 'asc' as const }];
 @QueryHandler(GetGrammarRuleExplanationsQuery)
 export class GetGrammarRuleExplanationsHandler implements IQueryHandler<
   GetGrammarRuleExplanationsQuery,
-  PaginatedResult<GrammarRuleExplanationEntity>
+  PaginatedResult<GrammarRuleExplanationWithComposite>
 > {
   private readonly logger = new Logger(GetGrammarRuleExplanationsHandler.name);
 
@@ -24,11 +29,15 @@ export class GetGrammarRuleExplanationsHandler implements IQueryHandler<
     private readonly prisma: PrismaService,
     private readonly pagination: PaginationService,
     private readonly sortParser: SortParserService,
+    @Inject(GRAMMAR_RULE_COMPARE_EXAMPLE_REPOSITORY)
+    private readonly compareExampleRepo: IGrammarRuleCompareExampleRepository,
+    @Inject(GRAMMAR_RULE_QUICK_CHECK_REPOSITORY)
+    private readonly quickCheckRepo: IGrammarRuleQuickCheckRepository,
   ) {}
 
   async execute(
     query: GetGrammarRuleExplanationsQuery,
-  ): Promise<PaginatedResult<GrammarRuleExplanationEntity>> {
+  ): Promise<PaginatedResult<GrammarRuleExplanationWithComposite>> {
     const { ruleId, dto } = query;
 
     const params = this.pagination.normalize(dto.page, dto.limit);
@@ -51,10 +60,17 @@ export class GetGrammarRuleExplanationsHandler implements IQueryHandler<
       this.prisma.grammarRuleExplanation.count({ where }),
     ]);
 
-    return this.pagination.toPaginatedResult(
-      rows.map((row) => GrammarRuleExplanationMapper.toDomain(row)),
-      total,
-      params,
+    const explanations = rows.map((row) => GrammarRuleExplanationMapper.toDomain(row));
+    const items = await Promise.all(
+      explanations.map(async (explanation) => {
+        const [compareExamples, quickCheck] = await Promise.all([
+          this.compareExampleRepo.findByExplanationId(explanation.id),
+          this.quickCheckRepo.findByExplanationId(explanation.id),
+        ]);
+        return { explanation, compareExamples, quickCheck };
+      }),
     );
+
+    return this.pagination.toPaginatedResult(items, total, params);
   }
 }
