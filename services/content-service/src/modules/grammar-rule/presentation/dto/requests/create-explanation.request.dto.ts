@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -51,4 +52,20 @@ export class CreateExplanationRequestDto {
   @Min(1)
   @Max(480)
   estimatedReadingMinutes?: number;
+
+  @ApiPropertyOptional({ example: 'Jeg spiser epler hver dag.' })
+  @IsOptional()
+  @IsString()
+  anchorText?: string;
+
+  @ApiPropertyOptional({ example: ['spiser'], type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  anchorHighlights?: string[];
+
+  @ApiPropertyOptional({ example: 'Notice the -er ending.' })
+  @IsOptional()
+  @IsString()
+  anchorNote?: string;
 }

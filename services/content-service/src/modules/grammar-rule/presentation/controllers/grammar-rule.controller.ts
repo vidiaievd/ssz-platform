@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -43,6 +44,8 @@ import type { CreateExplanationResult } from '../../application/commands/create-
 import { UpdateExplanationCommand } from '../../application/commands/update-explanation/update-explanation.command.js';
 import { PublishExplanationCommand } from '../../application/commands/publish-explanation/publish-explanation.command.js';
 import { DeleteExplanationCommand } from '../../application/commands/delete-explanation/delete-explanation.command.js';
+import { SetCompareExamplesCommand } from '../../application/commands/set-compare-examples/set-compare-examples.command.js';
+import { SetQuickCheckCommand } from '../../application/commands/set-quick-check/set-quick-check.command.js';
 
 // Commands — pool
 import { AddPoolEntryCommand } from '../../application/commands/add-pool-entry/add-pool-entry.command.js';
@@ -58,13 +61,13 @@ import { GetGrammarRuleExplanationsQuery } from '../../application/queries/get-g
 import { GetGrammarRuleExplanationQuery } from '../../application/queries/get-grammar-rule-explanation/get-grammar-rule-explanation.query.js';
 import { GetBestExplanationQuery } from '../../application/queries/get-best-explanation/get-best-explanation.query.js';
 import type { GetBestExplanationResult } from '../../application/queries/get-best-explanation/get-best-explanation.handler.js';
+import type { GrammarRuleExplanationWithComposite } from '../../application/queries/get-grammar-rule-explanation/get-grammar-rule-explanation.handler.js';
 import { GetPoolEntriesQuery } from '../../application/queries/get-pool-entries/get-pool-entries.query.js';
 import { GetRandomPoolExerciseQuery } from '../../application/queries/get-random-pool-exercise/get-random-pool-exercise.query.js';
 
 // Domain types
 import type { GrammarRuleDomainError } from '../../domain/exceptions/grammar-rule-domain.exceptions.js';
 import type { GrammarRuleEntity } from '../../domain/entities/grammar-rule.entity.js';
-import type { GrammarRuleExplanationEntity } from '../../domain/entities/grammar-rule-explanation.entity.js';
 import type { PoolEntryWithExercise } from '../../domain/repositories/grammar-rule-exercise-pool.repository.interface.js';
 import type { ExerciseEntity } from '../../../exercise/domain/entities/exercise.entity.js';
 import { DifficultyLevel } from '../../../container/domain/value-objects/difficulty-level.vo.js';
@@ -75,6 +78,8 @@ import { UpdateGrammarRuleRequestDto } from '../dto/requests/update-grammar-rule
 import { GrammarRuleListQueryDto } from '../dto/requests/grammar-rule-list-query.dto.js';
 import { CreateExplanationRequestDto } from '../dto/requests/create-explanation.request.dto.js';
 import { UpdateExplanationRequestDto } from '../dto/requests/update-explanation.request.dto.js';
+import { SetCompareExamplesRequestDto } from '../dto/requests/set-compare-examples.request.dto.js';
+import { SetQuickCheckRequestDto } from '../dto/requests/set-quick-check.request.dto.js';
 import { AddPoolEntryRequestDto } from '../dto/requests/add-pool-entry.request.dto.js';
 import { UpdatePoolEntryRequestDto } from '../dto/requests/update-pool-entry.request.dto.js';
 import { ReorderPoolRequestDto } from '../dto/requests/reorder-pool.request.dto.js';
@@ -237,6 +242,9 @@ export class GrammarRuleController {
         dto.bodyMarkdown,
         dto.displaySummary,
         dto.estimatedReadingMinutes,
+        dto.anchorText,
+        dto.anchorHighlights,
+        dto.anchorNote,
       ),
     );
 
@@ -255,11 +263,13 @@ export class GrammarRuleController {
   ): Promise<PaginatedResponseDto<GrammarRuleExplanationResponseDto>> {
     const paged = await this.queryBus.execute<
       GetGrammarRuleExplanationsQuery,
-      PaginatedResult<GrammarRuleExplanationEntity>
+      PaginatedResult<GrammarRuleExplanationWithComposite>
     >(new GetGrammarRuleExplanationsQuery(ruleId, dto));
 
     return new PaginatedResponseDto({
-      items: paged.items.map((e) => GrammarRuleExplanationResponseDto.from(e)),
+      items: paged.items.map((e) =>
+        GrammarRuleExplanationResponseDto.from(e.explanation, e.compareExamples, e.quickCheck),
+      ),
       total: paged.total,
       page: paged.page,
       limit: paged.limit,
@@ -292,7 +302,11 @@ export class GrammarRuleController {
 
     if (result.isFail) throwHttpException(result.error);
     return {
-      explanation: GrammarRuleExplanationResponseDto.from(result.value.explanation),
+      explanation: GrammarRuleExplanationResponseDto.from(
+        result.value.explanation,
+        result.value.compareExamples,
+        result.value.quickCheck,
+      ),
       fallbackUsed: result.value.fallbackUsed,
     };
   }
@@ -308,11 +322,15 @@ export class GrammarRuleController {
   ): Promise<GrammarRuleExplanationResponseDto> {
     const result = await this.queryBus.execute<
       GetGrammarRuleExplanationQuery,
-      Result<GrammarRuleExplanationEntity, GrammarRuleDomainError>
+      Result<GrammarRuleExplanationWithComposite, GrammarRuleDomainError>
     >(new GetGrammarRuleExplanationQuery(ruleId, explanationId));
 
     if (result.isFail) throwHttpException(result.error);
-    return GrammarRuleExplanationResponseDto.from(result.value);
+    return GrammarRuleExplanationResponseDto.from(
+      result.value.explanation,
+      result.value.compareExamples,
+      result.value.quickCheck,
+    );
   }
 
   @Patch(':id/explanations/:explanationId')
@@ -339,8 +357,77 @@ export class GrammarRuleController {
         dto.displaySummary,
         dto.bodyMarkdown,
         dto.estimatedReadingMinutes,
+        dto.anchorText,
+        dto.anchorHighlights,
+        dto.anchorNote,
       ),
     );
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Put(':id/explanations/:explanationId/compare-examples')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Replace the compare-sentence list for an explanation (bulk-set)' })
+  @ApiNoContentResponse()
+  async setCompareExamples(
+    @Param('id') ruleId: string,
+    @Param('explanationId') explanationId: string,
+    @Body() dto: SetCompareExamplesRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      SetCompareExamplesCommand,
+      Result<void, GrammarRuleDomainError>
+    >(new SetCompareExamplesCommand(user.userId, ruleId, explanationId, dto.items));
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Put(':id/explanations/:explanationId/quick-check')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Upsert the single MCQ quick-check for an explanation' })
+  @ApiNoContentResponse()
+  async setQuickCheck(
+    @Param('id') ruleId: string,
+    @Param('explanationId') explanationId: string,
+    @Body() dto: SetQuickCheckRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      SetQuickCheckCommand,
+      Result<void, GrammarRuleDomainError>
+    >(
+      new SetQuickCheckCommand(user.userId, ruleId, explanationId, {
+        question: dto.question,
+        options: dto.options,
+        correctOptionIndex: dto.correctOptionIndex,
+        explanation: dto.explanation,
+      }),
+    );
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Delete(':id/explanations/:explanationId/quick-check')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Clear the MCQ quick-check for an explanation' })
+  @ApiNoContentResponse()
+  async clearQuickCheck(
+    @Param('id') ruleId: string,
+    @Param('explanationId') explanationId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      SetQuickCheckCommand,
+      Result<void, GrammarRuleDomainError>
+    >(new SetQuickCheckCommand(user.userId, ruleId, explanationId, null));
 
     if (result.isFail) throwHttpException(result.error);
   }
