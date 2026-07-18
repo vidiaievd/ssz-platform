@@ -225,6 +225,153 @@ const templates = [
     defaultCheckSettings: { allow_partial_credit: true },
     supportedLanguages: Prisma.DbNull,
   },
+  {
+    code: 'short_answer',
+    name: 'Short Answer',
+    description: 'Answer an open comprehension question in a few words or sentences',
+    contentSchema: {
+      type: 'object',
+      required: ['question'],
+      properties: {
+        question: { type: 'string' },
+        // Optional passage or hint shown alongside the question.
+        context: { type: 'string' },
+        media_id: { type: 'string' },
+        // Optional soft length guidance for the UI (characters).
+        max_length: { type: 'integer' },
+      },
+    },
+    answerSchema: {
+      type: 'object',
+      required: ['reference_answer'],
+      properties: {
+        // Model answer — revealed after submission and used as grading reference.
+        reference_answer: { type: 'string' },
+        // Optional exact-match shortcuts for instant auto-grading.
+        accepted_answers: { type: 'array', items: { type: 'string' } },
+        // Optional grading guidance for LLM / teacher review.
+        rubric: { type: 'string' },
+        explanation: { type: 'string' },
+      },
+    },
+    defaultCheckSettings: { case_sensitive: false, trim_whitespace: true },
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
+    code: 'writing_task',
+    name: 'Writing Task',
+    description: 'Write a longer free-form text (essay / reader letter); always routed for review',
+    contentSchema: {
+      type: 'object',
+      required: ['prompt'],
+      properties: {
+        prompt: { type: 'string' },
+        // Optional "choose one topic" list.
+        options: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id', 'title'],
+            properties: {
+              id: { type: 'string' },
+              title: { type: 'string' },
+              body: { type: 'string' },
+            },
+          },
+        },
+        min_words: { type: 'integer' },
+        max_words: { type: 'integer' },
+        instructions: { type: 'string' },
+        media_id: { type: 'string' },
+      },
+    },
+    answerSchema: {
+      type: 'object',
+      properties: {
+        // No auto-scoring fields — grading is always manual / LLM review.
+        rubric: { type: 'string' },
+        reference_text: { type: 'string' },
+        criteria: { type: 'array', items: { type: 'string' } },
+      },
+    },
+    defaultCheckSettings: {},
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
+    code: 'sentence_schema',
+    name: 'Sentence Schema',
+    description: 'Place the words of a sentence into topological fields (Norwegian setningsskjema)',
+    contentSchema: {
+      type: 'object',
+      required: ['sentence', 'fields', 'tokens'],
+      properties: {
+        // Full sentence shown for reference.
+        sentence: { type: 'string' },
+        // Drives UI labelling for main vs subordinate clause schemas.
+        schema_type: { type: 'string', enum: ['main', 'subordinate'] },
+        // Ordered columns of the schema.
+        fields: {
+          type: 'array',
+          minItems: 2,
+          items: {
+            type: 'object',
+            required: ['id', 'label'],
+            properties: {
+              id: { type: 'string' },
+              label: { type: 'string' },
+            },
+          },
+        },
+        // Pre-split, draggable words / chunks.
+        tokens: {
+          type: 'array',
+          minItems: 2,
+          items: {
+            type: 'object',
+            required: ['id', 'text'],
+            properties: {
+              id: { type: 'string' },
+              text: { type: 'string' },
+            },
+          },
+        },
+        // Optional given placements (worked example row).
+        prefilled: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['field_id', 'token_id'],
+            properties: {
+              field_id: { type: 'string' },
+              token_id: { type: 'string' },
+            },
+          },
+        },
+        context: { type: 'string' },
+      },
+    },
+    answerSchema: {
+      type: 'object',
+      required: ['placements'],
+      properties: {
+        placements: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['field_id', 'token_ids'],
+            properties: {
+              field_id: { type: 'string' },
+              // Ordered tokens placed in this field; empty array allowed.
+              token_ids: { type: 'array', items: { type: 'string' } },
+            },
+          },
+        },
+        explanation: { type: 'string' },
+      },
+    },
+    defaultCheckSettings: { allow_partial_credit: true, order_sensitive: true },
+    supportedLanguages: Prisma.DbNull,
+  },
 ];
 
 async function main(): Promise<void> {
