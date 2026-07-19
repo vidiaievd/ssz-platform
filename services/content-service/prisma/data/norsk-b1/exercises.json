@@ -1,0 +1,1882 @@
+{
+  "1A": [
+    {
+      "key": "b1-1a-sa1",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
+      "content": {
+        "question": "Hvor lenge har Bartek jobbet i det samme firmaet?",
+        "context": "Tekst 1A — Bartek søker ny jobb."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Han har jobbet der i tre år.",
+        "accepted_answers": [
+          "tre år",
+          "i tre år",
+          "han har jobbet der i tre år"
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-sa2",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1A.",
+      "content": {
+        "question": "Hvorfor vil Bartek ha en ny jobb?",
+        "context": "Tekst 1A."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Han vil ha mer ansvar og høyere lønn og utvikle seg.",
+        "accepted_answers": [
+          "mer ansvar",
+          "høyere lønn",
+          "han vil utvikle seg",
+          "for å få mer ansvar"
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-sa3",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1A.",
+      "content": {
+        "question": "Hva slags firma er Nordby Elektro AS?",
+        "context": "Tekst 1A."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Det er et voksende firma med tolv ansatte.",
+        "accepted_answers": [
+          "et voksende firma",
+          "et firma med tolv ansatte",
+          "voksende firma med tolv ansatte"
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-sa4",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1A.",
+      "content": {
+        "question": "Hva gjør Bartek før han sender søknaden?",
+        "context": "Tekst 1A."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Han retter skrivefeilene.",
+        "accepted_answers": [
+          "han retter skrivefeilene",
+          "retter feilene",
+          "han retter feilene"
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-rg1",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt? Velg svaret som stemmer med teksten 1A.",
+      "content": {
+        "question": "Annonsen ber om en elektriker med fagbrev.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "r"
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-rg2",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt?",
+      "content": {
+        "question": "Firmaet vil ha en person med minst fem års erfaring.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "g"
+        ],
+        "explanation": "Annonsen ber om minst tre års erfaring, ikke fem."
+      }
+    },
+    {
+      "key": "b1-1a-rg3",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt?",
+      "content": {
+        "question": "Bartek bestemmer seg for å vente en uke før han søker.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "g"
+        ],
+        "explanation": "Han bestemmer seg for å søke med en gang."
+      }
+    },
+    {
+      "key": "b1-1a-rg4",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt?",
+      "content": {
+        "question": "Anne synes søknaden er god, men med noen skrivefeil.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "r"
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-mean1",
+      "template": "multiple_choice",
+      "instruction": "Hva betyr ordet «selvstendig»?",
+      "content": {
+        "question": "selvstendig",
+        "options": [
+          {
+            "id": "a",
+            "text": "som trenger mye hjelp"
+          },
+          {
+            "id": "b",
+            "text": "som kan jobbe alene"
+          },
+          {
+            "id": "c",
+            "text": "som er sjef"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "b"
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-mean2",
+      "template": "multiple_choice",
+      "instruction": "Hva betyr ordet «oversiktlig»?",
+      "content": {
+        "question": "oversiktlig",
+        "options": [
+          {
+            "id": "a",
+            "text": "rotete"
+          },
+          {
+            "id": "b",
+            "text": "lett å få oversikt over"
+          },
+          {
+            "id": "c",
+            "text": "veldig lang"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "b"
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-mean3",
+      "template": "multiple_choice",
+      "instruction": "Hva betyr «et fagbrev»?",
+      "content": {
+        "question": "et fagbrev",
+        "options": [
+          {
+            "id": "a",
+            "text": "et vanlig brev"
+          },
+          {
+            "id": "b",
+            "text": "et bevis på fagutdanning"
+          },
+          {
+            "id": "c",
+            "text": "en søknad"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "b"
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-fib-01",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово из текста 1A.",
+      "hint": "Слова: ansvar, arbeidsmiljø, erfaring, fagbrev, søknad.",
+      "content": {
+        "text_with_blanks": "For å bli elektriker må du ta et ___1___.",
+        "word_bank": [
+          "ansvar",
+          "arbeidsmiljø",
+          "erfaring",
+          "fagbrev",
+          "søknad"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "fagbrev"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-fib-02",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово из текста 1A.",
+      "hint": "Слова: ansvar, arbeidsmiljø, erfaring, fagbrev, søknad.",
+      "content": {
+        "text_with_blanks": "Han har ti års ___1___ som snekker.",
+        "word_bank": [
+          "ansvar",
+          "arbeidsmiljø",
+          "erfaring",
+          "fagbrev",
+          "søknad"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "erfaring"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-fib-03",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово из текста 1A.",
+      "hint": "Слова: ansvar, arbeidsmiljø, erfaring, fagbrev, søknad.",
+      "content": {
+        "text_with_blanks": "Firmaet tilbyr et godt ___1___.",
+        "word_bank": [
+          "ansvar",
+          "arbeidsmiljø",
+          "erfaring",
+          "fagbrev",
+          "søknad"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "arbeidsmiljø"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-fib-04",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово из текста 1A.",
+      "hint": "Слова: ansvar, arbeidsmiljø, erfaring, fagbrev, søknad.",
+      "content": {
+        "text_with_blanks": "Du må sende en ___1___ og en CV.",
+        "word_bank": [
+          "ansvar",
+          "arbeidsmiljø",
+          "erfaring",
+          "fagbrev",
+          "søknad"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "søknad"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-fib-05",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово из текста 1A.",
+      "hint": "Слова: ansvar, arbeidsmiljø, erfaring, fagbrev, søknad.",
+      "content": {
+        "text_with_blanks": "Som prosjektleder får du mye ___1___.",
+        "word_bank": [
+          "ansvar",
+          "arbeidsmiljø",
+          "erfaring",
+          "fagbrev",
+          "søknad"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "ansvar"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "1B": [
+    {
+      "key": "b1-1b-sa1",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1B.",
+      "content": {
+        "question": "Når skal Bartek komme til intervjuet?",
+        "context": "Tekst 1B — Jobbintervjuet."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Tirsdag klokka ti.",
+        "accepted_answers": [
+          "tirsdag klokka ti",
+          "tirsdag kl. ti",
+          "klokka ti på tirsdag",
+          "tirsdag"
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-sa2",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1B.",
+      "content": {
+        "question": "Hvorfor kommer Bartek et kvarter for tidlig?",
+        "context": "Tekst 1B."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Fordi han ikke vil risikere å komme for sent.",
+        "accepted_answers": [
+          "han vil ikke komme for sent",
+          "for ikke å komme for sent",
+          "fordi han ikke vil komme for sent"
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-sa3",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1B.",
+      "content": {
+        "question": "Hvorfor vil Bartek bytte jobb?",
+        "context": "Tekst 1B."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Han vil ta mer ansvar og lede prosjekter selv.",
+        "accepted_answers": [
+          "han vil ta mer ansvar",
+          "for å lede prosjekter",
+          "mer ansvar og lede prosjekter"
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-sa4",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1B.",
+      "content": {
+        "question": "Hvordan går det til slutt?",
+        "context": "Tekst 1B."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Bartek får jobben og begynner 1. april.",
+        "accepted_answers": [
+          "han får jobben",
+          "bartek får jobben",
+          "han får jobben og begynner 1. april"
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-match",
+      "template": "match_pairs",
+      "instruction": "Соедините половины предложений (текст 1B).",
+      "content": {
+        "left_items": [
+          {
+            "id": "l1",
+            "text": "Kari tar imot Bartek"
+          },
+          {
+            "id": "l2",
+            "text": "Bartek er utdannet elektriker"
+          },
+          {
+            "id": "l3",
+            "text": "Han vil bytte jobb fordi"
+          },
+          {
+            "id": "l4",
+            "text": "Firmaet skal gi beskjed"
+          },
+          {
+            "id": "l5",
+            "text": "Bartek får jobben og"
+          }
+        ],
+        "right_items": [
+          {
+            "id": "r1",
+            "text": "med et fast håndtrykk."
+          },
+          {
+            "id": "r2",
+            "text": "fra Polen."
+          },
+          {
+            "id": "r3",
+            "text": "han vil ta mer ansvar."
+          },
+          {
+            "id": "r4",
+            "text": "i løpet av neste uke."
+          },
+          {
+            "id": "r5",
+            "text": "begynner 1. april."
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "pairs": [
+          {
+            "left_id": "l1",
+            "right_id": "r1"
+          },
+          {
+            "left_id": "l2",
+            "right_id": "r2"
+          },
+          {
+            "left_id": "l3",
+            "right_id": "r3"
+          },
+          {
+            "left_id": "l4",
+            "right_id": "r4"
+          },
+          {
+            "left_id": "l5",
+            "right_id": "r5"
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-fib-01",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
+      "content": {
+        "text_with_blanks": "Før et ___1___ er mange litt nervøse.",
+        "word_bank": [
+          "ansvar",
+          "beskjed",
+          "intervju",
+          "nervøs",
+          "pålitelig",
+          "samarbeide"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "intervju"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-fib-02",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
+      "content": {
+        "text_with_blanks": "Han var veldig ___1___ før intervjuet.",
+        "word_bank": [
+          "ansvar",
+          "beskjed",
+          "intervju",
+          "nervøs",
+          "pålitelig",
+          "samarbeide"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "nervøs"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-fib-03",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
+      "content": {
+        "text_with_blanks": "En god medarbeider er ___1___ og kommer på jobb i tide.",
+        "word_bank": [
+          "ansvar",
+          "beskjed",
+          "intervju",
+          "nervøs",
+          "pålitelig",
+          "samarbeide"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "pålitelig"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-fib-04",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
+      "content": {
+        "text_with_blanks": "Jeg liker å ___1___ med andre i team.",
+        "word_bank": [
+          "ansvar",
+          "beskjed",
+          "intervju",
+          "nervøs",
+          "pålitelig",
+          "samarbeide"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "samarbeide"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-fib-05",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
+      "content": {
+        "text_with_blanks": "Sjefen vil gi meg mer ___1___.",
+        "word_bank": [
+          "ansvar",
+          "beskjed",
+          "intervju",
+          "nervøs",
+          "pålitelig",
+          "samarbeide"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "ansvar"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-fib-06",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
+      "content": {
+        "text_with_blanks": "Firmaet skal gi ___1___ neste uke.",
+        "word_bank": [
+          "ansvar",
+          "beskjed",
+          "intervju",
+          "nervøs",
+          "pålitelig",
+          "samarbeide"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "beskjed"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-ind1",
+      "template": "short_answer",
+      "instruction": "Перепишите в косвенную речь. Начните с «Bartek sa at …».",
+      "hint": "Глагол говорения в прошедшем → сдвиг времени.",
+      "content": {
+        "question": "«Jeg har jobbet hos Vestby Installasjon.» → Bartek sa at …",
+        "context": "Косвенная речь."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Bartek sa at han hadde jobbet hos Vestby Installasjon.",
+        "accepted_answers": [
+          "bartek sa at han hadde jobbet hos vestby installasjon",
+          "at han hadde jobbet hos vestby installasjon"
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-ind2",
+      "template": "short_answer",
+      "instruction": "Перепишите в косвенную речь.",
+      "content": {
+        "question": "«Jeg gir ikke opp.» → Bartek sa at …",
+        "context": "Косвенная речь. Обратите внимание на место «ikke»."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Bartek sa at han ikke ga opp.",
+        "accepted_answers": [
+          "bartek sa at han ikke ga opp",
+          "at han ikke ga opp",
+          "at han ikke gav opp",
+          "bartek sa at han ikke gav opp"
+        ]
+      }
+    },
+    {
+      "key": "b1-1b-write",
+      "template": "writing_task",
+      "instruction": "Напишите короткое резюме собеседования (60–90 слов) в косвенной речи.",
+      "content": {
+        "prompt": "Du var til stede på intervjuet i tekst 1B. Skriv et kort referat (60–90 ord) om hva Bartek fortalte. Bruk indirekte tale: «Bartek sa at …», «Han fortalte at …», «Kari spurte om …».",
+        "min_words": 60,
+        "max_words": 120,
+        "instructions": "Bruk minst fire setninger i indirekte tale med riktig ordstilling og tidsforskyvning."
+      },
+      "expectedAnswers": {
+        "rubric": "Vurder bruk av indirekte tale (at/om), riktig ordstilling i leddsetning, tidsforskyvning (presens→preteritum, perfektum→pluskvamperfektum) og sammenheng.",
+        "criteria": [
+          "indirekte tale",
+          "ordstilling",
+          "tidsforskyvning",
+          "sammenheng"
+        ]
+      }
+    }
+  ],
+  "1C": [
+    {
+      "key": "b1-1c-sa1",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1C.",
+      "content": {
+        "question": "Hva betyr det at det norske arbeidslivet er «flatt»?",
+        "context": "Tekst 1C — Arbeidsmiljø i Norge."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Avstanden mellom sjefen og de ansatte er liten.",
+        "accepted_answers": [
+          "avstanden mellom sjefen og de ansatte er liten",
+          "liten avstand mellom sjef og ansatte",
+          "det er kort avstand mellom sjefen og de ansatte"
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-sa2",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1C.",
+      "content": {
+        "question": "Hvor mange timer jobber nordmenn vanligvis i uka?",
+        "context": "Tekst 1C."
+      },
+      "expectedAnswers": {
+        "reference_answer": "37,5 timer.",
+        "accepted_answers": [
+          "37,5 timer",
+          "37,5",
+          "37.5 timer",
+          "trettisju og en halv time"
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-sa3",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1C.",
+      "content": {
+        "question": "Hva gjør en fagforening?",
+        "context": "Tekst 1C."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Den forhandler om lønn og arbeidsvilkår og hjelper ansatte i konflikter.",
+        "accepted_answers": [
+          "forhandler om lønn og arbeidsvilkår",
+          "den forhandler om lønn",
+          "hjelper den ansatte i konflikter"
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-sa4",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 1C.",
+      "content": {
+        "question": "Hvorfor er kaffepausen viktig?",
+        "context": "Tekst 1C."
+      },
+      "expectedAnswers": {
+        "reference_answer": "Det er en måte å bli kjent med hverandre på, og gode idéer kommer da.",
+        "accepted_answers": [
+          "en måte å bli kjent med hverandre på",
+          "de beste idéene kommer i kaffepausen",
+          "man blir kjent med hverandre"
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-rg1",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt?",
+      "content": {
+        "question": "I Norge sier de ansatte ofte «du» til sjefen.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "r"
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-rg2",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt?",
+      "content": {
+        "question": "Overtid er veldig vanlig i Norge.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "g"
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-rg3",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt?",
+      "content": {
+        "question": "De fleste har fem uker ferie om sommeren.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "r"
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-rg4",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt?",
+      "content": {
+        "question": "Det er ikke lov å være uenig med sjefen.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "g"
+        ],
+        "explanation": "Det er lov, så lenge man er saklig og høflig."
+      }
+    },
+    {
+      "key": "b1-1c-rg5",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt?",
+      "content": {
+        "question": "En fagforening forhandler om lønn.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "r"
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-fib-01",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
+      "content": {
+        "text_with_blanks": "Om sommeren har de fleste fem uker ___1___.",
+        "word_bank": [
+          "fagforening",
+          "ferie",
+          "møte",
+          "overtid",
+          "rettigheter",
+          "sjefen"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "ferie"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-fib-02",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
+      "content": {
+        "text_with_blanks": "På et ___1___ får alle si sin mening.",
+        "word_bank": [
+          "fagforening",
+          "ferie",
+          "møte",
+          "overtid",
+          "rettigheter",
+          "sjefen"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "møte"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-fib-03",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
+      "content": {
+        "text_with_blanks": "Arbeidstakere i Norge har mange ___1___.",
+        "word_bank": [
+          "fagforening",
+          "ferie",
+          "møte",
+          "overtid",
+          "rettigheter",
+          "sjefen"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "rettigheter"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-fib-04",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
+      "content": {
+        "text_with_blanks": "En ___1___ forhandler om lønn.",
+        "word_bank": [
+          "fagforening",
+          "ferie",
+          "møte",
+          "overtid",
+          "rettigheter",
+          "sjefen"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "fagforening"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-fib-05",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
+      "content": {
+        "text_with_blanks": "Man sier ofte «du» til ___1___.",
+        "word_bank": [
+          "fagforening",
+          "ferie",
+          "møte",
+          "overtid",
+          "rettigheter",
+          "sjefen"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "sjefen"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1c-fib-06",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
+      "content": {
+        "text_with_blanks": "Å jobbe mer enn normalt kalles ___1___.",
+        "word_bank": [
+          "fagforening",
+          "ferie",
+          "møte",
+          "overtid",
+          "rettigheter",
+          "sjefen"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "overtid"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "1": [
+    {
+      "key": "b1-g1-fib-01",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте нужный союз (at / om) или вопросительное слово (hvor / når / hvorfor / hvordan / hva).",
+      "hint": "at — утверждение, om — вопрос да/нет, вопросительное слово — спецвопрос.",
+      "content": {
+        "text_with_blanks": "Han sier ___1___ han er sliten.",
+        "word_bank": [
+          "at",
+          "hva",
+          "hvor",
+          "hvordan",
+          "hvorfor",
+          "når",
+          "om"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "at"
+            ],
+            "rationale": {
+              "explanation": "«Han er sliten» — это утверждение (påstand), а утверждения вводятся союзом at.",
+              "options": [
+                {
+                  "text": "at",
+                  "verdict": "correct",
+                  "note": "Утверждение → at."
+                },
+                {
+                  "text": "om",
+                  "verdict": "wrong",
+                  "note": "om нужен только для вопроса да/нет; здесь вопроса нет."
+                },
+                {
+                  "text": "hvorfor",
+                  "verdict": "wrong",
+                  "note": "Нет вопроса о причине."
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "at = утверждение, om = вопрос да/нет, вопросительное слово = спецвопрос."
+      }
+    },
+    {
+      "key": "b1-g1-fib-02",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте нужный союз (at / om) или вопросительное слово (hvor / når / hvorfor / hvordan / hva).",
+      "hint": "at — утверждение, om — вопрос да/нет, вопросительное слово — спецвопрос.",
+      "content": {
+        "text_with_blanks": "Hun spurte ___1___ jeg hadde bil.",
+        "word_bank": [
+          "at",
+          "hva",
+          "hvor",
+          "hvordan",
+          "hvorfor",
+          "når",
+          "om"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "om"
+            ],
+            "rationale": {
+              "explanation": "Косвенный вопрос без вопросительного слова, на да/нет («Har du bil?») → om.",
+              "options": [
+                {
+                  "text": "om",
+                  "verdict": "correct",
+                  "note": "Вопрос да/нет → om."
+                },
+                {
+                  "text": "at",
+                  "verdict": "wrong",
+                  "note": "at вводит утверждение, а здесь пересказан вопрос."
+                },
+                {
+                  "text": "hva",
+                  "verdict": "wrong",
+                  "note": "Спрашивается не «что», а «ли»."
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "at = утверждение, om = вопрос да/нет, вопросительное слово = спецвопрос."
+      }
+    },
+    {
+      "key": "b1-g1-fib-03",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте нужный союз (at / om) или вопросительное слово (hvor / når / hvorfor / hvordan / hva).",
+      "hint": "at — утверждение, om — вопрос да/нет, вопросительное слово — спецвопрос.",
+      "content": {
+        "text_with_blanks": "De lurte på ___1___ jeg bodde.",
+        "word_bank": [
+          "at",
+          "hva",
+          "hvor",
+          "hvordan",
+          "hvorfor",
+          "når",
+          "om"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "hvor"
+            ],
+            "rationale": {
+              "explanation": "Спецвопрос о месте («Hvor bor du?») → hvor.",
+              "options": [
+                {
+                  "text": "hvor",
+                  "verdict": "correct",
+                  "note": "Вопрос о месте."
+                },
+                {
+                  "text": "om",
+                  "verdict": "wrong",
+                  "note": "om убрал бы информацию о месте; вопрос не да/нет."
+                },
+                {
+                  "text": "at",
+                  "verdict": "wrong",
+                  "note": "Это не утверждение."
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "at = утверждение, om = вопрос да/нет, вопросительное слово = спецвопрос."
+      }
+    },
+    {
+      "key": "b1-g1-fib-04",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте нужный союз (at / om) или вопросительное слово (hvor / når / hvorfor / hvordan / hva).",
+      "hint": "at — утверждение, om — вопрос да/нет, вопросительное слово — спецвопрос.",
+      "content": {
+        "text_with_blanks": "Jeg vet ikke ___1___ toget går.",
+        "word_bank": [
+          "at",
+          "hva",
+          "hvor",
+          "hvordan",
+          "hvorfor",
+          "når",
+          "om"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "når"
+            ],
+            "rationale": {
+              "explanation": "Вопрос о времени («Når går toget?») → når.",
+              "options": [
+                {
+                  "text": "når",
+                  "verdict": "correct",
+                  "note": "Вопрос о времени."
+                },
+                {
+                  "text": "om",
+                  "verdict": "wrong",
+                  "note": "Меняет смысл на «идёт ли поезд»."
+                },
+                {
+                  "text": "at",
+                  "verdict": "wrong",
+                  "note": "Не утверждение."
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "at = утверждение, om = вопрос да/нет, вопросительное слово = спецвопрос."
+      }
+    },
+    {
+      "key": "b1-g1-fib-05",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте нужный союз (at / om) или вопросительное слово (hvor / når / hvorfor / hvordan / hva).",
+      "hint": "at — утверждение, om — вопрос да/нет, вопросительное слово — спецвопрос.",
+      "content": {
+        "text_with_blanks": "Bartek spurte ___1___ en vanlig arbeidsdag så ut.",
+        "word_bank": [
+          "at",
+          "hva",
+          "hvor",
+          "hvordan",
+          "hvorfor",
+          "når",
+          "om"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "hvordan"
+            ],
+            "rationale": {
+              "explanation": "«Hvordan ser en arbeidsdag ut?» — вопрос об образе действия.",
+              "options": [
+                {
+                  "text": "hvordan",
+                  "verdict": "correct",
+                  "note": "Конструкция «se … ut» требует hvordan."
+                },
+                {
+                  "text": "om",
+                  "verdict": "wrong",
+                  "note": "Спрашивается не «ли», а «как»."
+                },
+                {
+                  "text": "hva",
+                  "verdict": "wrong",
+                  "note": "С «se ut» используется hvordan, не hva."
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "at = утверждение, om = вопрос да/нет, вопросительное слово = спецвопрос."
+      }
+    },
+    {
+      "key": "b1-g1-fib-06",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте нужный союз (at / om) или вопросительное слово (hvor / når / hvorfor / hvordan / hva).",
+      "hint": "at — утверждение, om — вопрос да/нет, вопросительное слово — спецвопрос.",
+      "content": {
+        "text_with_blanks": "Kari spurte ___1___ han ville bytte jobb.",
+        "word_bank": [
+          "at",
+          "hva",
+          "hvor",
+          "hvordan",
+          "hvorfor",
+          "når",
+          "om"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "hvorfor"
+            ],
+            "rationale": {
+              "explanation": "Пересказан вопрос о причине («Hvorfor vil du bytte jobb?»).",
+              "options": [
+                {
+                  "text": "hvorfor",
+                  "verdict": "correct",
+                  "note": "Вопрос о причине."
+                },
+                {
+                  "text": "om",
+                  "verdict": "acceptable",
+                  "note": "Грамматично, но меняет смысл: «спросила, хочет ли он сменить работу»."
+                },
+                {
+                  "text": "at",
+                  "verdict": "wrong",
+                  "note": "Не утверждение."
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "at = утверждение, om = вопрос да/нет, вопросительное слово = спецвопрос."
+      }
+    },
+    {
+      "key": "b1-g1-fib-07",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте нужный союз (at / om) или вопросительное слово (hvor / når / hvorfor / hvordan / hva).",
+      "hint": "at — утверждение, om — вопрос да/нет, вопросительное слово — спецвопрос.",
+      "content": {
+        "text_with_blanks": "Han forklarte ___1___ han ikke kunne komme.",
+        "word_bank": [
+          "at",
+          "hva",
+          "hvor",
+          "hvordan",
+          "hvorfor",
+          "når",
+          "om"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "hvorfor"
+            ],
+            "rationale": {
+              "explanation": "«Forklare hvorfor» — объяснить причину.",
+              "options": [
+                {
+                  "text": "hvorfor",
+                  "verdict": "correct",
+                  "note": "Глагол forklare обычно вводит причину."
+                },
+                {
+                  "text": "at",
+                  "verdict": "acceptable",
+                  "note": "Тоже грамматично («объяснил, что не смог прийти»), но здесь ожидается причина."
+                },
+                {
+                  "text": "om",
+                  "verdict": "wrong",
+                  "note": "«объяснил ли» — бессмыслица."
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "at = утверждение, om = вопрос да/нет, вопросительное слово = спецвопрос."
+      }
+    },
+    {
+      "key": "b1-g1-fib-08",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте нужный союз (at / om) или вопросительное слово (hvor / når / hvorfor / hvordan / hva).",
+      "hint": "at — утверждение, om — вопрос да/нет, вопросительное слово — спецвопрос.",
+      "content": {
+        "text_with_blanks": "Jeg er usikker på ___1___ hun kommer i kveld.",
+        "word_bank": [
+          "at",
+          "hva",
+          "hvor",
+          "hvordan",
+          "hvorfor",
+          "når",
+          "om"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "om"
+            ],
+            "rationale": {
+              "explanation": "«Usikker på» + сомнение да/нет («Kommer hun?») → om.",
+              "options": [
+                {
+                  "text": "om",
+                  "verdict": "correct",
+                  "note": "Сомнение да/нет."
+                },
+                {
+                  "text": "at",
+                  "verdict": "wrong",
+                  "note": "at выражал бы уверенность, а здесь неуверенность."
+                },
+                {
+                  "text": "når",
+                  "verdict": "wrong",
+                  "note": "Спрашивается «придёт ли», а не «когда»."
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "at = утверждение, om = вопрос да/нет, вопросительное слово = спецвопрос."
+      }
+    },
+    {
+      "key": "b1-g1-fib-09",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте нужный союз (at / om) или вопросительное слово (hvor / når / hvorfor / hvordan / hva).",
+      "hint": "at — утверждение, om — вопрос да/нет, вопросительное слово — спецвопрос.",
+      "content": {
+        "text_with_blanks": "Vet du ___1___ klokka er?",
+        "word_bank": [
+          "at",
+          "hva",
+          "hvor",
+          "hvordan",
+          "hvorfor",
+          "når",
+          "om"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "hva"
+            ],
+            "rationale": {
+              "explanation": "Устойчивый вопрос «Hva er klokka?» (который час).",
+              "options": [
+                {
+                  "text": "hva",
+                  "verdict": "correct",
+                  "note": "Устойчивое выражение."
+                },
+                {
+                  "text": "når",
+                  "verdict": "wrong",
+                  "note": "«Når er klokka» не говорят по-норвежски."
+                },
+                {
+                  "text": "om",
+                  "verdict": "wrong",
+                  "note": "Не да/нет-вопрос."
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "at = утверждение, om = вопрос да/нет, вопросительное слово = спецвопрос."
+      }
+    },
+    {
+      "key": "b1-g1-fib-10",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте нужный союз (at / om) или вопросительное слово (hvor / når / hvorfor / hvordan / hva).",
+      "hint": "at — утверждение, om — вопрос да/нет, вопросительное слово — спецвопрос.",
+      "content": {
+        "text_with_blanks": "Hun fortalte ___1___ hun hadde fått jobben.",
+        "word_bank": [
+          "at",
+          "hva",
+          "hvor",
+          "hvordan",
+          "hvorfor",
+          "når",
+          "om"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "at"
+            ],
+            "rationale": {
+              "explanation": "«Fortelle at» — рассказать, что…; вводит утверждение.",
+              "options": [
+                {
+                  "text": "at",
+                  "verdict": "correct",
+                  "note": "Утверждение после fortelle."
+                },
+                {
+                  "text": "om",
+                  "verdict": "wrong",
+                  "note": "Превратило бы в вопрос да/нет."
+                },
+                {
+                  "text": "hvorfor",
+                  "verdict": "wrong",
+                  "note": "Нет вопроса о причине."
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "at = утверждение, om = вопрос да/нет, вопросительное слово = спецвопрос."
+      }
+    },
+    {
+      "key": "b1-g2-ind1",
+      "template": "short_answer",
+      "instruction": "Перепишите в косвенную речь (глагол в прошедшем → сдвиг времени).",
+      "content": {
+        "question": "«Jeg jobber som elektriker», sa Bartek.",
+        "context": "Начните: Bartek sa at …"
+      },
+      "expectedAnswers": {
+        "reference_answer": "Bartek sa at han jobbet som elektriker.",
+        "accepted_answers": [
+          "bartek sa at han jobbet som elektriker",
+          "at han jobbet som elektriker"
+        ]
+      }
+    },
+    {
+      "key": "b1-g2-ind2",
+      "template": "short_answer",
+      "instruction": "Перепишите в косвенную речь.",
+      "content": {
+        "question": "«Kommer du på tirsdag?», spurte Kari.",
+        "context": "Начните: Kari spurte …"
+      },
+      "expectedAnswers": {
+        "reference_answer": "Kari spurte om han kom på tirsdag.",
+        "accepted_answers": [
+          "kari spurte om han kom på tirsdag",
+          "om han kom på tirsdag"
+        ]
+      }
+    },
+    {
+      "key": "b1-g2-ind3",
+      "template": "short_answer",
+      "instruction": "Перепишите в косвенную речь.",
+      "content": {
+        "question": "«Hvor bor du?», spurte hun.",
+        "context": "Начните: Hun spurte …"
+      },
+      "expectedAnswers": {
+        "reference_answer": "Hun spurte hvor han bodde.",
+        "accepted_answers": [
+          "hun spurte hvor han bodde",
+          "hvor han bodde"
+        ]
+      }
+    },
+    {
+      "key": "b1-g2-ind4",
+      "template": "short_answer",
+      "instruction": "Перепишите в косвенную речь.",
+      "content": {
+        "question": "«Jeg skal begynne 1. april», sa Bartek.",
+        "context": "Начните: Bartek sa at …"
+      },
+      "expectedAnswers": {
+        "reference_answer": "Bartek sa at han skulle begynne 1. april.",
+        "accepted_answers": [
+          "bartek sa at han skulle begynne 1. april",
+          "at han skulle begynne 1. april"
+        ]
+      }
+    },
+    {
+      "key": "b1-g3-ss1",
+      "template": "sentence_schema",
+      "instruction": "Разместите слова придаточного предложения по полям (leddsetning).",
+      "hint": "Порядок полей: subjunksjon — subjekt — adverbial — verbal — sluttfelt.",
+      "content": {
+        "sentence": "… at han ikke hadde tatt fagbrevet ennå.",
+        "schema_type": "subordinate",
+        "fields": [
+          {
+            "id": "subjunksjon",
+            "label": "Subjunksjon"
+          },
+          {
+            "id": "subjekt",
+            "label": "Subjekt"
+          },
+          {
+            "id": "adverbial",
+            "label": "Adverbial"
+          },
+          {
+            "id": "verbal",
+            "label": "Verbal"
+          },
+          {
+            "id": "sluttfelt",
+            "label": "Sluttfelt"
+          }
+        ],
+        "tokens": [
+          {
+            "id": "t1",
+            "text": "at"
+          },
+          {
+            "id": "t2",
+            "text": "han"
+          },
+          {
+            "id": "t3",
+            "text": "ikke"
+          },
+          {
+            "id": "t4",
+            "text": "hadde"
+          },
+          {
+            "id": "t5",
+            "text": "tatt"
+          },
+          {
+            "id": "t6",
+            "text": "fagbrevet"
+          },
+          {
+            "id": "t7",
+            "text": "ennå"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "placements": [
+          {
+            "field_id": "subjunksjon",
+            "token_ids": [
+              "t1"
+            ]
+          },
+          {
+            "field_id": "subjekt",
+            "token_ids": [
+              "t2"
+            ]
+          },
+          {
+            "field_id": "adverbial",
+            "token_ids": [
+              "t3"
+            ]
+          },
+          {
+            "field_id": "verbal",
+            "token_ids": [
+              "t4",
+              "t5"
+            ]
+          },
+          {
+            "field_id": "sluttfelt",
+            "token_ids": [
+              "t6",
+              "t7"
+            ]
+          }
+        ],
+        "explanation": "В придаточном: subjunksjon at, subjekt han, adverbial ikke ПЕРЕД глаголом, verbal hadde tatt, затем sluttfelt."
+      }
+    },
+    {
+      "key": "b1-g4-mc1",
+      "template": "multiple_choice",
+      "instruction": "После глагола в прошедшем — какая форма верна?",
+      "content": {
+        "question": "Han sa at han ___ syk.",
+        "options": [
+          {
+            "id": "a",
+            "text": "er"
+          },
+          {
+            "id": "b",
+            "text": "var"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "b"
+        ],
+        "explanation": "presens → preteritum после «sa»."
+      }
+    },
+    {
+      "key": "b1-g4-mc2",
+      "template": "multiple_choice",
+      "instruction": "Выберите правильную форму.",
+      "content": {
+        "question": "Hun spurte om jeg ___ tid.",
+        "options": [
+          {
+            "id": "a",
+            "text": "har"
+          },
+          {
+            "id": "b",
+            "text": "hadde"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "b"
+        ]
+      }
+    },
+    {
+      "key": "b1-g4-mc3",
+      "template": "multiple_choice",
+      "instruction": "Выберите правильную форму.",
+      "content": {
+        "question": "Bartek sa at han ___ reise.",
+        "options": [
+          {
+            "id": "a",
+            "text": "skal"
+          },
+          {
+            "id": "b",
+            "text": "skulle"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "b"
+        ]
+      }
+    },
+    {
+      "key": "b1-g4-mc4",
+      "template": "multiple_choice",
+      "instruction": "Выберите правильную форму.",
+      "content": {
+        "question": "De fortalte at de allerede ___.",
+        "options": [
+          {
+            "id": "a",
+            "text": "har spist"
+          },
+          {
+            "id": "b",
+            "text": "hadde spist"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "b"
+        ]
+      }
+    },
+    {
+      "key": "b1-g4-mc5",
+      "template": "multiple_choice",
+      "instruction": "Выберите правильную форму.",
+      "content": {
+        "question": "Han forklarte at han ___ komme.",
+        "options": [
+          {
+            "id": "a",
+            "text": "kan ikke"
+          },
+          {
+            "id": "b",
+            "text": "ikke kunne"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "b"
+        ],
+        "explanation": "В придаточном ikke стоит перед глаголом, и kan→kunne."
+      }
+    },
+    {
+      "key": "b1-g5-write",
+      "template": "writing_task",
+      "instruction": "Перескажите диалог косвенной речью (50–70 слов).",
+      "content": {
+        "prompt": "Skriv om denne samtalen til indirekte tale (50–70 ord):\n\nKari: Har du erfaring med prosjektledelse?\nBartek: Nei, men jeg lærer fort. Jeg vil gjerne prøve.\nKari: Når kan du begynne?\nBartek: Jeg kan begynne 1. april.",
+        "min_words": 40,
+        "max_words": 90,
+        "instructions": "Bruk riktig subjunksjon (om/at), tidsforskyvning og ordstilling."
+      },
+      "expectedAnswers": {
+        "reference_text": "Kari spurte om Bartek hadde erfaring med prosjektledelse. Bartek svarte at han ikke hadde det, men at han lærte fort, og at han gjerne ville prøve. Så spurte Kari når han kunne begynne. Bartek sa at han kunne begynne 1. april.",
+        "rubric": "Vurder riktig subjunksjon (om/at), tidsforskyvning (presens→preteritum, kan→kunne) og ordstilling i leddsetning.",
+        "criteria": [
+          "subjunksjon",
+          "tidsforskyvning",
+          "ordstilling"
+        ]
+      }
+    }
+  ]
+}
