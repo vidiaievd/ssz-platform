@@ -11,10 +11,12 @@ import { Result } from '../../shared/kernel/result.js';
 import { MultipleChoiceValidator } from './validators/multiple-choice.validator.js';
 import { FillInBlankValidator } from './validators/fill-in-blank.validator.js';
 import { MatchPairsValidator } from './validators/match-pairs.validator.js';
+import { ShortAnswerValidator } from './validators/short-answer.validator.js';
+import { SentenceSchemaValidator } from './validators/sentence-schema.validator.js';
 import type { IPerTypeValidator } from './validators/per-type-validator.interface.js';
 
 // Template codes that require human review — not scored by rule-based logic.
-const FREE_FORM_CODES = new Set(['translate_to_target', 'translate_from_target']);
+const FREE_FORM_CODES = new Set(['translate_to_target', 'translate_from_target', 'writing_task']);
 
 @Injectable()
 export class SchemaBasedAnswerValidator implements IAnswerValidator {
@@ -28,6 +30,8 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     mcValidator: MultipleChoiceValidator,
     fibValidator: FillInBlankValidator,
     mpValidator: MatchPairsValidator,
+    saValidator: ShortAnswerValidator,
+    ssValidator: SentenceSchemaValidator,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     this.ajv = new (Ajv as any)({ allErrors: true, strict: false });
@@ -38,6 +42,8 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       ['multiple_choice', mcValidator],
       ['fill_in_blank', fibValidator],
       ['match_pairs', mpValidator],
+      ['short_answer', saValidator],
+      ['sentence_schema', ssValidator],
     ]);
   }
 

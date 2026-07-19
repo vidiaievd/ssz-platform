@@ -7,6 +7,7 @@ import type {
   CanDoDescriptorRef,
   ContentMetadata,
   ContentRelationRef,
+  CourseLeafItemRef,
   IContentClient,
   ModuleReaderStructureItemRef,
   ModuleReaderStructureRef,
@@ -139,6 +140,29 @@ export class ContentClient implements IContentClient {
       return Result.ok(refs);
     } catch (err) {
       return this.mapError(err, `getContainerLeafItems(${containerId})`);
+    }
+  }
+
+  async getCourseLeafItems(
+    courseId: string,
+  ): Promise<Result<CourseLeafItemRef[], ContentClientError>> {
+    try {
+      const { data } = await this.http.get<
+        Array<{ type: string; id: string; moduleId: string | null; isRequired: boolean }>
+      >(`/containers/${courseId}/leaf-items`);
+
+      const items: CourseLeafItemRef[] = [];
+      for (const item of data) {
+        const ref = ContentRef.create(item.type as ContentType, item.id);
+        if (ref.isFail) {
+          return Result.fail(new ContentClientError(`Invalid content ref from Content Service: ${ref.error.message}`));
+        }
+        items.push({ ref: ref.value, moduleId: item.moduleId ?? null, isRequired: item.isRequired });
+      }
+
+      return Result.ok(items);
+    } catch (err) {
+      return this.mapError(err, `getCourseLeafItems(${courseId})`);
     }
   }
 

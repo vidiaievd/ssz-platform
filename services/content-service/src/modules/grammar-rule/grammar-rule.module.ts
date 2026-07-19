@@ -8,12 +8,16 @@ import type { IGrammarRuleRepository } from './domain/repositories/grammar-rule.
 import { PrismaGrammarRuleRepository } from './infrastructure/persistence/prisma-grammar-rule.repository.js';
 import { PrismaGrammarRuleExplanationRepository } from './infrastructure/persistence/prisma-grammar-rule-explanation.repository.js';
 import { PrismaGrammarRuleExercisePoolRepository } from './infrastructure/persistence/prisma-grammar-rule-exercise-pool.repository.js';
+import { PrismaGrammarRuleCompareExampleRepository } from './infrastructure/persistence/prisma-grammar-rule-compare-example.repository.js';
+import { PrismaGrammarRuleQuickCheckRepository } from './infrastructure/persistence/prisma-grammar-rule-quick-check.repository.js';
 import { PrismaExerciseRepository } from '../exercise/infrastructure/persistence/prisma-exercise.repository.js';
 
 // DI tokens
 import { GRAMMAR_RULE_REPOSITORY } from './domain/repositories/grammar-rule.repository.interface.js';
 import { GRAMMAR_RULE_EXPLANATION_REPOSITORY } from './domain/repositories/grammar-rule-explanation.repository.interface.js';
 import { GRAMMAR_RULE_EXERCISE_POOL_REPOSITORY } from './domain/repositories/grammar-rule-exercise-pool.repository.interface.js';
+import { GRAMMAR_RULE_COMPARE_EXAMPLE_REPOSITORY } from './domain/repositories/grammar-rule-compare-example.repository.interface.js';
+import { GRAMMAR_RULE_QUICK_CHECK_REPOSITORY } from './domain/repositories/grammar-rule-quick-check.repository.interface.js';
 import { EXERCISE_REPOSITORY } from '../exercise/domain/repositories/exercise.repository.interface.js';
 
 // Command handlers
@@ -24,6 +28,8 @@ import { CreateExplanationHandler } from './application/commands/create-explanat
 import { UpdateExplanationHandler } from './application/commands/update-explanation/update-explanation.handler.js';
 import { PublishExplanationHandler } from './application/commands/publish-explanation/publish-explanation.handler.js';
 import { DeleteExplanationHandler } from './application/commands/delete-explanation/delete-explanation.handler.js';
+import { SetCompareExamplesHandler } from './application/commands/set-compare-examples/set-compare-examples.handler.js';
+import { SetQuickCheckHandler } from './application/commands/set-quick-check/set-quick-check.handler.js';
 import { AddPoolEntryHandler } from './application/commands/add-pool-entry/add-pool-entry.handler.js';
 import { UpdatePoolEntryHandler } from './application/commands/update-pool-entry/update-pool-entry.handler.js';
 import { RemovePoolEntryHandler } from './application/commands/remove-pool-entry/remove-pool-entry.handler.js';
@@ -50,6 +56,8 @@ const CommandHandlers = [
   UpdateExplanationHandler,
   PublishExplanationHandler,
   DeleteExplanationHandler,
+  SetCompareExamplesHandler,
+  SetQuickCheckHandler,
   AddPoolEntryHandler,
   UpdatePoolEntryHandler,
   RemovePoolEntryHandler,
@@ -80,6 +88,14 @@ const QueryHandlers = [
     {
       provide: GRAMMAR_RULE_EXERCISE_POOL_REPOSITORY,
       useClass: PrismaGrammarRuleExercisePoolRepository,
+    },
+    {
+      provide: GRAMMAR_RULE_COMPARE_EXAMPLE_REPOSITORY,
+      useClass: PrismaGrammarRuleCompareExampleRepository,
+    },
+    {
+      provide: GRAMMAR_RULE_QUICK_CHECK_REPOSITORY,
+      useClass: PrismaGrammarRuleQuickCheckRepository,
     },
     { provide: EXERCISE_REPOSITORY, useClass: PrismaExerciseRepository },
 

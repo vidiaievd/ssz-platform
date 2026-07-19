@@ -4,9 +4,10 @@ export const LESSON_VIDEO_CUE_REPOSITORY = Symbol('LESSON_VIDEO_CUE_REPOSITORY')
 
 export interface ILessonVideoCueRepository {
   findByVariantId(variantId: string): Promise<LessonVideoCueEntity[]>;
-  findByVariantAndPosition(
-    variantId: string,
-    position: number,
-  ): Promise<LessonVideoCueEntity | null>;
-  save(entity: LessonVideoCueEntity): Promise<LessonVideoCueEntity>;
+  /**
+   * Atomically replaces all cues for a variant.
+   * Runs delete + createMany in a single transaction, mirroring
+   * ILessonParagraphTranslationRepository.replaceForVariant.
+   */
+  replaceForVariant(variantId: string, cues: LessonVideoCueEntity[]): Promise<void>;
 }

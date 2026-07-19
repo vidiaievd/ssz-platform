@@ -40,6 +40,9 @@ export class UpdateExplanationHandler implements ICommandHandler<
         displaySummary: command.displaySummary,
         bodyMarkdown: command.bodyMarkdown,
         estimatedReadingMinutes: command.estimatedReadingMinutes,
+        anchorText: command.anchorText,
+        anchorHighlights: command.anchorHighlights,
+        anchorNote: command.anchorNote,
       },
       command.userId,
     );

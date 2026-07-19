@@ -54,9 +54,10 @@ export class GetUnitContentsHandler
     }
     const structure = structureResult.value;
 
-    // Flattened document order (sections in position order, then ungrouped
-    // items) drives sequential unlock: item N is available/complete only once
-    // item N-1 is COMPLETED (plan 29 BE3.1, sequential-unlock decision).
+    // All items within a sub-lesson (module) are available at once — gating
+    // now happens only between sub-lessons, not between items inside one
+    // (course-access-and-navigation decision 2026-07-19, supersedes the old
+    // plan 29 BE3.1 per-item sequential unlock).
     const flattened = structure.sections.flatMap((s) => s.items).concat(structure.ungroupedItems);
 
     const progressRows = await this.progressRepo.findByUserAndContentIds(
@@ -66,12 +67,9 @@ export class GetUnitContentsHandler
     const progressByContentId = new Map(progressRows.map((p) => [p.contentRef.id, p]));
 
     const statusByItemId = new Map<string, UnitItemStatus>();
-    let previousCompleted = true;
     for (const item of flattened) {
       const progress = progressByContentId.get(item.ref.id);
-      const status = this.resolveStatus(progress, previousCompleted);
-      statusByItemId.set(item.id, status);
-      previousCompleted = status === 'completed';
+      statusByItemId.set(item.id, this.resolveStatus(progress));
     }
 
     const toDto = (item: ModuleReaderStructureItemRef): UnitContentsItem => ({
@@ -93,9 +91,8 @@ export class GetUnitContentsHandler
     };
   }
 
-  private resolveStatus(progress: UserProgress | undefined, unlocked: boolean): UnitItemStatus {
+  private resolveStatus(progress: UserProgress | undefined): UnitItemStatus {
     if (progress?.status === 'COMPLETED') return 'completed';
-    if (!unlocked) return 'locked';
     if (progress?.status === 'IN_PROGRESS' || progress?.status === 'NEEDS_REVIEW') return 'in_progress';
     return 'available';
   }

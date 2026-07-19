@@ -23,6 +23,7 @@ const CONFLICT = new Set<GrammarRuleDomainError>([
   GrammarRuleDomainError.EXERCISE_ALREADY_IN_POOL,
   GrammarRuleDomainError.SLUG_ALREADY_EXISTS,
   GrammarRuleDomainError.EXPLANATION_ALREADY_PUBLISHED,
+  GrammarRuleDomainError.DUPLICATE_COMPARE_EXAMPLE_POSITION,
 ]);
 
 const UNPROCESSABLE = new Set<GrammarRuleDomainError>([
@@ -34,6 +35,8 @@ const UNPROCESSABLE = new Set<GrammarRuleDomainError>([
   GrammarRuleDomainError.INVALID_WEIGHT,
   GrammarRuleDomainError.INVALID_REORDER_INPUT,
   GrammarRuleDomainError.EMPTY_TITLE,
+  GrammarRuleDomainError.INVALID_COMPARE_EXAMPLE_DATA,
+  GrammarRuleDomainError.INVALID_QUICK_CHECK_DATA,
 ]);
 
 export function throwHttpException(error: GrammarRuleDomainError | string): never {

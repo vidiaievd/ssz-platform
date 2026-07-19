@@ -30,6 +30,9 @@ import { CreateContainerCommand } from '../../application/commands/create-contai
 import type { CreateContainerResult } from '../../application/commands/create-container/create-container.handler.js';
 import { UpdateContainerCommand } from '../../application/commands/update-container/update-container.command.js';
 import { DeleteContainerCommand } from '../../application/commands/delete-container/delete-container.command.js';
+import { ArchiveContainerCommand } from '../../application/commands/archive-container/archive-container.command.js';
+import { RestoreContainerCommand } from '../../application/commands/restore-container/restore-container.command.js';
+import { UnpublishVersionCommand } from '../../application/commands/unpublish-version/unpublish-version.command.js';
 import { CreateDraftFromPublishedCommand } from '../../application/commands/create-draft-from-published/create-draft-from-published.command.js';
 import { CreateLocalizationCommand } from '../../application/commands/create-localization/create-localization.command.js';
 import { UpdateLocalizationCommand } from '../../application/commands/update-localization/update-localization.command.js';
@@ -171,6 +174,7 @@ export class ContainerController {
         dto.visibility,
         dto.accessTier,
         dto.levelSystem,
+        dto.gatingMode,
       ),
     );
 
@@ -188,6 +192,51 @@ export class ContainerController {
       DeleteContainerCommand,
       Result<void, ContainerDomainError>
     >(new DeleteContainerCommand(user.userId, id));
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Post(':id/archive')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Archive a course (reversible) — hides it from the catalogue' })
+  @ApiNoContentResponse()
+  async archive(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser): Promise<void> {
+    const result = await this.commandBus.execute<
+      ArchiveContainerCommand,
+      Result<void, ContainerDomainError>
+    >(new ArchiveContainerCommand(user.userId, id));
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Post(':id/restore')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Restore a previously archived course' })
+  @ApiNoContentResponse()
+  async restore(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser): Promise<void> {
+    const result = await this.commandBus.execute<
+      RestoreContainerCommand,
+      Result<void, ContainerDomainError>
+    >(new RestoreContainerCommand(user.userId, id));
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Post(':id/unpublish')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Unpublish the current published version back to draft' })
+  @ApiNoContentResponse()
+  async unpublish(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser): Promise<void> {
+    const result = await this.commandBus.execute<
+      UnpublishVersionCommand,
+      Result<void, ContainerDomainError>
+    >(new UnpublishVersionCommand(user.userId, id));
 
     if (result.isFail) throwHttpException(result.error);
   }

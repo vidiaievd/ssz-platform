@@ -9,6 +9,7 @@ import { PrismaLessonRepository } from './infrastructure/persistence/prisma-less
 import { PrismaLessonContentVariantRepository } from './infrastructure/persistence/prisma-lesson-content-variant.repository.js';
 import { PrismaLessonVariantMediaRefRepository } from './infrastructure/persistence/prisma-lesson-variant-media-ref.repository.js';
 import { PrismaLessonVideoCueRepository } from './infrastructure/persistence/prisma-lesson-video-cue.repository.js';
+import { PrismaLessonVideoQuestionRepository } from './infrastructure/persistence/prisma-lesson-video-question.repository.js';
 import { PrismaLessonListeningStageRepository } from './infrastructure/persistence/prisma-lesson-listening-stage.repository.js';
 import { PrismaLessonParagraphTranslationRepository } from './infrastructure/persistence/prisma-lesson-paragraph-translation.repository.js';
 import { PrismaLessonGlossaryMarkRepository } from './infrastructure/persistence/prisma-lesson-glossary-mark.repository.js';
@@ -21,6 +22,7 @@ import { LESSON_REPOSITORY } from './domain/repositories/lesson.repository.inter
 import { LESSON_CONTENT_VARIANT_REPOSITORY } from './domain/repositories/lesson-content-variant.repository.interface.js';
 import { LESSON_VARIANT_MEDIA_REF_REPOSITORY } from './domain/repositories/lesson-variant-media-ref.repository.interface.js';
 import { LESSON_VIDEO_CUE_REPOSITORY } from './domain/repositories/lesson-video-cue.repository.interface.js';
+import { LESSON_VIDEO_QUESTION_REPOSITORY } from './domain/repositories/lesson-video-question.repository.interface.js';
 import { LESSON_LISTENING_STAGE_REPOSITORY } from './domain/repositories/lesson-listening-stage.repository.interface.js';
 import { LESSON_PARAGRAPH_TRANSLATION_REPOSITORY } from './domain/repositories/lesson-paragraph-translation.repository.interface.js';
 import { LESSON_GLOSSARY_MARK_REPOSITORY } from './domain/repositories/lesson-glossary-mark.repository.interface.js';
@@ -36,8 +38,10 @@ import { CreateVariantHandler } from './application/commands/create-variant/crea
 import { UpdateVariantHandler } from './application/commands/update-variant/update-variant.handler.js';
 import { PublishVariantHandler } from './application/commands/publish-variant/publish-variant.handler.js';
 import { DeleteVariantHandler } from './application/commands/delete-variant/delete-variant.handler.js';
-import { CreateVideoCueHandler } from './application/commands/create-video-cue/create-video-cue.handler.js';
-import { CreateListeningStageHandler } from './application/commands/create-listening-stage/create-listening-stage.handler.js';
+import { SetVideoCuesHandler } from './application/commands/set-video-cues/set-video-cues.handler.js';
+import { SetVideoQuestionHandler } from './application/commands/set-video-question/set-video-question.handler.js';
+import { ClearVideoQuestionHandler } from './application/commands/clear-video-question/clear-video-question.handler.js';
+import { SetListeningStagesHandler } from './application/commands/set-listening-stages/set-listening-stages.handler.js';
 import { SetParagraphTranslationsHandler } from './application/commands/set-paragraph-translations/set-paragraph-translations.handler.js';
 import { MarkGlossaryWordHandler } from './application/commands/mark-glossary-word/mark-glossary-word.handler.js';
 
@@ -49,6 +53,7 @@ import { GetLessonVariantsHandler } from './application/queries/get-lesson-varia
 import { GetLessonVariantHandler } from './application/queries/get-lesson-variant/get-lesson-variant.handler.js';
 import { GetBestVariantHandler } from './application/queries/get-best-variant/get-best-variant.handler.js';
 import { GetVideoCuesHandler } from './application/queries/get-video-cues/get-video-cues.handler.js';
+import { GetVideoQuestionHandler } from './application/queries/get-video-question/get-video-question.handler.js';
 import { GetListeningStagesHandler } from './application/queries/get-listening-stages/get-listening-stages.handler.js';
 import { GetTextParagraphsHandler } from './application/queries/get-text-paragraphs/get-text-paragraphs.handler.js';
 import { GetGlossaryMarksHandler } from './application/queries/get-glossary-marks/get-glossary-marks.handler.js';
@@ -65,8 +70,10 @@ const CommandHandlers = [
   UpdateVariantHandler,
   PublishVariantHandler,
   DeleteVariantHandler,
-  CreateVideoCueHandler,
-  CreateListeningStageHandler,
+  SetVideoCuesHandler,
+  SetVideoQuestionHandler,
+  ClearVideoQuestionHandler,
+  SetListeningStagesHandler,
   SetParagraphTranslationsHandler,
   MarkGlossaryWordHandler,
 ];
@@ -79,6 +86,7 @@ const QueryHandlers = [
   GetLessonVariantHandler,
   GetBestVariantHandler,
   GetVideoCuesHandler,
+  GetVideoQuestionHandler,
   GetListeningStagesHandler,
   GetTextParagraphsHandler,
   GetGlossaryMarksHandler,
@@ -97,6 +105,7 @@ const QueryHandlers = [
       useClass: PrismaLessonVariantMediaRefRepository,
     },
     { provide: LESSON_VIDEO_CUE_REPOSITORY, useClass: PrismaLessonVideoCueRepository },
+    { provide: LESSON_VIDEO_QUESTION_REPOSITORY, useClass: PrismaLessonVideoQuestionRepository },
     { provide: LESSON_LISTENING_STAGE_REPOSITORY, useClass: PrismaLessonListeningStageRepository },
     {
       provide: LESSON_PARAGRAPH_TRANSLATION_REPOSITORY,

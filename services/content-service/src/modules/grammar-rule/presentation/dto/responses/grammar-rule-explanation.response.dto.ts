@@ -1,5 +1,85 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { GrammarRuleExplanationEntity } from '../../../domain/entities/grammar-rule-explanation.entity.js';
+import { GrammarRuleCompareExampleEntity } from '../../../domain/entities/grammar-rule-compare-example.entity.js';
+import { GrammarRuleQuickCheckEntity } from '../../../domain/entities/grammar-rule-quick-check.entity.js';
+
+export class GrammarRuleCompareExampleResponseDto {
+  @ApiProperty({ example: 'a1b2c3d4-e5f6-...' })
+  id!: string;
+
+  @ApiProperty({ example: 'uuid-of-explanation' })
+  explanationId!: string;
+
+  @ApiProperty({ example: 0 })
+  position!: number;
+
+  @ApiProperty({ example: 'Jeg spiser epler.' })
+  sentence!: string;
+
+  @ApiPropertyOptional({ example: 'Present tense, correct word order.', nullable: true })
+  note!: string | null;
+
+  @ApiProperty({ example: true })
+  isCorrect!: boolean;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty()
+  updatedAt!: Date;
+
+  static from(entity: GrammarRuleCompareExampleEntity): GrammarRuleCompareExampleResponseDto {
+    const dto = new GrammarRuleCompareExampleResponseDto();
+    dto.id = entity.id;
+    dto.explanationId = entity.explanationId;
+    dto.position = entity.position;
+    dto.sentence = entity.sentence;
+    dto.note = entity.note;
+    dto.isCorrect = entity.isCorrect;
+    dto.createdAt = entity.createdAt;
+    dto.updatedAt = entity.updatedAt;
+    return dto;
+  }
+}
+
+export class GrammarRuleQuickCheckResponseDto {
+  @ApiProperty({ example: 'a1b2c3d4-e5f6-...' })
+  id!: string;
+
+  @ApiProperty({ example: 'uuid-of-explanation' })
+  explanationId!: string;
+
+  @ApiProperty({ example: 'Which sentence uses the present tense correctly?' })
+  question!: string;
+
+  @ApiProperty({ example: ['Jeg spiser epler.', 'Jeg spise epler.'], type: [String] })
+  options!: string[];
+
+  @ApiProperty({ example: 0 })
+  correctOptionIndex!: number;
+
+  @ApiProperty({ example: 'The verb "spise" takes an -r ending in the present tense.' })
+  explanation!: string;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty()
+  updatedAt!: Date;
+
+  static from(entity: GrammarRuleQuickCheckEntity): GrammarRuleQuickCheckResponseDto {
+    const dto = new GrammarRuleQuickCheckResponseDto();
+    dto.id = entity.id;
+    dto.explanationId = entity.explanationId;
+    dto.question = entity.question;
+    dto.options = entity.options;
+    dto.correctOptionIndex = entity.correctOptionIndex;
+    dto.explanation = entity.explanation;
+    dto.createdAt = entity.createdAt;
+    dto.updatedAt = entity.updatedAt;
+    return dto;
+  }
+}
 
 export class GrammarRuleExplanationResponseDto {
   @ApiProperty({ example: 'a1b2c3d4-e5f6-...' })
@@ -32,6 +112,21 @@ export class GrammarRuleExplanationResponseDto {
   @ApiPropertyOptional({ example: 8, nullable: true })
   estimatedReadingMinutes!: number | null;
 
+  @ApiPropertyOptional({ example: 'Jeg spiser epler hver dag.', nullable: true })
+  anchorText!: string | null;
+
+  @ApiProperty({ example: ['spiser'], type: [String] })
+  anchorHighlights!: string[];
+
+  @ApiPropertyOptional({ example: 'Notice the -er ending.', nullable: true })
+  anchorNote!: string | null;
+
+  @ApiProperty({ type: [GrammarRuleCompareExampleResponseDto] })
+  compareExamples!: GrammarRuleCompareExampleResponseDto[];
+
+  @ApiPropertyOptional({ type: GrammarRuleQuickCheckResponseDto, nullable: true })
+  quickCheck!: GrammarRuleQuickCheckResponseDto | null;
+
   @ApiProperty({ example: 'draft', enum: ['draft', 'published'] })
   status!: string;
 
@@ -53,7 +148,11 @@ export class GrammarRuleExplanationResponseDto {
   @ApiPropertyOptional()
   deletedAt!: Date | null;
 
-  static from(entity: GrammarRuleExplanationEntity): GrammarRuleExplanationResponseDto {
+  static from(
+    entity: GrammarRuleExplanationEntity,
+    compareExamples: GrammarRuleCompareExampleEntity[] = [],
+    quickCheck: GrammarRuleQuickCheckEntity | null = null,
+  ): GrammarRuleExplanationResponseDto {
     const dto = new GrammarRuleExplanationResponseDto();
     dto.id = entity.id;
     dto.grammarRuleId = entity.grammarRuleId;
@@ -64,6 +163,14 @@ export class GrammarRuleExplanationResponseDto {
     dto.displaySummary = entity.displaySummary;
     dto.bodyMarkdown = entity.bodyMarkdown;
     dto.estimatedReadingMinutes = entity.estimatedReadingMinutes;
+    dto.anchorText = entity.anchorText;
+    dto.anchorHighlights = entity.anchorHighlights;
+    dto.anchorNote = entity.anchorNote;
+    dto.compareExamples = compareExamples
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((e) => GrammarRuleCompareExampleResponseDto.from(e));
+    dto.quickCheck = quickCheck ? GrammarRuleQuickCheckResponseDto.from(quickCheck) : null;
     dto.status = entity.status;
     dto.createdByUserId = entity.createdByUserId;
     dto.lastEditedByUserId = entity.lastEditedByUserId;

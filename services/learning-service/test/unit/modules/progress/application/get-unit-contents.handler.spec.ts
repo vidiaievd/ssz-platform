@@ -81,18 +81,18 @@ function makeHandler(overrides: Partial<{
 }
 
 describe('GetUnitContentsHandler', () => {
-  it('marks only the first item available when nothing is completed', async () => {
+  it('marks every item available when nothing is completed (no within-module lock)', async () => {
     const { handler } = makeHandler();
 
     const result = await handler.execute(new GetUnitContentsQuery(USER_ID, MODULE_ID));
 
-    expect(result.sections[0].items.map((i) => i.status)).toEqual(['available', 'locked']);
-    expect(result.ungroupedItems[0].status).toBe('locked');
+    expect(result.sections[0].items.map((i) => i.status)).toEqual(['available', 'available']);
+    expect(result.ungroupedItems[0].status).toBe('available');
     expect(result.sections[0].items[0].xpReward).toBe(10);
     expect(result.sections[0].items[1].xpReward).toBeNull();
   });
 
-  it('unlocks the next item once the previous one is COMPLETED', async () => {
+  it('marks a completed item as completed while the rest stay available', async () => {
     const completedLesson = UserProgress.reconstitute({
       id: 'p1',
       userId: USER_ID,
@@ -113,10 +113,10 @@ describe('GetUnitContentsHandler', () => {
     const result = await handler.execute(new GetUnitContentsQuery(USER_ID, MODULE_ID));
 
     expect(result.sections[0].items.map((i) => i.status)).toEqual(['completed', 'available']);
-    expect(result.ungroupedItems[0].status).toBe('locked');
+    expect(result.ungroupedItems[0].status).toBe('available');
   });
 
-  it('surfaces IN_PROGRESS as in_progress for an unlocked item', async () => {
+  it('surfaces IN_PROGRESS as in_progress', async () => {
     const inProgress = UserProgress.reconstitute({
       id: 'p1',
       userId: USER_ID,
@@ -137,7 +137,7 @@ describe('GetUnitContentsHandler', () => {
     const result = await handler.execute(new GetUnitContentsQuery(USER_ID, MODULE_ID));
 
     expect(result.sections[0].items[0].status).toBe('in_progress');
-    expect(result.sections[0].items[1].status).toBe('locked');
+    expect(result.sections[0].items[1].status).toBe('available');
   });
 
   it('throws BadRequestException when the content client fails', async () => {

@@ -6,10 +6,13 @@ import { DifficultyLevel } from '../value-objects/difficulty-level.vo.js';
 import { Visibility, getValidVisibilities } from '../value-objects/visibility.vo.js';
 import { AccessTier } from '../value-objects/access-tier.vo.js';
 import { LevelSystem } from '../value-objects/level-system.vo.js';
+import { GatingMode } from '../value-objects/gating-mode.vo.js';
 import { ContainerDomainError } from '../exceptions/container-domain.exceptions.js';
 import { ContainerCreatedEvent } from '../events/container-created.event.js';
 import { ContainerUpdatedEvent } from '../events/container-updated.event.js';
 import { ContainerDeletedEvent } from '../events/container-deleted.event.js';
+import { CourseArchivedEvent } from '../events/course-archived.event.js';
+import { CourseRestoredEvent } from '../events/course-restored.event.js';
 
 interface ContainerProps {
   slug: string | null;
@@ -24,10 +27,12 @@ interface ContainerProps {
   visibility: Visibility;
   accessTier: AccessTier;
   levelSystem: LevelSystem;
+  gatingMode: GatingMode;
   currentPublishedVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  archivedAt: Date | null;
 }
 
 export interface CreateContainerProps {
@@ -42,6 +47,7 @@ export interface CreateContainerProps {
   visibility: Visibility;
   accessTier: AccessTier;
   levelSystem?: LevelSystem;
+  gatingMode?: GatingMode;
 }
 
 export interface UpdateContainerProps {
@@ -52,6 +58,7 @@ export interface UpdateContainerProps {
   visibility?: Visibility;
   accessTier?: AccessTier;
   levelSystem?: LevelSystem;
+  gatingMode?: GatingMode;
 }
 
 export class ContainerEntity extends AggregateRoot {
@@ -100,6 +107,9 @@ export class ContainerEntity extends AggregateRoot {
   get levelSystem(): LevelSystem {
     return this.props.levelSystem;
   }
+  get gatingMode(): GatingMode {
+    return this.props.gatingMode;
+  }
   get currentPublishedVersionId(): string | null {
     return this.props.currentPublishedVersionId;
   }
@@ -111,6 +121,9 @@ export class ContainerEntity extends AggregateRoot {
   }
   get deletedAt(): Date | null {
     return this.props.deletedAt;
+  }
+  get archivedAt(): Date | null {
+    return this.props.archivedAt;
   }
 
   // ── Factory ───────────────────────────────────────────────────────────────
@@ -138,10 +151,12 @@ export class ContainerEntity extends AggregateRoot {
       visibility: p.visibility,
       accessTier: p.accessTier,
       levelSystem: p.levelSystem ?? LevelSystem.CEFR,
+      gatingMode: p.gatingMode ?? GatingMode.OPEN,
       currentPublishedVersionId: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
+      archivedAt: null,
     });
 
     entity.addDomainEvent(
@@ -214,6 +229,10 @@ export class ContainerEntity extends AggregateRoot {
       this.props.levelSystem = changes.levelSystem;
       updatedFields.push('levelSystem');
     }
+    if (changes.gatingMode !== undefined && changes.gatingMode !== this.props.gatingMode) {
+      this.props.gatingMode = changes.gatingMode;
+      updatedFields.push('gatingMode');
+    }
 
     if (updatedFields.length > 0) {
       this.props.updatedAt = new Date();
@@ -239,6 +258,45 @@ export class ContainerEntity extends AggregateRoot {
 
     this.addDomainEvent(
       new ContainerDeletedEvent({
+        containerId: this.id,
+        ownerUserId: this.props.ownerUserId,
+      }),
+    );
+
+    return Result.ok();
+  }
+
+  archive(): Result<void, ContainerDomainError> {
+    if (this.props.deletedAt !== null) {
+      return Result.fail(ContainerDomainError.CONTAINER_ALREADY_DELETED);
+    }
+    if (this.props.archivedAt !== null) {
+      return Result.fail(ContainerDomainError.CONTAINER_ALREADY_ARCHIVED);
+    }
+
+    this.props.archivedAt = new Date();
+    this.props.updatedAt = new Date();
+
+    this.addDomainEvent(
+      new CourseArchivedEvent({
+        containerId: this.id,
+        ownerUserId: this.props.ownerUserId,
+      }),
+    );
+
+    return Result.ok();
+  }
+
+  restore(): Result<void, ContainerDomainError> {
+    if (this.props.archivedAt === null) {
+      return Result.fail(ContainerDomainError.CONTAINER_NOT_ARCHIVED);
+    }
+
+    this.props.archivedAt = null;
+    this.props.updatedAt = new Date();
+
+    this.addDomainEvent(
+      new CourseRestoredEvent({
         containerId: this.id,
         ownerUserId: this.props.ownerUserId,
       }),

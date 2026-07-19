@@ -134,6 +134,16 @@ export class ContainerVersionEntity extends Entity<string> {
     return Result.ok();
   }
 
+  unpublish(): Result<void, ContainerDomainError> {
+    if (this.props.status !== VersionStatus.PUBLISHED) {
+      return Result.fail(ContainerDomainError.VERSION_NOT_IN_PUBLISHED_STATUS);
+    }
+
+    this.props.status = VersionStatus.DRAFT;
+
+    return Result.ok();
+  }
+
   cancelDraft(): Result<void, ContainerDomainError> {
     if (this.props.status !== VersionStatus.DRAFT) {
       return Result.fail(ContainerDomainError.VERSION_NOT_IN_DRAFT_STATUS);

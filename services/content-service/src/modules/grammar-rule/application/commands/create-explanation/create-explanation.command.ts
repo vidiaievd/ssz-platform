@@ -11,5 +11,8 @@ export class CreateExplanationCommand {
     public readonly bodyMarkdown: string,
     public readonly displaySummary?: string,
     public readonly estimatedReadingMinutes?: number,
+    public readonly anchorText?: string,
+    public readonly anchorHighlights?: string[],
+    public readonly anchorNote?: string,
   ) {}
 }

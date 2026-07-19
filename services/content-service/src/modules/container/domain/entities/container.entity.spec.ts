@@ -4,6 +4,7 @@ import { DifficultyLevel } from '../value-objects/difficulty-level.vo.js';
 import { Visibility } from '../value-objects/visibility.vo.js';
 import { AccessTier } from '../value-objects/access-tier.vo.js';
 import { LevelSystem } from '../value-objects/level-system.vo.js';
+import { GatingMode } from '../value-objects/gating-mode.vo.js';
 
 function createCourse(levelSystem?: LevelSystem) {
   const result = ContainerEntity.create({
@@ -52,5 +53,87 @@ describe('ContainerEntity — levelSystem', () => {
 
     expect(result.isOk).toBe(true);
     expect(container.getDomainEvents()).toHaveLength(0);
+  });
+});
+
+describe('ContainerEntity — gatingMode', () => {
+  it('defaults to OPEN at creation', () => {
+    const container = createCourse();
+
+    expect(container.gatingMode).toBe(GatingMode.OPEN);
+  });
+
+  it('updates gatingMode and raises a ContainerUpdatedEvent', () => {
+    const container = createCourse();
+    container.clearDomainEvents();
+
+    const result = container.update({ gatingMode: GatingMode.SEQUENTIAL });
+
+    expect(result.isOk).toBe(true);
+    expect(container.gatingMode).toBe(GatingMode.SEQUENTIAL);
+    expect(container.getDomainEvents()).toHaveLength(1);
+  });
+
+  it('is a no-op when updated to the same gatingMode', () => {
+    const container = createCourse();
+    container.clearDomainEvents();
+
+    const result = container.update({ gatingMode: GatingMode.OPEN });
+
+    expect(result.isOk).toBe(true);
+    expect(container.getDomainEvents()).toHaveLength(0);
+  });
+});
+
+describe('ContainerEntity — archive/restore', () => {
+  it('archives a container, setting archivedAt and raising CourseArchivedEvent', () => {
+    const container = createCourse();
+    container.clearDomainEvents();
+
+    const result = container.archive();
+
+    expect(result.isOk).toBe(true);
+    expect(container.archivedAt).not.toBeNull();
+    expect(container.getDomainEvents()).toHaveLength(1);
+    expect(container.getDomainEvents()[0].eventType).toBe('content.course.archived');
+  });
+
+  it('fails to archive an already-archived container', () => {
+    const container = createCourse();
+    container.archive();
+
+    const result = container.archive();
+
+    expect(result.isFail).toBe(true);
+  });
+
+  it('fails to archive a deleted container', () => {
+    const container = createCourse();
+    container.softDelete();
+
+    const result = container.archive();
+
+    expect(result.isFail).toBe(true);
+  });
+
+  it('restores an archived container, clearing archivedAt and raising CourseRestoredEvent', () => {
+    const container = createCourse();
+    container.archive();
+    container.clearDomainEvents();
+
+    const result = container.restore();
+
+    expect(result.isOk).toBe(true);
+    expect(container.archivedAt).toBeNull();
+    expect(container.getDomainEvents()).toHaveLength(1);
+    expect(container.getDomainEvents()[0].eventType).toBe('content.course.restored');
+  });
+
+  it('fails to restore a container that is not archived', () => {
+    const container = createCourse();
+
+    const result = container.restore();
+
+    expect(result.isFail).toBe(true);
   });
 });

@@ -8,14 +8,28 @@
       "content": {
         "question": "___ Urai kom til Norge, snakket hun ikke norsk.",
         "options": [
-          { "id": "a", "text": "Når" },
-          { "id": "b", "text": "Da" },
-          { "id": "c", "text": "Mens" },
-          { "id": "d", "text": "Hvis" }
+          {
+            "id": "a",
+            "text": "Når"
+          },
+          {
+            "id": "b",
+            "text": "Da"
+          },
+          {
+            "id": "c",
+            "text": "Mens"
+          },
+          {
+            "id": "d",
+            "text": "Hvis"
+          }
         ]
       },
       "expectedAnswers": {
-        "correct_option_ids": ["b"],
+        "correct_option_ids": [
+          "b"
+        ],
         "explanation": "Однократное действие в прошлом → «da»."
       }
     },
@@ -27,14 +41,28 @@
       "content": {
         "question": "Maria skriver en e-post ___ hun vil fortelle om treningen.",
         "options": [
-          { "id": "a", "text": "fordi" },
-          { "id": "b", "text": "selv om" },
-          { "id": "c", "text": "før" },
-          { "id": "d", "text": "hvis" }
+          {
+            "id": "a",
+            "text": "fordi"
+          },
+          {
+            "id": "b",
+            "text": "selv om"
+          },
+          {
+            "id": "c",
+            "text": "før"
+          },
+          {
+            "id": "d",
+            "text": "hvis"
+          }
         ]
       },
       "expectedAnswers": {
-        "correct_option_ids": ["a"],
+        "correct_option_ids": [
+          "a"
+        ],
         "explanation": "«fordi» вводит причину."
       }
     },
@@ -45,10 +73,19 @@
       "hint": "В придаточном setningsadverb (ikke) стоит ПЕРЕД глаголом.",
       "content": {
         "text_with_blanks": "Han kjøper grovbrød fordi det ___1___ er sunt å spise loff.",
-        "word_bank": ["ikke"]
+        "word_bank": [
+          "ikke"
+        ]
       },
       "expectedAnswers": {
-        "blanks": [{ "blank_id": 1, "accepted_answers": ["ikke"] }],
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "ikke"
+            ]
+          }
+        ],
         "explanation": "В придаточном: «... fordi det ikke er sunt ...» — ikke перед er."
       }
     },
@@ -59,10 +96,21 @@
       "hint": "После придаточного и запятой сразу идёт глагол.",
       "content": {
         "text_with_blanks": "Før Urai kom til Norge, ___1___ (arbeide) hun på en stor fabrikk.",
-        "word_bank": ["arbeidet", "hun arbeidet", "arbeider"]
+        "word_bank": [
+          "arbeidet",
+          "hun arbeidet",
+          "arbeider"
+        ]
       },
       "expectedAnswers": {
-        "blanks": [{ "blank_id": 1, "accepted_answers": ["arbeidet"] }],
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "arbeidet"
+            ]
+          }
+        ],
         "explanation": "Придаточное на позиции 1 → глагол «arbeidet» на позиции 2, потом подлежащее «hun»."
       }
     },
@@ -70,9 +118,15 @@
       "key": "g17-tr-hvis",
       "template": "translate_to_target",
       "instruction": "Переведите предложение на норвежский.",
-      "content": { "source_text": "Я приду, если ты позовёшь.", "source_language": "ru" },
+      "content": {
+        "source_text": "Я приду, если ты позовёшь.",
+        "source_language": "ru"
+      },
       "expectedAnswers": {
-        "accepted_translations": ["Jeg kommer hvis du roper.", "Jeg kommer hvis du roper"],
+        "accepted_translations": [
+          "Jeg kommer hvis du roper.",
+          "Jeg kommer hvis du roper"
+        ],
         "explanation": "«hvis» + придаточное с прямым порядком слов."
       }
     },
@@ -82,24 +136,60 @@
       "instruction": "Сопоставьте союз с его значением.",
       "content": {
         "left_items": [
-          { "id": "l1", "text": "fordi" },
-          { "id": "l2", "text": "selv om" },
-          { "id": "l3", "text": "før" },
-          { "id": "l4", "text": "hvis" }
+          {
+            "id": "l1",
+            "text": "fordi"
+          },
+          {
+            "id": "l2",
+            "text": "selv om"
+          },
+          {
+            "id": "l3",
+            "text": "før"
+          },
+          {
+            "id": "l4",
+            "text": "hvis"
+          }
         ],
         "right_items": [
-          { "id": "r1", "text": "до того как" },
-          { "id": "r2", "text": "потому что" },
-          { "id": "r3", "text": "если" },
-          { "id": "r4", "text": "хотя" }
+          {
+            "id": "r1",
+            "text": "до того как"
+          },
+          {
+            "id": "r2",
+            "text": "потому что"
+          },
+          {
+            "id": "r3",
+            "text": "если"
+          },
+          {
+            "id": "r4",
+            "text": "хотя"
+          }
         ]
       },
       "expectedAnswers": {
         "pairs": [
-          { "left_id": "l1", "right_id": "r2" },
-          { "left_id": "l2", "right_id": "r4" },
-          { "left_id": "l3", "right_id": "r1" },
-          { "left_id": "l4", "right_id": "r3" }
+          {
+            "left_id": "l1",
+            "right_id": "r2"
+          },
+          {
+            "left_id": "l2",
+            "right_id": "r4"
+          },
+          {
+            "left_id": "l3",
+            "right_id": "r1"
+          },
+          {
+            "left_id": "l4",
+            "right_id": "r3"
+          }
         ]
       }
     }
@@ -113,14 +203,28 @@
       "content": {
         "question": "De får så mange gjester. ___ trenger de mye mat.",
         "options": [
-          { "id": "a", "text": "Fordi" },
-          { "id": "b", "text": "Derfor" },
-          { "id": "c", "text": "Selv om" },
-          { "id": "d", "text": "Likevel" }
+          {
+            "id": "a",
+            "text": "Fordi"
+          },
+          {
+            "id": "b",
+            "text": "Derfor"
+          },
+          {
+            "id": "c",
+            "text": "Selv om"
+          },
+          {
+            "id": "d",
+            "text": "Likevel"
+          }
         ]
       },
       "expectedAnswers": {
-        "correct_option_ids": ["b"],
+        "correct_option_ids": [
+          "b"
+        ],
         "explanation": "«Derfor» + инверсия: «Derfor trenger de ...»."
       }
     },
@@ -132,14 +236,28 @@
       "content": {
         "question": "De fleste feirer jul ___ de ikke er spesielt troende.",
         "options": [
-          { "id": "a", "text": "likevel" },
-          { "id": "b", "text": "selv om" },
-          { "id": "c", "text": "derfor" },
-          { "id": "d", "text": "fordi" }
+          {
+            "id": "a",
+            "text": "likevel"
+          },
+          {
+            "id": "b",
+            "text": "selv om"
+          },
+          {
+            "id": "c",
+            "text": "derfor"
+          },
+          {
+            "id": "d",
+            "text": "fordi"
+          }
         ]
       },
       "expectedAnswers": {
-        "correct_option_ids": ["b"],
+        "correct_option_ids": [
+          "b"
+        ],
         "explanation": "«selv om» вводит придаточное: «... selv om de ikke er troende»."
       }
     },
@@ -150,10 +268,21 @@
       "hint": "Derfor + инверсия: глагол сразу после Derfor.",
       "content": {
         "text_with_blanks": "Robin vil prøve å stå på ski. Derfor ___1___ (skulle) de på fjellet.",
-        "word_bank": ["skal", "de skal", "skulle"]
+        "word_bank": [
+          "skal",
+          "de skal",
+          "skulle"
+        ]
       },
       "expectedAnswers": {
-        "blanks": [{ "blank_id": 1, "accepted_answers": ["skal"] }],
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "skal"
+            ]
+          }
+        ],
         "explanation": "«Derfor skal de på fjellet» — глагол «skal» перед подлежащим «de»."
       }
     },
@@ -165,14 +294,28 @@
       "content": {
         "question": "___ dere kommer hit, får vi det hyggelig.",
         "options": [
-          { "id": "a", "text": "Da" },
-          { "id": "b", "text": "Når" },
-          { "id": "c", "text": "Fordi" },
-          { "id": "d", "text": "Mens" }
+          {
+            "id": "a",
+            "text": "Da"
+          },
+          {
+            "id": "b",
+            "text": "Når"
+          },
+          {
+            "id": "c",
+            "text": "Fordi"
+          },
+          {
+            "id": "d",
+            "text": "Mens"
+          }
         ]
       },
       "expectedAnswers": {
-        "correct_option_ids": ["b"],
+        "correct_option_ids": [
+          "b"
+        ],
         "explanation": "Действие в будущем → «når»."
       }
     },
@@ -180,9 +323,15 @@
       "key": "g18-tr-derfor",
       "template": "translate_to_target",
       "instruction": "Переведите на норвежский (начните с «Derfor»).",
-      "content": { "source_text": "Поэтому им нужно много еды.", "source_language": "ru" },
+      "content": {
+        "source_text": "Поэтому им нужно много еды.",
+        "source_language": "ru"
+      },
       "expectedAnswers": {
-        "accepted_translations": ["Derfor trenger de mye mat.", "Derfor trenger de mye mat"],
+        "accepted_translations": [
+          "Derfor trenger de mye mat.",
+          "Derfor trenger de mye mat"
+        ],
         "explanation": "«Derfor» + инверсия: «Derfor trenger de ...»."
       }
     },
@@ -192,74 +341,521 @@
       "instruction": "Сопоставьте подчинительный союз с соответствующим наречием.",
       "content": {
         "left_items": [
-          { "id": "l1", "text": "fordi" },
-          { "id": "l2", "text": "selv om" }
+          {
+            "id": "l1",
+            "text": "fordi"
+          },
+          {
+            "id": "l2",
+            "text": "selv om"
+          }
         ],
         "right_items": [
-          { "id": "r1", "text": "likevel" },
-          { "id": "r2", "text": "derfor" }
+          {
+            "id": "r1",
+            "text": "likevel"
+          },
+          {
+            "id": "r2",
+            "text": "derfor"
+          }
         ]
       },
       "expectedAnswers": {
         "pairs": [
-          { "left_id": "l1", "right_id": "r2" },
-          { "left_id": "l2", "right_id": "r1" }
+          {
+            "left_id": "l1",
+            "right_id": "r2"
+          },
+          {
+            "left_id": "l2",
+            "right_id": "r1"
+          }
         ]
       }
     }
   ],
-  "19": [
+  "19A": [
     {
       "key": "l19-match-ord",
       "template": "match_pairs",
       "instruction": "Сопоставьте норвежские слова из урока с переводом.",
       "content": {
         "left_items": [
-          { "id": "l1", "text": "leserinnlegg" },
-          { "id": "l2", "text": "øvelse" },
-          { "id": "l3", "text": "å utsette" },
-          { "id": "l4", "text": "vane" }
+          {
+            "id": "l1",
+            "text": "leserinnlegg"
+          },
+          {
+            "id": "l2",
+            "text": "øvelse"
+          },
+          {
+            "id": "l3",
+            "text": "å utsette"
+          },
+          {
+            "id": "l4",
+            "text": "vane"
+          }
         ],
         "right_items": [
-          { "id": "r1", "text": "упражнение" },
-          { "id": "r2", "text": "письмо читателя" },
-          { "id": "r3", "text": "привычка" },
-          { "id": "r4", "text": "откладывать" }
+          {
+            "id": "r1",
+            "text": "упражнение"
+          },
+          {
+            "id": "r2",
+            "text": "письмо читателя"
+          },
+          {
+            "id": "r3",
+            "text": "привычка"
+          },
+          {
+            "id": "r4",
+            "text": "откладывать"
+          }
         ]
       },
       "expectedAnswers": {
         "pairs": [
-          { "left_id": "l1", "right_id": "r2" },
-          { "left_id": "l2", "right_id": "r1" },
-          { "left_id": "l3", "right_id": "r4" },
-          { "left_id": "l4", "right_id": "r3" }
+          {
+            "left_id": "l1",
+            "right_id": "r2"
+          },
+          {
+            "left_id": "l2",
+            "right_id": "r1"
+          },
+          {
+            "left_id": "l3",
+            "right_id": "r4"
+          },
+          {
+            "left_id": "l4",
+            "right_id": "r3"
+          }
         ]
       }
     },
+    {
+      "key": "l19-fib-innlegg",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте подходящее слово.",
+      "hint": "То, что Анне хочет написать на сайте газеты.",
+      "content": {
+        "text_with_blanks": "Anne har lyst til å skrive et ___1___ om svømmehallen på Nordbypostens nettsted.",
+        "word_bank": [
+          "innlegg",
+          "øvelse",
+          "vane",
+          "flåte"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "innlegg",
+              "leserinnlegg"
+            ]
+          }
+        ],
+        "explanation": "Anne skriver et (leser)innlegg."
+      }
+    },
+    {
+      "key": "l19a-short-anne",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопрос по тексту 19A (полным предложением по-норвежски).",
+      "content": {
+        "question": "Når hørte Anne nyhetene om svømmehallen?",
+        "context": "Anne skriver et leserinnlegg (tekst 19A)."
+      },
+      "expectedAnswers": {
+        "reference_answer": "På veien hjem hørte hun nyheten på radio.",
+        "accepted_answers": [
+          "på radio",
+          "på veien hjem",
+          "på veien hjem hørte hun det på radio",
+          "hun hørte det på radio"
+        ]
+      },
+      "hint": "Hun kjørte hjem fra jobb."
+    },
+    {
+      "key": "l19a-fib-synes",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте mener или synes. Помните: synes — о личном впечатлении/вкусе, mener — об аргументированном мнении.",
+      "content": {
+        "text_with_blanks": "Jeg ___1___ at det er dyrt med bensin i Norge! Jeg ___2___ at Ny i Norge er ei god bok.",
+        "word_bank": [
+          "mener",
+          "synes"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "mener"
+            ]
+          },
+          {
+            "blank_id": 2,
+            "accepted_answers": [
+              "synes"
+            ]
+          }
+        ],
+        "explanation": "Bensinprisen er et standpunkt man argumenterer for → mener. En bok man liker → synes."
+      }
+    },
+    {
+      "key": "l19a-fib-sikker",
+      "template": "fill_in_blank",
+      "instruction": "Вставьте at или om.",
+      "content": {
+        "text_with_blanks": "Er du sikker på ___1___ de skal gifte seg i sommer? Nå er jeg sikker på ___2___ det skal skje. Jeg er ikke sikker på ___3___ jeg har lyst til å gå.",
+        "word_bank": [
+          "at",
+          "om"
+        ]
+      },
+      "expectedAnswers": {
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "om"
+            ]
+          },
+          {
+            "blank_id": 2,
+            "accepted_answers": [
+              "at"
+            ]
+          },
+          {
+            "blank_id": 3,
+            "accepted_answers": [
+              "om"
+            ]
+          }
+        ],
+        "explanation": "«om» — når det uttrykker tvil/spørsmål (ja/nei), «at» — når man er sikker på et faktum."
+      }
+    },
+    {
+      "key": "l19a-writing-innlegg",
+      "template": "writing_task",
+      "instruction": "Напишите короткое письмо читателя (leserinnlegg) по одной из тем. Сначала — ваше мнение, затем аргументы, в конце — что должны сделать политики/другие.",
+      "content": {
+        "prompt": "Skriv et kort leserinnlegg om en av disse sakene. Bruk tittelen på saken du velger som overskrift.",
+        "min_words": 60,
+        "options": [
+          {
+            "id": "gratis-norskkurs",
+            "title": "Gratis norskkurs til alle",
+            "body": "Nå har politikerne bestemt seg: Endelig blir det gratis norskkurs for alle innvandrere."
+          },
+          {
+            "id": "obligatoriske-prover",
+            "title": "Obligatoriske norskprøver for alle innvandrere",
+            "body": "Nå blir det obligatoriske norskprøver for alle. Klarer du ikke prøven, får du ikke bli i Norge."
+          },
+          {
+            "id": "tog-billigere",
+            "title": "Tog skal bli billigere, fly skal bli dyrere",
+            "body": "Regjeringen har bestemt seg for å gjøre tog billigere og fly dyrere."
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "rubric": "Vurder struktur (mening → argument → oppfordring), relevante argumenter og grammatikk (leddsetninger, ordstilling).",
+        "criteria": [
+          "struktur",
+          "argumentasjon",
+          "grammatikk",
+          "ordforråd"
+        ]
+      }
+    }
+  ],
+  "19B": [
+    {
+      "key": "l19-tr-detsamme",
+      "template": "translate_to_target",
+      "instruction": "Переведите на норвежский.",
+      "content": {
+        "source_text": "Это не одно и то же.",
+        "source_language": "ru"
+      },
+      "expectedAnswers": {
+        "accepted_translations": [
+          "Det er ikke det samme.",
+          "Det er ikke det samme"
+        ],
+        "explanation": "Устойчивое выражение из 19B: «Det er ikke det samme.»"
+      }
+    },
+    {
+      "key": "l19b-tf-susan",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt? (по тексту 19B)",
+      "content": {
+        "question": "Susan synes det er vanskelig å komme i kontakt med nordmenn.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "r"
+        ],
+        "explanation": "Ja — Susan synes det er vanskelig å bli kjent med nordmenn."
+      }
+    },
+    {
+      "key": "l19b-tf-maria",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt? (по тексту 19B)",
+      "content": {
+        "question": "Maria bruker ikke så mye tid med kollegaene.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "r"
+        ],
+        "explanation": "Riktig — Maria bruker ikke mye tid sammen med kollegaene."
+      }
+    },
+    {
+      "key": "l19b-tf-john",
+      "template": "multiple_choice",
+      "instruction": "Riktig eller galt? (по тексту 19B)",
+      "content": {
+        "question": "John har vært på fest hos en kollega.",
+        "options": [
+          {
+            "id": "r",
+            "text": "Riktig"
+          },
+          {
+            "id": "g",
+            "text": "Galt"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "r"
+        ],
+        "explanation": "Riktig — John forteller at han har vært på fest hos en av kollegaene."
+      }
+    },
+    {
+      "key": "l19b-mc-fingrene",
+      "template": "multiple_choice",
+      "instruction": "Что значит выделенное выражение?",
+      "content": {
+        "question": "Hva betyr «å henge fingrene i»?",
+        "options": [
+          {
+            "id": "a",
+            "text": "å ha mye å gjøre"
+          },
+          {
+            "id": "b",
+            "text": "å ha fine hansker"
+          },
+          {
+            "id": "c",
+            "text": "å ha mange barn"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "a"
+        ],
+        "explanation": "Å henge fingrene i = ha mye å gjøre / være travel."
+      },
+      "hint": "«I den alderen har de fleste mye å henge fingrene i.»"
+    },
+    {
+      "key": "l19b-mc-foregar",
+      "template": "multiple_choice",
+      "instruction": "Что значит выделенное слово?",
+      "content": {
+        "question": "Hva betyr «foregår» i «mye kontakt foregår via Internett»?",
+        "options": [
+          {
+            "id": "a",
+            "text": "skjer"
+          },
+          {
+            "id": "b",
+            "text": "flytter"
+          },
+          {
+            "id": "c",
+            "text": "ordner"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "correct_option_ids": [
+          "a"
+        ],
+        "explanation": "Å foregå = å skje (происходить)."
+      }
+    },
+    {
+      "key": "l19b-match-sier",
+      "template": "match_pairs",
+      "instruction": "Что уместно сказать в каждой ситуации? Сопоставьте ситуацию с репликой.",
+      "content": {
+        "left_items": [
+          {
+            "id": "l1",
+            "text": "Du kommer for sent til å møte en venn utenfor teateret."
+          },
+          {
+            "id": "l2",
+            "text": "Dere skal fram til plassene, men fem personer sitter i veien."
+          },
+          {
+            "id": "l3",
+            "text": "Du hører ikke hva vennen din sier."
+          },
+          {
+            "id": "l4",
+            "text": "Vennen din snakker for fort."
+          }
+        ],
+        "right_items": [
+          {
+            "id": "r1",
+            "text": "Unnskyld! Kan vi få komme forbi?"
+          },
+          {
+            "id": "r2",
+            "text": "Unnskyld, hva sa du?"
+          },
+          {
+            "id": "r3",
+            "text": "Ikke snakk så fort, er du snill!"
+          },
+          {
+            "id": "r4",
+            "text": "Det var på tide! Jeg trodde aldri du skulle komme!"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "pairs": [
+          {
+            "left_id": "l1",
+            "right_id": "r4"
+          },
+          {
+            "left_id": "l2",
+            "right_id": "r1"
+          },
+          {
+            "left_id": "l3",
+            "right_id": "r2"
+          },
+          {
+            "left_id": "l4",
+            "right_id": "r3"
+          }
+        ]
+      }
+    }
+  ],
+  "19C": [
     {
       "key": "l19-match-nordmenn",
       "template": "match_pairs",
       "instruction": "Сопоставьте известного норвежца с его сферой (по тексту 19C).",
       "content": {
         "left_items": [
-          { "id": "l1", "text": "Gro Harlem Brundtland" },
-          { "id": "l2", "text": "Thor Heyerdahl" },
-          { "id": "l3", "text": "Grete Waitz" },
-          { "id": "l4", "text": "a-ha" }
+          {
+            "id": "l1",
+            "text": "Gro Harlem Brundtland"
+          },
+          {
+            "id": "l2",
+            "text": "Thor Heyerdahl"
+          },
+          {
+            "id": "l3",
+            "text": "Grete Waitz"
+          },
+          {
+            "id": "l4",
+            "text": "a-ha"
+          }
         ],
         "right_items": [
-          { "id": "r1", "text": "oppdager" },
-          { "id": "r2", "text": "politiker" },
-          { "id": "r3", "text": "popgruppe" },
-          { "id": "r4", "text": "idrettsstjerne" }
+          {
+            "id": "r1",
+            "text": "oppdager"
+          },
+          {
+            "id": "r2",
+            "text": "politiker"
+          },
+          {
+            "id": "r3",
+            "text": "popgruppe"
+          },
+          {
+            "id": "r4",
+            "text": "idrettsstjerne"
+          }
         ]
       },
       "expectedAnswers": {
         "pairs": [
-          { "left_id": "l1", "right_id": "r2" },
-          { "left_id": "l2", "right_id": "r1" },
-          { "left_id": "l3", "right_id": "r4" },
-          { "left_id": "l4", "right_id": "r3" }
+          {
+            "left_id": "l1",
+            "right_id": "r2"
+          },
+          {
+            "left_id": "l2",
+            "right_id": "r1"
+          },
+          {
+            "left_id": "l3",
+            "right_id": "r4"
+          },
+          {
+            "left_id": "l4",
+            "right_id": "r3"
+          }
         ]
       }
     },
@@ -271,39 +867,274 @@
       "content": {
         "question": "Hvem ble Norges første kvinnelige statsminister?",
         "options": [
-          { "id": "a", "text": "Grete Waitz" },
-          { "id": "b", "text": "Gro Harlem Brundtland" },
-          { "id": "c", "text": "Anne Smith" },
-          { "id": "d", "text": "Larissa" }
+          {
+            "id": "a",
+            "text": "Grete Waitz"
+          },
+          {
+            "id": "b",
+            "text": "Gro Harlem Brundtland"
+          },
+          {
+            "id": "c",
+            "text": "Anne Smith"
+          },
+          {
+            "id": "d",
+            "text": "Larissa"
+          }
         ]
       },
       "expectedAnswers": {
-        "correct_option_ids": ["b"],
+        "correct_option_ids": [
+          "b"
+        ],
         "explanation": "Gro Harlem Brundtland ble statsminister i 1981."
       }
     },
     {
-      "key": "l19-fib-innlegg",
+      "key": "l19c-fib-navn",
       "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "То, что Анне хочет написать на сайте газеты.",
+      "instruction": "Впишите правильное имя по тексту 19C.",
       "content": {
-        "text_with_blanks": "Anne har lyst til å skrive et ___1___ om svømmehallen på Nordbypostens nettsted.",
-        "word_bank": ["innlegg", "øvelse", "vane", "flåte"]
+        "text_with_blanks": "___1___ var Norges første kvinnelige statsminister og lege. ___2___ ville bevise at han hadde rett og var i Brasil. ___3___ har vunnet New York Marathon ni ganger.",
+        "word_bank": [
+          "Gro Harlem Brundtland",
+          "Thor Heyerdahl",
+          "Grete Waitz",
+          "a-ha"
+        ]
       },
       "expectedAnswers": {
-        "blanks": [{ "blank_id": 1, "accepted_answers": ["innlegg", "leserinnlegg"] }],
-        "explanation": "Anne skriver et (leser)innlegg."
+        "blanks": [
+          {
+            "blank_id": 1,
+            "accepted_answers": [
+              "Gro Harlem Brundtland",
+              "Brundtland"
+            ]
+          },
+          {
+            "blank_id": 2,
+            "accepted_answers": [
+              "Thor Heyerdahl",
+              "Heyerdahl"
+            ]
+          },
+          {
+            "blank_id": 3,
+            "accepted_answers": [
+              "Grete Waitz",
+              "Waitz"
+            ]
+          }
+        ],
+        "explanation": "Brundtland (lege/statsminister), Heyerdahl (Kon-Tiki/Brasil), Waitz (maraton)."
       }
+    }
+  ],
+  "19-felles": [
+    {
+      "key": "l19-schema-helsetning",
+      "template": "sentence_schema",
+      "instruction": "Разложите слова главного предложения по полям схемы (setningsskjema).",
+      "content": {
+        "sentence": "Lars har aldri likt Lotte.",
+        "schema_type": "main",
+        "fields": [
+          {
+            "id": "forfelt",
+            "label": "Forfelt"
+          },
+          {
+            "id": "verbal1",
+            "label": "Verbal"
+          },
+          {
+            "id": "midtfelt",
+            "label": "Midtfelt (adverbial/subjekt)"
+          },
+          {
+            "id": "verbal2",
+            "label": "Verbal"
+          },
+          {
+            "id": "sluttfelt",
+            "label": "Sluttfelt (objekt/adverbial)"
+          }
+        ],
+        "tokens": [
+          {
+            "id": "t1",
+            "text": "Lars"
+          },
+          {
+            "id": "t2",
+            "text": "har"
+          },
+          {
+            "id": "t3",
+            "text": "aldri"
+          },
+          {
+            "id": "t4",
+            "text": "likt"
+          },
+          {
+            "id": "t5",
+            "text": "Lotte"
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "placements": [
+          {
+            "field_id": "forfelt",
+            "token_ids": [
+              "t1"
+            ]
+          },
+          {
+            "field_id": "verbal1",
+            "token_ids": [
+              "t2"
+            ]
+          },
+          {
+            "field_id": "midtfelt",
+            "token_ids": [
+              "t3"
+            ]
+          },
+          {
+            "field_id": "verbal2",
+            "token_ids": [
+              "t4"
+            ]
+          },
+          {
+            "field_id": "sluttfelt",
+            "token_ids": [
+              "t5"
+            ]
+          }
+        ]
+      },
+      "hint": "Forfelt = subjektet Lars; det finitte verbet «har» står på plass 2."
     },
     {
-      "key": "l19-tr-detsamme",
-      "template": "translate_to_target",
-      "instruction": "Переведите на норвежский.",
-      "content": { "source_text": "Это не одно и то же.", "source_language": "ru" },
+      "key": "l19-schema-leddsetning",
+      "template": "sentence_schema",
+      "instruction": "Разложите придаточное предложение «at Oslo er en fin by» по полям схемы для leddsetning.",
+      "content": {
+        "sentence": "Jeg synes at Oslo er en fin by.",
+        "schema_type": "subordinate",
+        "fields": [
+          {
+            "id": "subjunksjon",
+            "label": "subjunksjon"
+          },
+          {
+            "id": "subjekt",
+            "label": "SUBJEKT"
+          },
+          {
+            "id": "adverbial",
+            "label": "adverbial"
+          },
+          {
+            "id": "verbal",
+            "label": "verbal"
+          },
+          {
+            "id": "verbal2",
+            "label": "VERBAL"
+          },
+          {
+            "id": "sluttfelt",
+            "label": "Sluttfelt (objekt/adverbial)"
+          }
+        ],
+        "tokens": [
+          {
+            "id": "t1",
+            "text": "at"
+          },
+          {
+            "id": "t2",
+            "text": "Oslo"
+          },
+          {
+            "id": "t3",
+            "text": "er"
+          },
+          {
+            "id": "t4",
+            "text": "en fin by"
+          }
+        ]
+      },
       "expectedAnswers": {
-        "accepted_translations": ["Det er ikke det samme.", "Det er ikke det samme"],
-        "explanation": "Устойчивое выражение из 19B: «Det er ikke det samme.»"
+        "placements": [
+          {
+            "field_id": "subjunksjon",
+            "token_ids": [
+              "t1"
+            ]
+          },
+          {
+            "field_id": "subjekt",
+            "token_ids": [
+              "t2"
+            ]
+          },
+          {
+            "field_id": "adverbial",
+            "token_ids": []
+          },
+          {
+            "field_id": "verbal",
+            "token_ids": [
+              "t3"
+            ]
+          },
+          {
+            "field_id": "verbal2",
+            "token_ids": []
+          },
+          {
+            "field_id": "sluttfelt",
+            "token_ids": [
+              "t4"
+            ]
+          }
+        ]
+      },
+      "hint": "I leddsetninger står subjunksjonen først, subjektet før verbalet."
+    },
+    {
+      "key": "l19-writing-kontakt",
+      "template": "writing_task",
+      "instruction": "Напишите текст о своём опыте контакта с норвежцами.",
+      "content": {
+        "prompt": "Skriv om ditt møte med nordmenn: Hvordan var ditt første møte? Hvordan har du fått noen norske venner? Synes du det er vanskelig å bli kjent med nordmenn? Velg overskrift selv.",
+        "min_words": 80,
+        "options": [
+          {
+            "id": "kontakt",
+            "title": "Kontakt med nordmenn",
+            "body": "Skriv om hvordan du har blitt kjent med nordmenn."
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "rubric": "Vurder sammenheng, konkrete eksempler og variert setningsbygning (hel- og leddsetninger).",
+        "criteria": [
+          "innhold",
+          "sammenheng",
+          "grammatikk",
+          "ordforråd"
+        ]
       }
     }
   ]

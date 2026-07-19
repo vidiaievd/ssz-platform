@@ -5,6 +5,11 @@ import { GetLeafItemsQuery } from './get-leaf-items.query.js';
 export interface LeafItem {
   itemType: string;
   itemId: string;
+  // Nearest top-level MODULE (sub-lesson) ancestor under the course, or null
+  // when the leaf sits directly under the course. Drives per-sub-lesson
+  // completion/gating in Learning Service.
+  moduleId: string | null;
+  isRequired: boolean;
 }
 
 @QueryHandler(GetLeafItemsQuery)
@@ -14,12 +19,16 @@ export class GetLeafItemsHandler
   constructor(private readonly prisma: PrismaService) {}
 
   async execute(query: GetLeafItemsQuery): Promise<LeafItem[]> {
-    return this.collectLeafItems(query.containerId, new Set());
+    return this.collectLeafItems(query.containerId, new Set(), null);
   }
 
   private async collectLeafItems(
     containerId: string,
     visited: Set<string>,
+    // The top-level module this recursion has descended into (null at the
+    // course root). Once set, it stays fixed for everything beneath — deeper
+    // nesting still attributes to the first module under the course.
+    moduleId: string | null,
   ): Promise<LeafItem[]> {
     if (visited.has(containerId)) return [];
     visited.add(containerId);
@@ -32,7 +41,7 @@ export class GetLeafItemsHandler
 
     const items = await this.prisma.containerItem.findMany({
       where: { containerVersionId: container.currentPublishedVersionId },
-      select: { itemType: true, itemId: true },
+      select: { itemType: true, itemId: true, isRequired: true },
     });
 
     const leafItems: LeafItem[] = [];
@@ -42,14 +51,20 @@ export class GetLeafItemsHandler
       if (item.itemType === 'CONTAINER') {
         nestedContainerIds.push(item.itemId);
       } else {
-        leafItems.push({ itemType: item.itemType, itemId: item.itemId });
+        leafItems.push({
+          itemType: item.itemType,
+          itemId: item.itemId,
+          moduleId,
+          isRequired: item.isRequired,
+        });
       }
     }
 
-    // Recurse into nested containers (e.g. COURSE → MODULEs) in parallel.
+    // Recurse into nested containers (e.g. COURSE → MODULEs) in parallel. The
+    // first level below the course fixes the moduleId attribution.
     if (nestedContainerIds.length > 0) {
       const nested = await Promise.all(
-        nestedContainerIds.map((id) => this.collectLeafItems(id, visited)),
+        nestedContainerIds.map((id) => this.collectLeafItems(id, visited, moduleId ?? id)),
       );
       for (const batch of nested) leafItems.push(...batch);
     }

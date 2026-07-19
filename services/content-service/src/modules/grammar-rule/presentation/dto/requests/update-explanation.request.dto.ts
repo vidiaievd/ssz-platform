@@ -1,6 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class UpdateExplanationRequestDto {
   @ApiPropertyOptional({ example: 'Present Tense — Updated Title' })
@@ -29,4 +38,20 @@ export class UpdateExplanationRequestDto {
   @Min(1)
   @Max(480)
   estimatedReadingMinutes?: number | null;
+
+  @ApiPropertyOptional({ example: 'Jeg spiser epler hver dag.', nullable: true })
+  @IsOptional()
+  @IsString()
+  anchorText?: string | null;
+
+  @ApiPropertyOptional({ example: ['spiser'], type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  anchorHighlights?: string[];
+
+  @ApiPropertyOptional({ example: 'Notice the -er ending.', nullable: true })
+  @IsOptional()
+  @IsString()
+  anchorNote?: string | null;
 }

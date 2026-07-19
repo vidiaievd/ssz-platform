@@ -18,6 +18,9 @@ export interface GrammarRuleExplanationCreateData {
   displaySummary: string | null;
   bodyMarkdown: string;
   estimatedReadingMinutes: number | null;
+  anchorText: string | null;
+  anchorHighlights: string[];
+  anchorNote: string | null;
   status: $Enums.VariantStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -51,6 +54,9 @@ export class GrammarRuleExplanationMapper {
       displaySummary: raw.displaySummary,
       bodyMarkdown: raw.bodyMarkdown,
       estimatedReadingMinutes: raw.estimatedReadingMinutes,
+      anchorText: raw.anchorText,
+      anchorHighlights: raw.anchorHighlights,
+      anchorNote: raw.anchorNote,
       status: prismaVariantStatusToDomain(raw.status),
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
@@ -72,6 +78,9 @@ export class GrammarRuleExplanationMapper {
       displaySummary: entity.displaySummary,
       bodyMarkdown: entity.bodyMarkdown,
       estimatedReadingMinutes: entity.estimatedReadingMinutes,
+      anchorText: entity.anchorText,
+      anchorHighlights: entity.anchorHighlights,
+      anchorNote: entity.anchorNote,
       status: domainVariantStatusToPrisma(entity.status),
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
@@ -88,6 +97,9 @@ export class GrammarRuleExplanationMapper {
       displaySummary: entity.displaySummary,
       bodyMarkdown: entity.bodyMarkdown,
       estimatedReadingMinutes: entity.estimatedReadingMinutes,
+      anchorText: entity.anchorText,
+      anchorHighlights: entity.anchorHighlights,
+      anchorNote: entity.anchorNote,
       status: domainVariantStatusToPrisma(entity.status),
       updatedAt: entity.updatedAt,
       lastEditedByUserId: entity.lastEditedByUserId,
