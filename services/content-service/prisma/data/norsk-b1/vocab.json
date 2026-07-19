@@ -2,90 +2,4549 @@
   "1A": {
     "title": "1A — Bartek søker ny jobb",
     "words": [
-      { "word": "søke", "partOfSpeech": "VERB", "translation": "искать / подавать заявку (на работу)", "grammaticalProperties": { "present_tense": "søker", "past_tense": "søkte", "perfect_tense": "søkt" } },
-      { "word": "stillingsannonse", "partOfSpeech": "NOUN", "translation": "объявление о вакансии", "grammaticalProperties": { "gender": "masculine", "definite_singular": "stillingsannonsen", "plural_form": "stillingsannonser", "definite_plural": "stillingsannonsene" } },
-      { "word": "søknad", "partOfSpeech": "NOUN", "translation": "заявление, заявка", "grammaticalProperties": { "gender": "masculine", "definite_singular": "søknaden", "plural_form": "søknader", "definite_plural": "søknadene" } },
-      { "word": "CV", "partOfSpeech": "NOUN", "translation": "резюме", "grammaticalProperties": { "gender": "masculine", "definite_singular": "CV-en", "plural_form": "CV-er", "definite_plural": "CV-ene" } },
-      { "word": "fagbrev", "partOfSpeech": "NOUN", "translation": "свидетельство о профессиональной квалификации", "grammaticalProperties": { "gender": "neuter", "definite_singular": "fagbrevet", "plural_form": "fagbrev", "definite_plural": "fagbrevene" } },
-      { "word": "erfaring", "partOfSpeech": "NOUN", "translation": "опыт", "grammaticalProperties": { "gender": "masculine", "definite_singular": "erfaringen", "plural_form": "erfaringer", "definite_plural": "erfaringene" } },
-      { "word": "erfaren", "partOfSpeech": "ADJECTIVE", "translation": "опытный", "grammaticalProperties": { "neuter_form": "erfarent", "plural_form": "erfarne" } },
-      { "word": "selvstendig", "partOfSpeech": "ADJECTIVE", "translation": "самостоятельный", "grammaticalProperties": { "neuter_form": "selvstendig", "plural_form": "selvstendige" } },
-      { "word": "nøyaktig", "partOfSpeech": "ADJECTIVE", "translation": "точный, аккуратный", "grammaticalProperties": { "neuter_form": "nøyaktig", "plural_form": "nøyaktige" } },
-      { "word": "ansvar", "partOfSpeech": "NOUN", "translation": "ответственность", "grammaticalProperties": { "gender": "neuter", "definite_singular": "ansvaret" } },
-      { "word": "ansvarlig", "partOfSpeech": "ADJECTIVE", "translation": "ответственный", "grammaticalProperties": { "neuter_form": "ansvarlig", "plural_form": "ansvarlige" } },
-      { "word": "avdelingsleder", "partOfSpeech": "NOUN", "translation": "руководитель отдела", "grammaticalProperties": { "gender": "masculine", "definite_singular": "avdelingslederen", "plural_form": "avdelingsledere", "definite_plural": "avdelingslederne" } },
-      { "word": "arbeidsmiljø", "partOfSpeech": "NOUN", "translation": "рабочая атмосфера, условия труда", "grammaticalProperties": { "gender": "neuter", "definite_singular": "arbeidsmiljøet", "plural_form": "arbeidsmiljøer", "definite_plural": "arbeidsmiljøene" } },
-      { "word": "konkurransedyktig", "partOfSpeech": "ADJECTIVE", "translation": "конкурентоспособный", "grammaticalProperties": { "neuter_form": "konkurransedyktig", "plural_form": "konkurransedyktige" } },
-      { "word": "videreutvikling", "partOfSpeech": "NOUN", "translation": "дальнейшее развитие", "grammaticalProperties": { "gender": "masculine", "definite_singular": "videreutviklingen" } },
-      { "word": "førerkort", "partOfSpeech": "NOUN", "translation": "водительские права", "grammaticalProperties": { "gender": "neuter", "definite_singular": "førerkortet", "plural_form": "førerkort", "definite_plural": "førerkortene" } },
-      { "word": "løsningsorientert", "partOfSpeech": "ADJECTIVE", "translation": "нацеленный на решение", "grammaticalProperties": { "neuter_form": "løsningsorientert", "plural_form": "løsningsorienterte" } },
-      { "word": "oppdatere", "partOfSpeech": "VERB", "translation": "обновлять", "grammaticalProperties": { "present_tense": "oppdaterer", "past_tense": "oppdaterte", "perfect_tense": "oppdatert" } },
-      { "word": "ryddig", "partOfSpeech": "ADJECTIVE", "translation": "аккуратный, упорядоченный", "grammaticalProperties": { "neuter_form": "ryddig", "plural_form": "ryddige" } },
-      { "word": "oversiktlig", "partOfSpeech": "ADJECTIVE", "translation": "наглядный, обозримый", "grammaticalProperties": { "neuter_form": "oversiktlig", "plural_form": "oversiktlige" } },
-      { "word": "skrivefeil", "partOfSpeech": "NOUN", "translation": "опечатка, ошибка в письме", "grammaticalProperties": { "gender": "masculine", "definite_singular": "skrivefeilen", "plural_form": "skrivefeil", "definite_plural": "skrivefeilene" } },
-      { "word": "rette", "partOfSpeech": "VERB", "translation": "исправлять", "grammaticalProperties": { "present_tense": "retter", "past_tense": "rettet", "perfect_tense": "rettet" } },
-      { "word": "krysse fingrene", "partOfSpeech": "PHRASE", "translation": "держать кулаки (букв. скрестить пальцы)" },
-      { "word": "bestemme seg", "partOfSpeech": "VERB", "translation": "принять решение", "grammaticalProperties": { "present_tense": "bestemmer seg", "past_tense": "bestemte seg", "perfect_tense": "bestemt seg" } },
-      { "word": "firma", "partOfSpeech": "NOUN", "translation": "фирма", "grammaticalProperties": { "gender": "neuter", "definite_singular": "firmaet", "plural_form": "firmaer", "definite_plural": "firmaene" } },
-      { "word": "ansatt", "partOfSpeech": "NOUN", "translation": "сотрудник", "grammaticalProperties": { "gender": "masculine", "definite_singular": "ansatte", "plural_form": "ansatte", "definite_plural": "ansatte" } }
+      {
+        "word": "søke",
+        "partOfSpeech": "VERB",
+        "translation": "искать / подавать заявку (на работу)",
+        "grammaticalProperties": {
+          "present_tense": "søker",
+          "past_tense": "søkte",
+          "perfect_tense": "søkt"
+        }
+      },
+      {
+        "word": "stillingsannonse",
+        "partOfSpeech": "NOUN",
+        "translation": "объявление о вакансии",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "stillingsannonsen",
+          "plural_form": "stillingsannonser",
+          "definite_plural": "stillingsannonsene"
+        }
+      },
+      {
+        "word": "søknad",
+        "partOfSpeech": "NOUN",
+        "translation": "заявление, заявка",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "søknaden",
+          "plural_form": "søknader",
+          "definite_plural": "søknadene"
+        }
+      },
+      {
+        "word": "CV",
+        "partOfSpeech": "NOUN",
+        "translation": "резюме",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "CV-en",
+          "plural_form": "CV-er",
+          "definite_plural": "CV-ene"
+        }
+      },
+      {
+        "word": "fagbrev",
+        "partOfSpeech": "NOUN",
+        "translation": "свидетельство о профессиональной квалификации",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "fagbrevet",
+          "plural_form": "fagbrev",
+          "definite_plural": "fagbrevene"
+        }
+      },
+      {
+        "word": "erfaring",
+        "partOfSpeech": "NOUN",
+        "translation": "опыт",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "erfaringen",
+          "plural_form": "erfaringer",
+          "definite_plural": "erfaringene"
+        }
+      },
+      {
+        "word": "erfaren",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "опытный",
+        "grammaticalProperties": {
+          "neuter_form": "erfarent",
+          "plural_form": "erfarne"
+        }
+      },
+      {
+        "word": "selvstendig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "самостоятельный",
+        "grammaticalProperties": {
+          "neuter_form": "selvstendig",
+          "plural_form": "selvstendige"
+        }
+      },
+      {
+        "word": "nøyaktig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "точный, аккуратный",
+        "grammaticalProperties": {
+          "neuter_form": "nøyaktig",
+          "plural_form": "nøyaktige"
+        }
+      },
+      {
+        "word": "ansvar",
+        "partOfSpeech": "NOUN",
+        "translation": "ответственность",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "ansvaret"
+        }
+      },
+      {
+        "word": "ansvarlig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "ответственный",
+        "grammaticalProperties": {
+          "neuter_form": "ansvarlig",
+          "plural_form": "ansvarlige"
+        }
+      },
+      {
+        "word": "avdelingsleder",
+        "partOfSpeech": "NOUN",
+        "translation": "руководитель отдела",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "avdelingslederen",
+          "plural_form": "avdelingsledere",
+          "definite_plural": "avdelingslederne"
+        }
+      },
+      {
+        "word": "arbeidsmiljø",
+        "partOfSpeech": "NOUN",
+        "translation": "рабочая атмосфера, условия труда",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "arbeidsmiljøet",
+          "plural_form": "arbeidsmiljøer",
+          "definite_plural": "arbeidsmiljøene"
+        }
+      },
+      {
+        "word": "konkurransedyktig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "конкурентоспособный",
+        "grammaticalProperties": {
+          "neuter_form": "konkurransedyktig",
+          "plural_form": "konkurransedyktige"
+        }
+      },
+      {
+        "word": "videreutvikling",
+        "partOfSpeech": "NOUN",
+        "translation": "дальнейшее развитие",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "videreutviklingen"
+        }
+      },
+      {
+        "word": "førerkort",
+        "partOfSpeech": "NOUN",
+        "translation": "водительские права",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "førerkortet",
+          "plural_form": "førerkort",
+          "definite_plural": "førerkortene"
+        }
+      },
+      {
+        "word": "løsningsorientert",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "нацеленный на решение",
+        "grammaticalProperties": {
+          "neuter_form": "løsningsorientert",
+          "plural_form": "løsningsorienterte"
+        }
+      },
+      {
+        "word": "oppdatere",
+        "partOfSpeech": "VERB",
+        "translation": "обновлять",
+        "grammaticalProperties": {
+          "present_tense": "oppdaterer",
+          "past_tense": "oppdaterte",
+          "perfect_tense": "oppdatert"
+        }
+      },
+      {
+        "word": "ryddig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "аккуратный, упорядоченный",
+        "grammaticalProperties": {
+          "neuter_form": "ryddig",
+          "plural_form": "ryddige"
+        }
+      },
+      {
+        "word": "oversiktlig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "наглядный, обозримый",
+        "grammaticalProperties": {
+          "neuter_form": "oversiktlig",
+          "plural_form": "oversiktlige"
+        }
+      },
+      {
+        "word": "skrivefeil",
+        "partOfSpeech": "NOUN",
+        "translation": "опечатка, ошибка в письме",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "skrivefeilen",
+          "plural_form": "skrivefeil",
+          "definite_plural": "skrivefeilene"
+        }
+      },
+      {
+        "word": "rette",
+        "partOfSpeech": "VERB",
+        "translation": "исправлять",
+        "grammaticalProperties": {
+          "present_tense": "retter",
+          "past_tense": "rettet",
+          "perfect_tense": "rettet"
+        }
+      },
+      {
+        "word": "krysse fingrene",
+        "partOfSpeech": "PHRASE",
+        "translation": "держать кулаки (букв. скрестить пальцы)"
+      },
+      {
+        "word": "bestemme seg",
+        "partOfSpeech": "VERB",
+        "translation": "принять решение",
+        "grammaticalProperties": {
+          "present_tense": "bestemmer seg",
+          "past_tense": "bestemte seg",
+          "perfect_tense": "bestemt seg"
+        }
+      },
+      {
+        "word": "firma",
+        "partOfSpeech": "NOUN",
+        "translation": "фирма",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "firmaet",
+          "plural_form": "firmaer",
+          "definite_plural": "firmaene"
+        }
+      },
+      {
+        "word": "ansatt",
+        "partOfSpeech": "NOUN",
+        "translation": "сотрудник",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "ansatte",
+          "plural_form": "ansatte",
+          "definite_plural": "ansatte"
+        }
+      }
     ]
   },
   "1B": {
     "title": "1B — Jobbintervjuet",
     "words": [
-      { "word": "jobbintervju", "partOfSpeech": "NOUN", "translation": "собеседование", "grammaticalProperties": { "gender": "neuter", "definite_singular": "jobbintervjuet", "plural_form": "jobbintervjuer", "definite_plural": "jobbintervjuene" } },
-      { "word": "kandidat", "partOfSpeech": "NOUN", "translation": "кандидат", "grammaticalProperties": { "gender": "masculine", "definite_singular": "kandidaten", "plural_form": "kandidater", "definite_plural": "kandidatene" } },
-      { "word": "nervøs", "partOfSpeech": "ADJECTIVE", "translation": "нервный, волнующийся", "grammaticalProperties": { "neuter_form": "nervøst", "plural_form": "nervøse" } },
-      { "word": "bli enige", "partOfSpeech": "PHRASE", "translation": "договориться" },
-      { "word": "håndtrykk", "partOfSpeech": "NOUN", "translation": "рукопожатие", "grammaticalProperties": { "gender": "neuter", "definite_singular": "håndtrykket", "plural_form": "håndtrykk", "definite_plural": "håndtrykkene" } },
-      { "word": "bakgrunn", "partOfSpeech": "NOUN", "translation": "биография, профессиональный опыт", "grammaticalProperties": { "gender": "masculine", "definite_singular": "bakgrunnen", "plural_form": "bakgrunner", "definite_plural": "bakgrunnene" } },
-      { "word": "utdannet", "partOfSpeech": "ADJECTIVE", "translation": "получивший образование", "grammaticalProperties": { "neuter_form": "utdannet", "plural_form": "utdannede" } },
-      { "word": "nybygg", "partOfSpeech": "NOUN", "translation": "новое строительство", "grammaticalProperties": { "gender": "neuter", "definite_singular": "nybygget", "plural_form": "nybygg", "definite_plural": "nybyggene" } },
-      { "word": "rehabilitering", "partOfSpeech": "NOUN", "translation": "реконструкция, ремонт", "grammaticalProperties": { "gender": "masculine", "definite_singular": "rehabiliteringen" } },
-      { "word": "bytte jobb", "partOfSpeech": "PHRASE", "translation": "сменить работу" },
-      { "word": "mulighet", "partOfSpeech": "NOUN", "translation": "возможность", "grammaticalProperties": { "gender": "masculine", "definite_singular": "muligheten", "plural_form": "muligheter", "definite_plural": "mulighetene" } },
-      { "word": "lede", "partOfSpeech": "VERB", "translation": "руководить", "grammaticalProperties": { "present_tense": "leder", "past_tense": "ledet", "perfect_tense": "ledet" } },
-      { "word": "prosjekt", "partOfSpeech": "NOUN", "translation": "проект", "grammaticalProperties": { "gender": "neuter", "definite_singular": "prosjektet", "plural_form": "prosjekter", "definite_plural": "prosjektene" } },
-      { "word": "medarbeider", "partOfSpeech": "NOUN", "translation": "сотрудник, коллега", "grammaticalProperties": { "gender": "masculine", "definite_singular": "medarbeideren", "plural_form": "medarbeidere", "definite_plural": "medarbeiderne" } },
-      { "word": "pålitelig", "partOfSpeech": "ADJECTIVE", "translation": "надёжный", "grammaticalProperties": { "neuter_form": "pålitelig", "plural_form": "pålitelige" } },
-      { "word": "gi opp", "partOfSpeech": "VERB", "translation": "сдаваться", "grammaticalProperties": { "present_tense": "gir opp", "past_tense": "ga opp", "perfect_tense": "gitt opp" } },
-      { "word": "samarbeide", "partOfSpeech": "VERB", "translation": "сотрудничать", "grammaticalProperties": { "present_tense": "samarbeider", "past_tense": "samarbeidet", "perfect_tense": "samarbeidet" } },
-      { "word": "arbeidsoppgave", "partOfSpeech": "NOUN", "translation": "рабочая задача", "grammaticalProperties": { "gender": "masculine", "definite_singular": "arbeidsoppgaven", "plural_form": "arbeidsoppgaver", "definite_plural": "arbeidsoppgavene" } },
-      { "word": "gi beskjed", "partOfSpeech": "PHRASE", "translation": "сообщить, дать знать" },
-      { "word": "tore", "partOfSpeech": "VERB", "translation": "осмеливаться", "grammaticalProperties": { "present_tense": "tør", "past_tense": "torde", "perfect_tense": "tort" } },
-      { "word": "håpe", "partOfSpeech": "VERB", "translation": "надеяться", "grammaticalProperties": { "present_tense": "håper", "past_tense": "håpet", "perfect_tense": "håpet" } }
+      {
+        "word": "jobbintervju",
+        "partOfSpeech": "NOUN",
+        "translation": "собеседование",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "jobbintervjuet",
+          "plural_form": "jobbintervjuer",
+          "definite_plural": "jobbintervjuene"
+        }
+      },
+      {
+        "word": "kandidat",
+        "partOfSpeech": "NOUN",
+        "translation": "кандидат",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kandidaten",
+          "plural_form": "kandidater",
+          "definite_plural": "kandidatene"
+        }
+      },
+      {
+        "word": "nervøs",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "нервный, волнующийся",
+        "grammaticalProperties": {
+          "neuter_form": "nervøst",
+          "plural_form": "nervøse"
+        }
+      },
+      {
+        "word": "bli enige",
+        "partOfSpeech": "PHRASE",
+        "translation": "договориться"
+      },
+      {
+        "word": "håndtrykk",
+        "partOfSpeech": "NOUN",
+        "translation": "рукопожатие",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "håndtrykket",
+          "plural_form": "håndtrykk",
+          "definite_plural": "håndtrykkene"
+        }
+      },
+      {
+        "word": "bakgrunn",
+        "partOfSpeech": "NOUN",
+        "translation": "биография, профессиональный опыт",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "bakgrunnen",
+          "plural_form": "bakgrunner",
+          "definite_plural": "bakgrunnene"
+        }
+      },
+      {
+        "word": "utdannet",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "получивший образование",
+        "grammaticalProperties": {
+          "neuter_form": "utdannet",
+          "plural_form": "utdannede"
+        }
+      },
+      {
+        "word": "nybygg",
+        "partOfSpeech": "NOUN",
+        "translation": "новое строительство",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "nybygget",
+          "plural_form": "nybygg",
+          "definite_plural": "nybyggene"
+        }
+      },
+      {
+        "word": "rehabilitering",
+        "partOfSpeech": "NOUN",
+        "translation": "реконструкция, ремонт",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "rehabiliteringen"
+        }
+      },
+      {
+        "word": "bytte jobb",
+        "partOfSpeech": "PHRASE",
+        "translation": "сменить работу"
+      },
+      {
+        "word": "mulighet",
+        "partOfSpeech": "NOUN",
+        "translation": "возможность",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "muligheten",
+          "plural_form": "muligheter",
+          "definite_plural": "mulighetene"
+        }
+      },
+      {
+        "word": "lede",
+        "partOfSpeech": "VERB",
+        "translation": "руководить",
+        "grammaticalProperties": {
+          "present_tense": "leder",
+          "past_tense": "ledet",
+          "perfect_tense": "ledet"
+        }
+      },
+      {
+        "word": "prosjekt",
+        "partOfSpeech": "NOUN",
+        "translation": "проект",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "prosjektet",
+          "plural_form": "prosjekter",
+          "definite_plural": "prosjektene"
+        }
+      },
+      {
+        "word": "medarbeider",
+        "partOfSpeech": "NOUN",
+        "translation": "сотрудник, коллега",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "medarbeideren",
+          "plural_form": "medarbeidere",
+          "definite_plural": "medarbeiderne"
+        }
+      },
+      {
+        "word": "pålitelig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "надёжный",
+        "grammaticalProperties": {
+          "neuter_form": "pålitelig",
+          "plural_form": "pålitelige"
+        }
+      },
+      {
+        "word": "gi opp",
+        "partOfSpeech": "VERB",
+        "translation": "сдаваться",
+        "grammaticalProperties": {
+          "present_tense": "gir opp",
+          "past_tense": "ga opp",
+          "perfect_tense": "gitt opp"
+        }
+      },
+      {
+        "word": "samarbeide",
+        "partOfSpeech": "VERB",
+        "translation": "сотрудничать",
+        "grammaticalProperties": {
+          "present_tense": "samarbeider",
+          "past_tense": "samarbeidet",
+          "perfect_tense": "samarbeidet"
+        }
+      },
+      {
+        "word": "arbeidsoppgave",
+        "partOfSpeech": "NOUN",
+        "translation": "рабочая задача",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "arbeidsoppgaven",
+          "plural_form": "arbeidsoppgaver",
+          "definite_plural": "arbeidsoppgavene"
+        }
+      },
+      {
+        "word": "gi beskjed",
+        "partOfSpeech": "PHRASE",
+        "translation": "сообщить, дать знать"
+      },
+      {
+        "word": "tore",
+        "partOfSpeech": "VERB",
+        "translation": "осмеливаться",
+        "grammaticalProperties": {
+          "present_tense": "tør",
+          "past_tense": "torde",
+          "perfect_tense": "tort"
+        }
+      },
+      {
+        "word": "håpe",
+        "partOfSpeech": "VERB",
+        "translation": "надеяться",
+        "grammaticalProperties": {
+          "present_tense": "håper",
+          "past_tense": "håpet",
+          "perfect_tense": "håpet"
+        }
+      }
     ]
   },
   "1C": {
     "title": "1C — Arbeidsmiljø i Norge",
     "words": [
-      { "word": "flat", "partOfSpeech": "ADJECTIVE", "translation": "плоский (о структуре)", "grammaticalProperties": { "neuter_form": "flatt", "plural_form": "flate" } },
-      { "word": "avstand", "partOfSpeech": "NOUN", "translation": "расстояние, дистанция", "grammaticalProperties": { "gender": "masculine", "definite_singular": "avstanden", "plural_form": "avstander", "definite_plural": "avstandene" } },
-      { "word": "sjef", "partOfSpeech": "NOUN", "translation": "начальник", "grammaticalProperties": { "gender": "masculine", "definite_singular": "sjefen", "plural_form": "sjefer", "definite_plural": "sjefene" } },
-      { "word": "uvant", "partOfSpeech": "ADJECTIVE", "translation": "непривычный", "grammaticalProperties": { "neuter_form": "uvant", "plural_form": "uvante" } },
-      { "word": "formell", "partOfSpeech": "ADJECTIVE", "translation": "формальный", "grammaticalProperties": { "neuter_form": "formelt", "plural_form": "formelle" } },
-      { "word": "ta en avgjørelse", "partOfSpeech": "PHRASE", "translation": "принимать решение" },
-      { "word": "møte", "partOfSpeech": "NOUN", "translation": "собрание, встреча", "grammaticalProperties": { "gender": "neuter", "definite_singular": "møtet", "plural_form": "møter", "definite_plural": "møtene" } },
-      { "word": "saklig", "partOfSpeech": "ADJECTIVE", "translation": "по существу, объективный", "grammaticalProperties": { "neuter_form": "saklig", "plural_form": "saklige" } },
-      { "word": "høflig", "partOfSpeech": "ADJECTIVE", "translation": "вежливый", "grammaticalProperties": { "neuter_form": "høflig", "plural_form": "høflige" } },
-      { "word": "uenig", "partOfSpeech": "ADJECTIVE", "translation": "несогласный", "grammaticalProperties": { "neuter_form": "uenig", "plural_form": "uenige" } },
-      { "word": "balanse", "partOfSpeech": "NOUN", "translation": "баланс", "grammaticalProperties": { "gender": "masculine", "definite_singular": "balansen", "plural_form": "balanser", "definite_plural": "balansene" } },
-      { "word": "fritid", "partOfSpeech": "NOUN", "translation": "свободное время", "grammaticalProperties": { "gender": "masculine", "definite_singular": "fritiden" } },
-      { "word": "overtid", "partOfSpeech": "NOUN", "translation": "сверхурочная работа", "grammaticalProperties": { "gender": "masculine", "definite_singular": "overtiden" } },
-      { "word": "prioritere", "partOfSpeech": "VERB", "translation": "ставить в приоритет", "grammaticalProperties": { "present_tense": "prioriterer", "past_tense": "prioriterte", "perfect_tense": "prioritert" } },
-      { "word": "rettighet", "partOfSpeech": "NOUN", "translation": "право", "grammaticalProperties": { "gender": "masculine", "definite_singular": "rettigheten", "plural_form": "rettigheter", "definite_plural": "rettighetene" } },
-      { "word": "fast ansettelse", "partOfSpeech": "PHRASE", "translation": "постоянное трудоустройство" },
-      { "word": "sykepenger", "partOfSpeech": "NOUN", "translation": "оплата по больничному", "grammaticalProperties": { "gender": "masculine", "definite_plural": "sykepengene" } },
-      { "word": "foreldrepermisjon", "partOfSpeech": "NOUN", "translation": "родительский отпуск", "grammaticalProperties": { "gender": "masculine", "definite_singular": "foreldrepermisjonen" } },
-      { "word": "fagforening", "partOfSpeech": "NOUN", "translation": "профсоюз", "grammaticalProperties": { "gender": "masculine", "definite_singular": "fagforeningen", "plural_form": "fagforeninger", "definite_plural": "fagforeningene" } },
-      { "word": "forhandle", "partOfSpeech": "VERB", "translation": "вести переговоры", "grammaticalProperties": { "present_tense": "forhandler", "past_tense": "forhandlet", "perfect_tense": "forhandlet" } },
-      { "word": "arbeidsvilkår", "partOfSpeech": "NOUN", "translation": "условие труда", "grammaticalProperties": { "gender": "neuter", "definite_singular": "arbeidsvilkåret", "plural_form": "arbeidsvilkår", "definite_plural": "arbeidsvilkårene" } },
-      { "word": "konflikt", "partOfSpeech": "NOUN", "translation": "конфликт", "grammaticalProperties": { "gender": "masculine", "definite_singular": "konflikten", "plural_form": "konflikter", "definite_plural": "konfliktene" } },
-      { "word": "kaffepause", "partOfSpeech": "NOUN", "translation": "перерыв на кофе", "grammaticalProperties": { "gender": "masculine", "definite_singular": "kaffepausen", "plural_form": "kaffepauser", "definite_plural": "kaffepausene" } },
-      { "word": "uskreven", "partOfSpeech": "ADJECTIVE", "translation": "неписаный", "grammaticalProperties": { "neuter_form": "uskrevet", "plural_form": "uskrevne" } },
-      { "word": "inkluderende", "partOfSpeech": "ADJECTIVE", "translation": "инклюзивный, принимающий", "grammaticalProperties": { "neuter_form": "inkluderende", "plural_form": "inkluderende" } },
-      { "word": "rettferdig", "partOfSpeech": "ADJECTIVE", "translation": "справедливый", "grammaticalProperties": { "neuter_form": "rettferdig", "plural_form": "rettferdige" } },
-      { "word": "trygg", "partOfSpeech": "ADJECTIVE", "translation": "безопасный, надёжный", "grammaticalProperties": { "neuter_form": "trygt", "plural_form": "trygge" } }
+      {
+        "word": "flat",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "плоский (о структуре)",
+        "grammaticalProperties": {
+          "neuter_form": "flatt",
+          "plural_form": "flate"
+        }
+      },
+      {
+        "word": "avstand",
+        "partOfSpeech": "NOUN",
+        "translation": "расстояние, дистанция",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "avstanden",
+          "plural_form": "avstander",
+          "definite_plural": "avstandene"
+        }
+      },
+      {
+        "word": "sjef",
+        "partOfSpeech": "NOUN",
+        "translation": "начальник",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "sjefen",
+          "plural_form": "sjefer",
+          "definite_plural": "sjefene"
+        }
+      },
+      {
+        "word": "uvant",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "непривычный",
+        "grammaticalProperties": {
+          "neuter_form": "uvant",
+          "plural_form": "uvante"
+        }
+      },
+      {
+        "word": "formell",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "формальный",
+        "grammaticalProperties": {
+          "neuter_form": "formelt",
+          "plural_form": "formelle"
+        }
+      },
+      {
+        "word": "ta en avgjørelse",
+        "partOfSpeech": "PHRASE",
+        "translation": "принимать решение"
+      },
+      {
+        "word": "møte",
+        "partOfSpeech": "NOUN",
+        "translation": "собрание, встреча",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "møtet",
+          "plural_form": "møter",
+          "definite_plural": "møtene"
+        }
+      },
+      {
+        "word": "saklig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "по существу, объективный",
+        "grammaticalProperties": {
+          "neuter_form": "saklig",
+          "plural_form": "saklige"
+        }
+      },
+      {
+        "word": "høflig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "вежливый",
+        "grammaticalProperties": {
+          "neuter_form": "høflig",
+          "plural_form": "høflige"
+        }
+      },
+      {
+        "word": "uenig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "несогласный",
+        "grammaticalProperties": {
+          "neuter_form": "uenig",
+          "plural_form": "uenige"
+        }
+      },
+      {
+        "word": "balanse",
+        "partOfSpeech": "NOUN",
+        "translation": "баланс",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "balansen",
+          "plural_form": "balanser",
+          "definite_plural": "balansene"
+        }
+      },
+      {
+        "word": "fritid",
+        "partOfSpeech": "NOUN",
+        "translation": "свободное время",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "fritiden"
+        }
+      },
+      {
+        "word": "overtid",
+        "partOfSpeech": "NOUN",
+        "translation": "сверхурочная работа",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "overtiden"
+        }
+      },
+      {
+        "word": "prioritere",
+        "partOfSpeech": "VERB",
+        "translation": "ставить в приоритет",
+        "grammaticalProperties": {
+          "present_tense": "prioriterer",
+          "past_tense": "prioriterte",
+          "perfect_tense": "prioritert"
+        }
+      },
+      {
+        "word": "rettighet",
+        "partOfSpeech": "NOUN",
+        "translation": "право",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "rettigheten",
+          "plural_form": "rettigheter",
+          "definite_plural": "rettighetene"
+        }
+      },
+      {
+        "word": "fast ansettelse",
+        "partOfSpeech": "PHRASE",
+        "translation": "постоянное трудоустройство"
+      },
+      {
+        "word": "sykepenger",
+        "partOfSpeech": "NOUN",
+        "translation": "оплата по больничному",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_plural": "sykepengene"
+        }
+      },
+      {
+        "word": "foreldrepermisjon",
+        "partOfSpeech": "NOUN",
+        "translation": "родительский отпуск",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "foreldrepermisjonen"
+        }
+      },
+      {
+        "word": "fagforening",
+        "partOfSpeech": "NOUN",
+        "translation": "профсоюз",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "fagforeningen",
+          "plural_form": "fagforeninger",
+          "definite_plural": "fagforeningene"
+        }
+      },
+      {
+        "word": "forhandle",
+        "partOfSpeech": "VERB",
+        "translation": "вести переговоры",
+        "grammaticalProperties": {
+          "present_tense": "forhandler",
+          "past_tense": "forhandlet",
+          "perfect_tense": "forhandlet"
+        }
+      },
+      {
+        "word": "arbeidsvilkår",
+        "partOfSpeech": "NOUN",
+        "translation": "условие труда",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "arbeidsvilkåret",
+          "plural_form": "arbeidsvilkår",
+          "definite_plural": "arbeidsvilkårene"
+        }
+      },
+      {
+        "word": "konflikt",
+        "partOfSpeech": "NOUN",
+        "translation": "конфликт",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "konflikten",
+          "plural_form": "konflikter",
+          "definite_plural": "konfliktene"
+        }
+      },
+      {
+        "word": "kaffepause",
+        "partOfSpeech": "NOUN",
+        "translation": "перерыв на кофе",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kaffepausen",
+          "plural_form": "kaffepauser",
+          "definite_plural": "kaffepausene"
+        }
+      },
+      {
+        "word": "uskreven",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "неписаный",
+        "grammaticalProperties": {
+          "neuter_form": "uskrevet",
+          "plural_form": "uskrevne"
+        }
+      },
+      {
+        "word": "inkluderende",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "инклюзивный, принимающий",
+        "grammaticalProperties": {
+          "neuter_form": "inkluderende",
+          "plural_form": "inkluderende"
+        }
+      },
+      {
+        "word": "rettferdig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "справедливый",
+        "grammaticalProperties": {
+          "neuter_form": "rettferdig",
+          "plural_form": "rettferdige"
+        }
+      },
+      {
+        "word": "trygg",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "безопасный, надёжный",
+        "grammaticalProperties": {
+          "neuter_form": "trygt",
+          "plural_form": "trygge"
+        }
+      }
+    ]
+  },
+  "2A": {
+    "title": "2A — Å ta fagbrev som voksen",
+    "words": [
+      {
+        "word": "godkjenne",
+        "partOfSpeech": "VERB",
+        "translation": "признавать, утверждать (диплом)",
+        "grammaticalProperties": {
+          "present_tense": "godkjenner",
+          "past_tense": "godkjente",
+          "perfect_tense": "godkjent"
+        }
+      },
+      {
+        "word": "hjelpepleier",
+        "partOfSpeech": "NOUN",
+        "translation": "младшая медсестра, помощник по уходу",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "hjelpepleieren",
+          "plural_form": "hjelpepleiere",
+          "definite_plural": "hjelpepleierne"
+        }
+      },
+      {
+        "word": "assistent",
+        "partOfSpeech": "NOUN",
+        "translation": "ассистент",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "assistenten",
+          "plural_form": "assistenter",
+          "definite_plural": "assistentene"
+        }
+      },
+      {
+        "word": "fast stilling",
+        "partOfSpeech": "PHRASE",
+        "translation": "постоянная должность"
+      },
+      {
+        "word": "tjene",
+        "partOfSpeech": "VERB",
+        "translation": "зарабатывать",
+        "grammaticalProperties": {
+          "present_tense": "tjener",
+          "past_tense": "tjente",
+          "perfect_tense": "tjent"
+        }
+      },
+      {
+        "word": "ordning",
+        "partOfSpeech": "NOUN",
+        "translation": "схема, система, порядок",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "ordningen",
+          "plural_form": "ordninger",
+          "definite_plural": "ordningene"
+        }
+      },
+      {
+        "word": "yrke",
+        "partOfSpeech": "NOUN",
+        "translation": "профессия",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "yrket",
+          "plural_form": "yrker",
+          "definite_plural": "yrkene"
+        }
+      },
+      {
+        "word": "teoriprøve",
+        "partOfSpeech": "NOUN",
+        "translation": "теоретический экзамен",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "teoriprøven",
+          "plural_form": "teoriprøver",
+          "definite_plural": "teoriprøvene"
+        }
+      },
+      {
+        "word": "fagprøve",
+        "partOfSpeech": "NOUN",
+        "translation": "квалификационный экзамен",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "fagprøven",
+          "plural_form": "fagprøver",
+          "definite_plural": "fagprøvene"
+        }
+      },
+      {
+        "word": "bestå",
+        "partOfSpeech": "VERB",
+        "translation": "сдать (экзамен)",
+        "grammaticalProperties": {
+          "present_tense": "består",
+          "past_tense": "besto",
+          "perfect_tense": "bestått"
+        }
+      },
+      {
+        "word": "helsefagarbeider",
+        "partOfSpeech": "NOUN",
+        "translation": "работник сферы здравоохранения",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "helsefagarbeideren",
+          "plural_form": "helsefagarbeidere",
+          "definite_plural": "helsefagarbeiderne"
+        }
+      },
+      {
+        "word": "stolt",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "гордый (чем-л.)",
+        "grammaticalProperties": {
+          "neuter_form": "stolt",
+          "plural_form": "stolte"
+        }
+      },
+      {
+        "word": "få til",
+        "partOfSpeech": "VERB",
+        "translation": "справиться, добиться",
+        "grammaticalProperties": {
+          "present_tense": "får til",
+          "past_tense": "fikk til",
+          "perfect_tense": "fått til"
+        }
+      },
+      {
+        "word": "gi opp",
+        "partOfSpeech": "VERB",
+        "translation": "сдаваться",
+        "grammaticalProperties": {
+          "present_tense": "gir opp",
+          "past_tense": "ga opp",
+          "perfect_tense": "gitt opp"
+        }
+      },
+      {
+        "word": "støtte",
+        "partOfSpeech": "VERB",
+        "translation": "поддерживать",
+        "grammaticalProperties": {
+          "present_tense": "støtter",
+          "past_tense": "støttet",
+          "perfect_tense": "støttet"
+        }
+      }
+    ]
+  },
+  "2B": {
+    "title": "2B — Det norske utdanningssystemet",
+    "words": [
+      {
+        "word": "grunnskole",
+        "partOfSpeech": "NOUN",
+        "translation": "основная (10-летняя) школа",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "grunnskolen",
+          "plural_form": "grunnskoler",
+          "definite_plural": "grunnskolene"
+        }
+      },
+      {
+        "word": "plikt",
+        "partOfSpeech": "NOUN",
+        "translation": "обязанность",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "plikten",
+          "plural_form": "plikter",
+          "definite_plural": "pliktene"
+        }
+      },
+      {
+        "word": "barneskole",
+        "partOfSpeech": "NOUN",
+        "translation": "начальная школа",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "barneskolen",
+          "plural_form": "barneskoler",
+          "definite_plural": "barneskolene"
+        }
+      },
+      {
+        "word": "ungdomsskole",
+        "partOfSpeech": "NOUN",
+        "translation": "средняя школа (8–10 кл.)",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "ungdomsskolen",
+          "plural_form": "ungdomsskoler",
+          "definite_plural": "ungdomsskolene"
+        }
+      },
+      {
+        "word": "offentlig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "государственный, публичный",
+        "grammaticalProperties": {
+          "neuter_form": "offentlig",
+          "plural_form": "offentlige"
+        }
+      },
+      {
+        "word": "videregående skole",
+        "partOfSpeech": "PHRASE",
+        "translation": "старшая (полная) средняя школа"
+      },
+      {
+        "word": "studieforberedende",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "подготавливающий к вузу",
+        "grammaticalProperties": {
+          "neuter_form": "studieforberedende",
+          "plural_form": "studieforberedende"
+        }
+      },
+      {
+        "word": "yrkesfaglig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "профессиональный (о направлении)",
+        "grammaticalProperties": {
+          "neuter_form": "yrkesfaglig",
+          "plural_form": "yrkesfaglige"
+        }
+      },
+      {
+        "word": "tømrer",
+        "partOfSpeech": "NOUN",
+        "translation": "плотник",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "tømreren",
+          "plural_form": "tømrere",
+          "definite_plural": "tømrerne"
+        }
+      },
+      {
+        "word": "bachelorgrad",
+        "partOfSpeech": "NOUN",
+        "translation": "степень бакалавра",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "bachelorgraden",
+          "plural_form": "bachelorgrader",
+          "definite_plural": "bachelorgradene"
+        }
+      },
+      {
+        "word": "mastergrad",
+        "partOfSpeech": "NOUN",
+        "translation": "степень магистра",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "mastergraden",
+          "plural_form": "mastergrader",
+          "definite_plural": "mastergradene"
+        }
+      },
+      {
+        "word": "høgskole",
+        "partOfSpeech": "NOUN",
+        "translation": "(высшая) школа, институт",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "høgskolen",
+          "plural_form": "høgskoler",
+          "definite_plural": "høgskolene"
+        }
+      },
+      {
+        "word": "semesteravgift",
+        "partOfSpeech": "NOUN",
+        "translation": "семестровый взнос",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "semesteravgiften",
+          "plural_form": "semesteravgifter",
+          "definite_plural": "semesteravgiftene"
+        }
+      },
+      {
+        "word": "studielån",
+        "partOfSpeech": "NOUN",
+        "translation": "студенческий кредит",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "studielånet",
+          "plural_form": "studielån",
+          "definite_plural": "studielånene"
+        }
+      },
+      {
+        "word": "Lånekassen",
+        "partOfSpeech": "PHRASE",
+        "translation": "гос. фонд студенческих займов"
+      },
+      {
+        "word": "fullføre",
+        "partOfSpeech": "VERB",
+        "translation": "завершать, оканчивать",
+        "grammaticalProperties": {
+          "present_tense": "fullfører",
+          "past_tense": "fullførte",
+          "perfect_tense": "fullført"
+        }
+      },
+      {
+        "word": "voksenopplæring",
+        "partOfSpeech": "NOUN",
+        "translation": "образование для взрослых",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "voksenopplæringen"
+        }
+      },
+      {
+        "word": "livslang læring",
+        "partOfSpeech": "PHRASE",
+        "translation": "обучение в течение всей жизни"
+      }
+    ]
+  },
+  "2C": {
+    "title": "2C — På norskkurs / Les og lytt",
+    "words": [
+      {
+        "word": "ha tenkt å",
+        "partOfSpeech": "PHRASE",
+        "translation": "собираться (что-л. сделать)"
+      },
+      {
+        "word": "nettopp",
+        "partOfSpeech": "ADVERB",
+        "translation": "только что"
+      },
+      {
+        "word": "forskjell",
+        "partOfSpeech": "NOUN",
+        "translation": "разница (между)",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "forskjellen",
+          "plural_form": "forskjeller",
+          "definite_plural": "forskjellene"
+        }
+      },
+      {
+        "word": "sitte oppe",
+        "partOfSpeech": "VERB",
+        "translation": "не ложиться, засиживаться",
+        "grammaticalProperties": {
+          "present_tense": "sitter oppe",
+          "past_tense": "satt oppe",
+          "perfect_tense": "sittet oppe"
+        }
+      },
+      {
+        "word": "slutte på skolen",
+        "partOfSpeech": "PHRASE",
+        "translation": "бросить школу"
+      },
+      {
+        "word": "universitetsgrad",
+        "partOfSpeech": "NOUN",
+        "translation": "университетская степень",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "universitetsgraden",
+          "plural_form": "universitetsgrader",
+          "definite_plural": "universitetsgradene"
+        }
+      },
+      {
+        "word": "ansette",
+        "partOfSpeech": "VERB",
+        "translation": "нанимать на работу",
+        "grammaticalProperties": {
+          "present_tense": "ansetter",
+          "past_tense": "ansatte",
+          "perfect_tense": "ansatt"
+        }
+      },
+      {
+        "word": "angre",
+        "partOfSpeech": "VERB",
+        "translation": "сожалеть",
+        "grammaticalProperties": {
+          "present_tense": "angrer",
+          "past_tense": "angret",
+          "perfect_tense": "angret"
+        }
+      },
+      {
+        "word": "starte for seg selv",
+        "partOfSpeech": "PHRASE",
+        "translation": "открыть своё дело"
+      }
+    ]
+  },
+  "3A": {
+    "title": "3A — Skal vi leie eller kjøpe?",
+    "words": [
+      {
+        "word": "leie",
+        "partOfSpeech": "VERB",
+        "translation": "арендовать, снимать",
+        "grammaticalProperties": {
+          "present_tense": "leier",
+          "past_tense": "leide",
+          "perfect_tense": "leid"
+        }
+      },
+      {
+        "word": "eie",
+        "partOfSpeech": "VERB",
+        "translation": "владеть",
+        "grammaticalProperties": {
+          "present_tense": "eier",
+          "past_tense": "eide",
+          "perfect_tense": "eid"
+        }
+      },
+      {
+        "word": "trang",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "тесный",
+        "grammaticalProperties": {
+          "neuter_form": "trangt",
+          "plural_form": "trange"
+        }
+      },
+      {
+        "word": "husleie",
+        "partOfSpeech": "NOUN",
+        "translation": "арендная плата",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "husleien"
+        }
+      },
+      {
+        "word": "egenkapital",
+        "partOfSpeech": "NOUN",
+        "translation": "собственный капитал (первый взнос)",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "egenkapitalen"
+        }
+      },
+      {
+        "word": "spare",
+        "partOfSpeech": "VERB",
+        "translation": "копить, экономить",
+        "grammaticalProperties": {
+          "present_tense": "sparer",
+          "past_tense": "sparte",
+          "perfect_tense": "spart"
+        }
+      },
+      {
+        "word": "lån",
+        "partOfSpeech": "NOUN",
+        "translation": "кредит, заём",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "lånet",
+          "plural_form": "lån",
+          "definite_plural": "lånene"
+        }
+      },
+      {
+        "word": "rente",
+        "partOfSpeech": "NOUN",
+        "translation": "процентная ставка",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "renten",
+          "plural_form": "renter",
+          "definite_plural": "rentene"
+        }
+      },
+      {
+        "word": "stige",
+        "partOfSpeech": "VERB",
+        "translation": "расти, подниматься",
+        "grammaticalProperties": {
+          "present_tense": "stiger",
+          "past_tense": "steg",
+          "perfect_tense": "steget"
+        }
+      },
+      {
+        "word": "boligpris",
+        "partOfSpeech": "NOUN",
+        "translation": "цена на жильё",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "boligprisen",
+          "plural_form": "boligpriser",
+          "definite_plural": "boligprisene"
+        }
+      },
+      {
+        "word": "rådgiver",
+        "partOfSpeech": "NOUN",
+        "translation": "консультант",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "rådgiveren",
+          "plural_form": "rådgivere",
+          "definite_plural": "rådgiverne"
+        }
+      },
+      {
+        "word": "bestemme seg",
+        "partOfSpeech": "VERB",
+        "translation": "решаться",
+        "grammaticalProperties": {
+          "present_tense": "bestemmer seg",
+          "past_tense": "bestemte seg",
+          "perfect_tense": "bestemt seg"
+        }
+      },
+      {
+        "word": "uansett",
+        "partOfSpeech": "ADVERB",
+        "translation": "в любом случае"
+      }
+    ]
+  },
+  "3B": {
+    "title": "3B — Å leie bolig i Norge",
+    "words": [
+      {
+        "word": "leiekontrakt",
+        "partOfSpeech": "NOUN",
+        "translation": "договор аренды",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "leiekontrakten",
+          "plural_form": "leiekontrakter",
+          "definite_plural": "leiekontraktene"
+        }
+      },
+      {
+        "word": "skrive under",
+        "partOfSpeech": "VERB",
+        "translation": "подписать",
+        "grammaticalProperties": {
+          "present_tense": "skriver under",
+          "past_tense": "skrev under",
+          "perfect_tense": "skrevet under"
+        }
+      },
+      {
+        "word": "avtale",
+        "partOfSpeech": "NOUN",
+        "translation": "договор, соглашение",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "avtalen",
+          "plural_form": "avtaler",
+          "definite_plural": "avtalene"
+        }
+      },
+      {
+        "word": "leietaker",
+        "partOfSpeech": "NOUN",
+        "translation": "арендатор",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "leietakeren",
+          "plural_form": "leietakere",
+          "definite_plural": "leietakerne"
+        }
+      },
+      {
+        "word": "utleier",
+        "partOfSpeech": "NOUN",
+        "translation": "арендодатель",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "utleieren",
+          "plural_form": "utleiere",
+          "definite_plural": "utleierne"
+        }
+      },
+      {
+        "word": "depositum",
+        "partOfSpeech": "NOUN",
+        "translation": "залог, депозит",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "depositumet",
+          "plural_form": "depositum",
+          "definite_plural": "depositumene"
+        }
+      },
+      {
+        "word": "konto",
+        "partOfSpeech": "NOUN",
+        "translation": "счёт",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kontoen",
+          "plural_form": "kontoer",
+          "definite_plural": "kontoene"
+        }
+      },
+      {
+        "word": "ødelegge",
+        "partOfSpeech": "VERB",
+        "translation": "ломать, портить",
+        "grammaticalProperties": {
+          "present_tense": "ødelegger",
+          "past_tense": "ødela",
+          "perfect_tense": "ødelagt"
+        }
+      },
+      {
+        "word": "sørge for",
+        "partOfSpeech": "VERB",
+        "translation": "обеспечивать, заботиться о",
+        "grammaticalProperties": {
+          "present_tense": "sørger for",
+          "past_tense": "sørget for",
+          "perfect_tense": "sørget for"
+        }
+      },
+      {
+        "word": "i god stand",
+        "partOfSpeech": "PHRASE",
+        "translation": "в хорошем состоянии"
+      },
+      {
+        "word": "plikt",
+        "partOfSpeech": "NOUN",
+        "translation": "обязанность",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "plikten",
+          "plural_form": "plikter",
+          "definite_plural": "pliktene"
+        }
+      },
+      {
+        "word": "bevis",
+        "partOfSpeech": "NOUN",
+        "translation": "доказательство",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "beviset",
+          "plural_form": "bevis",
+          "definite_plural": "bevisene"
+        }
+      },
+      {
+        "word": "unngå",
+        "partOfSpeech": "VERB",
+        "translation": "избегать",
+        "grammaticalProperties": {
+          "present_tense": "unngår",
+          "past_tense": "unngikk",
+          "perfect_tense": "unngått"
+        }
+      },
+      {
+        "word": "krangel",
+        "partOfSpeech": "NOUN",
+        "translation": "ссора, спор",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "krangelen"
+        }
+      }
+    ]
+  },
+  "3C": {
+    "title": "3C — Et stramt budsjett / Les og lytt",
+    "words": [
+      {
+        "word": "dyrtid",
+        "partOfSpeech": "NOUN",
+        "translation": "дороговизна",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "dyrtida"
+        }
+      },
+      {
+        "word": "ramme",
+        "partOfSpeech": "VERB",
+        "translation": "ударять, затрагивать",
+        "grammaticalProperties": {
+          "present_tense": "rammer",
+          "past_tense": "rammet",
+          "perfect_tense": "rammet"
+        }
+      },
+      {
+        "word": "rente",
+        "partOfSpeech": "NOUN",
+        "translation": "процент",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "renten",
+          "plural_form": "renter",
+          "definite_plural": "rentene"
+        }
+      },
+      {
+        "word": "strekke til",
+        "partOfSpeech": "VERB",
+        "translation": "хватать (о деньгах)",
+        "grammaticalProperties": {
+          "present_tense": "strekker til",
+          "past_tense": "strakk til",
+          "perfect_tense": "strukket til"
+        }
+      },
+      {
+        "word": "budsjett",
+        "partOfSpeech": "NOUN",
+        "translation": "бюджет",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "budsjettet",
+          "plural_form": "budsjetter",
+          "definite_plural": "budsjettene"
+        }
+      },
+      {
+        "word": "faste utgifter",
+        "partOfSpeech": "PHRASE",
+        "translation": "постоянные расходы"
+      },
+      {
+        "word": "forsikring",
+        "partOfSpeech": "NOUN",
+        "translation": "страховка",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "forsikringen",
+          "plural_form": "forsikringer",
+          "definite_plural": "forsikringene"
+        }
+      },
+      {
+        "word": "regning",
+        "partOfSpeech": "NOUN",
+        "translation": "счёт (к оплате)",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "regningen",
+          "plural_form": "regninger",
+          "definite_plural": "regningene"
+        }
+      },
+      {
+        "word": "strømstøtte",
+        "partOfSpeech": "NOUN",
+        "translation": "субсидия на электричество",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "strømstøtten"
+        }
+      },
+      {
+        "word": "holde oversikt",
+        "partOfSpeech": "PHRASE",
+        "translation": "держать под контролем"
+      },
+      {
+        "word": "sammenligne",
+        "partOfSpeech": "VERB",
+        "translation": "сравнивать",
+        "grammaticalProperties": {
+          "present_tense": "sammenligner",
+          "past_tense": "sammenlignet",
+          "perfect_tense": "sammenlignet"
+        }
+      },
+      {
+        "word": "sparemål",
+        "partOfSpeech": "NOUN",
+        "translation": "цель накопления",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "sparemålet",
+          "plural_form": "sparemål",
+          "definite_plural": "sparemålene"
+        }
+      },
+      {
+        "word": "nødreserve",
+        "partOfSpeech": "NOUN",
+        "translation": "резерв на чёрный день",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "nødreserven"
+        }
+      },
+      {
+        "word": "sette av",
+        "partOfSpeech": "VERB",
+        "translation": "откладывать (деньги)",
+        "grammaticalProperties": {
+          "present_tense": "setter av",
+          "past_tense": "satte av",
+          "perfect_tense": "satt av"
+        }
+      }
+    ]
+  },
+  "4A": {
+    "title": "4A — Altfor mye å gjøre",
+    "words": [
+      {
+        "word": "orke",
+        "partOfSpeech": "VERB",
+        "translation": "быть в силах",
+        "grammaticalProperties": {
+          "present_tense": "orker",
+          "past_tense": "orket",
+          "perfect_tense": "orket"
+        }
+      },
+      {
+        "word": "sliten",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "уставший",
+        "grammaticalProperties": {
+          "neuter_form": "slitent",
+          "plural_form": "slitne"
+        }
+      },
+      {
+        "word": "banke",
+        "partOfSpeech": "VERB",
+        "translation": "биться (о сердце)",
+        "grammaticalProperties": {
+          "present_tense": "banker",
+          "past_tense": "banket",
+          "perfect_tense": "banket"
+        }
+      },
+      {
+        "word": "gråte",
+        "partOfSpeech": "VERB",
+        "translation": "плакать",
+        "grammaticalProperties": {
+          "present_tense": "gråter",
+          "past_tense": "gråt",
+          "perfect_tense": "grått"
+        }
+      },
+      {
+        "word": "under press",
+        "partOfSpeech": "PHRASE",
+        "translation": "под давлением"
+      },
+      {
+        "word": "si fra",
+        "partOfSpeech": "VERB",
+        "translation": "подать сигнал, дать знать",
+        "grammaticalProperties": {
+          "present_tense": "sier fra",
+          "past_tense": "sa fra",
+          "perfect_tense": "sagt fra"
+        }
+      },
+      {
+        "word": "skrive sykmeldt",
+        "partOfSpeech": "PHRASE",
+        "translation": "оформить больничный"
+      },
+      {
+        "word": "anbefale",
+        "partOfSpeech": "VERB",
+        "translation": "рекомендовать",
+        "grammaticalProperties": {
+          "present_tense": "anbefaler",
+          "past_tense": "anbefalte",
+          "perfect_tense": "anbefalt"
+        }
+      },
+      {
+        "word": "psykolog",
+        "partOfSpeech": "NOUN",
+        "translation": "психолог",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "psykologen",
+          "plural_form": "psykologer",
+          "definite_plural": "psykologene"
+        }
+      },
+      {
+        "word": "hvile",
+        "partOfSpeech": "VERB",
+        "translation": "отдыхать",
+        "grammaticalProperties": {
+          "present_tense": "hviler",
+          "past_tense": "hvilte",
+          "perfect_tense": "hvilt"
+        }
+      },
+      {
+        "word": "ta vare på",
+        "partOfSpeech": "VERB",
+        "translation": "заботиться о",
+        "grammaticalProperties": {
+          "present_tense": "tar vare på",
+          "past_tense": "tok vare på",
+          "perfect_tense": "tatt vare på"
+        }
+      },
+      {
+        "word": "si nei",
+        "partOfSpeech": "PHRASE",
+        "translation": "отказывать"
+      },
+      {
+        "word": "vendepunkt",
+        "partOfSpeech": "NOUN",
+        "translation": "поворотный момент",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "vendepunktet",
+          "plural_form": "vendepunkt",
+          "definite_plural": "vendepunktene"
+        }
+      }
+    ]
+  },
+  "4B": {
+    "title": "4B — Psykisk helse",
+    "words": [
+      {
+        "word": "psykisk helse",
+        "partOfSpeech": "PHRASE",
+        "translation": "психическое здоровье"
+      },
+      {
+        "word": "fysisk",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "физический",
+        "grammaticalProperties": {
+          "neuter_form": "fysisk",
+          "plural_form": "fysiske"
+        }
+      },
+      {
+        "word": "bite tennene sammen",
+        "partOfSpeech": "PHRASE",
+        "translation": "стиснуть зубы, терпеть"
+      },
+      {
+        "word": "angst",
+        "partOfSpeech": "NOUN",
+        "translation": "тревога",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "angsten"
+        }
+      },
+      {
+        "word": "depresjon",
+        "partOfSpeech": "NOUN",
+        "translation": "депрессия",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "depresjonen",
+          "plural_form": "depresjoner",
+          "definite_plural": "depresjonene"
+        }
+      },
+      {
+        "word": "ensomhet",
+        "partOfSpeech": "NOUN",
+        "translation": "одиночество",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "ensomheten"
+        }
+      },
+      {
+        "word": "bekymring",
+        "partOfSpeech": "NOUN",
+        "translation": "забота, тревога",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "bekymringen",
+          "plural_form": "bekymringer",
+          "definite_plural": "bekymringene"
+        }
+      },
+      {
+        "word": "opplevelse",
+        "partOfSpeech": "NOUN",
+        "translation": "переживание, опыт",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "opplevelsen",
+          "plural_form": "opplevelser",
+          "definite_plural": "opplevelsene"
+        }
+      },
+      {
+        "word": "henvise",
+        "partOfSpeech": "VERB",
+        "translation": "направлять (к специалисту)",
+        "grammaticalProperties": {
+          "present_tense": "henviser",
+          "past_tense": "henviste",
+          "perfect_tense": "henvist"
+        }
+      },
+      {
+        "word": "hjelpetelefon",
+        "partOfSpeech": "NOUN",
+        "translation": "телефон доверия",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "hjelpetelefonen",
+          "plural_form": "hjelpetelefoner",
+          "definite_plural": "hjelpetelefonene"
+        }
+      },
+      {
+        "word": "anonymt",
+        "partOfSpeech": "ADVERB",
+        "translation": "анонимно"
+      },
+      {
+        "word": "døgnet rundt",
+        "partOfSpeech": "PHRASE",
+        "translation": "круглосуточно"
+      },
+      {
+        "word": "tegn på",
+        "partOfSpeech": "PHRASE",
+        "translation": "признак чего-л."
+      },
+      {
+        "word": "svakhet",
+        "partOfSpeech": "NOUN",
+        "translation": "слабость",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "svakheten",
+          "plural_form": "svakheter",
+          "definite_plural": "svakhetene"
+        }
+      },
+      {
+        "word": "kreve mot",
+        "partOfSpeech": "PHRASE",
+        "translation": "требовать смелости"
+      }
+    ]
+  },
+  "4C": {
+    "title": "4C — Hos fastlegen / Les og lytt",
+    "words": [
+      {
+        "word": "konsentrere seg",
+        "partOfSpeech": "VERB",
+        "translation": "сосредотачиваться",
+        "grammaticalProperties": {
+          "present_tense": "konsentrerer seg",
+          "past_tense": "konsentrerte seg",
+          "perfect_tense": "konsentrert seg"
+        }
+      },
+      {
+        "word": "pågå",
+        "partOfSpeech": "VERB",
+        "translation": "продолжаться, длиться",
+        "grammaticalProperties": {
+          "present_tense": "pågår",
+          "past_tense": "pågikk",
+          "perfect_tense": "pågått"
+        }
+      },
+      {
+        "word": "pleie å",
+        "partOfSpeech": "VERB",
+        "translation": "иметь обыкновение",
+        "grammaticalProperties": {
+          "present_tense": "pleier å",
+          "past_tense": "pleide å",
+          "perfect_tense": "pleid å"
+        }
+      },
+      {
+        "word": "ligge våken",
+        "partOfSpeech": "PHRASE",
+        "translation": "лежать без сна"
+      },
+      {
+        "word": "ta på seg for mye",
+        "partOfSpeech": "PHRASE",
+        "translation": "взваливать на себя (слишком много)"
+      },
+      {
+        "word": "roe ned",
+        "partOfSpeech": "VERB",
+        "translation": "успокоиться",
+        "grammaticalProperties": {
+          "present_tense": "roer ned",
+          "past_tense": "roet ned",
+          "perfect_tense": "roet ned"
+        }
+      },
+      {
+        "word": "mosjon",
+        "partOfSpeech": "NOUN",
+        "translation": "(умеренная) физ. активность",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "mosjonen"
+        }
+      },
+      {
+        "word": "gåtur",
+        "partOfSpeech": "NOUN",
+        "translation": "пешая прогулка",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "gåturen",
+          "plural_form": "gåturer",
+          "definite_plural": "gåturene"
+        }
+      },
+      {
+        "word": "skjerm",
+        "partOfSpeech": "NOUN",
+        "translation": "экран",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "skjermen",
+          "plural_form": "skjermer",
+          "definite_plural": "skjermene"
+        }
+      },
+      {
+        "word": "kjølig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "прохладный",
+        "grammaticalProperties": {
+          "neuter_form": "kjølig",
+          "plural_form": "kjølige"
+        }
+      },
+      {
+        "word": "i det lange løp",
+        "partOfSpeech": "PHRASE",
+        "translation": "в долгосрочной перспективе"
+      }
+    ]
+  },
+  "5A": {
+    "title": "5A — Slik sorteres avfallet",
+    "words": [
+      {
+        "word": "avfall",
+        "partOfSpeech": "NOUN",
+        "translation": "отходы",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "avfallet"
+        }
+      },
+      {
+        "word": "søppel",
+        "partOfSpeech": "NOUN",
+        "translation": "мусор",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "søppelet"
+        }
+      },
+      {
+        "word": "sortere",
+        "partOfSpeech": "VERB",
+        "translation": "сортировать",
+        "grammaticalProperties": {
+          "present_tense": "sorterer",
+          "past_tense": "sorterte",
+          "perfect_tense": "sortert"
+        }
+      },
+      {
+        "word": "kildesortering",
+        "partOfSpeech": "NOUN",
+        "translation": "раздельный сбор мусора",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kildesorteringen"
+        }
+      },
+      {
+        "word": "gjenvinne",
+        "partOfSpeech": "VERB",
+        "translation": "перерабатывать",
+        "grammaticalProperties": {
+          "present_tense": "gjenvinner",
+          "past_tense": "gjenvant",
+          "perfect_tense": "gjenvunnet"
+        }
+      },
+      {
+        "word": "resirkulere",
+        "partOfSpeech": "VERB",
+        "translation": "перерабатывать",
+        "grammaticalProperties": {
+          "present_tense": "resirkulerer",
+          "past_tense": "resirkulerte",
+          "perfect_tense": "resirkulert"
+        }
+      },
+      {
+        "word": "ressurs",
+        "partOfSpeech": "NOUN",
+        "translation": "ресурс",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "ressursen",
+          "plural_form": "ressurser",
+          "definite_plural": "ressursene"
+        }
+      },
+      {
+        "word": "hente",
+        "partOfSpeech": "VERB",
+        "translation": "забирать",
+        "grammaticalProperties": {
+          "present_tense": "henter",
+          "past_tense": "hentet",
+          "perfect_tense": "hentet"
+        }
+      },
+      {
+        "word": "matavfall",
+        "partOfSpeech": "NOUN",
+        "translation": "пищевые отходы",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "matavfallet"
+        }
+      },
+      {
+        "word": "plast",
+        "partOfSpeech": "NOUN",
+        "translation": "пластик",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "plasten"
+        }
+      },
+      {
+        "word": "papp",
+        "partOfSpeech": "NOUN",
+        "translation": "картон",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "pappen"
+        }
+      },
+      {
+        "word": "metall",
+        "partOfSpeech": "NOUN",
+        "translation": "металл",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "metallet",
+          "plural_form": "metaller",
+          "definite_plural": "metallene"
+        }
+      },
+      {
+        "word": "beholder",
+        "partOfSpeech": "NOUN",
+        "translation": "контейнер",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "beholderen",
+          "plural_form": "beholdere",
+          "definite_plural": "beholderne"
+        }
+      },
+      {
+        "word": "returstasjon",
+        "partOfSpeech": "NOUN",
+        "translation": "пункт приёма вторсырья",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "returstasjonen",
+          "plural_form": "returstasjoner",
+          "definite_plural": "returstasjonene"
+        }
+      },
+      {
+        "word": "farlig avfall",
+        "partOfSpeech": "PHRASE",
+        "translation": "опасные отходы"
+      },
+      {
+        "word": "pant",
+        "partOfSpeech": "NOUN",
+        "translation": "залоговая стоимость тары",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "panten"
+        }
+      },
+      {
+        "word": "panteflaske",
+        "partOfSpeech": "NOUN",
+        "translation": "бутылка с залогом",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "panteflasken",
+          "plural_form": "panteflasker",
+          "definite_plural": "panteflaskene"
+        }
+      },
+      {
+        "word": "spare",
+        "partOfSpeech": "VERB",
+        "translation": "экономить (энергию)",
+        "grammaticalProperties": {
+          "present_tense": "sparer",
+          "past_tense": "sparte",
+          "perfect_tense": "spart"
+        }
+      },
+      {
+        "word": "bidra",
+        "partOfSpeech": "VERB",
+        "translation": "вносить вклад",
+        "grammaticalProperties": {
+          "present_tense": "bidrar",
+          "past_tense": "bidro",
+          "perfect_tense": "bidratt"
+        }
+      },
+      {
+        "word": "havne",
+        "partOfSpeech": "VERB",
+        "translation": "оказываться, попадать",
+        "grammaticalProperties": {
+          "present_tense": "havner",
+          "past_tense": "havnet",
+          "perfect_tense": "havnet"
+        }
+      }
+    ]
+  },
+  "5B": {
+    "title": "5B — Klimadebatt i klassen",
+    "words": [
+      {
+        "word": "klima",
+        "partOfSpeech": "NOUN",
+        "translation": "климат",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "klimaet"
+        }
+      },
+      {
+        "word": "miljø",
+        "partOfSpeech": "NOUN",
+        "translation": "окружающая среда",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "miljøet"
+        }
+      },
+      {
+        "word": "slippe ut",
+        "partOfSpeech": "VERB",
+        "translation": "выбрасывать (выбросы)",
+        "grammaticalProperties": {
+          "present_tense": "slipper ut",
+          "past_tense": "slapp ut",
+          "perfect_tense": "sluppet ut"
+        }
+      },
+      {
+        "word": "utslipp",
+        "partOfSpeech": "NOUN",
+        "translation": "выброс",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "utslippet",
+          "plural_form": "utslipp",
+          "definite_plural": "utslippene"
+        }
+      },
+      {
+        "word": "forurense",
+        "partOfSpeech": "VERB",
+        "translation": "загрязнять",
+        "grammaticalProperties": {
+          "present_tense": "forurenser",
+          "past_tense": "forurenset",
+          "perfect_tense": "forurenset"
+        }
+      },
+      {
+        "word": "areal",
+        "partOfSpeech": "NOUN",
+        "translation": "площадь, территория",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "arealet",
+          "plural_form": "arealer",
+          "definite_plural": "arealene"
+        }
+      },
+      {
+        "word": "selskap",
+        "partOfSpeech": "NOUN",
+        "translation": "компания",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "selskapet",
+          "plural_form": "selskaper",
+          "definite_plural": "selskapene"
+        }
+      },
+      {
+        "word": "delvis",
+        "partOfSpeech": "ADVERB",
+        "translation": "частично"
+      },
+      {
+        "word": "enkeltmenneske",
+        "partOfSpeech": "NOUN",
+        "translation": "отдельный человек",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "enkeltmennesket",
+          "plural_form": "enkeltmennesker",
+          "definite_plural": "enkeltmenneskene"
+        }
+      },
+      {
+        "word": "valg",
+        "partOfSpeech": "NOUN",
+        "translation": "выбор",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "valget",
+          "plural_form": "valg",
+          "definite_plural": "valgene"
+        }
+      },
+      {
+        "word": "sykle",
+        "partOfSpeech": "VERB",
+        "translation": "ездить на велосипеде",
+        "grammaticalProperties": {
+          "present_tense": "sykler",
+          "past_tense": "syklet",
+          "perfect_tense": "syklet"
+        }
+      },
+      {
+        "word": "brukt",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "подержанный, б/у",
+        "grammaticalProperties": {
+          "neuter_form": "brukt",
+          "plural_form": "brukte"
+        }
+      }
+    ]
+  },
+  "5C": {
+    "title": "5C — Friluftsliv / Les og lytt",
+    "words": [
+      {
+        "word": "friluftsliv",
+        "partOfSpeech": "NOUN",
+        "translation": "активный отдых на природе",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "friluftslivet"
+        }
+      },
+      {
+        "word": "hellig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "священный",
+        "grammaticalProperties": {
+          "neuter_form": "hellig",
+          "plural_form": "hellige"
+        }
+      },
+      {
+        "word": "nyte",
+        "partOfSpeech": "VERB",
+        "translation": "наслаждаться",
+        "grammaticalProperties": {
+          "present_tense": "nyter",
+          "past_tense": "nøt",
+          "perfect_tense": "nytt"
+        }
+      },
+      {
+        "word": "allemannsretten",
+        "partOfSpeech": "PHRASE",
+        "translation": "право свободного доступа к природе"
+      },
+      {
+        "word": "ferdes",
+        "partOfSpeech": "VERB",
+        "translation": "передвигаться, ходить",
+        "grammaticalProperties": {
+          "present_tense": "ferdes",
+          "past_tense": "ferdedes",
+          "perfect_tense": "ferdedes"
+        }
+      },
+      {
+        "word": "utmark",
+        "partOfSpeech": "NOUN",
+        "translation": "неокультуренная земля, угодья",
+        "grammaticalProperties": {
+          "gender": "feminine",
+          "definite_singular": "utmarka"
+        }
+      },
+      {
+        "word": "plukke",
+        "partOfSpeech": "VERB",
+        "translation": "собирать (ягоды, грибы)",
+        "grammaticalProperties": {
+          "present_tense": "plukker",
+          "past_tense": "plukket",
+          "perfect_tense": "plukket"
+        }
+      },
+      {
+        "word": "vise hensyn",
+        "partOfSpeech": "PHRASE",
+        "translation": "проявлять уважение/осторожность"
+      },
+      {
+        "word": "turglede",
+        "partOfSpeech": "NOUN",
+        "translation": "радость от прогулок",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "turgleden"
+        }
+      },
+      {
+        "word": "koble av",
+        "partOfSpeech": "VERB",
+        "translation": "расслабляться, отключаться",
+        "grammaticalProperties": {
+          "present_tense": "kobler av",
+          "past_tense": "koblet av",
+          "perfect_tense": "koblet av"
+        }
+      },
+      {
+        "word": "humør",
+        "partOfSpeech": "NOUN",
+        "translation": "настроение",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "humøret"
+        }
+      },
+      {
+        "word": "handlenett",
+        "partOfSpeech": "NOUN",
+        "translation": "сумка для покупок",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "handlenettet",
+          "plural_form": "handlenett",
+          "definite_plural": "handlenettene"
+        }
+      },
+      {
+        "word": "emballasje",
+        "partOfSpeech": "NOUN",
+        "translation": "упаковка",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "emballasjen"
+        }
+      },
+      {
+        "word": "gjenbruk",
+        "partOfSpeech": "NOUN",
+        "translation": "повторное использование",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "gjenbruken"
+        }
+      },
+      {
+        "word": "kollektivtransport",
+        "partOfSpeech": "NOUN",
+        "translation": "общественный транспорт",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kollektivtransporten"
+        }
+      }
+    ]
+  },
+  "6A": {
+    "title": "6A — Er det sant? Om falske nyheter",
+    "words": [
+      {
+        "word": "nyhet",
+        "partOfSpeech": "NOUN",
+        "translation": "новость",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "nyheten",
+          "plural_form": "nyheter",
+          "definite_plural": "nyhetene"
+        }
+      },
+      {
+        "word": "falsk",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "ложный",
+        "grammaticalProperties": {
+          "neuter_form": "falskt",
+          "plural_form": "falske"
+        }
+      },
+      {
+        "word": "oppdiktet",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "выдуманный",
+        "grammaticalProperties": {
+          "neuter_form": "oppdiktet",
+          "plural_form": "oppdiktede"
+        }
+      },
+      {
+        "word": "forvrenge",
+        "partOfSpeech": "VERB",
+        "translation": "искажать",
+        "grammaticalProperties": {
+          "present_tense": "forvrenger",
+          "past_tense": "forvrengte",
+          "perfect_tense": "forvrengt"
+        }
+      },
+      {
+        "word": "spre seg",
+        "partOfSpeech": "VERB",
+        "translation": "распространяться",
+        "grammaticalProperties": {
+          "present_tense": "sprer seg",
+          "past_tense": "spredte seg",
+          "perfect_tense": "spredt seg"
+        }
+      },
+      {
+        "word": "sosiale medier",
+        "partOfSpeech": "PHRASE",
+        "translation": "соцсети"
+      },
+      {
+        "word": "dele",
+        "partOfSpeech": "VERB",
+        "translation": "делиться, репостить",
+        "grammaticalProperties": {
+          "present_tense": "deler",
+          "past_tense": "delte",
+          "perfect_tense": "delt"
+        }
+      },
+      {
+        "word": "stemme",
+        "partOfSpeech": "VERB",
+        "translation": "быть правдой, соответствовать",
+        "grammaticalProperties": {
+          "present_tense": "stemmer",
+          "past_tense": "stemte",
+          "perfect_tense": "stemt"
+        }
+      },
+      {
+        "word": "inntekt",
+        "partOfSpeech": "NOUN",
+        "translation": "доход",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "inntekten",
+          "plural_form": "inntekter",
+          "definite_plural": "inntektene"
+        }
+      },
+      {
+        "word": "reklame",
+        "partOfSpeech": "NOUN",
+        "translation": "реклама",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "reklamen"
+        }
+      },
+      {
+        "word": "påvirke",
+        "partOfSpeech": "VERB",
+        "translation": "влиять",
+        "grammaticalProperties": {
+          "present_tense": "påvirker",
+          "past_tense": "påvirket",
+          "perfect_tense": "påvirket"
+        }
+      },
+      {
+        "word": "kilde",
+        "partOfSpeech": "NOUN",
+        "translation": "источник",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kilden",
+          "plural_form": "kilder",
+          "definite_plural": "kildene"
+        }
+      },
+      {
+        "word": "pålitelig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "надёжный",
+        "grammaticalProperties": {
+          "neuter_form": "pålitelig",
+          "plural_form": "pålitelige"
+        }
+      },
+      {
+        "word": "stole på",
+        "partOfSpeech": "VERB",
+        "translation": "доверять",
+        "grammaticalProperties": {
+          "present_tense": "stoler på",
+          "past_tense": "stolte på",
+          "perfect_tense": "stolt på"
+        }
+      },
+      {
+        "word": "kritisk",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "критичный",
+        "grammaticalProperties": {
+          "neuter_form": "kritisk",
+          "plural_form": "kritiske"
+        }
+      },
+      {
+        "word": "overskrift",
+        "partOfSpeech": "NOUN",
+        "translation": "заголовок",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "overskriften",
+          "plural_form": "overskrifter",
+          "definite_plural": "overskriftene"
+        }
+      }
+    ]
+  },
+  "6B": {
+    "title": "6B — Skjermtid i familien",
+    "words": [
+      {
+        "word": "skjermtid",
+        "partOfSpeech": "NOUN",
+        "translation": "экранное время",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "skjermtiden"
+        }
+      },
+      {
+        "word": "legge bort",
+        "partOfSpeech": "VERB",
+        "translation": "откладывать (в сторону)",
+        "grammaticalProperties": {
+          "present_tense": "legger bort",
+          "past_tense": "la bort",
+          "perfect_tense": "lagt bort"
+        }
+      },
+      {
+        "word": "annerledes",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "иначе, по-другому",
+        "grammaticalProperties": {
+          "neuter_form": "annerledes",
+          "plural_form": "annerledes"
+        }
+      },
+      {
+        "word": "henge sammen",
+        "partOfSpeech": "VERB",
+        "translation": "тусоваться (вместе)",
+        "grammaticalProperties": {
+          "present_tense": "henger sammen",
+          "past_tense": "hang sammen",
+          "perfect_tense": "hengt sammen"
+        }
+      },
+      {
+        "word": "forbudt",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "запрещённый",
+        "grammaticalProperties": {
+          "neuter_form": "forbudt",
+          "plural_form": "forbudte"
+        }
+      },
+      {
+        "word": "regel",
+        "partOfSpeech": "NOUN",
+        "translation": "правило",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "regelen",
+          "plural_form": "regler",
+          "definite_plural": "reglene"
+        }
+      },
+      {
+        "word": "gå med på",
+        "partOfSpeech": "VERB",
+        "translation": "соглашаться на",
+        "grammaticalProperties": {
+          "present_tense": "går med på",
+          "past_tense": "gikk med på",
+          "perfect_tense": "gått med på"
+        }
+      },
+      {
+        "word": "like ille",
+        "partOfSpeech": "PHRASE",
+        "translation": "так же плохо"
+      },
+      {
+        "word": "avtale",
+        "partOfSpeech": "NOUN",
+        "translation": "договорённость",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "avtalen",
+          "plural_form": "avtaler",
+          "definite_plural": "avtalene"
+        }
+      },
+      {
+        "word": "finne på",
+        "partOfSpeech": "VERB",
+        "translation": "придумать (занятие)",
+        "grammaticalProperties": {
+          "present_tense": "finner på",
+          "past_tense": "fant på",
+          "perfect_tense": "funnet på"
+        }
+      }
+    ]
+  },
+  "6C": {
+    "title": "6C — Nettvett / Les og lytt",
+    "words": [
+      {
+        "word": "nettvett",
+        "partOfSpeech": "NOUN",
+        "translation": "сетевой этикет/безопасность",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "nettvettet"
+        }
+      },
+      {
+        "word": "forsiktig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "осторожный",
+        "grammaticalProperties": {
+          "neuter_form": "forsiktig",
+          "plural_form": "forsiktige"
+        }
+      },
+      {
+        "word": "personlig informasjon",
+        "partOfSpeech": "PHRASE",
+        "translation": "личная информация"
+      },
+      {
+        "word": "slette",
+        "partOfSpeech": "VERB",
+        "translation": "удалять",
+        "grammaticalProperties": {
+          "present_tense": "sletter",
+          "past_tense": "slettet",
+          "perfect_tense": "slettet"
+        }
+      },
+      {
+        "word": "fremmed",
+        "partOfSpeech": "NOUN",
+        "translation": "незнакомец",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "fremmede",
+          "plural_form": "fremmede",
+          "definite_plural": "fremmede"
+        }
+      },
+      {
+        "word": "passord",
+        "partOfSpeech": "NOUN",
+        "translation": "пароль",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "passordet",
+          "plural_form": "passord",
+          "definite_plural": "passordene"
+        }
+      },
+      {
+        "word": "svindel",
+        "partOfSpeech": "NOUN",
+        "translation": "мошенничество",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "svindelen"
+        }
+      },
+      {
+        "word": "mobbing",
+        "partOfSpeech": "NOUN",
+        "translation": "травля, буллинг",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "mobbingen"
+        }
+      },
+      {
+        "word": "ramme",
+        "partOfSpeech": "VERB",
+        "translation": "затрагивать, бить",
+        "grammaticalProperties": {
+          "present_tense": "rammer",
+          "past_tense": "rammet",
+          "perfect_tense": "rammet"
+        }
+      },
+      {
+        "word": "behandle",
+        "partOfSpeech": "VERB",
+        "translation": "обращаться (с кем-л.)",
+        "grammaticalProperties": {
+          "present_tense": "behandler",
+          "past_tense": "behandlet",
+          "perfect_tense": "behandlet"
+        }
+      },
+      {
+        "word": "ubehagelig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "неприятный",
+        "grammaticalProperties": {
+          "neuter_form": "ubehagelig",
+          "plural_form": "ubehagelige"
+        }
+      },
+      {
+        "word": "gjette",
+        "partOfSpeech": "VERB",
+        "translation": "угадывать",
+        "grammaticalProperties": {
+          "present_tense": "gjetter",
+          "past_tense": "gjettet",
+          "perfect_tense": "gjettet"
+        }
+      },
+      {
+        "word": "tofaktor",
+        "partOfSpeech": "NOUN",
+        "translation": "двухфакторная аутентификация",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "tofaktoren"
+        }
+      },
+      {
+        "word": "influenser",
+        "partOfSpeech": "NOUN",
+        "translation": "инфлюенсер",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "influenseren",
+          "plural_form": "influensere",
+          "definite_plural": "influenserne"
+        }
+      },
+      {
+        "word": "skjermfri",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "без экрана",
+        "grammaticalProperties": {
+          "neuter_form": "skjermfritt",
+          "plural_form": "skjermfrie"
+        }
+      }
+    ]
+  },
+  "7A": {
+    "title": "7A — Å stemme ved valg",
+    "words": [
+      {
+        "word": "demokrati",
+        "partOfSpeech": "NOUN",
+        "translation": "демократия",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "demokratiet"
+        }
+      },
+      {
+        "word": "valg",
+        "partOfSpeech": "NOUN",
+        "translation": "выборы",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "valget",
+          "plural_form": "valg",
+          "definite_plural": "valgene"
+        }
+      },
+      {
+        "word": "stortingsvalg",
+        "partOfSpeech": "NOUN",
+        "translation": "парламентские выборы",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "stortingsvalget",
+          "plural_form": "stortingsvalg",
+          "definite_plural": "stortingsvalgene"
+        }
+      },
+      {
+        "word": "innbygger",
+        "partOfSpeech": "NOUN",
+        "translation": "житель",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "innbyggeren",
+          "plural_form": "innbyggere",
+          "definite_plural": "innbyggerne"
+        }
+      },
+      {
+        "word": "styre",
+        "partOfSpeech": "VERB",
+        "translation": "управлять",
+        "grammaticalProperties": {
+          "present_tense": "styrer",
+          "past_tense": "styrte",
+          "perfect_tense": "styrt"
+        }
+      },
+      {
+        "word": "kommune",
+        "partOfSpeech": "NOUN",
+        "translation": "муниципалитет",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kommunen",
+          "plural_form": "kommuner",
+          "definite_plural": "kommunene"
+        }
+      },
+      {
+        "word": "fylke",
+        "partOfSpeech": "NOUN",
+        "translation": "губерния",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "fylket",
+          "plural_form": "fylker",
+          "definite_plural": "fylkene"
+        }
+      },
+      {
+        "word": "statsborger",
+        "partOfSpeech": "NOUN",
+        "translation": "гражданин",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "statsborgeren",
+          "plural_form": "statsborgere",
+          "definite_plural": "statsborgerne"
+        }
+      },
+      {
+        "word": "stemmerett",
+        "partOfSpeech": "NOUN",
+        "translation": "право голоса",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "stemmeretten"
+        }
+      },
+      {
+        "word": "stemme",
+        "partOfSpeech": "VERB",
+        "translation": "голосовать",
+        "grammaticalProperties": {
+          "present_tense": "stemmer",
+          "past_tense": "stemte",
+          "perfect_tense": "stemt"
+        }
+      },
+      {
+        "word": "valgkort",
+        "partOfSpeech": "NOUN",
+        "translation": "карточка избирателя",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "valgkortet",
+          "plural_form": "valgkort",
+          "definite_plural": "valgkortene"
+        }
+      },
+      {
+        "word": "stemmeseddel",
+        "partOfSpeech": "NOUN",
+        "translation": "избирательный бюллетень",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "stemmeseddelen",
+          "plural_form": "stemmesedler",
+          "definite_plural": "stemmeslene"
+        }
+      },
+      {
+        "word": "parti",
+        "partOfSpeech": "NOUN",
+        "translation": "партия",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "partiet",
+          "plural_form": "partier",
+          "definite_plural": "partiene"
+        }
+      },
+      {
+        "word": "hemmelig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "тайный",
+        "grammaticalProperties": {
+          "neuter_form": "hemmelig",
+          "plural_form": "hemmelige"
+        }
+      },
+      {
+        "word": "oppfordre",
+        "partOfSpeech": "VERB",
+        "translation": "призывать",
+        "grammaticalProperties": {
+          "present_tense": "oppfordrer",
+          "past_tense": "oppfordret",
+          "perfect_tense": "oppfordret"
+        }
+      },
+      {
+        "word": "lokalsamfunn",
+        "partOfSpeech": "NOUN",
+        "translation": "местное сообщество",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "lokalsamfunnet",
+          "plural_form": "lokalsamfunn",
+          "definite_plural": "lokalsamfunnene"
+        }
+      }
+    ]
+  },
+  "7B": {
+    "title": "7B — Dugnad",
+    "words": [
+      {
+        "word": "dugnad",
+        "partOfSpeech": "NOUN",
+        "translation": "совместный безвозмездный труд",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "dugnaden",
+          "plural_form": "dugnader",
+          "definite_plural": "dugnadene"
+        }
+      },
+      {
+        "word": "gratis",
+        "partOfSpeech": "ADVERB",
+        "translation": "бесплатно"
+      },
+      {
+        "word": "fellesskap",
+        "partOfSpeech": "NOUN",
+        "translation": "сообщество, коллектив",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "fellesskapet"
+        }
+      },
+      {
+        "word": "borettslag",
+        "partOfSpeech": "NOUN",
+        "translation": "жилищный кооператив",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "borettslaget",
+          "plural_form": "borettslag",
+          "definite_plural": "borettslagene"
+        }
+      },
+      {
+        "word": "rake løv",
+        "partOfSpeech": "PHRASE",
+        "translation": "сгребать листья"
+      },
+      {
+        "word": "gjerde",
+        "partOfSpeech": "NOUN",
+        "translation": "забор",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "gjerdet",
+          "plural_form": "gjerder",
+          "definite_plural": "gjerdene"
+        }
+      },
+      {
+        "word": "samle inn",
+        "partOfSpeech": "VERB",
+        "translation": "собирать (деньги)",
+        "grammaticalProperties": {
+          "present_tense": "samler inn",
+          "past_tense": "samlet inn",
+          "perfect_tense": "samlet inn"
+        }
+      },
+      {
+        "word": "røtter",
+        "partOfSpeech": "NOUN",
+        "translation": "корни",
+        "grammaticalProperties": {
+          "gender": "feminine",
+          "definite_plural": "røttene",
+          "plural_form": "røtter"
+        }
+      },
+      {
+        "word": "bonde",
+        "partOfSpeech": "NOUN",
+        "translation": "крестьянин, фермер",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "bonden",
+          "plural_form": "bønder",
+          "definite_plural": "bøndene"
+        }
+      },
+      {
+        "word": "levende",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "живой, действующий",
+        "grammaticalProperties": {
+          "neuter_form": "levende",
+          "plural_form": "levende"
+        }
+      },
+      {
+        "word": "idrettslag",
+        "partOfSpeech": "NOUN",
+        "translation": "спортивный клуб",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "idrettslaget",
+          "plural_form": "idrettslag",
+          "definite_plural": "idrettslagene"
+        }
+      },
+      {
+        "word": "forening",
+        "partOfSpeech": "NOUN",
+        "translation": "объединение, общество",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "foreningen",
+          "plural_form": "foreninger",
+          "definite_plural": "foreningene"
+        }
+      },
+      {
+        "word": "avhengig av",
+        "partOfSpeech": "PHRASE",
+        "translation": "зависимый от"
+      },
+      {
+        "word": "frivillig",
+        "partOfSpeech": "NOUN",
+        "translation": "волонтёр",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "frivillige",
+          "plural_form": "frivillige",
+          "definite_plural": "frivillige"
+        }
+      },
+      {
+        "word": "stille opp",
+        "partOfSpeech": "VERB",
+        "translation": "приходить на помощь",
+        "grammaticalProperties": {
+          "present_tense": "stiller opp",
+          "past_tense": "stilte opp",
+          "perfect_tense": "stilt opp"
+        }
+      },
+      {
+        "word": "møte opp",
+        "partOfSpeech": "VERB",
+        "translation": "являться, приходить",
+        "grammaticalProperties": {
+          "present_tense": "møter opp",
+          "past_tense": "møtte opp",
+          "perfect_tense": "møtt opp"
+        }
+      }
+    ]
+  },
+  "7C": {
+    "title": "7C — Et likestilt samfunn? / Les og lytt",
+    "words": [
+      {
+        "word": "likestilt",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "равноправный",
+        "grammaticalProperties": {
+          "neuter_form": "likestilt",
+          "plural_form": "likestilte"
+        }
+      },
+      {
+        "word": "likestilling",
+        "partOfSpeech": "NOUN",
+        "translation": "равноправие",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "likestillingen"
+        }
+      },
+      {
+        "word": "rettighet",
+        "partOfSpeech": "NOUN",
+        "translation": "право",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "rettigheten",
+          "plural_form": "rettigheter",
+          "definite_plural": "rettighetene"
+        }
+      },
+      {
+        "word": "delta",
+        "partOfSpeech": "VERB",
+        "translation": "участвовать",
+        "grammaticalProperties": {
+          "present_tense": "deltar",
+          "past_tense": "deltok",
+          "perfect_tense": "deltatt"
+        }
+      },
+      {
+        "word": "pappaperm",
+        "partOfSpeech": "NOUN",
+        "translation": "отцовский отпуск",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "pappapermen"
+        }
+      },
+      {
+        "word": "tjene",
+        "partOfSpeech": "VERB",
+        "translation": "зарабатывать",
+        "grammaticalProperties": {
+          "present_tense": "tjener",
+          "past_tense": "tjente",
+          "perfect_tense": "tjent"
+        }
+      },
+      {
+        "word": "deltid",
+        "partOfSpeech": "NOUN",
+        "translation": "неполный рабочий день",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "deltiden"
+        }
+      },
+      {
+        "word": "heltid",
+        "partOfSpeech": "NOUN",
+        "translation": "полный рабочий день",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "heltiden"
+        }
+      },
+      {
+        "word": "rettferdig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "справедливый",
+        "grammaticalProperties": {
+          "neuter_form": "rettferdig",
+          "plural_form": "rettferdige"
+        }
+      },
+      {
+        "word": "husarbeid",
+        "partOfSpeech": "NOUN",
+        "translation": "работа по дому",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "husarbeidet"
+        }
+      },
+      {
+        "word": "satse på",
+        "partOfSpeech": "VERB",
+        "translation": "делать ставку (на), стремиться",
+        "grammaticalProperties": {
+          "present_tense": "satser på",
+          "past_tense": "satset på",
+          "perfect_tense": "satset på"
+        }
+      },
+      {
+        "word": "karriere",
+        "partOfSpeech": "NOUN",
+        "translation": "карьера",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "karrieren",
+          "plural_form": "karrierer",
+          "definite_plural": "karrierene"
+        }
+      },
+      {
+        "word": "kjønn",
+        "partOfSpeech": "NOUN",
+        "translation": "пол",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "kjønnet",
+          "plural_form": "kjønn",
+          "definite_plural": "kjønnene"
+        }
+      },
+      {
+        "word": "nettverk",
+        "partOfSpeech": "NOUN",
+        "translation": "круг знакомств, сеть",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "nettverket",
+          "plural_form": "nettverk",
+          "definite_plural": "nettverkene"
+        }
+      },
+      {
+        "word": "matsentral",
+        "partOfSpeech": "NOUN",
+        "translation": "центр раздачи еды",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "matsentralen",
+          "plural_form": "matsentraler",
+          "definite_plural": "matsentralene"
+        }
+      },
+      {
+        "word": "ta ordet",
+        "partOfSpeech": "PHRASE",
+        "translation": "взять слово"
+      },
+      {
+        "word": "si ifra",
+        "partOfSpeech": "VERB",
+        "translation": "высказаться, дать знать",
+        "grammaticalProperties": {
+          "present_tense": "sier ifra",
+          "past_tense": "sa ifra",
+          "perfect_tense": "sagt ifra"
+        }
+      }
+    ]
+  },
+  "8A": {
+    "title": "8A — Bunad eller dress?",
+    "words": [
+      {
+        "word": "bunad",
+        "partOfSpeech": "NOUN",
+        "translation": "национальный костюм",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "bunaden",
+          "plural_form": "bunader",
+          "definite_plural": "bunadene"
+        }
+      },
+      {
+        "word": "folkedrakt",
+        "partOfSpeech": "NOUN",
+        "translation": "народный костюм",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "folkedrakten",
+          "plural_form": "folkedrakter",
+          "definite_plural": "folkedraktene"
+        }
+      },
+      {
+        "word": "høytidelig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "торжественный",
+        "grammaticalProperties": {
+          "neuter_form": "høytidelig",
+          "plural_form": "høytidelige"
+        }
+      },
+      {
+        "word": "anledning",
+        "partOfSpeech": "NOUN",
+        "translation": "повод, случай",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "anledningen",
+          "plural_form": "anledninger",
+          "definite_plural": "anledningene"
+        }
+      },
+      {
+        "word": "håndsydd",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "сшитый вручную",
+        "grammaticalProperties": {
+          "neuter_form": "håndsydd",
+          "plural_form": "håndsydde"
+        }
+      },
+      {
+        "word": "investering",
+        "partOfSpeech": "NOUN",
+        "translation": "вложение, инвестиция",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "investeringen",
+          "plural_form": "investeringer",
+          "definite_plural": "investeringene"
+        }
+      },
+      {
+        "word": "gå i arv",
+        "partOfSpeech": "PHRASE",
+        "translation": "передаваться по наследству"
+      },
+      {
+        "word": "region",
+        "partOfSpeech": "NOUN",
+        "translation": "регион",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "regionen",
+          "plural_form": "regioner",
+          "definite_plural": "regionene"
+        }
+      },
+      {
+        "word": "mønster",
+        "partOfSpeech": "NOUN",
+        "translation": "узор, орнамент",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "mønsteret",
+          "plural_form": "mønstre",
+          "definite_plural": "mønstrene"
+        }
+      },
+      {
+        "word": "sølv",
+        "partOfSpeech": "NOUN",
+        "translation": "серебро",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "sølvet"
+        }
+      },
+      {
+        "word": "broderi",
+        "partOfSpeech": "NOUN",
+        "translation": "вышивка",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "broderiet",
+          "plural_form": "broderier",
+          "definite_plural": "broderiene"
+        }
+      },
+      {
+        "word": "slekt",
+        "partOfSpeech": "NOUN",
+        "translation": "род, родня",
+        "grammaticalProperties": {
+          "gender": "feminine",
+          "definite_singular": "slekta"
+        }
+      },
+      {
+        "word": "gammeldags",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "старомодный",
+        "grammaticalProperties": {
+          "neuter_form": "gammeldags",
+          "plural_form": "gammeldagse"
+        }
+      },
+      {
+        "word": "dress",
+        "partOfSpeech": "NOUN",
+        "translation": "(мужской) костюм",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "dressen",
+          "plural_form": "dresser",
+          "definite_plural": "dressene"
+        }
+      },
+      {
+        "word": "fargerik",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "яркий, разноцветный",
+        "grammaticalProperties": {
+          "neuter_form": "fargerikt",
+          "plural_form": "fargerike"
+        }
+      },
+      {
+        "word": "symbol",
+        "partOfSpeech": "NOUN",
+        "translation": "символ",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "symbolet",
+          "plural_form": "symboler",
+          "definite_plural": "symbolene"
+        }
+      },
+      {
+        "word": "høre til",
+        "partOfSpeech": "VERB",
+        "translation": "принадлежать",
+        "grammaticalProperties": {
+          "present_tense": "hører til",
+          "past_tense": "hørte til",
+          "perfect_tense": "hørt til"
+        }
+      }
+    ]
+  },
+  "8B": {
+    "title": "8B — Norsk mat i endring",
+    "words": [
+      {
+        "word": "matkultur",
+        "partOfSpeech": "NOUN",
+        "translation": "кулинарная культура",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "matkulturen"
+        }
+      },
+      {
+        "word": "forandre seg",
+        "partOfSpeech": "VERB",
+        "translation": "меняться",
+        "grammaticalProperties": {
+          "present_tense": "forandrer seg",
+          "past_tense": "forandret seg",
+          "perfect_tense": "forandret seg"
+        }
+      },
+      {
+        "word": "tiår",
+        "partOfSpeech": "NOUN",
+        "translation": "десятилетие",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "tiåret",
+          "plural_form": "tiår",
+          "definite_plural": "tiårene"
+        }
+      },
+      {
+        "word": "tradisjonell",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "традиционный",
+        "grammaticalProperties": {
+          "neuter_form": "tradisjonelt",
+          "plural_form": "tradisjonelle"
+        }
+      },
+      {
+        "word": "brunost",
+        "partOfSpeech": "NOUN",
+        "translation": "коричневый (карамельный) сыр",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "brunosten"
+        }
+      },
+      {
+        "word": "krydder",
+        "partOfSpeech": "NOUN",
+        "translation": "специя, приправа",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "krydderet",
+          "plural_form": "krydder",
+          "definite_plural": "krydderne"
+        }
+      },
+      {
+        "word": "variert",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "разнообразный",
+        "grammaticalProperties": {
+          "neuter_form": "variert",
+          "plural_form": "varierte"
+        }
+      },
+      {
+        "word": "utvalg",
+        "partOfSpeech": "NOUN",
+        "translation": "ассортимент, выбор",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "utvalget"
+        }
+      },
+      {
+        "word": "smak",
+        "partOfSpeech": "NOUN",
+        "translation": "вкус",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "smaken",
+          "plural_form": "smaker",
+          "definite_plural": "smakene"
+        }
+      },
+      {
+        "word": "paradoks",
+        "partOfSpeech": "NOUN",
+        "translation": "парадокс",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "paradokset",
+          "plural_form": "paradokser",
+          "definite_plural": "paradoksene"
+        }
+      },
+      {
+        "word": "opprinnelig",
+        "partOfSpeech": "ADVERB",
+        "translation": "изначально"
+      },
+      {
+        "word": "økologisk",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "органический",
+        "grammaticalProperties": {
+          "neuter_form": "økologisk",
+          "plural_form": "økologiske"
+        }
+      },
+      {
+        "word": "kortreist",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "местного производства",
+        "grammaticalProperties": {
+          "neuter_form": "kortreist",
+          "plural_form": "kortreiste"
+        }
+      },
+      {
+        "word": "av hensyn til",
+        "partOfSpeech": "PHRASE",
+        "translation": "из соображений"
+      },
+      {
+        "word": "vegetarisk",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "вегетарианский",
+        "grammaticalProperties": {
+          "neuter_form": "vegetarisk",
+          "plural_form": "vegetariske"
+        }
+      },
+      {
+        "word": "vegansk",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "веганский",
+        "grammaticalProperties": {
+          "neuter_form": "vegansk",
+          "plural_form": "veganske"
+        }
+      },
+      {
+        "word": "holde stand",
+        "partOfSpeech": "VERB",
+        "translation": "держаться, сохраняться",
+        "grammaticalProperties": {
+          "present_tense": "holder stand",
+          "past_tense": "holdt stand",
+          "perfect_tense": "holdt stand"
+        }
+      }
+    ]
+  },
+  "8C": {
+    "title": "8C — Tro og livssyn i Norge / Les og lytt",
+    "words": [
+      {
+        "word": "tro",
+        "partOfSpeech": "NOUN",
+        "translation": "вера",
+        "grammaticalProperties": {
+          "gender": "feminine",
+          "definite_singular": "troa"
+        }
+      },
+      {
+        "word": "livssyn",
+        "partOfSpeech": "NOUN",
+        "translation": "мировоззрение",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "livssynet",
+          "plural_form": "livssyn",
+          "definite_plural": "livssynene"
+        }
+      },
+      {
+        "word": "mangfoldig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "многообразный",
+        "grammaticalProperties": {
+          "neuter_form": "mangfoldig",
+          "plural_form": "mangfoldige"
+        }
+      },
+      {
+        "word": "medlem",
+        "partOfSpeech": "NOUN",
+        "translation": "член (организации)",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "medlemmet",
+          "plural_form": "medlemmer",
+          "definite_plural": "medlemmene"
+        }
+      },
+      {
+        "word": "troende",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "верующий",
+        "grammaticalProperties": {
+          "neuter_form": "troende",
+          "plural_form": "troende"
+        }
+      },
+      {
+        "word": "praktisere",
+        "partOfSpeech": "VERB",
+        "translation": "исповедовать (религию)",
+        "grammaticalProperties": {
+          "present_tense": "praktiserer",
+          "past_tense": "praktiserte",
+          "perfect_tense": "praktisert"
+        }
+      },
+      {
+        "word": "sette pris på",
+        "partOfSpeech": "VERB",
+        "translation": "ценить",
+        "grammaticalProperties": {
+          "present_tense": "setter pris på",
+          "past_tense": "satte pris på",
+          "perfect_tense": "satt pris på"
+        }
+      },
+      {
+        "word": "humanist",
+        "partOfSpeech": "NOUN",
+        "translation": "гуманист",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "humanisten",
+          "plural_form": "humanister",
+          "definite_plural": "humanistene"
+        }
+      },
+      {
+        "word": "religionsfrihet",
+        "partOfSpeech": "NOUN",
+        "translation": "свобода вероисповедания",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "religionsfriheten"
+        }
+      },
+      {
+        "word": "selvfølge",
+        "partOfSpeech": "NOUN",
+        "translation": "нечто само собой разумеющееся",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "selvfølgen"
+        }
+      },
+      {
+        "word": "respektere",
+        "partOfSpeech": "VERB",
+        "translation": "уважать",
+        "grammaticalProperties": {
+          "present_tense": "respekterer",
+          "past_tense": "respekterte",
+          "perfect_tense": "respektert"
+        }
+      },
+      {
+        "word": "tog",
+        "partOfSpeech": "NOUN",
+        "translation": "шествие",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "toget",
+          "plural_form": "tog",
+          "definite_plural": "togene"
+        }
+      },
+      {
+        "word": "pynte",
+        "partOfSpeech": "VERB",
+        "translation": "украшать",
+        "grammaticalProperties": {
+          "present_tense": "pynter",
+          "past_tense": "pyntet",
+          "perfect_tense": "pyntet"
+        }
+      },
+      {
+        "word": "fyrverkeri",
+        "partOfSpeech": "NOUN",
+        "translation": "фейерверк",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "fyrverkeriet",
+          "plural_form": "fyrverkerier",
+          "definite_plural": "fyrverkeriene"
+        }
+      },
+      {
+        "word": "nyttårsforsett",
+        "partOfSpeech": "NOUN",
+        "translation": "новогоднее обещание себе",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "nyttårsforsettet",
+          "plural_form": "nyttårsforsett",
+          "definite_plural": "nyttårsforsettene"
+        }
+      }
+    ]
+  },
+  "9A": {
+    "title": "9A — Fra fattigland til oljeland",
+    "words": [
+      {
+        "word": "fattig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "бедный",
+        "grammaticalProperties": {
+          "neuter_form": "fattig",
+          "plural_form": "fattige"
+        }
+      },
+      {
+        "word": "fattigland",
+        "partOfSpeech": "NOUN",
+        "translation": "бедная страна",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "fattiglandet",
+          "plural_form": "fattigland",
+          "definite_plural": "fattiglandene"
+        }
+      },
+      {
+        "word": "jordbruk",
+        "partOfSpeech": "NOUN",
+        "translation": "земледелие",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "jordbruket"
+        }
+      },
+      {
+        "word": "knapp",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "скудный, в нехватке",
+        "grammaticalProperties": {
+          "neuter_form": "knapt",
+          "plural_form": "knappe"
+        }
+      },
+      {
+        "word": "befolkning",
+        "partOfSpeech": "NOUN",
+        "translation": "население",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "befolkningen"
+        }
+      },
+      {
+        "word": "tredjedel",
+        "partOfSpeech": "NOUN",
+        "translation": "треть",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "tredjedelen",
+          "plural_form": "tredjedeler",
+          "definite_plural": "tredjedelene"
+        }
+      },
+      {
+        "word": "forlate",
+        "partOfSpeech": "VERB",
+        "translation": "покидать",
+        "grammaticalProperties": {
+          "present_tense": "forlater",
+          "past_tense": "forlot",
+          "perfect_tense": "forlatt"
+        }
+      },
+      {
+        "word": "gård",
+        "partOfSpeech": "NOUN",
+        "translation": "хутор, ферма",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "gården",
+          "plural_form": "gårder",
+          "definite_plural": "gårdene"
+        }
+      },
+      {
+        "word": "hav",
+        "partOfSpeech": "NOUN",
+        "translation": "море, океан",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "havet",
+          "plural_form": "hav",
+          "definite_plural": "havene"
+        }
+      },
+      {
+        "word": "virkelighet",
+        "partOfSpeech": "NOUN",
+        "translation": "реальность",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "virkeligheten"
+        }
+      },
+      {
+        "word": "savne",
+        "partOfSpeech": "VERB",
+        "translation": "скучать по",
+        "grammaticalProperties": {
+          "present_tense": "savner",
+          "past_tense": "savnet",
+          "perfect_tense": "savnet"
+        }
+      },
+      {
+        "word": "olje",
+        "partOfSpeech": "NOUN",
+        "translation": "нефть",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "oljen"
+        }
+      },
+      {
+        "word": "rikdom",
+        "partOfSpeech": "NOUN",
+        "translation": "богатство",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "rikdommen"
+        }
+      },
+      {
+        "word": "tiår",
+        "partOfSpeech": "NOUN",
+        "translation": "десятилетие",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "tiåret",
+          "plural_form": "tiår",
+          "definite_plural": "tiårene"
+        }
+      },
+      {
+        "word": "fond",
+        "partOfSpeech": "NOUN",
+        "translation": "фонд",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "fondet",
+          "plural_form": "fond",
+          "definite_plural": "fondene"
+        }
+      },
+      {
+        "word": "forandre seg",
+        "partOfSpeech": "VERB",
+        "translation": "меняться",
+        "grammaticalProperties": {
+          "present_tense": "forandrer seg",
+          "past_tense": "forandret seg",
+          "perfect_tense": "forandret seg"
+        }
+      }
+    ]
+  },
+  "9B": {
+    "title": "9B — Fra utvandring til innvandring",
+    "words": [
+      {
+        "word": "utvandring",
+        "partOfSpeech": "NOUN",
+        "translation": "эмиграция",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "utvandringen"
+        }
+      },
+      {
+        "word": "innvandring",
+        "partOfSpeech": "NOUN",
+        "translation": "иммиграция",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "innvandringen"
+        }
+      },
+      {
+        "word": "motsatt",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "наоборот, противоположный",
+        "grammaticalProperties": {
+          "neuter_form": "motsatt",
+          "plural_form": "motsatte"
+        }
+      },
+      {
+        "word": "flyktning",
+        "partOfSpeech": "NOUN",
+        "translation": "беженец",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "flyktningen",
+          "plural_form": "flyktninger",
+          "definite_plural": "flyktningene"
+        }
+      },
+      {
+        "word": "krig",
+        "partOfSpeech": "NOUN",
+        "translation": "война",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "krigen",
+          "plural_form": "kriger",
+          "definite_plural": "krigene"
+        }
+      },
+      {
+        "word": "arbeidsinnvandrer",
+        "partOfSpeech": "NOUN",
+        "translation": "трудовой мигрант",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "arbeidsinnvandreren",
+          "plural_form": "arbeidsinnvandrere",
+          "definite_plural": "arbeidsinnvandrerne"
+        }
+      },
+      {
+        "word": "industri",
+        "partOfSpeech": "NOUN",
+        "translation": "промышленность",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "industrien"
+        }
+      },
+      {
+        "word": "innvandrerbakgrunn",
+        "partOfSpeech": "NOUN",
+        "translation": "миграционное происхождение",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "innvandrerbakgrunnen"
+        }
+      },
+      {
+        "word": "mangfoldig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "многообразный",
+        "grammaticalProperties": {
+          "neuter_form": "mangfoldig",
+          "plural_form": "mangfoldige"
+        }
+      },
+      {
+        "word": "hylle",
+        "partOfSpeech": "NOUN",
+        "translation": "полка",
+        "grammaticalProperties": {
+          "gender": "feminine",
+          "definite_singular": "hylla",
+          "plural_form": "hyller",
+          "definite_plural": "hyllene"
+        }
+      },
+      {
+        "word": "utfordring",
+        "partOfSpeech": "NOUN",
+        "translation": "вызов, трудность",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "utfordringen",
+          "plural_form": "utfordringer",
+          "definite_plural": "utfordringene"
+        }
+      },
+      {
+        "word": "bidra",
+        "partOfSpeech": "VERB",
+        "translation": "вносить вклад",
+        "grammaticalProperties": {
+          "present_tense": "bidrar",
+          "past_tense": "bidro",
+          "perfect_tense": "bidratt"
+        }
+      },
+      {
+        "word": "kunnskap",
+        "partOfSpeech": "NOUN",
+        "translation": "знание",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kunnskapen"
+        }
+      },
+      {
+        "word": "inkludere",
+        "partOfSpeech": "VERB",
+        "translation": "включать, интегрировать",
+        "grammaticalProperties": {
+          "present_tense": "inkluderer",
+          "past_tense": "inkluderte",
+          "perfect_tense": "inkludert"
+        }
+      },
+      {
+        "word": "naturlig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "естественный",
+        "grammaticalProperties": {
+          "neuter_form": "naturlig",
+          "plural_form": "naturlige"
+        }
+      }
+    ]
+  },
+  "9C": {
+    "title": "9C — Kjente nordmenn / Les og lytt",
+    "words": [
+      {
+        "word": "sette spor",
+        "partOfSpeech": "PHRASE",
+        "translation": "оставить след"
+      },
+      {
+        "word": "dramatiker",
+        "partOfSpeech": "NOUN",
+        "translation": "драматург",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "dramatikeren",
+          "plural_form": "dramatikere",
+          "definite_plural": "dramatikerne"
+        }
+      },
+      {
+        "word": "skuespill",
+        "partOfSpeech": "NOUN",
+        "translation": "пьеса, спектакль",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "skuespillet",
+          "plural_form": "skuespill",
+          "definite_plural": "skuespillene"
+        }
+      },
+      {
+        "word": "forsker",
+        "partOfSpeech": "NOUN",
+        "translation": "исследователь",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "forskeren",
+          "plural_form": "forskere",
+          "definite_plural": "forskerne"
+        }
+      },
+      {
+        "word": "polfarer",
+        "partOfSpeech": "NOUN",
+        "translation": "полярный исследователь",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "polfareren",
+          "plural_form": "polfarere",
+          "definite_plural": "polfarerne"
+        }
+      },
+      {
+        "word": "utforske",
+        "partOfSpeech": "VERB",
+        "translation": "исследовать",
+        "grammaticalProperties": {
+          "present_tense": "utforsker",
+          "past_tense": "utforsket",
+          "perfect_tense": "utforsket"
+        }
+      },
+      {
+        "word": "Nobels fredspris",
+        "partOfSpeech": "PHRASE",
+        "translation": "Нобелевская премия мира"
+      },
+      {
+        "word": "komponist",
+        "partOfSpeech": "NOUN",
+        "translation": "композитор",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "komponisten",
+          "plural_form": "komponister",
+          "definite_plural": "komponistene"
+        }
+      },
+      {
+        "word": "statsminister",
+        "partOfSpeech": "NOUN",
+        "translation": "премьер-министр",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "statsministeren",
+          "plural_form": "statsministre",
+          "definite_plural": "statsministrene"
+        }
+      },
+      {
+        "word": "betydning",
+        "partOfSpeech": "NOUN",
+        "translation": "значение",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "betydningen"
+        }
+      },
+      {
+        "word": "arv",
+        "partOfSpeech": "NOUN",
+        "translation": "наследие",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "arven"
+        }
+      },
+      {
+        "word": "operasanger",
+        "partOfSpeech": "NOUN",
+        "translation": "оперный певец",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "operasangeren",
+          "plural_form": "operasangere",
+          "definite_plural": "operasangerne"
+        }
+      },
+      {
+        "word": "nå",
+        "partOfSpeech": "VERB",
+        "translation": "достичь (Южного полюса)",
+        "grammaticalProperties": {
+          "present_tense": "når",
+          "past_tense": "nådde",
+          "perfect_tense": "nådd"
+        }
+      },
+      {
+        "word": "bevise",
+        "partOfSpeech": "VERB",
+        "translation": "доказывать",
+        "grammaticalProperties": {
+          "present_tense": "beviser",
+          "past_tense": "beviste",
+          "perfect_tense": "bevist"
+        }
+      },
+      {
+        "word": "forbilde",
+        "partOfSpeech": "NOUN",
+        "translation": "образец для подражания",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "forbildet",
+          "plural_form": "forbilder",
+          "definite_plural": "forbildene"
+        }
+      },
+      {
+        "word": "vilje",
+        "partOfSpeech": "NOUN",
+        "translation": "воля",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "viljen"
+        }
+      }
+    ]
+  },
+  "10A": {
+    "title": "10A — Veien videre / Hva vil du bli?",
+    "words": [
+      {
+        "word": "gi opp",
+        "partOfSpeech": "VERB",
+        "translation": "сдаваться",
+        "grammaticalProperties": {
+          "present_tense": "gir opp",
+          "past_tense": "ga opp",
+          "perfect_tense": "gitt opp"
+        }
+      },
+      {
+        "word": "gi seg",
+        "partOfSpeech": "VERB",
+        "translation": "сдаваться",
+        "grammaticalProperties": {
+          "present_tense": "gir seg",
+          "past_tense": "ga seg",
+          "perfect_tense": "gitt seg"
+        }
+      },
+      {
+        "word": "stå på",
+        "partOfSpeech": "VERB",
+        "translation": "упорствовать, стараться",
+        "grammaticalProperties": {
+          "present_tense": "står på",
+          "past_tense": "sto på",
+          "perfect_tense": "stått på"
+        }
+      },
+      {
+        "word": "skape",
+        "partOfSpeech": "VERB",
+        "translation": "создавать (себе)",
+        "grammaticalProperties": {
+          "present_tense": "skaper",
+          "past_tense": "skapte",
+          "perfect_tense": "skapt"
+        }
+      },
+      {
+        "word": "drøm",
+        "partOfSpeech": "NOUN",
+        "translation": "мечта",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "drømmen",
+          "plural_form": "drømmer",
+          "definite_plural": "drømmene"
+        }
+      },
+      {
+        "word": "drømme",
+        "partOfSpeech": "VERB",
+        "translation": "мечтать",
+        "grammaticalProperties": {
+          "present_tense": "drømmer",
+          "past_tense": "drømte",
+          "perfect_tense": "drømt"
+        }
+      },
+      {
+        "word": "krevende",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "требующий усилий",
+        "grammaticalProperties": {
+          "neuter_form": "krevende",
+          "plural_form": "krevende"
+        }
+      },
+      {
+        "word": "ved siden av",
+        "partOfSpeech": "PHRASE",
+        "translation": "наряду, помимо"
+      },
+      {
+        "word": "tålmodig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "терпеливый",
+        "grammaticalProperties": {
+          "neuter_form": "tålmodig",
+          "plural_form": "tålmodige"
+        }
+      },
+      {
+        "word": "lager",
+        "partOfSpeech": "NOUN",
+        "translation": "склад",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "lageret",
+          "plural_form": "lagre",
+          "definite_plural": "lagrene"
+        }
+      },
+      {
+        "word": "rørlegger",
+        "partOfSpeech": "NOUN",
+        "translation": "сантехник",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "rørleggeren",
+          "plural_form": "rørleggere",
+          "definite_plural": "rørleggerne"
+        }
+      },
+      {
+        "word": "ordning",
+        "partOfSpeech": "NOUN",
+        "translation": "схема поддержки",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "ordningen",
+          "plural_form": "ordninger",
+          "definite_plural": "ordningene"
+        }
+      },
+      {
+        "word": "bekymret",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "обеспокоенный",
+        "grammaticalProperties": {
+          "neuter_form": "bekymret",
+          "plural_form": "bekymrede"
+        }
+      },
+      {
+        "word": "optimistisk",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "оптимистичный",
+        "grammaticalProperties": {
+          "neuter_form": "optimistisk",
+          "plural_form": "optimistiske"
+        }
+      },
+      {
+        "word": "tenke over",
+        "partOfSpeech": "VERB",
+        "translation": "обдумывать",
+        "grammaticalProperties": {
+          "present_tense": "tenker over",
+          "past_tense": "tenkte over",
+          "perfect_tense": "tenkt over"
+        }
+      },
+      {
+        "word": "mulighet",
+        "partOfSpeech": "NOUN",
+        "translation": "возможность",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "muligheten",
+          "plural_form": "muligheter",
+          "definite_plural": "mulighetene"
+        }
+      }
+    ]
+  },
+  "10C": {
+    "title": "10C — Klar for Norskprøven / Les og lytt",
+    "words": [
+      {
+        "word": "prøve",
+        "partOfSpeech": "NOUN",
+        "translation": "тест, экзамен",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "prøven",
+          "plural_form": "prøver",
+          "definite_plural": "prøvene"
+        }
+      },
+      {
+        "word": "måle",
+        "partOfSpeech": "VERB",
+        "translation": "измерять",
+        "grammaticalProperties": {
+          "present_tense": "måler",
+          "past_tense": "målte",
+          "perfect_tense": "målt"
+        }
+      },
+      {
+        "word": "lytting",
+        "partOfSpeech": "NOUN",
+        "translation": "аудирование",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "lyttingen"
+        }
+      },
+      {
+        "word": "lesing",
+        "partOfSpeech": "NOUN",
+        "translation": "чтение",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "lesingen"
+        }
+      },
+      {
+        "word": "skriftlig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "письменный",
+        "grammaticalProperties": {
+          "neuter_form": "skriftlig",
+          "plural_form": "skriftlige"
+        }
+      },
+      {
+        "word": "muntlig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "устный",
+        "grammaticalProperties": {
+          "neuter_form": "muntlig",
+          "plural_form": "muntlige"
+        }
+      },
+      {
+        "word": "statsborgerskap",
+        "partOfSpeech": "NOUN",
+        "translation": "гражданство",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "statsborgerskapet"
+        }
+      },
+      {
+        "word": "forberede seg",
+        "partOfSpeech": "VERB",
+        "translation": "готовиться",
+        "grammaticalProperties": {
+          "present_tense": "forbereder seg",
+          "past_tense": "forberedte seg",
+          "perfect_tense": "forberedt seg"
+        }
+      },
+      {
+        "word": "jevnt",
+        "partOfSpeech": "ADVERB",
+        "translation": "равномерно, регулярно"
+      },
+      {
+        "word": "format",
+        "partOfSpeech": "NOUN",
+        "translation": "формат",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "formatet",
+          "plural_form": "formater",
+          "definite_plural": "formatene"
+        }
+      },
+      {
+        "word": "tydelig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "понятный, чёткий",
+        "grammaticalProperties": {
+          "neuter_form": "tydelig",
+          "plural_form": "tydelige"
+        }
+      },
+      {
+        "word": "strukturert",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "структурированный",
+        "grammaticalProperties": {
+          "neuter_form": "strukturert",
+          "plural_form": "strukturerte"
+        }
+      },
+      {
+        "word": "avsnitt",
+        "partOfSpeech": "NOUN",
+        "translation": "абзац",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "avsnittet",
+          "plural_form": "avsnitt",
+          "definite_plural": "avsnittene"
+        }
+      },
+      {
+        "word": "binde sammen",
+        "partOfSpeech": "VERB",
+        "translation": "связывать",
+        "grammaticalProperties": {
+          "present_tense": "binder sammen",
+          "past_tense": "bandt sammen",
+          "perfect_tense": "bundet sammen"
+        }
+      },
+      {
+        "word": "tørre",
+        "partOfSpeech": "VERB",
+        "translation": "осмеливаться",
+        "grammaticalProperties": {
+          "present_tense": "tør",
+          "past_tense": "turte",
+          "perfect_tense": "turt"
+        }
+      },
+      {
+        "word": "melde seg",
+        "partOfSpeech": "VERB",
+        "translation": "записаться (волонтёром)",
+        "grammaticalProperties": {
+          "present_tense": "melder seg",
+          "past_tense": "meldte seg",
+          "perfect_tense": "meldt seg"
+        }
+      },
+      {
+        "word": "kor",
+        "partOfSpeech": "NOUN",
+        "translation": "хор",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "koret",
+          "plural_form": "kor",
+          "definite_plural": "korene"
+        }
+      }
     ]
   }
 }
