@@ -80,6 +80,26 @@ export class SchoolMembership {
     });
   }
 
+  /**
+   * An owner/admin adding a student directly to the roster enrols them
+   * immediately — they never pass through the self-service onboarding funnel
+   * (application → placement → group → schedule), which only applies to
+   * students who apply themselves. Such a membership is `active` from creation;
+   * grouping/placement, if any, is handled by the admin through school tools.
+   */
+  static createDirect(props: CreateMembershipProps): SchoolMembership {
+    const now = new Date();
+    return new SchoolMembership({
+      ...props,
+      status: 'active',
+      availability: undefined,
+      ageBand: undefined,
+      groupAssignedSeenAt: undefined,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
   static rehydrate(props: RehydrateMembershipProps): SchoolMembership {
     return new SchoolMembership(props);
   }

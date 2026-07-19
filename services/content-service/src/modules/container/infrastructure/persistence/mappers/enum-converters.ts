@@ -4,6 +4,7 @@ import { DifficultyLevel } from '../../../domain/value-objects/difficulty-level.
 import { Visibility } from '../../../domain/value-objects/visibility.vo.js';
 import { AccessTier } from '../../../domain/value-objects/access-tier.vo.js';
 import { LevelSystem } from '../../../domain/value-objects/level-system.vo.js';
+import { GatingMode } from '../../../domain/value-objects/gating-mode.vo.js';
 import { VersionStatus } from '../../../domain/value-objects/version-status.vo.js';
 import { ContainerItemType } from '../../../domain/value-objects/item-type.vo.js';
 
@@ -127,6 +128,26 @@ export function prismaLevelSystemToDomain(value: $Enums.LevelSystem): LevelSyste
 
 export function domainLevelSystemToPrisma(value: LevelSystem): $Enums.LevelSystem {
   return DOMAIN_TO_PRISMA_LEVEL_SYSTEM[value];
+}
+
+// ─── GatingMode ──────────────────────────────────────────────────────────────
+
+const PRISMA_TO_DOMAIN_GATING_MODE: Record<$Enums.GatingMode, GatingMode> = {
+  OPEN: GatingMode.OPEN,
+  SEQUENTIAL: GatingMode.SEQUENTIAL,
+};
+
+const DOMAIN_TO_PRISMA_GATING_MODE: Record<GatingMode, $Enums.GatingMode> = {
+  [GatingMode.OPEN]: 'OPEN',
+  [GatingMode.SEQUENTIAL]: 'SEQUENTIAL',
+};
+
+export function prismaGatingModeToDomain(value: $Enums.GatingMode): GatingMode {
+  return PRISMA_TO_DOMAIN_GATING_MODE[value];
+}
+
+export function domainGatingModeToPrisma(value: GatingMode): $Enums.GatingMode {
+  return DOMAIN_TO_PRISMA_GATING_MODE[value];
 }
 
 // ─── VersionStatus ───────────────────────────────────────────────────────────

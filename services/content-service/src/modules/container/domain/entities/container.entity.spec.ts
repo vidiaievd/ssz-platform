@@ -4,6 +4,7 @@ import { DifficultyLevel } from '../value-objects/difficulty-level.vo.js';
 import { Visibility } from '../value-objects/visibility.vo.js';
 import { AccessTier } from '../value-objects/access-tier.vo.js';
 import { LevelSystem } from '../value-objects/level-system.vo.js';
+import { GatingMode } from '../value-objects/gating-mode.vo.js';
 
 function createCourse(levelSystem?: LevelSystem) {
   const result = ContainerEntity.create({
@@ -49,6 +50,35 @@ describe('ContainerEntity — levelSystem', () => {
     container.clearDomainEvents();
 
     const result = container.update({ levelSystem: LevelSystem.CUSTOM });
+
+    expect(result.isOk).toBe(true);
+    expect(container.getDomainEvents()).toHaveLength(0);
+  });
+});
+
+describe('ContainerEntity — gatingMode', () => {
+  it('defaults to OPEN at creation', () => {
+    const container = createCourse();
+
+    expect(container.gatingMode).toBe(GatingMode.OPEN);
+  });
+
+  it('updates gatingMode and raises a ContainerUpdatedEvent', () => {
+    const container = createCourse();
+    container.clearDomainEvents();
+
+    const result = container.update({ gatingMode: GatingMode.SEQUENTIAL });
+
+    expect(result.isOk).toBe(true);
+    expect(container.gatingMode).toBe(GatingMode.SEQUENTIAL);
+    expect(container.getDomainEvents()).toHaveLength(1);
+  });
+
+  it('is a no-op when updated to the same gatingMode', () => {
+    const container = createCourse();
+    container.clearDomainEvents();
+
+    const result = container.update({ gatingMode: GatingMode.OPEN });
 
     expect(result.isOk).toBe(true);
     expect(container.getDomainEvents()).toHaveLength(0);

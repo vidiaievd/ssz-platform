@@ -77,6 +77,16 @@ export interface ModuleReaderStructureRef {
   ungroupedItems: ModuleReaderStructureItemRef[];
 }
 
+// A course leaf item enriched with its sub-lesson (module) attribution and
+// required flag — drives per-sub-lesson completion and sequential gating.
+export interface CourseLeafItemRef {
+  ref: ContentRef;
+  // Nearest top-level MODULE ancestor under the course; null when the leaf sits
+  // directly under the course.
+  moduleId: string | null;
+  isRequired: boolean;
+}
+
 export const CONTENT_CLIENT = Symbol('IContentClient');
 
 export interface IContentClient {
@@ -98,6 +108,13 @@ export interface IContentClient {
   getContainerLeafItems(
     containerId: string,
   ): Promise<Result<ContentRef[], ContentClientError>>;
+
+  // Same leaf items as getContainerLeafItems, enriched with each leaf's
+  // sub-lesson (module) attribution and required flag — used to compute
+  // per-sub-lesson progress and sequential-unlock statuses.
+  getCourseLeafItems(
+    courseId: string,
+  ): Promise<Result<CourseLeafItemRef[], ContentClientError>>;
 
   // Returns vocabulary item IDs for a list. Used by BulkIntroduceFromVocabularyListHandler.
   // Calls GET /api/internal/vocabulary-lists/{listId}/items on Content Service.

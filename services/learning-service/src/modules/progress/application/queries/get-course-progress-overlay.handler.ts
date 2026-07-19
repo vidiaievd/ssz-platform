@@ -15,6 +15,10 @@ export interface ItemProgressEntry {
   status: ProgressStatus;
   completedAt: string | null;
   score: number | null;
+  // Sub-lesson (module) this leaf belongs to; null when directly under the
+  // course. Lets consumers roll progress up per sub-lesson.
+  moduleId: string | null;
+  isRequired: boolean;
 }
 
 export interface CourseProgressOverlay {
@@ -35,7 +39,7 @@ export class GetCourseProgressOverlayHandler
   ) {}
 
   async execute(query: GetCourseProgressOverlayQuery): Promise<CourseProgressOverlay> {
-    const leafResult = await this.contentClient.getContainerLeafItems(query.containerId);
+    const leafResult = await this.contentClient.getCourseLeafItems(query.containerId);
     if (leafResult.isFail) {
       throw new BadRequestException(
         `Cannot fetch course structure: ${(leafResult.error as ContentClientError).message}`,
@@ -43,19 +47,21 @@ export class GetCourseProgressOverlayHandler
     }
 
     const leafItems = leafResult.value;
-    const contentIds = leafItems.map((r) => r.id);
+    const contentIds = leafItems.map((i) => i.ref.id);
 
     const progressRows = await this.progressRepo.findByUserAndContentIds(query.userId, contentIds);
     const progressByContentId = new Map(progressRows.map((p) => [p.contentRef.id, p]));
 
-    const items: ItemProgressEntry[] = leafItems.map((ref) => {
-      const p = progressByContentId.get(ref.id);
+    const items: ItemProgressEntry[] = leafItems.map((leaf) => {
+      const p = progressByContentId.get(leaf.ref.id);
       return {
-        contentType: ref.type,
-        contentId: ref.id,
+        contentType: leaf.ref.type,
+        contentId: leaf.ref.id,
         status: p?.status ?? 'NOT_STARTED',
         completedAt: p?.completedAt?.toISOString() ?? null,
         score: p?.score ?? null,
+        moduleId: leaf.moduleId,
+        isRequired: leaf.isRequired,
       };
     });
 

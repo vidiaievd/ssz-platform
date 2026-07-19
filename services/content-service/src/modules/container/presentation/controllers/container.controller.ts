@@ -174,6 +174,7 @@ export class ContainerController {
         dto.visibility,
         dto.accessTier,
         dto.levelSystem,
+        dto.gatingMode,
       ),
     );
 

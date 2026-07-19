@@ -160,11 +160,16 @@ export class InternalController {
   @Get('containers/:id/leaf-items')
   async getContainerLeafItems(
     @Param('id') containerId: string,
-  ): Promise<Array<{ type: string; id: string }>> {
+  ): Promise<Array<{ type: string; id: string; moduleId: string | null; isRequired: boolean }>> {
     const items = await this.queryBus.execute<GetLeafItemsQuery, LeafItem[]>(
       new GetLeafItemsQuery(containerId),
     );
-    return items.map((i) => ({ type: i.itemType, id: i.itemId }));
+    return items.map((i) => ({
+      type: i.itemType,
+      id: i.itemId,
+      moduleId: i.moduleId,
+      isRequired: i.isRequired,
+    }));
   }
 
   @Get('versions/:id/preflight')

@@ -6,6 +6,7 @@ import { DifficultyLevel } from '../value-objects/difficulty-level.vo.js';
 import { Visibility, getValidVisibilities } from '../value-objects/visibility.vo.js';
 import { AccessTier } from '../value-objects/access-tier.vo.js';
 import { LevelSystem } from '../value-objects/level-system.vo.js';
+import { GatingMode } from '../value-objects/gating-mode.vo.js';
 import { ContainerDomainError } from '../exceptions/container-domain.exceptions.js';
 import { ContainerCreatedEvent } from '../events/container-created.event.js';
 import { ContainerUpdatedEvent } from '../events/container-updated.event.js';
@@ -26,6 +27,7 @@ interface ContainerProps {
   visibility: Visibility;
   accessTier: AccessTier;
   levelSystem: LevelSystem;
+  gatingMode: GatingMode;
   currentPublishedVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -45,6 +47,7 @@ export interface CreateContainerProps {
   visibility: Visibility;
   accessTier: AccessTier;
   levelSystem?: LevelSystem;
+  gatingMode?: GatingMode;
 }
 
 export interface UpdateContainerProps {
@@ -55,6 +58,7 @@ export interface UpdateContainerProps {
   visibility?: Visibility;
   accessTier?: AccessTier;
   levelSystem?: LevelSystem;
+  gatingMode?: GatingMode;
 }
 
 export class ContainerEntity extends AggregateRoot {
@@ -103,6 +107,9 @@ export class ContainerEntity extends AggregateRoot {
   get levelSystem(): LevelSystem {
     return this.props.levelSystem;
   }
+  get gatingMode(): GatingMode {
+    return this.props.gatingMode;
+  }
   get currentPublishedVersionId(): string | null {
     return this.props.currentPublishedVersionId;
   }
@@ -144,6 +151,7 @@ export class ContainerEntity extends AggregateRoot {
       visibility: p.visibility,
       accessTier: p.accessTier,
       levelSystem: p.levelSystem ?? LevelSystem.CEFR,
+      gatingMode: p.gatingMode ?? GatingMode.OPEN,
       currentPublishedVersionId: null,
       createdAt: now,
       updatedAt: now,
@@ -220,6 +228,10 @@ export class ContainerEntity extends AggregateRoot {
     if (changes.levelSystem !== undefined && changes.levelSystem !== this.props.levelSystem) {
       this.props.levelSystem = changes.levelSystem;
       updatedFields.push('levelSystem');
+    }
+    if (changes.gatingMode !== undefined && changes.gatingMode !== this.props.gatingMode) {
+      this.props.gatingMode = changes.gatingMode;
+      updatedFields.push('gatingMode');
     }
 
     if (updatedFields.length > 0) {

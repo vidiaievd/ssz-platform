@@ -12,6 +12,8 @@ import {
   domainAccessTierToPrisma,
   prismaLevelSystemToDomain,
   domainLevelSystemToPrisma,
+  prismaGatingModeToDomain,
+  domainGatingModeToPrisma,
 } from './enum-converters.js';
 
 // Shape of data passed to prisma.container.create({ data: ... })
@@ -29,6 +31,7 @@ export interface ContainerCreateData {
   visibility: $Enums.Visibility;
   accessTier: $Enums.AccessTier;
   levelSystem: $Enums.LevelSystem;
+  gatingMode: $Enums.GatingMode;
   currentPublishedVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -54,6 +57,7 @@ export class ContainerMapper {
       visibility: prismaVisibilityToDomain(raw.visibility),
       accessTier: prismaAccessTierToDomain(raw.accessTier),
       levelSystem: prismaLevelSystemToDomain(raw.levelSystem),
+      gatingMode: prismaGatingModeToDomain(raw.gatingMode),
       currentPublishedVersionId: raw.currentPublishedVersionId,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
@@ -77,6 +81,7 @@ export class ContainerMapper {
       visibility: domainVisibilityToPrisma(entity.visibility),
       accessTier: domainAccessTierToPrisma(entity.accessTier),
       levelSystem: domainLevelSystemToPrisma(entity.levelSystem),
+      gatingMode: domainGatingModeToPrisma(entity.gatingMode),
       currentPublishedVersionId: entity.currentPublishedVersionId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
@@ -97,6 +102,7 @@ export class ContainerMapper {
       visibility: domainVisibilityToPrisma(entity.visibility),
       accessTier: domainAccessTierToPrisma(entity.accessTier),
       levelSystem: domainLevelSystemToPrisma(entity.levelSystem),
+      gatingMode: domainGatingModeToPrisma(entity.gatingMode),
       currentPublishedVersionId: entity.currentPublishedVersionId,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,

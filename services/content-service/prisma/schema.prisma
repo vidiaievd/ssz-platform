@@ -30,6 +30,13 @@ enum LevelSystem {
   @@map("level_system")
 }
 
+enum GatingMode {
+  OPEN       @map("open")
+  SEQUENTIAL @map("sequential")
+
+  @@map("gating_mode")
+}
+
 enum DifficultyLevel {
   A1
   A2
@@ -137,6 +144,9 @@ model Container {
   // Only meaningful for containerType=COURSE (decision 3 in plan 29); default CEFR
   // for every existing/new container is harmless on non-course containers.
   levelSystem               LevelSystem     @default(CEFR) @map("level_system")
+  // Only meaningful for containerType=COURSE; controls student sub-lesson unlock.
+  // Default OPEN keeps every existing course fully unlocked.
+  gatingMode                GatingMode      @default(OPEN) @map("gating_mode")
   // Raw FK to container_versions.id (DEFERRABLE INITIALLY DEFERRED) added via migration.
   currentPublishedVersionId String?         @map("current_published_version_id") @db.Uuid
   createdAt                 DateTime        @default(now()) @map("created_at") @db.Timestamptz

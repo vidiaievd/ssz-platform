@@ -34,6 +34,7 @@ export class UpdateContainerHandler implements ICommandHandler<
       visibility: command.visibility,
       accessTier: command.accessTier,
       levelSystem: command.levelSystem,
+      gatingMode: command.gatingMode,
     });
 
     if (updateResult.isFail) {

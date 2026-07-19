@@ -52,6 +52,13 @@ export class ContainerResponseDto {
   @ApiProperty({ example: 'cefr', enum: ['cefr', 'custom', 'single'] })
   levelSystem!: string;
 
+  @ApiProperty({
+    example: 'open',
+    enum: ['open', 'sequential'],
+    description: 'Course-only: how sub-lessons unlock for students.',
+  })
+  gatingMode!: string;
+
   @ApiPropertyOptional({ example: 'uuid-of-current-published-version' })
   currentPublishedVersionId!: string | null;
 
@@ -88,6 +95,7 @@ export class ContainerResponseDto {
     dto.visibility = entity.visibility;
     dto.accessTier = entity.accessTier;
     dto.levelSystem = entity.levelSystem;
+    dto.gatingMode = entity.gatingMode;
     dto.currentPublishedVersionId = entity.currentPublishedVersionId;
     dto.createdAt = entity.createdAt;
     dto.updatedAt = entity.updatedAt;

@@ -4,6 +4,7 @@ import { DifficultyLevel } from '../../../domain/value-objects/difficulty-level.
 import { Visibility } from '../../../domain/value-objects/visibility.vo.js';
 import { AccessTier } from '../../../domain/value-objects/access-tier.vo.js';
 import { LevelSystem } from '../../../domain/value-objects/level-system.vo.js';
+import { GatingMode } from '../../../domain/value-objects/gating-mode.vo.js';
 
 export class UpdateContainerRequestDto {
   @ApiPropertyOptional({ example: 'A1', enum: DifficultyLevel })
@@ -42,4 +43,13 @@ export class UpdateContainerRequestDto {
   @IsOptional()
   @IsEnum(LevelSystem)
   levelSystem?: LevelSystem;
+
+  @ApiPropertyOptional({
+    example: 'open',
+    enum: GatingMode,
+    description: 'Course-only: how sub-lessons unlock for students.',
+  })
+  @IsOptional()
+  @IsEnum(GatingMode)
+  gatingMode?: GatingMode;
 }
