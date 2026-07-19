@@ -89,6 +89,32 @@ const templates = [
                 items: { type: 'string' },
                 minItems: 1,
               },
+              // Optional teaching aid shown as feedback AFTER checking: why the
+              // correct choice fits and why typical wrong choices don't.
+              // Purely presentational — never affects scoring. Omitting it keeps
+              // the exercise exactly as before (backward compatible).
+              rationale: {
+                type: 'object',
+                properties: {
+                  explanation: { type: 'string' },
+                  options: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      required: ['text', 'verdict'],
+                      properties: {
+                        // The candidate answer being explained.
+                        text: { type: 'string' },
+                        // correct    — the accepted answer
+                        // acceptable — grammatical but not chosen in this context
+                        // wrong      — does not work here
+                        verdict: { type: 'string', enum: ['correct', 'acceptable', 'wrong'] },
+                        note: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },

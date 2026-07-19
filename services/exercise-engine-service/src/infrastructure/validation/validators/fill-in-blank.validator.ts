@@ -3,9 +3,21 @@ import { Result } from '../../../shared/kernel/result.js';
 import type { ValidationOutcome, ValidationError } from '../../../shared/application/ports/answer-validator.port.js';
 import type { IPerTypeValidator, PerTypeValidateInput } from './per-type-validator.interface.js';
 
+// Optional per-blank teaching aid: why the correct choice fits and why typical
+// wrong choices don't. Presentational only — it never affects correct/score.
+interface BlankRationale {
+  explanation?: string;
+  options?: Array<{
+    text: string;
+    verdict: 'correct' | 'acceptable' | 'wrong';
+    note?: string;
+  }>;
+}
+
 interface BlankEntry {
   blank_id: number;
   accepted_answers: string[];
+  rationale?: BlankRationale;
 }
 
 interface FibAnswer {
@@ -50,7 +62,12 @@ export class FillInBlankValidator implements IPerTypeValidator {
       expected.blanks.map((b) => [b.blank_id, b]),
     );
 
-    const blankResults: Array<{ blank_id: number; correct: boolean; submitted: string }> = [];
+    const blankResults: Array<{
+      blank_id: number;
+      correct: boolean;
+      submitted: string;
+      rationale?: BlankRationale;
+    }> = [];
 
     for (const submittedBlank of submitted.blanks) {
       const expectedBlank = expectedMap.get(submittedBlank.blank_id);
@@ -71,7 +88,14 @@ export class FillInBlankValidator implements IPerTypeValidator {
         return false;
       });
 
-      blankResults.push({ blank_id: submittedBlank.blank_id, correct, submitted: studentAnswer });
+      blankResults.push({
+        blank_id: submittedBlank.blank_id,
+        correct,
+        submitted: studentAnswer,
+        // Carried through so the client can render the explanation matrix as
+        // post-check feedback. Absent when the exercise has no rationale.
+        ...(expectedBlank.rationale ? { rationale: expectedBlank.rationale } : {}),
+      });
     }
 
     const correctCount = blankResults.filter((b) => b.correct).length;

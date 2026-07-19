@@ -147,4 +147,63 @@ describe('FillInBlankValidator', () => {
       expect(result.value.score).toBe(100);
     });
   });
+
+  // Optional teaching aid attached to a blank. It is feedback only: it must be
+  // carried into details untouched and must never influence correct/score.
+  describe('rationale matrix', () => {
+    const rationale = {
+      explanation: 'at вводит утверждение.',
+      options: [
+        { text: 'at', verdict: 'correct' as const, note: 'Утверждение → at.' },
+        { text: 'om', verdict: 'wrong' as const, note: 'om — только для вопроса да/нет.' },
+        { text: 'hvorfor', verdict: 'acceptable' as const, note: 'Грамматично, но не в этом контексте.' },
+      ],
+    };
+
+    it('passes the rationale through into details for the matching blank', () => {
+      const result = run(
+        [{ blank_id: 1, accepted_answers: ['at'] }],
+        [{ blank_id: 1, accepted_answers: ['at'], rationale }],
+      );
+      const details = result.value.details as {
+        blanks: Array<{ blank_id: number; rationale?: typeof rationale }>;
+      };
+      expect(details.blanks[0].rationale).toEqual(rationale);
+    });
+
+    it('still returns the rationale when the answer is wrong', () => {
+      const result = run(
+        [{ blank_id: 1, accepted_answers: ['om'] }],
+        [{ blank_id: 1, accepted_answers: ['at'], rationale }],
+      );
+      const details = result.value.details as {
+        blanks: Array<{ rationale?: typeof rationale }>;
+      };
+      expect(result.value.score).toBe(0);
+      expect(details.blanks[0].rationale).toEqual(rationale);
+    });
+
+    it('does not change scoring compared with the same blanks without rationale', () => {
+      const withRationale = run(
+        [{ blank_id: 1, accepted_answers: ['at'] }],
+        [{ blank_id: 1, accepted_answers: ['at'], rationale }],
+      );
+      const without = run(
+        [{ blank_id: 1, accepted_answers: ['at'] }],
+        [{ blank_id: 1, accepted_answers: ['at'] }],
+      );
+      expect(withRationale.value.score).toBe(without.value.score);
+      expect(withRationale.value.correct).toBe(without.value.correct);
+      expect(withRationale.value.requiresReview).toBe(without.value.requiresReview);
+    });
+
+    it('omits the rationale key entirely when the exercise has none', () => {
+      const result = run(
+        [{ blank_id: 1, accepted_answers: ['at'] }],
+        [{ blank_id: 1, accepted_answers: ['at'] }],
+      );
+      const details = result.value.details as { blanks: Array<Record<string, unknown>> };
+      expect(details.blanks[0]).not.toHaveProperty('rationale');
+    });
+  });
 });
