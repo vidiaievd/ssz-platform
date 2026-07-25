@@ -28,6 +28,12 @@ import type { ExpandedModulePayload } from '../../application/queries/get-expand
 
 import { GetVocabularyItemForDisplayQuery } from '../../../vocabulary/application/queries/get-vocabulary-item-for-display/get-vocabulary-item-for-display.query.js';
 import type { VocabularyItemDisplayResult } from '../../../vocabulary/application/dto/vocabulary-item-display-result.js';
+import { GetVocabularyListQuery } from '../../../vocabulary/application/queries/get-vocabulary-list/get-vocabulary-list.query.js';
+import { GetVocabularyListItemsQuery } from '../../../vocabulary/application/queries/get-vocabulary-list-items/get-vocabulary-list-items.query.js';
+import { VocabularyListResponseDto } from '../../../vocabulary/presentation/dto/responses/vocabulary-list.response.dto.js';
+import type { VocabularyListEntity } from '../../../vocabulary/domain/entities/vocabulary-list.entity.js';
+import type { VocabularyItemEntity } from '../../../vocabulary/domain/entities/vocabulary-item.entity.js';
+import type { PaginatedResult } from '../../../../shared/kernel/pagination.js';
 
 import { GetGlossarySuggestionsQuery } from '../../application/queries/get-glossary-suggestions/get-glossary-suggestions.query.js';
 import type { GlossarySuggestion } from '../../application/queries/get-glossary-suggestions/get-glossary-suggestions.handler.js';
@@ -45,6 +51,9 @@ import type { ModuleReaderStructureResult } from '../../application/queries/get-
 // JwtAuthGuard (APP_GUARD runs before any controller-level guard), and
 // InternalAuthGuard takes over instead, requiring x-internal-token. Excluded
 // from the public Swagger doc.
+/** Page size used when walking a vocabulary list's items internally. */
+const INTERNAL_ITEMS_PAGE_SIZE = 200;
+
 @ApiExcludeController()
 @Public()
 @UseGuards(InternalAuthGuard)
@@ -131,6 +140,46 @@ export class InternalController {
     );
     if (result.isFail) throw new NotFoundException(`Vocabulary item ${id} not found`);
     return result.value;
+  }
+
+  // Learning Service reads list metadata for the auto-add-to-SRS flag
+  // (vocabulary-enrollment consumer) — the public route is JWT + visibility
+  // guarded, which service-to-service traffic cannot satisfy.
+  @Get('vocabulary-lists/:id')
+  async getVocabularyList(@Param('id') id: string): Promise<VocabularyListResponseDto> {
+    const result = await this.queryBus.execute<
+      GetVocabularyListQuery,
+      Result<VocabularyListEntity, unknown>
+    >(new GetVocabularyListQuery(id));
+
+    if (result.isFail) throw new NotFoundException(`Vocabulary list ${id} not found`);
+    return VocabularyListResponseDto.from(result.value);
+  }
+
+  // Every item id in the list, unpaginated: SRS seeding
+  // (BulkIntroduceFromVocabularyList) needs the whole list, not a page.
+  @Get('vocabulary-lists/:id/items')
+  async getVocabularyListItems(
+    @Param('id') id: string,
+  ): Promise<Array<{ id: string; word: string; position: number }>> {
+    const items: Array<{ id: string; word: string; position: number }> = [];
+
+    for (let page = 1; ; page++) {
+      const result = await this.queryBus.execute<
+        GetVocabularyListItemsQuery,
+        Result<PaginatedResult<VocabularyItemEntity>, unknown>
+      >(new GetVocabularyListItemsQuery(id, page, INTERNAL_ITEMS_PAGE_SIZE));
+
+      if (result.isFail) throw new NotFoundException(`Vocabulary list ${id} not found`);
+
+      for (const item of result.value.items) {
+        items.push({ id: item.id, word: item.word, position: item.position });
+      }
+
+      if (page >= result.value.totalPages || result.value.items.length === 0) break;
+    }
+
+    return items;
   }
 
   @Get('can-do/descriptors')
