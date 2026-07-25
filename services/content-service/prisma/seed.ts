@@ -267,10 +267,20 @@ const templates = [
         max_length: { type: 'integer' },
       },
     },
+    // This one schema validates two different objects against the same
+    // property bag: content-service validates the AUTHOR's expectedAnswers
+    // (reference_answer/accepted_answers/rubric) with it at authoring time,
+    // while exercise-engine-service validates the STUDENT's submittedAnswer
+    // (text) with the identical stored schema at submit time
+    // (submit-answer.handler.ts passes def.template.answerSchema for both
+    // uses). `anyOf` requires at least one side's shape to be present so
+    // AJV accepts both without silently allowing a fully empty object.
     answerSchema: {
       type: 'object',
-      required: ['reference_answer'],
+      anyOf: [{ required: ['text'] }, { required: ['reference_answer'] }],
       properties: {
+        // Learner's submission (exercise-engine's ShortAnswerValidator).
+        text: { type: 'string' },
         // Model answer — revealed after submission and used as grading reference.
         reference_answer: { type: 'string' },
         // Optional exact-match shortcuts for instant auto-grading.

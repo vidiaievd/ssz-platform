@@ -158,6 +158,38 @@ describe('SchemaBasedAnswerValidator', () => {
       expect(result.value.requiresReview).toBe(false);
     });
 
+    it('delegates short_answer to ShortAnswerValidator using the real seeded answerSchema', async () => {
+      // Regression test: the seeded schema used to require `reference_answer`
+      // (the author's expectedAnswers shape), which every real student
+      // submission `{ text }` failed against with SCHEMA_MISMATCH before
+      // ShortAnswerValidator ever ran — fixed to `anyOf` so either shape
+      // passes (content-service/prisma/seed.ts, short_answer.answerSchema).
+      const shortAnswerSchema = {
+        type: 'object',
+        anyOf: [{ required: ['text'] }, { required: ['reference_answer'] }],
+        properties: {
+          text: { type: 'string' },
+          reference_answer: { type: 'string' },
+          accepted_answers: { type: 'array', items: { type: 'string' } },
+          rubric: { type: 'string' },
+          explanation: { type: 'string' },
+        },
+      };
+      const validator = makeValidator();
+      const result = await validator.validate({
+        templateCode: 'short_answer',
+        answerSchema: shortAnswerSchema,
+        expectedAnswers: { reference_answer: 'Hun hørte det på radio.', accepted_answers: ['på radio'] },
+        submittedAnswer: { text: 'på radio' },
+        checkSettings: {},
+        targetLanguage: 'no',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value.correct).toBe(true);
+      expect(result.value.score).toBe(100);
+      expect(result.value.requiresReview).toBe(false);
+    });
+
     it('delegates match_pairs to MatchPairsValidator', async () => {
       const validator = makeValidator();
       const result = await validator.validate({
