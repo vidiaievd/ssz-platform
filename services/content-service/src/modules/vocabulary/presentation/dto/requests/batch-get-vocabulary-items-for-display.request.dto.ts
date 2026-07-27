@@ -23,7 +23,7 @@ export class BatchGetVocabularyItemsForDisplayRequestDto {
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(200)
-  @IsUUID('4', { each: true })
+  @IsUUID('all', { each: true })
   vocabularyItemIds: string[];
 
   @ApiProperty({ example: 'en', description: 'BCP-47 tag of the preferred translation language' })
