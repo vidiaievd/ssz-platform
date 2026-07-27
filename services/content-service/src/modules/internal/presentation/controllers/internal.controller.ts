@@ -56,6 +56,9 @@ import type { PreflightResult } from '../../application/queries/get-preflight/ge
 
 import { GetLeafItemsQuery } from '../../../container/application/queries/get-leaf-items/get-leaf-items.query.js';
 import type { LeafItem } from '../../../container/application/queries/get-leaf-items/get-leaf-items.handler.js';
+import { GetContainerQuery } from '../../../container/application/queries/get-container/get-container.query.js';
+import type { GetContainerResult } from '../../../container/application/queries/get-container/get-container.handler.js';
+import type { ContainerDomainError } from '../../../container/domain/exceptions/container-domain.exceptions.js';
 
 import { GetModuleReaderStructureQuery } from '../../application/queries/get-module-reader-structure/get-module-reader-structure.query.js';
 import type { ModuleReaderStructureResult } from '../../application/queries/get-module-reader-structure/get-module-reader-structure.handler.js';
@@ -258,6 +261,22 @@ export class InternalController {
       moduleId: i.moduleId,
       isRequired: i.isRequired,
     }));
+  }
+
+  // Learning Service's EnrollInContainerHandler reads this before creating an
+  // enrollment (content-client.ts's getAccessTier); it compares the result
+  // against uppercase literals ('ASSIGNED_ONLY', 'FREE_WITHIN_SCHOOL', ...),
+  // so the domain's lowercase AccessTier enum value is upper-cased on the wire
+  // here rather than passed through raw.
+  @Get('containers/:id/access-tier')
+  async getContainerAccessTier(@Param('id') id: string): Promise<{ accessTier: string }> {
+    const result = await this.queryBus.execute<
+      GetContainerQuery,
+      Result<GetContainerResult, ContainerDomainError>
+    >(new GetContainerQuery(id, ''));
+
+    if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
+    return { accessTier: result.value.container.accessTier.toUpperCase() };
   }
 
   @Get('versions/:id/preflight')
