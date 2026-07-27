@@ -16,6 +16,7 @@ import {
 import { toReviewCardDto, type ReviewCardDto } from '../dto/srs.dto.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import { RedisDueQueueService } from '../../infrastructure/cache/redis-due-queue.service.js';
+import { RedisReviewIdempotencyService } from '../../infrastructure/cache/redis-review-idempotency.service.js';
 import { ReviewCardCommand } from './review-card.command.js';
 
 @CommandHandler(ReviewCardCommand)
@@ -31,6 +32,7 @@ export class ReviewCardHandler
     @Inject(LEARNING_EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
     @Inject(CLOCK) private readonly clock: IClock,
     private readonly dueQueue: RedisDueQueueService,
+    private readonly idempotency: RedisReviewIdempotencyService,
   ) {}
 
   async execute(cmd: ReviewCardCommand): Promise<Result<ReviewCardDto, SrsApplicationError>> {
@@ -42,9 +44,22 @@ export class ReviewCardHandler
       return Result.fail(new SrsCardUnauthorizedError());
     }
 
+    // A replayed review (offline queue, lost response) must not reschedule the
+    // card a second time — answer it with the state the first attempt produced.
+    if (cmd.idempotencyKey) {
+      const claimed = await this.idempotency.claim(cmd.userId, cmd.idempotencyKey);
+      if (!claimed) {
+        this.logger.log(
+          `Card ${card.id}: duplicate review ignored (idempotency key ${cmd.idempotencyKey})`,
+        );
+        return Result.ok(toReviewCardDto(card));
+      }
+    }
+
     const reviewedAt = cmd.reviewedAt ?? this.clock.now();
     const canReview = await this.limitsPolicy.canReview(cmd.userId, reviewedAt);
     if (!canReview) {
+      await this.releaseKey(cmd);
       return Result.fail(new SrsReviewLimitError());
     }
 
@@ -53,6 +68,7 @@ export class ReviewCardHandler
 
     const reviewResult = card.review(rating, schedulingResult, reviewedAt);
     if (reviewResult.isFail) {
+      await this.releaseKey(cmd);
       return Result.fail(new SrsCardSuspendedError());
     }
 
@@ -70,5 +86,12 @@ export class ReviewCardHandler
     card.clearDomainEvents();
 
     return Result.ok(toReviewCardDto(card));
+  }
+
+  /** Nothing was applied, so the key must not shadow a later retry. */
+  private async releaseKey(cmd: ReviewCardCommand): Promise<void> {
+    if (cmd.idempotencyKey) {
+      await this.idempotency.release(cmd.userId, cmd.idempotencyKey);
+    }
   }
 }

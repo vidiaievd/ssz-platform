@@ -10,6 +10,7 @@ import { CLOCK, SystemClock } from '../../shared/application/ports/clock.port.js
 import { FsrsScheduler } from './infrastructure/scheduler/fsrs-scheduler.js';
 import { RedisSrsLimitsPolicy } from './infrastructure/cache/redis-srs-limits-policy.js';
 import { RedisDueQueueService } from './infrastructure/cache/redis-due-queue.service.js';
+import { RedisReviewIdempotencyService } from './infrastructure/cache/redis-review-idempotency.service.js';
 import { PrismaSrsRepository } from './infrastructure/persistence/prisma-srs.repository.js';
 
 // Command handlers
@@ -60,6 +61,7 @@ const QueryHandlers = [
     { provide: SRS_LIMITS_POLICY, useClass: RedisSrsLimitsPolicy },
     { provide: CLOCK, useClass: SystemClock },
     RedisDueQueueService,
+    RedisReviewIdempotencyService,
     GrammarRuleMasteryService,
     ...CommandHandlers,
     ...QueryHandlers,

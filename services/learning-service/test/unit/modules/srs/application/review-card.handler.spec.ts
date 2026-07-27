@@ -14,6 +14,7 @@ import type { ISrsLimitsPolicy } from '../../../../../src/modules/srs/applicatio
 import type { IEventPublisher } from '../../../../../src/shared/application/ports/event-publisher.port.js';
 import type { IClock } from '../../../../../src/shared/application/ports/clock.port.js';
 import type { RedisDueQueueService } from '../../../../../src/modules/srs/infrastructure/cache/redis-due-queue.service.js';
+import type { RedisReviewIdempotencyService } from '../../../../../src/modules/srs/infrastructure/cache/redis-review-idempotency.service.js';
 
 const NOW        = new Date('2026-04-29T10:00:00Z');
 const LATER      = new Date('2026-05-06T10:00:00Z');
@@ -61,6 +62,7 @@ function makeHandler(overrides: {
   card?: ReviewCard | null;
   canReview?: boolean;
   schedResult?: SchedulingResult;
+  claimed?: boolean;
 } = {}) {
   const card = overrides.card !== undefined ? overrides.card : makeCard();
 
@@ -95,13 +97,27 @@ function makeHandler(overrides: {
     upsert: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   } as unknown as RedisDueQueueService;
 
+  const idempotency = {
+    claim: jest.fn<() => Promise<boolean>>().mockResolvedValue(overrides.claimed ?? true),
+    release: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  } as unknown as RedisReviewIdempotencyService;
+
   return {
-    handler: new ReviewCardHandler(repo, scheduler, limitsPolicy, publisher, clock, dueQueue),
+    handler: new ReviewCardHandler(
+      repo,
+      scheduler,
+      limitsPolicy,
+      publisher,
+      clock,
+      dueQueue,
+      idempotency,
+    ),
     repo,
     scheduler,
     limitsPolicy,
     publisher,
     dueQueue,
+    idempotency,
   };
 }
 
@@ -182,5 +198,57 @@ describe('ReviewCardHandler', () => {
     const result = await handler.execute(cmd(card.id));
     expect(result.isFail).toBe(true);
     expect(result.error).toBeInstanceOf(SrsCardSuspendedError);
+  });
+
+  describe('idempotency', () => {
+    it('does not consult the store when no key is sent', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, idempotency } = makeHandler({ card });
+
+      await handler.execute(cmd(card.id));
+
+      expect(idempotency.claim).not.toHaveBeenCalled();
+    });
+
+    it('reschedules once and claims the key on a first submission', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, repo, idempotency } = makeHandler({ card });
+
+      const result = await handler.execute(
+        new ReviewCardCommand(USER_ID, card.id, 'GOOD', undefined, 'key-1'),
+      );
+
+      expect(idempotency.claim).toHaveBeenCalledWith(USER_ID, 'key-1');
+      expect(result.isOk).toBe(true);
+      expect(repo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns the card untouched when the key was already used', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, repo, limitsPolicy, dueQueue, publisher } = makeHandler({
+        card,
+        claimed: false,
+      });
+
+      const result = await handler.execute(
+        new ReviewCardCommand(USER_ID, card.id, 'GOOD', undefined, 'key-1'),
+      );
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.dueAt).toBe(NOW.toISOString()); // not rescheduled to LATER
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(limitsPolicy.incrementReviewCount).not.toHaveBeenCalled();
+      expect(dueQueue.upsert).not.toHaveBeenCalled();
+      expect(publisher.publish).not.toHaveBeenCalled();
+    });
+
+    it('releases the key when the review is rejected, so a retry can succeed', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, idempotency } = makeHandler({ card, canReview: false });
+
+      await handler.execute(new ReviewCardCommand(USER_ID, card.id, 'GOOD', undefined, 'key-1'));
+
+      expect(idempotency.release).toHaveBeenCalledWith(USER_ID, 'key-1');
+    });
   });
 });

@@ -32,6 +32,20 @@ export class ReviewCardRequest {
   @IsOptional()
   @IsISO8601()
   reviewedAt?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Client-generated key making a replayed review a no-op. A second submission with ' +
+      'the same key returns the card unchanged instead of rescheduling it again — ' +
+      'send one per queued review so an offline queue can retry safely. ' +
+      'Remembered for 7 days.',
+    maxLength: 128,
+    example: '9f1c2f0e-6a2b-4d0e-8f3a-2d5f4a1b7c33',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  idempotencyKey?: string;
 }
 
 export class GetDueCardsRequest {

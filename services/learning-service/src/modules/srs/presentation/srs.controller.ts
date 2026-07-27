@@ -125,7 +125,8 @@ export class SrsController {
     summary: 'Submit a review rating for a card',
     description:
       'Applies the FSRS algorithm, updates the card state, and returns the rescheduled card. ' +
-      'Counts against the daily review cap (SRS_DAILY_REVIEWS_LIMIT).',
+      'Counts against the daily review cap (SRS_DAILY_REVIEWS_LIMIT). ' +
+      'Pass `idempotencyKey` to make a replayed submission return the card unchanged.',
   })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiResponse({ status: 200, type: ReviewCardResponse })
@@ -144,6 +145,7 @@ export class SrsController {
         id,
         body.rating,
         body.reviewedAt ? new Date(body.reviewedAt) : undefined,
+        body.idempotencyKey,
       ),
     );
     return this.unwrap(result);
