@@ -1,6 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsISO8601, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsEnum,
+  IsISO8601,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import type { ReviewRatingValue } from '../../domain/value-objects/review-rating.vo.js';
 import type { SrsContentType, SrsSeedKind } from '../../domain/entities/review-card.entity.js';
 
@@ -37,6 +48,30 @@ export class GetDueCardsRequest {
   @Min(1)
   @Max(100)
   limit?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Preferred translation language for the resolved content of VOCABULARY_WORD cards ' +
+      '(BCP-47). Falls back to another available language server-side, flagged via ' +
+      '`back.fallbackUsed`.',
+    default: 'en',
+    example: 'ru',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  language?: string;
+
+  @ApiPropertyOptional({
+    description: 'Include usage examples in each vocabulary card’s content.',
+    default: false,
+    example: true,
+  })
+  @IsOptional()
+  // Query strings arrive as text; Type(() => Boolean) would turn 'false' into true.
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  includeExamples?: boolean;
 }
 
 export class IntroduceCardRequest {

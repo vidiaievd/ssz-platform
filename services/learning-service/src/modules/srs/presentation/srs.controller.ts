@@ -71,15 +71,26 @@ export class SrsController {
     description:
       'Returns up to `limit` cards due at or before now, ordered by dueAt ascending, plus ' +
       '`reviewedToday`, `dailyLimit`, and `streakDays` for the UI progress ring. ' +
-      'Backed by a Redis sorted-set cache; falls back to DB on cache miss.',
+      'Backed by a Redis sorted-set cache; falls back to DB on cache miss. ' +
+      'VOCABULARY_WORD cards come with their word content resolved (`front`/`back`); ' +
+      'EXERCISE cards do not — the exercise runner fetches those separately.',
   })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'language', required: false, type: String, example: 'ru' })
+  @ApiQuery({ name: 'includeExamples', required: false, type: Boolean, example: true })
   @ApiResponse({ status: 200 })
   async getDueCards(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: GetDueCardsRequest,
   ): Promise<DueCardsEnvelope> {
-    return this.queryBus.execute(new GetDueCardsQuery(user.userId, query.limit ?? 20));
+    return this.queryBus.execute(
+      new GetDueCardsQuery(
+        user.userId,
+        query.limit ?? 20,
+        query.language ?? 'en',
+        query.includeExamples ?? false,
+      ),
+    );
   }
 
   // ─── Stats ────────────────────────────────────────────────────────────────────

@@ -1,4 +1,15 @@
-import { BadRequestException, Controller, Get, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
@@ -28,6 +39,8 @@ import type { ExpandedModulePayload } from '../../application/queries/get-expand
 
 import { GetVocabularyItemForDisplayQuery } from '../../../vocabulary/application/queries/get-vocabulary-item-for-display/get-vocabulary-item-for-display.query.js';
 import type { VocabularyItemDisplayResult } from '../../../vocabulary/application/dto/vocabulary-item-display-result.js';
+import { BatchGetVocabularyItemsForDisplayQuery } from '../../../vocabulary/application/queries/batch-get-vocabulary-items-for-display/batch-get-vocabulary-items-for-display.query.js';
+import { BatchGetVocabularyItemsForDisplayRequestDto } from '../../../vocabulary/presentation/dto/requests/batch-get-vocabulary-items-for-display.request.dto.js';
 import { GetVocabularyListQuery } from '../../../vocabulary/application/queries/get-vocabulary-list/get-vocabulary-list.query.js';
 import { GetVocabularyListItemsQuery } from '../../../vocabulary/application/queries/get-vocabulary-list-items/get-vocabulary-list-items.query.js';
 import { VocabularyListResponseDto } from '../../../vocabulary/presentation/dto/responses/vocabulary-list.response.dto.js';
@@ -139,6 +152,32 @@ export class InternalController {
       ),
     );
     if (result.isFail) throw new NotFoundException(`Vocabulary item ${id} not found`);
+    return result.value;
+  }
+
+  // Batch variant of the route above. Learning Service uses it to enrich a due
+  // SRS queue with word text in one round trip; the public equivalent is nested
+  // under a list id, which an SRS card (item id only) cannot supply.
+  @Post('vocabulary-items/batch-display')
+  @HttpCode(200)
+  async batchGetVocabularyItems(
+    @Body() dto: BatchGetVocabularyItemsForDisplayRequestDto,
+  ): Promise<VocabularyItemDisplayResult[]> {
+    const result = await this.queryBus.execute<
+      BatchGetVocabularyItemsForDisplayQuery,
+      Result<VocabularyItemDisplayResult[], unknown>
+    >(
+      new BatchGetVocabularyItemsForDisplayQuery(
+        dto.vocabularyItemIds,
+        dto.translationLanguage,
+        dto.includeExamples ?? false,
+        dto.examplesLimit ?? 3,
+        dto.examplesRandom ?? false,
+        dto.studentKnownLanguages ?? [],
+      ),
+    );
+
+    if (result.isFail) throw new BadRequestException('Failed to load vocabulary items');
     return result.value;
   }
 
