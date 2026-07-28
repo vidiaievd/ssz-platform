@@ -9,6 +9,7 @@ import type {
 } from '../../domain/entities/review-card.entity.js';
 import type { ReviewRating, ReviewRatingValue } from '../../domain/value-objects/review-rating.vo.js';
 import type { AppConfig } from '../../../../config/configuration.js';
+import { SSZ_FSRS_PROFILE } from './fsrs-profile.js';
 
 function toFsrsGrade(value: ReviewRatingValue): Grade {
   switch (value) {
@@ -35,10 +36,25 @@ export class FsrsScheduler implements ISrsScheduler {
   private readonly fsrs: FSRS;
 
   constructor(private readonly config: ConfigService<AppConfig>) {
-    const maxInterval = config.get<AppConfig['srs']>('srs')?.maxIntervalDays ?? 365;
+    // Every parameter comes from the frozen profile rather than ts-fsrs defaults,
+    // so a library upgrade cannot silently reschedule existing cards. See
+    // fsrs-profile.ts. SRS_MAX_INTERVAL_DAYS stays overridable for operations;
+    // an override is a deliberate divergence from the profile's cap.
     // Passing maximum_interval to FSRS constructor is the canonical way to cap intervals.
     // The library clamps scheduled_days internally, so no post-processing is needed.
-    this.fsrs = new FSRS({ maximum_interval: maxInterval });
+    const maxInterval =
+      config.get<AppConfig['srs']>('srs')?.maxIntervalDays ??
+      SSZ_FSRS_PROFILE.maximumIntervalDays;
+
+    this.fsrs = new FSRS({
+      w: [...SSZ_FSRS_PROFILE.w],
+      request_retention: SSZ_FSRS_PROFILE.requestRetention,
+      maximum_interval: maxInterval,
+      enable_short_term: SSZ_FSRS_PROFILE.enableShortTerm,
+      enable_fuzz: SSZ_FSRS_PROFILE.enableFuzz,
+      learning_steps: [...SSZ_FSRS_PROFILE.learningSteps],
+      relearning_steps: [...SSZ_FSRS_PROFILE.relearningSteps],
+    });
   }
 
   schedule(card: ReviewCard, rating: ReviewRating, reviewedAt: Date): SchedulingResult {
