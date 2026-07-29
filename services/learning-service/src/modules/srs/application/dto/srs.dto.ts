@@ -114,6 +114,31 @@ export function toSrsStatsDto(stats: SrsStats): SrsStatsDto {
   return { ...stats };
 }
 
+/**
+ * Minimal projection of a card, enough for the reader to decide how loudly to
+ * gloss a word. Deliberately not the full ReviewCardDto: no scheduler call, no
+ * content resolution — this endpoint answers for hundreds of ids at a time.
+ */
+export interface SrsCardStateDto {
+  contentId: string;
+  state: string;
+  stability: number;
+  dueAt: string;
+}
+
+export interface CardStatesEnvelope {
+  states: SrsCardStateDto[];
+}
+
+export function toSrsCardStateDto(card: ReviewCard): SrsCardStateDto {
+  return {
+    contentId: card.contentId,
+    state: card.state,
+    stability: card.stability,
+    dueAt: card.dueAt.toISOString(),
+  };
+}
+
 export interface DueCardsEnvelope {
   cards: ReviewCardDto[];
   reviewedToday: number;

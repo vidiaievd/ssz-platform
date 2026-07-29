@@ -25,6 +25,7 @@ import { ApplyPlacementHandler } from './application/commands/apply-placement/ap
 import { GetDueCardsHandler } from './application/queries/get-due-cards.handler.js';
 import { GetCardByIdHandler } from './application/queries/get-card-by-id.handler.js';
 import { GetUserSrsStatsHandler } from './application/queries/get-user-srs-stats.handler.js';
+import { GetCardStatesHandler } from './application/queries/get-card-states.handler.js';
 import { GetGrammarRuleMasteryHandler } from './application/queries/get-grammar-rule-mastery.handler.js';
 import { GetContentMasteryHandler } from './application/queries/get-content-mastery.handler.js';
 
@@ -48,6 +49,7 @@ const QueryHandlers = [
   GetDueCardsHandler,
   GetCardByIdHandler,
   GetUserSrsStatsHandler,
+  GetCardStatesHandler,
   GetGrammarRuleMasteryHandler,
   GetContentMasteryHandler,
 ];
