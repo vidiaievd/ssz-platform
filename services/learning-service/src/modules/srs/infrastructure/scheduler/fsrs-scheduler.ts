@@ -99,7 +99,11 @@ export class FsrsScheduler implements ISrsScheduler {
       lapses: card.lapses,
       learning_steps: card.learningSteps,
       state: this.toFsrsState(card.state),
-      last_review: card.lastReviewedAt ?? undefined,
+      // Non-NEW cards seeded before createSeeded() started stamping the seed time
+      // carry no last review; their curve starts at creation. ts-fsrs >= 5.4.0
+      // throws FSRSValidationError('Invalid date') rather than tolerating the gap,
+      // which took down the whole course-mastery query.
+      last_review: card.lastReviewedAt ?? card.createdAt,
     };
 
     return this.fsrs.get_retrievability(fsrsCard, now, false);

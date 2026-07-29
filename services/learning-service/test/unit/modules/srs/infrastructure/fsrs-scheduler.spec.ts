@@ -133,4 +133,48 @@ describe('FsrsScheduler', () => {
       });
     });
   });
+
+  describe('getRetrievability', () => {
+    it('is 0 for a NEW card', () => {
+      expect(makeScheduler().getRetrievability(newCard(), NOW)).toBe(0);
+    });
+
+    it('decays over time for a reviewed card', () => {
+      const scheduler = makeScheduler();
+      const soon = scheduler.getRetrievability(reviewCard(), NOW);
+      const later = scheduler.getRetrievability(reviewCard(), new Date('2026-06-29T10:00:00Z'));
+
+      expect(soon).toBeGreaterThan(later);
+      expect(later).toBeGreaterThan(0);
+    });
+
+    it('falls back to creation time for a seeded card that was never reviewed', () => {
+      // ts-fsrs >= 5.4.0 throws FSRSValidationError on a non-NEW card without a
+      // last review; rows seeded by the skip-known paths look exactly like that.
+      const seeded = ReviewCard.reconstitute({
+        id: '00000000-0000-4000-8000-000000000002',
+        userId: USER_ID,
+        contentType: 'VOCABULARY_WORD',
+        contentId: CONTENT_ID,
+        state: 'REVIEW',
+        dueAt: new Date('2026-05-13T10:00:00Z'),
+        stability: 14,
+        difficulty: 5,
+        elapsedDays: 0,
+        scheduledDays: 14,
+        reps: 0,
+        lapses: 0,
+        learningSteps: 0,
+        lastReviewedAt: null,
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+
+      const retrievability = makeScheduler().getRetrievability(seeded, NOW);
+
+      expect(Number.isFinite(retrievability)).toBe(true);
+      // No time has elapsed since the seed, so the memory is still intact.
+      expect(retrievability).toBeCloseTo(1, 2);
+    });
+  });
 });
