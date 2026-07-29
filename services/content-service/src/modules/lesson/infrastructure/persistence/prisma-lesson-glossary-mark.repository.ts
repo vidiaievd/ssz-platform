@@ -43,4 +43,10 @@ export class PrismaLessonGlossaryMarkRepository implements ILessonGlossaryMarkRe
     });
     return LessonGlossaryMarkMapper.toDomain(raw);
   }
+
+  async deleteMark(variantId: string, vocabularyItemId: string): Promise<void> {
+    await this.prisma.lessonVariantGlossaryMark.deleteMany({
+      where: { lessonContentVariantId: variantId, vocabularyItemId },
+    });
+  }
 }
