@@ -370,6 +370,20 @@ async function main(): Promise<void> {
     console.log(`  ✓ ${mod.title}`);
   }
 
+  // Glossary marks depend on both the lesson variant and the vocabulary items,
+  // so derive them once every module has been seeded.
+  let markedLessons = 0;
+  let markTotal = 0;
+  for (const key of Object.keys(vocab)) {
+    if (!lessonMeta[key]) continue;
+    const marks = await seedGlossaryMarks(key);
+    if (marks > 0) {
+      markedLessons++;
+      markTotal += marks;
+    }
+  }
+  console.log(`  ✓ Glossary marks: ${markTotal} across ${markedLessons} lesson texts`);
+
   // Rebuild BOTH course versions: one level section per Leksjon, holding its
   // sub-lesson module CONTAINER items. Wiped and recreated each run.
   for (const versionId of [coursePubVersionId, courseDraftVersionId]) {
@@ -675,6 +689,73 @@ async function seedVocab(key: string): Promise<void> {
       },
     });
   }
+}
+
+/**
+ * Counts whole-word occurrences of `surface` in `body`.
+ *
+ * Boundaries are letter/mark/number lookarounds rather than `\b`, matching the
+ * reader's glossary tokenizer (web: features/learning/lib/tokenize-glossary.ts).
+ * `\b` has ASCII semantics, so it treats æøå as non-letters and would report a
+ * false hit for «er» inside «hjerte».
+ */
+function countOccurrences(body: string, surface: string): number {
+  const escaped = surface.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?<![\\p{L}\\p{M}\\p{N}])${escaped}(?![\\p{L}\\p{M}\\p{N}])`, 'giu');
+  return [...body.matchAll(re)].length;
+}
+
+/** Surface forms a word can appear as: the lemma plus every inflection the data carries. */
+function surfaceForms(w: VocabWord): string[] {
+  const values = [w.word, ...Object.values(w.grammaticalProperties ?? {})]
+    .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+    .map((v) => v.trim())
+    // `gender: "masculine"` and `verb_class` are metadata, not surface forms; they
+    // are filtered by never occurring in a Norwegian body text, but drop the known
+    // ones explicitly so a stray match can't create a bogus mark.
+    .filter((v) => !GRAMMAR_METADATA_VALUES.has(v.toLowerCase()));
+  return [...new Map(values.map((v) => [v.toLowerCase(), v])).values()];
+}
+
+const GRAMMAR_METADATA_VALUES = new Set(['masculine', 'feminine', 'neuter', 'a-verb', 'e-verb']);
+
+/**
+ * Derives glossary marks for a text sub-lesson: every word of the leksjon's
+ * vocabulary list that actually occurs in the lesson body, in any of its
+ * declared forms. Marks the seed no longer derives are removed, so an edited
+ * body text doesn't leave stale highlights behind.
+ */
+async function seedGlossaryMarks(key: string): Promise<number> {
+  const section = vocab[key];
+  if (!section) return 0;
+
+  const variantId = id('lesson-variant', key);
+  const body = readBody('lessons', key, lessonMeta[key].title);
+
+  const keptIds: string[] = [];
+  for (const [i, w] of section.words.entries()) {
+    const occurrences = surfaceForms(w).reduce((sum, form) => sum + countOccurrences(body, form), 0);
+    if (occurrences === 0) continue;
+
+    const markId = id('glossary-mark', `${key}-${i}`);
+    keptIds.push(markId);
+    await prisma.lessonVariantGlossaryMark.upsert({
+      where: { id: markId },
+      update: { occurrenceCount: occurrences },
+      create: {
+        id: markId,
+        lessonContentVariantId: variantId,
+        vocabularyItemId: id('vocab-item', `${key}-${i}`),
+        occurrenceCount: occurrences,
+      },
+    });
+  }
+
+  await prisma.lessonVariantGlossaryMark.deleteMany({
+    where: { lessonContentVariantId: variantId, id: { notIn: keptIds } },
+  });
+
+  return keptIds.length;
 }
 
 async function seedExercise(ex: ExerciseDef, templateId: string): Promise<void> {

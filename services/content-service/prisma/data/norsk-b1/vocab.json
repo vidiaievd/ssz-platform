@@ -224,7 +224,12 @@
       {
         "word": "krysse fingrene",
         "partOfSpeech": "PHRASE",
-        "translation": "держать кулаки (букв. скрестить пальцы)"
+        "translation": "держать кулаки (букв. скрестить пальцы)",
+        "grammaticalProperties": {
+          "present_tense": "krysser fingrene",
+          "past_tense": "krysset fingrene",
+          "perfect_tense": "krysset fingrene"
+        }
       },
       {
         "word": "bestemme seg",
