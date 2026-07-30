@@ -21,10 +21,28 @@ export interface LessonTextSpanCreateData {
   createdByUserId: string;
 }
 
-// The Prisma enum is generated from the same @map values as the domain enum, so
-// the two are string-identical; the casts keep that assumption in one place.
-const toPrismaKind = (kind: LessonSpanKind): PrismaSpanKind => kind as unknown as PrismaSpanKind;
-const toDomainKind = (kind: PrismaSpanKind): LessonSpanKind => kind as unknown as LessonSpanKind;
+// Prisma Client's generated enum carries the *member names* (`VOCAB`), not the
+// `@map` values (`vocab`) — the mapping only renames the Postgres enum labels.
+// The domain enum deliberately holds the lowercase form, because that is the
+// wire contract, so the two are NOT interchangeable and a cast between them
+// produces a value Prisma rejects at runtime.
+//
+// These lookups are exhaustive by construction: adding a kind to either enum
+// fails the build, which a cast would have silently allowed.
+const DOMAIN_TO_PRISMA_KIND: Record<LessonSpanKind, PrismaSpanKind> = {
+  [LessonSpanKind.VOCAB]: 'VOCAB',
+  [LessonSpanKind.GRAMMAR]: 'GRAMMAR',
+  [LessonSpanKind.CHUNK]: 'CHUNK',
+};
+
+const PRISMA_TO_DOMAIN_KIND: Record<PrismaSpanKind, LessonSpanKind> = {
+  VOCAB: LessonSpanKind.VOCAB,
+  GRAMMAR: LessonSpanKind.GRAMMAR,
+  CHUNK: LessonSpanKind.CHUNK,
+};
+
+const toPrismaKind = (kind: LessonSpanKind): PrismaSpanKind => DOMAIN_TO_PRISMA_KIND[kind];
+const toDomainKind = (kind: PrismaSpanKind): LessonSpanKind => PRISMA_TO_DOMAIN_KIND[kind];
 
 export class LessonTextSpanMapper {
   static toDomain(raw: LessonTextSpan): LessonTextSpanEntity {
