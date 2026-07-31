@@ -16,6 +16,7 @@ export const LEARNING_EVENT_TYPES = {
   SUBMISSION_CREATED: 'learning.submission.created',
   SUBMISSION_REVIEWED: 'learning.submission.reviewed',
   SUBMISSION_RESUBMITTED: 'learning.submission.resubmitted',
+  VOCABULARY_LOOKED_UP: 'learning.vocabulary.looked_up',
 } as const;
 
 // ─── Assignment payload interfaces ────────────────────────────────────────────
@@ -127,6 +128,32 @@ export interface SubmissionResubmittedPayload {
   revisionNumber: number;
 }
 
+// ─── Vocabulary payload interfaces ───────────────────────────────────────────
+
+/**
+ * A learner opened the word card for a glossed word while reading (web spec 18).
+ * Reported by the reader in batches and published per lookup; nothing in the
+ * platform's state changes, so this is a record of behaviour, not of a write.
+ */
+export interface VocabularyLookedUpPayload {
+  userId: string;
+  lessonId: string;
+  /** Glossing differs per variant, so the variant is part of the observation. */
+  lessonVariantId: string;
+  vocabularyItemId: string;
+  /** `preview` is a hover hint, `full` is the card the learner asked for. */
+  level: 'preview' | 'full';
+  /**
+   * The learner's SRS state for the word at the moment of the lookup, or null
+   * when they have no card for it. Separates "opened a new word" from "opened a
+   * word they were supposed to know". Resolved by learning-service, never by
+   * the client.
+   */
+  srsState: 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING' | 'SUSPENDED' | null;
+  /** When the learner opened the card — the envelope carries the publish time. */
+  occurredAt: string;
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type AssignmentCreatedEvent = BaseEvent<AssignmentCreatedPayload>;
@@ -145,3 +172,5 @@ export type ProgressUpdatedEvent = BaseEvent<ProgressUpdatedPayload>;
 export type SubmissionCreatedEvent = BaseEvent<SubmissionCreatedPayload>;
 export type SubmissionReviewedEvent = BaseEvent<SubmissionReviewedPayload>;
 export type SubmissionResubmittedEvent = BaseEvent<SubmissionResubmittedPayload>;
+
+export type VocabularyLookedUpEvent = BaseEvent<VocabularyLookedUpPayload>;

@@ -19,6 +19,7 @@ import { ReviewModule } from './modules/review/review.module.js';
 import { EventsModule } from './modules/events/events.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
 import { SrsModule } from './modules/srs/srs.module.js';
+import { LookupsModule } from './modules/lookups/lookups.module.js';
 import { InternalModule } from './modules/internal/internal.module.js';
 import { CanDoModule } from './modules/can-do/can-do.module.js';
 
@@ -54,6 +55,7 @@ import { CanDoModule } from './modules/can-do/can-do.module.js';
     ProgressModule,
     ReviewModule,
     SrsModule,
+    LookupsModule,
     EventsModule,
     JobsModule,
     InternalModule,
