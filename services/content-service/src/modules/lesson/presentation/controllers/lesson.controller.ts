@@ -554,14 +554,17 @@ export class LessonController {
     return question ? LessonVideoQuestionResponseDto.from(question) : null;
   }
 
-  // ── Listening stages sub-resource (kind=AUDIO variants only) ───────────────
+  // ── Staged exercises sub-resource (kind=AUDIO or kind=TEXT variants) ───────
+  // Named "listening-stages" for the AUDIO surface it was introduced for; TEXT
+  // variants stage the same way for a post-reading check (spec 17 §2.1).
 
   @Post(':id/variants/:variantId/listening-stages')
   @UseGuards(VisibilityGuard)
   @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
-    summary: 'Replace all staged gap-fill/comprehension exercises for an AUDIO lesson variant',
+    summary:
+      'Replace all staged gap-fill/comprehension exercises for an AUDIO or TEXT lesson variant',
   })
   @ApiNoContentResponse()
   @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
@@ -581,7 +584,10 @@ export class LessonController {
   @Get(':id/variants/:variantId/listening-stages')
   @UseGuards(VisibilityGuard)
   @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
-  @ApiOperation({ summary: 'List staged gap-fill/comprehension exercises, ordered by position' })
+  @ApiOperation({
+    summary:
+      'List staged gap-fill/comprehension exercises of an AUDIO or TEXT lesson variant, ordered by position',
+  })
   @ApiOkResponse({ type: [LessonListeningStageResponseDto] })
   @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
   async findListeningStages(

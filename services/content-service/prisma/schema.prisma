@@ -414,9 +414,15 @@ model LessonVideoCue {
   @@map("lesson_video_cues")
 }
 
-// Ordered gap-fill/comprehension activities staged after an AUDIO-kind lesson's
-// transcript. References Exercise by FK so grading reuses exercise-engine;
-// ordering and staging are kept local to the lesson rather than in the generic
+// Ordered gap-fill/comprehension activities staged after a lesson variant's
+// primary content: the transcript of an AUDIO lesson, the body of a TEXT one
+// (spec 17). Nothing here is medium-specific — kind lives on Lesson, and the
+// AUDIO-or-TEXT rule is enforced in SetListeningStagesHandler — so the model
+// keeps its original name rather than breaking the reader-content field
+// `listeningStages` that VoxOrd consumes.
+//
+// References Exercise by FK so grading reuses exercise-engine; ordering and
+// staging are kept local to the lesson rather than in the generic
 // ContentRelation graph, which has no position column and one-row-per-pair
 // uniqueness that cannot express an ordered sequence.
 model LessonListeningStage {

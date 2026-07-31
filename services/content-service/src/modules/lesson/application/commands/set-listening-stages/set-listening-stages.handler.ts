@@ -46,7 +46,11 @@ export class SetListeningStagesHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.INSUFFICIENT_PERMISSIONS);
     }
 
-    if (lesson.kind !== LessonKind.AUDIO) {
+    // Staged exercises follow the primary content of a lesson the learner has
+    // just consumed: the listening for AUDIO, the reading for TEXT (spec 17 §3).
+    // VIDEO is excluded on purpose — it already carries LessonVideoQuestion —
+    // and LIVE has no body to check comprehension of.
+    if (lesson.kind !== LessonKind.AUDIO && lesson.kind !== LessonKind.TEXT) {
       return Result.fail(LessonDomainError.LESSON_KIND_MISMATCH);
     }
 
