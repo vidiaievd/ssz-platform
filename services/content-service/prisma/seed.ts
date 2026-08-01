@@ -281,6 +281,84 @@ const templates = [
     supportedLanguages: Prisma.DbNull,
   },
   {
+    // "Find and correct the mistakes": each sentence is pre-split into chunks,
+    // the learner picks the faulty ones and rewrites them. Splitting is the
+    // author's job — it keeps the task tractable and the grading exact.
+    code: 'error_correction',
+    name: 'Find and Correct Mistakes',
+    description: 'Spot the faulty parts of each sentence and rewrite them',
+    contentSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        items: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'chunks'],
+            properties: {
+              id: { type: 'string' },
+              chunks: {
+                type: 'array',
+                minItems: 1,
+                items: {
+                  type: 'object',
+                  required: ['id', 'text'],
+                  properties: {
+                    id: { type: 'string' },
+                    text: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+        // How many chunks are faulty overall. Presentational: it tells the
+        // learner when to stop looking; grading uses `corrections` alone.
+        mistake_count: { type: 'integer', minimum: 1 },
+        context: { type: 'string' },
+        media_id: { type: 'string' },
+      },
+    },
+    answerSchema: {
+      type: 'object',
+      required: ['corrections'],
+      properties: {
+        // The faulty chunks and their fixes. Doubles as the submitted-answer
+        // shape: the learner sends the chunks they rewrote, `accepted` holding
+        // their single rewrite.
+        corrections: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['item_id', 'chunk_id', 'accepted'],
+            properties: {
+              item_id: { type: 'string' },
+              chunk_id: { type: 'string' },
+              accepted: {
+                type: 'array',
+                items: { type: 'string' },
+                minItems: 1,
+              },
+              note: { type: 'string' },
+            },
+          },
+        },
+        explanation: { type: 'string' },
+      },
+    },
+    defaultCheckSettings: {
+      case_sensitive: false,
+      trim_whitespace: true,
+      allow_partial_credit: true,
+      // Editing a chunk that was already correct costs a point, so the task
+      // can't be brute-forced by rewriting everything.
+      penalize_false_positives: true,
+    },
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
     code: 'translate_to_target',
     name: 'Translate to Target Language',
     description: 'Translate a sentence from the explanation language to the target language',

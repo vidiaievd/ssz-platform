@@ -8,6 +8,7 @@ import { ShortAnswerValidator } from './validators/short-answer.validator.js';
 import { SentenceSchemaValidator } from './validators/sentence-schema.validator.js';
 import { WordBankFillValidator } from './validators/word-bank-fill.validator.js';
 import { TextOrderValidator } from './validators/text-order.validator.js';
+import { ErrorCorrectionValidator } from './validators/error-correction.validator.js';
 
 @Global()
 @Module({
@@ -19,6 +20,7 @@ import { TextOrderValidator } from './validators/text-order.validator.js';
     SentenceSchemaValidator,
     WordBankFillValidator,
     TextOrderValidator,
+    ErrorCorrectionValidator,
     SchemaBasedAnswerValidator,
     { provide: ANSWER_VALIDATOR, useExisting: SchemaBasedAnswerValidator },
   ],

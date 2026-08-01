@@ -15,6 +15,7 @@ import { ShortAnswerValidator } from './validators/short-answer.validator.js';
 import { SentenceSchemaValidator } from './validators/sentence-schema.validator.js';
 import { WordBankFillValidator } from './validators/word-bank-fill.validator.js';
 import { TextOrderValidator } from './validators/text-order.validator.js';
+import { ErrorCorrectionValidator } from './validators/error-correction.validator.js';
 import type { IPerTypeValidator } from './validators/per-type-validator.interface.js';
 
 // Template codes that require human review — not scored by rule-based logic.
@@ -36,6 +37,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     ssValidator: SentenceSchemaValidator,
     wbfValidator: WordBankFillValidator,
     toValidator: TextOrderValidator,
+    ecValidator: ErrorCorrectionValidator,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     this.ajv = new (Ajv as any)({ allErrors: true, strict: false });
@@ -50,6 +52,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       ['sentence_schema', ssValidator],
       ['word_bank_fill', wbfValidator],
       ['text_order', toValidator],
+      ['error_correction', ecValidator],
     ]);
   }
 
