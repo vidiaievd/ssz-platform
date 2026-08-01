@@ -373,6 +373,334 @@
           }
         ]
       }
+    },
+    {
+      "key": "b1-1a-wbf-01",
+      "template": "word_bank_fill",
+      "instruction": "Заполните пропуски словами из банка. Два слова лишние.",
+      "hint": "Следите за формой слова: некоторые пропуски требуют множественного числа.",
+      "content": {
+        "word_bank": [
+          "stillingsannonser",
+          "selvstendig",
+          "nøyaktig",
+          "fagbrev",
+          "erfaring",
+          "skrivefeil",
+          "retter",
+          "arbeidsmiljø",
+          "førerkort"
+        ],
+        "items": [
+          {
+            "id": "1",
+            "text_with_blanks": "En kveld sitter Bartek foran datamaskinen og leser ___1___ på nettet."
+          },
+          {
+            "id": "2",
+            "text_with_blanks": "Nordby Elektro AS trenger en ___1___ og ___2___ elektriker som kan lede mindre prosjekter."
+          },
+          {
+            "id": "3",
+            "text_with_blanks": "For å få stillingen må du ha ___1___ som elektriker og minst tre års ___2___."
+          },
+          {
+            "id": "4",
+            "text_with_blanks": "Anne finner noen ___1___ i søknaden, og Bartek ___2___ dem før han sender den."
+          }
+        ],
+        "context": "Tekst 1A — Bartek søker ny jobb."
+      },
+      "expectedAnswers": {
+        "items": [
+          {
+            "id": "1",
+            "blanks": [
+              {
+                "blank_id": 1,
+                "accepted_answers": [
+                  "stillingsannonser"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "2",
+            "blanks": [
+              {
+                "blank_id": 1,
+                "accepted_answers": [
+                  "selvstendig"
+                ]
+              },
+              {
+                "blank_id": 2,
+                "accepted_answers": [
+                  "nøyaktig"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "3",
+            "blanks": [
+              {
+                "blank_id": 1,
+                "accepted_answers": [
+                  "fagbrev"
+                ]
+              },
+              {
+                "blank_id": 2,
+                "accepted_answers": [
+                  "erfaring"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "4",
+            "blanks": [
+              {
+                "blank_id": 1,
+                "accepted_answers": [
+                  "skrivefeil"
+                ]
+              },
+              {
+                "blank_id": 2,
+                "accepted_answers": [
+                  "retter"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-order-01",
+      "template": "text_order",
+      "instruction": "Расставьте предложения в том порядке, в каком события происходят в тексте 1A.",
+      "content": {
+        "kind": "sentences",
+        "context": "Tekst 1A — Bartek søker ny jobb.",
+        "items": [
+          {
+            "id": "a",
+            "text": "Bartek sitter foran datamaskinen og leser stillingsannonser på nettet."
+          },
+          {
+            "id": "b",
+            "text": "Han finner en annonse fra Nordby Elektro AS som ser interessant ut."
+          },
+          {
+            "id": "c",
+            "text": "Han bestemmer seg for å søke med en gang."
+          },
+          {
+            "id": "d",
+            "text": "Først skriver han en søknad og forteller hvorfor han vil ha jobben."
+          },
+          {
+            "id": "e",
+            "text": "Deretter oppdaterer han CV-en sin med all erfaringen fra det nåværende firmaet."
+          },
+          {
+            "id": "f",
+            "text": "Anne leser gjennom søknaden og finner noen skrivefeil."
+          },
+          {
+            "id": "g",
+            "text": "Bartek retter feilene og sender søknaden."
+          },
+          {
+            "id": "h",
+            "text": "Nå må han bare vente på svar fra firmaet."
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "order": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e",
+          "f",
+          "g",
+          "h"
+        ],
+        "explanation": "Rekkefølgen følger teksten: han leser annonsen, bestemmer seg, skriver søknad, oppdaterer CV-en, får hjelp av Anne, retter feilene og venter."
+      }
+    },
+    {
+      "key": "b1-1a-err-01",
+      "template": "error_correction",
+      "instruction": "В каждом предложении один фрагмент содержит ошибку в косвенной речи. Найдите и исправьте её.",
+      "hint": "Помните: после глагола говорения в прошедшем времени время сдвигается на шаг назад, а после «om» инверсии нет.",
+      "content": {
+        "mistake_count": 3,
+        "context": "Indirekte tale — setninger om tekst 1A.",
+        "items": [
+          {
+            "id": "s-0",
+            "chunks": [
+              {
+                "id": "c-0",
+                "text": "Anne sa"
+              },
+              {
+                "id": "c-1",
+                "text": "at søknaden var god,"
+              },
+              {
+                "id": "c-2",
+                "text": "men at han har noen skrivefeil."
+              }
+            ]
+          },
+          {
+            "id": "s-1",
+            "chunks": [
+              {
+                "id": "c-0",
+                "text": "Bartek fortalte Anne"
+              },
+              {
+                "id": "c-1",
+                "text": "at han skal søke"
+              },
+              {
+                "id": "c-2",
+                "text": "på stillingen med en gang."
+              }
+            ]
+          },
+          {
+            "id": "s-2",
+            "chunks": [
+              {
+                "id": "c-0",
+                "text": "Kari spør"
+              },
+              {
+                "id": "c-1",
+                "text": "om har han fagbrev"
+              },
+              {
+                "id": "c-2",
+                "text": "som elektriker."
+              }
+            ]
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "corrections": [
+          {
+            "item_id": "s-0",
+            "chunk_id": "c-2",
+            "accepted": [
+              "men at han hadde noen skrivefeil."
+            ],
+            "note": "Tidsforskyvning etter «sa»: presens «har» → preteritum «hadde»."
+          },
+          {
+            "item_id": "s-1",
+            "chunk_id": "c-1",
+            "accepted": [
+              "at han skulle søke"
+            ],
+            "note": "Tidsforskyvning etter «fortalte»: «skal» → «skulle»."
+          },
+          {
+            "item_id": "s-2",
+            "chunk_id": "c-1",
+            "accepted": [
+              "om han har fagbrev"
+            ],
+            "note": "I indirekte spørsmål er det ingen inversjon: «om han har», ikke «om har han»."
+          }
+        ]
+      }
+    },
+    {
+      "key": "b1-1a-halves-01",
+      "template": "match_pairs",
+      "instruction": "Соедините половины предложений по тексту 1A.",
+      "content": {
+        "variant": "halves",
+        "context": "Tekst 1A — Bartek søker ny jobb.",
+        "left_items": [
+          {
+            "id": "l-0",
+            "text": "Bartek har jobbet som elektriker"
+          },
+          {
+            "id": "l-1",
+            "text": "Nordby Elektro AS er et voksende firma"
+          },
+          {
+            "id": "l-2",
+            "text": "Firmaet ønsker en elektriker som"
+          },
+          {
+            "id": "l-3",
+            "text": "Bartek skriver i søknaden at han"
+          },
+          {
+            "id": "l-4",
+            "text": "Anne sier at hun"
+          }
+        ],
+        "right_items": [
+          {
+            "id": "r-0",
+            "text": "i det samme firmaet i tre år."
+          },
+          {
+            "id": "r-1",
+            "text": "med tolv ansatte."
+          },
+          {
+            "id": "r-2",
+            "text": "kan lede mindre prosjekter."
+          },
+          {
+            "id": "r-3",
+            "text": "er ansvarlig og løsningsorientert."
+          },
+          {
+            "id": "r-4",
+            "text": "krysser fingrene for ham."
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "pairs": [
+          {
+            "left_id": "l-0",
+            "right_id": "r-0"
+          },
+          {
+            "left_id": "l-1",
+            "right_id": "r-1"
+          },
+          {
+            "left_id": "l-2",
+            "right_id": "r-2"
+          },
+          {
+            "left_id": "l-3",
+            "right_id": "r-3"
+          },
+          {
+            "left_id": "l-4",
+            "right_id": "r-4"
+          }
+        ]
+      }
     }
   ],
   "1B": [
