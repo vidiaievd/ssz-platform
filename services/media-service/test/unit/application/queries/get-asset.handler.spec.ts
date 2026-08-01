@@ -24,7 +24,7 @@ function makeAsset(overrides?: { entityType?: string | null }) {
 
 function makeHandler(asset: MediaAssetEntity | null = makeAsset()) {
   const repo: jest.Mocked<IMediaAssetRepository> = {
-    findById: jest.fn(),
+    findById: jest.fn().mockResolvedValue(asset),
     findByIdAndOwner: jest.fn().mockResolvedValue(asset),
     findMany: jest.fn(),
     countMany: jest.fn(),
@@ -108,6 +108,38 @@ describe('GetAssetHandler', () => {
     const { handler } = makeHandler(asset);
 
     const result = await handler.execute(new GetAssetQuery(asset.id, 'owner-1'));
+
+    expect(result.isFail).toBe(true);
+    expect(result.error).toBe('ASSET_NOT_FOUND');
+  });
+
+  it('allows a non-owner to read a READY lesson_asset (published content)', async () => {
+    const asset = makeAsset({ entityType: 'lesson_asset' });
+    asset.markUploaded();
+    asset.markReadyWithoutProcessing();
+    const { handler } = makeHandler(asset);
+
+    const result = await handler.execute(new GetAssetQuery(asset.id, 'student-1'));
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.url).toBe('https://minio/private/presigned');
+  });
+
+  it('denies a non-owner reading a lesson_asset that is not yet READY', async () => {
+    const asset = makeAsset({ entityType: 'lesson_asset' });
+    const { handler } = makeHandler(asset);
+
+    const result = await handler.execute(new GetAssetQuery(asset.id, 'student-1'));
+
+    expect(result.isFail).toBe(true);
+    expect(result.error).toBe('ASSET_NOT_FOUND');
+  });
+
+  it('denies a non-owner reading an asset without a content entityType', async () => {
+    const asset = makeAsset();
+    const { handler } = makeHandler(asset);
+
+    const result = await handler.execute(new GetAssetQuery(asset.id, 'student-1'));
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe('ASSET_NOT_FOUND');
