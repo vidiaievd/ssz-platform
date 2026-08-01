@@ -4,6 +4,7 @@ import { MultipleChoiceValidator } from '../../../../src/infrastructure/validati
 import { FillInBlankValidator } from '../../../../src/infrastructure/validation/validators/fill-in-blank.validator.js';
 import { MatchPairsValidator } from '../../../../src/infrastructure/validation/validators/match-pairs.validator.js';
 import { ShortAnswerValidator } from '../../../../src/infrastructure/validation/validators/short-answer.validator.js';
+import { TextOrderValidator } from '../../../../src/infrastructure/validation/validators/text-order.validator.js';
 import { WordBankFillValidator } from '../../../../src/infrastructure/validation/validators/word-bank-fill.validator.js';
 import { SentenceSchemaValidator } from '../../../../src/infrastructure/validation/validators/sentence-schema.validator.js';
 import { ValidationError } from '../../../../src/shared/application/ports/answer-validator.port.js';
@@ -25,6 +26,7 @@ const makeValidator = () =>
     new ShortAnswerValidator(),
     new SentenceSchemaValidator(),
     new WordBankFillValidator(),
+    new TextOrderValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {

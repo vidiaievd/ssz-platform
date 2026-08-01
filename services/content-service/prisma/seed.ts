@@ -234,6 +234,53 @@ const templates = [
     supportedLanguages: Prisma.DbNull,
   },
   {
+    // Put shuffled lines back in order: dialogue turns, sentences of a text,
+    // or steps of an instruction. The client shuffles for display; `items`
+    // order in content carries no meaning.
+    code: 'text_order',
+    name: 'Put in Order',
+    description: 'Arrange shuffled lines into the correct order',
+    contentSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        items: {
+          type: 'array',
+          minItems: 2,
+          items: {
+            type: 'object',
+            required: ['id', 'text'],
+            properties: {
+              id: { type: 'string' },
+              text: { type: 'string' },
+              // Optional speaker label for dialogues, e.g. "Marina".
+              speaker: { type: 'string' },
+            },
+          },
+        },
+        // Presentation hint only; scoring is identical either way.
+        kind: { type: 'string', enum: ['dialogue', 'sentences'] },
+        context: { type: 'string' },
+        media_id: { type: 'string' },
+      },
+    },
+    answerSchema: {
+      type: 'object',
+      required: ['order'],
+      properties: {
+        // Item ids, first to last. Doubles as the submitted-answer shape.
+        order: {
+          type: 'array',
+          minItems: 2,
+          items: { type: 'string' },
+        },
+        explanation: { type: 'string' },
+      },
+    },
+    defaultCheckSettings: { allow_partial_credit: true },
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
     code: 'translate_to_target',
     name: 'Translate to Target Language',
     description: 'Translate a sentence from the explanation language to the target language',

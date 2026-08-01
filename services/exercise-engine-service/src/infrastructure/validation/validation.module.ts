@@ -7,6 +7,7 @@ import { MatchPairsValidator } from './validators/match-pairs.validator.js';
 import { ShortAnswerValidator } from './validators/short-answer.validator.js';
 import { SentenceSchemaValidator } from './validators/sentence-schema.validator.js';
 import { WordBankFillValidator } from './validators/word-bank-fill.validator.js';
+import { TextOrderValidator } from './validators/text-order.validator.js';
 
 @Global()
 @Module({
@@ -17,6 +18,7 @@ import { WordBankFillValidator } from './validators/word-bank-fill.validator.js'
     ShortAnswerValidator,
     SentenceSchemaValidator,
     WordBankFillValidator,
+    TextOrderValidator,
     SchemaBasedAnswerValidator,
     { provide: ANSWER_VALIDATOR, useExisting: SchemaBasedAnswerValidator },
   ],
