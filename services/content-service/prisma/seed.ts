@@ -129,6 +129,111 @@ const templates = [
     supportedLanguages: Prisma.DbNull,
   },
   {
+    // Textbook-style gap-fill: several sentences sharing ONE word bank, each
+    // blank picked from that bank. Deliberately separate from fill_in_blank,
+    // which is single-sentence and whose blanks are typed, not chosen.
+    code: 'word_bank_fill',
+    name: 'Word Bank Gap-Fill',
+    description: 'Complete several sentences using words from a shared bank',
+    contentSchema: {
+      type: 'object',
+      required: ['word_bank', 'items'],
+      properties: {
+        word_bank: {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: 2,
+          description: 'Choices offered for every blank of every sentence',
+        },
+        items: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'text_with_blanks'],
+            properties: {
+              id: { type: 'string' },
+              text_with_blanks: {
+                type: 'string',
+                description: 'Use ___N___ for blanks, numbered within this sentence',
+              },
+            },
+          },
+        },
+        context: { type: 'string' },
+        media_id: { type: 'string' },
+      },
+    },
+    answerSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        items: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'blanks'],
+            properties: {
+              id: { type: 'string' },
+              blanks: {
+                type: 'array',
+                minItems: 1,
+                items: {
+                  type: 'object',
+                  required: ['blank_id', 'accepted_answers'],
+                  properties: {
+                    blank_id: { type: 'integer' },
+                    // Same convention as fill_in_blank: the expected answers
+                    // list here, and the learner's single pick when this schema
+                    // validates a SUBMITTED answer.
+                    accepted_answers: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      minItems: 1,
+                    },
+                    // Post-check teaching aid, identical in shape to
+                    // fill_in_blank's — presentational, never scored.
+                    rationale: {
+                      type: 'object',
+                      properties: {
+                        explanation: { type: 'string' },
+                        options: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            required: ['text', 'verdict'],
+                            properties: {
+                              text: { type: 'string' },
+                              verdict: {
+                                type: 'string',
+                                enum: ['correct', 'acceptable', 'wrong'],
+                              },
+                              note: { type: 'string' },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        explanation: { type: 'string' },
+      },
+    },
+    defaultCheckSettings: {
+      case_sensitive: false,
+      trim_whitespace: true,
+      allow_partial_credit: true,
+      // Each bank word is consumed by at most one blank (textbook default).
+      unique_bank_words: true,
+    },
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
     code: 'translate_to_target',
     name: 'Translate to Target Language',
     description: 'Translate a sentence from the explanation language to the target language',
