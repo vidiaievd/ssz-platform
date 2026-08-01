@@ -379,6 +379,10 @@ const templates = [
           },
           minItems: 2,
         },
+        // Presentation only — scoring is identical. `halves` numbers the left
+        // column 1..n and letters the right A..N for sentence-halves tasks,
+        // where the cells hold long text rather than single words.
+        variant: { type: 'string', enum: ['pairs', 'halves'] },
         context: { type: 'string' },
       },
     },
