@@ -178,6 +178,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET_PUBLIC: ssz-public
       MINIO_BUCKET_PRIVATE: ssz-private
+      PIPER_URL: http://piper-tts:5000
       MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL:-http://localhost:9000}
       REDIS_HOST: redis
       REDIS_PORT: 6379
