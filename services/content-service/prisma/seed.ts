@@ -162,6 +162,10 @@ const templates = [
         },
         context: { type: 'string' },
         media_id: { type: 'string' },
+        // Set for drills where one bank word answers several blanks — a grammar
+        // exercise on at / om reuses both many times. It turns off the player's
+        // "spent word" dimming, which would otherwise grey out the right answer.
+        reusable_words: { type: 'boolean' },
       },
     },
     answerSchema: {
