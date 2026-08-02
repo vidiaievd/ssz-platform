@@ -15,6 +15,15 @@
           "når",
           "om"
         ],
+        "word_notes": {
+          "at": "Союз: вводит придаточное с утверждением — «говорит, что …». Вопроса в таком придаточном нет.",
+          "om": "Союз: вводит косвенный вопрос без вопросительного слова — «спросил, ли …». Ответ на такой вопрос: да или нет.",
+          "hva": "Вопросительное слово о предмете: что. Нужно, только если в придаточном есть вопрос «что именно».",
+          "hvor": "Вопросительное слово о месте: где.",
+          "hvordan": "Вопросительное слово о способе: как, каким образом.",
+          "hvorfor": "Вопросительное слово о причине: почему.",
+          "når": "Вопросительное слово о времени: когда."
+        },
         "items": [
           {
             "id": "1",
@@ -70,24 +79,7 @@
                   "at"
                 ],
                 "rationale": {
-                  "explanation": "«Han er sliten» — это утверждение (påstand), а утверждения вводятся союзом at.",
-                  "options": [
-                    {
-                      "text": "at",
-                      "verdict": "correct",
-                      "note": "Утверждение → at."
-                    },
-                    {
-                      "text": "om",
-                      "verdict": "wrong",
-                      "note": "om нужен только для вопроса да/нет; здесь вопроса нет."
-                    },
-                    {
-                      "text": "hvorfor",
-                      "verdict": "wrong",
-                      "note": "Нет вопроса о причине."
-                    }
-                  ]
+                  "explanation": "«Han er sliten» — это утверждение (påstand), а утверждения вводятся союзом at."
                 }
               }
             ]
@@ -101,24 +93,7 @@
                   "om"
                 ],
                 "rationale": {
-                  "explanation": "Косвенный вопрос без вопросительного слова, на да/нет («Har du bil?») → om.",
-                  "options": [
-                    {
-                      "text": "om",
-                      "verdict": "correct",
-                      "note": "Вопрос да/нет → om."
-                    },
-                    {
-                      "text": "at",
-                      "verdict": "wrong",
-                      "note": "at вводит утверждение, а здесь пересказан вопрос."
-                    },
-                    {
-                      "text": "hva",
-                      "verdict": "wrong",
-                      "note": "Спрашивается не «что», а «ли»."
-                    }
-                  ]
+                  "explanation": "Косвенный вопрос без вопросительного слова, на да/нет («Har du bil?») → om."
                 }
               }
             ]
@@ -132,24 +107,7 @@
                   "hvor"
                 ],
                 "rationale": {
-                  "explanation": "Спецвопрос о месте («Hvor bor du?») → hvor.",
-                  "options": [
-                    {
-                      "text": "hvor",
-                      "verdict": "correct",
-                      "note": "Вопрос о месте."
-                    },
-                    {
-                      "text": "om",
-                      "verdict": "wrong",
-                      "note": "om убрал бы информацию о месте; вопрос не да/нет."
-                    },
-                    {
-                      "text": "at",
-                      "verdict": "wrong",
-                      "note": "Это не утверждение."
-                    }
-                  ]
+                  "explanation": "Спецвопрос о месте («Hvor bor du?») → hvor."
                 }
               }
             ]
@@ -163,24 +121,7 @@
                   "når"
                 ],
                 "rationale": {
-                  "explanation": "Вопрос о времени («Når går toget?») → når.",
-                  "options": [
-                    {
-                      "text": "når",
-                      "verdict": "correct",
-                      "note": "Вопрос о времени."
-                    },
-                    {
-                      "text": "om",
-                      "verdict": "wrong",
-                      "note": "Меняет смысл на «идёт ли поезд»."
-                    },
-                    {
-                      "text": "at",
-                      "verdict": "wrong",
-                      "note": "Не утверждение."
-                    }
-                  ]
+                  "explanation": "Вопрос о времени («Når går toget?») → når."
                 }
               }
             ]
@@ -194,24 +135,7 @@
                   "hvordan"
                 ],
                 "rationale": {
-                  "explanation": "«Hvordan ser en arbeidsdag ut?» — вопрос об образе действия.",
-                  "options": [
-                    {
-                      "text": "hvordan",
-                      "verdict": "correct",
-                      "note": "Конструкция «se … ut» требует hvordan."
-                    },
-                    {
-                      "text": "om",
-                      "verdict": "wrong",
-                      "note": "Спрашивается не «ли», а «как»."
-                    },
-                    {
-                      "text": "hva",
-                      "verdict": "wrong",
-                      "note": "С «se ut» используется hvordan, не hva."
-                    }
-                  ]
+                  "explanation": "«Hvordan ser en arbeidsdag ut?» — вопрос об образе действия."
                 }
               }
             ]
@@ -225,24 +149,7 @@
                   "hvorfor"
                 ],
                 "rationale": {
-                  "explanation": "Пересказан вопрос о причине («Hvorfor vil du bytte jobb?»).",
-                  "options": [
-                    {
-                      "text": "hvorfor",
-                      "verdict": "correct",
-                      "note": "Вопрос о причине."
-                    },
-                    {
-                      "text": "om",
-                      "verdict": "acceptable",
-                      "note": "Грамматично, но меняет смысл: «спросила, хочет ли он сменить работу»."
-                    },
-                    {
-                      "text": "at",
-                      "verdict": "wrong",
-                      "note": "Не утверждение."
-                    }
-                  ]
+                  "explanation": "Пересказан вопрос о причине («Hvorfor vil du bytte jobb?»)."
                 }
               }
             ]
@@ -256,24 +163,7 @@
                   "hvorfor"
                 ],
                 "rationale": {
-                  "explanation": "«Forklare hvorfor» — объяснить причину.",
-                  "options": [
-                    {
-                      "text": "hvorfor",
-                      "verdict": "correct",
-                      "note": "Глагол forklare обычно вводит причину."
-                    },
-                    {
-                      "text": "at",
-                      "verdict": "acceptable",
-                      "note": "Тоже грамматично («объяснил, что не смог прийти»), но здесь ожидается причина."
-                    },
-                    {
-                      "text": "om",
-                      "verdict": "wrong",
-                      "note": "«объяснил ли» — бессмыслица."
-                    }
-                  ]
+                  "explanation": "«Forklare hvorfor» — объяснить причину."
                 }
               }
             ]
@@ -287,24 +177,7 @@
                   "om"
                 ],
                 "rationale": {
-                  "explanation": "«Usikker på» + сомнение да/нет («Kommer hun?») → om.",
-                  "options": [
-                    {
-                      "text": "om",
-                      "verdict": "correct",
-                      "note": "Сомнение да/нет."
-                    },
-                    {
-                      "text": "at",
-                      "verdict": "wrong",
-                      "note": "at выражал бы уверенность, а здесь неуверенность."
-                    },
-                    {
-                      "text": "når",
-                      "verdict": "wrong",
-                      "note": "Спрашивается «придёт ли», а не «когда»."
-                    }
-                  ]
+                  "explanation": "«Usikker på» + сомнение да/нет («Kommer hun?») → om."
                 }
               }
             ]
@@ -318,24 +191,7 @@
                   "hva"
                 ],
                 "rationale": {
-                  "explanation": "Устойчивый вопрос «Hva er klokka?» (который час).",
-                  "options": [
-                    {
-                      "text": "hva",
-                      "verdict": "correct",
-                      "note": "Устойчивое выражение."
-                    },
-                    {
-                      "text": "når",
-                      "verdict": "wrong",
-                      "note": "«Når er klokka» не говорят по-норвежски."
-                    },
-                    {
-                      "text": "om",
-                      "verdict": "wrong",
-                      "note": "Не да/нет-вопрос."
-                    }
-                  ]
+                  "explanation": "Устойчивый вопрос «Hva er klokka?» (который час)."
                 }
               }
             ]
@@ -349,24 +205,7 @@
                   "at"
                 ],
                 "rationale": {
-                  "explanation": "«Fortelle at» — рассказать, что…; вводит утверждение.",
-                  "options": [
-                    {
-                      "text": "at",
-                      "verdict": "correct",
-                      "note": "Утверждение после fortelle."
-                    },
-                    {
-                      "text": "om",
-                      "verdict": "wrong",
-                      "note": "Превратило бы в вопрос да/нет."
-                    },
-                    {
-                      "text": "hvorfor",
-                      "verdict": "wrong",
-                      "note": "Нет вопроса о причине."
-                    }
-                  ]
+                  "explanation": "«Fortelle at» — рассказать, что…; вводит утверждение."
                 }
               }
             ]

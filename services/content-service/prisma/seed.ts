@@ -70,6 +70,10 @@ const templates = [
         },
         context: { type: 'string' },
         word_bank: { type: 'array', items: { type: 'string' } },
+        // Notes about the bank words, shared by every blank: in a drill on
+        // at / om the reason a word fits is the same in all its sentences, so
+        // it is authored once here instead of per blank. Feedback only.
+        word_notes: { type: 'object', additionalProperties: { type: 'string' } },
         media_id: { type: 'string' },
       },
     },
@@ -162,6 +166,10 @@ const templates = [
         },
         context: { type: 'string' },
         media_id: { type: 'string' },
+        // Notes about the bank words, shared by every blank: in a drill on
+        // at / om the reason a word fits is the same in all its sentences, so
+        // it is authored once here instead of per blank. Feedback only.
+        word_notes: { type: 'object', additionalProperties: { type: 'string' } },
         // Set for drills where one bank word answers several blanks — a grammar
         // exercise on at / om reuses both many times. It turns off the player's
         // "spent word" dimming, which would otherwise grey out the right answer.
