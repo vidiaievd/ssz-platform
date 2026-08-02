@@ -174,6 +174,12 @@ const templates = [
         // exercise on at / om reuses both many times. It turns off the player's
         // "spent word" dimming, which would otherwise grey out the right answer.
         reusable_words: { type: 'boolean' },
+        // How the player offers the bank. 'chips' (default) is the textbook
+        // layout — one strip of words above the sentences, tapped into the
+        // armed blank. 'select' puts the whole bank in a dropdown inside each
+        // blank, which suits short vocabulary drills. Presentation only:
+        // grading is identical either way.
+        input_mode: { type: 'string', enum: ['chips', 'select'] },
       },
     },
     answerSchema: {

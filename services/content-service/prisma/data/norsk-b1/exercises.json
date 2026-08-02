@@ -3793,130 +3793,98 @@
       }
     },
     {
-      "key": "b1-1a-fib-01",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово из текста 1A.",
-      "hint": "Слова: ansvar, arbeidsmiljø, erfaring, fagbrev, søknad.",
+      "key": "b1-1a-wbf-02",
+      "template": "word_bank_fill",
+      "instruction": "Выберите подходящее слово для каждого предложения. Каждое слово используется один раз.",
+      "hint": "Слова взяты из текста 1A; смотрите на артикль и на то, что стоит перед пропуском.",
       "content": {
-        "text_with_blanks": "For å bli elektriker må du ta et ___1___.",
         "word_bank": [
           "ansvar",
           "arbeidsmiljø",
           "erfaring",
           "fagbrev",
           "søknad"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
+        ],
+        "items": [
           {
-            "blank_id": 1,
-            "accepted_answers": [
-              "fagbrev"
-            ]
+            "id": "1",
+            "text_with_blanks": "For å bli elektriker må du ta et ___1___."
+          },
+          {
+            "id": "2",
+            "text_with_blanks": "Han har ti års ___1___ som snekker."
+          },
+          {
+            "id": "3",
+            "text_with_blanks": "Firmaet tilbyr et godt ___1___."
+          },
+          {
+            "id": "4",
+            "text_with_blanks": "Du må sende en ___1___ og en CV."
+          },
+          {
+            "id": "5",
+            "text_with_blanks": "Som prosjektleder får du mye ___1___."
           }
-        ]
-      }
-    },
-    {
-      "key": "b1-1a-fib-02",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово из текста 1A.",
-      "hint": "Слова: ansvar, arbeidsmiljø, erfaring, fagbrev, søknad.",
-      "content": {
-        "text_with_blanks": "Han har ti års ___1___ som snekker.",
-        "word_bank": [
-          "ansvar",
-          "arbeidsmiljø",
-          "erfaring",
-          "fagbrev",
-          "søknad"
-        ]
+        ],
+        "context": "Ord fra tekst 1A.",
+        "input_mode": "select"
       },
       "expectedAnswers": {
-        "blanks": [
+        "items": [
           {
-            "blank_id": 1,
-            "accepted_answers": [
-              "erfaring"
+            "id": "1",
+            "blanks": [
+              {
+                "blank_id": 1,
+                "accepted_answers": [
+                  "fagbrev"
+                ]
+              }
             ]
-          }
-        ]
-      }
-    },
-    {
-      "key": "b1-1a-fib-03",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово из текста 1A.",
-      "hint": "Слова: ansvar, arbeidsmiljø, erfaring, fagbrev, søknad.",
-      "content": {
-        "text_with_blanks": "Firmaet tilbyr et godt ___1___.",
-        "word_bank": [
-          "ansvar",
-          "arbeidsmiljø",
-          "erfaring",
-          "fagbrev",
-          "søknad"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
+          },
           {
-            "blank_id": 1,
-            "accepted_answers": [
-              "arbeidsmiljø"
+            "id": "2",
+            "blanks": [
+              {
+                "blank_id": 1,
+                "accepted_answers": [
+                  "erfaring"
+                ]
+              }
             ]
-          }
-        ]
-      }
-    },
-    {
-      "key": "b1-1a-fib-04",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово из текста 1A.",
-      "hint": "Слова: ansvar, arbeidsmiljø, erfaring, fagbrev, søknad.",
-      "content": {
-        "text_with_blanks": "Du må sende en ___1___ og en CV.",
-        "word_bank": [
-          "ansvar",
-          "arbeidsmiljø",
-          "erfaring",
-          "fagbrev",
-          "søknad"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
+          },
           {
-            "blank_id": 1,
-            "accepted_answers": [
-              "søknad"
+            "id": "3",
+            "blanks": [
+              {
+                "blank_id": 1,
+                "accepted_answers": [
+                  "arbeidsmiljø"
+                ]
+              }
             ]
-          }
-        ]
-      }
-    },
-    {
-      "key": "b1-1a-fib-05",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово из текста 1A.",
-      "hint": "Слова: ansvar, arbeidsmiljø, erfaring, fagbrev, søknad.",
-      "content": {
-        "text_with_blanks": "Som prosjektleder får du mye ___1___.",
-        "word_bank": [
-          "ansvar",
-          "arbeidsmiljø",
-          "erfaring",
-          "fagbrev",
-          "søknad"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
+          },
           {
-            "blank_id": 1,
-            "accepted_answers": [
-              "ansvar"
+            "id": "4",
+            "blanks": [
+              {
+                "blank_id": 1,
+                "accepted_answers": [
+                  "søknad"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "5",
+            "blanks": [
+              {
+                "blank_id": 1,
+                "accepted_answers": [
+                  "ansvar"
+                ]
+              }
             ]
           }
         ]

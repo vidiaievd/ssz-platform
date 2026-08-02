@@ -22,11 +22,11 @@ incrementally with no code change:
 
 ## Status
 **All 10 leksjoner fully authored.** 40 lesson texts, 10 grammar lessons, 29 vocab
-sections (462 words), 451 exercises — all validated against the live Ajv template
+sections (462 words), 447 exercises — all validated against the live Ajv template
 schemas extracted from `seed.ts` (0 invalid), no duplicate exercise keys.
 
-Per-template breakdown: fill_in_blank 145, short_answer 147, multiple_choice 127,
-match_pairs 12, writing_task 11, sentence_schema 5, word_bank_fill 2, text_order 1,
+Per-template breakdown: short_answer 147, fill_in_blank 140, multiple_choice 127,
+match_pairs 12, writing_task 11, sentence_schema 5, word_bank_fill 3, text_order 1,
 error_correction 1.
 
 Every `fill_in_blank` exercise carries exactly one blank (`___1___`), matching what
@@ -45,11 +45,19 @@ sentences, one check, per-blank grading and per-blank rationale. Because the sam
 bank word answers several blanks there, its content sets `reusable_words: true`,
 which turns off the player's "spent word" dimming.
 
+1A's vocabulary drill (`b1-1a-wbf-02`, formerly `b1-1a-fib-01…05`) is the same merge
+with the other presentation: its content sets `input_mode: "select"`, so each blank
+is a dropdown holding the whole bank instead of a strip of tappable chips above the
+sentences. Grading is identical — the flag only changes how a blank is answered.
+Chips suit a long drill where the bank is worth reading as a set; a dropdown suits a
+short one where hunting for the armed blank is busywork.
+
 `prisma/tools/merge-fill-runs.ts` performs this conversion. It merges only runs of
 neighbouring single-blank `fill_in_blank` exercises that agree on bank, instruction,
-hint and explanation; run it without `--write` first to see what it would do. 21
-further runs across the course are eligible (5–6 exercises each) but are still
-unconverted — convert a group at a time so each can be checked in the player.
+hint and explanation; run it without `--write` first to see what it would do. It
+always emits chips mode — add `input_mode` by hand afterwards. 20 further runs across
+the course are eligible (5–6 exercises each) but are still unconverted — convert a
+group at a time so each can be checked in the player.
 
 Exercise key scheme: text sub-lessons use `b1-{leksjon}{letter}-{type}-{n}` (e.g.
 `b1-3b-fib-02`); grammar-module exercises for leksjon 1 use `b1-g{subsection}-*`
