@@ -22,6 +22,10 @@ import type { IContainerRepository } from '../../../domain/repositories/containe
 import type { IContainerVersionRepository } from '../../../domain/repositories/container-version.repository.interface.js';
 import type { IContainerSectionRepository } from '../../../domain/repositories/container-section.repository.interface.js';
 import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
+import type {
+  ContainerPublishState,
+  PublishStateReader,
+} from '../../services/publish-state.reader.js';
 
 const COURSE_ID = 'course-1';
 const COURSE_VERSION_ID = 'course-version-1';
@@ -105,6 +109,7 @@ interface Fixture {
   lessonSection?: ContainerSectionEntity | null;
   lessonItem?: ContainerItemEntity | null;
   lessonVariantStatus?: 'DRAFT' | 'PUBLISHED' | null;
+  publishStates?: Record<string, ContainerPublishState>;
 }
 
 function makeHandler(fixture: Fixture = {}) {
@@ -180,7 +185,26 @@ function makeHandler(fixture: Fixture = {}) {
     exercise: { findMany: jest.fn().mockResolvedValue([]) },
   } as any;
 
-  return new GetCurriculumTreeHandler(containerRepo, versionRepo, sectionRepo, itemRepo, prisma);
+  const publishStateReader = {
+    resolve: jest
+      .fn()
+      .mockResolvedValue(
+        new Map(
+          Object.entries(
+            fixture.publishStates ?? { [COURSE_ID]: 'draft', [MODULE_ID]: 'draft' },
+          ) as [string, ContainerPublishState][],
+        ),
+      ),
+  } as unknown as PublishStateReader;
+
+  return new GetCurriculumTreeHandler(
+    containerRepo,
+    versionRepo,
+    sectionRepo,
+    itemRepo,
+    publishStateReader,
+    prisma,
+  );
 }
 
 describe('GetCurriculumTreeHandler', () => {
@@ -198,6 +222,7 @@ describe('GetCurriculumTreeHandler', () => {
       versionRepo,
       sectionRepo,
       itemRepo,
+      {} as never,
       {} as never,
     );
 
@@ -240,6 +265,30 @@ describe('GetCurriculumTreeHandler', () => {
     expect(item.state).toBe('published');
     expect(item.durationMinutes).toBe(6);
     expect(item.xpReward).toBe(10);
+  });
+
+  it('carries the publish state of the course and of each module', async () => {
+    const handler = makeHandler({
+      publishStates: { [COURSE_ID]: 'published', [MODULE_ID]: 'pending_changes' },
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    expect(result.value.publishState).toBe('published');
+    expect(result.value.levels[0].modules[0].publishState).toBe('pending_changes');
+  });
+
+  it('falls back to draft for a container the publish state reader did not resolve', async () => {
+    const handler = makeHandler({ publishStates: {} });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    expect(result.value.publishState).toBe('draft');
+    expect(result.value.levels[0].modules[0].publishState).toBe('draft');
   });
 
   it('marks a lesson as draft when it has no published variant', async () => {

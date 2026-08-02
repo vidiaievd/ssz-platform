@@ -15,6 +15,8 @@ import type { IContainerSectionRepository } from '../../../domain/repositories/c
 import { CONTAINER_ITEM_REPOSITORY } from '../../../domain/repositories/container-item.repository.interface.js';
 import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
 import type { ContainerItemEntity } from '../../../domain/entities/container-item.entity.js';
+import { PublishStateReader } from '../../services/publish-state.reader.js';
+import type { ContainerPublishState } from '../../services/publish-state.reader.js';
 import { LessonKind } from '../../../../lesson/domain/value-objects/lesson-kind.vo.js';
 import { prismaLessonKindToDomain } from '../../../../lesson/infrastructure/persistence/mappers/enum-converters.js';
 
@@ -54,6 +56,9 @@ export interface CurriculumTreeModuleNode {
   titleEn: string | null;
   position: number;
   isRequired: boolean;
+  // Whether this module is live, and whether its draft is ahead of what
+  // students see. Composition only — see PublishStateReader.
+  publishState: ContainerPublishState;
   sections: CurriculumTreeSectionNode[];
   ungroupedItems: CurriculumTreeItemNode[];
 }
@@ -69,6 +74,8 @@ export interface CurriculumTreeResult {
   versionId: string;
   containerId: string;
   levelSystem: LevelSystem;
+  // Publish state of the course container itself, on the same terms as modules.
+  publishState: ContainerPublishState;
   levels: CurriculumTreeLevelNode[];
 }
 
@@ -88,6 +95,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     private readonly sectionRepo: IContainerSectionRepository,
     @Inject(CONTAINER_ITEM_REPOSITORY)
     private readonly itemRepo: IContainerItemRepository,
+    private readonly publishStateReader: PublishStateReader,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -112,7 +120,14 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     // Only CONTAINER-type items represent modules in the curriculum tree
     // (decision: Level(section) → Module(container item) → Section → Item).
     const moduleItems = topItems.filter((i) => i.itemType === ContainerItemType.CONTAINER);
-    const moduleNodes = await this.buildModuleNodes(moduleItems);
+
+    // One batched pass for the course and every module it holds.
+    const publishStates = await this.publishStateReader.resolve([
+      container.id,
+      ...moduleItems.map((i) => i.itemId),
+    ]);
+
+    const moduleNodes = await this.buildModuleNodes(moduleItems, publishStates);
     const moduleNodeById = new Map(moduleNodes.map((m) => [m.id, m]));
 
     const levels: CurriculumTreeLevelNode[] = levelSections
@@ -148,12 +163,14 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       versionId: version.id,
       containerId: container.id,
       levelSystem: container.levelSystem,
+      publishState: publishStates.get(container.id) ?? 'draft',
       levels,
     });
   }
 
   private async buildModuleNodes(
     moduleItems: ContainerItemEntity[],
+    publishStates: Map<string, ContainerPublishState>,
   ): Promise<CurriculumTreeModuleNode[]> {
     if (moduleItems.length === 0) return [];
 
@@ -251,6 +268,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
         titleEn: titleEnByContainerId.get(moduleContainerId) ?? null,
         position: moduleItem.position,
         isRequired: moduleItem.isRequired,
+        publishState: publishStates.get(moduleContainerId) ?? 'draft',
         sections: sectionNodes,
         ungroupedItems,
       };

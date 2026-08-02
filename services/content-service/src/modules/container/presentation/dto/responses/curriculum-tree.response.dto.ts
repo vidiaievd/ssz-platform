@@ -102,6 +102,14 @@ export class CurriculumTreeModuleResponseDto {
   @ApiProperty({ example: true })
   isRequired!: boolean;
 
+  @ApiProperty({
+    example: 'pending_changes',
+    enum: ['draft', 'published', 'pending_changes'],
+    description:
+      'Whether the module is live and whether its draft composition differs from the live one',
+  })
+  publishState!: string;
+
   @ApiProperty({ type: () => CurriculumTreeSectionResponseDto, isArray: true })
   sections!: CurriculumTreeSectionResponseDto[];
 
@@ -117,6 +125,7 @@ export class CurriculumTreeModuleResponseDto {
     dto.titleEn = node.titleEn;
     dto.position = node.position;
     dto.isRequired = node.isRequired;
+    dto.publishState = node.publishState;
     dto.sections = node.sections.map((s) => CurriculumTreeSectionResponseDto.from(s));
     dto.ungroupedItems = node.ungroupedItems.map((i) => CurriculumTreeItemResponseDto.from(i));
     return dto;
@@ -156,6 +165,13 @@ export class CurriculumTreeResponseDto {
   @ApiProperty({ example: 'cefr', enum: ['cefr', 'custom', 'single'] })
   levelSystem!: string;
 
+  @ApiProperty({
+    example: 'published',
+    enum: ['draft', 'published', 'pending_changes'],
+    description: 'Publish state of the course container itself',
+  })
+  publishState!: string;
+
   @ApiProperty({ type: () => CurriculumTreeLevelResponseDto, isArray: true })
   levels!: CurriculumTreeLevelResponseDto[];
 
@@ -164,6 +180,7 @@ export class CurriculumTreeResponseDto {
     dto.versionId = result.versionId;
     dto.containerId = result.containerId;
     dto.levelSystem = result.levelSystem;
+    dto.publishState = result.publishState;
     dto.levels = result.levels.map((l) => CurriculumTreeLevelResponseDto.from(l));
     return dto;
   }
