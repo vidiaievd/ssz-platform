@@ -57,6 +57,95 @@ const templates = [
     supportedLanguages: Prisma.DbNull,
   },
   {
+    // Several multiple-choice questions checked together, the way a workbook
+    // prints them: a true/false table over one text, or a set of "what does
+    // this word mean?" questions. Deliberately separate from multiple_choice,
+    // which is one question with its own check.
+    code: 'multiple_choice_group',
+    name: 'Multiple Choice Group',
+    description: 'Answer several multiple-choice questions, checked as one block',
+    contentSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        // Options every question shares — a Riktig / Galt column pair. Questions
+        // may still carry their own; an item's own options always win.
+        options: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id', 'text'],
+            properties: {
+              id: { type: 'string' },
+              text: { type: 'string' },
+            },
+          },
+          minItems: 2,
+          maxItems: 8,
+        },
+        items: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'question'],
+            properties: {
+              id: { type: 'string' },
+              question: { type: 'string' },
+              // Omit to use the group's shared options.
+              options: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['id', 'text'],
+                  properties: {
+                    id: { type: 'string' },
+                    text: { type: 'string' },
+                  },
+                },
+                minItems: 2,
+                maxItems: 8,
+              },
+            },
+          },
+        },
+        context: { type: 'string' },
+        media_id: { type: 'string' },
+      },
+    },
+    // As with word_bank_fill, this one schema validates both sides: the
+    // author's key at authoring time and the learner's picks at submit time,
+    // the submission carrying its chosen id in `correct_option_ids`.
+    answerSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        items: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'correct_option_ids'],
+            properties: {
+              id: { type: 'string' },
+              correct_option_ids: {
+                type: 'array',
+                items: { type: 'string' },
+                minItems: 1,
+              },
+              // Why this question's answer is what it is; shown per question
+              // after checking.
+              explanation: { type: 'string' },
+            },
+          },
+        },
+        explanation: { type: 'string' },
+      },
+    },
+    defaultCheckSettings: { allow_partial_credit: true },
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
     code: 'fill_in_blank',
     name: 'Fill in the Blank',
     description: 'Complete the sentence by filling in missing word(s)',

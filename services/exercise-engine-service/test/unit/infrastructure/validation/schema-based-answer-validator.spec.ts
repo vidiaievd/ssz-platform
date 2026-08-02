@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import { SchemaBasedAnswerValidator } from '../../../../src/infrastructure/validation/schema-based-answer-validator.js';
 import { MultipleChoiceValidator } from '../../../../src/infrastructure/validation/validators/multiple-choice.validator.js';
+import { MultipleChoiceGroupValidator } from '../../../../src/infrastructure/validation/validators/multiple-choice-group.validator.js';
 import { FillInBlankValidator } from '../../../../src/infrastructure/validation/validators/fill-in-blank.validator.js';
 import { MatchPairsValidator } from '../../../../src/infrastructure/validation/validators/match-pairs.validator.js';
 import { ShortAnswerValidator } from '../../../../src/infrastructure/validation/validators/short-answer.validator.js';
@@ -22,6 +23,7 @@ const mcAnswerSchema = {
 const makeValidator = () =>
   new SchemaBasedAnswerValidator(
     new MultipleChoiceValidator(),
+    new MultipleChoiceGroupValidator(),
     new FillInBlankValidator(),
     new MatchPairsValidator(),
     new ShortAnswerValidator(),
@@ -161,6 +163,49 @@ describe('SchemaBasedAnswerValidator', () => {
       });
       expect(result.isOk).toBe(true);
       expect(result.value.score).toBe(100);
+      expect(result.value.requiresReview).toBe(false);
+    });
+
+    it('delegates multiple_choice_group and grades the block per question', async () => {
+      const validator = makeValidator();
+      const result = await validator.validate({
+        templateCode: 'multiple_choice_group',
+        answerSchema: {
+          type: 'object',
+          required: ['items'],
+          properties: {
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['id', 'correct_option_ids'],
+                properties: {
+                  id: { type: 'string' },
+                  correct_option_ids: { type: 'array', items: { type: 'string' } },
+                  explanation: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        expectedAnswers: {
+          items: [
+            { id: '1', correct_option_ids: ['r'] },
+            { id: '2', correct_option_ids: ['g'] },
+          ],
+        },
+        submittedAnswer: {
+          items: [
+            { id: '1', correct_option_ids: ['r'] },
+            { id: '2', correct_option_ids: ['r'] },
+          ],
+        },
+        checkSettings: { allow_partial_credit: true },
+        targetLanguage: 'no',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value.score).toBe(50);
+      expect(result.value.correct).toBe(false);
       expect(result.value.requiresReview).toBe(false);
     });
 

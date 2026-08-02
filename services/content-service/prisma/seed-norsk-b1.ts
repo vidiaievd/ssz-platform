@@ -317,22 +317,14 @@ async function main(): Promise<void> {
 
   // Exercise templates must exist (seeded by prisma/seed.ts). Only needed for
   // leksjoner that have authored exercises; resolve upfront so failures are loud.
-  const templateCodes = [
-    'multiple_choice',
-    'fill_in_blank',
-    'word_bank_fill',
-    'text_order',
-    'error_correction',
-    'translate_to_target',
-    'translate_from_target',
-    'match_pairs',
-    'short_answer',
-    'writing_task',
-    'sentence_schema',
-  ];
-  const templates = await prisma.exerciseTemplate.findMany({ where: { code: { in: templateCodes } } });
-  const templateByCode = new Map(templates.map((t) => [t.code, t.id]));
+  // Taken from the data itself, so authoring an exercise on a new template
+  // needs no edit here — a hardcoded list would report it as missing even
+  // after prisma/seed.ts had seeded it.
   const usedCodes = new Set(Object.values(exercises).flat().map((e) => e.template));
+  const templates = await prisma.exerciseTemplate.findMany({
+    where: { code: { in: [...usedCodes] } },
+  });
+  const templateByCode = new Map(templates.map((t) => [t.code, t.id]));
   const missing = [...usedCodes].filter((c) => !templateByCode.has(c));
   if (missing.length > 0) {
     throw new Error(

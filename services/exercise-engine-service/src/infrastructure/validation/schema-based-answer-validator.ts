@@ -9,6 +9,7 @@ import type {
 import { ValidationError } from '../../shared/application/ports/answer-validator.port.js';
 import { Result } from '../../shared/kernel/result.js';
 import { MultipleChoiceValidator } from './validators/multiple-choice.validator.js';
+import { MultipleChoiceGroupValidator } from './validators/multiple-choice-group.validator.js';
 import { FillInBlankValidator } from './validators/fill-in-blank.validator.js';
 import { MatchPairsValidator } from './validators/match-pairs.validator.js';
 import { ShortAnswerValidator } from './validators/short-answer.validator.js';
@@ -31,6 +32,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
 
   constructor(
     mcValidator: MultipleChoiceValidator,
+    mcgValidator: MultipleChoiceGroupValidator,
     fibValidator: FillInBlankValidator,
     mpValidator: MatchPairsValidator,
     saValidator: ShortAnswerValidator,
@@ -46,6 +48,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
 
     this.validators = new Map([
       ['multiple_choice', mcValidator],
+      ['multiple_choice_group', mcgValidator],
       ['fill_in_blank', fibValidator],
       ['match_pairs', mpValidator],
       ['short_answer', saValidator],
