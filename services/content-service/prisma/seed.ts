@@ -587,8 +587,12 @@ const templates = [
       type: 'object',
       required: ['sentence', 'fields', 'tokens'],
       properties: {
-        // Full sentence shown for reference.
+        // The target sentence. Held back from the learner while
+        // `source_sentence` is set, and shown with the feedback instead.
         sentence: { type: 'string' },
+        // Optional starting point that turns the task into a transformation:
+        // the learner rebuilds `sentence` from this one instead of copying it.
+        source_sentence: { type: 'string' },
         // Drives UI labelling for main vs subordinate clause schemas.
         schema_type: { type: 'string', enum: ['main', 'subordinate'] },
         // Ordered columns of the schema.

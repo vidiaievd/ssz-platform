@@ -281,10 +281,11 @@
     {
       "key": "b1-g3-ss1",
       "template": "sentence_schema",
-      "instruction": "Разместите слова придаточного предложения по полям (leddsetning).",
-      "hint": "Порядок полей: subjunksjon — subjekt — adverbial — verbal — sluttfelt.",
+      "instruction": "Перестройте предложение в придаточное с at и разместите слова по полям (leddsetning).",
+      "hint": "В придаточном ikke стоит перед глаголом. Порядок полей: subjunksjon — subjekt — adverbial — verbal — sluttfelt.",
       "content": {
         "sentence": "… at han ikke hadde tatt fagbrevet ennå.",
+        "source_sentence": "Han hadde ikke tatt fagbrevet ennå.",
         "schema_type": "subordinate",
         "fields": [
           {
@@ -3211,9 +3212,11 @@
     {
       "key": "b1-gr10-ss1",
       "template": "sentence_schema",
-      "instruction": "Разберите главное предложение по полям (helsetning).",
+      "instruction": "Начните предложение с Derfor и разместите слова по полям (helsetning).",
+      "hint": "Наречие-связка в forfelt вызывает инверсию: глагол остаётся на 2-м месте, подлежащее уходит за него.",
       "content": {
         "sentence": "Derfor meldte jeg meg inn i et kor.",
+        "source_sentence": "Jeg meldte meg inn i et kor.",
         "schema_type": "main",
         "fields": [
           {
@@ -3285,9 +3288,11 @@
     {
       "key": "b1-gr10-ss2",
       "template": "sentence_schema",
-      "instruction": "Разберите главное предложение по полям (helsetning).",
+      "instruction": "Начните предложение с Til slutt и разместите слова по полям (helsetning).",
+      "hint": "Первое место занято обстоятельством — значит подлежащее встаёт после глагола.",
       "content": {
         "sentence": "Til slutt besto hun prøven.",
+        "source_sentence": "Hun besto prøven.",
         "schema_type": "main",
         "fields": [
           {
@@ -3358,9 +3363,11 @@
     {
       "key": "b1-gr10-ss3",
       "template": "sentence_schema",
-      "instruction": "Разберите придаточное предложение по полям (leddsetning).",
+      "instruction": "Присоедините предложение с fordi и разместите слова по полям (leddsetning).",
+      "hint": "При переходе в придаточное ikke переезжает вперёд — перед глаголом.",
       "content": {
         "sentence": "… fordi hun ikke ga opp.",
+        "source_sentence": "Hun ga ikke opp.",
         "schema_type": "subordinate",
         "fields": [
           {
@@ -3446,9 +3453,11 @@
     {
       "key": "b1-gr10-ss4",
       "template": "sentence_schema",
-      "instruction": "Разберите придаточное предложение по полям (leddsetning).",
+      "instruction": "Присоедините предложение с selv om и разместите слова по полям (leddsetning).",
+      "hint": "Subjunksjon selv om занимает первое поле, дальше идёт подлежащее.",
       "content": {
         "sentence": "… selv om det var tungt.",
+        "source_sentence": "Det var tungt.",
         "schema_type": "subordinate",
         "fields": [
           {
