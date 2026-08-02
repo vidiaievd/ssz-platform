@@ -3559,70 +3559,92 @@
       "expectedAnswers": {
         "reference_answer": "Han har jobbet der i tre år.",
         "accepted_answers": [
-          "tre år",
+          "Han har jobbet der i tre år.",
+          "Han har jobbet i det samme firmaet i tre år.",
+          "Bartek har jobbet der i tre år.",
+          "Han har jobbet der i tre år som elektriker.",
           "i tre år",
-          "han har jobbet der i tre år"
+          "tre år"
         ]
       }
     },
     {
       "key": "b1-1a-sa2",
       "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1A.",
+      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
       "content": {
-        "question": "Hvorfor vil Bartek ha en ny jobb?",
-        "context": "Tekst 1A."
+        "question": "Hva vil Bartek gjerne ha i den nye jobben?",
+        "context": "Tekst 1A — Bartek søker ny jobb."
       },
       "expectedAnswers": {
-        "reference_answer": "Han vil ha mer ansvar og høyere lønn og utvikle seg.",
+        "reference_answer": "Han vil gjerne ha mer ansvar og en høyere lønn.",
         "accepted_answers": [
-          "mer ansvar",
-          "høyere lønn",
-          "han vil utvikle seg",
-          "for å få mer ansvar"
-        ]
+          "Han vil gjerne ha mer ansvar og en høyere lønn.",
+          "Han vil ha mer ansvar og en høyere lønn.",
+          "Han vil gjerne ha mer ansvar og høyere lønn.",
+          "Han vil ha mer ansvar og høyere lønn.",
+          "Han vil gjerne ha en høyere lønn og mer ansvar.",
+          "Han vil ha høyere lønn og mer ansvar.",
+          "mer ansvar og en høyere lønn",
+          "mer ansvar og høyere lønn",
+          "høyere lønn og mer ansvar"
+        ],
+        "explanation": "I teksten: «Han vil gjerne ha mer ansvar og en høyere lønn.» Begge delene hører med i svaret."
       }
     },
     {
       "key": "b1-1a-sa3",
       "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1A.",
+      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
       "content": {
         "question": "Hva slags firma er Nordby Elektro AS?",
-        "context": "Tekst 1A."
+        "context": "Tekst 1A — Bartek søker ny jobb."
       },
       "expectedAnswers": {
         "reference_answer": "Det er et voksende firma med tolv ansatte.",
         "accepted_answers": [
+          "Det er et voksende firma med tolv ansatte.",
+          "Nordby Elektro AS er et voksende firma med tolv ansatte.",
+          "Det er et voksende firma med 12 ansatte.",
+          "Det er et voksende firma.",
+          "Det er et firma med tolv ansatte.",
+          "et voksende firma med tolv ansatte",
           "et voksende firma",
           "et firma med tolv ansatte",
-          "voksende firma med tolv ansatte"
-        ]
+          "et firma med 12 ansatte"
+        ],
+        "explanation": "Annonsen sier: «Nordby Elektro AS er et voksende firma med tolv ansatte.»"
       }
     },
     {
       "key": "b1-1a-sa4",
       "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1A.",
+      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
       "content": {
-        "question": "Hva gjør Bartek før han sender søknaden?",
-        "context": "Tekst 1A."
+        "question": "Hva gjør Bartek med søknaden før han sender den?",
+        "context": "Tekst 1A — Bartek søker ny jobb."
       },
       "expectedAnswers": {
         "reference_answer": "Han retter skrivefeilene.",
         "accepted_answers": [
-          "han retter skrivefeilene",
-          "retter feilene",
-          "han retter feilene"
-        ]
+          "Han retter skrivefeilene.",
+          "Han retter feilene.",
+          "Han retter skrivefeil.",
+          "Bartek retter skrivefeilene.",
+          "Bartek retter feilene.",
+          "Han retter skrivefeilene i søknaden.",
+          "Han retter feilene i søknaden.",
+          "retter skrivefeilene",
+          "retter feilene"
+        ],
+        "explanation": "Anne finner noen skrivefeil, og Bartek retter dem før han sender søknaden."
       }
     },
     {
-      "key": "b1-1a-rg1",
-      "template": "multiple_choice",
+      "key": "b1-1a-mcg-01",
+      "template": "multiple_choice_group",
       "instruction": "Riktig eller galt? Velg svaret som stemmer med teksten 1A.",
       "content": {
-        "question": "Annonsen ber om en elektriker med fagbrev.",
         "options": [
           {
             "id": "r",
@@ -3632,163 +3654,141 @@
             "id": "g",
             "text": "Galt"
           }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "r"
-        ]
-      }
-    },
-    {
-      "key": "b1-1a-rg2",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
-      "content": {
-        "question": "Firmaet vil ha en person med minst fem års erfaring.",
-        "options": [
-          {
-            "id": "r",
-            "text": "Riktig"
-          },
-          {
-            "id": "g",
-            "text": "Galt"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "g"
         ],
-        "explanation": "Annonsen ber om minst tre års erfaring, ikke fem."
-      }
-    },
-    {
-      "key": "b1-1a-rg3",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
-      "content": {
-        "question": "Bartek bestemmer seg for å vente en uke før han søker.",
-        "options": [
+        "items": [
           {
-            "id": "r",
-            "text": "Riktig"
+            "id": "1",
+            "question": "Annonsen ber om en elektriker med fagbrev."
           },
           {
-            "id": "g",
-            "text": "Galt"
+            "id": "2",
+            "question": "Firmaet vil ha en person med minst fem års erfaring."
+          },
+          {
+            "id": "3",
+            "question": "Bartek bestemmer seg for å vente en uke før han søker."
+          },
+          {
+            "id": "4",
+            "question": "Anne synes søknaden er god, men med noen skrivefeil."
           }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "g"
         ],
-        "explanation": "Han bestemmer seg for å søke med en gang."
-      }
-    },
-    {
-      "key": "b1-1a-rg4",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
-      "content": {
-        "question": "Anne synes søknaden er god, men med noen skrivefeil.",
-        "options": [
-          {
-            "id": "r",
-            "text": "Riktig"
-          },
-          {
-            "id": "g",
-            "text": "Galt"
-          }
-        ]
+        "context": "Tekst 1A — Bartek søker ny jobb."
       },
       "expectedAnswers": {
-        "correct_option_ids": [
-          "r"
-        ]
-      }
-    },
-    {
-      "key": "b1-1a-mean1",
-      "template": "multiple_choice",
-      "instruction": "Hva betyr ordet «selvstendig»?",
-      "content": {
-        "question": "selvstendig",
-        "options": [
+        "items": [
           {
-            "id": "a",
-            "text": "som trenger mye hjelp"
+            "id": "1",
+            "correct_option_ids": [
+              "r"
+            ]
           },
           {
-            "id": "b",
-            "text": "som kan jobbe alene"
+            "id": "2",
+            "correct_option_ids": [
+              "g"
+            ],
+            "explanation": "Annonsen ber om minst tre års erfaring, ikke fem."
           },
           {
-            "id": "c",
-            "text": "som er sjef"
+            "id": "3",
+            "correct_option_ids": [
+              "g"
+            ],
+            "explanation": "Han bestemmer seg for å søke med en gang."
+          },
+          {
+            "id": "4",
+            "correct_option_ids": [
+              "r"
+            ]
           }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
         ]
       }
     },
     {
-      "key": "b1-1a-mean2",
-      "template": "multiple_choice",
-      "instruction": "Hva betyr ordet «oversiktlig»?",
+      "key": "b1-1a-mcg-02",
+      "template": "multiple_choice_group",
+      "instruction": "Hva betyr ordene? Velg riktig forklaring for hvert ord.",
       "content": {
-        "question": "oversiktlig",
-        "options": [
+        "items": [
           {
-            "id": "a",
-            "text": "rotete"
+            "id": "1",
+            "question": "selvstendig",
+            "options": [
+              {
+                "id": "a",
+                "text": "som trenger mye hjelp"
+              },
+              {
+                "id": "b",
+                "text": "som kan jobbe alene"
+              },
+              {
+                "id": "c",
+                "text": "som er sjef"
+              }
+            ]
           },
           {
-            "id": "b",
-            "text": "lett å få oversikt over"
+            "id": "2",
+            "question": "oversiktlig",
+            "options": [
+              {
+                "id": "a",
+                "text": "rotete"
+              },
+              {
+                "id": "b",
+                "text": "lett å få oversikt over"
+              },
+              {
+                "id": "c",
+                "text": "veldig lang"
+              }
+            ]
           },
           {
-            "id": "c",
-            "text": "veldig lang"
+            "id": "3",
+            "question": "et fagbrev",
+            "options": [
+              {
+                "id": "a",
+                "text": "et vanlig brev"
+              },
+              {
+                "id": "b",
+                "text": "et bevis på fagutdanning"
+              },
+              {
+                "id": "c",
+                "text": "en søknad"
+              }
+            ]
           }
-        ]
+        ],
+        "context": "Ord fra tekst 1A."
       },
       "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
-        ]
-      }
-    },
-    {
-      "key": "b1-1a-mean3",
-      "template": "multiple_choice",
-      "instruction": "Hva betyr «et fagbrev»?",
-      "content": {
-        "question": "et fagbrev",
-        "options": [
+        "items": [
           {
-            "id": "a",
-            "text": "et vanlig brev"
+            "id": "1",
+            "correct_option_ids": [
+              "b"
+            ]
           },
           {
-            "id": "b",
-            "text": "et bevis på fagutdanning"
+            "id": "2",
+            "correct_option_ids": [
+              "b"
+            ]
           },
           {
-            "id": "c",
-            "text": "en søknad"
+            "id": "3",
+            "correct_option_ids": [
+              "b"
+            ]
           }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
         ]
       }
     },

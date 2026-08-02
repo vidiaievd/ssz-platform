@@ -22,12 +22,12 @@ incrementally with no code change:
 
 ## Status
 **All 10 leksjoner fully authored.** 40 lesson texts, 10 grammar lessons, 29 vocab
-sections (462 words), 447 exercises — all validated against the live Ajv template
+sections (462 words), 442 exercises — all validated against the live Ajv template
 schemas extracted from `seed.ts` (0 invalid), no duplicate exercise keys.
 
-Per-template breakdown: short_answer 147, fill_in_blank 140, multiple_choice 127,
-match_pairs 12, writing_task 11, sentence_schema 5, word_bank_fill 3, text_order 1,
-error_correction 1.
+Per-template breakdown: short_answer 147, fill_in_blank 140, multiple_choice 120,
+match_pairs 12, writing_task 11, sentence_schema 5, word_bank_fill 3,
+multiple_choice_group 2, text_order 1, error_correction 1.
 
 Every `fill_in_blank` exercise carries exactly one blank (`___1___`), matching what
 the web runner's `FillBody`/`FillSolver` support today (single-blank only, per
@@ -58,6 +58,20 @@ hint and explanation; run it without `--write` first to see what it would do. It
 always emits chips mode — add `input_mode` by hand afterwards. 20 further runs across
 the course are eligible (5–6 exercises each) but are still unconverted — convert a
 group at a time so each can be checked in the player.
+
+### Question blocks (`multiple_choice_group`)
+
+The same argument applies to runs of `multiple_choice`: a printed Riktig/Galt table
+is one task, not four. 1A's `b1-1a-rg1…4` are now `b1-1a-mcg-01` — the four
+statements share one `content.options` pair, so the player lays them out as a table
+with a radio pair per row and checks the block once. `b1-1a-mean1…3` are now
+`b1-1a-mcg-02`, where each question carries its own `options` and the player stacks
+them as cards. Both shapes are the same template; the layout follows from where the
+options live. Per-question `expectedAnswers.items[].explanation` is shown next to
+the question it belongs to once the answers are unlocked.
+
+No conversion tool for these yet — the remaining `multiple_choice` runs in leksjoner
+2–10 are still one exercise per question.
 
 Exercise key scheme: text sub-lessons use `b1-{leksjon}{letter}-{type}-{n}` (e.g.
 `b1-3b-fib-02`); grammar-module exercises for leksjon 1 use `b1-g{subsection}-*`
