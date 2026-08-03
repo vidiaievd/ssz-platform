@@ -89,6 +89,21 @@ function makeLessonSection(): ContainerSectionEntity {
   );
 }
 
+/** A lesson attached directly to the requested version, the way a module holds its own material. */
+function makeOwnLessonItem(sectionId: string | null): ContainerItemEntity {
+  return ContainerItemEntity.create(
+    {
+      containerVersionId: COURSE_VERSION_ID,
+      position: 1,
+      itemType: ContainerItemType.LESSON,
+      itemId: LESSON_ID,
+      sectionId: sectionId ?? undefined,
+      xpReward: 5,
+    },
+    'own-item-1',
+  );
+}
+
 function makeLessonItem(): ContainerItemEntity {
   return ContainerItemEntity.create(
     {
@@ -110,6 +125,8 @@ interface Fixture {
   lessonItem?: ContainerItemEntity | null;
   lessonVariantStatus?: 'DRAFT' | 'PUBLISHED' | null;
   publishStates?: Record<string, ContainerPublishState>;
+  /** A leaf item attached straight to the requested version — a module's own material. */
+  ownItem?: ContainerItemEntity | null;
 }
 
 function makeHandler(fixture: Fixture = {}) {
@@ -141,7 +158,10 @@ function makeHandler(fixture: Fixture = {}) {
 
   const itemRepo: IContainerItemRepository = {
     findByVersionId: jest.fn().mockImplementation((versionId: string) => {
-      if (versionId === COURSE_VERSION_ID) return Promise.resolve(moduleItem ? [moduleItem] : []);
+      if (versionId === COURSE_VERSION_ID)
+        return Promise.resolve(
+          [moduleItem, fixture.ownItem ?? null].filter((i): i is ContainerItemEntity => i !== null),
+        );
       if (versionId === MODULE_VERSION_ID) return Promise.resolve(lessonItem ? [lessonItem] : []);
       return Promise.resolve([]);
     }),
@@ -289,6 +309,48 @@ describe('GetCurriculumTreeHandler', () => {
     if (result.isFail) return;
     expect(result.value.publishState).toBe('draft');
     expect(result.value.levels[0].modules[0].publishState).toBe('draft');
+  });
+
+  it("surfaces the container's own items inside their section", async () => {
+    const handler = makeHandler({
+      moduleItem: null,
+      ownItem: makeOwnLessonItem(LEVEL_SECTION_ID),
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    const level = result.value.levels[0];
+    expect(level.modules).toHaveLength(0);
+    // Dropping these left a module's own editor showing empty sections.
+    expect(level.items).toHaveLength(1);
+    expect(level.items[0].refId).toBe(LESSON_ID);
+    expect(level.items[0].title).toBe('En vanlig arbeidsdag');
+  });
+
+  it("reports the container's own sectionless items at the root", async () => {
+    const handler = makeHandler({
+      moduleItem: null,
+      levelSection: null,
+      ownItem: makeOwnLessonItem(null),
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    expect(result.value.ungroupedItems.map((i) => i.refId)).toEqual([LESSON_ID]);
+  });
+
+  it('reports the container type so the UI can name the row correctly', async () => {
+    const handler = makeHandler();
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    expect(result.value.containerType).toBe('course');
   });
 
   it('marks a lesson as draft when it has no published variant', async () => {

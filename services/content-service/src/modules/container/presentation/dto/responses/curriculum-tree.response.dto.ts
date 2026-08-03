@@ -145,12 +145,21 @@ export class CurriculumTreeLevelResponseDto {
   @ApiProperty({ type: () => CurriculumTreeModuleResponseDto, isArray: true })
   modules!: CurriculumTreeModuleResponseDto[];
 
+  @ApiProperty({
+    type: () => CurriculumTreeItemResponseDto,
+    isArray: true,
+    description:
+      "Leaf items in this section of the requested container itself (a module's own material)",
+  })
+  items!: CurriculumTreeItemResponseDto[];
+
   static from(node: CurriculumTreeLevelNode): CurriculumTreeLevelResponseDto {
     const dto = new CurriculumTreeLevelResponseDto();
     dto.id = node.id;
     dto.title = node.title;
     dto.position = node.position;
     dto.modules = node.modules.map((m) => CurriculumTreeModuleResponseDto.from(m));
+    dto.items = node.items.map((i) => CurriculumTreeItemResponseDto.from(i));
     return dto;
   }
 }
@@ -161,6 +170,9 @@ export class CurriculumTreeResponseDto {
 
   @ApiProperty({ example: 'uuid-of-course-container' })
   containerId!: string;
+
+  @ApiProperty({ example: 'module', enum: ['course', 'module'] })
+  containerType!: string;
 
   @ApiProperty({ example: 'cefr', enum: ['cefr', 'custom', 'single'] })
   levelSystem!: string;
@@ -175,13 +187,18 @@ export class CurriculumTreeResponseDto {
   @ApiProperty({ type: () => CurriculumTreeLevelResponseDto, isArray: true })
   levels!: CurriculumTreeLevelResponseDto[];
 
+  @ApiProperty({ type: () => CurriculumTreeItemResponseDto, isArray: true })
+  ungroupedItems!: CurriculumTreeItemResponseDto[];
+
   static from(result: CurriculumTreeResult): CurriculumTreeResponseDto {
     const dto = new CurriculumTreeResponseDto();
     dto.versionId = result.versionId;
     dto.containerId = result.containerId;
+    dto.containerType = result.containerType;
     dto.levelSystem = result.levelSystem;
     dto.publishState = result.publishState;
     dto.levels = result.levels.map((l) => CurriculumTreeLevelResponseDto.from(l));
+    dto.ungroupedItems = result.ungroupedItems.map((i) => CurriculumTreeItemResponseDto.from(i));
     return dto;
   }
 }

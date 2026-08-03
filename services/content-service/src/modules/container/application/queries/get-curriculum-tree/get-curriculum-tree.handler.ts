@@ -5,6 +5,7 @@ import { Result } from '../../../../../shared/kernel/result.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
 import { ContainerItemType } from '../../../domain/value-objects/item-type.vo.js';
+import { ContainerType } from '../../../domain/value-objects/container-type.vo.js';
 import { LevelSystem } from '../../../domain/value-objects/level-system.vo.js';
 import { CONTAINER_REPOSITORY } from '../../../domain/repositories/container.repository.interface.js';
 import type { IContainerRepository } from '../../../domain/repositories/container.repository.interface.js';
@@ -41,6 +42,13 @@ export interface CurriculumTreeItemNode {
   xpReward: number | null;
 }
 
+interface LeafItemMeta {
+  title: string | null;
+  lessonKind: LessonKind | null;
+  state: 'draft' | 'published' | null;
+  durationMinutes: number | null;
+}
+
 export interface CurriculumTreeSectionNode {
   id: string;
   title: string;
@@ -68,15 +76,23 @@ export interface CurriculumTreeLevelNode {
   title: string | null;
   position: number;
   modules: CurriculumTreeModuleNode[];
+  // Leaf items sitting in this section of the requested container itself.
+  // A course keeps modules here; a module keeps its own lessons, vocabulary
+  // and exercises. Both are edited through the same screen, so the tree has
+  // to carry both.
+  items: CurriculumTreeItemNode[];
 }
 
 export interface CurriculumTreeResult {
   versionId: string;
   containerId: string;
+  containerType: ContainerType;
   levelSystem: LevelSystem;
   // Publish state of the course container itself, on the same terms as modules.
   publishState: ContainerPublishState;
   levels: CurriculumTreeLevelNode[];
+  // The requested container's own leaf items that belong to no section.
+  ungroupedItems: CurriculumTreeItemNode[];
 }
 
 const UNGROUPED_LEVEL_ID = null;
@@ -120,6 +136,11 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     // Only CONTAINER-type items represent modules in the curriculum tree
     // (decision: Level(section) → Module(container item) → Section → Item).
     const moduleItems = topItems.filter((i) => i.itemType === ContainerItemType.CONTAINER);
+    // Everything else at this level belongs to the requested container itself.
+    // A module keeps its lessons/vocabulary/exercises here, and dropping them
+    // (as this query used to) left a module's own editor showing empty sections
+    // while pre-flight complained about items the author could not see.
+    const ownItems = topItems.filter((i) => i.itemType !== ContainerItemType.CONTAINER);
 
     // One batched pass for the course and every module it holds.
     const publishStates = await this.publishStateReader.resolve([
@@ -129,6 +150,13 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
 
     const moduleNodes = await this.buildModuleNodes(moduleItems, publishStates);
     const moduleNodeById = new Map(moduleNodes.map((m) => [m.id, m]));
+
+    const ownItemMeta = await this.resolveLeafItemMeta(ownItems);
+    const ownItemsInSection = (sectionId: string | null) =>
+      ownItems
+        .filter((i) => i.sectionId === sectionId)
+        .sort((a, b) => a.position - b.position)
+        .map((i) => this.toItemNode(i, ownItemMeta));
 
     const levels: CurriculumTreeLevelNode[] = levelSections
       .slice()
@@ -142,6 +170,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
           .sort((a, b) => a.position - b.position)
           .map((i) => moduleNodeById.get(i.id))
           .filter((m): m is CurriculumTreeModuleNode => m !== undefined),
+        items: ownItemsInSection(section.id),
       }));
 
     const ungroupedModules = moduleItems
@@ -156,15 +185,18 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
         title: null,
         position: levels.length,
         modules: ungroupedModules,
+        items: [],
       });
     }
 
     return Result.ok({
       versionId: version.id,
       containerId: container.id,
+      containerType: container.containerType,
       levelSystem: container.levelSystem,
       publishState: publishStates.get(container.id) ?? 'draft',
       levels,
+      ungroupedItems: ownItemsInSection(null),
     });
   }
 
@@ -226,21 +258,8 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       const sections = chosenVersion ? (sectionsByVersionId.get(chosenVersion.id) ?? []) : [];
       const leafItems = chosenVersion ? (leafItemsByVersionId.get(chosenVersion.id) ?? []) : [];
 
-      const toNode = (item: ContainerItemEntity): CurriculumTreeItemNode => {
-        const meta = leafMetaByRefId.get(item.itemId);
-        return {
-          id: item.id,
-          itemType: item.itemType,
-          refId: item.itemId,
-          title: meta?.title ?? null,
-          position: item.position,
-          isRequired: item.isRequired,
-          lessonKind: meta?.lessonKind ?? null,
-          state: meta?.state ?? null,
-          durationMinutes: meta?.durationMinutes ?? null,
-          xpReward: item.xpReward,
-        };
-      };
+      const toNode = (item: ContainerItemEntity): CurriculumTreeItemNode =>
+        this.toItemNode(item, leafMetaByRefId);
 
       const sectionNodes: CurriculumTreeSectionNode[] = sections
         .slice()
@@ -275,28 +294,31 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     });
   }
 
+  private toItemNode(
+    item: ContainerItemEntity,
+    metaByRefId: Map<string, LeafItemMeta>,
+  ): CurriculumTreeItemNode {
+    const meta = metaByRefId.get(item.itemId);
+    return {
+      id: item.id,
+      itemType: item.itemType,
+      refId: item.itemId,
+      title: meta?.title ?? null,
+      position: item.position,
+      isRequired: item.isRequired,
+      lessonKind: meta?.lessonKind ?? null,
+      state: meta?.state ?? null,
+      durationMinutes: meta?.durationMinutes ?? null,
+      xpReward: item.xpReward,
+    };
+  }
+
   // Batched title/kind/state resolution for leaf items across every module in the tree,
   // grouped by itemType to avoid one round-trip per item (mirrors GetVersionItemsHandler).
-  private async resolveLeafItemMeta(items: ContainerItemEntity[]): Promise<
-    Map<
-      string,
-      {
-        title: string | null;
-        lessonKind: LessonKind | null;
-        state: 'draft' | 'published' | null;
-        durationMinutes: number | null;
-      }
-    >
-  > {
-    const meta = new Map<
-      string,
-      {
-        title: string | null;
-        lessonKind: LessonKind | null;
-        state: 'draft' | 'published' | null;
-        durationMinutes: number | null;
-      }
-    >();
+  private async resolveLeafItemMeta(
+    items: ContainerItemEntity[],
+  ): Promise<Map<string, LeafItemMeta>> {
+    const meta = new Map<string, LeafItemMeta>();
 
     const idsByType = new Map<ContainerItemType, string[]>();
     for (const item of items) {
