@@ -63,6 +63,7 @@ export class PrismaContainerVersionRepository implements IContainerVersionReposi
     previousVersionId: string | null;
     sunsetDays: number;
     publishedByUserId: string;
+    changelog?: string;
     slug?: string;
   }): Promise<{ sunsetAt: Date | null }> {
     return this.prisma.$transaction(async (tx) => {
@@ -97,6 +98,9 @@ export class PrismaContainerVersionRepository implements IContainerVersionReposi
           status: 'PUBLISHED',
           publishedAt: now,
           publishedByUserId: params.publishedByUserId,
+          // Whitespace-only notes are no notes; leave the column as it is
+          // rather than replacing a draft's text with an empty string.
+          ...(params.changelog?.trim() ? { changelog: params.changelog.trim() } : {}),
         },
       });
 

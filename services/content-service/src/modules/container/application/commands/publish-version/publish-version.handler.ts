@@ -105,6 +105,7 @@ export class PublishVersionHandler implements ICommandHandler<
       previousVersionId,
       sunsetDays,
       publishedByUserId: command.userId,
+      changelog: command.changelog,
       slug,
     });
 

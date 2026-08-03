@@ -126,7 +126,7 @@ export class ContainerVersionController {
     const result = await this.commandBus.execute<
       PublishVersionCommand,
       Result<{ versionId: string }, ContainerDomainError>
-    >(new PublishVersionCommand(user.userId, versionId, dto.deprecationDays));
+    >(new PublishVersionCommand(user.userId, versionId, dto.deprecationDays, dto.changelog));
 
     if (result.isFail) throwHttpException(result.error);
     return result.value;
