@@ -52,6 +52,8 @@ import { GetGlossarySuggestionsQuery } from '../../application/queries/get-gloss
 import type { GlossarySuggestion } from '../../application/queries/get-glossary-suggestions/get-glossary-suggestions.handler.js';
 
 import { GetPreflightQuery } from '../../application/queries/get-preflight/get-preflight.query.js';
+import { GetPublishStatesQuery } from '../../../container/application/queries/get-publish-states/get-publish-states.query.js';
+import type { ContainerPublishSummary } from '../../../container/application/queries/get-publish-states/get-publish-states.handler.js';
 import type { PreflightResult } from '../../application/queries/get-preflight/get-preflight.handler.js';
 
 import { GetLeafItemsQuery } from '../../../container/application/queries/get-leaf-items/get-leaf-items.query.js';
@@ -277,6 +279,21 @@ export class InternalController {
 
     if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
     return { accessTier: result.value.container.accessTier.toUpperCase() };
+  }
+
+  // The author's course list needs to tell "published" from "published, with
+  // changes students cannot see yet" — for a page of courses at once, and
+  // including modules, which are versioned independently of their course.
+  @Get('containers/publish-states')
+  async getPublishStates(@Query('ids') ids = ''): Promise<ContainerPublishSummary[]> {
+    const containerIds = ids
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+
+    return this.queryBus.execute<GetPublishStatesQuery, ContainerPublishSummary[]>(
+      new GetPublishStatesQuery(containerIds),
+    );
   }
 
   @Get('versions/:id/preflight')
