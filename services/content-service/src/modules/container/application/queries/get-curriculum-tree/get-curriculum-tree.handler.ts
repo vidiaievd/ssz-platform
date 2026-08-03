@@ -36,6 +36,17 @@ export interface CurriculumTreeItemNode {
   // IOrganizationClient.getCourseTeachers and joined in the web BFF, not in
   // content_db or this tree query.
   state: 'draft' | 'published' | null;
+  /**
+   * Whether a student can open this item right now — that is, whether the
+   * owning container's *currently published* version places it.
+   *
+   * `state` above answers a different question (does the lesson have a
+   * published variant) and is a poor stand-in: a lesson saved through the
+   * editor is variant-PUBLISHED immediately, while the row placing it lives in
+   * a draft version students cannot see. `null` when the owning container has
+   * never been published — nothing in it is live, which its own badge says.
+   */
+  isLive: boolean | null;
   // Best-effort from any PUBLISHED variant/explanation (LESSON/GRAMMAR_RULE) or
   // the item's own estimate (EXERCISE); null for VOCABULARY_LIST.
   durationMinutes: number | null;
@@ -143,20 +154,26 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     const ownItems = topItems.filter((i) => i.itemType !== ContainerItemType.CONTAINER);
 
     // One batched pass for the course and every module it holds.
-    const publishStates = await this.publishStateReader.resolve([
-      container.id,
-      ...moduleItems.map((i) => i.itemId),
+    const containerIds = [container.id, ...moduleItems.map((i) => i.itemId)];
+    const [publishStates, liveItemIdsByContainerId] = await Promise.all([
+      this.publishStateReader.resolve(containerIds),
+      this.resolveLiveItemIds(containerIds),
     ]);
 
-    const moduleNodes = await this.buildModuleNodes(moduleItems, publishStates);
+    const moduleNodes = await this.buildModuleNodes(
+      moduleItems,
+      publishStates,
+      liveItemIdsByContainerId,
+    );
     const moduleNodeById = new Map(moduleNodes.map((m) => [m.id, m]));
 
     const ownItemMeta = await this.resolveLeafItemMeta(ownItems);
+    const ownLiveItemIds = liveItemIdsByContainerId.get(container.id) ?? null;
     const ownItemsInSection = (sectionId: string | null) =>
       ownItems
         .filter((i) => i.sectionId === sectionId)
         .sort((a, b) => a.position - b.position)
-        .map((i) => this.toItemNode(i, ownItemMeta));
+        .map((i) => this.toItemNode(i, ownItemMeta, ownLiveItemIds));
 
     const levels: CurriculumTreeLevelNode[] = levelSections
       .slice()
@@ -203,6 +220,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
   private async buildModuleNodes(
     moduleItems: ContainerItemEntity[],
     publishStates: Map<string, ContainerPublishState>,
+    liveItemIdsByContainerId: Map<string, Set<string> | null>,
   ): Promise<CurriculumTreeModuleNode[]> {
     if (moduleItems.length === 0) return [];
 
@@ -258,8 +276,9 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       const sections = chosenVersion ? (sectionsByVersionId.get(chosenVersion.id) ?? []) : [];
       const leafItems = chosenVersion ? (leafItemsByVersionId.get(chosenVersion.id) ?? []) : [];
 
+      const liveItemIds = liveItemIdsByContainerId.get(moduleContainerId) ?? null;
       const toNode = (item: ContainerItemEntity): CurriculumTreeItemNode =>
-        this.toItemNode(item, leafMetaByRefId);
+        this.toItemNode(item, leafMetaByRefId, liveItemIds);
 
       const sectionNodes: CurriculumTreeSectionNode[] = sections
         .slice()
@@ -297,6 +316,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
   private toItemNode(
     item: ContainerItemEntity,
     metaByRefId: Map<string, LeafItemMeta>,
+    liveItemIds: Set<string> | null,
   ): CurriculumTreeItemNode {
     const meta = metaByRefId.get(item.itemId);
     return {
@@ -308,9 +328,57 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       isRequired: item.isRequired,
       lessonKind: meta?.lessonKind ?? null,
       state: meta?.state ?? null,
+      isLive: liveItemIds === null ? null : liveItemIds.has(item.itemId),
       durationMinutes: meta?.durationMinutes ?? null,
       xpReward: item.xpReward,
     };
+  }
+
+  /**
+   * Content ids each container's live version places, keyed by container id.
+   * A container with no published version maps to `null` — "nothing is live",
+   * which is not the same as "the live version is empty".
+   */
+  private async resolveLiveItemIds(
+    containerIds: string[],
+  ): Promise<Map<string, Set<string> | null>> {
+    const byContainerId = new Map<string, Set<string> | null>();
+    const ids = [...new Set(containerIds)];
+    if (ids.length === 0) return byContainerId;
+
+    const containers = await this.prisma.container.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, currentPublishedVersionId: true },
+    });
+
+    const publishedVersionIds = containers
+      .map((c) => c.currentPublishedVersionId)
+      .filter((id): id is string => id !== null);
+
+    const liveItems = publishedVersionIds.length
+      ? await this.prisma.containerItem.findMany({
+          where: { containerVersionId: { in: publishedVersionIds } },
+          select: { containerVersionId: true, itemId: true },
+        })
+      : [];
+
+    const itemIdsByVersionId = new Map<string, Set<string>>();
+    for (const row of liveItems) {
+      const bucket = itemIdsByVersionId.get(row.containerVersionId) ?? new Set<string>();
+      bucket.add(row.itemId);
+      itemIdsByVersionId.set(row.containerVersionId, bucket);
+    }
+
+    for (const container of containers) {
+      byContainerId.set(
+        container.id,
+        container.currentPublishedVersionId === null
+          ? null
+          : (itemIdsByVersionId.get(container.currentPublishedVersionId) ?? new Set<string>()),
+      );
+    }
+
+    return byContainerId;
   }
 
   // Batched title/kind/state resolution for leaf items across every module in the tree,

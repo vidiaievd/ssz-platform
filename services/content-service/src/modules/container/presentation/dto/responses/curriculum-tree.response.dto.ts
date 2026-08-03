@@ -35,6 +35,14 @@ export class CurriculumTreeItemResponseDto {
   @ApiPropertyOptional({ example: 'published', enum: ['draft', 'published'] })
   state!: string | null;
 
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      "Whether the owning container's currently published version places this item — " +
+      'i.e. whether a student can open it now. Null when that container has never been published.',
+  })
+  isLive!: boolean | null;
+
   @ApiPropertyOptional({ example: 6 })
   durationMinutes!: number | null;
 
@@ -51,6 +59,7 @@ export class CurriculumTreeItemResponseDto {
     dto.isRequired = node.isRequired;
     dto.lessonKind = node.lessonKind;
     dto.state = node.state;
+    dto.isLive = node.isLive;
     dto.durationMinutes = node.durationMinutes;
     dto.xpReward = node.xpReward;
     return dto;

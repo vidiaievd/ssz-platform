@@ -31,6 +31,8 @@ const COURSE_ID = 'course-1';
 const COURSE_VERSION_ID = 'course-version-1';
 const MODULE_ID = 'module-1';
 const MODULE_VERSION_ID = 'module-version-1';
+const MODULE_PUBLISHED_VERSION_ID = 'module-version-published';
+const COURSE_PUBLISHED_VERSION_ID = 'course-version-published';
 const LEVEL_SECTION_ID = 'level-a1';
 const MODULE_ITEM_ID = 'module-item-1';
 const LESSON_SECTION_ID = 'lesson-section-1';
@@ -127,6 +129,10 @@ interface Fixture {
   publishStates?: Record<string, ContainerPublishState>;
   /** A leaf item attached straight to the requested version — a module's own material. */
   ownItem?: ContainerItemEntity | null;
+  /** containerId → its currentPublishedVersionId. Absent means never published. */
+  publishedVersionByContainerId?: Record<string, string>;
+  /** Content ids the published versions place, keyed by published version id. */
+  liveItemIdsByVersionId?: Record<string, string[]>;
 }
 
 function makeHandler(fixture: Fixture = {}) {
@@ -167,9 +173,30 @@ function makeHandler(fixture: Fixture = {}) {
     }),
   } as unknown as IContainerItemRepository;
 
+  const publishedVersions = fixture.publishedVersionByContainerId ?? {};
+  const liveItemIds = fixture.liveItemIdsByVersionId ?? {};
+
   const prisma = {
     container: {
-      findMany: jest.fn().mockResolvedValue([{ id: MODULE_ID, title: 'Samfunn og kultur' }]),
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: MODULE_ID,
+          title: 'Samfunn og kultur',
+          currentPublishedVersionId: publishedVersions[MODULE_ID] ?? null,
+        },
+        {
+          id: COURSE_ID,
+          title: 'Norsk B1',
+          currentPublishedVersionId: publishedVersions[COURSE_ID] ?? null,
+        },
+      ]),
+    },
+    containerItem: {
+      findMany: jest.fn().mockResolvedValue(
+        Object.entries(liveItemIds).flatMap(([containerVersionId, itemIds]) =>
+          itemIds.map((itemId) => ({ containerVersionId, itemId })),
+        ),
+      ),
     },
     containerLocalization: {
       findMany: jest
@@ -361,6 +388,61 @@ describe('GetCurriculumTreeHandler', () => {
     expect(result.isOk).toBe(true);
     if (result.isFail) return;
     expect(result.value.levels[0].modules[0].sections[0].items[0].state).toBe('draft');
+  });
+
+  it("reports a lesson as live when the module's published version places it", async () => {
+    const handler = makeHandler({
+      publishedVersionByContainerId: { [MODULE_ID]: MODULE_PUBLISHED_VERSION_ID },
+      liveItemIdsByVersionId: { [MODULE_PUBLISHED_VERSION_ID]: [LESSON_ID] },
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    expect(result.value.levels[0].modules[0].sections[0].items[0].isLive).toBe(true);
+  });
+
+  it('reports a lesson that only the draft places as not live', async () => {
+    // The badge used to read the lesson's *variant* status, which a save sets
+    // to PUBLISHED straight away — so freshly added material claimed to be
+    // live while the row placing it sat in a draft students cannot see.
+    const handler = makeHandler({
+      publishedVersionByContainerId: { [MODULE_ID]: MODULE_PUBLISHED_VERSION_ID },
+      liveItemIdsByVersionId: { [MODULE_PUBLISHED_VERSION_ID]: ['some-other-lesson'] },
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    const item = result.value.levels[0].modules[0].sections[0].items[0];
+    expect(item.isLive).toBe(false);
+    expect(item.state).toBe('published'); // the variant is published; the item is not live
+  });
+
+  it('leaves liveness unknown while the owning module has never been published', async () => {
+    const handler = makeHandler();
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    expect(result.value.levels[0].modules[0].sections[0].items[0].isLive).toBeNull();
+  });
+
+  it("reports liveness of a container's own material against its own published version", async () => {
+    const handler = makeHandler({
+      ownItem: makeOwnLessonItem(LEVEL_SECTION_ID),
+      publishedVersionByContainerId: { [COURSE_ID]: COURSE_PUBLISHED_VERSION_ID },
+      liveItemIdsByVersionId: { [COURSE_PUBLISHED_VERSION_ID]: [] },
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    expect(result.value.levels[0].items[0].isLive).toBe(false);
   });
 
   it('groups sectionless modules into a trailing ungrouped level', async () => {
