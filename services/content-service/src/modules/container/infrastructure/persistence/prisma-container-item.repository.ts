@@ -75,29 +75,53 @@ export class PrismaContainerItemRepository implements IContainerItemRepository {
     );
   }
 
-  async copyItemsToVersion(sourceVersionId: string, targetVersionId: string): Promise<void> {
-    const sourceItems = await this.prisma.containerItem.findMany({
-      where: { containerVersionId: sourceVersionId },
-      orderBy: { position: 'asc' },
-    });
+  async copyCompositionToVersion(sourceVersionId: string, targetVersionId: string): Promise<void> {
+    const [sourceSections, sourceItems] = await Promise.all([
+      this.prisma.containerSection.findMany({
+        where: { containerVersionId: sourceVersionId },
+        orderBy: { position: 'asc' },
+      }),
+      this.prisma.containerItem.findMany({
+        where: { containerVersionId: sourceVersionId },
+        orderBy: { position: 'asc' },
+      }),
+    ]);
 
-    if (sourceItems.length === 0) return;
+    if (sourceSections.length === 0 && sourceItems.length === 0) return;
 
-    await this.prisma.containerItem.createMany({
-      data: sourceItems.map((item) => ({
-        id: randomUUID(),
-        containerVersionId: targetVersionId,
-        position: item.position,
-        itemType: item.itemType,
-        itemId: item.itemId,
-        isRequired: item.isRequired,
-        // sectionId is intentionally dropped: sections belong to the source
-        // version and don't exist on the target draft yet. Cloning sections
-        // alongside items is tracked as a follow-up (course-structure-sync Phase A).
-        sectionId: null,
-        sectionLabel: item.sectionLabel,
-        addedAt: new Date(),
-      })),
-    });
+    // Sections belong to a version, so the target needs its own rows and the
+    // copied items have to point at those. Dropping them instead — as this did
+    // until 2026-08-03 — silently ungrouped the draft the moment a container
+    // was published, which both read as "unpublished changes" forever and
+    // would have pushed a section-less version to students on the next publish.
+    const targetSectionIdBySourceId = new Map(sourceSections.map((s) => [s.id, randomUUID()]));
+
+    await this.prisma.$transaction([
+      this.prisma.containerSection.createMany({
+        data: sourceSections.map((section) => ({
+          id: targetSectionIdBySourceId.get(section.id) as string,
+          containerVersionId: targetVersionId,
+          title: section.title,
+          position: section.position,
+        })),
+      }),
+      this.prisma.containerItem.createMany({
+        data: sourceItems.map((item) => ({
+          id: randomUUID(),
+          containerVersionId: targetVersionId,
+          position: item.position,
+          itemType: item.itemType,
+          itemId: item.itemId,
+          isRequired: item.isRequired,
+          sectionId:
+            item.sectionId === null
+              ? null
+              : (targetSectionIdBySourceId.get(item.sectionId) ?? null),
+          sectionLabel: item.sectionLabel,
+          xpReward: item.xpReward,
+          addedAt: new Date(),
+        })),
+      }),
+    ]);
   }
 }
