@@ -32,10 +32,6 @@ export class UpdateVocabularyItemHandler implements ICommandHandler<
       return Result.fail(VocabularyDomainError.LIST_NOT_FOUND);
     }
 
-    if (list.ownerUserId !== command.userId) {
-      return Result.fail(VocabularyDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const item = await this.itemRepo.findById(command.itemId);
     if (!item || item.deletedAt !== null) {
       return Result.fail(VocabularyDomainError.ITEM_NOT_FOUND);

@@ -34,7 +34,7 @@ export class DeleteTextSpanHandler implements ICommandHandler<
   async execute(command: DeleteTextSpanCommand): Promise<Result<void, LessonDomainError>> {
     const context = await loadEditableTextVariant(
       { lessonRepo: this.lessonRepo, variantRepo: this.variantRepo },
-      { userId: command.userId, variantId: command.variantId },
+      { variantId: command.variantId },
     );
     if (context.isFail) return Result.fail(context.error);
 

@@ -48,10 +48,6 @@ export class DeleteExampleTranslationHandler implements ICommandHandler<
       return Result.fail(VocabularyDomainError.LIST_NOT_FOUND);
     }
 
-    if (list.ownerUserId !== command.userId) {
-      return Result.fail(VocabularyDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const example = await this.exampleRepo.findById(command.exampleId);
     if (!example || example.vocabularyItemId !== command.itemId) {
       return Result.fail(VocabularyDomainError.USAGE_EXAMPLE_NOT_FOUND);

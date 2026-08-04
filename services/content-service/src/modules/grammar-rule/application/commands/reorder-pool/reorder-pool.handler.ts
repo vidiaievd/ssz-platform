@@ -29,10 +29,6 @@ export class ReorderPoolHandler implements ICommandHandler<
     if (!rule || rule.deletedAt !== null) {
       return Result.fail(GrammarRuleDomainError.GRAMMAR_RULE_NOT_FOUND);
     }
-    if (rule.ownerUserId !== command.userId) {
-      return Result.fail(GrammarRuleDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Validate all referenced entries exist in this rule's pool.
     const existing = await this.poolRepo.findByRuleId(command.ruleId);
     const existingIds = new Set(existing.map((e) => e.exerciseId));

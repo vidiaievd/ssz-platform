@@ -51,10 +51,6 @@ export class UpsertItemTranslationHandler implements ICommandHandler<
       return Result.fail(VocabularyDomainError.LIST_NOT_FOUND);
     }
 
-    if (list.ownerUserId !== command.userId) {
-      return Result.fail(VocabularyDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     if (command.primaryTranslation.trim().length === 0) {
       return Result.fail(VocabularyDomainError.EMPTY_TRANSLATION);
     }

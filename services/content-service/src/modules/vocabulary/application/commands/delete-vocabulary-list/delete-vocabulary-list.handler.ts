@@ -28,11 +28,6 @@ export class DeleteVocabularyListHandler implements ICommandHandler<
       return Result.fail(VocabularyDomainError.LIST_NOT_FOUND);
     }
 
-    if (list.ownerUserId !== command.userId) {
-      // TODO: Prompt 6 — extend with school content_admin role check via OrganizationService.
-      return Result.fail(VocabularyDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const hasRefs = await this.listRepo.hasPublishedContainerReferences(command.listId);
     if (hasRefs) {
       return Result.fail(VocabularyDomainError.LIST_HAS_PUBLISHED_CONTAINER_REFERENCES);

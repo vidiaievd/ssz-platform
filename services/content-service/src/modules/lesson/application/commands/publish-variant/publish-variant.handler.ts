@@ -45,11 +45,6 @@ export class PublishVariantHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.LESSON_ALREADY_DELETED);
     }
 
-    if (lesson.ownerUserId !== command.userId) {
-      // TODO: Prompt 6 — extend with school content_admin role check.
-      return Result.fail(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const publishResult = variant.publish();
     if (publishResult.isFail) {
       return Result.fail(publishResult.error);

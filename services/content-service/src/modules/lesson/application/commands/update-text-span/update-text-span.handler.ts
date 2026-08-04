@@ -35,7 +35,7 @@ export class UpdateTextSpanHandler implements ICommandHandler<
   ): Promise<Result<UpdateTextSpanResult, LessonDomainError>> {
     const context = await loadEditableTextVariant(
       { lessonRepo: this.lessonRepo, variantRepo: this.variantRepo },
-      { userId: command.userId, variantId: command.variantId },
+      { variantId: command.variantId },
     );
     if (context.isFail) return Result.fail(context.error);
     const { paragraphs } = context.value;

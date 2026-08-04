@@ -22,11 +22,6 @@ export class UpdateLessonHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.LESSON_NOT_FOUND);
     }
 
-    if (lesson.ownerUserId !== command.userId) {
-      // TODO: Prompt 6 — extend with school content_admin role check via OrganizationService.
-      return Result.fail(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const updateResult = lesson.update({
       title: command.title,
       description: command.description,

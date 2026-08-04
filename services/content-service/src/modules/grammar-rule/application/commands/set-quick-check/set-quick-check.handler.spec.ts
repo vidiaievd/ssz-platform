@@ -151,18 +151,4 @@ describe('SetQuickCheckHandler', () => {
     expect(result.error).toBe(GrammarRuleDomainError.EXPLANATION_NOT_FOUND);
     expect(quickCheckRepo.upsertForExplanation).not.toHaveBeenCalled();
   });
-
-  it('rejects when the caller does not own the parent grammar rule', async () => {
-    const rule = makeRule();
-    const explanation = makeExplanation(rule.id);
-    const { handler, quickCheckRepo } = makeHandler({ rule, explanation });
-
-    const result = await handler.execute(
-      new SetQuickCheckCommand('someone-else', rule.id, explanation.id, null),
-    );
-
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBe(GrammarRuleDomainError.INSUFFICIENT_PERMISSIONS);
-    expect(quickCheckRepo.upsertForExplanation).not.toHaveBeenCalled();
-  });
 });

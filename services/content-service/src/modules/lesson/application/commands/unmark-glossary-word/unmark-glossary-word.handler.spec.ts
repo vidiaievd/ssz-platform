@@ -93,17 +93,6 @@ describe('UnmarkGlossaryWordHandler', () => {
     expect(lessonRepo.findContainingModuleIds).not.toHaveBeenCalled();
   });
 
-  it('refuses a caller who does not own the lesson', async () => {
-    const { handler, markRepo } = makeHandler();
-
-    const result = await handler.execute(
-      new UnmarkGlossaryWordCommand('someone-else', VARIANT_ID, VOCAB_ID),
-    );
-
-    expect(result.error).toBe(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    expect(markRepo.deleteMark).not.toHaveBeenCalled();
-  });
-
   it('works on VIDEO variants, which also carry glossary marks', async () => {
     const { handler, markRepo } = makeHandler({ lesson: makeLesson(LessonKind.VIDEO) });
 

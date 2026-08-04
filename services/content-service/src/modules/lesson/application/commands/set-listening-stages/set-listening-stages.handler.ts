@@ -41,11 +41,6 @@ export class SetListeningStagesHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.LESSON_NOT_FOUND);
     }
 
-    if (lesson.ownerUserId !== command.userId) {
-      // TODO: Prompt 6 — extend with school content_admin role check.
-      return Result.fail(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Staged exercises follow the primary content of a lesson the learner has
     // just consumed: the listening for AUDIO, the reading for TEXT (spec 17 §3).
     // VIDEO is excluded on purpose — it already carries LessonVideoQuestion —

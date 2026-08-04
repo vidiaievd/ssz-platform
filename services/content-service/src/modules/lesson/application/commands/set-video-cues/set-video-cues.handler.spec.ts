@@ -152,16 +152,4 @@ describe('SetVideoCuesHandler', () => {
     expect(result.error).toBe(LessonDomainError.VARIANT_NOT_FOUND);
     expect(cueRepo.replaceForVariant).not.toHaveBeenCalled();
   });
-
-  it('rejects when the caller does not own the lesson', async () => {
-    const lesson = makeLesson(LessonKind.VIDEO);
-    const variant = makeVariant(lesson.id);
-    const { handler, cueRepo } = makeHandler({ lesson, variant });
-
-    const result = await handler.execute(new SetVideoCuesCommand('someone-else', variant.id, []));
-
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBe(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    expect(cueRepo.replaceForVariant).not.toHaveBeenCalled();
-  });
 });

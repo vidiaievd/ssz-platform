@@ -26,11 +26,6 @@ export class DeleteLessonHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.LESSON_NOT_FOUND);
     }
 
-    if (lesson.ownerUserId !== command.userId) {
-      // TODO: Prompt 6 — extend with school content_admin role check via OrganizationService.
-      return Result.fail(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Block delete if the lesson is referenced by any published or deprecated container version.
     // Draft references are allowed but will cause a publish failure at the container level.
     const hasRefs = await this.lessonRepo.hasPublishedContainerReferences(command.lessonId);

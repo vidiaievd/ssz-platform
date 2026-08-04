@@ -114,20 +114,4 @@ describe('SetParagraphTranslationsHandler', () => {
     expect(result.error).toBe(LessonDomainError.INVALID_PARAGRAPH_INDEX);
     expect(translationRepo.replaceForVariant).not.toHaveBeenCalled();
   });
-
-  it('rejects when the caller does not own the lesson', async () => {
-    const lesson = makeLesson(LessonKind.TEXT);
-    const variant = makeVariant(lesson.id);
-    const { handler, translationRepo } = makeHandler({ lesson, variant });
-
-    const result = await handler.execute(
-      new SetParagraphTranslationsCommand('someone-else', variant.id, [
-        { paragraphIndex: 0, translation: 'First.' },
-      ]),
-    );
-
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBe(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    expect(translationRepo.replaceForVariant).not.toHaveBeenCalled();
-  });
 });

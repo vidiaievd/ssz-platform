@@ -41,10 +41,6 @@ export class BulkCreateVocabularyItemsHandler implements ICommandHandler<
       return Result.fail(VocabularyDomainError.LIST_NOT_FOUND);
     }
 
-    if (list.ownerUserId !== command.userId) {
-      return Result.fail(VocabularyDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Validate grammaticalProperties for all items — collect all errors for better UX.
     const grammarErrors: { index: number; error: VocabularyDomainError }[] = [];
     for (let i = 0; i < command.items.length; i++) {

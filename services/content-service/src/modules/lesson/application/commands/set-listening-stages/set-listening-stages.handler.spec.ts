@@ -240,18 +240,4 @@ describe('SetListeningStagesHandler', () => {
     expect(result.error).toBe(LessonDomainError.VARIANT_NOT_FOUND);
     expect(stageRepo.replaceForVariant).not.toHaveBeenCalled();
   });
-
-  it('rejects when the caller does not own the lesson', async () => {
-    const lesson = makeLesson(LessonKind.AUDIO);
-    const variant = makeVariant(lesson.id);
-    const { handler, stageRepo } = makeHandler({ lesson, variant });
-
-    const result = await handler.execute(
-      new SetListeningStagesCommand('someone-else', variant.id, []),
-    );
-
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBe(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    expect(stageRepo.replaceForVariant).not.toHaveBeenCalled();
-  });
 });

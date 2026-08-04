@@ -35,11 +35,6 @@ export class DeleteVariantHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.LESSON_NOT_FOUND);
     }
 
-    if (lesson.ownerUserId !== command.userId) {
-      // TODO: Prompt 6 — extend with school content_admin role check.
-      return Result.fail(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Hard delete — media refs cascade-deleted via DB foreign key (ON DELETE CASCADE).
     // No variant-level domain event; lesson-level subscribers react to lesson events only.
     await this.variantRepo.delete(variant.id);

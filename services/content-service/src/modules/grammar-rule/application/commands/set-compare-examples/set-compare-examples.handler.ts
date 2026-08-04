@@ -35,10 +35,6 @@ export class SetCompareExamplesHandler implements ICommandHandler<
     if (!rule || rule.deletedAt !== null) {
       return Result.fail(GrammarRuleDomainError.GRAMMAR_RULE_NOT_FOUND);
     }
-    if (rule.ownerUserId !== command.userId) {
-      return Result.fail(GrammarRuleDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const positions = new Set<number>();
     const examples: GrammarRuleCompareExampleEntity[] = [];
     for (const input of command.items) {

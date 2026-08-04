@@ -36,10 +36,6 @@ export class AddPoolEntryHandler implements ICommandHandler<
     if (!rule || rule.deletedAt !== null) {
       return Result.fail(GrammarRuleDomainError.GRAMMAR_RULE_NOT_FOUND);
     }
-    if (rule.ownerUserId !== command.userId) {
-      return Result.fail(GrammarRuleDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const exercise = await this.exerciseRepo.findById(command.exerciseId);
     if (!exercise) {
       return Result.fail(GrammarRuleDomainError.EXERCISE_NOT_FOUND_FOR_POOL);

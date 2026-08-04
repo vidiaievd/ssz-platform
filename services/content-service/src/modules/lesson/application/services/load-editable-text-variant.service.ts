@@ -16,8 +16,9 @@ export interface EditableTextVariant {
 
 /**
  * The preamble every text-span write shares: resolve the variant and its lesson,
- * check the caller owns it, check the lesson is TEXT-kind, and split the body
- * once so offsets can be validated against it.
+ * check the lesson is TEXT-kind, and split the body once so offsets can be
+ * validated against it. Authorization is the guard's — see
+ * `presentation/controllers/access-coverage.spec.ts`.
  *
  * Spans are TEXT-only: `paragraphIndex` is defined by the paragraph splitter,
  * which only runs on `bodyMarkdown`. A VIDEO variant's text lives in cue rows
@@ -26,7 +27,7 @@ export interface EditableTextVariant {
  */
 export async function loadEditableTextVariant(
   deps: { lessonRepo: ILessonRepository; variantRepo: ILessonContentVariantRepository },
-  params: { userId: string; variantId: string },
+  params: { variantId: string },
 ): Promise<Result<EditableTextVariant, LessonDomainError>> {
   const variant = await deps.variantRepo.findById(params.variantId);
   if (!variant) {
@@ -36,12 +37,6 @@ export async function loadEditableTextVariant(
   const lesson = await deps.lessonRepo.findById(variant.lessonId);
   if (!lesson) {
     return Result.fail(LessonDomainError.LESSON_NOT_FOUND);
-  }
-
-  if (lesson.ownerUserId !== params.userId) {
-    // TODO: Prompt 6 — extend with school content_admin role check, in step with
-    // MarkGlossaryWordHandler's identical check.
-    return Result.fail(LessonDomainError.INSUFFICIENT_PERMISSIONS);
   }
 
   if (lesson.kind !== LessonKind.TEXT) {

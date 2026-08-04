@@ -252,14 +252,6 @@ describe('CreateTextSpanHandler', () => {
     expect(missingRule.error).toBe(LessonDomainError.GRAMMAR_RULE_NOT_FOUND);
   });
 
-  it('refuses a caller who does not own the lesson', async () => {
-    const { handler } = makeHandler();
-
-    const result = await handler.execute(command({ userId: 'someone-else' }));
-
-    expect(result.error).toBe(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-  });
-
   it('refuses a non-TEXT lesson — spans are anchored to paragraph offsets', async () => {
     const lesson = makeLesson(LessonKind.VIDEO);
     const { handler } = makeHandler({ lesson, variant: makeVariant(lesson.id) });

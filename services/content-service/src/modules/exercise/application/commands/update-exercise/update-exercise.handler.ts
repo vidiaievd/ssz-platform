@@ -26,10 +26,6 @@ export class UpdateExerciseHandler implements ICommandHandler<
     if (!exercise) {
       return Result.fail(ExerciseDomainError.EXERCISE_NOT_FOUND);
     }
-    if (exercise.ownerUserId !== command.userId) {
-      return Result.fail(ExerciseDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Fetch template only when content/answers are being updated (for schema validation).
     let template: ExerciseTemplateEntity | undefined = undefined;
     if (command.content !== undefined || command.expectedAnswers !== undefined) {

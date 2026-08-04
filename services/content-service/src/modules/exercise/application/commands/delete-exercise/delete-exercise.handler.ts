@@ -21,10 +21,6 @@ export class DeleteExerciseHandler implements ICommandHandler<
     if (!exercise) {
       return Result.fail(ExerciseDomainError.EXERCISE_NOT_FOUND);
     }
-    if (exercise.ownerUserId !== command.userId) {
-      return Result.fail(ExerciseDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const hasRefs = await this.exerciseRepo.hasPublishedContainerReferences(command.exerciseId);
     if (hasRefs) {
       return Result.fail(ExerciseDomainError.EXERCISE_HAS_PUBLISHED_CONTAINER_REFERENCES);

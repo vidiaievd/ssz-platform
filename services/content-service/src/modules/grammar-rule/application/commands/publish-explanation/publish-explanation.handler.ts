@@ -27,10 +27,6 @@ export class PublishExplanationHandler implements ICommandHandler<
     if (!rule || rule.deletedAt !== null) {
       return Result.fail(GrammarRuleDomainError.GRAMMAR_RULE_NOT_FOUND);
     }
-    if (rule.ownerUserId !== command.userId) {
-      return Result.fail(GrammarRuleDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const explanation = await this.explanationRepo.findById(command.explanationId);
     if (!explanation || explanation.grammarRuleId !== command.ruleId) {
       return Result.fail(GrammarRuleDomainError.EXPLANATION_NOT_FOUND);

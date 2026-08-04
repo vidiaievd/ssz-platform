@@ -41,11 +41,6 @@ export class UpdateVariantHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.LESSON_NOT_FOUND);
     }
 
-    if (lesson.ownerUserId !== command.userId) {
-      // TODO: Prompt 6 — extend with school content_admin role check.
-      return Result.fail(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Only include keys the caller actually sent — the entity distinguishes
     // "field omitted" (leave unchanged) from "field explicitly set to null"
     // (clear it) via `in`, which passing every command property through

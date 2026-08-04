@@ -33,9 +33,6 @@ export class UpsertExerciseInstructionHandler implements ICommandHandler<
     if (!exercise) {
       return Result.fail(ExerciseDomainError.EXERCISE_NOT_FOUND);
     }
-    if (exercise.ownerUserId !== command.userId) {
-      return Result.fail(ExerciseDomainError.INSUFFICIENT_PERMISSIONS);
-    }
     if (exercise.deletedAt !== null) {
       return Result.fail(ExerciseDomainError.EXERCISE_ALREADY_DELETED);
     }

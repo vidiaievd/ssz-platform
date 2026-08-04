@@ -26,11 +26,6 @@ export class UpdateVocabularyListHandler implements ICommandHandler<
       return Result.fail(VocabularyDomainError.LIST_NOT_FOUND);
     }
 
-    if (list.ownerUserId !== command.userId) {
-      // TODO: Prompt 6 — extend with school content_admin role check via OrganizationService.
-      return Result.fail(VocabularyDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const updateResult = list.update({
       title: command.title,
       description: command.description,

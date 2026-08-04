@@ -47,11 +47,6 @@ export class CreateVariantHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.LESSON_ALREADY_DELETED);
     }
 
-    if (lesson.ownerUserId !== command.userId) {
-      // TODO: Prompt 6 — extend with school content_admin role check.
-      return Result.fail(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Enforce composite uniqueness in the application layer (DB constraint is the final guard).
     const existing = await this.variantRepo.findByCompositeKey(
       command.lessonId,
