@@ -45,10 +45,6 @@ export class RenameSectionHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     section.rename(command.title);
     await this.sectionRepo.save(section);
 

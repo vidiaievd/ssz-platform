@@ -22,10 +22,6 @@ export class RestoreContainerHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const restoreResult = container.restore();
     if (restoreResult.isFail) {
       return Result.fail(restoreResult.error);

@@ -49,10 +49,6 @@ export class UpdateContainerItemHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     if (command.sectionId !== undefined && command.sectionId !== null) {
       const section = await this.sectionRepo.findById(command.sectionId);
       if (!section) {

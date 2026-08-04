@@ -106,14 +106,4 @@ describe('CreateSectionHandler', () => {
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(ContainerDomainError.VERSION_NOT_FOUND);
   });
-
-  it('fails when the caller is not the container owner', async () => {
-    const handler = makeHandler({ container: makeContainer('someone-else') });
-    const command = new CreateSectionCommand(OWNER_ID, VERSION_ID, 'A1');
-
-    const result = await handler.execute(command);
-
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBe(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-  });
 });

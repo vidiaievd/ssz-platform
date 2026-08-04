@@ -22,10 +22,6 @@ export class ArchiveContainerHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const archiveResult = container.archive();
     if (archiveResult.isFail) {
       return Result.fail(archiveResult.error);

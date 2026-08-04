@@ -36,10 +36,6 @@ export class CancelDraftHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Prevent deleting the only version when the container has never been published.
     // The user must delete the whole container instead.
     if (version.versionNumber === 1 && container.currentPublishedVersionId === null) {

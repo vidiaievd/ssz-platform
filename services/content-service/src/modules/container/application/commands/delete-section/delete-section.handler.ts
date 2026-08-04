@@ -45,10 +45,6 @@ export class DeleteSectionHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Items in this section survive, ungrouped — never deleted with the section.
     await this.sectionRepo.unassignItems(command.sectionId);
     await this.sectionRepo.delete(command.sectionId);

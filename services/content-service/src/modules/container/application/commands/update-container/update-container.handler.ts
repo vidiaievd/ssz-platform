@@ -22,10 +22,6 @@ export class UpdateContainerHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const updateResult = container.update({
       title: command.title,
       description: command.description,
