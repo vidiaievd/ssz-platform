@@ -189,9 +189,12 @@ export class PrismaContainerVersionRepository implements IContainerVersionReposi
 
       const now = new Date();
 
+      // Deprecated, not draft: the container normally already has a draft, and a
+      // second one leaves `findDraftByContainerId` picking between them at
+      // random. Restoring this version is a rollback.
       await tx.containerVersion.update({
         where: { id: params.versionId },
-        data: { status: 'DRAFT' },
+        data: { status: 'DEPRECATED', deprecatedAt: now, sunsetAt: null },
       });
 
       await tx.container.update({
