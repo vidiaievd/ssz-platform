@@ -26,6 +26,7 @@ import { ArchiveContainerHandler } from './application/commands/archive-containe
 import { RestoreContainerHandler } from './application/commands/restore-container/restore-container.handler.js';
 import { UnpublishVersionHandler } from './application/commands/unpublish-version/unpublish-version.handler.js';
 import { PublishVersionHandler } from './application/commands/publish-version/publish-version.handler.js';
+import { RollbackToVersionHandler } from './application/commands/rollback-to-version/rollback-to-version.handler.js';
 import { CreateDraftFromPublishedHandler } from './application/commands/create-draft-from-published/create-draft-from-published.handler.js';
 import { CancelDraftHandler } from './application/commands/cancel-draft/cancel-draft.handler.js';
 import { ArchiveVersionHandler } from './application/commands/archive-version/archive-version.handler.js';
@@ -67,6 +68,7 @@ const CommandHandlers = [
   RestoreContainerHandler,
   UnpublishVersionHandler,
   PublishVersionHandler,
+  RollbackToVersionHandler,
   CreateDraftFromPublishedHandler,
   CancelDraftHandler,
   ArchiveVersionHandler,

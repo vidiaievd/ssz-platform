@@ -28,6 +28,20 @@ export interface IContainerVersionRepository {
     slug?: string;
   }): Promise<{ sunsetAt: Date | null }>;
   /**
+   * Atomic rollback transaction — put a deprecated version back on air:
+   * 1. Deprecate previousVersionId (if provided) with sunsetAt = NOW() + sunsetDays.
+   * 2. Set versionId back to published, clearing its own deprecation.
+   * 3. Update containers.current_published_version_id.
+   * Composition is not touched: the version still holds the items it held.
+   */
+  rollbackToVersion(params: {
+    versionId: string;
+    containerId: string;
+    previousVersionId: string | null;
+    sunsetDays: number;
+    publishedByUserId: string;
+  }): Promise<{ sunsetAt: Date | null }>;
+  /**
    * Atomic unpublish transaction:
    * 1. Set versionId status back to draft.
    * 2. Clear containers.current_published_version_id (only if it still points at versionId).
