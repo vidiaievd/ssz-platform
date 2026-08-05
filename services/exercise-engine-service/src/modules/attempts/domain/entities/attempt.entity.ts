@@ -61,6 +61,7 @@ export interface AttemptPersistenceProps {
   feedback: unknown;
   answerHash: string | null;
   revisionCount: number;
+  answersRevealed: boolean;
   startedAt: Date;
   submittedAt: Date | null;
   scoredAt: Date | null;
@@ -87,6 +88,7 @@ export class Attempt extends AggregateRoot {
     private _feedback: unknown,
     private _answerHash: string | null,
     private _revisionCount: number,
+    private _answersRevealed: boolean,
     private _startedAt: Date,
     private _submittedAt: Date | null,
     private _scoredAt: Date | null,
@@ -115,6 +117,7 @@ export class Attempt extends AggregateRoot {
       null,
       null,
       0,
+      false,
       new Date(),
       null,
       null,
@@ -156,6 +159,7 @@ export class Attempt extends AggregateRoot {
       props.feedback,
       props.answerHash,
       props.revisionCount,
+      props.answersRevealed,
       props.startedAt,
       props.submittedAt,
       props.scoredAt,
@@ -269,6 +273,28 @@ export class Attempt extends AggregateRoot {
     return Result.ok();
   }
 
+  /**
+   * The learner asked to be shown the answers rather than work them out.
+   *
+   * Only after an answer has been submitted: revealing from IN_PROGRESS would turn
+   * the exercise into a reading task, and the whole reason the reveal is a separate
+   * action is that being wrong must not hand the word over by itself.
+   *
+   * Idempotent — asking twice shows the same answers and changes nothing.
+   */
+  revealAnswers(): Result<void, InvalidAttemptTransitionError> {
+    if (this._status === 'IN_PROGRESS' || this._status === 'ABANDONED') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot reveal answers for an attempt with status ${this._status}`,
+        ),
+      );
+    }
+
+    this._answersRevealed = true;
+    return Result.ok();
+  }
+
   addTimeSpent(seconds: number): void {
     if (seconds > 0) {
       this._timeSpentSeconds += seconds;
@@ -293,6 +319,7 @@ export class Attempt extends AggregateRoot {
   get feedback(): unknown { return this._feedback; }
   get answerHash(): string | null { return this._answerHash; }
   get revisionCount(): number { return this._revisionCount; }
+  get answersRevealed(): boolean { return this._answersRevealed; }
   get startedAt(): Date { return this._startedAt; }
   get submittedAt(): Date | null { return this._submittedAt; }
   get scoredAt(): Date | null { return this._scoredAt; }

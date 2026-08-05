@@ -32,6 +32,11 @@ import type { StartAttemptResult, StartAttemptError } from '../../application/co
 import { SubmitAnswerCommand } from '../../application/commands/submit-answer/submit-answer.command.js';
 import type { SubmitAnswerResult, SubmitAnswerError } from '../../application/commands/submit-answer/submit-answer.handler.js';
 import { AbandonAttemptCommand } from '../../application/commands/abandon-attempt/abandon-attempt.command.js';
+import { RevealAnswersCommand } from '../../application/commands/reveal-answers/reveal-answers.command.js';
+import type {
+  RevealAnswersError,
+  RevealAnswersResult,
+} from '../../application/commands/reveal-answers/reveal-answers.handler.js';
 import type { AbandonAttemptError } from '../../application/commands/abandon-attempt/abandon-attempt.handler.js';
 import { GetAttemptByIdQuery } from '../../application/queries/get-attempt-by-id/get-attempt-by-id.query.js';
 import type { GetAttemptByIdError } from '../../application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
@@ -152,6 +157,43 @@ export class AttemptsController {
     }
 
     return result.value as SubmitAnswerResponseDto;
+  }
+
+  @Post(':attemptId/reveal')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Show the answers for a submitted attempt (word bank gap-fill only)',
+  })
+  @ApiResponse({ status: 200, description: 'Answers, and the note on why each is right' })
+  @ApiResponse({ status: 404, description: 'Attempt not found' })
+  @ApiResponse({ status: 403, description: 'Not your attempt' })
+  @ApiResponse({ status: 422, description: 'Nothing submitted yet, or template has no reveal' })
+  async revealAnswers(
+    @Param('exerciseId') _exerciseId: string,
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<RevealAnswersResult> {
+    const result: Result<RevealAnswersResult, RevealAnswersError> =
+      await this.commandBus.execute(new RevealAnswersCommand(attemptId, user.userId));
+
+    if (result.isFail) {
+      const err = result.error;
+      if ('code' in err) {
+        if (err.code === 'ATTEMPT_NOT_FOUND') throw new NotFoundException('Attempt not found');
+        if (err.code === 'FORBIDDEN') throw new ForbiddenException('Not your attempt');
+        if (err.code === 'UNSUPPORTED_TEMPLATE') {
+          throw new UnprocessableEntityException(
+            'This exercise type does not withhold its answers',
+          );
+        }
+      }
+      if (err instanceof ContentClientError) {
+        throw new UnprocessableEntityException(err.message);
+      }
+      throw new UnprocessableEntityException('Cannot reveal answers for this attempt');
+    }
+
+    return result.value;
   }
 
   @Delete(':attemptId')
