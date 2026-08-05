@@ -1,5 +1,11 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
+import { randomInt } from 'node:crypto';
+import {
+  readContent,
+  toStudentProjection,
+  TEMPLATE_CODE as WORD_BANK_GAP_FILL,
+} from '@ssz/shared-kernel/wordbank-gapfill';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -23,6 +29,43 @@ export interface StartAttemptResult {
   expectedAnswers: unknown;
   answerSchema: unknown;
   checkSettings: Record<string, unknown>;
+}
+
+/**
+ * What the client may hold once the attempt starts.
+ *
+ * `checkMode: PRACTICE` normally means "ship the answers so the client can check
+ * locally", and for twelve templates that is fine: their answers are a separate key,
+ * and the content is just the question. `word_bank_gap_fill` stores each sentence
+ * solved, so its content *is* the answer key — shipping it in PRACTICE would put every
+ * answer in the browser at the moment the exercise opens, whatever the attempt's mode.
+ *
+ * So this template's answers are withheld in both modes, and the client gets the same
+ * projection content-service serves. The masking rule itself is the kernel's, shared
+ * with content-service and the builder; only the shuffle is local, because a shuffle
+ * cannot live in a module that must be pure.
+ */
+function withheldWhereNeeded(
+  templateCode: string,
+  exercise: { content: unknown; expectedAnswers: unknown },
+): { exerciseContent: unknown; expectedAnswers: unknown } {
+  if (templateCode !== WORD_BANK_GAP_FILL) {
+    return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };
+  }
+  return {
+    exerciseContent: toStudentProjection(readContent(exercise.content), { shuffle: shuffled }),
+    expectedAnswers: null,
+  };
+}
+
+/** Fisher-Yates over a copy, seeded by the platform CSPRNG rather than Math.random. */
+function shuffled(words: string[]): string[] {
+  const out = [...words];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = randomInt(i + 1);
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
 }
 
 @CommandHandler(StartAttemptCommand)
@@ -90,8 +133,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       targetLanguage: def.exercise.targetLanguage,
       difficultyLevel: def.exercise.difficultyLevel,
       checkMode: attempt.checkMode,
-      exerciseContent: def.exercise.content,
-      expectedAnswers: def.exercise.expectedAnswers,
+      ...withheldWhereNeeded(def.exercise.templateCode, def.exercise),
       answerSchema: def.template.answerSchema,
       checkSettings,
     });
