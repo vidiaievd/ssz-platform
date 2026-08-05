@@ -8,6 +8,7 @@ import { MatchPairsValidator } from './validators/match-pairs.validator.js';
 import { ShortAnswerValidator } from './validators/short-answer.validator.js';
 import { SentenceSchemaValidator } from './validators/sentence-schema.validator.js';
 import { WordBankFillValidator } from './validators/word-bank-fill.validator.js';
+import { WordBankGapFillValidator } from './validators/word-bank-gap-fill.validator.js';
 import { TextOrderValidator } from './validators/text-order.validator.js';
 import { ErrorCorrectionValidator } from './validators/error-correction.validator.js';
 
@@ -21,6 +22,7 @@ import { ErrorCorrectionValidator } from './validators/error-correction.validato
     ShortAnswerValidator,
     SentenceSchemaValidator,
     WordBankFillValidator,
+    WordBankGapFillValidator,
     TextOrderValidator,
     ErrorCorrectionValidator,
     SchemaBasedAnswerValidator,

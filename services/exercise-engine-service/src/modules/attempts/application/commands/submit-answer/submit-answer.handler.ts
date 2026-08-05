@@ -83,6 +83,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       templateCode: attempt.templateCode,
       answerSchema: def.template.answerSchema as object,
       expectedAnswers: def.exercise.expectedAnswers,
+      content: def.exercise.content,
       submittedAnswer: command.submittedAnswer,
       checkSettings,
       targetLanguage: attempt.targetLanguage,

@@ -6,6 +6,10 @@ export interface ValidateAnswerInput {
   templateCode: string;
   answerSchema: unknown;        // JSON Schema from Content Service template
   expectedAnswers: unknown;     // exercise.expectedAnswers
+  // exercise.content. Needed because word_bank_gap_fill stores each sentence
+  // solved, so its answers are tokens inside the content rather than a separate
+  // key. Every other validator ignores it.
+  content: unknown;
   submittedAnswer: unknown;
   checkSettings: Record<string, unknown>; // merged: template.defaultCheckSettings + exercise override
   targetLanguage: string;

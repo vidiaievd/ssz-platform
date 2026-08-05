@@ -4,6 +4,12 @@ import type { ValidationError, ValidationOutcome } from '../../../shared/applica
 export interface PerTypeValidateInput {
   submittedAnswer: unknown;
   expectedAnswers: unknown;
+  /**
+   * exercise.content. Optional here although the dispatcher always passes it: only
+   * word_bank_gap_fill reads it (its answers live inside the content), and the other
+   * nine validators would otherwise have to name a field they never look at.
+   */
+  content?: unknown;
   checkSettings: Record<string, unknown>;
   targetLanguage: string;
 }

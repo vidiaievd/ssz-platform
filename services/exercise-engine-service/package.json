@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@ssz/contracts": "file:../../packages/contracts",
+    "@ssz/shared-kernel": "file:../../packages/shared-kernel",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
