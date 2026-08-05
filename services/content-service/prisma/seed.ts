@@ -356,11 +356,16 @@ const templates = [
     // learner who puts «bestilt» where «bestille» belongs is told about that
     // confusion rather than about being wrong.
     //
-    // Field names are camelCase, unlike every other template here. The same
-    // TypeScript reads and writes this document on the server and in the web
-    // client (@ssz/shared-kernel), and a snake_case wire shape would need a
-    // mapper on each side — two more places for the two to disagree, which is
-    // exactly what the shared package exists to prevent.
+    // Field names are camelCase. That is the platform rule from now on, not an
+    // exception here: everything else in the system — Prisma models, the DTOs of
+    // every service, the event contracts — is camelCase, and the inside of these
+    // two JSON columns was the only place that was not. A snake_case shape would
+    // also need a mapper on the server and another in the web client, which is
+    // two more places for the two to disagree about one document.
+    //
+    // The twelve older templates still read snake_case and move over one at a
+    // time, each with its own data, validator, form and mobile body in a single
+    // commit. See docs/plan/34-exercise-types-audit.md §7 in ssz-platform-web.
     code: 'word_bank_gap_fill',
     name: 'Gap-Fill',
     description:
@@ -409,7 +414,10 @@ const templates = [
           },
         },
         context: { type: 'string' },
-        media_id: { type: 'string' },
+        // `mediaId`, not `media_id`: this template is the first under the
+        // camelCase rule. The other twelve still declare `media_id` and rename
+        // in one pass — it is free, no exercise has ever set it.
+        mediaId: { type: 'string' },
       },
     },
     // Everything the student must not see before checking: the explanations,
