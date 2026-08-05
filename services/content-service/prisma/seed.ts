@@ -341,6 +341,132 @@ const templates = [
     supportedLanguages: Prisma.DbNull,
   },
   {
+    // The successor to word_bank_fill AND fill_in_blank (plan 35). Two things
+    // make it a new template rather than an edit of either.
+    //
+    // First, the sentence is stored SOLVED: `sentences[].text` reads the way it
+    // does when finished, and a gap is a token index into it. The answer is a
+    // slice of the text, never a separate field, so renaming a word moves the
+    // answer, the bank and the feedback column in one edit. The consequence is
+    // that `content` here is NOT what the student may see — the read model has
+    // to cut the gapped tokens out before it leaves the service. See the
+    // student projection.
+    //
+    // Second, feedback is authored per (gap × wrong word) pair, so that a
+    // learner who puts «bestilt» where «bestille» belongs is told about that
+    // confusion rather than about being wrong.
+    //
+    // Field names are camelCase, unlike every other template here. The same
+    // TypeScript reads and writes this document on the server and in the web
+    // client (@ssz/shared-kernel), and a snake_case wire shape would need a
+    // mapper on each side — two more places for the two to disagree, which is
+    // exactly what the shared package exists to prevent.
+    code: 'word_bank_gap_fill',
+    name: 'Gap-Fill',
+    description:
+      'Complete sentences from a shared word bank or by typing, with per-word explanations',
+    contentSchema: {
+      type: 'object',
+      required: ['sentences', 'settings'],
+      properties: {
+        sentences: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'text', 'gaps'],
+            properties: {
+              id: { type: 'string', description: 'Stable; every gap key is built from it' },
+              text: {
+                type: 'string',
+                description: 'The sentence AS SOLVED. Holds the answers — never send it as-is.',
+              },
+              gaps: {
+                type: 'array',
+                items: { type: 'integer', minimum: 0 },
+                description: 'Whitespace-token indices into `text`, unordered',
+              },
+              hint: { type: 'string' },
+            },
+          },
+        },
+        // Wrong words the teacher added. Empty in free-input mode, where there
+        // is no bank. Answers are never listed here: they are derived.
+        distractors: { type: 'array', items: { type: 'string' } },
+        settings: {
+          type: 'object',
+          required: ['shuffle', 'allowReuse', 'showBankCount', 'caseSensitive', 'input'],
+          properties: {
+            shuffle: { type: 'boolean' },
+            // A word may fill several gaps and is not spent. Required when one
+            // word answers more than one gap.
+            allowReuse: { type: 'boolean' },
+            showBankCount: { type: 'boolean' },
+            caseSensitive: { type: 'boolean' },
+            // 'bank' shows the shared chip strip; 'free' hides it and the
+            // student types, which is what absorbs the old fill_in_blank.
+            input: { type: 'string', enum: ['bank', 'free'] },
+          },
+        },
+        context: { type: 'string' },
+        media_id: { type: 'string' },
+      },
+    },
+    // Everything the student must not see before checking: the explanations,
+    // and the extra spellings accepted in free-input mode. The answers
+    // themselves are not here — they are in `content.sentences[].text`.
+    answerSchema: {
+      type: 'object',
+      required: ['feedback'],
+      properties: {
+        feedback: {
+          type: 'object',
+          description: 'Keyed by gap: `${sentenceId}#${tokenIndex}`',
+          additionalProperties: {
+            type: 'object',
+            required: ['fallback'],
+            properties: {
+              // Shown for any wrong word with no explanation of its own.
+              // Required for the exercise to be assignable.
+              fallback: { type: 'string' },
+              // Why the correct word is right. Shown on a correct gap and on
+              // reveal.
+              why: { type: 'string' },
+              // Bank word → why choosing THAT word here is wrong. Empty cells
+              // are legitimate: 5 gaps × 10 words is 50 pairs.
+              pairs: {
+                type: 'object',
+                additionalProperties: {
+                  type: 'object',
+                  required: ['text', 'origin'],
+                  properties: {
+                    text: { type: 'string' },
+                    // 'ai_draft' is written but never shown: an unaccepted
+                    // draft is not an explanation yet. Stored from the start so
+                    // that adding AI drafting later needs no migration.
+                    origin: { type: 'string', enum: ['author', 'ai_draft'] },
+                  },
+                },
+              },
+            },
+          },
+        },
+        // Extra accepted spellings per gap. Honoured in free-input mode only —
+        // with a bank the set is closed, and an "alternative" there could only
+        // be another chip.
+        alternatives: {
+          type: 'object',
+          additionalProperties: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+    // Case sensitivity and word reuse are deliberately NOT repeated here: they
+    // live in `content.settings`, where the author sets them, and a second copy
+    // would be a second answer to the same question.
+    defaultCheckSettings: { allow_partial_credit: true },
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
     // Put shuffled lines back in order: dialogue turns, sentences of a text,
     // or steps of an instruction. The client shuffles for display; `items`
     // order in content carries no meaning.

@@ -15,6 +15,9 @@ export type {
 } from './model.js';
 export { DEFAULT_SETTINGS } from './model.js';
 
+export type { DocumentEnvelope, PersistedAnswers, PersistedContent } from './persistence.js';
+export { fromPersisted, TEMPLATE_CODE, toContent, toExpectedAnswers } from './persistence.js';
+
 export type { Issue, IssueCode, IssueLevel, IssueStep } from './issues.js';
 export { blockers, isReady, issues, warnings } from './issues.js';
 
