@@ -11,6 +11,7 @@ import type {
   Coverage,
   Gap,
   GapFeedback,
+  GapFillTask,
   GapKey,
   GapResult,
   Placement,
@@ -58,7 +59,7 @@ export function gapKey(sentenceId: string, tokenIndex: number): GapKey {
  * are the residue of an edit that has not been normalised yet (`withSentenceText`), and
  * a gap onto nothing is not something the teacher can see or fix.
  */
-export function gaps(ex: WordBankGapFill): Gap[] {
+export function gaps(ex: GapFillTask): Gap[] {
   const out: Omit<Gap, 'label'>[] = [];
 
   ex.sentences.forEach((sentence, sentenceIndex) => {
@@ -85,7 +86,7 @@ export function gaps(ex: WordBankGapFill): Gap[] {
 }
 
 /** Unique gap answers in document order. Empty tokens (pure punctuation) contribute nothing. */
-export function answers(ex: WordBankGapFill): string[] {
+export function answers(ex: GapFillTask): string[] {
   const seen: string[] = [];
   for (const gap of gaps(ex)) {
     if (gap.answer !== '' && !seen.includes(gap.answer)) seen.push(gap.answer);
@@ -103,7 +104,7 @@ export function answers(ex: WordBankGapFill): string[] {
  * Structural, and therefore the same in both input modes: in `free` mode the bank is not
  * rendered, but the stored distractors and pair matrix are kept, not deleted.
  */
-export function bank(ex: WordBankGapFill): BankWord[] {
+export function bank(ex: GapFillTask): BankWord[] {
   const correct = answers(ex);
   const out: BankWord[] = correct.map((word) => ({ word, isAnswer: true }));
 

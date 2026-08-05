@@ -72,7 +72,19 @@ export const DEFAULT_SETTINGS: Settings = {
   input: 'bank',
 };
 
-export interface WordBankGapFill {
+/**
+ * The task itself — everything needed to render it and to know what the answers are.
+ * Separated from the full document because it is exactly what the `content` column
+ * holds, and because the selectors that derive gaps and the bank need nothing else.
+ */
+export interface GapFillTask {
+  settings: Settings;
+  sentences: Sentence[];
+  /** Wrong words added by the teacher, in author order. Filtered against answers when the bank is derived. */
+  distractors: string[];
+}
+
+export interface WordBankGapFill extends GapFillTask {
   id: string;
   type: 'word_bank_gap_fill';
   moduleId: string;
@@ -80,10 +92,6 @@ export interface WordBankGapFill {
   title: string;
   /** Short, in the target language. */
   instructions: string;
-  settings: Settings;
-  sentences: Sentence[];
-  /** Wrong words added by the teacher, in author order. Filtered against answers when the bank is derived. */
-  distractors: string[];
   feedback: Record<GapKey, GapFeedback>;
   /**
    * Additional accepted spellings per gap (plan decision 3). Honoured in `free` mode

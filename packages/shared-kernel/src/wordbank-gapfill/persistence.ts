@@ -16,6 +16,7 @@
 
 import type {
   GapFeedback,
+  GapFillTask,
   GapKey,
   PairFeedback,
   Sentence,
@@ -27,11 +28,7 @@ import { DEFAULT_SETTINGS } from './model.js';
 export const TEMPLATE_CODE = 'word_bank_gap_fill';
 
 /** The `content` column: everything about the task, answers included (they are in the text). */
-export interface PersistedContent {
-  sentences: Sentence[];
-  distractors: string[];
-  settings: Settings;
-}
+export type PersistedContent = GapFillTask;
 
 /** The `expected_answers` column: everything the student must not see before checking. */
 export interface PersistedAnswers {
@@ -64,18 +61,28 @@ export function fromPersisted(
   content: unknown,
   expectedAnswers: unknown,
 ): WordBankGapFill {
-  const contentRecord = asRecord(content);
   const answersRecord = asRecord(expectedAnswers);
   const alternatives = readAlternatives(answersRecord['alternatives']);
 
   return {
     ...envelope,
     type: TEMPLATE_CODE,
-    sentences: readSentences(contentRecord['sentences']),
-    distractors: readStringArray(contentRecord['distractors']),
-    settings: readSettings(contentRecord['settings']),
+    ...readContent(content),
     feedback: readFeedback(answersRecord['feedback']),
     ...(alternatives === undefined ? {} : { alternatives }),
+  };
+}
+
+/**
+ * Read the `content` column on its own. The student projection needs exactly this and
+ * nothing else, and it must not have to invent a title to get at it.
+ */
+export function readContent(content: unknown): PersistedContent {
+  const record = asRecord(content);
+  return {
+    sentences: readSentences(record['sentences']),
+    distractors: readStringArray(record['distractors']),
+    settings: readSettings(record['settings']),
   };
 }
 
