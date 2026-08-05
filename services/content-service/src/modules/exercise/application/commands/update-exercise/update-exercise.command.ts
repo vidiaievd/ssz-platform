@@ -11,5 +11,7 @@ export class UpdateExerciseCommand {
     public readonly answerCheckSettings?: Record<string, unknown> | null,
     public readonly visibility?: Visibility,
     public readonly estimatedDurationSeconds?: number | null,
+    /** ISO 8601. When given, the update only lands if the row still carries it. */
+    public readonly expectedUpdatedAt?: string,
   ) {}
 }

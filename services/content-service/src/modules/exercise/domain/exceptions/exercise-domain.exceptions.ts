@@ -11,4 +11,9 @@ export enum ExerciseDomainError {
   // Pool entries remain after deletion; the random-exercise endpoint skips deleted exercises.
   EXERCISE_IN_GRAMMAR_POOL = 'EXERCISE_IN_GRAMMAR_POOL',
   INSUFFICIENT_PERMISSIONS = 'INSUFFICIENT_PERMISSIONS',
+  // Someone else saved the exercise between the author's read and their write.
+  // Reported rather than merged: `content` and `expected_answers` are replaced
+  // wholesale on update, so the later write would silently take the earlier
+  // author's text with it.
+  EXERCISE_MODIFIED_ELSEWHERE = 'EXERCISE_MODIFIED_ELSEWHERE',
 }

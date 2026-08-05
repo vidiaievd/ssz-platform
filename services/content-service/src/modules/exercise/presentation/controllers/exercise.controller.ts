@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
@@ -14,6 +15,7 @@ import {
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -33,6 +35,11 @@ import type { PaginatedResult } from '../../../../shared/discovery/domain/types/
 import { CreateExerciseCommand } from '../../application/commands/create-exercise/create-exercise.command.js';
 import type { CreateExerciseResult } from '../../application/commands/create-exercise/create-exercise.handler.js';
 import { UpdateExerciseCommand } from '../../application/commands/update-exercise/update-exercise.command.js';
+import {
+  isModifiedElsewhere,
+  type UpdateExerciseError,
+  type UpdateExerciseResult,
+} from '../../application/commands/update-exercise/update-exercise.handler.js';
 import { DeleteExerciseCommand } from '../../application/commands/delete-exercise/delete-exercise.command.js';
 import { UpsertExerciseInstructionCommand } from '../../application/commands/upsert-instruction/upsert-instruction.command.js';
 import type { UpsertInstructionResult } from '../../application/commands/upsert-instruction/upsert-instruction.handler.js';
@@ -187,17 +194,23 @@ export class ExerciseController {
   @Patch(':id')
   @UseGuards(VisibilityGuard)
   @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Update exercise metadata, content or answers' })
-  @ApiNoContentResponse()
+  @ApiOkResponse({
+    description:
+      'The new `updatedAt`. An autosaving editor sends it back as `expectedUpdatedAt` on the next write.',
+  })
+  @ApiConflictResponse({
+    description:
+      'Another author saved first: `expectedUpdatedAt` no longer matches. The body carries `currentUpdatedAt` so the client can offer to reload rather than discard what was typed.',
+  })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateExerciseRequestDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<void> {
+  ): Promise<{ updatedAt: Date }> {
     const result = await this.commandBus.execute<
       UpdateExerciseCommand,
-      Result<void, ExerciseDomainError>
+      Result<UpdateExerciseResult, UpdateExerciseError>
     >(
       new UpdateExerciseCommand(
         user.userId,
@@ -208,10 +221,23 @@ export class ExerciseController {
         dto.answerCheckSettings,
         dto.visibility,
         dto.estimatedDurationSeconds,
+        dto.expectedUpdatedAt,
       ),
     );
 
-    if (result.isFail) throwHttpException(result.error);
+    if (result.isFail) {
+      // The conflict is the one error that carries data, so it is thrown here rather
+      // than through the mapper: `currentUpdatedAt` belongs in a field, not in prose.
+      if (isModifiedElsewhere(result.error)) {
+        throw new ConflictException({
+          message: result.error.code,
+          currentUpdatedAt: result.error.currentUpdatedAt.toISOString(),
+        });
+      }
+      throwHttpException(result.error);
+    }
+
+    return result.value;
   }
 
   @Delete(':id')
