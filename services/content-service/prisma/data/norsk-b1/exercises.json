@@ -2,216 +2,206 @@
   "1": [
     {
       "key": "b1-g1-wbf-01",
-      "template": "word_bank_fill",
+      "template": "word_bank_gap_fill",
       "instruction": "Вставьте нужный союз (at / om) или вопросительное слово (hvor / når / hvorfor / hvordan / hva).",
       "hint": "at — утверждение, om — вопрос да/нет, вопросительное слово — спецвопрос.",
       "content": {
-        "word_bank": [
-          "at",
-          "hva",
-          "hvor",
-          "hvordan",
-          "hvorfor",
-          "når",
-          "om"
-        ],
-        "word_notes": {
-          "at": "Союз: вводит придаточное с утверждением — «говорит, что …». Вопроса в таком придаточном нет.",
-          "om": "Союз: вводит косвенный вопрос без вопросительного слова — «спросил, ли …». Ответ на такой вопрос: да или нет.",
-          "hva": "Вопросительное слово о предмете: что. Нужно, только если в придаточном есть вопрос «что именно».",
-          "hvor": "Вопросительное слово о месте: где.",
-          "hvordan": "Вопросительное слово о способе: как, каким образом.",
-          "hvorfor": "Вопросительное слово о причине: почему.",
-          "når": "Вопросительное слово о времени: когда."
-        },
-        "items": [
+        "sentences": [
           {
-            "id": "1",
-            "text_with_blanks": "Han sier ___1___ han er sliten."
+            "id": "s1",
+            "text": "Han sier at han er sliten.",
+            "gaps": [
+              2
+            ]
           },
           {
-            "id": "2",
-            "text_with_blanks": "Hun spurte ___1___ jeg hadde bil."
+            "id": "s2",
+            "text": "Hun spurte om jeg hadde bil.",
+            "gaps": [
+              2
+            ]
           },
           {
-            "id": "3",
-            "text_with_blanks": "De lurte på ___1___ jeg bodde."
+            "id": "s3",
+            "text": "De lurte på hvor jeg bodde.",
+            "gaps": [
+              3
+            ]
           },
           {
-            "id": "4",
-            "text_with_blanks": "Jeg vet ikke ___1___ toget går."
+            "id": "s4",
+            "text": "Jeg vet ikke når toget går.",
+            "gaps": [
+              3
+            ]
           },
           {
-            "id": "5",
-            "text_with_blanks": "Bartek spurte ___1___ en vanlig arbeidsdag så ut."
+            "id": "s5",
+            "text": "Bartek spurte hvordan en vanlig arbeidsdag så ut.",
+            "gaps": [
+              2
+            ]
           },
           {
-            "id": "6",
-            "text_with_blanks": "Kari spurte ___1___ han ville bytte jobb."
+            "id": "s6",
+            "text": "Kari spurte hvorfor han ville bytte jobb.",
+            "gaps": [
+              2
+            ]
           },
           {
-            "id": "7",
-            "text_with_blanks": "Han forklarte ___1___ han ikke kunne komme."
+            "id": "s7",
+            "text": "Han forklarte hvorfor han ikke kunne komme.",
+            "gaps": [
+              2
+            ]
           },
           {
-            "id": "8",
-            "text_with_blanks": "Jeg er usikker på ___1___ hun kommer i kveld."
+            "id": "s8",
+            "text": "Jeg er usikker på om hun kommer i kveld.",
+            "gaps": [
+              4
+            ]
           },
           {
-            "id": "9",
-            "text_with_blanks": "Vet du ___1___ klokka er?"
+            "id": "s9",
+            "text": "Vet du hva klokka er?",
+            "gaps": [
+              2
+            ]
           },
           {
-            "id": "10",
-            "text_with_blanks": "Hun fortalte ___1___ hun hadde fått jobben."
+            "id": "s10",
+            "text": "Hun fortalte at hun hadde fått jobben.",
+            "gaps": [
+              2
+            ]
           }
         ],
-        "reusable_words": true
+        "distractors": [],
+        "settings": {
+          "shuffle": true,
+          "allowReuse": true,
+          "showBankCount": false,
+          "caseSensitive": false,
+          "input": "bank"
+        }
       },
       "expectedAnswers": {
-        "items": [
-          {
-            "id": "1",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "at"
-                ],
-                "rationale": {
-                  "explanation": "«Han er sliten» — это утверждение (påstand), а утверждения вводятся союзом at."
-                }
+        "feedback": {
+          "s1#2": {
+            "fallback": "Здесь придаточное — утверждение, без вопроса; такое придаточное вводит союз at.",
+            "why": "«Han er sliten» — это утверждение (påstand), а утверждения вводятся союзом at.",
+            "pairs": {
+              "om": {
+                "text": "«Om» вводит косвенный вопрос да/нет, а здесь ничего не спрашивают — о человеке просто сообщают.",
+                "origin": "author"
+              },
+              "hva": {
+                "text": "«Hva» нужно, только если в придаточном спрашивают, что именно. Здесь вопроса нет.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "2",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "om"
-                ],
-                "rationale": {
-                  "explanation": "Косвенный вопрос без вопросительного слова, на да/нет («Har du bil?») → om."
-                }
+          "s2#2": {
+            "fallback": "Пересказан вопрос без вопросительного слова, ответ на который «да» или «нет».",
+            "why": "Косвенный вопрос без вопросительного слова, на да/нет («Har du bil?») → om.",
+            "pairs": {
+              "at": {
+                "text": "«At» вводит утверждение, а здесь пересказан вопрос «Har du bil?».",
+                "origin": "author"
+              },
+              "hvorfor": {
+                "text": "«Hvorfor» спрашивает о причине; в исходном вопросе причины не было.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "3",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "hvor"
-                ],
-                "rationale": {
-                  "explanation": "Спецвопрос о месте («Hvor bor du?») → hvor."
-                }
+          "s3#3": {
+            "fallback": "Пересказан вопрос о месте — нужно вопросительное слово места.",
+            "why": "Спецвопрос о месте («Hvor bor du?») → hvor.",
+            "pairs": {
+              "når": {
+                "text": "«Når» спрашивает о времени, а спросили о месте: «Hvor bor du?»",
+                "origin": "author"
+              },
+              "om": {
+                "text": "«Om» ставят, когда вопросительного слова нет. Здесь оно есть — спрашивают о месте.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "4",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "når"
-                ],
-                "rationale": {
-                  "explanation": "Вопрос о времени («Når går toget?») → når."
-                }
+          "s4#3": {
+            "fallback": "Пересказан вопрос о времени — нужно вопросительное слово времени.",
+            "why": "Вопрос о времени («Når går toget?») → når.",
+            "pairs": {
+              "hvor": {
+                "text": "«Hvor» спрашивает о месте, а здесь речь о времени отправления.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "5",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "hvordan"
-                ],
-                "rationale": {
-                  "explanation": "«Hvordan ser en arbeidsdag ut?» — вопрос об образе действия."
-                }
+          "s5#2": {
+            "fallback": "Пересказан вопрос об образе действия — нужно вопросительное слово способа.",
+            "why": "«Hvordan ser en arbeidsdag ut?» — вопрос об образе действия.",
+            "pairs": {
+              "hva": {
+                "text": "«Hva» спрашивает о предмете, а спросили, как выглядит рабочий день.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "6",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "hvorfor"
-                ],
-                "rationale": {
-                  "explanation": "Пересказан вопрос о причине («Hvorfor vil du bytte jobb?»)."
-                }
+          "s6#2": {
+            "fallback": "Пересказан вопрос о причине — нужно вопросительное слово причины.",
+            "why": "Пересказан вопрос о причине («Hvorfor vil du bytte jobb?»).",
+            "pairs": {
+              "om": {
+                "text": "«Om» подошло бы к вопросу да/нет, но здесь спрашивают именно о причине.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "7",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "hvorfor"
-                ],
-                "rationale": {
-                  "explanation": "«Forklare hvorfor» — объяснить причину."
-                }
+          "s7#2": {
+            "fallback": "«Forklare» вводит причину, а не утверждение и не вопрос да/нет.",
+            "why": "«Forklare hvorfor» — объяснить причину.",
+            "pairs": {
+              "at": {
+                "text": "«Forklare at» сообщало бы факт; здесь объясняют, почему он не смог прийти.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "8",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "om"
-                ],
-                "rationale": {
-                  "explanation": "«Usikker på» + сомнение да/нет («Kommer hun?») → om."
-                }
+          "s8#4": {
+            "fallback": "«Usikker på» вводит сомнение да/нет — нужен om.",
+            "why": "«Usikker på» + сомнение да/нет («Kommer hun?») → om.",
+            "pairs": {
+              "at": {
+                "text": "После «usikker på» идёт сомнение, а не утверждение: at здесь невозможен.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "9",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "hva"
-                ],
-                "rationale": {
-                  "explanation": "Устойчивый вопрос «Hva er klokka?» (который час)."
-                }
+          "s9#2": {
+            "fallback": "Пересказан вопрос о предмете — «что именно».",
+            "why": "Устойчивый вопрос «Hva er klokka?» (который час).",
+            "pairs": {
+              "hvordan": {
+                "text": "«Hvordan» — о способе. «Hva er klokka?» — устойчивый вопрос о времени.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "10",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "at"
-                ],
-                "rationale": {
-                  "explanation": "«Fortelle at» — рассказать, что…; вводит утверждение."
-                }
+          "s10#2": {
+            "fallback": "«Fortelle» здесь вводит утверждение, а не вопрос.",
+            "why": "«Fortelle at» — рассказать, что…; вводит утверждение.",
+            "pairs": {
+              "om": {
+                "text": "«Fortelle om» вводило бы вопрос да/нет, а она сообщила факт.",
+                "origin": "author"
               }
-            ]
+            }
           }
-        ],
-        "explanation": "at = утверждение, om = вопрос да/нет, вопросительное слово = спецвопрос."
+        }
       }
     },
     {
@@ -3794,204 +3784,215 @@
     },
     {
       "key": "b1-1a-wbf-02",
-      "template": "word_bank_fill",
+      "template": "word_bank_gap_fill",
       "instruction": "Выберите подходящее слово для каждого предложения. Каждое слово используется один раз.",
       "hint": "Слова взяты из текста 1A; смотрите на артикль и на то, что стоит перед пропуском.",
       "content": {
-        "word_bank": [
-          "ansvar",
-          "arbeidsmiljø",
-          "erfaring",
-          "fagbrev",
-          "søknad"
-        ],
-        "items": [
+        "sentences": [
           {
-            "id": "1",
-            "text_with_blanks": "For å bli elektriker må du ta et ___1___."
+            "id": "s1",
+            "text": "For å bli elektriker må du ta et fagbrev.",
+            "gaps": [
+              8
+            ]
           },
           {
-            "id": "2",
-            "text_with_blanks": "Han har ti års ___1___ som snekker."
+            "id": "s2",
+            "text": "Han har ti års erfaring som snekker.",
+            "gaps": [
+              4
+            ]
           },
           {
-            "id": "3",
-            "text_with_blanks": "Firmaet tilbyr et godt ___1___."
+            "id": "s3",
+            "text": "Firmaet tilbyr et godt arbeidsmiljø.",
+            "gaps": [
+              4
+            ]
           },
           {
-            "id": "4",
-            "text_with_blanks": "Du må sende en ___1___ og en CV."
+            "id": "s4",
+            "text": "Du må sende en søknad og en CV.",
+            "gaps": [
+              4
+            ]
           },
           {
-            "id": "5",
-            "text_with_blanks": "Som prosjektleder får du mye ___1___."
+            "id": "s5",
+            "text": "Som prosjektleder får du mye ansvar.",
+            "gaps": [
+              5
+            ]
           }
         ],
-        "context": "Ord fra tekst 1A.",
-        "input_mode": "select"
+        "distractors": [],
+        "settings": {
+          "shuffle": true,
+          "allowReuse": false,
+          "showBankCount": true,
+          "caseSensitive": false,
+          "input": "bank"
+        }
       },
       "expectedAnswers": {
-        "items": [
-          {
-            "id": "1",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "fagbrev"
-                ]
+        "feedback": {
+          "s1#8": {
+            "fallback": "Здесь нужен документ, который получают после обучения профессии.",
+            "why": "Fagbrev — свидетельство о профессии: «ta et fagbrev».",
+            "pairs": {
+              "søknad": {
+                "text": "Søknad — заявление о приёме на работу; чтобы стать электриком, «берут» не его.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "2",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "erfaring"
-                ]
-              }
-            ]
+          "s2#4": {
+            "fallback": "После «ti års» идёт слово «опыт».",
+            "why": "«Ti års erfaring» — десять лет опыта работы.",
+            "pairs": {}
           },
-          {
-            "id": "3",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "arbeidsmiljø"
-                ]
+          "s3#4": {
+            "fallback": "Речь о том, что фирма предлагает работникам в целом: обстановку на работе.",
+            "why": "Arbeidsmiljø — рабочая среда; о ней говорят «et godt arbeidsmiljø».",
+            "pairs": {
+              "ansvar": {
+                "text": "«Ansvar» бывает «stort», а не «godt», и его дают, а не предлагают как условие.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "4",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "søknad"
-                ]
-              }
-            ]
+          "s4#4": {
+            "fallback": "Вместе с CV отправляют документ-заявление.",
+            "why": "Søknad — заявление о приёме на работу; «sende en søknad».",
+            "pairs": {}
           },
-          {
-            "id": "5",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "ansvar"
-                ]
+          "s5#5": {
+            "fallback": "Руководитель проекта получает много… — нужно существительное.",
+            "why": "«Få mye ansvar» — получить много ответственности.",
+            "pairs": {
+              "erfaring": {
+                "text": "«Erfaring» приходит со временем, а должность даёт именно ответственность.",
+                "origin": "author"
               }
-            ]
+            }
           }
-        ]
+        }
       }
     },
     {
       "key": "b1-1a-wbf-01",
-      "template": "word_bank_fill",
-      "instruction": "Заполните пропуски словами из банка. Два слова лишние.",
+      "template": "word_bank_gap_fill",
+      "instruction": "Заполните пропуски словами из банка (текст 1A — Bartek søker ny jobb). Два слова лишние.",
       "hint": "Следите за формой слова: некоторые пропуски требуют множественного числа.",
       "content": {
-        "word_bank": [
-          "stillingsannonser",
-          "selvstendig",
-          "nøyaktig",
-          "fagbrev",
-          "erfaring",
-          "skrivefeil",
-          "retter",
+        "sentences": [
+          {
+            "id": "s1",
+            "text": "En kveld sitter Bartek foran datamaskinen og leser stillingsannonser på nettet.",
+            "gaps": [
+              8
+            ]
+          },
+          {
+            "id": "s2",
+            "text": "Nordby Elektro AS trenger en selvstendig og nøyaktig elektriker som kan lede mindre prosjekter.",
+            "gaps": [
+              5,
+              7
+            ]
+          },
+          {
+            "id": "s3",
+            "text": "For å få stillingen må du ha fagbrev som elektriker og minst tre års erfaring.",
+            "gaps": [
+              7,
+              14
+            ]
+          },
+          {
+            "id": "s4",
+            "text": "Anne finner noen skrivefeil i søknaden, og Bartek retter dem før han sender den.",
+            "gaps": [
+              3,
+              8
+            ]
+          }
+        ],
+        "distractors": [
           "arbeidsmiljø",
           "førerkort"
         ],
-        "items": [
-          {
-            "id": "1",
-            "text_with_blanks": "En kveld sitter Bartek foran datamaskinen og leser ___1___ på nettet."
-          },
-          {
-            "id": "2",
-            "text_with_blanks": "Nordby Elektro AS trenger en ___1___ og ___2___ elektriker som kan lede mindre prosjekter."
-          },
-          {
-            "id": "3",
-            "text_with_blanks": "For å få stillingen må du ha ___1___ som elektriker og minst tre års ___2___."
-          },
-          {
-            "id": "4",
-            "text_with_blanks": "Anne finner noen ___1___ i søknaden, og Bartek ___2___ dem før han sender den."
-          }
-        ],
-        "context": "Tekst 1A — Bartek søker ny jobb."
+        "settings": {
+          "shuffle": true,
+          "allowReuse": false,
+          "showBankCount": true,
+          "caseSensitive": false,
+          "input": "bank"
+        }
       },
       "expectedAnswers": {
-        "items": [
-          {
-            "id": "1",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "stillingsannonser"
-                ]
+        "feedback": {
+          "s1#8": {
+            "fallback": "Bartek читает в интернете именно объявления о работе — нужно существительное во множественном числе.",
+            "why": "Stillingsannonser — объявления о вакансиях; их читают на сайтах.",
+            "pairs": {
+              "erfaring": {
+                "text": "«Erfaring» — опыт, его не читают в интернете.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "2",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "selvstendig"
-                ]
-              },
-              {
-                "blank_id": 2,
-                "accepted_answers": [
-                  "nøyaktig"
-                ]
+          "s2#5": {
+            "fallback": "Здесь описывают качество работника: умение работать самостоятельно.",
+            "why": "Selvstendig — самостоятельный; фирме нужен электрик, который может вести проекты сам.",
+            "pairs": {
+              "førerkort": {
+                "text": "«Førerkort» — существительное, а после «en» здесь идут два прилагательных.",
+                "origin": "author"
               }
-            ]
+            }
           },
-          {
-            "id": "3",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "fagbrev"
-                ]
-              },
-              {
-                "blank_id": 2,
-                "accepted_answers": [
-                  "erfaring"
-                ]
-              }
-            ]
+          "s2#7": {
+            "fallback": "Второе прилагательное в паре описывает точность в работе.",
+            "why": "Nøyaktig — аккуратный, точный: второе требуемое качество.",
+            "pairs": {}
           },
-          {
-            "id": "4",
-            "blanks": [
-              {
-                "blank_id": 1,
-                "accepted_answers": [
-                  "skrivefeil"
-                ]
-              },
-              {
-                "blank_id": 2,
-                "accepted_answers": [
-                  "retter"
-                ]
+          "s3#7": {
+            "fallback": "Чтобы получить эту должность, нужен документ о профессии.",
+            "why": "Fagbrev — свидетельство о профессиональной квалификации: «ha fagbrev som elektriker».",
+            "pairs": {
+              "førerkort": {
+                "text": "Førerkort — водительские права; для этой вакансии нужен профессиональный документ.",
+                "origin": "author"
               }
-            ]
+            }
+          },
+          "s3#14": {
+            "fallback": "После «minst tre års» стоит слово «опыт».",
+            "why": "«Tre års erfaring» — три года опыта работы.",
+            "pairs": {}
+          },
+          "s4#3": {
+            "fallback": "Anne находит в тексте ошибки — нужно существительное во множественном числе.",
+            "why": "Skrivefeil — опечатки и ошибки в написанном тексте.",
+            "pairs": {
+              "erfaring": {
+                "text": "«Erfaring» не находят в заявлении; речь об ошибках в тексте.",
+                "origin": "author"
+              }
+            }
+          },
+          "s4#8": {
+            "fallback": "Здесь нужен глагол: что Bartek делает с ошибками перед отправкой.",
+            "why": "Å rette — исправлять; в презенсе retter.",
+            "pairs": {
+              "skrivefeil": {
+                "text": "«Skrivefeil» уже стоит в первой части предложения; здесь нужно действие.",
+                "origin": "author"
+              }
+            }
           }
-        ]
+        }
       }
     },
     {
@@ -4365,165 +4366,130 @@
       }
     },
     {
-      "key": "b1-1b-fib-01",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
+      "key": "b1-1b-wbgf-01",
+      "template": "word_bank_gap_fill",
+      "instruction": "Заполните пропуски словами из банка. Каждое слово используется один раз; два слова лишние.",
+      "hint": "Все слова — из текста 1B «Jobbintervjuet».",
       "content": {
-        "text_with_blanks": "Før et ___1___ er mange litt nervøse.",
-        "word_bank": [
-          "ansvar",
-          "beskjed",
-          "intervju",
-          "nervøs",
-          "pålitelig",
-          "samarbeide"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
+        "sentences": [
           {
-            "blank_id": 1,
-            "accepted_answers": [
-              "intervju"
+            "id": "s1",
+            "text": "Før et intervju er mange litt nervøse.",
+            "gaps": [
+              2
+            ]
+          },
+          {
+            "id": "s2",
+            "text": "Han var veldig nervøs før intervjuet.",
+            "gaps": [
+              3
+            ]
+          },
+          {
+            "id": "s3",
+            "text": "En god medarbeider er pålitelig og kommer på jobb i tide.",
+            "gaps": [
+              4
+            ]
+          },
+          {
+            "id": "s4",
+            "text": "Jeg liker å samarbeide med andre i team.",
+            "gaps": [
+              3
+            ]
+          },
+          {
+            "id": "s5",
+            "text": "Sjefen vil gi meg mer ansvar.",
+            "gaps": [
+              5
+            ]
+          },
+          {
+            "id": "s6",
+            "text": "Firmaet skal gi beskjed neste uke.",
+            "gaps": [
+              3
             ]
           }
-        ]
-      }
-    },
-    {
-      "key": "b1-1b-fib-02",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
-      "content": {
-        "text_with_blanks": "Han var veldig ___1___ før intervjuet.",
-        "word_bank": [
-          "ansvar",
-          "beskjed",
-          "intervju",
-          "nervøs",
-          "pålitelig",
-          "samarbeide"
-        ]
+        ],
+        "distractors": [
+          "søknad",
+          "erfaring"
+        ],
+        "settings": {
+          "shuffle": true,
+          "allowReuse": false,
+          "showBankCount": true,
+          "caseSensitive": false,
+          "input": "bank"
+        }
       },
       "expectedAnswers": {
-        "blanks": [
-          {
-            "blank_id": 1,
-            "accepted_answers": [
-              "nervøs"
-            ]
+        "feedback": {
+          "s1#2": {
+            "fallback": "Здесь нужно название события, к которому готовятся.",
+            "why": "Intervju — собеседование; перед ним многие волнуются.",
+            "pairs": {
+              "nervøs": {
+                "text": "«Nervøs» — прилагательное, а после «et» нужно существительное; и оно уже стоит в конце как «nervøse».",
+                "origin": "author"
+              }
+            }
+          },
+          "s2#3": {
+            "fallback": "После «var veldig» нужно прилагательное, описывающее состояние.",
+            "why": "Nervøs — нервный, взволнованный: «Han var veldig nervøs».",
+            "pairs": {
+              "intervju": {
+                "text": "«Intervju» — существительное; «Han var veldig intervju» не имеет смысла.",
+                "origin": "author"
+              }
+            }
+          },
+          "s3#4": {
+            "fallback": "Нужно прилагательное, описывающее хорошего работника.",
+            "why": "Pålitelig — надёжный: на такого можно положиться, он приходит вовремя.",
+            "pairs": {
+              "ansvar": {
+                "text": "«Ansvar» — существительное, а после «er» здесь идёт качество работника.",
+                "origin": "author"
+              }
+            }
+          },
+          "s4#3": {
+            "fallback": "После «liker å» нужен глагол в инфинитиве.",
+            "why": "Å samarbeide — сотрудничать, работать вместе с другими.",
+            "pairs": {
+              "ansvar": {
+                "text": "«Ansvar» — существительное, а после «å» нужен глагол.",
+                "origin": "author"
+              }
+            }
+          },
+          "s5#5": {
+            "fallback": "Начальник даёт работнику больше… — нужно существительное.",
+            "why": "«Gi mer ansvar» — дать больше ответственности.",
+            "pairs": {
+              "beskjed": {
+                "text": "«Gi beskjed» — сообщить; «mer beskjed» так не говорят.",
+                "origin": "author"
+              }
+            }
+          },
+          "s6#3": {
+            "fallback": "Устойчивое сочетание с глаголом «gi»: дать знать.",
+            "why": "«Gi beskjed» — сообщить, дать знать о решении.",
+            "pairs": {
+              "søknad": {
+                "text": "Заявление отправляет работник в фирму, а не фирма работнику.",
+                "origin": "author"
+              }
+            }
           }
-        ]
-      }
-    },
-    {
-      "key": "b1-1b-fib-03",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
-      "content": {
-        "text_with_blanks": "En god medarbeider er ___1___ og kommer på jobb i tide.",
-        "word_bank": [
-          "ansvar",
-          "beskjed",
-          "intervju",
-          "nervøs",
-          "pålitelig",
-          "samarbeide"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
-          {
-            "blank_id": 1,
-            "accepted_answers": [
-              "pålitelig"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "key": "b1-1b-fib-04",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
-      "content": {
-        "text_with_blanks": "Jeg liker å ___1___ med andre i team.",
-        "word_bank": [
-          "ansvar",
-          "beskjed",
-          "intervju",
-          "nervøs",
-          "pålitelig",
-          "samarbeide"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
-          {
-            "blank_id": 1,
-            "accepted_answers": [
-              "samarbeide"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "key": "b1-1b-fib-05",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
-      "content": {
-        "text_with_blanks": "Sjefen vil gi meg mer ___1___.",
-        "word_bank": [
-          "ansvar",
-          "beskjed",
-          "intervju",
-          "nervøs",
-          "pålitelig",
-          "samarbeide"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
-          {
-            "blank_id": 1,
-            "accepted_answers": [
-              "ansvar"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "key": "b1-1b-fib-06",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: ansvar, beskjed, intervju, nervøs, pålitelig, samarbeide.",
-      "content": {
-        "text_with_blanks": "Firmaet skal gi ___1___ neste uke.",
-        "word_bank": [
-          "ansvar",
-          "beskjed",
-          "intervju",
-          "nervøs",
-          "pålitelig",
-          "samarbeide"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
-          {
-            "blank_id": 1,
-            "accepted_answers": [
-              "beskjed"
-            ]
-          }
-        ]
+        }
       }
     },
     {
@@ -4769,165 +4735,130 @@
       }
     },
     {
-      "key": "b1-1c-fib-01",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
+      "key": "b1-1c-wbgf-01",
+      "template": "word_bank_gap_fill",
+      "instruction": "Заполните пропуски словами из банка. Каждое слово используется один раз; два слова лишние.",
+      "hint": "Все слова — из текста 1C «Arbeidsmiljø i Norge».",
       "content": {
-        "text_with_blanks": "Om sommeren har de fleste fem uker ___1___.",
-        "word_bank": [
-          "fagforening",
-          "ferie",
-          "møte",
-          "overtid",
-          "rettigheter",
-          "sjefen"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
+        "sentences": [
           {
-            "blank_id": 1,
-            "accepted_answers": [
-              "ferie"
+            "id": "s1",
+            "text": "Om sommeren har de fleste fem uker ferie.",
+            "gaps": [
+              7
+            ]
+          },
+          {
+            "id": "s2",
+            "text": "På et møte får alle si sin mening.",
+            "gaps": [
+              2
+            ]
+          },
+          {
+            "id": "s3",
+            "text": "Arbeidstakere i Norge har mange rettigheter.",
+            "gaps": [
+              5
+            ]
+          },
+          {
+            "id": "s4",
+            "text": "En fagforening forhandler om lønn.",
+            "gaps": [
+              1
+            ]
+          },
+          {
+            "id": "s5",
+            "text": "Man sier ofte «du» til sjefen.",
+            "gaps": [
+              5
+            ]
+          },
+          {
+            "id": "s6",
+            "text": "Å jobbe mer enn normalt kalles overtid.",
+            "gaps": [
+              6
             ]
           }
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-fib-02",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
-      "content": {
-        "text_with_blanks": "På et ___1___ får alle si sin mening.",
-        "word_bank": [
-          "fagforening",
-          "ferie",
-          "møte",
-          "overtid",
-          "rettigheter",
-          "sjefen"
-        ]
+        ],
+        "distractors": [
+          "kontrakt",
+          "arbeidstid"
+        ],
+        "settings": {
+          "shuffle": true,
+          "allowReuse": false,
+          "showBankCount": true,
+          "caseSensitive": false,
+          "input": "bank"
+        }
       },
       "expectedAnswers": {
-        "blanks": [
-          {
-            "blank_id": 1,
-            "accepted_answers": [
-              "møte"
-            ]
+        "feedback": {
+          "s1#7": {
+            "fallback": "Речь о том, чего у большинства бывает пять недель летом.",
+            "why": "Ferie — отпуск; пять недель отпуска — обычная норма в Норвегии.",
+            "pairs": {
+              "overtid": {
+                "text": "Overtid — сверхурочная работа; её не «имеют пять недель летом».",
+                "origin": "author"
+              }
+            }
+          },
+          "s2#2": {
+            "fallback": "После «På et» нужно название встречи, где высказываются все.",
+            "why": "Møte — собрание; на нём каждый может сказать своё мнение.",
+            "pairs": {
+              "arbeidstid": {
+                "text": "«Arbeidstid» — рабочее время, а не событие, на котором говорят.",
+                "origin": "author"
+              }
+            }
+          },
+          "s3#5": {
+            "fallback": "После «mange» нужно существительное во множественном числе.",
+            "why": "Rettigheter — права: «ha mange rettigheter».",
+            "pairs": {
+              "kontrakt": {
+                "text": "«Kontrakt» — один документ; после «mange» нужно множественное число.",
+                "origin": "author"
+              }
+            }
+          },
+          "s4#1": {
+            "fallback": "Переговоры о зарплате ведёт организация работников.",
+            "why": "Fagforening — профсоюз; он ведёт переговоры о зарплате.",
+            "pairs": {
+              "sjefen": {
+                "text": "«Sjefen» — определённая форма, а после «En» нужна неопределённая.",
+                "origin": "author"
+              }
+            }
+          },
+          "s5#5": {
+            "fallback": "Нужен человек на работе, к которому обращаются, — в определённой форме.",
+            "why": "К начальнику в Норвегии обращаются на «du»: til sjefen.",
+            "pairs": {
+              "kontrakt": {
+                "text": "К договору не обращаются на «du»; речь о человеке.",
+                "origin": "author"
+              }
+            }
+          },
+          "s6#6": {
+            "fallback": "Так называют работу сверх нормы.",
+            "why": "Overtid — сверхурочная работа, больше обычного рабочего времени.",
+            "pairs": {
+              "arbeidstid": {
+                "text": "«Arbeidstid» — обычное рабочее время, а речь о том, что сверх него.",
+                "origin": "author"
+              }
+            }
           }
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-fib-03",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
-      "content": {
-        "text_with_blanks": "Arbeidstakere i Norge har mange ___1___.",
-        "word_bank": [
-          "fagforening",
-          "ferie",
-          "møte",
-          "overtid",
-          "rettigheter",
-          "sjefen"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
-          {
-            "blank_id": 1,
-            "accepted_answers": [
-              "rettigheter"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-fib-04",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
-      "content": {
-        "text_with_blanks": "En ___1___ forhandler om lønn.",
-        "word_bank": [
-          "fagforening",
-          "ferie",
-          "møte",
-          "overtid",
-          "rettigheter",
-          "sjefen"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
-          {
-            "blank_id": 1,
-            "accepted_answers": [
-              "fagforening"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-fib-05",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
-      "content": {
-        "text_with_blanks": "Man sier ofte «du» til ___1___.",
-        "word_bank": [
-          "fagforening",
-          "ferie",
-          "møte",
-          "overtid",
-          "rettigheter",
-          "sjefen"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
-          {
-            "blank_id": 1,
-            "accepted_answers": [
-              "sjefen"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-fib-06",
-      "template": "fill_in_blank",
-      "instruction": "Вставьте подходящее слово.",
-      "hint": "Слова: fagforening, ferie, møte, overtid, rettigheter, sjefen.",
-      "content": {
-        "text_with_blanks": "Å jobbe mer enn normalt kalles ___1___.",
-        "word_bank": [
-          "fagforening",
-          "ferie",
-          "møte",
-          "overtid",
-          "rettigheter",
-          "sjefen"
-        ]
-      },
-      "expectedAnswers": {
-        "blanks": [
-          {
-            "blank_id": 1,
-            "accepted_answers": [
-              "overtid"
-            ]
-          }
-        ]
+        }
       }
     }
   ],
