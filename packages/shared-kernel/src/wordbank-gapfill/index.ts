@@ -15,6 +15,9 @@ export type {
 } from './model.js';
 export { DEFAULT_SETTINGS } from './model.js';
 
+export type { Issue, IssueCode, IssueLevel, IssueStep } from './issues.js';
+export { blockers, isReady, issues, warnings } from './issues.js';
+
 export {
   answers,
   bank,
