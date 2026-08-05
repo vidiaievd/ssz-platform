@@ -109,7 +109,13 @@ export class AttemptsController {
         throw new UnprocessableEntityException(err.message);
       }
       if ('code' in err && err.code === 'ALREADY_IN_PROGRESS') {
-        throw new ConflictException(`Attempt already in progress: ${err.attemptId}`);
+        // The id goes in a field, not only in the sentence: a caller re-opening
+        // the exercise has to be able to act on it, and parsing prose for an
+        // identifier is a bug waiting for someone to reword the message.
+        throw new ConflictException({
+          message: 'Attempt already in progress',
+          attemptId: err.attemptId,
+        });
       }
       throw new UnprocessableEntityException('Failed to start attempt');
     }
