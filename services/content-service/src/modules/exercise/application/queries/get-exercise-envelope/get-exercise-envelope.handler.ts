@@ -7,6 +7,7 @@ import { EXERCISE_REPOSITORY } from '../../../domain/repositories/exercise.repos
 import type { IExerciseRepository } from '../../../domain/repositories/exercise.repository.interface.js';
 import { EXERCISE_TEMPLATE_REPOSITORY } from '../../../../exercise-template/domain/repositories/exercise-template.repository.interface.js';
 import type { IExerciseTemplateRepository } from '../../../../exercise-template/domain/repositories/exercise-template.repository.interface.js';
+import { studentSafeContent } from '../../../domain/services/student-safe-content.js';
 
 export interface ExerciseEnvelope {
   exercise: {
@@ -72,7 +73,13 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
         templateCode: exercise.templateCode,
         targetLanguage: exercise.targetLanguage,
         difficultyLevel: exercise.difficultyLevel,
-        content: exercise.content,
+        // `graded` is the learner's envelope: the engine will do the grading, so
+        // the client gets neither the expected answers nor — for the template
+        // that keeps its answers inside the sentences — the raw content.
+        content:
+          query.mode === 'graded'
+            ? studentSafeContent(exercise.templateCode, exercise.content)
+            : exercise.content,
         expectedAnswers: query.mode === 'graded' ? null : exercise.expectedAnswers,
         answerCheckSettings: exercise.answerCheckSettings,
       },

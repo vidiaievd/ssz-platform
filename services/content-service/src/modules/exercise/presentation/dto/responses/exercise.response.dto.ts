@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ExerciseEntity } from '../../../domain/entities/exercise.entity.js';
 import { ExerciseInstructionResponseDto } from './exercise-instruction.response.dto.js';
+import { studentSafeContent } from '../../../domain/services/student-safe-content.js';
 
 export class ExerciseResponseDto {
   @ApiProperty({ example: 'a1b2c3d4-e5f6-...' })
@@ -55,7 +56,12 @@ export class ExerciseResponseDto {
     dto.templateCode = entity.templateCode;
     dto.targetLanguage = entity.targetLanguage;
     dto.difficultyLevel = entity.difficultyLevel;
-    dto.content = entity.content;
+    // Not `entity.content`. For word_bank_gap_fill the answers are inside the
+    // sentences, so the raw content is only safe where the expected answers are
+    // served too — which is `ExerciseWithAnswersResponseDto` below and nowhere
+    // else. Masking here rather than in one handler means a new endpoint that
+    // returns this DTO is safe by default instead of by remembering.
+    dto.content = studentSafeContent(entity.templateCode, entity.content);
     dto.answerCheckSettings = entity.answerCheckSettings;
     dto.ownerUserId = entity.ownerUserId;
     dto.ownerSchoolId = entity.ownerSchoolId;
@@ -78,6 +84,10 @@ export class ExerciseWithAnswersResponseDto extends ExerciseResponseDto {
 
   static fromWithAnswers(entity: ExerciseEntity): ExerciseWithAnswersResponseDto {
     const dto = ExerciseResponseDto.from(entity) as ExerciseWithAnswersResponseDto;
+    // The authoring and grading read. Undo the masking the base mapper applied:
+    // a caller entitled to the expected answers is entitled to the content that
+    // holds them, and the builder cannot edit a sentence it cannot see.
+    dto.content = entity.content;
     dto.expectedAnswers = entity.expectedAnswers;
     return dto;
   }
