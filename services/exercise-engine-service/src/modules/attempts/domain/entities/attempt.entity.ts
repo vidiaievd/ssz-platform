@@ -8,6 +8,7 @@ import {
   InvalidScoreError,
 } from '../exceptions/attempt.errors.js';
 import { AttemptStartedEvent } from '../events/attempt-started.event.js';
+import type { AnswerForm } from '@ssz/contracts';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
 import { AttemptRoutedForReviewEvent } from '../events/attempt-routed-for-review.event.js';
 
@@ -194,6 +195,8 @@ export class Attempt extends AggregateRoot {
     passed: boolean,
     validationDetails: unknown,
     feedback: unknown,
+    /** How the answer was produced; omitted by templates that cannot say. */
+    answerForm?: AnswerForm,
   ): Result<void, InvalidScoreError | InvalidAttemptTransitionError> {
     if (this._status !== 'SUBMITTED') {
       return Result.fail(
@@ -223,6 +226,7 @@ export class Attempt extends AggregateRoot {
         timeSpentSeconds: this._timeSpentSeconds,
         completed: true,
         practicedAtoms: this._practicedAtoms,
+        ...(answerForm === undefined ? {} : { answerForm }),
       }),
     );
 

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { AnswerForm } from '@ssz/contracts';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
 
 // Payload matches Learning Service ExerciseAttemptedConsumer contract exactly.
@@ -13,6 +14,9 @@ export interface AttemptScoredPayload {
   // fan-out) — lets the consumer rate the related VOCABULARY_WORD SRS cards without
   // a cross-service call in the hot path.
   practicedAtoms: Array<{ atomType: string; atomId: string }>;
+  // How the answer was produced, as opposed to whether it was right. Present only
+  // for templates that can say — today, word_bank_gap_fill. See @ssz/contracts.
+  answerForm?: AnswerForm;
 }
 
 export class AttemptScoredEvent implements IDomainEvent {

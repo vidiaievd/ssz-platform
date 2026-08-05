@@ -1,4 +1,10 @@
 import { createHash } from 'node:crypto';
+import type { AnswerForm } from '@ssz/contracts';
+import {
+  bank,
+  readContent,
+  TEMPLATE_CODE as WORD_BANK_GAP_FILL,
+} from '@ssz/shared-kernel/wordbank-gapfill';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { SubmitAnswerCommand } from './submit-answer.command.js';
@@ -25,6 +31,29 @@ export interface SubmitAnswerResult {
   score: number | null;
   requiresReview: boolean;
   feedback: { summary: string; hints?: string[]; correctAnswer?: unknown };
+}
+
+/**
+ * How the learner produced the answer, as opposed to whether it was right.
+ *
+ * Carried because `word_bank_gap_fill` absorbed `fill_in_blank`: one template now
+ * covers both choosing a word out of five and typing it from memory. Those are not
+ * equal evidence of knowing it, and after the merge no `templateCode` distinguishes
+ * them — so without this, merging the types would make spaced repetition *worse*.
+ *
+ * Only this template can say. The other twelve report nothing and the field is absent,
+ * which is what keeps events published before it existed valid.
+ */
+function describeAnswerForm(templateCode: string, content: unknown): AnswerForm | undefined {
+  if (templateCode !== WORD_BANK_GAP_FILL) return undefined;
+
+  const task = readContent(content);
+  const typed = task.settings.input === 'free';
+  return {
+    mode: typed ? 'free' : 'bank',
+    bankSize: typed ? null : bank(task).length,
+    wordsConsumed: !task.settings.allowReuse,
+  };
 }
 
 @CommandHandler(SubmitAnswerCommand)
@@ -132,7 +161,14 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       ? feedbackResult.value
       : { summary: outcome.correct ? 'Correct!' : 'Incorrect. Please try again.' };
 
-    const scoreResult = attempt.score(outcome.score, passed, outcome.details, feedback);
+    const answerForm = describeAnswerForm(attempt.templateCode, def.exercise.content);
+    const scoreResult = attempt.score(
+      outcome.score,
+      passed,
+      outcome.details,
+      feedback,
+      answerForm,
+    );
     if (scoreResult.isFail) {
       return Result.fail(scoreResult.error as AttemptDomainError);
     }

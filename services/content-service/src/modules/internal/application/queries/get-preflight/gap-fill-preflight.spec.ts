@@ -12,8 +12,24 @@ const settings = {
   input: 'bank',
 };
 
+interface GapFeedbackFixture {
+  fallback: string;
+  why: string;
+  pairs: Record<string, { text: string; origin: string }>;
+}
+
+interface ExerciseFixture {
+  id: string;
+  content: {
+    settings: Record<string, unknown>;
+    sentences: { id: string; text: string; gaps: number[] }[];
+    distractors: string[];
+  };
+  expectedAnswers: { feedback: Record<string, GapFeedbackFixture> };
+}
+
 /** A complete exercise: two gaps, a bank of four, every explanation written. */
-function ready() {
+function ready(): ExerciseFixture {
   return {
     id: 'ex-1',
     content: {
