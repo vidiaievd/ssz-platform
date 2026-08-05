@@ -144,18 +144,4 @@ describe('SetCompareExamplesHandler', () => {
     expect(result.error).toBe(GrammarRuleDomainError.EXPLANATION_NOT_FOUND);
     expect(compareExampleRepo.replaceForExplanation).not.toHaveBeenCalled();
   });
-
-  it('rejects when the caller does not own the parent grammar rule', async () => {
-    const rule = makeRule();
-    const explanation = makeExplanation(rule.id);
-    const { handler, compareExampleRepo } = makeHandler({ rule, explanation });
-
-    const result = await handler.execute(
-      new SetCompareExamplesCommand('someone-else', rule.id, explanation.id, []),
-    );
-
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBe(GrammarRuleDomainError.INSUFFICIENT_PERMISSIONS);
-    expect(compareExampleRepo.replaceForExplanation).not.toHaveBeenCalled();
-  });
 });

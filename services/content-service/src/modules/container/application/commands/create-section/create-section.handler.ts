@@ -48,10 +48,6 @@ export class CreateSectionHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     let position: number;
     if (command.position !== undefined) {
       const existing = await this.sectionRepo.findByVersionId(command.versionId);

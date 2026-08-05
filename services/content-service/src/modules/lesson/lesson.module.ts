@@ -13,9 +13,11 @@ import { PrismaLessonVideoQuestionRepository } from './infrastructure/persistenc
 import { PrismaLessonListeningStageRepository } from './infrastructure/persistence/prisma-lesson-listening-stage.repository.js';
 import { PrismaLessonParagraphTranslationRepository } from './infrastructure/persistence/prisma-lesson-paragraph-translation.repository.js';
 import { PrismaLessonGlossaryMarkRepository } from './infrastructure/persistence/prisma-lesson-glossary-mark.repository.js';
+import { PrismaLessonTextSpanRepository } from './infrastructure/persistence/prisma-lesson-text-span.repository.js';
 import { PrismaExerciseRepository } from '../exercise/infrastructure/persistence/prisma-exercise.repository.js';
 import { PrismaVocabularyItemRepository } from '../vocabulary/infrastructure/persistence/prisma-vocabulary-item.repository.js';
 import { PrismaContentRelationRepository } from '../content-relation/infrastructure/persistence/prisma-content-relation.repository.js';
+import { PrismaGrammarRuleRepository } from '../grammar-rule/infrastructure/persistence/prisma-grammar-rule.repository.js';
 
 // DI tokens
 import { LESSON_REPOSITORY } from './domain/repositories/lesson.repository.interface.js';
@@ -26,9 +28,11 @@ import { LESSON_VIDEO_QUESTION_REPOSITORY } from './domain/repositories/lesson-v
 import { LESSON_LISTENING_STAGE_REPOSITORY } from './domain/repositories/lesson-listening-stage.repository.interface.js';
 import { LESSON_PARAGRAPH_TRANSLATION_REPOSITORY } from './domain/repositories/lesson-paragraph-translation.repository.interface.js';
 import { LESSON_GLOSSARY_MARK_REPOSITORY } from './domain/repositories/lesson-glossary-mark.repository.interface.js';
+import { LESSON_TEXT_SPAN_REPOSITORY } from './domain/repositories/lesson-text-span.repository.interface.js';
 import { EXERCISE_REPOSITORY } from '../exercise/domain/repositories/exercise.repository.interface.js';
 import { VOCABULARY_ITEM_REPOSITORY } from '../vocabulary/domain/repositories/vocabulary-item.repository.interface.js';
 import { CONTENT_RELATION_REPOSITORY } from '../content-relation/domain/repositories/content-relation.repository.interface.js';
+import { GRAMMAR_RULE_REPOSITORY } from '../grammar-rule/domain/repositories/grammar-rule.repository.interface.js';
 
 // Command handlers
 import { CreateLessonHandler } from './application/commands/create-lesson/create-lesson.handler.js';
@@ -44,6 +48,10 @@ import { ClearVideoQuestionHandler } from './application/commands/clear-video-qu
 import { SetListeningStagesHandler } from './application/commands/set-listening-stages/set-listening-stages.handler.js';
 import { SetParagraphTranslationsHandler } from './application/commands/set-paragraph-translations/set-paragraph-translations.handler.js';
 import { MarkGlossaryWordHandler } from './application/commands/mark-glossary-word/mark-glossary-word.handler.js';
+import { UnmarkGlossaryWordHandler } from './application/commands/unmark-glossary-word/unmark-glossary-word.handler.js';
+import { CreateTextSpanHandler } from './application/commands/create-text-span/create-text-span.handler.js';
+import { UpdateTextSpanHandler } from './application/commands/update-text-span/update-text-span.handler.js';
+import { DeleteTextSpanHandler } from './application/commands/delete-text-span/delete-text-span.handler.js';
 
 // Query handlers
 import { GetLessonHandler } from './application/queries/get-lesson/get-lesson.handler.js';
@@ -57,6 +65,7 @@ import { GetVideoQuestionHandler } from './application/queries/get-video-questio
 import { GetListeningStagesHandler } from './application/queries/get-listening-stages/get-listening-stages.handler.js';
 import { GetTextParagraphsHandler } from './application/queries/get-text-paragraphs/get-text-paragraphs.handler.js';
 import { GetGlossaryMarksHandler } from './application/queries/get-glossary-marks/get-glossary-marks.handler.js';
+import { GetTextSpansHandler } from './application/queries/get-text-spans/get-text-spans.handler.js';
 import { GetLessonReaderContentHandler } from './application/queries/get-lesson-reader-content/get-lesson-reader-content.handler.js';
 
 // Controller
@@ -76,6 +85,10 @@ const CommandHandlers = [
   SetListeningStagesHandler,
   SetParagraphTranslationsHandler,
   MarkGlossaryWordHandler,
+  UnmarkGlossaryWordHandler,
+  CreateTextSpanHandler,
+  UpdateTextSpanHandler,
+  DeleteTextSpanHandler,
 ];
 
 const QueryHandlers = [
@@ -90,6 +103,7 @@ const QueryHandlers = [
   GetListeningStagesHandler,
   GetTextParagraphsHandler,
   GetGlossaryMarksHandler,
+  GetTextSpansHandler,
   GetLessonReaderContentHandler,
 ];
 
@@ -112,9 +126,11 @@ const QueryHandlers = [
       useClass: PrismaLessonParagraphTranslationRepository,
     },
     { provide: LESSON_GLOSSARY_MARK_REPOSITORY, useClass: PrismaLessonGlossaryMarkRepository },
+    { provide: LESSON_TEXT_SPAN_REPOSITORY, useClass: PrismaLessonTextSpanRepository },
     { provide: EXERCISE_REPOSITORY, useClass: PrismaExerciseRepository },
     { provide: VOCABULARY_ITEM_REPOSITORY, useClass: PrismaVocabularyItemRepository },
     { provide: CONTENT_RELATION_REPOSITORY, useClass: PrismaContentRelationRepository },
+    { provide: GRAMMAR_RULE_REPOSITORY, useClass: PrismaGrammarRuleRepository },
 
     // CQRS handlers
     ...CommandHandlers,

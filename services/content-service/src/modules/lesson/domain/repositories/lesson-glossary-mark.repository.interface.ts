@@ -13,4 +13,9 @@ export interface ILessonGlossaryMarkRepository {
    * occurrenceCount by 1 if the (variant, vocabularyItem) pair already exists.
    */
   upsertMark(variantId: string, vocabularyItemId: string): Promise<GlossaryMarkRow>;
+  /**
+   * Removes the mark entirely, whatever its occurrenceCount. Resolves silently
+   * when there is nothing to remove, so unmarking is idempotent.
+   */
+  deleteMark(variantId: string, vocabularyItemId: string): Promise<void>;
 }

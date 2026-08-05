@@ -3,7 +3,11 @@ import { Inject } from '@nestjs/common';
 import { GetAssetQuery, type GetAssetResult, type AssetVariantView } from './get-asset.query.js';
 import { MEDIA_ASSET_REPOSITORY } from '../../../domain/repositories/media-asset.repository.interface.js';
 import type { IMediaAssetRepository } from '../../../domain/repositories/media-asset.repository.interface.js';
-import { STORAGE_SERVICE, isPublicEntityType } from '../../../../../shared/application/ports/storage.port.js';
+import {
+  STORAGE_SERVICE,
+  isContentEntityType,
+  isPublicEntityType,
+} from '../../../../../shared/application/ports/storage.port.js';
 import type { IStorageService } from '../../../../../shared/application/ports/storage.port.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import { Result } from '../../../../../shared/kernel/result.js';
@@ -19,8 +23,12 @@ export class GetAssetHandler implements IQueryHandler<GetAssetQuery, GetAssetRes
   ) {}
 
   async execute(query: GetAssetQuery): Promise<GetAssetResult> {
-    const asset = await this.assetRepo.findByIdAndOwner(query.assetId, query.requesterId);
+    const asset = await this.assetRepo.findById(query.assetId);
     if (!asset || asset.isDeleted) return Result.fail('ASSET_NOT_FOUND');
+
+    const isOwner = asset.ownerId === query.requesterId;
+    const isReadableContent = isContentEntityType(asset.entityType) && asset.isReady;
+    if (!isOwner && !isReadableContent) return Result.fail('ASSET_NOT_FOUND');
 
     const isPublic = isPublicEntityType(asset.entityType);
     const url = isPublic

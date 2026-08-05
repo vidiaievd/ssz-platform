@@ -23,10 +23,6 @@ export class UpdateGrammarRuleHandler implements ICommandHandler<
     if (!rule) {
       return Result.fail(GrammarRuleDomainError.GRAMMAR_RULE_NOT_FOUND);
     }
-    if (rule.ownerUserId !== command.userId) {
-      return Result.fail(GrammarRuleDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const updateResult = rule.update({
       title: command.title,
       description: command.description,

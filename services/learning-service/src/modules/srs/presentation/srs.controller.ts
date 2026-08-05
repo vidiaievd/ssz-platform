@@ -35,7 +35,13 @@ import { UnsuspendCardCommand } from '../application/commands/unsuspend-card.com
 import { GetDueCardsQuery } from '../application/queries/get-due-cards.query.js';
 import { GetCardByIdQuery } from '../application/queries/get-card-by-id.query.js';
 import { GetUserSrsStatsQuery } from '../application/queries/get-user-srs-stats.query.js';
-import type { ReviewCardDto, SrsStatsDto, DueCardsEnvelope } from '../application/dto/srs.dto.js';
+import { GetCardStatesQuery } from '../application/queries/get-card-states.query.js';
+import type {
+  ReviewCardDto,
+  SrsStatsDto,
+  DueCardsEnvelope,
+  CardStatesEnvelope,
+} from '../application/dto/srs.dto.js';
 import {
   SrsCardNotFoundError,
   SrsCardUnauthorizedError,
@@ -51,6 +57,11 @@ import {
   BulkIntroduceRequest,
 } from './dto/review-card.request.js';
 import { ReviewCardResponse, SrsStatsResponse, BulkIntroduceResponse } from './dto/srs.response.js';
+import {
+  CARD_STATES_MAX_IDS,
+  CardStatesResponse,
+  GetCardStatesRequest,
+} from './dto/card-states.dto.js';
 import { ApplyPlacementCommand } from '../application/commands/apply-placement/apply-placement.command.js';
 import type { ApplyPlacementResult } from '../application/commands/apply-placement/apply-placement.handler.js';
 
@@ -71,15 +82,26 @@ export class SrsController {
     description:
       'Returns up to `limit` cards due at or before now, ordered by dueAt ascending, plus ' +
       '`reviewedToday`, `dailyLimit`, and `streakDays` for the UI progress ring. ' +
-      'Backed by a Redis sorted-set cache; falls back to DB on cache miss.',
+      'Backed by a Redis sorted-set cache; falls back to DB on cache miss. ' +
+      'VOCABULARY_WORD cards come with their word content resolved (`front`/`back`); ' +
+      'EXERCISE cards do not — the exercise runner fetches those separately.',
   })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'language', required: false, type: String, example: 'ru' })
+  @ApiQuery({ name: 'includeExamples', required: false, type: Boolean, example: true })
   @ApiResponse({ status: 200 })
   async getDueCards(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: GetDueCardsRequest,
   ): Promise<DueCardsEnvelope> {
-    return this.queryBus.execute(new GetDueCardsQuery(user.userId, query.limit ?? 20));
+    return this.queryBus.execute(
+      new GetDueCardsQuery(
+        user.userId,
+        query.limit ?? 20,
+        query.language ?? 'en',
+        query.includeExamples ?? false,
+      ),
+    );
   }
 
   // ─── Stats ────────────────────────────────────────────────────────────────────
@@ -89,6 +111,32 @@ export class SrsController {
   @ApiResponse({ status: 200, type: SrsStatsResponse })
   async getMyStats(@CurrentUser() user: AuthenticatedUser): Promise<SrsStatsResponse> {
     return this.queryBus.execute(new GetUserSrsStatsQuery(user.userId));
+  }
+
+  // ─── Bulk card states ─────────────────────────────────────────────────────────
+
+  @Post('cards/states')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Get SRS card states for a list of content ids',
+    description:
+      'Returns the current user’s card state, stability and due date for each requested ' +
+      'content id. POST rather than GET because the id list can cover a whole unit’s ' +
+      'glossary. Content ids the user has no card for are omitted from the response — ' +
+      'treat them as NEW. Reads only; introducing a card is a separate call.',
+  })
+  @ApiResponse({ status: 200, type: CardStatesResponse })
+  @ApiResponse({
+    status: 400,
+    description: `More than ${CARD_STATES_MAX_IDS} content ids, or a non-UUID id`,
+  })
+  async getCardStates(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: GetCardStatesRequest,
+  ): Promise<CardStatesEnvelope> {
+    return this.queryBus.execute(
+      new GetCardStatesQuery(user.userId, body.contentType, body.contentIds),
+    );
   }
 
   // ─── Card actions ─────────────────────────────────────────────────────────────
@@ -114,7 +162,8 @@ export class SrsController {
     summary: 'Submit a review rating for a card',
     description:
       'Applies the FSRS algorithm, updates the card state, and returns the rescheduled card. ' +
-      'Counts against the daily review cap (SRS_DAILY_REVIEWS_LIMIT).',
+      'Counts against the daily review cap (SRS_DAILY_REVIEWS_LIMIT). ' +
+      'Pass `idempotencyKey` to make a replayed submission return the card unchanged.',
   })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiResponse({ status: 200, type: ReviewCardResponse })
@@ -133,6 +182,7 @@ export class SrsController {
         id,
         body.rating,
         body.reviewedAt ? new Date(body.reviewedAt) : undefined,
+        body.idempotencyKey,
       ),
     );
     return this.unwrap(result);

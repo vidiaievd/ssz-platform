@@ -26,6 +26,7 @@ import { ArchiveContainerHandler } from './application/commands/archive-containe
 import { RestoreContainerHandler } from './application/commands/restore-container/restore-container.handler.js';
 import { UnpublishVersionHandler } from './application/commands/unpublish-version/unpublish-version.handler.js';
 import { PublishVersionHandler } from './application/commands/publish-version/publish-version.handler.js';
+import { RollbackToVersionHandler } from './application/commands/rollback-to-version/rollback-to-version.handler.js';
 import { CreateDraftFromPublishedHandler } from './application/commands/create-draft-from-published/create-draft-from-published.handler.js';
 import { CancelDraftHandler } from './application/commands/cancel-draft/cancel-draft.handler.js';
 import { ArchiveVersionHandler } from './application/commands/archive-version/archive-version.handler.js';
@@ -50,6 +51,8 @@ import { GetContainerVersionHandler } from './application/queries/get-container-
 import { GetVersionItemsHandler } from './application/queries/get-version-items/get-version-items.handler.js';
 import { GetVersionSectionsHandler } from './application/queries/get-version-sections/get-version-sections.handler.js';
 import { GetCurriculumTreeHandler } from './application/queries/get-curriculum-tree/get-curriculum-tree.handler.js';
+import { GetPublishStatesHandler } from './application/queries/get-publish-states/get-publish-states.handler.js';
+import { PublishStateReader } from './application/services/publish-state.reader.js';
 
 // Controllers
 import { ContainerController } from './presentation/controllers/container.controller.js';
@@ -65,6 +68,7 @@ const CommandHandlers = [
   RestoreContainerHandler,
   UnpublishVersionHandler,
   PublishVersionHandler,
+  RollbackToVersionHandler,
   CreateDraftFromPublishedHandler,
   CancelDraftHandler,
   ArchiveVersionHandler,
@@ -90,6 +94,7 @@ const QueryHandlers = [
   GetVersionItemsHandler,
   GetVersionSectionsHandler,
   GetCurriculumTreeHandler,
+  GetPublishStatesHandler,
 ];
 
 @Module({
@@ -107,6 +112,9 @@ const QueryHandlers = [
     { provide: CONTAINER_ITEM_REPOSITORY, useClass: PrismaContainerItemRepository },
     { provide: CONTAINER_LOCALIZATION_REPOSITORY, useClass: PrismaContainerLocalizationRepository },
     { provide: CONTAINER_SECTION_REPOSITORY, useClass: PrismaContainerSectionRepository },
+
+    // Read-model services
+    PublishStateReader,
 
     // CQRS handlers
     ...CommandHandlers,

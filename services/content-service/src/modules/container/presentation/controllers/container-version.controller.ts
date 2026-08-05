@@ -28,6 +28,7 @@ import { CurrentUser } from '../../../../common/decorators/current-user.decorato
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { PublishVersionCommand } from '../../application/commands/publish-version/publish-version.command.js';
+import { RollbackToVersionCommand } from '../../application/commands/rollback-to-version/rollback-to-version.command.js';
 import { CancelDraftCommand } from '../../application/commands/cancel-draft/cancel-draft.command.js';
 import { ArchiveVersionCommand } from '../../application/commands/archive-version/archive-version.command.js';
 import { GetContainerVersionsQuery } from '../../application/queries/get-container-versions/get-container-versions.query.js';
@@ -126,7 +127,28 @@ export class ContainerVersionController {
     const result = await this.commandBus.execute<
       PublishVersionCommand,
       Result<{ versionId: string }, ContainerDomainError>
-    >(new PublishVersionCommand(user.userId, versionId, dto.deprecationDays));
+    >(new PublishVersionCommand(user.userId, versionId, dto.deprecationDays, dto.changelog));
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value;
+  }
+
+  @Post(':versionId/rollback')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
+  @ApiOperation({
+    summary: 'Put a deprecated version back on air, deprecating the currently published one',
+  })
+  @ApiCreatedResponse({ description: 'Version is live again' })
+  async rollback(
+    @Param('containerId') containerId: string,
+    @Param('versionId') versionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ versionId: string }> {
+    const result = await this.commandBus.execute<
+      RollbackToVersionCommand,
+      Result<{ versionId: string }, ContainerDomainError>
+    >(new RollbackToVersionCommand(user.userId, containerId, versionId));
 
     if (result.isFail) throwHttpException(result.error);
     return result.value;

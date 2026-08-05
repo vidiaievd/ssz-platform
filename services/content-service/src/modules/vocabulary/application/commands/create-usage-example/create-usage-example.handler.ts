@@ -49,10 +49,6 @@ export class CreateUsageExampleHandler implements ICommandHandler<
       return Result.fail(VocabularyDomainError.LIST_NOT_FOUND);
     }
 
-    if (list.ownerUserId !== command.userId) {
-      return Result.fail(VocabularyDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     if (command.exampleText.trim().length === 0) {
       return Result.fail(VocabularyDomainError.EMPTY_EXAMPLE_TEXT);
     }

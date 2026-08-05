@@ -40,10 +40,6 @@ export class ReorderSectionsHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const existingSections = await this.sectionRepo.findByVersionId(command.versionId);
     const existingIds = new Set(existingSections.map((s) => s.id));
 

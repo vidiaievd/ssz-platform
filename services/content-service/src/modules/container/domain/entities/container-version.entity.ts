@@ -134,12 +134,23 @@ export class ContainerVersionEntity extends Entity<string> {
     return Result.ok();
   }
 
+  /**
+   * Takes the version off air. It becomes deprecated, not a draft: it *was*
+   * live and no longer is, which is what deprecated means — and a container
+   * normally already holds a draft, so handing it a second one broke the
+   * "exactly one draft" invariant the editor relies on to resolve where writes
+   * go. Getting it back is a rollback.
+   *
+   * No sunset date: nothing superseded it, and it stays restorable.
+   */
   unpublish(): Result<void, ContainerDomainError> {
     if (this.props.status !== VersionStatus.PUBLISHED) {
       return Result.fail(ContainerDomainError.VERSION_NOT_IN_PUBLISHED_STATUS);
     }
 
-    this.props.status = VersionStatus.DRAFT;
+    this.props.status = VersionStatus.DEPRECATED;
+    this.props.deprecatedAt = new Date();
+    this.props.sunsetAt = null;
 
     return Result.ok();
   }

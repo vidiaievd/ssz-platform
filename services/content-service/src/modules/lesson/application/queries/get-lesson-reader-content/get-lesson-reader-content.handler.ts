@@ -156,7 +156,9 @@ export class GetLessonReaderContentHandler implements IQueryHandler<
         ? this.resolveParagraphs(variant.id, variant.bodyMarkdown)
         : Promise.resolve(null),
       lesson.kind === LessonKind.VIDEO ? this.resolveCues(variant.id) : Promise.resolve(null),
-      lesson.kind === LessonKind.AUDIO
+      // TEXT variants may stage a post-reading comprehension check on the same
+      // model (spec 17 §3) — the field keeps its name for the contract's sake.
+      lesson.kind === LessonKind.AUDIO || lesson.kind === LessonKind.TEXT
         ? this.resolveListeningStages(variant.id)
         : Promise.resolve(null),
     ]);

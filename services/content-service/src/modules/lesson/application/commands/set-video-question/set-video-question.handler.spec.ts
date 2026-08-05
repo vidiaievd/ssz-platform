@@ -168,18 +168,4 @@ describe('SetVideoQuestionHandler', () => {
     expect(result.error).toBe(LessonDomainError.VARIANT_NOT_FOUND);
     expect(questionRepo.upsertForVariant).not.toHaveBeenCalled();
   });
-
-  it('rejects when the caller does not own the lesson', async () => {
-    const lesson = makeLesson(LessonKind.VIDEO);
-    const variant = makeVariant(lesson.id);
-    const { handler, questionRepo } = makeHandler({ lesson, variant });
-
-    const result = await handler.execute(
-      new SetVideoQuestionCommand('someone-else', variant.id, EXERCISE_ID),
-    );
-
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBe(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    expect(questionRepo.upsertForVariant).not.toHaveBeenCalled();
-  });
 });

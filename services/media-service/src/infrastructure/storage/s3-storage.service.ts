@@ -9,6 +9,12 @@ import type {
   PresignedUploadResult,
 } from '../../shared/application/ports/storage.port.js';
 
+// MinIO's default region. Fixing it on the clients skips minio-js's
+// getBucketRegionAsync() network round-trip — required for presignClient,
+// which is deliberately configured with a host that may not be reachable
+// from inside the container (it only ever signs URLs, never connects).
+const MINIO_REGION = 'us-east-1';
+
 // Public bucket policy — allows anonymous GET on all objects.
 const publicReadPolicy = (bucket: string) =>
   JSON.stringify({
@@ -27,12 +33,14 @@ const publicReadPolicy = (bucket: string) =>
 export class S3StorageService implements IStorageService, OnModuleInit {
   private readonly logger = new Logger(S3StorageService.name);
   private readonly client: Client;
+  // Separate client used only to sign presigned URLs. SigV4 signs the Host
+  // header, so URLs handed to the browser must be signed with the external
+  // (browser-reachable) host/port — signing with the internal Docker
+  // hostname and rewriting the host afterwards invalidates the signature.
+  private readonly presignClient: Client;
   private readonly bucketPublic: string;
   private readonly bucketPrivate: string;
   private readonly publicBaseUrl: string;
-  // External origin to substitute into presigned URLs so browsers can reach MinIO.
-  // Undefined means no substitution (internal endpoint is already reachable).
-  private readonly externalOrigin: string | undefined;
 
   constructor(private readonly config: ConfigService<AppConfig>) {
     const minio = this.config.get<AppConfig['minio']>('minio')!;
@@ -43,6 +51,7 @@ export class S3StorageService implements IStorageService, OnModuleInit {
       useSSL: minio.useSsl,
       accessKey: minio.accessKey,
       secretKey: minio.secretKey,
+      region: MINIO_REGION,
     });
 
     this.bucketPublic = minio.bucketPublic;
@@ -51,12 +60,21 @@ export class S3StorageService implements IStorageService, OnModuleInit {
     if (minio.publicBaseUrl) {
       // Strip trailing slash for consistent concatenation.
       const base = minio.publicBaseUrl.replace(/\/$/, '');
-      this.externalOrigin = base;
       this.publicBaseUrl = `${base}/${minio.bucketPublic}`;
+
+      const external = new URL(base);
+      this.presignClient = new Client({
+        endPoint: external.hostname,
+        port: external.port ? Number(external.port) : external.protocol === 'https:' ? 443 : 80,
+        useSSL: external.protocol === 'https:',
+        accessKey: minio.accessKey,
+        secretKey: minio.secretKey,
+        region: MINIO_REGION,
+      });
     } else {
-      this.externalOrigin = undefined;
       const protocol = minio.useSsl ? 'https' : 'http';
       this.publicBaseUrl = `${protocol}://${minio.endpoint}:${minio.port}/${minio.bucketPublic}`;
+      this.presignClient = this.client;
     }
   }
 
@@ -81,8 +99,7 @@ export class S3StorageService implements IStorageService, OnModuleInit {
     ttlSeconds: number,
   ): Promise<PresignedUploadResult> {
     const bucket = this.bucket(isPublic);
-    const raw = await this.client.presignedPutObject(bucket, key, ttlSeconds);
-    const uploadUrl = this.rewriteToExternalOrigin(raw);
+    const uploadUrl = await this.presignClient.presignedPutObject(bucket, key, ttlSeconds);
     const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
 
     this.logger.debug(`Generated upload URL for key "${key}" in bucket "${bucket}"`);
@@ -90,8 +107,7 @@ export class S3StorageService implements IStorageService, OnModuleInit {
   }
 
   async generatePresignedDownloadUrl(key: string, ttlSeconds: number): Promise<string> {
-    const raw = await this.client.presignedGetObject(this.bucketPrivate, key, ttlSeconds);
-    const url = this.rewriteToExternalOrigin(raw);
+    const url = await this.presignClient.presignedGetObject(this.bucketPrivate, key, ttlSeconds);
     this.logger.debug(`Generated download URL for key "${key}"`);
     return url;
   }
@@ -146,18 +162,6 @@ export class S3StorageService implements IStorageService, OnModuleInit {
 
   private bucket(isPublic: boolean): string {
     return isPublic ? this.bucketPublic : this.bucketPrivate;
-  }
-
-  // Replaces the internal MinIO origin in a presigned URL with the external one
-  // so browsers outside Docker can reach MinIO directly.
-  private rewriteToExternalOrigin(url: string): string {
-    if (!this.externalOrigin) return url;
-    const parsed = new URL(url);
-    const external = new URL(this.externalOrigin);
-    parsed.protocol = external.protocol;
-    parsed.hostname = external.hostname;
-    parsed.port = external.port;
-    return parsed.toString();
   }
 
   private async ensureBucket(name: string, isPublic: boolean): Promise<void> {

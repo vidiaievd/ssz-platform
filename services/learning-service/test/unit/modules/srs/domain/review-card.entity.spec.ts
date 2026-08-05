@@ -187,4 +187,24 @@ describe('ReviewCard', () => {
       expect(card.getDomainEvents()).toHaveLength(0); // reconstitute emits nothing
     });
   });
+
+  describe('createSeeded', () => {
+    it('starts in REVIEW with the seed stamped as the last review', () => {
+      const card = ReviewCard.createSeeded(USER_ID, 'VOCABULARY_WORD', CONTENT_ID, 'CLAIMED_KNOWN', NOW);
+
+      expect(card.state).toBe('REVIEW');
+      expect(card.stability).toBe(14);
+      expect(card.reps).toBe(0);
+      // Without this anchor FSRS has no elapsed time to measure the curve from.
+      expect(card.lastReviewedAt).toEqual(NOW);
+    });
+
+    it('gives a diagnostic seed a further-out due date than a self-declared one', () => {
+      const claimed = ReviewCard.createSeeded(USER_ID, 'VOCABULARY_WORD', CONTENT_ID, 'CLAIMED_KNOWN', NOW);
+      const diagnostic = ReviewCard.createSeeded(USER_ID, 'VOCABULARY_WORD', CONTENT_ID, 'DIAGNOSTIC_KNOWN', NOW);
+
+      expect(diagnostic.dueAt.getTime()).toBeGreaterThan(claimed.dueAt.getTime());
+      expect(diagnostic.lastReviewedAt).toEqual(NOW);
+    });
+  });
 });

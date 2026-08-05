@@ -25,10 +25,6 @@ export class DeleteGrammarRuleHandler implements ICommandHandler<
     if (!rule) {
       return Result.fail(GrammarRuleDomainError.GRAMMAR_RULE_NOT_FOUND);
     }
-    if (rule.ownerUserId !== command.userId) {
-      return Result.fail(GrammarRuleDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const hasRefs = await this.ruleRepo.hasPublishedContainerReferences(command.ruleId);
     if (hasRefs) {
       return Result.fail(GrammarRuleDomainError.RULE_HAS_PUBLISHED_CONTAINER_REFERENCES);

@@ -234,7 +234,61 @@ describe('GetLessonReaderContentHandler', () => {
       },
     ]);
     expect(result.value.cues).toBeNull();
-    expect(result.value.listeningStages).toBeNull();
+    // TEXT variants may stage a post-reading check, so the field is an empty
+    // list rather than null when none has been authored (spec 17 §3.3).
+    expect(result.value.listeningStages).toEqual([]);
+  });
+
+  it('resolves post-reading stage exercises for a TEXT lesson', async () => {
+    const lesson = makeLesson(LessonKind.TEXT);
+    const stage = LessonListeningStageEntity.create(
+      {
+        lessonContentVariantId: VARIANT_ID,
+        exerciseId: 'exercise-2',
+        position: 0,
+        stageType: ListeningStageType.COMPREHENSION,
+      },
+      'stage-2',
+    );
+    if (stage.isFail) throw new Error('unexpected fixture failure');
+
+    const exercise = ExerciseEntity.reconstitute('exercise-2', {
+      exerciseTemplateId: 'template-2',
+      templateCode: 'multiple_choice_v1',
+      targetLanguage: 'no',
+      difficultyLevel: DifficultyLevel.A1,
+      content: { question: 'Hvor bor hun?', options: [] },
+      expectedAnswers: { correct_option_ids: ['a'] },
+      answerCheckSettings: null,
+      ownerUserId: OWNER_ID,
+      ownerSchoolId: null,
+      visibility: Visibility.PUBLIC,
+      estimatedDurationSeconds: 30,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      instructions: [],
+    });
+
+    const { handler } = makeDeps({ lesson, listeningStages: [stage.value], exercise });
+
+    const result = await handler.execute(makeQuery());
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.listeningStages).toEqual([
+      {
+        position: 0,
+        stageType: ListeningStageType.COMPREHENSION,
+        exercise: {
+          id: 'exercise-2',
+          templateCode: 'multiple_choice_v1',
+          content: { question: 'Hvor bor hun?', options: [] },
+          instructions: [],
+        },
+      },
+    ]);
+    // The reading itself is untouched by the check.
+    expect(result.value.paragraphs).not.toBeNull();
   });
 
   it('resolves listening stage exercises for an AUDIO lesson', async () => {

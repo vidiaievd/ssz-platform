@@ -112,6 +112,14 @@ enum ListeningStageType {
   @@map("listening_stage_type")
 }
 
+enum LessonSpanKind {
+  VOCAB   @map("vocab")
+  GRAMMAR @map("grammar")
+  CHUNK   @map("chunk")
+
+  @@map("lesson_span_kind")
+}
+
 enum MediaRefType {
   IMAGE @map("image")
   AUDIO @map("audio")
@@ -361,6 +369,7 @@ model LessonContentVariant {
   listeningStages       LessonListeningStage[]
   paragraphTranslations LessonParagraphTranslation[]
   glossaryMarks         LessonVariantGlossaryMark[]
+  textSpans             LessonTextSpan[]
 
   @@unique([lessonId, explanationLanguage, minLevel, maxLevel])
   @@index([lessonId])
@@ -405,9 +414,15 @@ model LessonVideoCue {
   @@map("lesson_video_cues")
 }
 
-// Ordered gap-fill/comprehension activities staged after an AUDIO-kind lesson's
-// transcript. References Exercise by FK so grading reuses exercise-engine;
-// ordering and staging are kept local to the lesson rather than in the generic
+// Ordered gap-fill/comprehension activities staged after a lesson variant's
+// primary content: the transcript of an AUDIO lesson, the body of a TEXT one
+// (spec 17). Nothing here is medium-specific — kind lives on Lesson, and the
+// AUDIO-or-TEXT rule is enforced in SetListeningStagesHandler — so the model
+// keeps its original name rather than breaking the reader-content field
+// `listeningStages` that VoxOrd consumes.
+//
+// References Exercise by FK so grading reuses exercise-engine; ordering and
+// staging are kept local to the lesson rather than in the generic
 // ContentRelation graph, which has no position column and one-row-per-pair
 // uniqueness that cannot express an ordered sequence.
 model LessonListeningStage {
@@ -490,6 +505,51 @@ model LessonVariantGlossaryMark {
   @@index([lessonContentVariantId])
   @@index([vocabularyItemId])
   @@map("lesson_variant_glossary_marks")
+}
+
+// Positional author annotation over a TEXT lesson variant's body — the model
+// behind lexis/grammar/chunk highlighting in the reader (spec 16).
+//
+// Offsets are UTF-16 indices into the raw markdown of paragraph `paragraph_index`
+// as split by MarkdownParagraphSplitterService — the same numbering that keys
+// LessonParagraphTranslation, so a variant has one paragraph numbering, not two.
+// They are validated in application code only: Postgres substring() counts code
+// points, JavaScript counts UTF-16 units, and the clients are all JavaScript.
+//
+// text_snapshot is what the author selected at creation time. Offsets rot the
+// moment the body is edited, so a span whose snapshot no longer matches the body
+// is "broken": computed on read (never stored — a flag would need invalidating
+// on every body edit), withheld from the reader, and surfaced to the author for
+// re-anchoring.
+//
+// ref_id is polymorphic by kind (VOCAB -> vocabulary_items.id, GRAMMAR ->
+// grammar_rules.id, CHUNK -> NULL) and therefore carries no FK, mirroring
+// ContentRelation. An unresolvable ref_id is also treated as broken at read
+// time, so an orphan can never render.
+model LessonTextSpan {
+  id                     String         @id @default(uuid()) @db.Uuid
+  lessonContentVariantId String         @map("lesson_content_variant_id") @db.Uuid
+  paragraphIndex         Int            @map("paragraph_index")
+  charStart              Int            @map("char_start")
+  charEnd                Int            @map("char_end")
+  kind                   LessonSpanKind
+  refId                  String?        @map("ref_id") @db.Uuid
+  textSnapshot           String         @map("text_snapshot") @db.VarChar(400)
+  note                   String?        @db.VarChar(500)
+  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId        String         @map("created_by_user_id") @db.Uuid
+
+  // CHECK constraints (raw SQL, in the same migration):
+  //   char_start >= 0 AND char_end > char_start
+  //   paragraph_index >= 0
+  //   (kind = 'chunk') = (ref_id IS NULL)
+  variant LessonContentVariant @relation(fields: [lessonContentVariantId], references: [id], onDelete: Cascade)
+
+  @@index([lessonContentVariantId])
+  @@index([lessonContentVariantId, paragraphIndex])
+  @@index([refId])
+  @@map("lesson_text_spans")
 }
 
 // ─── Block 3: Vocabulary ──────────────────────────────────────────────────────

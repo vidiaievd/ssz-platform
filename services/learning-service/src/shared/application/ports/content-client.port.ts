@@ -161,6 +161,40 @@ export interface IContentClient {
   getModuleReaderStructure(
     moduleId: string,
   ): Promise<Result<ModuleReaderStructureRef, ContentClientError>>;
+
+  // Batch-fetch vocabulary items resolved for display (translation-fallback
+  // applied server-side). Used to enrich VOCABULARY_WORD review cards, which
+  // carry only the item id, with the word text a trainer needs to render.
+  getVocabularyItemsForDisplay(
+    itemIds: string[],
+    translationLanguage: string,
+    options?: { includeExamples?: boolean; examplesLimit?: number },
+  ): Promise<Result<VocabularyItemDisplayRef[], ContentClientError>>;
+}
+
+// Mirrors content-service's VocabularyItemDisplayResult over the wire.
+export interface VocabularyItemDisplayRef {
+  itemId: string;
+  listId: string;
+  word: string;
+  partOfSpeech: string | null;
+  ipaTranscription: string | null;
+  pronunciationAudioMediaId: string | null;
+  translation: {
+    language: string;
+    primaryTranslation: string;
+    alternativeTranslations: string[];
+    definition: string | null;
+    usageNotes: string | null;
+    fallbackUsed: boolean;
+  } | null;
+  immersionMode: boolean;
+  examples: Array<{
+    id: string;
+    exampleText: string;
+    audioMediaId: string | null;
+    translation: { translatedText: string } | null;
+  }>;
 }
 
 export interface CanDoDescriptorRef {

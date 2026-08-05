@@ -14,6 +14,7 @@ import type {
   RelatableEntityType,
   RelationKind,
   VisibilityResult,
+  VocabularyItemDisplayRef,
 } from '../../shared/application/ports/content-client.port.js';
 import { ContentClientError } from '../../shared/application/ports/content-client.port.js';
 import { Result } from '../../shared/kernel/result.js';
@@ -233,6 +234,30 @@ export class ContentClient implements IContentClient {
       return Result.ok(data.map((item) => item.id));
     } catch (err) {
       return this.mapError(err, `getVocabularyListItems(${listId})`);
+    }
+  }
+
+  async getVocabularyItemsForDisplay(
+    itemIds: string[],
+    translationLanguage: string,
+    options?: { includeExamples?: boolean; examplesLimit?: number },
+  ): Promise<Result<VocabularyItemDisplayRef[], ContentClientError>> {
+    if (itemIds.length === 0) return Result.ok([]);
+
+    try {
+      const { data } = await this.http.post<VocabularyItemDisplayRef[]>(
+        '/vocabulary-items/batch-display',
+        {
+          vocabularyItemIds: itemIds,
+          translationLanguage,
+          includeExamples: options?.includeExamples ?? false,
+          examplesLimit: options?.examplesLimit ?? 3,
+          studentKnownLanguages: [translationLanguage],
+        },
+      );
+      return Result.ok(data);
+    } catch (err) {
+      return this.mapError(err, `getVocabularyItemsForDisplay(${itemIds.length} ids)`);
     }
   }
 

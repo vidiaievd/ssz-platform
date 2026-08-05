@@ -35,10 +35,6 @@ export class CreateVocabularyItemHandler implements ICommandHandler<
       return Result.fail(VocabularyDomainError.LIST_NOT_FOUND);
     }
 
-    if (list.ownerUserId !== command.userId) {
-      return Result.fail(VocabularyDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     if (command.grammaticalProperties !== undefined) {
       const grammarResult = this.grammarValidator.validate(
         list.targetLanguage,

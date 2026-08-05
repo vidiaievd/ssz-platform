@@ -1,4 +1,15 @@
-import { BadRequestException, Controller, Get, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
@@ -28,15 +39,28 @@ import type { ExpandedModulePayload } from '../../application/queries/get-expand
 
 import { GetVocabularyItemForDisplayQuery } from '../../../vocabulary/application/queries/get-vocabulary-item-for-display/get-vocabulary-item-for-display.query.js';
 import type { VocabularyItemDisplayResult } from '../../../vocabulary/application/dto/vocabulary-item-display-result.js';
+import { BatchGetVocabularyItemsForDisplayQuery } from '../../../vocabulary/application/queries/batch-get-vocabulary-items-for-display/batch-get-vocabulary-items-for-display.query.js';
+import { BatchGetVocabularyItemsForDisplayRequestDto } from '../../../vocabulary/presentation/dto/requests/batch-get-vocabulary-items-for-display.request.dto.js';
+import { GetVocabularyListQuery } from '../../../vocabulary/application/queries/get-vocabulary-list/get-vocabulary-list.query.js';
+import { GetVocabularyListItemsQuery } from '../../../vocabulary/application/queries/get-vocabulary-list-items/get-vocabulary-list-items.query.js';
+import { VocabularyListResponseDto } from '../../../vocabulary/presentation/dto/responses/vocabulary-list.response.dto.js';
+import type { VocabularyListEntity } from '../../../vocabulary/domain/entities/vocabulary-list.entity.js';
+import type { VocabularyItemEntity } from '../../../vocabulary/domain/entities/vocabulary-item.entity.js';
+import type { PaginatedResult } from '../../../../shared/kernel/pagination.js';
 
 import { GetGlossarySuggestionsQuery } from '../../application/queries/get-glossary-suggestions/get-glossary-suggestions.query.js';
 import type { GlossarySuggestion } from '../../application/queries/get-glossary-suggestions/get-glossary-suggestions.handler.js';
 
 import { GetPreflightQuery } from '../../application/queries/get-preflight/get-preflight.query.js';
+import { GetPublishStatesQuery } from '../../../container/application/queries/get-publish-states/get-publish-states.query.js';
+import type { ContainerPublishSummary } from '../../../container/application/queries/get-publish-states/get-publish-states.handler.js';
 import type { PreflightResult } from '../../application/queries/get-preflight/get-preflight.handler.js';
 
 import { GetLeafItemsQuery } from '../../../container/application/queries/get-leaf-items/get-leaf-items.query.js';
 import type { LeafItem } from '../../../container/application/queries/get-leaf-items/get-leaf-items.handler.js';
+import { GetContainerQuery } from '../../../container/application/queries/get-container/get-container.query.js';
+import type { GetContainerResult } from '../../../container/application/queries/get-container/get-container.handler.js';
+import type { ContainerDomainError } from '../../../container/domain/exceptions/container-domain.exceptions.js';
 
 import { GetModuleReaderStructureQuery } from '../../application/queries/get-module-reader-structure/get-module-reader-structure.query.js';
 import type { ModuleReaderStructureResult } from '../../application/queries/get-module-reader-structure/get-module-reader-structure.handler.js';
@@ -45,6 +69,9 @@ import type { ModuleReaderStructureResult } from '../../application/queries/get-
 // JwtAuthGuard (APP_GUARD runs before any controller-level guard), and
 // InternalAuthGuard takes over instead, requiring x-internal-token. Excluded
 // from the public Swagger doc.
+/** Page size used when walking a vocabulary list's items internally. */
+const INTERNAL_ITEMS_PAGE_SIZE = 200;
+
 @ApiExcludeController()
 @Public()
 @UseGuards(InternalAuthGuard)
@@ -133,6 +160,72 @@ export class InternalController {
     return result.value;
   }
 
+  // Batch variant of the route above. Learning Service uses it to enrich a due
+  // SRS queue with word text in one round trip; the public equivalent is nested
+  // under a list id, which an SRS card (item id only) cannot supply.
+  @Post('vocabulary-items/batch-display')
+  @HttpCode(200)
+  async batchGetVocabularyItems(
+    @Body() dto: BatchGetVocabularyItemsForDisplayRequestDto,
+  ): Promise<VocabularyItemDisplayResult[]> {
+    const result = await this.queryBus.execute<
+      BatchGetVocabularyItemsForDisplayQuery,
+      Result<VocabularyItemDisplayResult[], unknown>
+    >(
+      new BatchGetVocabularyItemsForDisplayQuery(
+        dto.vocabularyItemIds,
+        dto.translationLanguage,
+        dto.includeExamples ?? false,
+        dto.examplesLimit ?? 3,
+        dto.examplesRandom ?? false,
+        dto.studentKnownLanguages ?? [],
+      ),
+    );
+
+    if (result.isFail) throw new BadRequestException('Failed to load vocabulary items');
+    return result.value;
+  }
+
+  // Learning Service reads list metadata for the auto-add-to-SRS flag
+  // (vocabulary-enrollment consumer) — the public route is JWT + visibility
+  // guarded, which service-to-service traffic cannot satisfy.
+  @Get('vocabulary-lists/:id')
+  async getVocabularyList(@Param('id') id: string): Promise<VocabularyListResponseDto> {
+    const result = await this.queryBus.execute<
+      GetVocabularyListQuery,
+      Result<VocabularyListEntity, unknown>
+    >(new GetVocabularyListQuery(id));
+
+    if (result.isFail) throw new NotFoundException(`Vocabulary list ${id} not found`);
+    return VocabularyListResponseDto.from(result.value);
+  }
+
+  // Every item id in the list, unpaginated: SRS seeding
+  // (BulkIntroduceFromVocabularyList) needs the whole list, not a page.
+  @Get('vocabulary-lists/:id/items')
+  async getVocabularyListItems(
+    @Param('id') id: string,
+  ): Promise<Array<{ id: string; word: string; position: number }>> {
+    const items: Array<{ id: string; word: string; position: number }> = [];
+
+    for (let page = 1; ; page++) {
+      const result = await this.queryBus.execute<
+        GetVocabularyListItemsQuery,
+        Result<PaginatedResult<VocabularyItemEntity>, unknown>
+      >(new GetVocabularyListItemsQuery(id, page, INTERNAL_ITEMS_PAGE_SIZE));
+
+      if (result.isFail) throw new NotFoundException(`Vocabulary list ${id} not found`);
+
+      for (const item of result.value.items) {
+        items.push({ id: item.id, word: item.word, position: item.position });
+      }
+
+      if (page >= result.value.totalPages || result.value.items.length === 0) break;
+    }
+
+    return items;
+  }
+
   @Get('can-do/descriptors')
   async getCanDoDescriptorsByIds(
     @Query('ids') ids?: string,
@@ -170,6 +263,37 @@ export class InternalController {
       moduleId: i.moduleId,
       isRequired: i.isRequired,
     }));
+  }
+
+  // Learning Service's EnrollInContainerHandler reads this before creating an
+  // enrollment (content-client.ts's getAccessTier); it compares the result
+  // against uppercase literals ('ASSIGNED_ONLY', 'FREE_WITHIN_SCHOOL', ...),
+  // so the domain's lowercase AccessTier enum value is upper-cased on the wire
+  // here rather than passed through raw.
+  @Get('containers/:id/access-tier')
+  async getContainerAccessTier(@Param('id') id: string): Promise<{ accessTier: string }> {
+    const result = await this.queryBus.execute<
+      GetContainerQuery,
+      Result<GetContainerResult, ContainerDomainError>
+    >(new GetContainerQuery(id, ''));
+
+    if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
+    return { accessTier: result.value.container.accessTier.toUpperCase() };
+  }
+
+  // The author's course list needs to tell "published" from "published, with
+  // changes students cannot see yet" — for a page of courses at once, and
+  // including modules, which are versioned independently of their course.
+  @Get('containers/publish-states')
+  async getPublishStates(@Query('ids') ids = ''): Promise<ContainerPublishSummary[]> {
+    const containerIds = ids
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+
+    return this.queryBus.execute<GetPublishStatesQuery, ContainerPublishSummary[]>(
+      new GetPublishStatesQuery(containerIds),
+    );
   }
 
   @Get('versions/:id/preflight')

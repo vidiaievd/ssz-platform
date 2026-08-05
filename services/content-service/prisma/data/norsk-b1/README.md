@@ -22,18 +22,56 @@ incrementally with no code change:
 
 ## Status
 **All 10 leksjoner fully authored.** 40 lesson texts, 10 grammar lessons, 29 vocab
-sections (462 words), 456 exercises — all validated against the live Ajv template
+sections (462 words), 442 exercises — all validated against the live Ajv template
 schemas extracted from `seed.ts` (0 invalid), no duplicate exercise keys.
 
-Per-template breakdown: fill_in_blank 155, short_answer 147, multiple_choice 127,
-match_pairs 11, writing_task 11, sentence_schema 5.
+Per-template breakdown: short_answer 147, fill_in_blank 140, multiple_choice 120,
+match_pairs 12, writing_task 11, sentence_schema 5, word_bank_fill 3,
+multiple_choice_group 2, text_order 1, error_correction 1.
 
 Every `fill_in_blank` exercise carries exactly one blank (`___1___`), matching what
 the web runner's `FillBody`/`FillSolver` support today (single-blank only, per
-2026-07-19 decision — see B1_kursplan.md and memory norsk-b1-course-plan). Leksjon 1's
-grammar module (`b1-g1-fib-*`) additionally carries the `fill_in_blank` rationale
-matrix (B1_kursplan.md §1.1) shipped 2026-07-19; leksjoner 2–10 don't use it yet — it
-can be added to any blank's `expectedAnswers.blanks[].rationale` incrementally.
+2026-07-19 decision — see B1_kursplan.md and memory norsk-b1-course-plan). The
+rationale matrix (B1_kursplan.md §1.1) is authored per blank under
+`expectedAnswers…blanks[].rationale`; so far only leksjon 1's grammar drill uses it,
+and it can be added to any other blank incrementally.
+
+### Block drills (`word_bank_fill`)
+
+Leksjon 1's grammar drill on `at` / `om` / question words was seeded as ten separate
+`b1-g1-fib-*` exercises — one printed workbook task cut into ten runner cards, each
+checked on its own. It is now a single `b1-g1-wbf-01` block: shared bank, ten
+sentences, one check, per-blank grading and per-blank rationale. Because the same
+bank word answers several blanks there, its content sets `reusable_words: true`,
+which turns off the player's "spent word" dimming.
+
+1A's vocabulary drill (`b1-1a-wbf-02`, formerly `b1-1a-fib-01…05`) is the same merge
+with the other presentation: its content sets `input_mode: "select"`, so each blank
+is a dropdown holding the whole bank instead of a strip of tappable chips above the
+sentences. Grading is identical — the flag only changes how a blank is answered.
+Chips suit a long drill where the bank is worth reading as a set; a dropdown suits a
+short one where hunting for the armed blank is busywork.
+
+`prisma/tools/merge-fill-runs.ts` performs this conversion. It merges only runs of
+neighbouring single-blank `fill_in_blank` exercises that agree on bank, instruction,
+hint and explanation; run it without `--write` first to see what it would do. It
+always emits chips mode — add `input_mode` by hand afterwards. 20 further runs across
+the course are eligible (5–6 exercises each) but are still unconverted — convert a
+group at a time so each can be checked in the player.
+
+### Question blocks (`multiple_choice_group`)
+
+The same argument applies to runs of `multiple_choice`: a printed Riktig/Galt table
+is one task, not four. 1A's `b1-1a-rg1…4` are now `b1-1a-mcg-01` — the four
+statements share one `content.options` pair, so the player lays them out as a table
+with a radio pair per row and checks the block once. `b1-1a-mean1…3` are now
+`b1-1a-mcg-02`, where each question carries its own `options` and the player stacks
+them as cards. Both shapes are the same template; the layout follows from where the
+options live. Per-question `expectedAnswers.items[].explanation` is shown next to
+the question it belongs to once the answers are unlocked.
+
+No conversion tool for these yet — the remaining `multiple_choice` runs in leksjoner
+2–10 are still one exercise per question.
 
 Exercise key scheme: text sub-lessons use `b1-{leksjon}{letter}-{type}-{n}` (e.g.
 `b1-3b-fib-02`); grammar-module exercises for leksjon 1 use `b1-g{subsection}-*`

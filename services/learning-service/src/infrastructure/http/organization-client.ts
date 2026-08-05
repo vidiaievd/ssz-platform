@@ -19,7 +19,7 @@ export class OrganizationClient implements IOrganizationClient {
     const token = config.get<string>('internalServiceToken' as any)!;
 
     this.http = axios.create({
-      baseURL: `${cfg.baseUrl}/internal`,
+      baseURL: `${cfg.baseUrl}/api/v1/internal`,
       timeout: cfg.timeoutMs,
       headers: {
         'x-internal-token': token,

@@ -45,6 +45,14 @@ export const envSchema = z.object({
   MAX_AUDIO_SIZE_BYTES: z.coerce.number().int().positive().default(100 * 1024 * 1024),  // 100 MB
   MAX_VIDEO_SIZE_BYTES: z.coerce.number().int().positive().default(500 * 1024 * 1024),  // 500 MB
 
+  // Piper TTS (pronunciation synthesis)
+  PIPER_URL: z.string().default('http://piper-tts:5000'),
+  PIPER_VOICE: z.string().default('no_NO-talesyntese-medium'),
+  PIPER_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
+  // A pronunciation is a word or a short phrase; anything longer is a misuse
+  // of the endpoint, not a vocabulary item.
+  TTS_MAX_TEXT_LENGTH: z.coerce.number().int().positive().default(120),
+
   // BullMQ
   QUEUE_IMAGE_PROCESSING: z.string().default('image-processing'),
   QUEUE_AUDIO_PROCESSING: z.string().default('audio-processing'),
@@ -109,6 +117,12 @@ export interface AppConfig {
     imageProcessing: string;
     audioProcessing: string;
   };
+  tts: {
+    piperUrl: string;
+    piperVoice: string;
+    piperTimeoutMs: number;
+    maxTextLength: number;
+  };
 }
 
 export default (): AppConfig => {
@@ -157,6 +171,12 @@ export default (): AppConfig => {
     queues: {
       imageProcessing: env.QUEUE_IMAGE_PROCESSING,
       audioProcessing: env.QUEUE_AUDIO_PROCESSING,
+    },
+    tts: {
+      piperUrl: env.PIPER_URL,
+      piperVoice: env.PIPER_VOICE,
+      piperTimeoutMs: env.PIPER_TIMEOUT_MS,
+      maxTextLength: env.TTS_MAX_TEXT_LENGTH,
     },
   };
 };

@@ -30,10 +30,6 @@ export class ReorderVocabularyItemsHandler implements ICommandHandler<
       return Result.fail(VocabularyDomainError.LIST_NOT_FOUND);
     }
 
-    if (list.ownerUserId !== command.userId) {
-      return Result.fail(VocabularyDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Fetch all non-deleted items for this list.
     const allItemsResult = await this.itemRepo.findByListId(command.listId, {
       page: 1,

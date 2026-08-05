@@ -937,9 +937,11 @@
     {
       "key": "l19-schema-helsetning",
       "template": "sentence_schema",
-      "instruction": "Разложите слова главного предложения по полям схемы (setningsskjema).",
+      "instruction": "Добавьте aldri и разместите слова главного предложения по полям схемы (setningsskjema).",
+      "hint": "Наречие aldri стоит в midtfelt — после спрягаемого глагола, перед вторым глаголом.",
       "content": {
         "sentence": "Lars har aldri likt Lotte.",
+        "source_sentence": "Lars har likt Lotte.",
         "schema_type": "main",
         "fields": [
           {
@@ -1019,15 +1021,16 @@
             ]
           }
         ]
-      },
-      "hint": "Forfelt = subjektet Lars; det finitte verbet «har» står på plass 2."
+      }
     },
     {
       "key": "l19-schema-leddsetning",
       "template": "sentence_schema",
-      "instruction": "Разложите придаточное предложение «at Oslo er en fin by» по полям схемы для leddsetning.",
+      "instruction": "Присоедините это предложение к «Jeg synes …» с помощью at и разместите придаточное по полям схемы.",
+      "hint": "Subjunksjon at открывает leddsetning; поля adverbial и второй verbal здесь остаются пустыми.",
       "content": {
         "sentence": "Jeg synes at Oslo er en fin by.",
+        "source_sentence": "Oslo er en fin by.",
         "schema_type": "subordinate",
         "fields": [
           {
@@ -1109,8 +1112,7 @@
             ]
           }
         ]
-      },
-      "hint": "I leddsetninger står subjunksjonen først, subjektet før verbalet."
+      }
     },
     {
       "key": "l19-writing-kontakt",

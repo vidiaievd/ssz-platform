@@ -136,7 +136,11 @@ export class ReviewCard extends AggregateRoot {
       0,
       0,
       0,
-      null,
+      // The seed acts as a pseudo-review: it asserts the memory exists right now,
+      // so the forgetting curve starts here. Leaving this null would put the card
+      // in REVIEW with no reference point, and FSRS cannot measure elapsed time
+      // from nothing (ts-fsrs >= 5.4.0 throws on it).
+      now,
       now,
       now,
     );

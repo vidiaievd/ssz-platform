@@ -109,8 +109,59 @@ describe('SetListeningStagesHandler', () => {
     expect(stageRepo.replaceForVariant).toHaveBeenCalledWith(variant.id, []);
   });
 
-  it('rejects when the variant belongs to a non-AUDIO lesson', async () => {
+  it('stages a post-reading check on a TEXT-kind lesson variant', async () => {
     const lesson = makeLesson(LessonKind.TEXT);
+    const variant = makeVariant(lesson.id);
+    const { handler, stageRepo } = makeHandler({ lesson, variant });
+
+    const result = await handler.execute(
+      new SetListeningStagesCommand(OWNER_ID, variant.id, [
+        { exerciseId: EXERCISE_ID, position: 0, stageType: ListeningStageType.COMPREHENSION },
+      ]),
+    );
+
+    expect(result.isOk).toBe(true);
+    expect(stageRepo.replaceForVariant).toHaveBeenCalledWith(
+      variant.id,
+      expect.arrayContaining([
+        expect.objectContaining({ position: 0, stageType: ListeningStageType.COMPREHENSION }),
+      ]),
+    );
+  });
+
+  it('stages a gap-fill on a TEXT-kind lesson variant', async () => {
+    const lesson = makeLesson(LessonKind.TEXT);
+    const variant = makeVariant(lesson.id);
+    const { handler, stageRepo } = makeHandler({ lesson, variant });
+
+    const result = await handler.execute(
+      new SetListeningStagesCommand(OWNER_ID, variant.id, [
+        { exerciseId: EXERCISE_ID, position: 0, stageType: ListeningStageType.GAP_FILL },
+      ]),
+    );
+
+    expect(result.isOk).toBe(true);
+    expect(stageRepo.replaceForVariant).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects when the variant belongs to a VIDEO lesson, which has its own question model', async () => {
+    const lesson = makeLesson(LessonKind.VIDEO);
+    const variant = makeVariant(lesson.id);
+    const { handler, stageRepo } = makeHandler({ lesson, variant });
+
+    const result = await handler.execute(
+      new SetListeningStagesCommand(OWNER_ID, variant.id, [
+        { exerciseId: EXERCISE_ID, position: 0, stageType: ListeningStageType.GAP_FILL },
+      ]),
+    );
+
+    expect(result.isFail).toBe(true);
+    expect(result.error).toBe(LessonDomainError.LESSON_KIND_MISMATCH);
+    expect(stageRepo.replaceForVariant).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the variant belongs to a LIVE lesson', async () => {
+    const lesson = makeLesson(LessonKind.LIVE);
     const variant = makeVariant(lesson.id);
     const { handler, stageRepo } = makeHandler({ lesson, variant });
 
@@ -187,20 +238,6 @@ describe('SetListeningStagesHandler', () => {
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(LessonDomainError.VARIANT_NOT_FOUND);
-    expect(stageRepo.replaceForVariant).not.toHaveBeenCalled();
-  });
-
-  it('rejects when the caller does not own the lesson', async () => {
-    const lesson = makeLesson(LessonKind.AUDIO);
-    const variant = makeVariant(lesson.id);
-    const { handler, stageRepo } = makeHandler({ lesson, variant });
-
-    const result = await handler.execute(
-      new SetListeningStagesCommand('someone-else', variant.id, []),
-    );
-
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBe(LessonDomainError.INSUFFICIENT_PERMISSIONS);
     expect(stageRepo.replaceForVariant).not.toHaveBeenCalled();
   });
 });

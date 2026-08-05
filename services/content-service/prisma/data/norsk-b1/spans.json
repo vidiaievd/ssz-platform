@@ -1,0 +1,28 @@
+{
+  "1A": [
+    {
+      "kind": "grammar",
+      "grammarKey": "1",
+      "phrase": "Han forteller hvorfor han vil ha jobben, og hva han kan tilby firmaet",
+      "note": "Косвенный вопрос: вопросительное слово (hvorfor, hva) занимает место союза, а дальше — прямой порядок слов: «hvorfor han vil», НЕ «hvorfor vil han»."
+    },
+    {
+      "kind": "grammar",
+      "grammarKey": "1",
+      "phrase": "Han skriver at han er en ansvarlig og løsningsorientert person",
+      "note": "at + утверждение. Глагол говорения в презенсе (skriver), поэтому время в придаточном НЕ сдвигается: er остаётся er."
+    },
+    {
+      "kind": "grammar",
+      "grammarKey": "1",
+      "phrase": "Hun sier at den er god, men at han har noen skrivefeil",
+      "note": "Два придаточных подряд: союз at повторяется после men. Местоимения смещены с точки зрения рассказчика: «Den er god, men du har noen skrivefeil» → at den er god, men at han har…"
+    },
+    {
+      "kind": "grammar",
+      "grammarKey": "1",
+      "phrase": "«Lykke til!» sier Anne",
+      "note": "Прямая речь в кавычках-ёлочках. В косвенной: Anne sier at hun ønsker ham lykke til."
+    }
+  ]
+}

@@ -27,10 +27,6 @@ export class DeleteExerciseInstructionHandler implements ICommandHandler<
     if (!exercise) {
       return Result.fail(ExerciseDomainError.EXERCISE_NOT_FOUND);
     }
-    if (exercise.ownerUserId !== command.userId) {
-      return Result.fail(ExerciseDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const instruction = await this.instructionRepo.findById(command.instructionId);
     if (!instruction || instruction.exerciseId !== command.exerciseId) {
       return Result.fail(ExerciseDomainError.INSTRUCTION_NOT_FOUND);

@@ -20,6 +20,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
@@ -51,6 +52,12 @@ import { SetListeningStagesCommand } from '../../application/commands/set-listen
 import { SetParagraphTranslationsCommand } from '../../application/commands/set-paragraph-translations/set-paragraph-translations.command.js';
 import { MarkGlossaryWordCommand } from '../../application/commands/mark-glossary-word/mark-glossary-word.command.js';
 import type { MarkGlossaryWordResult } from '../../application/commands/mark-glossary-word/mark-glossary-word.handler.js';
+import { UnmarkGlossaryWordCommand } from '../../application/commands/unmark-glossary-word/unmark-glossary-word.command.js';
+import { CreateTextSpanCommand } from '../../application/commands/create-text-span/create-text-span.command.js';
+import type { CreateTextSpanResult } from '../../application/commands/create-text-span/create-text-span.handler.js';
+import { UpdateTextSpanCommand } from '../../application/commands/update-text-span/update-text-span.command.js';
+import type { UpdateTextSpanResult } from '../../application/commands/update-text-span/update-text-span.handler.js';
+import { DeleteTextSpanCommand } from '../../application/commands/delete-text-span/delete-text-span.command.js';
 
 // Queries
 import { GetLessonQuery } from '../../application/queries/get-lesson/get-lesson.query.js';
@@ -66,6 +73,8 @@ import { GetListeningStagesQuery } from '../../application/queries/get-listening
 import { GetTextParagraphsQuery } from '../../application/queries/get-text-paragraphs/get-text-paragraphs.query.js';
 import type { TextParagraphResult } from '../../application/queries/get-text-paragraphs/get-text-paragraphs.handler.js';
 import { GetGlossaryMarksQuery } from '../../application/queries/get-glossary-marks/get-glossary-marks.query.js';
+import { GetTextSpansQuery } from '../../application/queries/get-text-spans/get-text-spans.query.js';
+import type { TextSpanView } from '../../application/queries/get-text-spans/get-text-spans.handler.js';
 import type { GlossaryMarkRow } from '../../domain/repositories/lesson-glossary-mark.repository.interface.js';
 import { GetLessonReaderContentQuery } from '../../application/queries/get-lesson-reader-content/get-lesson-reader-content.query.js';
 import type { LessonReaderContent } from '../../application/queries/get-lesson-reader-content/get-lesson-reader-content.handler.js';
@@ -101,6 +110,9 @@ import { LessonVideoQuestionResponseDto } from '../dto/responses/lesson-video-qu
 import { LessonListeningStageResponseDto } from '../dto/responses/lesson-listening-stage.response.dto.js';
 import { TextParagraphResponseDto } from '../dto/responses/text-paragraph.response.dto.js';
 import { GlossaryMarkResponseDto } from '../dto/responses/glossary-mark.response.dto.js';
+import { CreateTextSpanRequestDto } from '../dto/requests/create-text-span.request.dto.js';
+import { UpdateTextSpanRequestDto } from '../dto/requests/update-text-span.request.dto.js';
+import { LessonTextSpanResponseDto } from '../dto/responses/lesson-text-span.response.dto.js';
 import { LessonReaderContentResponseDto } from '../dto/responses/lesson-reader-content.response.dto.js';
 import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
 import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
@@ -542,14 +554,17 @@ export class LessonController {
     return question ? LessonVideoQuestionResponseDto.from(question) : null;
   }
 
-  // ── Listening stages sub-resource (kind=AUDIO variants only) ───────────────
+  // ── Staged exercises sub-resource (kind=AUDIO or kind=TEXT variants) ───────
+  // Named "listening-stages" for the AUDIO surface it was introduced for; TEXT
+  // variants stage the same way for a post-reading check (spec 17 §2.1).
 
   @Post(':id/variants/:variantId/listening-stages')
   @UseGuards(VisibilityGuard)
   @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
-    summary: 'Replace all staged gap-fill/comprehension exercises for an AUDIO lesson variant',
+    summary:
+      'Replace all staged gap-fill/comprehension exercises for an AUDIO or TEXT lesson variant',
   })
   @ApiNoContentResponse()
   @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
@@ -569,7 +584,10 @@ export class LessonController {
   @Get(':id/variants/:variantId/listening-stages')
   @UseGuards(VisibilityGuard)
   @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
-  @ApiOperation({ summary: 'List staged gap-fill/comprehension exercises, ordered by position' })
+  @ApiOperation({
+    summary:
+      'List staged gap-fill/comprehension exercises of an AUDIO or TEXT lesson variant, ordered by position',
+  })
   @ApiOkResponse({ type: [LessonListeningStageResponseDto] })
   @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
   async findListeningStages(
@@ -662,5 +680,141 @@ export class LessonController {
     );
 
     return marks.map((m) => GlossaryMarkResponseDto.from(m));
+  }
+
+  @Delete(':id/variants/:variantId/glossary-marks/:vocabularyItemId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary:
+      "Remove a vocabulary item from this variant's glossary; cascades to its text spans, leaves the module glossary alone",
+  })
+  @ApiNoContentResponse()
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async unmarkGlossaryWord(
+    @Param('variantId') variantId: string,
+    @Param('vocabularyItemId') vocabularyItemId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      UnmarkGlossaryWordCommand,
+      Result<void, LessonDomainError>
+    >(new UnmarkGlossaryWordCommand(user.userId, variantId, vocabularyItemId));
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  // ── Text spans: lexis / grammar / chunks (kind=TEXT variants only) ─────────
+
+  @Get(':id/variants/:variantId/spans')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({
+    summary: 'List positional annotations for a TEXT lesson variant',
+    description:
+      'Broken spans — those whose text snapshot no longer matches the body, or whose referent is gone — are omitted unless includeBroken=true, which authoring surfaces use to offer a re-anchor.',
+  })
+  @ApiOkResponse({ type: [LessonTextSpanResponseDto] })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  @ApiQuery({ name: 'includeBroken', type: Boolean, required: false })
+  async findTextSpans(
+    @Param('variantId') variantId: string,
+    @Query('includeBroken') includeBroken?: string,
+  ): Promise<LessonTextSpanResponseDto[]> {
+    const result = await this.queryBus.execute<
+      GetTextSpansQuery,
+      Result<TextSpanView[], LessonDomainError>
+    >(new GetTextSpansQuery(variantId, includeBroken === 'true'));
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value.map((view) => LessonTextSpanResponseDto.from(view));
+  }
+
+  @Post(':id/variants/:variantId/spans')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({
+    summary: 'Annotate a stretch of a TEXT variant as vocabulary, grammar or a chunk',
+    description:
+      'The text snapshot is derived from the current body, not supplied by the caller. Creating a vocab span also marks the word in this variant’s glossary and syncs it to every containing module.',
+  })
+  @ApiCreatedResponse({ type: LessonTextSpanResponseDto })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async createTextSpan(
+    @Param('variantId') variantId: string,
+    @Body() dto: CreateTextSpanRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<LessonTextSpanResponseDto> {
+    const result = await this.commandBus.execute<
+      CreateTextSpanCommand,
+      Result<CreateTextSpanResult, LessonDomainError>
+    >(
+      new CreateTextSpanCommand(
+        user.userId,
+        variantId,
+        dto.paragraphIndex,
+        dto.charStart,
+        dto.charEnd,
+        dto.kind,
+        dto.refId ?? null,
+        dto.note ?? null,
+      ),
+    );
+
+    if (result.isFail) throwHttpException(result.error);
+    return LessonTextSpanResponseDto.fromEntity(result.value.span);
+  }
+
+  @Patch(':id/variants/:variantId/spans/:spanId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({
+    summary: 'Re-anchor a span or edit its note',
+    description:
+      'Offsets move together and re-derive the snapshot. kind and refId are immutable — re-pointing an annotation is a delete plus a create.',
+  })
+  @ApiOkResponse({ type: LessonTextSpanResponseDto })
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async updateTextSpan(
+    @Param('variantId') variantId: string,
+    @Param('spanId') spanId: string,
+    @Body() dto: UpdateTextSpanRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<LessonTextSpanResponseDto> {
+    const anchor =
+      dto.paragraphIndex !== undefined && dto.charStart !== undefined && dto.charEnd !== undefined
+        ? { paragraphIndex: dto.paragraphIndex, charStart: dto.charStart, charEnd: dto.charEnd }
+        : undefined;
+
+    const result = await this.commandBus.execute<
+      UpdateTextSpanCommand,
+      Result<UpdateTextSpanResult, LessonDomainError>
+    >(new UpdateTextSpanCommand(user.userId, variantId, spanId, anchor, dto.note));
+
+    if (result.isFail) throwHttpException(result.error);
+    return LessonTextSpanResponseDto.fromEntity(result.value.span);
+  }
+
+  @Delete(':id/variants/:variantId/spans/:spanId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Delete a span. Idempotent; leaves the vocabulary glossary mark in place',
+  })
+  @ApiNoContentResponse()
+  @ApiParam({ name: 'id', type: String, description: 'Lesson ID' })
+  async deleteTextSpan(
+    @Param('variantId') variantId: string,
+    @Param('spanId') spanId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      DeleteTextSpanCommand,
+      Result<void, LessonDomainError>
+    >(new DeleteTextSpanCommand(user.userId, variantId, spanId));
+
+    if (result.isFail) throwHttpException(result.error);
   }
 }

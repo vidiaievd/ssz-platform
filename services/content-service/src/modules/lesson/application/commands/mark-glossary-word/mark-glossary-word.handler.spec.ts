@@ -167,18 +167,4 @@ describe('MarkGlossaryWordHandler', () => {
     expect(result.isOk).toBe(true);
     expect(contentRelationRepo.save).not.toHaveBeenCalled();
   });
-
-  it('rejects when the caller does not own the lesson', async () => {
-    const lesson = makeLesson(LessonKind.TEXT);
-    const variant = makeVariant(lesson.id);
-    const { handler, markRepo } = makeHandler({ lesson, variant });
-
-    const result = await handler.execute(
-      new MarkGlossaryWordCommand('someone-else', variant.id, VOCAB_ID),
-    );
-
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBe(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    expect(markRepo.upsertMark).not.toHaveBeenCalled();
-  });
 });

@@ -17,9 +17,7 @@ import { VOCABULARY_ITEM_REPOSITORY } from '../../../../vocabulary/domain/reposi
 import type { IVocabularyItemRepository } from '../../../../vocabulary/domain/repositories/vocabulary-item.repository.interface.js';
 import { CONTENT_RELATION_REPOSITORY } from '../../../../content-relation/domain/repositories/content-relation.repository.interface.js';
 import type { IContentRelationRepository } from '../../../../content-relation/domain/repositories/content-relation.repository.interface.js';
-import { ContentRelationEntity } from '../../../../content-relation/domain/entities/content-relation.entity.js';
-import { RelatableEntityType } from '../../../../content-relation/domain/types/relatable-entity-type.js';
-import { RelationKind } from '../../../../content-relation/domain/types/relation-kind.js';
+import { syncModuleGlossary } from '../../services/module-glossary-sync.service.js';
 
 const GLOSSARY_ELIGIBLE_KINDS = new Set([LessonKind.TEXT, LessonKind.VIDEO]);
 
@@ -58,11 +56,6 @@ export class MarkGlossaryWordHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.LESSON_NOT_FOUND);
     }
 
-    if (lesson.ownerUserId !== command.userId) {
-      // TODO: Prompt 6 — extend with school content_admin role check.
-      return Result.fail(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     if (!GLOSSARY_ELIGIBLE_KINDS.has(lesson.kind)) {
       return Result.fail(LessonDomainError.LESSON_KIND_MISMATCH);
     }
@@ -74,31 +67,12 @@ export class MarkGlossaryWordHandler implements ICommandHandler<
 
     const mark = await this.markRepo.upsertMark(command.variantId, command.vocabularyItemId);
 
-    // Sync to every module (container) that currently references this lesson —
-    // "Text and Video share one glossary per module" (decision 3 / BE1.5). Reuses
-    // the same INTRODUCES relation kind get-expanded-module already reads.
-    const moduleIds = await this.lessonRepo.findContainingModuleIds(lesson.id);
-    for (const moduleId of moduleIds) {
-      const existing = await this.contentRelationRepo.findExact(
-        RelatableEntityType.CONTAINER,
-        moduleId,
-        RelationKind.INTRODUCES,
-        RelatableEntityType.VOCABULARY_ITEM,
-        command.vocabularyItemId,
-      );
-      if (!existing) {
-        const relation = ContentRelationEntity.create({
-          sourceType: RelatableEntityType.CONTAINER,
-          sourceId: moduleId,
-          targetType: RelatableEntityType.VOCABULARY_ITEM,
-          targetId: command.vocabularyItemId,
-          relationKind: RelationKind.INTRODUCES,
-          ownerSchoolId: lesson.ownerSchoolId,
-          createdByUserId: command.userId,
-        });
-        await this.contentRelationRepo.save(relation);
-      }
-    }
+    // Shared with CreateTextSpanHandler: both ways of putting a word into a
+    // lesson's glossary must reach the module glossary the same way.
+    await syncModuleGlossary(
+      { lessonRepo: this.lessonRepo, contentRelationRepo: this.contentRelationRepo },
+      { lesson, vocabularyItemId: command.vocabularyItemId, userId: command.userId },
+    );
 
     return Result.ok({ mark });
   }

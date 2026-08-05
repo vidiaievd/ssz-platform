@@ -10,6 +10,7 @@ import { CLOCK, SystemClock } from '../../shared/application/ports/clock.port.js
 import { FsrsScheduler } from './infrastructure/scheduler/fsrs-scheduler.js';
 import { RedisSrsLimitsPolicy } from './infrastructure/cache/redis-srs-limits-policy.js';
 import { RedisDueQueueService } from './infrastructure/cache/redis-due-queue.service.js';
+import { RedisReviewIdempotencyService } from './infrastructure/cache/redis-review-idempotency.service.js';
 import { PrismaSrsRepository } from './infrastructure/persistence/prisma-srs.repository.js';
 
 // Command handlers
@@ -24,6 +25,7 @@ import { ApplyPlacementHandler } from './application/commands/apply-placement/ap
 import { GetDueCardsHandler } from './application/queries/get-due-cards.handler.js';
 import { GetCardByIdHandler } from './application/queries/get-card-by-id.handler.js';
 import { GetUserSrsStatsHandler } from './application/queries/get-user-srs-stats.handler.js';
+import { GetCardStatesHandler } from './application/queries/get-card-states.handler.js';
 import { GetGrammarRuleMasteryHandler } from './application/queries/get-grammar-rule-mastery.handler.js';
 import { GetContentMasteryHandler } from './application/queries/get-content-mastery.handler.js';
 
@@ -47,6 +49,7 @@ const QueryHandlers = [
   GetDueCardsHandler,
   GetCardByIdHandler,
   GetUserSrsStatsHandler,
+  GetCardStatesHandler,
   GetGrammarRuleMasteryHandler,
   GetContentMasteryHandler,
 ];
@@ -60,6 +63,7 @@ const QueryHandlers = [
     { provide: SRS_LIMITS_POLICY, useClass: RedisSrsLimitsPolicy },
     { provide: CLOCK, useClass: SystemClock },
     RedisDueQueueService,
+    RedisReviewIdempotencyService,
     GrammarRuleMasteryService,
     ...CommandHandlers,
     ...QueryHandlers,

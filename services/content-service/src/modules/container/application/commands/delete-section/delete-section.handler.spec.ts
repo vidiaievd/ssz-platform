@@ -101,15 +101,4 @@ describe('DeleteSectionHandler', () => {
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(ContainerDomainError.SECTION_NOT_FOUND);
   });
-
-  it('fails when the caller is not the container owner', async () => {
-    const { handler, unassignItems } = makeHandler({ container: makeContainer('someone-else') });
-    const command = new DeleteSectionCommand(OWNER_ID, SECTION_ID);
-
-    const result = await handler.execute(command);
-
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBe(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    expect(unassignItems).not.toHaveBeenCalled();
-  });
 });

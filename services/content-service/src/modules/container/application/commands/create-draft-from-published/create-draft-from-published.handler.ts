@@ -38,10 +38,6 @@ export class CreateDraftFromPublishedHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     if (!container.currentPublishedVersionId) {
       return Result.fail(ContainerDomainError.VERSION_NOT_IN_PUBLISHED_STATUS);
     }
@@ -64,8 +60,9 @@ export class CreateDraftFromPublishedHandler implements ICommandHandler<
 
     await this.versionRepo.save(newDraft);
 
-    // Copy all items from the published version into the new draft.
-    await this.itemRepo.copyItemsToVersion(container.currentPublishedVersionId, newDraft.id);
+    // Copy the published version's composition — sections included — into the
+    // new draft, so it starts out identical to what students currently see.
+    await this.itemRepo.copyCompositionToVersion(container.currentPublishedVersionId, newDraft.id);
 
     return Result.ok({ versionId: newDraft.id, isExisting: false });
   }

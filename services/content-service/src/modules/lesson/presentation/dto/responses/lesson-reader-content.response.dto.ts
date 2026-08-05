@@ -38,7 +38,9 @@ export class LessonReaderContentResponseDto {
   transcript: string | null;
 
   @ApiPropertyOptional({
-    description: 'Staged gap-fill/comprehension exercises, AUDIO lessons only.',
+    description:
+      'Staged gap-fill/comprehension exercises: the post-listening check on AUDIO ' +
+      'lessons, the post-reading check on TEXT lessons. Null for VIDEO and LIVE.',
   })
   listeningStages: ReaderListeningStage[] | null;
 

@@ -63,6 +63,7 @@ export class PrismaContainerVersionRepository implements IContainerVersionReposi
     previousVersionId: string | null;
     sunsetDays: number;
     publishedByUserId: string;
+    changelog?: string;
     slug?: string;
   }): Promise<{ sunsetAt: Date | null }> {
     return this.prisma.$transaction(async (tx) => {
@@ -97,6 +98,9 @@ export class PrismaContainerVersionRepository implements IContainerVersionReposi
           status: 'PUBLISHED',
           publishedAt: now,
           publishedByUserId: params.publishedByUserId,
+          // Whitespace-only notes are no notes; leave the column as it is
+          // rather than replacing a draft's text with an empty string.
+          ...(params.changelog?.trim() ? { changelog: params.changelog.trim() } : {}),
         },
       });
 
@@ -108,6 +112,62 @@ export class PrismaContainerVersionRepository implements IContainerVersionReposi
           updatedAt: now,
           ...(params.slug !== undefined ? { slug: params.slug } : {}),
         },
+      });
+
+      return { sunsetAt };
+    });
+  }
+
+  async rollbackToVersion(params: {
+    versionId: string;
+    containerId: string;
+    previousVersionId: string | null;
+    sunsetDays: number;
+    publishedByUserId: string;
+  }): Promise<{ sunsetAt: Date | null }> {
+    return this.prisma.$transaction(async (tx) => {
+      // Lock the container row to prevent concurrent publishes.
+      await tx.$queryRaw`SELECT id FROM containers WHERE id = ${params.containerId}::uuid FOR UPDATE`;
+
+      // Guard: verify the target is still deprecated inside the transaction —
+      // a concurrent publish may have moved the container on since the handler
+      // read it.
+      const version = await tx.containerVersion.findUnique({
+        where: { id: params.versionId },
+        select: { status: true },
+      });
+      if (!version || version.status !== 'DEPRECATED') {
+        throw new Error(`Version ${params.versionId} is not in DEPRECATED status`);
+      }
+
+      const now = new Date();
+      let sunsetAt: Date | null = null;
+
+      // Deprecate whatever is live now, on the same terms a publish would.
+      if (params.previousVersionId) {
+        sunsetAt = new Date(now.getTime() + params.sunsetDays * 24 * 60 * 60 * 1000);
+        await tx.containerVersion.update({
+          where: { id: params.previousVersionId },
+          data: { status: 'DEPRECATED', deprecatedAt: now, sunsetAt },
+        });
+      }
+
+      // Back on air. `publishedAt` moves to now: the history line has one date
+      // column, and "live since" is the useful reading of it.
+      await tx.containerVersion.update({
+        where: { id: params.versionId },
+        data: {
+          status: 'PUBLISHED',
+          publishedAt: now,
+          publishedByUserId: params.publishedByUserId,
+          deprecatedAt: null,
+          sunsetAt: null,
+        },
+      });
+
+      await tx.container.update({
+        where: { id: params.containerId },
+        data: { currentPublishedVersionId: params.versionId, updatedAt: now },
       });
 
       return { sunsetAt };
@@ -129,9 +189,12 @@ export class PrismaContainerVersionRepository implements IContainerVersionReposi
 
       const now = new Date();
 
+      // Deprecated, not draft: the container normally already has a draft, and a
+      // second one leaves `findDraftByContainerId` picking between them at
+      // random. Restoring this version is a rollback.
       await tx.containerVersion.update({
         where: { id: params.versionId },
-        data: { status: 'DRAFT' },
+        data: { status: 'DEPRECATED', deprecatedAt: now, sunsetAt: null },
       });
 
       await tx.container.update({

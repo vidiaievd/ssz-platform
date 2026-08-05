@@ -22,10 +22,6 @@ export class DeleteContainerHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const deleteResult = container.softDelete();
     if (deleteResult.isFail) {
       return Result.fail(deleteResult.error);

@@ -144,6 +144,25 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  piper-tts:
+    image: ssz/piper-tts:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "5000"
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/voices || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   media-service:
     image: ssz/media-service:${IMAGE_TAG:-latest}
     restart: unless-stopped
@@ -162,6 +181,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET_PUBLIC: ssz-public
       MINIO_BUCKET_PRIVATE: ssz-private
+      PIPER_URL: http://piper-tts:5000
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}

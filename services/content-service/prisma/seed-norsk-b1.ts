@@ -103,6 +103,20 @@ const readJson = <T>(file: string): T => {
 const vocab = readJson<Record<string, VocabSection>>('vocab.json');
 const exercises = readJson<Record<string, ExerciseDef[]>>('exercises.json');
 
+// Text annotations (spec 16 lesson_text_spans), keyed per text sub-lesson.
+// `phrase` is matched against the lesson body with flexible whitespace, so it
+// can be written as one line even where the body wraps it.
+interface SpanDef {
+  kind: 'grammar' | 'chunk';
+  /** Grammar-rule key (`1`…`10`) for kind `grammar`; absent for `chunk`. */
+  grammarKey?: string;
+  phrase: string;
+  /** 1-based, when the phrase occurs more than once in its paragraph. Default 1. */
+  occurrence?: number;
+  note?: string;
+}
+const spans = readJson<Record<string, SpanDef[]>>('spans.json');
+
 // ─── Lesson & grammar metadata ──────────────────────────────────────────────
 interface Meta {
   title: string;
@@ -303,19 +317,14 @@ async function main(): Promise<void> {
 
   // Exercise templates must exist (seeded by prisma/seed.ts). Only needed for
   // leksjoner that have authored exercises; resolve upfront so failures are loud.
-  const templateCodes = [
-    'multiple_choice',
-    'fill_in_blank',
-    'translate_to_target',
-    'translate_from_target',
-    'match_pairs',
-    'short_answer',
-    'writing_task',
-    'sentence_schema',
-  ];
-  const templates = await prisma.exerciseTemplate.findMany({ where: { code: { in: templateCodes } } });
-  const templateByCode = new Map(templates.map((t) => [t.code, t.id]));
+  // Taken from the data itself, so authoring an exercise on a new template
+  // needs no edit here — a hardcoded list would report it as missing even
+  // after prisma/seed.ts had seeded it.
   const usedCodes = new Set(Object.values(exercises).flat().map((e) => e.template));
+  const templates = await prisma.exerciseTemplate.findMany({
+    where: { code: { in: [...usedCodes] } },
+  });
+  const templateByCode = new Map(templates.map((t) => [t.code, t.id]));
   const missing = [...usedCodes].filter((c) => !templateByCode.has(c));
   if (missing.length > 0) {
     throw new Error(
@@ -369,6 +378,29 @@ async function main(): Promise<void> {
     await seedModule(mod, templateByCode);
     console.log(`  ✓ ${mod.title}`);
   }
+
+  // Glossary marks depend on both the lesson variant and the vocabulary items,
+  // so derive them once every module has been seeded.
+  let markedLessons = 0;
+  let markTotal = 0;
+  for (const key of Object.keys(vocab)) {
+    if (!lessonMeta[key]) continue;
+    const marks = await seedGlossaryMarks(key);
+    if (marks > 0) {
+      markedLessons++;
+      markTotal += marks;
+    }
+  }
+  console.log(`  ✓ Glossary marks: ${markTotal} across ${markedLessons} lesson texts`);
+
+  // Text annotations sit on the lesson variant and point at grammar rules, so
+  // they too need every module seeded first.
+  let spanTotal = 0;
+  for (const key of Object.keys(spans)) {
+    if (!lessonMeta[key]) continue;
+    spanTotal += await seedTextSpans(key);
+  }
+  console.log(`  ✓ Text spans: ${spanTotal} across ${Object.keys(spans).length} lesson texts`);
 
   // Rebuild BOTH course versions: one level section per Leksjon, holding its
   // sub-lesson module CONTAINER items. Wiped and recreated each run.
@@ -675,6 +707,173 @@ async function seedVocab(key: string): Promise<void> {
       },
     });
   }
+}
+
+/**
+ * Counts whole-word occurrences of `surface` in `body`.
+ *
+ * Boundaries are letter/mark/number lookarounds rather than `\b`, matching the
+ * reader's glossary tokenizer (web: features/learning/lib/tokenize-glossary.ts).
+ * `\b` has ASCII semantics, so it treats æøå as non-letters and would report a
+ * false hit for «er» inside «hjerte».
+ */
+function countOccurrences(body: string, surface: string): number {
+  const escaped = surface.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?<![\\p{L}\\p{M}\\p{N}])${escaped}(?![\\p{L}\\p{M}\\p{N}])`, 'giu');
+  return [...body.matchAll(re)].length;
+}
+
+/** Surface forms a word can appear as: the lemma plus every inflection the data carries. */
+function surfaceForms(w: VocabWord): string[] {
+  const values = [w.word, ...Object.values(w.grammaticalProperties ?? {})]
+    .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+    .map((v) => v.trim())
+    // `gender: "masculine"` and `verb_class` are metadata, not surface forms; they
+    // are filtered by never occurring in a Norwegian body text, but drop the known
+    // ones explicitly so a stray match can't create a bogus mark.
+    .filter((v) => !GRAMMAR_METADATA_VALUES.has(v.toLowerCase()));
+  return [...new Map(values.map((v) => [v.toLowerCase(), v])).values()];
+}
+
+const GRAMMAR_METADATA_VALUES = new Set(['masculine', 'feminine', 'neuter', 'a-verb', 'e-verb']);
+
+/**
+ * Derives glossary marks for a text sub-lesson: every word of the leksjon's
+ * vocabulary list that actually occurs in the lesson body, in any of its
+ * declared forms. Marks the seed no longer derives are removed, so an edited
+ * body text doesn't leave stale highlights behind.
+ */
+async function seedGlossaryMarks(key: string): Promise<number> {
+  const section = vocab[key];
+  if (!section) return 0;
+
+  const variantId = id('lesson-variant', key);
+  const body = readBody('lessons', key, lessonMeta[key].title);
+
+  const keptIds: string[] = [];
+  for (const [i, w] of section.words.entries()) {
+    const occurrences = surfaceForms(w).reduce((sum, form) => sum + countOccurrences(body, form), 0);
+    if (occurrences === 0) continue;
+
+    const markId = id('glossary-mark', `${key}-${i}`);
+    keptIds.push(markId);
+    await prisma.lessonVariantGlossaryMark.upsert({
+      where: { id: markId },
+      update: { occurrenceCount: occurrences },
+      create: {
+        id: markId,
+        lessonContentVariantId: variantId,
+        vocabularyItemId: id('vocab-item', `${key}-${i}`),
+        occurrenceCount: occurrences,
+      },
+    });
+  }
+
+  await prisma.lessonVariantGlossaryMark.deleteMany({
+    where: { lessonContentVariantId: variantId, id: { notIn: keptIds } },
+  });
+
+  return keptIds.length;
+}
+
+/**
+ * Splits a lesson body exactly as the read model does
+ * (MarkdownParagraphSplitterService): blank-line delimited, trimmed, empties
+ * dropped. Span offsets are into these paragraphs, so the two splitters must
+ * not drift apart.
+ */
+function splitParagraphs(body: string): string[] {
+  return body
+    .split(/\n\s*\n+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+}
+
+/**
+ * Locates an authored phrase in a body, tolerating the body's hard line wraps:
+ * whitespace in the phrase matches any run of whitespace in the paragraph.
+ * Returns the paragraph index and the *actual* slice, which becomes the span's
+ * text_snapshot — the reader compares that snapshot against the live body, so
+ * it must be the paragraph's own characters, not the authored phrase.
+ */
+function locatePhrase(
+  paragraphs: string[],
+  phrase: string,
+  occurrence: number,
+): { paragraphIndex: number; charStart: number; charEnd: number; snapshot: string } | null {
+  const pattern = phrase
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('\\s+');
+
+  for (const [paragraphIndex, paragraph] of paragraphs.entries()) {
+    const matches = [...paragraph.matchAll(new RegExp(pattern, 'gu'))];
+    const match = matches[occurrence - 1];
+    if (!match || match.index === undefined) continue;
+    return {
+      paragraphIndex,
+      charStart: match.index,
+      charEnd: match.index + match[0].length,
+      snapshot: match[0],
+    };
+  }
+  return null;
+}
+
+/**
+ * Seeds the authored grammar/chunk annotations for one text sub-lesson.
+ *
+ * Offsets are derived from the body here rather than stored in the data file:
+ * an authored character offset would silently point at the wrong words after
+ * any edit to the text, while a phrase either still occurs or fails loudly.
+ *
+ * Cleanup is deliberately limited to this seed's own deterministic ids (a
+ * window past the current entry count), so removing an entry from spans.json
+ * drops its span while annotations an author created in the UI are left alone.
+ */
+async function seedTextSpans(key: string): Promise<number> {
+  const entries = spans[key];
+  const variantId = id('lesson-variant', key);
+  const paragraphs = splitParagraphs(readBody('lessons', key, lessonMeta[key].title));
+
+  const keptIds: string[] = [];
+  for (const [i, def] of entries.entries()) {
+    const at = locatePhrase(paragraphs, def.phrase, def.occurrence ?? 1);
+    if (!at) {
+      throw new Error(
+        `Span phrase not found in lesson ${key}: "${def.phrase}". ` +
+          'The body text changed — update prisma/data/norsk-b1/spans.json.',
+      );
+    }
+
+    const spanId = id('text-span', `${key}-${i}`);
+    keptIds.push(spanId);
+    const data = {
+      paragraphIndex: at.paragraphIndex,
+      charStart: at.charStart,
+      charEnd: at.charEnd,
+      kind: (def.kind === 'grammar' ? 'GRAMMAR' : 'CHUNK') as never,
+      refId: def.kind === 'grammar' ? id('grammar', def.grammarKey!) : null,
+      textSnapshot: at.snapshot,
+      note: def.note ?? null,
+    };
+    await prisma.lessonTextSpan.upsert({
+      where: { id: spanId },
+      update: data,
+      create: {
+        id: spanId,
+        lessonContentVariantId: variantId,
+        createdByUserId: TEACHER_ID,
+        ...data,
+      },
+    });
+  }
+
+  const staleIds = Array.from({ length: 20 }, (_, n) => id('text-span', `${key}-${entries.length + n}`));
+  await prisma.lessonTextSpan.deleteMany({ where: { id: { in: staleIds } } });
+
+  return keptIds.length;
 }
 
 async function seedExercise(ex: ExerciseDef, templateId: string): Promise<void> {

@@ -14,6 +14,8 @@ const NOT_FOUND_ERRORS = new Set<LessonDomainError>([
   LessonDomainError.BEST_VARIANT_NOT_FOUND,
   LessonDomainError.EXERCISE_NOT_FOUND,
   LessonDomainError.VOCABULARY_ITEM_NOT_FOUND,
+  LessonDomainError.GRAMMAR_RULE_NOT_FOUND,
+  LessonDomainError.SPAN_NOT_FOUND,
 ]);
 
 const GONE_ERRORS = new Set<LessonDomainError>([
@@ -27,6 +29,7 @@ const CONFLICT_ERRORS = new Set<LessonDomainError>([
   LessonDomainError.SLUG_ALREADY_EXISTS,
   LessonDomainError.DUPLICATE_CUE_POSITION,
   LessonDomainError.DUPLICATE_STAGE_POSITION,
+  LessonDomainError.SPAN_OVERLAP,
 ]);
 
 const UNPROCESSABLE_ERRORS = new Set<LessonDomainError>([
@@ -39,6 +42,9 @@ const UNPROCESSABLE_ERRORS = new Set<LessonDomainError>([
   LessonDomainError.INVALID_STAGE_DATA,
   LessonDomainError.INVALID_PARAGRAPH_INDEX,
   LessonDomainError.LIVE_FIELDS_REQUIRE_LIVE_KIND,
+  LessonDomainError.SPAN_RANGE_INVALID,
+  LessonDomainError.SPAN_TOO_LONG,
+  LessonDomainError.SPAN_REF_KIND_MISMATCH,
 ]);
 
 export function throwHttpException(error: LessonDomainError): never {

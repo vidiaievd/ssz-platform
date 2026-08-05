@@ -31,10 +31,6 @@ export class UnpublishVersionHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const version = await this.versionRepo.findPublishedByContainerId(command.containerId);
     if (!version) {
       return Result.fail(ContainerDomainError.VERSION_NOT_IN_PUBLISHED_STATUS);

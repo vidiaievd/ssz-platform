@@ -10,14 +10,17 @@ function createDraftVersion() {
 }
 
 describe('ContainerVersionEntity — unpublish', () => {
-  it('transitions a published version back to draft', () => {
+  it('deprecates a published version rather than handing back a second draft', () => {
     const version = createDraftVersion();
     version.publish('owner-1');
 
     const result = version.unpublish();
 
     expect(result.isOk).toBe(true);
-    expect(version.status).toBe(VersionStatus.DRAFT);
+    expect(version.status).toBe(VersionStatus.DEPRECATED);
+    expect(version.deprecatedAt).not.toBeNull();
+    // Nothing superseded it, so it must not sunset out of reach of a rollback.
+    expect(version.sunsetAt).toBeNull();
   });
 
   it('fails to unpublish a version that is not published', () => {

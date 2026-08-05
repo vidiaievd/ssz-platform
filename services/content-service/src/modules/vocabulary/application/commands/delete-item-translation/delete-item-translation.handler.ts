@@ -44,10 +44,6 @@ export class DeleteItemTranslationHandler implements ICommandHandler<
       return Result.fail(VocabularyDomainError.LIST_NOT_FOUND);
     }
 
-    if (list.ownerUserId !== command.userId) {
-      return Result.fail(VocabularyDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const translation = await this.translationRepo.findByItemAndLanguage(
       command.itemId,
       command.translationLanguage,

@@ -7,6 +7,9 @@ import type { ISrsScheduler } from '../../../../../src/modules/srs/application/p
 import type { ISrsLimitsPolicy } from '../../../../../src/modules/srs/application/ports/srs-limits-policy.port.js';
 import type { IClock } from '../../../../../src/shared/application/ports/clock.port.js';
 import type { RedisDueQueueService } from '../../../../../src/modules/srs/infrastructure/cache/redis-due-queue.service.js';
+import type { IContentClient } from '../../../../../src/shared/application/ports/content-client.port.js';
+import { ContentClientError } from '../../../../../src/shared/application/ports/content-client.port.js';
+import { Result } from '../../../../../src/shared/kernel/result.js';
 
 const NOW        = new Date('2026-04-29T10:00:00Z');
 const USER_ID    = 'c3254eb9-3fb3-4559-9dbf-2cea12f40ed5';
@@ -19,9 +22,35 @@ function makeCards(n: number): ReviewCard[] {
   return Array.from({ length: n }, () => ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, NOW));
 }
 
+function makeVocabCard(itemId: string): ReviewCard {
+  return ReviewCard.create(USER_ID, 'VOCABULARY_WORD', itemId, NOW);
+}
+
+function makeDisplayItem(itemId: string, word: string) {
+  return {
+    itemId,
+    listId: 'list-1',
+    word,
+    partOfSpeech: 'noun',
+    ipaTranscription: null,
+    pronunciationAudioMediaId: null,
+    translation: {
+      language: 'ru',
+      primaryTranslation: `${word}-ru`,
+      alternativeTranslations: [],
+      definition: null,
+      usageNotes: null,
+      fallbackUsed: false,
+    },
+    immersionMode: false,
+    examples: [],
+  };
+}
+
 function makeHandler(overrides: {
   cachedIds?: string[] | null;
   dbCards?: ReviewCard[];
+  contentClient?: Partial<IContentClient>;
 } = {}) {
   const cachedIds = overrides.cachedIds !== undefined ? overrides.cachedIds : null;
   const dbCards   = overrides.dbCards ?? [];
@@ -65,10 +94,18 @@ function makeHandler(overrides: {
     invalidate:    jest.fn(),
   } as unknown as RedisDueQueueService;
 
+  const contentClient = {
+    getVocabularyItemsForDisplay: jest
+      .fn<() => Promise<Result<unknown[], ContentClientError>>>()
+      .mockResolvedValue(Result.ok([])),
+    ...overrides.contentClient,
+  } as unknown as IContentClient;
+
   return {
-    handler: new GetDueCardsHandler(repo, scheduler, limitsPolicy, clock, dueQueue),
+    handler: new GetDueCardsHandler(repo, scheduler, limitsPolicy, clock, dueQueue, contentClient),
     repo,
     dueQueue,
+    contentClient,
   };
 }
 
@@ -132,6 +169,59 @@ describe('GetDueCardsHandler', () => {
 
     expect(result.cards).toHaveLength(0);
     expect(dueQueue.populate).not.toHaveBeenCalled();
+  });
+
+  it('resolves word content for VOCABULARY_WORD cards and leaves EXERCISE cards bare', async () => {
+    const vocab = makeVocabCard('11111111-1111-4111-8111-111111111111');
+    const exercise = makeCards(1)[0];
+    const { handler, contentClient } = makeHandler({
+      cachedIds: null,
+      dbCards: [vocab, exercise],
+      contentClient: {
+        getVocabularyItemsForDisplay: jest
+          .fn<any>()
+          .mockResolvedValue(Result.ok([makeDisplayItem(vocab.contentId, 'hus')])),
+      },
+    });
+
+    const result = await handler.execute(new GetDueCardsQuery(USER_ID, 20, 'ru'));
+
+    expect(contentClient.getVocabularyItemsForDisplay).toHaveBeenCalledWith(
+      [vocab.contentId],
+      'ru',
+      { includeExamples: false },
+    );
+    const vocabDto = result.cards.find((c) => c.contentType === 'VOCABULARY_WORD')!;
+    expect(vocabDto.front?.word).toBe('hus');
+    expect(vocabDto.back?.translation).toBe('hus-ru');
+    const exerciseDto = result.cards.find((c) => c.contentType === 'EXERCISE')!;
+    expect(exerciseDto.front ?? null).toBeNull();
+  });
+
+  it('never calls Content Service when no vocabulary cards are due', async () => {
+    const { handler, contentClient } = makeHandler({ cachedIds: null, dbCards: makeCards(2) });
+
+    await handler.execute(new GetDueCardsQuery(USER_ID, 20));
+
+    expect(contentClient.getVocabularyItemsForDisplay).not.toHaveBeenCalled();
+  });
+
+  it('still returns the queue when the content lookup fails', async () => {
+    const vocab = makeVocabCard('22222222-2222-4222-8222-222222222222');
+    const { handler } = makeHandler({
+      cachedIds: null,
+      dbCards: [vocab],
+      contentClient: {
+        getVocabularyItemsForDisplay: jest
+          .fn<any>()
+          .mockResolvedValue(Result.fail(new ContentClientError('boom', 500))),
+      },
+    });
+
+    const result = await handler.execute(new GetDueCardsQuery(USER_ID, 20));
+
+    expect(result.cards).toHaveLength(1);
+    expect(result.cards[0].front ?? null).toBeNull();
   });
 
   it('returns empty array on cache hit with empty ID list', async () => {

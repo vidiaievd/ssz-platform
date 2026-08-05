@@ -55,10 +55,6 @@ export class PublishVersionHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     // Must have at least one item to publish.
     const items = await this.itemRepo.findByVersionId(command.versionId);
     if (items.length === 0) {
@@ -105,6 +101,7 @@ export class PublishVersionHandler implements ICommandHandler<
       previousVersionId,
       sunsetDays,
       publishedByUserId: command.userId,
+      changelog: command.changelog,
       slug,
     });
 

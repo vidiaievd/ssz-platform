@@ -1,9 +1,13 @@
 import { jest } from '@jest/globals';
 import { SchemaBasedAnswerValidator } from '../../../../src/infrastructure/validation/schema-based-answer-validator.js';
 import { MultipleChoiceValidator } from '../../../../src/infrastructure/validation/validators/multiple-choice.validator.js';
+import { MultipleChoiceGroupValidator } from '../../../../src/infrastructure/validation/validators/multiple-choice-group.validator.js';
 import { FillInBlankValidator } from '../../../../src/infrastructure/validation/validators/fill-in-blank.validator.js';
 import { MatchPairsValidator } from '../../../../src/infrastructure/validation/validators/match-pairs.validator.js';
 import { ShortAnswerValidator } from '../../../../src/infrastructure/validation/validators/short-answer.validator.js';
+import { ErrorCorrectionValidator } from '../../../../src/infrastructure/validation/validators/error-correction.validator.js';
+import { TextOrderValidator } from '../../../../src/infrastructure/validation/validators/text-order.validator.js';
+import { WordBankFillValidator } from '../../../../src/infrastructure/validation/validators/word-bank-fill.validator.js';
 import { SentenceSchemaValidator } from '../../../../src/infrastructure/validation/validators/sentence-schema.validator.js';
 import { ValidationError } from '../../../../src/shared/application/ports/answer-validator.port.js';
 import { Result } from '../../../../src/shared/kernel/result.js';
@@ -19,10 +23,14 @@ const mcAnswerSchema = {
 const makeValidator = () =>
   new SchemaBasedAnswerValidator(
     new MultipleChoiceValidator(),
+    new MultipleChoiceGroupValidator(),
     new FillInBlankValidator(),
     new MatchPairsValidator(),
     new ShortAnswerValidator(),
     new SentenceSchemaValidator(),
+    new WordBankFillValidator(),
+    new TextOrderValidator(),
+    new ErrorCorrectionValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {
@@ -154,6 +162,81 @@ describe('SchemaBasedAnswerValidator', () => {
         targetLanguage: 'no',
       });
       expect(result.isOk).toBe(true);
+      expect(result.value.score).toBe(100);
+      expect(result.value.requiresReview).toBe(false);
+    });
+
+    it('delegates multiple_choice_group and grades the block per question', async () => {
+      const validator = makeValidator();
+      const result = await validator.validate({
+        templateCode: 'multiple_choice_group',
+        answerSchema: {
+          type: 'object',
+          required: ['items'],
+          properties: {
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['id', 'correct_option_ids'],
+                properties: {
+                  id: { type: 'string' },
+                  correct_option_ids: { type: 'array', items: { type: 'string' } },
+                  explanation: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        expectedAnswers: {
+          items: [
+            { id: '1', correct_option_ids: ['r'] },
+            { id: '2', correct_option_ids: ['g'] },
+          ],
+        },
+        submittedAnswer: {
+          items: [
+            { id: '1', correct_option_ids: ['r'] },
+            { id: '2', correct_option_ids: ['r'] },
+          ],
+        },
+        checkSettings: { allow_partial_credit: true },
+        targetLanguage: 'no',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value.score).toBe(50);
+      expect(result.value.correct).toBe(false);
+      expect(result.value.requiresReview).toBe(false);
+    });
+
+    it('delegates short_answer to ShortAnswerValidator using the real seeded answerSchema', async () => {
+      // Regression test: the seeded schema used to require `reference_answer`
+      // (the author's expectedAnswers shape), which every real student
+      // submission `{ text }` failed against with SCHEMA_MISMATCH before
+      // ShortAnswerValidator ever ran — fixed to `anyOf` so either shape
+      // passes (content-service/prisma/seed.ts, short_answer.answerSchema).
+      const shortAnswerSchema = {
+        type: 'object',
+        anyOf: [{ required: ['text'] }, { required: ['reference_answer'] }],
+        properties: {
+          text: { type: 'string' },
+          reference_answer: { type: 'string' },
+          accepted_answers: { type: 'array', items: { type: 'string' } },
+          rubric: { type: 'string' },
+          explanation: { type: 'string' },
+        },
+      };
+      const validator = makeValidator();
+      const result = await validator.validate({
+        templateCode: 'short_answer',
+        answerSchema: shortAnswerSchema,
+        expectedAnswers: { reference_answer: 'Hun hørte det på radio.', accepted_answers: ['på radio'] },
+        submittedAnswer: { text: 'på radio' },
+        checkSettings: {},
+        targetLanguage: 'no',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value.correct).toBe(true);
       expect(result.value.score).toBe(100);
       expect(result.value.requiresReview).toBe(false);
     });

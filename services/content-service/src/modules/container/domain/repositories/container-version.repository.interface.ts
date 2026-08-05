@@ -22,8 +22,24 @@ export interface IContainerVersionRepository {
     previousVersionId: string | null;
     sunsetDays: number;
     publishedByUserId: string;
+    /** Release notes for this version — left untouched when omitted. */
+    changelog?: string;
     /** Resolved unique slug — set atomically on first publication of a public container. */
     slug?: string;
+  }): Promise<{ sunsetAt: Date | null }>;
+  /**
+   * Atomic rollback transaction — put a deprecated version back on air:
+   * 1. Deprecate previousVersionId (if provided) with sunsetAt = NOW() + sunsetDays.
+   * 2. Set versionId back to published, clearing its own deprecation.
+   * 3. Update containers.current_published_version_id.
+   * Composition is not touched: the version still holds the items it held.
+   */
+  rollbackToVersion(params: {
+    versionId: string;
+    containerId: string;
+    previousVersionId: string | null;
+    sunsetDays: number;
+    publishedByUserId: string;
   }): Promise<{ sunsetAt: Date | null }>;
   /**
    * Atomic unpublish transaction:

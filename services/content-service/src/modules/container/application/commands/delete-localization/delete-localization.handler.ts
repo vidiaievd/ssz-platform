@@ -26,10 +26,6 @@ export class DeleteLocalizationHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const localization = await this.localizationRepo.findByContainerAndLanguage(
       command.containerId,
       command.languageCode,

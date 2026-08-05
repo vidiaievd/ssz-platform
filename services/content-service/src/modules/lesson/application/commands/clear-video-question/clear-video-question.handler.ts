@@ -36,11 +36,6 @@ export class ClearVideoQuestionHandler implements ICommandHandler<
       return Result.fail(LessonDomainError.LESSON_NOT_FOUND);
     }
 
-    if (lesson.ownerUserId !== command.userId) {
-      // TODO: Prompt 6 — extend with school content_admin role check.
-      return Result.fail(LessonDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     if (lesson.kind !== LessonKind.VIDEO) {
       return Result.fail(LessonDomainError.LESSON_KIND_MISMATCH);
     }

@@ -15,6 +15,7 @@ import { QueuesModule } from './infrastructure/queues/queues.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AssetsModule } from './modules/assets/assets.module.js';
 import { ProcessingModule } from './modules/processing/processing.module.js';
+import { PronunciationModule } from './modules/pronunciation/pronunciation.module.js';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ProcessingModule } from './modules/processing/processing.module.js';
     HealthModule,
     AssetsModule,
     ProcessingModule,
+    PronunciationModule,
   ],
   providers: [
     {

@@ -52,3 +52,14 @@ export interface IStorageService {
 export function isPublicEntityType(entityType: string | null): boolean {
   return entityType === 'profile_avatar';
 }
+
+// Media embedded in published course content (lesson/exercise markdown).
+// media-service has no notion of courses or enrollment — a student reaching
+// this assetId already means content-service/BFF let them see the lesson
+// that references it, so read access here only needs to widen past the
+// uploader (the school/teacher who authored it) to any authenticated user.
+const CONTENT_ENTITY_TYPES = new Set(['lesson_asset', 'exercise_asset']);
+
+export function isContentEntityType(entityType: string | null): boolean {
+  return entityType !== null && CONTENT_ENTITY_TYPES.has(entityType);
+}

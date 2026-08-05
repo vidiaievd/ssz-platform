@@ -57,6 +57,95 @@ const templates = [
     supportedLanguages: Prisma.DbNull,
   },
   {
+    // Several multiple-choice questions checked together, the way a workbook
+    // prints them: a true/false table over one text, or a set of "what does
+    // this word mean?" questions. Deliberately separate from multiple_choice,
+    // which is one question with its own check.
+    code: 'multiple_choice_group',
+    name: 'Multiple Choice Group',
+    description: 'Answer several multiple-choice questions, checked as one block',
+    contentSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        // Options every question shares — a Riktig / Galt column pair. Questions
+        // may still carry their own; an item's own options always win.
+        options: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id', 'text'],
+            properties: {
+              id: { type: 'string' },
+              text: { type: 'string' },
+            },
+          },
+          minItems: 2,
+          maxItems: 8,
+        },
+        items: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'question'],
+            properties: {
+              id: { type: 'string' },
+              question: { type: 'string' },
+              // Omit to use the group's shared options.
+              options: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['id', 'text'],
+                  properties: {
+                    id: { type: 'string' },
+                    text: { type: 'string' },
+                  },
+                },
+                minItems: 2,
+                maxItems: 8,
+              },
+            },
+          },
+        },
+        context: { type: 'string' },
+        media_id: { type: 'string' },
+      },
+    },
+    // As with word_bank_fill, this one schema validates both sides: the
+    // author's key at authoring time and the learner's picks at submit time,
+    // the submission carrying its chosen id in `correct_option_ids`.
+    answerSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        items: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'correct_option_ids'],
+            properties: {
+              id: { type: 'string' },
+              correct_option_ids: {
+                type: 'array',
+                items: { type: 'string' },
+                minItems: 1,
+              },
+              // Why this question's answer is what it is; shown per question
+              // after checking.
+              explanation: { type: 'string' },
+            },
+          },
+        },
+        explanation: { type: 'string' },
+      },
+    },
+    defaultCheckSettings: { allow_partial_credit: true },
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
     code: 'fill_in_blank',
     name: 'Fill in the Blank',
     description: 'Complete the sentence by filling in missing word(s)',
@@ -70,6 +159,10 @@ const templates = [
         },
         context: { type: 'string' },
         word_bank: { type: 'array', items: { type: 'string' } },
+        // Notes about the bank words, shared by every blank: in a drill on
+        // at / om the reason a word fits is the same in all its sentences, so
+        // it is authored once here instead of per blank. Feedback only.
+        word_notes: { type: 'object', additionalProperties: { type: 'string' } },
         media_id: { type: 'string' },
       },
     },
@@ -125,6 +218,250 @@ const templates = [
       case_sensitive: false,
       trim_whitespace: true,
       allow_partial_credit: true,
+    },
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
+    // Textbook-style gap-fill: several sentences sharing ONE word bank, each
+    // blank picked from that bank. Deliberately separate from fill_in_blank,
+    // which is single-sentence and whose blanks are typed, not chosen.
+    code: 'word_bank_fill',
+    name: 'Word Bank Gap-Fill',
+    description: 'Complete several sentences using words from a shared bank',
+    contentSchema: {
+      type: 'object',
+      required: ['word_bank', 'items'],
+      properties: {
+        word_bank: {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: 2,
+          description: 'Choices offered for every blank of every sentence',
+        },
+        items: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'text_with_blanks'],
+            properties: {
+              id: { type: 'string' },
+              text_with_blanks: {
+                type: 'string',
+                description: 'Use ___N___ for blanks, numbered within this sentence',
+              },
+            },
+          },
+        },
+        context: { type: 'string' },
+        media_id: { type: 'string' },
+        // Notes about the bank words, shared by every blank: in a drill on
+        // at / om the reason a word fits is the same in all its sentences, so
+        // it is authored once here instead of per blank. Feedback only.
+        word_notes: { type: 'object', additionalProperties: { type: 'string' } },
+        // Set for drills where one bank word answers several blanks — a grammar
+        // exercise on at / om reuses both many times. It turns off the player's
+        // "spent word" dimming, which would otherwise grey out the right answer.
+        reusable_words: { type: 'boolean' },
+        // How the player offers the bank. 'chips' (default) is the textbook
+        // layout — one strip of words above the sentences, tapped into the
+        // armed blank. 'select' puts the whole bank in a dropdown inside each
+        // blank, which suits short vocabulary drills. Presentation only:
+        // grading is identical either way.
+        input_mode: { type: 'string', enum: ['chips', 'select'] },
+      },
+    },
+    answerSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        items: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'blanks'],
+            properties: {
+              id: { type: 'string' },
+              blanks: {
+                type: 'array',
+                minItems: 1,
+                items: {
+                  type: 'object',
+                  required: ['blank_id', 'accepted_answers'],
+                  properties: {
+                    blank_id: { type: 'integer' },
+                    // Same convention as fill_in_blank: the expected answers
+                    // list here, and the learner's single pick when this schema
+                    // validates a SUBMITTED answer.
+                    accepted_answers: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      minItems: 1,
+                    },
+                    // Post-check teaching aid, identical in shape to
+                    // fill_in_blank's — presentational, never scored.
+                    rationale: {
+                      type: 'object',
+                      properties: {
+                        explanation: { type: 'string' },
+                        options: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            required: ['text', 'verdict'],
+                            properties: {
+                              text: { type: 'string' },
+                              verdict: {
+                                type: 'string',
+                                enum: ['correct', 'acceptable', 'wrong'],
+                              },
+                              note: { type: 'string' },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        explanation: { type: 'string' },
+      },
+    },
+    defaultCheckSettings: {
+      case_sensitive: false,
+      trim_whitespace: true,
+      allow_partial_credit: true,
+      // Each bank word is consumed by at most one blank (textbook default).
+      unique_bank_words: true,
+    },
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
+    // Put shuffled lines back in order: dialogue turns, sentences of a text,
+    // or steps of an instruction. The client shuffles for display; `items`
+    // order in content carries no meaning.
+    code: 'text_order',
+    name: 'Put in Order',
+    description: 'Arrange shuffled lines into the correct order',
+    contentSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        items: {
+          type: 'array',
+          minItems: 2,
+          items: {
+            type: 'object',
+            required: ['id', 'text'],
+            properties: {
+              id: { type: 'string' },
+              text: { type: 'string' },
+              // Optional speaker label for dialogues, e.g. "Marina".
+              speaker: { type: 'string' },
+            },
+          },
+        },
+        // Presentation hint only; scoring is identical either way.
+        kind: { type: 'string', enum: ['dialogue', 'sentences'] },
+        context: { type: 'string' },
+        media_id: { type: 'string' },
+      },
+    },
+    answerSchema: {
+      type: 'object',
+      required: ['order'],
+      properties: {
+        // Item ids, first to last. Doubles as the submitted-answer shape.
+        order: {
+          type: 'array',
+          minItems: 2,
+          items: { type: 'string' },
+        },
+        explanation: { type: 'string' },
+      },
+    },
+    defaultCheckSettings: { allow_partial_credit: true },
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
+    // "Find and correct the mistakes": each sentence is pre-split into chunks,
+    // the learner picks the faulty ones and rewrites them. Splitting is the
+    // author's job — it keeps the task tractable and the grading exact.
+    code: 'error_correction',
+    name: 'Find and Correct Mistakes',
+    description: 'Spot the faulty parts of each sentence and rewrite them',
+    contentSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        items: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'chunks'],
+            properties: {
+              id: { type: 'string' },
+              chunks: {
+                type: 'array',
+                minItems: 1,
+                items: {
+                  type: 'object',
+                  required: ['id', 'text'],
+                  properties: {
+                    id: { type: 'string' },
+                    text: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+        // How many chunks are faulty overall. Presentational: it tells the
+        // learner when to stop looking; grading uses `corrections` alone.
+        mistake_count: { type: 'integer', minimum: 1 },
+        context: { type: 'string' },
+        media_id: { type: 'string' },
+      },
+    },
+    answerSchema: {
+      type: 'object',
+      required: ['corrections'],
+      properties: {
+        // The faulty chunks and their fixes. Doubles as the submitted-answer
+        // shape: the learner sends the chunks they rewrote, `accepted` holding
+        // their single rewrite.
+        corrections: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['item_id', 'chunk_id', 'accepted'],
+            properties: {
+              item_id: { type: 'string' },
+              chunk_id: { type: 'string' },
+              accepted: {
+                type: 'array',
+                items: { type: 'string' },
+                minItems: 1,
+              },
+              note: { type: 'string' },
+            },
+          },
+        },
+        explanation: { type: 'string' },
+      },
+    },
+    defaultCheckSettings: {
+      case_sensitive: false,
+      trim_whitespace: true,
+      allow_partial_credit: true,
+      // Editing a chunk that was already correct costs a point, so the task
+      // can't be brute-forced by rewriting everything.
+      penalize_false_positives: true,
     },
     supportedLanguages: Prisma.DbNull,
   },
@@ -227,6 +564,10 @@ const templates = [
           },
           minItems: 2,
         },
+        // Presentation only — scoring is identical. `halves` numbers the left
+        // column 1..n and letters the right A..N for sentence-halves tasks,
+        // where the cells hold long text rather than single words.
+        variant: { type: 'string', enum: ['pairs', 'halves'] },
         context: { type: 'string' },
       },
     },
@@ -267,10 +608,20 @@ const templates = [
         max_length: { type: 'integer' },
       },
     },
+    // This one schema validates two different objects against the same
+    // property bag: content-service validates the AUTHOR's expectedAnswers
+    // (reference_answer/accepted_answers/rubric) with it at authoring time,
+    // while exercise-engine-service validates the STUDENT's submittedAnswer
+    // (text) with the identical stored schema at submit time
+    // (submit-answer.handler.ts passes def.template.answerSchema for both
+    // uses). `anyOf` requires at least one side's shape to be present so
+    // AJV accepts both without silently allowing a fully empty object.
     answerSchema: {
       type: 'object',
-      required: ['reference_answer'],
+      anyOf: [{ required: ['text'] }, { required: ['reference_answer'] }],
       properties: {
+        // Learner's submission (exercise-engine's ShortAnswerValidator).
+        text: { type: 'string' },
         // Model answer — revealed after submission and used as grading reference.
         reference_answer: { type: 'string' },
         // Optional exact-match shortcuts for instant auto-grading.
@@ -331,8 +682,12 @@ const templates = [
       type: 'object',
       required: ['sentence', 'fields', 'tokens'],
       properties: {
-        // Full sentence shown for reference.
+        // The target sentence. Held back from the learner while
+        // `source_sentence` is set, and shown with the feedback instead.
         sentence: { type: 'string' },
+        // Optional starting point that turns the task into a transformation:
+        // the learner rebuilds `sentence` from this one instead of copying it.
+        source_sentence: { type: 'string' },
         // Drives UI labelling for main vs subordinate clause schemas.
         schema_type: { type: 'string', enum: ['main', 'subordinate'] },
         // Ordered columns of the schema.

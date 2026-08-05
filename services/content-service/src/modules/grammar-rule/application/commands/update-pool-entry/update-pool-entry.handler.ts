@@ -25,10 +25,6 @@ export class UpdatePoolEntryHandler implements ICommandHandler<
     if (!rule || rule.deletedAt !== null) {
       return Result.fail(GrammarRuleDomainError.GRAMMAR_RULE_NOT_FOUND);
     }
-    if (rule.ownerUserId !== command.userId) {
-      return Result.fail(GrammarRuleDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     const entry = await this.poolRepo.findEntry(command.ruleId, command.exerciseId);
     if (!entry) {
       return Result.fail(GrammarRuleDomainError.POOL_ENTRY_NOT_FOUND);

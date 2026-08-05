@@ -45,10 +45,6 @@ export class RemoveContainerItemHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
     }
 
-    if (container.ownerUserId !== command.userId) {
-      return Result.fail(ContainerDomainError.INSUFFICIENT_PERMISSIONS);
-    }
-
     await this.itemRepo.delete(command.itemId);
 
     // Position gaps after removal are intentional — reorder restores continuity.

@@ -94,6 +94,10 @@ describe('ContainerEntity — archive/restore', () => {
 
     expect(result.isOk).toBe(true);
     expect(container.archivedAt).not.toBeNull();
+    // Archiving must not soft-delete: `VisibilityGuard` denies `edit` on a
+    // deleted entity to everyone but a platform admin, and `POST /:id/restore`
+    // — the way back from the archive — is an `edit` route.
+    expect(container.deletedAt).toBeNull();
     expect(container.getDomainEvents()).toHaveLength(1);
     expect(container.getDomainEvents()[0].eventType).toBe('content.course.archived');
   });
