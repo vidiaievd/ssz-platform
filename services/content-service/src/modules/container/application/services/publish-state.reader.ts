@@ -19,6 +19,29 @@ import { PrismaService } from '../../../../infrastructure/database/prisma.servic
  */
 export type ContainerPublishState = 'draft' | 'published' | 'pending_changes';
 
+/**
+ * How a single item of the draft differs from the live version, for a badge on
+ * its own row. `pending_changes` says a release is outstanding; this says where.
+ *
+ * - `added`          — the live version does not place this item at all
+ * - `moved`          — placed live, but in another section or another order
+ * - `flags_changed`  — same place, different `isRequired`
+ *
+ * Items the draft *dropped* have no row to carry a marker and are reported
+ * separately by the caller that needs them — not here.
+ */
+export type ItemPendingChange = 'added' | 'moved' | 'flags_changed';
+
+export interface ContainerPublishStateDetail {
+  state: ContainerPublishState;
+  /**
+   * Keyed by the referenced content id (`container_items.item_id`), because that
+   * is what survives across versions — the row id does not. Empty unless the
+   * container is in `pending_changes`.
+   */
+  changeByItemId: Map<string, ItemPendingChange>;
+}
+
 interface ItemRow {
   containerVersionId: string;
   position: number;
@@ -28,15 +51,79 @@ interface ItemRow {
   sectionId: string | null;
 }
 
+/** Section grouping compared by title: every version owns its own section rows. */
+function sectionKeyOf(item: ItemRow, sectionTitleById: Map<string, string>): string {
+  if (item.sectionId === null) return '';
+  return sectionTitleById.get(item.sectionId) ?? item.sectionId;
+}
+
+function itemKeyOf(item: ItemRow): string {
+  return `${item.itemType}:${item.itemId}`;
+}
+
+/**
+ * Keys of `draft` that cannot stay put if `published` is transformed into it —
+ * everything outside a longest common subsequence.
+ *
+ * Comparing positions directly would be useless here: inserting one item at the
+ * top shifts every position below it, and marking the whole module "moved"
+ * tells the author nothing. The LCS marks the smallest set of rows that
+ * actually changed order.
+ */
+function reorderedKeys(published: string[], draft: string[]): Set<string> {
+  const rows = published.length;
+  const cols = draft.length;
+
+  // lengths[i][j] — LCS of published[i..] and draft[j..].
+  const lengths: number[][] = Array.from({ length: rows + 1 }, () =>
+    new Array<number>(cols + 1).fill(0),
+  );
+  for (let i = rows - 1; i >= 0; i--) {
+    for (let j = cols - 1; j >= 0; j--) {
+      lengths[i][j] =
+        published[i] === draft[j]
+          ? lengths[i + 1][j + 1] + 1
+          : Math.max(lengths[i + 1][j], lengths[i][j + 1]);
+    }
+  }
+
+  const stable = new Set<string>();
+  let i = 0;
+  let j = 0;
+  while (i < rows && j < cols) {
+    if (published[i] === draft[j]) {
+      stable.add(draft[j]);
+      i++;
+      j++;
+    } else if (lengths[i + 1][j] >= lengths[i][j + 1]) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+
+  return new Set(draft.filter((key) => !stable.has(key)));
+}
+
 @Injectable()
 export class PublishStateReader {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Resolves the publish state of every given container. Unknown ids are omitted. */
   async resolve(containerIds: string[]): Promise<Map<string, ContainerPublishState>> {
+    const detailed = await this.resolveDetailed(containerIds);
+    return new Map([...detailed].map(([id, detail]) => [id, detail.state]));
+  }
+
+  /**
+   * The same states, plus the per-item breakdown behind `pending_changes`.
+   * One pass over the database for both — callers that need the breakdown
+   * should not pay for a second round of the same queries.
+   */
+  async resolveDetailed(containerIds: string[]): Promise<Map<string, ContainerPublishStateDetail>> {
     const ids = [...new Set(containerIds)];
-    const states = new Map<string, ContainerPublishState>();
-    if (ids.length === 0) return states;
+    const details = new Map<string, ContainerPublishStateDetail>();
+    if (ids.length === 0) return details;
 
     const [containers, drafts] = await Promise.all([
       this.prisma.container.findMany({
@@ -62,36 +149,109 @@ export class PublishStateReader {
         draftVersionId: draftIdByContainerId.get(c.id) as string,
       }));
 
-    const signatures = await this.compositionSignatures(
+    const { itemsByVersionId, sectionTitleById } = await this.loadVersions(
       toCompare.flatMap((c) => [c.publishedVersionId, c.draftVersionId]),
     );
 
+    const signatureOf = (versionId: string) =>
+      this.compositionSignature(itemsByVersionId.get(versionId) ?? [], sectionTitleById);
+
     for (const c of containers) {
       if (c.currentPublishedVersionId === null) {
-        states.set(c.id, 'draft');
+        details.set(c.id, { state: 'draft', changeByItemId: new Map() });
         continue;
       }
       const pair = toCompare.find((p) => p.containerId === c.id);
       if (!pair) {
-        states.set(c.id, 'published');
+        details.set(c.id, { state: 'published', changeByItemId: new Map() });
         continue;
       }
-      const published = signatures.get(pair.publishedVersionId) ?? '';
-      const draft = signatures.get(pair.draftVersionId) ?? '';
-      states.set(c.id, published === draft ? 'published' : 'pending_changes');
+
+      const unchanged = signatureOf(pair.publishedVersionId) === signatureOf(pair.draftVersionId);
+      details.set(c.id, {
+        state: unchanged ? 'published' : 'pending_changes',
+        changeByItemId: unchanged
+          ? new Map()
+          : this.diffItems(
+              itemsByVersionId.get(pair.publishedVersionId) ?? [],
+              itemsByVersionId.get(pair.draftVersionId) ?? [],
+              sectionTitleById,
+            ),
+      });
     }
 
-    return states;
+    return details;
   }
 
   /**
-   * One comparable string per version. Sections are keyed by title rather than
-   * id because every version owns its own `container_sections` rows — the ids
-   * differ even when the grouping is identical.
+   * What changed about each item the draft still places, against the live version.
+   *
+   * A ref placed twice in one version is compared against the first live
+   * placement of the same ref — the schema allows the repeat, nothing in the
+   * authoring UI produces it, and guessing a pairing would be worse than this.
    */
-  private async compositionSignatures(versionIds: string[]): Promise<Map<string, string>> {
-    const signatures = new Map<string, string>();
-    if (versionIds.length === 0) return signatures;
+  private diffItems(
+    publishedItems: ItemRow[],
+    draftItems: ItemRow[],
+    sectionTitleById: Map<string, string>,
+  ): Map<string, ItemPendingChange> {
+    const changes = new Map<string, ItemPendingChange>();
+
+    const publishedByKey = new Map<string, ItemRow>();
+    for (const item of [...publishedItems].sort((a, b) => a.position - b.position)) {
+      const key = itemKeyOf(item);
+      if (!publishedByKey.has(key)) publishedByKey.set(key, item);
+    }
+
+    const draftOrdered = [...draftItems].sort((a, b) => a.position - b.position);
+
+    // Candidates for a pure reorder: placed in both versions, in the same
+    // section, with the same flags. Anything else already has a verdict.
+    const stayed: ItemRow[] = [];
+    for (const item of draftOrdered) {
+      const live = publishedByKey.get(itemKeyOf(item));
+      if (!live) {
+        changes.set(item.itemId, 'added');
+      } else if (sectionKeyOf(live, sectionTitleById) !== sectionKeyOf(item, sectionTitleById)) {
+        changes.set(item.itemId, 'moved');
+      } else if (live.isRequired !== item.isRequired) {
+        changes.set(item.itemId, 'flags_changed');
+      } else {
+        stayed.push(item);
+      }
+    }
+
+    const stayedKeys = new Set(stayed.map(itemKeyOf));
+    const sectionKeys = new Set(stayed.map((i) => sectionKeyOf(i, sectionTitleById)));
+
+    for (const sectionKey of sectionKeys) {
+      const draftSequence = stayed
+        .filter((i) => sectionKeyOf(i, sectionTitleById) === sectionKey)
+        .map(itemKeyOf);
+      const publishedSequence = [...publishedItems]
+        .sort((a, b) => a.position - b.position)
+        .filter(
+          (i) => sectionKeyOf(i, sectionTitleById) === sectionKey && stayedKeys.has(itemKeyOf(i)),
+        )
+        .map(itemKeyOf);
+
+      const moved = reorderedKeys(publishedSequence, draftSequence);
+      for (const item of stayed) {
+        if (moved.has(itemKeyOf(item))) changes.set(item.itemId, 'moved');
+      }
+    }
+
+    return changes;
+  }
+
+  /** Items and section titles of the given versions, in one round-trip each. */
+  private async loadVersions(versionIds: string[]): Promise<{
+    itemsByVersionId: Map<string, ItemRow[]>;
+    sectionTitleById: Map<string, string>;
+  }> {
+    const itemsByVersionId = new Map<string, ItemRow[]>();
+    const sectionTitleById = new Map<string, string>();
+    if (versionIds.length === 0) return { itemsByVersionId, sectionTitleById };
 
     const [items, sections] = await Promise.all([
       this.prisma.containerItem.findMany({
@@ -111,33 +271,34 @@ export class PublishStateReader {
       }),
     ]);
 
-    const sectionTitleById = new Map(sections.map((s) => [s.id, s.title]));
-
-    const itemsByVersionId = new Map<string, ItemRow[]>();
+    for (const section of sections) sectionTitleById.set(section.id, section.title);
     for (const item of items) {
       const bucket = itemsByVersionId.get(item.containerVersionId) ?? [];
       bucket.push(item);
       itemsByVersionId.set(item.containerVersionId, bucket);
     }
 
-    for (const versionId of versionIds) {
-      const bucket = itemsByVersionId.get(versionId) ?? [];
-      const signature = bucket
-        .slice()
-        .sort((a, b) => a.position - b.position)
-        .map((i) =>
-          [
-            i.position,
-            i.itemType,
-            i.itemId,
-            i.isRequired ? '1' : '0',
-            i.sectionId === null ? '' : (sectionTitleById.get(i.sectionId) ?? i.sectionId),
-          ].join('|'),
-        )
-        .join('\n');
-      signatures.set(versionId, signature);
-    }
+    return { itemsByVersionId, sectionTitleById };
+  }
 
-    return signatures;
+  /**
+   * One comparable string per version. Sections are keyed by title rather than
+   * id because every version owns its own `container_sections` rows — the ids
+   * differ even when the grouping is identical.
+   */
+  private compositionSignature(items: ItemRow[], sectionTitleById: Map<string, string>): string {
+    return items
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((i) =>
+        [
+          i.position,
+          i.itemType,
+          i.itemId,
+          i.isRequired ? '1' : '0',
+          sectionKeyOf(i, sectionTitleById),
+        ].join('|'),
+      )
+      .join('\n');
   }
 }

@@ -151,3 +151,92 @@ describe('PublishStateReader', () => {
     expect(states.has('ghost')).toBe(false);
   });
 });
+
+describe('PublishStateReader.resolveDetailed', () => {
+  async function changesOf(fixture: PrismaFixture) {
+    const detail = (await makeReader(fixture).resolveDetailed([COURSE_ID])).get(COURSE_ID);
+    return detail?.changeByItemId ?? new Map();
+  }
+
+  it('reports nothing per item while the composition matches', async () => {
+    const changes = await changesOf({
+      items: [item(PUBLISHED_VERSION_ID), item(DRAFT_VERSION_ID)],
+    });
+
+    expect(changes.size).toBe(0);
+  });
+
+  it('names the item the draft added', async () => {
+    const changes = await changesOf({
+      items: [
+        item(PUBLISHED_VERSION_ID),
+        item(DRAFT_VERSION_ID),
+        item(DRAFT_VERSION_ID, { position: 1, itemId: 'lesson-2' }),
+      ],
+    });
+
+    expect(changes.get('lesson-2')).toBe('added');
+    // The untouched item keeps its silence — a badge on every row is noise.
+    expect(changes.has('lesson-1')).toBe(false);
+  });
+
+  it('names the item that changed section', async () => {
+    const changes = await changesOf({
+      items: [
+        item(PUBLISHED_VERSION_ID, { sectionId: 'sec-published' }),
+        item(DRAFT_VERSION_ID, { sectionId: 'sec-draft' }),
+      ],
+      sections: [
+        { id: 'sec-published', title: 'Read' },
+        { id: 'sec-draft', title: 'Practise' },
+      ],
+    });
+
+    expect(changes.get('lesson-1')).toBe('moved');
+  });
+
+  it('names the item whose required flag changed', async () => {
+    const changes = await changesOf({
+      items: [item(PUBLISHED_VERSION_ID), item(DRAFT_VERSION_ID, { isRequired: false })],
+    });
+
+    expect(changes.get('lesson-1')).toBe('flags_changed');
+  });
+
+  it('blames the reorder on the item that moved, not on the ones it pushed down', async () => {
+    // Published: 1, 2, 3 → draft: 3, 1, 2. Only "lesson-3" jumped.
+    const changes = await changesOf({
+      items: [
+        item(PUBLISHED_VERSION_ID, { position: 0, itemId: 'lesson-1' }),
+        item(PUBLISHED_VERSION_ID, { position: 1, itemId: 'lesson-2' }),
+        item(PUBLISHED_VERSION_ID, { position: 2, itemId: 'lesson-3' }),
+        item(DRAFT_VERSION_ID, { position: 0, itemId: 'lesson-3' }),
+        item(DRAFT_VERSION_ID, { position: 1, itemId: 'lesson-1' }),
+        item(DRAFT_VERSION_ID, { position: 2, itemId: 'lesson-2' }),
+      ],
+    });
+
+    expect(changes.get('lesson-3')).toBe('moved');
+    expect(changes.has('lesson-1')).toBe(false);
+    expect(changes.has('lesson-2')).toBe(false);
+  });
+
+  it('does not call an item moved because an insert shifted its position', async () => {
+    const changes = await changesOf({
+      items: [
+        item(PUBLISHED_VERSION_ID, { position: 0, itemId: 'lesson-1' }),
+        item(DRAFT_VERSION_ID, { position: 0, itemId: 'lesson-new' }),
+        item(DRAFT_VERSION_ID, { position: 1, itemId: 'lesson-1' }),
+      ],
+    });
+
+    expect(changes.get('lesson-new')).toBe('added');
+    expect(changes.has('lesson-1')).toBe(false);
+  });
+
+  it('carries no breakdown for a container that was never published', async () => {
+    const changes = await changesOf({ currentPublishedVersionId: null });
+
+    expect(changes.size).toBe(0);
+  });
+});

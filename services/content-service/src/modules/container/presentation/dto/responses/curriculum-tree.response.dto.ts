@@ -43,6 +43,17 @@ export class CurriculumTreeItemResponseDto {
   })
   isLive!: boolean | null;
 
+  @ApiPropertyOptional({
+    example: 'moved',
+    enum: ['added', 'moved', 'flags_changed'],
+    description:
+      'How this placement differs from the live version — what publishing would change ' +
+      'about it. Null when identical, when nothing is pending, or when the owning ' +
+      'container has never been published. Composition only: edits to the item itself ' +
+      'are already live and are not reported here.',
+  })
+  pendingChange!: string | null;
+
   @ApiPropertyOptional({ example: 6 })
   durationMinutes!: number | null;
 
@@ -60,6 +71,7 @@ export class CurriculumTreeItemResponseDto {
     dto.lessonKind = node.lessonKind;
     dto.state = node.state;
     dto.isLive = node.isLive;
+    dto.pendingChange = node.pendingChange;
     dto.durationMinutes = node.durationMinutes;
     dto.xpReward = node.xpReward;
     return dto;
