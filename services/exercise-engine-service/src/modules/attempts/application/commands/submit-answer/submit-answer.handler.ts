@@ -31,6 +31,24 @@ export interface SubmitAnswerResult {
   score: number | null;
   requiresReview: boolean;
   feedback: { summary: string; hints?: string[]; correctAnswer?: unknown };
+  /** Per-gap verdicts for `word_bank_gap_fill`, and nothing for any other template. */
+  details?: unknown;
+}
+
+/**
+ * The validator's details, but only where they are meant for the learner.
+ *
+ * `word_bank_gap_fill` is graded per gap, and its details are exactly what the student
+ * is owed after a check: right or wrong, and the explanation the teacher wrote for the
+ * word they actually chose. Nothing in there is an answer.
+ *
+ * The other validators' details are diagnostics, and several of them do contain the
+ * answer — `multiple_choice` reports `expected`, `short_answer` reports `target`.
+ * Returning them all would hand the answer to anyone who opened the network tab, so
+ * this is a per-template allowance rather than a field that is simply forwarded.
+ */
+function learnerFacingDetails(templateCode: string, details: unknown): unknown {
+  return templateCode === WORD_BANK_GAP_FILL ? details : undefined;
 }
 
 /**
@@ -194,6 +212,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       score: outcome.score,
       requiresReview: false,
       feedback,
+      details: learnerFacingDetails(attempt.templateCode, outcome.details),
     });
   }
 
