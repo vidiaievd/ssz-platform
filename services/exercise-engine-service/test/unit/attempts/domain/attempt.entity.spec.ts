@@ -159,6 +159,71 @@ describe('Attempt entity', () => {
     });
   });
 
+  describe('reopenForRecheck()', () => {
+    const scored = () => {
+      const attempt = makeAttempt();
+      attempt.submit({}, 'h');
+      attempt.score(40, false, null, null);
+      attempt.clearDomainEvents();
+      return attempt;
+    };
+
+    it('puts a scored practice attempt back in progress and counts the revision', () => {
+      const attempt = scored();
+      const result = attempt.reopenForRecheck();
+      expect(result.isOk).toBe(true);
+      expect(attempt.status).toBe('IN_PROGRESS');
+      expect(attempt.revisionCount).toBe(1);
+      expect(attempt.submit({}, 'h2').isOk).toBe(true);
+    });
+
+    it('scores a re-check without raising a second AttemptScoredEvent', () => {
+      const attempt = scored();
+      attempt.reopenForRecheck();
+      attempt.submit({}, 'h2');
+      attempt.clearDomainEvents();
+
+      expect(attempt.score(100, true, null, null).isOk).toBe(true);
+      expect(attempt.scoreValue).toBe(100);
+      // Progress and the SRS heard about the first check. A correction is the
+      // learner reading the feedback, not fresh evidence that they knew the word.
+      expect(attempt.getDomainEvents()).toHaveLength(0);
+    });
+
+    it('refuses once the answers were revealed', () => {
+      const attempt = scored();
+      attempt.revealAnswers();
+      const result = attempt.reopenForRecheck();
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(InvalidAttemptTransitionError);
+    });
+
+    it('refuses on a graded attempt — that is one shot at a teacher', () => {
+      const attempt = Attempt.create({
+        userId: 'user-1',
+        exerciseId: 'ex-1',
+        templateCode: 'word_bank_gap_fill',
+        targetLanguage: 'no',
+        difficultyLevel: 'B1',
+        checkMode: 'GRADED',
+        practicedAtoms: [],
+      });
+      attempt.submit({}, 'h');
+      attempt.score(40, false, null, null);
+
+      const result = attempt.reopenForRecheck();
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(InvalidAttemptTransitionError);
+    });
+
+    it('refuses when the attempt was never scored', () => {
+      const attempt = makeAttempt();
+      const result = attempt.reopenForRecheck();
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(InvalidAttemptTransitionError);
+    });
+  });
+
   describe('routeForReview()', () => {
     it('transitions SUBMITTED → ROUTED_FOR_REVIEW', () => {
       const attempt = makeAttempt();

@@ -190,6 +190,43 @@ export class Attempt extends AggregateRoot {
     return Result.ok();
   }
 
+  /**
+   * Another go at the same attempt, after a check the learner was not happy with.
+   *
+   * `word_bank_gap_fill` is checked against the server rather than in the browser, and
+   * its behaviour spec makes checks unlimited: correct gaps lock, wrong ones stay
+   * editable, and nothing gates a further check. Without this the first check would
+   * score the attempt and every later one would be refused as an invalid transition.
+   *
+   * Practice only, and never after a reveal: once the answers have been handed over,
+   * checking again measures nothing. A graded attempt is a submission to a teacher and
+   * stays a single shot.
+   */
+  reopenForRecheck(): Result<void, InvalidAttemptTransitionError> {
+    if (this._checkMode !== 'PRACTICE') {
+      return Result.fail(
+        new InvalidAttemptTransitionError('Only a practice attempt can be checked again'),
+      );
+    }
+    if (this._answersRevealed) {
+      return Result.fail(
+        new InvalidAttemptTransitionError('Cannot check again once the answers were revealed'),
+      );
+    }
+    if (this._status !== 'SCORED') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot check an attempt with status ${this._status} again`,
+        ),
+      );
+    }
+
+    this._revisionCount += 1;
+    this._status = 'IN_PROGRESS';
+
+    return Result.ok();
+  }
+
   score(
     rawScore: number,
     passed: boolean,
@@ -218,17 +255,23 @@ export class Attempt extends AggregateRoot {
     this._scoredAt = new Date();
     this._status = 'SCORED';
 
-    this.addDomainEvent(
-      new AttemptScoredEvent(this.id, {
-        userId: this._userId,
-        exerciseId: this._exerciseId,
-        score: this._score,
-        timeSpentSeconds: this._timeSpentSeconds,
-        completed: true,
-        practicedAtoms: this._practicedAtoms,
-        ...(answerForm === undefined ? {} : { answerForm }),
-      }),
-    );
+    // Only the first check is evidence. A re-check is the learner correcting
+    // themselves with the wrong gaps still on screen, and counting it would tell
+    // progress and the SRS that the word was known when it had just been shown to
+    // be the one they got wrong.
+    if (this._revisionCount === 0) {
+      this.addDomainEvent(
+        new AttemptScoredEvent(this.id, {
+          userId: this._userId,
+          exerciseId: this._exerciseId,
+          score: this._score,
+          timeSpentSeconds: this._timeSpentSeconds,
+          completed: true,
+          practicedAtoms: this._practicedAtoms,
+          ...(answerForm === undefined ? {} : { answerForm }),
+        }),
+      );
+    }
 
     return Result.ok();
   }

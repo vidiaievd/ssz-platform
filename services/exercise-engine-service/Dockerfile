@@ -1,5 +1,5 @@
 # Build context: repo root (ssz-platform/)
-# Required because @ssz/contracts is a local file: dependency.
+# Required because @ssz/contracts and @ssz/shared-kernel are local file: dependencies.
 
 # ── Stage 1: build contracts ───────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS contracts-builder
@@ -12,13 +12,26 @@ COPY packages/contracts/src ./src
 COPY packages/contracts/tsconfig.json ./
 RUN npm run build
 
-# ── Stage 2: build service ────────────────────────────────────────────────────
+# ── Stage 2: build shared kernel ──────────────────────────────────────────────
+FROM node:22-bookworm-slim AS kernel-builder
+
+WORKDIR /workspace/packages/shared-kernel
+
+COPY packages/shared-kernel/package*.json ./
+RUN npm ci
+COPY packages/shared-kernel/src ./src
+COPY packages/shared-kernel/tsconfig.json ./
+RUN npm run build
+
+# ── Stage 3: build service ────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder
 ARG NODE_ENV=development
 
-# Mirror monorepo layout so file:../../packages/contracts resolves within /workspace
+# Mirror monorepo layout so file:../../packages/* resolve within /workspace
 COPY --from=contracts-builder /workspace/packages/contracts/package.json /workspace/packages/contracts/package.json
 COPY --from=contracts-builder /workspace/packages/contracts/dist         /workspace/packages/contracts/dist
+COPY --from=kernel-builder /workspace/packages/shared-kernel/package.json /workspace/packages/shared-kernel/package.json
+COPY --from=kernel-builder /workspace/packages/shared-kernel/dist         /workspace/packages/shared-kernel/dist
 
 WORKDIR /workspace/services/exercise-engine-service
 
@@ -36,7 +49,7 @@ RUN npx prisma generate
 RUN npm run build
 RUN if [ "$NODE_ENV" = "production" ]; then npm prune --production; fi
 
-# ── Stage 3: runtime ──────────────────────────────────────────────────────────
+# ── Stage 4: runtime ──────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app

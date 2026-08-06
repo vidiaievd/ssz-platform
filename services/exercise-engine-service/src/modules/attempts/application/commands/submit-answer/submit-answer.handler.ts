@@ -98,6 +98,18 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
 
     attempt.addTimeSpent(command.timeSpentSeconds);
 
+    // A practice attempt that has already been checked is reopened rather than
+    // refused: checks are unlimited, and the attempt is the thing being worked on.
+    // The entity decides whether this one may be — graded attempts and revealed
+    // ones may not — and the refusal reaches the caller as it would for any
+    // invalid transition.
+    if (attempt.status === 'SCORED') {
+      const reopened = attempt.reopenForRecheck();
+      if (reopened.isFail) {
+        return Result.fail(reopened.error as AttemptDomainError);
+      }
+    }
+
     const answerHash = createHash('sha256')
       .update(JSON.stringify(command.submittedAnswer))
       .digest('hex');
@@ -194,17 +206,20 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     await this.attempts.save(attempt);
     await this.publishEvents(attempt);
 
-    // Fire-and-forget: notify Learning Service (non-blocking)
-    this.learningClient
-      .createSubmission({
-        assignmentId: attempt.assignmentId,
-        exerciseId: attempt.exerciseId,
-        userId: attempt.userId,
-        attemptId: attempt.id,
-        submittedAnswer: command.submittedAnswer,
-        timeSpentSeconds: attempt.timeSpentSeconds,
-      })
-      .catch(() => undefined);
+    // Fire-and-forget: notify Learning Service (non-blocking). Once per attempt —
+    // a re-check is the same submission being corrected, not a new one.
+    if (attempt.revisionCount === 0) {
+      this.learningClient
+        .createSubmission({
+          assignmentId: attempt.assignmentId,
+          exerciseId: attempt.exerciseId,
+          userId: attempt.userId,
+          attemptId: attempt.id,
+          submittedAnswer: command.submittedAnswer,
+          timeSpentSeconds: attempt.timeSpentSeconds,
+        })
+        .catch(() => undefined);
+    }
 
     return Result.ok<SubmitAnswerResult, SubmitAnswerError>({
       attemptId: attempt.id,
