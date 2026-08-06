@@ -447,7 +447,17 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
       // document loaded; the rest are covered by EXERCISE_INCOMPLETE alone.
       this.prisma.exercise.findMany({
         where: { id: { in: exerciseIds }, template: { code: GAP_FILL_TEMPLATE } },
-        select: { id: true, content: true, expectedAnswers: true },
+        // The draft too: pre-flight answers "is this publishable", and publishing
+        // is what promotes the draft. Judging the live document would clear a
+        // publish on work the author has already replaced.
+        select: {
+          id: true,
+          content: true,
+          expectedAnswers: true,
+          draftContent: true,
+          draftExpectedAnswers: true,
+          draftUpdatedAt: true,
+        },
       }),
     ]);
 
@@ -466,7 +476,12 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
     }
 
     for (const exercise of exercises) {
-      for (const violation of gapFillViolations(exercise)) {
+      const pending = exercise.draftUpdatedAt !== null;
+      for (const violation of gapFillViolations({
+        id: exercise.id,
+        content: pending ? exercise.draftContent : exercise.content,
+        expectedAnswers: pending ? exercise.draftExpectedAnswers : exercise.expectedAnswers,
+      })) {
         (violation.severity === 'blocker' ? blockers : warnings).push(violation);
       }
     }

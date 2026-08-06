@@ -738,6 +738,14 @@ model Exercise {
   content                  Json
   expectedAnswers          Json            @map("expected_answers")
   answerCheckSettings      Json?           @map("answer_check_settings")
+  // Unreleased edit. Authoring writes here and students keep reading the columns
+  // above until the container placing this exercise is published, which promotes
+  // the draft. `draft_updated_at` is the flag: set means the other three are the
+  // complete document to release, null means there is nothing waiting.
+  draftContent             Json?           @map("draft_content")
+  draftExpectedAnswers     Json?           @map("draft_expected_answers")
+  draftAnswerCheckSettings Json?           @map("draft_answer_check_settings")
+  draftUpdatedAt           DateTime?       @map("draft_updated_at") @db.Timestamptz
   ownerUserId              String          @map("owner_user_id") @db.Uuid
   ownerSchoolId            String?         @map("owner_school_id") @db.Uuid
   visibility               Visibility
@@ -772,6 +780,12 @@ model ExerciseInstruction {
   instructionText     String   @map("instruction_text") @db.Text
   hintText            String?  @map("hint_text") @db.Text
   textOverrides       Json?    @map("text_overrides")
+  // Unreleased edit, on the same terms as the exercise document it belongs to:
+  // `draft_updated_at` set means these three are what publishing will release.
+  draftInstructionText String?  @map("draft_instruction_text") @db.Text
+  draftHintText        String?  @map("draft_hint_text") @db.Text
+  draftTextOverrides   Json?    @map("draft_text_overrides")
+  draftUpdatedAt       DateTime? @map("draft_updated_at") @db.Timestamptz
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
 

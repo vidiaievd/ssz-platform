@@ -82,13 +82,42 @@ export class ExerciseWithAnswersResponseDto extends ExerciseResponseDto {
   @ApiProperty({ type: 'object', additionalProperties: true })
   expectedAnswers!: Record<string, unknown>;
 
-  static fromWithAnswers(entity: ExerciseEntity): ExerciseWithAnswersResponseDto {
+  @ApiProperty({
+    example: true,
+    description:
+      'Whether this exercise holds an edit students cannot see yet. True only until the ' +
+      'container placing it is published, which releases the edit.',
+  })
+  hasDraft!: boolean;
+
+  /**
+   * `scope` decides which document comes back. `live` — what a student is being
+   * served right now, which is what the grading engine must score against.
+   * `draft` — what the author last wrote, which is what the editor must reopen.
+   *
+   * Defaulting to `live` keeps every existing caller answering the question it
+   * was already asking; only authoring has to say it wants the unreleased work.
+   */
+  static fromWithAnswers(
+    entity: ExerciseEntity,
+    scope: 'live' | 'draft' = 'live',
+  ): ExerciseWithAnswersResponseDto {
+    const draft = scope === 'draft';
     const dto = ExerciseResponseDto.from(entity) as ExerciseWithAnswersResponseDto;
     // The authoring and grading read. Undo the masking the base mapper applied:
     // a caller entitled to the expected answers is entitled to the content that
     // holds them, and the builder cannot edit a sentence it cannot see.
-    dto.content = entity.content;
-    dto.expectedAnswers = entity.expectedAnswers;
+    dto.content = draft ? entity.authoringContent : entity.content;
+    dto.expectedAnswers = draft ? entity.authoringExpectedAnswers : entity.expectedAnswers;
+    dto.answerCheckSettings = draft
+      ? entity.authoringAnswerCheckSettings
+      : entity.answerCheckSettings;
+    // The token an autosaving editor sends back; it follows the draft.
+    dto.updatedAt = draft ? entity.contentUpdatedAt : entity.updatedAt;
+    dto.instructions = entity.instructions
+      ? entity.instructions.map((i) => ExerciseInstructionResponseDto.from(i, scope))
+      : null;
+    dto.hasDraft = entity.hasDraft;
     return dto;
   }
 }

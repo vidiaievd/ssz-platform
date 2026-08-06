@@ -22,6 +22,8 @@ interface PrismaFixture {
     sectionId: string | null;
   }[];
   sections?: { id: string; title: string }[];
+  /** Exercise ids the repository reports as holding an unreleased edit. */
+  exercisesWithDrafts?: string[];
 }
 
 function makeReader(fixture: PrismaFixture = {}) {
@@ -46,6 +48,11 @@ function makeReader(fixture: PrismaFixture = {}) {
     },
     containerItem: { findMany: jest.fn().mockResolvedValue(fixture.items ?? []) },
     containerSection: { findMany: jest.fn().mockResolvedValue(fixture.sections ?? []) },
+    exercise: {
+      findMany: jest
+        .fn()
+        .mockResolvedValue((fixture.exercisesWithDrafts ?? []).map((id) => ({ id }))),
+    },
   } as any;
 
   return new PublishStateReader(prisma);
@@ -232,6 +239,52 @@ describe('PublishStateReader.resolveDetailed', () => {
 
     expect(changes.get('lesson-new')).toBe('added');
     expect(changes.has('lesson-1')).toBe(false);
+  });
+
+  it('names the exercise holding an unreleased edit, and calls the module pending', async () => {
+    // Editing an exercise moves nothing, so composition alone reports "published"
+    // — and the author is left publishing a module the badge calls up to date.
+    const reader = makeReader({
+      items: [
+        item(PUBLISHED_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' }),
+        item(DRAFT_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' }),
+      ],
+      exercisesWithDrafts: ['exercise-1'],
+    });
+
+    const detail = (await reader.resolveDetailed([COURSE_ID])).get(COURSE_ID);
+
+    expect(detail?.state).toBe('pending_changes');
+    expect(detail?.changeByItemId.get('exercise-1')).toBe('content_changed');
+  });
+
+  it('leaves an untouched exercise unmarked', async () => {
+    const reader = makeReader({
+      items: [
+        item(PUBLISHED_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' }),
+        item(DRAFT_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' }),
+      ],
+    });
+
+    const detail = (await reader.resolveDetailed([COURSE_ID])).get(COURSE_ID);
+
+    expect(detail?.state).toBe('published');
+    expect(detail?.changeByItemId.size).toBe(0);
+  });
+
+  it('finds an edited exercise in a container that has no draft version at all', async () => {
+    // Nothing about editing an exercise creates a container draft, so the live
+    // version is the only place its placement can be found.
+    const reader = makeReader({
+      drafts: [],
+      items: [item(PUBLISHED_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' })],
+      exercisesWithDrafts: ['exercise-1'],
+    });
+
+    const detail = (await reader.resolveDetailed([COURSE_ID])).get(COURSE_ID);
+
+    expect(detail?.state).toBe('pending_changes');
+    expect(detail?.changeByItemId.get('exercise-1')).toBe('content_changed');
   });
 
   it('carries no breakdown for a container that was never published', async () => {

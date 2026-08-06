@@ -267,6 +267,7 @@ describe('GetLessonReaderContentHandler', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
+      draft: null,
       instructions: [],
     });
 
@@ -319,6 +320,7 @@ describe('GetLessonReaderContentHandler', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
+      draft: null,
       instructions: [],
     });
 

@@ -24,6 +24,10 @@ export interface ExerciseCreateData {
   content: Prisma.InputJsonValue;
   expectedAnswers: Prisma.InputJsonValue;
   answerCheckSettings: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
+  draftContent: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
+  draftExpectedAnswers: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
+  draftAnswerCheckSettings: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
+  draftUpdatedAt: Date | null;
   ownerUserId: string;
   ownerSchoolId: string | null;
   visibility: $Enums.Visibility;
@@ -54,6 +58,17 @@ export class ExerciseMapper {
       content: raw.content as Record<string, unknown>,
       expectedAnswers: raw.expectedAnswers as Record<string, unknown>,
       answerCheckSettings: raw.answerCheckSettings as Record<string, unknown> | null,
+      // `draft_updated_at` is the flag: with it set, the sibling columns are the
+      // complete document waiting to be released.
+      draft:
+        raw.draftUpdatedAt === null
+          ? null
+          : {
+              content: raw.draftContent as Record<string, unknown>,
+              expectedAnswers: raw.draftExpectedAnswers as Record<string, unknown>,
+              answerCheckSettings: raw.draftAnswerCheckSettings as Record<string, unknown> | null,
+              updatedAt: raw.draftUpdatedAt,
+            },
       ownerUserId: raw.ownerUserId,
       ownerSchoolId: raw.ownerSchoolId,
       visibility: prismaVisibilityToDomain(raw.visibility),
@@ -76,6 +91,16 @@ export class ExerciseMapper {
       answerCheckSettings: (entity.answerCheckSettings ?? Prisma.JsonNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
+      draftContent: (entity.draft?.content ?? Prisma.JsonNull) as
+        | Prisma.InputJsonValue
+        | Prisma.NullableJsonNullValueInput,
+      draftExpectedAnswers: (entity.draft?.expectedAnswers ?? Prisma.JsonNull) as
+        | Prisma.InputJsonValue
+        | Prisma.NullableJsonNullValueInput,
+      draftAnswerCheckSettings: (entity.draft?.answerCheckSettings ?? Prisma.JsonNull) as
+        | Prisma.InputJsonValue
+        | Prisma.NullableJsonNullValueInput,
+      draftUpdatedAt: entity.draft?.updatedAt ?? null,
       ownerUserId: entity.ownerUserId,
       ownerSchoolId: entity.ownerSchoolId,
       visibility: domainVisibilityToPrisma(entity.visibility),
@@ -94,6 +119,16 @@ export class ExerciseMapper {
       answerCheckSettings: (entity.answerCheckSettings ?? Prisma.JsonNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
+      draftContent: (entity.draft?.content ?? Prisma.JsonNull) as
+        | Prisma.InputJsonValue
+        | Prisma.NullableJsonNullValueInput,
+      draftExpectedAnswers: (entity.draft?.expectedAnswers ?? Prisma.JsonNull) as
+        | Prisma.InputJsonValue
+        | Prisma.NullableJsonNullValueInput,
+      draftAnswerCheckSettings: (entity.draft?.answerCheckSettings ?? Prisma.JsonNull) as
+        | Prisma.InputJsonValue
+        | Prisma.NullableJsonNullValueInput,
+      draftUpdatedAt: entity.draft?.updatedAt ?? null,
       visibility: domainVisibilityToPrisma(entity.visibility),
       estimatedDurationSeconds: entity.estimatedDurationSeconds,
       updatedAt: entity.updatedAt,

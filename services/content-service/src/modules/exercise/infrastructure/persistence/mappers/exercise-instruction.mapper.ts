@@ -9,6 +9,10 @@ export interface ExerciseInstructionCreateData {
   instructionText: string;
   hintText: string | null;
   textOverrides: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
+  draftInstructionText: string | null;
+  draftHintText: string | null;
+  draftTextOverrides: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
+  draftUpdatedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +31,15 @@ export class ExerciseInstructionMapper {
       textOverrides: raw.textOverrides as Record<string, unknown> | null,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
+      draft:
+        raw.draftUpdatedAt === null
+          ? null
+          : {
+              instructionText: raw.draftInstructionText ?? raw.instructionText,
+              hintText: raw.draftHintText,
+              textOverrides: raw.draftTextOverrides as Record<string, unknown> | null,
+              updatedAt: raw.draftUpdatedAt,
+            },
     });
   }
 
@@ -40,6 +53,12 @@ export class ExerciseInstructionMapper {
       textOverrides: (entity.textOverrides ?? Prisma.JsonNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
+      draftInstructionText: entity.draft?.instructionText ?? null,
+      draftHintText: entity.draft?.hintText ?? null,
+      draftTextOverrides: (entity.draft?.textOverrides ?? Prisma.JsonNull) as
+        | Prisma.InputJsonValue
+        | Prisma.NullableJsonNullValueInput,
+      draftUpdatedAt: entity.draft?.updatedAt ?? null,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };
@@ -52,6 +71,12 @@ export class ExerciseInstructionMapper {
       textOverrides: (entity.textOverrides ?? Prisma.JsonNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
+      draftInstructionText: entity.draft?.instructionText ?? null,
+      draftHintText: entity.draft?.hintText ?? null,
+      draftTextOverrides: (entity.draft?.textOverrides ?? Prisma.JsonNull) as
+        | Prisma.InputJsonValue
+        | Prisma.NullableJsonNullValueInput,
+      draftUpdatedAt: entity.draft?.updatedAt ?? null,
       updatedAt: entity.updatedAt,
     };
   }

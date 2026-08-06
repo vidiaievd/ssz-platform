@@ -26,11 +26,13 @@ export type ContainerPublishState = 'draft' | 'published' | 'pending_changes';
  * - `added`          — the live version does not place this item at all
  * - `moved`          — placed live, but in another section or another order
  * - `flags_changed`  — same place, different `isRequired`
+ * - `content_changed` — placed identically, but the item itself holds an edit
+ *                       students have not been shown yet
  *
  * Items the draft *dropped* have no row to carry a marker and are reported
  * separately by the caller that needs them — not here.
  */
-export type ItemPendingChange = 'added' | 'moved' | 'flags_changed';
+export type ItemPendingChange = 'added' | 'moved' | 'flags_changed' | 'content_changed';
 
 export interface ContainerPublishStateDetail {
   state: ContainerPublishState;
@@ -149,8 +151,26 @@ export class PublishStateReader {
         draftVersionId: draftIdByContainerId.get(c.id) as string,
       }));
 
-    const { itemsByVersionId, sectionTitleById } = await this.loadVersions(
-      toCompare.flatMap((c) => [c.publishedVersionId, c.draftVersionId]),
+    // The version an author is editing: the draft when there is one, otherwise the
+    // published version itself. Exercises are edited through it either way, and an
+    // exercise edit needs no draft version to exist — it never touches composition.
+    const authoringVersionId = new Map(
+      containers
+        .map((c) => [c.id, draftIdByContainerId.get(c.id) ?? c.currentPublishedVersionId] as const)
+        .filter((pair): pair is readonly [string, string] => pair[1] !== null),
+    );
+
+    const { itemsByVersionId, sectionTitleById } = await this.loadVersions([
+      ...toCompare.flatMap((c) => [c.publishedVersionId, c.draftVersionId]),
+      ...authoringVersionId.values(),
+    ]);
+
+    const editedExerciseIds = await this.exercisesWithUnreleasedEdits(
+      [...authoringVersionId.values()].flatMap((versionId) =>
+        (itemsByVersionId.get(versionId) ?? [])
+          .filter((i) => i.itemType === 'EXERCISE')
+          .map((i) => i.itemId),
+      ),
     );
 
     const signatureOf = (versionId: string) =>
@@ -161,26 +181,54 @@ export class PublishStateReader {
         details.set(c.id, { state: 'draft', changeByItemId: new Map() });
         continue;
       }
-      const pair = toCompare.find((p) => p.containerId === c.id);
-      if (!pair) {
-        details.set(c.id, { state: 'published', changeByItemId: new Map() });
-        continue;
-      }
 
-      const unchanged = signatureOf(pair.publishedVersionId) === signatureOf(pair.draftVersionId);
-      details.set(c.id, {
-        state: unchanged ? 'published' : 'pending_changes',
-        changeByItemId: unchanged
-          ? new Map()
-          : this.diffItems(
+      const pair = toCompare.find((p) => p.containerId === c.id);
+      // Not the same question as "does any row carry a marker": a row the draft
+      // *dropped* is a pending change with no row left to mark, so composition is
+      // judged by the signature and the markers are only the explanation.
+      const compositionDiffers =
+        pair !== undefined &&
+        signatureOf(pair.publishedVersionId) !== signatureOf(pair.draftVersionId);
+
+      const changeByItemId =
+        pair && compositionDiffers
+          ? this.diffItems(
               itemsByVersionId.get(pair.publishedVersionId) ?? [],
               itemsByVersionId.get(pair.draftVersionId) ?? [],
               sectionTitleById,
-            ),
+            )
+          : new Map<string, ItemPendingChange>();
+
+      // An edited exercise is a pending change even when the composition is
+      // untouched — which is the usual case, since editing one moves nothing.
+      // Reported per row so the author reviews that exercise instead of all of them.
+      const versionId = authoringVersionId.get(c.id);
+      for (const item of itemsByVersionId.get(versionId ?? '') ?? []) {
+        if (!changeByItemId.has(item.itemId) && editedExerciseIds.has(item.itemId)) {
+          changeByItemId.set(item.itemId, 'content_changed');
+        }
+      }
+
+      details.set(c.id, {
+        state: compositionDiffers || changeByItemId.size > 0 ? 'pending_changes' : 'published',
+        changeByItemId,
       });
     }
 
     return details;
+  }
+
+  /** Of the given exercises, the ones holding an edit students have not been shown. */
+  private async exercisesWithUnreleasedEdits(exerciseIds: string[]): Promise<Set<string>> {
+    const ids = [...new Set(exerciseIds)];
+    if (ids.length === 0) return new Set();
+
+    const rows = await this.prisma.exercise.findMany({
+      where: { id: { in: ids }, draftUpdatedAt: { not: null } },
+      select: { id: true },
+    });
+
+    return new Set(rows.map((r) => r.id));
   }
 
   /**

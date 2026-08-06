@@ -20,6 +20,7 @@ import {
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
@@ -181,14 +182,29 @@ export class ExerciseController {
     summary: 'Get an exercise with instructions and expected answers (owner/engine)',
   })
   @ApiOkResponse({ type: ExerciseWithAnswersResponseDto })
-  async findWithAnswers(@Param('id') id: string): Promise<ExerciseWithAnswersResponseDto> {
+  @ApiQuery({
+    name: 'scope',
+    required: false,
+    enum: ['live', 'draft'],
+    description:
+      'Which document to return. `live` (default) is what students are being served and ' +
+      'what an attempt must be graded against; `draft` is the unreleased edit an editor ' +
+      'has to reopen. They differ only while an author has saved something unpublished.',
+  })
+  async findWithAnswers(
+    @Param('id') id: string,
+    @Query('scope') scope?: string,
+  ): Promise<ExerciseWithAnswersResponseDto> {
     const result = await this.queryBus.execute<
       GetExerciseWithAnswersQuery,
       Result<ExerciseEntity, ExerciseDomainError>
     >(new GetExerciseWithAnswersQuery(id));
 
     if (result.isFail) throwHttpException(result.error);
-    return ExerciseWithAnswersResponseDto.fromWithAnswers(result.value);
+    return ExerciseWithAnswersResponseDto.fromWithAnswers(
+      result.value,
+      scope === 'draft' ? 'draft' : 'live',
+    );
   }
 
   @Patch(':id')

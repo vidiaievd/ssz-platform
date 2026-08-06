@@ -16,6 +16,8 @@ import { CONTENT_EVENT_PUBLISHER } from '../../../../../shared/application/ports
 import type { IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { ContainerPublishedEvent } from '../../../domain/events/container-published.event.js';
 import { ContainerDeprecatedEvent } from '../../../domain/events/container-deprecated.event.js';
+import { EXERCISE_DRAFT_PROMOTER } from '../../ports/exercise-draft-promoter.port.js';
+import type { IExerciseDraftPromoter } from '../../ports/exercise-draft-promoter.port.js';
 import { generateSlug, resolveUniqueSlug } from '../../../../../shared/utils/slug.util.js';
 
 const DEFAULT_SUNSET_DAYS = 90;
@@ -39,6 +41,8 @@ export class PublishVersionHandler implements ICommandHandler<
     private readonly itemRepo: IContainerItemRepository,
     @Inject(CONTENT_EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
+    @Inject(EXERCISE_DRAFT_PROMOTER)
+    private readonly draftPromoter: IExerciseDraftPromoter,
     private readonly queryBus: QueryBus,
   ) {}
 
@@ -94,6 +98,11 @@ export class PublishVersionHandler implements ICommandHandler<
         return existing !== null;
       });
     }
+
+    // Before the version goes live, not after: the moment `publishVersion` returns,
+    // students are being served this version, and an exercise whose draft had not
+    // been promoted yet would show them the old document until the next publish.
+    await this.draftPromoter.promoteForVersion(command.versionId);
 
     const { sunsetAt } = await this.versionRepo.publishVersion({
       versionId: command.versionId,

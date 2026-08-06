@@ -58,10 +58,12 @@ export class UpdateExerciseHandler implements ICommandHandler<
     // timestamp on the way through is not told it is out of date.
     if (command.expectedUpdatedAt !== undefined) {
       const expected = new Date(command.expectedUpdatedAt);
-      if (expected.getTime() !== exercise.updatedAt.getTime()) {
+      // Against the *authoring* timestamp: once an edit is waiting in the draft, that
+      // is the version an editor last read, and the live row no longer moves at all.
+      if (expected.getTime() !== exercise.contentUpdatedAt.getTime()) {
         return Result.fail({
           code: ExerciseDomainError.EXERCISE_MODIFIED_ELSEWHERE,
-          currentUpdatedAt: exercise.updatedAt,
+          currentUpdatedAt: exercise.contentUpdatedAt,
         });
       }
     }
@@ -92,6 +94,6 @@ export class UpdateExerciseHandler implements ICommandHandler<
 
     // The stored value, not the one the entity set on itself: the row is what the next
     // write is compared against, and a client holding anything else conflicts with itself.
-    return Result.ok({ updatedAt: saved.updatedAt });
+    return Result.ok({ updatedAt: saved.contentUpdatedAt });
   }
 }
