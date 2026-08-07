@@ -9,6 +9,7 @@ import { UpsertProgressCommand } from '../../progress/application/commands/upser
 import { IntroduceCardCommand } from '../../srs/application/commands/introduce-card.command.js';
 import { ReviewCardCommand } from '../../srs/application/commands/review-card.command.js';
 import type { ReviewRatingValue } from '../../srs/domain/value-objects/review-rating.vo.js';
+import { clampByEvidence, evidenceStrength } from '../../srs/domain/evidence-strength.js';
 import { CanDoEvaluatorService } from '../../can-do/application/services/can-do-evaluator.service.js';
 import type { ReviewCardDto } from '../../srs/application/dto/srs.dto.js';
 import {
@@ -34,12 +35,34 @@ const ROUTING_KEY = 'exercise.attempt.completed';
  *   60 ≤ score < 80              → HARD
  *   80 ≤ score < 95              → GOOD
  *   score ≥ 95                   → EASY
+ *
+ * How well it went, and nothing about how it was answered — that is the ceiling's
+ * job, applied on top (plan 36 §B.2).
  */
 function scoreToRating(score: number): ReviewRatingValue {
   if (score < 60) return 'AGAIN';
   if (score < 80) return 'HARD';
   if (score < 95) return 'GOOD';
   return 'EASY';
+}
+
+/**
+ * The rating this attempt has earned, once the form of the answer is taken into
+ * account (plan 36 §B.2).
+ *
+ * Scoring 100 by picking a word out of five given ones used to stretch the interval
+ * exactly as far as scoring 100 by typing it from memory. It no longer does.
+ *
+ * Backward compatibility is the point of the fallbacks in `evidenceStrength`, not of
+ * anything here: an event carrying neither an answer form nor a template code — every
+ * one already in the queue — comes back unclamped and rates exactly as it did before.
+ * No existing card is migrated; the scale reaches new attempts only.
+ */
+function ratingForAttempt(p: ExerciseAttemptCompletedPayload, score: number): ReviewRatingValue {
+  return clampByEvidence(
+    scoreToRating(score),
+    evidenceStrength({ answerForm: p.answerForm, templateCode: p.templateCode }),
+  );
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -147,7 +170,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       //    Free-form (completed=false, score=null) awaits human review; no auto-rating.
       //    We need the card's UUID (not the content ID) to call ReviewCardCommand.
       if (p.completed === true && p.score !== null && introduceResult.isOk) {
-        const rating = scoreToRating(p.score);
+        const rating = ratingForAttempt(p, p.score);
         const card = introduceResult.value as ReviewCardDto;
         const cardId = card.id;
         const reviewResult = await this.commandBus.execute(

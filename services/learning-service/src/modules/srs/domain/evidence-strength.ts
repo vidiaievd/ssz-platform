@@ -141,3 +141,24 @@ export function evidenceStrength(input: EvidenceInput): EvidenceStrength {
 
   return UNCLAMPED;
 }
+
+/**
+ * The rating that should actually reach FSRS, given how the answer was produced.
+ *
+ * `AGAIN` is the split between success and failure, because that is what it means to
+ * FSRS: `AGAIN` is a lapse, and `HARD`/`GOOD`/`EASY` all say the item was recalled,
+ * only with differing effort. So a lapse gets lifted to the floor, and everything
+ * else gets held down to the ceiling.
+ *
+ * The clamp only ever moves a rating *toward* the middle. It cannot invent an `EASY`
+ * out of a `HARD`, and it cannot turn a recalled item into a lapse.
+ */
+export function clampByEvidence(
+  rating: ReviewRatingValue,
+  strength: EvidenceStrength,
+): ReviewRatingValue {
+  if (rating === 'AGAIN') {
+    return ratingRank(strength.failureFloor) > ratingRank(rating) ? strength.failureFloor : rating;
+  }
+  return ratingRank(strength.successCap) < ratingRank(rating) ? strength.successCap : rating;
+}

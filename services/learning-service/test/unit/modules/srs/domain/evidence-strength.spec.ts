@@ -1,4 +1,5 @@
 import {
+  clampByEvidence,
   evidenceStrength,
   ratingRank,
 } from '../../../../../src/modules/srs/domain/evidence-strength.js';
@@ -92,6 +93,43 @@ describe('evidenceStrength', () => {
       expect(evidenceStrength({})).toEqual({ successCap: 'EASY', failureFloor: 'AGAIN' });
       expect(evidenceStrength({ answerForm: null, templateCode: null }))
         .toEqual({ successCap: 'EASY', failureFloor: 'AGAIN' });
+    });
+  });
+
+  describe('clampByEvidence', () => {
+    const bankOfFive = evidenceStrength({
+      answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+    });
+    const typed = evidenceStrength({
+      answerForm: { mode: 'free', bankSize: null, wordsConsumed: false },
+    });
+    const unclamped = evidenceStrength({});
+
+    it('brings a success down to the ceiling', () => {
+      expect(clampByEvidence('EASY', bankOfFive)).toBe('GOOD');
+    });
+
+    it('leaves a success already under the ceiling alone', () => {
+      expect(clampByEvidence('HARD', bankOfFive)).toBe('HARD');
+      expect(clampByEvidence('GOOD', bankOfFive)).toBe('GOOD');
+    });
+
+    it('lifts a failure up to the floor', () => {
+      expect(clampByEvidence('AGAIN', typed)).toBe('HARD');
+    });
+
+    it('leaves a failure alone where the floor is the bottom', () => {
+      expect(clampByEvidence('AGAIN', bankOfFive)).toBe('AGAIN');
+    });
+
+    it('never promotes a success or demotes one into a lapse', () => {
+      // The clamp only moves a rating toward the middle. A HARD must not become
+      // EASY because the form was strong, and a GOOD must not become a lapse.
+      expect(clampByEvidence('HARD', typed)).toBe('HARD');
+      expect(clampByEvidence('GOOD', typed)).toBe('GOOD');
+      for (const rating of ['AGAIN', 'HARD', 'GOOD', 'EASY'] as const) {
+        expect(clampByEvidence(rating, unclamped)).toBe(rating);
+      }
     });
   });
 

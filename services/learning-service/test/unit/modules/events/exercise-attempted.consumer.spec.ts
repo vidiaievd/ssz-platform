@@ -145,13 +145,102 @@ describe('ExerciseAttemptedConsumer', () => {
     });
   });
 
-  describe('handleMessage — the answer form (plan 35 §5.4)', () => {
+  describe('handleMessage — the evidence ceiling (plan 36 §B.2)', () => {
     // `word_bank_gap_fill` merged the "choose from a bank" and "type it from
-    // memory" exercises into one template, so `answerForm` is now the only thing
-    // that distinguishes them. Nothing here reads it yet — the scale that will is
-    // plan 36 — but events must carry it through unharmed in both directions.
+    // memory" exercises into one template, so `answerForm` is the only thing that
+    // distinguishes them — and picking a word out of five given ones is not the
+    // same evidence as recalling it. The rating is now capped by the form.
 
-    it('handles an event that carries an answer form, ignoring it for now', async () => {
+    async function ratingFor(payload: object): Promise<string> {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(payload)));
+      const reviewCall = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .find((c) => c instanceof ReviewCardCommand) as ReviewCardCommand | undefined;
+      return reviewCall?.rating ?? '';
+    }
+
+    const perfect = {
+      userId: USER_ID,
+      exerciseId: EXERCISE_ID,
+      score: 100,
+      timeSpentSeconds: 60,
+      completed: true,
+    };
+
+    it('holds a perfect score from a bank of five to GOOD, not EASY', async () => {
+      expect(
+        await ratingFor({
+          ...perfect,
+          answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+        }),
+      ).toBe('GOOD');
+    });
+
+    it('lets a perfect score typed from memory reach EASY', async () => {
+      expect(
+        await ratingFor({
+          ...perfect,
+          answerForm: { mode: 'free', bankSize: null, wordsConsumed: false },
+        }),
+      ).toBe('EASY');
+    });
+
+    it('lifts a failure at free typing off the floor — it may only be a typo', async () => {
+      expect(
+        await ratingFor({
+          ...perfect,
+          score: 0,
+          answerForm: { mode: 'free', bankSize: null, wordsConsumed: false },
+        }),
+      ).toBe('HARD');
+    });
+
+    it('leaves a failure from a bank on the floor — the hint was as big as it gets', async () => {
+      expect(
+        await ratingFor({
+          ...perfect,
+          score: 0,
+          answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+        }),
+      ).toBe('AGAIN');
+    });
+
+    it('caps by template code when there is no form to read', async () => {
+      // Elimination does the work in match_pairs: the last pair is correct by
+      // construction, so a perfect score cannot mean more than HARD.
+      expect(await ratingFor({ ...perfect, templateCode: 'match_pairs' })).toBe('HARD');
+      expect(await ratingFor({ ...perfect, templateCode: 'short_answer' })).toBe('EASY');
+    });
+
+    it('leaves an unknown template rating exactly as it does today', async () => {
+      expect(await ratingFor({ ...perfect, templateCode: 'some_future_type' })).toBe('EASY');
+    });
+
+    it('records the clamped rating in the telemetry, not the raw one', async () => {
+      const { consumer, publisher } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            ...perfect,
+            templateCode: 'word_bank_gap_fill',
+            answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+          }),
+        ),
+      );
+
+      // The baseline is only comparable if it says what actually reached FSRS.
+      expect(ratedPayload(publisher)!.ratingApplied).toBe('GOOD');
+    });
+
+    it('applies the same ceiling to the vocabulary fan-out', async () => {
+      // The atoms an exercise practices are rated with the exercise's own rating.
+      // If the ceiling stopped at the exercise card, every word behind a bank
+      // answer would keep stretching as though it had been recalled.
       const { consumer, commandBus } = makeConsumer();
       const channel = makeChannel();
 
@@ -159,24 +248,19 @@ describe('ExerciseAttemptedConsumer', () => {
         channel,
         makeMsg(
           envelope({
-            userId: USER_ID,
-            exerciseId: EXERCISE_ID,
-            score: 100,
-            timeSpentSeconds: 60,
-            completed: true,
+            ...perfect,
             answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+            practicedAtoms: [{ atomType: 'vocabulary_item', atomId: 'word-1' }],
           }),
         ),
       );
 
-      const reviewCall = commandBus.execute.mock.calls
+      const reviews = commandBus.execute.mock.calls
         .map((c: unknown[]) => c[0])
-        .find((c) => c instanceof ReviewCardCommand) as ReviewCardCommand | undefined;
+        .filter((c) => c instanceof ReviewCardCommand) as ReviewCardCommand[];
 
-      // Same rating as an identical event without the field: reading it is plan 36.
-      expect(reviewCall!.rating).toBe('EASY');
-      expect(channel.ack).toHaveBeenCalledTimes(1);
-      expect(channel.nack).not.toHaveBeenCalled();
+      expect(reviews).toHaveLength(2);
+      expect(reviews.every((r) => r.rating === 'GOOD')).toBe(true);
     });
 
     it('still handles an event published before the field existed', async () => {
@@ -241,7 +325,8 @@ describe('ExerciseAttemptedConsumer', () => {
         daysSinceLastReview: null,
         gapPosition: null,
         gapCount: null,
-        ratingApplied: 'EASY',
+        // Clamped: a perfect score out of a bank of five is not a perfect recall.
+        ratingApplied: 'GOOD',
       });
     });
 
