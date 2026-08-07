@@ -22,6 +22,9 @@ export interface AttemptScoredPayload {
   // against what it actually did rather than against what it was meant to do.
   templateCode: string;
   passed: boolean;
+  // Per-gap verdicts, for templates graded gap by gap (plan 36 §C.1) — what lets the
+  // scheduler hold a card per gap instead of one per exercise. Absent for the rest.
+  gapResults?: Array<{ gapKey: string; correct: boolean }>;
 }
 
 export class AttemptScoredEvent implements IDomainEvent {

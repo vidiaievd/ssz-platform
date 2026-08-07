@@ -223,6 +223,12 @@ model ProcessedEvent {
 
 enum SrsContentType {
   EXERCISE        @map("exercise")
+  // One gap inside an exercise (plan 36 §C.1). contentId is "<exerciseId>#<gapKey>".
+  // Its own type rather than a composite id under EXERCISE, because every existing
+  // reader of an EXERCISE card takes contentId for an exercise UUID and fetches it:
+  // sharing the type would turn that into a 404 in the runner instead of a branch
+  // that has to be written.
+  EXERCISE_GAP    @map("exercise_gap")
   VOCABULARY_WORD @map("vocabulary_word")
 
   @@map("srs_content_type")

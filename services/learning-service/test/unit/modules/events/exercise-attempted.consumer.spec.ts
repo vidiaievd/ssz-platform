@@ -452,6 +452,187 @@ describe('ExerciseAttemptedConsumer', () => {
     });
   });
 
+  describe('handleMessage — a card per gap (plan 36 §C.1)', () => {
+    // With one card per exercise, a block of six sentences is a single card: get one
+    // word wrong and all six come back. Before gap-fill was merged into one template,
+    // six separate exercises gave six independent cards, and that was better. These
+    // give it back, finer than it was.
+
+    const sixGaps = [
+      { gapKey: 'g1', correct: true },
+      { gapKey: 'g2', correct: true },
+      { gapKey: 'g3', correct: false },
+      { gapKey: 'g4', correct: true },
+      { gapKey: 'g5', correct: true },
+      { gapKey: 'g6', correct: true },
+    ];
+
+    function blockAttempt(overrides: object = {}) {
+      return {
+        userId: USER_ID,
+        exerciseId: EXERCISE_ID,
+        // Five of six right. The exercise-level score is deliberately not what any
+        // gap is rated on.
+        score: 83,
+        timeSpentSeconds: 120,
+        completed: true,
+        templateCode: 'word_bank_gap_fill',
+        answerForm: { mode: 'free', bankSize: null, wordsConsumed: false },
+        gapResults: sixGaps,
+        ...overrides,
+      };
+    }
+
+    it('introduces one card per gap, keyed by exercise and gap', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(blockAttempt())));
+
+      const introduced = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof IntroduceCardCommand) as IntroduceCardCommand[];
+
+      expect(introduced).toHaveLength(6);
+      expect(introduced.every((c) => c.contentType === 'EXERCISE_GAP')).toBe(true);
+      expect(introduced.map((c) => c.contentId)).toEqual([
+        `${EXERCISE_ID}#g1`,
+        `${EXERCISE_ID}#g2`,
+        `${EXERCISE_ID}#g3`,
+        `${EXERCISE_ID}#g4`,
+        `${EXERCISE_ID}#g5`,
+        `${EXERCISE_ID}#g6`,
+      ]);
+    });
+
+    it('does not touch the exercise-level card', async () => {
+      // Keeping both would leave the coarse card dragging every gap along with it,
+      // which is the thing this step exists to stop.
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(blockAttempt())));
+
+      const introduced = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof IntroduceCardCommand) as IntroduceCardCommand[];
+
+      expect(introduced.some((c) => c.contentType === 'EXERCISE')).toBe(false);
+    });
+
+    it('rates each gap on its own verdict, not on the exercise score', async () => {
+      // The one wrong sentence moves its own card and nothing else: 83 would have
+      // rated all six GOOD, and the five right ones deserve better than that.
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(blockAttempt())));
+
+      const reviews = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof ReviewCardCommand) as ReviewCardCommand[];
+
+      // Typed from memory: a right gap reaches EASY, a wrong one is lifted off the
+      // floor to HARD because it may be a typo.
+      expect(reviews.map((r) => r.rating)).toEqual(['EASY', 'EASY', 'HARD', 'EASY', 'EASY', 'EASY']);
+    });
+
+    it('still caps each gap by the form the answer took', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope(
+            blockAttempt({ answerForm: { mode: 'bank', bankSize: 6, wordsConsumed: true } }),
+          ),
+        ),
+      );
+
+      const reviews = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof ReviewCardCommand) as ReviewCardCommand[];
+
+      expect(reviews.map((r) => r.rating)).toEqual([
+        'GOOD', 'GOOD', 'AGAIN', 'GOOD', 'GOOD', 'GOOD',
+      ]);
+    });
+
+    it('reports each gap position in the telemetry', async () => {
+      // The position §B.3 will decay against: with a consumed bank of six over six
+      // gaps, the last one is a certainty rather than a recollection.
+      const { consumer, publisher } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(blockAttempt())));
+
+      const records = publisher.publish.mock.calls
+        .filter((c: unknown[]) => c[0] === 'learning.attempt.rated')
+        .map((c: unknown[]) => c[1] as Record<string, unknown>);
+
+      expect(records).toHaveLength(6);
+      expect(records.map((r) => r.gapPosition)).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(records.every((r) => r.gapCount === 6)).toBe(true);
+    });
+
+    it('carries on when one gap cannot be introduced', async () => {
+      // A six-gap block now asks for six new cards where it used to ask for one, so
+      // the daily limit will bite mid-block. The remaining gaps still get reviewed.
+      let seen = 0;
+      const { consumer, commandBus } = makeConsumer({
+        commandBusExecute: (cmd: unknown) => {
+          if (cmd instanceof IntroduceCardCommand) {
+            seen += 1;
+            return seen === 3
+              ? Promise.resolve(Result.fail(new Error('daily new-card limit reached')))
+              : Promise.resolve(
+                  Result.ok({ id: CARD_ID, state: 'NEW', userId: USER_ID, reps: 0, lastReviewedAt: null }),
+                );
+          }
+          return Promise.resolve(Result.ok({}));
+        },
+      });
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(blockAttempt())));
+
+      const reviews = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof ReviewCardCommand) as ReviewCardCommand[];
+
+      expect(reviews).toHaveLength(5);
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the single exercise card for templates not graded gap by gap', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 83,
+            timeSpentSeconds: 120,
+            completed: true,
+            templateCode: 'short_answer',
+          }),
+        ),
+      );
+
+      const introduced = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof IntroduceCardCommand) as IntroduceCardCommand[];
+
+      expect(introduced).toHaveLength(1);
+      expect(introduced[0]!.contentType).toBe('EXERCISE');
+      expect(introduced[0]!.contentId).toBe(EXERCISE_ID);
+    });
+  });
+
   describe('handleMessage — score-to-rating mapping', () => {
     async function getRating(score: number): Promise<string> {
       const { consumer, commandBus } = makeConsumer();

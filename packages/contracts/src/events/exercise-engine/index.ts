@@ -47,6 +47,19 @@ export interface ExerciseAttemptCompletedPayload {
   templateCode?: string;
   /** Cleared the template's passing threshold. `score === 100` is "every gap right". */
   passed?: boolean;
+  /**
+   * Additive (plan 36 §C.1) — per-gap verdicts, in the order the gaps appear.
+   *
+   * Present only for the templates graded gap by gap. It exists so spaced repetition
+   * can schedule a gap rather than a whole exercise: with one card per exercise, one
+   * wrong sentence in a block of six brings all six back. Before gap-fill was merged
+   * into one template, six separate exercises gave six independent cards, and that
+   * was *better* — this is what gives it back, finer than it was.
+   *
+   * Deliberately not the explanation: that is feedback for the learner, and the
+   * scheduler has no use for it.
+   */
+  gapResults?: Array<{ gapKey: string; correct: boolean }>;
 }
 
 /**

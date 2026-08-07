@@ -74,6 +74,33 @@ function describeAnswerForm(templateCode: string, content: unknown): AnswerForm 
   };
 }
 
+/**
+ * The per-gap verdicts, for the templates graded gap by gap (plan 36 §C.1).
+ *
+ * Lifted out of the validator's details rather than recomputed: the details already
+ * carry exactly this, in gap order, and a second opinion on "was this gap right" is
+ * how two answers to the same question start to drift.
+ *
+ * Only the verdict travels. The explanation in the same record is feedback owed to
+ * the learner; the scheduler has no use for it, and events are not the place to put
+ * text that nothing reads.
+ */
+function describeGapResults(
+  templateCode: string,
+  details: unknown,
+): Array<{ gapKey: string; correct: boolean }> | undefined {
+  if (templateCode !== WORD_BANK_GAP_FILL) return undefined;
+  if (typeof details !== 'object' || details === null) return undefined;
+
+  const { gaps } = details as { gaps?: unknown };
+  if (!Array.isArray(gaps)) return undefined;
+
+  return gaps.map((gap) => {
+    const { gapKey, correct } = gap as { gapKey: string; correct: boolean };
+    return { gapKey, correct };
+  });
+}
+
 @CommandHandler(SubmitAnswerCommand)
 export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand> {
   constructor(
@@ -192,12 +219,14 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       : { summary: outcome.correct ? 'Correct!' : 'Incorrect. Please try again.' };
 
     const answerForm = describeAnswerForm(attempt.templateCode, def.exercise.content);
+    const gapResults = describeGapResults(attempt.templateCode, outcome.details);
     const scoreResult = attempt.score(
       outcome.score,
       passed,
       outcome.details,
       feedback,
       answerForm,
+      gapResults,
     );
     if (scoreResult.isFail) {
       return Result.fail(scoreResult.error as AttemptDomainError);

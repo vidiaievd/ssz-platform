@@ -7,7 +7,13 @@ import { ReviewCardCreatedEvent } from '../events/review-card-created.event.js';
 import { ReviewCardReviewedEvent } from '../events/review-card-reviewed.event.js';
 import { ReviewCardSuspendedEvent } from '../events/review-card-suspended.event.js';
 
-export type SrsContentType = 'EXERCISE' | 'VOCABULARY_WORD';
+/**
+ * `EXERCISE_GAP` points at one gap inside an exercise, with `contentId` shaped
+ * `<exerciseId>#<gapKey>` (plan 36 §C.1). Its own type rather than a composite id
+ * under `EXERCISE`, so that code taking an `EXERCISE` card's `contentId` for an
+ * exercise UUID keeps being right.
+ */
+export type SrsContentType = 'EXERCISE' | 'EXERCISE_GAP' | 'VOCABULARY_WORD';
 
 // Mirrors FSRS State enum (New=0, Learning=1, Review=2, Relearning=3) plus our own Suspended.
 export type ReviewCardState = 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING' | 'SUSPENDED';

@@ -90,11 +90,11 @@ export class GetDueCardsRequest {
 
 export class IntroduceCardRequest {
   @ApiProperty({
-    enum: ['EXERCISE', 'VOCABULARY_WORD'],
+    enum: ['EXERCISE', 'EXERCISE_GAP', 'VOCABULARY_WORD'],
     description: 'Type of content this card tracks',
     example: 'VOCABULARY_WORD',
   })
-  @IsEnum(['EXERCISE', 'VOCABULARY_WORD'])
+  @IsEnum(['EXERCISE', 'EXERCISE_GAP', 'VOCABULARY_WORD'])
   contentType!: SrsContentType;
 
   @ApiProperty({ format: 'uuid', description: 'ID of the content item to introduce' })

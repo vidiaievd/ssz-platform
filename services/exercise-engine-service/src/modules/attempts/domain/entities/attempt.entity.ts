@@ -234,6 +234,8 @@ export class Attempt extends AggregateRoot {
     feedback: unknown,
     /** How the answer was produced; omitted by templates that cannot say. */
     answerForm?: AnswerForm,
+    /** Verdict per gap, in gap order; omitted by templates not graded gap by gap. */
+    gapResults?: Array<{ gapKey: string; correct: boolean }>,
   ): Result<void, InvalidScoreError | InvalidAttemptTransitionError> {
     if (this._status !== 'SUBMITTED') {
       return Result.fail(
@@ -271,6 +273,7 @@ export class Attempt extends AggregateRoot {
           templateCode: this._templateCode,
           passed,
           ...(answerForm === undefined ? {} : { answerForm }),
+          ...(gapResults === undefined ? {} : { gapResults }),
         }),
       );
     }

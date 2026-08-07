@@ -55,7 +55,11 @@ function makeAttempt(templateCode: string) {
 }
 
 /** Runs a submission and returns the payload of the published completion event. */
-async function publishedPayload(templateCode: string, content: unknown) {
+async function publishedPayload(
+  templateCode: string,
+  content: unknown,
+  validationDetails: unknown = null,
+) {
   const attempt = makeAttempt(templateCode);
   const published: Array<{ type: string; payload: Record<string, unknown> }> = [];
 
@@ -89,7 +93,12 @@ async function publishedPayload(templateCode: string, content: unknown) {
     {
       validate: jest.fn(() =>
         Promise.resolve(
-          Result.ok({ correct: true, score: 100, details: null, requiresReview: false }),
+          Result.ok({
+            correct: true,
+            score: 100,
+            details: validationDetails,
+            requiresReview: false,
+          }),
         ),
       ),
     } as never,
@@ -157,6 +166,55 @@ describe('the answer form in the attempt completed event', () => {
       exerciseId: 'ex-1',
       score: 100,
       completed: true,
+      templateCode: 'word_bank_gap_fill',
+      passed: true,
     });
+  });
+});
+
+// Plan 36 §C.1. One card per gap instead of one per exercise, so that a block of six
+// sentences with one word wrong brings back the one and not the six.
+describe('the per-gap verdicts in the attempt completed event', () => {
+  const graded = {
+    totalGaps: 2,
+    correctGaps: 1,
+    gaps: [
+      { gapKey: 's1:3', correct: true, explanation: null },
+      { gapKey: 's2:3', correct: false, explanation: 'Feil ordklasse.' },
+    ],
+  };
+
+  it('carries the verdict for each gap, in gap order', async () => {
+    const payload = await publishedPayload('word_bank_gap_fill', gapFillContent(), graded);
+
+    expect(payload?.['gapResults']).toEqual([
+      { gapKey: 's1:3', correct: true },
+      { gapKey: 's2:3', correct: false },
+    ]);
+  });
+
+  it('leaves the explanation behind', async () => {
+    // The explanation is feedback owed to the learner. The scheduler has no use for
+    // it, and events are not the place for text that nothing reads.
+    const payload = await publishedPayload('word_bank_gap_fill', gapFillContent(), graded);
+    const gaps = payload?.['gapResults'] as Array<Record<string, unknown>>;
+
+    expect(gaps.every((gap) => !('explanation' in gap))).toBe(true);
+  });
+
+  it('says nothing for a template not graded gap by gap', async () => {
+    const payload = await publishedPayload(
+      'short_answer',
+      { question: 'Hvorfor?' },
+      { target: 'fordi', matched: true },
+    );
+
+    expect(payload).not.toHaveProperty('gapResults');
+  });
+
+  it('says nothing when the validator reported no gaps', async () => {
+    const payload = await publishedPayload('word_bank_gap_fill', gapFillContent(), null);
+
+    expect(payload).not.toHaveProperty('gapResults');
   });
 });

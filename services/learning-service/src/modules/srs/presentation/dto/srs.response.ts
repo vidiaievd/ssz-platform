@@ -10,7 +10,7 @@ export class ReviewCardResponse implements ReviewCardDto {
   userId!: string;
 
   @ApiProperty({
-    enum: ['EXERCISE', 'VOCABULARY_WORD'],
+    enum: ['EXERCISE', 'EXERCISE_GAP', 'VOCABULARY_WORD'],
     description: 'Type of content this card tracks',
     example: 'EXERCISE',
   })
