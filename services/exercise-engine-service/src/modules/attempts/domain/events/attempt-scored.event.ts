@@ -17,6 +17,14 @@ export interface AttemptScoredPayload {
   // How the answer was produced, as opposed to whether it was right. Present only
   // for templates that can say — today, word_bank_gap_fill. See @ssz/contracts.
   answerForm?: AnswerForm;
+  // Calibration context for the SRS evidence scale (plan 36 §A.1). The consumer
+  // records these next to the rating it derives, so the scale can later be judged
+  // against what it actually did rather than against what it was meant to do.
+  templateCode: string;
+  passed: boolean;
+  // Per-gap verdicts, for templates graded gap by gap (plan 36 §C.1) — what lets the
+  // scheduler hold a card per gap instead of one per exercise. Absent for the rest.
+  gapResults?: Array<{ gapKey: string; correct: boolean }>;
 }
 
 export class AttemptScoredEvent implements IDomainEvent {

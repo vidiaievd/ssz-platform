@@ -27,7 +27,9 @@ function makeConsumer(overrides: {
       return Promise.resolve(Result.ok({}));
     }
     if (cmd instanceof IntroduceCardCommand) {
-      return Promise.resolve(Result.ok({ id: CARD_ID, state: 'NEW', userId: USER_ID }));
+      return Promise.resolve(
+        Result.ok({ id: CARD_ID, state: 'NEW', userId: USER_ID, reps: 0, lastReviewedAt: null }),
+      );
     }
     if (cmd instanceof ReviewCardCommand) {
       return Promise.resolve(Result.ok({ id: CARD_ID, state: 'REVIEW', userId: USER_ID }));
@@ -52,7 +54,26 @@ function makeConsumer(overrides: {
 
   const config = { get: jest.fn().mockReturnValue(undefined) } as any;
 
-  return { consumer: new ExerciseAttemptedConsumer(commandBus, prisma, config), commandBus, prisma };
+  const publisher = {
+    publish: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  } as any;
+
+  const canDoEvaluator = {
+    evaluateForAtoms: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  } as any;
+
+  return {
+    consumer: new ExerciseAttemptedConsumer(commandBus, prisma, config, canDoEvaluator, publisher),
+    commandBus,
+    prisma,
+    publisher,
+  };
+}
+
+/** The `learning.attempt.rated` payload the consumer published, if it published one. */
+function ratedPayload(publisher: { publish: { mock: { calls: unknown[][] } } }) {
+  const call = publisher.publish.mock.calls.find((c) => c[0] === 'learning.attempt.rated');
+  return call?.[1] as Record<string, unknown> | undefined;
 }
 
 function envelope(payload: object, eventId = 'evt-001') {
@@ -124,13 +145,102 @@ describe('ExerciseAttemptedConsumer', () => {
     });
   });
 
-  describe('handleMessage — the answer form (plan 35 §5.4)', () => {
+  describe('handleMessage — the evidence ceiling (plan 36 §B.2)', () => {
     // `word_bank_gap_fill` merged the "choose from a bank" and "type it from
-    // memory" exercises into one template, so `answerForm` is now the only thing
-    // that distinguishes them. Nothing here reads it yet — the scale that will is
-    // plan 36 — but events must carry it through unharmed in both directions.
+    // memory" exercises into one template, so `answerForm` is the only thing that
+    // distinguishes them — and picking a word out of five given ones is not the
+    // same evidence as recalling it. The rating is now capped by the form.
 
-    it('handles an event that carries an answer form, ignoring it for now', async () => {
+    async function ratingFor(payload: object): Promise<string> {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(payload)));
+      const reviewCall = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .find((c) => c instanceof ReviewCardCommand) as ReviewCardCommand | undefined;
+      return reviewCall?.rating ?? '';
+    }
+
+    const perfect = {
+      userId: USER_ID,
+      exerciseId: EXERCISE_ID,
+      score: 100,
+      timeSpentSeconds: 60,
+      completed: true,
+    };
+
+    it('holds a perfect score from a bank of five to GOOD, not EASY', async () => {
+      expect(
+        await ratingFor({
+          ...perfect,
+          answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+        }),
+      ).toBe('GOOD');
+    });
+
+    it('lets a perfect score typed from memory reach EASY', async () => {
+      expect(
+        await ratingFor({
+          ...perfect,
+          answerForm: { mode: 'free', bankSize: null, wordsConsumed: false },
+        }),
+      ).toBe('EASY');
+    });
+
+    it('lifts a failure at free typing off the floor — it may only be a typo', async () => {
+      expect(
+        await ratingFor({
+          ...perfect,
+          score: 0,
+          answerForm: { mode: 'free', bankSize: null, wordsConsumed: false },
+        }),
+      ).toBe('HARD');
+    });
+
+    it('leaves a failure from a bank on the floor — the hint was as big as it gets', async () => {
+      expect(
+        await ratingFor({
+          ...perfect,
+          score: 0,
+          answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+        }),
+      ).toBe('AGAIN');
+    });
+
+    it('caps by template code when there is no form to read', async () => {
+      // Elimination does the work in match_pairs: the last pair is correct by
+      // construction, so a perfect score cannot mean more than HARD.
+      expect(await ratingFor({ ...perfect, templateCode: 'match_pairs' })).toBe('HARD');
+      expect(await ratingFor({ ...perfect, templateCode: 'short_answer' })).toBe('EASY');
+    });
+
+    it('leaves an unknown template rating exactly as it does today', async () => {
+      expect(await ratingFor({ ...perfect, templateCode: 'some_future_type' })).toBe('EASY');
+    });
+
+    it('records the clamped rating in the telemetry, not the raw one', async () => {
+      const { consumer, publisher } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            ...perfect,
+            templateCode: 'word_bank_gap_fill',
+            answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+          }),
+        ),
+      );
+
+      // The baseline is only comparable if it says what actually reached FSRS.
+      expect(ratedPayload(publisher)!.ratingApplied).toBe('GOOD');
+    });
+
+    it('applies the same ceiling to the vocabulary fan-out', async () => {
+      // The atoms an exercise practices are rated with the exercise's own rating.
+      // If the ceiling stopped at the exercise card, every word behind a bank
+      // answer would keep stretching as though it had been recalled.
       const { consumer, commandBus } = makeConsumer();
       const channel = makeChannel();
 
@@ -138,24 +248,19 @@ describe('ExerciseAttemptedConsumer', () => {
         channel,
         makeMsg(
           envelope({
-            userId: USER_ID,
-            exerciseId: EXERCISE_ID,
-            score: 100,
-            timeSpentSeconds: 60,
-            completed: true,
+            ...perfect,
             answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+            practicedAtoms: [{ atomType: 'vocabulary_item', atomId: 'word-1' }],
           }),
         ),
       );
 
-      const reviewCall = commandBus.execute.mock.calls
+      const reviews = commandBus.execute.mock.calls
         .map((c: unknown[]) => c[0])
-        .find((c) => c instanceof ReviewCardCommand) as ReviewCardCommand | undefined;
+        .filter((c) => c instanceof ReviewCardCommand) as ReviewCardCommand[];
 
-      // Same rating as an identical event without the field: reading it is plan 36.
-      expect(reviewCall!.rating).toBe('EASY');
-      expect(channel.ack).toHaveBeenCalledTimes(1);
-      expect(channel.nack).not.toHaveBeenCalled();
+      expect(reviews).toHaveLength(2);
+      expect(reviews.every((r) => r.rating === 'GOOD')).toBe(true);
     });
 
     it('still handles an event published before the field existed', async () => {
@@ -181,6 +286,381 @@ describe('ExerciseAttemptedConsumer', () => {
 
       expect(reviewCall!.rating).toBe('EASY');
       expect(channel.ack).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('handleMessage — the calibration record (plan 36 §A.1)', () => {
+    // Measurement ships before the scale does. These rows are the baseline the
+    // evidence ceilings will later be judged against, so what matters is that the
+    // form and the rating land together, unclamped, on every rated attempt.
+
+    it('publishes the answer form alongside the rating that reached FSRS', async () => {
+      const { consumer, publisher } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 100,
+            timeSpentSeconds: 60,
+            completed: true,
+            passed: true,
+            templateCode: 'word_bank_gap_fill',
+            answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+          }),
+        ),
+      );
+
+      expect(ratedPayload(publisher)).toEqual({
+        userId: USER_ID,
+        exerciseId: EXERCISE_ID,
+        templateCode: 'word_bank_gap_fill',
+        answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+        score: 100,
+        passed: true,
+        attemptOrdinal: 1,
+        daysSinceLastReview: null,
+        gapPosition: null,
+        gapCount: null,
+        // Clamped: a perfect score out of a bank of five is not a perfect recall.
+        ratingApplied: 'GOOD',
+      });
+    });
+
+    it('counts the attempt from the card as it stood before the review', async () => {
+      const { consumer, publisher } = makeConsumer({
+        commandBusExecute: (cmd: unknown) => {
+          if (cmd instanceof IntroduceCardCommand) {
+            return Promise.resolve(
+              Result.ok({
+                id: CARD_ID,
+                state: 'REVIEW',
+                userId: USER_ID,
+                reps: 3,
+                lastReviewedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+              }),
+            );
+          }
+          return Promise.resolve(Result.ok({}));
+        },
+      });
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 85,
+            timeSpentSeconds: 20,
+            completed: true,
+          }),
+        ),
+      );
+
+      const payload = ratedPayload(publisher)!;
+      expect(payload.attemptOrdinal).toBe(4);
+      expect(payload.daysSinceLastReview).toBeCloseTo(2, 2);
+    });
+
+    it('records a null form for events published before the field existed', async () => {
+      const { consumer, publisher } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 70,
+            timeSpentSeconds: 20,
+            completed: true,
+          }),
+        ),
+      );
+
+      const payload = ratedPayload(publisher)!;
+      expect(payload.answerForm).toBeNull();
+      expect(payload.templateCode).toBeNull();
+      expect(payload.passed).toBeNull();
+      expect(payload.ratingApplied).toBe('HARD');
+    });
+
+    it('records nothing when no rating reached FSRS', async () => {
+      // A review refused by the daily limit moved no schedule. Recording it as
+      // though it had would put a rating in the baseline that never happened.
+      const { consumer, publisher } = makeConsumer({
+        commandBusExecute: (cmd: unknown) => {
+          if (cmd instanceof IntroduceCardCommand) {
+            return Promise.resolve(
+              Result.ok({ id: CARD_ID, state: 'NEW', userId: USER_ID, reps: 0, lastReviewedAt: null }),
+            );
+          }
+          if (cmd instanceof ReviewCardCommand) {
+            return Promise.resolve(Result.fail(new Error('daily limit reached')));
+          }
+          return Promise.resolve(Result.ok({}));
+        },
+      });
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 100,
+            timeSpentSeconds: 20,
+            completed: true,
+          }),
+        ),
+      );
+
+      expect(ratedPayload(publisher)).toBeUndefined();
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+    });
+
+    it('acks the attempt even when the telemetry publish fails', async () => {
+      // Progress and the SRS card are already written by this point. Nacking to
+      // retry a lost measurement would replay an event the idempotency key then
+      // skips — trading a missing sample for a missing SRS update.
+      const { consumer, publisher } = makeConsumer();
+      publisher.publish.mockRejectedValue(new Error('broker down'));
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 90,
+            timeSpentSeconds: 20,
+            completed: true,
+          }),
+        ),
+      );
+
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+      expect(channel.nack).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleMessage — a card per gap (plan 36 §C.1)', () => {
+    // With one card per exercise, a block of six sentences is a single card: get one
+    // word wrong and all six come back. Before gap-fill was merged into one template,
+    // six separate exercises gave six independent cards, and that was better. These
+    // give it back, finer than it was.
+
+    const sixGaps = [
+      { gapKey: 'g1', correct: true },
+      { gapKey: 'g2', correct: true },
+      { gapKey: 'g3', correct: false },
+      { gapKey: 'g4', correct: true },
+      { gapKey: 'g5', correct: true },
+      { gapKey: 'g6', correct: true },
+    ];
+
+    function blockAttempt(overrides: object = {}) {
+      return {
+        userId: USER_ID,
+        exerciseId: EXERCISE_ID,
+        // Five of six right. The exercise-level score is deliberately not what any
+        // gap is rated on.
+        score: 83,
+        timeSpentSeconds: 120,
+        completed: true,
+        templateCode: 'word_bank_gap_fill',
+        answerForm: { mode: 'free', bankSize: null, wordsConsumed: false },
+        gapResults: sixGaps,
+        ...overrides,
+      };
+    }
+
+    it('introduces one card per gap, keyed by exercise and gap', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(blockAttempt())));
+
+      const introduced = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof IntroduceCardCommand) as IntroduceCardCommand[];
+
+      expect(introduced).toHaveLength(6);
+      expect(introduced.every((c) => c.contentType === 'EXERCISE_GAP')).toBe(true);
+      expect(introduced.map((c) => c.contentId)).toEqual([
+        `${EXERCISE_ID}#g1`,
+        `${EXERCISE_ID}#g2`,
+        `${EXERCISE_ID}#g3`,
+        `${EXERCISE_ID}#g4`,
+        `${EXERCISE_ID}#g5`,
+        `${EXERCISE_ID}#g6`,
+      ]);
+    });
+
+    it('does not touch the exercise-level card', async () => {
+      // Keeping both would leave the coarse card dragging every gap along with it,
+      // which is the thing this step exists to stop.
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(blockAttempt())));
+
+      const introduced = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof IntroduceCardCommand) as IntroduceCardCommand[];
+
+      expect(introduced.some((c) => c.contentType === 'EXERCISE')).toBe(false);
+    });
+
+    it('rates each gap on its own verdict, not on the exercise score', async () => {
+      // The one wrong sentence moves its own card and nothing else: 83 would have
+      // rated all six GOOD, and the five right ones deserve better than that.
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(blockAttempt())));
+
+      const reviews = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof ReviewCardCommand) as ReviewCardCommand[];
+
+      // Typed from memory: a right gap reaches EASY, a wrong one is lifted off the
+      // floor to HARD because it may be a typo.
+      expect(reviews.map((r) => r.rating)).toEqual(['EASY', 'EASY', 'HARD', 'EASY', 'EASY', 'EASY']);
+    });
+
+    it('still caps each gap by the form the answer took', async () => {
+      // Reusable words, so nothing is spent and every gap faces the same bank — the
+      // cap on its own, without the decay that has its own test below.
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope(
+            blockAttempt({ answerForm: { mode: 'bank', bankSize: 6, wordsConsumed: false } }),
+          ),
+        ),
+      );
+
+      const reviews = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof ReviewCardCommand) as ReviewCardCommand[];
+
+      expect(reviews.map((r) => r.rating)).toEqual([
+        'GOOD', 'GOOD', 'AGAIN', 'GOOD', 'GOOD', 'GOOD',
+      ]);
+    });
+
+    it('discounts the tail of a bank spent as it goes (plan 36 §B.3)', async () => {
+      // Six words over six gaps: by the fourth there are three left, and by the sixth
+      // there is one word and one place to put it. All six were right, and they are
+      // not worth the same.
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope(
+            blockAttempt({
+              answerForm: { mode: 'bank', bankSize: 6, wordsConsumed: true },
+              gapResults: sixGaps.map((gap) => ({ ...gap, correct: true })),
+              score: 100,
+            }),
+          ),
+        ),
+      );
+
+      const reviews = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof ReviewCardCommand) as ReviewCardCommand[];
+
+      expect(reviews.map((r) => r.rating)).toEqual([
+        'GOOD', 'GOOD', 'GOOD', 'HARD', 'HARD', 'HARD',
+      ]);
+    });
+
+    it('reports each gap position in the telemetry', async () => {
+      // The position §B.3 will decay against: with a consumed bank of six over six
+      // gaps, the last one is a certainty rather than a recollection.
+      const { consumer, publisher } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(blockAttempt())));
+
+      const records = publisher.publish.mock.calls
+        .filter((c: unknown[]) => c[0] === 'learning.attempt.rated')
+        .map((c: unknown[]) => c[1] as Record<string, unknown>);
+
+      expect(records).toHaveLength(6);
+      expect(records.map((r) => r.gapPosition)).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(records.every((r) => r.gapCount === 6)).toBe(true);
+    });
+
+    it('carries on when one gap cannot be introduced', async () => {
+      // A six-gap block now asks for six new cards where it used to ask for one, so
+      // the daily limit will bite mid-block. The remaining gaps still get reviewed.
+      let seen = 0;
+      const { consumer, commandBus } = makeConsumer({
+        commandBusExecute: (cmd: unknown) => {
+          if (cmd instanceof IntroduceCardCommand) {
+            seen += 1;
+            return seen === 3
+              ? Promise.resolve(Result.fail(new Error('daily new-card limit reached')))
+              : Promise.resolve(
+                  Result.ok({ id: CARD_ID, state: 'NEW', userId: USER_ID, reps: 0, lastReviewedAt: null }),
+                );
+          }
+          return Promise.resolve(Result.ok({}));
+        },
+      });
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(channel, makeMsg(envelope(blockAttempt())));
+
+      const reviews = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof ReviewCardCommand) as ReviewCardCommand[];
+
+      expect(reviews).toHaveLength(5);
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the single exercise card for templates not graded gap by gap', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 83,
+            timeSpentSeconds: 120,
+            completed: true,
+            templateCode: 'short_answer',
+          }),
+        ),
+      );
+
+      const introduced = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof IntroduceCardCommand) as IntroduceCardCommand[];
+
+      expect(introduced).toHaveLength(1);
+      expect(introduced[0]!.contentType).toBe('EXERCISE');
+      expect(introduced[0]!.contentId).toBe(EXERCISE_ID);
     });
   });
 

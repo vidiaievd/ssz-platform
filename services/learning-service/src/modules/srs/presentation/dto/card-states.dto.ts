@@ -11,11 +11,11 @@ export const CARD_STATES_MAX_IDS = 500;
 
 export class GetCardStatesRequest {
   @ApiProperty({
-    enum: ['EXERCISE', 'VOCABULARY_WORD'],
+    enum: ['EXERCISE', 'EXERCISE_GAP', 'VOCABULARY_WORD'],
     description: 'Type of content the requested cards track',
     example: 'VOCABULARY_WORD',
   })
-  @IsEnum(['EXERCISE', 'VOCABULARY_WORD'])
+  @IsEnum(['EXERCISE', 'EXERCISE_GAP', 'VOCABULARY_WORD'])
   contentType!: SrsContentType;
 
   @ApiProperty({
