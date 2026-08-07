@@ -1,4 +1,5 @@
 import type { BaseEvent } from '../base.js';
+import type { AnswerForm } from '../exercise-engine/index.js';
 
 // ─── Event type constants ─────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ export const LEARNING_EVENT_TYPES = {
   SUBMISSION_REVIEWED: 'learning.submission.reviewed',
   SUBMISSION_RESUBMITTED: 'learning.submission.resubmitted',
   VOCABULARY_LOOKED_UP: 'learning.vocabulary.looked_up',
+  ATTEMPT_RATED: 'learning.attempt.rated',
 } as const;
 
 // ─── Assignment payload interfaces ────────────────────────────────────────────
@@ -154,6 +156,50 @@ export interface VocabularyLookedUpPayload {
   occurredAt: string;
 }
 
+// ─── SRS calibration payload interfaces ──────────────────────────────────────
+
+/**
+ * One attempt, as it reached spaced repetition (plan 36 §A.1).
+ *
+ * Published by learning-service after it has turned a scored attempt into an FSRS
+ * rating, because that is the only place where both halves are known: the answer's
+ * form comes from the exercise engine, the rating and the card's history do not
+ * exist until the consumer has run.
+ *
+ * It exists to be measured against. The ceilings plan 36 puts on ratings are a
+ * judgement, and the only way to tell "the scale works" from "the scale broke the
+ * schedule" is to have recorded the same fields before the ceilings were switched
+ * on. So `ratingApplied` ships from the start, clamped or not.
+ *
+ * Deliberately absent: the learner's answer. Right or wrong is enough to calibrate,
+ * and storing the text would accumulate personal data for no purpose.
+ */
+export interface AttemptRatedPayload {
+  userId: string;
+  exerciseId: string;
+  /** Null on events published before the exercise engine reported it. */
+  templateCode: string | null;
+  /** How the answer was produced. Null for the templates that cannot say. */
+  answerForm: AnswerForm | null;
+  score: number;
+  /** Cleared the passing threshold. Null when the publisher did not report it. */
+  passed: boolean | null;
+  /** 1 for the first attempt on this card, counting from the card's rep count. */
+  attemptOrdinal: number;
+  /** Null on the first review — there is no previous one to measure from. */
+  daysSinceLastReview: number | null;
+  /**
+   * Where the gap sat in its block, for the decay in §B.3: with a consumed bank of
+   * N words over N gaps, the last gap is a certainty rather than a recollection.
+   * Both null until cards are per-gap (§C.1) — before that there is no position to
+   * report, since one card stands for the whole exercise.
+   */
+  gapPosition: number | null;
+  gapCount: number | null;
+  /** The rating that actually reached FSRS, after any clamping. */
+  ratingApplied: 'AGAIN' | 'HARD' | 'GOOD' | 'EASY';
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type AssignmentCreatedEvent = BaseEvent<AssignmentCreatedPayload>;
@@ -174,3 +220,5 @@ export type SubmissionReviewedEvent = BaseEvent<SubmissionReviewedPayload>;
 export type SubmissionResubmittedEvent = BaseEvent<SubmissionResubmittedPayload>;
 
 export type VocabularyLookedUpEvent = BaseEvent<VocabularyLookedUpPayload>;
+
+export type AttemptRatedEvent = BaseEvent<AttemptRatedPayload>;

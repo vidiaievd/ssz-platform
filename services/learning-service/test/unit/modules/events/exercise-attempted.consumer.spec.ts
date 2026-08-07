@@ -27,7 +27,9 @@ function makeConsumer(overrides: {
       return Promise.resolve(Result.ok({}));
     }
     if (cmd instanceof IntroduceCardCommand) {
-      return Promise.resolve(Result.ok({ id: CARD_ID, state: 'NEW', userId: USER_ID }));
+      return Promise.resolve(
+        Result.ok({ id: CARD_ID, state: 'NEW', userId: USER_ID, reps: 0, lastReviewedAt: null }),
+      );
     }
     if (cmd instanceof ReviewCardCommand) {
       return Promise.resolve(Result.ok({ id: CARD_ID, state: 'REVIEW', userId: USER_ID }));
@@ -52,7 +54,26 @@ function makeConsumer(overrides: {
 
   const config = { get: jest.fn().mockReturnValue(undefined) } as any;
 
-  return { consumer: new ExerciseAttemptedConsumer(commandBus, prisma, config), commandBus, prisma };
+  const publisher = {
+    publish: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  } as any;
+
+  const canDoEvaluator = {
+    evaluateForAtoms: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  } as any;
+
+  return {
+    consumer: new ExerciseAttemptedConsumer(commandBus, prisma, config, canDoEvaluator, publisher),
+    commandBus,
+    prisma,
+    publisher,
+  };
+}
+
+/** The `learning.attempt.rated` payload the consumer published, if it published one. */
+function ratedPayload(publisher: { publish: { mock: { calls: unknown[][] } } }) {
+  const call = publisher.publish.mock.calls.find((c) => c[0] === 'learning.attempt.rated');
+  return call?.[1] as Record<string, unknown> | undefined;
 }
 
 function envelope(payload: object, eventId = 'evt-001') {
@@ -181,6 +202,168 @@ describe('ExerciseAttemptedConsumer', () => {
 
       expect(reviewCall!.rating).toBe('EASY');
       expect(channel.ack).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('handleMessage — the calibration record (plan 36 §A.1)', () => {
+    // Measurement ships before the scale does. These rows are the baseline the
+    // evidence ceilings will later be judged against, so what matters is that the
+    // form and the rating land together, unclamped, on every rated attempt.
+
+    it('publishes the answer form alongside the rating that reached FSRS', async () => {
+      const { consumer, publisher } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 100,
+            timeSpentSeconds: 60,
+            completed: true,
+            passed: true,
+            templateCode: 'word_bank_gap_fill',
+            answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+          }),
+        ),
+      );
+
+      expect(ratedPayload(publisher)).toEqual({
+        userId: USER_ID,
+        exerciseId: EXERCISE_ID,
+        templateCode: 'word_bank_gap_fill',
+        answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+        score: 100,
+        passed: true,
+        attemptOrdinal: 1,
+        daysSinceLastReview: null,
+        gapPosition: null,
+        gapCount: null,
+        ratingApplied: 'EASY',
+      });
+    });
+
+    it('counts the attempt from the card as it stood before the review', async () => {
+      const { consumer, publisher } = makeConsumer({
+        commandBusExecute: (cmd: unknown) => {
+          if (cmd instanceof IntroduceCardCommand) {
+            return Promise.resolve(
+              Result.ok({
+                id: CARD_ID,
+                state: 'REVIEW',
+                userId: USER_ID,
+                reps: 3,
+                lastReviewedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+              }),
+            );
+          }
+          return Promise.resolve(Result.ok({}));
+        },
+      });
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 85,
+            timeSpentSeconds: 20,
+            completed: true,
+          }),
+        ),
+      );
+
+      const payload = ratedPayload(publisher)!;
+      expect(payload.attemptOrdinal).toBe(4);
+      expect(payload.daysSinceLastReview).toBeCloseTo(2, 2);
+    });
+
+    it('records a null form for events published before the field existed', async () => {
+      const { consumer, publisher } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 70,
+            timeSpentSeconds: 20,
+            completed: true,
+          }),
+        ),
+      );
+
+      const payload = ratedPayload(publisher)!;
+      expect(payload.answerForm).toBeNull();
+      expect(payload.templateCode).toBeNull();
+      expect(payload.passed).toBeNull();
+      expect(payload.ratingApplied).toBe('HARD');
+    });
+
+    it('records nothing when no rating reached FSRS', async () => {
+      // A review refused by the daily limit moved no schedule. Recording it as
+      // though it had would put a rating in the baseline that never happened.
+      const { consumer, publisher } = makeConsumer({
+        commandBusExecute: (cmd: unknown) => {
+          if (cmd instanceof IntroduceCardCommand) {
+            return Promise.resolve(
+              Result.ok({ id: CARD_ID, state: 'NEW', userId: USER_ID, reps: 0, lastReviewedAt: null }),
+            );
+          }
+          if (cmd instanceof ReviewCardCommand) {
+            return Promise.resolve(Result.fail(new Error('daily limit reached')));
+          }
+          return Promise.resolve(Result.ok({}));
+        },
+      });
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 100,
+            timeSpentSeconds: 20,
+            completed: true,
+          }),
+        ),
+      );
+
+      expect(ratedPayload(publisher)).toBeUndefined();
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+    });
+
+    it('acks the attempt even when the telemetry publish fails', async () => {
+      // Progress and the SRS card are already written by this point. Nacking to
+      // retry a lost measurement would replay an event the idempotency key then
+      // skips — trading a missing sample for a missing SRS update.
+      const { consumer, publisher } = makeConsumer();
+      publisher.publish.mockRejectedValue(new Error('broker down'));
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 90,
+            timeSpentSeconds: 20,
+            completed: true,
+          }),
+        ),
+      );
+
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+      expect(channel.nack).not.toHaveBeenCalled();
     });
   });
 

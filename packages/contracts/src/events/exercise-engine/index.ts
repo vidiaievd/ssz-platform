@@ -40,6 +40,13 @@ export interface ExerciseAttemptCompletedPayload {
   // word_bank_gap_fill reports it today, and events published before it existed
   // stay valid.
   answerForm?: AnswerForm;
+  // Additive (plan 36 §A.1) — telemetry context. The consumer turns an attempt into
+  // an SRS rating and forwards the pair to analytics; without these, the calibration
+  // data cannot say which template or whether the attempt counted as a success.
+  // Optional for the same reason as the fields above: events already in the queue.
+  templateCode?: string;
+  /** Cleared the template's passing threshold. `score === 100` is "every gap right". */
+  passed?: boolean;
 }
 
 /**

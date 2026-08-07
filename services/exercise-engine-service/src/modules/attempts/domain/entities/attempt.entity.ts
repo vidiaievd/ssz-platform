@@ -268,6 +268,8 @@ export class Attempt extends AggregateRoot {
           timeSpentSeconds: this._timeSpentSeconds,
           completed: true,
           practicedAtoms: this._practicedAtoms,
+          templateCode: this._templateCode,
+          passed,
           ...(answerForm === undefined ? {} : { answerForm }),
         }),
       );

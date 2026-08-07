@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
 import amqp from 'amqp-connection-manager';
@@ -10,8 +10,13 @@ import { IntroduceCardCommand } from '../../srs/application/commands/introduce-c
 import { ReviewCardCommand } from '../../srs/application/commands/review-card.command.js';
 import type { ReviewRatingValue } from '../../srs/domain/value-objects/review-rating.vo.js';
 import { CanDoEvaluatorService } from '../../can-do/application/services/can-do-evaluator.service.js';
-import type { ExerciseAttemptCompletedPayload } from '@ssz/contracts';
-import { EXCHANGES } from '@ssz/contracts';
+import type { ReviewCardDto } from '../../srs/application/dto/srs.dto.js';
+import {
+  LEARNING_EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../shared/application/ports/event-publisher.port.js';
+import type { AttemptRatedPayload, ExerciseAttemptCompletedPayload } from '@ssz/contracts';
+import { EXCHANGES, LEARNING_EVENT_TYPES } from '@ssz/contracts';
 
 interface EventEnvelope {
   eventId: string;
@@ -37,6 +42,21 @@ function scoreToRating(score: number): ReviewRatingValue {
   return 'EASY';
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * How long the card sat before this review, in whole-ish days.
+ *
+ * Read off the card as it was *before* the review — the introduce step returns the
+ * card untouched, so `lastReviewedAt` here is still the previous review, not this
+ * one. Null on the first review, where there is no previous one to measure from.
+ */
+function daysSince(lastReviewedAt: string | null | undefined, now: Date): number | null {
+  if (!lastReviewedAt) return null;
+  const elapsed = now.getTime() - new Date(lastReviewedAt).getTime();
+  return elapsed > 0 ? elapsed / MS_PER_DAY : 0;
+}
+
 @Injectable()
 export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ExerciseAttemptedConsumer.name);
@@ -48,6 +68,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig>,
     private readonly canDoEvaluator: CanDoEvaluatorService,
+    @Inject(LEARNING_EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
   ) {}
 
   onModuleInit(): void {
@@ -127,7 +148,8 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       //    We need the card's UUID (not the content ID) to call ReviewCardCommand.
       if (p.completed === true && p.score !== null && introduceResult.isOk) {
         const rating = scoreToRating(p.score);
-        const cardId = introduceResult.value.id;
+        const card = introduceResult.value as ReviewCardDto;
+        const cardId = card.id;
         const reviewResult = await this.commandBus.execute(
           new ReviewCardCommand(p.userId, cardId, rating),
         );
@@ -136,6 +158,12 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
           this.logger.debug(
             `SRS review skipped for exercise ${p.exerciseId} / user ${p.userId}: ${reviewResult.error?.message}`,
           );
+        } else {
+          // 3a. Calibration record (plan 36 §A.1) — the attempt as it reached FSRS.
+          //     Published only when a rating was actually applied: a review refused
+          //     by the daily limit changed no schedule, and recording it as though
+          //     it had would poison the baseline the evidence scale is judged against.
+          await this.publishRatingRecord(p, rating, card);
         }
 
         // 4. Fan-out (plan 21 §3) — rate the VOCABULARY_WORD atoms this exercise
@@ -181,6 +209,43 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
         `Error handling ${eventType} [${eventId}]: ${err instanceof Error ? err.message : String(err)}`,
       );
       channel.nack(msg, false, false);
+    }
+  }
+
+  /**
+   * Record what this attempt was and what it did to the schedule (plan 36 §A.1).
+   *
+   * Fails soft: telemetry must not nack an attempt whose progress and SRS updates
+   * have already been written. A lost row costs a sample; a nack costs a redelivery
+   * that the idempotency key will then skip, dropping the SRS update instead.
+   */
+  private async publishRatingRecord(
+    p: ExerciseAttemptCompletedPayload,
+    ratingApplied: ReviewRatingValue,
+    cardBeforeReview: ReviewCardDto,
+  ): Promise<void> {
+    const payload: AttemptRatedPayload = {
+      userId: p.userId,
+      exerciseId: p.exerciseId,
+      templateCode: p.templateCode ?? null,
+      answerForm: p.answerForm ?? null,
+      score: p.score as number,
+      passed: p.passed ?? null,
+      attemptOrdinal: (cardBeforeReview.reps ?? 0) + 1,
+      daysSinceLastReview: daysSince(cardBeforeReview.lastReviewedAt, new Date()),
+      // Both null until cards are per-gap (§C.1): one card stands for the whole
+      // exercise today, so there is no position within a block to report.
+      gapPosition: null,
+      gapCount: null,
+      ratingApplied,
+    };
+
+    try {
+      await this.publisher.publish(LEARNING_EVENT_TYPES.ATTEMPT_RATED, payload);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to publish ${LEARNING_EVENT_TYPES.ATTEMPT_RATED} for exercise ${p.exerciseId} / user ${p.userId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 

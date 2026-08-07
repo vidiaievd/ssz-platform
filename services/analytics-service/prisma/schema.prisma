@@ -207,3 +207,48 @@ model SubmissionProjection {
   @@index([userId])
   @@map("submission_projection")
 }
+
+// ─── Projection: AttemptEvidence ──────────────────────────────────────────────
+// Built from learning.attempt.rated (plan 36 §A.1). One row per attempt that
+// actually moved an SRS card.
+//
+// This is a measurement table, not a dashboard one: it exists so the ceilings the
+// evidence scale puts on ratings can be calibrated against what learners really do,
+// and so "the scale works" can be told apart from "the scale broke the schedule".
+// That only works if the rows predate the ceilings, which is why ratingApplied is
+// recorded from the start, before anything clamps it.
+//
+// Deliberately absent: the learner's submitted answer. Right or wrong is enough to
+// calibrate, and keeping the text would accumulate personal data for no purpose.
+
+model AttemptEvidence {
+  id           String   @id @default(uuid())
+  eventId      String   @unique @map("event_id")
+  userId       String   @map("user_id")
+  exerciseId   String   @map("exercise_id")
+  templateCode String?  @map("template_code")
+
+  // Answer form, flattened from the event so it can be grouped on without JSON
+  // extraction — the whole point of the table is grouping by form.
+  answerMode    String? @map("answer_mode")    // bank | free
+  bankSize      Int?    @map("bank_size")      // null in free mode: there is no bank
+  wordsConsumed Boolean? @map("words_consumed")
+
+  score  Int
+  passed Boolean?
+
+  attemptOrdinal      Int    @map("attempt_ordinal")
+  daysSinceLastReview Float? @map("days_since_last_review")
+
+  // Position within a consumed bank, for the decay in §B.3. Both stay null until
+  // cards are per-gap (§C.1) — before that one card stands for the whole exercise.
+  gapPosition Int? @map("gap_position")
+  gapCount    Int? @map("gap_count")
+
+  ratingApplied String   @map("rating_applied") // AGAIN | HARD | GOOD | EASY
+  occurredAt    DateTime @map("occurred_at")
+
+  @@index([templateCode, answerMode, occurredAt])
+  @@index([userId, occurredAt])
+  @@map("attempt_evidence")
+}
