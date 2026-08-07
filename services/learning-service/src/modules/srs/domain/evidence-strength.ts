@@ -61,9 +61,14 @@ const FREE_PRODUCTION: EvidenceStrength = { successCap: 'EASY', failureFloor: 'H
 const CLOSED_SET: EvidenceStrength = { successCap: 'GOOD', failureFloor: 'AGAIN' };
 
 /**
- * Chose from two or three, or matched the last remaining pair. At this width the
- * answer is as much arithmetic as recall, and the last pair in a matching exercise is
- * correct by construction. Success barely counts.
+ * Chose from two or three, matched the last remaining pair, or reached the tail of a
+ * bank that is spent as it goes. At this width the answer is as much arithmetic as
+ * recall, and the last pair — like the last word of a spent bank — is correct by
+ * construction. Success barely counts.
+ *
+ * `HARD` rather than nothing at all: the weakest success FSRS has a word for. Whether
+ * evidence this thin should move a card *at all* is left open (plan 36, question 2);
+ * this only stops it counting as recall.
  */
 const NEAR_CERTAIN: EvidenceStrength = { successCap: 'HARD', failureFloor: 'AGAIN' };
 
@@ -116,6 +121,28 @@ export interface EvidenceInput {
   answerForm?: AnswerForm | null;
   /** Falls back to the type of exercise when there is no form to read. */
   templateCode?: string | null;
+  /** 1-based position of this gap in its block, where the attempt is graded per gap. */
+  gapPosition?: number | null;
+}
+
+/**
+ * How many words were still on offer by the time this gap came round (plan 36 §B.3).
+ *
+ * When each word may be used once, spending one narrows what is left: with five words
+ * over five gaps, the fifth gap has exactly one word to put in it and is filled
+ * correctly by anyone still awake. The evidence decays across the block, to nothing
+ * at the end — so the bank the scale should read is the remaining one, not the
+ * original.
+ *
+ * Position here is position in the document, because that is what the attempt reports;
+ * a learner who answers the easy gaps first narrows the bank in their own order, not
+ * this one. The approximation is deliberate: the direction is right for everyone, and
+ * carrying an answering order through the event to sharpen it is not worth the field.
+ */
+function remainingBankSize(form: AnswerForm, gapPosition: number | null | undefined): number | null {
+  if (form.bankSize === null) return null;
+  if (!form.wordsConsumed || !gapPosition || gapPosition < 1) return form.bankSize;
+  return Math.max(1, form.bankSize - (gapPosition - 1));
 }
 
 /**
@@ -130,8 +157,10 @@ export function evidenceStrength(input: EvidenceInput): EvidenceStrength {
 
   if (form) {
     if (form.mode === 'free') return FREE_PRODUCTION;
-    // A bank of two or three is a coin toss with extra steps, whatever the template.
-    if (form.bankSize !== null && form.bankSize <= NEAR_CERTAIN_BANK_SIZE) return NEAR_CERTAIN;
+    // A bank of two or three is a coin toss with extra steps, whatever the template —
+    // and a spent bank shrinks to that on its own, part-way down a long block.
+    const remaining = remainingBankSize(form, input.gapPosition);
+    if (remaining !== null && remaining <= NEAR_CERTAIN_BANK_SIZE) return NEAR_CERTAIN;
     return CLOSED_SET;
   }
 

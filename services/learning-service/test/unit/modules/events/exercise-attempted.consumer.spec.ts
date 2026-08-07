@@ -538,6 +538,8 @@ describe('ExerciseAttemptedConsumer', () => {
     });
 
     it('still caps each gap by the form the answer took', async () => {
+      // Reusable words, so nothing is spent and every gap faces the same bank — the
+      // cap on its own, without the decay that has its own test below.
       const { consumer, commandBus } = makeConsumer();
       const channel = makeChannel();
 
@@ -545,7 +547,7 @@ describe('ExerciseAttemptedConsumer', () => {
         channel,
         makeMsg(
           envelope(
-            blockAttempt({ answerForm: { mode: 'bank', bankSize: 6, wordsConsumed: true } }),
+            blockAttempt({ answerForm: { mode: 'bank', bankSize: 6, wordsConsumed: false } }),
           ),
         ),
       );
@@ -556,6 +558,35 @@ describe('ExerciseAttemptedConsumer', () => {
 
       expect(reviews.map((r) => r.rating)).toEqual([
         'GOOD', 'GOOD', 'AGAIN', 'GOOD', 'GOOD', 'GOOD',
+      ]);
+    });
+
+    it('discounts the tail of a bank spent as it goes (plan 36 §B.3)', async () => {
+      // Six words over six gaps: by the fourth there are three left, and by the sixth
+      // there is one word and one place to put it. All six were right, and they are
+      // not worth the same.
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope(
+            blockAttempt({
+              answerForm: { mode: 'bank', bankSize: 6, wordsConsumed: true },
+              gapResults: sixGaps.map((gap) => ({ ...gap, correct: true })),
+              score: 100,
+            }),
+          ),
+        ),
+      );
+
+      const reviews = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .filter((c) => c instanceof ReviewCardCommand) as ReviewCardCommand[];
+
+      expect(reviews.map((r) => r.rating)).toEqual([
+        'GOOD', 'GOOD', 'GOOD', 'HARD', 'HARD', 'HARD',
       ]);
     });
 

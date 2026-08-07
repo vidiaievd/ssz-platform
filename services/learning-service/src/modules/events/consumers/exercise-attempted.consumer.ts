@@ -59,10 +59,19 @@ function scoreToRating(score: number): ReviewRatingValue {
  * one already in the queue — comes back unclamped and rates exactly as it did before.
  * No existing card is migrated; the scale reaches new attempts only.
  */
-function ratingForAttempt(p: ExerciseAttemptCompletedPayload, score: number): ReviewRatingValue {
+function ratingForAttempt(
+  p: ExerciseAttemptCompletedPayload,
+  score: number,
+  /** Where in its block the gap sat, so a spent bank can decay across it (§B.3). */
+  gapPosition: number | null = null,
+): ReviewRatingValue {
   return clampByEvidence(
     scoreToRating(score),
-    evidenceStrength({ answerForm: p.answerForm, templateCode: p.templateCode }),
+    evidenceStrength({
+      answerForm: p.answerForm,
+      templateCode: p.templateCode,
+      gapPosition,
+    }),
   );
 }
 
@@ -291,10 +300,11 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       }
 
       const card = introduceResult.value as ReviewCardDto;
+      const position = index + 1;
       // The gap's own verdict, not the exercise's score: right is a full recall of
-      // this word, wrong is a lapse of it, and the form of the answer then decides
-      // how much either is worth.
-      const rating = ratingForAttempt(p, gap.correct ? 100 : 0);
+      // this word, wrong is a lapse of it, and the form of the answer — narrowed by
+      // how much of the bank was already spent — decides how much either is worth.
+      const rating = ratingForAttempt(p, gap.correct ? 100 : 0, position);
 
       const reviewResult = await this.commandBus.execute(
         new ReviewCardCommand(p.userId, card.id, rating),
@@ -306,7 +316,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
         continue;
       }
 
-      await this.publishRatingRecord(p, rating, card, index + 1, gapCount);
+      await this.publishRatingRecord(p, rating, card, position, gapCount);
     }
   }
 

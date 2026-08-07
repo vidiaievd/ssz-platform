@@ -44,6 +44,44 @@ describe('evidenceStrength', () => {
     });
   });
 
+  describe('the bank decaying across a block (plan 36 §B.3)', () => {
+    const spent = (bankSize: number) =>
+      ({ mode: 'bank', bankSize, wordsConsumed: true }) as const;
+
+    it('gives way as the bank is spent — five words over five gaps', () => {
+      // By the last gap there is one word left and one place to put it. That is not
+      // recall, and it used to earn the same interval as the first gap.
+      const caps = [1, 2, 3, 4, 5].map(
+        (gapPosition) => evidenceStrength({ answerForm: spent(5), gapPosition }).successCap,
+      );
+      expect(caps).toEqual(['GOOD', 'GOOD', 'HARD', 'HARD', 'HARD']);
+    });
+
+    it('does not decay when words may be reused', () => {
+      // Nothing is spent, so the tenth gap faces the same bank as the first.
+      const reusable = { mode: 'bank', bankSize: 6, wordsConsumed: false } as const;
+      expect(evidenceStrength({ answerForm: reusable, gapPosition: 6 }).successCap).toBe('GOOD');
+    });
+
+    it('does not decay free typing — there is no bank to spend', () => {
+      const typed = { mode: 'free', bankSize: null, wordsConsumed: true } as const;
+      expect(evidenceStrength({ answerForm: typed, gapPosition: 9 }))
+        .toEqual({ successCap: 'EASY', failureFloor: 'HARD' });
+    });
+
+    it('reads the whole bank when there is no position to place the gap in', () => {
+      // Attempts not graded gap by gap report no position, and must rate as before.
+      expect(evidenceStrength({ answerForm: spent(5) }).successCap).toBe('GOOD');
+      expect(evidenceStrength({ answerForm: spent(5), gapPosition: null }).successCap).toBe('GOOD');
+    });
+
+    it('never lets a failure off the floor, however narrow the bank', () => {
+      // Getting it wrong with two words left is the strongest signal of not knowing
+      // in the whole scale. The decay must not soften that.
+      expect(evidenceStrength({ answerForm: spent(5), gapPosition: 5 }).failureFloor).toBe('AGAIN');
+    });
+  });
+
   describe('the template, for the types that have no form to report', () => {
     it.each([
       ['short_answer', 'EASY', 'HARD'],
