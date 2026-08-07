@@ -205,6 +205,124 @@
       }
     },
     {
+      "key": "b1-g2-wbgf-01",
+      "template": "word_bank_gap_fill",
+      "instruction": "Впишите глагол в нужной форме. Прямая речь дана подсказкой к каждому предложению.",
+      "hint": "Глагол говорения в прошедшем (sa, spurte) — время сдвигается на шаг назад. В настоящем (sier, spør) — не сдвигается.",
+      "content": {
+        "sentences": [
+          {
+            "id": "s1",
+            "text": "Bartek sa at han var trøtt.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Jeg er trøtt», sa Bartek."
+          },
+          {
+            "id": "s2",
+            "text": "Hun sa at hun snakket med sjefen hver dag.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Jeg snakker med sjefen hver dag», sa hun."
+          },
+          {
+            "id": "s3",
+            "text": "Kari sa at hun skulle reise til Bergen.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Jeg skal reise til Bergen», sa Kari."
+          },
+          {
+            "id": "s4",
+            "text": "Han spurte om jeg kom på festen.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Kommer du på festen?», spurte han."
+          },
+          {
+            "id": "s5",
+            "text": "Læreren sa at vi kunne gå hjem.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Dere kan gå hjem», sa læreren."
+          },
+          {
+            "id": "s6",
+            "text": "Han sa at han hadde spist allerede.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Jeg har spist allerede», sa han."
+          },
+          {
+            "id": "s7",
+            "text": "Hun sier at hun er syk.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Jeg er syk», sier hun."
+          }
+        ],
+        "distractors": [],
+        "settings": {
+          "shuffle": true,
+          "allowReuse": false,
+          "showBankCount": false,
+          "caseSensitive": false,
+          "input": "free"
+        }
+      },
+      "expectedAnswers": {
+        "feedback": {
+          "s1#4": {
+            "fallback": "Глагол говорения «sa» в прошедшем — presens сдвигается в preteritum.",
+            "why": "«Jeg er trøtt» → er сдвигается на шаг назад: var.",
+            "pairs": {}
+          },
+          "s2#4": {
+            "fallback": "Presens после «sa» сдвигается в preteritum.",
+            "why": "«Snakker» → snakket. У глаголов на -et допустима и форма на -a: snakka.",
+            "pairs": {}
+          },
+          "s3#4": {
+            "fallback": "Модальный глагол тоже сдвигается: skal → …",
+            "why": "«Jeg skal reise» → skulle reise.",
+            "pairs": {}
+          },
+          "s4#4": {
+            "fallback": "«Spurte» — прошедшее, значит presens в придаточном сдвигается.",
+            "why": "«Kommer du?» → om jeg kom. Инверсии в косвенном вопросе нет.",
+            "pairs": {}
+          },
+          "s5#4": {
+            "fallback": "Модальный kan после «sa» сдвигается на шаг назад.",
+            "why": "«Dere kan gå» → at vi kunne gå.",
+            "pairs": {}
+          },
+          "s6#4": {
+            "fallback": "Perfektum после прошедшего становится pluskvamperfektum — меняется вспомогательный глагол.",
+            "why": "«Har spist» → hadde spist. Причастие при этом не меняется.",
+            "pairs": {}
+          },
+          "s7#4": {
+            "fallback": "Посмотрите на глагол говорения: он стоит в настоящем времени.",
+            "why": "После «sier» время НЕ сдвигается: «Jeg er syk» → at hun er syk.",
+            "pairs": {}
+          }
+        },
+        "alternatives": {
+          "s2#4": [
+            "snakka"
+          ]
+        }
+      }
+    },
+    {
       "key": "b1-g2-ind1",
       "template": "short_answer",
       "instruction": "Перепишите в косвенную речь (глагол в прошедшем → сдвиг времени).",
