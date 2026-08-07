@@ -18,6 +18,7 @@ import {
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
@@ -54,6 +55,9 @@ import { UpdateContainerRequestDto } from '../dto/requests/update-container.requ
 import { ContainerListQueryDto } from '../dto/requests/container-list-query.dto.js';
 import { CreateLocalizationRequestDto } from '../dto/requests/create-localization.request.dto.js';
 import { UpdateLocalizationRequestDto } from '../dto/requests/update-localization.request.dto.js';
+import { GetContainerActivityQuery } from '../../application/queries/get-container-activity/get-container-activity.query.js';
+import type { ContainerActivityResult } from '../../application/queries/get-container-activity/get-container-activity.handler.js';
+import { ContainerActivityResponseDto } from '../dto/responses/container-activity.response.dto.js';
 import { throwHttpException } from '../utils/domain-error.mapper.js';
 
 @ApiTags('Containers')
@@ -147,6 +151,43 @@ export class ContainerController {
     if (result.isFail) throwHttpException(result.error);
     const { container, localizations } = result.value;
     return ContainerResponseDto.from(container, localizations);
+  }
+
+  @Get(':id/activity')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({
+    summary: 'Who changed this container and the material it places, newest first',
+  })
+  @ApiQuery({ name: 'limit', required: false, description: 'Page size, 1–100. Default 30.' })
+  @ApiQuery({
+    name: 'before',
+    required: false,
+    description:
+      'ISO 8601. Returns entries older than this instant — pass the `occurredAt` of the ' +
+      'last entry received to page backwards.',
+  })
+  @ApiOkResponse({ type: ContainerActivityResponseDto })
+  async activity(
+    @Param('id') id: string,
+    @Query('limit') limit?: string,
+    @Query('before') before?: string,
+  ): Promise<ContainerActivityResponseDto> {
+    // Parsed here rather than by a validation pipe: both are optional scalars with
+    // an obvious fallback, and a rejected page size helps nobody.
+    const parsedLimit = Number.parseInt(limit ?? '', 10);
+    const size = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 30;
+    const cursor = before ? new Date(before) : undefined;
+
+    const result = await this.queryBus.execute<GetContainerActivityQuery, ContainerActivityResult>(
+      new GetContainerActivityQuery(
+        id,
+        size,
+        cursor && !Number.isNaN(cursor.getTime()) ? cursor : undefined,
+      ),
+    );
+
+    return ContainerActivityResponseDto.from(result);
   }
 
   @Patch(':id')

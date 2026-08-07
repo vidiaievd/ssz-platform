@@ -57,23 +57,27 @@ function makeHandler(overrides?: {
   } as unknown as IContainerRepository;
 
   const versionRepo: IContainerVersionRepository = {
-    findById: jest.fn().mockResolvedValue(
-      overrides?.version === undefined ? makeVersion() : overrides.version,
-    ),
+    findById: jest
+      .fn()
+      .mockResolvedValue(overrides?.version === undefined ? makeVersion() : overrides.version),
   } as unknown as IContainerVersionRepository;
 
   const unassignItems = overrides?.unassignItems ?? jest.fn().mockResolvedValue(undefined);
   const deleteFn = overrides?.deleteFn ?? jest.fn().mockResolvedValue(undefined);
 
   const sectionRepo: IContainerSectionRepository = {
-    findById: jest.fn().mockResolvedValue(
-      overrides?.section === undefined ? makeSection() : overrides.section,
-    ),
+    findById: jest
+      .fn()
+      .mockResolvedValue(overrides?.section === undefined ? makeSection() : overrides.section),
     unassignItems,
     delete: deleteFn,
   } as unknown as IContainerSectionRepository;
 
-  return { handler: new DeleteSectionHandler(containerRepo, versionRepo, sectionRepo), unassignItems, deleteFn };
+  return {
+    handler: new DeleteSectionHandler(containerRepo, versionRepo, sectionRepo),
+    unassignItems,
+    deleteFn,
+  };
 }
 
 describe('DeleteSectionHandler', () => {

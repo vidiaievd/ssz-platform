@@ -50,7 +50,13 @@ function makeHandler(exercise: ExerciseEntity | null = makeExercise()) {
     findById: () => Promise.resolve(null),
   } as unknown as IExerciseTemplateRepository;
 
-  return { handler: new UpdateExerciseHandler(exerciseRepo, templateRepo), saved };
+  const auditLog = { record: jest.fn().mockResolvedValue(undefined) };
+
+  return {
+    handler: new UpdateExerciseHandler(exerciseRepo, auditLog, templateRepo),
+    saved,
+    auditLog,
+  };
 }
 
 function command(expectedUpdatedAt?: string): UpdateExerciseCommand {
@@ -117,5 +123,34 @@ describe('UpdateExerciseHandler — optimistic concurrency', () => {
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(ExerciseDomainError.EXERCISE_NOT_FOUND);
+  });
+});
+
+describe('UpdateExerciseHandler — audit', () => {
+  it('records who edited the exercise and which fields they touched', async () => {
+    const { handler, auditLog } = makeHandler();
+
+    await handler.execute(
+      new UpdateExerciseCommand(USER_ID, EXERCISE_ID, undefined, { sentences: [] }),
+    );
+
+    expect(auditLog.record).toHaveBeenCalledWith({
+      entityType: 'EXERCISE',
+      entityId: EXERCISE_ID,
+      action: 'updated',
+      actorUserId: USER_ID,
+      changedFields: ['content'],
+    });
+  });
+
+  it('writes no history for a refused write', async () => {
+    // The conflict means nothing changed; an entry would report an edit that
+    // never landed, and the feed is read as a record of what did.
+    const { handler, auditLog } = makeHandler();
+
+    const result = await handler.execute(command('2026-08-05T09:59:00.000Z'));
+
+    expect(result.isFail).toBe(true);
+    expect(auditLog.record).not.toHaveBeenCalled();
   });
 });

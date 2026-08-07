@@ -3,6 +3,8 @@ import { Inject } from '@nestjs/common';
 import { UpdateExerciseCommand } from './update-exercise.command.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { ExerciseDomainError } from '../../../domain/exceptions/exercise-domain.exceptions.js';
+import { AUDIT_LOG } from '../../../../../shared/application/ports/audit-log.port.js';
+import type { IAuditLog } from '../../../../../shared/application/ports/audit-log.port.js';
 import { EXERCISE_REPOSITORY } from '../../../domain/repositories/exercise.repository.interface.js';
 import type { IExerciseRepository } from '../../../domain/repositories/exercise.repository.interface.js';
 import { EXERCISE_TEMPLATE_REPOSITORY } from '../../../../exercise-template/domain/repositories/exercise-template.repository.interface.js';
@@ -40,6 +42,8 @@ export class UpdateExerciseHandler implements ICommandHandler<
   constructor(
     @Inject(EXERCISE_REPOSITORY)
     private readonly exerciseRepo: IExerciseRepository,
+    @Inject(AUDIT_LOG)
+    private readonly auditLog: IAuditLog,
     @Inject(EXERCISE_TEMPLATE_REPOSITORY)
     private readonly templateRepo: IExerciseTemplateRepository,
   ) {}
@@ -92,8 +96,33 @@ export class UpdateExerciseHandler implements ICommandHandler<
 
     const saved = await this.exerciseRepo.save(exercise);
 
+    await this.auditLog.record({
+      entityType: 'EXERCISE',
+      entityId: command.exerciseId,
+      action: 'updated',
+      actorUserId: command.userId,
+      changedFields: changedExerciseFields(command),
+    });
+
     // The stored value, not the one the entity set on itself: the row is what the next
     // write is compared against, and a client holding anything else conflicts with itself.
     return Result.ok({ updatedAt: saved.contentUpdatedAt });
   }
+}
+
+/**
+ * The fields this request set. Taken from the command rather than from the
+ * entity's own diff: an author who re-saves a sentence to the same text has
+ * still edited it, and a history that hid that would look like lost work.
+ */
+function changedExerciseFields(command: UpdateExerciseCommand): string[] {
+  const fields: Array<keyof UpdateExerciseCommand> = [
+    'difficultyLevel',
+    'content',
+    'expectedAnswers',
+    'answerCheckSettings',
+    'visibility',
+    'estimatedDurationSeconds',
+  ];
+  return fields.filter((field) => command[field] !== undefined);
 }

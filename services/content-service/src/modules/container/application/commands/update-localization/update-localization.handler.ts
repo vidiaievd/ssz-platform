@@ -9,9 +9,10 @@ import { CONTAINER_LOCALIZATION_REPOSITORY } from '../../../domain/repositories/
 import type { IContainerLocalizationRepository } from '../../../domain/repositories/container-localization.repository.interface.js';
 
 @CommandHandler(UpdateLocalizationCommand)
-export class UpdateLocalizationHandler
-  implements ICommandHandler<UpdateLocalizationCommand, Result<void, ContainerDomainError>>
-{
+export class UpdateLocalizationHandler implements ICommandHandler<
+  UpdateLocalizationCommand,
+  Result<void, ContainerDomainError>
+> {
   constructor(
     @Inject(CONTAINER_REPOSITORY)
     private readonly containerRepo: IContainerRepository,
@@ -19,9 +20,7 @@ export class UpdateLocalizationHandler
     private readonly localizationRepo: IContainerLocalizationRepository,
   ) {}
 
-  async execute(
-    command: UpdateLocalizationCommand,
-  ): Promise<Result<void, ContainerDomainError>> {
+  async execute(command: UpdateLocalizationCommand): Promise<Result<void, ContainerDomainError>> {
     const container = await this.containerRepo.findById(command.containerId);
     if (!container) {
       return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);

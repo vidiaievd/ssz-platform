@@ -16,6 +16,8 @@ import { CONTENT_EVENT_PUBLISHER } from '../../../../../shared/application/ports
 import type { IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { ContainerPublishedEvent } from '../../../domain/events/container-published.event.js';
 import { ContainerDeprecatedEvent } from '../../../domain/events/container-deprecated.event.js';
+import { AUDIT_LOG } from '../../../../../shared/application/ports/audit-log.port.js';
+import type { IAuditLog } from '../../../../../shared/application/ports/audit-log.port.js';
 import { EXERCISE_DRAFT_PROMOTER } from '../../ports/exercise-draft-promoter.port.js';
 import type { IExerciseDraftPromoter } from '../../ports/exercise-draft-promoter.port.js';
 import { generateSlug, resolveUniqueSlug } from '../../../../../shared/utils/slug.util.js';
@@ -43,6 +45,8 @@ export class PublishVersionHandler implements ICommandHandler<
     private readonly eventPublisher: IEventPublisher,
     @Inject(EXERCISE_DRAFT_PROMOTER)
     private readonly draftPromoter: IExerciseDraftPromoter,
+    @Inject(AUDIT_LOG)
+    private readonly auditLog: IAuditLog,
     private readonly queryBus: QueryBus,
   ) {}
 
@@ -135,6 +139,13 @@ export class PublishVersionHandler implements ICommandHandler<
         }),
       );
     }
+
+    await this.auditLog.record({
+      entityType: 'CONTAINER',
+      entityId: container.id,
+      action: 'published',
+      actorUserId: command.userId,
+    });
 
     return Result.ok({ versionId: command.versionId, previousVersionId });
   }

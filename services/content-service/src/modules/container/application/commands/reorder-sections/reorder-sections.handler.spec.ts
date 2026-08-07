@@ -46,7 +46,10 @@ function makeSections(count: number): ContainerSectionEntity[] {
   );
 }
 
-function makeHandler(existingSections: ContainerSectionEntity[], reorderFn = jest.fn().mockResolvedValue(undefined)) {
+function makeHandler(
+  existingSections: ContainerSectionEntity[],
+  reorderFn = jest.fn().mockResolvedValue(undefined),
+) {
   const containerRepo: IContainerRepository = {
     findById: jest.fn().mockResolvedValue(makeContainer()),
   } as unknown as IContainerRepository;
