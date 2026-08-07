@@ -40,6 +40,7 @@
     "@prisma/client": "^7.7.0",
     "@ssz/contracts": "file:../../packages/contracts",
     "@ssz/messaging": "file:../../packages/messaging",
+    "@ssz/shared-kernel": "file:../../packages/shared-kernel",
     "ajv": "^8.18.0",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^1.0.3",
@@ -114,7 +115,9 @@
       ]
     },
     "moduleNameMapper": {
-      "^(\\.{1,2}/.+)\\.js$": "$1"
+      "^(\\.{1,2}/.+)\\.js$": "$1",
+      "^@ssz/shared-kernel/(.*)$": "<rootDir>/../../../packages/shared-kernel/src/$1/index.ts",
+      "^@ssz/shared-kernel$": "<rootDir>/../../../packages/shared-kernel/src/index.ts"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

@@ -24,6 +24,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let statusCode: number;
     let error: string;
     let message: string;
+    /**
+     * Structured fields a thrower attached to the exception body, beyond the message.
+     * They are the point of throwing an object rather than a string — a 409 that says
+     * *which* attempt is already running is actionable, one that only says so in prose
+     * is not — so the envelope must carry them through rather than flatten them away.
+     */
+    let extra: Record<string, unknown> = {};
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
@@ -36,6 +43,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
         const body = responseBody as Record<string, unknown>;
         const raw = body['message'];
         message = Array.isArray(raw) ? raw.join('; ') : String(raw ?? exception.message);
+        // The envelope's own keys win: a thrower must not be able to rewrite the
+        // status, the correlation id, or the path by naming a field after them.
+        const { message: _message, statusCode: _statusCode, error: _error, ...rest } = body;
+        extra = rest;
       } else {
         message = exception.message;
       }
@@ -58,6 +69,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     response.status(statusCode).json({
+      ...extra,
       statusCode,
       error,
       message,

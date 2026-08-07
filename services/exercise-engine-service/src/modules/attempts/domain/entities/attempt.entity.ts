@@ -8,6 +8,7 @@ import {
   InvalidScoreError,
 } from '../exceptions/attempt.errors.js';
 import { AttemptStartedEvent } from '../events/attempt-started.event.js';
+import type { AnswerForm } from '@ssz/contracts';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
 import { AttemptRoutedForReviewEvent } from '../events/attempt-routed-for-review.event.js';
 
@@ -61,6 +62,7 @@ export interface AttemptPersistenceProps {
   feedback: unknown;
   answerHash: string | null;
   revisionCount: number;
+  answersRevealed: boolean;
   startedAt: Date;
   submittedAt: Date | null;
   scoredAt: Date | null;
@@ -87,6 +89,7 @@ export class Attempt extends AggregateRoot {
     private _feedback: unknown,
     private _answerHash: string | null,
     private _revisionCount: number,
+    private _answersRevealed: boolean,
     private _startedAt: Date,
     private _submittedAt: Date | null,
     private _scoredAt: Date | null,
@@ -115,6 +118,7 @@ export class Attempt extends AggregateRoot {
       null,
       null,
       0,
+      false,
       new Date(),
       null,
       null,
@@ -156,6 +160,7 @@ export class Attempt extends AggregateRoot {
       props.feedback,
       props.answerHash,
       props.revisionCount,
+      props.answersRevealed,
       props.startedAt,
       props.submittedAt,
       props.scoredAt,
@@ -185,11 +190,50 @@ export class Attempt extends AggregateRoot {
     return Result.ok();
   }
 
+  /**
+   * Another go at the same attempt, after a check the learner was not happy with.
+   *
+   * `word_bank_gap_fill` is checked against the server rather than in the browser, and
+   * its behaviour spec makes checks unlimited: correct gaps lock, wrong ones stay
+   * editable, and nothing gates a further check. Without this the first check would
+   * score the attempt and every later one would be refused as an invalid transition.
+   *
+   * Practice only, and never after a reveal: once the answers have been handed over,
+   * checking again measures nothing. A graded attempt is a submission to a teacher and
+   * stays a single shot.
+   */
+  reopenForRecheck(): Result<void, InvalidAttemptTransitionError> {
+    if (this._checkMode !== 'PRACTICE') {
+      return Result.fail(
+        new InvalidAttemptTransitionError('Only a practice attempt can be checked again'),
+      );
+    }
+    if (this._answersRevealed) {
+      return Result.fail(
+        new InvalidAttemptTransitionError('Cannot check again once the answers were revealed'),
+      );
+    }
+    if (this._status !== 'SCORED') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot check an attempt with status ${this._status} again`,
+        ),
+      );
+    }
+
+    this._revisionCount += 1;
+    this._status = 'IN_PROGRESS';
+
+    return Result.ok();
+  }
+
   score(
     rawScore: number,
     passed: boolean,
     validationDetails: unknown,
     feedback: unknown,
+    /** How the answer was produced; omitted by templates that cannot say. */
+    answerForm?: AnswerForm,
   ): Result<void, InvalidScoreError | InvalidAttemptTransitionError> {
     if (this._status !== 'SUBMITTED') {
       return Result.fail(
@@ -211,16 +255,23 @@ export class Attempt extends AggregateRoot {
     this._scoredAt = new Date();
     this._status = 'SCORED';
 
-    this.addDomainEvent(
-      new AttemptScoredEvent(this.id, {
-        userId: this._userId,
-        exerciseId: this._exerciseId,
-        score: this._score,
-        timeSpentSeconds: this._timeSpentSeconds,
-        completed: true,
-        practicedAtoms: this._practicedAtoms,
-      }),
-    );
+    // Only the first check is evidence. A re-check is the learner correcting
+    // themselves with the wrong gaps still on screen, and counting it would tell
+    // progress and the SRS that the word was known when it had just been shown to
+    // be the one they got wrong.
+    if (this._revisionCount === 0) {
+      this.addDomainEvent(
+        new AttemptScoredEvent(this.id, {
+          userId: this._userId,
+          exerciseId: this._exerciseId,
+          score: this._score,
+          timeSpentSeconds: this._timeSpentSeconds,
+          completed: true,
+          practicedAtoms: this._practicedAtoms,
+          ...(answerForm === undefined ? {} : { answerForm }),
+        }),
+      );
+    }
 
     return Result.ok();
   }
@@ -269,6 +320,28 @@ export class Attempt extends AggregateRoot {
     return Result.ok();
   }
 
+  /**
+   * The learner asked to be shown the answers rather than work them out.
+   *
+   * Only after an answer has been submitted: revealing from IN_PROGRESS would turn
+   * the exercise into a reading task, and the whole reason the reveal is a separate
+   * action is that being wrong must not hand the word over by itself.
+   *
+   * Idempotent — asking twice shows the same answers and changes nothing.
+   */
+  revealAnswers(): Result<void, InvalidAttemptTransitionError> {
+    if (this._status === 'IN_PROGRESS' || this._status === 'ABANDONED') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot reveal answers for an attempt with status ${this._status}`,
+        ),
+      );
+    }
+
+    this._answersRevealed = true;
+    return Result.ok();
+  }
+
   addTimeSpent(seconds: number): void {
     if (seconds > 0) {
       this._timeSpentSeconds += seconds;
@@ -293,6 +366,7 @@ export class Attempt extends AggregateRoot {
   get feedback(): unknown { return this._feedback; }
   get answerHash(): string | null { return this._answerHash; }
   get revisionCount(): number { return this._revisionCount; }
+  get answersRevealed(): boolean { return this._answersRevealed; }
   get startedAt(): Date { return this._startedAt; }
   get submittedAt(): Date | null { return this._submittedAt; }
   get scoredAt(): Date | null { return this._scoredAt; }

@@ -26,14 +26,23 @@ export class ExerciseInstructionResponseDto {
   @ApiProperty()
   updatedAt!: Date;
 
-  static from(entity: ExerciseInstructionEntity): ExerciseInstructionResponseDto {
+  /**
+   * `scope` picks which version of the text to serve: `live` is what a student
+   * reads, `draft` is what the author last wrote and has not released. They are
+   * the same row until somebody edits a published exercise.
+   */
+  static from(
+    entity: ExerciseInstructionEntity,
+    scope: 'live' | 'draft' = 'live',
+  ): ExerciseInstructionResponseDto {
+    const draft = scope === 'draft';
     const dto = new ExerciseInstructionResponseDto();
     dto.id = entity.id;
     dto.exerciseId = entity.exerciseId;
     dto.instructionLanguage = entity.instructionLanguage;
-    dto.instructionText = entity.instructionText;
-    dto.hintText = entity.hintText;
-    dto.textOverrides = entity.textOverrides;
+    dto.instructionText = draft ? entity.authoringInstructionText : entity.instructionText;
+    dto.hintText = draft ? entity.authoringHintText : entity.hintText;
+    dto.textOverrides = draft ? entity.authoringTextOverrides : entity.textOverrides;
     dto.createdAt = entity.createdAt;
     dto.updatedAt = entity.updatedAt;
     return dto;

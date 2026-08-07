@@ -4,6 +4,13 @@ import { IDomainEvent } from '../../../../shared/domain/domain-event.interface.j
 export interface ExerciseUpdatedPayload {
   exerciseId: string;
   updatedFields: string[];
+  /**
+   * Whether students are seeing this change already. False for an edit to the
+   * document, which waits in the draft until the container placing the exercise
+   * is published — a consumer that invalidates a cache of live content wants
+   * only the released ones.
+   */
+  released: boolean;
 }
 
 export class ExerciseUpdatedEvent implements IDomainEvent {

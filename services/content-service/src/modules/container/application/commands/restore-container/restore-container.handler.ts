@@ -4,6 +4,8 @@ import { RestoreContainerCommand } from './restore-container.command.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
 import { CONTAINER_REPOSITORY } from '../../../domain/repositories/container.repository.interface.js';
+import { AUDIT_LOG } from '../../../../../shared/application/ports/audit-log.port.js';
+import type { IAuditLog } from '../../../../../shared/application/ports/audit-log.port.js';
 import type { IContainerRepository } from '../../../domain/repositories/container.repository.interface.js';
 
 @CommandHandler(RestoreContainerCommand)
@@ -14,6 +16,8 @@ export class RestoreContainerHandler implements ICommandHandler<
   constructor(
     @Inject(CONTAINER_REPOSITORY)
     private readonly containerRepo: IContainerRepository,
+    @Inject(AUDIT_LOG)
+    private readonly auditLog: IAuditLog,
   ) {}
 
   async execute(command: RestoreContainerCommand): Promise<Result<void, ContainerDomainError>> {
@@ -28,6 +32,13 @@ export class RestoreContainerHandler implements ICommandHandler<
     }
 
     await this.containerRepo.save(container);
+
+    await this.auditLog.record({
+      entityType: 'CONTAINER',
+      entityId: command.containerId,
+      action: 'restored',
+      actorUserId: command.userId,
+    });
 
     return Result.ok();
   }

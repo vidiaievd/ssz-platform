@@ -51,8 +51,11 @@ import { GetContainerVersionHandler } from './application/queries/get-container-
 import { GetVersionItemsHandler } from './application/queries/get-version-items/get-version-items.handler.js';
 import { GetVersionSectionsHandler } from './application/queries/get-version-sections/get-version-sections.handler.js';
 import { GetCurriculumTreeHandler } from './application/queries/get-curriculum-tree/get-curriculum-tree.handler.js';
+import { GetContainerActivityHandler } from './application/queries/get-container-activity/get-container-activity.handler.js';
 import { GetPublishStatesHandler } from './application/queries/get-publish-states/get-publish-states.handler.js';
 import { PublishStateReader } from './application/services/publish-state.reader.js';
+import { EXERCISE_DRAFT_PROMOTER } from './application/ports/exercise-draft-promoter.port.js';
+import { PrismaExerciseDraftPromoter } from './infrastructure/persistence/prisma-exercise-draft-promoter.js';
 
 // Controllers
 import { ContainerController } from './presentation/controllers/container.controller.js';
@@ -95,6 +98,7 @@ const QueryHandlers = [
   GetVersionSectionsHandler,
   GetCurriculumTreeHandler,
   GetPublishStatesHandler,
+  GetContainerActivityHandler,
 ];
 
 @Module({
@@ -112,6 +116,7 @@ const QueryHandlers = [
     { provide: CONTAINER_ITEM_REPOSITORY, useClass: PrismaContainerItemRepository },
     { provide: CONTAINER_LOCALIZATION_REPOSITORY, useClass: PrismaContainerLocalizationRepository },
     { provide: CONTAINER_SECTION_REPOSITORY, useClass: PrismaContainerSectionRepository },
+    { provide: EXERCISE_DRAFT_PROMOTER, useClass: PrismaExerciseDraftPromoter },
 
     // Read-model services
     PublishStateReader,

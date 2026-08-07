@@ -24,6 +24,7 @@ import type { IContainerSectionRepository } from '../../../domain/repositories/c
 import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
 import type {
   ContainerPublishState,
+  ItemPendingChange,
   PublishStateReader,
 } from '../../services/publish-state.reader.js';
 
@@ -127,6 +128,8 @@ interface Fixture {
   lessonItem?: ContainerItemEntity | null;
   lessonVariantStatus?: 'DRAFT' | 'PUBLISHED' | null;
   publishStates?: Record<string, ContainerPublishState>;
+  /** containerId → (content id → how its placement differs from the live version). */
+  itemChanges?: Record<string, Record<string, ItemPendingChange>>;
   /** A leaf item attached straight to the requested version — a module's own material. */
   ownItem?: ContainerItemEntity | null;
   /** containerId → its currentPublishedVersionId. Absent means never published. */
@@ -192,11 +195,13 @@ function makeHandler(fixture: Fixture = {}) {
       ]),
     },
     containerItem: {
-      findMany: jest.fn().mockResolvedValue(
-        Object.entries(liveItemIds).flatMap(([containerVersionId, itemIds]) =>
-          itemIds.map((itemId) => ({ containerVersionId, itemId })),
+      findMany: jest
+        .fn()
+        .mockResolvedValue(
+          Object.entries(liveItemIds).flatMap(([containerVersionId, itemIds]) =>
+            itemIds.map((itemId) => ({ containerVersionId, itemId })),
+          ),
         ),
-      ),
     },
     containerLocalization: {
       findMany: jest
@@ -232,16 +237,22 @@ function makeHandler(fixture: Fixture = {}) {
     exercise: { findMany: jest.fn().mockResolvedValue([]) },
   } as any;
 
+  const states = Object.entries(
+    fixture.publishStates ?? { [COURSE_ID]: 'draft', [MODULE_ID]: 'draft' },
+  ) as [string, ContainerPublishState][];
+
   const publishStateReader = {
-    resolve: jest
-      .fn()
-      .mockResolvedValue(
-        new Map(
-          Object.entries(
-            fixture.publishStates ?? { [COURSE_ID]: 'draft', [MODULE_ID]: 'draft' },
-          ) as [string, ContainerPublishState][],
-        ),
+    resolveDetailed: jest.fn().mockResolvedValue(
+      new Map(
+        states.map(([containerId, state]) => [
+          containerId,
+          {
+            state,
+            changeByItemId: new Map(Object.entries(fixture.itemChanges?.[containerId] ?? {})),
+          },
+        ]),
       ),
+    ),
   } as unknown as PublishStateReader;
 
   return new GetCurriculumTreeHandler(
@@ -325,6 +336,31 @@ describe('GetCurriculumTreeHandler', () => {
     if (result.isFail) return;
     expect(result.value.publishState).toBe('published');
     expect(result.value.levels[0].modules[0].publishState).toBe('pending_changes');
+  });
+
+  it("marks the item whose placement the module's draft changed", async () => {
+    const handler = makeHandler({
+      publishStates: { [COURSE_ID]: 'published', [MODULE_ID]: 'pending_changes' },
+      itemChanges: { [MODULE_ID]: { [LESSON_ID]: 'moved' } },
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    expect(result.value.levels[0].modules[0].sections[0].items[0].pendingChange).toBe('moved');
+  });
+
+  it('leaves the marker off an item nothing happened to', async () => {
+    const handler = makeHandler({
+      publishStates: { [COURSE_ID]: 'published', [MODULE_ID]: 'pending_changes' },
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    expect(result.value.levels[0].modules[0].sections[0].items[0].pendingChange).toBeNull();
   });
 
   it('falls back to draft for a container the publish state reader did not resolve', async () => {

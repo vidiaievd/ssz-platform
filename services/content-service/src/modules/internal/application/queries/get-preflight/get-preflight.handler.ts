@@ -7,6 +7,8 @@ import {
 } from '../../../../../shared/access-control/domain/ports/organization-client.port.js';
 import { OrganizationServiceUnavailableException } from '../../../../../shared/access-control/infrastructure/clients/organization-service-unavailable.exception.js';
 import { GetPreflightQuery } from './get-preflight.query.js';
+import { TEMPLATE_CODE as GAP_FILL_TEMPLATE } from '@ssz/shared-kernel/wordbank-gapfill';
+import { gapFillViolations } from './gap-fill-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
 
@@ -32,9 +34,7 @@ const SUPPORTED_LOCALES = ['en', 'nb', 'uk', 'ru'];
 const IMG_NO_ALT_RE = /!\[\s*\]\(/g;
 
 @QueryHandler(GetPreflightQuery)
-export class GetPreflightHandler
-  implements IQueryHandler<GetPreflightQuery, PreflightResult>
-{
+export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, PreflightResult> {
   private readonly logger = new Logger(GetPreflightHandler.name);
 
   constructor(
@@ -78,7 +78,7 @@ export class GetPreflightHandler
     await Promise.all([
       this.checkLessons(byType['LESSON'] ?? [], blockers, warnings),
       this.checkVocabularyLists(byType['VOCABULARY_LIST'] ?? [], blockers, warnings),
-      this.checkExercises(byType['EXERCISE'] ?? [], blockers),
+      this.checkExercises(byType['EXERCISE'] ?? [], blockers, warnings),
       this.checkModules(byType['CONTAINER'] ?? [], blockers),
       this.checkGrammarRules(byType['GRAMMAR_RULE'] ?? [], blockers),
     ]);
@@ -432,15 +432,34 @@ export class GetPreflightHandler
   private async checkExercises(
     items: Array<{ itemType: string; itemId: string }>,
     blockers: RuleViolation[],
+    warnings: RuleViolation[],
   ): Promise<void> {
     if (items.length === 0) return;
 
     const exerciseIds = items.map((i) => i.itemId);
 
-    const instructions = await this.prisma.exerciseInstruction.findMany({
-      where: { exerciseId: { in: exerciseIds } },
-      select: { exerciseId: true },
-    });
+    const [instructions, exercises] = await Promise.all([
+      this.prisma.exerciseInstruction.findMany({
+        where: { exerciseId: { in: exerciseIds } },
+        select: { exerciseId: true },
+      }),
+      // Only the template that carries its own editorial rules needs its
+      // document loaded; the rest are covered by EXERCISE_INCOMPLETE alone.
+      this.prisma.exercise.findMany({
+        where: { id: { in: exerciseIds }, template: { code: GAP_FILL_TEMPLATE } },
+        // The draft too: pre-flight answers "is this publishable", and publishing
+        // is what promotes the draft. Judging the live document would clear a
+        // publish on work the author has already replaced.
+        select: {
+          id: true,
+          content: true,
+          expectedAnswers: true,
+          draftContent: true,
+          draftExpectedAnswers: true,
+          draftUpdatedAt: true,
+        },
+      }),
+    ]);
 
     const instructionsByExercise = new Set(instructions.map((i) => i.exerciseId));
 
@@ -453,6 +472,17 @@ export class GetPreflightHandler
           itemId: item.itemId,
           detail: 'Exercise has no instruction text',
         });
+      }
+    }
+
+    for (const exercise of exercises) {
+      const pending = exercise.draftUpdatedAt !== null;
+      for (const violation of gapFillViolations({
+        id: exercise.id,
+        content: pending ? exercise.draftContent : exercise.content,
+        expectedAnswers: pending ? exercise.draftExpectedAnswers : exercise.expectedAnswers,
+      })) {
+        (violation.severity === 'blocker' ? blockers : warnings).push(violation);
       }
     }
   }

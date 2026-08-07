@@ -880,7 +880,11 @@ async function seedExercise(ex: ExerciseDef, templateId: string): Promise<void> 
   const exerciseId = id('exercise', ex.key);
   await prisma.exercise.upsert({
     where: { id: exerciseId },
-    update: { content: ex.content, expectedAnswers: ex.expectedAnswers, ownerUserId: TEACHER_ID, ownerSchoolId: SCHOOL_ID, visibility: VISIBILITY },
+    // `exerciseTemplateId` is updated, not only created: an exercise may be rewritten
+    // onto another template (the first lesson's gap-fills moved from word_bank_fill and
+    // fill_in_blank to word_bank_gap_fill), and leaving the old template on the row
+    // would pair new content with the schema and runner of the old type.
+    update: { exerciseTemplateId: templateId, content: ex.content, expectedAnswers: ex.expectedAnswers, ownerUserId: TEACHER_ID, ownerSchoolId: SCHOOL_ID, visibility: VISIBILITY },
     create: {
       id: exerciseId,
       exerciseTemplateId: templateId,

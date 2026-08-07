@@ -3,6 +3,18 @@ import { Entity } from '../../../../shared/domain/entity.base.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import { ExerciseDomainError } from '../exceptions/exercise-domain.exceptions.js';
 
+/**
+ * An unreleased edit to the instruction a student reads, held on the same terms
+ * as the exercise document itself: complete, not a patch, so publishing copies
+ * rather than merges.
+ */
+export interface ExerciseInstructionDraft {
+  instructionText: string;
+  hintText: string | null;
+  textOverrides: Record<string, unknown> | null;
+  updatedAt: Date;
+}
+
 interface ExerciseInstructionProps {
   exerciseId: string;
   instructionLanguage: string;
@@ -13,6 +25,8 @@ interface ExerciseInstructionProps {
   textOverrides: Record<string, unknown> | null;
   createdAt: Date;
   updatedAt: Date;
+  // Null when nothing is waiting to be released.
+  draft: ExerciseInstructionDraft | null;
 }
 
 export interface CreateExerciseInstructionProps {
@@ -60,6 +74,20 @@ export class ExerciseInstructionEntity extends Entity<string> {
   get updatedAt(): Date {
     return this.props.updatedAt;
   }
+  get draft(): ExerciseInstructionDraft | null {
+    return this.props.draft;
+  }
+
+  // What the editor shows: the unreleased edit if there is one, else what is live.
+  get authoringInstructionText(): string {
+    return this.props.draft?.instructionText ?? this.props.instructionText;
+  }
+  get authoringHintText(): string | null {
+    return this.props.draft ? this.props.draft.hintText : this.props.hintText;
+  }
+  get authoringTextOverrides(): Record<string, unknown> | null {
+    return this.props.draft ? this.props.draft.textOverrides : this.props.textOverrides;
+  }
 
   // ── Factory ───────────────────────────────────────────────────────────────
 
@@ -80,6 +108,7 @@ export class ExerciseInstructionEntity extends Entity<string> {
       textOverrides: p.textOverrides ?? null,
       createdAt: now,
       updatedAt: now,
+      draft: null,
     });
 
     return Result.ok(entity);
@@ -96,17 +125,46 @@ export class ExerciseInstructionEntity extends Entity<string> {
       return Result.fail(ExerciseDomainError.INVALID_EXERCISE_CONTENT);
     }
 
-    if (changes.instructionText !== undefined) {
-      this.props.instructionText = changes.instructionText;
-    }
-    if ('hintText' in changes) {
-      this.props.hintText = changes.hintText ?? null;
-    }
-    if ('textOverrides' in changes) {
-      this.props.textOverrides = changes.textOverrides ?? null;
-    }
+    // Like the exercise document: the edit waits in the draft, and only
+    // publishing the container puts it in front of a student.
+    const draft: ExerciseInstructionDraft = {
+      instructionText: changes.instructionText ?? this.authoringInstructionText,
+      hintText: 'hintText' in changes ? (changes.hintText ?? null) : this.authoringHintText,
+      textOverrides:
+        'textOverrides' in changes ? (changes.textOverrides ?? null) : this.authoringTextOverrides,
+      updatedAt: new Date(),
+    };
 
-    this.props.updatedAt = new Date();
+    // An edit walked back to what is live leaves nothing to publish.
+    this.props.draft = this.matchesLive(draft) ? null : draft;
+
     return Result.ok();
+  }
+
+  /** Releases the unreleased edit. Called by a publish, never by a save. */
+  promoteDraft(): boolean {
+    const draft = this.props.draft;
+    if (draft === null) return false;
+
+    this.props.instructionText = draft.instructionText;
+    this.props.hintText = draft.hintText;
+    this.props.textOverrides = draft.textOverrides;
+    this.props.draft = null;
+    this.props.updatedAt = new Date();
+
+    return true;
+  }
+
+  /** Throws the unreleased edit away, leaving what students read untouched. */
+  discardDraft(): void {
+    this.props.draft = null;
+  }
+
+  private matchesLive(draft: ExerciseInstructionDraft): boolean {
+    return (
+      draft.instructionText === this.props.instructionText &&
+      draft.hintText === this.props.hintText &&
+      JSON.stringify(draft.textOverrides) === JSON.stringify(this.props.textOverrides)
+    );
   }
 }

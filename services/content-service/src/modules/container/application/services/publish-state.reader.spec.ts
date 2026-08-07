@@ -22,6 +22,8 @@ interface PrismaFixture {
     sectionId: string | null;
   }[];
   sections?: { id: string; title: string }[];
+  /** Exercise ids the repository reports as holding an unreleased edit. */
+  exercisesWithDrafts?: string[];
 }
 
 function makeReader(fixture: PrismaFixture = {}) {
@@ -46,6 +48,11 @@ function makeReader(fixture: PrismaFixture = {}) {
     },
     containerItem: { findMany: jest.fn().mockResolvedValue(fixture.items ?? []) },
     containerSection: { findMany: jest.fn().mockResolvedValue(fixture.sections ?? []) },
+    exercise: {
+      findMany: jest
+        .fn()
+        .mockResolvedValue((fixture.exercisesWithDrafts ?? []).map((id) => ({ id }))),
+    },
   } as any;
 
   return new PublishStateReader(prisma);
@@ -149,5 +156,140 @@ describe('PublishStateReader', () => {
     const states = await reader.resolve([COURSE_ID, 'ghost']);
 
     expect(states.has('ghost')).toBe(false);
+  });
+});
+
+describe('PublishStateReader.resolveDetailed', () => {
+  async function changesOf(fixture: PrismaFixture) {
+    const detail = (await makeReader(fixture).resolveDetailed([COURSE_ID])).get(COURSE_ID);
+    return detail?.changeByItemId ?? new Map();
+  }
+
+  it('reports nothing per item while the composition matches', async () => {
+    const changes = await changesOf({
+      items: [item(PUBLISHED_VERSION_ID), item(DRAFT_VERSION_ID)],
+    });
+
+    expect(changes.size).toBe(0);
+  });
+
+  it('names the item the draft added', async () => {
+    const changes = await changesOf({
+      items: [
+        item(PUBLISHED_VERSION_ID),
+        item(DRAFT_VERSION_ID),
+        item(DRAFT_VERSION_ID, { position: 1, itemId: 'lesson-2' }),
+      ],
+    });
+
+    expect(changes.get('lesson-2')).toBe('added');
+    // The untouched item keeps its silence — a badge on every row is noise.
+    expect(changes.has('lesson-1')).toBe(false);
+  });
+
+  it('names the item that changed section', async () => {
+    const changes = await changesOf({
+      items: [
+        item(PUBLISHED_VERSION_ID, { sectionId: 'sec-published' }),
+        item(DRAFT_VERSION_ID, { sectionId: 'sec-draft' }),
+      ],
+      sections: [
+        { id: 'sec-published', title: 'Read' },
+        { id: 'sec-draft', title: 'Practise' },
+      ],
+    });
+
+    expect(changes.get('lesson-1')).toBe('moved');
+  });
+
+  it('names the item whose required flag changed', async () => {
+    const changes = await changesOf({
+      items: [item(PUBLISHED_VERSION_ID), item(DRAFT_VERSION_ID, { isRequired: false })],
+    });
+
+    expect(changes.get('lesson-1')).toBe('flags_changed');
+  });
+
+  it('blames the reorder on the item that moved, not on the ones it pushed down', async () => {
+    // Published: 1, 2, 3 → draft: 3, 1, 2. Only "lesson-3" jumped.
+    const changes = await changesOf({
+      items: [
+        item(PUBLISHED_VERSION_ID, { position: 0, itemId: 'lesson-1' }),
+        item(PUBLISHED_VERSION_ID, { position: 1, itemId: 'lesson-2' }),
+        item(PUBLISHED_VERSION_ID, { position: 2, itemId: 'lesson-3' }),
+        item(DRAFT_VERSION_ID, { position: 0, itemId: 'lesson-3' }),
+        item(DRAFT_VERSION_ID, { position: 1, itemId: 'lesson-1' }),
+        item(DRAFT_VERSION_ID, { position: 2, itemId: 'lesson-2' }),
+      ],
+    });
+
+    expect(changes.get('lesson-3')).toBe('moved');
+    expect(changes.has('lesson-1')).toBe(false);
+    expect(changes.has('lesson-2')).toBe(false);
+  });
+
+  it('does not call an item moved because an insert shifted its position', async () => {
+    const changes = await changesOf({
+      items: [
+        item(PUBLISHED_VERSION_ID, { position: 0, itemId: 'lesson-1' }),
+        item(DRAFT_VERSION_ID, { position: 0, itemId: 'lesson-new' }),
+        item(DRAFT_VERSION_ID, { position: 1, itemId: 'lesson-1' }),
+      ],
+    });
+
+    expect(changes.get('lesson-new')).toBe('added');
+    expect(changes.has('lesson-1')).toBe(false);
+  });
+
+  it('names the exercise holding an unreleased edit, and calls the module pending', async () => {
+    // Editing an exercise moves nothing, so composition alone reports "published"
+    // — and the author is left publishing a module the badge calls up to date.
+    const reader = makeReader({
+      items: [
+        item(PUBLISHED_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' }),
+        item(DRAFT_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' }),
+      ],
+      exercisesWithDrafts: ['exercise-1'],
+    });
+
+    const detail = (await reader.resolveDetailed([COURSE_ID])).get(COURSE_ID);
+
+    expect(detail?.state).toBe('pending_changes');
+    expect(detail?.changeByItemId.get('exercise-1')).toBe('content_changed');
+  });
+
+  it('leaves an untouched exercise unmarked', async () => {
+    const reader = makeReader({
+      items: [
+        item(PUBLISHED_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' }),
+        item(DRAFT_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' }),
+      ],
+    });
+
+    const detail = (await reader.resolveDetailed([COURSE_ID])).get(COURSE_ID);
+
+    expect(detail?.state).toBe('published');
+    expect(detail?.changeByItemId.size).toBe(0);
+  });
+
+  it('finds an edited exercise in a container that has no draft version at all', async () => {
+    // Nothing about editing an exercise creates a container draft, so the live
+    // version is the only place its placement can be found.
+    const reader = makeReader({
+      drafts: [],
+      items: [item(PUBLISHED_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' })],
+      exercisesWithDrafts: ['exercise-1'],
+    });
+
+    const detail = (await reader.resolveDetailed([COURSE_ID])).get(COURSE_ID);
+
+    expect(detail?.state).toBe('pending_changes');
+    expect(detail?.changeByItemId.get('exercise-1')).toBe('content_changed');
+  });
+
+  it('carries no breakdown for a container that was never published', async () => {
+    const changes = await changesOf({ currentPublishedVersionId: null });
+
+    expect(changes.size).toBe(0);
   });
 });

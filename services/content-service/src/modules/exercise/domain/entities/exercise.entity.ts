@@ -14,6 +14,20 @@ import { ExerciseUpdatedEvent } from '../events/exercise-updated.event.js';
 import { ExerciseDeletedEvent } from '../events/exercise-deleted.event.js';
 import { ExerciseInstructionEntity } from './exercise-instruction.entity.js';
 
+/**
+ * An edit that has not been released yet — the whole document, not a patch.
+ *
+ * Materialised in full so that promoting it is a copy rather than a merge: a
+ * publish that had to reconstruct "content from the draft, settings from the
+ * live row" would depend on the order edits happened to arrive in.
+ */
+export interface ExerciseDraft {
+  content: Record<string, unknown>;
+  expectedAnswers: Record<string, unknown>;
+  answerCheckSettings: Record<string, unknown> | null;
+  updatedAt: Date;
+}
+
 interface ExerciseProps {
   exerciseTemplateId: string;
   // Stored separately for event payloads and display without joining template.
@@ -30,6 +44,8 @@ interface ExerciseProps {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  // Null when nothing is waiting to be released.
+  draft: ExerciseDraft | null;
   // Loaded on demand — null means not yet fetched.
   instructions: ExerciseInstructionEntity[] | null;
 }
@@ -112,6 +128,35 @@ export class ExerciseEntity extends AggregateRoot {
   get instructions(): ExerciseInstructionEntity[] | null {
     return this.props.instructions;
   }
+  get draft(): ExerciseDraft | null {
+    return this.props.draft;
+  }
+  get hasDraft(): boolean {
+    return this.props.draft !== null;
+  }
+
+  // ── Authoring view ────────────────────────────────────────────────────────
+  // What the editor must show and validate: the unreleased edit when there is
+  // one, the live document otherwise. Students and the grading engine read the
+  // plain getters above, which is the whole point of the split.
+
+  get authoringContent(): Record<string, unknown> {
+    return this.props.draft?.content ?? this.props.content;
+  }
+  get authoringExpectedAnswers(): Record<string, unknown> {
+    return this.props.draft?.expectedAnswers ?? this.props.expectedAnswers;
+  }
+  get authoringAnswerCheckSettings(): Record<string, unknown> | null {
+    return this.props.draft ? this.props.draft.answerCheckSettings : this.props.answerCheckSettings;
+  }
+  /**
+   * The token an autosaving editor carries. It has to follow the draft: two
+   * writes in a row would otherwise both compare against the untouched live
+   * `updatedAt` and neither would ever be refused.
+   */
+  get contentUpdatedAt(): Date {
+    return this.props.draft?.updatedAt ?? this.props.updatedAt;
+  }
 
   // ── Factory ───────────────────────────────────────────────────────────────
 
@@ -163,6 +208,9 @@ export class ExerciseEntity extends AggregateRoot {
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
+      // A brand-new exercise is nobody's live material yet: its first document
+      // goes straight into the live columns, and the draft starts empty.
+      draft: null,
       instructions: null,
     });
 
@@ -235,18 +283,36 @@ export class ExerciseEntity extends AggregateRoot {
       this.props.difficultyLevel = changes.difficultyLevel;
       updatedFields.push('difficultyLevel');
     }
-    if (changes.content !== undefined) {
-      this.props.content = changes.content;
-      updatedFields.push('content');
+
+    // The document itself never lands on the live columns. Rewriting them is what
+    // used to put a half-finished sentence in front of a student the moment their
+    // teacher typed it; `promoteDraft` is now the only way anything gets there.
+    const touchesDocument =
+      changes.content !== undefined ||
+      changes.expectedAnswers !== undefined ||
+      'answerCheckSettings' in changes;
+
+    if (touchesDocument) {
+      const draft: ExerciseDraft = {
+        content: changes.content ?? this.authoringContent,
+        expectedAnswers: changes.expectedAnswers ?? this.authoringExpectedAnswers,
+        answerCheckSettings:
+          'answerCheckSettings' in changes
+            ? (changes.answerCheckSettings ?? null)
+            : this.authoringAnswerCheckSettings,
+        updatedAt: new Date(),
+      };
+
+      // An edit walked back to what is already live leaves nothing to publish.
+      // Without this, undoing a typo would leave the module claiming a pending
+      // release forever, and the author with no way to clear it.
+      this.props.draft = this.matchesLiveDocument(draft) ? null : draft;
+
+      if (changes.content !== undefined) updatedFields.push('content');
+      if (changes.expectedAnswers !== undefined) updatedFields.push('expectedAnswers');
+      if ('answerCheckSettings' in changes) updatedFields.push('answerCheckSettings');
     }
-    if (changes.expectedAnswers !== undefined) {
-      this.props.expectedAnswers = changes.expectedAnswers;
-      updatedFields.push('expectedAnswers');
-    }
-    if ('answerCheckSettings' in changes) {
-      this.props.answerCheckSettings = changes.answerCheckSettings ?? null;
-      updatedFields.push('answerCheckSettings');
-    }
+
     if (changes.visibility !== undefined && changes.visibility !== this.props.visibility) {
       this.props.visibility = changes.visibility;
       updatedFields.push('visibility');
@@ -257,11 +323,62 @@ export class ExerciseEntity extends AggregateRoot {
     }
 
     if (updatedFields.length > 0) {
-      this.props.updatedAt = new Date();
-      this.addDomainEvent(new ExerciseUpdatedEvent({ exerciseId: this.id, updatedFields }));
+      // Only what actually reached the live row moves `updatedAt`: the draft
+      // carries its own timestamp, and consumers of this one are asking when
+      // students last saw something change.
+      if (!touchesDocument) this.props.updatedAt = new Date();
+      this.addDomainEvent(
+        new ExerciseUpdatedEvent({
+          exerciseId: this.id,
+          updatedFields,
+          released: !touchesDocument,
+        }),
+      );
     }
 
     return Result.ok();
+  }
+
+  /**
+   * Releases the unreleased edit. Called when a container placing this exercise
+   * is published — never on save, which is the entire point of the draft.
+   *
+   * Returns false when there was nothing waiting, so a publish can report how
+   * much it actually released.
+   */
+  promoteDraft(): boolean {
+    const draft = this.props.draft;
+    if (draft === null) return false;
+
+    this.props.content = draft.content;
+    this.props.expectedAnswers = draft.expectedAnswers;
+    this.props.answerCheckSettings = draft.answerCheckSettings;
+    this.props.draft = null;
+    this.props.updatedAt = new Date();
+
+    this.addDomainEvent(
+      new ExerciseUpdatedEvent({
+        exerciseId: this.id,
+        updatedFields: ['content', 'expectedAnswers', 'answerCheckSettings'],
+        released: true,
+      }),
+    );
+
+    return true;
+  }
+
+  /** Throws the unreleased edit away, leaving students' version untouched. */
+  discardDraft(): void {
+    this.props.draft = null;
+  }
+
+  /** Deep equality against the live document — plain JSON on both sides. */
+  private matchesLiveDocument(draft: ExerciseDraft): boolean {
+    return (
+      JSON.stringify(draft.content) === JSON.stringify(this.props.content) &&
+      JSON.stringify(draft.expectedAnswers) === JSON.stringify(this.props.expectedAnswers) &&
+      JSON.stringify(draft.answerCheckSettings) === JSON.stringify(this.props.answerCheckSettings)
+    );
   }
 
   softDelete(): Result<void, ExerciseDomainError> {

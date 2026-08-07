@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ExerciseEntity } from '../../../domain/entities/exercise.entity.js';
 import { ExerciseInstructionResponseDto } from './exercise-instruction.response.dto.js';
+import { studentSafeContent } from '../../../domain/services/student-safe-content.js';
 
 export class ExerciseResponseDto {
   @ApiProperty({ example: 'a1b2c3d4-e5f6-...' })
@@ -55,7 +56,12 @@ export class ExerciseResponseDto {
     dto.templateCode = entity.templateCode;
     dto.targetLanguage = entity.targetLanguage;
     dto.difficultyLevel = entity.difficultyLevel;
-    dto.content = entity.content;
+    // Not `entity.content`. For word_bank_gap_fill the answers are inside the
+    // sentences, so the raw content is only safe where the expected answers are
+    // served too — which is `ExerciseWithAnswersResponseDto` below and nowhere
+    // else. Masking here rather than in one handler means a new endpoint that
+    // returns this DTO is safe by default instead of by remembering.
+    dto.content = studentSafeContent(entity.templateCode, entity.content);
     dto.answerCheckSettings = entity.answerCheckSettings;
     dto.ownerUserId = entity.ownerUserId;
     dto.ownerSchoolId = entity.ownerSchoolId;
@@ -76,9 +82,42 @@ export class ExerciseWithAnswersResponseDto extends ExerciseResponseDto {
   @ApiProperty({ type: 'object', additionalProperties: true })
   expectedAnswers!: Record<string, unknown>;
 
-  static fromWithAnswers(entity: ExerciseEntity): ExerciseWithAnswersResponseDto {
+  @ApiProperty({
+    example: true,
+    description:
+      'Whether this exercise holds an edit students cannot see yet. True only until the ' +
+      'container placing it is published, which releases the edit.',
+  })
+  hasDraft!: boolean;
+
+  /**
+   * `scope` decides which document comes back. `live` — what a student is being
+   * served right now, which is what the grading engine must score against.
+   * `draft` — what the author last wrote, which is what the editor must reopen.
+   *
+   * Defaulting to `live` keeps every existing caller answering the question it
+   * was already asking; only authoring has to say it wants the unreleased work.
+   */
+  static fromWithAnswers(
+    entity: ExerciseEntity,
+    scope: 'live' | 'draft' = 'live',
+  ): ExerciseWithAnswersResponseDto {
+    const draft = scope === 'draft';
     const dto = ExerciseResponseDto.from(entity) as ExerciseWithAnswersResponseDto;
-    dto.expectedAnswers = entity.expectedAnswers;
+    // The authoring and grading read. Undo the masking the base mapper applied:
+    // a caller entitled to the expected answers is entitled to the content that
+    // holds them, and the builder cannot edit a sentence it cannot see.
+    dto.content = draft ? entity.authoringContent : entity.content;
+    dto.expectedAnswers = draft ? entity.authoringExpectedAnswers : entity.expectedAnswers;
+    dto.answerCheckSettings = draft
+      ? entity.authoringAnswerCheckSettings
+      : entity.answerCheckSettings;
+    // The token an autosaving editor sends back; it follows the draft.
+    dto.updatedAt = draft ? entity.contentUpdatedAt : entity.updatedAt;
+    dto.instructions = entity.instructions
+      ? entity.instructions.map((i) => ExerciseInstructionResponseDto.from(i, scope))
+      : null;
+    dto.hasDraft = entity.hasDraft;
     return dto;
   }
 }

@@ -44,4 +44,10 @@ export class SubmitAnswerResponseDto {
 
   @ApiProperty({ type: FeedbackDto })
   feedback!: FeedbackDto;
+
+  @ApiPropertyOptional({
+    description:
+      'Per-item validator output where it is meant for the learner. Present for word_bank_gap_fill as `{ totalGaps, correctGaps, gaps: [{ gapKey, correct, explanation }] }`; absent for every other template, whose details carry the answer itself.',
+  })
+  details?: unknown;
 }

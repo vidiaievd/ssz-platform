@@ -1,0 +1,31 @@
+{
+  "name": "@ssz/shared-kernel",
+  "version": "0.1.0",
+  "description": "SSZ Platform — pure domain logic shared by the backend services and the web client",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./wordbank-gapfill": {
+      "import": "./dist/wordbank-gapfill/index.js",
+      "types": "./dist/wordbank-gapfill/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

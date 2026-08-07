@@ -4,6 +4,8 @@ import { UpsertExerciseInstructionCommand } from './upsert-instruction.command.j
 import { Result } from '../../../../../shared/kernel/result.js';
 import { ExerciseDomainError } from '../../../domain/exceptions/exercise-domain.exceptions.js';
 import { ExerciseInstructionEntity } from '../../../domain/entities/exercise-instruction.entity.js';
+import { AUDIT_LOG } from '../../../../../shared/application/ports/audit-log.port.js';
+import type { IAuditLog } from '../../../../../shared/application/ports/audit-log.port.js';
 import { EXERCISE_REPOSITORY } from '../../../domain/repositories/exercise.repository.interface.js';
 import type { IExerciseRepository } from '../../../domain/repositories/exercise.repository.interface.js';
 import { EXERCISE_INSTRUCTION_REPOSITORY } from '../../../domain/repositories/exercise-instruction.repository.interface.js';
@@ -22,6 +24,8 @@ export class UpsertExerciseInstructionHandler implements ICommandHandler<
   constructor(
     @Inject(EXERCISE_REPOSITORY)
     private readonly exerciseRepo: IExerciseRepository,
+    @Inject(AUDIT_LOG)
+    private readonly auditLog: IAuditLog,
     @Inject(EXERCISE_INSTRUCTION_REPOSITORY)
     private readonly instructionRepo: IExerciseInstructionRepository,
   ) {}
@@ -52,6 +56,9 @@ export class UpsertExerciseInstructionHandler implements ICommandHandler<
         return Result.fail(updateResult.error);
       }
       const { entity } = await this.instructionRepo.upsert(existing);
+
+      await this.recordEdit(command.exerciseId, command.userId);
+
       return Result.ok({ instructionId: entity.id, wasCreated: false });
     }
 
@@ -69,6 +76,22 @@ export class UpsertExerciseInstructionHandler implements ICommandHandler<
 
     const { entity, wasCreated } = await this.instructionRepo.upsert(createResult.value);
 
+    await this.recordEdit(command.exerciseId, command.userId);
+
     return Result.ok({ instructionId: entity.id, wasCreated });
+  }
+
+  /**
+   * Filed against the exercise, not the instruction row: a reader asking what
+   * happened to an exercise wants its wording changes in the same list, and the
+   * instruction's own id means nothing outside this handler.
+   */
+  private async recordEdit(exerciseId: string, actorUserId: string): Promise<void> {
+    await this.auditLog.record({
+      entityType: 'EXERCISE',
+      entityId: exerciseId,
+      action: 'instructions_updated',
+      actorUserId,
+    });
   }
 }

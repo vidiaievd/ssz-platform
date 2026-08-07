@@ -48,9 +48,9 @@ function makeHandler(overrides?: {
   } as unknown as IContainerRepository;
 
   const versionRepo: IContainerVersionRepository = {
-    findById: jest.fn().mockResolvedValue(
-      overrides?.version === undefined ? makeVersion() : overrides.version,
-    ),
+    findById: jest
+      .fn()
+      .mockResolvedValue(overrides?.version === undefined ? makeVersion() : overrides.version),
   } as unknown as IContainerVersionRepository;
 
   const sectionRepo: IContainerSectionRepository = {

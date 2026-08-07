@@ -4,6 +4,8 @@ import { UnpublishVersionCommand } from './unpublish-version.command.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
 import { CONTAINER_REPOSITORY } from '../../../domain/repositories/container.repository.interface.js';
+import { AUDIT_LOG } from '../../../../../shared/application/ports/audit-log.port.js';
+import type { IAuditLog } from '../../../../../shared/application/ports/audit-log.port.js';
 import type { IContainerRepository } from '../../../domain/repositories/container.repository.interface.js';
 import { CONTAINER_VERSION_REPOSITORY } from '../../../domain/repositories/container-version.repository.interface.js';
 import type { IContainerVersionRepository } from '../../../domain/repositories/container-version.repository.interface.js';
@@ -19,6 +21,8 @@ export class UnpublishVersionHandler implements ICommandHandler<
   constructor(
     @Inject(CONTAINER_REPOSITORY)
     private readonly containerRepo: IContainerRepository,
+    @Inject(AUDIT_LOG)
+    private readonly auditLog: IAuditLog,
     @Inject(CONTAINER_VERSION_REPOSITORY)
     private readonly versionRepo: IContainerVersionRepository,
     @Inject(CONTENT_EVENT_PUBLISHER)
@@ -53,6 +57,13 @@ export class UnpublishVersionHandler implements ICommandHandler<
         versionId: version.id,
       }),
     );
+
+    await this.auditLog.record({
+      entityType: 'CONTAINER',
+      entityId: command.containerId,
+      action: 'unpublished',
+      actorUserId: command.userId,
+    });
 
     return Result.ok();
   }

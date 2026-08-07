@@ -124,6 +124,66 @@ describe('ExerciseAttemptedConsumer', () => {
     });
   });
 
+  describe('handleMessage — the answer form (plan 35 §5.4)', () => {
+    // `word_bank_gap_fill` merged the "choose from a bank" and "type it from
+    // memory" exercises into one template, so `answerForm` is now the only thing
+    // that distinguishes them. Nothing here reads it yet — the scale that will is
+    // plan 36 — but events must carry it through unharmed in both directions.
+
+    it('handles an event that carries an answer form, ignoring it for now', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 100,
+            timeSpentSeconds: 60,
+            completed: true,
+            answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },
+          }),
+        ),
+      );
+
+      const reviewCall = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .find((c) => c instanceof ReviewCardCommand) as ReviewCardCommand | undefined;
+
+      // Same rating as an identical event without the field: reading it is plan 36.
+      expect(reviewCall!.rating).toBe('EASY');
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+      expect(channel.nack).not.toHaveBeenCalled();
+    });
+
+    it('still handles an event published before the field existed', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 100,
+            timeSpentSeconds: 60,
+            completed: true,
+          }),
+        ),
+      );
+
+      const reviewCall = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .find((c) => c instanceof ReviewCardCommand) as ReviewCardCommand | undefined;
+
+      expect(reviewCall!.rating).toBe('EASY');
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('handleMessage — score-to-rating mapping', () => {
     async function getRating(score: number): Promise<string> {
       const { consumer, commandBus } = makeConsumer();

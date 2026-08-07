@@ -36,6 +36,31 @@ export interface ExerciseAttemptCompletedPayload {
   // Additive (plan 21 §3) — PRACTICED_BY atoms snapshotted from Content Service at
   // attempt start. Optional so older publishers without this field stay valid.
   practicedAtoms?: Array<{ atomType: string; atomId: string }>;
+  // Additive (plan 35 §5.4) — how the answer was produced. Optional: only
+  // word_bank_gap_fill reports it today, and events published before it existed
+  // stay valid.
+  answerForm?: AnswerForm;
+}
+
+/**
+ * How the learner produced the answer, as opposed to whether it was right.
+ *
+ * Needed because `word_bank_gap_fill` absorbed `fill_in_blank`: one template now
+ * covers both choosing a word from five and typing it from memory. Those are not
+ * equal evidence of knowing it, and after the merge there is no `templateCode` left
+ * to tell them apart — so without this field, merging the two types would make
+ * spaced repetition *worse* than it was.
+ *
+ * Nothing consumes it yet. The scale that will —
+ * ceilings on rating, asymmetry between success and failure — is plan 36.
+ */
+export interface AnswerForm {
+  /** `bank`: chosen from a closed set. `free`: typed, with nothing to choose from. */
+  mode: 'bank' | 'free';
+  /** How many words were on offer. `null` in `free` mode, where there is no bank. */
+  bankSize: number | null;
+  /** Each word could be used once, so spending one narrowed what was left. */
+  wordsConsumed: boolean;
 }
 
 // ─── Typed event interfaces ───────────────────────────────────────────────────

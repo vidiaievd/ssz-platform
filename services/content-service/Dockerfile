@@ -1,5 +1,6 @@
 # Build context: repo root (ssz-platform/)
-# Required because @ssz/messaging (and its dep @ssz/contracts) are local file: dependencies.
+# Required because @ssz/messaging (and its dep @ssz/contracts) and @ssz/shared-kernel
+# are local file: dependencies.
 
 # ── Stage 1: build contracts ───────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS contracts-builder
@@ -26,7 +27,18 @@ COPY packages/messaging/src ./src
 COPY packages/messaging/tsconfig.json ./
 RUN npm run build
 
-# ── Stage 3: build service ────────────────────────────────────────────────────
+# ── Stage 3: build shared kernel ──────────────────────────────────────────────
+FROM node:22-bookworm-slim AS kernel-builder
+
+WORKDIR /workspace/packages/shared-kernel
+
+COPY packages/shared-kernel/package*.json ./
+RUN npm ci
+COPY packages/shared-kernel/src ./src
+COPY packages/shared-kernel/tsconfig.json ./
+RUN npm run build
+
+# ── Stage 4: build service ────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder
 ARG NODE_ENV=development
 
@@ -35,6 +47,8 @@ COPY --from=contracts-builder /workspace/packages/contracts/package.json /worksp
 COPY --from=contracts-builder /workspace/packages/contracts/dist         /workspace/packages/contracts/dist
 COPY --from=messaging-builder /workspace/packages/messaging/package.json /workspace/packages/messaging/package.json
 COPY --from=messaging-builder /workspace/packages/messaging/dist         /workspace/packages/messaging/dist
+COPY --from=kernel-builder /workspace/packages/shared-kernel/package.json /workspace/packages/shared-kernel/package.json
+COPY --from=kernel-builder /workspace/packages/shared-kernel/dist         /workspace/packages/shared-kernel/dist
 
 WORKDIR /workspace/services/content-service
 
@@ -51,7 +65,7 @@ RUN npx prisma generate
 RUN npm run build
 RUN if [ "$NODE_ENV" = "production" ]; then npm prune --production; fi
 
-# ── Stage 4: runtime ──────────────────────────────────────────────────────────
+# ── Stage 5: runtime ──────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app

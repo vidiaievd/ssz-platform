@@ -17,7 +17,11 @@ import { CONTAINER_ITEM_REPOSITORY } from '../../../domain/repositories/containe
 import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
 import type { ContainerItemEntity } from '../../../domain/entities/container-item.entity.js';
 import { PublishStateReader } from '../../services/publish-state.reader.js';
-import type { ContainerPublishState } from '../../services/publish-state.reader.js';
+import type {
+  ContainerPublishState,
+  ContainerPublishStateDetail,
+  ItemPendingChange,
+} from '../../services/publish-state.reader.js';
 import { LessonKind } from '../../../../lesson/domain/value-objects/lesson-kind.vo.js';
 import { prismaLessonKindToDomain } from '../../../../lesson/infrastructure/persistence/mappers/enum-converters.js';
 
@@ -47,6 +51,15 @@ export interface CurriculumTreeItemNode {
    * never been published — nothing in it is live, which its own badge says.
    */
   isLive: boolean | null;
+  /**
+   * How this placement differs from the live version — what publishing would
+   * change about it. `null` when it is identical, when nothing is pending, or
+   * when the owning container has never been published.
+   *
+   * Composition only, like the container's own `publishState`: an edit to the
+   * exercise or lesson behind this row is already live and is not reported here.
+   */
+  pendingChange: ItemPendingChange | null;
   // Best-effort from any PUBLISHED variant/explanation (LESSON/GRAMMAR_RULE) or
   // the item's own estimate (EXERCISE); null for VOCABULARY_LIST.
   durationMinutes: number | null;
@@ -156,7 +169,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     // One batched pass for the course and every module it holds.
     const containerIds = [container.id, ...moduleItems.map((i) => i.itemId)];
     const [publishStates, liveItemIdsByContainerId] = await Promise.all([
-      this.publishStateReader.resolve(containerIds),
+      this.publishStateReader.resolveDetailed(containerIds),
       this.resolveLiveItemIds(containerIds),
     ]);
 
@@ -169,11 +182,12 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
 
     const ownItemMeta = await this.resolveLeafItemMeta(ownItems);
     const ownLiveItemIds = liveItemIdsByContainerId.get(container.id) ?? null;
+    const ownChanges = publishStates.get(container.id)?.changeByItemId ?? null;
     const ownItemsInSection = (sectionId: string | null) =>
       ownItems
         .filter((i) => i.sectionId === sectionId)
         .sort((a, b) => a.position - b.position)
-        .map((i) => this.toItemNode(i, ownItemMeta, ownLiveItemIds));
+        .map((i) => this.toItemNode(i, ownItemMeta, ownLiveItemIds, ownChanges));
 
     const levels: CurriculumTreeLevelNode[] = levelSections
       .slice()
@@ -211,7 +225,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       containerId: container.id,
       containerType: container.containerType,
       levelSystem: container.levelSystem,
-      publishState: publishStates.get(container.id) ?? 'draft',
+      publishState: publishStates.get(container.id)?.state ?? 'draft',
       levels,
       ungroupedItems: ownItemsInSection(null),
     });
@@ -219,7 +233,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
 
   private async buildModuleNodes(
     moduleItems: ContainerItemEntity[],
-    publishStates: Map<string, ContainerPublishState>,
+    publishStates: Map<string, ContainerPublishStateDetail>,
     liveItemIdsByContainerId: Map<string, Set<string> | null>,
   ): Promise<CurriculumTreeModuleNode[]> {
     if (moduleItems.length === 0) return [];
@@ -277,8 +291,9 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       const leafItems = chosenVersion ? (leafItemsByVersionId.get(chosenVersion.id) ?? []) : [];
 
       const liveItemIds = liveItemIdsByContainerId.get(moduleContainerId) ?? null;
+      const changes = publishStates.get(moduleContainerId)?.changeByItemId ?? null;
       const toNode = (item: ContainerItemEntity): CurriculumTreeItemNode =>
-        this.toItemNode(item, leafMetaByRefId, liveItemIds);
+        this.toItemNode(item, leafMetaByRefId, liveItemIds, changes);
 
       const sectionNodes: CurriculumTreeSectionNode[] = sections
         .slice()
@@ -306,7 +321,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
         titleEn: titleEnByContainerId.get(moduleContainerId) ?? null,
         position: moduleItem.position,
         isRequired: moduleItem.isRequired,
-        publishState: publishStates.get(moduleContainerId) ?? 'draft',
+        publishState: publishStates.get(moduleContainerId)?.state ?? 'draft',
         sections: sectionNodes,
         ungroupedItems,
       };
@@ -317,6 +332,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     item: ContainerItemEntity,
     metaByRefId: Map<string, LeafItemMeta>,
     liveItemIds: Set<string> | null,
+    changeByItemId: Map<string, ItemPendingChange> | null,
   ): CurriculumTreeItemNode {
     const meta = metaByRefId.get(item.itemId);
     return {
@@ -329,6 +345,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       lessonKind: meta?.lessonKind ?? null,
       state: meta?.state ?? null,
       isLive: liveItemIds === null ? null : liveItemIds.has(item.itemId),
+      pendingChange: changeByItemId?.get(item.itemId) ?? null,
       durationMinutes: meta?.durationMinutes ?? null,
       xpReward: item.xpReward,
     };

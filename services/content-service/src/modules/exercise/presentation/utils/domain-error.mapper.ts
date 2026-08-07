@@ -21,6 +21,9 @@ const GONE: Set<AnyExerciseError> = new Set([ExerciseDomainError.EXERCISE_ALREAD
 
 const CONFLICT: Set<AnyExerciseError> = new Set([
   ExerciseDomainError.DUPLICATE_INSTRUCTION_LANGUAGE,
+  // The update endpoint throws its own 409 so the body can carry the current
+  // `updatedAt`; this keeps the code a conflict for anything that maps it here.
+  ExerciseDomainError.EXERCISE_MODIFIED_ELSEWHERE,
 ]);
 
 const UNPROCESSABLE: Set<AnyExerciseError> = new Set([

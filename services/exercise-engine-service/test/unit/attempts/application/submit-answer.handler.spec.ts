@@ -13,14 +13,14 @@ import type { IEventPublisher } from '../../../../src/shared/application/ports/e
 import { Result } from '../../../../src/shared/kernel/result.js';
 import { Attempt } from '../../../../src/modules/attempts/domain/entities/attempt.entity.js';
 
-const makeInProgressAttempt = () =>
+const makeInProgressAttempt = (templateCode = 'multiple_choice') =>
   Attempt.reconstitute({
     id: 'attempt-1',
     userId: 'user-1',
     exerciseId: 'ex-1',
     assignmentId: null,
     enrollmentId: null,
-    templateCode: 'multiple_choice',
+    templateCode,
     targetLanguage: 'no',
     difficultyLevel: 'A1',
     checkMode: 'PRACTICE',
@@ -106,6 +106,31 @@ const makeHandler = (
 );
 
 const cmd = new SubmitAnswerCommand('attempt-1', 'user-1', { correct_option_ids: ['A'] }, 30, 'no');
+
+const GAP_FILL_DETAILS = {
+  totalGaps: 1,
+  correctGaps: 0,
+  gaps: [{ gapKey: 's1#3', correct: false, explanation: 'Etter «vil gjerne» kommer infinitiv.' }],
+};
+
+const makeGapFillAttempt = () => makeInProgressAttempt('word_bank_gap_fill');
+
+const makeGapFillDef = (): ExerciseDefinition => {
+  const def = makeExerciseDef();
+  def.exercise.templateCode = 'word_bank_gap_fill';
+  def.exercise.content = {
+    sentences: [{ id: 's1', text: 'Jeg vil gjerne bestille en kaffe.', gaps: [3] }],
+    distractors: ['bestilt'],
+    settings: {
+      shuffle: true,
+      allowReuse: false,
+      showBankCount: true,
+      caseSensitive: false,
+      input: 'bank',
+    },
+  };
+  return def;
+};
 
 describe('SubmitAnswerHandler', () => {
   it('returns ATTEMPT_NOT_FOUND when attempt does not exist', async () => {
@@ -208,6 +233,39 @@ describe('SubmitAnswerHandler', () => {
       'exercise.attempt.completed',
       expect.objectContaining({ completed: false, score: null }),
     );
+  });
+
+  it('hands back the per-gap verdicts for gap-fill, which is what the learner is owed', async () => {
+    const handler = makeHandler(
+      makeRepo(makeGapFillAttempt()),
+      makeContentClient(Result.ok(makeGapFillDef())),
+      makeValidator({ correct: false, score: 0, details: GAP_FILL_DETAILS, requiresReview: false }),
+      makeFeedback(), makeLearning(), makePublisher(),
+    );
+
+    const result = await handler.execute(cmd);
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.details).toEqual(GAP_FILL_DETAILS);
+  });
+
+  it('withholds details for every other template, whose details carry the answer', async () => {
+    const handler = makeHandler(
+      makeRepo(), makeContentClient(),
+      makeValidator({
+        correct: false,
+        score: 0,
+        // multiple_choice reports what the right option was.
+        details: { correct_selected: 0, expected: ['A'] },
+        requiresReview: false,
+      }),
+      makeFeedback(), makeLearning(), makePublisher(),
+    );
+
+    const result = await handler.execute(cmd);
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.details).toBeUndefined();
   });
 
   it('learning client failure does not fail the use case (fire-and-forget)', async () => {

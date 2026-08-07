@@ -738,6 +738,14 @@ model Exercise {
   content                  Json
   expectedAnswers          Json            @map("expected_answers")
   answerCheckSettings      Json?           @map("answer_check_settings")
+  // Unreleased edit. Authoring writes here and students keep reading the columns
+  // above until the container placing this exercise is published, which promotes
+  // the draft. `draft_updated_at` is the flag: set means the other three are the
+  // complete document to release, null means there is nothing waiting.
+  draftContent             Json?           @map("draft_content")
+  draftExpectedAnswers     Json?           @map("draft_expected_answers")
+  draftAnswerCheckSettings Json?           @map("draft_answer_check_settings")
+  draftUpdatedAt           DateTime?       @map("draft_updated_at") @db.Timestamptz
   ownerUserId              String          @map("owner_user_id") @db.Uuid
   ownerSchoolId            String?         @map("owner_school_id") @db.Uuid
   visibility               Visibility
@@ -766,14 +774,20 @@ model Exercise {
 // text_overrides JSONB: keys are placeholder tokens ($$token$$), values are per-language strings.
 // Content Service stores and returns them; frontend resolves substitution client-side.
 model ExerciseInstruction {
-  id                  String   @id @default(uuid()) @db.Uuid
-  exerciseId          String   @map("exercise_id") @db.Uuid
-  instructionLanguage String   @map("instruction_language") @db.VarChar(10)
-  instructionText     String   @map("instruction_text") @db.Text
-  hintText            String?  @map("hint_text") @db.Text
-  textOverrides       Json?    @map("text_overrides")
-  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id                   String    @id @default(uuid()) @db.Uuid
+  exerciseId           String    @map("exercise_id") @db.Uuid
+  instructionLanguage  String    @map("instruction_language") @db.VarChar(10)
+  instructionText      String    @map("instruction_text") @db.Text
+  hintText             String?   @map("hint_text") @db.Text
+  textOverrides        Json?     @map("text_overrides")
+  // Unreleased edit, on the same terms as the exercise document it belongs to:
+  // `draft_updated_at` set means these three are what publishing will release.
+  draftInstructionText String?   @map("draft_instruction_text") @db.Text
+  draftHintText        String?   @map("draft_hint_text") @db.Text
+  draftTextOverrides   Json?     @map("draft_text_overrides")
+  draftUpdatedAt       DateTime? @map("draft_updated_at") @db.Timestamptz
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
@@ -1204,4 +1218,37 @@ model CanDoDescriptorLocalization {
 
   @@unique([descriptorId, language])
   @@map("can_do_descriptor_localizations")
+}
+
+// ─── Audit log ────────────────────────────────────────────────────────────────
+// Who changed what, and when. Written by the command handlers, which are the only
+// layer that knows both the change and the actor behind it — domain events carry
+// neither. Read per container: an entry is not tied to one, because an exercise
+// can be placed by several and its edit belongs to every feed that shows it.
+
+enum AuditEntityType {
+  CONTAINER       @map("container")
+  LESSON          @map("lesson")
+  EXERCISE        @map("exercise")
+  VOCABULARY_LIST @map("vocabulary_list")
+  GRAMMAR_RULE    @map("grammar_rule")
+
+  @@map("audit_entity_type")
+}
+
+model ContentAuditLog {
+  id            String          @id @default(uuid()) @db.Uuid
+  entityType    AuditEntityType @map("entity_type")
+  entityId      String          @map("entity_id") @db.Uuid
+  // Free text rather than an enum on purpose: actions are added far more often
+  // than entity types, and each new one would otherwise cost a migration.
+  action        String          @db.VarChar(40)
+  actorUserId   String          @map("actor_user_id") @db.Uuid
+  // Which fields the change touched, for entries that report an edit.
+  changedFields String[]        @map("changed_fields")
+  occurredAt    DateTime        @default(now()) @map("occurred_at") @db.Timestamptz
+
+  @@index([entityType, entityId, occurredAt(sort: Desc)])
+  @@index([occurredAt(sort: Desc)])
+  @@map("content_audit_log")
 }

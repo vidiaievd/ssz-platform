@@ -1,4 +1,10 @@
 import { createHash } from 'node:crypto';
+import type { AnswerForm } from '@ssz/contracts';
+import {
+  bank,
+  readContent,
+  TEMPLATE_CODE as WORD_BANK_GAP_FILL,
+} from '@ssz/shared-kernel/wordbank-gapfill';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { SubmitAnswerCommand } from './submit-answer.command.js';
@@ -25,6 +31,47 @@ export interface SubmitAnswerResult {
   score: number | null;
   requiresReview: boolean;
   feedback: { summary: string; hints?: string[]; correctAnswer?: unknown };
+  /** Per-gap verdicts for `word_bank_gap_fill`, and nothing for any other template. */
+  details?: unknown;
+}
+
+/**
+ * The validator's details, but only where they are meant for the learner.
+ *
+ * `word_bank_gap_fill` is graded per gap, and its details are exactly what the student
+ * is owed after a check: right or wrong, and the explanation the teacher wrote for the
+ * word they actually chose. Nothing in there is an answer.
+ *
+ * The other validators' details are diagnostics, and several of them do contain the
+ * answer — `multiple_choice` reports `expected`, `short_answer` reports `target`.
+ * Returning them all would hand the answer to anyone who opened the network tab, so
+ * this is a per-template allowance rather than a field that is simply forwarded.
+ */
+function learnerFacingDetails(templateCode: string, details: unknown): unknown {
+  return templateCode === WORD_BANK_GAP_FILL ? details : undefined;
+}
+
+/**
+ * How the learner produced the answer, as opposed to whether it was right.
+ *
+ * Carried because `word_bank_gap_fill` absorbed `fill_in_blank`: one template now
+ * covers both choosing a word out of five and typing it from memory. Those are not
+ * equal evidence of knowing it, and after the merge no `templateCode` distinguishes
+ * them — so without this, merging the types would make spaced repetition *worse*.
+ *
+ * Only this template can say. The other twelve report nothing and the field is absent,
+ * which is what keeps events published before it existed valid.
+ */
+function describeAnswerForm(templateCode: string, content: unknown): AnswerForm | undefined {
+  if (templateCode !== WORD_BANK_GAP_FILL) return undefined;
+
+  const task = readContent(content);
+  const typed = task.settings.input === 'free';
+  return {
+    mode: typed ? 'free' : 'bank',
+    bankSize: typed ? null : bank(task).length,
+    wordsConsumed: !task.settings.allowReuse,
+  };
 }
 
 @CommandHandler(SubmitAnswerCommand)
@@ -50,6 +97,18 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     }
 
     attempt.addTimeSpent(command.timeSpentSeconds);
+
+    // A practice attempt that has already been checked is reopened rather than
+    // refused: checks are unlimited, and the attempt is the thing being worked on.
+    // The entity decides whether this one may be — graded attempts and revealed
+    // ones may not — and the refusal reaches the caller as it would for any
+    // invalid transition.
+    if (attempt.status === 'SCORED') {
+      const reopened = attempt.reopenForRecheck();
+      if (reopened.isFail) {
+        return Result.fail(reopened.error as AttemptDomainError);
+      }
+    }
 
     const answerHash = createHash('sha256')
       .update(JSON.stringify(command.submittedAnswer))
@@ -83,6 +142,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       templateCode: attempt.templateCode,
       answerSchema: def.template.answerSchema as object,
       expectedAnswers: def.exercise.expectedAnswers,
+      content: def.exercise.content,
       submittedAnswer: command.submittedAnswer,
       checkSettings,
       targetLanguage: attempt.targetLanguage,
@@ -131,7 +191,14 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       ? feedbackResult.value
       : { summary: outcome.correct ? 'Correct!' : 'Incorrect. Please try again.' };
 
-    const scoreResult = attempt.score(outcome.score, passed, outcome.details, feedback);
+    const answerForm = describeAnswerForm(attempt.templateCode, def.exercise.content);
+    const scoreResult = attempt.score(
+      outcome.score,
+      passed,
+      outcome.details,
+      feedback,
+      answerForm,
+    );
     if (scoreResult.isFail) {
       return Result.fail(scoreResult.error as AttemptDomainError);
     }
@@ -139,17 +206,20 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     await this.attempts.save(attempt);
     await this.publishEvents(attempt);
 
-    // Fire-and-forget: notify Learning Service (non-blocking)
-    this.learningClient
-      .createSubmission({
-        assignmentId: attempt.assignmentId,
-        exerciseId: attempt.exerciseId,
-        userId: attempt.userId,
-        attemptId: attempt.id,
-        submittedAnswer: command.submittedAnswer,
-        timeSpentSeconds: attempt.timeSpentSeconds,
-      })
-      .catch(() => undefined);
+    // Fire-and-forget: notify Learning Service (non-blocking). Once per attempt —
+    // a re-check is the same submission being corrected, not a new one.
+    if (attempt.revisionCount === 0) {
+      this.learningClient
+        .createSubmission({
+          assignmentId: attempt.assignmentId,
+          exerciseId: attempt.exerciseId,
+          userId: attempt.userId,
+          attemptId: attempt.id,
+          submittedAnswer: command.submittedAnswer,
+          timeSpentSeconds: attempt.timeSpentSeconds,
+        })
+        .catch(() => undefined);
+    }
 
     return Result.ok<SubmitAnswerResult, SubmitAnswerError>({
       attemptId: attempt.id,
@@ -157,6 +227,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       score: outcome.score,
       requiresReview: false,
       feedback,
+      details: learnerFacingDetails(attempt.templateCode, outcome.details),
     });
   }
 

@@ -110,6 +110,11 @@ model Attempt {
   // Reserved for future resubmission support.
   revisionCount Int @default(0) @map("revision_count")
 
+  // The learner asked to be shown the answers instead of working them out. A
+  // separate action from being wrong, and recorded because it changes what the
+  // attempt is evidence of — see docs/plan/36-srs-evidence-strength.md.
+  answersRevealed Boolean @default(false) @map("answers_revealed")
+
   startedAt   DateTime  @default(now()) @map("started_at")
   submittedAt DateTime? @map("submitted_at")
   scoredAt    DateTime? @map("scored_at")

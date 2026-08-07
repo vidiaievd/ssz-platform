@@ -9,6 +9,7 @@ import { AppConfigModule } from './config/app-config.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { JwtModule } from './infrastructure/auth/jwt.module.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
+import { AuditModule } from './infrastructure/audit/audit.module.js';
 import { RabbitmqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { RedisModule } from './infrastructure/cache/redis.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -52,6 +53,7 @@ import { CanDoModule } from './modules/can-do/can-do.module.js';
     }),
     JwtModule,
     PrismaModule,
+    AuditModule,
     RabbitmqModule,
     RedisModule,
     CqrsModule,
