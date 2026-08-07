@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../../../../infrastructure/cache/redis.service.js';
-import type { ISrsLimitsPolicy } from '../../application/ports/srs-limits-policy.port.js';
+import type {
+  ISrsLimitsPolicy,
+  SrsLimitKind,
+} from '../../application/ports/srs-limits-policy.port.js';
 import type { AppConfig } from '../../../../config/configuration.js';
 
 // MVP simplification: all daily caps use midnight UTC as the day boundary.
@@ -36,6 +39,10 @@ export class RedisSrsLimitsPolicy implements ISrsLimitsPolicy {
     await this.increment(this.reviewKey(userId, today), today);
   }
 
+  async recordRefusal(userId: string, kind: SrsLimitKind, today: Date): Promise<void> {
+    await this.increment(this.refusedKey(userId, kind, today), today);
+  }
+
   async getReviewedCount(userId: string, today: Date): Promise<number> {
     return this.getCount(this.reviewKey(userId, today));
   }
@@ -50,6 +57,12 @@ export class RedisSrsLimitsPolicy implements ISrsLimitsPolicy {
 
   private reviewKey(userId: string, date: Date): string {
     return `srs:limits:${userId}:reviews:${this.dateString(date)}`;
+  }
+
+  /** Mirrors the segment of the counter that refused, so the pair reads as a pair. */
+  private refusedKey(userId: string, kind: SrsLimitKind, date: Date): string {
+    const segment = kind === 'new' ? 'new' : 'reviews';
+    return `srs:limits:${userId}:refused:${segment}:${this.dateString(date)}`;
   }
 
   private dateString(date: Date): string {

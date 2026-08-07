@@ -85,6 +85,7 @@ function makeHandler(overrides: {
     canReview: jest.fn<() => Promise<boolean>>().mockResolvedValue(overrides.canReview ?? true),
     incrementNewCardCount: jest.fn(),
     incrementReviewCount: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    recordRefusal: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   } as any;
 
   const publisher: IEventPublisher = {
@@ -198,6 +199,49 @@ describe('ReviewCardHandler', () => {
     const result = await handler.execute(cmd(card.id));
     expect(result.isFail).toBe(true);
     expect(result.error).toBeInstanceOf(SrsCardSuspendedError);
+  });
+
+  describe('limit refusals are recorded (plan 37 §A.1)', () => {
+    it('counts the refusal and publishes it when the cap turns a review away', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy, publisher } = makeHandler({ card, canReview: false });
+
+      await handler.execute(cmd(card.id));
+
+      expect(limitsPolicy.recordRefusal).toHaveBeenCalledWith(USER_ID, 'review', NOW);
+      expect(publisher.publish).toHaveBeenCalledWith('learning.srs.limit_refused', {
+        userId: USER_ID,
+        kind: 'review',
+        contentType: 'EXERCISE',
+        occurredAt: NOW.toISOString(),
+      });
+    });
+
+    it('records nothing when the review goes through', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy, publisher } = makeHandler({ card });
+
+      await handler.execute(cmd(card.id));
+
+      expect(limitsPolicy.recordRefusal).not.toHaveBeenCalled();
+      expect(publisher.publish).not.toHaveBeenCalledWith(
+        'learning.srs.limit_refused',
+        expect.anything(),
+      );
+    });
+
+    it('still refuses when the telemetry write fails', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy } = makeHandler({ card, canReview: false });
+      (limitsPolicy.recordRefusal as jest.Mock<() => Promise<void>>).mockRejectedValue(
+        new Error('redis down'),
+      );
+
+      const result = await handler.execute(cmd(card.id));
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(SrsReviewLimitError);
+    });
   });
 
   describe('idempotency', () => {

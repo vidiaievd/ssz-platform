@@ -1,5 +1,7 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject, Logger } from '@nestjs/common';
+import { LEARNING_EVENT_TYPES } from '@ssz/contracts';
+import type { SrsLimitRefusedPayload } from '@ssz/contracts';
 import { ReviewRating } from '../../domain/value-objects/review-rating.vo.js';
 import { SRS_REPOSITORY, type ISrsRepository } from '../../domain/repositories/srs-repository.interface.js';
 import { SRS_SCHEDULER, type ISrsScheduler } from '../ports/srs-scheduler.port.js';
@@ -60,6 +62,7 @@ export class ReviewCardHandler
     const canReview = await this.limitsPolicy.canReview(cmd.userId, reviewedAt);
     if (!canReview) {
       await this.releaseKey(cmd);
+      await this.recordRefusal(cmd.userId, card.contentType, reviewedAt);
       return Result.fail(new SrsReviewLimitError());
     }
 
@@ -86,6 +89,38 @@ export class ReviewCardHandler
     card.clearDomainEvents();
 
     return Result.ok(toReviewCardDto(card));
+  }
+
+  /**
+   * Count the reviews the daily budget turned away (plan 37 §A.1).
+   *
+   * Nothing else records them: the attempt never reaches FSRS, so it never reaches
+   * `learning.attempt.rated` either. Whether 200 is a sane number can only be
+   * answered against the days it was hit.
+   *
+   * Fails soft, for the same reason as in IntroduceCardHandler.
+   */
+  private async recordRefusal(
+    userId: string,
+    contentType: string,
+    reviewedAt: Date,
+  ): Promise<void> {
+    try {
+      await this.limitsPolicy.recordRefusal(userId, 'review', reviewedAt);
+
+      const payload: SrsLimitRefusedPayload = {
+        userId,
+        kind: 'review',
+        contentType,
+        occurredAt: reviewedAt.toISOString(),
+      };
+      await this.publisher.publish(LEARNING_EVENT_TYPES.SRS_LIMIT_REFUSED, payload);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to record review limit refusal for user ${userId}: ` +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    }
   }
 
   /** Nothing was applied, so the key must not shadow a later retry. */
