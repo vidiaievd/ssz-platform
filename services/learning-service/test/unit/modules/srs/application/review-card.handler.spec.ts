@@ -201,6 +201,62 @@ describe('ReviewCardHandler', () => {
     expect(result.error).toBeInstanceOf(SrsCardSuspendedError);
   });
 
+  describe('carrying on past the daily cap (plan 37 §B.1)', () => {
+    function carryOn(cardId: string) {
+      return new ReviewCardCommand(USER_ID, cardId, 'GOOD', undefined, undefined, true);
+    }
+
+    it('reviews the card even though the cap is spent', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, repo, dueQueue } = makeHandler({ card, canReview: false });
+
+      const result = await handler.execute(carryOn(card.id));
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.dueAt).toBe(LATER.toISOString());
+      expect(repo.save).toHaveBeenCalledTimes(1);
+      expect(dueQueue.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps counting the reviews it lets through, so today’s total stays true', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy } = makeHandler({ card, canReview: false });
+
+      await handler.execute(carryOn(card.id));
+
+      expect(limitsPolicy.incrementReviewCount).toHaveBeenCalledTimes(1);
+    });
+
+    it('records no refusal — nothing was refused', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy } = makeHandler({ card, canReview: false });
+
+      await handler.execute(carryOn(card.id));
+
+      expect(limitsPolicy.recordRefusal).not.toHaveBeenCalled();
+    });
+
+    it('never touches the new-card cap, which is not the learner’s call', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy } = makeHandler({ card, canReview: false });
+
+      await handler.execute(carryOn(card.id));
+
+      expect(limitsPolicy.canIntroduceNewCard).not.toHaveBeenCalled();
+      expect(limitsPolicy.incrementNewCardCount).not.toHaveBeenCalled();
+    });
+
+    it('still refuses when the flag is absent', async () => {
+      const card = makeCard('REVIEW');
+      const { handler } = makeHandler({ card, canReview: false });
+
+      const result = await handler.execute(cmd(card.id));
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(SrsReviewLimitError);
+    });
+  });
+
   describe('limit refusals are recorded (plan 37 §A.1)', () => {
     it('counts the refusal and publishes it when the cap turns a review away', async () => {
       const card = makeCard('REVIEW');

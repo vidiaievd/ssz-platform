@@ -101,6 +101,21 @@ describe('IntroduceCardHandler', () => {
     expect(result.error).toBeInstanceOf(SrsNewCardLimitError);
   });
 
+  // The review cap is the learner's to override (plan 37 §B.1); this one is not, and
+  // the first person to edit this handler will be tempted to reuse the same flag for
+  // both. The cost of a new card falls weeks later, on someone who is not being asked.
+  it('has no carry-on escape hatch — the new-card cap ignores the flag entirely', async () => {
+    const { handler } = makeHandler({ canIntroduce: false });
+    const withFlag = Object.assign(new IntroduceCardCommand(USER_ID, 'EXERCISE', CONTENT_ID), {
+      carryOnPastLimit: true,
+    });
+
+    const result = await handler.execute(withFlag);
+
+    expect(result.isFail).toBe(true);
+    expect(result.error).toBeInstanceOf(SrsNewCardLimitError);
+  });
+
   describe('limit refusals are recorded (plan 37 §A.1)', () => {
     it('counts the refusal and publishes it when the cap turns a card away', async () => {
       const { handler, limitsPolicy, publisher } = makeHandler({ canIntroduce: false });

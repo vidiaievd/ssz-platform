@@ -59,11 +59,21 @@ export class ReviewCardHandler
     }
 
     const reviewedAt = cmd.reviewedAt ?? this.clock.now();
-    const canReview = await this.limitsPolicy.canReview(cmd.userId, reviewedAt);
-    if (!canReview) {
-      await this.releaseKey(cmd);
-      await this.recordRefusal(cmd.userId, card.contentType, reviewedAt);
-      return Result.fail(new SrsReviewLimitError());
+
+    // The review cap's whole cost — fatigue — lands today, on the same person who is
+    // deciding right now, and nobody else can judge it for them. Material that came
+    // due does not go away by being refused; skipping it today only moves it to
+    // tomorrow. So the cap warns, and the learner overrides it.
+    //
+    // This is exactly what must not be reused for the new-card cap: that one is paid
+    // three weeks out, by someone who is not in the room.
+    if (!cmd.carryOnPastLimit) {
+      const canReview = await this.limitsPolicy.canReview(cmd.userId, reviewedAt);
+      if (!canReview) {
+        await this.releaseKey(cmd);
+        await this.recordRefusal(cmd.userId, card.contentType, reviewedAt);
+        return Result.fail(new SrsReviewLimitError());
+      }
     }
 
     const rating = ReviewRating.fromString(cmd.rating);
@@ -76,6 +86,8 @@ export class ReviewCardHandler
     }
 
     await this.repo.save(card);
+    // Counted even past the cap: "how much have I done today" has to stay true
+    // precisely when it stops matching the quota, or the number means nothing.
     await this.limitsPolicy.incrementReviewCount(cmd.userId, reviewedAt);
     await this.dueQueue.upsert(cmd.userId, card.id, card.dueAt);
 
