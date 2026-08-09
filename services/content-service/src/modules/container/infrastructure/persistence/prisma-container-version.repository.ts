@@ -21,9 +21,16 @@ export class PrismaContainerVersionRepository implements IContainerVersionReposi
     return rows.map((row) => ContainerVersionMapper.toDomain(row));
   }
 
+  /**
+   * A container is meant to hold one draft, and `unpublishVersion` keeps it that
+   * way. Older data can still carry two, so the newest wins — the same rule the
+   * curriculum tree uses, because the editor and the mutations it sends must
+   * land on the same version or every id in the request is a stranger.
+   */
   async findDraftByContainerId(containerId: string): Promise<ContainerVersionEntity | null> {
     const raw = await this.prisma.containerVersion.findFirst({
       where: { containerId, status: 'DRAFT' },
+      orderBy: { versionNumber: 'desc' },
     });
     return raw ? ContainerVersionMapper.toDomain(raw) : null;
   }
