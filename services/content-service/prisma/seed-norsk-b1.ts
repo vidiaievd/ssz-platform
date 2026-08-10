@@ -661,7 +661,16 @@ async function seedVocab(key: string): Promise<void> {
   const listId = id('vocab', key);
   await prisma.vocabularyList.upsert({
     where: { id: listId },
-    update: { title: section.title, ownerUserId: TEACHER_ID, ownerSchoolId: SCHOOL_ID, visibility: VISIBILITY },
+    // autoAddToSrs is in the update branch too: it is the difference between meeting a
+    // unit's words and committing to drill them, and a re-seed must not quietly hand
+    // every word of the course back to the scheduler.
+    update: {
+      title: section.title,
+      ownerUserId: TEACHER_ID,
+      ownerSchoolId: SCHOOL_ID,
+      visibility: VISIBILITY,
+      autoAddToSrs: false,
+    },
     create: {
       id: listId,
       slug: `norsk-b1-${key.toLowerCase()}-ordforraad`,
@@ -672,6 +681,11 @@ async function seedVocab(key: string): Promise<void> {
       ownerUserId: TEACHER_ID,
       ownerSchoolId: SCHOOL_ID,
       visibility: VISIBILITY,
+      // This is a self-study course: enrolling is the learner saying they want to read
+      // it, not that they want every word of it in tomorrow's review queue. The words
+      // enter the scheduler when the learner adds them from the vocabulary page.
+      // Teacher-assigned lists are the case for leaving this on.
+      autoAddToSrs: false,
     },
   });
   for (const [i, w] of section.words.entries()) {
