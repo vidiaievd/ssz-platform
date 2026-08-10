@@ -235,6 +235,45 @@ describe('AttemptsController (integration)', () => {
       expect(res.body.status).toBe('SCORED');
     });
 
+    it('200 — reads back the answer the learner submitted', async () => {
+      mockRepo.findById.mockResolvedValue(
+        makeAttempt({
+          id: attemptId,
+          submittedAnswer: { correct_option_ids: ['A'] },
+          validationDetails: { correct_selected: ['A'], expected: ['A'] },
+        }),
+      );
+
+      const res = await request(app.getHttpServer())
+        .get(`/exercises/ex-1/attempts/${attemptId}`);
+
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.submittedAnswer).toEqual({ correct_option_ids: ['A'] });
+      expect(res.body.checkMode).toBe('PRACTICE');
+      expect(res.body.validationDetails).toEqual({ correct_selected: ['A'], expected: ['A'] });
+    });
+
+    // Validators may put the expected answer inside details; a GRADED attempt never
+    // shipped the answers to the client, and reading the attempt back must not either.
+    it('200 — withholds validation details on a GRADED attempt', async () => {
+      mockRepo.findById.mockResolvedValue(
+        makeAttempt({
+          id: attemptId,
+          checkMode: 'GRADED',
+          submittedAnswer: { correct_option_ids: ['B'] },
+          validationDetails: { correct_selected: [], expected: ['A'] },
+        }),
+      );
+
+      const res = await request(app.getHttpServer())
+        .get(`/exercises/ex-1/attempts/${attemptId}`);
+
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.validationDetails).toBeNull();
+      // Their own answer is still theirs to see.
+      expect(res.body.submittedAnswer).toEqual({ correct_option_ids: ['B'] });
+    });
+
     it('404 — attempt not found', async () => {
       mockRepo.findById.mockResolvedValue(null);
 

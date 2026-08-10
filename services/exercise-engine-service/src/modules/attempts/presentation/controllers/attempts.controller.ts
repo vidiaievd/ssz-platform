@@ -50,8 +50,25 @@ import { ContentClientError } from '../../../../shared/application/ports/content
 import { ValidationError } from '../../../../shared/application/ports/answer-validator.port.js';
 import type { Attempt, AttemptStatus } from '../../domain/entities/attempt.entity.js';
 
+/**
+ * Reading an attempt back includes what the learner answered — without it the record
+ * is a score with nothing behind it, and the client cannot show them their own work.
+ *
+ * `validationDetails` is not equally safe to hand back: validators are free to put the
+ * expected answer in there (`multiple_choice.validator.ts` does, as `details.expected`),
+ * and a GRADED attempt is precisely the case where the client was never shipped the
+ * answers. So details ride along for PRACTICE, where the client already had them, and
+ * are withheld for GRADED. `submittedAnswer` carries no such risk — it is the learner's
+ * own input.
+ */
 function toAttemptDto(attempt: Attempt): AttemptResponseDto {
+  const isPractice = attempt.checkMode === 'PRACTICE';
+
   return {
+    checkMode: attempt.checkMode,
+    submittedAnswer: attempt.submittedAnswer ?? null,
+    validationDetails: isPractice ? (attempt.validationDetails ?? null) : null,
+    answersRevealed: attempt.answersRevealed,
     id: attempt.id,
     userId: attempt.userId,
     exerciseId: attempt.exerciseId,
