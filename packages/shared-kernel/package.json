@@ -15,6 +15,10 @@
     "./wordbank-gapfill": {
       "import": "./dist/wordbank-gapfill/index.js",
       "types": "./dist/wordbank-gapfill/index.d.ts"
+    },
+    "./error-correction": {
+      "import": "./dist/error-correction/index.js",
+      "types": "./dist/error-correction/index.d.ts"
     }
   },
   "files": [
