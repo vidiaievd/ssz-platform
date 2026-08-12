@@ -522,81 +522,146 @@ const templates = [
     supportedLanguages: Prisma.DbNull,
   },
   {
-    // "Find and correct the mistakes": each sentence is pre-split into chunks,
-    // the learner picks the faulty ones and rewrites them. Splitting is the
-    // author's job — it keeps the task tractable and the grading exact.
+    // "Find and correct the mistakes". The author writes the faulty sentence
+    // and the answer key; the mistakes themselves are derived by aligning the
+    // two word by word — never listed, and never stored. See
+    // packages/shared-kernel/src/error-correction and the design handoff.
     code: 'error_correction',
     name: 'Find and Correct Mistakes',
-    description: 'Spot the faulty parts of each sentence and rewrite them',
+    description: 'Spot what is wrong in each sentence and rewrite it, word by word',
     contentSchema: {
       type: 'object',
       required: ['items'],
       properties: {
+        // Everything a student may see. The answer key is NOT here — it lives
+        // in expected_answers, because the spans are derivable from it and the
+        // spans are the exercise.
         items: {
           type: 'array',
           minItems: 1,
           items: {
             type: 'object',
-            required: ['id', 'chunks'],
+            required: ['id', 'wrong'],
             properties: {
-              id: { type: 'string' },
-              chunks: {
+              id: { type: 'string', description: 'Stable; keys this item in expected_answers' },
+              wrong: { type: 'string', description: 'The sentence the student meets' },
+              hint: { type: 'string' },
+            },
+          },
+        },
+        // 'passage' is one item holding a whole paragraph; 'sentences' is many
+        // items with typically one mistake each. Presentation and validation
+        // only — the model is identical either way.
+        mode: { type: 'string', enum: ['sentences', 'passage'] },
+        note: { type: 'string' },
+        // What the student is told before answering.
+        hints: {
+          type: 'object',
+          properties: {
+            count: { type: 'boolean', description: 'How many mistakes there are' },
+            mark: { type: 'boolean' },
+            hintText: { type: 'boolean' },
+            showType: { type: 'boolean' },
+          },
+        },
+        // What the machine accepts. `caseInsensitive` and `ignorePunct` default
+        // to false: in error correction a capital letter or a comma is often
+        // the mistake itself.
+        check: {
+          type: 'object',
+          properties: {
+            on: { type: 'boolean' },
+            caseInsensitive: { type: 'boolean' },
+            ignorePunct: { type: 'boolean' },
+            typo: { type: 'boolean' },
+            near: { type: 'number', minimum: 0, maximum: 1 },
+            exactPass: { type: 'boolean' },
+            strayEdits: { type: 'string', enum: ['ignore', 'flag', 'block'] },
+            requireAllSpans: { type: 'boolean' },
+          },
+        },
+        flow: {
+          type: 'object',
+          properties: {
+            selfCheck: { type: 'integer', minimum: 0, maximum: 3 },
+            attempts: { type: 'string', enum: ['free', 'once'] },
+            showRefs: { type: 'string', enum: ['afterGraded', 'afterSubmit', 'never'] },
+            keyboard: { type: 'boolean' },
+            perSentence: { type: 'boolean' },
+            showSpanCount: { type: 'boolean' },
+          },
+        },
+        // Stored from the first version so that connecting a model later needs
+        // no migration. Nothing reads it yet, and every AI surface is inert.
+        ai: {
+          type: 'object',
+          properties: {
+            on: { type: 'boolean' },
+            checks: {
+              type: 'object',
+              properties: {
+                explainWhy: { type: 'boolean' },
+                altFixes: { type: 'boolean' },
+                register: { type: 'boolean' },
+              },
+            },
+            visibility: { type: 'string', enum: ['teacher', 'studentBefore', 'studentAfter'] },
+          },
+        },
+        mediaId: { type: 'string' },
+      },
+    },
+    // The answer key, keyed by item id so reordering items cannot shuffle it.
+    // The submitted answer does NOT share this shape — it is a set of edits —
+    // so the engine checks the submission in its own validator instead.
+    answerSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        items: {
+          type: 'object',
+          description: 'Keyed by item id',
+          additionalProperties: {
+            type: 'object',
+            required: ['ref'],
+            properties: {
+              ref: {
+                type: 'string',
+                description: 'The corrected sentence. Variants: "Jeg (liker|elsker) det"',
+              },
+              alts: {
                 type: 'array',
-                minItems: 1,
-                items: {
+                items: { type: 'string' },
+                description: 'Other whole sentences that are accepted',
+              },
+              // Author overrides on derived spans, keyed by `wFrom:wTo:fix`.
+              // The key is derived, so editing the sentence drops the override
+              // with the span it explained — deliberately.
+              meta: {
+                type: 'object',
+                additionalProperties: {
                   type: 'object',
-                  required: ['id', 'text'],
                   properties: {
-                    id: { type: 'string' },
-                    text: { type: 'string' },
+                    type: {
+                      type: 'string',
+                      enum: ['form', 'order', 'extra', 'missing', 'spelling', 'function'],
+                    },
+                    note: { type: 'string' },
+                    // Both forms accepted: the span stops counting as a mistake.
+                    soft: { type: 'boolean' },
                   },
                 },
               },
+              teacherNote: { type: 'string' },
             },
           },
         },
-        // How many chunks are faulty overall. Presentational: it tells the
-        // learner when to stop looking; grading uses `corrections` alone.
-        mistake_count: { type: 'integer', minimum: 1 },
-        context: { type: 'string' },
-        media_id: { type: 'string' },
       },
     },
-    answerSchema: {
-      type: 'object',
-      required: ['corrections'],
-      properties: {
-        // The faulty chunks and their fixes. Doubles as the submitted-answer
-        // shape: the learner sends the chunks they rewrote, `accepted` holding
-        // their single rewrite.
-        corrections: {
-          type: 'array',
-          items: {
-            type: 'object',
-            required: ['item_id', 'chunk_id', 'accepted'],
-            properties: {
-              item_id: { type: 'string' },
-              chunk_id: { type: 'string' },
-              accepted: {
-                type: 'array',
-                items: { type: 'string' },
-                minItems: 1,
-              },
-              note: { type: 'string' },
-            },
-          },
-        },
-        explanation: { type: 'string' },
-      },
-    },
-    defaultCheckSettings: {
-      case_sensitive: false,
-      trim_whitespace: true,
-      allow_partial_credit: true,
-      // Editing a chunk that was already correct costs a point, so the task
-      // can't be brute-forced by rewriting everything.
-      penalize_false_positives: true,
-    },
+    // Scoring settings live in `content.check`, per the handoff: they are the
+    // author's editorial choices and belong with the exercise, not with the
+    // template. Only partial credit is a platform-wide concern.
+    defaultCheckSettings: { allow_partial_credit: true },
     supportedLanguages: Prisma.DbNull,
   },
   {

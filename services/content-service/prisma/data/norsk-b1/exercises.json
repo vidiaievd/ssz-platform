@@ -4175,89 +4175,50 @@
       "instruction": "В каждом предложении один фрагмент содержит ошибку в косвенной речи. Найдите и исправьте её.",
       "hint": "Помните: после глагола говорения в прошедшем времени время сдвигается на шаг назад, а после «om» инверсии нет.",
       "content": {
-        "mistake_count": 3,
-        "context": "Indirekte tale — setninger om tekst 1A.",
+        "mode": "sentences",
+        "note": "Indirekte tale — setninger om tekst 1A.",
         "items": [
           {
             "id": "s-0",
-            "chunks": [
-              {
-                "id": "c-0",
-                "text": "Anne sa"
-              },
-              {
-                "id": "c-1",
-                "text": "at søknaden var god,"
-              },
-              {
-                "id": "c-2",
-                "text": "men at han har noen skrivefeil."
-              }
-            ]
+            "wrong": "Anne sa at søknaden var god, men at han har noen skrivefeil."
           },
           {
             "id": "s-1",
-            "chunks": [
-              {
-                "id": "c-0",
-                "text": "Bartek fortalte Anne"
-              },
-              {
-                "id": "c-1",
-                "text": "at han skal søke"
-              },
-              {
-                "id": "c-2",
-                "text": "på stillingen med en gang."
-              }
-            ]
+            "wrong": "Bartek fortalte Anne at han skal søke på stillingen med en gang."
           },
           {
             "id": "s-2",
-            "chunks": [
-              {
-                "id": "c-0",
-                "text": "Kari spør"
-              },
-              {
-                "id": "c-1",
-                "text": "om har han fagbrev"
-              },
-              {
-                "id": "c-2",
-                "text": "som elektriker."
-              }
-            ]
+            "wrong": "Kari spør om har han fagbrev som elektriker."
           }
         ]
       },
       "expectedAnswers": {
-        "corrections": [
-          {
-            "item_id": "s-0",
-            "chunk_id": "c-2",
-            "accepted": [
-              "men at han hadde noen skrivefeil."
-            ],
-            "note": "Tidsforskyvning etter «sa»: presens «har» → preteritum «hadde»."
+        "items": {
+          "s-0": {
+            "ref": "Anne sa at søknaden var god, men at han hadde noen skrivefeil.",
+            "meta": {
+              "9:10:hadde": {
+                "note": "Tidsforskyvning etter «sa»: presens «har» → preteritum «hadde»."
+              }
+            }
           },
-          {
-            "item_id": "s-1",
-            "chunk_id": "c-1",
-            "accepted": [
-              "at han skulle søke"
-            ],
-            "note": "Tidsforskyvning etter «fortalte»: «skal» → «skulle»."
+          "s-1": {
+            "ref": "Bartek fortalte Anne at han skulle søke på stillingen med en gang.",
+            "meta": {
+              "5:6:skulle": {
+                "note": "Tidsforskyvning etter «fortalte»: «skal» → «skulle»."
+              }
+            }
           },
-          {
-            "item_id": "s-2",
-            "chunk_id": "c-1",
-            "accepted": [
-              "om han har fagbrev"
-            ],
-            "note": "I indirekte spørsmål er det ingen inversjon: «om han har», ikke «om har han»."
+          "s-2": {
+            "ref": "Kari spør om han har fagbrev som elektriker.",
+            "meta": {
+              "3:5:han har": {
+                "note": "I indirekte spørsmål er det ingen inversjon: «om han har», ikke «om har han»."
+              }
+            }
           }
-        ]
+        }
       }
     },
     {

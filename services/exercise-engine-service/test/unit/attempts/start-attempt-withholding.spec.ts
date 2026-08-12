@@ -4,8 +4,9 @@ import { StartAttemptCommand } from '../../../src/modules/attempts/application/c
 import { Result } from '../../../src/shared/kernel/result.js';
 
 // `checkMode: PRACTICE` means "ship the answers so the client can check locally", and
-// that is safe for twelve templates whose answers are a separate key. It is not safe
-// for word_bank_gap_fill, whose content *is* the answer key.
+// that is safe for eleven templates whose answers are a separate key. It is not safe
+// for word_bank_gap_fill, whose content *is* the answer key, nor for error_correction,
+// whose key is what the mistakes are derived from.
 
 const gapFillContent = {
   settings: {
@@ -24,6 +25,17 @@ const gapFillContent = {
 
 const gapFillAnswers = {
   feedback: { 's1#3': { fallback: 'Needs an infinitive.', why: 'Because.', pairs: {} } },
+};
+
+const errorCorrectionContent = {
+  mode: 'sentences',
+  items: [{ id: 'i1', wrong: 'I går jeg gikk på kino.' }],
+};
+
+const errorCorrectionAnswers = {
+  items: {
+    i1: { ref: 'I går gikk jeg på kino.', teacherNote: 'V2-regelen.' },
+  },
 };
 
 function makeHandler(templateCode: string, content: unknown, expectedAnswers: unknown) {
@@ -85,6 +97,31 @@ describe('StartAttemptHandler — what leaves with the attempt', () => {
 
     const { bank } = result.value.exerciseContent as { bank: string[] };
     expect([...bank].sort()).toEqual(['bestille', 'bestilt', 'regning', 'regningen']);
+  });
+
+  it('ships no answer key for error correction, and no derived mistakes either', async () => {
+    const handler = makeHandler('error_correction', errorCorrectionContent, errorCorrectionAnswers);
+    const result = await handler.execute(practice);
+
+    expect(result.value.expectedAnswers).toBeNull();
+    const shipped = JSON.stringify(result.value.exerciseContent);
+    expect(shipped).toContain('I går jeg gikk på kino.');
+    expect(shipped).not.toContain('I går gikk jeg på kino.');
+    expect(shipped).not.toContain('V2-regelen');
+  });
+
+  it('ships how many mistakes there are, which is what makes it answerable', async () => {
+    const handler = makeHandler('error_correction', errorCorrectionContent, errorCorrectionAnswers);
+    const result = await handler.execute(practice);
+
+    const projected = result.value.exerciseContent as {
+      totalErrors: number;
+      items: Array<{ errorCount: number; words: string[] }>;
+    };
+    expect(projected.totalErrors).toBe(1);
+    expect(projected.items[0].errorCount).toBe(1);
+    // Tokenised on the server, so an edit indexes the same word on both sides.
+    expect(projected.items[0].words).toEqual(['I', 'går', 'jeg', 'gikk', 'på', 'kino.']);
   });
 
   it('leaves the other templates exactly as they were', async () => {
