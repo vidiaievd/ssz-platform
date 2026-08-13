@@ -369,4 +369,37 @@ describe('Attempt entity', () => {
       expect(attempt.getDomainEvents()).toHaveLength(0);
     });
   });
+  describe('useSelfCheck()', () => {
+    it('spends checks up to the exercise\'s budget and then refuses', () => {
+      const attempt = makeAttempt();
+
+      expect(attempt.useSelfCheck(2).isOk).toBe(true);
+      expect(attempt.selfChecksUsed).toBe(1);
+      expect(attempt.useSelfCheck(2).isOk).toBe(true);
+      expect(attempt.selfChecksUsed).toBe(2);
+
+      const spent = attempt.useSelfCheck(2);
+      expect(spent.isFail).toBe(true);
+      expect(spent.error).toBeInstanceOf(InvalidAttemptTransitionError);
+      // A refused check costs nothing.
+      expect(attempt.selfChecksUsed).toBe(2);
+    });
+
+    it('refuses outright when the exercise offers none', () => {
+      const attempt = makeAttempt();
+      const result = attempt.useSelfCheck(0);
+
+      expect(result.isFail).toBe(true);
+      expect(attempt.selfChecksUsed).toBe(0);
+    });
+
+    it('refuses once the answer is in — the machine does not grade this twice', () => {
+      const attempt = makeAttempt();
+      attempt.submit({}, 'h');
+
+      const result = attempt.useSelfCheck(3);
+      expect(result.isFail).toBe(true);
+      expect(attempt.selfChecksUsed).toBe(0);
+    });
+  });
 });

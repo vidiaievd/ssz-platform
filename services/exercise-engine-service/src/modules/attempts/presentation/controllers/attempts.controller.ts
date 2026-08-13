@@ -33,6 +33,11 @@ import { SubmitAnswerCommand } from '../../application/commands/submit-answer/su
 import type { SubmitAnswerResult, SubmitAnswerError } from '../../application/commands/submit-answer/submit-answer.handler.js';
 import { AbandonAttemptCommand } from '../../application/commands/abandon-attempt/abandon-attempt.command.js';
 import { RevealAnswersCommand } from '../../application/commands/reveal-answers/reveal-answers.command.js';
+import { SelfCheckCommand } from '../../application/commands/self-check/self-check.command.js';
+import type {
+  SelfCheckError,
+  SelfCheckResult,
+} from '../../application/commands/self-check/self-check.handler.js';
 import type {
   RevealAnswersError,
   RevealAnswersResult,
@@ -44,6 +49,7 @@ import { ListUserAttemptsQuery } from '../../application/queries/list-user-attem
 import type { ListUserAttemptsResult } from '../../application/queries/list-user-attempts/list-user-attempts.handler.js';
 import { StartAttemptRequestDto, StartAttemptResponseDto } from '../dto/start-attempt.dto.js';
 import { SubmitAnswerRequestDto, SubmitAnswerResponseDto } from '../dto/submit-answer.dto.js';
+import { SelfCheckRequestDto, SelfCheckResponseDto } from '../dto/self-check.dto.js';
 import { AttemptResponseDto, ListAttemptsResponseDto } from '../dto/attempt-response.dto.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import { ContentClientError } from '../../../../shared/application/ports/content-client.port.js';
@@ -214,6 +220,57 @@ export class AttemptsController {
         throw new UnprocessableEntityException(err.message);
       }
       throw new UnprocessableEntityException('Cannot reveal answers for this attempt');
+    }
+
+    return result.value;
+  }
+
+  @Post(':attemptId/self-check')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Ask how the work is going without handing it in (error correction only)',
+    description:
+      'Returns how many mistakes are corrected so far, never which words are wrong. ' +
+      'Each call spends one of the exercise\'s self-checks (flow.selfCheck, 0-3); ' +
+      'the attempt stays in progress.',
+  })
+  @ApiResponse({ status: 200, type: SelfCheckResponseDto })
+  @ApiResponse({ status: 400, description: 'Draft answer is not a set of edits' })
+  @ApiResponse({ status: 404, description: 'Attempt not found' })
+  @ApiResponse({ status: 403, description: 'Not your attempt' })
+  @ApiResponse({
+    status: 422,
+    description: 'No self-checks left, attempt already submitted, or template has no self-check',
+  })
+  async selfCheck(
+    @Param('exerciseId') _exerciseId: string,
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Body() dto: SelfCheckRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<SelfCheckResult> {
+    const result: Result<SelfCheckResult, SelfCheckError> = await this.commandBus.execute(
+      new SelfCheckCommand(attemptId, user.userId, dto.draftAnswer),
+    );
+
+    if (result.isFail) {
+      const err = result.error;
+      if ('code' in err) {
+        if (err.code === 'ATTEMPT_NOT_FOUND') throw new NotFoundException('Attempt not found');
+        if (err.code === 'FORBIDDEN') throw new ForbiddenException('Not your attempt');
+        if (err.code === 'SCHEMA_MISMATCH') {
+          throw new BadRequestException('Draft answer must carry the edits made to each item');
+        }
+        if (err.code === 'UNSUPPORTED_TEMPLATE') {
+          throw new UnprocessableEntityException('This exercise type has no self-check');
+        }
+      }
+      if (err instanceof ContentClientError) {
+        throw new UnprocessableEntityException(err.message);
+      }
+      // The domain's own words: no checks left, or the answer is already in.
+      throw new UnprocessableEntityException(
+        err instanceof Error ? err.message : 'Cannot self-check this attempt',
+      );
     }
 
     return result.value;
