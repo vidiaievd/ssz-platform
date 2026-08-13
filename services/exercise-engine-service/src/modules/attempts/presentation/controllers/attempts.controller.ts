@@ -20,6 +20,7 @@ import {
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
+  ApiExtraModels,
   ApiOperation,
   ApiQuery,
   ApiResponse,
@@ -49,7 +50,12 @@ import { ListUserAttemptsQuery } from '../../application/queries/list-user-attem
 import type { ListUserAttemptsResult } from '../../application/queries/list-user-attempts/list-user-attempts.handler.js';
 import { StartAttemptRequestDto, StartAttemptResponseDto } from '../dto/start-attempt.dto.js';
 import { SubmitAnswerRequestDto, SubmitAnswerResponseDto } from '../dto/submit-answer.dto.js';
-import { SelfCheckRequestDto, SelfCheckResponseDto } from '../dto/self-check.dto.js';
+import {
+  SelfCheckItemDto,
+  SelfCheckRequestDto,
+  SelfCheckResponseDto,
+  TranslateSelfCheckItemDto,
+} from '../dto/self-check.dto.js';
 import { AttemptResponseDto, ListAttemptsResponseDto } from '../dto/attempt-response.dto.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import { ContentClientError } from '../../../../shared/application/ports/content-client.port.js';
@@ -227,15 +233,17 @@ export class AttemptsController {
 
   @Post(':attemptId/self-check')
   @HttpCode(HttpStatus.OK)
+  @ApiExtraModels(SelfCheckItemDto, TranslateSelfCheckItemDto)
   @ApiOperation({
-    summary: 'Ask how the work is going without handing it in (error correction only)',
+    summary: 'Ask how the work is going without handing it in (error correction, translate)',
     description:
-      'Returns how many mistakes are corrected so far, never which words are wrong. ' +
-      'Each call spends one of the exercise\'s self-checks (flow.selfCheck, 0-3); ' +
-      'the attempt stays in progress.',
+      'error_correction: how many mistakes are corrected so far, never which words are ' +
+      'wrong. translate_*: how close each sentence is to the key, with the key\'s own ' +
+      'words masked. Each call spends one of the exercise\'s self-checks ' +
+      '(flow.selfCheck); the attempt stays in progress.',
   })
   @ApiResponse({ status: 200, type: SelfCheckResponseDto })
-  @ApiResponse({ status: 400, description: 'Draft answer is not a set of edits' })
+  @ApiResponse({ status: 400, description: 'Draft answer does not match the template\'s shape' })
   @ApiResponse({ status: 404, description: 'Attempt not found' })
   @ApiResponse({ status: 403, description: 'Not your attempt' })
   @ApiResponse({
@@ -258,7 +266,9 @@ export class AttemptsController {
         if (err.code === 'ATTEMPT_NOT_FOUND') throw new NotFoundException('Attempt not found');
         if (err.code === 'FORBIDDEN') throw new ForbiddenException('Not your attempt');
         if (err.code === 'SCHEMA_MISMATCH') {
-          throw new BadRequestException('Draft answer must carry the edits made to each item');
+          throw new BadRequestException(
+            'Draft answer must carry the work so far in this template\'s shape',
+          );
         }
         if (err.code === 'UNSUPPORTED_TEMPLATE') {
           throw new UnprocessableEntityException('This exercise type has no self-check');
