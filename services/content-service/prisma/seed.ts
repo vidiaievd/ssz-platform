@@ -12,6 +12,155 @@ const prisma = new PrismaClient({
 // Each template defines the JSON Schema shape for exercise.content and
 // exercise.expected_answers. Seeded via upsert so the script is idempotent.
 
+// ─── translate_to_target / translate_from_target ──────────────────────────────
+// A set of sentences with one submission. The two codes share every schema: the
+// direction lives in `content.dir`, and a mixed set (`dir: "both"`) is stored
+// under translate_to_target. See packages/shared-kernel/src/translate and
+// docs/plan/42-translate.md.
+
+/** Substrings the answer must (or must not) contain, each with its explanation. */
+const translateGuardSchema = {
+  type: 'array',
+  items: {
+    type: 'object',
+    required: ['text'],
+    properties: {
+      text: { type: 'string' },
+      // Shown to the student the moment the guard fires — the one deviation
+      // this engine can name exactly.
+      note: { type: 'string' },
+    },
+  },
+};
+
+/** Everything a student may see. The accepted translations are NOT here. */
+const translateContentSchema = (defaultDir: 'to_target' | 'from_target') => ({
+  type: 'object',
+  required: ['items'],
+  properties: {
+    dir: {
+      type: 'string',
+      enum: ['to_target', 'from_target', 'both'],
+      default: defaultDir,
+      description: 'Which way the set is translated; "both" is a mixed set',
+    },
+    // Labels shown to the student, not matched on.
+    langs: {
+      type: 'object',
+      properties: { explain: { type: 'string' }, target: { type: 'string' } },
+    },
+    format: { type: 'string', enum: ['single', 'set'] },
+    note: { type: 'string', description: 'Context for the student, shown before submitting' },
+    items: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        required: ['id', 'source'],
+        properties: {
+          id: { type: 'string', description: 'Stable; keys this item in expected_answers' },
+          dir: {
+            type: 'string',
+            enum: ['to_target', 'from_target'],
+            description: 'Read only when the exercise dir is "both"',
+          },
+          source: { type: 'string', description: 'The sentence the student reads' },
+          hint: { type: 'string' },
+          gloss: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['w', 't'],
+              properties: { w: { type: 'string' }, t: { type: 'string' } },
+            },
+          },
+          // Audio of `source` — per sentence, because the sentences differ.
+          // Only meaningful when the source is in the target language.
+          mediaId: { type: 'string' },
+        },
+      },
+    },
+    // What the machine accepts. It may only ever approve: `exactPass` closes an
+    // item on a hit, and no combination of these rejects anything.
+    check: {
+      type: 'object',
+      properties: {
+        on: { type: 'boolean' },
+        caseInsensitive: { type: 'boolean' },
+        ignorePunct: { type: 'boolean' },
+        // Off by default: with it on, "bla" passes for "blå".
+        foldDiacritics: { type: 'boolean' },
+        typo: { type: 'boolean' },
+        near: { type: 'number', minimum: 0, maximum: 1 },
+        exactPass: { type: 'boolean' },
+      },
+    },
+    flow: {
+      type: 'object',
+      properties: {
+        selfCheck: { type: 'integer', minimum: 0, maximum: 5 },
+        attempts: { type: 'string', enum: ['free', 'once'] },
+        showRefs: { type: 'string', enum: ['afterGraded', 'afterSubmit', 'never'] },
+        keyboard: { type: 'boolean' },
+        gloss: { type: 'boolean' },
+        charCount: { type: 'boolean' },
+        // null = unlimited, the only value the UI sets today. Carried so a
+        // listening template can turn it on without a content migration.
+        replayLimit: { type: ['integer', 'null'], minimum: 1 },
+      },
+    },
+    // Stored from the first version so that connecting a model later needs no
+    // migration. Nothing reads it yet, and every AI surface is inert.
+    ai: {
+      type: 'object',
+      properties: {
+        on: { type: 'boolean' },
+        checks: {
+          type: 'object',
+          properties: {
+            grammar: { type: 'boolean' },
+            order: { type: 'boolean' },
+            lexis: { type: 'boolean' },
+            register: { type: 'boolean' },
+          },
+        },
+        visibility: { type: 'string', enum: ['teacher', 'studentBefore', 'studentAfter'] },
+      },
+    },
+  },
+});
+
+// The answer key, keyed by item id so reordering items cannot shuffle it. The
+// submitted answer does NOT share this shape — it is one typed sentence per
+// item — so the engine checks the submission in its own validator instead.
+const translateAnswerSchema = {
+  type: 'object',
+  required: ['items'],
+  properties: {
+    items: {
+      type: 'object',
+      description: 'Keyed by item id',
+      additionalProperties: {
+        type: 'object',
+        required: ['refs'],
+        properties: {
+          refs: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Accepted translations, refs[0] first. Inline alternatives: ' +
+              '"Jeg (liker|elsker) katter"; "Jeg bor her (nå|)" makes the last word optional',
+          },
+          require: translateGuardSchema,
+          forbid: translateGuardSchema,
+          explanation: { type: 'string', description: 'Why the key reads the way it does' },
+          teacherNote: { type: 'string', description: 'Only ever shown in the teacher queue' },
+        },
+      },
+    },
+  },
+};
+
 const templates = [
   {
     code: 'multiple_choice',
@@ -667,68 +816,23 @@ const templates = [
   {
     code: 'translate_to_target',
     name: 'Translate to Target Language',
-    description: 'Translate a sentence from the explanation language to the target language',
-    contentSchema: {
-      type: 'object',
-      required: ['source_text'],
-      properties: {
-        source_text: { type: 'string' },
-        source_language: { type: 'string' },
-        context: { type: 'string' },
-        media_id: { type: 'string' },
-      },
-    },
-    answerSchema: {
-      type: 'object',
-      required: ['accepted_translations'],
-      properties: {
-        accepted_translations: {
-          type: 'array',
-          items: { type: 'string' },
-          minItems: 1,
-        },
-        explanation: { type: 'string' },
-      },
-    },
-    defaultCheckSettings: {
-      case_sensitive: false,
-      trim_whitespace: true,
-      punctuation_sensitive: false,
-      allow_partial_credit: false,
-    },
+    description: 'Translate sentences from the explanation language into the target language',
+    contentSchema: translateContentSchema('to_target'),
+    answerSchema: translateAnswerSchema,
+    // Scoring settings live in `content.check`: they are the author's editorial
+    // choices and belong with the exercise. Partial credit is off because the
+    // submission is one set — either every sentence hit the key, or a teacher
+    // reads the whole thing.
+    defaultCheckSettings: { allow_partial_credit: false },
     supportedLanguages: Prisma.DbNull,
   },
   {
     code: 'translate_from_target',
     name: 'Translate from Target Language',
-    description: 'Translate a sentence from the target language to the explanation language',
-    contentSchema: {
-      type: 'object',
-      required: ['source_text'],
-      properties: {
-        source_text: { type: 'string' },
-        context: { type: 'string' },
-        media_id: { type: 'string' },
-      },
-    },
-    answerSchema: {
-      type: 'object',
-      required: ['accepted_translations'],
-      properties: {
-        accepted_translations: {
-          type: 'array',
-          items: { type: 'string' },
-          minItems: 1,
-        },
-        explanation: { type: 'string' },
-      },
-    },
-    defaultCheckSettings: {
-      case_sensitive: false,
-      trim_whitespace: true,
-      punctuation_sensitive: false,
-      allow_partial_credit: false,
-    },
+    description: 'Translate sentences from the target language into the explanation language',
+    contentSchema: translateContentSchema('from_target'),
+    answerSchema: translateAnswerSchema,
+    defaultCheckSettings: { allow_partial_credit: false },
     supportedLanguages: Prisma.DbNull,
   },
   {

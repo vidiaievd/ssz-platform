@@ -204,12 +204,28 @@ leser bøker. I helgene besøker de ofte besteforeldrene som bor på landet.
         template: 'translate_to_target',
         instruction: 'Переведите предложение на норвежский.',
         content: {
-          source_text: 'Семья живёт в Бергене.',
-          source_language: 'ru',
+          dir: 'to_target',
+          langs: { explain: 'Russisk', target: 'Norsk' },
+          format: 'single',
+          note: '',
+          items: [
+            {
+              id: 's1',
+              dir: 'to_target',
+              source: 'Семья живёт в Бергене.',
+              gloss: [{ w: 'семья', t: 'familie (en)' }],
+            },
+          ],
         },
         expectedAnswers: {
-          accepted_translations: ['Familien bor i Bergen.', 'Familien bor i Bergen'],
-          explanation: 'Презенс глагола «å bo» — «bor».',
+          items: {
+            s1: {
+              refs: ['Familien bor i Bergen.'],
+              require: [],
+              forbid: [],
+              explanation: 'Презенс глагола «å bo» — «bor».',
+            },
+          },
         },
       },
       {
@@ -360,12 +376,30 @@ hage, fire soverom og en garasje. De trives godt, men de bruker mer tid på
         template: 'translate_to_target',
         instruction: 'Переведите предложение на норвежский.',
         content: {
-          source_text: 'Квартплата в Осло высокая.',
-          source_language: 'ru',
+          dir: 'to_target',
+          langs: { explain: 'Russisk', target: 'Norsk' },
+          format: 'single',
+          note: '',
+          items: [
+            {
+              id: 's1',
+              dir: 'to_target',
+              source: 'Квартплата в Осло высокая.',
+              gloss: [{ w: 'квартплата', t: 'husleie (ei/en)' }],
+            },
+          ],
         },
         expectedAnswers: {
-          accepted_translations: ['Husleia er høy i Oslo.', 'Husleien er høy i Oslo.'],
-          explanation: '«husleie» женского рода: husleia / husleien.',
+          items: {
+            s1: {
+              // Both genders of «husleie» in one line: the alternation expands
+              // to two accepted sentences.
+              refs: ['Husle(ia|ien) er høy i Oslo.'],
+              require: [],
+              forbid: [],
+              explanation: '«husleie» женского рода: husleia / husleien.',
+            },
+          },
         },
       },
       {
@@ -511,12 +545,38 @@ ta mer utdanning for å få en bedre stilling i framtiden.
         template: 'translate_to_target',
         instruction: 'Переведите предложение на норвежский.',
         content: {
-          source_text: 'Я хочу учить норвежский.',
-          source_language: 'ru',
+          dir: 'to_target',
+          langs: { explain: 'Russisk', target: 'Norsk' },
+          format: 'single',
+          note: '',
+          items: [
+            {
+              id: 's1',
+              dir: 'to_target',
+              source: 'Я хочу учить норвежский.',
+              gloss: [],
+            },
+          ],
         },
         expectedAnswers: {
-          accepted_translations: ['Jeg vil lære norsk.', 'Jeg vil lære norsk'],
-          explanation: '«vil» + инфинитив без «å»: «vil lære».',
+          items: {
+            s1: {
+              refs: ['Jeg vil lære norsk.'],
+              require: [
+                {
+                  text: 'vil lære',
+                  note: 'После модального глагола инфинитив идёт без «å»: «vil lære», не «vil å lære».',
+                },
+              ],
+              forbid: [
+                {
+                  text: 'vil å',
+                  note: '«å» после модального глагола не ставится.',
+                },
+              ],
+              explanation: '«vil» + инфинитив без «å»: «vil lære».',
+            },
+          },
         },
       },
       {

@@ -6,7 +6,8 @@ import { Result } from '../../../src/shared/kernel/result.js';
 // `checkMode: PRACTICE` means "ship the answers so the client can check locally", and
 // that is safe for eleven templates whose answers are a separate key. It is not safe
 // for word_bank_gap_fill, whose content *is* the answer key, nor for error_correction,
-// whose key is what the mistakes are derived from.
+// whose key is what the mistakes are derived from, nor for the translate pair, whose
+// key is the exercise typed out.
 
 const gapFillContent = {
   settings: {
@@ -35,6 +36,34 @@ const errorCorrectionContent = {
 const errorCorrectionAnswers = {
   items: {
     i1: { ref: 'I går gikk jeg på kino.', teacherNote: 'V2-regelen.' },
+  },
+};
+
+const translateContent = {
+  dir: 'to_target',
+  langs: { explain: 'Russisk', target: 'Norsk' },
+  format: 'set',
+  items: [
+    {
+      id: 't1',
+      dir: 'to_target',
+      source: 'Я живу в Тромсё уже три года.',
+      hint: 'Сколько времени — «i tre år».',
+      gloss: [{ w: 'уже', t: 'allerede / nå' }],
+    },
+  ],
+  check: { on: true, exactPass: true },
+  flow: { selfCheck: 2 },
+};
+
+const translateAnswers = {
+  items: {
+    t1: {
+      refs: ['Jeg har bodd i Tromsø i tre år nå.'],
+      require: [{ text: 'har bodd', note: 'Презенс перфект.' }],
+      explanation: 'Действие началось в прошлом и длится сейчас.',
+      teacherNote: 'V2-regelen.',
+    },
   },
 };
 
@@ -122,6 +151,46 @@ describe('StartAttemptHandler — what leaves with the attempt', () => {
     expect(projected.items[0].errorCount).toBe(1);
     // Tokenised on the server, so an edit indexes the same word on both sides.
     expect(projected.items[0].words).toEqual(['I', 'går', 'jeg', 'gikk', 'på', 'kino.']);
+  });
+
+  it('ships no accepted translations, no guards and no explanations', async () => {
+    const handler = makeHandler('translate_to_target', translateContent, translateAnswers);
+    const result = await handler.execute(practice);
+
+    expect(result.value.expectedAnswers).toBeNull();
+    const shipped = JSON.stringify(result.value.exerciseContent);
+    // The sentence, its hint and its glosses are the task and travel with it.
+    expect(shipped).toContain('Я живу в Тромсё уже три года.');
+    expect(shipped).toContain('уже');
+    // Everything the answer is made of stays on the server. A guard hands over the
+    // words of the key just as plainly as the key does.
+    expect(shipped).not.toContain('Jeg har bodd');
+    expect(shipped).not.toContain('har bodd');
+    expect(shipped).not.toContain('Презенс перфект');
+    expect(shipped).not.toContain('V2-regelen');
+  });
+
+  it('ships what the runner needs to render: direction, languages and flow', async () => {
+    const handler = makeHandler('translate_to_target', translateContent, translateAnswers);
+    const result = await handler.execute(practice);
+
+    const projected = result.value.exerciseContent as {
+      dir: string;
+      items: Array<{ id: string; dir: string; sourceLang: string; answerLang: string }>;
+      flow: { selfCheck: number };
+      exactPasses: boolean;
+    };
+    expect(projected.dir).toBe('to_target');
+    expect(projected.items[0]).toMatchObject({
+      id: 't1',
+      dir: 'to_target',
+      sourceLang: 'Russisk',
+      answerLang: 'Norsk',
+    });
+    expect(projected.flow.selfCheck).toBe(2);
+    // The runner says under the submit button whether a hit closes the exercise, and
+    // must not have to infer it from settings it cannot see.
+    expect(projected.exactPasses).toBe(true);
   });
 
   it('leaves the other templates exactly as they were', async () => {

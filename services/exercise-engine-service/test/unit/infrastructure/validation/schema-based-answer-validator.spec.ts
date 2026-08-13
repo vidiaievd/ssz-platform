@@ -6,8 +6,10 @@ import { FillInBlankValidator } from '../../../../src/infrastructure/validation/
 import { MatchPairsValidator } from '../../../../src/infrastructure/validation/validators/match-pairs.validator.js';
 import { ShortAnswerValidator } from '../../../../src/infrastructure/validation/validators/short-answer.validator.js';
 import { ErrorCorrectionValidator } from '../../../../src/infrastructure/validation/validators/error-correction.validator.js';
+import { TranslateValidator } from '../../../../src/infrastructure/validation/validators/translate.validator.js';
 import { TextOrderValidator } from '../../../../src/infrastructure/validation/validators/text-order.validator.js';
 import { WordBankFillValidator } from '../../../../src/infrastructure/validation/validators/word-bank-fill.validator.js';
+import { WordBankGapFillValidator } from '../../../../src/infrastructure/validation/validators/word-bank-gap-fill.validator.js';
 import { SentenceSchemaValidator } from '../../../../src/infrastructure/validation/validators/sentence-schema.validator.js';
 import { ValidationError } from '../../../../src/shared/application/ports/answer-validator.port.js';
 import { Result } from '../../../../src/shared/kernel/result.js';
@@ -29,8 +31,10 @@ const makeValidator = () =>
     new ShortAnswerValidator(),
     new SentenceSchemaValidator(),
     new WordBankFillValidator(),
+    new WordBankGapFillValidator(),
     new TextOrderValidator(),
     new ErrorCorrectionValidator(),
+    new TranslateValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {
@@ -79,22 +83,46 @@ describe('SchemaBasedAnswerValidator', () => {
     });
   });
 
-  describe('free-form template routing', () => {
-    const freeFormSchema = {
-      type: 'object',
-      required: ['accepted_translations'],
-      properties: {
-        accepted_translations: { type: 'array', items: { type: 'string' }, minItems: 1 },
-      },
+  // The translate pair used to live here, routing every answer — a word-perfect one
+  // included — to a teacher. It has its own validator now, and reaches it without AJV:
+  // the template's answer schema describes the author's key, not a list of typed
+  // sentences.
+  describe('translate templates', () => {
+    const translateContent = {
+      dir: 'to_target',
+      format: 'set',
+      items: [{ id: 's1', dir: 'to_target', source: 'Я живу в Тромсё.' }],
     };
+    const translateKey = { items: { s1: { refs: ['Jeg bor i Tromsø.'] } } };
 
-    it('returns requiresReview=true for translate_to_target', async () => {
+    it('approves a hit on the key instead of asking for a teacher', async () => {
       const validator = makeValidator();
       const result = await validator.validate({
         templateCode: 'translate_to_target',
-        answerSchema: freeFormSchema,
-        expectedAnswers: { accepted_translations: ['god dag'] },
-        submittedAnswer: { accepted_translations: ['good day'] },
+        answerSchema: { type: 'object', required: ['items'] },
+        expectedAnswers: translateKey,
+        content: translateContent,
+        submittedAnswer: { answers: [{ itemId: 's1', text: 'Jeg bor i Tromsø.' }] },
+        checkSettings: {},
+        targetLanguage: 'no',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value.requiresReview).toBe(false);
+      expect(result.value.score).toBe(100);
+    });
+
+    it('routes anything short of a hit, for translate_from_target too', async () => {
+      const validator = makeValidator();
+      const result = await validator.validate({
+        templateCode: 'translate_from_target',
+        answerSchema: { type: 'object', required: ['items'] },
+        expectedAnswers: { items: { s1: { refs: ['Я живу в Тромсё.'] } } },
+        content: {
+          dir: 'from_target',
+          format: 'set',
+          items: [{ id: 's1', dir: 'from_target', source: 'Jeg bor i Tromsø.' }],
+        },
+        submittedAnswer: { answers: [{ itemId: 's1', text: 'Я проживаю в Тромсё.' }] },
         checkSettings: {},
         targetLanguage: 'no',
       });
@@ -102,21 +130,9 @@ describe('SchemaBasedAnswerValidator', () => {
       expect(result.value.requiresReview).toBe(true);
       expect(result.value.score).toBe(0);
     });
+  });
 
-    it('returns requiresReview=true for translate_from_target', async () => {
-      const validator = makeValidator();
-      const result = await validator.validate({
-        templateCode: 'translate_from_target',
-        answerSchema: freeFormSchema,
-        expectedAnswers: { accepted_translations: ['good day'] },
-        submittedAnswer: { accepted_translations: ['good day'] },
-        checkSettings: {},
-        targetLanguage: 'no',
-      });
-      expect(result.isOk).toBe(true);
-      expect(result.value.requiresReview).toBe(true);
-    });
-
+  describe('free-form template routing', () => {
     it('returns requiresReview=true for writing_task without needing a per-type validator', async () => {
       const validator = makeValidator();
       const result = await validator.validate({

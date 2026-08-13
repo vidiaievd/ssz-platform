@@ -117,17 +117,53 @@
     {
       "key": "g17-tr-hvis",
       "template": "translate_to_target",
-      "instruction": "Переведите предложение на норвежский.",
+      "instruction": "Переведите предложения на норвежский.",
       "content": {
-        "source_text": "Я приду, если ты позовёшь.",
-        "source_language": "ru"
+        "dir": "to_target",
+        "langs": { "explain": "Russisk", "target": "Norsk" },
+        "format": "set",
+        "note": "Придаточное с «hvis»: порядок слов в нём прямой.",
+        "items": [
+          {
+            "id": "s1",
+            "dir": "to_target",
+            "source": "Я приду, если ты позовёшь.",
+            "gloss": [{ "w": "позовёшь", "t": "roper (på meg)" }]
+          },
+          {
+            "id": "s2",
+            "dir": "to_target",
+            "source": "Если у меня будет время, я приду завтра.",
+            "hint": "«Hvis jeg …» — придаточное стоит первым, значит главное начинается с глагола.",
+            "gloss": []
+          }
+        ]
       },
       "expectedAnswers": {
-        "accepted_translations": [
-          "Jeg kommer hvis du roper.",
-          "Jeg kommer hvis du roper"
-        ],
-        "explanation": "«hvis» + придаточное с прямым порядком слов."
+        "items": {
+          "s1": {
+            "refs": ["Jeg kommer hvis du roper( på meg|)."],
+            "require": [
+              {
+                "text": "hvis",
+                "note": "Задание тренирует союз «hvis» — с «om» или «når» предложение звучит иначе."
+              }
+            ],
+            "forbid": [],
+            "explanation": "«hvis» + придаточное с прямым порядком слов: «hvis du roper»."
+          },
+          "s2": {
+            "refs": ["Hvis jeg har tid, kommer jeg i morgen."],
+            "require": [
+              {
+                "text": "kommer jeg",
+                "note": "Придаточное занимает первое место, поэтому в главном идёт инверсия: «kommer jeg»."
+              }
+            ],
+            "forbid": [],
+            "explanation": "Придаточное на позиции 1 → глагол на позиции 2, подлежащее после него."
+          }
+        }
       }
     },
     {
@@ -324,15 +360,38 @@
       "template": "translate_to_target",
       "instruction": "Переведите на норвежский (начните с «Derfor»).",
       "content": {
-        "source_text": "Поэтому им нужно много еды.",
-        "source_language": "ru"
+        "dir": "to_target",
+        "langs": { "explain": "Russisk", "target": "Norsk" },
+        "format": "single",
+        "note": "После наречия на первом месте глагол идёт вторым — перед подлежащим.",
+        "items": [
+          {
+            "id": "s1",
+            "dir": "to_target",
+            "source": "Поэтому им нужно много еды.",
+            "gloss": [{ "w": "нужно", "t": "trenger" }]
+          }
+        ]
       },
       "expectedAnswers": {
-        "accepted_translations": [
-          "Derfor trenger de mye mat.",
-          "Derfor trenger de mye mat"
-        ],
-        "explanation": "«Derfor» + инверсия: «Derfor trenger de ...»."
+        "items": {
+          "s1": {
+            "refs": ["Derfor trenger de mye mat."],
+            "require": [
+              {
+                "text": "Derfor trenger",
+                "note": "«Derfor» занимает первое место, поэтому глагол стоит перед подлежащим: «Derfor trenger de …»."
+              }
+            ],
+            "forbid": [
+              {
+                "text": "derfor de",
+                "note": "Так строится прямой порядок слов; после «Derfor» он невозможен."
+              }
+            ],
+            "explanation": "«Derfor» + инверсия: «Derfor trenger de …»."
+          }
+        }
       }
     },
     {
@@ -591,15 +650,40 @@
       "template": "translate_to_target",
       "instruction": "Переведите на норвежский.",
       "content": {
-        "source_text": "Это не одно и то же.",
-        "source_language": "ru"
+        "dir": "to_target",
+        "langs": { "explain": "Russisk", "target": "Norsk" },
+        "format": "set",
+        "note": "Устойчивые выражения из 19B — переводите их целиком, а не по словам.",
+        "items": [
+          {
+            "id": "s1",
+            "dir": "to_target",
+            "source": "Это не одно и то же.",
+            "gloss": []
+          },
+          {
+            "id": "s2",
+            "dir": "to_target",
+            "source": "У меня нет времени.",
+            "gloss": [{ "w": "время", "t": "tid (en)" }]
+          }
+        ]
       },
       "expectedAnswers": {
-        "accepted_translations": [
-          "Det er ikke det samme.",
-          "Det er ikke det samme"
-        ],
-        "explanation": "Устойчивое выражение из 19B: «Det er ikke det samme.»"
+        "items": {
+          "s1": {
+            "refs": ["Det er ikke det samme."],
+            "require": [],
+            "forbid": [],
+            "explanation": "Устойчивое выражение из 19B: «Det er ikke det samme.»"
+          },
+          "s2": {
+            "refs": ["Jeg har ikke tid.", "Jeg har ingen tid."],
+            "require": [],
+            "forbid": [],
+            "explanation": "«ikke» стоит после глагола: «Jeg har ikke tid». Вариант «ingen tid» тоже принимается."
+          }
+        }
       }
     },
     {

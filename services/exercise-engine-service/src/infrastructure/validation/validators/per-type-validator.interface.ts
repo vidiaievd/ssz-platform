@@ -10,6 +10,11 @@ export interface PerTypeValidateInput {
    * nine validators would otherwise have to name a field they never look at.
    */
   content?: unknown;
+  /**
+   * The template the exercise was written against. Only the translate validator reads it,
+   * and only as the fallback for a document whose `content.dir` predates the field.
+   */
+  templateCode?: string;
   checkSettings: Record<string, unknown>;
   targetLanguage: string;
 }
