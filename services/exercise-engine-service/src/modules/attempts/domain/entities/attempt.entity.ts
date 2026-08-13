@@ -63,6 +63,7 @@ export interface AttemptPersistenceProps {
   answerHash: string | null;
   revisionCount: number;
   answersRevealed: boolean;
+  selfChecksUsed: number;
   startedAt: Date;
   submittedAt: Date | null;
   scoredAt: Date | null;
@@ -90,6 +91,7 @@ export class Attempt extends AggregateRoot {
     private _answerHash: string | null,
     private _revisionCount: number,
     private _answersRevealed: boolean,
+    private _selfChecksUsed: number,
     private _startedAt: Date,
     private _submittedAt: Date | null,
     private _scoredAt: Date | null,
@@ -119,6 +121,7 @@ export class Attempt extends AggregateRoot {
       null,
       0,
       false,
+      0,
       new Date(),
       null,
       null,
@@ -161,6 +164,7 @@ export class Attempt extends AggregateRoot {
       props.answerHash,
       props.revisionCount,
       props.answersRevealed,
+      props.selfChecksUsed,
       props.startedAt,
       props.submittedAt,
       props.scoredAt,
@@ -347,6 +351,39 @@ export class Attempt extends AggregateRoot {
     return Result.ok();
   }
 
+  /**
+   * Spend one self-check.
+   *
+   * The budget is the exercise's, so it is passed in rather than stored: the same
+   * attempt would have a different allowance if the author changed the setting, and the
+   * setting is the one the learner is working under right now.
+   *
+   * Only while the work is still open. After submission the answer is with the teacher,
+   * and a check then would be a second grading — by the machine, on an answer the
+   * template says only a human may reject.
+   */
+  useSelfCheck(budget: number): Result<void, InvalidAttemptTransitionError> {
+    if (this._status !== 'IN_PROGRESS') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot self-check an attempt with status ${this._status}`,
+        ),
+      );
+    }
+    if (this._selfChecksUsed >= budget) {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          budget === 0
+            ? 'This exercise offers no self-checks'
+            : `All ${budget} self-checks have been used`,
+        ),
+      );
+    }
+
+    this._selfChecksUsed += 1;
+    return Result.ok();
+  }
+
   addTimeSpent(seconds: number): void {
     if (seconds > 0) {
       this._timeSpentSeconds += seconds;
@@ -372,6 +409,7 @@ export class Attempt extends AggregateRoot {
   get answerHash(): string | null { return this._answerHash; }
   get revisionCount(): number { return this._revisionCount; }
   get answersRevealed(): boolean { return this._answersRevealed; }
+  get selfChecksUsed(): number { return this._selfChecksUsed; }
   get startedAt(): Date { return this._startedAt; }
   get submittedAt(): Date | null { return this._submittedAt; }
   get scoredAt(): Date | null { return this._scoredAt; }

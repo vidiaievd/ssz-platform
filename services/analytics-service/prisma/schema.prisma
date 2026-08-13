@@ -252,3 +252,28 @@ model AttemptEvidence {
   @@index([userId, occurredAt])
   @@map("attempt_evidence")
 }
+
+// ─── Projection: SrsLimitRefusal ──────────────────────────────────────────────
+// Built from learning.srs.limit_refused (plan 37 §A.1). One row per time a daily
+// SRS cap turned something down.
+//
+// The counterpart to attempt_evidence, and the reason it is a separate table: that
+// one holds attempts that reached FSRS, so a refusal is by construction absent from
+// it. Whether the caps of 20 and 200 are the right numbers is a question about the
+// rows that are not there, and this table is where they go.
+//
+// Deliberately narrow: which cap, whose day, which kind of card. What the material
+// was does not change the answer to a question about volume.
+
+model SrsLimitRefusal {
+  id          String   @id @default(uuid())
+  eventId     String   @unique @map("event_id")
+  userId      String   @map("user_id")
+  kind        String // new | review
+  contentType String   @map("content_type") // EXERCISE | EXERCISE_GAP | VOCABULARY_WORD
+  occurredAt  DateTime @map("occurred_at")
+
+  @@index([kind, occurredAt])
+  @@index([userId, occurredAt])
+  @@map("srs_limit_refusals")
+}

@@ -37,6 +37,7 @@ function makeHandler(overrides: {
     canReview: jest.fn(),
     incrementNewCardCount: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     incrementReviewCount: jest.fn(),
+    recordRefusal: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   } as any;
 
   const publisher: IEventPublisher = {
@@ -98,5 +99,72 @@ describe('IntroduceCardHandler', () => {
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBeInstanceOf(SrsNewCardLimitError);
+  });
+
+  // The review cap is the learner's to override (plan 37 §B.1); this one is not, and
+  // the first person to edit this handler will be tempted to reuse the same flag for
+  // both. The cost of a new card falls weeks later, on someone who is not being asked.
+  it('has no carry-on escape hatch — the new-card cap ignores the flag entirely', async () => {
+    const { handler } = makeHandler({ canIntroduce: false });
+    const withFlag = Object.assign(new IntroduceCardCommand(USER_ID, 'EXERCISE', CONTENT_ID), {
+      carryOnPastLimit: true,
+    });
+
+    const result = await handler.execute(withFlag);
+
+    expect(result.isFail).toBe(true);
+    expect(result.error).toBeInstanceOf(SrsNewCardLimitError);
+  });
+
+  describe('limit refusals are recorded (plan 37 §A.1)', () => {
+    it('counts the refusal and publishes it when the cap turns a card away', async () => {
+      const { handler, limitsPolicy, publisher } = makeHandler({ canIntroduce: false });
+
+      await handler.execute(cmd);
+
+      expect(limitsPolicy.recordRefusal).toHaveBeenCalledWith(USER_ID, 'new', NOW);
+      expect(publisher.publish).toHaveBeenCalledWith('learning.srs.limit_refused', {
+        userId: USER_ID,
+        kind: 'new',
+        contentType: 'EXERCISE',
+        occurredAt: NOW.toISOString(),
+      });
+    });
+
+    it('records nothing when the card is introduced', async () => {
+      const { handler, limitsPolicy, publisher } = makeHandler();
+
+      await handler.execute(cmd);
+
+      expect(limitsPolicy.recordRefusal).not.toHaveBeenCalled();
+      expect(publisher.publish).not.toHaveBeenCalledWith(
+        'learning.srs.limit_refused',
+        expect.anything(),
+      );
+    });
+
+    it('reports one refusal per gap, since each gap is its own card', async () => {
+      const { handler, limitsPolicy } = makeHandler({ canIntroduce: false });
+
+      for (let gap = 0; gap < 6; gap++) {
+        await handler.execute(
+          new IntroduceCardCommand(USER_ID, 'EXERCISE_GAP', `${CONTENT_ID}#${gap}`),
+        );
+      }
+
+      expect(limitsPolicy.recordRefusal).toHaveBeenCalledTimes(6);
+    });
+
+    it('still refuses when the telemetry write fails', async () => {
+      const { handler, limitsPolicy } = makeHandler({ canIntroduce: false });
+      (limitsPolicy.recordRefusal as jest.Mock<() => Promise<void>>).mockRejectedValue(
+        new Error('redis down'),
+      );
+
+      const result = await handler.execute(cmd);
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(SrsNewCardLimitError);
+    });
   });
 });

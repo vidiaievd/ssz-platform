@@ -6,6 +6,11 @@ import {
   toStudentProjection,
   TEMPLATE_CODE as WORD_BANK_GAP_FILL,
 } from '@ssz/shared-kernel/wordbank-gapfill';
+import {
+  fromPersisted as ecFromPersisted,
+  toStudentProjection as ecToStudentProjection,
+  TEMPLATE_CODE as ERROR_CORRECTION,
+} from '@ssz/shared-kernel/error-correction';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -35,27 +40,42 @@ export interface StartAttemptResult {
  * What the client may hold once the attempt starts.
  *
  * `checkMode: PRACTICE` normally means "ship the answers so the client can check
- * locally", and for twelve templates that is fine: their answers are a separate key,
+ * locally", and for eleven templates that is fine: their answers are a separate key,
  * and the content is just the question. `word_bank_gap_fill` stores each sentence
  * solved, so its content *is* the answer key — shipping it in PRACTICE would put every
  * answer in the browser at the moment the exercise opens, whatever the attempt's mode.
  *
- * So this template's answers are withheld in both modes, and the client gets the same
- * projection content-service serves. The masking rule itself is the kernel's, shared
- * with content-service and the builder; only the shuffle is local, because a shuffle
- * cannot live in a module that must be pure.
+ * `error_correction` is the second such template, for a subtler reason: its key is a
+ * separate field, but the mistakes the student is hunting for are *derived* from it. A
+ * browser holding the key holds the answer to "which words are wrong", which is the
+ * whole exercise — so it gets counts and types instead, and never the words.
+ *
+ * The masking rules are the kernel's, shared with content-service and the builders;
+ * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
  */
 function withheldWhereNeeded(
   templateCode: string,
   exercise: { content: unknown; expectedAnswers: unknown },
 ): { exerciseContent: unknown; expectedAnswers: unknown } {
-  if (templateCode !== WORD_BANK_GAP_FILL) {
-    return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };
+  if (templateCode === WORD_BANK_GAP_FILL) {
+    return {
+      exerciseContent: toStudentProjection(readContent(exercise.content), { shuffle: shuffled }),
+      expectedAnswers: null,
+    };
   }
-  return {
-    exerciseContent: toStudentProjection(readContent(exercise.content), { shuffle: shuffled }),
-    expectedAnswers: null,
-  };
+
+  if (templateCode === ERROR_CORRECTION) {
+    // The projection needs the key in order to take it away — it counts the spans it
+    // derives from it — so the document is assembled first and masked second.
+    const document = ecFromPersisted(
+      { id: '', moduleId: '', title: '', instructions: '', updatedAt: '' },
+      exercise.content,
+      exercise.expectedAnswers,
+    );
+    return { exerciseContent: ecToStudentProjection(document), expectedAnswers: null };
+  }
+
+  return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };
 }
 
 /** Fisher-Yates over a copy, seeded by the platform CSPRNG rather than Math.random. */

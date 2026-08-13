@@ -106,6 +106,29 @@ describe('RedisSrsLimitsPolicy', () => {
     });
   });
 
+  describe('recordRefusal', () => {
+    it('counts refusals on their own key, not the one that let work through', async () => {
+      const incr = jest.fn<() => Promise<number>>().mockResolvedValue(1);
+      const { policy } = makePolicy({ redisIncr: incr });
+
+      await policy.incrementNewCardCount(USER_ID, TODAY);
+      await policy.recordRefusal(USER_ID, 'new', TODAY);
+      await policy.recordRefusal(USER_ID, 'review', TODAY);
+
+      const [allowedKey, refusedNewKey, refusedReviewKey] = incr.mock.calls.map(
+        (call) => (call as string[])[0],
+      );
+      expect(allowedKey).toBe(`srs:limits:${USER_ID}:new:2026-04-29`);
+      expect(refusedNewKey).toBe(`srs:limits:${USER_ID}:refused:new:2026-04-29`);
+      expect(refusedReviewKey).toBe(`srs:limits:${USER_ID}:refused:reviews:2026-04-29`);
+    });
+
+    it('does not throw when Redis is unavailable', async () => {
+      const { policy } = makePolicy({ clientNull: true });
+      await expect(policy.recordRefusal(USER_ID, 'new', TODAY)).resolves.toBeUndefined();
+    });
+  });
+
   describe('incrementReviewCount', () => {
     it('uses a different key from incrementNewCardCount', async () => {
       const incr = jest.fn<() => Promise<number>>().mockResolvedValue(1);

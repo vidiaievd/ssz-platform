@@ -171,3 +171,77 @@ describe('PrismaContainerItemRepository.copyCompositionToVersion', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
+
+describe('PrismaContainerItemRepository.reorder', () => {
+  /** Records every update the repository issues, in order. */
+  function makeReorderRepository() {
+    const updates: { id: string; data: Record<string, unknown> }[] = [];
+    const tx = {
+      containerItem: {
+        update: jest.fn(
+          ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+            updates.push({ id: where.id, data });
+            return Promise.resolve({});
+          },
+        ),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn((fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+    } as any;
+    return { repo: new PrismaContainerItemRepository(prisma), prisma, updates };
+  }
+
+  const VERSION_ID = 'version-draft';
+
+  it('vacates the old positions before writing the new ones', async () => {
+    // Writing final positions straight away trips unique(version, position) the
+    // moment one row lands where another still sits — a plain swap.
+    const { repo, updates } = makeReorderRepository();
+
+    await repo.reorder(VERSION_ID, [
+      { id: 'b', position: 0 },
+      { id: 'a', position: 1 },
+    ]);
+
+    expect(updates).toEqual([
+      { id: 'b', data: { position: -1 } },
+      { id: 'a', data: { position: -2 } },
+      { id: 'b', data: { position: 0 } },
+      { id: 'a', data: { position: 1 } },
+    ]);
+  });
+
+  it('runs both passes in one transaction', async () => {
+    const { repo, prisma } = makeReorderRepository();
+
+    await repo.reorder(VERSION_ID, [{ id: 'a', position: 0 }]);
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('carries an explicit section change on the final write only', async () => {
+    const { repo, updates } = makeReorderRepository();
+
+    await repo.reorder(VERSION_ID, [{ id: 'a', position: 0, sectionId: 'sec-2' }]);
+
+    expect(updates[0]).toEqual({ id: 'a', data: { position: -1 } });
+    expect(updates[1]).toEqual({ id: 'a', data: { position: 0, sectionId: 'sec-2' } });
+  });
+
+  it('leaves the section alone when the caller did not mention it', async () => {
+    const { repo, updates } = makeReorderRepository();
+
+    await repo.reorder(VERSION_ID, [{ id: 'a', position: 0 }]);
+
+    expect(updates[1]?.data).not.toHaveProperty('sectionId');
+  });
+
+  it('touches nothing when there is nothing to reorder', async () => {
+    const { repo, prisma } = makeReorderRepository();
+
+    await repo.reorder(VERSION_ID, []);
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});

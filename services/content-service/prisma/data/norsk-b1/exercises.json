@@ -205,6 +205,124 @@
       }
     },
     {
+      "key": "b1-g2-wbgf-01",
+      "template": "word_bank_gap_fill",
+      "instruction": "Впишите глагол в нужной форме. Прямая речь дана подсказкой к каждому предложению.",
+      "hint": "Глагол говорения в прошедшем (sa, spurte) — время сдвигается на шаг назад. В настоящем (sier, spør) — не сдвигается.",
+      "content": {
+        "sentences": [
+          {
+            "id": "s1",
+            "text": "Bartek sa at han var trøtt.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Jeg er trøtt», sa Bartek."
+          },
+          {
+            "id": "s2",
+            "text": "Hun sa at hun snakket med sjefen hver dag.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Jeg snakker med sjefen hver dag», sa hun."
+          },
+          {
+            "id": "s3",
+            "text": "Kari sa at hun skulle reise til Bergen.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Jeg skal reise til Bergen», sa Kari."
+          },
+          {
+            "id": "s4",
+            "text": "Han spurte om jeg kom på festen.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Kommer du på festen?», spurte han."
+          },
+          {
+            "id": "s5",
+            "text": "Læreren sa at vi kunne gå hjem.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Dere kan gå hjem», sa læreren."
+          },
+          {
+            "id": "s6",
+            "text": "Han sa at han hadde spist allerede.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Jeg har spist allerede», sa han."
+          },
+          {
+            "id": "s7",
+            "text": "Hun sier at hun er syk.",
+            "gaps": [
+              4
+            ],
+            "hint": "«Jeg er syk», sier hun."
+          }
+        ],
+        "distractors": [],
+        "settings": {
+          "shuffle": true,
+          "allowReuse": false,
+          "showBankCount": false,
+          "caseSensitive": false,
+          "input": "free"
+        }
+      },
+      "expectedAnswers": {
+        "feedback": {
+          "s1#4": {
+            "fallback": "Глагол говорения «sa» в прошедшем — presens сдвигается в preteritum.",
+            "why": "«Jeg er trøtt» → er сдвигается на шаг назад: var.",
+            "pairs": {}
+          },
+          "s2#4": {
+            "fallback": "Presens после «sa» сдвигается в preteritum.",
+            "why": "«Snakker» → snakket. У глаголов на -et допустима и форма на -a: snakka.",
+            "pairs": {}
+          },
+          "s3#4": {
+            "fallback": "Модальный глагол тоже сдвигается: skal → …",
+            "why": "«Jeg skal reise» → skulle reise.",
+            "pairs": {}
+          },
+          "s4#4": {
+            "fallback": "«Spurte» — прошедшее, значит presens в придаточном сдвигается.",
+            "why": "«Kommer du?» → om jeg kom. Инверсии в косвенном вопросе нет.",
+            "pairs": {}
+          },
+          "s5#4": {
+            "fallback": "Модальный kan после «sa» сдвигается на шаг назад.",
+            "why": "«Dere kan gå» → at vi kunne gå.",
+            "pairs": {}
+          },
+          "s6#4": {
+            "fallback": "Perfektum после прошедшего становится pluskvamperfektum — меняется вспомогательный глагол.",
+            "why": "«Har spist» → hadde spist. Причастие при этом не меняется.",
+            "pairs": {}
+          },
+          "s7#4": {
+            "fallback": "Посмотрите на глагол говорения: он стоит в настоящем времени.",
+            "why": "После «sier» время НЕ сдвигается: «Jeg er syk» → at hun er syk.",
+            "pairs": {}
+          }
+        },
+        "alternatives": {
+          "s2#4": [
+            "snakka"
+          ]
+        }
+      }
+    },
+    {
       "key": "b1-g2-ind1",
       "template": "short_answer",
       "instruction": "Перепишите в косвенную речь (глагол в прошедшем → сдвиг времени).",
@@ -4057,89 +4175,50 @@
       "instruction": "В каждом предложении один фрагмент содержит ошибку в косвенной речи. Найдите и исправьте её.",
       "hint": "Помните: после глагола говорения в прошедшем времени время сдвигается на шаг назад, а после «om» инверсии нет.",
       "content": {
-        "mistake_count": 3,
-        "context": "Indirekte tale — setninger om tekst 1A.",
+        "mode": "sentences",
+        "note": "Indirekte tale — setninger om tekst 1A.",
         "items": [
           {
             "id": "s-0",
-            "chunks": [
-              {
-                "id": "c-0",
-                "text": "Anne sa"
-              },
-              {
-                "id": "c-1",
-                "text": "at søknaden var god,"
-              },
-              {
-                "id": "c-2",
-                "text": "men at han har noen skrivefeil."
-              }
-            ]
+            "wrong": "Anne sa at søknaden var god, men at han har noen skrivefeil."
           },
           {
             "id": "s-1",
-            "chunks": [
-              {
-                "id": "c-0",
-                "text": "Bartek fortalte Anne"
-              },
-              {
-                "id": "c-1",
-                "text": "at han skal søke"
-              },
-              {
-                "id": "c-2",
-                "text": "på stillingen med en gang."
-              }
-            ]
+            "wrong": "Bartek fortalte Anne at han skal søke på stillingen med en gang."
           },
           {
             "id": "s-2",
-            "chunks": [
-              {
-                "id": "c-0",
-                "text": "Kari spør"
-              },
-              {
-                "id": "c-1",
-                "text": "om har han fagbrev"
-              },
-              {
-                "id": "c-2",
-                "text": "som elektriker."
-              }
-            ]
+            "wrong": "Kari spør om har han fagbrev som elektriker."
           }
         ]
       },
       "expectedAnswers": {
-        "corrections": [
-          {
-            "item_id": "s-0",
-            "chunk_id": "c-2",
-            "accepted": [
-              "men at han hadde noen skrivefeil."
-            ],
-            "note": "Tidsforskyvning etter «sa»: presens «har» → preteritum «hadde»."
+        "items": {
+          "s-0": {
+            "ref": "Anne sa at søknaden var god, men at han hadde noen skrivefeil.",
+            "meta": {
+              "9:10:hadde": {
+                "note": "Tidsforskyvning etter «sa»: presens «har» → preteritum «hadde»."
+              }
+            }
           },
-          {
-            "item_id": "s-1",
-            "chunk_id": "c-1",
-            "accepted": [
-              "at han skulle søke"
-            ],
-            "note": "Tidsforskyvning etter «fortalte»: «skal» → «skulle»."
+          "s-1": {
+            "ref": "Bartek fortalte Anne at han skulle søke på stillingen med en gang.",
+            "meta": {
+              "5:6:skulle": {
+                "note": "Tidsforskyvning etter «fortalte»: «skal» → «skulle»."
+              }
+            }
           },
-          {
-            "item_id": "s-2",
-            "chunk_id": "c-1",
-            "accepted": [
-              "om han har fagbrev"
-            ],
-            "note": "I indirekte spørsmål er det ingen inversjon: «om han har», ikke «om har han»."
+          "s-2": {
+            "ref": "Kari spør om han har fagbrev som elektriker.",
+            "meta": {
+              "3:5:han har": {
+                "note": "I indirekte spørsmål er det ingen inversjon: «om han har», ikke «om har han»."
+              }
+            }
           }
-        ]
+        }
       }
     },
     {

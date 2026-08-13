@@ -46,6 +46,19 @@ export class ReviewCardRequest {
   @IsString()
   @MaxLength(128)
   idempotencyKey?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'The learner has been shown that today’s review quota is met and chose to keep ' +
+      'going. Lifts the daily review cap for this submission — send it only in answer ' +
+      'to that choice, never by default. It has no effect on the daily new-card cap, ' +
+      'which exists for a cost that falls weeks later.',
+    default: false,
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  carryOnPastLimit?: boolean;
 }
 
 export class GetDueCardsRequest {

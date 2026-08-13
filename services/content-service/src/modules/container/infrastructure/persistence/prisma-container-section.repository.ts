@@ -52,16 +52,30 @@ export class PrismaContainerSectionRepository implements IContainerSectionReposi
     return result._max.position ?? -1;
   }
 
+  /**
+   * Two passes inside one transaction, for the same reason as
+   * `PrismaContainerItemRepository.reorder`: `unique(containerVersionId,
+   * position)` is checked row by row, so the new positions can only be written
+   * once the old ones have been vacated onto negatives.
+   */
   async reorder(versionId: string, sections: { id: string; position: number }[]): Promise<void> {
-    // Transaction avoids violating unique(containerVersionId, position) mid-update.
-    await this.prisma.$transaction(
-      sections.map((section) =>
-        this.prisma.containerSection.update({
+    if (sections.length === 0) return;
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const [index, section] of sections.entries()) {
+        await tx.containerSection.update({
+          where: { id: section.id, containerVersionId: versionId },
+          data: { position: -(index + 1) },
+        });
+      }
+
+      for (const section of sections) {
+        await tx.containerSection.update({
           where: { id: section.id, containerVersionId: versionId },
           data: { position: section.position },
-        }),
-      ),
-    );
+        });
+      }
+    });
   }
 
   async unassignItems(sectionId: string): Promise<void> {

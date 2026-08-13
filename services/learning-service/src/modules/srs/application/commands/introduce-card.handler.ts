@@ -1,5 +1,7 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject, Logger } from '@nestjs/common';
+import { LEARNING_EVENT_TYPES } from '@ssz/contracts';
+import type { SrsLimitRefusedPayload } from '@ssz/contracts';
 import { ReviewCard } from '../../domain/entities/review-card.entity.js';
 import { SRS_REPOSITORY, type ISrsRepository } from '../../domain/repositories/srs-repository.interface.js';
 import { SRS_LIMITS_POLICY, type ISrsLimitsPolicy } from '../ports/srs-limits-policy.port.js';
@@ -37,6 +39,7 @@ export class IntroduceCardHandler
     if (!cmd.seedKind) {
       const canIntroduce = await this.limitsPolicy.canIntroduceNewCard(cmd.userId, now);
       if (!canIntroduce) {
+        await this.recordRefusal(cmd, now);
         return Result.fail(new SrsNewCardLimitError());
       }
     }
@@ -60,5 +63,35 @@ export class IntroduceCardHandler
     card.clearDomainEvents();
 
     return Result.ok(toReviewCardDto(card));
+  }
+
+  /**
+   * Leave a trace of the one decision here that produces nothing (plan 37 §A.1).
+   *
+   * This is the case the calibration data is blind to: the caller has already done
+   * the work — the attempt was scored, progress written — and the card that would
+   * have carried it into the schedule is never created. Nothing downstream ever
+   * hears about it, so if it is not counted here it is not counted anywhere.
+   *
+   * Fails soft. Telemetry that can turn a refusal into a thrown exception would make
+   * the measurement worse than the gap it fills.
+   */
+  private async recordRefusal(cmd: IntroduceCardCommand, now: Date): Promise<void> {
+    try {
+      await this.limitsPolicy.recordRefusal(cmd.userId, 'new', now);
+
+      const payload: SrsLimitRefusedPayload = {
+        userId: cmd.userId,
+        kind: 'new',
+        contentType: cmd.contentType,
+        occurredAt: now.toISOString(),
+      };
+      await this.publisher.publish(LEARNING_EVENT_TYPES.SRS_LIMIT_REFUSED, payload);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to record new-card limit refusal for user ${cmd.userId}: ` +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    }
   }
 }

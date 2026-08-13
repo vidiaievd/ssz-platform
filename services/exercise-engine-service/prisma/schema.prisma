@@ -115,6 +115,11 @@ model Attempt {
   // attempt is evidence of — see docs/plan/36-srs-evidence-strength.md.
   answersRevealed Boolean @default(false) @map("answers_revealed")
 
+  // How many self-checks the learner has spent on this attempt. The budget itself is
+  // the exercise's (`flow.selfCheck`), not the attempt's — this only counts the
+  // spending, so that a client cannot buy itself more by asking again.
+  selfChecksUsed Int @default(0) @map("self_checks_used")
+
   startedAt   DateTime  @default(now()) @map("started_at")
   submittedAt DateTime? @map("submitted_at")
   scoredAt    DateTime? @map("scored_at")

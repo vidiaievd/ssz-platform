@@ -48,6 +48,28 @@ export class AttemptResponseDto {
 
   @ApiPropertyOptional({ nullable: true })
   feedback!: unknown;
+
+  @ApiProperty({ description: 'PRACTICE or GRADED, fixed when the attempt started' })
+  checkMode!: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      "The learner's own answer, exactly as submitted. Shape depends on templateCode. " +
+      'Always returned — it is what they typed, read back to them.',
+  })
+  submittedAnswer!: unknown;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'Validator output for the submission. PRACTICE attempts only: some validators ' +
+      'put the expected answer in here, and a GRADED attempt withheld it by design.',
+  })
+  validationDetails!: unknown;
+
+  @ApiProperty({ description: 'Whether the learner asked to be shown the answers.' })
+  answersRevealed!: boolean;
 }
 
 export class ListAttemptsResponseDto {

@@ -53,16 +53,35 @@ export class PrismaContainerItemRepository implements IContainerItemRepository {
     return result._max.position ?? -1;
   }
 
+  /**
+   * Rewrites the order of a version's items.
+   *
+   * In two passes, both inside one transaction. `unique(containerVersionId,
+   * position)` is a plain unique index, and Postgres checks those per row as
+   * they are written — a transaction does not postpone that, whatever grouping
+   * the statements arrive in. So swapping two neighbours by writing their final
+   * positions straight away fails the moment the first row lands on a position
+   * the second still holds.
+   *
+   * The first pass parks every row on a negative position, which nothing else
+   * can occupy, leaving the whole range free for the second pass to write into.
+   */
   async reorder(
     versionId: string,
     items: { id: string; position: number; sectionId?: string | null }[],
   ): Promise<void> {
-    // Use a transaction so the unique(containerVersionId, position) constraint
-    // is not violated mid-update. Prisma defers constraint checks to commit
-    // when all updates are grouped in a single interactive transaction.
-    await this.prisma.$transaction(
-      items.map((item) =>
-        this.prisma.containerItem.update({
+    if (items.length === 0) return;
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const [index, item] of items.entries()) {
+        await tx.containerItem.update({
+          where: { id: item.id, containerVersionId: versionId },
+          data: { position: -(index + 1) },
+        });
+      }
+
+      for (const item of items) {
+        await tx.containerItem.update({
           where: { id: item.id, containerVersionId: versionId },
           data: {
             position: item.position,
@@ -70,9 +89,9 @@ export class PrismaContainerItemRepository implements IContainerItemRepository {
             // from "explicitly set to null" (ungroup).
             ...('sectionId' in item ? { sectionId: item.sectionId ?? null } : {}),
           },
-        }),
-      ),
-    );
+        });
+      }
+    });
   }
 
   async copyCompositionToVersion(sourceVersionId: string, targetVersionId: string): Promise<void> {

@@ -35,8 +35,11 @@ const FREE_FORM_CODES = new Set(['translate_to_target', 'translate_from_target',
  * it describing neither, and would cost content-service the check it runs on save.
  *
  * The shape is checked in the per-type validator instead.
+ *
+ * `error_correction` joined it for the same reason: its key is a corrected sentence and
+ * its submission is a set of word-level edits.
  */
-const OWN_SUBMISSION_SHAPE = new Set(['word_bank_gap_fill']);
+const OWN_SUBMISSION_SHAPE = new Set(['word_bank_gap_fill', 'error_correction']);
 
 @Injectable()
 export class SchemaBasedAnswerValidator implements IAnswerValidator {

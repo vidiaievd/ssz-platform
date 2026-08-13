@@ -85,6 +85,7 @@ function makeHandler(overrides: {
     canReview: jest.fn<() => Promise<boolean>>().mockResolvedValue(overrides.canReview ?? true),
     incrementNewCardCount: jest.fn(),
     incrementReviewCount: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    recordRefusal: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   } as any;
 
   const publisher: IEventPublisher = {
@@ -198,6 +199,105 @@ describe('ReviewCardHandler', () => {
     const result = await handler.execute(cmd(card.id));
     expect(result.isFail).toBe(true);
     expect(result.error).toBeInstanceOf(SrsCardSuspendedError);
+  });
+
+  describe('carrying on past the daily cap (plan 37 §B.1)', () => {
+    function carryOn(cardId: string) {
+      return new ReviewCardCommand(USER_ID, cardId, 'GOOD', undefined, undefined, true);
+    }
+
+    it('reviews the card even though the cap is spent', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, repo, dueQueue } = makeHandler({ card, canReview: false });
+
+      const result = await handler.execute(carryOn(card.id));
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.dueAt).toBe(LATER.toISOString());
+      expect(repo.save).toHaveBeenCalledTimes(1);
+      expect(dueQueue.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps counting the reviews it lets through, so today’s total stays true', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy } = makeHandler({ card, canReview: false });
+
+      await handler.execute(carryOn(card.id));
+
+      expect(limitsPolicy.incrementReviewCount).toHaveBeenCalledTimes(1);
+    });
+
+    it('records no refusal — nothing was refused', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy } = makeHandler({ card, canReview: false });
+
+      await handler.execute(carryOn(card.id));
+
+      expect(limitsPolicy.recordRefusal).not.toHaveBeenCalled();
+    });
+
+    it('never touches the new-card cap, which is not the learner’s call', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy } = makeHandler({ card, canReview: false });
+
+      await handler.execute(carryOn(card.id));
+
+      expect(limitsPolicy.canIntroduceNewCard).not.toHaveBeenCalled();
+      expect(limitsPolicy.incrementNewCardCount).not.toHaveBeenCalled();
+    });
+
+    it('still refuses when the flag is absent', async () => {
+      const card = makeCard('REVIEW');
+      const { handler } = makeHandler({ card, canReview: false });
+
+      const result = await handler.execute(cmd(card.id));
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(SrsReviewLimitError);
+    });
+  });
+
+  describe('limit refusals are recorded (plan 37 §A.1)', () => {
+    it('counts the refusal and publishes it when the cap turns a review away', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy, publisher } = makeHandler({ card, canReview: false });
+
+      await handler.execute(cmd(card.id));
+
+      expect(limitsPolicy.recordRefusal).toHaveBeenCalledWith(USER_ID, 'review', NOW);
+      expect(publisher.publish).toHaveBeenCalledWith('learning.srs.limit_refused', {
+        userId: USER_ID,
+        kind: 'review',
+        contentType: 'EXERCISE',
+        occurredAt: NOW.toISOString(),
+      });
+    });
+
+    it('records nothing when the review goes through', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy, publisher } = makeHandler({ card });
+
+      await handler.execute(cmd(card.id));
+
+      expect(limitsPolicy.recordRefusal).not.toHaveBeenCalled();
+      expect(publisher.publish).not.toHaveBeenCalledWith(
+        'learning.srs.limit_refused',
+        expect.anything(),
+      );
+    });
+
+    it('still refuses when the telemetry write fails', async () => {
+      const card = makeCard('REVIEW');
+      const { handler, limitsPolicy } = makeHandler({ card, canReview: false });
+      (limitsPolicy.recordRefusal as jest.Mock<() => Promise<void>>).mockRejectedValue(
+        new Error('redis down'),
+      );
+
+      const result = await handler.execute(cmd(card.id));
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(SrsReviewLimitError);
+    });
   });
 
   describe('idempotency', () => {

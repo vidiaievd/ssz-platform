@@ -6,6 +6,7 @@ import { StartAttemptHandler } from './application/commands/start-attempt/start-
 import { SubmitAnswerHandler } from './application/commands/submit-answer/submit-answer.handler.js';
 import { AbandonAttemptHandler } from './application/commands/abandon-attempt/abandon-attempt.handler.js';
 import { RevealAnswersHandler } from './application/commands/reveal-answers/reveal-answers.handler.js';
+import { SelfCheckHandler } from './application/commands/self-check/self-check.handler.js';
 import { GetAttemptByIdHandler } from './application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
 import { ListUserAttemptsHandler } from './application/queries/list-user-attempts/list-user-attempts.handler.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
@@ -15,6 +16,7 @@ const CommandHandlers = [
   SubmitAnswerHandler,
   AbandonAttemptHandler,
   RevealAnswersHandler,
+  SelfCheckHandler,
 ];
 const QueryHandlers = [GetAttemptByIdHandler, ListUserAttemptsHandler];
 

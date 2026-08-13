@@ -162,7 +162,8 @@ export class SrsController {
     summary: 'Submit a review rating for a card',
     description:
       'Applies the FSRS algorithm, updates the card state, and returns the rescheduled card. ' +
-      'Counts against the daily review cap (SRS_DAILY_REVIEWS_LIMIT). ' +
+      'Counts against the daily review cap (SRS_DAILY_REVIEWS_LIMIT); past the cap, ' +
+      'resubmit with `carryOnPastLimit` once the learner has chosen to keep going. ' +
       'Pass `idempotencyKey` to make a replayed submission return the card unchanged.',
   })
   @ApiParam({ name: 'id', format: 'uuid' })
@@ -170,7 +171,10 @@ export class SrsController {
   @ApiResponse({ status: 404, description: 'Card not found' })
   @ApiResponse({ status: 403, description: 'Card belongs to another user' })
   @ApiResponse({ status: 422, description: 'Card is suspended' })
-  @ApiResponse({ status: 429, description: 'Daily review limit reached' })
+  @ApiResponse({
+    status: 429,
+    description: 'Daily review limit reached — offer to carry on, then retry with the flag',
+  })
   async reviewCard(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
@@ -183,6 +187,7 @@ export class SrsController {
         body.rating,
         body.reviewedAt ? new Date(body.reviewedAt) : undefined,
         body.idempotencyKey,
+        body.carryOnPastLimit,
       ),
     );
     return this.unwrap(result);

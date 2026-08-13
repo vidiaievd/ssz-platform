@@ -251,19 +251,34 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       }),
       this.prisma.containerVersion.findMany({
         where: { containerId: { in: moduleContainerIds }, status: { in: ['DRAFT', 'PUBLISHED'] } },
-        select: { id: true, containerId: true, status: true },
+        select: { id: true, containerId: true, status: true, versionNumber: true },
       }),
     ]);
 
     const containerById = new Map(containers.map((c) => [c.id, c]));
     const titleEnByContainerId = new Map(localizations.map((l) => [l.containerId, l.title]));
 
-    // Prefer the draft version for authoring; fall back to published when no draft exists.
-    const chosenVersionByContainerId = new Map<string, { id: string }>();
+    // Prefer the draft version for authoring; fall back to published when no
+    // draft exists. Between two candidates of the same standing the newest wins
+    // — a container should only ever have one draft, but an interrupted publish
+    // can leave two, and picking by row order would hand the editor one version
+    // while every mutation it makes goes to the other.
+    const chosenVersionByContainerId = new Map<
+      string,
+      { id: string; status: string; versionNumber: number }
+    >();
     for (const v of versionCandidates) {
       const current = chosenVersionByContainerId.get(v.containerId);
-      if (!current || v.status === 'DRAFT') {
-        chosenVersionByContainerId.set(v.containerId, { id: v.id });
+      const better =
+        !current ||
+        (v.status === 'DRAFT' && current.status !== 'DRAFT') ||
+        (v.status === current.status && v.versionNumber > current.versionNumber);
+      if (better) {
+        chosenVersionByContainerId.set(v.containerId, {
+          id: v.id,
+          status: v.status,
+          versionNumber: v.versionNumber,
+        });
       }
     }
 

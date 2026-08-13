@@ -136,6 +136,10 @@ interface Fixture {
   publishedVersionByContainerId?: Record<string, string>;
   /** Content ids the published versions place, keyed by published version id. */
   liveItemIdsByVersionId?: Record<string, string[]>;
+  /** Version rows the module containers have, when the default single draft is not the point. */
+  moduleVersionRows?: { id: string; containerId: string; status: string; versionNumber: number }[];
+  /** Items of versions other than the course's and the module's default draft. */
+  extraItemsByVersionId?: Record<string, ContainerItemEntity[]>;
 }
 
 function makeHandler(fixture: Fixture = {}) {
@@ -172,7 +176,7 @@ function makeHandler(fixture: Fixture = {}) {
           [moduleItem, fixture.ownItem ?? null].filter((i): i is ContainerItemEntity => i !== null),
         );
       if (versionId === MODULE_VERSION_ID) return Promise.resolve(lessonItem ? [lessonItem] : []);
-      return Promise.resolve([]);
+      return Promise.resolve(fixture.extraItemsByVersionId?.[versionId] ?? []);
     }),
   } as unknown as IContainerItemRepository;
 
@@ -211,7 +215,11 @@ function makeHandler(fixture: Fixture = {}) {
     containerVersion: {
       findMany: jest
         .fn()
-        .mockResolvedValue([{ id: MODULE_VERSION_ID, containerId: MODULE_ID, status: 'DRAFT' }]),
+        .mockResolvedValue(
+          fixture.moduleVersionRows ?? [
+            { id: MODULE_VERSION_ID, containerId: MODULE_ID, status: 'DRAFT', versionNumber: 1 },
+          ],
+        ),
     },
     lesson: {
       findMany: jest
@@ -479,6 +487,57 @@ describe('GetCurriculumTreeHandler', () => {
     expect(result.isOk).toBe(true);
     if (result.isFail) return;
     expect(result.value.levels[0].items[0].isLive).toBe(false);
+  });
+
+  /**
+   * A container should hold one draft at a time, but an interrupted publish can
+   * leave the version it was publishing in draft alongside the fresh one. The
+   * editor and every mutation it sends resolve the version separately, so the
+   * rule has to be the same on both sides — here, the newest draft.
+   */
+  it('reads the newest draft when a container was left holding two', async () => {
+    const newerDraftId = 'module-version-2';
+    const newerItem = ContainerItemEntity.create(
+      {
+        containerVersionId: newerDraftId,
+        position: 0,
+        itemType: ContainerItemType.LESSON,
+        itemId: LESSON_ID,
+        sectionId: undefined,
+      },
+      'lesson-item-2',
+    );
+
+    const handler = makeHandler({
+      // Newest first, which is the order the old rule got wrong: it kept the
+      // last draft it saw rather than the highest-numbered one.
+      moduleVersionRows: [
+        { id: newerDraftId, containerId: MODULE_ID, status: 'DRAFT', versionNumber: 4 },
+        { id: MODULE_VERSION_ID, containerId: MODULE_ID, status: 'DRAFT', versionNumber: 2 },
+      ],
+      extraItemsByVersionId: { [newerDraftId]: [newerItem] },
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    const module = result.value.levels[0]!.modules[0]!;
+    expect(module.versionId).toBe(newerDraftId);
+    expect(module.ungroupedItems.map((i) => i.id)).toEqual(['lesson-item-2']);
+  });
+
+  it('still prefers a draft over a published version, whatever their numbers', async () => {
+    const handler = makeHandler({
+      moduleVersionRows: [
+        { id: 'module-version-published', containerId: MODULE_ID, status: 'PUBLISHED', versionNumber: 9 },
+        { id: MODULE_VERSION_ID, containerId: MODULE_ID, status: 'DRAFT', versionNumber: 2 },
+      ],
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.levels[0]!.modules[0]!.versionId).toBe(MODULE_VERSION_ID);
   });
 
   it('groups sectionless modules into a trailing ungrouped level', async () => {

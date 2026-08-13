@@ -2,132 +2,172 @@ import { ErrorCorrectionValidator } from '../../../../src/infrastructure/validat
 
 const validator = new ErrorCorrectionValidator();
 
-type Correction = { item_id: string; chunk_id: string; accepted: string[]; note?: string };
+/** The content column: what a student may see. */
+const content = {
+  mode: 'sentences',
+  items: [
+    { id: 'i1', wrong: 'I går jeg gikk på kino.' },
+    { id: 'i2', wrong: 'Hun har bodde i Bergen.' },
+  ],
+};
 
-const expected: Correction[] = [
-  { item_id: '1', chunk_id: 'c5', accepted: ['she was warming to me'], note: 'warm to sb' },
-  { item_id: '2', chunk_id: 'c3', accepted: ['make up your mind'] },
-  { item_id: '3', chunk_id: 'c4', accepted: ['show off'] },
-];
+/** The expected_answers column: the key, keyed by item id. */
+const expectedAnswers = {
+  items: {
+    i1: { ref: 'I går gikk jeg på kino.' },
+    i2: { ref: 'Hun har bodd i Bergen.' },
+  },
+};
 
-const run = (corrections: Correction[], settings: Record<string, unknown> = {}) =>
+type Edits = {
+  marked?: Record<string, boolean>;
+  fix?: Record<string, string>;
+  ins?: Record<string, string>;
+};
+
+const run = (
+  items: Record<string, Edits>,
+  overrides: { content?: unknown; expectedAnswers?: unknown } = {},
+) =>
   validator.validate({
-    submittedAnswer: { corrections },
-    expectedAnswers: { corrections: expected },
-    checkSettings: settings,
-    targetLanguage: 'en',
+    submittedAnswer: { items },
+    expectedAnswers: overrides.expectedAnswers ?? expectedAnswers,
+    content: overrides.content ?? content,
+    checkSettings: {},
+    targetLanguage: 'nb',
   });
 
-const fix = (itemId: string, chunkId: string, text: string): Correction => ({
-  item_id: itemId,
-  chunk_id: chunkId,
-  accepted: [text],
-});
+/** Both sentences corrected exactly as the key has them. */
+const perfect = {
+  i1: { marked: { 2: true, 3: true }, fix: { 2: 'gikk', 3: 'jeg' } },
+  i2: { marked: { 2: true }, fix: { 2: 'bodd' } },
+};
 
-const outcomes = (result: ReturnType<typeof run>) =>
-  (result.value.details as { corrections: Array<{ chunk_id: string; outcome: string }> }).corrections;
+const detail = (result: ReturnType<typeof run>, itemId: string) =>
+  (result.value.details as { items: Array<{ itemId: string; verdict: string; state?: string }> }).items.find(
+    (item) => item.itemId === itemId,
+  );
 
 describe('ErrorCorrectionValidator', () => {
-  it('scores 100 when every mistake is found and rewritten', () => {
-    const result = run([
-      fix('1', 'c5', 'she was warming to me'),
-      fix('2', 'c3', 'make up your mind'),
-      fix('3', 'c4', 'show off'),
-    ]);
+  it('passes an answer identical to the key, without a teacher', () => {
+    const result = run(perfect);
 
     expect(result.isOk).toBe(true);
-    expect(result.value.score).toBe(100);
-    expect(result.value.correct).toBe(true);
     expect(result.value.requiresReview).toBe(false);
+    expect(result.value.correct).toBe(true);
+    expect(result.value.score).toBe(100);
   });
 
-  it('separates a missed mistake from a wrong rewrite', () => {
-    const result = run([fix('1', 'c5', 'she was warming with me')]);
-    const byChunk = new Map(outcomes(result).map((c) => [c.chunk_id, c.outcome]));
+  // The rule the whole template rests on: a machine may approve, never reject.
+  it('routes a partly corrected answer to the teacher rather than marking it wrong', () => {
+    const result = run({ i1: perfect.i1 });
 
-    expect(byChunk.get('c5')).toBe('wrong_fix');
-    expect(byChunk.get('c3')).toBe('missed');
-    expect(result.value.score).toBe(0);
-  });
-
-  it('gives partial credit per mistake fixed', () => {
-    const result = run([fix('1', 'c5', 'she was warming to me'), fix('2', 'c3', 'make up your mind')]);
-
-    expect(result.value.score).toBe(67);
+    expect(result.value.requiresReview).toBe(true);
     expect(result.value.correct).toBe(false);
+    expect(detail(result, 'i1')?.verdict).toBe('exact');
+    expect(detail(result, 'i2')?.verdict).toBe('empty');
   });
 
-  describe('false positives', () => {
-    it('costs a point for rewriting a sound chunk', () => {
-      const result = run([
-        fix('1', 'c5', 'she was warming to me'),
-        fix('2', 'c3', 'make up your mind'),
-        fix('1', 'c1', 'I saw'), // untouched by the answer key
-      ]);
-
-      // 2 fixed − 1 false positive = 1 of 3.
-      expect(result.value.score).toBe(33);
-      expect(outcomes(result).find((c) => c.chunk_id === 'c1')!.outcome).toBe('false_positive');
+  it('routes a single typo to the teacher too — it is not the machine\'s call', () => {
+    const result = run({
+      ...perfect,
+      i2: { marked: { 2: true }, fix: { 2: 'bod' } },
     });
 
-    it('never drops below zero', () => {
-      const result = run([fix('1', 'c1', 'a'), fix('1', 'c2', 'b'), fix('2', 'c9', 'c')]);
-      expect(result.value.score).toBe(0);
+    expect(result.value.requiresReview).toBe(true);
+  });
+
+  it('routes a right answer reached by rewriting more than the mistake', () => {
+    const result = run({
+      ...perfect,
+      i1: { marked: { 2: true, 3: true, 5: true }, fix: { 2: 'gikk', 3: 'jeg', 5: 'teater.' } },
     });
 
-    it('is not scored when penalize_false_positives is off', () => {
-      const result = run(
-        [
-          fix('1', 'c5', 'she was warming to me'),
-          fix('2', 'c3', 'make up your mind'),
-          fix('1', 'c1', 'I saw'),
-        ],
-        { penalize_false_positives: false },
-      );
+    expect(result.value.requiresReview).toBe(true);
+    expect(detail(result, 'i1')?.verdict).toBe('stray');
+  });
 
-      expect(result.value.score).toBe(67);
+  // An alternative is a whole sentence, and reaching it can leave the mistake the key
+  // points at untouched — here the student rebuilt the sentence around it. With
+  // `requireAllSpans` on, the handoff's default, that is exactly the case a teacher
+  // should see rather than a machine wave through.
+  describe('a sentence the author listed as an alternative', () => {
+    const viaAlt = {
+      i1: perfect.i1,
+      i2: { marked: { 1: true, 2: true }, fix: { 1: 'bodde', 2: 'lenge' } },
+    };
+    const withAlt = {
+      items: {
+        i1: expectedAnswers.items.i1,
+        i2: { ref: 'Hun har bodd i Bergen.', alts: ['Hun bodde lenge i Bergen.'] },
+      },
+    };
+
+    it('is exact, and still goes to the teacher while every mistake must be touched', () => {
+      const result = run(viaAlt, { expectedAnswers: withAlt });
+
+      expect(detail(result, 'i2')?.verdict).toBe('exact');
+      expect(result.value.requiresReview).toBe(true);
     });
 
-    it('blocks a full pass even when every mistake was fixed', () => {
-      const result = run([
-        fix('1', 'c5', 'she was warming to me'),
-        fix('2', 'c3', 'make up your mind'),
-        fix('3', 'c4', 'show off'),
-        fix('1', 'c1', 'I saw'),
-      ]);
+    // Reaching an alternative trips both guards at once: the key's mistake is left
+    // untouched, and the words rewritten instead count as edits outside it. Passing an
+    // alternative automatically therefore takes both settings, which is worth knowing
+    // before an author wonders why their accepted variant still needs a teacher.
+    it('passes only once both guards are off', () => {
+      const result = run(viaAlt, {
+        expectedAnswers: withAlt,
+        content: { ...content, check: { requireAllSpans: false, strayEdits: 'ignore' } },
+      });
 
-      expect(result.value.correct).toBe(false);
+      expect(result.value.requiresReview).toBe(false);
+      expect(result.value.correct).toBe(true);
     });
   });
 
-  it('ignores an edit the learner cleared back to empty', () => {
-    const result = run([fix('1', 'c5', 'she was warming to me'), fix('1', 'c1', '   ')]);
-    const byChunk = new Map(outcomes(result).map((c) => [c.chunk_id, c.outcome]));
+  it('reports what the student produced and which mistakes they reached', () => {
+    const result = run({ i1: perfect.i1 });
+    const item = detail(result, 'i1') as unknown as {
+      built: string;
+      fixedSpans: number;
+      totalSpans: number;
+      spans: Array<{ type: string; state: string; submitted: string }>;
+      edits: unknown;
+    };
 
-    expect(byChunk.has('c1')).toBe(false);
-    expect(result.value.score).toBe(33);
+    expect(item.built).toBe('I går gikk jeg på kino.');
+    expect(item.fixedSpans).toBe(1);
+    expect(item.totalSpans).toBe(1);
+    expect(item.spans[0]).toMatchObject({ type: 'order', state: 'fixed', submitted: 'gikk jeg' });
+    // The edits travel with the judgement: which mistake was found cannot be
+    // recovered from a rewritten sentence.
+    expect(item.edits).toEqual({ ...perfect.i1, ins: {} });
   });
 
-  it('is case-insensitive and collapses whitespace by default', () => {
-    const result = run([fix('1', 'c5', '  She Was   Warming to me ')]);
-    expect(outcomes(result).find((c) => c.chunk_id === 'c5')!.outcome).toBe('fixed');
-  });
+  it('routes an untouched exercise rather than scoring it zero', () => {
+    const result = run({});
 
-  it('respects case_sensitive: true', () => {
-    const result = run([fix('1', 'c5', 'She was warming to me')], { case_sensitive: true });
-    expect(outcomes(result).find((c) => c.chunk_id === 'c5')!.outcome).toBe('wrong_fix');
-  });
-
-  it('is all-or-nothing when allow_partial_credit is false', () => {
-    const result = run([fix('1', 'c5', 'she was warming to me')], { allow_partial_credit: false });
+    expect(result.value.requiresReview).toBe(true);
     expect(result.value.score).toBe(0);
   });
 
-  it('carries the author note through for feedback', () => {
-    const result = run([fix('1', 'c5', 'wrong')]);
-    const entry = (result.value.details as { corrections: Array<{ chunk_id: string; note?: string }> })
-      .corrections.find((c) => c.chunk_id === 'c5')!;
+  it('rejects a submission that is not a set of edits', () => {
+    const result = validator.validate({
+      submittedAnswer: { corrections: [] },
+      expectedAnswers,
+      content,
+      checkSettings: {},
+      targetLanguage: 'nb',
+    });
 
-    expect(entry.note).toBe('warm to sb');
+    expect(result.isFail).toBe(true);
+    expect(result.error.code).toBe('SCHEMA_MISMATCH');
+  });
+
+  it('refuses an exercise with no sentences', () => {
+    const result = run({}, { content: { items: [] } });
+
+    expect(result.isFail).toBe(true);
+    expect(result.error.code).toBe('INVALID_EXERCISE');
   });
 });

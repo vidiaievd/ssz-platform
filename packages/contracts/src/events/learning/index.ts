@@ -19,6 +19,7 @@ export const LEARNING_EVENT_TYPES = {
   SUBMISSION_RESUBMITTED: 'learning.submission.resubmitted',
   VOCABULARY_LOOKED_UP: 'learning.vocabulary.looked_up',
   ATTEMPT_RATED: 'learning.attempt.rated',
+  SRS_LIMIT_REFUSED: 'learning.srs.limit_refused',
 } as const;
 
 // ─── Assignment payload interfaces ────────────────────────────────────────────
@@ -200,6 +201,27 @@ export interface AttemptRatedPayload {
   ratingApplied: 'AGAIN' | 'HARD' | 'GOOD' | 'EASY';
 }
 
+/**
+ * A daily SRS cap turned something down (plan 37 §A.1).
+ *
+ * The two caps — new cards and reviews — are the only decisions the scheduler makes
+ * that leave no trace anywhere: `learning.attempt.rated` is written once a rating has
+ * reached FSRS, so the refused cases are precisely the ones missing from it. Without
+ * this event "is 20 the right number" cannot be answered at all, only argued about.
+ *
+ * Purely quantitative: how often, to whom, and which of the two caps. What the
+ * material was is not asked, so `contentType` is the kind of card, not its content.
+ */
+export interface SrsLimitRefusedPayload {
+  userId: string;
+  /** Which cap refused: the new-card intake or the daily review budget. */
+  kind: 'new' | 'review';
+  /** Card kind the refusal fell on — EXERCISE | EXERCISE_GAP | VOCABULARY_WORD. */
+  contentType: string;
+  /** When the refusal happened, as the scheduler saw the day. */
+  occurredAt: string;
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type AssignmentCreatedEvent = BaseEvent<AssignmentCreatedPayload>;
@@ -222,3 +244,4 @@ export type SubmissionResubmittedEvent = BaseEvent<SubmissionResubmittedPayload>
 export type VocabularyLookedUpEvent = BaseEvent<VocabularyLookedUpPayload>;
 
 export type AttemptRatedEvent = BaseEvent<AttemptRatedPayload>;
+export type SrsLimitRefusedEvent = BaseEvent<SrsLimitRefusedPayload>;
