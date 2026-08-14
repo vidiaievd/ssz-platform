@@ -44,6 +44,7 @@ import { GetBestExplanationHandler } from './application/queries/get-best-explan
 import { GetPoolEntriesHandler } from './application/queries/get-pool-entries/get-pool-entries.handler.js';
 import { GetRandomPoolExerciseHandler } from './application/queries/get-random-pool-exercise/get-random-pool-exercise.handler.js';
 import { GetPoolExerciseIdsHandler } from './application/queries/get-pool-exercise-ids/get-pool-exercise-ids.handler.js';
+import { GetExerciseRuleLinksHandler } from './application/queries/get-exercise-rule-links/get-exercise-rule-links.handler.js';
 
 // Controller
 import { GrammarRuleController } from './presentation/controllers/grammar-rule.controller.js';
@@ -73,6 +74,7 @@ const QueryHandlers = [
   GetPoolEntriesHandler,
   GetRandomPoolExerciseHandler,
   GetPoolExerciseIdsHandler,
+  GetExerciseRuleLinksHandler,
 ];
 
 @Module({
