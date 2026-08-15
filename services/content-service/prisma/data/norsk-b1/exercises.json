@@ -622,6 +622,188 @@
           "ordstilling"
         ]
       }
+    },
+    {
+      "key": "b1-g1-tr-01",
+      "template": "translate_to_target",
+      "instruction": "Переведите на норвежский. Каждое предложение начинается со слова-связки.",
+      "hint": "Наречие-связка на первом месте → глагол на втором, подлежащее после него.",
+      "content": {
+        "dir": "to_target",
+        "langs": {
+          "explain": "Russisk",
+          "target": "Norsk"
+        },
+        "format": "set",
+        "note": "Связка занимает первое место, поэтому дальше идёт глагол, а не подлежащее.",
+        "items": [
+          {
+            "id": "s1",
+            "dir": "to_target",
+            "source": "Мне было одиноко. Поэтому я записался в хор.",
+            "gloss": [
+              {
+                "w": "записался в хор",
+                "t": "meldte meg inn i et kor"
+              }
+            ]
+          },
+          {
+            "id": "s2",
+            "dir": "to_target",
+            "source": "Это было трудно. Тем не менее она не сдалась.",
+            "hint": "«Likevel» — тоже наречие, значит порядок слов такой же.",
+            "gloss": [
+              {
+                "w": "сдаться",
+                "t": "gi opp"
+              }
+            ]
+          },
+          {
+            "id": "s3",
+            "dir": "to_target",
+            "source": "У него есть удостоверение электрика. К тому же он говорит по-норвежски хорошо.",
+            "gloss": [
+              {
+                "w": "удостоверение (о профессии)",
+                "t": "fagbrev (et)"
+              }
+            ]
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "items": {
+          "s1": {
+            "refs": [
+              "Jeg var ensom. Derfor meldte jeg meg inn i et kor.",
+              "Jeg følte meg ensom. Derfor meldte jeg meg inn i et kor."
+            ],
+            "require": [
+              {
+                "text": "Derfor meldte",
+                "note": "«Derfor» стоит первым, поэтому глагол идёт перед подлежащим: «Derfor meldte jeg …»."
+              }
+            ],
+            "forbid": [
+              {
+                "text": "Derfor jeg",
+                "note": "После наречия-связки прямой порядок слов невозможен — это самая частая ошибка в этой теме."
+              }
+            ],
+            "explanation": "Связка «derfor» — наречие, а не союз: она занимает первое место и вызывает инверсию."
+          },
+          "s2": {
+            "refs": [
+              "Det var vanskelig. Likevel ga hun ikke opp."
+            ],
+            "require": [
+              {
+                "text": "Likevel ga",
+                "note": "«Likevel» ведёт себя как «derfor»: глагол сразу после него."
+              }
+            ],
+            "forbid": [],
+            "explanation": "«Selv om» — союз (прямой порядок), «likevel» — наречие (инверсия). Здесь второе."
+          },
+          "s3": {
+            "refs": [
+              "Han har fagbrev( som elektriker|). Dessuten snakker han norsk godt.",
+              "Han har fagbrev( som elektriker|). Dessuten snakker han godt norsk."
+            ],
+            "require": [
+              {
+                "text": "Dessuten snakker",
+                "note": "«Dessuten» добавляет к сказанному и тоже требует инверсии."
+              }
+            ],
+            "forbid": [],
+            "explanation": "Добавление оформляется наречием «dessuten», после него — глагол."
+          }
+        }
+      }
+    },
+    {
+      "key": "b1-g2-tr-01",
+      "template": "translate_to_target",
+      "instruction": "Переведите на норвежский, передав слова говорящего косвенной речью.",
+      "hint": "Глагол говорения в прошедшем → время внутри сдвигается на шаг назад.",
+      "content": {
+        "dir": "to_target",
+        "langs": {
+          "explain": "Russisk",
+          "target": "Norsk"
+        },
+        "format": "set",
+        "note": "«at» — для утверждения, «om» — для вопроса «да/нет».",
+        "items": [
+          {
+            "id": "s1",
+            "dir": "to_target",
+            "source": "Бартек сказал, что он работает электриком.",
+            "gloss": [
+              {
+                "w": "электрик",
+                "t": "elektriker (en)"
+              }
+            ]
+          },
+          {
+            "id": "s2",
+            "dir": "to_target",
+            "source": "Она спросила, есть ли у меня водительские права.",
+            "hint": "Вопрос «да/нет» вводится словом «om».",
+            "gloss": [
+              {
+                "w": "водительские права",
+                "t": "førerkort (et)"
+              }
+            ]
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "items": {
+          "s1": {
+            "refs": [
+              "Bartek sa at han jobbet som elektriker."
+            ],
+            "require": [
+              {
+                "text": "jobbet",
+                "note": "«sa» — прошедшее время, поэтому «jobber» сдвигается в «jobbet»."
+              }
+            ],
+            "forbid": [
+              {
+                "text": "at han jobber",
+                "note": "Настоящее время осталось бы, только если бы говорящий был в настоящем: «Bartek sier at han jobber …»."
+              }
+            ],
+            "explanation": "Утверждение вводится «at», время сдвигается на шаг назад."
+          },
+          "s2": {
+            "refs": [
+              "Hun spurte om jeg hadde førerkort.",
+              "Hun spurte om jeg hadde førerkort( klasse B|)."
+            ],
+            "require": [
+              {
+                "text": "om",
+                "note": "Вопрос «да/нет» вводится «om», а не «at» и не «hvis»."
+              }
+            ],
+            "forbid": [
+              {
+                "text": "hvis jeg",
+                "note": "«Hvis» — это «если» в условии, а не «ли» в вопросе."
+              }
+            ],
+            "explanation": "«Om» + прямой порядок слов; «har» → «hadde» после «spurte»."
+          }
+        }
+      }
     }
   ],
   "2": [
@@ -4296,6 +4478,51 @@
             "right_id": "r-4"
           }
         ]
+      }
+    },
+    {
+      "key": "b1-1a-tr-01",
+      "template": "translate_from_target",
+      "instruction": "Переведите на русский предложение из объявления о вакансии.",
+      "content": {
+        "dir": "from_target",
+        "langs": {
+          "explain": "Russisk",
+          "target": "Norsk"
+        },
+        "format": "single",
+        "note": "Здесь важен смысл, а не дословность: подберите естественную русскую формулировку.",
+        "items": [
+          {
+            "id": "s1",
+            "dir": "from_target",
+            "source": "Vi trenger en selvstendig og nøyaktig elektriker som kan lede mindre prosjekter.",
+            "hint": "«selvstendig» — о том, кто работает без присмотра.",
+            "gloss": [
+              {
+                "w": "selvstendig",
+                "t": "самостоятельный"
+              },
+              {
+                "w": "nøyaktig",
+                "t": "аккуратный, точный"
+              }
+            ]
+          }
+        ]
+      },
+      "expectedAnswers": {
+        "items": {
+          "s1": {
+            "refs": [
+              "Нам нужен самостоятельный и аккуратный электрик, который может вести небольшие проекты.",
+              "Нам ( нужен|требуется) самостоятельный и ( аккуратный|точный) электрик, который может руководить небольшими проектами."
+            ],
+            "require": [],
+            "forbid": [],
+            "explanation": "«Mindre prosjekter» здесь — «небольшие проекты», а не «меньше проектов»."
+          }
+        }
       }
     }
   ],
