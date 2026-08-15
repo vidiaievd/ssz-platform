@@ -1,3 +1,9 @@
+import 'reflect-metadata';
+import {
+  ACCESS_REQUIREMENT_KEY,
+  type AccessRequirement,
+} from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import {
   mutatingRoutes,
   unguardedRoutes,
@@ -38,5 +44,25 @@ describe('container write routes', () => {
     expect(mutatingRoutes(ContainerVersionController)).toEqual(
       expect.arrayContaining(['publish', 'cancelDraft']),
     );
+  });
+
+  /**
+   * A read route whose whole answer is "yes", which other services then act on. Demoted
+   * to 'view' it would tell every enrolled learner they may mark their classmates' work,
+   * and no test elsewhere would notice: the route would keep returning 200.
+   */
+  it('answers the edit-access question about editing, not viewing', () => {
+    const handler = Object.getOwnPropertyDescriptor(
+      ContainerController.prototype,
+      'checkEditAccess',
+    )?.value as object;
+    const requirement = Reflect.getMetadata(ACCESS_REQUIREMENT_KEY, handler) as
+      | AccessRequirement
+      | undefined;
+
+    expect(requirement).toEqual({
+      action: 'edit',
+      options: { entityType: TaggableEntityType.CONTAINER },
+    });
   });
 });

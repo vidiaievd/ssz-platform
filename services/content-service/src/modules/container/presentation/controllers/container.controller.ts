@@ -153,6 +153,26 @@ export class ContainerController {
     return ContainerResponseDto.from(container, localizations);
   }
 
+  /**
+   * Whether the caller may edit this container — a question, not a document.
+   *
+   * The course-level twin of `GET /exercises/:id/edit-access`, and it exists for the same
+   * caller: the web BFF opening a marking queue that lives in exercise-engine, which knows
+   * nothing about who owns a course. Asked once per course, it is what keeps the course
+   * inbox from being one access check per exercise in it — the exercises come out of this
+   * container's own tree, so the right to edit the course carries to all of them.
+   *
+   * `VisibilityGuard` answers by refusing the request, so a 200 *is* the answer.
+   */
+  @Get(':id/edit-access')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({ summary: 'Check whether the caller may edit this container' })
+  @ApiOkResponse({ description: '{ canEdit: true } — a refusal arrives as 403 or 404' })
+  checkEditAccess(): { canEdit: true } {
+    return { canEdit: true };
+  }
+
   @Get(':id/activity')
   @UseGuards(VisibilityGuard)
   @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER })
