@@ -24,7 +24,14 @@ import type {
   ReviewAttemptResult,
 } from '../../application/commands/review-attempt/review-attempt.handler.js';
 import { ReviewAttemptRequestDto } from '../dto/review-attempt.dto.js';
+import { SearchReviewQueueRequestDto } from '../dto/search-review-queue.dto.js';
 import type { Result } from '../../../../shared/kernel/result.js';
+
+/**
+ * A ceiling on the course, not on the page: the set is what the queue is *filtered* by,
+ * and a caller asking about ten thousand exercises has lost track of what it is asking.
+ */
+const MAX_EXERCISES_PER_QUEUE = 500;
 
 /**
  * The teacher's side of an attempt — service-to-service only.
@@ -56,7 +63,30 @@ export class InternalReviewController {
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
   ): Promise<ListReviewQueueResult> {
     return this.queryBus.execute<ListReviewQueueQuery, ListReviewQueueResult>(
-      new ListReviewQueueQuery(exerciseId, Math.min(limit, 100), offset),
+      new ListReviewQueueQuery([exerciseId], Math.min(limit, 100), offset),
+    );
+  }
+
+  /**
+   * The same queue over a set of exercises — a whole course, as the teacher's inbox asks
+   * for it.
+   *
+   * A POST for a read, because the filter is the caller's list of exercises: a course of
+   * two hundred exercises is seven thousand characters of UUID, which is a query string
+   * only in theory. The caller has been authorised once, against the course those
+   * exercises came out of.
+   */
+  @Post('review/search')
+  async searchReviewQueue(@Body() dto: SearchReviewQueueRequestDto): Promise<ListReviewQueueResult> {
+    const exerciseIds = [...new Set(dto.exerciseIds)];
+    if (exerciseIds.length > MAX_EXERCISES_PER_QUEUE) {
+      throw new UnprocessableEntityException(
+        `At most ${MAX_EXERCISES_PER_QUEUE} exercises may be queried at once`,
+      );
+    }
+
+    return this.queryBus.execute<ListReviewQueueQuery, ListReviewQueueResult>(
+      new ListReviewQueueQuery(exerciseIds, Math.min(dto.limit ?? 20, 100), dto.offset ?? 0),
     );
   }
 

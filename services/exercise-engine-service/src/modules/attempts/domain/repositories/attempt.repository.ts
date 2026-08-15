@@ -9,7 +9,7 @@ export interface FindUserAttemptsFilter {
   offset: number;
 }
 
-/** The review queue of one exercise: submissions waiting on a person, oldest first. */
+/** A review queue: submissions waiting on a person, oldest first. */
 export interface FindForReviewFilter {
   status: AttemptStatus;
   limit: number;
@@ -21,8 +21,14 @@ export interface IAttemptRepository {
   findInProgress(userId: string, exerciseId: string): Promise<Attempt | null>;
   findAllInProgressByExercise(exerciseId: string): Promise<Attempt[]>;
   findAllByUser(userId: string, filter: FindUserAttemptsFilter): Promise<{ items: Attempt[]; total: number }>;
-  findAllByExercise(
-    exerciseId: string,
+  /**
+   * The queue across a set of exercises. One exercise is the set of one — the teacher's
+   * screen for a whole course asks the same question of every exercise in it, and asking
+   * once keeps the paging honest: twenty oldest submissions of the course, not twenty of
+   * each exercise stitched together afterwards.
+   */
+  findAllByExercises(
+    exerciseIds: string[],
     filter: FindForReviewFilter,
   ): Promise<{ items: Attempt[]; total: number }>;
   save(attempt: Attempt): Promise<void>;

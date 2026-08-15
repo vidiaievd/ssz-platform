@@ -20,6 +20,8 @@ import type { Attempt } from '../../../domain/entities/attempt.entity.js';
 export interface ReviewQueueEntry {
   attemptId: string;
   userId: string;
+  /** Which exercise this submission belongs to — the only grouping a course inbox has. */
+  exerciseId: string;
   templateCode: string;
   submittedAnswer: unknown;
   submittedAt: Date | null;
@@ -45,12 +47,13 @@ export interface ListReviewQueueResult {
 }
 
 /**
- * The queue of one exercise, judged by the same engine that routed it here.
+ * The queue of one or many exercises, judged by the same engine that routed it here.
  *
- * The exercise definition is fetched once for the whole page — every attempt in it is on
- * the same exercise — and one bad attempt does not take the page down with it: a
- * submission the validator cannot read comes back with `details: null` rather than a 500,
- * because a teacher who cannot open their queue has no way to unblock the learner in it.
+ * Each exercise definition is fetched once per page however many of its submissions are
+ * on it, and one bad attempt does not take the page down with it: a submission the
+ * validator cannot read comes back with `details: null` rather than a 500, because a
+ * teacher who cannot open their queue has no way to unblock the learner in it. A whole
+ * exercise that cannot be fetched costs its own submissions their diff and nothing more.
  */
 @QueryHandler(ListReviewQueueQuery)
 export class ListReviewQueueHandler implements IQueryHandler<ListReviewQueueQuery> {
@@ -61,7 +64,7 @@ export class ListReviewQueueHandler implements IQueryHandler<ListReviewQueueQuer
   ) {}
 
   async execute(query: ListReviewQueueQuery): Promise<ListReviewQueueResult> {
-    const { items, total } = await this.attempts.findAllByExercise(query.exerciseId, {
+    const { items, total } = await this.attempts.findAllByExercises(query.exerciseIds, {
       status: 'ROUTED_FOR_REVIEW',
       limit: query.limit,
       offset: query.offset,
@@ -71,20 +74,17 @@ export class ListReviewQueueHandler implements IQueryHandler<ListReviewQueueQuer
       return { items: [], total, limit: query.limit, offset: query.offset };
     }
 
-    // One fetch for the page: every attempt in this queue is on the same exercise.
-    const defResult = await this.contentClient.getExerciseForAttempt(
-      query.exerciseId,
-      items[0]!.targetLanguage,
-      // The teacher's copy: the key is what the diff is drawn against.
-      'PRACTICE',
-    );
-    const def = defResult.isFail ? null : defResult.value;
+    // One fetch per exercise on this page, not per submission: a queue is typically many
+    // submissions of a few exercises, and the definition is the same for all of them.
+    const definitions = new Map<string, ExerciseDefinition | null>();
 
     const entries: ReviewQueueEntry[] = [];
     for (const attempt of items) {
+      const def = await this.definitionFor(attempt, definitions);
       entries.push({
         attemptId: attempt.id,
         userId: attempt.userId,
+        exerciseId: attempt.exerciseId,
         templateCode: attempt.templateCode,
         submittedAnswer: attempt.submittedAnswer,
         submittedAt: attempt.submittedAt,
@@ -96,6 +96,31 @@ export class ListReviewQueueHandler implements IQueryHandler<ListReviewQueueQuer
     }
 
     return { items: entries, total, limit: query.limit, offset: query.offset };
+  }
+
+  /**
+   * The exercise as its author left it, memoised for this page.
+   *
+   * Keyed by exercise and language, because the same exercise answered in two languages
+   * is two different keys to draw a diff against.
+   */
+  private async definitionFor(
+    attempt: Attempt,
+    cache: Map<string, ExerciseDefinition | null>,
+  ): Promise<ExerciseDefinition | null> {
+    const key = `${attempt.exerciseId}:${attempt.targetLanguage}`;
+    const cached = cache.get(key);
+    if (cached !== undefined) return cached;
+
+    const result = await this.contentClient.getExerciseForAttempt(
+      attempt.exerciseId,
+      attempt.targetLanguage,
+      // The teacher's copy: the key is what the diff is drawn against.
+      'PRACTICE',
+    );
+    const def = result.isFail ? null : result.value;
+    cache.set(key, def);
+    return def;
   }
 
   private async detailsFor(attempt: Attempt, def: ExerciseDefinition): Promise<unknown> {
