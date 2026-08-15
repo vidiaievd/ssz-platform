@@ -5,7 +5,7 @@ import {
   readEdits,
   route,
 } from '@ssz/shared-kernel/error-correction';
-import type { Item, Judgement, StudentEdits } from '@ssz/shared-kernel/error-correction';
+import type { Item, Judgement, Routing, StudentEdits } from '@ssz/shared-kernel/error-correction';
 import { Result } from '../../../shared/kernel/result.js';
 import { ValidationError } from '../../../shared/application/ports/answer-validator.port.js';
 import type { ValidationOutcome } from '../../../shared/application/ports/answer-validator.port.js';
@@ -56,31 +56,42 @@ export class ErrorCorrectionValidator implements IPerTypeValidator {
       return Result.fail(new ValidationError('INVALID_EXERCISE', 'Exercise has no sentences'));
     }
 
-    const judged = items.map((item) => ({
-      item,
-      edits: submitted[item.id],
-      judgement: judge(document.check, item, submitted[item.id]),
-    }));
+    const judged = items.map((item) => {
+      const judgement = judge(document.check, item, submitted[item.id]);
+      return {
+        item,
+        edits: submitted[item.id],
+        judgement,
+        // Kept per item rather than recomputed: the review queue credits a learner for
+        // every sentence the check closed on its own, and it reads that off this field.
+        routing: route(document.check, judgement),
+      };
+    });
 
     // An exercise routed to a teacher carries no score: the teacher's mark is the
     // score, and a number written now is one the teacher would have to overwrite.
-    const routed = judged.filter(({ judgement }) => route(document.check, judgement) === 'teacher');
+    const routed = judged.filter(({ routing }) => routing === 'teacher');
     const spanTotal = judged.reduce((sum, { judgement }) => sum + judgement.spanCount, 0);
     const fixedTotal = judged.reduce((sum, { judgement }) => sum + judgement.fixedCount, 0);
+
+    // For the teacher, not the learner: the handler forwards details only for templates
+    // that have declared them learner-facing, and this one has not.
+    const details = {
+      totalItems: items.length,
+      routedItems: routed.length,
+      passedItems: items.length - routed.length,
+      totalSpans: spanTotal,
+      fixedSpans: fixedTotal,
+      items: judged.map(({ item, edits, judgement, routing }) =>
+        toTeacherDetail(item, edits, judgement, routing),
+      ),
+    };
 
     if (routed.length > 0) {
       return Result.ok<ValidationOutcome, ValidationError>({
         correct: false,
         score: 0,
-        // For the teacher, not the learner: the handler forwards details only for
-        // templates that have declared them learner-facing, and this one has not.
-        details: {
-          totalItems: items.length,
-          routedItems: routed.length,
-          totalSpans: spanTotal,
-          fixedSpans: fixedTotal,
-          items: judged.map(({ item, edits, judgement }) => toTeacherDetail(item, edits, judgement)),
-        },
+        details,
         requiresReview: true,
       });
     }
@@ -88,13 +99,7 @@ export class ErrorCorrectionValidator implements IPerTypeValidator {
     return Result.ok<ValidationOutcome, ValidationError>({
       correct: true,
       score: 100,
-      details: {
-        totalItems: items.length,
-        routedItems: 0,
-        totalSpans: spanTotal,
-        fixedSpans: fixedTotal,
-        items: judged.map(({ item, edits, judgement }) => toTeacherDetail(item, edits, judgement)),
-      },
+      details,
       requiresReview: false,
     });
   }
@@ -107,10 +112,18 @@ export class ErrorCorrectionValidator implements IPerTypeValidator {
  * whole reason the answer is stored as edits is that "which mistake did they find?"
  * cannot be recovered from a rewritten sentence.
  */
-function toTeacherDetail(item: Item, edits: StudentEdits | undefined, judgement: Judgement) {
+function toTeacherDetail(
+  item: Item,
+  edits: StudentEdits | undefined,
+  judgement: Judgement,
+  routing: Routing,
+) {
   return {
     itemId: item.id,
     verdict: judgement.verdict,
+    // What the check did with this sentence by itself. The review handler credits a
+    // `pass` without asking the teacher, exactly as it does for translate.
+    routing,
     similarity: Number(judgement.sim.toFixed(3)),
     built: judgement.built,
     fixedSpans: judgement.fixedCount,
