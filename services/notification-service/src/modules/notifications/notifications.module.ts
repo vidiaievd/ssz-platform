@@ -18,9 +18,11 @@ import { EnrollmentRejectedHandler } from './handlers/enrollment-rejected.handle
 import { PlacementReviewReadyHandler } from './handlers/placement-review-ready.handler.js';
 import { GroupAssignedHandler } from './handlers/group-assigned.handler.js';
 import { StudentNudgedHandler } from './handlers/student-nudged.handler.js';
+import { AttemptReviewedHandler } from './handlers/attempt-reviewed.handler.js';
 import { AnalyticsConsumerService } from '../../infrastructure/messaging/analytics-consumer.service.js';
 import { SchedulingConsumerService } from '../../infrastructure/messaging/scheduling-consumer.service.js';
 import { OrganizationConsumerService } from '../../infrastructure/messaging/organization-consumer.service.js';
+import { ExerciseEngineConsumerService } from '../../infrastructure/messaging/exercise-engine-consumer.service.js';
 
 @Module({
   controllers: [NotificationsController],
@@ -43,9 +45,11 @@ import { OrganizationConsumerService } from '../../infrastructure/messaging/orga
     PlacementReviewReadyHandler,
     GroupAssignedHandler,
     StudentNudgedHandler,
+    AttemptReviewedHandler,
     AnalyticsConsumerService,
     SchedulingConsumerService,
     OrganizationConsumerService,
+    ExerciseEngineConsumerService,
   ],
   exports: [NotificationsService, UserRegisteredHandler, EmailVerificationHandler, PasswordResetHandler],
 })
