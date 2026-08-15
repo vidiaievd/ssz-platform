@@ -97,6 +97,11 @@ function toAttemptDto(attempt: Attempt): AttemptResponseDto {
     submittedAt: attempt.submittedAt?.toISOString() ?? null,
     scoredAt: attempt.scoredAt?.toISOString() ?? null,
     feedback: attempt.feedback,
+    // The teacher's verdict travels to the learner whatever the check mode: it holds no
+    // answer key, and withholding it would leave a marked submission looking unmarked.
+    reviewComment: attempt.reviewComment,
+    reviewDecisions: attempt.reviewDecisions ?? null,
+    reviewedAt: attempt.reviewedAt?.toISOString() ?? null,
   };
 }
 
