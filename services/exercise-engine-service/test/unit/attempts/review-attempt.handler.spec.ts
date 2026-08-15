@@ -100,17 +100,36 @@ describe('ReviewAttemptHandler', () => {
     expect(result.value.score).toBe(67);
   });
 
-  it('publishes the scored event, so progress and the SRS learn the verdict', async () => {
+  /**
+   * Two events, because two things happened: the attempt was scored, which progress and
+   * the SRS have been waiting for since it was routed, and it was answered by a person,
+   * which is what the learner is waiting for.
+   */
+  it('publishes the scored event and the letter back to the learner', async () => {
     const { handler, publisher } = makeHandler(routedAttempt());
 
     await handler.execute(approve([{ itemId: 'i2', approved: true }]));
 
-    expect(publisher.publish).toHaveBeenCalledTimes(1);
-    const [eventType] = publisher.publish.mock.calls[0]!;
-    expect(String(eventType)).toContain('attempt');
+    const published = publisher.publish.mock.calls.map(([eventType]) => String(eventType));
+    expect(published).toEqual(
+      expect.arrayContaining(['exercise.attempt.completed', 'exercise.attempt.reviewed']),
+    );
+
+    const [, payload] = publisher.publish.mock.calls.find(
+      ([eventType]) => String(eventType) === 'exercise.attempt.reviewed',
+    )!;
+    expect(payload).toMatchObject({
+      userId: 'user-1',
+      exerciseId: 'ex-1',
+      reviewerId: 'teacher-1',
+      outcome: 'approved',
+      score: 67,
+      approvedItems: 2,
+      totalItems: 3,
+    });
   });
 
-  it('sends a submission back without scoring it and without an event', async () => {
+  it('sends a submission back without scoring it, and still says so', async () => {
     const attempt = routedAttempt();
     const { handler, publisher } = makeHandler(attempt);
 
@@ -122,7 +141,17 @@ describe('ReviewAttemptHandler', () => {
     expect(attempt.status).toBe('RETURNED');
     expect(attempt.scoreValue).toBeNull();
     expect(attempt.reviewComment).toBe('Se på perfektum.');
-    expect(publisher.publish).not.toHaveBeenCalled();
+
+    // No score to publish, but the learner is owed the answer either way — being sent
+    // back with a comment is the one outcome they most need telling about.
+    expect(publisher.publish).toHaveBeenCalledTimes(1);
+    const [eventType, payload] = publisher.publish.mock.calls[0]!;
+    expect(String(eventType)).toBe('exercise.attempt.reviewed');
+    expect(payload).toMatchObject({
+      outcome: 'returned',
+      score: null,
+      comment: 'Se på perfektum.',
+    });
   });
 
   /** A submission a colleague marked a minute ago is no longer in anyone's queue. */

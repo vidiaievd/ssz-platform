@@ -11,6 +11,7 @@ import { AttemptStartedEvent } from '../events/attempt-started.event.js';
 import type { AnswerForm } from '@ssz/contracts';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
 import { AttemptRoutedForReviewEvent } from '../events/attempt-routed-for-review.event.js';
+import { AttemptReviewedEvent } from '../events/attempt-reviewed.event.js';
 
 export type AttemptStatus =
   | 'IN_PROGRESS'
@@ -430,6 +431,9 @@ export class Attempt extends AggregateRoot {
     /** 0–100. Required when approving, ignored when returning. */
     score?: number;
     passed?: boolean;
+    /** How much of the submission counted, for the letter back to the learner. */
+    approvedItems?: number;
+    totalItems?: number;
   }): Result<void, InvalidScoreError | InvalidAttemptTransitionError> {
     if (this._status !== 'ROUTED_FOR_REVIEW') {
       return Result.fail(
@@ -446,6 +450,7 @@ export class Attempt extends AggregateRoot {
 
     if (props.outcome === 'returned') {
       this._status = 'RETURNED';
+      this.addReviewedEvent(props, null);
       return Result.ok();
     }
 
@@ -473,7 +478,43 @@ export class Attempt extends AggregateRoot {
       }),
     );
 
+    this.addReviewedEvent(props, this._score);
+
     return Result.ok();
+  }
+
+  /**
+   * The letter back to the learner, raised on both outcomes.
+   *
+   * Including an approval a teacher wrote nothing on: from where the learner sits, an
+   * unanswered submission and one answered without comment look identical, and the
+   * silence is exactly what the queue was built to end.
+   */
+  private addReviewedEvent(
+    props: {
+      reviewerId: string;
+      outcome: 'approved' | 'returned';
+      comment: string | null;
+      approvedItems?: number;
+      totalItems?: number;
+    },
+    score: number | null,
+  ): void {
+    this.addDomainEvent(
+      new AttemptReviewedEvent(this.id, {
+        attemptId: this.id,
+        userId: this._userId,
+        exerciseId: this._exerciseId,
+        templateCode: this._templateCode,
+        reviewerId: props.reviewerId,
+        outcome: props.outcome,
+        score,
+        comment: props.comment,
+        approvedItems: props.approvedItems ?? 0,
+        totalItems: props.totalItems ?? 0,
+        occurredAt: new Date().toISOString(),
+      }),
+    );
   }
 
   addTimeSpent(seconds: number): void {

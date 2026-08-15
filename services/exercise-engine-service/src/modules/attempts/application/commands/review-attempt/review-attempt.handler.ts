@@ -80,6 +80,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       if (returned.isFail) return Result.fail(returned.error as AttemptDomainError);
 
       await this.attempts.save(attempt);
+      await this.publish(attempt);
       return Result.ok({
         attemptId: attempt.id,
         status: 'RETURNED',
@@ -112,14 +113,13 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       // A submission a teacher has approved item by item passes on those items, not on a
       // threshold this service would have to invent for a template it cannot grade.
       passed: approvedItems > 0,
+      approvedItems,
+      totalItems,
     });
     if (reviewed.isFail) return Result.fail(reviewed.error as AttemptDomainError);
 
     await this.attempts.save(attempt);
-    for (const event of attempt.getDomainEvents()) {
-      await this.publisher.publish(event.eventType, event.payload);
-    }
-    attempt.clearDomainEvents();
+    await this.publish(attempt);
 
     return Result.ok({
       attemptId: attempt.id,
@@ -128,6 +128,14 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       approvedItems,
       totalItems,
     });
+  }
+
+  /** Saved first, published after: an event about a verdict nobody stored is a lie. */
+  private async publish(attempt: Attempt): Promise<void> {
+    for (const event of attempt.getDomainEvents()) {
+      await this.publisher.publish(event.eventType, event.payload);
+    }
+    attempt.clearDomainEvents();
   }
 
   /**

@@ -5,6 +5,7 @@ import type { BaseEvent } from '../base.js';
 export const EXERCISE_ENGINE_EVENT_TYPES = {
   ATTEMPT_STARTED: 'exercise.attempt.started',
   ATTEMPT_COMPLETED: 'exercise.attempt.completed',
+  ATTEMPT_REVIEWED: 'exercise.attempt.reviewed',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -83,7 +84,39 @@ export interface AnswerForm {
   wordsConsumed: boolean;
 }
 
+/**
+ * Published when a person has marked a submission — plan 42.
+ *
+ * Separate from `attempt.completed` rather than a flag on it, because the two answer
+ * different questions. `completed` is progress: the SRS and the learner's course state
+ * move on it, and an approved attempt already publishes it. This one is *correspondence*:
+ * a learner handed work to a teacher and is owed an answer, and the only consumer that
+ * cares is the one that tells them.
+ *
+ * It is published for both outcomes, including an approval with nothing written on it.
+ * Silence after handing in work is the hole the marking queue was built to close, and a
+ * learner cannot tell "not looked at yet" from "looked at, nothing to say".
+ */
+export interface ExerciseAttemptReviewedPayload {
+  attemptId: string;
+  /** The learner who handed the work in — the recipient of anything sent about it. */
+  userId: string;
+  exerciseId: string;
+  templateCode: string;
+  reviewerId: string;
+  outcome: 'approved' | 'returned';
+  /** 0–100 on an approval; `null` when the work was sent back unmarked. */
+  score: number | null;
+  /** What the teacher wrote about the submission as a whole, if anything. */
+  comment: string | null;
+  /** How much of the submission counted. Both `0` when there was nothing readable. */
+  approvedItems: number;
+  totalItems: number;
+  occurredAt: string;
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type ExerciseAttemptStartedEvent = BaseEvent<ExerciseAttemptStartedPayload>;
 export type ExerciseAttemptCompletedEvent = BaseEvent<ExerciseAttemptCompletedPayload>;
+export type ExerciseAttemptReviewedEvent = BaseEvent<ExerciseAttemptReviewedPayload>;
