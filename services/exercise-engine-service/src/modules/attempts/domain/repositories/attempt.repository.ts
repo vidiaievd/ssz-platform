@@ -9,11 +9,22 @@ export interface FindUserAttemptsFilter {
   offset: number;
 }
 
+/** The review queue of one exercise: submissions waiting on a person, oldest first. */
+export interface FindForReviewFilter {
+  status: AttemptStatus;
+  limit: number;
+  offset: number;
+}
+
 export interface IAttemptRepository {
   findById(id: string): Promise<Attempt | null>;
   findInProgress(userId: string, exerciseId: string): Promise<Attempt | null>;
   findAllInProgressByExercise(exerciseId: string): Promise<Attempt[]>;
   findAllByUser(userId: string, filter: FindUserAttemptsFilter): Promise<{ items: Attempt[]; total: number }>;
+  findAllByExercise(
+    exerciseId: string,
+    filter: FindForReviewFilter,
+  ): Promise<{ items: Attempt[]; total: number }>;
   save(attempt: Attempt): Promise<void>;
   saveAll(attempts: Attempt[]): Promise<void>;
 }

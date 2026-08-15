@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { IAttemptRepository, FindUserAttemptsFilter } from '../../domain/repositories/attempt.repository.js';
+import type {
+  IAttemptRepository,
+  FindForReviewFilter,
+  FindUserAttemptsFilter,
+} from '../../domain/repositories/attempt.repository.js';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
 import { AttemptMapper } from './attempt.mapper.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
@@ -42,6 +46,29 @@ export class PrismaAttemptRepository implements IAttemptRepository {
       this.prisma.attempt.findMany({
         where,
         orderBy: { startedAt: 'desc' },
+        skip: filter.offset,
+        take: filter.limit,
+      }),
+      this.prisma.attempt.count({ where }),
+    ]);
+
+    return { items: rows.map(AttemptMapper.toDomain), total };
+  }
+
+  /**
+   * One exercise's queue. Oldest first, because a submission that has been waiting two
+   * days is the one a learner is still waiting on.
+   */
+  async findAllByExercise(
+    exerciseId: string,
+    filter: FindForReviewFilter,
+  ): Promise<{ items: Attempt[]; total: number }> {
+    const where = { exerciseId, status: filter.status };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.attempt.findMany({
+        where,
+        orderBy: { submittedAt: 'asc' },
         skip: filter.offset,
         take: filter.limit,
       }),
