@@ -338,6 +338,23 @@ export class ExerciseController {
     if (result.isFail) throwHttpException(result.error);
   }
 
+  /**
+   * Whether the caller may edit this exercise — a question, not a document.
+   *
+   * It exists for callers that must authorise a teacher-only action of their own before
+   * taking it: the web BFF opens an exercise's review queue with it, since the queue lives
+   * in exercise-engine, which knows nothing about who owns a course. `VisibilityGuard`
+   * answers by refusing the request, so a 200 *is* the answer.
+   */
+  @Get(':id/edit-access')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
+  @ApiOperation({ summary: 'Check whether the caller may edit this exercise' })
+  @ApiOkResponse({ description: '{ canEdit: true } — a refusal arrives as 403 or 404' })
+  checkEditAccess(@Param('id') _id: string): { canEdit: true } {
+    return { canEdit: true };
+  }
+
   // ── Grammar rules that practise this exercise ──────────────────────────────
 
   /**
