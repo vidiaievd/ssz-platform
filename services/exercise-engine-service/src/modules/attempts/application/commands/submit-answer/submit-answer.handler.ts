@@ -5,6 +5,7 @@ import {
   readContent,
   TEMPLATE_CODE as WORD_BANK_GAP_FILL,
 } from '@ssz/shared-kernel/wordbank-gapfill';
+import { isTranslateCode } from '@ssz/shared-kernel/translate';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { SubmitAnswerCommand } from './submit-answer.command.js';
@@ -46,9 +47,44 @@ export interface SubmitAnswerResult {
  * answer — `multiple_choice` reports `expected`, `short_answer` reports `target`.
  * Returning them all would hand the answer to anyone who opened the network tab, so
  * this is a per-template allowance rather than a field that is simply forwarded.
+ *
+ * `translate_*` is the middle case: its details are written for the teacher queue and
+ * carry the key outright (`ref`, and a diff whose `missing` words are the key's), so
+ * they cannot travel — but the learner is owed the one thing this template decides
+ * automatically, which sentences closed on a hit and which went to a teacher. That much
+ * is stripped out below.
  */
 function learnerFacingDetails(templateCode: string, details: unknown): unknown {
-  return templateCode === WORD_BANK_GAP_FILL ? details : undefined;
+  if (templateCode === WORD_BANK_GAP_FILL) return details;
+  if (isTranslateCode(templateCode)) return translateRouting(details);
+  return undefined;
+}
+
+/**
+ * The routing of each sentence, and nothing else.
+ *
+ * Every other field of a translate detail describes the key or the distance to it. The
+ * routing describes what happened to the submission, which the student is looking at
+ * anyway: the badge on the card after handing in.
+ */
+function translateRouting(details: unknown): unknown {
+  if (typeof details !== 'object' || details === null) return undefined;
+
+  const { items, totalItems, passedItems } = details as {
+    items?: unknown;
+    totalItems?: unknown;
+    passedItems?: unknown;
+  };
+  if (!Array.isArray(items)) return undefined;
+
+  return {
+    totalItems,
+    passedItems,
+    items: items.map((item) => {
+      const { itemId, routing } = item as { itemId: string; routing: string };
+      return { itemId, routing };
+    }),
+  };
 }
 
 /**
@@ -197,6 +233,11 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
         score: null,
         requiresReview: true,
         feedback: { summary: 'Your answer has been submitted for review.' },
+        // A routed submission is where `translate_*` spends most of its life, and the
+        // split it carries — approved outright vs waiting for a teacher — is per
+        // sentence. Withholding it here would leave the runner able to say only that
+        // *something* went to a teacher.
+        details: learnerFacingDetails(attempt.templateCode, outcome.details),
       });
     }
 

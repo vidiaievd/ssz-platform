@@ -27,6 +27,7 @@ enum NotificationType {
   ENROLLMENT_REJECTED
   PLACEMENT_REVIEW_READY
   GROUP_ASSIGNED
+  ATTEMPT_REVIEWED
 
   @@map("notification_type")
 }

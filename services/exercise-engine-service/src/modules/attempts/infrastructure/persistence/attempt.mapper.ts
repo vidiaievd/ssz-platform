@@ -5,6 +5,7 @@ import type {
   CheckMode,
   DifficultyLevel,
   PracticedAtom,
+  ReviewDecision,
 } from '../../domain/entities/attempt.entity.js';
 
 export class AttemptMapper {
@@ -34,6 +35,10 @@ export class AttemptMapper {
       startedAt: row.startedAt,
       submittedAt: row.submittedAt,
       scoredAt: row.scoredAt,
+      reviewedByUserId: row.reviewedByUserId,
+      reviewedAt: row.reviewedAt,
+      reviewComment: row.reviewComment,
+      reviewDecisions: (row.reviewDecisions as ReviewDecision[] | null) ?? null,
     });
   }
 
@@ -63,6 +68,11 @@ export class AttemptMapper {
       startedAt: attempt.startedAt,
       submittedAt: attempt.submittedAt,
       scoredAt: attempt.scoredAt,
+      reviewedByUserId: attempt.reviewedByUserId,
+      reviewedAt: attempt.reviewedAt,
+      reviewComment: attempt.reviewComment,
+      reviewDecisions:
+        attempt.reviewDecisions as unknown as AttemptModel['reviewDecisions'],
     };
   }
 }

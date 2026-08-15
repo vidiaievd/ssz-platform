@@ -52,6 +52,8 @@ import { GetExerciseQuery } from '../../application/queries/get-exercise/get-exe
 import { GetExerciseForDisplayQuery } from '../../application/queries/get-exercise-for-display/get-exercise-for-display.query.js';
 import { GetExerciseWithAnswersQuery } from '../../application/queries/get-exercise-with-answers/get-exercise-with-answers.query.js';
 import { GetExerciseInstructionsQuery } from '../../application/queries/get-exercise-instructions/get-exercise-instructions.query.js';
+import { GetExerciseRuleLinksQuery } from '../../../grammar-rule/application/queries/get-exercise-rule-links/get-exercise-rule-links.query.js';
+import type { ExerciseRuleLink } from '../../../grammar-rule/application/queries/get-exercise-rule-links/get-exercise-rule-links.handler.js';
 
 // Domain types
 import type { ExerciseDomainError } from '../../domain/exceptions/exercise-domain.exceptions.js';
@@ -71,6 +73,7 @@ import {
   ExerciseWithAnswersResponseDto,
 } from '../dto/responses/exercise.response.dto.js';
 import { ExerciseInstructionResponseDto } from '../dto/responses/exercise-instruction.response.dto.js';
+import { ExerciseRuleLinkResponseDto } from '../dto/responses/exercise-rule-link.response.dto.js';
 import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
 import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 
@@ -333,5 +336,46 @@ export class ExerciseController {
     >(new DeleteExerciseInstructionCommand(user.userId, exerciseId, instructionId));
 
     if (result.isFail) throwHttpException(result.error);
+  }
+
+  /**
+   * Whether the caller may edit this exercise — a question, not a document.
+   *
+   * It exists for callers that must authorise a teacher-only action of their own before
+   * taking it: the web BFF opens an exercise's review queue with it, since the queue lives
+   * in exercise-engine, which knows nothing about who owns a course. `VisibilityGuard`
+   * answers by refusing the request, so a 200 *is* the answer.
+   */
+  @Get(':id/edit-access')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
+  @ApiOperation({ summary: 'Check whether the caller may edit this exercise' })
+  @ApiOkResponse({ description: '{ canEdit: true } — a refusal arrives as 403 or 404' })
+  checkEditAccess(@Param('id') _id: string): { canEdit: true } {
+    return { canEdit: true };
+  }
+
+  // ── Grammar rules that practise this exercise ──────────────────────────────
+
+  /**
+   * The exercise pool read from the exercise's side. Every other pool route hangs off a
+   * rule, because that is how the review queue consumes it; an author editing an exercise
+   * asks the opposite question, and answering it by listing the pool of every rule in the
+   * course would be one request per rule.
+   *
+   * Guarded by the exercise, not by the rules: whoever may view the exercise may see what
+   * it is practised by.
+   */
+  @Get(':id/grammar-rules')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.EXERCISE })
+  @ApiOperation({ summary: 'List the grammar rules whose pool holds this exercise' })
+  @ApiOkResponse({ type: ExerciseRuleLinkResponseDto, isArray: true })
+  async findRuleLinks(@Param('id') id: string): Promise<ExerciseRuleLinkResponseDto[]> {
+    const links = await this.queryBus.execute<GetExerciseRuleLinksQuery, ExerciseRuleLink[]>(
+      new GetExerciseRuleLinksQuery(id),
+    );
+
+    return links.map((link) => ExerciseRuleLinkResponseDto.from(link));
   }
 }

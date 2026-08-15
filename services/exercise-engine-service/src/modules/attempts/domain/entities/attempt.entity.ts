@@ -11,12 +11,15 @@ import { AttemptStartedEvent } from '../events/attempt-started.event.js';
 import type { AnswerForm } from '@ssz/contracts';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
 import { AttemptRoutedForReviewEvent } from '../events/attempt-routed-for-review.event.js';
+import { AttemptReviewedEvent } from '../events/attempt-reviewed.event.js';
 
 export type AttemptStatus =
   | 'IN_PROGRESS'
   | 'SUBMITTED'
   | 'SCORED'
   | 'ROUTED_FOR_REVIEW'
+  /** A teacher read the submission and sent it back instead of scoring it. */
+  | 'RETURNED'
   | 'ABANDONED';
 
 export type DifficultyLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
@@ -67,6 +70,23 @@ export interface AttemptPersistenceProps {
   startedAt: Date;
   submittedAt: Date | null;
   scoredAt: Date | null;
+  reviewedByUserId: string | null;
+  reviewedAt: Date | null;
+  reviewComment: string | null;
+  reviewDecisions: ReviewDecision[] | null;
+}
+
+/**
+ * What a teacher decided about one item of a submission.
+ *
+ * The templates that reach review are sets — sentences to translate, sentences to
+ * correct — and "which one was not accepted" is the feedback. A single verdict for the
+ * whole set would hide exactly what the learner needs.
+ */
+export interface ReviewDecision {
+  itemId: string;
+  approved: boolean;
+  comment?: string;
 }
 
 export class Attempt extends AggregateRoot {
@@ -95,6 +115,10 @@ export class Attempt extends AggregateRoot {
     private _startedAt: Date,
     private _submittedAt: Date | null,
     private _scoredAt: Date | null,
+    private _reviewedByUserId: string | null = null,
+    private _reviewedAt: Date | null = null,
+    private _reviewComment: string | null = null,
+    private _reviewDecisions: ReviewDecision[] | null = null,
   ) {
     super(id);
   }
@@ -168,6 +192,10 @@ export class Attempt extends AggregateRoot {
       props.startedAt,
       props.submittedAt,
       props.scoredAt,
+      props.reviewedByUserId,
+      props.reviewedAt,
+      props.reviewComment,
+      props.reviewDecisions,
     );
   }
 
@@ -384,6 +412,111 @@ export class Attempt extends AggregateRoot {
     return Result.ok();
   }
 
+  /**
+   * A teacher's verdict on a submission that the machine could not close.
+   *
+   * Two outcomes and no third: approved, which scores the attempt and ends it, or
+   * returned, which ends this attempt with a comment and leaves the learner free to try
+   * again. There is no "partly graded" state to sit in, because a submission waiting on a
+   * teacher who has already read it is the one thing a review queue must never contain.
+   *
+   * The score is computed by the caller from the decisions — the domain does not know how
+   * many items the exercise had, only what was decided about them.
+   */
+  review(props: {
+    reviewerId: string;
+    outcome: 'approved' | 'returned';
+    decisions: ReviewDecision[];
+    comment: string | null;
+    /** 0–100. Required when approving, ignored when returning. */
+    score?: number;
+    passed?: boolean;
+    /** How much of the submission counted, for the letter back to the learner. */
+    approvedItems?: number;
+    totalItems?: number;
+  }): Result<void, InvalidScoreError | InvalidAttemptTransitionError> {
+    if (this._status !== 'ROUTED_FOR_REVIEW') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot review an attempt with status ${this._status}`,
+        ),
+      );
+    }
+
+    this._reviewedByUserId = props.reviewerId;
+    this._reviewedAt = new Date();
+    this._reviewComment = props.comment;
+    this._reviewDecisions = props.decisions;
+
+    if (props.outcome === 'returned') {
+      this._status = 'RETURNED';
+      this.addReviewedEvent(props, null);
+      return Result.ok();
+    }
+
+    const scoreResult = Score.create(props.score ?? 0);
+    if (scoreResult.isFail) return Result.fail(scoreResult.error);
+
+    this._score = scoreResult.value.value;
+    this._passed = props.passed ?? scoreResult.value.value > 0;
+    this._scoredAt = new Date();
+    this._status = 'SCORED';
+
+    // The same event a machine-scored attempt raises, because the attempt is now scored:
+    // progress and the SRS have been waiting on this verdict since it was routed, and a
+    // teacher's judgement of a translation is the strongest evidence this template has.
+    this.addDomainEvent(
+      new AttemptScoredEvent(this.id, {
+        userId: this._userId,
+        exerciseId: this._exerciseId,
+        score: this._score,
+        timeSpentSeconds: this._timeSpentSeconds,
+        completed: true,
+        practicedAtoms: this._practicedAtoms,
+        templateCode: this._templateCode,
+        passed: this._passed,
+      }),
+    );
+
+    this.addReviewedEvent(props, this._score);
+
+    return Result.ok();
+  }
+
+  /**
+   * The letter back to the learner, raised on both outcomes.
+   *
+   * Including an approval a teacher wrote nothing on: from where the learner sits, an
+   * unanswered submission and one answered without comment look identical, and the
+   * silence is exactly what the queue was built to end.
+   */
+  private addReviewedEvent(
+    props: {
+      reviewerId: string;
+      outcome: 'approved' | 'returned';
+      comment: string | null;
+      approvedItems?: number;
+      totalItems?: number;
+    },
+    score: number | null,
+  ): void {
+    this.addDomainEvent(
+      new AttemptReviewedEvent(this.id, {
+        attemptId: this.id,
+        userId: this._userId,
+        exerciseId: this._exerciseId,
+        templateCode: this._templateCode,
+        reviewerId: props.reviewerId,
+        outcome: props.outcome,
+        score,
+        comment: props.comment,
+        approvedItems: props.approvedItems ?? 0,
+        totalItems: props.totalItems ?? 0,
+        occurredAt: new Date().toISOString(),
+      }),
+    );
+  }
+
   addTimeSpent(seconds: number): void {
     if (seconds > 0) {
       this._timeSpentSeconds += seconds;
@@ -413,4 +546,8 @@ export class Attempt extends AggregateRoot {
   get startedAt(): Date { return this._startedAt; }
   get submittedAt(): Date | null { return this._submittedAt; }
   get scoredAt(): Date | null { return this._scoredAt; }
+  get reviewedByUserId(): string | null { return this._reviewedByUserId; }
+  get reviewedAt(): Date | null { return this._reviewedAt; }
+  get reviewComment(): string | null { return this._reviewComment; }
+  get reviewDecisions(): ReviewDecision[] | null { return this._reviewDecisions; }
 }

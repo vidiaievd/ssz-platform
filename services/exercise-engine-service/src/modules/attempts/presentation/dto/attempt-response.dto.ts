@@ -70,6 +70,25 @@ export class AttemptResponseDto {
 
   @ApiProperty({ description: 'Whether the learner asked to be shown the answers.' })
   answersRevealed!: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      "The teacher's word on the submission as a whole, once one has read it. Written " +
+      'for the learner — the only place this template can say why something was wrong.',
+  })
+  reviewComment!: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'What the teacher decided per item: Array<{ itemId, approved, comment? }>. Carries ' +
+      'no answer key — only the verdict and the words the teacher chose to write.',
+  })
+  reviewDecisions!: unknown;
+
+  @ApiPropertyOptional({ nullable: true, description: 'When a teacher read it.' })
+  reviewedAt!: string | null;
 }
 
 export class ListAttemptsResponseDto {

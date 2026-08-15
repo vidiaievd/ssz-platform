@@ -113,6 +113,37 @@ const GAP_FILL_DETAILS = {
   gaps: [{ gapKey: 's1#3', correct: false, explanation: 'Etter «vil gjerne» kommer infinitiv.' }],
 };
 
+/** As the translate validator writes them: for the teacher queue, key included. */
+const TRANSLATE_DETAILS = {
+  totalItems: 2,
+  routedItems: 1,
+  passedItems: 1,
+  items: [
+    {
+      itemId: 'i1',
+      verdict: 'exact',
+      similarity: 1,
+      ref: 'Jeg har bodd i Tromsø i tre år.',
+      submitted: 'Jeg har bodd i Tromsø i tre år.',
+      tokens: [],
+      missing: [],
+      banned: [],
+      routing: 'pass',
+    },
+    {
+      itemId: 'i2',
+      verdict: 'near',
+      similarity: 0.71,
+      ref: 'Jeg liker katter.',
+      submitted: 'Jeg elsker katter.',
+      tokens: [{ t: 'missing', w: 'liker', typo: null }],
+      missing: [{ text: 'liker', note: 'Oppgaven øver på «liker».' }],
+      banned: [],
+      routing: 'teacher',
+    },
+  ],
+};
+
 const makeGapFillAttempt = () => makeInProgressAttempt('word_bank_gap_fill');
 
 const makeGapFillDef = (): ExerciseDefinition => {
@@ -266,6 +297,36 @@ describe('SubmitAnswerHandler', () => {
 
     expect(result.isOk).toBe(true);
     expect(result.value.details).toBeUndefined();
+  });
+
+  it('translate: hands back which sentences were routed, and nothing that spells the key', async () => {
+    const handler = makeHandler(
+      makeRepo(makeInProgressAttempt('translate_to_target')),
+      makeContentClient(),
+      makeValidator({
+        correct: false,
+        score: 0,
+        details: TRANSLATE_DETAILS,
+        // The template's normal ending: one sentence hit the key, the other goes to a
+        // teacher, and the whole submission is therefore routed.
+        requiresReview: true,
+      }),
+      makeFeedback(), makeLearning(), makePublisher(),
+    );
+
+    const result = await handler.execute(cmd);
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.details).toEqual({
+      totalItems: 2,
+      passedItems: 1,
+      items: [
+        { itemId: 'i1', routing: 'pass' },
+        { itemId: 'i2', routing: 'teacher' },
+      ],
+    });
+    // The key, the diff against it and the rules it tripped stay with the teacher.
+    expect(JSON.stringify(result.value.details)).not.toContain('Jeg');
   });
 
   it('learning client failure does not fail the use case (fire-and-forget)', async () => {

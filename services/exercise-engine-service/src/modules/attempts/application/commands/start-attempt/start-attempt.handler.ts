@@ -11,6 +11,11 @@ import {
   toStudentProjection as ecToStudentProjection,
   TEMPLATE_CODE as ERROR_CORRECTION,
 } from '@ssz/shared-kernel/error-correction';
+import {
+  fromPersisted as trFromPersisted,
+  isTranslateCode,
+  toStudentProjection as trToStudentProjection,
+} from '@ssz/shared-kernel/translate';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -50,6 +55,11 @@ export interface StartAttemptResult {
  * browser holding the key holds the answer to "which words are wrong", which is the
  * whole exercise — so it gets counts and types instead, and never the words.
  *
+ * The translate pair is the third, and the plainest of them: `expectedAnswers` there is a
+ * list of accepted translations, which is the exercise typed out. The projection keeps the
+ * sentence, the hint and the glosses, and drops the key, the guards (`require: ["har
+ * bodd"]` hands over two words of it) and the author's explanations.
+ *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
  */
@@ -73,6 +83,16 @@ function withheldWhereNeeded(
       exercise.expectedAnswers,
     );
     return { exerciseContent: ecToStudentProjection(document), expectedAnswers: null };
+  }
+
+  if (isTranslateCode(templateCode)) {
+    const document = trFromPersisted(
+      { id: '', moduleId: '', title: '', instructions: '', updatedAt: '' },
+      templateCode,
+      exercise.content,
+      exercise.expectedAnswers,
+    );
+    return { exerciseContent: trToStudentProjection(document), expectedAnswers: null };
   }
 
   return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };

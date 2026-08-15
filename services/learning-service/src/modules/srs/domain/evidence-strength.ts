@@ -92,6 +92,11 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   // The learner produces the language and it is checked. The strongest evidence there is.
   short_answer: FREE_PRODUCTION,
   writing_task: FREE_PRODUCTION,
+  // Still typed from nothing after plan 42, only a set of sentences at a time rather than
+  // one — the form of the answer did not change, so neither does the row. One soft edge:
+  // an exercise with `dir: "both"` is stored under this code, so its target→explain
+  // sentences are rated here rather than by the row below. Not worth a code of its own
+  // until `both` is split out for analytics.
   translate_to_target: FREE_PRODUCTION,
   // Typed from memory. Superseded by word_bank_gap_fill, which reports its form
   // directly; kept for events still carrying the old code.

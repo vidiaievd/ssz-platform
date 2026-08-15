@@ -19,6 +19,10 @@
     "./error-correction": {
       "import": "./dist/error-correction/index.js",
       "types": "./dist/error-correction/index.d.ts"
+    },
+    "./translate": {
+      "import": "./dist/translate/index.js",
+      "types": "./dist/translate/index.d.ts"
     }
   },
   "files": [

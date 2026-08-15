@@ -7,9 +7,12 @@ import { SubmitAnswerHandler } from './application/commands/submit-answer/submit
 import { AbandonAttemptHandler } from './application/commands/abandon-attempt/abandon-attempt.handler.js';
 import { RevealAnswersHandler } from './application/commands/reveal-answers/reveal-answers.handler.js';
 import { SelfCheckHandler } from './application/commands/self-check/self-check.handler.js';
+import { ReviewAttemptHandler } from './application/commands/review-attempt/review-attempt.handler.js';
 import { GetAttemptByIdHandler } from './application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
 import { ListUserAttemptsHandler } from './application/queries/list-user-attempts/list-user-attempts.handler.js';
+import { ListReviewQueueHandler } from './application/queries/list-review-queue/list-review-queue.handler.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
+import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
 
 const CommandHandlers = [
   StartAttemptHandler,
@@ -17,12 +20,13 @@ const CommandHandlers = [
   AbandonAttemptHandler,
   RevealAnswersHandler,
   SelfCheckHandler,
+  ReviewAttemptHandler,
 ];
-const QueryHandlers = [GetAttemptByIdHandler, ListUserAttemptsHandler];
+const QueryHandlers = [GetAttemptByIdHandler, ListUserAttemptsHandler, ListReviewQueueHandler];
 
 @Module({
   imports: [CqrsModule],
-  controllers: [AttemptsController],
+  controllers: [AttemptsController, InternalReviewController],
   providers: [
     PrismaAttemptRepository,
     { provide: ATTEMPT_REPOSITORY, useExisting: PrismaAttemptRepository },

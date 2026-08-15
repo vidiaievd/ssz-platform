@@ -18,10 +18,15 @@ import { WordBankFillValidator } from './validators/word-bank-fill.validator.js'
 import { WordBankGapFillValidator } from './validators/word-bank-gap-fill.validator.js';
 import { TextOrderValidator } from './validators/text-order.validator.js';
 import { ErrorCorrectionValidator } from './validators/error-correction.validator.js';
+import { TranslateValidator } from './validators/translate.validator.js';
 import type { IPerTypeValidator } from './validators/per-type-validator.interface.js';
 
 // Template codes that require human review — not scored by rule-based logic.
-const FREE_FORM_CODES = new Set(['translate_to_target', 'translate_from_target', 'writing_task']);
+//
+// The translate pair left in plan 42: its check engine cannot reject either, but it can
+// approve a hit on the answer key, and refusing to do even that meant a word-perfect
+// translation waited for a teacher alongside an empty one.
+const FREE_FORM_CODES = new Set(['writing_task']);
 
 /**
  * Templates whose submission does not share a shape with the author's answer key, so
@@ -38,8 +43,16 @@ const FREE_FORM_CODES = new Set(['translate_to_target', 'translate_from_target',
  *
  * `error_correction` joined it for the same reason: its key is a corrected sentence and
  * its submission is a set of word-level edits.
+ *
+ * So did the translate pair: its key is a set of accepted translations per sentence, and
+ * its submission is one typed sentence per item.
  */
-const OWN_SUBMISSION_SHAPE = new Set(['word_bank_gap_fill', 'error_correction']);
+const OWN_SUBMISSION_SHAPE = new Set([
+  'word_bank_gap_fill',
+  'error_correction',
+  'translate_to_target',
+  'translate_from_target',
+]);
 
 @Injectable()
 export class SchemaBasedAnswerValidator implements IAnswerValidator {
@@ -60,6 +73,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     wbgfValidator: WordBankGapFillValidator,
     toValidator: TextOrderValidator,
     ecValidator: ErrorCorrectionValidator,
+    trValidator: TranslateValidator,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     this.ajv = new (Ajv as any)({ allErrors: true, strict: false });
@@ -77,6 +91,8 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       ['word_bank_gap_fill', wbgfValidator],
       ['text_order', toValidator],
       ['error_correction', ecValidator],
+      ['translate_to_target', trValidator],
+      ['translate_from_target', trValidator],
     ]);
   }
 
@@ -119,6 +135,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       submittedAnswer: input.submittedAnswer,
       expectedAnswers: input.expectedAnswers,
       content: input.content,
+      templateCode: input.templateCode,
       checkSettings: input.checkSettings,
       targetLanguage: input.targetLanguage,
     });

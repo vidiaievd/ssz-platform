@@ -44,7 +44,11 @@ const perfect = {
 };
 
 const detail = (result: ReturnType<typeof run>, itemId: string) =>
-  (result.value.details as { items: Array<{ itemId: string; verdict: string; state?: string }> }).items.find(
+  (
+    result.value.details as {
+      items: Array<{ itemId: string; verdict: string; routing?: string; state?: string }>;
+    }
+  ).items.find(
     (item) => item.itemId === itemId,
   );
 
@@ -142,6 +146,17 @@ describe('ErrorCorrectionValidator', () => {
     // The edits travel with the judgement: which mistake was found cannot be
     // recovered from a rewritten sentence.
     expect(item.edits).toEqual({ ...perfect.i1, ins: {} });
+  });
+
+  // The review queue credits the sentences the check closed on its own, and it reads
+  // that off `routing` — a detail without it makes a teacher re-decide what the machine
+  // already decided, and the score follows their decision rather than the check.
+  it('says per sentence what the check did with it, so the queue can credit a pass', () => {
+    const result = run({ i1: perfect.i1 });
+
+    expect(detail(result, 'i1')?.routing).toBe('pass');
+    expect(detail(result, 'i2')?.routing).toBe('teacher');
+    expect(result.value.details).toMatchObject({ totalItems: 2, routedItems: 1, passedItems: 1 });
   });
 
   it('routes an untouched exercise rather than scoring it zero', () => {

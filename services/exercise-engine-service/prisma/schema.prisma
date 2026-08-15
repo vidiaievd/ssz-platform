@@ -15,12 +15,15 @@ datasource db {
 
 // Status lifecycle: IN_PROGRESS → SUBMITTED → SCORED (closed-form)
 //                                           → ROUTED_FOR_REVIEW (free-form)
+//                             ROUTED_FOR_REVIEW → SCORED   (teacher approved)
+//                                               → RETURNED (teacher sent it back)
 //                 IN_PROGRESS → ABANDONED
 enum AttemptStatus {
   IN_PROGRESS       @map("in_progress")
   SUBMITTED         @map("submitted")
   SCORED            @map("scored")
   ROUTED_FOR_REVIEW @map("routed_for_review")
+  RETURNED          @map("returned")
   ABANDONED         @map("abandoned")
 
   @@map("attempt_status")
@@ -120,12 +123,29 @@ model Attempt {
   // spending, so that a client cannot buy itself more by asking again.
   selfChecksUsed Int @default(0) @map("self_checks_used")
 
+  // ── Teacher review ──────────────────────────────────────────────────────
+  // Free-form attempts stop at ROUTED_FOR_REVIEW, where the only verdict left is a
+  // person's. What that person decided lives here.
+
+  reviewedByUserId String?   @map("reviewed_by_user_id")
+  reviewedAt       DateTime? @map("reviewed_at")
+
+  // The teacher's word to the learner about the submission as a whole.
+  reviewComment String? @map("review_comment")
+
+  // Per-item decisions: Array<{ itemId, approved, comment? }>. The templates that
+  // reach review are sets of sentences, and "which one was not accepted" is the
+  // feedback — a single verdict for the set would hide it.
+  reviewDecisions Json? @map("review_decisions")
+
   startedAt   DateTime  @default(now()) @map("started_at")
   submittedAt DateTime? @map("submitted_at")
   scoredAt    DateTime? @map("scored_at")
 
   @@index([userId, status])
   @@index([exerciseId])
+  // The review queue: everything waiting on one exercise.
+  @@index([exerciseId, status])
   @@index([assignmentId, status])
   @@index([userId, exerciseId, startedAt])
   @@map("attempts")

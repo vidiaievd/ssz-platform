@@ -170,4 +170,108 @@ describe('SelfCheckHandler', () => {
     const result = await handler.execute(command());
     expect(result.error).toEqual({ code: 'ATTEMPT_NOT_FOUND' });
   });
+
+  // The second template with a self-check. Same budget, same rule about the key — but
+  // here the key is a whole sentence, so the diff is masked rather than withheld.
+  describe('translate', () => {
+    const trContent = {
+      dir: 'to_target',
+      langs: { explain: 'Russisk', target: 'Norsk' },
+      format: 'set',
+      items: [
+        { id: 't-0', dir: 'to_target', source: 'Я живу в Тромсё уже три года.' },
+        { id: 't-1', dir: 'to_target', source: 'Мне нравятся кошки.' },
+      ],
+      check: { on: true, exactPass: true },
+      flow: { selfCheck: 2, showRefs: 'afterGraded' },
+    };
+
+    const trAnswers = {
+      items: {
+        't-0': {
+          refs: ['Jeg har bodd i Tromsø i tre år nå.'],
+          require: [{ text: 'har bodd', note: 'Презенс перфект.' }],
+        },
+        't-1': { refs: ['Jeg liker katter.'] },
+      },
+    };
+
+    const trHandler = (draftAnswer: unknown, overrides: Record<string, unknown> = {}) => {
+      const attempt = makeAttempt({ templateCode: 'translate_to_target', ...overrides });
+      const { handler } = makeHandler(attempt, {
+        content: trContent,
+        expectedAnswers: trAnswers,
+      });
+      return {
+        attempt,
+        run: () => handler.execute(new SelfCheckCommand('att-1', 'user-1', draftAnswer)),
+      };
+    };
+
+    const draft = (answers: Record<string, string>) => ({
+      answers: Object.entries(answers).map(([itemId, text]) => ({ itemId, text })),
+    });
+
+    it('scores each sentence and counts the ones a hit would close', async () => {
+      const result = await trHandler(
+        draft({ 't-0': 'Jeg bor i Tromsø i tre år nå.', 't-1': 'Jeg liker katter.' }),
+      ).run();
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.templateCode).toBe('translate_to_target');
+      expect(result.value.passing).toBe(1);
+      expect(result.value.items).toEqual([
+        expect.objectContaining({ itemId: 't-0', verdict: 'near' }),
+        expect.objectContaining({ itemId: 't-1', verdict: 'exact' }),
+      ]);
+    });
+
+    // The rule that makes a budget necessary in the first place: without masking, three
+    // self-checks against an empty answer would spell the key out word by word.
+    it('masks the words of the key the student has not written', async () => {
+      const result = await trHandler(draft({ 't-0': 'Jeg bor i Tromsø i tre år nå.' })).run();
+
+      const tokens = result.value.items[0]?.tokens ?? [];
+      // The diff shows what the student wrote and where a word is owed — never which.
+      expect(tokens.filter((token) => token.t === 'missing')).toEqual([
+        { t: 'missing', w: '•••', typo: null },
+        { t: 'missing', w: '•••', typo: null },
+      ]);
+      expect(tokens.map((token) => token.w)).not.toContain('bodd');
+    });
+
+    // A fired guard is the one deviation the engine can name exactly, so it travels
+    // with the author's explanation attached.
+    it('names the rules of the task the answer does not meet', async () => {
+      const result = await trHandler(draft({ 't-0': 'Jeg bor i Tromsø i tre år nå.' })).run();
+
+      expect(result.value.items[0]?.missing).toEqual([
+        { text: 'har bodd', note: 'Презенс перфект.' },
+      ]);
+    });
+
+    it('spends the same budget as any other self-check', async () => {
+      const { attempt, run } = trHandler(draft({ 't-1': 'Jeg liker katter.' }));
+      const result = await run();
+
+      expect(attempt.useSelfCheck).toHaveBeenCalledWith(2);
+      expect(result.value.checksUsed).toBe(1);
+      expect(result.value.checksLeft).toBe(1);
+    });
+
+    it('rejects a draft that is not a list of answers, without fetching the key', async () => {
+      const attempt = makeAttempt({ templateCode: 'translate_to_target' });
+      const { handler, contentClient } = makeHandler(attempt, {
+        content: trContent,
+        expectedAnswers: trAnswers,
+      });
+
+      const result = await handler.execute(
+        new SelfCheckCommand('att-1', 'user-1', { items: { 't-0': 'Jeg bor her.' } }),
+      );
+
+      expect(result.error).toEqual({ code: 'SCHEMA_MISMATCH' });
+      expect(contentClient.getExerciseForAttempt).not.toHaveBeenCalled();
+    });
+  });
 });

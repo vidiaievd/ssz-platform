@@ -4,8 +4,9 @@ import { Allow } from 'class-validator';
 export class SelfCheckRequestDto {
   @ApiProperty({
     description:
-      'The work so far, in the same shape a submission carries: { items: { <itemId>: ' +
-      '{ marked, fix, ins } } }. Nothing is submitted — the attempt stays in progress.',
+      'The work so far, in the same shape a submission carries. error_correction: ' +
+      '{ items: { <itemId>: { marked, fix, ins } } }. translate_*: ' +
+      '{ answers: [{ itemId, text }] }. Nothing is submitted — the attempt stays in progress.',
   })
   @Allow()
   draftAnswer!: unknown;
@@ -41,6 +42,41 @@ export class SelfCheckItemDto {
   strayEdits!: number;
 }
 
+export class TranslateSelfCheckItemDto {
+  @ApiProperty()
+  itemId!: string;
+
+  @ApiProperty({
+    enum: ['exact', 'typo', 'near', 'off', 'empty', 'noref'],
+    description: 'How close the sentence is to the closest accepted translation',
+  })
+  verdict!: string;
+
+  @ApiProperty({ description: 'Similarity to that translation, 0…1. A bar, not a grade' })
+  sim!: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Word-level diff against the closest accepted translation. Every word of the key ' +
+      'the student has not written is replaced by «•••» — otherwise repeated self-checks ' +
+      'would spell the key out. Absent for the «off» verdict.',
+  })
+  tokens?: { t: string; w: string; typo: string | null }[];
+
+  @ApiPropertyOptional({ description: 'Only for «off»: how many words differ' })
+  divergingWords?: number;
+
+  @ApiProperty({
+    description:
+      'Rules of the task the answer does not meet, with the author’s explanation of each. ' +
+      'The one thing this template can say is wrong without inventing a reason.',
+  })
+  missing!: { text: string; note?: string }[];
+
+  @ApiProperty({ description: 'Forbidden wordings the answer uses, with their explanations' })
+  banned!: { text: string; note?: string }[];
+}
+
 export class SelfCheckResponseDto {
   @ApiProperty()
   attemptId!: string;
@@ -51,12 +87,29 @@ export class SelfCheckResponseDto {
   @ApiProperty({ description: 'Self-checks still available' })
   checksLeft!: number;
 
-  @ApiProperty({ type: [SelfCheckItemDto] })
-  items!: SelfCheckItemDto[];
+  @ApiProperty({
+    description: 'Which of the two self-checkable templates this is; the items follow it',
+    enum: ['error_correction', 'translate_to_target', 'translate_from_target'],
+  })
+  templateCode!: string;
 
-  @ApiProperty({ description: 'Mistakes corrected across every item' })
-  fixedCount!: number;
+  @ApiProperty({
+    description: 'error_correction items, or translate items — see templateCode',
+    oneOf: [
+      { type: 'array', items: { $ref: '#/components/schemas/SelfCheckItemDto' } },
+      { type: 'array', items: { $ref: '#/components/schemas/TranslateSelfCheckItemDto' } },
+    ],
+  })
+  items!: SelfCheckItemDto[] | TranslateSelfCheckItemDto[];
 
-  @ApiProperty({ description: 'Mistakes across every item' })
-  spanCount!: number;
+  @ApiPropertyOptional({ description: 'error_correction: mistakes corrected across every item' })
+  fixedCount?: number;
+
+  @ApiPropertyOptional({ description: 'error_correction: mistakes across every item' })
+  spanCount?: number;
+
+  @ApiPropertyOptional({
+    description: 'translate_*: sentences a hit on the key would close on its own',
+  })
+  passing?: number;
 }
