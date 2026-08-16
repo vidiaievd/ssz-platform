@@ -90,6 +90,7 @@ services:
       DATABASE_URL: postgresql://org_service:${ORG_SERVICE_DB_PASSWORD}@postgres:5432/organizations_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
     depends_on:
       postgres:
         condition: service_healthy

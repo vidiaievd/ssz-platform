@@ -79,10 +79,14 @@ import { ListMembershipsHandler } from './application/queries/list-memberships/l
 import { GetMyMembershipHandler } from './application/queries/get-my-membership/get-my-membership.handler.js';
 import { GetPublicSchoolHandler } from './application/queries/get-public-school/get-public-school.handler.js';
 import { ListPublicSchoolsHandler } from './application/queries/list-public-schools/list-public-schools.handler.js';
+import { GetStudentReviewGroupHandler } from './application/queries/get-student-review-group/get-student-review-group.handler.js';
+import { GetReviewReviewersHandler } from './application/queries/get-review-reviewers/get-review-reviewers.handler.js';
+import { GetReviewScopeHandler } from './application/queries/get-review-scope/get-review-scope.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
 import { InternalController } from './presentation/controllers/internal.controller.js';
+import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
 import { SchoolGroupsController } from './presentation/controllers/school-groups.controller.js';
 import { SchoolTeachersController } from './presentation/controllers/school-teachers.controller.js';
 import { SchoolMembersController } from './presentation/controllers/school-members.controller.js';
@@ -151,6 +155,9 @@ const QueryHandlers = [
   GetMyMembershipHandler,
   GetPublicSchoolHandler,
   ListPublicSchoolsHandler,
+  GetStudentReviewGroupHandler,
+  GetReviewReviewersHandler,
+  GetReviewScopeHandler,
 ];
 
 @Module({
@@ -159,6 +166,7 @@ const QueryHandlers = [
     SchoolsController,
     InvitationsController,
     InternalController,
+    InternalReviewController,
     SchoolGroupsController,
     SchoolTeachersController,
     SchoolMembersController,
