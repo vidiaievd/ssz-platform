@@ -11,6 +11,8 @@ import { ReviewAttemptHandler } from './application/commands/review-attempt/revi
 import { GetAttemptByIdHandler } from './application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
 import { ListUserAttemptsHandler } from './application/queries/list-user-attempts/list-user-attempts.handler.js';
 import { ListReviewQueueHandler } from './application/queries/list-review-queue/list-review-queue.handler.js';
+import { ListReviewQueueV2Handler } from './application/queries/list-review-queue-v2/list-review-queue-v2.handler.js';
+import { CountReviewQueueHandler } from './application/queries/count-review-queue/count-review-queue.handler.js';
 import { ReviewContextResolver } from './application/services/review-context-resolver.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
 import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
@@ -23,7 +25,13 @@ const CommandHandlers = [
   SelfCheckHandler,
   ReviewAttemptHandler,
 ];
-const QueryHandlers = [GetAttemptByIdHandler, ListUserAttemptsHandler, ListReviewQueueHandler];
+const QueryHandlers = [
+  GetAttemptByIdHandler,
+  ListUserAttemptsHandler,
+  ListReviewQueueHandler,
+  ListReviewQueueV2Handler,
+  CountReviewQueueHandler,
+];
 
 @Module({
   imports: [CqrsModule],

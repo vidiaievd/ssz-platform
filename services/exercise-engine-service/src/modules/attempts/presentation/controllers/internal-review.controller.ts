@@ -25,6 +25,15 @@ import type {
 } from '../../application/commands/review-attempt/review-attempt.handler.js';
 import { ReviewAttemptRequestDto } from '../dto/review-attempt.dto.js';
 import { SearchReviewQueueRequestDto } from '../dto/search-review-queue.dto.js';
+import { ReviewQueueRequestDto, ReviewQueueScopeDto } from '../dto/review-queue.dto.js';
+import { ListReviewQueueV2Query } from '../../application/queries/list-review-queue-v2/list-review-queue-v2.query.js';
+import type { ListReviewQueueV2Result } from '../../application/queries/list-review-queue-v2/list-review-queue-v2.handler.js';
+import { decodeReviewQueueCursor } from '../../application/queries/list-review-queue-v2/review-queue-cursor.js';
+import { CountReviewQueueQuery } from '../../application/queries/count-review-queue/count-review-queue.query.js';
+import type {
+  ReviewQueueScope,
+  ReviewQueueSummary,
+} from '../../domain/repositories/attempt.repository.js';
 import type { Result } from '../../../../shared/kernel/result.js';
 
 /**
@@ -32,6 +41,9 @@ import type { Result } from '../../../../shared/kernel/result.js';
  * and a caller asking about ten thousand exercises has lost track of what it is asking.
  */
 const MAX_EXERCISES_PER_QUEUE = 500;
+
+/** The default page of the scoped queue; a hundred is the ceiling (see the DTO). */
+const DEFAULT_QUEUE_LIMIT = 50;
 
 /**
  * The teacher's side of an attempt — service-to-service only.
@@ -88,6 +100,70 @@ export class InternalReviewController {
     return this.queryBus.execute<ListReviewQueueQuery, ListReviewQueueResult>(
       new ListReviewQueueQuery(exerciseIds, Math.min(dto.limit ?? 20, 100), dto.offset ?? 0),
     );
+  }
+
+  /**
+   * The teacher's inbox: everything waiting across a school, narrowed to what the caller
+   * teaches or owns, grouped for the screen and paged by cursor.
+   *
+   * Supersedes `review/search`, which took the caller's own list of exercise ids — a
+   * whole course walked before the first row could be drawn, and no way at all to ask
+   * "everything my students handed in". The two live side by side until step 45.10 moves
+   * the web inbox over.
+   */
+  @Post('review/queue')
+  async reviewQueue(@Body() dto: ReviewQueueRequestDto): Promise<ListReviewQueueV2Result> {
+    const scope = this.scopeOf(dto);
+
+    const after = dto.cursor ? decodeReviewQueueCursor(dto.cursor) : null;
+    if (dto.cursor && after === null) {
+      throw new UnprocessableEntityException('Malformed cursor');
+    }
+
+    return this.queryBus.execute<ListReviewQueueV2Query, ListReviewQueueV2Result>(
+      new ListReviewQueueV2Query(
+        scope,
+        dto.groupBy ?? 'exercise',
+        dto.limit ?? DEFAULT_QUEUE_LIMIT,
+        after,
+      ),
+    );
+  }
+
+  /** The same scope, counted — for a badge that is refreshed on every verdict. */
+  @Post('review/queue/count')
+  async reviewQueueCount(@Body() dto: ReviewQueueScopeDto): Promise<ReviewQueueSummary> {
+    return this.queryBus.execute<CountReviewQueueQuery, ReviewQueueSummary>(
+      new CountReviewQueueQuery(this.scopeOf(dto)),
+    );
+  }
+
+  /**
+   * School plus at least one narrowing dimension — both 422, both from here.
+   *
+   * A school alone would be every submission in it: the oversight question, which has
+   * its own route (44.11) and its own authorisation. A reviewer asks about their groups
+   * or their courses, and having to say which is what keeps a teacher's inbox from
+   * quietly becoming an administrator's.
+   */
+  private scopeOf(dto: ReviewQueueScopeDto): ReviewQueueScope {
+    if (!dto.schoolId) {
+      throw new UnprocessableEntityException('schoolId is required');
+    }
+
+    const groupIds = dto.groupIds?.length ? [...new Set(dto.groupIds)] : undefined;
+    const containerIds = dto.containerIds?.length ? [...new Set(dto.containerIds)] : undefined;
+
+    if (!groupIds && !containerIds) {
+      throw new UnprocessableEntityException('Either groupIds or containerIds must be given');
+    }
+
+    return {
+      schoolId: dto.schoolId,
+      groupIds,
+      containerIds,
+      templateCodes: dto.templateCodes?.length ? [...new Set(dto.templateCodes)] : undefined,
+    };
   }
 
   @Post(':attemptId/review')

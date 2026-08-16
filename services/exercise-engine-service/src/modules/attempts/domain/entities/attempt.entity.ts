@@ -111,6 +111,15 @@ export interface ExercisePathSnapshot {
   exercise: string | null;
 }
 
+/**
+ * How long "someone is looking at this" holds (plan 44 §44.8).
+ *
+ * Expiry is a reading of `reviewClaimedAt`, not a job that clears the column: a marker
+ * left behind by a teacher who closed their laptop must stop blocking the view by
+ * itself, and a background sweep would be one more thing to be down.
+ */
+export const REVIEW_CLAIM_TTL_MS = 15 * 60 * 1000;
+
 export class Attempt extends AggregateRoot {
   private constructor(
     id: string,
