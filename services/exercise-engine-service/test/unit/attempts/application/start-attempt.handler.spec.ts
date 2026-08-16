@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { ReviewContextResolver } from '../../../../src/modules/attempts/application/services/review-context-resolver.js';
 import { StartAttemptHandler } from '../../../../src/modules/attempts/application/commands/start-attempt/start-attempt.handler.js';
 import { StartAttemptCommand } from '../../../../src/modules/attempts/application/commands/start-attempt/start-attempt.command.js';
 import type { IAttemptRepository } from '../../../../src/modules/attempts/domain/repositories/attempt.repository.js';
@@ -125,7 +126,13 @@ const makeHandler = (
   contentClient: IContentClient,
   organizationClient: IOrganizationClient,
   publisher: IEventPublisher,
-) => new StartAttemptHandler(repo as any, contentClient as any, organizationClient as any, publisher as any);
+) =>
+  new StartAttemptHandler(
+    repo as any,
+    contentClient as any,
+    new ReviewContextResolver(contentClient as any, organizationClient as any),
+    publisher as any,
+  );
 
 const cmd = new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE');
 

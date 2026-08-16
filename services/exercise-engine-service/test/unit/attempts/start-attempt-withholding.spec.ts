@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { ReviewContextResolver } from '../../../src/modules/attempts/application/services/review-context-resolver.js';
 import { StartAttemptHandler } from '../../../src/modules/attempts/application/commands/start-attempt/start-attempt.handler.js';
 import { StartAttemptCommand } from '../../../src/modules/attempts/application/commands/start-attempt/start-attempt.command.js';
 import { Result } from '../../../src/shared/kernel/result.js';
@@ -106,7 +107,7 @@ function makeHandler(templateCode: string, content: unknown, expectedAnswers: un
   return new StartAttemptHandler(
     attempts as any,
     contentClient as any,
-    organizationClient as any,
+    new ReviewContextResolver(contentClient as any, organizationClient as any),
     publisher as any,
   );
 }

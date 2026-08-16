@@ -10,6 +10,7 @@ import {
 import { AttemptStartedEvent } from '../events/attempt-started.event.js';
 import type { AnswerForm } from '@ssz/contracts';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
+import { AttemptCompletedUnscoredEvent } from '../events/attempt-completed-unscored.event.js';
 import { AttemptRoutedForReviewEvent } from '../events/attempt-routed-for-review.event.js';
 import { AttemptReviewedEvent } from '../events/attempt-reviewed.event.js';
 
@@ -354,7 +355,19 @@ export class Attempt extends AggregateRoot {
     return Result.ok();
   }
 
-  routeForReview(): Result<void, InvalidAttemptTransitionError> {
+  /**
+   * Hands the submission to a person.
+   *
+   * `counts` is the validator's own tally at this moment — how much it closed by
+   * itself out of how many items. It is written down so the queue can be a list
+   * rather than a run of the validator over every row on the page; it is a hint and
+   * never the truth, and a verdict recomputes the parse before acting on it
+   * (plan 44 §0.3).
+   */
+  routeForReview(counts?: {
+    autoPassedItems: number | null;
+    totalItems: number | null;
+  }): Result<void, InvalidAttemptTransitionError> {
     if (this._status !== 'SUBMITTED') {
       return Result.fail(
         new InvalidAttemptTransitionError(
@@ -364,9 +377,13 @@ export class Attempt extends AggregateRoot {
     }
 
     this._status = 'ROUTED_FOR_REVIEW';
+    if (counts) {
+      this._autoPassedItems = counts.autoPassedItems;
+      this._totalItems = counts.totalItems;
+    }
 
     this.addDomainEvent(
-      new AttemptRoutedForReviewEvent(this.id, {
+      new AttemptCompletedUnscoredEvent(this.id, {
         userId: this._userId,
         exerciseId: this._exerciseId,
         score: null,
@@ -375,7 +392,38 @@ export class Attempt extends AggregateRoot {
       }),
     );
 
+    this.addDomainEvent(
+      new AttemptRoutedForReviewEvent(this.id, {
+        attemptId: this.id,
+        userId: this._userId,
+        exerciseId: this._exerciseId,
+        templateCode: this._templateCode,
+        schoolId: this._schoolId,
+        containerId: this._containerId,
+        groupId: this._groupId,
+        submittedAt: (this._submittedAt ?? new Date()).toISOString(),
+      }),
+    );
+
     return Result.ok();
+  }
+
+  /**
+   * Fills in review context the attempt started without — a neighbour service that
+   * was silent at start, or a row that predates the migration. Only ever fills
+   * blanks: a value snapshotted at start describes where the learner was then, and
+   * a group they moved to since does not get to rewrite it.
+   */
+  backfillReviewContext(props: {
+    schoolId?: string | null;
+    containerId?: string | null;
+    groupId?: string | null;
+    exercisePath?: ExercisePathSnapshot | null;
+  }): void {
+    this._schoolId ??= props.schoolId ?? null;
+    this._containerId ??= props.containerId ?? null;
+    this._groupId ??= props.groupId ?? null;
+    this._exercisePath ??= props.exercisePath ?? null;
   }
 
   // Idempotent: abandoning an already-abandoned attempt is a no-op.

@@ -1,6 +1,7 @@
 import { Attempt } from '../../../../src/modules/attempts/domain/entities/attempt.entity.js';
 import { AttemptStartedEvent } from '../../../../src/modules/attempts/domain/events/attempt-started.event.js';
 import { AttemptScoredEvent } from '../../../../src/modules/attempts/domain/events/attempt-scored.event.js';
+import { AttemptCompletedUnscoredEvent } from '../../../../src/modules/attempts/domain/events/attempt-completed-unscored.event.js';
 import { AttemptRoutedForReviewEvent } from '../../../../src/modules/attempts/domain/events/attempt-routed-for-review.event.js';
 import {
   AttemptAlreadySubmittedError,
@@ -254,20 +255,82 @@ describe('Attempt entity', () => {
       expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
     });
 
-    it('raises AttemptRoutedForReviewEvent with completed=false and score=null', () => {
+    it('tells progress the attempt finished unscored', () => {
       const attempt = makeAttempt();
       attempt.addTimeSpent(15);
       attempt.submit({}, 'h');
       attempt.clearDomainEvents();
       attempt.routeForReview();
-      const events = attempt.getDomainEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]).toBeInstanceOf(AttemptRoutedForReviewEvent);
-      const ev = events[0] as AttemptRoutedForReviewEvent;
+
+      const ev = attempt
+        .getDomainEvents()
+        .find((e) => e instanceof AttemptCompletedUnscoredEvent) as AttemptCompletedUnscoredEvent;
+      expect(ev).toBeDefined();
       expect(ev.eventType).toBe('exercise.attempt.completed');
       expect(ev.payload.score).toBeNull();
       expect(ev.payload.completed).toBe(false);
       expect(ev.payload.timeSpentSeconds).toBe(15);
+    });
+
+    it('announces the submission separately, with the context review needs', () => {
+      const attempt = makeAttempt();
+      attempt.snapshotReviewContext({
+        schoolId: 'school-1',
+        containerId: 'course-1',
+        groupId: 'group-1',
+        exercisePath: null,
+        previousAttemptId: null,
+        revisionCount: 0,
+      });
+      attempt.submit({}, 'h');
+      attempt.clearDomainEvents();
+      attempt.routeForReview();
+
+      const ev = attempt
+        .getDomainEvents()
+        .find((e) => e instanceof AttemptRoutedForReviewEvent) as AttemptRoutedForReviewEvent;
+      expect(ev).toBeDefined();
+      expect(ev.eventType).toBe('exercise.attempt.routed_for_review');
+      expect(ev.payload).toMatchObject({
+        attemptId: attempt.id,
+        schoolId: 'school-1',
+        containerId: 'course-1',
+        groupId: 'group-1',
+      });
+      expect(ev.payload.submittedAt).toBe(attempt.submittedAt?.toISOString());
+    });
+
+    it('writes down the machine tally as a hint for the queue', () => {
+      const attempt = makeAttempt();
+      attempt.submit({}, 'h');
+      attempt.routeForReview({ autoPassedItems: 4, totalItems: 5 });
+
+      expect(attempt.autoPassedItems).toBe(4);
+      expect(attempt.totalItems).toBe(5);
+    });
+
+    it('only fills blanks when review context is backfilled later', () => {
+      const attempt = makeAttempt();
+      attempt.snapshotReviewContext({
+        schoolId: 'school-1',
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        previousAttemptId: null,
+        revisionCount: 0,
+      });
+
+      attempt.backfillReviewContext({
+        schoolId: 'school-2',
+        containerId: 'course-1',
+        groupId: 'group-1',
+      });
+
+      // The school was snapshotted when the learner started; where they are now
+      // does not rewrite where they were.
+      expect(attempt.schoolId).toBe('school-1');
+      expect(attempt.containerId).toBe('course-1');
+      expect(attempt.groupId).toBe('group-1');
     });
 
     it('fails when not SUBMITTED', () => {

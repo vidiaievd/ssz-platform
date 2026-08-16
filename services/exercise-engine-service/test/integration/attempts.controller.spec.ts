@@ -5,6 +5,7 @@ import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { APP_GUARD } from '@nestjs/core';
 import { AttemptsController } from '../../src/modules/attempts/presentation/controllers/attempts.controller.js';
+import { ReviewContextResolver } from '../../src/modules/attempts/application/services/review-context-resolver.js';
 import { StartAttemptHandler } from '../../src/modules/attempts/application/commands/start-attempt/start-attempt.handler.js';
 import { SubmitAnswerHandler } from '../../src/modules/attempts/application/commands/submit-answer/submit-answer.handler.js';
 import { AbandonAttemptHandler } from '../../src/modules/attempts/application/commands/abandon-attempt/abandon-attempt.handler.js';
@@ -112,6 +113,7 @@ describe('AttemptsController (integration)', () => {
       controllers: [AttemptsController],
       providers: [
         StartAttemptHandler, SubmitAnswerHandler, AbandonAttemptHandler,
+        ReviewContextResolver,
         GetAttemptByIdHandler, ListUserAttemptsHandler,
         { provide: ATTEMPT_REPOSITORY, useValue: mockRepo },
         { provide: CONTENT_CLIENT, useValue: mockContentClient },

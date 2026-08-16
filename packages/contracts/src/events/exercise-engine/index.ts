@@ -5,6 +5,7 @@ import type { BaseEvent } from '../base.js';
 export const EXERCISE_ENGINE_EVENT_TYPES = {
   ATTEMPT_STARTED: 'exercise.attempt.started',
   ATTEMPT_COMPLETED: 'exercise.attempt.completed',
+  ATTEMPT_ROUTED_FOR_REVIEW: 'exercise.attempt.routed_for_review',
   ATTEMPT_REVIEWED: 'exercise.attempt.reviewed',
 } as const;
 
@@ -85,6 +86,31 @@ export interface AnswerForm {
 }
 
 /**
+ * Published when a submission starts waiting for a person — plan 44 §44.5.
+ *
+ * `attempt.completed` travels at the same moment and says the learner finished
+ * without a score; its shape is frozen by the Learning Service consumer, and progress
+ * is all it is about. This one is about the *queue*: which school, course and group
+ * the work landed in, which is what a reminder or an escalation needs to work out who
+ * to tell. Nothing outside review consumes it.
+ *
+ * The context fields are the snapshot taken when the learner started (or filled in on
+ * the way here). `null` means a neighbouring service could not say — the work is still
+ * waiting, it just has no group to chase.
+ */
+export interface ExerciseAttemptRoutedForReviewPayload {
+  attemptId: string;
+  userId: string;
+  exerciseId: string;
+  templateCode: string;
+  schoolId: string | null;
+  containerId: string | null;
+  groupId: string | null;
+  /** ISO 8601 — the clock every "how long has this been waiting" answer starts from. */
+  submittedAt: string;
+}
+
+/**
  * Published when a person has marked a submission — plan 42.
  *
  * Separate from `attempt.completed` rather than a flag on it, because the two answer
@@ -120,3 +146,5 @@ export interface ExerciseAttemptReviewedPayload {
 export type ExerciseAttemptStartedEvent = BaseEvent<ExerciseAttemptStartedPayload>;
 export type ExerciseAttemptCompletedEvent = BaseEvent<ExerciseAttemptCompletedPayload>;
 export type ExerciseAttemptReviewedEvent = BaseEvent<ExerciseAttemptReviewedPayload>;
+export type ExerciseAttemptRoutedForReviewEvent =
+  BaseEvent<ExerciseAttemptRoutedForReviewPayload>;

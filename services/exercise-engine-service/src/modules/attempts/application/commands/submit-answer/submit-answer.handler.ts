@@ -17,6 +17,7 @@ import { LEARNING_CLIENT, type ILearningClient, LearningClientError } from '../.
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
+import { ReviewContextResolver } from '../../services/review-context-resolver.js';
 
 export type SubmitAnswerError =
   | { code: 'ATTEMPT_NOT_FOUND' }
@@ -137,6 +138,31 @@ function describeGapResults(
   });
 }
 
+/**
+ * How much the validator closed by itself, out of how many items.
+ *
+ * Written onto the attempt when it routes for review so the queue can show "the
+ * machine already accepted all of this" without re-running the validator over every
+ * row on the page. A hint only (plan 44 §0.3) — a verdict recomputes the parse.
+ *
+ * The templates that route per sentence report both numbers themselves. The rest —
+ * a `short_answer` the checker could not decide, a `writing_task` there was never
+ * anything to decide about — are one item that no machine passed.
+ */
+function machineTally(details: unknown): { autoPassedItems: number; totalItems: number } {
+  if (typeof details === 'object' && details !== null) {
+    const { totalItems, passedItems } = details as {
+      totalItems?: unknown;
+      passedItems?: unknown;
+    };
+    if (typeof totalItems === 'number' && typeof passedItems === 'number') {
+      return { autoPassedItems: passedItems, totalItems };
+    }
+  }
+
+  return { autoPassedItems: 0, totalItems: 1 };
+}
+
 @CommandHandler(SubmitAnswerCommand)
 export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand> {
   constructor(
@@ -146,6 +172,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     @Inject(FEEDBACK_GENERATOR) private readonly feedbackGenerator: IFeedbackGenerator,
     @Inject(LEARNING_CLIENT) private readonly learningClient: ILearningClient,
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
+    private readonly reviewContext: ReviewContextResolver,
   ) {}
 
   async execute(
@@ -219,7 +246,16 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     const passingThreshold = (checkSettings['passingThreshold'] as number | undefined) ?? 70;
 
     if (outcome.requiresReview) {
-      const routeResult = attempt.routeForReview();
+      // Last chance to learn where this belongs: the attempt may have started
+      // before the review columns existed, or while a neighbour was down. After
+      // this it is a row in someone's queue, and a row nobody can see is lost.
+      if (!attempt.schoolId || !attempt.containerId || !attempt.groupId) {
+        attempt.backfillReviewContext(
+          await this.reviewContext.resolve(attempt.userId, attempt.exerciseId),
+        );
+      }
+
+      const routeResult = attempt.routeForReview(machineTally(outcome.details));
       if (routeResult.isFail) {
         return Result.fail(routeResult.error as AttemptDomainError);
       }

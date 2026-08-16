@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { ReviewContextResolver } from '../../../../src/modules/attempts/application/services/review-context-resolver.js';
 import { SubmitAnswerHandler } from '../../../../src/modules/attempts/application/commands/submit-answer/submit-answer.handler.js';
 import { SubmitAnswerCommand } from '../../../../src/modules/attempts/application/commands/submit-answer/submit-answer.command.js';
 import type { IAttemptRepository } from '../../../../src/modules/attempts/domain/repositories/attempt.repository.js';
@@ -71,7 +72,27 @@ const makeContentClient = (result = Result.ok(makeExerciseDef())): jest.Mocked<I
   getPracticedAtoms: jest
     .fn<IContentClient['getPracticedAtoms']>()
     .mockResolvedValue(Result.ok([])),
+  getExercisePlacement: jest
+    .fn<IContentClient['getExercisePlacement']>()
+    .mockResolvedValue(
+      Result.ok({
+        containerId: 'course-1',
+        containerTitle: 'Ny i Norge A2',
+        moduleId: 'mod-1',
+        moduleTitle: 'Leksjon 7',
+        exerciseTitle: 'Perfektum',
+        ownerSchoolId: 'school-1',
+      }),
+    ),
 });
+
+const makeReviewContext = (content: IContentClient) =>
+  new ReviewContextResolver(content as any, {
+    getMemberRole: jest.fn(),
+    resolveStudentGroup: jest
+      .fn()
+      .mockResolvedValue(Result.ok({ groupId: 'group-1', groupName: 'A2 Kveld' })),
+  } as any);
 
 const makeValidator = (outcome = { correct: true, score: 100, details: null, requiresReview: false }): jest.Mocked<IAnswerValidator> => ({
   validate: jest.fn<IAnswerValidator['validate']>().mockResolvedValue(Result.ok(outcome)),
@@ -103,6 +124,7 @@ const makeHandler = (
 ) => new SubmitAnswerHandler(
   repo as any, content as any, validator as any,
   feedback as any, learning as any, publisher as any,
+  makeReviewContext(content),
 );
 
 const cmd = new SubmitAnswerCommand('attempt-1', 'user-1', { correct_option_ids: ['A'] }, 30, 'no');
@@ -245,6 +267,82 @@ describe('SubmitAnswerHandler', () => {
     expect(result.isOk).toBe(true);
     expect(result.value.correct).toBe(false);
     expect(result.value.score).toBe(40);
+  });
+
+  describe('routing for review (plan 44 §44.5)', () => {
+    it('fills in the review context the attempt started without', async () => {
+      const repo = makeRepo();
+      const handler = makeHandler(
+        repo, makeContentClient(),
+        makeValidator({ correct: false, score: 0, details: null, requiresReview: true }),
+        makeFeedback(), makeLearning(), makePublisher(),
+      );
+
+      await handler.execute(cmd);
+
+      const saved = repo.save.mock.calls[0]![0];
+      expect(saved.schoolId).toBe('school-1');
+      expect(saved.containerId).toBe('course-1');
+      expect(saved.groupId).toBe('group-1');
+    });
+
+    it('records the validator tally so the queue does not have to recompute it', async () => {
+      const repo = makeRepo();
+      const handler = makeHandler(
+        repo, makeContentClient(),
+        makeValidator({
+          correct: false,
+          score: 0,
+          details: { totalItems: 5, passedItems: 4, items: [] },
+          requiresReview: true,
+        }),
+        makeFeedback(), makeLearning(), makePublisher(),
+      );
+
+      await handler.execute(cmd);
+
+      const saved = repo.save.mock.calls[0]![0];
+      expect(saved.autoPassedItems).toBe(4);
+      expect(saved.totalItems).toBe(5);
+    });
+
+    it('counts an undecidable single answer as one item the machine did not close', async () => {
+      const repo = makeRepo();
+      const handler = makeHandler(
+        repo, makeContentClient(),
+        makeValidator({ correct: false, score: 0, details: null, requiresReview: true }),
+        makeFeedback(), makeLearning(), makePublisher(),
+      );
+
+      await handler.execute(cmd);
+
+      const saved = repo.save.mock.calls[0]![0];
+      expect(saved.autoPassedItems).toBe(0);
+      expect(saved.totalItems).toBe(1);
+    });
+
+    it('announces the submission for review alongside the frozen completed event', async () => {
+      const publisher = makePublisher();
+      const handler = makeHandler(
+        makeRepo(), makeContentClient(),
+        makeValidator({ correct: false, score: 0, details: null, requiresReview: true }),
+        makeFeedback(), makeLearning(), publisher,
+      );
+
+      await handler.execute(cmd);
+
+      expect(publisher.publish).toHaveBeenCalledWith(
+        'exercise.attempt.routed_for_review',
+        expect.objectContaining({
+          attemptId: 'attempt-1',
+          userId: 'user-1',
+          exerciseId: 'ex-1',
+          schoolId: 'school-1',
+          containerId: 'course-1',
+          groupId: 'group-1',
+        }),
+      );
+    });
   });
 
   it('free-form: routes for review, publishes completed with completed=false', async () => {

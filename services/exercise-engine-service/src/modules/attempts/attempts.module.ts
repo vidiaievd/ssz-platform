@@ -11,6 +11,7 @@ import { ReviewAttemptHandler } from './application/commands/review-attempt/revi
 import { GetAttemptByIdHandler } from './application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
 import { ListUserAttemptsHandler } from './application/queries/list-user-attempts/list-user-attempts.handler.js';
 import { ListReviewQueueHandler } from './application/queries/list-review-queue/list-review-queue.handler.js';
+import { ReviewContextResolver } from './application/services/review-context-resolver.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
 import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
 
@@ -30,6 +31,7 @@ const QueryHandlers = [GetAttemptByIdHandler, ListUserAttemptsHandler, ListRevie
   providers: [
     PrismaAttemptRepository,
     { provide: ATTEMPT_REPOSITORY, useExisting: PrismaAttemptRepository },
+    ReviewContextResolver,
     ...CommandHandlers,
     ...QueryHandlers,
   ],
