@@ -168,7 +168,7 @@ model Attempt {
   // Soft "someone is looking at this" marker — expires 15 min after
   // reviewClaimedAt; no background job clears it, expiry is checked on read.
   reviewClaimedBy String?   @map("review_claimed_by")
-  reviewClaimedAt DateTime? @map("review_claimed_at")
+  reviewClaimedAt DateTime? @map("review_claimed_at") @db.Timestamptz
 
   // The RETURNED attempt this one resubmits, if any — feeds attemptNo/`previous`.
   previousAttemptId String? @map("previous_attempt_id")
