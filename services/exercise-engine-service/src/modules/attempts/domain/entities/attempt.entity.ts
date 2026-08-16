@@ -74,6 +74,15 @@ export interface AttemptPersistenceProps {
   reviewedAt: Date | null;
   reviewComment: string | null;
   reviewDecisions: ReviewDecision[] | null;
+  schoolId: string | null;
+  containerId: string | null;
+  groupId: string | null;
+  exercisePath: ExercisePathSnapshot | null;
+  reviewClaimedBy: string | null;
+  reviewClaimedAt: Date | null;
+  previousAttemptId: string | null;
+  autoPassedItems: number | null;
+  totalItems: number | null;
 }
 
 /**
@@ -87,6 +96,17 @@ export interface ReviewDecision {
   itemId: string;
   approved: boolean;
   comment?: string;
+}
+
+/**
+ * Course · module · exercise titles snapshotted at attempt start (plan 44 §0.3).
+ * Survives the exercise being renamed or removed later — the review screen
+ * shows this even when `exercise` no longer resolves.
+ */
+export interface ExercisePathSnapshot {
+  course: string;
+  module: string | null;
+  exercise: string | null;
 }
 
 export class Attempt extends AggregateRoot {
@@ -119,6 +139,15 @@ export class Attempt extends AggregateRoot {
     private _reviewedAt: Date | null = null,
     private _reviewComment: string | null = null,
     private _reviewDecisions: ReviewDecision[] | null = null,
+    private _schoolId: string | null = null,
+    private _containerId: string | null = null,
+    private _groupId: string | null = null,
+    private _exercisePath: ExercisePathSnapshot | null = null,
+    private _reviewClaimedBy: string | null = null,
+    private _reviewClaimedAt: Date | null = null,
+    private _previousAttemptId: string | null = null,
+    private _autoPassedItems: number | null = null,
+    private _totalItems: number | null = null,
   ) {
     super(id);
   }
@@ -196,6 +225,15 @@ export class Attempt extends AggregateRoot {
       props.reviewedAt,
       props.reviewComment,
       props.reviewDecisions,
+      props.schoolId,
+      props.containerId,
+      props.groupId,
+      props.exercisePath,
+      props.reviewClaimedBy,
+      props.reviewClaimedAt,
+      props.previousAttemptId,
+      props.autoPassedItems,
+      props.totalItems,
     );
   }
 
@@ -550,4 +588,13 @@ export class Attempt extends AggregateRoot {
   get reviewedAt(): Date | null { return this._reviewedAt; }
   get reviewComment(): string | null { return this._reviewComment; }
   get reviewDecisions(): ReviewDecision[] | null { return this._reviewDecisions; }
+  get schoolId(): string | null { return this._schoolId; }
+  get containerId(): string | null { return this._containerId; }
+  get groupId(): string | null { return this._groupId; }
+  get exercisePath(): ExercisePathSnapshot | null { return this._exercisePath; }
+  get reviewClaimedBy(): string | null { return this._reviewClaimedBy; }
+  get reviewClaimedAt(): Date | null { return this._reviewClaimedAt; }
+  get previousAttemptId(): string | null { return this._previousAttemptId; }
+  get autoPassedItems(): number | null { return this._autoPassedItems; }
+  get totalItems(): number | null { return this._totalItems; }
 }

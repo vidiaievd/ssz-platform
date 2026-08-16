@@ -4,6 +4,7 @@ import type {
   AttemptStatus,
   CheckMode,
   DifficultyLevel,
+  ExercisePathSnapshot,
   PracticedAtom,
   ReviewDecision,
 } from '../../domain/entities/attempt.entity.js';
@@ -39,6 +40,15 @@ export class AttemptMapper {
       reviewedAt: row.reviewedAt,
       reviewComment: row.reviewComment,
       reviewDecisions: (row.reviewDecisions as ReviewDecision[] | null) ?? null,
+      schoolId: row.schoolId,
+      containerId: row.containerId,
+      groupId: row.groupId,
+      exercisePath: row.exercisePath as ExercisePathSnapshot | null,
+      reviewClaimedBy: row.reviewClaimedBy,
+      reviewClaimedAt: row.reviewClaimedAt,
+      previousAttemptId: row.previousAttemptId,
+      autoPassedItems: row.autoPassedItems,
+      totalItems: row.totalItems,
     });
   }
 
@@ -73,6 +83,15 @@ export class AttemptMapper {
       reviewComment: attempt.reviewComment,
       reviewDecisions:
         attempt.reviewDecisions as unknown as AttemptModel['reviewDecisions'],
+      schoolId: attempt.schoolId,
+      containerId: attempt.containerId,
+      groupId: attempt.groupId,
+      exercisePath: attempt.exercisePath as unknown as AttemptModel['exercisePath'],
+      reviewClaimedBy: attempt.reviewClaimedBy,
+      reviewClaimedAt: attempt.reviewClaimedAt,
+      previousAttemptId: attempt.previousAttemptId,
+      autoPassedItems: attempt.autoPassedItems,
+      totalItems: attempt.totalItems,
     };
   }
 }

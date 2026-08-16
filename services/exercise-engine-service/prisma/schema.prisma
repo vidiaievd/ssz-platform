@@ -110,7 +110,9 @@ model Attempt {
   // Answer hash for idempotency check on re-submission (SHA-256 of submittedAnswer JSON).
   answerHash String? @map("answer_hash")
 
-  // Reserved for future resubmission support.
+  // Which resubmission of the same exercise this is after a RETURNED verdict —
+  // attemptNo (plan 44 DATA_MODEL.md §1) is revisionCount + 1. Set from the
+  // previous RETURNED attempt's count at start (see previousAttemptId below).
   revisionCount Int @default(0) @map("revision_count")
 
   // The learner asked to be shown the answers instead of working them out. A
@@ -128,7 +130,7 @@ model Attempt {
   // person's. What that person decided lives here.
 
   reviewedByUserId String?   @map("reviewed_by_user_id")
-  reviewedAt       DateTime? @map("reviewed_at")
+  reviewedAt       DateTime? @map("reviewed_at") @db.Timestamptz
 
   // The teacher's word to the learner about the submission as a whole.
   reviewComment String? @map("review_comment")
@@ -142,12 +144,47 @@ model Attempt {
   submittedAt DateTime? @map("submitted_at")
   scoredAt    DateTime? @map("scored_at")
 
+  // ── Review context (plan 44) ────────────────────────────────────────────
+  // Snapshotted at attempt start (see start-attempt.handler.ts) — the source
+  // of truth for "who may review this" and "where does it show up" is
+  // Organization/Content Service at that moment, not a live join later. All
+  // nullable: a missing value means the attempt predates the migration, or
+  // the owning service didn't answer — never a reason to fail the start.
+
+  schoolId    String? @map("school_id") // null — attempt happened outside any school
+  containerId String? @map("container_id") // top-level course the exercise sits in
+  groupId     String? @map("group_id") // student's group at start; null → "no reviewer" in oversight
+
+  // {course, module, exercise} titles as of attempt start — survives the
+  // exercise/course being renamed or removed later (DATA_MODEL.md B/21).
+  exercisePath Json? @map("exercise_path")
+
+  // Soft "someone is looking at this" marker — expires 15 min after
+  // reviewClaimedAt; no background job clears it, expiry is checked on read.
+  reviewClaimedBy String?   @map("review_claimed_by")
+  reviewClaimedAt DateTime? @map("review_claimed_at")
+
+  // The RETURNED attempt this one resubmits, if any — feeds attemptNo/`previous`.
+  previousAttemptId String? @map("previous_attempt_id")
+
+  // Snapshot of the validator's own tally at the moment the attempt routed
+  // for review — a hint for the queue list, not the truth (§0.3): a single
+  // verdict or batch-approve always recomputes the parse before acting.
+  autoPassedItems Int? @map("auto_passed_items")
+  totalItems      Int? @map("total_items")
+
   @@index([userId, status])
   @@index([exerciseId])
   // The review queue: everything waiting on one exercise.
   @@index([exerciseId, status])
   @@index([assignmentId, status])
   @@index([userId, exerciseId, startedAt])
+  // Oversight's own queue scoping (plan 44 §1).
+  @@index([schoolId, status, submittedAt])
+  @@index([groupId, status, submittedAt])
+  @@index([containerId, status])
+  // Decision journal and median-response-time aggregate.
+  @@index([schoolId, reviewedAt])
   @@map("attempts")
 }
 
