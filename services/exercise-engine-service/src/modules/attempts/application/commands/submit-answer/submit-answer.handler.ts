@@ -277,8 +277,10 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     await this.publishEvents(attempt);
 
     // Fire-and-forget: notify Learning Service (non-blocking). Once per attempt —
-    // a re-check is the same submission being corrected, not a new one.
-    if (attempt.revisionCount === 0) {
+    // a re-check is the same submission being corrected, not a new one. A
+    // resubmission after a teacher returned the work is a different attempt
+    // entirely and reports itself (see recheckCount vs revisionCount).
+    if (attempt.recheckCount === 0) {
       this.learningClient
         .createSubmission({
           assignmentId: attempt.assignmentId,

@@ -65,6 +65,7 @@ export interface AttemptPersistenceProps {
   feedback: unknown;
   answerHash: string | null;
   revisionCount: number;
+  recheckCount: number;
   answersRevealed: boolean;
   selfChecksUsed: number;
   startedAt: Date;
@@ -148,6 +149,7 @@ export class Attempt extends AggregateRoot {
     private _previousAttemptId: string | null = null,
     private _autoPassedItems: number | null = null,
     private _totalItems: number | null = null,
+    private _recheckCount: number = 0,
   ) {
     super(id);
   }
@@ -234,6 +236,7 @@ export class Attempt extends AggregateRoot {
       props.previousAttemptId,
       props.autoPassedItems,
       props.totalItems,
+      props.recheckCount,
     );
   }
 
@@ -291,7 +294,7 @@ export class Attempt extends AggregateRoot {
       );
     }
 
-    this._revisionCount += 1;
+    this._recheckCount += 1;
     this._status = 'IN_PROGRESS';
 
     return Result.ok();
@@ -331,7 +334,7 @@ export class Attempt extends AggregateRoot {
     // themselves with the wrong gaps still on screen, and counting it would tell
     // progress and the SRS that the word was known when it had just been shown to
     // be the one they got wrong.
-    if (this._revisionCount === 0) {
+    if (this._recheckCount === 0) {
       this.addDomainEvent(
         new AttemptScoredEvent(this.id, {
           userId: this._userId,
@@ -604,6 +607,7 @@ export class Attempt extends AggregateRoot {
   get feedback(): unknown { return this._feedback; }
   get answerHash(): string | null { return this._answerHash; }
   get revisionCount(): number { return this._revisionCount; }
+  get recheckCount(): number { return this._recheckCount; }
   get answersRevealed(): boolean { return this._answersRevealed; }
   get selfChecksUsed(): number { return this._selfChecksUsed; }
   get startedAt(): Date { return this._startedAt; }

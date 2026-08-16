@@ -168,12 +168,14 @@ describe('Attempt entity', () => {
       return attempt;
     };
 
-    it('puts a scored practice attempt back in progress and counts the revision', () => {
+    it('puts a scored practice attempt back in progress and counts the re-check', () => {
       const attempt = scored();
       const result = attempt.reopenForRecheck();
       expect(result.isOk).toBe(true);
       expect(attempt.status).toBe('IN_PROGRESS');
-      expect(attempt.revisionCount).toBe(1);
+      expect(attempt.recheckCount).toBe(1);
+      // The resubmission counter is a different thing and stays put.
+      expect(attempt.revisionCount).toBe(0);
       expect(attempt.submit({}, 'h2').isOk).toBe(true);
     });
 
@@ -188,6 +190,25 @@ describe('Attempt entity', () => {
       // Progress and the SRS heard about the first check. A correction is the
       // learner reading the feedback, not fresh evidence that they knew the word.
       expect(attempt.getDomainEvents()).toHaveLength(0);
+    });
+
+    it('still reports a resubmission after a RETURNED verdict as fresh evidence', () => {
+      const attempt = makeAttempt();
+      // What start-attempt writes for the second go at a returned exercise: a
+      // different attempt entirely, not a re-check of the scored one.
+      attempt.snapshotReviewContext({
+        schoolId: null,
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        previousAttemptId: 'attempt-1',
+        revisionCount: 1,
+      });
+      attempt.submit({}, 'h');
+      attempt.clearDomainEvents();
+
+      expect(attempt.score(80, true, null, null).isOk).toBe(true);
+      expect(attempt.getDomainEvents()).toHaveLength(1);
     });
 
     it('refuses once the answers were revealed', () => {

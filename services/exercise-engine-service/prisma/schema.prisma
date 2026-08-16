@@ -115,6 +115,12 @@ model Attempt {
   // previous RETURNED attempt's count at start (see previousAttemptId below).
   revisionCount Int @default(0) @map("revision_count")
 
+  // How many times the learner re-checked *this* attempt after seeing a score.
+  // Deliberately separate from revisionCount: a re-check is the same work being
+  // corrected with the wrong gaps on screen (only the first is evidence), while a
+  // resubmission after a teacher returned it is new work that must count again.
+  recheckCount Int @default(0) @map("recheck_count")
+
   // The learner asked to be shown the answers instead of working them out. A
   // separate action from being wrong, and recorded because it changes what the
   // attempt is evidence of — see docs/plan/36-srs-evidence-strength.md.
