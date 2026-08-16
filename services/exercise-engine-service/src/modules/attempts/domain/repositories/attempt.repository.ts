@@ -19,6 +19,8 @@ export interface FindForReviewFilter {
 export interface IAttemptRepository {
   findById(id: string): Promise<Attempt | null>;
   findInProgress(userId: string, exerciseId: string): Promise<Attempt | null>;
+  /** The most recent RETURNED attempt for this exercise — feeds attemptNo/previousAttemptId on the next try. */
+  findLatestReturned(userId: string, exerciseId: string): Promise<Attempt | null>;
   findAllInProgressByExercise(exerciseId: string): Promise<Attempt[]>;
   findAllByUser(userId: string, filter: FindUserAttemptsFilter): Promise<{ items: Attempt[]; total: number }>;
   /**

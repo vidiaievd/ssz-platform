@@ -274,6 +274,7 @@ services:
       LEARNING_SERVICE_BASE_URL: http://learning-service:3007
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       EXERCISE_DEFINITION_CACHE_TTL_SECONDS: 300
+      EXERCISE_PLACEMENT_CACHE_TTL_SECONDS: 300
     depends_on:
       postgres:
         condition: service_healthy

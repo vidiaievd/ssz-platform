@@ -41,6 +41,17 @@ export interface PracticedAtomRef {
   atomId: string;
 }
 
+// Where an exercise sits — snapshotted onto the attempt at start (plan 44 §44.1/§44.4)
+// so the review queue and oversight never need a live join back to Content Service.
+export interface ExercisePlacement {
+  containerId: string;
+  containerTitle: string;
+  moduleId: string | null;
+  moduleTitle: string | null;
+  exerciseTitle: string | null;
+  ownerSchoolId: string | null;
+}
+
 export class ContentClientError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -60,4 +71,9 @@ export interface IContentClient {
 
   /** Snapshotted once at attempt start so scoring never makes a cross-service call. */
   getPracticedAtoms(exerciseId: string): Promise<Result<PracticedAtomRef[], ContentClientError>>;
+
+  /** Best-effort at attempt start (plan 44 §44.4) — a miss must not block starting. */
+  getExercisePlacement(
+    exerciseId: string,
+  ): Promise<Result<ExercisePlacement, ContentClientError>>;
 }

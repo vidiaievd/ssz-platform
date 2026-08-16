@@ -25,6 +25,14 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     return row ? AttemptMapper.toDomain(row) : null;
   }
 
+  async findLatestReturned(userId: string, exerciseId: string): Promise<Attempt | null> {
+    const row = await this.prisma.attempt.findFirst({
+      where: { userId, exerciseId, status: 'RETURNED' },
+      orderBy: { startedAt: 'desc' },
+    });
+    return row ? AttemptMapper.toDomain(row) : null;
+  }
+
   async findAllInProgressByExercise(exerciseId: string): Promise<Attempt[]> {
     const rows = await this.prisma.attempt.findMany({
       where: { exerciseId, status: 'IN_PROGRESS' },

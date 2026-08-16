@@ -7,6 +7,7 @@ import type { AppConfig } from '../../config/configuration.js';
 import type {
   CheckMode,
   ExerciseDefinition,
+  ExercisePlacement,
   IContentClient,
   PracticedAtomRef,
 } from '../../shared/application/ports/content-client.port.js';
@@ -72,6 +73,25 @@ export class HttpContentClient implements IContentClient {
       return Result.ok(data.map((r) => ({ atomType: r.sourceType, atomId: r.sourceId })));
     } catch (err) {
       return this.mapError(err, `getPracticedAtoms(${exerciseId})`);
+    }
+  }
+
+  async getExercisePlacement(
+    exerciseId: string,
+  ): Promise<Result<ExercisePlacement, ContentClientError>> {
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get<ExercisePlacement>(
+          `${this.baseUrl}/api/v1/internal/exercises/${exerciseId}/placement`,
+          {
+            headers: { 'x-internal-token': this.token },
+            timeout: this.timeout,
+          },
+        ),
+      );
+      return Result.ok(data);
+    } catch (err) {
+      return this.mapError(err, `getExercisePlacement(${exerciseId})`);
     }
   }
 

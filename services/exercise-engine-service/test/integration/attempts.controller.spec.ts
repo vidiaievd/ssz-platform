@@ -13,6 +13,7 @@ import { ListUserAttemptsHandler } from '../../src/modules/attempts/application/
 import { ATTEMPT_REPOSITORY } from '../../src/modules/attempts/domain/repositories/attempt.repository.js';
 import { CONTENT_CLIENT } from '../../src/shared/application/ports/content-client.port.js';
 import { ContentClientError } from '../../src/shared/application/ports/content-client.port.js';
+import { ORGANIZATION_CLIENT } from '../../src/shared/application/ports/organization-client.port.js';
 import { ANSWER_VALIDATOR } from '../../src/shared/application/ports/answer-validator.port.js';
 import { FEEDBACK_GENERATOR } from '../../src/shared/application/ports/feedback-generator.port.js';
 import { LEARNING_CLIENT } from '../../src/shared/application/ports/learning-client.port.js';
@@ -83,12 +84,20 @@ describe('AttemptsController (integration)', () => {
   const mockRepo = {
     findById: jest.fn(),
     findInProgress: jest.fn(),
+    findLatestReturned: jest.fn().mockResolvedValue(null),
     findAllByUser: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
   };
   const mockContentClient = {
     getExerciseForAttempt: jest.fn(),
     getPracticedAtoms: jest.fn().mockResolvedValue(Result.ok([])),
+    getExercisePlacement: jest
+      .fn()
+      .mockResolvedValue(Result.fail(new ContentClientError(404, 'Not placed'))),
+  };
+  const mockOrganizationClient = {
+    getMemberRole: jest.fn(),
+    resolveStudentGroup: jest.fn(),
   };
   const mockValidator = { validate: jest.fn() };
   const mockFeedback = { generate: jest.fn() };
@@ -106,6 +115,7 @@ describe('AttemptsController (integration)', () => {
         GetAttemptByIdHandler, ListUserAttemptsHandler,
         { provide: ATTEMPT_REPOSITORY, useValue: mockRepo },
         { provide: CONTENT_CLIENT, useValue: mockContentClient },
+        { provide: ORGANIZATION_CLIENT, useValue: mockOrganizationClient },
         { provide: ANSWER_VALIDATOR, useValue: mockValidator },
         { provide: FEEDBACK_GENERATOR, useValue: mockFeedback },
         { provide: LEARNING_CLIENT, useValue: mockLearning },

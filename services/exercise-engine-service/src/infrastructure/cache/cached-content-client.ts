@@ -2,12 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import type {
   CheckMode,
   ExerciseDefinition,
+  ExercisePlacement,
   IContentClient,
   PracticedAtomRef,
 } from '../../shared/application/ports/content-client.port.js';
 import { ContentClientError } from '../../shared/application/ports/content-client.port.js';
 import { Result } from '../../shared/kernel/result.js';
 import { ExerciseDefinitionCache } from './exercise-definition-cache.js';
+import { ExercisePlacementCache } from './exercise-placement-cache.js';
 import { HttpContentClient } from '../http/http-content-client.js';
 
 @Injectable()
@@ -16,6 +18,7 @@ export class CachedContentClient implements IContentClient {
 
   constructor(
     private readonly cache: ExerciseDefinitionCache,
+    private readonly placementCache: ExercisePlacementCache,
     private readonly http: HttpContentClient,
   ) {}
 
@@ -46,5 +49,19 @@ export class CachedContentClient implements IContentClient {
     exerciseId: string,
   ): Promise<Result<PracticedAtomRef[], ContentClientError>> {
     return this.http.getPracticedAtoms(exerciseId);
+  }
+
+  async getExercisePlacement(
+    exerciseId: string,
+  ): Promise<Result<ExercisePlacement, ContentClientError>> {
+    const cached = await this.placementCache.get(exerciseId);
+    if (cached) return Result.ok(cached);
+
+    const result = await this.http.getExercisePlacement(exerciseId);
+    if (result.isOk) {
+      await this.placementCache.set(exerciseId, result.value);
+    }
+
+    return result;
   }
 }

@@ -36,6 +36,7 @@ export const envSchema = z.object({
   INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
 
   EXERCISE_DEFINITION_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  EXERCISE_PLACEMENT_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -96,6 +97,7 @@ export interface AppConfig {
   };
   cache: {
     exerciseDefinitionTtlSeconds: number;
+    exercisePlacementTtlSeconds: number;
   };
   internalServiceToken: string;
 }
@@ -146,6 +148,7 @@ export default (): AppConfig => {
     },
     cache: {
       exerciseDefinitionTtlSeconds: env.EXERCISE_DEFINITION_CACHE_TTL_SECONDS,
+      exercisePlacementTtlSeconds: env.EXERCISE_PLACEMENT_CACHE_TTL_SECONDS,
     },
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };

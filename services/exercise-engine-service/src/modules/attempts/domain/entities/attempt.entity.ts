@@ -555,6 +555,31 @@ export class Attempt extends AggregateRoot {
     );
   }
 
+  /**
+   * Attaches the review-queue context resolved best-effort at attempt start
+   * (plan 44 §44.4): where the exercise sits, and — when it followed a
+   * RETURNED verdict — which attempt it resubmits and what number try this is.
+   *
+   * Every field is independently nullable because each comes from a
+   * different neighbor service that may not have answered; starting the
+   * attempt matters more than knowing all of this up front (plan 44 §44.4).
+   */
+  snapshotReviewContext(props: {
+    schoolId: string | null;
+    containerId: string | null;
+    groupId: string | null;
+    exercisePath: ExercisePathSnapshot | null;
+    previousAttemptId: string | null;
+    revisionCount: number;
+  }): void {
+    this._schoolId = props.schoolId;
+    this._containerId = props.containerId;
+    this._groupId = props.groupId;
+    this._exercisePath = props.exercisePath;
+    this._previousAttemptId = props.previousAttemptId;
+    this._revisionCount = props.revisionCount;
+  }
+
   addTimeSpent(seconds: number): void {
     if (seconds > 0) {
       this._timeSpentSeconds += seconds;

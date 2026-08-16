@@ -1,5 +1,5 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { randomInt } from 'node:crypto';
 import {
   readContent,
@@ -21,8 +21,10 @@ import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
 import { ATTEMPT_REPOSITORY, type IAttemptRepository } from '../../../domain/repositories/attempt.repository.js';
 import { CONTENT_CLIENT, type IContentClient, ContentClientError } from '../../../../../shared/application/ports/content-client.port.js';
+import { ORGANIZATION_CLIENT, type IOrganizationClient } from '../../../../../shared/application/ports/organization-client.port.js';
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
+import type { ExercisePathSnapshot } from '../../../domain/entities/attempt.entity.js';
 
 export type StartAttemptError =
   | ContentClientError
@@ -110,9 +112,12 @@ function shuffled(words: string[]): string[] {
 
 @CommandHandler(StartAttemptCommand)
 export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand> {
+  private readonly logger = new Logger(StartAttemptHandler.name);
+
   constructor(
     @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
     @Inject(CONTENT_CLIENT) private readonly contentClient: IContentClient,
+    @Inject(ORGANIZATION_CLIENT) private readonly organizationClient: IOrganizationClient,
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
   ) {}
 
@@ -155,6 +160,10 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       practicedAtoms,
     });
 
+    attempt.snapshotReviewContext(
+      await this.resolveReviewContext(command.userId, command.exerciseId),
+    );
+
     await this.attempts.save(attempt);
 
     for (const event of attempt.getDomainEvents()) {
@@ -177,5 +186,66 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       answerSchema: def.template.answerSchema,
       checkSettings,
     });
+  }
+
+  /**
+   * Where this submission would show up in review, resolved best-effort
+   * (plan 44 §44.4). Starting the attempt matters more than knowing any of
+   * this up front — a neighbor service that doesn't answer just means the
+   * attempt is invisible to oversight (§0.4), never a reason to fail here.
+   */
+  private async resolveReviewContext(
+    userId: string,
+    exerciseId: string,
+  ): Promise<{
+    schoolId: string | null;
+    containerId: string | null;
+    groupId: string | null;
+    exercisePath: ExercisePathSnapshot | null;
+    previousAttemptId: string | null;
+    revisionCount: number;
+  }> {
+    let schoolId: string | null = null;
+    let containerId: string | null = null;
+    let exercisePath: ExercisePathSnapshot | null = null;
+
+    const placementResult = await this.contentClient.getExercisePlacement(exerciseId);
+    if (placementResult.isOk) {
+      const placement = placementResult.value;
+      schoolId = placement.ownerSchoolId;
+      containerId = placement.containerId;
+      exercisePath = {
+        course: placement.containerTitle,
+        module: placement.moduleTitle,
+        exercise: placement.exerciseTitle,
+      };
+    } else {
+      this.logger.warn(
+        `Placement lookup failed for exercise ${exerciseId}: ${placementResult.error.message}`,
+      );
+    }
+
+    let groupId: string | null = null;
+    if (schoolId) {
+      const groupResult = await this.organizationClient.resolveStudentGroup(schoolId, userId);
+      if (groupResult.isOk) {
+        groupId = groupResult.value.groupId;
+      } else {
+        this.logger.warn(
+          `Group resolution failed for user ${userId} in school ${schoolId}: ${groupResult.error.message}`,
+        );
+      }
+    }
+
+    const previous = await this.attempts.findLatestReturned(userId, exerciseId);
+
+    return {
+      schoolId,
+      containerId,
+      groupId,
+      exercisePath,
+      previousAttemptId: previous?.id ?? null,
+      revisionCount: previous ? previous.revisionCount + 1 : 0,
+    };
   }
 }

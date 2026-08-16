@@ -70,6 +70,7 @@ const translateAnswers = {
 function makeHandler(templateCode: string, content: unknown, expectedAnswers: unknown) {
   const attempts = {
     findInProgress: jest.fn(() => Promise.resolve(null)),
+    findLatestReturned: jest.fn(() => Promise.resolve(null)),
     save: jest.fn(),
   };
   const contentClient = {
@@ -89,11 +90,25 @@ function makeHandler(templateCode: string, content: unknown, expectedAnswers: un
       ),
     ),
     getPracticedAtoms: jest.fn(() => Promise.resolve(Result.ok([]))),
+    // Not under test here — resolved to a miss so the review-context snapshot
+    // (plan 44 §44.4) stays a no-op and this file can focus on withholding.
+    getExercisePlacement: jest.fn(() =>
+      Promise.resolve(Result.fail({ statusCode: 404, message: 'Not placed' })),
+    ),
+  };
+  const organizationClient = {
+    getMemberRole: jest.fn(),
+    resolveStudentGroup: jest.fn(),
   };
   const publisher = { publish: jest.fn(() => Promise.resolve()) };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return new StartAttemptHandler(attempts as any, contentClient as any, publisher as any);
+  return new StartAttemptHandler(
+    attempts as any,
+    contentClient as any,
+    organizationClient as any,
+    publisher as any,
+  );
 }
 
 const practice = new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE');

@@ -7,6 +7,7 @@ import { HttpContentClient } from './http-content-client.js';
 import { HttpLearningClient } from './http-learning-client.js';
 import { HttpOrganizationClient } from './http-organization-client.js';
 import { ExerciseDefinitionCache } from '../cache/exercise-definition-cache.js';
+import { ExercisePlacementCache } from '../cache/exercise-placement-cache.js';
 import { CachedContentClient } from '../cache/cached-content-client.js';
 
 @Global()
@@ -16,6 +17,7 @@ import { CachedContentClient } from '../cache/cached-content-client.js';
     // Raw HTTP client — internal dependency of CachedContentClient, not exported directly.
     HttpContentClient,
     ExerciseDefinitionCache,
+    ExercisePlacementCache,
     CachedContentClient,
     { provide: CONTENT_CLIENT, useExisting: CachedContentClient },
 
