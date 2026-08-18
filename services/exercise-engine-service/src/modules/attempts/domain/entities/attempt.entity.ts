@@ -120,6 +120,12 @@ export interface ExercisePathSnapshot {
  */
 export const REVIEW_CLAIM_TTL_MS = 15 * 60 * 1000;
 
+/** Someone is looking at this submission, until `expiresAt` says otherwise. */
+export interface ReviewLock {
+  teacherId: string;
+  expiresAt: Date;
+}
+
 export class Attempt extends AggregateRoot {
   private constructor(
     id: string,
@@ -545,6 +551,9 @@ export class Attempt extends AggregateRoot {
     this._reviewedAt = new Date();
     this._reviewComment = props.comment;
     this._reviewDecisions = props.decisions;
+    // Nobody is looking at this any more — it has been decided (plan 44 §44.8).
+    this._reviewClaimedBy = null;
+    this._reviewClaimedAt = null;
 
     if (props.outcome === 'returned') {
       this._status = 'RETURNED';
@@ -649,13 +658,67 @@ export class Attempt extends AggregateRoot {
    * must all agree on when a marker has lapsed, and three copies of `+ 15 minutes` is
    * exactly how they would stop agreeing.
    */
-  activeReviewLock(now: Date = new Date()): { teacherId: string; expiresAt: Date } | null {
+  activeReviewLock(now: Date = new Date()): ReviewLock | null {
     if (this._reviewClaimedBy === null || this._reviewClaimedAt === null) return null;
 
     const expiresAt = new Date(this._reviewClaimedAt.getTime() + REVIEW_CLAIM_TTL_MS);
     if (expiresAt <= now) return null;
 
     return { teacherId: this._reviewClaimedBy, expiresAt };
+  }
+
+  /**
+   * A reviewer says they are looking at this one (plan 44 §44.8).
+   *
+   * The marker is advisory and never a mutex: a colleague's live claim is not displaced,
+   * and the answer is then *their* claim rather than an error — the caller may still read
+   * the submission and still deliver a verdict, it just now knows to say who else is in
+   * here. Claiming again as the same reviewer extends, which is what a screen left open
+   * for twenty minutes needs.
+   *
+   * A submission nobody is waiting on cannot be claimed. The marker is cleared by a
+   * verdict, so one placed after the verdict has nothing left to clear it and would tell
+   * colleagues for fifteen minutes that work is under way on something already finished.
+   */
+  claimForReview(
+    teacherId: string,
+    now: Date = new Date(),
+  ): Result<ReviewLock, InvalidAttemptTransitionError> {
+    if (this._status !== 'ROUTED_FOR_REVIEW') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot claim an attempt with status ${this._status} for review`,
+        ),
+      );
+    }
+
+    const held = this.activeReviewLock(now);
+    if (held !== null && held.teacherId !== teacherId) {
+      return Result.ok(held);
+    }
+
+    this._reviewClaimedBy = teacherId;
+    this._reviewClaimedAt = now;
+    return Result.ok({ teacherId, expiresAt: new Date(now.getTime() + REVIEW_CLAIM_TTL_MS) });
+  }
+
+  /**
+   * The reviewer left the screen. Returns whatever marker still stands.
+   *
+   * Idempotent, and never takes a colleague's: a teacher closing their tab must not
+   * release the submission a second teacher has just picked up. A lapsed marker is swept
+   * here because we are already writing the row — expiry is decided on reading, so the
+   * column is untidy rather than wrong either way.
+   */
+  releaseReview(teacherId: string, now: Date = new Date()): ReviewLock | null {
+    const held = this.activeReviewLock(now);
+    if (held !== null && held.teacherId !== teacherId) {
+      return held;
+    }
+
+    this._reviewClaimedBy = null;
+    this._reviewClaimedAt = null;
+    return null;
   }
 
   addTimeSpent(seconds: number): void {

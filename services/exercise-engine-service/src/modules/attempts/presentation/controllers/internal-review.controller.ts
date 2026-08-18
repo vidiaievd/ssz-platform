@@ -2,6 +2,9 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
+  Delete,
+  HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -31,6 +34,12 @@ import type { ListReviewQueueV2Result } from '../../application/queries/list-rev
 import { decodeReviewQueueCursor } from '../../application/queries/list-review-queue-v2/review-queue-cursor.js';
 import { CountReviewQueueQuery } from '../../application/queries/count-review-queue/count-review-queue.query.js';
 import { GetSubmissionForReviewQuery } from '../../application/queries/get-submission-for-review/get-submission-for-review.query.js';
+import { ClaimReviewCommand } from '../../application/commands/claim-review/claim-review.command.js';
+import type { ClaimReviewError } from '../../application/commands/claim-review/claim-review.handler.js';
+import { ReleaseReviewCommand } from '../../application/commands/release-review/release-review.command.js';
+import type { ReleaseReviewError } from '../../application/commands/release-review/release-review.handler.js';
+import type { ReviewLockResult } from '../../application/commands/review-lock.result.js';
+import { ReviewLockRequestDto } from '../dto/review-lock.dto.js';
 import type {
   GetSubmissionForReviewError,
   GetSubmissionForReviewResult,
@@ -200,6 +209,69 @@ export class InternalReviewController {
     }
 
     return result.value;
+  }
+
+  /**
+   * "I am looking at this one" — and, fifteen minutes later, not any more.
+   *
+   * 200 rather than 201: the answer is who holds the submission now, which may well be a
+   * colleague whose live marker this call did not displace. Nothing was created then, and
+   * the reviewer is not being turned away either — the marker is advisory, so reading and
+   * deciding stay open to them and the screen simply names who else is in here.
+   */
+  @Post(':attemptId/review/lock')
+  @HttpCode(HttpStatus.OK)
+  async claimReview(
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Body() dto: ReviewLockRequestDto,
+  ): Promise<ReviewLockResult> {
+    const { schoolId, teacherId } = this.lockActor(dto);
+
+    const result: Result<ReviewLockResult, ClaimReviewError> = await this.commandBus.execute(
+      new ClaimReviewCommand(attemptId, schoolId, teacherId),
+    );
+
+    if (result.isFail) {
+      if (result.error.code === 'ATTEMPT_NOT_FOUND') {
+        throw new NotFoundException('Attempt not found');
+      }
+      // Decided already, or never routed to a person: a marker placed now would never be
+      // cleared, since clearing is what a verdict does.
+      throw new UnprocessableEntityException('This submission is not waiting for review');
+    }
+
+    return result.value;
+  }
+
+  /** The reviewer left the screen. Idempotent, and it never lifts a colleague's marker. */
+  @Delete(':attemptId/review/lock')
+  @HttpCode(HttpStatus.OK)
+  async releaseReview(
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Body() dto: ReviewLockRequestDto,
+  ): Promise<ReviewLockResult> {
+    const { schoolId, teacherId } = this.lockActor(dto);
+
+    const result: Result<ReviewLockResult, ReleaseReviewError> = await this.commandBus.execute(
+      new ReleaseReviewCommand(attemptId, schoolId, teacherId),
+    );
+
+    if (result.isFail) {
+      throw new NotFoundException('Attempt not found');
+    }
+
+    return result.value;
+  }
+
+  /** Both fields, both 422 — see `ReviewLockRequestDto` for why they are checked here. */
+  private lockActor(dto: ReviewLockRequestDto): { schoolId: string; teacherId: string } {
+    if (!dto.schoolId) {
+      throw new UnprocessableEntityException('schoolId is required');
+    }
+    if (!dto.teacherId) {
+      throw new UnprocessableEntityException('teacherId is required');
+    }
+    return { schoolId: dto.schoolId, teacherId: dto.teacherId };
   }
 
   @Post(':attemptId/review')

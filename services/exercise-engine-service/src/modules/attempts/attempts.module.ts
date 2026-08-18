@@ -8,6 +8,8 @@ import { AbandonAttemptHandler } from './application/commands/abandon-attempt/ab
 import { RevealAnswersHandler } from './application/commands/reveal-answers/reveal-answers.handler.js';
 import { SelfCheckHandler } from './application/commands/self-check/self-check.handler.js';
 import { ReviewAttemptHandler } from './application/commands/review-attempt/review-attempt.handler.js';
+import { ClaimReviewHandler } from './application/commands/claim-review/claim-review.handler.js';
+import { ReleaseReviewHandler } from './application/commands/release-review/release-review.handler.js';
 import { GetAttemptByIdHandler } from './application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
 import { ListUserAttemptsHandler } from './application/queries/list-user-attempts/list-user-attempts.handler.js';
 import { ListReviewQueueHandler } from './application/queries/list-review-queue/list-review-queue.handler.js';
@@ -25,6 +27,8 @@ const CommandHandlers = [
   RevealAnswersHandler,
   SelfCheckHandler,
   ReviewAttemptHandler,
+  ClaimReviewHandler,
+  ReleaseReviewHandler,
 ];
 const QueryHandlers = [
   GetAttemptByIdHandler,
