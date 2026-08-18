@@ -1,25 +1,18 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
 import { ReviewAttemptCommand } from './review-attempt.command.js';
 import {
   ATTEMPT_REPOSITORY,
   type IAttemptRepository,
 } from '../../../domain/repositories/attempt.repository.js';
-import {
-  ANSWER_VALIDATOR,
-  type IAnswerValidator,
-} from '../../../../../shared/application/ports/answer-validator.port.js';
-import {
-  CONTENT_CLIENT,
-  type IContentClient,
-  ContentClientError,
-} from '../../../../../shared/application/ports/content-client.port.js';
+import { Inject } from '@nestjs/common';
 import {
   EVENT_PUBLISHER,
   type IEventPublisher,
 } from '../../../../../shared/application/ports/event-publisher.port.js';
+import type { ContentClientError } from '../../../../../shared/application/ports/content-client.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
-import type { Attempt, ReviewDecision } from '../../../domain/entities/attempt.entity.js';
+import { ReviewScoring } from '../../services/review-scoring.js';
+import { foldSentenceComments, publishAttemptEvents } from '../../services/review-verdict.js';
 import {
   ReviewCommentRequiredError,
   type AttemptDomainError,
@@ -42,32 +35,18 @@ export interface ReviewAttemptResult {
   totalItems: number;
 }
 
-/** What the machine had already closed by itself, per item. */
-interface AutoOutcome {
-  itemId: string;
-  autoPassed: boolean;
-}
-
 /**
  * The teacher's verdict, and the score that follows from it.
  *
- * The score is not sent by the client. It is derived here from two things the server can
- * see: the items the auto-check closed on its own, and the decisions the teacher made
- * about the rest — so a client cannot award a mark, and two teachers making the same
+ * The score is not sent by the client. It is derived by `ReviewScoring` from what the
+ * server can see — so a client cannot award a mark, and two teachers making the same
  * decisions cannot produce two different marks.
- *
- * Items the teacher decided nothing about are not approved. The queue screen sends a
- * decision for every open item, so the case only arises when a submission changed under
- * the reviewer — and quietly counting an undecided sentence as right would be the one
- * mistake this template cannot afford, since being marked by a person is the whole
- * feedback the learner gets.
  */
 @CommandHandler(ReviewAttemptCommand)
 export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptCommand> {
   constructor(
     @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
-    @Inject(ANSWER_VALIDATOR) private readonly validator: IAnswerValidator,
-    @Inject(CONTENT_CLIENT) private readonly contentClient: IContentClient,
+    private readonly scoring: ReviewScoring,
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
   ) {}
 
@@ -101,7 +80,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       if (returned.isFail) return Result.fail(toError(returned.error));
 
       await this.attempts.save(attempt);
-      await this.publish(attempt);
+      await publishAttemptEvents(this.publisher, attempt);
       return Result.ok({
         attemptId: attempt.id,
         status: 'RETURNED',
@@ -111,19 +90,10 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       });
     }
 
-    const autoResult = await this.autoOutcomes(attempt);
+    const autoResult = await this.scoring.autoOutcomes(attempt);
     if (autoResult.isFail) return Result.fail(autoResult.error);
-    const auto = autoResult.value;
 
-    const decided = new Map(decisions.map((decision) => [decision.itemId, decision]));
-    const approvedItems = auto.filter(
-      (item) => item.autoPassed || decided.get(item.itemId)?.approved === true,
-    ).length;
-    const totalItems = auto.length;
-
-    // An exercise with no readable items cannot be scored on a proportion of nothing;
-    // the teacher's act of approving is then the whole verdict.
-    const score = totalItems === 0 ? 100 : Math.round((approvedItems / totalItems) * 100);
+    const { approvedItems, totalItems, score } = this.scoring.scoreOf(autoResult.value, decisions);
 
     const reviewed = attempt.review({
       reviewerId: command.reviewerId,
@@ -140,7 +110,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     if (reviewed.isFail) return Result.fail(toError(reviewed.error));
 
     await this.attempts.save(attempt);
-    await this.publish(attempt);
+    await publishAttemptEvents(this.publisher, attempt);
 
     return Result.ok({
       attemptId: attempt.id,
@@ -150,70 +120,6 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       totalItems,
     });
   }
-
-  /** Saved first, published after: an event about a verdict nobody stored is a lie. */
-  private async publish(attempt: Attempt): Promise<void> {
-    for (const event of attempt.getDomainEvents()) {
-      await this.publisher.publish(event.eventType, event.payload);
-    }
-    attempt.clearDomainEvents();
-  }
-
-  /**
-   * Which items the auto-check closed by itself, recomputed from the stored answer.
-   *
-   * The same call the queue makes, for the same reason: the attempt stores no breakdown,
-   * and one that was stored at submission time would disagree with the exercise the
-   * moment its author fixed a key.
-   */
-  private async autoOutcomes(attempt: Attempt): Promise<Result<AutoOutcome[], ReviewAttemptError>> {
-    const defResult = await this.contentClient.getExerciseForAttempt(
-      attempt.exerciseId,
-      attempt.targetLanguage,
-      'PRACTICE',
-    );
-    if (defResult.isFail) return Result.fail(defResult.error);
-    const def = defResult.value;
-
-    const validation = await this.validator.validate({
-      templateCode: attempt.templateCode,
-      answerSchema: def.template.answerSchema as object,
-      expectedAnswers: def.exercise.expectedAnswers,
-      content: def.exercise.content,
-      submittedAnswer: attempt.submittedAnswer,
-      checkSettings: {
-        ...(def.template.defaultCheckSettings ?? {}),
-        ...(def.exercise.answerCheckSettings ?? {}),
-      },
-      targetLanguage: attempt.targetLanguage,
-    });
-
-    // A submission the validator cannot read still gets a verdict: the teacher's. Every
-    // item then counts as one they decided, which is exactly what happened.
-    if (validation.isFail) return Result.ok([]);
-
-    return Result.ok(readItems(validation.value.details));
-  }
-}
-
-/**
- * The per-item routing out of a validator's details.
- *
- * Read defensively: `details` is validator-specific by contract, and this handler is
- * written to serve every template that can reach a review queue rather than one of them.
- */
-function readItems(details: unknown): AutoOutcome[] {
-  if (typeof details !== 'object' || details === null) return [];
-  const items = (details as { items?: unknown }).items;
-  if (!Array.isArray(items)) return [];
-
-  return items.flatMap((entry): AutoOutcome[] => {
-    if (typeof entry !== 'object' || entry === null) return [];
-    const itemId = (entry as { itemId?: unknown }).itemId;
-    if (typeof itemId !== 'string') return [];
-    const routing = (entry as { routing?: unknown }).routing;
-    return [{ itemId, autoPassed: routing === 'pass' }];
-  });
 }
 
 /**
@@ -225,33 +131,4 @@ function readItems(details: unknown): AutoOutcome[] {
  */
 function toError(error: AttemptDomainError): ReviewAttemptError {
   return error instanceof ReviewCommentRequiredError ? { code: 'RETURN_REQUIRES_COMMENT' } : error;
-}
-
-/**
- * The per-sentence notes, merged into the decisions the teacher made.
- *
- * A note on a sentence the teacher decided nothing about becomes a decision that does not
- * approve it — which is what "not approved" already meant for an item nobody ruled on, so
- * the score is unchanged and the remark is kept rather than dropped on the floor.
- */
-function foldSentenceComments(
-  decisions: ReviewDecision[],
-  sentenceComments: Record<string, string>,
-): ReviewDecision[] {
-  const entries = Object.entries(sentenceComments).filter(
-    ([, comment]) => typeof comment === 'string' && comment.trim() !== '',
-  );
-  if (entries.length === 0) return decisions;
-
-  const byItem = new Map(decisions.map((decision) => [decision.itemId, { ...decision }]));
-  for (const [itemId, comment] of entries) {
-    const existing = byItem.get(itemId);
-    if (existing) {
-      existing.comment = comment;
-    } else {
-      byItem.set(itemId, { itemId, approved: false, comment });
-    }
-  }
-
-  return [...byItem.values()];
 }

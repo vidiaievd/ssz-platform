@@ -41,6 +41,9 @@ import { ReleaseReviewCommand } from '../../application/commands/release-review/
 import type { ReleaseReviewError } from '../../application/commands/release-review/release-review.handler.js';
 import type { ReviewLockResult } from '../../application/commands/review-lock.result.js';
 import { ReviewLockRequestDto } from '../dto/review-lock.dto.js';
+import { BatchApproveRequestDto } from '../dto/batch-approve.dto.js';
+import { BatchApproveCommand } from '../../application/commands/batch-approve/batch-approve.command.js';
+import type { BatchApproveResult } from '../../application/commands/batch-approve/batch-approve.handler.js';
 import type {
   GetSubmissionForReviewError,
   GetSubmissionForReviewResult,
@@ -59,6 +62,15 @@ const MAX_EXERCISES_PER_QUEUE = 500;
 
 /** The default page of the scoped queue; a hundred is the ceiling (see the DTO). */
 const DEFAULT_QUEUE_LIMIT = 50;
+
+/**
+ * How many submissions one batch approval may carry (plan 44 §44.10).
+ *
+ * Not a page size but a sanity bound on an irreversible action: the modal names every
+ * learner in it, and a caller sending more than this has stopped enumerating and started
+ * filtering.
+ */
+const MAX_BATCH_APPROVE = 100;
 
 /**
  * The teacher's side of an attempt — service-to-service only.
@@ -179,6 +191,39 @@ export class InternalReviewController {
       containerIds,
       templateCodes: dto.templateCodes?.length ? [...new Set(dto.templateCodes)] : undefined,
     };
+  }
+
+  /**
+   * Approve a list of submissions the machine had already closed, in one call.
+   *
+   * Declared before the parameterised routes so the literal `review/batch-approve` keeps
+   * winning: Nest matches in declaration order.
+   *
+   * Partial success is a 200, not an error — `skipped` names what was left alone and
+   * why, and the screen shows it as a toast beside the count. The one refusal is a list
+   * longer than the ceiling: a modal that listed a hundred learners by name has stopped
+   * being a list a teacher read.
+   */
+  @Post('review/batch-approve')
+  @HttpCode(HttpStatus.OK)
+  async batchApprove(@Body() dto: BatchApproveRequestDto): Promise<BatchApproveResult> {
+    if (!dto.schoolId) {
+      throw new UnprocessableEntityException('schoolId is required');
+    }
+    if (!dto.reviewerId) {
+      throw new UnprocessableEntityException('reviewerId is required');
+    }
+
+    const attemptIds = [...new Set(dto.attemptIds)];
+    if (attemptIds.length > MAX_BATCH_APPROVE) {
+      throw new UnprocessableEntityException(
+        `At most ${MAX_BATCH_APPROVE} submissions may be approved at once`,
+      );
+    }
+
+    return this.commandBus.execute<BatchApproveCommand, BatchApproveResult>(
+      new BatchApproveCommand(dto.schoolId, dto.reviewerId, attemptIds),
+    );
   }
 
   /**

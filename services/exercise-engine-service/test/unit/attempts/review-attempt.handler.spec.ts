@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import { ReviewAttemptHandler } from '../../../src/modules/attempts/application/commands/review-attempt/review-attempt.handler.js';
 import { ReviewAttemptCommand } from '../../../src/modules/attempts/application/commands/review-attempt/review-attempt.command.js';
 import { Attempt } from '../../../src/modules/attempts/domain/entities/attempt.entity.js';
+import { ReviewScoring } from '../../../src/modules/attempts/application/services/review-scoring.js';
 import { Result } from '../../../src/shared/kernel/result.js';
 
 /**
@@ -57,8 +58,7 @@ function makeHandler(attempt: Attempt | null, details: unknown = DETAILS) {
 
   const handler = new ReviewAttemptHandler(
     attempts as never,
-    validator as never,
-    contentClient as never,
+    new ReviewScoring(validator as never, contentClient as never),
     publisher as never,
   );
   return { handler, attempts, publisher, validator };

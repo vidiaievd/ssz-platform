@@ -8,6 +8,7 @@ import { AbandonAttemptHandler } from './application/commands/abandon-attempt/ab
 import { RevealAnswersHandler } from './application/commands/reveal-answers/reveal-answers.handler.js';
 import { SelfCheckHandler } from './application/commands/self-check/self-check.handler.js';
 import { ReviewAttemptHandler } from './application/commands/review-attempt/review-attempt.handler.js';
+import { BatchApproveHandler } from './application/commands/batch-approve/batch-approve.handler.js';
 import { ClaimReviewHandler } from './application/commands/claim-review/claim-review.handler.js';
 import { ReleaseReviewHandler } from './application/commands/release-review/release-review.handler.js';
 import { GetAttemptByIdHandler } from './application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
@@ -16,6 +17,7 @@ import { ListReviewQueueHandler } from './application/queries/list-review-queue/
 import { ListReviewQueueV2Handler } from './application/queries/list-review-queue-v2/list-review-queue-v2.handler.js';
 import { CountReviewQueueHandler } from './application/queries/count-review-queue/count-review-queue.handler.js';
 import { GetSubmissionForReviewHandler } from './application/queries/get-submission-for-review/get-submission-for-review.handler.js';
+import { ReviewScoring } from './application/services/review-scoring.js';
 import { ReviewContextResolver } from './application/services/review-context-resolver.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
 import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
@@ -27,6 +29,7 @@ const CommandHandlers = [
   RevealAnswersHandler,
   SelfCheckHandler,
   ReviewAttemptHandler,
+  BatchApproveHandler,
   ClaimReviewHandler,
   ReleaseReviewHandler,
 ];
@@ -46,6 +49,7 @@ const QueryHandlers = [
     PrismaAttemptRepository,
     { provide: ATTEMPT_REPOSITORY, useExisting: PrismaAttemptRepository },
     ReviewContextResolver,
+    ReviewScoring,
     ...CommandHandlers,
     ...QueryHandlers,
   ],
