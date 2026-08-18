@@ -13,6 +13,7 @@ import { ListUserAttemptsHandler } from './application/queries/list-user-attempt
 import { ListReviewQueueHandler } from './application/queries/list-review-queue/list-review-queue.handler.js';
 import { ListReviewQueueV2Handler } from './application/queries/list-review-queue-v2/list-review-queue-v2.handler.js';
 import { CountReviewQueueHandler } from './application/queries/count-review-queue/count-review-queue.handler.js';
+import { GetSubmissionForReviewHandler } from './application/queries/get-submission-for-review/get-submission-for-review.handler.js';
 import { ReviewContextResolver } from './application/services/review-context-resolver.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
 import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
@@ -31,6 +32,7 @@ const QueryHandlers = [
   ListReviewQueueHandler,
   ListReviewQueueV2Handler,
   CountReviewQueueHandler,
+  GetSubmissionForReviewHandler,
 ];
 
 @Module({

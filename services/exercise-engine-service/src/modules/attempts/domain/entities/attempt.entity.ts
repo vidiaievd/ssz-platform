@@ -640,6 +640,24 @@ export class Attempt extends AggregateRoot {
     this._revisionCount = props.revisionCount;
   }
 
+  /**
+   * Who, if anyone, is looking at this submission right now (plan 44 §44.8).
+   *
+   * Expiry is read here rather than swept in the background, so the marker of a teacher
+   * who closed their laptop stops holding the submission by itself. It lives on the
+   * entity because the TTL does: the queue, the single submission and the claim command
+   * must all agree on when a marker has lapsed, and three copies of `+ 15 minutes` is
+   * exactly how they would stop agreeing.
+   */
+  activeReviewLock(now: Date = new Date()): { teacherId: string; expiresAt: Date } | null {
+    if (this._reviewClaimedBy === null || this._reviewClaimedAt === null) return null;
+
+    const expiresAt = new Date(this._reviewClaimedAt.getTime() + REVIEW_CLAIM_TTL_MS);
+    if (expiresAt <= now) return null;
+
+    return { teacherId: this._reviewClaimedBy, expiresAt };
+  }
+
   addTimeSpent(seconds: number): void {
     if (seconds > 0) {
       this._timeSpentSeconds += seconds;

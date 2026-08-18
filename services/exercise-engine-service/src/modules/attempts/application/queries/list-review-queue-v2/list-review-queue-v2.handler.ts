@@ -6,10 +6,9 @@ import {
   ATTEMPT_REPOSITORY,
   type IAttemptRepository,
 } from '../../../domain/repositories/attempt.repository.js';
-import {
-  REVIEW_CLAIM_TTL_MS,
-  type Attempt,
-  type ExercisePathSnapshot,
+import type {
+  Attempt,
+  ExercisePathSnapshot,
 } from '../../../domain/entities/attempt.entity.js';
 
 /** Another teacher has this one open — advisory, and gone on its own after 15 minutes. */
@@ -150,7 +149,7 @@ export class ListReviewQueueV2Handler implements IQueryHandler<ListReviewQueueV2
       submittedAt: attempt.submittedAt ?? attempt.startedAt,
       attemptNo: attempt.revisionCount + 1,
       autoClean: this.isAutoClean(attempt),
-      lock: this.lockOf(attempt, now),
+      lock: attempt.activeReviewLock(now),
     };
   }
 
@@ -163,14 +162,5 @@ export class ListReviewQueueV2Handler implements IQueryHandler<ListReviewQueueV2
     const { autoPassedItems, totalItems } = attempt;
     if (autoPassedItems === null || totalItems === null) return false;
     return totalItems > 0 && autoPassedItems === totalItems;
-  }
-
-  private lockOf(attempt: Attempt, now: Date): ReviewQueueLock | null {
-    if (attempt.reviewClaimedBy === null || attempt.reviewClaimedAt === null) return null;
-
-    const expiresAt = new Date(attempt.reviewClaimedAt.getTime() + REVIEW_CLAIM_TTL_MS);
-    if (expiresAt <= now) return null;
-
-    return { teacherId: attempt.reviewClaimedBy, expiresAt };
   }
 }

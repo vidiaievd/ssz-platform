@@ -30,6 +30,11 @@ import { ListReviewQueueV2Query } from '../../application/queries/list-review-qu
 import type { ListReviewQueueV2Result } from '../../application/queries/list-review-queue-v2/list-review-queue-v2.handler.js';
 import { decodeReviewQueueCursor } from '../../application/queries/list-review-queue-v2/review-queue-cursor.js';
 import { CountReviewQueueQuery } from '../../application/queries/count-review-queue/count-review-queue.query.js';
+import { GetSubmissionForReviewQuery } from '../../application/queries/get-submission-for-review/get-submission-for-review.query.js';
+import type {
+  GetSubmissionForReviewError,
+  GetSubmissionForReviewResult,
+} from '../../application/queries/get-submission-for-review/get-submission-for-review.handler.js';
 import type {
   ReviewQueueScope,
   ReviewQueueSummary,
@@ -164,6 +169,37 @@ export class InternalReviewController {
       containerIds,
       templateCodes: dto.templateCodes?.length ? [...new Set(dto.templateCodes)] : undefined,
     };
+  }
+
+  /**
+   * One submission, everything the reviewer's screen is drawn from.
+   *
+   * `schoolId` is required for the same reason the queue requires it (plan 44 §0.2): the
+   * engine authorises nothing, so the caller states whose submission it believes it is
+   * asking for, and a mismatch comes back as 404 rather than 403 — a caller with no
+   * business here should not learn the attempt exists.
+   *
+   * The route is declared after `GET review` so the literal segment keeps winning; a
+   * UUID pipe on the parameter would not save it, since Nest matches in declaration
+   * order.
+   */
+  @Get(':attemptId/review')
+  async getSubmission(
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Query('schoolId') schoolId?: string,
+  ): Promise<GetSubmissionForReviewResult> {
+    if (!schoolId) {
+      throw new UnprocessableEntityException('schoolId is required');
+    }
+
+    const result: Result<GetSubmissionForReviewResult, GetSubmissionForReviewError> =
+      await this.queryBus.execute(new GetSubmissionForReviewQuery(attemptId, schoolId));
+
+    if (result.isFail) {
+      throw new NotFoundException('Attempt not found');
+    }
+
+    return result.value;
   }
 
   @Post(':attemptId/review')
