@@ -6,6 +6,7 @@ import {
   AttemptAlreadySubmittedError,
   InvalidAttemptTransitionError,
   InvalidScoreError,
+  ReviewCommentRequiredError,
 } from '../exceptions/attempt.errors.js';
 import { AttemptStartedEvent } from '../events/attempt-started.event.js';
 import type { AnswerForm } from '@ssz/contracts';
@@ -119,6 +120,14 @@ export interface ExercisePathSnapshot {
  * itself, and a background sweep would be one more thing to be down.
  */
 export const REVIEW_CLAIM_TTL_MS = 15 * 60 * 1000;
+
+/** How an attempt ended, when it ended by a person's decision. */
+export interface DeliveredVerdict {
+  outcome: 'approved' | 'returned';
+  at: Date;
+  reviewerId: string;
+  comment: string | null;
+}
 
 /** Someone is looking at this submission, until `expiresAt` says otherwise. */
 export interface ReviewLock {
@@ -538,13 +547,23 @@ export class Attempt extends AggregateRoot {
     /** How much of the submission counted, for the letter back to the learner. */
     approvedItems?: number;
     totalItems?: number;
-  }): Result<void, InvalidScoreError | InvalidAttemptTransitionError> {
+  }): Result<
+    void,
+    InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
+  > {
     if (this._status !== 'ROUTED_FOR_REVIEW') {
       return Result.fail(
         new InvalidAttemptTransitionError(
           `Cannot review an attempt with status ${this._status}`,
         ),
       );
+    }
+
+    // A return is an instruction to try again, and one without a word on it is not an
+    // instruction. Checked here rather than at the edge so that no caller — the queue,
+    // a batch, a future one — can send work back silently.
+    if (props.outcome === 'returned' && (props.comment ?? '').trim() === '') {
+      return Result.fail(new ReviewCommentRequiredError());
     }
 
     this._reviewedByUserId = props.reviewerId;
@@ -607,6 +626,13 @@ export class Attempt extends AggregateRoot {
     },
     score: number | null,
   ): void {
+    // Anywhere a person wrote something: the overall word, or a note on one sentence. An
+    // approval with nothing said in general but a remark on sentence two still has
+    // something the learner must be sent to read (plan 44 §44.9).
+    const hasComment =
+      (props.comment ?? '').trim() !== '' ||
+      (this._reviewDecisions ?? []).some((decision) => (decision.comment ?? '').trim() !== '');
+
     this.addDomainEvent(
       new AttemptReviewedEvent(this.id, {
         attemptId: this.id,
@@ -617,6 +643,7 @@ export class Attempt extends AggregateRoot {
         outcome: props.outcome,
         score,
         comment: props.comment,
+        hasComment,
         approvedItems: props.approvedItems ?? 0,
         totalItems: props.totalItems ?? 0,
         occurredAt: new Date().toISOString(),
@@ -665,6 +692,37 @@ export class Attempt extends AggregateRoot {
     if (expiresAt <= now) return null;
 
     return { teacherId: this._reviewClaimedBy, expiresAt };
+  }
+
+  /**
+   * The verdict this attempt already carries, if a person delivered one.
+   *
+   * `SCORED` alone does not qualify: the machine scores too, and a colleague's name is
+   * exactly what the conflict banner has to show (plan 44 §44.9, criterion 24). Only a
+   * signature makes it somebody's decision.
+   */
+  deliveredVerdict(): DeliveredVerdict | null {
+    if (this._reviewedByUserId === null) return null;
+
+    if (this._status === 'RETURNED') {
+      return {
+        outcome: 'returned',
+        at: this._reviewedAt ?? this._submittedAt ?? this._startedAt,
+        reviewerId: this._reviewedByUserId,
+        comment: this._reviewComment,
+      };
+    }
+
+    if (this._status === 'SCORED') {
+      return {
+        outcome: 'approved',
+        at: this._reviewedAt ?? this._scoredAt ?? this._startedAt,
+        reviewerId: this._reviewedByUserId,
+        comment: this._reviewComment,
+      };
+    }
+
+    return null;
   }
 
   /**

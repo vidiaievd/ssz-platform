@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   DefaultValuePipe,
   Delete,
@@ -283,19 +284,37 @@ export class InternalReviewController {
       new ReviewAttemptCommand(
         attemptId,
         dto.reviewerId,
-        dto.outcome,
+        // Three verdicts on the screen, two in the engine — see the DTO.
+        dto.outcome === 'returned' ? 'returned' : 'approved',
         dto.decisions ?? [],
         dto.comment ?? null,
+        dto.sentenceComments ?? {},
       ),
     );
 
     if (result.isFail) {
       const error = result.error;
-      if ('code' in error && error.code === 'ATTEMPT_NOT_FOUND') {
-        throw new NotFoundException('Attempt not found');
+      if ('code' in error) {
+        switch (error.code) {
+          case 'ATTEMPT_NOT_FOUND':
+            throw new NotFoundException('Attempt not found');
+          // The screen goes read-only and names the colleague, so it is told which one
+          // and what they decided — not merely that it was too late (criterion 24).
+          case 'ALREADY_REVIEWED':
+            throw new ConflictException({
+              code: 'ALREADY_REVIEWED',
+              by: error.by,
+              verdict: error.verdict,
+              at: error.at.toISOString(),
+            });
+          // Inline on the comment field, which is why it travels as a code and not as
+          // prose (criterion 18).
+          case 'RETURN_REQUIRES_COMMENT':
+            throw new UnprocessableEntityException({ code: 'RETURN_REQUIRES_COMMENT' });
+        }
       }
-      // Everything else is a submission that is no longer waiting: reviewed by a
-      // colleague a minute ago, or never routed for review at all.
+      // A submission that was never routed to a person at all, or an exercise this
+      // service could not fetch to recompute the parse against.
       throw new UnprocessableEntityException('Cannot review this attempt');
     }
 

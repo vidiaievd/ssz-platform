@@ -14,5 +14,12 @@ export class ReviewAttemptCommand {
     public readonly outcome: 'approved' | 'returned',
     public readonly decisions: ReviewDecision[],
     public readonly comment: string | null,
+    /**
+     * A note against one sentence, keyed by item. Folded into `decisions` by the handler
+     * (plan 44 §44.9): the teacher's screen writes them separately, but they are the same
+     * thing the domain already stores per item, and a second column for them would be a
+     * second answer to "what was said about sentence two".
+     */
+    public readonly sentenceComments: Record<string, string> = {},
   ) {}
 }

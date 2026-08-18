@@ -135,6 +135,16 @@ export interface ExerciseAttemptReviewedPayload {
   score: number | null;
   /** What the teacher wrote about the submission as a whole, if anything. */
   comment: string | null;
+  /**
+   * A person wrote something, anywhere — the overall comment or a note on a single
+   * sentence.
+   *
+   * Not the same question as `comment !== null`: a teacher may approve with nothing to
+   * say in general and a remark on one sentence, and the learner must still be told there
+   * is something to read. It is the flag that separates "marked, nothing to add" from
+   * "marked, go and look" (plan 44 §44.9, criterion 40).
+   */
+  hasComment: boolean;
   /** How much of the submission counted. Both `0` when there was nothing readable. */
   approvedItems: number;
   totalItems: number;

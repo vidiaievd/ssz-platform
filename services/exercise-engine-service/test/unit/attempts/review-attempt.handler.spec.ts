@@ -154,20 +154,182 @@ describe('ReviewAttemptHandler', () => {
     });
   });
 
-  /** A submission a colleague marked a minute ago is no longer in anyone's queue. */
-  it('refuses to review an attempt that is not waiting for review', async () => {
+  /**
+   * A submission a colleague marked a minute ago is no longer in anyone's queue — and the
+   * screen has to name them, so the refusal carries who, what and when (criterion 24).
+   */
+  it('reports the colleague who got there first, not merely that it is too late', async () => {
     const attempt = routedAttempt();
     attempt.review({
       reviewerId: 'teacher-0',
       outcome: 'returned',
       decisions: [],
+      comment: 'Se på perfektum.',
+    });
+    const { handler, attempts } = makeHandler(attempt);
+
+    const result = await handler.execute(approve([]));
+
+    expect(result.isFail).toBe(true);
+    expect(result.error).toMatchObject({
+      code: 'ALREADY_REVIEWED',
+      by: 'teacher-0',
+      verdict: 'returned',
+    });
+    expect((result.error as { at: Date }).at).toBeInstanceOf(Date);
+    // The verdict that arrived second changes nothing.
+    expect(attempts.save).not.toHaveBeenCalled();
+  });
+
+  it('names an approval a colleague delivered, with its own outcome', async () => {
+    const attempt = routedAttempt();
+    attempt.review({
+      reviewerId: 'teacher-0',
+      outcome: 'approved',
+      decisions: [{ itemId: 'i2', approved: true }],
       comment: null,
+      score: 67,
     });
     const { handler } = makeHandler(attempt);
 
     const result = await handler.execute(approve([]));
 
+    expect(result.error).toMatchObject({
+      code: 'ALREADY_REVIEWED',
+      by: 'teacher-0',
+      verdict: 'approved',
+    });
+  });
+
+  /**
+   * A machine-scored attempt was never anybody's to conflict over: it is refused, but as
+   * a submission that is not waiting for a person rather than as a colleague's verdict.
+   */
+  it('does not dress a machine score up as a colleague', async () => {
+    const attempt = Attempt.create({
+      userId: 'user-1',
+      exerciseId: 'ex-1',
+      templateCode: 'translate_to_target',
+      targetLanguage: 'no',
+      difficultyLevel: 'B1',
+      checkMode: 'GRADED',
+      practicedAtoms: [],
+    });
+    attempt.submit([{ itemId: 'i1', text: 'Jeg har bodd i Tromsø.' }], 'hash');
+    attempt.score(100, true, null, null);
+    const { handler } = makeHandler(attempt);
+
+    const result = await handler.execute(approve([]));
+
     expect(result.isFail).toBe(true);
+    expect(result.error).not.toMatchObject({ code: 'ALREADY_REVIEWED' });
+  });
+
+  it('refuses to send work back with nothing said about why', async () => {
+    const attempt = routedAttempt();
+    const { handler, attempts, publisher } = makeHandler(attempt);
+
+    const result = await handler.execute(
+      new ReviewAttemptCommand('att-1', 'teacher-1', 'returned', [], '   '),
+    );
+
+    expect(result.isFail).toBe(true);
+    expect(result.error).toEqual({ code: 'RETURN_REQUIRES_COMMENT' });
+    expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
+    expect(attempts.save).not.toHaveBeenCalled();
+    expect(publisher.publish).not.toHaveBeenCalled();
+  });
+
+  it('folds a note on one sentence into the decision about it', async () => {
+    const attempt = routedAttempt();
+    const { handler } = makeHandler(attempt);
+
+    await handler.execute(
+      new ReviewAttemptCommand(
+        'att-1',
+        'teacher-1',
+        'approved',
+        [
+          { itemId: 'i2', approved: true },
+          { itemId: 'i3', approved: false },
+        ],
+        null,
+        { i3: '«bor» er presens.', i2: '   ' },
+      ),
+    );
+
+    expect(attempt.reviewDecisions).toEqual([
+      { itemId: 'i2', approved: true },
+      { itemId: 'i3', approved: false, comment: '«bor» er presens.' },
+    ]);
+  });
+
+  /**
+   * A remark on a sentence the teacher ruled on nowhere else is kept rather than dropped,
+   * and it does not approve anything: an item nobody approved was never counted anyway,
+   * so the mark is the same with the note as without it.
+   */
+  it('keeps a note on an item that has no decision, without approving it', async () => {
+    const attempt = routedAttempt();
+    const { handler } = makeHandler(attempt);
+
+    const result = await handler.execute(
+      new ReviewAttemptCommand(
+        'att-1',
+        'teacher-1',
+        'approved',
+        [{ itemId: 'i2', approved: true }],
+        null,
+        {
+          i3: 'Denne mangler verbet.',
+        },
+      ),
+    );
+
+    expect(result.value.approvedItems).toBe(2);
+    expect(result.value.score).toBe(67);
+    expect(attempt.reviewDecisions).toContainEqual({
+      itemId: 'i3',
+      approved: false,
+      comment: 'Denne mangler verbet.',
+    });
+  });
+
+  describe('hasComment on the letter to the learner', () => {
+    const reviewedPayload = (publisher: { publish: { mock: { calls: unknown[][] } } }) =>
+      publisher.publish.mock.calls.find(
+        ([eventType]) => String(eventType) === 'exercise.attempt.reviewed',
+      )![1] as { hasComment: boolean };
+
+    it('is false when a teacher approved with nothing to say', async () => {
+      const { handler, publisher } = makeHandler(routedAttempt());
+
+      await handler.execute(approve([{ itemId: 'i2', approved: true }]));
+
+      expect(reviewedPayload(publisher).hasComment).toBe(false);
+    });
+
+    it('is true on an approval carrying only a note on one sentence', async () => {
+      const { handler, publisher } = makeHandler(routedAttempt());
+
+      await handler.execute(
+        new ReviewAttemptCommand('att-1', 'teacher-1', 'approved', [], null, {
+          i2: 'Nesten — se på ordstillingen.',
+        }),
+      );
+
+      expect(reviewedPayload(publisher).hasComment).toBe(true);
+    });
+
+    it('is true when the work was sent back, which always says why', async () => {
+      const { handler, publisher } = makeHandler(routedAttempt());
+
+      await handler.execute(
+        new ReviewAttemptCommand('att-1', 'teacher-1', 'returned', [], 'Se på perfektum.'),
+      );
+
+      expect(reviewedPayload(publisher).hasComment).toBe(true);
+    });
   });
 
   it('reports a missing attempt as missing rather than failing to mark it', async () => {

@@ -19,11 +19,18 @@ import {
   type IEventPublisher,
 } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
-import type { Attempt } from '../../../domain/entities/attempt.entity.js';
-import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
+import type { Attempt, ReviewDecision } from '../../../domain/entities/attempt.entity.js';
+import {
+  ReviewCommentRequiredError,
+  type AttemptDomainError,
+} from '../../../domain/exceptions/attempt.errors.js';
 
 export type ReviewAttemptError =
   | { code: 'ATTEMPT_NOT_FOUND' }
+  /** A colleague got here first — the screen has to name them (§4 of the contract). */
+  | { code: 'ALREADY_REVIEWED'; by: string; verdict: 'approved' | 'returned'; at: Date }
+  /** Sent back with nothing said about why. */
+  | { code: 'RETURN_REQUIRES_COMMENT' }
   | ContentClientError
   | AttemptDomainError;
 
@@ -70,14 +77,28 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     const attempt = await this.attempts.findById(command.attemptId);
     if (!attempt) return Result.fail({ code: 'ATTEMPT_NOT_FOUND' });
 
+    // Someone has already answered this one. Said before anything else is computed,
+    // because the answer the screen needs is who and what, not that it failed.
+    const standing = attempt.deliveredVerdict();
+    if (standing !== null) {
+      return Result.fail({
+        code: 'ALREADY_REVIEWED',
+        by: standing.reviewerId,
+        verdict: standing.outcome,
+        at: standing.at,
+      });
+    }
+
+    const decisions = foldSentenceComments(command.decisions, command.sentenceComments);
+
     if (command.outcome === 'returned') {
       const returned = attempt.review({
         reviewerId: command.reviewerId,
         outcome: 'returned',
-        decisions: command.decisions,
+        decisions,
         comment: command.comment,
       });
-      if (returned.isFail) return Result.fail(returned.error as AttemptDomainError);
+      if (returned.isFail) return Result.fail(toError(returned.error));
 
       await this.attempts.save(attempt);
       await this.publish(attempt);
@@ -94,7 +115,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     if (autoResult.isFail) return Result.fail(autoResult.error);
     const auto = autoResult.value;
 
-    const decided = new Map(command.decisions.map((decision) => [decision.itemId, decision]));
+    const decided = new Map(decisions.map((decision) => [decision.itemId, decision]));
     const approvedItems = auto.filter(
       (item) => item.autoPassed || decided.get(item.itemId)?.approved === true,
     ).length;
@@ -107,7 +128,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     const reviewed = attempt.review({
       reviewerId: command.reviewerId,
       outcome: 'approved',
-      decisions: command.decisions,
+      decisions,
       comment: command.comment,
       score,
       // A submission a teacher has approved item by item passes on those items, not on a
@@ -116,7 +137,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       approvedItems,
       totalItems,
     });
-    if (reviewed.isFail) return Result.fail(reviewed.error as AttemptDomainError);
+    if (reviewed.isFail) return Result.fail(toError(reviewed.error));
 
     await this.attempts.save(attempt);
     await this.publish(attempt);
@@ -193,4 +214,44 @@ function readItems(details: unknown): AutoOutcome[] {
     const routing = (entry as { routing?: unknown }).routing;
     return [{ itemId, autoPassed: routing === 'pass' }];
   });
+}
+
+/**
+ * A domain refusal, named so the edge can answer it properly.
+ *
+ * Only the empty return is singled out: the screen has a field to put the message beside
+ * and a criterion saying it must (18). Everything else is a transition that should not
+ * have been attempted, and one code for those is honest.
+ */
+function toError(error: AttemptDomainError): ReviewAttemptError {
+  return error instanceof ReviewCommentRequiredError ? { code: 'RETURN_REQUIRES_COMMENT' } : error;
+}
+
+/**
+ * The per-sentence notes, merged into the decisions the teacher made.
+ *
+ * A note on a sentence the teacher decided nothing about becomes a decision that does not
+ * approve it — which is what "not approved" already meant for an item nobody ruled on, so
+ * the score is unchanged and the remark is kept rather than dropped on the floor.
+ */
+function foldSentenceComments(
+  decisions: ReviewDecision[],
+  sentenceComments: Record<string, string>,
+): ReviewDecision[] {
+  const entries = Object.entries(sentenceComments).filter(
+    ([, comment]) => typeof comment === 'string' && comment.trim() !== '',
+  );
+  if (entries.length === 0) return decisions;
+
+  const byItem = new Map(decisions.map((decision) => [decision.itemId, { ...decision }]));
+  for (const [itemId, comment] of entries) {
+    const existing = byItem.get(itemId);
+    if (existing) {
+      existing.comment = comment;
+    } else {
+      byItem.set(itemId, { itemId, approved: false, comment });
+    }
+  }
+
+  return [...byItem.values()];
 }

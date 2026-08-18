@@ -18,19 +18,15 @@ import { Result } from '../../../../../shared/kernel/result.js';
 import type {
   Attempt,
   AttemptStatus,
+  DeliveredVerdict,
   ExercisePathSnapshot,
 } from '../../../domain/entities/attempt.entity.js';
 
 export type GetSubmissionForReviewError = { code: 'ATTEMPT_NOT_FOUND' };
 
 /** A verdict already delivered on some attempt — this one, or the try before it. */
-export interface SubmissionVerdict {
+export interface SubmissionVerdict extends DeliveredVerdict {
   attemptId: string;
-  outcome: 'approved' | 'returned';
-  at: Date;
-  /** The colleague who decided. The engine has no names; the BFF fills them in. */
-  reviewerId: string | null;
-  comment: string | null;
 }
 
 export interface SubmissionLock {
@@ -193,34 +189,10 @@ export class GetSubmissionForReviewHandler implements IQueryHandler<GetSubmissio
   }
 }
 
-/**
- * How an attempt ended, if it ended by someone's decision.
- *
- * `RETURNED` only ever comes from a person. `SCORED` does not: the machine scores too, so
- * a reviewer has to have signed it before it counts as a verdict here.
- */
+/** The entity's own reading of how an attempt ended, tagged with which attempt it was. */
 function verdictOf(attempt: Attempt): SubmissionVerdict | null {
-  if (attempt.status === 'RETURNED') {
-    return {
-      attemptId: attempt.id,
-      outcome: 'returned',
-      at: attempt.reviewedAt ?? attempt.submittedAt ?? attempt.startedAt,
-      reviewerId: attempt.reviewedByUserId,
-      comment: attempt.reviewComment,
-    };
-  }
-
-  if (attempt.status === 'SCORED' && attempt.reviewedByUserId !== null) {
-    return {
-      attemptId: attempt.id,
-      outcome: 'approved',
-      at: attempt.reviewedAt ?? attempt.scoredAt ?? attempt.startedAt,
-      reviewerId: attempt.reviewedByUserId,
-      comment: attempt.reviewComment,
-    };
-  }
-
-  return null;
+  const verdict = attempt.deliveredVerdict();
+  return verdict === null ? null : { attemptId: attempt.id, ...verdict };
 }
 
 /**

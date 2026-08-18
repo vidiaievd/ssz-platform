@@ -4,6 +4,7 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
@@ -37,9 +38,17 @@ export class ReviewAttemptRequestDto {
   @IsString()
   reviewerId!: string;
 
-  @ApiProperty({ enum: ['approved', 'returned'] })
-  @IsIn(['approved', 'returned'])
-  outcome!: 'approved' | 'returned';
+  /**
+   * `approved_comment` is accepted as a spelling of `approved`.
+   *
+   * The screen has three verdicts and the engine has two: an approval with something
+   * written on it is still an approval, and what the learner is told apart by travels on
+   * the event as `hasComment` (plan 44 §44.9). Taking the screen's word verbatim spares
+   * every caller a mapping it can get wrong.
+   */
+  @ApiProperty({ enum: ['approved', 'approved_comment', 'returned'] })
+  @IsIn(['approved', 'approved_comment', 'returned'])
+  outcome!: 'approved' | 'approved_comment' | 'returned';
 
   @ApiPropertyOptional({ type: [ReviewDecisionDto] })
   @IsOptional()
@@ -53,4 +62,17 @@ export class ReviewAttemptRequestDto {
   @IsString()
   @MaxLength(4000)
   comment?: string;
+
+  /**
+   * A note against one sentence, keyed by item id — what the screen writes in the margin.
+   * Folded into `decisions` on arrival; blanks and non-strings are dropped there.
+   */
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    example: { i2: '«bor» er presens — oppgaven ber om perfektum.' },
+  })
+  @IsOptional()
+  @IsObject()
+  sentenceComments?: Record<string, string>;
 }
