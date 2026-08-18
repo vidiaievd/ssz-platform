@@ -40,7 +40,9 @@ export class ExerciseEngineClient {
    */
   async getPendingReviewLoad(schoolId: string): Promise<PendingReviewLoad | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/internal/attempts/review/aggregate`, {
+      // The engine mounts everything under a global `/api/v1` prefix, internal routes
+      // included.
+      const res = await fetch(`${this.baseUrl}/api/v1/internal/attempts/review/aggregate`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-internal-token': this.token },
         body: JSON.stringify({ schoolId, periodDays: 1 }),
