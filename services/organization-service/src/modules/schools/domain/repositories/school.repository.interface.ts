@@ -1,4 +1,5 @@
 import type { School } from '../entities/school.entity.js';
+import type { ReviewSettings } from '../value-objects/review-settings.vo.js';
 
 export interface PublicSchoolFilter {
   q?: string;
@@ -38,6 +39,14 @@ export interface ISchoolRepository {
   findPublicSchoolDetail(slug: string): Promise<PublicSchoolDetail | null>;
   findManagerCapabilities(userId: string, schoolIds: string[]): Promise<Map<string, string[]>>;
   save(school: School): Promise<void>;
+  /**
+   * Writes only the response promise.
+   *
+   * `save` rewrites the whole roster — it deletes every member row and recreates them —
+   * which is a great deal to do to a school because an administrator moved a deadline
+   * from 48 hours to 24.
+   */
+  saveReviewSettings(schoolId: string, settings: ReviewSettings): Promise<void>;
 }
 
 export const SCHOOL_REPOSITORY = Symbol('SCHOOL_REPOSITORY');

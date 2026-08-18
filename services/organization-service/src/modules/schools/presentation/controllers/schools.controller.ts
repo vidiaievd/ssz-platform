@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
@@ -61,6 +62,12 @@ import { NudgeStudentResponseDto } from '../dto/nudge-student.response.dto.js';
 import { UpdateStudentRequestDto } from '../dto/update-student.request.dto.js';
 import { TransferStudentRequestDto } from '../dto/transfer-student.request.dto.js';
 import { MemberRole } from '../../domain/value-objects/member-role.vo.js';
+import { GetReviewSettingsQuery } from '../../application/queries/get-review-settings/get-review-settings.query.js';
+import { UpdateReviewSettingsCommand } from '../../application/commands/update-review-settings/update-review-settings.command.js';
+import {
+  ReviewSettingsResponseDto,
+  UpdateReviewSettingsRequestDto,
+} from '../dto/review-settings.dto.js';
 
 @ApiTags('Schools')
 @ApiBearerAuth('JWT')
@@ -404,4 +411,39 @@ export class SchoolsController {
   ): Promise<NudgeStudentResponseDto> {
     return this.commandBus.execute(new NudgeStudentCommand(user.sub, schoolId, userId));
   }
+  @Get(':id/review-settings')
+  @ApiOperation({ summary: 'How long this school promises a learner will wait for a verdict' })
+  @ApiResponse({ status: 200, type: ReviewSettingsResponseDto })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async getReviewSettings(
+    @Param('id', ParseUUIDPipe) schoolId: string,
+  ): Promise<ReviewSettingsResponseDto> {
+    return this.queryBus.execute(new GetReviewSettingsQuery(schoolId));
+  }
+
+  /**
+   * Set whole, never patched: the escalation cannot be checked against a promise the
+   * request did not send, so both durations travel together (see the command).
+   */
+  @Put(':id/review-settings')
+  @ApiOperation({ summary: 'Set the response time this school promises' })
+  @ApiResponse({ status: 200, type: ReviewSettingsResponseDto })
+  @ApiResponse({ status: 403, description: 'Only owner or admin' })
+  @ApiResponse({ status: 422, description: 'Escalation earlier than the promise itself' })
+  async updateReviewSettings(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) schoolId: string,
+    @Body() dto: UpdateReviewSettingsRequestDto,
+  ): Promise<ReviewSettingsResponseDto> {
+    return this.commandBus.execute(
+      new UpdateReviewSettingsCommand(
+        schoolId,
+        user.sub,
+        dto.respondWithinHours,
+        dto.escalateAfterHours,
+        dto.escalateTo,
+      ),
+    );
+  }
+
 }

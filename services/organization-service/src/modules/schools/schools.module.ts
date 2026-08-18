@@ -74,6 +74,8 @@ import { GetStudentHistoryHandler } from './application/queries/get-student-hist
 import { CountSchoolInvitationsHandler } from './application/queries/count-school-invitations/count-school-invitations.handler.js';
 import { GetSchoolInvitationPreviewHandler } from './application/queries/get-invitation-preview/get-invitation-preview.handler.js';
 import { GetMyPermissionsHandler } from './application/queries/get-my-permissions/get-my-permissions.handler.js';
+import { GetReviewSettingsHandler } from './application/queries/get-review-settings/get-review-settings.handler.js';
+import { UpdateReviewSettingsHandler } from './application/commands/update-review-settings/update-review-settings.handler.js';
 import { GetOnboardingSettingsHandler } from './application/queries/get-onboarding-settings/get-onboarding-settings.handler.js';
 import { ListMembershipsHandler } from './application/queries/list-memberships/list-memberships.handler.js';
 import { GetMyMembershipHandler } from './application/queries/get-my-membership/get-my-membership.handler.js';
@@ -95,6 +97,7 @@ import { CapabilityResolverService } from './application/services/capability-res
 import { ProfileUpdatedConsumer } from './infrastructure/events/profile-updated.consumer.js';
 
 const CommandHandlers = [
+  UpdateReviewSettingsHandler,
   CreateSchoolHandler,
   UpdateSchoolHandler,
   DeleteSchoolHandler,
@@ -151,6 +154,7 @@ const QueryHandlers = [
   GetSchoolInvitationPreviewHandler,
   GetMyPermissionsHandler,
   GetOnboardingSettingsHandler,
+  GetReviewSettingsHandler,
   ListMembershipsHandler,
   GetMyMembershipHandler,
   GetPublicSchoolHandler,

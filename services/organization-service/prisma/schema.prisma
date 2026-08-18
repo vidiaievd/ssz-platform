@@ -110,6 +110,11 @@ model School {
   // School policies
   requireTutorReviewForSelfPaced Boolean @default(false)
   defaultExplanationLanguage     String?
+  // How long the school promises a learner will wait for a person to answer their work,
+  // and when an unanswered submission stops being the reviewer's problem alone.
+  reviewRespondWithinHours Int                    @default(48) @map("review_respond_within_hours")
+  reviewEscalateAfterHours Int                    @default(72) @map("review_escalate_after_hours")
+  reviewEscalateTo         ReviewEscalationTarget @default(school_admins) @map("review_escalate_to")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
@@ -121,6 +126,18 @@ model School {
   memberships         SchoolMembership[]
 
   @@map("schools")
+}
+
+/**
+ * Who hears about a submission nobody answered in time.
+ *
+ * Lower-case member names on purpose: Prisma writes the *name* to the column, never a
+ * `@map` value, so a domain string of `school_admins` has to be the name itself.
+ */
+enum ReviewEscalationTarget {
+  school_admins
+  owner
+  primary_teacher
 }
 
 model SchoolMember {

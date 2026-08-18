@@ -28,6 +28,8 @@ interface ContainerProps {
   accessTier: AccessTier;
   levelSystem: LevelSystem;
   gatingMode: GatingMode;
+  /** Null: this course makes no promise of its own — the school's stands (§44.12). */
+  reviewRespondWithinHours: number | null;
   currentPublishedVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -110,6 +112,9 @@ export class ContainerEntity extends AggregateRoot {
   get gatingMode(): GatingMode {
     return this.props.gatingMode;
   }
+  get reviewRespondWithinHours(): number | null {
+    return this.props.reviewRespondWithinHours;
+  }
   get currentPublishedVersionId(): string | null {
     return this.props.currentPublishedVersionId;
   }
@@ -152,6 +157,8 @@ export class ContainerEntity extends AggregateRoot {
       accessTier: p.accessTier,
       levelSystem: p.levelSystem ?? LevelSystem.CEFR,
       gatingMode: p.gatingMode ?? GatingMode.OPEN,
+      // A new course inherits, always: overriding is a decision somebody makes later.
+      reviewRespondWithinHours: null,
       currentPublishedVersionId: null,
       createdAt: now,
       updatedAt: now,
@@ -244,6 +251,33 @@ export class ContainerEntity extends AggregateRoot {
         }),
       );
     }
+
+    return Result.ok();
+  }
+
+  /**
+   * Promises a faster answer than the school does, or gives the promise back.
+   *
+   * `null` is a value here rather than "unchanged": returning to the school's promise is
+   * the thing an author most often wants after trying a tighter one, and a route that
+   * could not express it would leave them typing the school's number back in by hand —
+   * where it would then stop following the school if the school ever moved it.
+   */
+  setReviewRespondWithinHours(hours: number | null): Result<void, ContainerDomainError> {
+    if (hours !== null && (!Number.isInteger(hours) || hours < 1 || hours > 720)) {
+      return Result.fail(ContainerDomainError.INVALID_REVIEW_RESPONSE_TIME);
+    }
+
+    if (hours === this.props.reviewRespondWithinHours) return Result.ok();
+
+    this.props.reviewRespondWithinHours = hours;
+    this.props.updatedAt = new Date();
+    this.addDomainEvent(
+      new ContainerUpdatedEvent({
+        containerId: this.id,
+        updatedFields: ['reviewRespondWithinHours'],
+      }),
+    );
 
     return Result.ok();
   }

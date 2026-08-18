@@ -155,6 +155,10 @@ model Container {
   // Only meaningful for containerType=COURSE; controls student sub-lesson unlock.
   // Default OPEN keeps every existing course fully unlocked.
   gatingMode                GatingMode      @default(OPEN) @map("gating_mode")
+  // How long a learner of THIS course waits for a person to answer their work.
+  // Null means the school's own promise applies — the course has not overridden it
+  // (plan 44 §44.12). Only meaningful for containerType=COURSE.
+  reviewRespondWithinHours  Int?            @map("review_respond_within_hours")
   // Raw FK to container_versions.id (DEFERRABLE INITIALLY DEFERRED) added via migration.
   currentPublishedVersionId String?         @map("current_published_version_id") @db.Uuid
   createdAt                 DateTime        @default(now()) @map("created_at") @db.Timestamptz

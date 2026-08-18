@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type { ISchoolRepository, PublicSchoolDetail, PublicSchoolFilter, PublicSchoolPage } from '../../domain/repositories/school.repository.interface.js';
 import type { School } from '../../domain/entities/school.entity.js';
+import type { ReviewSettings } from '../../domain/value-objects/review-settings.vo.js';
 import { SchoolMapper } from './school.mapper.js';
 
 const INCLUDE_MEMBERS = { members: true } as const;
@@ -171,6 +172,18 @@ export class SchoolPrismaRepository implements ISchoolRepository {
       select: { schoolId: true, capabilities: true },
     });
     return new Map(rows.map((r: any) => [r.schoolId as string, r.capabilities as string[]]));
+  }
+
+  async saveReviewSettings(schoolId: string, settings: ReviewSettings): Promise<void> {
+    await (this.prisma as any).school.update({
+      where: { id: schoolId },
+      data: {
+        reviewRespondWithinHours: settings.respondWithinHours,
+        reviewEscalateAfterHours: settings.escalateAfterHours,
+        reviewEscalateTo: settings.escalateTo,
+        updatedAt: new Date(),
+      },
+    });
   }
 
   async save(school: School): Promise<void> {

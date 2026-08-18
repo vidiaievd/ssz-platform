@@ -8,6 +8,7 @@ import type {
   CourseTeacher,
   IOrganizationClient,
   SchoolMemberRole,
+  SchoolReviewSettings,
 } from '../../domain/ports/organization-client.port.js';
 import { OrganizationServiceUnavailableException } from './organization-service-unavailable.exception.js';
 
@@ -140,6 +141,56 @@ export class HttpOrganizationClient implements IOrganizationClient {
 
     this.logger.error(
       `getCourseTeachers exhausted ${this.retries + 1} attempts — ${this.describeError(lastError)}`,
+    );
+    throw new OrganizationServiceUnavailableException(lastError);
+  }
+
+  async getSchoolReviewSettings(schoolId: string): Promise<SchoolReviewSettings | null> {
+    const url = `${this.baseUrl}/api/v1/internal/schools/${schoolId}/review-settings`;
+
+    let lastError: unknown;
+    const delays = [250, 500, 1000];
+
+    for (let attempt = 0; attempt <= this.retries; attempt++) {
+      try {
+        const response = await firstValueFrom(
+          this.http
+            .get<SchoolReviewSettings>(url, {
+              headers: { 'x-internal-token': this.authToken },
+            })
+            .pipe(timeout(this.timeoutMs)),
+        );
+
+        return response.data;
+      } catch (err: unknown) {
+        const status = this.extractStatus(err);
+
+        if (status === 404) {
+          this.logger.debug(`getSchoolReviewSettings 404 — school ${schoolId} not found`);
+          return null;
+        }
+
+        if (status === 401 || status === 403) {
+          this.logger.error(
+            'getSchoolReviewSettings auth failure — INTERNAL_SERVICE_TOKEN misconfigured',
+          );
+          throw new Error('Internal auth misconfigured');
+        }
+
+        lastError = err;
+
+        if (attempt < this.retries) {
+          const delay = delays[attempt] ?? 1000;
+          this.logger.warn(
+            `getSchoolReviewSettings attempt ${attempt + 1} failed (${this.describeError(err)}) — retrying in ${delay}ms`,
+          );
+          await this.sleep(delay);
+        }
+      }
+    }
+
+    this.logger.error(
+      `getSchoolReviewSettings exhausted ${this.retries + 1} attempts — ${this.describeError(lastError)}`,
     );
     throw new OrganizationServiceUnavailableException(lastError);
   }

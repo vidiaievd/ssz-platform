@@ -20,6 +20,8 @@ import { CONTAINER_SECTION_REPOSITORY } from './domain/repositories/container-se
 
 // Command handlers
 import { CreateContainerHandler } from './application/commands/create-container/create-container.handler.js';
+import { SetContainerReviewSettingsHandler } from './application/commands/set-review-settings/set-container-review-settings.handler.js';
+import { GetContainerReviewSettingsHandler } from './application/queries/get-review-settings/get-container-review-settings.handler.js';
 import { UpdateContainerHandler } from './application/commands/update-container/update-container.handler.js';
 import { DeleteContainerHandler } from './application/commands/delete-container/delete-container.handler.js';
 import { ArchiveContainerHandler } from './application/commands/archive-container/archive-container.handler.js';
@@ -66,6 +68,7 @@ import { ContainerSectionController } from './presentation/controllers/container
 const CommandHandlers = [
   CreateContainerHandler,
   UpdateContainerHandler,
+  SetContainerReviewSettingsHandler,
   DeleteContainerHandler,
   ArchiveContainerHandler,
   RestoreContainerHandler,
@@ -90,6 +93,7 @@ const CommandHandlers = [
 
 const QueryHandlers = [
   GetContainerHandler,
+  GetContainerReviewSettingsHandler,
   GetContainersHandler,
   GetContainerBySlugHandler,
   GetContainerVersionsHandler,

@@ -21,6 +21,9 @@ import { GetReviewReviewersQuery } from '../../application/queries/get-review-re
 import type { ReviewReviewersResult } from '../../application/queries/get-review-reviewers/get-review-reviewers.handler.js';
 import { GetReviewReviewersRequestDto } from '../dto/get-review-reviewers.request.dto.js';
 
+import { GetReviewSettingsQuery } from '../../application/queries/get-review-settings/get-review-settings.query.js';
+import type { ReviewSettingsDto } from '../../application/queries/get-review-settings/get-review-settings.handler.js';
+
 import { GetReviewScopeQuery } from '../../application/queries/get-review-scope/get-review-scope.query.js';
 import type { ReviewScopeResult } from '../../application/queries/get-review-scope/get-review-scope.handler.js';
 
@@ -66,4 +69,20 @@ export class InternalReviewController {
       new GetReviewScopeQuery(schoolId, teacherId, at ? new Date(at) : new Date()),
     );
   }
+  /**
+   * The school's promise, for a neighbour that has to resolve what a course inherits
+   * (content-service, plan 44 §44.12).
+   *
+   * It duplicates the public route deliberately: content-service holds no user token and
+   * has no business borrowing one to read a setting it needs on every course read.
+   */
+  @Get('schools/:schoolId/review-settings')
+  async getSchoolReviewSettings(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+  ): Promise<ReviewSettingsDto> {
+    return this.queryBus.execute<GetReviewSettingsQuery, ReviewSettingsDto>(
+      new GetReviewSettingsQuery(schoolId),
+    );
+  }
+
 }
