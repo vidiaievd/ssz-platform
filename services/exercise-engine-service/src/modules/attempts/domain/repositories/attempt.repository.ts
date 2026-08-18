@@ -49,6 +49,37 @@ export interface ReviewQueueSummary {
   oldestSubmittedAt: Date | null;
 }
 
+/**
+ * One submission still waiting, as oversight reads it: where it sits and since when.
+ *
+ * Rows rather than counts, because every figure on the oversight screen — the median,
+ * the age histogram, what counts as overdue — is computed by the caller that knows the
+ * school's promised response time. The engine does not know it and never will (§0.1).
+ */
+export interface PendingLoadRow {
+  attemptId: string;
+  userId: string;
+  exerciseId: string;
+  containerId: string | null;
+  groupId: string | null;
+  submittedAt: Date;
+}
+
+/** One verdict a person delivered, as the two timestamps oversight measures between. */
+export interface ReviewedLoadRow {
+  reviewerId: string;
+  containerId: string | null;
+  groupId: string | null;
+  submittedAt: Date | null;
+  reviewedAt: Date;
+}
+
+/** A place in the decisions journal: newest first, so paging walks backwards in time. */
+export interface ReviewDecisionsCursor {
+  reviewedAt: Date;
+  id: string;
+}
+
 export interface IAttemptRepository {
   findById(id: string): Promise<Attempt | null>;
   findInProgress(userId: string, exerciseId: string): Promise<Attempt | null>;
@@ -76,6 +107,35 @@ export interface IAttemptRepository {
   findReviewQueuePage(
     scope: ReviewQueueScope,
     page: { limit: number; after: ReviewQueueCursor | null },
+  ): Promise<Attempt[]>;
+  /**
+   * Everything the school has waiting on a person right now, in no particular order.
+   *
+   * Not scoped to groups or courses: this is the administrator's question, and the route
+   * that asks it authorises differently from a teacher's queue (§0.2). `limit` is a
+   * ceiling the caller reports as a truncation rather than a page — a partial picture
+   * that says so beats a page that pretends to be the whole school.
+   */
+  findPendingLoad(schoolId: string, limit: number): Promise<PendingLoadRow[]>;
+  /**
+   * The verdicts people delivered in the school since `since`.
+   *
+   * Only signed ones: a machine score is not somebody's decision, and counting it as one
+   * would credit a teacher with work they never did.
+   */
+  findReviewedLoad(schoolId: string, since: Date, limit: number): Promise<ReviewedLoadRow[]>;
+  /**
+   * The oldest submission the school has on record — its data horizon (§0.4).
+   *
+   * Not configurable, because the date describes itself: everything before it predates
+   * the school context on attempts, and no reading of the period can reach further back.
+   */
+  earliestSubmissionAt(schoolId: string): Promise<Date | null>;
+  /** One page of the decisions journal, newest verdict first. */
+  findReviewDecisionsPage(
+    schoolId: string,
+    since: Date,
+    page: { limit: number; after: ReviewDecisionsCursor | null },
   ): Promise<Attempt[]>;
   /** How much is waiting in a scope, and since when — without reading the submissions. */
   summariseReviewQueue(scope: ReviewQueueScope): Promise<ReviewQueueSummary>;

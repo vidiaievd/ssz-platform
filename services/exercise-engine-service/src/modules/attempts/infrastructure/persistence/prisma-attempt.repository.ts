@@ -3,9 +3,12 @@ import type {
   IAttemptRepository,
   FindForReviewFilter,
   FindUserAttemptsFilter,
+  PendingLoadRow,
+  ReviewDecisionsCursor,
   ReviewQueueCursor,
   ReviewQueueScope,
   ReviewQueueSummary,
+  ReviewedLoadRow,
 } from '../../domain/repositories/attempt.repository.js';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
 import { AttemptMapper } from './attempt.mapper.js';
@@ -133,6 +136,104 @@ export class PrismaAttemptRepository implements IAttemptRepository {
           : {}),
       },
       orderBy: [{ submittedAt: 'asc' }, { id: 'asc' }],
+      take: page.limit,
+    });
+
+    return rows.map(AttemptMapper.toDomain);
+  }
+
+  async findPendingLoad(schoolId: string, limit: number): Promise<PendingLoadRow[]> {
+    const rows = await this.prisma.attempt.findMany({
+      where: { schoolId, status: 'ROUTED_FOR_REVIEW', submittedAt: { not: null } },
+      // Oldest first, so that a school past the ceiling keeps the submissions oversight
+      // exists to find rather than an arbitrary five thousand.
+      orderBy: [{ submittedAt: 'asc' }, { id: 'asc' }],
+      take: limit,
+      select: {
+        id: true,
+        userId: true,
+        exerciseId: true,
+        containerId: true,
+        groupId: true,
+        submittedAt: true,
+      },
+    });
+
+    return rows.map((row) => ({
+      attemptId: row.id,
+      userId: row.userId,
+      exerciseId: row.exerciseId,
+      containerId: row.containerId,
+      groupId: row.groupId,
+      // The `where` excludes nulls; the assertion keeps the row type honest without a
+      // fallback time that would quietly age a submission.
+      submittedAt: row.submittedAt as Date,
+    }));
+  }
+
+  async findReviewedLoad(
+    schoolId: string,
+    since: Date,
+    limit: number,
+  ): Promise<ReviewedLoadRow[]> {
+    const rows = await this.prisma.attempt.findMany({
+      where: {
+        schoolId,
+        reviewedByUserId: { not: null },
+        reviewedAt: { not: null, gte: since },
+      },
+      orderBy: [{ reviewedAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+      select: {
+        reviewedByUserId: true,
+        containerId: true,
+        groupId: true,
+        submittedAt: true,
+        reviewedAt: true,
+      },
+    });
+
+    return rows.map((row) => ({
+      reviewerId: row.reviewedByUserId as string,
+      containerId: row.containerId,
+      groupId: row.groupId,
+      submittedAt: row.submittedAt,
+      reviewedAt: row.reviewedAt as Date,
+    }));
+  }
+
+  async earliestSubmissionAt(schoolId: string): Promise<Date | null> {
+    const row = await this.prisma.attempt.findFirst({
+      where: { schoolId, submittedAt: { not: null } },
+      orderBy: { submittedAt: 'asc' },
+      select: { submittedAt: true },
+    });
+
+    return row?.submittedAt ?? null;
+  }
+
+  async findReviewDecisionsPage(
+    schoolId: string,
+    since: Date,
+    page: { limit: number; after: ReviewDecisionsCursor | null },
+  ): Promise<Attempt[]> {
+    const after = page.after;
+    const rows = await this.prisma.attempt.findMany({
+      where: {
+        schoolId,
+        reviewedByUserId: { not: null },
+        reviewedAt: { not: null, gte: since },
+        // Descending keyset: strictly earlier than the row the last page ended on.
+        ...(after
+          ? {
+              OR: [
+                { reviewedAt: { lt: after.reviewedAt } },
+                { reviewedAt: after.reviewedAt, id: { lt: after.id } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ reviewedAt: 'desc' }, { id: 'desc' }],
       take: page.limit,
     });
 

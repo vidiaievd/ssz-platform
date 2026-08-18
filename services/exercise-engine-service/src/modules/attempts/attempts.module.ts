@@ -16,6 +16,8 @@ import { ListUserAttemptsHandler } from './application/queries/list-user-attempt
 import { ListReviewQueueHandler } from './application/queries/list-review-queue/list-review-queue.handler.js';
 import { ListReviewQueueV2Handler } from './application/queries/list-review-queue-v2/list-review-queue-v2.handler.js';
 import { CountReviewQueueHandler } from './application/queries/count-review-queue/count-review-queue.handler.js';
+import { AggregateReviewLoadHandler } from './application/queries/aggregate-review-load/aggregate-review-load.handler.js';
+import { ListReviewDecisionsHandler } from './application/queries/list-review-decisions/list-review-decisions.handler.js';
 import { GetSubmissionForReviewHandler } from './application/queries/get-submission-for-review/get-submission-for-review.handler.js';
 import { ReviewScoring } from './application/services/review-scoring.js';
 import { ReviewContextResolver } from './application/services/review-context-resolver.js';
@@ -40,6 +42,8 @@ const QueryHandlers = [
   ListReviewQueueV2Handler,
   CountReviewQueueHandler,
   GetSubmissionForReviewHandler,
+  AggregateReviewLoadHandler,
+  ListReviewDecisionsHandler,
 ];
 
 @Module({

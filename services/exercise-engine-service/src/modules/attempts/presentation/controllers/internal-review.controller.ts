@@ -42,6 +42,12 @@ import type { ReleaseReviewError } from '../../application/commands/release-revi
 import type { ReviewLockResult } from '../../application/commands/review-lock.result.js';
 import { ReviewLockRequestDto } from '../dto/review-lock.dto.js';
 import { BatchApproveRequestDto } from '../dto/batch-approve.dto.js';
+import { AggregateReviewLoadRequestDto } from '../dto/review-oversight.dto.js';
+import { AggregateReviewLoadQuery } from '../../application/queries/aggregate-review-load/aggregate-review-load.query.js';
+import type { AggregateReviewLoadResult } from '../../application/queries/aggregate-review-load/aggregate-review-load.handler.js';
+import { ListReviewDecisionsQuery } from '../../application/queries/list-review-decisions/list-review-decisions.query.js';
+import type { ListReviewDecisionsResult } from '../../application/queries/list-review-decisions/list-review-decisions.handler.js';
+import { decodeReviewDecisionsCursor } from '../../application/queries/list-review-decisions/review-decisions-cursor.js';
 import { BatchApproveCommand } from '../../application/commands/batch-approve/batch-approve.command.js';
 import type { BatchApproveResult } from '../../application/commands/batch-approve/batch-approve.handler.js';
 import type {
@@ -71,6 +77,12 @@ const DEFAULT_QUEUE_LIMIT = 50;
  * filtering.
  */
 const MAX_BATCH_APPROVE = 100;
+
+/** How far back oversight may count verdicts when the caller does not say. */
+const DEFAULT_PERIOD_DAYS = 30;
+
+/** The journal's page; a hundred is the ceiling, as everywhere else on this controller. */
+const DEFAULT_DECISIONS_LIMIT = 50;
 
 /**
  * The teacher's side of an attempt — service-to-service only.
@@ -223,6 +235,65 @@ export class InternalReviewController {
 
     return this.commandBus.execute<BatchApproveCommand, BatchApproveResult>(
       new BatchApproveCommand(dto.schoolId, dto.reviewerId, attemptIds),
+    );
+  }
+
+  /**
+   * The shape of a school's review load — the administrator's screen, in one call.
+   *
+   * Times only, never judgements about them: no median, no "overdue", no names. The
+   * promised response time is the school's policy and lives elsewhere (44.12), so the
+   * figures that depend on it are computed where that policy is known (§0.1).
+   *
+   * A POST for a read, like the queue: the answer is a school-wide picture, and the body
+   * is what says which school and how far back.
+   */
+  @Post('review/aggregate')
+  @HttpCode(HttpStatus.OK)
+  async aggregateReviewLoad(
+    @Body() dto: AggregateReviewLoadRequestDto,
+  ): Promise<AggregateReviewLoadResult> {
+    if (!dto.schoolId) {
+      throw new UnprocessableEntityException('schoolId is required');
+    }
+
+    return this.queryBus.execute<AggregateReviewLoadQuery, AggregateReviewLoadResult>(
+      new AggregateReviewLoadQuery(dto.schoolId, dto.periodDays ?? DEFAULT_PERIOD_DAYS),
+    );
+  }
+
+  /**
+   * Who decided what, newest first — the journal the CSV export is later built from
+   * (46.5), not built here.
+   *
+   * Declared before `:attemptId/review` so the literal segment keeps winning: Nest
+   * matches in declaration order.
+   */
+  @Get('review/decisions')
+  async listReviewDecisions(
+    @Query('schoolId') schoolId?: string,
+    @Query('periodDays', new DefaultValuePipe(DEFAULT_PERIOD_DAYS), ParseIntPipe)
+    periodDays = DEFAULT_PERIOD_DAYS,
+    @Query('limit', new DefaultValuePipe(DEFAULT_DECISIONS_LIMIT), ParseIntPipe)
+    limit = DEFAULT_DECISIONS_LIMIT,
+    @Query('cursor') cursor?: string,
+  ): Promise<ListReviewDecisionsResult> {
+    if (!schoolId) {
+      throw new UnprocessableEntityException('schoolId is required');
+    }
+
+    const after = cursor ? decodeReviewDecisionsCursor(cursor) : null;
+    if (cursor && after === null) {
+      throw new UnprocessableEntityException('Malformed cursor');
+    }
+
+    return this.queryBus.execute<ListReviewDecisionsQuery, ListReviewDecisionsResult>(
+      new ListReviewDecisionsQuery(
+        schoolId,
+        Math.min(Math.max(periodDays, 1), 365),
+        Math.min(Math.max(limit, 1), 100),
+        after,
+      ),
     );
   }
 
