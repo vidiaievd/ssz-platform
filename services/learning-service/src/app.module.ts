@@ -15,7 +15,6 @@ import { HealthModule } from './modules/health/health.module.js';
 import { AssignmentsModule } from './modules/assignments/assignments.module.js';
 import { EnrollmentsModule } from './modules/enrollments/enrollments.module.js';
 import { ProgressModule } from './modules/progress/progress.module.js';
-import { ReviewModule } from './modules/review/review.module.js';
 import { EventsModule } from './modules/events/events.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
 import { SrsModule } from './modules/srs/srs.module.js';
@@ -53,7 +52,6 @@ import { CanDoModule } from './modules/can-do/can-do.module.js';
     AssignmentsModule,
     EnrollmentsModule,
     ProgressModule,
-    ReviewModule,
     SrsModule,
     LookupsModule,
     EventsModule,

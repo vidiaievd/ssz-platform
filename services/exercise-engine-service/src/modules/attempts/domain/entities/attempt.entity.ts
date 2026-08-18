@@ -640,6 +640,7 @@ export class Attempt extends AggregateRoot {
         exerciseId: this._exerciseId,
         templateCode: this._templateCode,
         reviewerId: props.reviewerId,
+        schoolId: this._schoolId,
         outcome: props.outcome,
         score,
         comment: props.comment,

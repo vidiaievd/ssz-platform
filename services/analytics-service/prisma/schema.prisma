@@ -189,25 +189,6 @@ model SchoolActivity {
   @@map("school_activity")
 }
 
-// ─── Projection: SubmissionProjection ─────────────────────────────────────────
-// Built from learning.submission.* events + seed.
-// Used for pending_reviews count and oldest-pending age.
-
-model SubmissionProjection {
-  submissionId String    @id @map("submission_id")
-  userId       String    @map("user_id")
-  exerciseId   String    @map("exercise_id")
-  assignmentId String?   @map("assignment_id")
-  schoolId     String?   @map("school_id")
-  status       String    // PENDING_REVIEW | APPROVED | REJECTED | REVISION_REQUESTED | RESUBMITTED
-  submittedAt  DateTime  @map("submitted_at")
-  reviewedAt   DateTime? @map("reviewed_at")
-
-  @@index([schoolId, status])
-  @@index([userId])
-  @@map("submission_projection")
-}
-
 // ─── Projection: AttemptEvidence ──────────────────────────────────────────────
 // Built from learning.attempt.rated (plan 36 §A.1). One row per attempt that
 // actually moved an SRS card.

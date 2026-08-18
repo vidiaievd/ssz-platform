@@ -28,14 +28,13 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Learning Service')
     .setDescription(
-      'Assignments, enrollments, progress tracking, and free-form submission review',
+      'Assignments, enrollments, and progress tracking',
     )
     .setVersion('0.1.0')
     .addBearerAuth()
     .addTag('Assignments', 'Tutor-driven assignment of content to students')
     .addTag('Enrollments', 'Student-driven self-paced enrollment')
     .addTag('Progress', 'Progress tracking across all content types')
-    .addTag('Submissions', 'Free-form submission review workflow')
     .addTag('health', 'Service health')
     .build();
 

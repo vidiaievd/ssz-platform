@@ -13,7 +13,6 @@ import { ATTEMPT_REPOSITORY, type IAttemptRepository } from '../../../domain/rep
 import { CONTENT_CLIENT, type IContentClient, ContentClientError } from '../../../../../shared/application/ports/content-client.port.js';
 import { ANSWER_VALIDATOR, type IAnswerValidator, ValidationError } from '../../../../../shared/application/ports/answer-validator.port.js';
 import { FEEDBACK_GENERATOR, type IFeedbackGenerator } from '../../../../../shared/application/ports/feedback-generator.port.js';
-import { LEARNING_CLIENT, type ILearningClient, LearningClientError } from '../../../../../shared/application/ports/learning-client.port.js';
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
@@ -24,7 +23,6 @@ export type SubmitAnswerError =
   | { code: 'FORBIDDEN' }
   | ValidationError
   | ContentClientError
-  | LearningClientError
   | AttemptDomainError;
 
 export interface SubmitAnswerResult {
@@ -170,7 +168,6 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     @Inject(CONTENT_CLIENT) private readonly contentClient: IContentClient,
     @Inject(ANSWER_VALIDATOR) private readonly validator: IAnswerValidator,
     @Inject(FEEDBACK_GENERATOR) private readonly feedbackGenerator: IFeedbackGenerator,
-    @Inject(LEARNING_CLIENT) private readonly learningClient: ILearningClient,
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
     private readonly reviewContext: ReviewContextResolver,
   ) {}
@@ -311,23 +308,6 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
 
     await this.attempts.save(attempt);
     await this.publishEvents(attempt);
-
-    // Fire-and-forget: notify Learning Service (non-blocking). Once per attempt —
-    // a re-check is the same submission being corrected, not a new one. A
-    // resubmission after a teacher returned the work is a different attempt
-    // entirely and reports itself (see recheckCount vs revisionCount).
-    if (attempt.recheckCount === 0) {
-      this.learningClient
-        .createSubmission({
-          assignmentId: attempt.assignmentId,
-          exerciseId: attempt.exerciseId,
-          userId: attempt.userId,
-          attemptId: attempt.id,
-          submittedAnswer: command.submittedAnswer,
-          timeSpentSeconds: attempt.timeSpentSeconds,
-        })
-        .catch(() => undefined);
-    }
 
     return Result.ok<SubmitAnswerResult, SubmitAnswerError>({
       attemptId: attempt.id,

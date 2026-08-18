@@ -130,6 +130,14 @@ export interface ExerciseAttemptReviewedPayload {
   exerciseId: string;
   templateCode: string;
   reviewerId: string;
+  /**
+   * The school the work was handed in to, snapshotted when the attempt started.
+   *
+   * `null` for practice outside a school, and for attempts that predate plan 44. It rides
+   * along so that a consumer building a school-wide feed does not have to keep its own
+   * copy of every submission just to learn which school a verdict belongs to.
+   */
+  schoolId: string | null;
   outcome: 'approved' | 'returned';
   /** 0–100 on an approval; `null` when the work was sent back unmarked. */
   score: number | null;

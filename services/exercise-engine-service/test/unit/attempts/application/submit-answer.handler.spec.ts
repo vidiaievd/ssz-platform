@@ -8,8 +8,6 @@ import { ContentClientError } from '../../../../src/shared/application/ports/con
 import type { IAnswerValidator } from '../../../../src/shared/application/ports/answer-validator.port.js';
 import { ValidationError } from '../../../../src/shared/application/ports/answer-validator.port.js';
 import type { IFeedbackGenerator } from '../../../../src/shared/application/ports/feedback-generator.port.js';
-import type { ILearningClient } from '../../../../src/shared/application/ports/learning-client.port.js';
-import { LearningClientError } from '../../../../src/shared/application/ports/learning-client.port.js';
 import type { IEventPublisher } from '../../../../src/shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../src/shared/kernel/result.js';
 import { Attempt } from '../../../../src/modules/attempts/domain/entities/attempt.entity.js';
@@ -104,12 +102,6 @@ const makeFeedback = (): jest.Mocked<IFeedbackGenerator> => ({
   ),
 });
 
-const makeLearning = (): jest.Mocked<ILearningClient> => ({
-  createSubmission: jest.fn<ILearningClient['createSubmission']>().mockResolvedValue(
-    Result.ok({ submissionId: 'sub-1' }),
-  ),
-});
-
 const makePublisher = (): jest.Mocked<IEventPublisher> => ({
   publish: jest.fn<IEventPublisher['publish']>().mockResolvedValue(undefined),
 });
@@ -119,11 +111,10 @@ const makeHandler = (
   content: IContentClient,
   validator: IAnswerValidator,
   feedback: IFeedbackGenerator,
-  learning: ILearningClient,
   publisher: IEventPublisher,
 ) => new SubmitAnswerHandler(
   repo as any, content as any, validator as any,
-  feedback as any, learning as any, publisher as any,
+  feedback as any, publisher as any,
   makeReviewContext(content),
 );
 
@@ -189,7 +180,7 @@ describe('SubmitAnswerHandler', () => {
   it('returns ATTEMPT_NOT_FOUND when attempt does not exist', async () => {
     const handler = makeHandler(
       makeRepo(null), makeContentClient(), makeValidator(),
-      makeFeedback(), makeLearning(), makePublisher(),
+      makeFeedback(), makePublisher(),
     );
     const result = await handler.execute(cmd);
     expect(result.isFail).toBe(true);
@@ -201,7 +192,7 @@ describe('SubmitAnswerHandler', () => {
     const wrongUserCmd = new SubmitAnswerCommand('attempt-1', 'other-user', { correct_option_ids: ['A'] }, 30, 'no');
     const handler = makeHandler(
       makeRepo(attempt), makeContentClient(), makeValidator(),
-      makeFeedback(), makeLearning(), makePublisher(),
+      makeFeedback(), makePublisher(),
     );
     const result = await handler.execute(wrongUserCmd);
     expect(result.isFail).toBe(true);
@@ -212,7 +203,7 @@ describe('SubmitAnswerHandler', () => {
     const handler = makeHandler(
       makeRepo(),
       makeContentClient(Result.fail(new ContentClientError(503, 'Service unavailable'))),
-      makeValidator(), makeFeedback(), makeLearning(), makePublisher(),
+      makeValidator(), makeFeedback(), makePublisher(),
     );
     const result = await handler.execute(cmd);
     expect(result.isFail).toBe(true);
@@ -226,7 +217,7 @@ describe('SubmitAnswerHandler', () => {
     );
     const handler = makeHandler(
       makeRepo(), makeContentClient(), validator,
-      makeFeedback(), makeLearning(), makePublisher(),
+      makeFeedback(), makePublisher(),
     );
     const result = await handler.execute(cmd);
     expect(result.isFail).toBe(true);
@@ -234,14 +225,13 @@ describe('SubmitAnswerHandler', () => {
     expect((result.error as ValidationError).code).toBe('SCHEMA_MISMATCH');
   });
 
-  it('closed-form: scores attempt, publishes completed event, notifies Learning', async () => {
+  it('closed-form: scores attempt and publishes the completed event', async () => {
     const repo = makeRepo();
     const publisher = makePublisher();
-    const learning = makeLearning();
     const handler = makeHandler(
       repo, makeContentClient(),
       makeValidator({ correct: true, score: 100, details: null, requiresReview: false }),
-      makeFeedback(), learning, publisher,
+      makeFeedback(), publisher,
     );
     const result = await handler.execute(cmd);
 
@@ -261,7 +251,7 @@ describe('SubmitAnswerHandler', () => {
     const handler = makeHandler(
       repo, makeContentClient(),
       makeValidator({ correct: false, score: 40, details: null, requiresReview: false }),
-      makeFeedback(), makeLearning(), makePublisher(),
+      makeFeedback(), makePublisher(),
     );
     const result = await handler.execute(cmd);
     expect(result.isOk).toBe(true);
@@ -275,7 +265,7 @@ describe('SubmitAnswerHandler', () => {
       const handler = makeHandler(
         repo, makeContentClient(),
         makeValidator({ correct: false, score: 0, details: null, requiresReview: true }),
-        makeFeedback(), makeLearning(), makePublisher(),
+        makeFeedback(), makePublisher(),
       );
 
       await handler.execute(cmd);
@@ -296,7 +286,7 @@ describe('SubmitAnswerHandler', () => {
           details: { totalItems: 5, passedItems: 4, items: [] },
           requiresReview: true,
         }),
-        makeFeedback(), makeLearning(), makePublisher(),
+        makeFeedback(), makePublisher(),
       );
 
       await handler.execute(cmd);
@@ -311,7 +301,7 @@ describe('SubmitAnswerHandler', () => {
       const handler = makeHandler(
         repo, makeContentClient(),
         makeValidator({ correct: false, score: 0, details: null, requiresReview: true }),
-        makeFeedback(), makeLearning(), makePublisher(),
+        makeFeedback(), makePublisher(),
       );
 
       await handler.execute(cmd);
@@ -326,7 +316,7 @@ describe('SubmitAnswerHandler', () => {
       const handler = makeHandler(
         makeRepo(), makeContentClient(),
         makeValidator({ correct: false, score: 0, details: null, requiresReview: true }),
-        makeFeedback(), makeLearning(), publisher,
+        makeFeedback(), publisher,
       );
 
       await handler.execute(cmd);
@@ -351,7 +341,7 @@ describe('SubmitAnswerHandler', () => {
     const handler = makeHandler(
       repo, makeContentClient(),
       makeValidator({ correct: false, score: 0, details: null, requiresReview: true }),
-      makeFeedback(), makeLearning(), publisher,
+      makeFeedback(), publisher,
     );
     const result = await handler.execute(cmd);
 
@@ -369,7 +359,7 @@ describe('SubmitAnswerHandler', () => {
       makeRepo(makeGapFillAttempt()),
       makeContentClient(Result.ok(makeGapFillDef())),
       makeValidator({ correct: false, score: 0, details: GAP_FILL_DETAILS, requiresReview: false }),
-      makeFeedback(), makeLearning(), makePublisher(),
+      makeFeedback(), makePublisher(),
     );
 
     const result = await handler.execute(cmd);
@@ -388,7 +378,7 @@ describe('SubmitAnswerHandler', () => {
         details: { correct_selected: 0, expected: ['A'] },
         requiresReview: false,
       }),
-      makeFeedback(), makeLearning(), makePublisher(),
+      makeFeedback(), makePublisher(),
     );
 
     const result = await handler.execute(cmd);
@@ -409,7 +399,7 @@ describe('SubmitAnswerHandler', () => {
         // teacher, and the whole submission is therefore routed.
         requiresReview: true,
       }),
-      makeFeedback(), makeLearning(), makePublisher(),
+      makeFeedback(), makePublisher(),
     );
 
     const result = await handler.execute(cmd);
@@ -425,19 +415,5 @@ describe('SubmitAnswerHandler', () => {
     });
     // The key, the diff against it and the rules it tripped stay with the teacher.
     expect(JSON.stringify(result.value.details)).not.toContain('Jeg');
-  });
-
-  it('learning client failure does not fail the use case (fire-and-forget)', async () => {
-    const learning = makeLearning();
-    learning.createSubmission.mockResolvedValue(
-      Result.fail(new LearningClientError(503, 'Down')),
-    );
-    const handler = makeHandler(
-      makeRepo(), makeContentClient(),
-      makeValidator({ correct: true, score: 100, details: null, requiresReview: false }),
-      makeFeedback(), learning, makePublisher(),
-    );
-    const result = await handler.execute(cmd);
-    expect(result.isOk).toBe(true);
   });
 });

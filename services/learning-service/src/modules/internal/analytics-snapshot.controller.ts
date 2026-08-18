@@ -73,36 +73,4 @@ export class AnalyticsSnapshotController {
         : null,
     };
   }
-
-  @Get('submissions')
-  async submissions(
-    @Query('cursor') cursor?: string,
-    @Query('limit') limitStr?: string,
-  ) {
-    const limit = Math.min(parseInt(limitStr ?? '500', 10) || 500, 1000);
-    const rows = await this.prisma.submission.findMany({
-      where: {
-        deletedAt: null,
-        ...(cursor ? { submittedAt: { gt: new Date(cursor) } } : {}),
-      },
-      orderBy: { submittedAt: 'asc' },
-      take: limit,
-      select: {
-        id: true,
-        userId: true,
-        exerciseId: true,
-        assignmentId: true,
-        schoolId: true,
-        status: true,
-        submittedAt: true,
-      },
-    });
-
-    return {
-      data: rows,
-      nextCursor: rows.length === limit
-        ? rows[rows.length - 1].submittedAt.toISOString()
-        : null,
-    };
-  }
 }

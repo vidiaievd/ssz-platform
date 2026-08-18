@@ -3,7 +3,6 @@ import { AttemptEvidenceConsumer } from './consumers/attempt-evidence.consumer.j
 import { EnrollmentConsumer } from './consumers/enrollment.consumer.js';
 import { ProgressActivityConsumer } from './consumers/progress-activity.consumer.js';
 import { SrsLimitRefusedConsumer } from './consumers/srs-limit-refused.consumer.js';
-import { SubmissionConsumer } from './consumers/submission.consumer.js';
 import { SeedService } from './seed/seed.service.js';
 
 @Module({
@@ -12,7 +11,6 @@ import { SeedService } from './seed/seed.service.js';
     EnrollmentConsumer,
     ProgressActivityConsumer,
     SrsLimitRefusedConsumer,
-    SubmissionConsumer,
     SeedService,
   ],
 })

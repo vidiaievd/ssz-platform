@@ -16,6 +16,7 @@ export const envSchema = z.object({
 
   ORGANIZATION_SERVICE_URL: z.string().default('http://organization-service:3002'),
   LEARNING_SERVICE_URL: z.string().default('http://learning-service:3005'),
+  EXERCISE_ENGINE_SERVICE_URL: z.string().default('http://exercise-engine-service:3006'),
   INTERNAL_SERVICE_TOKEN: z.string().default('internal-dev-token'),
 
   AT_RISK_THRESHOLD_DAYS: z.coerce.number().int().positive().default(7),
@@ -42,6 +43,7 @@ export interface AppConfig {
   jwt: { publicKey: string | undefined; publicKeyPath: string | undefined; issuer: string; audience: string };
   organization: { baseUrl: string; token: string };
   learning: { baseUrl: string };
+  exerciseEngine: { baseUrl: string; token: string };
   metrics: { atRiskThresholdDays: number; dropoffCompletionThreshold: number };
 }
 
@@ -59,6 +61,7 @@ export default (): AppConfig => {
     },
     organization: { baseUrl: env.ORGANIZATION_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
     learning: { baseUrl: env.LEARNING_SERVICE_URL },
+    exerciseEngine: { baseUrl: env.EXERCISE_ENGINE_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
     metrics: {
       atRiskThresholdDays: env.AT_RISK_THRESHOLD_DAYS,
       dropoffCompletionThreshold: env.DROPOFF_COMPLETION_THRESHOLD,

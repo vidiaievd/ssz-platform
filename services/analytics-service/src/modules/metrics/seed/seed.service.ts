@@ -25,16 +25,6 @@ interface ProgressRow {
   createdAt: string;
 }
 
-interface SubmissionRow {
-  id: string;
-  userId: string;
-  exerciseId: string;
-  assignmentId: string | null;
-  schoolId: string | null;
-  status: string;
-  submittedAt: string;
-}
-
 interface SnapshotPage<T> {
   data: T[];
   nextCursor: string | null;
@@ -66,7 +56,6 @@ export class SeedService implements OnApplicationBootstrap {
       this.logger.log('SeedService: starting initial seed from learning-service snapshot');
       await this.seedEnrollments();
       await this.seedProgress();
-      await this.seedSubmissions();
       this.logger.log('SeedService: initial seed complete');
     } catch (err) {
       this.logger.warn(`SeedService: seed failed (non-fatal, live events will build projections): ${String(err)}`);
@@ -154,39 +143,6 @@ export class SeedService implements OnApplicationBootstrap {
     } while (cursor);
 
     this.logger.log(`SeedService: seeded ${total} progress_activity rows`);
-  }
-
-  private async seedSubmissions(): Promise<void> {
-    let cursor: string | undefined;
-    let total = 0;
-
-    do {
-      const url = new URL(`${this.learningBaseUrl}/internal/analytics/snapshot/submissions`);
-      url.searchParams.set('limit', '500');
-      if (cursor) url.searchParams.set('cursor', cursor);
-
-      const page = await this.fetchPage<SubmissionRow>(url.toString());
-
-      if (page.data.length > 0) {
-        await this.prisma.submissionProjection.createMany({
-          data: page.data.map((r) => ({
-            submissionId: r.id,
-            userId: r.userId,
-            exerciseId: r.exerciseId,
-            assignmentId: r.assignmentId ?? null,
-            schoolId: r.schoolId ?? null,
-            status: r.status,
-            submittedAt: new Date(r.submittedAt),
-          })),
-          skipDuplicates: true,
-        });
-        total += page.data.length;
-      }
-
-      cursor = page.nextCursor ?? undefined;
-    } while (cursor);
-
-    this.logger.log(`SeedService: seeded ${total} submissions`);
   }
 
   private async fetchPage<T>(url: string): Promise<SnapshotPage<T>> {

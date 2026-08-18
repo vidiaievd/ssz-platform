@@ -17,7 +17,6 @@ import { ContentClientError } from '../../src/shared/application/ports/content-c
 import { ORGANIZATION_CLIENT } from '../../src/shared/application/ports/organization-client.port.js';
 import { ANSWER_VALIDATOR } from '../../src/shared/application/ports/answer-validator.port.js';
 import { FEEDBACK_GENERATOR } from '../../src/shared/application/ports/feedback-generator.port.js';
-import { LEARNING_CLIENT } from '../../src/shared/application/ports/learning-client.port.js';
 import { EVENT_PUBLISHER } from '../../src/shared/application/ports/event-publisher.port.js';
 import type { CanActivate, ExecutionContext } from '@nestjs/common';
 import { Result } from '../../src/shared/kernel/result.js';
@@ -102,7 +101,6 @@ describe('AttemptsController (integration)', () => {
   };
   const mockValidator = { validate: jest.fn() };
   const mockFeedback = { generate: jest.fn() };
-  const mockLearning = { createSubmission: jest.fn() };
   const mockPublisher = { publish: jest.fn().mockResolvedValue(undefined) };
 
   beforeEach(async () => {
@@ -120,7 +118,6 @@ describe('AttemptsController (integration)', () => {
         { provide: ORGANIZATION_CLIENT, useValue: mockOrganizationClient },
         { provide: ANSWER_VALIDATOR, useValue: mockValidator },
         { provide: FEEDBACK_GENERATOR, useValue: mockFeedback },
-        { provide: LEARNING_CLIENT, useValue: mockLearning },
         { provide: EVENT_PUBLISHER, useValue: mockPublisher },
         { provide: APP_GUARD, useValue: mockJwtGuard },
       ],
@@ -185,7 +182,6 @@ describe('AttemptsController (integration)', () => {
       mockContentClient.getExerciseForAttempt.mockResolvedValue(Result.ok(makeDef()));
       mockValidator.validate.mockResolvedValue(Result.ok({ correct: true, score: 100, details: null, requiresReview: false }));
       mockFeedback.generate.mockResolvedValue(Result.ok({ summary: 'Correct!' }));
-      mockLearning.createSubmission.mockResolvedValue(Result.ok({ submissionId: 'sub-1' }));
 
       const res = await request(app.getHttpServer())
         .post(`/exercises/ex-1/attempts/${attemptId}/submit`)

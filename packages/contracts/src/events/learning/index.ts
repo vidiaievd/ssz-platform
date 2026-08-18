@@ -14,9 +14,6 @@ export const LEARNING_EVENT_TYPES = {
   ENROLLMENT_UNENROLLED: 'learning.enrollment.unenrolled',
   PROGRESS_COMPLETED: 'learning.progress.completed',
   PROGRESS_UPDATED: 'learning.progress.updated',
-  SUBMISSION_CREATED: 'learning.submission.created',
-  SUBMISSION_REVIEWED: 'learning.submission.reviewed',
-  SUBMISSION_RESUBMITTED: 'learning.submission.resubmitted',
   VOCABULARY_LOOKED_UP: 'learning.vocabulary.looked_up',
   ATTEMPT_RATED: 'learning.attempt.rated',
   SRS_LIMIT_REFUSED: 'learning.srs.limit_refused',
@@ -101,34 +98,6 @@ export interface ProgressUpdatedPayload {
   status: string;
   attemptsCount: number;
   score: number | null;
-}
-
-// ─── Submission payload interfaces ────────────────────────────────────────────
-
-export interface SubmissionCreatedPayload {
-  submissionId: string;
-  userId: string;
-  exerciseId: string;
-  assignmentId: string | null;
-  schoolId: string | null;
-}
-
-export interface SubmissionReviewedPayload {
-  submissionId: string;
-  userId: string;
-  exerciseId: string;
-  assignmentId: string | null;
-  reviewerId: string;
-  decision: string;
-  feedback: string | null;
-  score: number | null;
-}
-
-export interface SubmissionResubmittedPayload {
-  submissionId: string;
-  userId: string;
-  exerciseId: string;
-  revisionNumber: number;
 }
 
 // ─── Vocabulary payload interfaces ───────────────────────────────────────────
@@ -237,9 +206,6 @@ export type EnrollmentUnenrolledEvent = BaseEvent<EnrollmentUnenrolledPayload>;
 export type ProgressCompletedEvent = BaseEvent<ProgressCompletedPayload>;
 export type ProgressUpdatedEvent = BaseEvent<ProgressUpdatedPayload>;
 
-export type SubmissionCreatedEvent = BaseEvent<SubmissionCreatedPayload>;
-export type SubmissionReviewedEvent = BaseEvent<SubmissionReviewedPayload>;
-export type SubmissionResubmittedEvent = BaseEvent<SubmissionResubmittedPayload>;
 
 export type VocabularyLookedUpEvent = BaseEvent<VocabularyLookedUpPayload>;
 

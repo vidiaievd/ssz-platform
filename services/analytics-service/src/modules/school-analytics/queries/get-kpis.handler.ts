@@ -6,6 +6,7 @@ import type { AppConfig } from '../../../config/configuration.js';
 import { SchoolRole } from '@ssz/contracts';
 import { GetKpisQuery } from './get-kpis.query.js';
 import type { GetKpisResponseDto, KpiDto } from '../dto/kpi-response.dto.js';
+import { ExerciseEngineClient } from '../../../infrastructure/http/exercise-engine.client.js';
 
 const OWNER_ADMIN = new Set<SchoolRole>([SchoolRole.OWNER, SchoolRole.ADMIN]);
 const ANALYTICS_VIEWER_ROLES = new Set<SchoolRole>([SchoolRole.OWNER, SchoolRole.ADMIN, SchoolRole.TEACHER, SchoolRole.CONTENT_ADMIN]);
@@ -46,6 +47,7 @@ export class GetKpisHandler implements IQueryHandler<GetKpisQuery, GetKpisRespon
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig>,
+    private readonly engine: ExerciseEngineClient,
   ) {
     this.atRiskDays = this.config.get<AppConfig['metrics']>('metrics')?.atRiskThresholdDays ?? 7;
   }
@@ -139,15 +141,8 @@ export class GetKpisHandler implements IQueryHandler<GetKpisQuery, GetKpisRespon
         select: { containerId: true },
         distinct: ['containerId'],
       }),
-      // pending reviews
-      this.prisma.submissionProjection.findMany({
-        where: {
-          schoolId,
-          status: { in: ['PENDING_REVIEW', 'RESUBMITTED'] },
-        },
-        select: { submittedAt: true },
-        orderBy: { submittedAt: 'asc' },
-      }),
+      // pending reviews — asked of the exercise engine, which owns the only queue
+      this.engine.getPendingReviewLoad(schoolId),
       // at_risk current
       isOwnerAdmin
         ? this.computeAtRiskCount(studentIds, now)
@@ -202,17 +197,29 @@ export class GetKpisHandler implements IQueryHandler<GetKpisQuery, GetKpisRespon
     };
 
     // ── 7. Build KPI: pending_reviews ────────────────────────────────────────
-    const pendingCount = pendingReviews.length;
-    const oldestMs =
-      pendingCount > 0 ? now.getTime() - pendingReviews[0].submittedAt.getTime() : 0;
-
-    const kpiPending: KpiDto = {
-      key: 'pending_reviews',
-      label: 'Pending reviews',
-      value: pendingCount,
-      hint: 'writing + speaking submissions',
-      ...(pendingCount > 0 ? { sub: `oldest: ${formatDuration(oldestMs)}` } : {}),
-    };
+    // `null` means the engine did not answer. The tile then says nothing rather than
+    // zero: "no work waiting" and "we could not ask" look identical on a dashboard and
+    // mean opposite things to whoever has to mark it.
+    const kpiPending: KpiDto = pendingReviews
+      ? {
+          key: 'pending_reviews',
+          label: 'Pending reviews',
+          value: pendingReviews.pending,
+          hint: 'submissions waiting for a teacher',
+          ...(pendingReviews.oldestSubmittedAt
+            ? {
+                sub: `oldest: ${formatDuration(
+                  now.getTime() - pendingReviews.oldestSubmittedAt.getTime(),
+                )}`,
+              }
+            : {}),
+        }
+      : {
+          key: 'pending_reviews',
+          label: 'Pending reviews',
+          value: 0,
+          hint: 'unavailable',
+        };
 
     // ── 8. Build KPI: at_risk (owner/admin only) ──────────────────────────────
     const kpis: KpiDto[] = [kpiActive, kpiCompleted, kpiPending];
@@ -286,7 +293,7 @@ export class GetKpisHandler implements IQueryHandler<GetKpisQuery, GetKpisRespon
     const base: KpiDto[] = [
       { key: 'active_students_7d', label: 'Active students · 7d', value: 0, hint: 'of 0 enrolled' },
       { key: 'lessons_completed_7d', label: 'Lessons completed · 7d', value: 0, hint: 'across 0 courses' },
-      { key: 'pending_reviews', label: 'Pending reviews', value: 0, hint: 'writing + speaking submissions' },
+      { key: 'pending_reviews', label: 'Pending reviews', value: 0, hint: 'submissions waiting for a teacher' },
     ];
     if (OWNER_ADMIN.has(role)) {
       base.push({ key: 'at_risk', label: 'At-risk students', value: 0, hint: `haven't logged in ${this.atRiskDays}+ days` });
