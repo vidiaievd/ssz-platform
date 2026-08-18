@@ -110,13 +110,13 @@ describe('HttpOrganizationClient.getMemberRole', () => {
     expect(httpSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('includes Bearer token in Authorization header', async () => {
+  it('sends the internal-auth header the platform gates its internal routes with', async () => {
     const client = makeClient([() => ({ data: { role: 'owner' } })]);
     const httpSpy = (client as any).http.get as jest.Mock;
     await client.getMemberRole('user-1', 'school-1');
     expect(httpSpy).toHaveBeenCalledWith(
       expect.stringContaining('/schools/school-1/members/user-1/role'),
-      expect.objectContaining({ headers: { Authorization: 'Bearer secret-token' } }),
+      expect.objectContaining({ headers: { 'x-internal-token': 'secret-token' } }),
     );
   });
 });

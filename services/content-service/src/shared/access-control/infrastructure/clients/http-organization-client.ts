@@ -17,6 +17,8 @@ export class HttpOrganizationClient implements IOrganizationClient {
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
   private readonly retries: number;
+  // Every internal route on the platform is gated by 'x-internal-token', not a Bearer
+  // Authorization header (see internal-auth.guard.ts on this and the other side).
   private readonly authToken: string;
 
   constructor(
@@ -45,7 +47,7 @@ export class HttpOrganizationClient implements IOrganizationClient {
         const response = await firstValueFrom(
           this.http
             .get<{ role: SchoolMemberRole }>(url, {
-              headers: { Authorization: `Bearer ${this.authToken}` },
+              headers: { 'x-internal-token': this.authToken },
             })
             .pipe(timeout(this.timeoutMs)),
         );
@@ -100,7 +102,7 @@ export class HttpOrganizationClient implements IOrganizationClient {
         const response = await firstValueFrom(
           this.http
             .get<CourseTeacher[]>(url, {
-              headers: { Authorization: `Bearer ${this.authToken}` },
+              headers: { 'x-internal-token': this.authToken },
             })
             .pipe(timeout(this.timeoutMs)),
         );
