@@ -31,6 +31,7 @@ import { TransferStudentHandler } from './application/commands/transfer-student/
 import { UpdateGroupMemberRoleHandler } from './application/commands/update-group-member-role/update-group-member-role.handler.js';
 import { RemoveStudentHandler } from './application/commands/remove-student/remove-student.handler.js';
 import { NudgeStudentHandler } from './application/commands/nudge-student/nudge-student.handler.js';
+import { RemindReviewerHandler } from './application/commands/remind-reviewer/remind-reviewer.handler.js';
 import { SendInvitationHandler } from './application/commands/send-invitation/send-invitation.handler.js';
 import { AcceptInvitationHandler } from './application/commands/accept-invitation/accept-invitation.handler.js';
 import { ResendSchoolInvitationHandler } from './application/commands/resend-invitation/resend-invitation.handler.js';
@@ -108,6 +109,7 @@ const CommandHandlers = [
   UpdateGroupMemberRoleHandler,
   RemoveStudentHandler,
   NudgeStudentHandler,
+  RemindReviewerHandler,
   SendInvitationHandler,
   AcceptInvitationHandler,
   ResendSchoolInvitationHandler,
