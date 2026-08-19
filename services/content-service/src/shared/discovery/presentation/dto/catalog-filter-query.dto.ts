@@ -41,7 +41,8 @@ export abstract class CatalogFilterQueryDto {
   })
   @IsOptional()
   @IsArray()
-  @IsUUID('4', { each: true })
+  // Any version: tags seeded alongside a course carry uuidv5 ids like the rest of it.
+  @IsUUID(undefined, { each: true })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.split(',').filter(Boolean) : value,
   )

@@ -12,7 +12,9 @@ export class SearchReviewQueueRequestDto {
   @ApiProperty({ type: [String], description: 'Exercises whose queues to merge' })
   @IsArray()
   @ArrayNotEmpty()
-  @IsUUID('4', { each: true })
+  // Any version: seeded content carries uuidv5 ids (see the seeders' `id()` helper),
+  // and version 4 turned every seeded course's inbox into a 400.
+  @IsUUID(undefined, { each: true })
   exerciseIds!: string[];
 
   @ApiPropertyOptional({ default: 20 })
