@@ -28,6 +28,14 @@ function routedAttempt(): Attempt {
     checkMode: 'GRADED',
     practicedAtoms: [],
   });
+  attempt.snapshotReviewContext({
+    schoolId: 'school-1',
+    containerId: 'course-1',
+    groupId: 'group-1',
+    exercisePath: { course: 'Ny i Norge — A2', module: 'Leksjon 19', exercise: 'Familien' },
+    previousAttemptId: null,
+    revisionCount: 0,
+  });
   attempt.submit([{ itemId: 'i1', text: 'Jeg har bodd i Tromsø i tre år.' }], 'hash');
   attempt.routeForReview();
   attempt.clearDomainEvents();
@@ -126,6 +134,10 @@ describe('ReviewAttemptHandler', () => {
       score: 67,
       approvedItems: 2,
       totalItems: 3,
+      // What lets the message name the work and lead back to it, weeks later, without
+      // asking anyone where the exercise sits now (plan 47.4).
+      containerId: 'course-1',
+      exercisePath: { course: 'Ny i Norge — A2', module: 'Leksjon 19', exercise: 'Familien' },
     });
   });
 

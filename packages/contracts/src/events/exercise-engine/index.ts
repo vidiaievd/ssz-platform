@@ -138,6 +138,22 @@ export interface ExerciseAttemptReviewedPayload {
    * copy of every submission just to learn which school a verdict belongs to.
    */
   schoolId: string | null;
+  /**
+   * The course the work belongs to, snapshotted when the attempt started.
+   *
+   * On the letter rather than looked up by its reader: a notification is written once and
+   * read weeks later, and a consumer that resolved the course at read time would answer
+   * for where the exercise sits *now* — or fail to answer at all once it has moved.
+   */
+  containerId: string | null;
+  /**
+   * Course · module · exercise as they read when the learner started (plan 44 §0.3).
+   *
+   * What lets a message name the work instead of pointing at "an exercise": `null` only
+   * for attempts that predate the snapshot, and a consumer must still say something
+   * sensible without it.
+   */
+  exercisePath: { course: string; module: string | null; exercise: string | null } | null;
   outcome: 'approved' | 'returned';
   /** 0–100 on an approval; `null` when the work was sent back unmarked. */
   score: number | null;

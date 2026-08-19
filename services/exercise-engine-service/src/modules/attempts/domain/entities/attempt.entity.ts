@@ -641,6 +641,11 @@ export class Attempt extends AggregateRoot {
         templateCode: this._templateCode,
         reviewerId: props.reviewerId,
         schoolId: this._schoolId,
+        // Where the work lives and what it is called, as it read when the learner started.
+        // The message that reaches them names the exercise instead of pointing vaguely at
+        // one, and links to the course it belongs to (plan 47.4).
+        containerId: this._containerId,
+        exercisePath: this._exercisePath,
         outcome: props.outcome,
         score,
         comment: props.comment,

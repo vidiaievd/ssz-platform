@@ -19,8 +19,11 @@ const payload = (overrides: Record<string, unknown> = {}) => ({
   outcome: 'approved' as const,
   score: 80,
   comment: null,
+  hasComment: false,
   approvedItems: 4,
   totalItems: 5,
+  containerId: 'course-1',
+  exercisePath: { course: 'Ny i Norge — A2', module: 'Leksjon 19', exercise: 'Familien' },
   occurredAt: new Date().toISOString(),
   ...overrides,
 });
@@ -70,6 +73,40 @@ describe('AttemptReviewedHandler', () => {
     });
   });
 
+  /** 47.4: the message has to lead back to the work, and name it while doing so. */
+  it('carries where the work is and what it is called', async () => {
+    await handler.handle(payload() as never, makeMeta());
+
+    const created = repo.create.mock.calls[0]![0];
+    expect(created.templateData).toMatchObject({
+      attemptId: 'att-1',
+      containerId: 'course-1',
+      exercisePath: { course: 'Ny i Norge — A2', module: 'Leksjon 19', exercise: 'Familien' },
+    });
+    expect(created.subject).toBe('Your teacher has marked “Familien”');
+  });
+
+  /**
+   * `hasComment` is not `comment !== null`: a teacher may write nothing overall and still
+   * leave a note on one sentence, and the learner must be sent to read it.
+   */
+  it('passes on that something was written even when nothing was written overall', async () => {
+    await handler.handle(payload({ comment: null, hasComment: true }) as never, makeMeta());
+
+    expect(repo.create.mock.calls[0]![0].templateData).toMatchObject({
+      comment: null,
+      hasComment: true,
+    });
+  });
+
+  it('still says something sensible about work that carried no path', async () => {
+    await handler.handle(payload({ exercisePath: null, containerId: null }) as never, makeMeta());
+
+    const created = repo.create.mock.calls[0]![0];
+    expect(created.subject).toBe('Your teacher has marked your work');
+    expect(created.templateData).toMatchObject({ exercisePath: null, containerId: null });
+  });
+
   it('carries a returned submission with its comment and no score', async () => {
     await handler.handle(
       payload({ outcome: 'returned', score: null, comment: 'Se på perfektum.' }) as never,
@@ -86,6 +123,6 @@ describe('AttemptReviewedHandler', () => {
       }),
     });
     // The subject differs because the two outcomes ask different things of the learner.
-    expect(created.subject).toBe('Your teacher sent your work back');
+    expect(created.subject).toBe('Your teacher sent “Familien” back');
   });
 });
