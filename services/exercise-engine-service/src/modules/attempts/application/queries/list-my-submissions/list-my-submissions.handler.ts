@@ -24,6 +24,14 @@ export interface MySubmissionEntry {
   /** Course · module · exercise as they read when the learner started (§0.3). */
   exercisePath: ExercisePathSnapshot | null;
   containerId: string | null;
+  /**
+   * The school the attempt was submitted under, snapshotted at start (44.4).
+   *
+   * On the list because the response time a learner is owed is the school's promise
+   * unless the course overrides it, and this list crosses schools — a screen resolving
+   * one promise for the whole page would quote one school's word over another's.
+   */
+  schoolId: string | null;
   submittedAt: Date;
   status: MySubmissionEntryStatus;
   attemptNo: number;
@@ -70,6 +78,7 @@ export class ListMySubmissionsHandler implements IQueryHandler<ListMySubmissions
         exerciseId: attempt.exerciseId,
         exercisePath: attempt.exercisePath,
         containerId: attempt.containerId,
+        schoolId: attempt.schoolId,
         // The selection above guarantees a submission time on every row this reaches.
         submittedAt: attempt.submittedAt as Date,
         status,

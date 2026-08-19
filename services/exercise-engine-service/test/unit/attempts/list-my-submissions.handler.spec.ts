@@ -82,6 +82,7 @@ describe('ListMySubmissionsHandler', () => {
         exerciseId: 'ex-1',
         exercisePath: { course: 'Ny i Norge — A2', module: 'Leksjon 19', exercise: 'Familien' },
         containerId: 'course-1',
+        schoolId: 'school-1',
         submittedAt: new Date('2026-08-19T09:00:00Z'),
         status: 'pending',
         attemptNo: 1,
