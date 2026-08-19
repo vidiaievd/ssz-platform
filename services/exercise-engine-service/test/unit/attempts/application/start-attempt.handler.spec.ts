@@ -95,7 +95,6 @@ const makeRepo = (): jest.Mocked<IAttemptRepository> => ({
     .mockResolvedValue(null),
   findAllInProgressByExercise: jest.fn<IAttemptRepository['findAllInProgressByExercise']>(),
   findAllByUser: jest.fn<IAttemptRepository['findAllByUser']>(),
-  findAllByExercises: jest.fn<IAttemptRepository['findAllByExercises']>(),
   save: jest.fn<IAttemptRepository['save']>().mockResolvedValue(undefined),
   saveAll: jest.fn<IAttemptRepository['saveAll']>().mockResolvedValue(undefined),
 });

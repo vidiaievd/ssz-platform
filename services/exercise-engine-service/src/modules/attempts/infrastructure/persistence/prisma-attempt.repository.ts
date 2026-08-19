@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type {
   IAttemptRepository,
-  FindForReviewFilter,
   FindUserAttemptsFilter,
   PendingLoadRow,
   ReviewDecisionsCursor,
@@ -60,34 +59,6 @@ export class PrismaAttemptRepository implements IAttemptRepository {
       this.prisma.attempt.findMany({
         where,
         orderBy: { startedAt: 'desc' },
-        skip: filter.offset,
-        take: filter.limit,
-      }),
-      this.prisma.attempt.count({ where }),
-    ]);
-
-    return { items: rows.map(AttemptMapper.toDomain), total };
-  }
-
-  /**
-   * The queue of one or many exercises. Oldest first, because a submission that has been
-   * waiting two days is the one a learner is still waiting on.
-   *
-   * An empty set is answered without touching the database: a course with no exercises of
-   * a markable kind is a real case, and `IN ()` is not a query worth sending.
-   */
-  async findAllByExercises(
-    exerciseIds: string[],
-    filter: FindForReviewFilter,
-  ): Promise<{ items: Attempt[]; total: number }> {
-    if (exerciseIds.length === 0) return { items: [], total: 0 };
-
-    const where = { exerciseId: { in: exerciseIds }, status: filter.status };
-
-    const [rows, total] = await Promise.all([
-      this.prisma.attempt.findMany({
-        where,
-        orderBy: { submittedAt: 'asc' },
         skip: filter.offset,
         take: filter.limit,
       }),

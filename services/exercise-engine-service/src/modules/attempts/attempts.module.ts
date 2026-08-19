@@ -13,7 +13,6 @@ import { ClaimReviewHandler } from './application/commands/claim-review/claim-re
 import { ReleaseReviewHandler } from './application/commands/release-review/release-review.handler.js';
 import { GetAttemptByIdHandler } from './application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
 import { ListUserAttemptsHandler } from './application/queries/list-user-attempts/list-user-attempts.handler.js';
-import { ListReviewQueueHandler } from './application/queries/list-review-queue/list-review-queue.handler.js';
 import { ListReviewQueueV2Handler } from './application/queries/list-review-queue-v2/list-review-queue-v2.handler.js';
 import { CountReviewQueueHandler } from './application/queries/count-review-queue/count-review-queue.handler.js';
 import { AggregateReviewLoadHandler } from './application/queries/aggregate-review-load/aggregate-review-load.handler.js';
@@ -38,7 +37,6 @@ const CommandHandlers = [
 const QueryHandlers = [
   GetAttemptByIdHandler,
   ListUserAttemptsHandler,
-  ListReviewQueueHandler,
   ListReviewQueueV2Handler,
   CountReviewQueueHandler,
   GetSubmissionForReviewHandler,

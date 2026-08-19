@@ -9,13 +9,6 @@ export interface FindUserAttemptsFilter {
   offset: number;
 }
 
-/** A review queue: submissions waiting on a person, oldest first. */
-export interface FindForReviewFilter {
-  status: AttemptStatus;
-  limit: number;
-  offset: number;
-}
-
 /**
  * Where a reviewer is allowed to look (plan 44 §0.2).
  *
@@ -87,16 +80,6 @@ export interface IAttemptRepository {
   findLatestReturned(userId: string, exerciseId: string): Promise<Attempt | null>;
   findAllInProgressByExercise(exerciseId: string): Promise<Attempt[]>;
   findAllByUser(userId: string, filter: FindUserAttemptsFilter): Promise<{ items: Attempt[]; total: number }>;
-  /**
-   * The queue across a set of exercises. One exercise is the set of one — the teacher's
-   * screen for a whole course asks the same question of every exercise in it, and asking
-   * once keeps the paging honest: twenty oldest submissions of the course, not twenty of
-   * each exercise stitched together afterwards.
-   */
-  findAllByExercises(
-    exerciseIds: string[],
-    filter: FindForReviewFilter,
-  ): Promise<{ items: Attempt[]; total: number }>;
   /**
    * One page of the queue over a scope, oldest submission first.
    *
