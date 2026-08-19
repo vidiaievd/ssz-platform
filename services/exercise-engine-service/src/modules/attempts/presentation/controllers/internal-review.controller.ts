@@ -45,6 +45,12 @@ import type { AggregateReviewLoadResult } from '../../application/queries/aggreg
 import { ListReviewDecisionsQuery } from '../../application/queries/list-review-decisions/list-review-decisions.query.js';
 import type { ListReviewDecisionsResult } from '../../application/queries/list-review-decisions/list-review-decisions.handler.js';
 import { decodeReviewDecisionsCursor } from '../../application/queries/list-review-decisions/review-decisions-cursor.js';
+import {
+  ListMySubmissionsQuery,
+  type MySubmissionsStatus,
+} from '../../application/queries/list-my-submissions/list-my-submissions.query.js';
+import type { ListMySubmissionsResult } from '../../application/queries/list-my-submissions/list-my-submissions.handler.js';
+import { decodeMySubmissionsCursor } from '../../application/queries/list-my-submissions/my-submissions-cursor.js';
 import { BatchApproveCommand } from '../../application/commands/batch-approve/batch-approve.command.js';
 import type { BatchApproveResult } from '../../application/commands/batch-approve/batch-approve.handler.js';
 import type {
@@ -74,6 +80,16 @@ const DEFAULT_PERIOD_DAYS = 30;
 
 /** The journal's page; a hundred is the ceiling, as everywhere else on this controller. */
 const DEFAULT_DECISIONS_LIMIT = 50;
+
+/** A learner's own list; a hundred is the ceiling, as everywhere else on this controller. */
+const DEFAULT_MY_SUBMISSIONS_LIMIT = 50;
+
+const MY_SUBMISSIONS_STATUSES: readonly MySubmissionsStatus[] = [
+  'all',
+  'pending',
+  'returned',
+  'approved',
+];
 
 /**
  * The teacher's side of an attempt — service-to-service only.
@@ -247,6 +263,47 @@ export class InternalReviewController {
       new ListReviewDecisionsQuery(
         schoolId,
         Math.min(Math.max(periodDays, 1), 365),
+        Math.min(Math.max(limit, 1), 100),
+        after,
+      ),
+    );
+  }
+
+  /**
+   * A learner's own submissions — screen E of the handoff (plan 47.1). No `schoolId`: this
+   * is the learner's own history across every school and course they have ever submitted
+   * to, and unlike the teacher-facing routes above there is no scope here to narrow by.
+   *
+   * `reviewDecisions`, `validationDetails`, and `submittedAnswer` are never read for this
+   * route in the first place (`ListMySubmissionsHandler`) — the field a learner must never
+   * see (the answer key, an unreleased per-sentence note) is not filtered out of the
+   * response, it never enters it. A snapshot test on this route's fields is the guard.
+   */
+  @Get('review/mine')
+  async listMySubmissions(
+    @Query('userId') userId?: string,
+    @Query('status') status?: string,
+    @Query('limit', new DefaultValuePipe(DEFAULT_MY_SUBMISSIONS_LIMIT), ParseIntPipe)
+    limit = DEFAULT_MY_SUBMISSIONS_LIMIT,
+    @Query('cursor') cursor?: string,
+  ): Promise<ListMySubmissionsResult> {
+    if (!userId) {
+      throw new UnprocessableEntityException('userId is required');
+    }
+    const safeStatus = status ?? 'all';
+    if (!MY_SUBMISSIONS_STATUSES.includes(safeStatus as MySubmissionsStatus)) {
+      throw new UnprocessableEntityException('Invalid status');
+    }
+
+    const after = cursor ? decodeMySubmissionsCursor(cursor) : null;
+    if (cursor && after === null) {
+      throw new UnprocessableEntityException('Malformed cursor');
+    }
+
+    return this.queryBus.execute<ListMySubmissionsQuery, ListMySubmissionsResult>(
+      new ListMySubmissionsQuery(
+        userId,
+        safeStatus as MySubmissionsStatus,
         Math.min(Math.max(limit, 1), 100),
         after,
       ),

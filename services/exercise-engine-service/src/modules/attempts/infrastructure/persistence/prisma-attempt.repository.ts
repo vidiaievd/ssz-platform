@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import type {
   IAttemptRepository,
   FindUserAttemptsFilter,
+  MySubmissionsCursor,
+  MySubmissionsStatus,
   PendingLoadRow,
   ReviewDecisionsCursor,
   ReviewQueueCursor,
@@ -205,6 +207,63 @@ export class PrismaAttemptRepository implements IAttemptRepository {
           : {}),
       },
       orderBy: [{ reviewedAt: 'desc' }, { id: 'desc' }],
+      take: page.limit,
+    });
+
+    return rows.map(AttemptMapper.toDomain);
+  }
+
+  /**
+   * The three buckets as a `where`, or the union of all three for `'all'`.
+   *
+   * `SCORED` alone is not "approved" — a machine score is not a person's decision (the
+   * same reading `deliveredVerdict()` and the decisions journal use) — so it always
+   * carries `reviewedByUserId: { not: null }` alongside it.
+   */
+  private mySubmissionsWhere(userId: string, status: MySubmissionsStatus) {
+    const base = { userId, submittedAt: { not: null } };
+    if (status === 'pending') return { ...base, status: 'ROUTED_FOR_REVIEW' as const };
+    if (status === 'returned') return { ...base, status: 'RETURNED' as const };
+    if (status === 'approved') {
+      return { ...base, status: 'SCORED' as const, reviewedByUserId: { not: null } };
+    }
+    return {
+      ...base,
+      OR: [
+        { status: 'ROUTED_FOR_REVIEW' as const },
+        { status: 'RETURNED' as const },
+        { status: 'SCORED' as const, reviewedByUserId: { not: null } },
+      ],
+    };
+  }
+
+  async findMySubmissionsPage(
+    userId: string,
+    status: MySubmissionsStatus,
+    page: { limit: number; after: MySubmissionsCursor | null },
+  ): Promise<Attempt[]> {
+    const after = page.after;
+    const bucket = this.mySubmissionsWhere(userId, status);
+    // `bucket` may itself be an `OR` (the `'all'` case, across the three statuses) — nested
+    // under its own `AND` entry rather than spread alongside the keyset's `OR`, so the two
+    // do not collide on the same object key and silently drop one of them.
+    const where = after
+      ? {
+          AND: [
+            bucket,
+            {
+              OR: [
+                { submittedAt: { lt: after.submittedAt } },
+                { submittedAt: after.submittedAt, id: { lt: after.id } },
+              ],
+            },
+          ],
+        }
+      : bucket;
+
+    const rows = await this.prisma.attempt.findMany({
+      where,
+      orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
       take: page.limit,
     });
 

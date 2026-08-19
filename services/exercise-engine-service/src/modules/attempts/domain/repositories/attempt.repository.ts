@@ -73,6 +73,15 @@ export interface ReviewDecisionsCursor {
   id: string;
 }
 
+/** The three buckets "Мои работы" can narrow to, or all of them (47.1). */
+export type MySubmissionsStatus = 'all' | 'pending' | 'returned' | 'approved';
+
+/** A place in one learner's own list: newest submission first. */
+export interface MySubmissionsCursor {
+  submittedAt: Date;
+  id: string;
+}
+
 export interface IAttemptRepository {
   findById(id: string): Promise<Attempt | null>;
   findInProgress(userId: string, exerciseId: string): Promise<Attempt | null>;
@@ -119,6 +128,18 @@ export interface IAttemptRepository {
     schoolId: string,
     since: Date,
     page: { limit: number; after: ReviewDecisionsCursor | null },
+  ): Promise<Attempt[]>;
+  /**
+   * One page of a learner's own submissions, newest first (47.1).
+   *
+   * Selects `ROUTED_FOR_REVIEW`, `RETURNED`, and `SCORED`-with-a-reviewer only — the same
+   * three buckets `status` narrows within. A practice attempt or a machine-scored one
+   * never matches, `status=all` either.
+   */
+  findMySubmissionsPage(
+    userId: string,
+    status: MySubmissionsStatus,
+    page: { limit: number; after: MySubmissionsCursor | null },
   ): Promise<Attempt[]>;
   /** How much is waiting in a scope, and since when — without reading the submissions. */
   summariseReviewQueue(scope: ReviewQueueScope): Promise<ReviewQueueSummary>;
