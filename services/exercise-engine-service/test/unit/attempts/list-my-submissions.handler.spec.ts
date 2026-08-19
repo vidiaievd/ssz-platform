@@ -32,7 +32,7 @@ function attempt(props: Partial<AttemptPersistenceProps> = {}): Attempt {
     // handler's result never carries it, not because the handler is expected to read it.
     submittedAnswer: { answers: [{ itemId: 'i1', text: 'the actual answer' }] },
     validationDetails: { reference: 'do not leak me' },
-    feedback: null,
+    feedback: 'unreleased feedback',
     answerHash: 'hash',
     revisionCount: 0,
     recheckCount: 0,
@@ -44,7 +44,9 @@ function attempt(props: Partial<AttemptPersistenceProps> = {}): Attempt {
     reviewedByUserId: null,
     reviewedAt: null,
     reviewComment: null,
-    reviewDecisions: null,
+    // Per-item reviewer notes: the learner's screen does not show these yet (plan 47 §4),
+    // and this canary is what says so if a future field mapping starts carrying them.
+    reviewDecisions: [{ itemId: 'i1', approved: false, comment: 'unreleased per-item note' }],
     schoolId: 'school-1',
     containerId: 'course-1',
     groupId: 'group-1',
@@ -97,6 +99,8 @@ describe('ListMySubmissionsHandler', () => {
 
     expect(payload).not.toContain('the actual answer');
     expect(payload).not.toContain('do not leak me');
+    expect(payload).not.toContain('unreleased feedback');
+    expect(payload).not.toContain('unreleased per-item note');
   });
 
   it('maps RETURNED to returned, with the teacher’s verdict', async () => {
@@ -111,15 +115,14 @@ describe('ListMySubmissionsHandler', () => {
 
     const result = await handler.execute(query());
 
-    expect(result.items[0]).toMatchObject({
-      status: 'returned',
-      attemptNo: 2,
-      decision: {
-        verdict: 'returned',
-        byUserId: 'teacher-1',
-        at: new Date('2026-08-19T10:00:00Z'),
-        comment: 'Se på perfektum.',
-      },
+    expect(result.items[0]).toMatchObject({ status: 'returned', attemptNo: 2 });
+    // Exact, not partial: `decision` is where an unreleased per-item note would land if
+    // one were ever mapped in, and a partial match would not notice it arriving.
+    expect(result.items[0]!.decision).toEqual({
+      verdict: 'returned',
+      byUserId: 'teacher-1',
+      at: new Date('2026-08-19T10:00:00Z'),
+      comment: 'Se på perfektum.',
     });
   });
 
