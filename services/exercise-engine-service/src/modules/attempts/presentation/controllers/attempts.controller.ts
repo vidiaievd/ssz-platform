@@ -102,6 +102,7 @@ function toAttemptDto(attempt: Attempt): AttemptResponseDto {
     reviewComment: attempt.reviewComment,
     reviewDecisions: attempt.reviewDecisions ?? null,
     reviewedAt: attempt.reviewedAt?.toISOString() ?? null,
+    reviewedByUserId: attempt.reviewedByUserId,
   };
 }
 

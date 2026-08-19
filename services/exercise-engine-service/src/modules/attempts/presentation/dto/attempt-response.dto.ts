@@ -89,6 +89,14 @@ export class AttemptResponseDto {
 
   @ApiPropertyOptional({ nullable: true, description: 'When a teacher read it.' })
   reviewedAt!: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'Which teacher read it. An id, so that a client can put a name to a verdict — the ' +
+      'learner is already told who marked their work on their own submissions screen.',
+  })
+  reviewedByUserId!: string | null;
 }
 
 export class ListAttemptsResponseDto {

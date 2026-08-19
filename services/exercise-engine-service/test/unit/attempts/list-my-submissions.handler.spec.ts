@@ -80,6 +80,8 @@ describe('ListMySubmissionsHandler', () => {
       {
         attemptId: 'att-1',
         exerciseId: 'ex-1',
+        templateCode: 'translate_to_target',
+        targetLanguage: 'no',
         exercisePath: { course: 'Ny i Norge — A2', module: 'Leksjon 19', exercise: 'Familien' },
         containerId: 'course-1',
         schoolId: 'school-1',

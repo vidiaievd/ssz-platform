@@ -21,6 +21,23 @@ export interface MySubmissionDecision {
 export interface MySubmissionEntry {
   attemptId: string;
   exerciseId: string;
+  /**
+   * Which template the work was done in — `writing_task`, `translate_to_target`, …
+   *
+   * The learner's screen forks on it: an essay is written again in the card it came back
+   * in, while a set of sentences needs the runner it was typed in — its own keyboard pad,
+   * its self-check, its item-by-item layout (plan 47.3). Not a secret in any sense: it is
+   * the kind of exercise, which the learner was looking at when they did it.
+   */
+  templateCode: string;
+  /**
+   * The language the exercise was answered in, as snapshotted on the attempt.
+   *
+   * A second attempt has to be started before it can be submitted, and starting one names
+   * a language — the learner's screen would otherwise have to guess at it, or fetch the
+   * exercise only to read one field off it (47.3).
+   */
+  targetLanguage: string;
   /** Course · module · exercise as they read when the learner started (§0.3). */
   exercisePath: ExercisePathSnapshot | null;
   containerId: string | null;
@@ -76,6 +93,8 @@ export class ListMySubmissionsHandler implements IQueryHandler<ListMySubmissions
       return {
         attemptId: attempt.id,
         exerciseId: attempt.exerciseId,
+        templateCode: attempt.templateCode,
+        targetLanguage: attempt.targetLanguage,
         exercisePath: attempt.exercisePath,
         containerId: attempt.containerId,
         schoolId: attempt.schoolId,
