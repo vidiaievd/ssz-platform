@@ -47,7 +47,14 @@ const perfect = {
 const detail = (result: ReturnType<typeof run>, itemId: string) =>
   (
     result.value.details as {
-      items: Array<{ itemId: string; verdict: string; ref: string; submitted: string }>;
+      items: Array<{
+        itemId: string;
+        verdict: string;
+        ref: string;
+        submitted: string;
+        prompt: string | null;
+        note: string | null;
+      }>;
     }
   ).items.find((item) => item.itemId === itemId);
 
@@ -182,5 +189,25 @@ describe('TranslateValidator', () => {
 
     expect(result.isFail).toBe(true);
     expect(result.error.code).toBe('INVALID_EXERCISE');
+  });
+
+  it('carries the sentence that was asked, so a diff is read against a question', () => {
+    const result = run({ ...perfect, s1: 'Jeg bor i Tromsø i tre år.' });
+
+    // Without the prompt the reviewer sees a diff between two Norwegian sentences and no
+    // sign of what the learner was actually given to translate.
+    expect(detail(result, 's1')?.prompt).toBe('Я живу в Тромсё уже три года.');
+  });
+
+  it('carries the author’s aside to whoever marks the sentence', () => {
+    const withNote = {
+      items: {
+        ...expectedAnswers.items,
+        s1: { ...expectedAnswers.items.s1, teacherNote: 'Se på presens perfektum.' },
+      },
+    };
+    const result = run({ ...perfect, s1: 'Jeg bor i Tromsø.' }, { expectedAnswers: withNote });
+
+    expect(detail(result, 's1')?.note).toBe('Se på presens perfektum.');
   });
 });

@@ -48,9 +48,7 @@ const detail = (result: ReturnType<typeof run>, itemId: string) =>
     result.value.details as {
       items: Array<{ itemId: string; verdict: string; routing?: string; state?: string }>;
     }
-  ).items.find(
-    (item) => item.itemId === itemId,
-  );
+  ).items.find((item) => item.itemId === itemId);
 
 describe('ErrorCorrectionValidator', () => {
   it('passes an answer identical to the key, without a teacher', () => {
@@ -72,7 +70,7 @@ describe('ErrorCorrectionValidator', () => {
     expect(detail(result, 'i2')?.verdict).toBe('empty');
   });
 
-  it('routes a single typo to the teacher too — it is not the machine\'s call', () => {
+  it("routes a single typo to the teacher too — it is not the machine's call", () => {
     const result = run({
       ...perfect,
       i2: { marked: { 2: true }, fix: { 2: 'bod' } },
@@ -184,5 +182,30 @@ describe('ErrorCorrectionValidator', () => {
 
     expect(result.isFail).toBe(true);
     expect(result.error.code).toBe('INVALID_EXERCISE');
+  });
+
+  it('carries the faulty sentence and the author’s aside for the reviewer', () => {
+    const withNote = {
+      items: {
+        ...expectedAnswers.items,
+        i1: { ...expectedAnswers.items.i1, teacherNote: 'Inversjon etter tidsuttrykk.' },
+      },
+    };
+    const result = run(
+      { i1: { marked: { 2: true }, fix: { 2: 'gikk' } } },
+      {
+        expectedAnswers: withNote,
+      },
+    );
+
+    const items = (
+      result.value.details as {
+        items: Array<{ itemId: string; prompt: string; note: string | null }>;
+      }
+    ).items;
+    const first = items.find((item) => item.itemId === 'i1');
+
+    expect(first?.prompt).toBe('I går jeg gikk på kino.');
+    expect(first?.note).toBe('Inversjon etter tidsuttrykk.');
   });
 });

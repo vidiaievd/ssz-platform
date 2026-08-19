@@ -6,7 +6,7 @@ import {
   readSubmission,
   runItems,
 } from '@ssz/shared-kernel/translate';
-import type { ItemOutcome, TranslateType } from '@ssz/shared-kernel/translate';
+import type { Item, ItemOutcome, TranslateType } from '@ssz/shared-kernel/translate';
 import { Result } from '../../../shared/kernel/result.js';
 import { ValidationError } from '../../../shared/application/ports/answer-validator.port.js';
 import type { ValidationOutcome } from '../../../shared/application/ports/answer-validator.port.js';
@@ -63,7 +63,13 @@ export class TranslateValidator implements IPerTypeValidator {
       totalItems: items.length,
       routedItems: routed.length,
       passedItems: outcomes.length - routed.length,
-      items: outcomes.map((outcome) => toTeacherDetail(outcome, answers[outcome.itemId] ?? '')),
+      items: outcomes.map((outcome) =>
+        toTeacherDetail(
+          outcome,
+          answers[outcome.itemId] ?? '',
+          items.find((item) => item.id === outcome.itemId),
+        ),
+      ),
     };
 
     // An exercise routed to a teacher carries no score: the teacher's mark is the score,
@@ -89,17 +95,29 @@ export class TranslateValidator implements IPerTypeValidator {
 }
 
 /**
- * One sentence as the teacher queue will read it: what the student wrote, how it was
- * judged, the variant it was judged against, and the rules of the task it broke.
+ * One sentence as the teacher queue will read it: what was asked, what the student wrote,
+ * how it was judged, the variant it was judged against, and the rules of the task it
+ * broke.
  *
  * The diff travels unmasked — masking is the student's projection, and the point of the
- * queue is to see the divergence.
+ * queue is to see the divergence. `prompt` and `note` travel with it because a diff read
+ * without the sentence it answers is a teacher guessing what the task was; the reviewer's
+ * screen would otherwise have to fetch the exercise a second time to put the question back
+ * above the answer.
+ *
+ * None of this reaches the learner: `learnerFacingDetails` keeps translate down to an
+ * item id and a routing, which is an allowlist and not a redaction — a field added here
+ * cannot leak by being forgotten there.
  */
-function toTeacherDetail(outcome: ItemOutcome, submitted: string) {
+function toTeacherDetail(outcome: ItemOutcome, submitted: string, item: Item | undefined) {
   return {
     itemId: outcome.itemId,
     verdict: outcome.verdict,
     similarity: Number(outcome.sim.toFixed(3)),
+    /** The sentence the student was given. Absent only if the set changed under us. */
+    prompt: item?.source ?? null,
+    /** The author's aside to whoever marks this. Teacher-only, by design. */
+    note: item?.teacherNote ?? null,
     ref: outcome.ref,
     submitted,
     tokens: outcome.tokens,
