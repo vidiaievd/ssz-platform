@@ -90,8 +90,11 @@ describe('GetReviewEscalationRecipientsHandler', () => {
 
     await handler.execute(query([GROUP_ID]));
 
-    const where = (prisma.groupTeacher.findMany.mock.calls[0]![0] as { where: Record<string, unknown> }).where;
-    expect(where).toMatchObject({ groupId: { in: [GROUP_ID] }, role: 'primary' });
+    expect(prisma.groupTeacher.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ groupId: { in: [GROUP_ID] }, role: 'primary' }),
+      }),
+    );
   });
 
   /**
