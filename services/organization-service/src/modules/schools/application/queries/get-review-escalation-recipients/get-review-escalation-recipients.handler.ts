@@ -37,10 +37,10 @@ const ADMIN_ROLES = ['OWNER', 'ADMIN'];
  * out for itself would be a second copy of the rule, drifting the first time a school
  * adds an administrator.
  *
- * It never falls back to another target. A school that escalates to its owner and has
- * none gets an empty list, and the caller writes to nobody — quietly picking a different
- * recipient would send a stranger a school's dirty laundry, and hide that the setting
- * points at nobody.
+ * It never falls back to another target. A school that escalates to its group's primary
+ * teacher and has none gets an empty list, and the caller writes to nobody — quietly
+ * picking a different recipient would send a stranger a school's dirty laundry, and hide
+ * that the setting points at nobody.
  */
 @QueryHandler(GetReviewEscalationRecipientsQuery)
 export class GetReviewEscalationRecipientsHandler
@@ -63,9 +63,35 @@ export class GetReviewEscalationRecipientsHandler
       return { target, recipients: await this.primaryTeachers(query) };
     }
 
-    const roles =
-      target === ReviewEscalationTarget.OWNER ? ['OWNER'] : ADMIN_ROLES;
-    return { target, recipients: await this.membersWithRoles(query.schoolId, roles) };
+    const roles = target === ReviewEscalationTarget.OWNER ? ['OWNER'] : ADMIN_ROLES;
+    const fromRoster = await this.membersWithRoles(query.schoolId, roles);
+
+    // The owner is the school's `ownerId` column, and is not necessarily on the roster
+    // at all — most schools in the wild have no `OWNER` member row, only teachers and
+    // students. Reading the roster alone made both admin targets answer "nobody" for an
+    // ordinary school, which is the silent swallowing this query exists to prevent.
+    const owner = await this.owner(school.ownerId, query.schoolId);
+    return {
+      target,
+      recipients: fromRoster.some((one) => one.userId === owner.userId)
+        ? fromRoster
+        : [owner, ...fromRoster],
+    };
+  }
+
+  /**
+   * The school's owner, named from the roster if they happen to be on it.
+   *
+   * They are a recipient of both admin targets: of `owner` by definition, and of
+   * `school_admins` because an owner is an administrator of their own school.
+   */
+  private async owner(userId: string, schoolId: string): Promise<EscalationRecipientDto> {
+    const member = await (this.prisma as any).schoolMember.findFirst({
+      where: { schoolId, userId },
+      select: { name: true },
+    });
+
+    return { userId, name: (member?.name as string | null) ?? userId, role: 'OWNER' };
   }
 
   private async membersWithRoles(

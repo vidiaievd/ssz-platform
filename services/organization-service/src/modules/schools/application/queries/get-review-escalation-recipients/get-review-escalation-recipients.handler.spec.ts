@@ -9,11 +9,15 @@ const AT = new Date('2026-08-20T09:00:00.000Z');
 
 function makeHandler(
   escalateTo: 'school_admins' | 'owner' | 'primary_teacher',
-  data: { members?: unknown[]; assignments?: unknown[] } = {},
+  data: { members?: unknown[]; assignments?: unknown[]; ownerName?: string | null } = {},
 ) {
   const prisma = {
     schoolMember: {
       findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue(data.members ?? []),
+      // The owner is looked up by id, and is usually not on the roster at all.
+      findFirst: jest
+        .fn<() => Promise<unknown>>()
+        .mockResolvedValue(data.ownerName === undefined ? null : { name: data.ownerName }),
     },
     groupTeacher: {
       findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue(data.assignments ?? []),
@@ -21,6 +25,7 @@ function makeHandler(
   };
   const schools = {
     findById: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+      ownerId: 'owner-1',
       reviewSettings: ReviewSettings.create({
         respondWithinHours: 48,
         escalateAfterHours: 72,
@@ -41,14 +46,37 @@ const query = (groupIds: string[] = []) =>
 
 describe('GetReviewEscalationRecipientsHandler', () => {
   it('reads the school’s own choice rather than taking one from the caller', async () => {
-    const { handler } = makeHandler('owner', {
-      members: [{ userId: 'ola', name: 'Ola Nordmann', role: 'OWNER' }],
-    });
+    const { handler } = makeHandler('owner', { ownerName: 'Ola Nordmann' });
 
     const result = await handler.execute(query());
 
     expect(result.target).toBe('owner');
-    expect(result.recipients).toEqual([{ userId: 'ola', name: 'Ola Nordmann', role: 'OWNER' }]);
+    expect(result.recipients).toEqual([
+      { userId: 'owner-1', name: 'Ola Nordmann', role: 'OWNER' },
+    ]);
+  });
+
+  /**
+   * The owner lives in the school's own `ownerId`, not on the roster: most schools have
+   * no `OWNER` member row at all, only teachers and students. Reading the roster alone
+   * answered "nobody" for an ordinary school — the silent swallowing this guards against.
+   */
+  it('finds the owner even when they are not on the roster', async () => {
+    const { handler } = makeHandler('school_admins', { members: [] });
+
+    const result = await handler.execute(query());
+
+    expect(result.recipients).toEqual([{ userId: 'owner-1', name: 'owner-1', role: 'OWNER' }]);
+  });
+
+  it('does not list the owner twice when they are also a roster admin', async () => {
+    const { handler } = makeHandler('school_admins', {
+      members: [{ userId: 'owner-1', name: 'Ola', role: 'OWNER' }],
+    });
+
+    const result = await handler.execute(query());
+
+    expect(result.recipients.map((one) => one.userId)).toEqual(['owner-1']);
   });
 
   /**
@@ -65,7 +93,7 @@ describe('GetReviewEscalationRecipientsHandler', () => {
 
     const result = await handler.execute(query());
 
-    expect(result.recipients.map((r) => r.userId)).toEqual(['ola', 'kari']);
+    expect(result.recipients.map((r) => r.userId)).toEqual(['owner-1', 'ola', 'kari']);
     expect(prisma.schoolMember.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { schoolId: SCHOOL_ID, role: { in: ['OWNER', 'ADMIN'] } } }),
     );
@@ -103,9 +131,12 @@ describe('GetReviewEscalationRecipientsHandler', () => {
    * hide the fact that the setting is useless as it stands.
    */
   it('answers with nobody rather than falling back to another target', async () => {
-    const { handler } = makeHandler('owner', { members: [] });
+    const { handler } = makeHandler('primary_teacher', { assignments: [] });
 
-    await expect(handler.execute(query())).resolves.toEqual({ target: 'owner', recipients: [] });
+    await expect(handler.execute(query([GROUP_ID]))).resolves.toEqual({
+      target: 'primary_teacher',
+      recipients: [],
+    });
   });
 
   it('has nobody to name for a primary teacher when no group was given', async () => {
@@ -124,6 +155,6 @@ describe('GetReviewEscalationRecipientsHandler', () => {
 
     const result = await handler.execute(query());
 
-    expect(result.recipients).toEqual([{ userId: 'ola', name: 'ola', role: 'ADMIN' }]);
+    expect(result.recipients).toContainEqual({ userId: 'ola', name: 'ola', role: 'ADMIN' });
   });
 });
