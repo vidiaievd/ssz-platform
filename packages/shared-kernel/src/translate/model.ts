@@ -136,6 +136,11 @@ export type AiVisibility = 'teacher' | 'studentBefore' | 'studentAfter';
  * The AI stage. Carried from the first commit so that connecting a model later needs no
  * migration, exactly as `error_correction` carries its own. Nothing here triggers a model
  * call, and the handoff requires every AI surface to stay inert until one is wired up.
+ *
+ * Wiring one up is plan 48, not the tail of plan 42: the platform holds no model client
+ * at all, so the first one brings decisions — where the call lives, who pays for it, what
+ * happens when it fails — that outlive this template. Until then this block is an author's
+ * setting that changes nothing, and it is kept out of the learner's projection.
  */
 export interface Ai {
   on: boolean;
