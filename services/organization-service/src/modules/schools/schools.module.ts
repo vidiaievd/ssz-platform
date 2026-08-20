@@ -84,6 +84,7 @@ import { GetPublicSchoolHandler } from './application/queries/get-public-school/
 import { ListPublicSchoolsHandler } from './application/queries/list-public-schools/list-public-schools.handler.js';
 import { GetStudentReviewGroupHandler } from './application/queries/get-student-review-group/get-student-review-group.handler.js';
 import { GetReviewReviewersHandler } from './application/queries/get-review-reviewers/get-review-reviewers.handler.js';
+import { GetReviewEscalationRecipientsHandler } from './application/queries/get-review-escalation-recipients/get-review-escalation-recipients.handler.js';
 import { GetReviewScopeHandler } from './application/queries/get-review-scope/get-review-scope.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
@@ -163,6 +164,7 @@ const QueryHandlers = [
   ListPublicSchoolsHandler,
   GetStudentReviewGroupHandler,
   GetReviewReviewersHandler,
+  GetReviewEscalationRecipientsHandler,
   GetReviewScopeHandler,
 ];
 

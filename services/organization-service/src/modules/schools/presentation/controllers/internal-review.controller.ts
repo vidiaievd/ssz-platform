@@ -20,6 +20,9 @@ import type { StudentReviewGroupResult } from '../../application/queries/get-stu
 import { GetReviewReviewersQuery } from '../../application/queries/get-review-reviewers/get-review-reviewers.query.js';
 import type { ReviewReviewersResult } from '../../application/queries/get-review-reviewers/get-review-reviewers.handler.js';
 import { GetReviewReviewersRequestDto } from '../dto/get-review-reviewers.request.dto.js';
+import { GetReviewEscalationRecipientsQuery } from '../../application/queries/get-review-escalation-recipients/get-review-escalation-recipients.query.js';
+import type { ReviewEscalationRecipientsResult } from '../../application/queries/get-review-escalation-recipients/get-review-escalation-recipients.handler.js';
+import { GetReviewEscalationRecipientsRequestDto } from '../dto/get-review-escalation-recipients.request.dto.js';
 
 import { GetReviewSettingsQuery } from '../../application/queries/get-review-settings/get-review-settings.query.js';
 import type { ReviewSettingsDto } from '../../application/queries/get-review-settings/get-review-settings.handler.js';
@@ -56,6 +59,31 @@ export class InternalReviewController {
     const at = dto.at ? new Date(dto.at) : new Date();
     return this.queryBus.execute<GetReviewReviewersQuery, ReviewReviewersResult>(
       new GetReviewReviewersQuery(dto.groupIds, at),
+    );
+  }
+
+  /**
+   * Who to tell about work nobody answered in time (plan 47.5/47.6).
+   *
+   * A POST because the caller hands over the late work's groups, which the
+   * `primary_teacher` target needs and a query string would carry badly. The school's own
+   * `escalateTo` decides which of the three it is — the caller states the situation, not
+   * the policy.
+   */
+  @Post('review/escalation-recipients')
+  @HttpCode(200)
+  async getEscalationRecipients(
+    @Body() dto: GetReviewEscalationRecipientsRequestDto,
+  ): Promise<ReviewEscalationRecipientsResult> {
+    return this.queryBus.execute<
+      GetReviewEscalationRecipientsQuery,
+      ReviewEscalationRecipientsResult
+    >(
+      new GetReviewEscalationRecipientsQuery(
+        dto.schoolId,
+        dto.groupIds ?? [],
+        dto.at ? new Date(dto.at) : new Date(),
+      ),
     );
   }
 
