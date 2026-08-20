@@ -82,6 +82,16 @@ export interface MySubmissionsCursor {
   id: string;
 }
 
+/** A school with work waiting, and the two numbers that decide whether to say so. */
+export interface PendingSchoolRow {
+  schoolId: string;
+  pending: number;
+  /** The oldest thing waiting — what makes a digest urgent rather than merely long. */
+  oldestSubmittedAt: Date;
+  /** The newest, against which a digest already sent is judged to be old news. */
+  newestSubmittedAt: Date;
+}
+
 export interface IAttemptRepository {
   findById(id: string): Promise<Attempt | null>;
   findInProgress(userId: string, exerciseId: string): Promise<Attempt | null>;
@@ -109,6 +119,15 @@ export interface IAttemptRepository {
    * that says so beats a page that pretends to be the whole school.
    */
   findPendingLoad(schoolId: string, limit: number): Promise<PendingLoadRow[]>;
+  /**
+   * Which schools have anything waiting on a person at all, and since when (plan 47.5).
+   *
+   * The digest's starting point, and the reason it is a question rather than a loop: the
+   * job that tells teachers what is waiting must not walk every school on the platform to
+   * discover that all but three of them are quiet. One grouped read answers that, and the
+   * per-school detail is fetched only for the schools this names.
+   */
+  findSchoolsWithPendingReview(): Promise<PendingSchoolRow[]>;
   /**
    * The verdicts people delivered in the school since `since`.
    *

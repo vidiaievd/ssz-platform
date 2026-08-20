@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { NotificationsRepository } from './notifications.repository.js';
 import { NotificationsService } from './notifications.service.js';
 import { NotificationsController } from './controllers/notifications.controller.js';
@@ -23,8 +24,13 @@ import { AnalyticsConsumerService } from '../../infrastructure/messaging/analyti
 import { SchedulingConsumerService } from '../../infrastructure/messaging/scheduling-consumer.service.js';
 import { OrganizationConsumerService } from '../../infrastructure/messaging/organization-consumer.service.js';
 import { ExerciseEngineConsumerService } from '../../infrastructure/messaging/exercise-engine-consumer.service.js';
+import { ReviewDigestService } from './schedules/review-digest.service.js';
+import { ReviewDigestStateRepository } from './schedules/review-digest-state.repository.js';
+import { ReviewLoadClient } from './schedules/clients/review-load.client.js';
+import { ReviewReviewersClient } from './schedules/clients/review-reviewers.client.js';
 
 @Module({
+  imports: [HttpModule],
   controllers: [NotificationsController],
   providers: [
     NotificationsRepository,
@@ -50,6 +56,14 @@ import { ExerciseEngineConsumerService } from '../../infrastructure/messaging/ex
     SchedulingConsumerService,
     OrganizationConsumerService,
     ExerciseEngineConsumerService,
+    // The review digest (plan 47.5). Registered unconditionally; whether it does anything
+    // is `REVIEW_DIGEST_ENABLED` plus having both neighbours addressed, decided inside the
+    // run rather than by leaving the provider out — a job that is off should be visible
+    // and inspectable, not absent.
+    ReviewDigestService,
+    ReviewDigestStateRepository,
+    ReviewLoadClient,
+    ReviewReviewersClient,
   ],
   exports: [NotificationsService, UserRegisteredHandler, EmailVerificationHandler, PasswordResetHandler],
 })

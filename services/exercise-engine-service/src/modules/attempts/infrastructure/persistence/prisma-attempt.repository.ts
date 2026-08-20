@@ -5,6 +5,7 @@ import type {
   MySubmissionsCursor,
   MySubmissionsStatus,
   PendingLoadRow,
+  PendingSchoolRow,
   ReviewDecisionsCursor,
   ReviewQueueCursor,
   ReviewQueueScope,
@@ -142,6 +143,28 @@ export class PrismaAttemptRepository implements IAttemptRepository {
       // fallback time that would quietly age a submission.
       submittedAt: row.submittedAt as Date,
     }));
+  }
+
+  async findSchoolsWithPendingReview(): Promise<PendingSchoolRow[]> {
+    // Grouped in the database rather than read and counted here: the answer is a handful
+    // of rows however large the queue behind it is, and the job that asks runs on a timer
+    // with nobody watching it.
+    const rows = await this.prisma.attempt.groupBy({
+      by: ['schoolId'],
+      where: { schoolId: { not: null }, status: 'ROUTED_FOR_REVIEW', submittedAt: { not: null } },
+      _count: { _all: true },
+      _min: { submittedAt: true },
+      _max: { submittedAt: true },
+    });
+
+    return rows
+      .filter((row) => row.schoolId !== null && row._min.submittedAt && row._max.submittedAt)
+      .map((row) => ({
+        schoolId: row.schoolId as string,
+        pending: row._count._all,
+        oldestSubmittedAt: row._min.submittedAt as Date,
+        newestSubmittedAt: row._max.submittedAt as Date,
+      }));
   }
 
   async findReviewedLoad(

@@ -223,6 +223,14 @@ services:
       EMAIL_FROM_NAME: SSZ Platform
       EMAIL_FROM_ADDRESS: noreply@ssz.local
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      # The review digest (plan 47.5): the engine knows what is waiting, organization
+      # knows who reviews it. Off unless asked for — a job that writes to teachers is
+      # turned on deliberately, not by being deployed.
+      EXERCISE_SERVICE_URL: http://exercise-engine-service:3006
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
+      REVIEW_DIGEST_ENABLED: ${REVIEW_DIGEST_ENABLED:-false}
+      REVIEW_DIGEST_INTERVAL_HOURS: ${REVIEW_DIGEST_INTERVAL_HOURS:-6}
     ports:
       - "3005:3005"
     depends_on:

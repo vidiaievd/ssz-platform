@@ -40,6 +40,8 @@ import type { ReviewLockResult } from '../../application/commands/review-lock.re
 import { ReviewLockRequestDto } from '../dto/review-lock.dto.js';
 import { BatchApproveRequestDto } from '../dto/batch-approve.dto.js';
 import { AggregateReviewLoadRequestDto } from '../dto/review-oversight.dto.js';
+import { ListPendingReviewSchoolsQuery } from '../../application/queries/list-pending-review-schools/list-pending-review-schools.query.js';
+import type { ListPendingReviewSchoolsResult } from '../../application/queries/list-pending-review-schools/list-pending-review-schools.handler.js';
 import { AggregateReviewLoadQuery } from '../../application/queries/aggregate-review-load/aggregate-review-load.query.js';
 import type { AggregateReviewLoadResult } from '../../application/queries/aggregate-review-load/aggregate-review-load.handler.js';
 import { ListReviewDecisionsQuery } from '../../application/queries/list-review-decisions/list-review-decisions.query.js';
@@ -220,6 +222,23 @@ export class InternalReviewController {
    * A POST for a read, like the queue: the answer is a school-wide picture, and the body
    * is what says which school and how far back.
    */
+  /**
+   * Which schools have anything waiting at all — the digest job's first call (plan 47.5).
+   *
+   * Deliberately platform-wide and deliberately thin: three numbers per school, no names,
+   * no submissions. The job that runs on a timer needs to know where to look before it
+   * asks anyone for detail, and a route that made it walk every school to find that out
+   * would spend most of its night on quiet ones.
+   *
+   * Declared before the parameterised routes so the literal segment keeps winning.
+   */
+  @Get('review/schools')
+  async listPendingReviewSchools(): Promise<ListPendingReviewSchoolsResult> {
+    return this.queryBus.execute<ListPendingReviewSchoolsQuery, ListPendingReviewSchoolsResult>(
+      new ListPendingReviewSchoolsQuery(),
+    );
+  }
+
   @Post('review/aggregate')
   @HttpCode(HttpStatus.OK)
   async aggregateReviewLoad(
