@@ -116,8 +116,16 @@ export interface Flow {
   charCount: boolean;
   /**
    * How many times attached audio may be replayed; `null` is unlimited, which is the
-   * only value the UI sets today (plan 42, "Слот медиа"). Carried so that a listening
-   * template can turn it on without a content migration.
+   * only value anything sets. Carried so that a listening template can turn it on
+   * without a content migration.
+   *
+   * Deliberately unenforced, and closed as such (plan 42, "Отложенное — закрыто"):
+   * counting replays in the browser produces a limit a page reload lifts, and a limit
+   * that can be lifted is worse than none, since it tells the learner a lie about what
+   * is being measured. Honouring it means counting replays server-side against the
+   * attempt — which is worth building for a template where replaying *is* the thing
+   * under test, and translation is not that template. Neither the runner nor the
+   * builder reads this field until then.
    */
   replayLimit: number | null;
 }
