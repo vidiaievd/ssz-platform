@@ -10,8 +10,10 @@ import { ReviewDigestStateRepository } from './review-digest-state.repository.js
 import {
   composeDigests,
   composeEscalations,
+  summariseSchool,
   type PendingSubmission,
   type ReviewerGroup,
+  type SchoolReviewSummary,
   type TeacherDigest,
   type TeacherEscalation,
 } from './review-digest.composer.js';
@@ -29,6 +31,9 @@ const HOURLY = '0 0 * * * *';
 
 /** Escalation is a daily question. Early morning, before the school day starts asking. */
 const DAILY_AT_SIX = '0 0 6 * * *';
+
+/** The school's own weekly picture. Monday morning, when the week can still be planned. */
+const WEEKLY_MONDAY_SEVEN = '0 0 7 * * 1';
 
 /**
  * Telling teachers what is waiting for them — once, and only when it has changed.
@@ -84,6 +89,117 @@ export class ReviewDigestService {
   }
 
   /**
+   * The school's week, to whoever the school said should hear it (plan 47.6).
+   *
+   * Weekly rather than daily and to an administrator rather than a teacher, because it
+   * answers a different question: not "what should I mark today" but "is our marking
+   * keeping up". It is sent even when nothing is late — a queue that is large and on time
+   * is still something to know — and never when nothing is waiting at all.
+   */
+  @Cron(WEEKLY_MONDAY_SEVEN, { name: 'review-school-summary' })
+  async runSchoolSummary(now: Date = new Date()): Promise<void> {
+    if (!this.enabled()) return;
+
+    const schools = await this.eachSchool();
+    if (schools === null) return;
+
+    for (const school of schools) {
+      await this.summariseOneSchool(school.schoolId, now);
+    }
+  }
+
+  private async summariseOneSchool(schoolId: string, now: Date): Promise<void> {
+    const summary = await this.schoolSummary(schoolId, now);
+    if (summary === null) return;
+
+    const recipients = await this.directory.escalationRecipientsOf(
+      schoolId,
+      summary.overdueGroupIds,
+    );
+    if (recipients === null) return;
+
+    for (const recipient of recipients.recipients) {
+      await this.notifications.create({
+        recipientId: recipient.userId,
+        type: NotificationType.REVIEW_SCHOOL_SUMMARY,
+        channel: NotificationChannel.IN_APP,
+        subject: `${summary.pending} submission(s) waiting across the school`,
+        templateKey: 'review_school_summary',
+        templateData: {
+          schoolId,
+          pending: summary.pending,
+          overdue: summary.overdue,
+          oldestAgeHours: summary.oldestAgeHours,
+          oldestSubmittedAt: summary.oldestSubmittedAt.toISOString(),
+        },
+      });
+    }
+  }
+
+  /**
+   * The school threshold of 47.5: work past what the school allows, told to whoever the
+   * school named — its admins, its owner, or the group's primary teacher.
+   *
+   * Runs beside the teachers' own escalation and on the same daily clock, and shares the
+   * per-person day with it deliberately: a teacher who is also an administrator hears
+   * about a late queue once, not twice in one morning.
+   */
+  private async escalateToSchool(
+    schoolId: string,
+    summary: SchoolReviewSummary,
+    now: Date,
+  ): Promise<void> {
+    if (summary.overdue === 0) return;
+
+    const recipients = await this.directory.escalationRecipientsOf(
+      schoolId,
+      summary.overdueGroupIds,
+    );
+    if (recipients === null || recipients.recipients.length === 0) return;
+
+    const states = await this.state.load(recipients.recipients.map((one) => one.userId));
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    for (const recipient of recipients.recipients) {
+      const state = states.get(recipient.userId);
+      if (state?.lastEscalatedAt && state.lastEscalatedAt > dayAgo) continue;
+
+      await this.notifications.create({
+        recipientId: recipient.userId,
+        type: NotificationType.REVIEW_ESCALATION,
+        channel: NotificationChannel.IN_APP,
+        subject: `${summary.overdue} submission(s) in the school have been waiting too long`,
+        templateKey: 'review_escalation',
+        templateData: {
+          schoolId,
+          overdue: summary.overdue,
+          oldestSubmittedAt: summary.oldestSubmittedAt.toISOString(),
+          escalateAfterHours: summary.oldestAgeHours,
+          // What separates this from a teacher's own escalation on the reading side: the
+          // school's whole queue, addressed to whoever the school said (44.12).
+          scope: 'school',
+          target: recipients.target,
+        },
+      });
+      await this.state.recordEscalation(recipient.userId, now);
+    }
+  }
+
+  /** The school's queue in numbers, or `null` when there is nothing to say. */
+  private async schoolSummary(
+    schoolId: string,
+    now: Date,
+  ): Promise<SchoolReviewSummary | null> {
+    const context = await this.contextOf(schoolId);
+    if (context === null) return null;
+
+    const settings = await this.directory.settingsOf(schoolId);
+    if (settings === null) return null;
+
+    return summariseSchool(schoolId, context.pending, settings, now);
+  }
+
+  /**
    * One school's digest: what is waiting, who reviews it, who has not been told yet.
    *
    * Every early return here is the same judgement — an answer this run could not get is
@@ -126,6 +242,10 @@ export class ReviewDigestService {
     if (escalations.length > 0) {
       this.logger.log(`Review escalation: ${escalations.length} teacher(s) in school ${schoolId}`);
     }
+
+    // And the school itself, if it asked to hear about work its teachers left standing.
+    const summary = summariseSchool(schoolId, pending, settings, now);
+    if (summary !== null) await this.escalateToSchool(schoolId, summary, now);
   }
 
   /** What is waiting in a school and who reviews it, or `null` if either could not be read. */

@@ -54,6 +54,18 @@ export interface TeacherEscalation {
   escalateAfterHours: number;
 }
 
+/** One school's queue as an administrator is told about it (plan 47.5 threshold, 47.6). */
+export interface SchoolReviewSummary {
+  schoolId: string;
+  pending: number;
+  /** Past what the school itself allows — the number that makes this worth sending. */
+  overdue: number;
+  oldestSubmittedAt: Date;
+  oldestAgeHours: number;
+  /** The groups the late work sits in, for the `primary_teacher` escalation target. */
+  overdueGroupIds: string[];
+}
+
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
@@ -167,6 +179,44 @@ export function composeEscalations(
   }
 
   return escalations.sort((a, b) => b.overdue - a.overdue);
+}
+
+/**
+ * The school's own queue, in the three numbers an administrator can act on.
+ *
+ * `null` when nothing is waiting at all — a weekly summary of an empty queue is a weekly
+ * message teaching its reader that these can be ignored. A queue that is full but on time
+ * is *not* nothing: it still says how much is in flight, and only the escalation caller
+ * insists on `overdue > 0`.
+ *
+ * Work with no group is counted here, unlike in the digests. Nobody can be written to
+ * about it individually, but it is the school's problem and an administrator is exactly
+ * who should see it (44.11 calls the same rows unassigned).
+ */
+export function summariseSchool(
+  schoolId: string,
+  pending: PendingSubmission[],
+  settings: { escalateAfterHours: number },
+  now: Date,
+): SchoolReviewSummary | null {
+  if (pending.length === 0) return null;
+
+  const cutoff = new Date(now.getTime() - settings.escalateAfterHours * HOUR_MS);
+  const overdue = pending.filter((item) => item.submittedAt <= cutoff);
+  const oldest = earliest(pending.map((item) => item.submittedAt));
+
+  return {
+    schoolId,
+    pending: pending.length,
+    overdue: overdue.length,
+    oldestSubmittedAt: oldest,
+    oldestAgeHours: Math.max(0, Math.floor((now.getTime() - oldest.getTime()) / HOUR_MS)),
+    overdueGroupIds: [
+      ...new Set(
+        overdue.map((item) => item.groupId).filter((id): id is string => id !== null),
+      ),
+    ],
+  };
 }
 
 /**

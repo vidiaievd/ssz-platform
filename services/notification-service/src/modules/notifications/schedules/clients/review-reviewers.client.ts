@@ -55,6 +55,20 @@ export class ReviewReviewersClient {
     return body === null ? null : body.groups;
   }
 
+  /**
+   * Who the school wants told when nobody answered in time (44.12, plan 47.5/47.6).
+   *
+   * The groups travel with the question because one of the three targets — the group's
+   * primary teacher — has no school-wide answer. Which target it is stays organization's
+   * to decide: this job states the situation, never the policy.
+   */
+  async escalationRecipientsOf(
+    schoolId: string,
+    groupIds: string[],
+  ): Promise<{ target: string; recipients: { userId: string; name: string }[] } | null> {
+    return this.send('post', '/internal/review/escalation-recipients', { schoolId, groupIds });
+  }
+
   async settingsOf(schoolId: string): Promise<SchoolReviewSettings | null> {
     return this.send<SchoolReviewSettings>(
       'get',

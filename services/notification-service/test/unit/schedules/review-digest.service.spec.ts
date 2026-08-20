@@ -20,6 +20,7 @@ function makeService(
     pending?: { groupId: string | null; containerId: string | null; submittedAt: Date }[] | null;
     reviewers?: { groupId: string; teachers: { userId: string; name: string }[] }[] | null;
     settings?: { respondWithinHours: number; escalateAfterHours: number; escalateTo: string } | null;
+    recipients?: { target: string; recipients: { userId: string; name: string }[] } | null;
     states?: Map<string, { lastMaxSubmittedAt: Date; lastEscalatedAt: Date | null }>;
     enabled?: boolean;
   } = {},
@@ -37,6 +38,11 @@ function makeService(
   };
   const directory = {
     configured: true,
+    escalationRecipientsOf: jest.fn(async () =>
+      overrides.recipients === undefined
+        ? { target: 'school_admins', recipients: [{ userId: 'admin-1', name: 'Ola' }] }
+        : overrides.recipients,
+    ),
     reviewersOf: jest.fn(async () =>
       overrides.reviewers === undefined
         ? [{ groupId: 'g1', teachers: [{ userId: 'kari', name: 'Kari' }] }]
@@ -163,7 +169,8 @@ describe('ReviewDigestService — the daily escalation', () => {
 
     await service.runEscalation(NOW);
 
-    expect(notifications.create).toHaveBeenCalledTimes(1);
+    // Two messages, to two different people about the same late work: the teacher who can
+    // mark it, and the school that asked to hear when nobody did.
     expect(notifications.create.mock.calls[0]![0]).toMatchObject({
       recipientId: 'kari',
       type: NotificationType.REVIEW_ESCALATION,
@@ -204,5 +211,76 @@ describe('ReviewDigestService — the daily escalation', () => {
     await service.runEscalation(oddHour);
 
     expect(load.schoolsWithPendingWork).toHaveBeenCalled();
+  });
+});
+
+describe('ReviewDigestService — the school threshold and the weekly summary', () => {
+  const late = [{ groupId: 'g1', containerId: 'course-1', submittedAt: hoursAgo(60) }];
+
+  /** 47.5: the school itself hears about work its teachers left standing. */
+  it('tells whoever the school named when its queue is past the promise', async () => {
+    const { service, notifications } = makeService({ pending: late });
+
+    await service.runEscalation(NOW);
+
+    const recipients = notifications.create.mock.calls.map((call) => call[0]!.recipientId);
+    expect(recipients).toContain('kari');
+    expect(recipients).toContain('admin-1');
+    const toSchool = notifications.create.mock.calls
+      .map((call) => call[0]!)
+      .find((created) => created.recipientId === 'admin-1')!;
+    expect(toSchool.templateData).toMatchObject({ scope: 'school', target: 'school_admins' });
+  });
+
+  it('leaves the school alone while its queue is on time', async () => {
+    const { service, notifications, directory } = makeService({
+      pending: [{ groupId: 'g1', containerId: 'course-1', submittedAt: hoursAgo(5) }],
+    });
+
+    await service.runEscalation(NOW);
+
+    expect(directory.escalationRecipientsOf).not.toHaveBeenCalled();
+    expect(notifications.create).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The setting can point at nobody — a school escalating to an owner it does not have.
+   * That is an answer, and it means nobody is written to, not that somebody else is.
+   */
+  it('writes to nobody when the school named nobody', async () => {
+    const { service, notifications } = makeService({
+      pending: late,
+      recipients: { target: 'owner', recipients: [] },
+    });
+
+    await service.runEscalation(NOW);
+
+    expect(
+      notifications.create.mock.calls.map((call) => call[0]!.recipientId),
+    ).toEqual(['kari']);
+  });
+
+  it('sends the weekly picture even when nothing is late', async () => {
+    const { service, notifications } = makeService({
+      pending: [{ groupId: 'g1', containerId: 'course-1', submittedAt: hoursAgo(5) }],
+    });
+
+    await service.runSchoolSummary(NOW);
+
+    expect(notifications.create).toHaveBeenCalledTimes(1);
+    expect(notifications.create.mock.calls[0]![0]).toMatchObject({
+      recipientId: 'admin-1',
+      type: NotificationType.REVIEW_SCHOOL_SUMMARY,
+      templateData: expect.objectContaining({ pending: 1, overdue: 0, oldestAgeHours: 5 }),
+    });
+  });
+
+  /** A weekly message about an empty queue teaches its reader to ignore these. */
+  it('says nothing about a school with an empty queue', async () => {
+    const { service, notifications } = makeService({ pending: [] });
+
+    await service.runSchoolSummary(NOW);
+
+    expect(notifications.create).not.toHaveBeenCalled();
   });
 });

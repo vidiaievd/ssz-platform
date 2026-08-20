@@ -30,6 +30,7 @@ enum NotificationType {
   ATTEMPT_REVIEWED
   REVIEW_DIGEST
   REVIEW_ESCALATION
+  REVIEW_SCHOOL_SUMMARY
 
   @@map("notification_type")
 }
