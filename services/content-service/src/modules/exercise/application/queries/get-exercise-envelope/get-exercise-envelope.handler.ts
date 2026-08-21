@@ -78,7 +78,7 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
         // that keeps its answers inside the sentences — the raw content.
         content:
           query.mode === 'graded'
-            ? studentSafeContent(exercise.templateCode, exercise.content)
+            ? studentSafeContent(exercise.templateCode, exercise.content, exercise.expectedAnswers)
             : exercise.content,
         expectedAnswers: query.mode === 'graded' ? null : exercise.expectedAnswers,
         answerCheckSettings: exercise.answerCheckSettings,

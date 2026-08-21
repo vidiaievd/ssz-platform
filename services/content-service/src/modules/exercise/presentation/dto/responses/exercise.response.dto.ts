@@ -61,7 +61,7 @@ export class ExerciseResponseDto {
     // served too — which is `ExerciseWithAnswersResponseDto` below and nowhere
     // else. Masking here rather than in one handler means a new endpoint that
     // returns this DTO is safe by default instead of by remembering.
-    dto.content = studentSafeContent(entity.templateCode, entity.content);
+    dto.content = studentSafeContent(entity.templateCode, entity.content, entity.expectedAnswers);
     dto.answerCheckSettings = entity.answerCheckSettings;
     dto.ownerUserId = entity.ownerUserId;
     dto.ownerSchoolId = entity.ownerSchoolId;
