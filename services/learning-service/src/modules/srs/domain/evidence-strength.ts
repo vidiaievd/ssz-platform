@@ -116,9 +116,16 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   word_bank_fill: CLOSED_SET,
   sentence_schema: CLOSED_SET,
 
-  // Elimination does most of the work: the last pair and the last line are free.
-  match_pairs: NEAR_CERTAIN,
+  // Elimination does most of the work: the last line is free.
   text_order: NEAR_CERTAIN,
+
+  // Still NEAR_CERTAIN, but no longer for the old reason. Plan 49 gave the pool its own
+  // distractors, so the last slot is not correct by construction any more. What replaced
+  // that argument is weaker evidence, not stronger: a check is partial and unlimited, so
+  // a learner can converge on the right grid by trying, and the event that reaches here
+  // reports the state they converged to. Until an attempt says how many checks it took,
+  // a success here is worth about what elimination used to be worth.
+  match_pairs: NEAR_CERTAIN,
 };
 
 export interface EvidenceInput {
