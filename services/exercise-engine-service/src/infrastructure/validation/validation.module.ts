@@ -12,6 +12,7 @@ import { WordBankGapFillValidator } from './validators/word-bank-gap-fill.valida
 import { TextOrderValidator } from './validators/text-order.validator.js';
 import { ErrorCorrectionValidator } from './validators/error-correction.validator.js';
 import { TranslateValidator } from './validators/translate.validator.js';
+import { WritingTaskValidator } from './validators/writing-task.validator.js';
 
 @Global()
 @Module({
@@ -27,6 +28,7 @@ import { TranslateValidator } from './validators/translate.validator.js';
     TextOrderValidator,
     ErrorCorrectionValidator,
     TranslateValidator,
+    WritingTaskValidator,
     SchemaBasedAnswerValidator,
     { provide: ANSWER_VALIDATOR, useExisting: SchemaBasedAnswerValidator },
   ],

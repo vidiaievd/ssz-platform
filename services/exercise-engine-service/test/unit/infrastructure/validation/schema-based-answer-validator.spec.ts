@@ -7,6 +7,7 @@ import { MatchPairsValidator } from '../../../../src/infrastructure/validation/v
 import { ShortAnswerValidator } from '../../../../src/infrastructure/validation/validators/short-answer.validator.js';
 import { ErrorCorrectionValidator } from '../../../../src/infrastructure/validation/validators/error-correction.validator.js';
 import { TranslateValidator } from '../../../../src/infrastructure/validation/validators/translate.validator.js';
+import { WritingTaskValidator } from '../../../../src/infrastructure/validation/validators/writing-task.validator.js';
 import { TextOrderValidator } from '../../../../src/infrastructure/validation/validators/text-order.validator.js';
 import { WordBankFillValidator } from '../../../../src/infrastructure/validation/validators/word-bank-fill.validator.js';
 import { WordBankGapFillValidator } from '../../../../src/infrastructure/validation/validators/word-bank-gap-fill.validator.js';
@@ -35,6 +36,7 @@ const makeValidator = () =>
     new TextOrderValidator(),
     new ErrorCorrectionValidator(),
     new TranslateValidator(),
+    new WritingTaskValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {
@@ -133,20 +135,30 @@ describe('SchemaBasedAnswerValidator', () => {
   });
 
   describe('free-form template routing', () => {
-    it('returns requiresReview=true for writing_task without needing a per-type validator', async () => {
+    it('routes writing_task for review through its own validator, with the facts attached', async () => {
       const validator = makeValidator();
       const result = await validator.validate({
         templateCode: 'writing_task',
-        // writing_task answer schema is permissive — grading is manual.
-        answerSchema: { type: 'object' },
-        expectedAnswers: { rubric: 'clarity + argument' },
-        submittedAnswer: { text: 'Jeg mener at ...' },
+        // Describes the author's key, not the submission — writing_task is in
+        // OWN_SUBMISSION_SHAPE, so AJV never sees the student's text.
+        answerSchema: { type: 'object', required: ['model'] },
+        expectedAnswers: { points: { p1: { keywords: ['jeg mener'] } }, model: 'Et eksempel.' },
+        content: {
+          prompt: 'Si din mening.',
+          points: [{ id: 'p1', text: 'Si hva du mener', required: true }],
+          rubric: [{ id: 'c1', name: 'Oppgaveløsning', weight: 1, metric: 'points' }],
+          settings: { minWords: 3, maxWords: 0 },
+        },
+        submittedAnswer: { text: 'Jeg mener at dette er viktig.', ticked: ['p1'] },
         checkSettings: {},
         targetLanguage: 'no',
       });
+
       expect(result.isOk).toBe(true);
       expect(result.value.requiresReview).toBe(true);
       expect(result.value.score).toBe(0);
+      // The part that did not exist while the code sat in FREE_FORM_CODES.
+      expect(result.value.details).toMatchObject({ wordCount: 6, hitCount: 1, neededCount: 1 });
     });
   });
 
