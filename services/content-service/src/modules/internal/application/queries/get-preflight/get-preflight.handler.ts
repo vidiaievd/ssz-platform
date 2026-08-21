@@ -8,7 +8,9 @@ import {
 import { OrganizationServiceUnavailableException } from '../../../../../shared/access-control/infrastructure/clients/organization-service-unavailable.exception.js';
 import { GetPreflightQuery } from './get-preflight.query.js';
 import { TEMPLATE_CODE as GAP_FILL_TEMPLATE } from '@ssz/shared-kernel/wordbank-gapfill';
+import { TEMPLATE_CODE as MATCH_PAIRS_TEMPLATE } from '@ssz/shared-kernel/match-pairs';
 import { gapFillViolations } from './gap-fill-preflight.js';
+import { matchPairsViolations } from './match-pairs-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
 
@@ -443,10 +445,13 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
         where: { exerciseId: { in: exerciseIds } },
         select: { exerciseId: true },
       }),
-      // Only the template that carries its own editorial rules needs its
-      // document loaded; the rest are covered by EXERCISE_INCOMPLETE alone.
+      // Only the templates that carry their own editorial rules need their
+      // documents loaded; the rest are covered by EXERCISE_INCOMPLETE alone.
       this.prisma.exercise.findMany({
-        where: { id: { in: exerciseIds }, template: { code: GAP_FILL_TEMPLATE } },
+        where: {
+          id: { in: exerciseIds },
+          template: { code: { in: [GAP_FILL_TEMPLATE, MATCH_PAIRS_TEMPLATE] } },
+        },
         // The draft too: pre-flight answers "is this publishable", and publishing
         // is what promotes the draft. Judging the live document would clear a
         // publish on work the author has already replaced.
@@ -457,6 +462,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
           draftContent: true,
           draftExpectedAnswers: true,
           draftUpdatedAt: true,
+          template: { select: { code: true } },
         },
       }),
     ]);
@@ -477,11 +483,17 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
 
     for (const exercise of exercises) {
       const pending = exercise.draftUpdatedAt !== null;
-      for (const violation of gapFillViolations({
+      const document = {
         id: exercise.id,
         content: pending ? exercise.draftContent : exercise.content,
         expectedAnswers: pending ? exercise.draftExpectedAnswers : exercise.expectedAnswers,
-      })) {
+      };
+      const violations =
+        exercise.template.code === MATCH_PAIRS_TEMPLATE
+          ? matchPairsViolations(document)
+          : gapFillViolations(document);
+
+      for (const violation of violations) {
         (violation.severity === 'blocker' ? blockers : warnings).push(violation);
       }
     }

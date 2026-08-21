@@ -407,6 +407,10 @@
           {
             "id": "l2",
             "text": "selv om"
+          },
+          {
+            "id": "l3",
+            "text": "hvis"
           }
         ],
         "right_items": [
@@ -417,6 +421,10 @@
           {
             "id": "r2",
             "text": "derfor"
+          },
+          {
+            "id": "r3",
+            "text": "i så fall"
           }
         ]
       },
@@ -429,6 +437,10 @@
           {
             "left_id": "l2",
             "right_id": "r1"
+          },
+          {
+            "left_id": "l3",
+            "right_id": "r3"
           }
         ]
       }
