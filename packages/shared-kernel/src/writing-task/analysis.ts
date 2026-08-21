@@ -161,8 +161,14 @@ function suggestMark(
   }
 }
 
-/** `Σ 3 × weight` over the rubric — the maximum possible score. */
-export function rubricMax(ex: Pick<WritingTaskContent, 'rubric'>): number {
+/**
+ * `Σ 3 × weight` over the rubric — the maximum possible score.
+ *
+ * Typed on the weights alone rather than on `Criterion[]`, because the maximum is the
+ * one piece of rubric maths the student projection needs and it holds only the persisted
+ * criteria, which carry no level descriptors (projection.ts).
+ */
+export function rubricMax(ex: { rubric: readonly { weight: 1 | 2 }[] }): number {
   return ex.rubric.reduce((sum, c) => sum + 3 * c.weight, 0);
 }
 

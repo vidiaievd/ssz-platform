@@ -27,6 +27,10 @@
     "./translate": {
       "import": "./dist/translate/index.js",
       "types": "./dist/translate/index.d.ts"
+    },
+    "./writing-task": {
+      "import": "./dist/writing-task/index.js",
+      "types": "./dist/writing-task/index.d.ts"
     }
   },
   "files": [
