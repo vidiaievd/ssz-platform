@@ -203,7 +203,7 @@ export class AttemptsController {
   @Post(':attemptId/reveal')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Show the answers for a submitted attempt (word bank gap-fill only)',
+    summary: 'Show the answers for a submitted attempt (word_bank_gap_fill and match_pairs)',
   })
   @ApiResponse({ status: 200, description: 'Answers, and the note on why each is right' })
   @ApiResponse({ status: 404, description: 'Attempt not found' })

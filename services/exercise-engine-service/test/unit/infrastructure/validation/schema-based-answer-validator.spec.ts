@@ -257,29 +257,28 @@ describe('SchemaBasedAnswerValidator', () => {
       expect(result.value.requiresReview).toBe(false);
     });
 
-    it('delegates match_pairs to MatchPairsValidator', async () => {
+    it('delegates match_pairs to MatchPairsValidator without checking it against AJV', async () => {
       const validator = makeValidator();
       const result = await validator.validate({
         templateCode: 'match_pairs',
+        // The template's answer schema describes the author's feedback matrix, and the
+        // submission is a list of placements. AJV would reject the submission against
+        // this schema, so `match_pairs` is in OWN_SUBMISSION_SHAPE and never reaches it.
         answerSchema: {
           type: 'object',
-          required: ['pairs'],
-          properties: {
-            pairs: {
-              type: 'array',
-              items: {
-                type: 'object',
-                required: ['left_id', 'right_id'],
-                properties: {
-                  left_id: { type: 'string' },
-                  right_id: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['feedback'],
+          properties: { feedback: { type: 'object' } },
         },
-        expectedAnswers: { pairs: [{ left_id: 'a', right_id: '1' }] },
-        submittedAnswer: { pairs: [{ left_id: 'a', right_id: '1' }] },
+        content: {
+          variant: 'halves',
+          settings: { distractors: true, shuffle: true, showRemaining: true },
+          pairs: [
+            { id: 'p1', rightId: 'h2', left: 'Hvis det regner i morgen,', right: 'blir vi hjemme.' },
+          ],
+          distractors: [{ id: 'h1', text: 'vi blir hjemme.' }],
+        },
+        expectedAnswers: { feedback: { p1: { def: 'Inversjon etter leddsetning.', why: '', ov: {} } } },
+        submittedAnswer: { placements: [{ pairId: 'p1', rightId: 'h2' }] },
         checkSettings: {},
         targetLanguage: 'no',
       });

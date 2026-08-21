@@ -16,6 +16,12 @@ import {
   isTranslateCode,
   toStudentProjection as trToStudentProjection,
 } from '@ssz/shared-kernel/translate';
+import {
+  readContent as mpReadContent,
+  toStudentProjection as mpToStudentProjection,
+  TEMPLATE_CODE as MATCH_PAIRS,
+} from '@ssz/shared-kernel/match-pairs';
+import type { ProjectedItem as MatchPairsItem } from '@ssz/shared-kernel/match-pairs';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -62,6 +68,12 @@ export interface StartAttemptResult {
  * sentence, the hint and the glosses, and drops the key, the guards (`require: ["har
  * bodd"]` hands over two words of it) and the author's explanations.
  *
+ * `match_pairs` is the fifth, and stores its answers the way gap-fill does: a pair is
+ * written once and whole, so `content.pairs[].right` is the answer to `left`. The
+ * projection keeps the left halves as slots and the pool as anonymous items — answers
+ * and distractors in the same shape, with no shared identifier between a slot and its
+ * own half — and drops the pairing, the explanations and the reveal notes.
+ *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
  */
@@ -97,12 +109,27 @@ function withheldWhereNeeded(
     return { exerciseContent: trToStudentProjection(document), expectedAnswers: null };
   }
 
+  if (templateCode === MATCH_PAIRS) {
+    return {
+      // Both columns, deliberately: a document still in the pre-plan-49 shape kept its
+      // pairing in `expected_answers`, and reading the content alone would fall back to
+      // pairing by position. Five of the seeded exercises were written with the right
+      // column deliberately out of order, so that fallback is a wrong answer key rather
+      // than a near miss.
+      exerciseContent: mpToStudentProjection(
+        mpReadContent(exercise.content, exercise.expectedAnswers),
+        { shuffle: shuffled },
+      ),
+      expectedAnswers: null,
+    };
+  }
+
   return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };
 }
 
 /** Fisher-Yates over a copy, seeded by the platform CSPRNG rather than Math.random. */
-function shuffled(words: string[]): string[] {
-  const out = [...words];
+function shuffled<T extends string | MatchPairsItem>(items: T[]): T[] {
+  const out = [...items];
   for (let i = out.length - 1; i > 0; i -= 1) {
     const j = randomInt(i + 1);
     [out[i], out[j]] = [out[j]!, out[i]!];

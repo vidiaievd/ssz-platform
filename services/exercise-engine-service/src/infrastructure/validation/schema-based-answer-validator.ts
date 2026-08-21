@@ -46,12 +46,16 @@ const FREE_FORM_CODES = new Set(['writing_task']);
  *
  * So did the translate pair: its key is a set of accepted translations per sentence, and
  * its submission is one typed sentence per item.
+ *
+ * And `match_pairs`: its key is a matrix of explanations per (pair x wrong half), and
+ * its submission is a list of placements.
  */
 const OWN_SUBMISSION_SHAPE = new Set([
   'word_bank_gap_fill',
   'error_correction',
   'translate_to_target',
   'translate_from_target',
+  'match_pairs',
 ]);
 
 @Injectable()

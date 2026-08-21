@@ -90,23 +90,30 @@ describe('RuleBasedFeedbackGenerator', () => {
       expect(result.value.correctAnswer).toBe('hei / farvel');
     });
 
-    it('includes correct pairs for match_pairs', async () => {
+    it('never hands back the answers for match_pairs, even in PRACTICE', async () => {
+      // This template withholds its answers: the pool is anonymised, the verdict
+      // explains without naming, and the reveal is a separate, recorded action. A
+      // summary that printed the pairing on the first wrong submit would undo all of
+      // it — so the generator has no case for this template at all. Same as
+      // `word_bank_gap_fill`, which has never had one.
       const result = await generator.generate(
         baseInput({
           templateCode: 'match_pairs',
+          revealAnswer: true,
           exerciseDefinition: {
             exercise: {
-              expectedAnswers: {
+              content: {
                 pairs: [
-                  { left_id: 'cat', right_id: 'katt' },
-                  { left_id: 'dog', right_id: 'hund' },
+                  { id: 'p1', rightId: 'h2', left: 'Hvis det regner i morgen,', right: 'blir vi hjemme.' },
                 ],
               },
+              expectedAnswers: { feedback: { p1: { def: 'Inversjon.', why: '', ov: {} } } },
             },
           },
         }),
       );
-      expect(result.value.correctAnswer).toBe('cat → katt, dog → hund');
+      expect(result.value.correctAnswer).toBeUndefined();
+      expect(JSON.stringify(result.value)).not.toContain('blir vi hjemme.');
     });
 
     it('withholds the correct answer when revealAnswer is false (GRADED)', async () => {

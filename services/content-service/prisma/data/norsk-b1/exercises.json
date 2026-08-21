@@ -4409,75 +4409,105 @@
       "instruction": "Соедините половины предложений по тексту 1A.",
       "content": {
         "variant": "halves",
-        "context": "Tekst 1A — Bartek søker ny jobb.",
-        "left_items": [
+        "settings": {
+          "distractors": true,
+          "shuffle": true,
+          "showRemaining": true
+        },
+        "pairs": [
           {
-            "id": "l-0",
-            "text": "Bartek har jobbet som elektriker"
+            "id": "p1",
+            "rightId": "h4",
+            "left": "Bartek har jobbet som elektriker",
+            "right": "i det samme firmaet i tre år."
           },
           {
-            "id": "l-1",
-            "text": "Nordby Elektro AS er et voksende firma"
+            "id": "p2",
+            "rightId": "h7",
+            "left": "Nordby Elektro AS er et voksende firma",
+            "right": "med tolv ansatte."
           },
           {
-            "id": "l-2",
-            "text": "Firmaet ønsker en elektriker som"
+            "id": "p3",
+            "rightId": "h2",
+            "left": "Firmaet ønsker en elektriker som",
+            "right": "kan lede mindre prosjekter."
           },
           {
-            "id": "l-3",
-            "text": "Bartek skriver i søknaden at han"
+            "id": "p4",
+            "rightId": "h8",
+            "left": "Bartek skriver i søknaden at han",
+            "right": "er ansvarlig og løsningsorientert."
           },
           {
-            "id": "l-4",
-            "text": "Anne sier at hun"
+            "id": "p5",
+            "rightId": "h5",
+            "left": "Anne sier at hun",
+            "right": "krysser fingrene for ham."
           }
         ],
-        "right_items": [
+        "distractors": [
           {
-            "id": "r-0",
-            "text": "i det samme firmaet i tre år."
+            "id": "h1",
+            "text": "i tre år hos Vestby Installasjon."
           },
           {
-            "id": "r-1",
-            "text": "med tolv ansatte."
+            "id": "h3",
+            "text": "med gode muligheter for videreutvikling."
           },
           {
-            "id": "r-2",
-            "text": "kan lede mindre prosjekter."
-          },
-          {
-            "id": "r-3",
-            "text": "er ansvarlig og løsningsorientert."
-          },
-          {
-            "id": "r-4",
-            "text": "krysser fingrene for ham."
+            "id": "h6",
+            "text": "retter skrivefeilene i søknaden hans."
           }
         ]
       },
       "expectedAnswers": {
-        "pairs": [
-          {
-            "left_id": "l-0",
-            "right_id": "r-0"
+        "feedback": {
+          "p1": {
+            "def": "Начало предложения — о самом Бартеке: где и сколько он работает.",
+            "why": "«Han har jobbet ... i det samme firmaet i tre år» — одна и та же фирма, три года.",
+            "ov": {
+              "h1": {
+                "text": "Vestby Installasjon звучит только в тексте 1B, на интервью. В 1A фирма не названа — сказано лишь «i det samme firmaet».",
+                "origin": "author"
+              }
+            }
           },
-          {
-            "left_id": "l-1",
-            "right_id": "r-1"
+          "p2": {
+            "def": "Это строка из объявления: чем фирма описывает саму себя.",
+            "why": "«Et voksende firma med tolv ansatte» — размер фирмы.",
+            "ov": {
+              "h3": {
+                "text": "Возможности развития фирма предлагает («Vi tilbyr ... gode muligheter for videreutvikling»), а не является ими. После «er et voksende firma» ожидается описание самой фирмы — сколько в ней людей.",
+                "origin": "author"
+              },
+              "h4": {
+                "text": "Три года — это стаж Бартека, а не возраст фирмы. Здесь речь о Nordby Elektro, а не о нём.",
+                "origin": "author"
+              }
+            }
           },
-          {
-            "left_id": "l-2",
-            "right_id": "r-2"
+          "p3": {
+            "def": "После «som» идёт придаточное определительное: что именно электрик должен уметь.",
+            "why": "«En selvstendig og nøyaktig elektriker som kan lede mindre prosjekter» — требование из объявления.",
+            "ov": {}
           },
-          {
-            "left_id": "l-3",
-            "right_id": "r-3"
+          "p4": {
+            "def": "После «at han» идёт то, что Бартек пишет о себе.",
+            "why": "В придаточном с «at» подлежащее стоит перед глаголом: «at han er», а не «at er han».",
+            "ov": {}
           },
-          {
-            "left_id": "l-4",
-            "right_id": "r-4"
+          "p5": {
+            "def": "После «at hun» — то, что Анне говорит о себе.",
+            "why": "Прямая речь «Jeg krysser fingrene for deg» в косвенной становится «hun krysser fingrene for ham»: меняются и лицо глагола, и местоимение.",
+            "ov": {
+              "h6": {
+                "text": "Ошибки исправляет сам Бартек: «Bartek retter feilene». Анне только читает заявление и говорит, что в нём есть описки.",
+                "origin": "author"
+              }
+            }
           }
-        ]
+        }
       }
     },
     {
@@ -4601,74 +4631,102 @@
       "template": "match_pairs",
       "instruction": "Соедините половины предложений (текст 1B).",
       "content": {
-        "left_items": [
+        "variant": "halves",
+        "settings": {
+          "distractors": true,
+          "shuffle": true,
+          "showRemaining": true
+        },
+        "pairs": [
           {
-            "id": "l1",
-            "text": "Kari tar imot Bartek"
+            "id": "p1",
+            "rightId": "h3",
+            "left": "Kari tar imot Bartek",
+            "right": "med et fast håndtrykk."
           },
           {
-            "id": "l2",
-            "text": "Bartek er utdannet elektriker"
+            "id": "p2",
+            "rightId": "h6",
+            "left": "Bartek er utdannet elektriker",
+            "right": "fra Polen."
           },
           {
-            "id": "l3",
-            "text": "Han vil bytte jobb fordi"
+            "id": "p3",
+            "rightId": "h1",
+            "left": "Han vil bytte jobb fordi",
+            "right": "han vil ta mer ansvar."
           },
           {
-            "id": "l4",
-            "text": "Firmaet skal gi beskjed"
+            "id": "p4",
+            "rightId": "h8",
+            "left": "Firmaet skal gi beskjed",
+            "right": "i løpet av neste uke."
           },
           {
-            "id": "l5",
-            "text": "Bartek får jobben og"
+            "id": "p5",
+            "rightId": "h4",
+            "left": "Bartek får jobben og",
+            "right": "begynner 1. april."
           }
         ],
-        "right_items": [
+        "distractors": [
           {
-            "id": "r1",
-            "text": "med et fast håndtrykk."
+            "id": "h2",
+            "text": "vil han ta mer ansvar."
           },
           {
-            "id": "r2",
-            "text": "fra Polen."
+            "id": "h5",
+            "text": "etter en uke."
           },
           {
-            "id": "r3",
-            "text": "han vil ta mer ansvar."
-          },
-          {
-            "id": "r4",
-            "text": "i løpet av neste uke."
-          },
-          {
-            "id": "r5",
-            "text": "begynner 1. april."
+            "id": "h7",
+            "text": "fra Vestby Installasjon."
           }
         ]
       },
       "expectedAnswers": {
-        "pairs": [
-          {
-            "left_id": "l1",
-            "right_id": "r1"
+        "feedback": {
+          "p1": {
+            "def": "Речь о том, как Кари встречает Бартека, когда он приходит.",
+            "why": "«Kari Holm tar imot ham med et fast håndtrykk» — крепкое рукопожатие при встрече.",
+            "ov": {}
           },
-          {
-            "left_id": "l2",
-            "right_id": "r2"
+          "p2": {
+            "def": "После «er utdannet elektriker» идёт то, где он выучился.",
+            "why": "«Jeg er utdannet elektriker fra Polen» — место образования, а не место работы.",
+            "ov": {
+              "h7": {
+                "text": "Vestby Installasjon — фирма, где Бартек работал последние три года, а не где он получил образование. Выучился он в Польше.",
+                "origin": "author"
+              }
+            }
           },
-          {
-            "left_id": "l3",
-            "right_id": "r3"
+          "p3": {
+            "def": "После союза «fordi» придаточное строится с прямым порядком слов: сначала подлежащее, потом глагол.",
+            "why": "«... fordi han vil ta mer ansvar» — после fordi сначала han, затем vil.",
+            "ov": {
+              "h2": {
+                "text": "Слова верные, порядок неверный. «Fordi» вводит придаточное, а в придаточном инверсии нет: han vil, а не vil han.",
+                "origin": "author"
+              }
+            }
           },
-          {
-            "left_id": "l4",
-            "right_id": "r4"
+          "p4": {
+            "def": "Речь о сроке, который Кари называет в конце разговора.",
+            "why": "«De kommer til å gi beskjed i løpet av neste uke» — срок ответа фирмы.",
+            "ov": {
+              "h5": {
+                "text": "«Etter en uke» — это когда Кари позвонила и позвала на интервью, в самом начале текста. Ответ о работе фирма обещает «i løpet av neste uke».",
+                "origin": "author"
+              }
+            }
           },
-          {
-            "left_id": "l5",
-            "right_id": "r5"
+          "p5": {
+            "def": "После «og» идёт второе действие: что происходит с Бартеком дальше.",
+            "why": "«Bartek har fått jobben! Han begynner 1. april.»",
+            "ov": {}
           }
-        ]
+        }
       }
     },
     {

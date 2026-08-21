@@ -1,6 +1,12 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { fromPersisted, gaps, feedbackFor, TEMPLATE_CODE } from '@ssz/shared-kernel/wordbank-gapfill';
+import {
+  completePairs,
+  feedbackFor as mpFeedbackFor,
+  fromPersisted as mpFromPersisted,
+  TEMPLATE_CODE as MATCH_PAIRS,
+} from '@ssz/shared-kernel/match-pairs';
 import { RevealAnswersCommand } from './reveal-answers.command.js';
 import {
   ATTEMPT_REPOSITORY,
@@ -29,21 +35,54 @@ export interface RevealedGap {
   why: string | null;
 }
 
-export interface RevealAnswersResult {
-  attemptId: string;
-  answers: RevealedGap[];
-  attemptClosed: boolean;
+/** One left half and the right half that completes it. */
+export interface RevealedSlot {
+  /** The slot the student was filling — `content.pairs[].id`. */
+  pairId: string;
+  /** Its own half as a pool item, so the client can show which chip belonged here. */
+  rightId: string;
+  text: string;
+  /** The teacher's note on why this half is the right one, when they wrote one. */
+  why: string | null;
 }
+
+/**
+ * Discriminated by template, because "the answer" is a different shape per type and
+ * flattening them would leave every client guessing which fields are populated.
+ *
+ * `templateCode` is additive: the gap-fill payload is unchanged down to the field
+ * names, so a client that only knows about gaps keeps working and can ignore it.
+ */
+export type RevealAnswersResult =
+  | {
+      attemptId: string;
+      templateCode: typeof TEMPLATE_CODE;
+      answers: RevealedGap[];
+      attemptClosed: boolean;
+    }
+  | {
+      attemptId: string;
+      templateCode: typeof MATCH_PAIRS;
+      answers: RevealedSlot[];
+      attemptClosed: boolean;
+    };
+
+/**
+ * The templates that withhold their answers, and so are the only ones with anything to
+ * reveal. For the rest the client already holds the key, and a reveal endpoint would be
+ * ceremony around something it can do itself.
+ */
+const REVEALABLE = new Set<string>([TEMPLATE_CODE, MATCH_PAIRS]);
 
 /**
  * The only place answer text leaves this service.
  *
- * Everything else about `word_bank_gap_fill` is arranged so that a learner who is
- * wrong is told *why* and not *what*: the student projection cuts the answers out of
- * the sentences, and grading returns a verdict and an explanation per gap. Being wrong
- * is not a way to be given the word — asking is, and asking is recorded, because an
- * attempt whose answers were shown is weaker evidence of knowing them
- * (docs/plan/36-srs-evidence-strength.md).
+ * Everything else about `word_bank_gap_fill` and `match_pairs` is arranged so that a
+ * learner who is wrong is told *why* and not *what*: the student projection cuts the
+ * answers out of the sentences (and the pairing out of the pool), and grading returns a
+ * verdict and an explanation per gap or per slot. Being wrong is not a way to be given
+ * the answer — asking is, and asking is recorded, because an attempt whose answers were
+ * shown is weaker evidence of knowing them (docs/plan/36-srs-evidence-strength.md).
  */
 @CommandHandler(RevealAnswersCommand)
 export class RevealAnswersHandler implements ICommandHandler<RevealAnswersCommand> {
@@ -62,10 +101,7 @@ export class RevealAnswersHandler implements ICommandHandler<RevealAnswersComman
     if (attempt.userId !== command.userId) {
       return Result.fail({ code: 'FORBIDDEN' });
     }
-    // Only this template hides its answers from the client in the first place. For
-    // the other twelve the client already holds them, so a reveal endpoint would be
-    // ceremony around something it can do itself.
-    if (attempt.templateCode !== TEMPLATE_CODE) {
+    if (!REVEALABLE.has(attempt.templateCode)) {
       return Result.fail({ code: 'UNSUPPORTED_TEMPLATE' });
     }
 
@@ -84,25 +120,60 @@ export class RevealAnswersHandler implements ICommandHandler<RevealAnswersComman
     }
     const def = defResult.value;
 
-    const document = fromPersisted(
-      { id: attempt.exerciseId, moduleId: '', title: '', instructions: '', updatedAt: '' },
-      def.exercise.content,
-      def.exercise.expectedAnswers,
-    );
+    const envelope = {
+      id: attempt.exerciseId,
+      moduleId: '',
+      title: '',
+      instructions: '',
+      updatedAt: '',
+    };
+
+    // The attempt was already closed by submitting; the reveal records that the
+    // learner was shown the answers rather than working them out.
+    const revealed =
+      attempt.templateCode === MATCH_PAIRS
+        ? this.revealPairs(attempt.id, envelope, def.exercise)
+        : this.revealGaps(attempt.id, envelope, def.exercise);
+
+    await this.attempts.save(attempt);
+
+    return Result.ok<RevealAnswersResult, RevealAnswersError>(revealed);
+  }
+
+  private revealGaps(
+    attemptId: string,
+    envelope: { id: string; moduleId: string; title: string; instructions: string; updatedAt: string },
+    exercise: { content: unknown; expectedAnswers: unknown },
+  ): RevealAnswersResult {
+    const document = fromPersisted(envelope, exercise.content, exercise.expectedAnswers);
 
     const answers: RevealedGap[] = gaps(document).map((gap) => {
       const why = feedbackFor(document, gap.key).why.trim();
       return { gapKey: gap.key, label: gap.label, word: gap.answer, why: why === '' ? null : why };
     });
 
-    await this.attempts.save(attempt);
+    return { attemptId, templateCode: TEMPLATE_CODE, answers, attemptClosed: true };
+  }
 
-    return Result.ok<RevealAnswersResult, RevealAnswersError>({
-      attemptId: attempt.id,
-      answers,
-      // The attempt was already closed by submitting; the reveal records that the
-      // learner was shown the words rather than working them out.
-      attemptClosed: true,
+  private revealPairs(
+    attemptId: string,
+    envelope: { id: string; moduleId: string; title: string; instructions: string; updatedAt: string },
+    exercise: { content: unknown; expectedAnswers: unknown },
+  ): RevealAnswersResult {
+    const document = mpFromPersisted(envelope, exercise.content, exercise.expectedAnswers);
+
+    // Complete pairs only — the same set the student was given slots for. A half-written
+    // pair has no slot to reveal into.
+    const answers: RevealedSlot[] = completePairs(document).map((pair) => {
+      const why = mpFeedbackFor(document, pair.id).why.trim();
+      return {
+        pairId: pair.id,
+        rightId: pair.rightId,
+        text: pair.right,
+        why: why === '' ? null : why,
+      };
     });
+
+    return { attemptId, templateCode: MATCH_PAIRS, answers, attemptClosed: true };
   }
 }

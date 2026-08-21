@@ -1,9 +1,9 @@
 import { studentSafeContent } from './student-safe-content.js';
 
-// The one thing this service exists to guarantee: for word_bank_gap_fill the answers
-// are inside `content.sentences[].text`, so anything that serves content to a learner
-// has to cut them out first. Everything else here is about not breaking the other
-// twelve templates while doing it.
+// The one thing this service exists to guarantee: two templates store their answers
+// inside `content` — word_bank_gap_fill in `sentences[].text`, match_pairs in
+// `pairs[].right` — so anything that serves content to a learner has to cut them out
+// first. Everything else here is about not breaking the other eleven while doing it.
 
 const gapFillContent = {
   settings: {
@@ -97,5 +97,92 @@ describe('studentSafeContent', () => {
   it('does not throw on content that is not the shape it expects', () => {
     expect(() => studentSafeContent('word_bank_gap_fill', {})).not.toThrow();
     expect(() => studentSafeContent('word_bank_gap_fill', { sentences: 'nonsense' })).not.toThrow();
+  });
+
+  describe('match_pairs', () => {
+    const matchContent = {
+      variant: 'halves',
+      settings: { distractors: true, shuffle: false, showRemaining: true },
+      pairs: [
+        { id: 'p1', rightId: 'h3', left: 'Hvis det regner i morgen,', right: 'blir vi hjemme.' },
+        { id: 'p2', rightId: 'h1', left: 'Jeg rakk ikke bussen fordi', right: 'jeg sto opp for sent.' },
+        { id: 'p3', rightId: 'h4', left: 'Da vi var små,', right: 'bodde vi i Bergen.' },
+      ],
+      distractors: [{ id: 'h2', text: 'sto jeg opp for sent.' }],
+    };
+
+    type Projection = {
+      slots: Array<{ slotId: string; left: string }>;
+      pool: Array<{ itemId: string; text: string }>;
+      settings: { showRemaining: boolean };
+    };
+
+    const project = (content: Record<string, unknown> = matchContent) =>
+      studentSafeContent('match_pairs', content) as unknown as Projection;
+
+    it('keeps the left halves as slots and drops the right ones', () => {
+      const projected = project();
+
+      expect(projected.slots).toEqual([
+        { slotId: 'p1', left: 'Hvis det regner i morgen,' },
+        { slotId: 'p2', left: 'Jeg rakk ikke bussen fordi' },
+        { slotId: 'p3', left: 'Da vi var små,' },
+      ]);
+      expect(allStrings(projected.slots)).not.toContain('blir vi hjemme.');
+    });
+
+    it('shares no identifier between a slot and any pool item (AC-S15)', () => {
+      // The whole reason `rightId` is not the pair id. If these overlapped, the payload
+      // would name its own answers and the shuffle would not matter.
+      const projected = project();
+      const slotIds = new Set(projected.slots.map((slot) => slot.slotId));
+
+      expect(projected.pool.filter((item) => slotIds.has(item.itemId))).toEqual([]);
+    });
+
+    it('makes answers and distractors indistinguishable in the pool', () => {
+      const projected = project();
+
+      expect(projected.pool).toHaveLength(4);
+      for (const item of projected.pool) {
+        expect(Object.keys(item).sort()).toEqual(['itemId', 'text']);
+      }
+    });
+
+    it('carries no pairing, no feedback and no reveal note', () => {
+      const projected = project();
+      const keys = JSON.stringify(projected);
+
+      expect(keys).not.toContain('rightId');
+      expect(keys).not.toContain('feedback');
+      expect(keys).not.toContain('why');
+      expect(keys).not.toContain('"right"');
+    });
+
+    it('shuffles the pool when the exercise asks for it', () => {
+      const shuffling = { ...matchContent, settings: { ...matchContent.settings, shuffle: true } };
+      const inOrder = ['blir vi hjemme.', 'jeg sto opp for sent.', 'bodde vi i Bergen.', 'sto jeg opp for sent.'];
+
+      // Four items have 24 orders; twenty draws all landing on the authored one would be
+      // a 24^-20 coincidence, so a failure here means the shuffle is not wired up.
+      const orders = Array.from({ length: 20 }, () =>
+        project(shuffling).pool.map((item) => item.text),
+      );
+      expect(orders.some((order) => JSON.stringify(order) !== JSON.stringify(inOrder))).toBe(true);
+      for (const order of orders) expect([...order].sort()).toEqual([...inOrder].sort());
+    });
+
+    it('leaves the extras out of the pool when they are switched off', () => {
+      const noExtras = { ...matchContent, settings: { ...matchContent.settings, distractors: false } };
+      const texts = project(noExtras).pool.map((item) => item.text);
+
+      expect(texts).not.toContain('sto jeg opp for sent.');
+      expect(texts).toHaveLength(3);
+    });
+
+    it('does not throw on content that is not the shape it expects', () => {
+      expect(() => studentSafeContent('match_pairs', {})).not.toThrow();
+      expect(() => studentSafeContent('match_pairs', { pairs: 'nonsense' })).not.toThrow();
+    });
   });
 });

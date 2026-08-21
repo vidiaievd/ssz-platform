@@ -838,58 +838,101 @@ const templates = [
   {
     code: 'match_pairs',
     name: 'Match Pairs',
-    description: 'Match items from two columns',
+    description: 'Match each left item with its right half, from a pool holding distractors',
+    // Second of the camelCase templates, after `word_bank_gap_fill`, and the
+    // second whose content holds the answers: a pair is stored whole, so
+    // `pairs[].right` IS the answer to `pairs[].left`. Never serve this content
+    // to a student unprojected — see `studentSafeContent`.
     contentSchema: {
       type: 'object',
-      required: ['left_items', 'right_items'],
-      properties: {
-        left_items: {
-          type: 'array',
-          items: {
-            type: 'object',
-            required: ['id', 'text'],
-            properties: {
-              id: { type: 'string' },
-              text: { type: 'string' },
-            },
-          },
-          minItems: 2,
-        },
-        right_items: {
-          type: 'array',
-          items: {
-            type: 'object',
-            required: ['id', 'text'],
-            properties: {
-              id: { type: 'string' },
-              text: { type: 'string' },
-            },
-          },
-          minItems: 2,
-        },
-        // Presentation only — scoring is identical. `halves` numbers the left
-        // column 1..n and letters the right A..N for sentence-halves tasks,
-        // where the cells hold long text rather than single words.
-        variant: { type: 'string', enum: ['pairs', 'halves'] },
-        context: { type: 'string' },
-      },
-    },
-    answerSchema: {
-      type: 'object',
-      required: ['pairs'],
+      required: ['pairs', 'settings'],
       properties: {
         pairs: {
           type: 'array',
+          minItems: 1,
           items: {
             type: 'object',
-            required: ['left_id', 'right_id'],
+            required: ['id', 'rightId', 'left', 'right'],
             properties: {
-              left_id: { type: 'string' },
-              right_id: { type: 'string' },
+              id: { type: 'string', description: 'Stable; keys the feedback matrix row and the student slot' },
+              // Deliberately NOT the pair id. Slots are keyed by `id` and pool
+              // items by `rightId`, so the student payload shares no identifier
+              // between the two columns and cannot be read as an answer key.
+              rightId: {
+                type: 'string',
+                description: 'This half as a pool item. Same namespace as distractor ids, never equal to `id`',
+              },
+              left: { type: 'string' },
+              right: { type: 'string', description: 'THE ANSWER for `left`. Never sent to a student before reveal.' },
             },
           },
         },
-        explanation: { type: 'string' },
+        // Extra right halves that complete nothing. Same shape as a pair's
+        // right half by design: in the pool the two must be indistinguishable.
+        distractors: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id', 'text'],
+            properties: {
+              id: { type: 'string' },
+              text: { type: 'string' },
+            },
+          },
+        },
+        // Not presentation only, despite what this comment used to say: the
+        // variant decides whether a missing default explanation is a blocker
+        // (`halves`, where a wrong half is explicable only by grammar the
+        // student cannot see) or a warning (`pairs`, word <-> translation).
+        // That is the difference between a course version publishing and not.
+        // See docs/plan/49-match-pairs.md, decision 3.
+        variant: { type: 'string', enum: ['pairs', 'halves'] },
+        settings: {
+          type: 'object',
+          required: ['distractors', 'shuffle', 'showRemaining'],
+          properties: {
+            // Whether the extras take part. Turning it off hides them from the
+            // pool; it never deletes them or their explanations.
+            distractors: { type: 'boolean' },
+            shuffle: { type: 'boolean' },
+            showRemaining: { type: 'boolean' },
+          },
+        },
+      },
+    },
+    // Everything the student must not see before checking. The answers are not
+    // here — they are in `content.pairs[].right`.
+    answerSchema: {
+      type: 'object',
+      required: ['feedback'],
+      properties: {
+        feedback: {
+          type: 'object',
+          description: 'Keyed by pair id',
+          additionalProperties: {
+            type: 'object',
+            required: ['def'],
+            properties: {
+              // Shown for any wrong half with no override of its own.
+              def: { type: 'string' },
+              // Why the right half is the right one. Shown on reveal.
+              why: { type: 'string' },
+              // Pool item id -> why attaching THAT half to THIS left half is
+              // wrong. Empty cells are legitimate: 5 pairs x 8 halves is 35.
+              ov: {
+                type: 'object',
+                additionalProperties: {
+                  type: 'object',
+                  required: ['text', 'origin'],
+                  properties: {
+                    text: { type: 'string' },
+                    origin: { type: 'string', enum: ['author', 'ai_draft'] },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
     defaultCheckSettings: { allow_partial_credit: true },
