@@ -604,25 +604,170 @@
       }
     },
     {
-      "key": "b1-g5-write",
-      "template": "writing_task",
-      "instruction": "Перескажите диалог косвенной речью (50–70 слов).",
-      "content": {
-        "prompt": "Skriv om denne samtalen til indirekte tale (50–70 ord):\n\nKari: Har du erfaring med prosjektledelse?\nBartek: Nei, men jeg lærer fort. Jeg vil gjerne prøve.\nKari: Når kan du begynne?\nBartek: Jeg kan begynne 1. april.",
-        "min_words": 40,
-        "max_words": 90,
-        "instructions": "Bruk riktig subjunksjon (om/at), tidsforskyvning og ordstilling."
+        "key": "b1-g5-write",
+        "template": "writing_task",
+        "instruction": "Перескажите диалог косвенной речью (50–70 слов).",
+        "content": {
+          "mode": "retell",
+          "instruction": "Skriv samtalen om til indirekte tale (50–70 ord).",
+          "prompt": "Kari intervjuer Bartek om en jobb. Gjenfortell samtalen under med indirekte tale, slik du ville fortalt den til en venn etterpå. Bruk riktig subjunksjon (om/at), tidsforskyvning og ordstilling i leddsetningene.",
+          "source": "Kari: Har du erfaring med prosjektledelse?\nBartek: Nei, men jeg lærer fort. Jeg vil gjerne prøve.\nKari: Når kan du begynne?\nBartek: Jeg kan begynne 1. april.",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Gjenfortell spørsmålet om erfaring med «om»",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Gjenfortell svaret hans med «at»",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Gjenfortell spørsmålet om når han kan begynne",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Bruk tidsforskyvning: presens blir preteritum",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Kari spurte om …",
+            "Bartek svarte at …",
+            "Så spurte hun …",
+            "Han sa at han …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Subjunksjon (om/at), tidsforskyvning (presens→preteritum) og ordstilling i leddsetning.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 40,
+            "maxWords": 90,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "spurte om",
+                "om han hadde"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "svarte at",
+                "sa at"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "når han kunne",
+                "spurte når"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "kunne begynne",
+                "lærte fort",
+                "ville gjerne"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Direkte tale, ingen omskriving",
+                "Omskrevet, men feil subjunksjon eller ingen tidsforskyvning",
+                "Riktig subjunksjon, noen feil i tid eller ordstilling",
+                "Riktig subjunksjon, tidsforskyvning og ordstilling hele veien"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Kari spurte om Bartek hadde erfaring med prosjektledelse. Bartek svarte at han ikke hadde det, men at han lærte fort, og at han gjerne ville prøve. Så spurte Kari når han kunne begynne. Bartek sa at han kunne begynne 1. april."
+        }
       },
-      "expectedAnswers": {
-        "reference_text": "Kari spurte om Bartek hadde erfaring med prosjektledelse. Bartek svarte at han ikke hadde det, men at han lærte fort, og at han gjerne ville prøve. Så spurte Kari når han kunne begynne. Bartek sa at han kunne begynne 1. april.",
-        "rubric": "Vurder riktig subjunksjon (om/at), tidsforskyvning (presens→preteritum, kan→kunne) og ordstilling i leddsetning.",
-        "criteria": [
-          "subjunksjon",
-          "tidsforskyvning",
-          "ordstilling"
-        ]
-      }
-    },
     {
       "key": "b1-g1-tr-01",
       "template": "translate_to_target",
@@ -1165,25 +1310,174 @@
       }
     },
     {
-      "key": "b1-gr2-write",
-      "template": "writing_task",
-      "instruction": "Напишите короткий рассказ (80–120 слов) о важном событии в жизни.",
-      "content": {
-        "prompt": "Skriv en kort tekst (80–120 ord) om en viktig hendelse i livet ditt: en flytting, et valg, en ny jobb eller utdanning. Bruk preteritum for hendelsene og perfektum når du forteller hvordan det er nå. Bruk minst én setning med pluskvamperfektum («Da jeg …, hadde jeg allerede …»).",
-        "min_words": 80,
-        "max_words": 150,
-        "instructions": "Bruk alle tre fortidsformer: preteritum, perfektum og pluskvamperfektum."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder korrekt bruk av de tre fortidsformene og sammenheng i teksten.",
-        "criteria": [
-          "preteritum",
-          "perfektum",
-          "pluskvamperfektum",
-          "sammenheng"
-        ]
+        "key": "b1-gr2-write",
+        "template": "writing_task",
+        "instruction": "Напишите короткий рассказ (80–120 слов) о важном событии в жизни.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 80–120 ord.",
+          "prompt": "Fortell om en viktig hendelse i livet ditt: en flytting, et valg, en ny jobb eller en utdanning. Fortell hva som skjedde, og hvordan det er nå.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Fortell hva som skjedde, i preteritum",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Fortell hvordan det er nå, i perfektum",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk minst én setning med pluskvamperfektum",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Skriv hvorfor hendelsen var viktig for deg",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "For … år siden …",
+            "Da jeg …, hadde jeg allerede …",
+            "Siden den gangen har jeg …",
+            "I dag …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Preteritum, perfektum og pluskvamperfektum — riktig form og riktig valg av tid.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 80,
+            "maxWords": 150,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "jeg flyttet",
+                "flyttet jeg",
+                "jeg begynte",
+                "begynte jeg"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "jeg har bodd",
+                "jeg har jobbet",
+                "har vært"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "hadde allerede",
+                "hadde jeg",
+                "hadde bodd"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "viktig for meg",
+                "det viktigste",
+                "det betydde"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Fortiden uttrykkes ikke",
+                "Bare preteritum, ofte med feil former",
+                "To av tre fortidsformer, noen feil",
+                "Alle tre fortidsformene brukt riktig og naturlig"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "For fem år siden flyttet jeg fra Gdansk til Norge. Jeg hadde allerede jobbet som elektriker i sju år hjemme, men jeg ville prøve noe nytt.\n\nDen første vinteren var tung. Jeg kunne nesten ingen norsk, og jeg forsto lite på jobben. Derfor begynte jeg på norskkurs to kvelder i uka.\n\nSiden den gangen har jeg tatt fagbrevet mitt om igjen her, og jeg har jobbet i det samme firmaet i tre år. I dag snakker jeg norsk hver dag. Flyttingen var det viktigste valget jeg har tatt."
+        }
       }
-    }
   ],
   "3": [
     {
@@ -1451,25 +1745,169 @@
       }
     },
     {
-      "key": "b1-gr3-write",
-      "template": "writing_task",
-      "instruction": "Напишите короткий текст (70–100 слов) о планах на следующий год.",
-      "content": {
-        "prompt": "Skriv en kort tekst (70–100 ord) om planene dine for det neste året. Hva skal du gjøre? Hva vil du gjerne oppnå? Hva tror du kommer til å skje? Bruk minst tre forskjellige måter å uttrykke framtid på (skal, vil, kommer til å, presens + tid).",
-        "min_words": 70,
-        "max_words": 110,
-        "instructions": "Bruk minst tre ulike futurumsuttrykk."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder minst 3 ulike futurumsuttrykk brukt riktig og med naturlig valg av form.",
-        "criteria": [
-          "skal",
-          "vil",
-          "kommer til å",
-          "presens + tid"
-        ]
+        "key": "b1-gr3-write",
+        "template": "writing_task",
+        "instruction": "Напишите короткий текст (70–100 слов) о планах на следующий год.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 70–100 ord.",
+          "prompt": "Fortell om planene dine for det neste året. Hva skal du gjøre? Hva vil du gjerne oppnå? Hva tror du kommer til å skje?",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Fortell om en avtalt plan med «skal»",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Fortell om et ønske med «vil» eller «har lyst til»",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Fortell om noe du tror skjer, med «kommer til å»",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Bruk presens + tidsuttrykk om noe som står i kalenderen",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Til neste år skal jeg …",
+            "Jeg har lyst til å …",
+            "Jeg tror det kommer til å …",
+            "I mars begynner jeg …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Minst tre ulike futurumsuttrykk (skal, vil, kommer til å, presens + tid), brukt med naturlig valg av form.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 70,
+            "maxWords": 110,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "jeg skal",
+                "skal jeg"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "jeg vil",
+                "har lyst til"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "kommer til å"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "neste år",
+                "til høsten",
+                "i januar"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen framtidsuttrykk",
+                "Ett framtidsuttrykk, gjentatt",
+                "Tre uttrykk, men noen brukt unaturlig",
+                "Tre eller flere uttrykk, hvert brukt der det passer"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Til neste år skal jeg fortsette på norskkurset, og i mars begynner jeg på et nytt kurs i prosjektledelse. Det står allerede i kalenderen.\n\nJeg har lyst til å ta Norskprøven på B1-nivå før sommeren. Jeg vil også trene mer og sove bedre, for i vinter jobbet jeg altfor mye.\n\nJeg tror det kommer til å bli et travelt år, men jeg tror også at jeg kommer til å trives bedre på jobben når jeg forstår alt som blir sagt."
+        }
       }
-    }
   ],
   "4": [
     {
@@ -1738,24 +2176,146 @@
       "hint": "Привычка сейчас → pleier å."
     },
     {
-      "key": "b1-gr4-write",
-      "template": "writing_task",
-      "instruction": "Дайте совет с использованием модальных глаголов (3–5 предложений).",
-      "content": {
-        "prompt": "Velg én situasjon og gi et godt råd med modalverb (bør/burde, må, kan): En venn sover dårlig og er stresset. En kollega jobber altfor mye overtid. Noen føler seg ensom etter å ha flyttet til Norge. Skriv 3–5 setninger med råd.",
-        "min_words": 25,
-        "max_words": 90,
-        "instructions": "Bruk modalverb uten å og minst ett «burde/skulle ha»-uttrykk der det passer."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder riktig bruk av modalverb (uten å) og minst ett burde/skulle ha-uttrykk der det passer.",
-        "criteria": [
-          "modalverb",
-          "burde/skulle ha",
-          "råd"
-        ]
+        "key": "b1-gr4-write",
+        "template": "writing_task",
+        "instruction": "Дайте совет с использованием модальных глаголов (3–5 предложений).",
+        "content": {
+          "mode": "free",
+          "instruction": "Skriv 3–5 setninger med råd.",
+          "prompt": "Velg én situasjon og gi et godt råd: En venn sover dårlig og er stresset. En kollega jobber altfor mye overtid. Noen føler seg ensom etter å ha flyttet til Norge. Skriv rådet direkte til personen.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Si hvilken situasjon du svarer på",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Gi rådet med «bør» eller «burde»",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk minst ett modalverb til (må, kan, kunne)",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Jeg tror du bør …",
+            "Du burde kanskje …",
+            "Du må huske å …",
+            "Du kan prøve å …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Modalverb uten «å», og «burde/skulle ha» der det passer.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 25,
+            "maxWords": 90,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 7,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "du sover",
+                "du jobber",
+                "du føler deg",
+                "du har flyttet"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "du bør",
+                "du burde"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "du må",
+                "du kan",
+                "du kunne"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen modalverb",
+                "Modalverb med «å» eller feil form",
+                "Riktige modalverb, men lite variasjon",
+                "Flere modalverb, riktig form, «burde/skulle ha» brukt naturlig"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Du sover dårlig fordi du tenker på jobben hele kvelden. Jeg tror du bør legge telefonen i et annet rom en time før du legger deg. Du må også si fra til sjefen din når det blir for mye — det er ikke din feil alene. Du kunne kanskje gått en tur etter middag; det hjelper meg selv når jeg er stresset."
+        }
       }
-    }
   ],
   "5": [
     {
@@ -2036,24 +2596,148 @@
       }
     },
     {
-      "key": "b1-gr5-write",
-      "template": "writing_task",
-      "instruction": "Напишите инструкцию (60–90 слов), используя пассив.",
-      "content": {
-        "prompt": "Skriv en kort instruksjon (60–90 ord) om hvordan man sorterer søppel, eller hvordan man gjør en enkel oppgave (f.eks. lage kaffe, vaske klær). Bruk passiv (helst s-passiv): «Matavfallet legges i …», «Plasten samles …», «Knappen trykkes inn …».",
-        "min_words": 60,
-        "max_words": 100,
-        "instructions": "Bruk minst 4 passivsetninger, fortrinnsvis s-passiv."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder minst 4 passivsetninger med riktig form (helst s-passiv for instruksjon).",
-        "criteria": [
-          "passiv",
-          "s-passiv",
-          "instruksjon"
-        ]
+        "key": "b1-gr5-write",
+        "template": "writing_task",
+        "instruction": "Напишите инструкцию (60–90 слов), используя пассив.",
+        "content": {
+          "mode": "free",
+          "instruction": "Skriv en kort instruksjon på 60–90 ord.",
+          "prompt": "Forklar hvordan man sorterer søppel, eller hvordan man gjør en enkel oppgave — for eksempel å lage kaffe eller vaske klær. Skriv slik en bruksanvisning er skrevet, uten å si «du».",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Si hva instruksjonen handler om",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Skriv minst fire trinn i passiv",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk rekkefølgeord mellom trinnene",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Først …",
+            "Deretter …",
+            "… legges i …",
+            "Til slutt …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Passiv, helst s-passiv, med riktig form i en instruksjon.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 60,
+            "maxWords": 100,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 7,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "slik sorteres",
+                "slik lages",
+                "denne instruksjonen"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "legges i",
+                "samles",
+                "trykkes",
+                "vaskes",
+                "helles"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "først",
+                "deretter",
+                "til slutt"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen passivsetninger",
+                "Én eller to passivsetninger, ofte med feil form",
+                "Fire passivsetninger, men blandet med «du»-form",
+                "Fire eller flere korrekte passivsetninger i en jevn instruksjonsstil"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Slik sorteres søppelet hjemme. Først skylles plastemballasjen i kaldt vann og legges i den blå posen. Matavfallet legges i den grønne posen, og posen knytes godt igjen. Papir og papp brettes sammen og settes i den egne beholderen ute. Glass og metall leveres på returpunktet ved butikken. Farlig avfall, for eksempel maling og batterier, kastes aldri i restavfallet, men leveres på gjenvinningsstasjonen. Til slutt settes beholderen ut til veien kvelden før tømmedagen."
+        }
       }
-    }
   ],
   "6": [
     {
@@ -2311,24 +2995,160 @@
       }
     },
     {
-      "key": "b1-gr6-write",
-      "template": "writing_task",
-      "instruction": "Опишите любимое место или приложение с относительными придаточными.",
-      "content": {
-        "prompt": "Skriv en kort tekst (70–100 ord) om favorittstedet ditt, en app eller en nettside du bruker. Beskriv den med minst tre relativsetninger: «Det er en app som …», «et sted der …», «noe jeg ikke kan klare meg uten».",
-        "min_words": 70,
-        "max_words": 110,
-        "instructions": "Bruk minst 3 relativsetninger med riktig ordstilling (preposisjon til slutt)."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder minst 3 relativsetninger, riktig ordstilling og korrekt bruk av som/der/hvor.",
-        "criteria": [
-          "relativsetninger",
-          "ordstilling",
-          "som/der/hvor"
-        ]
+        "key": "b1-gr6-write",
+        "template": "writing_task",
+        "instruction": "Опишите любимое место или приложение с относительными придаточными.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 70–100 ord.",
+          "prompt": "Fortell om favorittstedet ditt, en app eller en nettside du bruker ofte. Beskriv den for noen som ikke kjenner den: hva er det, og hvorfor betyr den noe for deg?",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Si hva stedet eller appen er, med «som»",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Beskriv hvor eller når du bruker den, med «der» eller «hvor»",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Si hvorfor du ikke klarer deg uten",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Det er et sted som …",
+            "… der jeg alltid …",
+            "Det er noe jeg ikke kan klare meg uten.",
+            "Det jeg liker best, er …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Relativsetninger med som/der/hvor og riktig ordstilling (preposisjonen til slutt).",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 70,
+            "maxWords": 110,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "som",
+                "en app som",
+                "et sted som"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "der jeg",
+                "hvor jeg",
+                "der man"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "ikke kan klare meg uten",
+                "som jeg bruker hver"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen relativsetninger",
+                "Én relativsetning, med feil ordstilling",
+                "Tre relativsetninger, noen med feil valg av som/der",
+                "Tre eller flere korrekte relativsetninger med riktig ordstilling"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Favorittstedet mitt er et lite bibliotek som ligger to kvartaler fra jobben. Det er et rom der ingen forventer noe av meg, og der jeg kan sitte i to timer uten å si et ord.\n\nJeg pleier å ta med meg en bok som jeg har lånt uka før, og en kaffe fra kiosken som ligger i første etasje. Damen som jobber der, kjenner meg igjen nå.\n\nDet er noe jeg ikke kan klare meg uten i en travel uke."
+        }
       }
-    }
   ],
   "7": [
     {
@@ -2622,24 +3442,172 @@
       }
     },
     {
-      "key": "b1-gr7-write",
-      "template": "writing_task",
-      "instruction": "Напишите текст (80–120 слов): «Hvis jeg var ordfører …».",
-      "content": {
-        "prompt": "Skriv en kort tekst (80–120 ord): «Hvis jeg var ordfører i byen min, ville jeg …». Fortell hva du ville ha gjort og hvorfor. Bruk minst tre betingelsessetninger av gjerne ulike typer.",
-        "min_words": 80,
-        "max_words": 130,
-        "instructions": "Bruk minst 3 betingelsessetninger, gjerne av ulike typer, og riktig tempus."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder riktig tempus i hoved- og leddsetning, minst 3 betingelsessetninger, gjerne én med inversjon uten hvis.",
-        "criteria": [
-          "betingelsessetninger",
-          "tempus",
-          "inversjon"
-        ]
+        "key": "b1-gr7-write",
+        "template": "writing_task",
+        "instruction": "Напишите текст (80–120 слов): «Hvis jeg var ordfører …».",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 80–120 ord.",
+          "prompt": "«Hvis jeg var ordfører i byen min, ville jeg …» Fortell hva du ville ha gjort, og hvorfor. Tenk på noe du savner i nærmiljøet ditt.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Si hva du ville gjort først, med «hvis … ville»",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Begrunn det: hva ville skjedd da?",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Skriv én betingelse om noe som faktisk kan skje",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Skriv én setning med inversjon uten «hvis»",
+              "required": false
+            }
+          ],
+          "phrases": [
+            "Hvis jeg var ordfører, ville jeg …",
+            "Da ville flere …",
+            "Hadde jeg hatt penger nok, …",
+            "Hvis kommunen bestemmer seg for å …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Betingelsessetninger: riktig tempus i hoved- og leddsetning, gjerne én med inversjon uten «hvis».",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 80,
+            "maxWords": 130,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "hvis jeg var",
+                "ville jeg"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "da ville",
+                "ville flere",
+                "det ville"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "hvis kommunen",
+                "hvis det blir",
+                "hvis flere"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "hadde jeg",
+                "hadde vi",
+                "var det"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen betingelsessetninger",
+                "Én betingelsessetning, feil tempus i hovedsetningen",
+                "Tre betingelsessetninger, noen med feil tempus",
+                "Tre eller flere korrekte, med variasjon i typen"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Hvis jeg var ordfører i byen min, ville jeg begynt med bussene. I dag går de hver time etter klokka seks, og da blir bilen det eneste valget for folk som jobber kveldsskift.\n\nHvis bussene gikk hvert kvarter, ville flere latt bilen stå. Det ville gitt renere luft i sentrum og tryggere skoleveier for barna.\n\nHadde jeg hatt penger nok, ville jeg også bygget et sted der ungdom kan være om kvelden. Hvis kommunen bestemmer seg for å prioritere dette til neste år, blir byen et bedre sted å bo."
+        }
       }
-    }
   ],
   "8": [
     {
@@ -2933,24 +3901,176 @@
       }
     },
     {
-      "key": "b1-gr8-write",
-      "template": "writing_task",
-      "instruction": "Опишите традицию, праздник или блюдо (80–120 слов) с прилагательными.",
-      "content": {
-        "prompt": "Skriv en kort tekst (80–120 ord) om en tradisjon, en høytid eller en rett du er glad i. Bruk minst fem adjektiver, minst én komparativ og én superlativ (f.eks. «den koseligste høytiden», «bedre enn …»), og gjerne et partisipp brukt som adjektiv («håndlaget», «pyntet»).",
-        "min_words": 80,
-        "max_words": 130,
-        "instructions": "Bruk minst 5 adjektiver, inkludert én komparativ og én superlativ."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder riktig gradbøying og superlativ med -e etter den/det/de.",
-        "criteria": [
-          "adjektiv",
-          "komparativ",
-          "superlativ"
-        ]
+        "key": "b1-gr8-write",
+        "template": "writing_task",
+        "instruction": "Опишите традицию, праздник или блюдо (80–120 слов) с прилагательными.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 80–120 ord.",
+          "prompt": "Fortell om en tradisjon, en høytid eller en rett du er glad i. Beskriv den slik at en som aldri har opplevd den, ser den for seg.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Beskriv tradisjonen med minst fem adjektiver",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Sammenlign med noe annet (komparativ)",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk minst én superlativ med den/det/de",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Bruk et partisipp som adjektiv",
+              "required": false
+            }
+          ],
+          "phrases": [
+            "Det er den koseligste …",
+            "Det smaker bedre enn …",
+            "Bordet er pyntet med …",
+            "Hjemme hos oss …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Gradbøying av adjektiv, superlativ med -e etter den/det/de, og samsvar med substantivet.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 80,
+            "maxWords": 130,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "koselig",
+                "varm",
+                "søt",
+                "gammel",
+                "stille"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "bedre enn",
+                "større enn",
+                "koseligere enn"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "den koseligste",
+                "det beste",
+                "de fineste"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "håndlaget",
+                "pyntet",
+                "nybakt",
+                "stekt"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Nesten ingen adjektiver",
+                "Adjektiver uten samsvar, ingen gradbøying",
+                "Komparativ og superlativ til stede, noen formfeil",
+                "Fem eller flere adjektiver med riktig samsvar og gradbøying"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Julaften er den koseligste kvelden i året hjemme hos oss. Huset lukter av nybakt brød, og bordet er pyntet med røde servietter og gamle lysestaker fra bestemor.\n\nVi spiser alltid den samme retten: en enkel, søt grøt med en mandel i. Den smaker bedre enn all annen mat i desember, og den yngste i familien får det største stykket sjokolade hvis han finner mandelen.\n\nKvelden er stille og lang, men det er de fineste timene vi har sammen hele året."
+        }
       }
-    }
   ],
   "9": [
     {
@@ -3210,24 +4330,173 @@
       }
     },
     {
-      "key": "b1-gr9-write",
-      "template": "writing_task",
-      "instruction": "Расскажите о знаменитом человеке (80–120 слов) с eiendomsuttrykk.",
-      "content": {
-        "prompt": "Skriv en kort tekst (80–120 ord) om en kjent person fra hjemlandet ditt eller et forbilde. Hvorfor er personen kjent? Bruk minst tre eiendomsuttrykk (f.eks. «arbeidet hans», «musikken hennes», «drømmen sin») og minst to substantiv med dobbel bestemthet («den kjente forfatteren»).",
-        "min_words": 80,
-        "max_words": 130,
-        "instructions": "Bruk minst 3 eiendomsuttrykk og minst 2 substantiv med dobbel bestemthet."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder riktig sin/hans-bruk og dobbel bestemthet.",
-        "criteria": [
-          "eiendom",
-          "sin/hans",
-          "dobbel bestemthet"
-        ]
+        "key": "b1-gr9-write",
+        "template": "writing_task",
+        "instruction": "Расскажите о знаменитом человеке (80–120 слов) с eiendomsuttrykk.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 80–120 ord.",
+          "prompt": "Fortell om en kjent person fra hjemlandet ditt, eller om et forbilde. Hvem er det, hvorfor er personen kjent, og hva betyr personen for deg?",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Presenter personen og si hvorfor hen er kjent",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Beskriv arbeidet med eiendomsuttrykk",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk minst to substantiv med dobbel bestemthet",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Si hva personen betyr for deg",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Han er kjent for …",
+            "Musikken hennes …",
+            "Den kjente forfatteren …",
+            "For meg betyr han …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Eiendomsuttrykk (sin/hans/hennes) og dobbel bestemthet i substantivfrasen.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 80,
+            "maxWords": 130,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "er kjent for",
+                "ble kjent"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "arbeidet hans",
+                "musikken hennes",
+                "bøkene hans",
+                "drømmen sin"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "den kjente",
+                "det største",
+                "de gamle"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "for meg",
+                "har lært meg",
+                "betyr"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen eiendomsuttrykk",
+                "Eiendomsuttrykk med feil valg av sin/hans",
+                "Riktig sin/hans, men bare én dobbel bestemthet",
+                "Tre eiendomsuttrykk og to doble bestemtheter, alle korrekte"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Den kjente forfatteren Ryszard Kapuscinski er et forbilde for meg. Han er kjent for reportasjene sine fra Afrika, som han skrev mens han jobbet som eneste utenriksjournalist for det polske byrået.\n\nBøkene hans er ikke lette å lese, for språket hans er tett. Men måten han lyttet på, har lært meg noe: han skrev alltid om de vanlige menneskene, ikke om presidentene.\n\nDa jeg flyttet til Norge, tok jeg med meg den gamle utgaven av «Keiseren». For meg betyr han at man kan komme utenfra og likevel forstå et sted."
+        }
       }
-    }
   ],
   "10": [
     {
@@ -3816,26 +5085,176 @@
       }
     },
     {
-      "key": "b1-gr10-write",
-      "template": "writing_task",
-      "instruction": "Напишите leserinnlegg (120–150 слов) в формате Norskprøven.",
-      "content": {
-        "prompt": "Skriv et leserinnlegg (120–150 ord) om ETT av temaene under. Si først hva du mener, gi minst to argumenter, og skriv til slutt hva du håper. Bruk avsnitt og minst fire bindeord (derfor, dessuten, likevel, for eksempel, imidlertid, til slutt).\n\n- Gratis norskkurs til alle innvandrere – bra eller ikke?\n- Bør det være obligatorisk med frivillig arbeid for ungdom?\n- Kollektivtransport bør være gratis i byene.",
-        "min_words": 120,
-        "max_words": 170,
-        "instructions": "Bruk avsnitt og minst 4 bindeord med riktig ordstilling/inversjon."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder (Norskprøven B1): tydelig mening, minst to argumenter, avsnitt, minst fire korrekte bindeord med riktig ordstilling/inversjon, sammenhengende tekst.",
-        "criteria": [
-          "mening",
-          "argumentasjon",
-          "bindeord",
-          "avsnitt",
-          "sammenheng"
-        ]
+        "key": "b1-gr10-write",
+        "template": "writing_task",
+        "instruction": "Напишите leserinnlegg (120–150 слов) в формате Norskprøven.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv et leserinnlegg på 120–150 ord.",
+          "prompt": "Skriv et leserinnlegg om ETT av temaene under:\n\n– Gratis norskkurs til alle innvandrere – bra eller ikke?\n– Bør det være obligatorisk med frivillig arbeid for ungdom?\n– Kollektivtransport bør være gratis i byene.\n\nSkriv til leserne av en lokalavis. Bruk avsnitt.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Si tydelig hva du mener",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Gi minst to argumenter for meningen din",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk minst fire bindeord med riktig ordstilling",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Avslutt med hva du håper skal skje",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Etter min mening …",
+            "For det første …",
+            "Dessuten …",
+            "Likevel …",
+            "Derfor håper jeg at …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Bindeord med riktig ordstilling og inversjon (derfor, dessuten, likevel, imidlertid).",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 120,
+            "maxWords": 170,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "jeg mener",
+                "etter min mening",
+                "jeg er enig i"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "for det første",
+                "dessuten",
+                "for eksempel"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "derfor",
+                "dessuten",
+                "likevel",
+                "imidlertid",
+                "til slutt"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "jeg håper",
+                "håper jeg",
+                "derfor bør"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen bindeord",
+                "Bindeord uten inversjon, ordstillingsfeil i de fleste setningene",
+                "Fire bindeord, noen med feil ordstilling",
+                "Fire eller flere bindeord, alle med riktig inversjon"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Gratis norskkurs til alle\n\nEtter min mening bør norskkurs være gratis for alle som flytter hit. Språket er nøkkelen til alt annet: jobb, naboer, foreldremøter og legetimer.\n\nFor det første koster det samfunnet mer å la være. En som ikke forstår norsk, får sjelden fast jobb, og da betaler ingen skatt av arbeidet. Dessuten går det ut over barna, for foreldre som ikke forstår skolen, kan ikke hjelpe med leksene.\n\nNoen sier at kurs bør koste noe, slik at folk møter opp og tar det alvorlig. Likevel tror jeg det er feil vei: de som har minst fra før, er de som blir borte først, og det er nettopp dem ordningen skulle hjelpe.\n\nImidlertid holder det ikke med gratis kurs alene. Kursene må også finnes på kveldstid, for de fleste av oss står i full jobb mens vi lærer.\n\nDerfor håper jeg at politikerne holder ord denne gangen, og at de første kursene starter allerede til høsten."
+        }
       }
-    }
   ],
   "1A": [
     {
@@ -4892,25 +6311,173 @@
       }
     },
     {
-      "key": "b1-1b-write",
-      "template": "writing_task",
-      "instruction": "Напишите короткое резюме собеседования (60–90 слов) в косвенной речи.",
-      "content": {
-        "prompt": "Du var til stede på intervjuet i tekst 1B. Skriv et kort referat (60–90 ord) om hva Bartek fortalte. Bruk indirekte tale: «Bartek sa at …», «Han fortalte at …», «Kari spurte om …».",
-        "min_words": 60,
-        "max_words": 120,
-        "instructions": "Bruk minst fire setninger i indirekte tale med riktig ordstilling og tidsforskyvning."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder bruk av indirekte tale (at/om), riktig ordstilling i leddsetning, tidsforskyvning (presens→preteritum, perfektum→pluskvamperfektum) og sammenheng.",
-        "criteria": [
-          "indirekte tale",
-          "ordstilling",
-          "tidsforskyvning",
-          "sammenheng"
-        ]
+        "key": "b1-1b-write",
+        "template": "writing_task",
+        "instruction": "Напишите короткое резюме собеседования (60–90 слов) в косвенной речи.",
+        "content": {
+          "mode": "retell",
+          "instruction": "Skriv et kort referat på 60–90 ord.",
+          "prompt": "Du var til stede på intervjuet med Bartek. Skriv et kort referat om hva han fortalte, slik en kollega som ikke var der, forstår det. Bruk indirekte tale.",
+          "source": "Kari: Kan du fortelle litt om deg selv og bakgrunnen din?\nBartek: Jeg er utdannet elektriker fra Polen, og jeg tok fagbrevet mitt om igjen her i Norge for to år siden. De siste tre årene har jeg jobbet hos Vestby Installasjon.\nKari: Hvorfor har du lyst til å bytte jobb?\nBartek: Jeg trives godt der jeg er, men jeg har lyst til å ta mer ansvar. Hos dere ser jeg en mulighet til å lede prosjekter selv.\nKari: Hvordan vil du beskrive deg selv som medarbeider?\nBartek: Jeg er nøyaktig og pålitelig, og jeg er flink til å samarbeide.",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Fortell om bakgrunnen hans",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Fortell hvorfor han vil bytte jobb",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Fortell hvordan han beskrev seg selv",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Ta med minst ett spørsmål fra Kari, med «om» eller spørreord",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Bartek fortalte at …",
+            "Han sa at han …",
+            "Kari spurte om …",
+            "Til slutt sa han at …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Indirekte tale: at/om, ordstilling i leddsetning og tidsforskyvning (presens→preteritum, perfektum→pluskvamperfektum).",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 60,
+            "maxWords": 120,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "fortalte at",
+                "sa at han var",
+                "utdannet elektriker"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "fordi han",
+                "at han hadde lyst",
+                "mer ansvar"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "beskrev seg selv",
+                "at han var",
+                "nøyaktig og pålitelig"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "spurte om",
+                "spurte hvorfor",
+                "spurte hvordan"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Direkte tale, ikke referat",
+                "Referat uten tidsforskyvning, mange ordstillingsfeil",
+                "Riktig at/om, noen feil i tid eller ordstilling",
+                "Fire eller flere korrekte setninger i indirekte tale"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Bartek fortalte at han var utdannet elektriker fra Polen, og at han hadde tatt fagbrevet sitt om igjen i Norge to år tidligere. Han sa at han de siste tre årene hadde jobbet hos Vestby Installasjon.\n\nKari spurte hvorfor han hadde lyst til å bytte jobb. Bartek svarte at han trivdes godt der han var, men at han ville ta mer ansvar og lede prosjekter selv. Til slutt beskrev han seg selv som nøyaktig og pålitelig, og sa at han var flink til å samarbeide."
+        }
       }
-    }
   ],
   "1C": [
     {
