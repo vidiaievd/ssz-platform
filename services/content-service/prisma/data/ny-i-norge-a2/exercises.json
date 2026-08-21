@@ -621,40 +621,174 @@
       }
     },
     {
-      "key": "l19a-writing-innlegg",
-      "template": "writing_task",
-      "instruction": "Напишите короткое письмо читателя (leserinnlegg) по одной из тем. Сначала — ваше мнение, затем аргументы, в конце — что должны сделать политики/другие.",
-      "content": {
-        "prompt": "Skriv et kort leserinnlegg om en av disse sakene. Bruk tittelen på saken du velger som overskrift.",
-        "min_words": 60,
-        "options": [
-          {
-            "id": "gratis-norskkurs",
-            "title": "Gratis norskkurs til alle",
-            "body": "Nå har politikerne bestemt seg: Endelig blir det gratis norskkurs for alle innvandrere."
+        "key": "l19a-writing-innlegg",
+        "template": "writing_task",
+        "instruction": "Напишите короткое письмо читателя (leserinnlegg) по одной из тем. Сначала — ваше мнение, затем аргументы, в конце — что должны сделать политики/другие.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv et kort leserinnlegg på 60–100 ord.",
+          "prompt": "Anne skrev et leserinnlegg om svømmehallen i Nordby. Nå er det din tur. Velg ÉN av sakene under og skriv et leserinnlegg til nettavisen. Bruk tittelen på saken du velger som overskrift.\n\n– Gratis norskkurs til alle: «Endelig blir det gratis norskkurs for alle innvandrere», har politikerne bestemt.\n– Obligatoriske norskprøver for alle innvandrere: klarer du ikke prøven, får du ikke bli i Norge.\n– Tog skal bli billigere, fly skal bli dyrere: regjeringen vil gjøre det billigere å ta toget.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
           },
-          {
-            "id": "obligatoriske-prover",
-            "title": "Obligatoriske norskprøver for alle innvandrere",
-            "body": "Nå blir det obligatoriske norskprøver for alle. Klarer du ikke prøven, får du ikke bli i Norge."
+          "letter": {
+            "register": "formal",
+            "recipient": ""
           },
-          {
-            "id": "tog-billigere",
-            "title": "Tog skal bli billigere, fly skal bli dyrere",
-            "body": "Regjeringen har bestemt seg for å gjøre tog billigere og fly dyrere."
+          "points": [
+            {
+              "id": "p1",
+              "text": "Skriv overskriften til saken du har valgt",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Si tydelig hva du mener om saken",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Gi minst to grunner for meningen din",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Avslutt med hva politikerne eller andre bør gjøre",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Jeg mener at …",
+            "For det første …",
+            "Dessuten …",
+            "Derfor bør politikerne …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Leddsetninger med «fordi» og «at», og riktig ordstilling etter bindeord som «derfor» og «dessuten».",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 60,
+            "maxWords": 120,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
           }
-        ]
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder struktur (mening → argument → oppfordring), relevante argumenter og grammatikk (leddsetninger, ordstilling).",
-        "criteria": [
-          "struktur",
-          "argumentasjon",
-          "grammatikk",
-          "ordforråd"
-        ]
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "gratis norskkurs",
+                "obligatoriske norskprøver",
+                "tog skal bli billigere"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "jeg mener",
+                "jeg synes",
+                "etter min mening"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "for det første",
+                "fordi",
+                "dessuten"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "politikerne bør",
+                "derfor bør",
+                "jeg ber",
+                "håper jeg"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Vanskelig å forstå",
+                "Bare korte hovedsetninger, mange ordstillingsfeil",
+                "Noen leddsetninger, av og til feil ordstilling",
+                "Leddsetninger og bindeord med riktig ordstilling"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Gratis norskkurs til alle\n\nJeg mener at gratis norskkurs er en god idé. For det første er språket det viktigste for å få jobb. Uten norsk får man bare de tyngste jobbene, selv om man har lang utdanning fra hjemlandet.\n\nDessuten koster kurs mye i dag. Mange familier har rett og slett ikke råd, og da er det ofte mor som må vente mens far går på kurs.\n\nDerfor bør politikerne holde det de har lovet, og starte kursene allerede i høst."
+        }
       }
-    }
   ],
   "19B": [
     {
@@ -1211,29 +1345,174 @@
       }
     },
     {
-      "key": "l19-writing-kontakt",
-      "template": "writing_task",
-      "instruction": "Напишите текст о своём опыте контакта с норвежцами.",
-      "content": {
-        "prompt": "Skriv om ditt møte med nordmenn: Hvordan var ditt første møte? Hvordan har du fått noen norske venner? Synes du det er vanskelig å bli kjent med nordmenn? Velg overskrift selv.",
-        "min_words": 80,
-        "options": [
-          {
-            "id": "kontakt",
-            "title": "Kontakt med nordmenn",
-            "body": "Skriv om hvordan du har blitt kjent med nordmenn."
+        "key": "l19-writing-kontakt",
+        "template": "writing_task",
+        "instruction": "Напишите текст о своём опыте контакта с норвежцами.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 80–120 ord.",
+          "prompt": "Skriv om ditt møte med nordmenn. Hvordan var det første møtet ditt? Har du fått norske venner, og hvordan skjedde det? Synes du det er vanskelig å bli kjent med nordmenn? Velg overskrift selv.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Fortell om det første møtet ditt med nordmenn",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Fortell om et konkret sted der du har blitt kjent med noen",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Si hva du synes: er det lett eller vanskelig?",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Gi et råd til noen som nettopp har flyttet hit",
+              "required": false
+            }
+          ],
+          "phrases": [
+            "Da jeg kom til Norge, …",
+            "Første gang jeg …",
+            "Jeg synes det er …",
+            "Mitt råd er å …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Hel- og leddsetninger med riktig ordstilling, og fortid der du forteller hva som skjedde.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 80,
+            "maxWords": 130,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
           }
-        ]
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder sammenheng, konkrete eksempler og variert setningsbygning (hel- og leddsetninger).",
-        "criteria": [
-          "innhold",
-          "sammenheng",
-          "grammatikk",
-          "ordforråd"
-        ]
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "første gang",
+                "det første møtet",
+                "da jeg kom"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "på jobben",
+                "på kurset",
+                "i barnehagen",
+                "på dugnaden",
+                "på trening"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "jeg synes",
+                "det er vanskelig",
+                "det er lett"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "mitt råd",
+                "du bør",
+                "man må"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Vanskelig å forstå",
+                "Bare korte setninger, mange feil i fortid",
+                "Både hel- og leddsetninger, noen feil",
+                "Variert setningsbygning med riktig ordstilling og fortid"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Naboen med snøskuffa\n\nDa jeg kom til Norge, trodde jeg at nordmenn var kalde. Første gang jeg hilste på naboen min, sa han bare «hei» og gikk videre.\n\nMen i januar snødde det veldig mye, og den samme naboen sto plutselig utenfor døra mi med en snøskuffe. Vi ryddet oppkjørselen sammen i en time. Etterpå fikk jeg kaffe hos dem, og siden har vi møttes på dugnaden hver vår.\n\nJeg synes det er vanskelig å begynne, men lett når man først gjør noe sammen. Mitt råd er å bli med på noe: en dugnad, en trening eller et kor."
+        }
       }
-    }
   ]
 }
