@@ -68,6 +68,22 @@ const translateAnswers = {
   },
 };
 
+const writingContent = {
+  mode: 'letter',
+  instruction: 'Skriv et sammenhengende brev.',
+  prompt: 'Kommunen vil stenge svømmehallen.',
+  letter: { register: 'formal', recipient: 'Tromsø kommune' },
+  points: [{ id: 'p1', text: 'Presenter deg selv', required: true }],
+  rubric: [{ id: 'c1', name: 'Oppgaveløsning', desc: '', weight: 2, metric: 'points' }],
+  settings: { minWords: 120, maxWords: 200, passScore: 4, showRubric: 'afterGraded' },
+};
+
+const writingAnswers = {
+  points: { p1: { keywords: ['jeg heter'] } },
+  rubric: { c1: { levels: ['Nei', 'Litt', 'Nesten', 'Ja'] } },
+  model: 'Hei, jeg heter Anna og skriver til dere fordi…',
+};
+
 function makeHandler(templateCode: string, content: unknown, expectedAnswers: unknown) {
   const attempts = {
     findInProgress: jest.fn(() => Promise.resolve(null)),
@@ -207,6 +223,54 @@ describe('StartAttemptHandler — what leaves with the attempt', () => {
     // The runner says under the submit button whether a hit closes the exercise, and
     // must not have to infer it from settings it cannot see.
     expect(projected.exactPasses).toBe(true);
+  });
+
+  it('ships a writing task with no model answer, no keywords and no descriptors', async () => {
+    const handler = makeHandler('writing_task', writingContent, writingAnswers);
+    const result = await handler.execute(practice);
+
+    const shipped = JSON.stringify(result.value.exerciseContent);
+    expect(shipped).toContain('Presenter deg selv');
+    expect(shipped).not.toContain('jeg heter');
+    expect(shipped).not.toContain('Hei, jeg heter Anna');
+    expect(shipped).not.toContain('Nesten');
+    expect(result.value.expectedAnswers).toBeNull();
+  });
+
+  it('ships the descriptors when the author shows the rubric while writing', async () => {
+    // The one case the projection needs the answer column for — plan 50 §5.
+    const handler = makeHandler(
+      'writing_task',
+      { ...writingContent, settings: { ...writingContent.settings, showRubric: 'always' } },
+      writingAnswers,
+    );
+
+    const result = await handler.execute(practice);
+
+    const projected = result.value.exerciseContent as {
+      rubric?: Array<{ id: string; levels: string[] }>;
+    };
+    expect(projected.rubric?.[0]?.levels).toEqual(['Nei', 'Litt', 'Nesten', 'Ja']);
+    // Still not the example answer: that waits for the grade whatever the rubric does.
+    expect(JSON.stringify(projected)).not.toContain('Hei, jeg heter Anna');
+  });
+
+  it('does not re-project a writing task content-service already projected', async () => {
+    // `graded` mode: the key never left content-service, so the document arriving here
+    // is already the student's view. A second pass would have no answer column to read
+    // the descriptors from and would quietly drop them.
+    const alreadyProjected = {
+      ...writingContent,
+      settings: { ...writingContent.settings, showRubric: 'always' },
+      rubric: [{ id: 'c1', name: 'Oppgaveløsning', desc: '', weight: 2, levels: ['Nei', 'Litt', 'Nesten', 'Ja'] }],
+      points: [{ id: 'p1', text: 'Presenter deg selv', required: true }],
+    };
+    const handler = makeHandler('writing_task', alreadyProjected, null);
+
+    const result = await handler.execute(practice);
+
+    expect(result.value.exerciseContent).toEqual(alreadyProjected);
+    expect(result.value.expectedAnswers).toBeNull();
   });
 
   it('leaves the other templates exactly as they were', async () => {

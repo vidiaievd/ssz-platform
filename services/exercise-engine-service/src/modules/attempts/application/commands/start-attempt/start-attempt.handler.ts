@@ -22,6 +22,10 @@ import {
   TEMPLATE_CODE as MATCH_PAIRS,
 } from '@ssz/shared-kernel/match-pairs';
 import type { ProjectedItem as MatchPairsItem } from '@ssz/shared-kernel/match-pairs';
+import {
+  TEMPLATE_CODE as WRITING_TASK,
+  toStudentProjection as wtToStudentProjection,
+} from '@ssz/shared-kernel/writing-task';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -74,6 +78,14 @@ export interface StartAttemptResult {
  * and distractors in the same shape, with no shared identifier between a slot and its
  * own half — and drops the pairing, the explanations and the reveal notes.
  *
+ * `writing_task` is the sixth and the odd one out. Its content hides nothing — the key
+ * is in its own column already — yet it is projected anyway, and the projection reaches
+ * *into* the key rather than away from it. With `showRubric: 'always'` the rubric's
+ * level descriptors are what the student is meant to write against, and they live in
+ * `expected_answers`; with any other setting they must not arrive before the mark, and
+ * neither must the example answer or the point keywords, ever. One setting decides, and
+ * the kernel decides it (plan 50 §5).
+ *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
  */
@@ -120,6 +132,22 @@ function withheldWhereNeeded(
         mpReadContent(exercise.content, exercise.expectedAnswers),
         { shuffle: shuffled },
       ),
+      expectedAnswers: null,
+    };
+  }
+
+  if (templateCode === WRITING_TASK) {
+    // In `graded` mode content-service has already projected this document and answered
+    // with no key at all. Projecting a projection would then drop the one thing §5 is
+    // about: a second pass has no answer column left to read the level descriptors from,
+    // so a task with `showRubric: 'always'` would arrive without the rubric it is meant
+    // to be written against. With no key in hand there is nothing left to withhold.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      exerciseContent: wtToStudentProjection(exercise.content, exercise.expectedAnswers),
       expectedAnswers: null,
     };
   }
