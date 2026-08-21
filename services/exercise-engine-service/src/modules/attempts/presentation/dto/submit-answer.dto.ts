@@ -47,7 +47,7 @@ export class SubmitAnswerResponseDto {
 
   @ApiPropertyOptional({
     description:
-      'Per-item validator output where it is meant for the learner. Present for word_bank_gap_fill as `{ totalGaps, correctGaps, gaps: [{ gapKey, correct, explanation }] }`; absent for every other template, whose details carry the answer itself.',
+      'Per-item validator output where it is meant for the learner. Present for word_bank_gap_fill as `{ totalGaps, correctGaps, gaps: [{ gapKey, correct, explanation }] }`, for match_pairs as `{ totalPairs, correctPairs, pairs: [{ pairId, correct, explanation }] }` (filled slots only), and for translate_* as the per-sentence routing. Absent for every other template, whose details carry the answer itself.',
   })
   details?: unknown;
 }

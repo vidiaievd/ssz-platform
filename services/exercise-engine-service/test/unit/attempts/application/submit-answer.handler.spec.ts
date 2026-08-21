@@ -126,6 +126,21 @@ const GAP_FILL_DETAILS = {
   gaps: [{ gapKey: 's1#3', correct: false, explanation: 'Etter «vil gjerne» kommer infinitiv.' }],
 };
 
+/**
+ * As `MatchPairsValidator` writes them. Note what is *not* here: the `rightId` of the
+ * correct half, the `why`, and any row of the feedback matrix the student did not hit.
+ * The student attached the wrong half and gets told why that half is wrong — which is
+ * the entire reason this template exists.
+ */
+const MATCH_PAIRS_DETAILS = {
+  totalPairs: 2,
+  correctPairs: 1,
+  pairs: [
+    { pairId: 'p1', correct: true, explanation: null },
+    { pairId: 'p2', correct: false, explanation: 'Etter «fordi» star verbet etter subjektet.' },
+  ],
+};
+
 /** As the translate validator writes them: for the teacher queue, key included. */
 const TRANSLATE_DETAILS = {
   totalItems: 2,
@@ -366,6 +381,20 @@ describe('SubmitAnswerHandler', () => {
 
     expect(result.isOk).toBe(true);
     expect(result.value.details).toEqual(GAP_FILL_DETAILS);
+  });
+
+  it('hands back the per-pair verdicts for match_pairs, explanations and all', async () => {
+    const handler = makeHandler(
+      makeRepo(makeInProgressAttempt('match_pairs')),
+      makeContentClient(),
+      makeValidator({ correct: false, score: 50, details: MATCH_PAIRS_DETAILS, requiresReview: false }),
+      makeFeedback(), makePublisher(),
+    );
+
+    const result = await handler.execute(cmd);
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.details).toEqual(MATCH_PAIRS_DETAILS);
   });
 
   it('withholds details for every other template, whose details carry the answer', async () => {

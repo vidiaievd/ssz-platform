@@ -5,6 +5,7 @@ import {
   readContent,
   TEMPLATE_CODE as WORD_BANK_GAP_FILL,
 } from '@ssz/shared-kernel/wordbank-gapfill';
+import { TEMPLATE_CODE as MATCH_PAIRS } from '@ssz/shared-kernel/match-pairs';
 import { isTranslateCode } from '@ssz/shared-kernel/translate';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
@@ -31,7 +32,7 @@ export interface SubmitAnswerResult {
   score: number | null;
   requiresReview: boolean;
   feedback: { summary: string; hints?: string[]; correctAnswer?: unknown };
-  /** Per-gap verdicts for `word_bank_gap_fill`, and nothing for any other template. */
+  /** Per-item verdicts for the templates graded item by item, and nothing for the rest. */
   details?: unknown;
 }
 
@@ -41,6 +42,14 @@ export interface SubmitAnswerResult {
  * `word_bank_gap_fill` is graded per gap, and its details are exactly what the student
  * is owed after a check: right or wrong, and the explanation the teacher wrote for the
  * word they actually chose. Nothing in there is an answer.
+ *
+ * `match_pairs` is the same case one template later, and it is the whole point of the
+ * type: being wrong is supposed to yield the teacher's explanation for the half the
+ * student actually attached, not the half they should have. Its details carry
+ * `totalPairs`, `correctPairs` and one `{ pairId, correct, explanation }` per *filled*
+ * slot — no `rightId` of the correct half, no `why`, no row of the feedback matrix the
+ * student did not hit. Slots left empty are absent rather than wrong, which says
+ * nothing either. See `match-pairs.validator.ts` and docs/plan/49-match-pairs.md.
  *
  * The other validators' details are diagnostics, and several of them do contain the
  * answer — `multiple_choice` reports `expected`, `short_answer` reports `target`.
@@ -55,6 +64,7 @@ export interface SubmitAnswerResult {
  */
 function learnerFacingDetails(templateCode: string, details: unknown): unknown {
   if (templateCode === WORD_BANK_GAP_FILL) return details;
+  if (templateCode === MATCH_PAIRS) return details;
   if (isTranslateCode(templateCode)) return translateRouting(details);
   return undefined;
 }
