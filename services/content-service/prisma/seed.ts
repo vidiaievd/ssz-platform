@@ -983,40 +983,178 @@ const templates = [
   {
     code: 'writing_task',
     name: 'Writing Task',
-    description: 'Write a longer free-form text (essay / reader letter); always routed for review',
+    description: 'Write a whole text — a letter, an essay, a picture description, a retelling or an open topic',
+    // Rewritten for the design handoff (docs/plan/50-writing-task.md). The old
+    // shape was a slice of the generic exercise form — prompt, optional topic
+    // list, min/max words, snake_case — and had no modes, no must-cover points,
+    // no rubric. Five subtypes now share one document, selected by `mode`; the
+    // rubric a human marks against is part of the exercise, not the teacher's
+    // memory.
+    //
+    // Third of the camelCase templates. Unlike the other two, the content holds
+    // no answers — the key (point keywords, level descriptors, the example
+    // answer) is lifted into expected_answers by the kernel's persistence
+    // module, so `studentSafeContent` has nothing it could fail to strip. The
+    // one exception runs the other way: with `showRubric: 'always'` the
+    // descriptors are a writing guide and must reach the student *before* the
+    // mark, which is why the projection takes both columns (plan 50 §5).
     contentSchema: {
       type: 'object',
-      required: ['prompt'],
+      required: ['mode', 'prompt', 'points', 'rubric', 'settings'],
       properties: {
-        prompt: { type: 'string' },
-        // Optional "choose one topic" list.
-        options: {
+        // Decides which material block the task carries and how the prompt is
+        // framed; nothing else. `picture` is a mode rather than its own
+        // template so that the rubric editor, the validation engine and the
+        // review queue exist once (handoff README, "Why picture is a mode").
+        mode: { type: 'string', enum: ['letter', 'essay', 'picture', 'retell', 'free'] },
+        instruction: { type: 'string', description: 'One line, student-facing' },
+        prompt: { type: 'string', description: 'The situation, not the checklist' },
+        // Material per mode. Fields belonging to another mode stay in the
+        // record — switching mode must not lose an author's text — and are
+        // neither shown nor validated.
+        source: { type: 'string', description: '`retell` only — the text being retold' },
+        image: {
+          type: 'object',
+          description: '`picture` only',
+          properties: {
+            // Resolved through the media picker. Missing = a publication
+            // blocker, not a warning: a picture task with no picture is unusable.
+            assetId: { type: 'string' },
+            caption: { type: 'string' },
+            alt: { type: 'string' },
+          },
+        },
+        letter: {
+          type: 'object',
+          description: '`letter` only',
+          properties: {
+            register: { type: 'string', enum: ['formal', 'informal'] },
+            recipient: { type: 'string' },
+          },
+        },
+        // What the text must cover, 1-6 of them. The student sees `text` as a
+        // checklist item; the phrasings that would satisfy it live in
+        // expected_answers and are used only by the (unbuilt) AI pre-check —
+        // never to reject an answer.
+        points: {
           type: 'array',
+          minItems: 1,
           items: {
             type: 'object',
-            required: ['id', 'title'],
+            required: ['id', 'text'],
             properties: {
-              id: { type: 'string' },
-              title: { type: 'string' },
-              body: { type: 'string' },
+              id: { type: 'string', description: 'Stable; keys this point in expected_answers' },
+              text: { type: 'string' },
+              required: { type: 'boolean', description: 'Optional points do not count towards a pass' },
             },
           },
         },
-        min_words: { type: 'integer' },
-        max_words: { type: 'integer' },
-        instructions: { type: 'string' },
-        media_id: { type: 'string' },
+        phrases: {
+          type: 'array',
+          description: 'Optional sentence openers offered to the student',
+          items: { type: 'string' },
+        },
+        // 2-6 criteria a human marks 0-3 against. The level descriptors are the
+        // answer key half of a criterion and are NOT here.
+        rubric: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'object',
+            required: ['id', 'name'],
+            properties: {
+              id: { type: 'string', description: 'Stable; keys this criterion in expected_answers and in an attempt’s marks' },
+              name: { type: 'string' },
+              desc: { type: 'string', description: 'What the criterion is about, teacher-facing' },
+              weight: { type: 'integer', enum: [1, 2] },
+              // Which heuristic suggests a mark for this criterion. Explicit
+              // rather than positional (plan 50 §3.4) so a reordered or custom
+              // rubric gets sensible suggestions or, with null, none at all.
+              // A suggestion is never a grade: a person sets every mark.
+              metric: { type: ['string', 'null'], enum: ['points', 'paragraphs', 'language', 'lexis', null] },
+            },
+          },
+        },
+        settings: {
+          type: 'object',
+          required: ['minWords', 'maxWords', 'passScore'],
+          properties: {
+            minWords: { type: 'integer', description: 'Submit is locked below this; 0 = no minimum' },
+            maxWords: { type: 'integer', description: '0 = no ceiling' },
+            timer: { type: 'integer', description: 'Minutes, 0 = off; counts down from the first keystroke' },
+            blockPaste: { type: 'boolean' },
+            autosave: { type: 'boolean' },
+            showWordCount: { type: 'boolean' },
+            showPlan: { type: 'boolean', description: 'Must-cover points as a student checklist' },
+            showPhrases: { type: 'boolean' },
+            // 'always' is the one setting that pulls level descriptors out of
+            // expected_answers before grading — see the note above.
+            showRubric: { type: 'string', enum: ['always', 'afterGraded', 'never'] },
+            showModel: { type: 'string', enum: ['afterGraded', 'never'] },
+            // In rubric points, out of Sigma 3 x weight — not a percentage. The
+            // attempt's score is normalised to one (plan 50 §3.2), the
+            // threshold the author writes is not.
+            passScore: { type: 'integer' },
+            // Display switches only. Nothing calls a model in this build; the
+            // fields exist so that connecting one later needs no migration
+            // (plan 48).
+            aiStage: { type: 'boolean' },
+            ai: {
+              type: 'object',
+              properties: {
+                grammar: { type: 'boolean' },
+                task: { type: 'boolean' },
+                structure: { type: 'boolean' },
+                lexis: { type: 'boolean' },
+                draft: { type: 'boolean' },
+              },
+            },
+            aiVisibility: { type: 'string', enum: ['teacher', 'studentBefore', 'studentAfter'] },
+            aiSelfLimit: { type: 'integer', minimum: 0, maximum: 3 },
+            revision: { type: 'string', enum: ['once', 'return', 'drafts'] },
+          },
+        },
       },
     },
+    // The answer key: everything IMPLEMENTATION.md forbids reaching a student
+    // before a teacher has graded. Keyed by id on both sides, so reordering the
+    // points or the criteria cannot shuffle the key onto the wrong row.
+    //
+    // It grades nothing. `writing_task` has no auto-check by construction —
+    // every submission is read by a person — and these three fields exist for
+    // the author's own preview, the teacher's queue, and the AI stage when it
+    // is built.
     answerSchema: {
       type: 'object',
       properties: {
-        // No auto-scoring fields — grading is always manual / LLM review.
-        rubric: { type: 'string' },
-        reference_text: { type: 'string' },
-        criteria: { type: 'array', items: { type: 'string' } },
+        points: {
+          type: 'object',
+          description: 'Keyed by point id',
+          additionalProperties: {
+            type: 'object',
+            properties: {
+              // 2-3 phrasings. Used only by the AI pre-check, never to reject.
+              keywords: { type: 'array', items: { type: 'string' } },
+            },
+          },
+        },
+        rubric: {
+          type: 'object',
+          description: 'Keyed by criterion id',
+          additionalProperties: {
+            type: 'object',
+            properties: {
+              // Descriptors for levels 0, 1, 2, 3, in that order.
+              levels: { type: 'array', minItems: 4, maxItems: 4, items: { type: 'string' } },
+            },
+          },
+        },
+        model: { type: 'string', description: 'Example answer. Recommended, never a blocker.' },
       },
     },
+    // Nothing to configure: there is no auto-check to tune. The thresholds that
+    // matter (`passScore`, the word range) are the author's editorial choices
+    // and live in `content.settings` with the rest of the document.
     defaultCheckSettings: {},
     supportedLanguages: Prisma.DbNull,
   },
