@@ -9,8 +9,10 @@ import { OrganizationServiceUnavailableException } from '../../../../../shared/a
 import { GetPreflightQuery } from './get-preflight.query.js';
 import { TEMPLATE_CODE as GAP_FILL_TEMPLATE } from '@ssz/shared-kernel/wordbank-gapfill';
 import { TEMPLATE_CODE as MATCH_PAIRS_TEMPLATE } from '@ssz/shared-kernel/match-pairs';
+import { TEMPLATE_CODE as WRITING_TASK_TEMPLATE } from '@ssz/shared-kernel/writing-task';
 import { gapFillViolations } from './gap-fill-preflight.js';
 import { matchPairsViolations } from './match-pairs-preflight.js';
+import { writingTaskViolations } from './writing-task-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
 
@@ -450,7 +452,9 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
       this.prisma.exercise.findMany({
         where: {
           id: { in: exerciseIds },
-          template: { code: { in: [GAP_FILL_TEMPLATE, MATCH_PAIRS_TEMPLATE] } },
+          template: {
+            code: { in: [GAP_FILL_TEMPLATE, MATCH_PAIRS_TEMPLATE, WRITING_TASK_TEMPLATE] },
+          },
         },
         // The draft too: pre-flight answers "is this publishable", and publishing
         // is what promotes the draft. Judging the live document would clear a
@@ -488,16 +492,28 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
         content: pending ? exercise.draftContent : exercise.content,
         expectedAnswers: pending ? exercise.draftExpectedAnswers : exercise.expectedAnswers,
       };
-      const violations =
-        exercise.template.code === MATCH_PAIRS_TEMPLATE
-          ? matchPairsViolations(document)
-          : gapFillViolations(document);
+      const violations = violationsFor(exercise.template.code, document);
 
       for (const violation of violations) {
         (violation.severity === 'blocker' ? blockers : warnings).push(violation);
       }
     }
   }
+}
+
+/**
+ * `writing_task` matters more here than the other two. Gap-fill and match-pairs are
+ * auto-checked, so an editorial hole shows up the first time a student answers; a
+ * writing task published with an empty rubric surfaces only when a teacher opens a
+ * submitted text and finds nothing to mark it against.
+ */
+function violationsFor(
+  templateCode: string,
+  document: { id: string; content: unknown; expectedAnswers: unknown },
+): RuleViolation[] {
+  if (templateCode === MATCH_PAIRS_TEMPLATE) return matchPairsViolations(document);
+  if (templateCode === WRITING_TASK_TEMPLATE) return writingTaskViolations(document);
+  return gapFillViolations(document);
 }
 
 function groupBy<T>(arr: T[], key: (item: T) => string): Record<string, T[]> {
