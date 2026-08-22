@@ -1,6 +1,6 @@
 import type { AttemptModel } from '../../../../../generated/prisma/models/Attempt.js';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
-import type { RubricMarks, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
+import { readRubricMarks, readRubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import type {
   AttemptStatus,
   CheckMode,
@@ -53,8 +53,13 @@ export class AttemptMapper {
       totalItems: row.totalItems,
       draftAnswer: row.draftAnswer,
       draftSavedAt: row.draftSavedAt,
-      rubricMarks: (row.rubricMarks as RubricMarks | null) ?? null,
-      rubricSnapshot: (row.rubricSnapshot as RubricSnapshot | null) ?? null,
+      // Read rather than cast, unlike the columns above. These two decide how the
+      // submission is graded at all: a snapshot cast out of a JSON column that turned
+      // out not to hold criteria would still be truthy, and the review handler would
+      // take the rubric branch on it. The kernel's readers answer null for anything
+      // that is not a usable rubric, which is the honest "grade this one out of items".
+      rubricMarks: row.rubricMarks === null ? null : readRubricMarks(row.rubricMarks),
+      rubricSnapshot: readRubricSnapshot(row.rubricSnapshot),
     });
   }
 

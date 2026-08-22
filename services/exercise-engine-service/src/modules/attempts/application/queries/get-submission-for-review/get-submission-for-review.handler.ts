@@ -14,6 +14,7 @@ import {
   type ExerciseDefinition,
   type IContentClient,
 } from '../../../../../shared/application/ports/content-client.port.js';
+import type { RubricMarks, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { Result } from '../../../../../shared/kernel/result.js';
 import type {
   Attempt,
@@ -65,6 +66,30 @@ export interface GetSubmissionForReviewResult {
   details: unknown;
   /** `writing_task` only: the essay itself, lifted out of the submitted answer. */
   text: string | null;
+  /**
+   * The rubric this submission is graded against, frozen when it reached the queue.
+   *
+   * Deliberately not read from the exercise the way `details` is. `details` is
+   * recomputed so the teacher sees the answer key as it stands today; the rubric is the
+   * opposite case — an author who reworded a criterion, changed a weight or moved the
+   * threshold after the learner submitted must not change what this text is measured
+   * against, and marks already set against the old criteria must keep meaning what they
+   * meant (IMPLEMENTATION.md's "Persistence", plan 50 §3.2 point 5). It therefore also
+   * survives the exercise being deleted, which is the one case where `details` is null
+   * and the submission still has to be gradable.
+   *
+   * Null for every template graded per item, for a `writing_task` whose author left the
+   * rubric empty, and for anything queued before the rubric existed — all three are the
+   * same instruction to the screen: grade this one the old way, with the verdict
+   * buttons.
+   */
+  rubricSnapshot: RubricSnapshot | null;
+  /**
+   * The marks a teacher set, keyed by criterion id — what the read-only screen shows
+   * after a colleague has decided. Null while the submission is still waiting: marks
+   * start unset and are never pre-filled (plan 50 §4).
+   */
+  rubricMarks: RubricMarks | null;
   submittedAnswer: unknown;
   timeSpentSeconds: number;
   selfChecksUsed: number;
@@ -126,6 +151,8 @@ export class GetSubmissionForReviewHandler implements IQueryHandler<GetSubmissio
       details:
         exercise.definition === null ? null : await this.detailsFor(attempt, exercise.definition),
       text: essayOf(attempt),
+      rubricSnapshot: attempt.rubricSnapshot,
+      rubricMarks: attempt.rubricMarks,
       submittedAnswer: attempt.submittedAnswer,
       timeSpentSeconds: attempt.timeSpentSeconds,
       selfChecksUsed: attempt.selfChecksUsed,

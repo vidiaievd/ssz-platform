@@ -51,6 +51,8 @@ function attempt(props: Partial<AttemptPersistenceProps> & { id: string }): Atte
     previousAttemptId: null,
     autoPassedItems: null,
     totalItems: null,
+    rubricMarks: null,
+    rubricSnapshot: null,
     ...props,
   });
 }
@@ -294,5 +296,78 @@ describe('GetSubmissionForReviewHandler', () => {
     const result = await run(handler, 'a1');
     expect(result.isFail).toBe(false);
     expect(result.value.text).toBeNull();
+  });
+  it('hands the screen the rubric frozen on the submission, not the live one', async () => {
+    const essay = attempt({
+      id: 'a1',
+      templateCode: 'writing_task',
+      submittedAnswer: { text: 'Hei Kari, ...' },
+      rubricSnapshot: {
+        criteria: [
+          {
+            id: 'c1',
+            name: 'Innhold',
+            desc: 'Alle punktene er med',
+            weight: 2,
+            levels: ['Mangler', 'Delvis', 'Bra', 'Utmerket'],
+          },
+        ],
+        passScore: 4,
+      },
+    });
+    const { handler } = makeHandler([essay]);
+
+    const { rubricSnapshot } = (await run(handler, 'a1')).value;
+    expect(rubricSnapshot?.passScore).toBe(4);
+    expect(rubricSnapshot?.criteria[0]).toMatchObject({ id: 'c1', weight: 2 });
+    // The descriptors travel with it: the queue draws four labelled segments, and a
+    // snapshot without the labels would send the teacher back to the live exercise for
+    // exactly the wording the snapshot exists to freeze.
+    expect(rubricSnapshot?.criteria[0].levels).toHaveLength(4);
+  });
+
+  it('keeps the rubric readable after the exercise it came from is gone', async () => {
+    const essay = attempt({
+      id: 'a1',
+      templateCode: 'writing_task',
+      submittedAnswer: { text: 'Hei Kari, ...' },
+      rubricSnapshot: {
+        criteria: [
+          { id: 'c1', name: 'Innhold', desc: '', weight: 1, levels: ['', '', '', ''] },
+        ],
+        passScore: 2,
+      },
+    });
+    const { handler } = makeHandler([essay], {
+      exercise: Result.fail(new ContentClientError(404, 'deleted')),
+    });
+
+    const result = (await run(handler, 'a1')).value;
+    expect(result.exerciseAvailable).toBe(false);
+    expect(result.details).toBeNull();
+    // The one thing still gradable about a deleted exercise.
+    expect(result.rubricSnapshot?.criteria).toHaveLength(1);
+    expect(result.text).toBe('Hei Kari, ...');
+  });
+
+  it('shows the marks a colleague already set, and none before that', async () => {
+    const waiting = attempt({ id: 'a1', templateCode: 'writing_task' });
+    const decided = attempt({
+      id: 'a2',
+      templateCode: 'writing_task',
+      rubricMarks: { c1: 3, c2: 1 },
+    });
+    const { handler } = makeHandler([waiting, decided]);
+
+    expect((await run(handler, 'a1')).value.rubricMarks).toBeNull();
+    expect((await run(handler, 'a2')).value.rubricMarks).toEqual({ c1: 3, c2: 1 });
+  });
+
+  it('reports no rubric for a submission graded out of items', async () => {
+    const { handler } = makeHandler([attempt({ id: 'a1' })]);
+
+    const result = (await run(handler, 'a1')).value;
+    expect(result.rubricSnapshot).toBeNull();
+    expect(result.rubricMarks).toBeNull();
   });
 });
