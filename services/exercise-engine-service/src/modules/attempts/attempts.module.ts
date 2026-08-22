@@ -5,6 +5,7 @@ import { PrismaAttemptRepository } from './infrastructure/persistence/prisma-att
 import { StartAttemptHandler } from './application/commands/start-attempt/start-attempt.handler.js';
 import { SubmitAnswerHandler } from './application/commands/submit-answer/submit-answer.handler.js';
 import { AbandonAttemptHandler } from './application/commands/abandon-attempt/abandon-attempt.handler.js';
+import { SaveDraftHandler } from './application/commands/save-draft/save-draft.handler.js';
 import { RevealAnswersHandler } from './application/commands/reveal-answers/reveal-answers.handler.js';
 import { SelfCheckHandler } from './application/commands/self-check/self-check.handler.js';
 import { ReviewAttemptHandler } from './application/commands/review-attempt/review-attempt.handler.js';
@@ -29,6 +30,7 @@ const CommandHandlers = [
   StartAttemptHandler,
   SubmitAnswerHandler,
   AbandonAttemptHandler,
+  SaveDraftHandler,
   RevealAnswersHandler,
   SelfCheckHandler,
   ReviewAttemptHandler,

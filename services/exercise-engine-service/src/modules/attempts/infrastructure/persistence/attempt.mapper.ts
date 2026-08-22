@@ -50,6 +50,8 @@ export class AttemptMapper {
       previousAttemptId: row.previousAttemptId,
       autoPassedItems: row.autoPassedItems,
       totalItems: row.totalItems,
+      draftAnswer: row.draftAnswer,
+      draftSavedAt: row.draftSavedAt,
     });
   }
 
@@ -94,6 +96,8 @@ export class AttemptMapper {
       previousAttemptId: attempt.previousAttemptId,
       autoPassedItems: attempt.autoPassedItems,
       totalItems: attempt.totalItems,
+      draftAnswer: attempt.draftAnswer as AttemptModel['draftAnswer'],
+      draftSavedAt: attempt.draftSavedAt,
     };
   }
 }

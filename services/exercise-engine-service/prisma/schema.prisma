@@ -131,6 +131,18 @@ model Attempt {
   // spending, so that a client cannot buy itself more by asking again.
   selfChecksUsed Int @default(0) @map("self_checks_used")
 
+  // ── Work in progress ────────────────────────────────────────────────────
+  // The unfinished answer, autosaved while the attempt is open, in the same
+  // template-shaped JSON `submittedAnswer` will hold. Written for `writing_task`
+  // (plan 50 phase 2), where a lost 200-word text is the worst thing this feature
+  // can do to a student, but deliberately not typed to it: nothing here knows the
+  // template, and the next runner that wants a crash-proof draft needs no migration.
+  //
+  // Not a second answer: it is never validated, never scored, and submitting reads
+  // the body of the submit request, not this column.
+  draftAnswer  Json?     @map("draft_answer")
+  draftSavedAt DateTime? @map("draft_saved_at") @db.Timestamptz
+
   // ── Teacher review ──────────────────────────────────────────────────────
   // Free-form attempts stop at ROUTED_FOR_REVIEW, where the only verdict left is a
   // person's. What that person decided lives here.

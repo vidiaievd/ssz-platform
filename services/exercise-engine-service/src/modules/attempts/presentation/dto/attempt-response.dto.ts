@@ -74,6 +74,18 @@ export class AttemptResponseDto {
   @ApiPropertyOptional({
     nullable: true,
     description:
+      'The unfinished answer, as last autosaved. This is what a runner reloads into ' +
+      'the page after a closed tab or a dead battery. Null once the attempt is no ' +
+      'longer in progress, and null for a runner that never saved one.',
+  })
+  draftAnswer!: unknown;
+
+  @ApiPropertyOptional({ nullable: true, description: 'When the draft was last taken.' })
+  draftSavedAt!: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
       "The teacher's word on the submission as a whole, once one has read it. Written " +
       'for the learner — the only place this template can say why something was wrong.',
   })

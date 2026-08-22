@@ -86,6 +86,8 @@ export interface AttemptPersistenceProps {
   previousAttemptId: string | null;
   autoPassedItems: number | null;
   totalItems: number | null;
+  draftAnswer: unknown;
+  draftSavedAt: Date | null;
 }
 
 /**
@@ -175,6 +177,8 @@ export class Attempt extends AggregateRoot {
     private _autoPassedItems: number | null = null,
     private _totalItems: number | null = null,
     private _recheckCount: number = 0,
+    private _draftAnswer: unknown = null,
+    private _draftSavedAt: Date | null = null,
   ) {
     super(id);
   }
@@ -262,7 +266,34 @@ export class Attempt extends AggregateRoot {
       props.autoPassedItems,
       props.totalItems,
       props.recheckCount,
+      props.draftAnswer,
+      props.draftSavedAt,
     );
+  }
+
+  /**
+   * Keep the unfinished work.
+   *
+   * Only while the attempt is open: a draft written after the answer is in would be a
+   * second answer nobody reads, and one arriving after a teacher's verdict would look
+   * like an edit to work that has already been marked.
+   *
+   * The draft is stored as it arrives and never validated. A shape the runner cannot
+   * read back is a bug in the runner; a save refused because the half-written text does
+   * not parse is the failure this column exists to prevent.
+   */
+  saveDraft(answer: unknown): Result<void, InvalidAttemptTransitionError> {
+    if (this._status !== 'IN_PROGRESS') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot save a draft for attempt with status ${this._status}`,
+        ),
+      );
+    }
+
+    this._draftAnswer = answer;
+    this._draftSavedAt = new Date();
+    return Result.ok();
   }
 
   submit(
@@ -784,6 +815,10 @@ export class Attempt extends AggregateRoot {
     this._reviewClaimedAt = null;
     return null;
   }
+
+  /** The work in progress, as last autosaved. `null` when the runner never saved one. */
+  get draftAnswer(): unknown { return this._draftAnswer ?? null; }
+  get draftSavedAt(): Date | null { return this._draftSavedAt; }
 
   addTimeSpent(seconds: number): void {
     if (seconds > 0) {

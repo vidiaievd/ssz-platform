@@ -10,6 +10,7 @@ import {
   ParseIntPipe,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   UnprocessableEntityException,
   ForbiddenException,
@@ -34,6 +35,9 @@ import { SubmitAnswerCommand } from '../../application/commands/submit-answer/su
 import type { SubmitAnswerResult, SubmitAnswerError } from '../../application/commands/submit-answer/submit-answer.handler.js';
 import { AbandonAttemptCommand } from '../../application/commands/abandon-attempt/abandon-attempt.command.js';
 import { RevealAnswersCommand } from '../../application/commands/reveal-answers/reveal-answers.command.js';
+import { SaveDraftCommand } from '../../application/commands/save-draft/save-draft.command.js';
+import type { SaveDraftError, SaveDraftResult } from '../../application/commands/save-draft/save-draft.handler.js';
+import { SaveDraftRequestDto, SaveDraftResponseDto } from '../dto/save-draft.dto.js';
 import { SelfCheckCommand } from '../../application/commands/self-check/self-check.command.js';
 import type {
   SelfCheckError,
@@ -81,6 +85,11 @@ function toAttemptDto(attempt: Attempt): AttemptResponseDto {
     submittedAnswer: attempt.submittedAnswer ?? null,
     validationDetails: isPractice ? (attempt.validationDetails ?? null) : null,
     answersRevealed: attempt.answersRevealed,
+    // The learner's own unfinished text, read back to them — the same reasoning as
+    // `submittedAnswer`, and no answer key can reach it: nothing but the client ever
+    // writes this column.
+    draftAnswer: attempt.draftAnswer,
+    draftSavedAt: attempt.draftSavedAt?.toISOString() ?? null,
     id: attempt.id,
     userId: attempt.userId,
     exerciseId: attempt.exerciseId,
@@ -290,6 +299,44 @@ export class AttemptsController {
     }
 
     return result.value;
+  }
+
+  @Put(':attemptId/draft')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Autosave the work in progress',
+    description:
+      'Keeps the unfinished answer so a reload, a closed tab or a dead battery does ' +
+      'not cost the learner what they had written. The draft is stored exactly as it ' +
+      'arrives and never validated or scored; it comes back on GET /attempts/:id. ' +
+      'Submitting reads the submit request, never this.',
+  })
+  @ApiResponse({ status: 200, type: SaveDraftResponseDto })
+  @ApiResponse({ status: 404, description: 'Attempt not found' })
+  @ApiResponse({ status: 403, description: 'Not your attempt' })
+  @ApiResponse({ status: 422, description: 'Attempt is no longer in progress' })
+  async saveDraft(
+    @Param('exerciseId') _exerciseId: string,
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Body() dto: SaveDraftRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<SaveDraftResponseDto> {
+    const result: Result<SaveDraftResult, SaveDraftError> = await this.commandBus.execute(
+      new SaveDraftCommand(attemptId, user.userId, dto.draftAnswer),
+    );
+
+    if (result.isFail) {
+      const err = result.error;
+      if ('code' in err) {
+        if (err.code === 'ATTEMPT_NOT_FOUND') throw new NotFoundException('Attempt not found');
+        if (err.code === 'FORBIDDEN') throw new ForbiddenException('Not your attempt');
+      }
+      throw new UnprocessableEntityException(
+        err instanceof Error ? err.message : 'Cannot save a draft for this attempt',
+      );
+    }
+
+    return { savedAt: result.value.savedAt };
   }
 
   @Delete(':attemptId')
