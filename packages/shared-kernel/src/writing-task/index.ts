@@ -45,6 +45,20 @@ export type { Issue, IssueCode, IssueLevel, IssueStep, StepState, StepStatus } f
 export { blockers, isReady, issues, stepState, warnings } from './issues.js';
 
 export type {
+  RubricMarks,
+  RubricOutcome,
+  RubricSnapshot,
+  SnapshotCriterion,
+} from './verdict.js';
+export {
+  readRubricMarks,
+  readRubricSnapshot,
+  scoreRubric,
+  snapshotRubric,
+  toPercent,
+} from './verdict.js';
+
+export type {
   DocumentEnvelope,
   PersistedAnswers,
   PersistedContent,
