@@ -75,4 +75,22 @@ export class ReviewAttemptRequestDto {
   @IsOptional()
   @IsObject()
   sentenceComments?: Record<string, string>;
+
+  /**
+   * One mark 0-3 per rubric criterion — `writing_task` and anything else graded that way.
+   *
+   * Judgements, not a score: the weights, the threshold and the arithmetic stay on the
+   * server, and for these submissions `outcome` above is ignored entirely — the verdict
+   * follows from `Σ mark × weight` against the rubric frozen on the attempt (plan 50
+   * §3.2). Every criterion must carry a mark; a rubric with a hole in it is refused
+   * rather than scored as a zero.
+   */
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'integer', minimum: 0, maximum: 3 },
+    example: { 'c-task': 3, 'c-structure': 2, 'c-language': 2, 'c-lexis': 1 },
+  })
+  @IsOptional()
+  @IsObject()
+  rubricMarks?: Record<string, number>;
 }

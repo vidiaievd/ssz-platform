@@ -1,5 +1,8 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
+import { readRubricMarks } from '@ssz/shared-kernel/writing-task';
 import { ReviewAttemptCommand } from './review-attempt.command.js';
+import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
+import type { Attempt } from '../../../domain/entities/attempt.entity.js';
 import {
   ATTEMPT_REPOSITORY,
   type IAttemptRepository,
@@ -24,15 +27,23 @@ export type ReviewAttemptError =
   | { code: 'ALREADY_REVIEWED'; by: string; verdict: 'approved' | 'returned'; at: Date }
   /** Sent back with nothing said about why. */
   | { code: 'RETURN_REQUIRES_COMMENT' }
+  /** A rubric-graded submission arrived with criteria left unmarked (plan 50 §4). */
+  | { code: 'RUBRIC_INCOMPLETE'; missing: string[] }
   | ContentClientError
   | AttemptDomainError;
 
 export interface ReviewAttemptResult {
   attemptId: string;
   status: 'SCORED' | 'RETURNED';
+  /** 0–100. Null on a return, which ends the attempt unmarked. */
   score: number | null;
   approvedItems: number;
   totalItems: number;
+  /**
+   * The rubric total behind the verdict, in the unit the threshold is set in — what the
+   * queue prints under the button. Null for the templates graded per item.
+   */
+  rubricScore: { points: number; max: number; passScore: number } | null;
 }
 
 /**
@@ -70,6 +81,14 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
 
     const decisions = foldSentenceComments(command.decisions, command.sentenceComments);
 
+    // Graded out of a rubric rather than out of items — the marks decide, and so does
+    // the threshold they are measured against, both frozen on the attempt when it was
+    // queued (plan 50 §3.2).
+    const snapshot = attempt.rubricSnapshot;
+    if (snapshot) {
+      return this.reviewByRubric(attempt, command, snapshot);
+    }
+
     if (command.outcome === 'returned') {
       const returned = attempt.review({
         reviewerId: command.reviewerId,
@@ -87,6 +106,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
         score: null,
         approvedItems: 0,
         totalItems: 0,
+        rubricScore: null,
       });
     }
 
@@ -118,6 +138,70 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       score,
       approvedItems,
       totalItems,
+      rubricScore: null,
+    });
+  }
+
+  /**
+   * The verdict on a submission a person grades out of criteria.
+   *
+   * Three things separate it from the item path:
+   *
+   * - **The verdict is derived, not taken.** `Σ mark × weight >= passScore` is an
+   *   approval and anything else is a return. The screen's own label switches on exactly
+   *   that number, so obeying a client whose settings had gone stale would deliver a
+   *   verdict the marks do not support. The threshold is compared in rubric points, the
+   *   unit the author typed it in — never in the percentage the score travels as.
+   * - **Every criterion must be marked.** The screen keeps the action disabled until
+   *   they are (IMPLEMENTATION.md), and a missing mark silently counting as zero would
+   *   turn a UI slip into a failed essay.
+   * - **No per-item decisions.** An essay has no items to decide about; the marks are
+   *   the feedback, and `ReviewDecision[]` stays empty rather than pretending otherwise
+   *   (plan 50 §3.2 point 6).
+   */
+  private async reviewByRubric(
+    attempt: Attempt,
+    command: ReviewAttemptCommand,
+    snapshot: RubricSnapshot,
+  ): Promise<Result<ReviewAttemptResult, ReviewAttemptError>> {
+    const marks = readRubricMarks(command.rubricMarks);
+    const scored = this.scoring.scoreOf([], [], { snapshot, marks });
+    const outcome = scored.rubric;
+    if (outcome === null || !outcome.complete) {
+      return Result.fail({ code: 'RUBRIC_INCOMPLETE', missing: outcome?.missing ?? [] });
+    }
+
+    const rubricScore = { points: outcome.points, max: outcome.max, passScore: snapshot.passScore };
+
+    const reviewed = attempt.review({
+      reviewerId: command.reviewerId,
+      outcome: outcome.passed ? 'approved' : 'returned',
+      decisions: [],
+      comment: command.comment,
+      score: scored.score,
+      // The rubric already answered this, in its own unit. `passed` must not be
+      // recomputed from the percentage — 8 of 15 is a pass at a threshold of 8 and 53%
+      // everywhere a percentage is read.
+      passed: outcome.passed,
+      approvedItems: scored.approvedItems,
+      totalItems: scored.totalItems,
+      rubricMarks: marks,
+    });
+    if (reviewed.isFail) return Result.fail(toError(reviewed.error));
+
+    await this.attempts.save(attempt);
+    await publishAttemptEvents(this.publisher, attempt);
+
+    return Result.ok({
+      attemptId: attempt.id,
+      status: outcome.passed ? 'SCORED' : 'RETURNED',
+      // A return ends the attempt unmarked for every other template, and the letter to
+      // the learner says so; the marks are still on the attempt for the queue and for
+      // the card the student opens next to their rewrite.
+      score: outcome.passed ? scored.score : null,
+      approvedItems: scored.approvedItems,
+      totalItems: scored.totalItems,
+      rubricScore,
     });
   }
 }

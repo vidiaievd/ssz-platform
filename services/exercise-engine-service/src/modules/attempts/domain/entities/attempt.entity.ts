@@ -600,6 +600,13 @@ export class Attempt extends AggregateRoot {
     /** How much of the submission counted, for the letter back to the learner. */
     approvedItems?: number;
     totalItems?: number;
+    /**
+     * The marks a teacher set, for the submissions graded out of a rubric.
+     *
+     * Kept on both outcomes: work sent back was still read criterion by criterion, and
+     * the learner's next draft is answering those marks.
+     */
+    rubricMarks?: RubricMarks | null;
   }): Result<
     void,
     InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
@@ -621,6 +628,9 @@ export class Attempt extends AggregateRoot {
 
     this._reviewedByUserId = props.reviewerId;
     this._reviewedAt = new Date();
+    if (props.rubricMarks) {
+      this._rubricMarks = props.rubricMarks;
+    }
     this._reviewComment = props.comment;
     this._reviewDecisions = props.decisions;
     // Nobody is looking at this any more — it has been decided (plan 44 §44.8).

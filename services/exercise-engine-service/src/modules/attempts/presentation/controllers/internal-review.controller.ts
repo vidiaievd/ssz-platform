@@ -437,6 +437,7 @@ export class InternalReviewController {
         dto.decisions ?? [],
         dto.comment ?? null,
         dto.sentenceComments ?? {},
+        dto.rubricMarks ?? null,
       ),
     );
 
@@ -459,6 +460,13 @@ export class InternalReviewController {
           // prose (criterion 18).
           case 'RETURN_REQUIRES_COMMENT':
             throw new UnprocessableEntityException({ code: 'RETURN_REQUIRES_COMMENT' });
+          // Which criteria are still blank, so the screen can point at them rather than
+          // say the verdict failed for reasons of its own.
+          case 'RUBRIC_INCOMPLETE':
+            throw new UnprocessableEntityException({
+              code: 'RUBRIC_INCOMPLETE',
+              missing: error.missing,
+            });
         }
       }
       // A submission that was never routed to a person at all, or an exercise this
