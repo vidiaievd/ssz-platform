@@ -91,6 +91,12 @@ const NEAR_CERTAIN_BANK_SIZE = 3;
 const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   // The learner produces the language and it is checked. The strongest evidence there is.
   short_answer: FREE_PRODUCTION,
+  // Still the strongest evidence after plan 50, and for a slightly different reason: the
+  // answer is now a whole text a teacher reads and marks against a rubric, not a line
+  // matched against a key. Nothing narrows it and nothing is machine-scored, so the cap
+  // stays at the top; the floor stays off AGAIN because a rubric can fail a text on
+  // structure or length while every word in it was recalled correctly. The checklist
+  // ticks the runner sends alongside the text are self-report and rate nothing.
   writing_task: FREE_PRODUCTION,
   // Still typed from nothing after plan 42, only a set of sentences at a time rather than
   // one — the form of the answer did not change, so neither does the row. One soft edge:
