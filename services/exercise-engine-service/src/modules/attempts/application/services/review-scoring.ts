@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { scoreRubric } from '@ssz/shared-kernel/writing-task';
+import type { RubricMarks, RubricOutcome, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import {
   ANSWER_VALIDATOR,
   type IAnswerValidator,
@@ -17,11 +19,20 @@ export interface AutoOutcome {
   autoPassed: boolean;
 }
 
+/** A submission graded out of criteria rather than out of items (plan 50 §3.2). */
+export interface RubricGrading {
+  snapshot: RubricSnapshot;
+  marks: RubricMarks;
+}
+
 /** The mark that follows from the machine's items plus the teacher's decisions. */
 export interface ReviewScore {
   approvedItems: number;
   totalItems: number;
+  /** 0–100, whichever way it was arrived at — the unit every other consumer reads. */
   score: number;
+  /** The rubric total behind `score`, when a rubric is what produced it. */
+  rubric: RubricOutcome | null;
 }
 
 /**
@@ -85,8 +96,33 @@ export class ReviewScoring {
    * decision for every open item, so the case only arises when a submission changed
    * under the reviewer — and quietly counting an undecided sentence as right would be
    * the one mistake this template cannot afford.
+   *
+   * Pass `rubric` for the templates a person grades out of criteria; the item branch is
+   * then not consulted at all. `approvedItems`/`totalItems` carry the rubric total and
+   * its ceiling — the event's own words for them are "how much of the submission
+   * counted", and for an essay that is 11 of 15, not 1 of 1.
    */
-  scoreOf(auto: AutoOutcome[], decisions: ReviewDecision[]): ReviewScore {
+  scoreOf(
+    auto: AutoOutcome[],
+    decisions: ReviewDecision[],
+    rubric?: RubricGrading | null,
+  ): ReviewScore {
+    // An essay is not a set of items: one mark 0-3 per criterion, `Σ mark × weight`
+    // against the rubric the submission was queued with. The total is reported in both
+    // units — in rubric points, which is what the learner's card and the teacher's
+    // button say, and as a percentage, because `score` is read by the SRS, which fails
+    // anything under 60 (`exercise-attempted.consumer.ts`). A pass worth 11 of 15 that
+    // travelled as `11` would lengthen intervals as if the student had failed.
+    if (rubric) {
+      const outcome = scoreRubric(rubric.snapshot, rubric.marks);
+      return {
+        approvedItems: outcome.points,
+        totalItems: outcome.max,
+        score: outcome.percent,
+        rubric: outcome,
+      };
+    }
+
     const decided = new Map(decisions.map((decision) => [decision.itemId, decision]));
     const approvedItems = auto.filter(
       (item) => item.autoPassed || decided.get(item.itemId)?.approved === true,
@@ -97,7 +133,7 @@ export class ReviewScoring {
     // the teacher's act of approving is then the whole verdict.
     const score = totalItems === 0 ? 100 : Math.round((approvedItems / totalItems) * 100);
 
-    return { approvedItems, totalItems, score };
+    return { approvedItems, totalItems, score, rubric: null };
   }
 }
 
