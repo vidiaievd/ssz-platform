@@ -1,7 +1,7 @@
 {
   "name": "@ssz/shared-kernel",
   "version": "0.1.0",
-  "description": "SSZ Platform \u2014 pure domain logic shared by the backend services and the web client",
+  "description": "SSZ Platform — pure domain logic shared by the backend services and the web client",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -31,6 +31,10 @@
     "./writing-task": {
       "import": "./dist/writing-task/index.js",
       "types": "./dist/writing-task/index.d.ts"
+    },
+    "./short-answer": {
+      "import": "./dist/short-answer/index.js",
+      "types": "./dist/short-answer/index.d.ts"
     }
   },
   "files": [
