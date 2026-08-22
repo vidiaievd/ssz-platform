@@ -99,6 +99,25 @@ export class AttemptResponseDto {
   })
   reviewDecisions!: unknown;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'The mark 0-3 the teacher set per criterion, for the templates graded out of a ' +
+      'rubric. Null until a verdict has been delivered: an unmarked rubric is not a ' +
+      'row of zeroes, and a learner shown one would read a grade nobody gave.',
+  })
+  rubricMarks!: unknown;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'The criteria those marks were set against, frozen when the work was queued — ' +
+      'name, description, weight and the four level descriptors. Sent only alongside a ' +
+      'delivered verdict, which is what makes the descriptors safe to show: before the ' +
+      'mark they are part of the answer key (plan 50 §4).',
+  })
+  rubricSnapshot!: unknown;
+
   @ApiPropertyOptional({ nullable: true, description: 'When a teacher read it.' })
   reviewedAt!: string | null;
 
