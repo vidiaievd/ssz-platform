@@ -1036,9 +1036,16 @@ const templates = [
         // checklist item; the phrasings that would satisfy it live in
         // expected_answers and are used only by the (unbuilt) AI pre-check —
         // never to reject an answer.
+        //
+        // No `minItems` here or on `rubric`, deliberately. This schema is checked on
+        // every write, and a document being written is unfinished by definition: an
+        // author who has not added a point yet, or who cleared the list to start over,
+        // would find the exercise unsaveable — and with autosave, silently so. That a
+        // task needs at least one point and a rubric to mark against is true and is
+        // enforced where it belongs: `issues()` reports it in the builder and the
+        // publication preflight refuses to hand it to a student.
         points: {
           type: 'array',
-          minItems: 1,
           items: {
             type: 'object',
             required: ['id', 'text'],
@@ -1058,7 +1065,6 @@ const templates = [
         // answer key half of a criterion and are NOT here.
         rubric: {
           type: 'array',
-          minItems: 1,
           items: {
             type: 'object',
             required: ['id', 'name'],
