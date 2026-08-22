@@ -7,6 +7,12 @@ import {
 } from '@ssz/shared-kernel/wordbank-gapfill';
 import { TEMPLATE_CODE as MATCH_PAIRS } from '@ssz/shared-kernel/match-pairs';
 import { isTranslateCode } from '@ssz/shared-kernel/translate';
+import {
+  fromPersisted as writingTaskFromPersisted,
+  snapshotRubric,
+  TEMPLATE_CODE as WRITING_TASK,
+} from '@ssz/shared-kernel/writing-task';
+import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { SubmitAnswerCommand } from './submit-answer.command.js';
@@ -171,6 +177,30 @@ function machineTally(details: unknown): { autoPassedItems: number; totalItems: 
   return { autoPassedItems: 0, totalItems: 1 };
 }
 
+/**
+ * The rubric a submission will be graded against, frozen as it reaches the queue.
+ *
+ * `writing_task` only: it is the one template a person grades out of criteria rather
+ * than out of items (plan 50 §3.2). Every other template routes with `null` and is
+ * scored exactly as before.
+ *
+ * Assembled from both columns because the level descriptors live in `expected_answers`
+ * (the kernel's persistence.ts) and the queue draws them beside each mark. A malformed
+ * exercise costs the snapshot, not the submission: the student's text is already
+ * written, and refusing it here to report the author's bug would throw the work away.
+ */
+function rubricFor(templateCode: string, content: unknown, expectedAnswers: unknown): RubricSnapshot | null {
+  if (templateCode !== WRITING_TASK) return null;
+
+  const document = writingTaskFromPersisted(
+    { id: '', moduleId: '', title: '', updatedAt: '' },
+    content,
+    expectedAnswers,
+  );
+
+  return document.rubric.length === 0 ? null : snapshotRubric(document);
+}
+
 @CommandHandler(SubmitAnswerCommand)
 export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand> {
   constructor(
@@ -262,7 +292,10 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
         );
       }
 
-      const routeResult = attempt.routeForReview(machineTally(outcome.details));
+      const routeResult = attempt.routeForReview(
+        machineTally(outcome.details),
+        rubricFor(attempt.templateCode, def.exercise.content, def.exercise.expectedAnswers),
+      );
       if (routeResult.isFail) {
         return Result.fail(routeResult.error as AttemptDomainError);
       }

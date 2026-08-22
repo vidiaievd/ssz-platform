@@ -1,5 +1,6 @@
 import type { AttemptModel } from '../../../../../generated/prisma/models/Attempt.js';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
+import type { RubricMarks, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import type {
   AttemptStatus,
   CheckMode,
@@ -52,6 +53,8 @@ export class AttemptMapper {
       totalItems: row.totalItems,
       draftAnswer: row.draftAnswer,
       draftSavedAt: row.draftSavedAt,
+      rubricMarks: (row.rubricMarks as RubricMarks | null) ?? null,
+      rubricSnapshot: (row.rubricSnapshot as RubricSnapshot | null) ?? null,
     });
   }
 
@@ -98,6 +101,8 @@ export class AttemptMapper {
       totalItems: attempt.totalItems,
       draftAnswer: attempt.draftAnswer as AttemptModel['draftAnswer'],
       draftSavedAt: attempt.draftSavedAt,
+      rubricMarks: attempt.rubricMarks as unknown as AttemptModel['rubricMarks'],
+      rubricSnapshot: attempt.rubricSnapshot as unknown as AttemptModel['rubricSnapshot'],
     };
   }
 }

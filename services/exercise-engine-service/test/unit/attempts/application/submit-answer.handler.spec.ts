@@ -11,6 +11,12 @@ import type { IFeedbackGenerator } from '../../../../src/shared/application/port
 import type { IEventPublisher } from '../../../../src/shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../src/shared/kernel/result.js';
 import { Attempt } from '../../../../src/modules/attempts/domain/entities/attempt.entity.js';
+import {
+  emptyContent,
+  toContent,
+  toExpectedAnswers,
+} from '@ssz/shared-kernel/writing-task';
+import type { WritingTask } from '@ssz/shared-kernel/writing-task';
 
 const makeInProgressAttempt = (templateCode = 'multiple_choice') =>
   Attempt.reconstitute({
@@ -57,6 +63,37 @@ const makeExerciseDef = (): ExerciseDefinition => ({
   },
   instruction: null,
 });
+
+const makeWritingTaskDef = (): ExerciseDefinition => {
+  const document = {
+    ...emptyContent(),
+    id: 'ex-1',
+    type: 'writing_task',
+    moduleId: 'mod-1',
+    title: 'Leserinnlegg',
+    updatedAt: '',
+  } as WritingTask;
+
+  return {
+    exercise: {
+      id: 'ex-1',
+      templateCode: 'writing_task',
+      targetLanguage: 'no',
+      difficultyLevel: 'A1',
+      content: toContent(document) as unknown as Record<string, unknown>,
+      expectedAnswers: toExpectedAnswers(document) as unknown as Record<string, unknown>,
+      answerCheckSettings: null,
+    },
+    template: {
+      code: 'writing_task',
+      contentSchema: {},
+      answerSchema: { type: 'object' },
+      defaultCheckSettings: {},
+      supportedLanguages: null,
+    },
+    instruction: null,
+  };
+};
 
 const makeRepo = (attempt: Attempt | null = makeInProgressAttempt()): jest.Mocked<IAttemptRepository> => ({
   findById: jest.fn<IAttemptRepository['findById']>().mockResolvedValue(attempt),
@@ -309,6 +346,39 @@ describe('SubmitAnswerHandler', () => {
       const saved = repo.save.mock.calls[0]![0];
       expect(saved.autoPassedItems).toBe(4);
       expect(saved.totalItems).toBe(5);
+    });
+
+    it('freezes the rubric a writing task will be graded against', async () => {
+      const repo = makeRepo(makeInProgressAttempt('writing_task'));
+      const handler = makeHandler(
+        repo, makeContentClient(Result.ok(makeWritingTaskDef())),
+        makeValidator({ correct: false, score: 0, details: null, requiresReview: true }),
+        makeFeedback(), makePublisher(),
+      );
+
+      await handler.execute(cmd);
+
+      const snapshot = repo.save.mock.calls[0]![0].rubricSnapshot;
+      expect(snapshot?.passScore).toBe(8);
+      expect(snapshot?.criteria).toHaveLength(4);
+      // The descriptors come with it: they live in `expected_answers`, and the queue
+      // draws them beside each mark.
+      expect(snapshot?.criteria[0]!.levels[3]).not.toBe('');
+      // Marks are the teacher's, and nobody has marked anything yet.
+      expect(repo.save.mock.calls[0]![0].rubricMarks).toBeNull();
+    });
+
+    it('leaves the rubric empty for the templates that are graded per item', async () => {
+      const repo = makeRepo();
+      const handler = makeHandler(
+        repo, makeContentClient(),
+        makeValidator({ correct: false, score: 0, details: null, requiresReview: true }),
+        makeFeedback(), makePublisher(),
+      );
+
+      await handler.execute(cmd);
+
+      expect(repo.save.mock.calls[0]![0].rubricSnapshot).toBeNull();
     });
 
     it('counts an undecidable single answer as one item the machine did not close', async () => {

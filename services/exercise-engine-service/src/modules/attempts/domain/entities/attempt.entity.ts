@@ -10,6 +10,7 @@ import {
 } from '../exceptions/attempt.errors.js';
 import { AttemptStartedEvent } from '../events/attempt-started.event.js';
 import type { AnswerForm } from '@ssz/contracts';
+import type { RubricMarks, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
 import { AttemptCompletedUnscoredEvent } from '../events/attempt-completed-unscored.event.js';
 import { AttemptRoutedForReviewEvent } from '../events/attempt-routed-for-review.event.js';
@@ -88,6 +89,8 @@ export interface AttemptPersistenceProps {
   totalItems: number | null;
   draftAnswer: unknown;
   draftSavedAt: Date | null;
+  rubricMarks: RubricMarks | null;
+  rubricSnapshot: RubricSnapshot | null;
 }
 
 /**
@@ -179,6 +182,8 @@ export class Attempt extends AggregateRoot {
     private _recheckCount: number = 0,
     private _draftAnswer: unknown = null,
     private _draftSavedAt: Date | null = null,
+    private _rubricMarks: RubricMarks | null = null,
+    private _rubricSnapshot: RubricSnapshot | null = null,
   ) {
     super(id);
   }
@@ -268,6 +273,8 @@ export class Attempt extends AggregateRoot {
       props.recheckCount,
       props.draftAnswer,
       props.draftSavedAt,
+      props.rubricMarks,
+      props.rubricSnapshot,
     );
   }
 
@@ -419,10 +426,22 @@ export class Attempt extends AggregateRoot {
    * never the truth, and a verdict recomputes the parse before acting on it
    * (plan 44 §0.3).
    */
-  routeForReview(counts?: {
-    autoPassedItems: number | null;
-    totalItems: number | null;
-  }): Result<void, InvalidAttemptTransitionError> {
+  routeForReview(
+    counts?: {
+      autoPassedItems: number | null;
+      totalItems: number | null;
+    },
+    /**
+     * The rubric this submission will be graded against, for the templates that are
+     * graded that way (`writing_task`, plan 50 §3.2).
+     *
+     * Taken here rather than read at verdict time on purpose: the marks a teacher sets
+     * belong to the criteria they saw, and an author who reworded or reweighted the
+     * rubric in between must not be able to restate a verdict already delivered
+     * (IMPLEMENTATION.md, "Persistence").
+     */
+    rubricSnapshot?: RubricSnapshot | null,
+  ): Result<void, InvalidAttemptTransitionError> {
     if (this._status !== 'SUBMITTED') {
       return Result.fail(
         new InvalidAttemptTransitionError(
@@ -435,6 +454,9 @@ export class Attempt extends AggregateRoot {
     if (counts) {
       this._autoPassedItems = counts.autoPassedItems;
       this._totalItems = counts.totalItems;
+    }
+    if (rubricSnapshot) {
+      this._rubricSnapshot = rubricSnapshot;
     }
 
     this.addDomainEvent(
@@ -819,6 +841,8 @@ export class Attempt extends AggregateRoot {
   /** The work in progress, as last autosaved. `null` when the runner never saved one. */
   get draftAnswer(): unknown { return this._draftAnswer ?? null; }
   get draftSavedAt(): Date | null { return this._draftSavedAt; }
+  get rubricMarks(): RubricMarks | null { return this._rubricMarks; }
+  get rubricSnapshot(): RubricSnapshot | null { return this._rubricSnapshot; }
 
   addTimeSpent(seconds: number): void {
     if (seconds > 0) {

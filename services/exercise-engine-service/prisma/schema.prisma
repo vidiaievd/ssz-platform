@@ -191,6 +191,23 @@ model Attempt {
   autoPassedItems Int? @map("auto_passed_items")
   totalItems      Int? @map("total_items")
 
+  // ── Rubric grading (plan 50 §3.2) ───────────────────────────────────────
+  // `writing_task` is not marked per item — a teacher sets one mark 0-3 per
+  // rubric criterion, and the score is `Σ mark × weight` against
+  // `settings.passScore`. Both columns are null for every other template.
+
+  // What the teacher set: Record<criterionId, 0..3>. Written by the verdict,
+  // never by the client's score — the client sends judgements, the server does
+  // the arithmetic.
+  rubricMarks Json? @map("rubric_marks")
+
+  // The rubric as it stood when this submission reached the queue: criteria with
+  // their weights and level descriptors, plus the pass threshold. Marks are
+  // meaningless without the criteria they were set against, and an author editing
+  // the rubric afterwards must not silently restate a past verdict
+  // (IMPLEMENTATION.md, "Persistence").
+  rubricSnapshot Json? @map("rubric_snapshot")
+
   @@index([userId, status])
   @@index([exerciseId])
   // The review queue: everything waiting on one exercise.
