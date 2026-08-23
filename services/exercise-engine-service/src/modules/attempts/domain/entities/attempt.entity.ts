@@ -31,6 +31,21 @@ export type DifficultyLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 // GRADED: expectedAnswers withheld; the correct answer is never revealed in feedback either.
 export type CheckMode = 'PRACTICE' | 'GRADED';
 
+/**
+ * One question of a `short_answer` set, handed in on its own and graded on the spot.
+ *
+ * The verdict is stored rather than recomputed on read for one reason: the author may
+ * edit the key afterwards, and what the student was told at the time is a fact about
+ * what happened. The queue recomputes deliberately (plan 51 §6.7) and may disagree —
+ * that disagreement is information, and erasing it by regrading this list would hide it.
+ */
+export interface AnsweredQuestion {
+  questionId: string;
+  text: string;
+  verdict: 'pass' | 'partial' | 'fail';
+  answeredAt: Date;
+}
+
 export interface PracticedAtom {
   atomType: string;
   atomId: string;
@@ -89,6 +104,7 @@ export interface AttemptPersistenceProps {
   totalItems: number | null;
   draftAnswer: unknown;
   draftSavedAt: Date | null;
+  answeredQuestions: AnsweredQuestion[] | null;
   rubricMarks: RubricMarks | null;
   rubricSnapshot: RubricSnapshot | null;
 }
@@ -184,6 +200,7 @@ export class Attempt extends AggregateRoot {
     private _draftSavedAt: Date | null = null,
     private _rubricMarks: RubricMarks | null = null,
     private _rubricSnapshot: RubricSnapshot | null = null,
+    private _answeredQuestions: AnsweredQuestion[] = [],
   ) {
     super(id);
   }
@@ -275,6 +292,7 @@ export class Attempt extends AggregateRoot {
       props.draftSavedAt,
       props.rubricMarks,
       props.rubricSnapshot,
+      props.answeredQuestions ?? [],
     );
   }
 
@@ -579,6 +597,52 @@ export class Attempt extends AggregateRoot {
   }
 
   /**
+   * Hand in one question of a set, for good.
+   *
+   * `short_answer` is answered a question at a time, each with its verdict returned
+   * immediately and no way back (README's state machine: `writing → submitted`, final).
+   * The attempt stays one attempt — everything built in plans 43-47 assumes "attempt =
+   * unit of review" — so this appends rather than starting anything.
+   *
+   * The refusal of a second answer is the point of the method. IMPLEMENTATION.md states
+   * it as a rule about the model, not the UI: "Disable resubmission in the model, not
+   * just in the UI — the teacher queue assumes one answer per student per question." A
+   * runner that hides the button is a runner one replayed request away from two answers
+   * to the same question, and the queue has no way to tell which one the student meant.
+   *
+   * Only while the attempt is open: a question answered after the whole set went to a
+   * teacher would be an edit to work already being marked.
+   */
+  answerQuestion(props: {
+    questionId: string;
+    text: string;
+    verdict: 'pass' | 'partial' | 'fail';
+  }): Result<void, InvalidAttemptTransitionError> {
+    if (this._status !== 'IN_PROGRESS') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot answer a question on an attempt with status ${this._status}`,
+        ),
+      );
+    }
+    if (this._answeredQuestions.some((a) => a.questionId === props.questionId)) {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Question ${props.questionId} has already been answered`,
+        ),
+      );
+    }
+
+    this._answeredQuestions.push({
+      questionId: props.questionId,
+      text: props.text,
+      verdict: props.verdict,
+      answeredAt: new Date(),
+    });
+    return Result.ok();
+  }
+
+  /**
    * A teacher's verdict on a submission that the machine could not close.
    *
    * Two outcomes and no third: approved, which scores the attempt and ends it, or
@@ -851,6 +915,8 @@ export class Attempt extends AggregateRoot {
   /** The work in progress, as last autosaved. `null` when the runner never saved one. */
   get draftAnswer(): unknown { return this._draftAnswer ?? null; }
   get draftSavedAt(): Date | null { return this._draftSavedAt; }
+  /** A copy: the list is append-only through `answerQuestion`, never from outside. */
+  get answeredQuestions(): AnsweredQuestion[] { return [...this._answeredQuestions]; }
   get rubricMarks(): RubricMarks | null { return this._rubricMarks; }
   get rubricSnapshot(): RubricSnapshot | null { return this._rubricSnapshot; }
 

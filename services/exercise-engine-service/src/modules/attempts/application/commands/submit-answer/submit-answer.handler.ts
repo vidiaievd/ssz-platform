@@ -7,6 +7,7 @@ import {
 } from '@ssz/shared-kernel/wordbank-gapfill';
 import { TEMPLATE_CODE as MATCH_PAIRS } from '@ssz/shared-kernel/match-pairs';
 import { isTranslateCode } from '@ssz/shared-kernel/translate';
+import { TEMPLATE_CODE as SHORT_ANSWER } from '@ssz/shared-kernel/short-answer';
 import {
   fromPersisted as writingTaskFromPersisted,
   snapshotRubric,
@@ -67,12 +68,62 @@ export interface SubmitAnswerResult {
  * they cannot travel — but the learner is owed the one thing this template decides
  * automatically, which sentences closed on a hit and which went to a teacher. That much
  * is stripped out below.
+ *
+ * `short_answer` is the same case again and the sharpest of them: every element in its
+ * details carries the anchor phrase that matched, and the anchors are the answer written
+ * in the words the student was asked to find. The student has already been told about
+ * each question one at a time, by `answer-question`, through the kernel's own result
+ * projection; what submitting adds is the tally that closes the set, so that is all that
+ * is stripped out here.
  */
 function learnerFacingDetails(templateCode: string, details: unknown): unknown {
   if (templateCode === WORD_BANK_GAP_FILL) return details;
   if (templateCode === MATCH_PAIRS) return details;
   if (isTranslateCode(templateCode)) return translateRouting(details);
+  if (templateCode === SHORT_ANSWER) return shortAnswerVerdicts(details);
   return undefined;
+}
+
+/**
+ * The verdict of each question and the tally over the set, and nothing else.
+ *
+ * An allowlist rather than a redaction: the fields are named one by one, so a field added
+ * to the teacher's row later cannot leak by being forgotten here. Everything left behind
+ * — the element labels, the phrase that matched each one, the author's model answer —
+ * either is the key or points straight at it.
+ *
+ * The completion screen is what this feeds: `N godkjent · N delvis · N ikke godkjent`.
+ * The runner could count that itself from the per-question replies it already holds, and
+ * this is deliberately the server's count instead — it is the one recomputed against the
+ * key as it stands now.
+ */
+function shortAnswerVerdicts(details: unknown): unknown {
+  if (typeof details !== 'object' || details === null) return undefined;
+
+  const { items, totalItems, passedItems, routedItems } = details as {
+    items?: unknown;
+    totalItems?: unknown;
+    passedItems?: unknown;
+    routedItems?: unknown;
+  };
+  if (!Array.isArray(items)) return undefined;
+
+  return {
+    totalItems,
+    passedItems,
+    routedItems,
+    items: items.map((item) => {
+      const { itemId, verdict, covered, total, tooShort, routing } = item as {
+        itemId: string;
+        verdict: string | null;
+        covered: number;
+        total: number;
+        tooShort: boolean;
+        routing: string;
+      };
+      return { itemId, verdict, covered, total, tooShort, routing };
+    }),
+  };
 }
 
 /**

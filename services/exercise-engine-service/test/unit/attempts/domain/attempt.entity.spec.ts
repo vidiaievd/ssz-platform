@@ -486,4 +486,54 @@ describe('Attempt entity', () => {
       expect(attempt.selfChecksUsed).toBe(0);
     });
   });
+  describe('answerQuestion()', () => {
+    const answer = (questionId: string, verdict: 'pass' | 'partial' | 'fail' = 'pass') => ({
+      questionId,
+      text: 'Alle må ha lys foran og bak når det er mørkt.',
+      verdict,
+    });
+
+    it('records each answer once, in the order they were handed in', () => {
+      const attempt = makeAttempt();
+
+      expect(attempt.answerQuestion(answer('q1')).isOk).toBe(true);
+      expect(attempt.answerQuestion(answer('q2', 'partial')).isOk).toBe(true);
+
+      expect(attempt.answeredQuestions.map((a) => a.questionId)).toEqual(['q1', 'q2']);
+      expect(attempt.answeredQuestions[1]).toMatchObject({ verdict: 'partial' });
+      expect(attempt.answeredQuestions[0]?.answeredAt).toBeInstanceOf(Date);
+    });
+
+    it('refuses a second answer to the same question', () => {
+      // IMPLEMENTATION.md puts this in the model rather than the UI: the review queue
+      // assumes one answer per student per question, and a hidden button is one replayed
+      // request away from two.
+      const attempt = makeAttempt();
+      attempt.answerQuestion(answer('q1'));
+
+      const again = attempt.answerQuestion({ questionId: 'q1', text: 'Noe annet.', verdict: 'fail' });
+      expect(again.isFail).toBe(true);
+      expect(again.error).toBeInstanceOf(InvalidAttemptTransitionError);
+      // A refused answer changes nothing — the first one still stands.
+      expect(attempt.answeredQuestions).toHaveLength(1);
+      expect(attempt.answeredQuestions[0]?.verdict).toBe('pass');
+    });
+
+    it('refuses once the set is no longer open', () => {
+      const attempt = makeAttempt();
+      attempt.submit({ answers: [] }, 'hash');
+
+      const late = attempt.answerQuestion(answer('q1'));
+      expect(late.isFail).toBe(true);
+      expect(attempt.answeredQuestions).toHaveLength(0);
+    });
+
+    it('hands back a copy, so the list cannot be appended to from outside', () => {
+      const attempt = makeAttempt();
+      attempt.answerQuestion(answer('q1'));
+
+      attempt.answeredQuestions.push(answer('q2') as never);
+      expect(attempt.answeredQuestions).toHaveLength(1);
+    });
+  });
 });

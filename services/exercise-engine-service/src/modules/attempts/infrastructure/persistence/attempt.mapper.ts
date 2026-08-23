@@ -2,6 +2,7 @@ import type { AttemptModel } from '../../../../../generated/prisma/models/Attemp
 import { Attempt } from '../../domain/entities/attempt.entity.js';
 import { readRubricMarks, readRubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import type {
+  AnsweredQuestion,
   AttemptStatus,
   CheckMode,
   DifficultyLevel,
@@ -9,6 +10,33 @@ import type {
   PracticedAtom,
   ReviewDecision,
 } from '../../domain/entities/attempt.entity.js';
+
+/**
+ * Read the handed-in answers back, defensively.
+ *
+ * Read rather than cast, for the same reason the rubric columns below are: the domain
+ * refuses a second answer to a question it already holds, and that refusal is only as
+ * good as the list it checks against. A row that turned out to hold something else would
+ * cast to a truthy array of undefined `questionId`s, and every repeat would slip through.
+ * `answeredAt` is revived from its JSON string — a `Date` does not survive the column.
+ */
+function readAnsweredQuestions(value: unknown): AnsweredQuestion[] {
+  if (!Array.isArray(value)) return [];
+
+  const out: AnsweredQuestion[] = [];
+  for (const raw of value) {
+    if (typeof raw !== 'object' || raw === null) continue;
+    const { questionId, text, verdict, answeredAt } = raw as Record<string, unknown>;
+    if (typeof questionId !== 'string' || questionId === '') continue;
+    out.push({
+      questionId,
+      text: typeof text === 'string' ? text : '',
+      verdict: verdict === 'pass' || verdict === 'partial' ? verdict : 'fail',
+      answeredAt: typeof answeredAt === 'string' ? new Date(answeredAt) : new Date(0),
+    });
+  }
+  return out;
+}
 
 export class AttemptMapper {
   static toDomain(row: AttemptModel): Attempt {
@@ -53,6 +81,7 @@ export class AttemptMapper {
       totalItems: row.totalItems,
       draftAnswer: row.draftAnswer,
       draftSavedAt: row.draftSavedAt,
+      answeredQuestions: readAnsweredQuestions(row.answeredQuestions),
       // Read rather than cast, unlike the columns above. These two decide how the
       // submission is graded at all: a snapshot cast out of a JSON column that turned
       // out not to hold criteria would still be truthy, and the review handler would
@@ -106,6 +135,8 @@ export class AttemptMapper {
       totalItems: attempt.totalItems,
       draftAnswer: attempt.draftAnswer as AttemptModel['draftAnswer'],
       draftSavedAt: attempt.draftSavedAt,
+      answeredQuestions:
+        attempt.answeredQuestions as unknown as AttemptModel['answeredQuestions'],
       rubricMarks: attempt.rubricMarks as unknown as AttemptModel['rubricMarks'],
       rubricSnapshot: attempt.rubricSnapshot as unknown as AttemptModel['rubricSnapshot'],
     };

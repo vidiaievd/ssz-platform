@@ -39,6 +39,11 @@ import { SaveDraftCommand } from '../../application/commands/save-draft/save-dra
 import type { SaveDraftError, SaveDraftResult } from '../../application/commands/save-draft/save-draft.handler.js';
 import { SaveDraftRequestDto, SaveDraftResponseDto } from '../dto/save-draft.dto.js';
 import { SelfCheckCommand } from '../../application/commands/self-check/self-check.command.js';
+import { AnswerQuestionCommand } from '../../application/commands/answer-question/answer-question.command.js';
+import type {
+  AnswerQuestionError,
+  AnswerQuestionResult,
+} from '../../application/commands/answer-question/answer-question.handler.js';
 import type {
   SelfCheckError,
   SelfCheckResult,
@@ -60,6 +65,12 @@ import {
   SelfCheckResponseDto,
   TranslateSelfCheckItemDto,
 } from '../dto/self-check.dto.js';
+import {
+  AnswerQuestionElementDto,
+  AnswerQuestionRequestDto,
+  AnswerQuestionResponseDto,
+  AnswerQuestionResultDto,
+} from '../dto/answer-question.dto.js';
 import { AttemptResponseDto, ListAttemptsResponseDto } from '../dto/attempt-response.dto.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import { ContentClientError } from '../../../../shared/application/ports/content-client.port.js';
@@ -303,6 +314,67 @@ export class AttemptsController {
       // The domain's own words: no checks left, or the answer is already in.
       throw new UnprocessableEntityException(
         err instanceof Error ? err.message : 'Cannot self-check this attempt',
+      );
+    }
+
+    return result.value;
+  }
+
+  @Post(':attemptId/answers')
+  @HttpCode(HttpStatus.OK)
+  @ApiExtraModels(AnswerQuestionElementDto, AnswerQuestionResultDto)
+  @ApiOperation({
+    summary: 'Hand in one question of a short-answer set',
+    description:
+      'short_answer only. The set is answered a question at a time and each answer is ' +
+      'final: the verdict comes back at once and the same question cannot be answered ' +
+      'again. Graded on the server, because the phrases the answer is matched against ' +
+      'are the answer. The attempt stays in progress; POST /submit closes it with every ' +
+      'answer in one aggregate and regrades all of them.',
+  })
+  @ApiResponse({ status: 200, type: AnswerQuestionResponseDto })
+  @ApiResponse({ status: 400, description: 'Empty answer, or no such question in the set' })
+  @ApiResponse({ status: 404, description: 'Attempt not found' })
+  @ApiResponse({ status: 403, description: 'Not your attempt' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'Question already answered, attempt no longer in progress, or not a short-answer set',
+  })
+  async answerQuestion(
+    @Param('exerciseId') _exerciseId: string,
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Body() dto: AnswerQuestionRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<AnswerQuestionResult> {
+    const result: Result<AnswerQuestionResult, AnswerQuestionError> =
+      await this.commandBus.execute(
+        new AnswerQuestionCommand(attemptId, user.userId, dto.questionId, dto.text),
+      );
+
+    if (result.isFail) {
+      const err = result.error;
+      if ('code' in err) {
+        if (err.code === 'ATTEMPT_NOT_FOUND') throw new NotFoundException('Attempt not found');
+        if (err.code === 'FORBIDDEN') throw new ForbiddenException('Not your attempt');
+        if (err.code === 'EMPTY_ANSWER') {
+          throw new BadRequestException('An answer cannot be handed in empty');
+        }
+        if (err.code === 'QUESTION_NOT_FOUND') {
+          throw new BadRequestException('This exercise has no such answerable question');
+        }
+        if (err.code === 'UNSUPPORTED_TEMPLATE') {
+          throw new UnprocessableEntityException(
+            'This exercise is not answered a question at a time',
+          );
+        }
+      }
+      if (err instanceof ContentClientError) {
+        throw new UnprocessableEntityException(err.message);
+      }
+      // The domain's own words: already answered, or the set is already in.
+      throw new UnprocessableEntityException(
+        err instanceof Error ? err.message : 'Cannot answer this question',
       );
     }
 

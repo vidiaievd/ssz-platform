@@ -8,6 +8,7 @@ import { AbandonAttemptHandler } from './application/commands/abandon-attempt/ab
 import { SaveDraftHandler } from './application/commands/save-draft/save-draft.handler.js';
 import { RevealAnswersHandler } from './application/commands/reveal-answers/reveal-answers.handler.js';
 import { SelfCheckHandler } from './application/commands/self-check/self-check.handler.js';
+import { AnswerQuestionHandler } from './application/commands/answer-question/answer-question.handler.js';
 import { ReviewAttemptHandler } from './application/commands/review-attempt/review-attempt.handler.js';
 import { BatchApproveHandler } from './application/commands/batch-approve/batch-approve.handler.js';
 import { ClaimReviewHandler } from './application/commands/claim-review/claim-review.handler.js';
@@ -33,6 +34,7 @@ const CommandHandlers = [
   SaveDraftHandler,
   RevealAnswersHandler,
   SelfCheckHandler,
+  AnswerQuestionHandler,
   ReviewAttemptHandler,
   BatchApproveHandler,
   ClaimReviewHandler,

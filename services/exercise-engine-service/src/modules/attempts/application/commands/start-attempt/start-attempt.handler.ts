@@ -26,6 +26,11 @@ import {
   TEMPLATE_CODE as WRITING_TASK,
   toStudentProjection as wtToStudentProjection,
 } from '@ssz/shared-kernel/writing-task';
+import {
+  isShortAnswerDocument,
+  TEMPLATE_CODE as SHORT_ANSWER,
+  toStudentProjection as saToStudentProjection,
+} from '@ssz/shared-kernel/short-answer';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -86,6 +91,14 @@ export interface StartAttemptResult {
  * neither must the example answer or the point keywords, ever. One setting decides, and
  * the kernel decides it (plan 50 §5).
  *
+ * `short_answer` is the seventh, and the plainest case of all: its key is a set of
+ * anchor phrases, which is the answer written in the words the student is being asked to
+ * find. The projection keeps the prompt and — for `reading` only — the passage, and
+ * drops the elements, the model answer and the explanation; `showModel: 'always'` is the
+ * one setting that reaches back into the key, exactly as `showRubric` does above. It is
+ * also the one template here with two live document shapes (plan 51 §8 Q1), so the shape
+ * decides whether there is anything to project at all.
+ *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
  */
@@ -132,6 +145,27 @@ function withheldWhereNeeded(
         mpReadContent(exercise.content, exercise.expectedAnswers),
         { shuffle: shuffled },
       ),
+      expectedAnswers: null,
+    };
+  }
+
+  if (templateCode === SHORT_ANSWER) {
+    // A document of the old form keeps nothing secret in its content — one question and
+    // its context — and its key is what PRACTICE mode has always shipped. Projecting it
+    // would find no `questions` and blank the exercise.
+    if (!isShortAnswerDocument(exercise.content)) {
+      return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };
+    }
+
+    // As for `writing_task` below: in `graded` mode content-service has already projected
+    // this and answered with no key, and a second pass has nothing left to read the model
+    // answer from. With no key in hand there is nothing left to withhold either.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      exerciseContent: saToStudentProjection(exercise.content, exercise.expectedAnswers),
       expectedAnswers: null,
     };
   }

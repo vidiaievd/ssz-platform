@@ -55,6 +55,12 @@ const OWN_SUBMISSION_SHAPE = new Set([
   // ids. One schema cannot describe both, and the one that guards the author's document
   // is the one worth keeping strict.
   'writing_task',
+  // `short_answer` joined on the rewrite (plan 51): its key is a map of semantic
+  // elements per question, its submission a list of typed answers. It is the one entry
+  // here with two live document shapes, and the older of them *was* describable by one
+  // schema — so its submission shape is now checked in `short-answer-legacy.ts`, where
+  // AJV used to check it, rather than nowhere.
+  'short_answer',
 ]);
 
 @Injectable()

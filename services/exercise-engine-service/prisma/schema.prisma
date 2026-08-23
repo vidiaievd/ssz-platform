@@ -143,6 +143,21 @@ model Attempt {
   draftAnswer  Json?     @map("draft_answer")
   draftSavedAt DateTime? @map("draft_saved_at") @db.Timestamptz
 
+  // ── Answers handed in one at a time ─────────────────────────────────────
+  // `short_answer` asks a set of open questions and hands back a verdict after each
+  // one, with no way back (plan 51 §3.3). The attempt stays one attempt — progress,
+  // SRS, the review queue and the locks are all built on "attempt = unit of review" —
+  // but the answers arrive and are graded one by one, and that is what this holds:
+  // `[{ questionId, text, verdict, answeredAt }]`, append-only.
+  //
+  // Not `draftAnswer`. A draft is overwritable by design, which is the opposite of
+  // what these are: a handed-in answer is final, and the domain refuses a second one
+  // for the same question rather than trusting the runner to hide the button.
+  //
+  // Untyped for the same reason the draft is: nothing here knows the template, and the
+  // next runner that hands work in piece by piece needs no migration.
+  answeredQuestions Json? @map("answered_questions")
+
   // ── Teacher review ──────────────────────────────────────────────────────
   // Free-form attempts stop at ROUTED_FOR_REVIEW, where the only verdict left is a
   // person's. What that person decided lives here.
