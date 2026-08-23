@@ -92,10 +92,13 @@ export class ReviewScoring {
    * The mark, derived on the server from two things it can see: the items the auto-check
    * closed, and the decisions the teacher made about the rest.
    *
-   * Items the teacher decided nothing about are not approved. The queue screen sends a
-   * decision for every open item, so the case only arises when a submission changed
-   * under the reviewer — and quietly counting an undecided sentence as right would be
-   * the one mistake this template cannot afford.
+   * Items the teacher decided nothing about are not approved *here*. That is a rule about
+   * this function, not about what a verdict means: what an approval credits is decided by
+   * its caller, which passes in one decision per item (`creditedByApproval` in
+   * `review-attempt.handler.ts`). Keeping the silence unforgiving at this level is what
+   * makes the crediting an explicit act rather than a default nobody can see — a score
+   * that quietly counted whatever it was not told about would be the one mistake these
+   * templates cannot afford.
    *
    * Pass `rubric` for the templates a person grades out of criteria; the item branch is
    * then not consulted at all. `approvedItems`/`totalItems` carry the rubric total and

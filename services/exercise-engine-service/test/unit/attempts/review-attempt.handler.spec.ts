@@ -127,13 +127,47 @@ describe('ReviewAttemptHandler', () => {
   });
 
   /**
-   * The one mistake this template cannot afford: the learner's only feedback is a
-   * person's, so a sentence nobody decided about is not a sentence quietly accepted.
+   * The verdict is over the whole submission — there is no per-item approve button in the
+   * product — so approving means every item counts unless one was explicitly rejected.
+   *
+   * Scoring only what the machine closed would make the button mean something nobody
+   * pressed. A `short_answer` set under `teacherReview: 'all'` sends every question to a
+   * person by design, so three flawless answers approved by their teacher would have
+   * scored 0 and reached the SRS as a failure (plan 51 §8 Q3).
    */
-  it('does not approve an item the teacher said nothing about', async () => {
+  it('credits every item an approval did not explicitly reject', async () => {
     const { handler } = makeHandler(routedAttempt());
 
     const result = await handler.execute(approve([{ itemId: 'i2', approved: true }]));
+
+    expect(result.value.approvedItems).toBe(3);
+    expect(result.value.score).toBe(100);
+  });
+
+  /**
+   * The case the rule was written for: `short_answer` under `teacherReview: 'all'` routes
+   * every question to a person however well it was answered, so there is nothing the
+   * machine closed to score from. The teacher's approval is the whole verdict.
+   */
+  it('scores a submission where the machine closed nothing at all', async () => {
+    const { handler } = makeHandler(routedAttempt(), {
+      totalItems: 2,
+      items: [
+        { itemId: 'q1', routing: 'teacher', verdict: 'pass' },
+        { itemId: 'q2', routing: 'teacher', verdict: 'pass' },
+      ],
+    });
+
+    const result = await handler.execute(approve([]));
+
+    expect(result.value.approvedItems).toBe(2);
+    expect(result.value.score).toBe(100);
+  });
+
+  it('still withholds an item the teacher ruled against', async () => {
+    const { handler } = makeHandler(routedAttempt());
+
+    const result = await handler.execute(approve([{ itemId: 'i3', approved: false }]));
 
     expect(result.value.approvedItems).toBe(2);
     expect(result.value.score).toBe(67);
@@ -162,8 +196,8 @@ describe('ReviewAttemptHandler', () => {
       exerciseId: 'ex-1',
       reviewerId: 'teacher-1',
       outcome: 'approved',
-      score: 67,
-      approvedItems: 2,
+      score: 100,
+      approvedItems: 3,
       totalItems: 3,
       // What lets the message name the work and lead back to it, weeks later, without
       // asking anyone where the exercise sits now (plan 47.4).
@@ -312,7 +346,7 @@ describe('ReviewAttemptHandler', () => {
    * and it does not approve anything: an item nobody approved was never counted anyway,
    * so the mark is the same with the note as without it.
    */
-  it('keeps a note on an item that has no decision, without approving it', async () => {
+  it('keeps a note on an item nobody ruled on, and does not read it as a rejection', async () => {
     const attempt = routedAttempt();
     const { handler } = makeHandler(attempt);
 
@@ -329,11 +363,13 @@ describe('ReviewAttemptHandler', () => {
       ),
     );
 
-    expect(result.value.approvedItems).toBe(2);
-    expect(result.value.score).toBe(67);
+    // The note is what the teacher wanted the student to see, not a mark against them:
+    // they explained the sentence and approved the work in the same breath.
+    expect(result.value.approvedItems).toBe(3);
+    expect(result.value.score).toBe(100);
     expect(attempt.reviewDecisions).toContainEqual({
       itemId: 'i3',
-      approved: false,
+      approved: true,
       comment: 'Denne mangler verbet.',
     });
   });

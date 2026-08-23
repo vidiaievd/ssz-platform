@@ -20,13 +20,16 @@ export async function publishAttemptEvents(
 /**
  * The per-sentence notes, merged into the decisions the teacher made.
  *
- * A note on a sentence the teacher decided nothing about becomes a decision that does not
- * approve it — which is what "not approved" already meant for an item nobody ruled on, so
- * the score is unchanged and the remark is kept rather than dropped on the floor.
+ * A note on a sentence nobody ruled on becomes a decision carrying the note, and its
+ * `approved` follows the verdict on the submission as a whole: a teacher who explains a
+ * sentence and approves the work has not rejected that sentence. It reads as a record
+ * rather than as a ruling — the score is computed from what the approval credits
+ * (`creditedByApproval`), never from this journal.
  */
 export function foldSentenceComments(
   decisions: ReviewDecision[],
   sentenceComments: Record<string, string>,
+  outcome: 'approved' | 'returned',
 ): ReviewDecision[] {
   const entries = Object.entries(sentenceComments).filter(
     ([, comment]) => typeof comment === 'string' && comment.trim() !== '',
@@ -39,7 +42,7 @@ export function foldSentenceComments(
     if (existing) {
       existing.comment = comment;
     } else {
-      byItem.set(itemId, { itemId, approved: false, comment });
+      byItem.set(itemId, { itemId, approved: outcome === 'approved', comment });
     }
   }
 

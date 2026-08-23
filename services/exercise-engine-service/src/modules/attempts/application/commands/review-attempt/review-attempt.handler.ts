@@ -2,7 +2,7 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { readRubricMarks } from '@ssz/shared-kernel/writing-task';
 import { ReviewAttemptCommand } from './review-attempt.command.js';
 import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
-import type { Attempt } from '../../../domain/entities/attempt.entity.js';
+import type { Attempt, ReviewDecision } from '../../../domain/entities/attempt.entity.js';
 import {
   ATTEMPT_REPOSITORY,
   type IAttemptRepository,
@@ -15,6 +15,7 @@ import {
 import type { ContentClientError } from '../../../../../shared/application/ports/content-client.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { ReviewScoring } from '../../services/review-scoring.js';
+import type { AutoOutcome } from '../../services/review-scoring.js';
 import { foldSentenceComments, publishAttemptEvents } from '../../services/review-verdict.js';
 import {
   ReviewCommentRequiredError,
@@ -79,7 +80,11 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       });
     }
 
-    const decisions = foldSentenceComments(command.decisions, command.sentenceComments);
+    const decisions = foldSentenceComments(
+      command.decisions,
+      command.sentenceComments,
+      command.outcome,
+    );
 
     // Graded out of a rubric rather than out of items — the marks decide, and so does
     // the threshold they are measured against, both frozen on the attempt when it was
@@ -113,7 +118,10 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     const autoResult = await this.scoring.autoOutcomes(attempt);
     if (autoResult.isFail) return Result.fail(autoResult.error);
 
-    const { approvedItems, totalItems, score } = this.scoring.scoreOf(autoResult.value, decisions);
+    const { approvedItems, totalItems, score } = this.scoring.scoreOf(
+      autoResult.value,
+      creditedByApproval(autoResult.value, command.decisions),
+    );
 
     const reviewed = attempt.review({
       reviewerId: command.reviewerId,
@@ -213,6 +221,32 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
  * and a criterion saying it must (18). Everything else is a transition that should not
  * have been attempted, and one code for those is honest.
  */
+/**
+ * What an approval credits, item by item.
+ *
+ * The verdict on this screen is over the whole submission — a teacher confirms the work
+ * or sends it back, and there is no per-item approve button anywhere in the product
+ * (plan 51 §8 Q3). So an approval means every item counts, except any a client that does
+ * rule item by item explicitly rejected. Scoring only what the *machine* closed would
+ * make the button mean something nobody pressed: a `short_answer` set under
+ * `teacherReview: 'all'` routes every question to a person by design, so approving three
+ * flawless answers would have scored 0 and reached the SRS as a failure.
+ *
+ * `command.decisions` rather than the folded ones on purpose. A note left on a sentence
+ * is not a ruling against it — the teacher is telling the student what to look at, and
+ * they approved the work in the same breath. Folding one into a rejection would quietly
+ * mark down the submissions a teacher took the trouble to explain.
+ */
+function creditedByApproval(auto: AutoOutcome[], explicit: ReviewDecision[]): ReviewDecision[] {
+  const ruled = new Map(explicit.map((decision) => [decision.itemId, decision]));
+
+  return auto.map((item) => ({
+    itemId: item.itemId,
+    approved: ruled.get(item.itemId)?.approved ?? true,
+    comment: ruled.get(item.itemId)?.comment,
+  }));
+}
+
 function toError(error: AttemptDomainError): ReviewAttemptError {
   return error instanceof ReviewCommentRequiredError ? { code: 'RETURN_REQUIRES_COMMENT' } : error;
 }
