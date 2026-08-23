@@ -5257,99 +5257,141 @@
       }
   ],
   "1A": [
-    {
-      "key": "b1-1a-sa1",
+{
+      "key": "b1-1a-sa",
       "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
+      "instruction": "Ответьте на вопросы по тексту 1A своими словами.",
       "content": {
-        "question": "Hvor lenge har Bartek jobbet i det samme firmaet?",
-        "context": "Tekst 1A — Bartek søker ny jobb."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Han har jobbet der i tre år.",
-        "accepted_answers": [
-          "Han har jobbet der i tre år.",
-          "Han har jobbet i det samme firmaet i tre år.",
-          "Bartek har jobbet der i tre år.",
-          "Han har jobbet der i tre år som elektriker.",
-          "i tre år",
-          "tre år"
-        ]
-      }
-    },
-    {
-      "key": "b1-1a-sa2",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
-      "content": {
-        "question": "Hva vil Bartek gjerne ha i den nye jobben?",
-        "context": "Tekst 1A — Bartek søker ny jobb."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Han vil gjerne ha mer ansvar og en høyere lønn.",
-        "accepted_answers": [
-          "Han vil gjerne ha mer ansvar og en høyere lønn.",
-          "Han vil ha mer ansvar og en høyere lønn.",
-          "Han vil gjerne ha mer ansvar og høyere lønn.",
-          "Han vil ha mer ansvar og høyere lønn.",
-          "Han vil gjerne ha en høyere lønn og mer ansvar.",
-          "Han vil ha høyere lønn og mer ansvar.",
-          "mer ansvar og en høyere lønn",
-          "mer ansvar og høyere lønn",
-          "høyere lønn og mer ansvar"
+        "title": "Leseforståelse 1A — Bartek søker ny jobb",
+        "instruction": "Svar med egne ord, én til tre setninger.",
+        "questions": [
+          {
+            "id": "sa1",
+            "kind": "reading",
+            "passage": "Bartek har jobbet som elektriker i det samme firmaet i tre år. Han trives med kollegaene, men han har lyst til å utvikle seg. Han vil gjerne ha mer ansvar og en høyere lønn.",
+            "prompt": "Hvor lenge har Bartek jobbet i det samme firmaet?"
+          },
+          {
+            "id": "sa2",
+            "kind": "reading",
+            "passage": "Bartek har jobbet som elektriker i det samme firmaet i tre år. Han trives med kollegaene, men han har lyst til å utvikle seg. Han vil gjerne ha mer ansvar og en høyere lønn.",
+            "prompt": "Hva vil Bartek gjerne ha i den nye jobben?"
+          },
+          {
+            "id": "sa3",
+            "kind": "reading",
+            "passage": "Nordby Elektro AS er et voksende firma med tolv ansatte. Vi trenger en selvstendig og nøyaktig elektriker som kan lede mindre prosjekter. Vi tilbyr et godt arbeidsmiljø, konkurransedyktig lønn og gode muligheter for videreutvikling.",
+            "prompt": "Hva slags firma er Nordby Elektro AS?"
+          },
+          {
+            "id": "sa4",
+            "kind": "reading",
+            "passage": "Anne hjelper ham med å lese gjennom søknaden. Hun sier at den er god, men at han har noen skrivefeil. Bartek retter feilene, og så sender han søknaden.",
+            "prompt": "Hva gjør Bartek med søknaden før han sender den?"
+          }
         ],
-        "explanation": "I teksten: «Han vil gjerne ha mer ansvar og en høyere lønn.» Begge delene hører med i svaret."
-      }
-    },
-    {
-      "key": "b1-1a-sa3",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
-      "content": {
-        "question": "Hva slags firma er Nordby Elektro AS?",
-        "context": "Tekst 1A — Bartek søker ny jobb."
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 3,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "reference_answer": "Det er et voksende firma med tolv ansatte.",
-        "accepted_answers": [
-          "Det er et voksende firma med tolv ansatte.",
-          "Nordby Elektro AS er et voksende firma med tolv ansatte.",
-          "Det er et voksende firma med 12 ansatte.",
-          "Det er et voksende firma.",
-          "Det er et firma med tolv ansatte.",
-          "et voksende firma med tolv ansatte",
-          "et voksende firma",
-          "et firma med tolv ansatte",
-          "et firma med 12 ansatte"
-        ],
-        "explanation": "Annonsen sier: «Nordby Elektro AS er et voksende firma med tolv ansatte.»"
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Tidsrommet: tre år",
+                "anchors": [
+                  "tre år",
+                  "3 år"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han har jobbet i det samme firmaet i tre år.",
+            "why": "Svaret står i den første setningen: han har vært i det samme firmaet i tre år."
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Mer ansvar",
+                "anchors": [
+                  "mer ansvar",
+                  "større ansvar"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Høyere lønn",
+                "anchors": [
+                  "høyere lønn",
+                  "bedre lønn",
+                  "mer lønn"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han vil gjerne ha mer ansvar og en høyere lønn.",
+            "why": "Teksten nevner to ting han ønsker seg, og et fullstendig svar tar med begge: mer ansvar og høyere lønn."
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Firmaet vokser",
+                "anchors": [
+                  "voksende firma",
+                  "firma som vokser",
+                  "i vekst"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Tolv ansatte",
+                "anchors": [
+                  "tolv ansatte",
+                  "12 ansatte"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Det er et voksende firma med tolv ansatte.",
+            "why": "Annonsen beskriver firmaet i én setning: det vokser, og det har tolv ansatte."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Han retter skrivefeilene",
+                "anchors": [
+                  "retter skrivefeilene",
+                  "retter feilene",
+                  "retter skrivefeil",
+                  "retter opp feilene"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han retter skrivefeilene i søknaden før han sender den.",
+            "why": "Anne finner noen skrivefeil når hun leser gjennom søknaden, og Bartek retter dem før han sender den."
+          }
+        }
       }
     },
-    {
-      "key": "b1-1a-sa4",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
-      "content": {
-        "question": "Hva gjør Bartek med søknaden før han sender den?",
-        "context": "Tekst 1A — Bartek søker ny jobb."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Han retter skrivefeilene.",
-        "accepted_answers": [
-          "Han retter skrivefeilene.",
-          "Han retter feilene.",
-          "Han retter skrivefeil.",
-          "Bartek retter skrivefeilene.",
-          "Bartek retter feilene.",
-          "Han retter skrivefeilene i søknaden.",
-          "Han retter feilene i søknaden.",
-          "retter skrivefeilene",
-          "retter feilene"
-        ],
-        "explanation": "Anne finner noen skrivefeil, og Bartek retter dem før han sender søknaden."
-      }
-    },
-    {
+{
       "key": "b1-1a-mcg-01",
       "template": "multiple_choice_group",
       "instruction": "Riktig eller galt? Velg svaret som stemmer med teksten 1A.",
@@ -5976,76 +6018,149 @@
     }
   ],
   "1B": [
-    {
-      "key": "b1-1b-sa1",
+{
+      "key": "b1-1b-sa",
       "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1B.",
+      "instruction": "Ответьте на вопросы по тексту 1B своими словами.",
       "content": {
-        "question": "Når skal Bartek komme til intervjuet?",
-        "context": "Tekst 1B — Jobbintervjuet."
+        "title": "Leseforståelse 1B — Jobbintervjuet",
+        "instruction": "Svar med egne ord, én til tre setninger.",
+        "questions": [
+          {
+            "id": "sa1",
+            "kind": "reading",
+            "passage": "Etter en uke ringer telefonen. Det er Kari Holm fra Nordby Elektro. Hun sier at de har lest søknaden hans, og at de gjerne vil møte ham til et intervju. De blir enige om at han skal komme tirsdag klokka ti.",
+            "prompt": "Når skal Bartek komme til intervjuet?"
+          },
+          {
+            "id": "sa2",
+            "kind": "reading",
+            "passage": "Tirsdag morgen tar Bartek på seg en ren skjorte og pene bukser. Han kommer et kvarter for tidlig, for han vil ikke risikere å komme for sent. Kari Holm tar imot ham med et fast håndtrykk.",
+            "prompt": "Hvorfor kommer Bartek et kvarter for tidlig?"
+          },
+          {
+            "id": "sa3",
+            "kind": "reading",
+            "passage": "Kari: Hvorfor har du lyst til å bytte jobb?\nBartek: Jeg trives egentlig godt der jeg er, men jeg har lyst til å ta mer ansvar. Hos dere ser jeg en mulighet til å lede prosjekter selv. Det er noe jeg har lyst til å lære mer om.",
+            "prompt": "Hvorfor vil Bartek bytte jobb?"
+          },
+          {
+            "id": "sa4",
+            "kind": "reading",
+            "passage": "Kari forteller om firmaet og om arbeidsoppgavene. Til slutt sier hun at de skal intervjue to kandidater til. Tre dager senere kommer det en e-post: Bartek har fått jobben! Han begynner 1. april.",
+            "prompt": "Hvordan går det til slutt?"
+          }
+        ],
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 3,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "reference_answer": "Tirsdag klokka ti.",
-        "accepted_answers": [
-          "tirsdag klokka ti",
-          "tirsdag kl. ti",
-          "klokka ti på tirsdag",
-          "tirsdag"
-        ]
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Dagen: tirsdag",
+                "anchors": [
+                  "tirsdag"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Klokkeslettet: ti",
+                "anchors": [
+                  "klokka ti",
+                  "klokken ti",
+                  "kl ti"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han skal komme tirsdag klokka ti.",
+            "why": "Både dagen og klokkeslettet hører med: de ble enige om tirsdag klokka ti."
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Han vil ikke komme for sent",
+                "anchors": [
+                  "komme for sent",
+                  "bli for sent",
+                  "komme sent"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Fordi han ikke vil risikere å komme for sent.",
+            "why": "Han går tidlig hjemmefra av én grunn: han vil ikke risikere å komme for sent til intervjuet."
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Mer ansvar",
+                "anchors": [
+                  "mer ansvar",
+                  "større ansvar"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Lede prosjekter selv",
+                "anchors": [
+                  "lede prosjekter",
+                  "leder prosjekter",
+                  "styre prosjekter"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han har lyst til å ta mer ansvar og lede prosjekter selv.",
+            "why": "Bartek sier ikke at han mistrives — han vil videre. Svaret bør nevne begge delene: mer ansvar, og å lede prosjekter selv."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Han får jobben",
+                "anchors": [
+                  "får jobben",
+                  "fikk jobben",
+                  "får stillingen"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Han begynner 1. april",
+                "anchors": [
+                  "1 april",
+                  "første april"
+                ],
+                "required": false
+              }
+            ],
+            "model": "Bartek får jobben og begynner 1. april.",
+            "why": "Det viktigste er at han får jobben. Datoen er en fin detalj, men svaret er riktig uten den."
+          }
+        }
       }
     },
-    {
-      "key": "b1-1b-sa2",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1B.",
-      "content": {
-        "question": "Hvorfor kommer Bartek et kvarter for tidlig?",
-        "context": "Tekst 1B."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Fordi han ikke vil risikere å komme for sent.",
-        "accepted_answers": [
-          "han vil ikke komme for sent",
-          "for ikke å komme for sent",
-          "fordi han ikke vil komme for sent"
-        ]
-      }
-    },
-    {
-      "key": "b1-1b-sa3",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1B.",
-      "content": {
-        "question": "Hvorfor vil Bartek bytte jobb?",
-        "context": "Tekst 1B."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Han vil ta mer ansvar og lede prosjekter selv.",
-        "accepted_answers": [
-          "han vil ta mer ansvar",
-          "for å lede prosjekter",
-          "mer ansvar og lede prosjekter"
-        ]
-      }
-    },
-    {
-      "key": "b1-1b-sa4",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1B.",
-      "content": {
-        "question": "Hvordan går det til slutt?",
-        "context": "Tekst 1B."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Bartek får jobben og begynner 1. april.",
-        "accepted_answers": [
-          "han får jobben",
-          "bartek får jobben",
-          "han får jobben og begynner 1. april"
-        ]
-      }
-    },
-    {
+{
       "key": "b1-1b-match",
       "template": "match_pairs",
       "instruction": "Соедините половины предложений (текст 1B).",
@@ -6480,76 +6595,154 @@
       }
   ],
   "1C": [
-    {
-      "key": "b1-1c-sa1",
+{
+      "key": "b1-1c-sa",
       "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1C.",
+      "instruction": "Ответьте на вопросы по тексту 1C своими словами.",
       "content": {
-        "question": "Hva betyr det at det norske arbeidslivet er «flatt»?",
-        "context": "Tekst 1C — Arbeidsmiljø i Norge."
+        "title": "Leseforståelse 1C — Arbeidsmiljø i Norge",
+        "instruction": "Svar med egne ord, én til tre setninger.",
+        "questions": [
+          {
+            "id": "sa1",
+            "kind": "reading",
+            "passage": "Det norske arbeidslivet er kjent for å være ganske flatt. Det betyr at avstanden mellom sjefen og de ansatte ikke er så stor. På mange arbeidsplasser sier de ansatte «du» til sjefen og kaller ham eller henne ved fornavn.",
+            "prompt": "Hva betyr det at det norske arbeidslivet er «flatt»?"
+          },
+          {
+            "id": "sa2",
+            "kind": "reading",
+            "passage": "Nordmenn jobber vanligvis 37,5 timer i uka, og de fleste går hjem klokka fire. Overtid er ikke så vanlig, og mange prioriterer familie og fritid høyt. Om sommeren har de fleste fem uker ferie.",
+            "prompt": "Hvor mange timer jobber nordmenn vanligvis i uka?"
+          },
+          {
+            "id": "sa3",
+            "kind": "reading",
+            "passage": "De fleste arbeidsplasser er organisert gjennom en fagforening som forhandler om lønn og arbeidsvilkår. Hvis det oppstår en konflikt, kan fagforeningen hjelpe den ansatte.",
+            "prompt": "Hva gjør en fagforening?"
+          },
+          {
+            "id": "sa4",
+            "kind": "reading",
+            "passage": "Flere ganger om dagen samles kollegaene for å ta en kopp kaffe og prate litt sammen. Det er ikke bare en pause – det er også en måte å bli kjent med hverandre på. Mange nordmenn sier at de beste idéene kommer nettopp i kaffepausen.",
+            "prompt": "Hvorfor er kaffepausen viktig?"
+          }
+        ],
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 3,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "reference_answer": "Avstanden mellom sjefen og de ansatte er liten.",
-        "accepted_answers": [
-          "avstanden mellom sjefen og de ansatte er liten",
-          "liten avstand mellom sjef og ansatte",
-          "det er kort avstand mellom sjefen og de ansatte"
-        ]
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Liten avstand mellom sjef og ansatte",
+                "anchors": [
+                  "liten avstand",
+                  "kort avstand",
+                  "ikke så stor avstand"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Man sier «du» og bruker fornavn",
+                "anchors": [
+                  "sier du til sjefen",
+                  "ved fornavn",
+                  "bruker fornavn"
+                ],
+                "required": false
+              }
+            ],
+            "model": "Det betyr at det er liten avstand mellom sjefen og de ansatte.",
+            "why": "«Flatt» handler om avstanden: sjefen står ikke langt over de ansatte. At man sier «du» og bruker fornavn er et eksempel på det, ikke hele svaret."
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Antall timer: 37,5",
+                "anchors": [
+                  "37,5 timer",
+                  "37,5",
+                  "trettisju og en halv time"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Nordmenn jobber vanligvis 37,5 timer i uka.",
+            "why": "Tallet står rett ut i teksten: 37,5 timer i uka."
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Forhandler om lønn og arbeidsvilkår",
+                "anchors": [
+                  "forhandler om lønn",
+                  "forhandle om lønn",
+                  "forhandler om arbeidsvilkår"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Hjelper den ansatte i konflikter",
+                "anchors": [
+                  "hjelper ansatte",
+                  "hjelper den ansatte",
+                  "hjelpe den ansatte",
+                  "hjelper i konflikter"
+                ],
+                "required": false
+              }
+            ],
+            "model": "Den forhandler om lønn og arbeidsvilkår, og den hjelper ansatte i konflikter.",
+            "why": "Hovedoppgaven er å forhandle om lønn og arbeidsvilkår. Hjelp i konflikter er en oppgave til, men svaret er riktig uten den."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Man blir kjent med hverandre",
+                "anchors": [
+                  "bli kjent med hverandre",
+                  "blir kjent med hverandre",
+                  "bli kjent med kollegaene"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "De beste idéene kommer der",
+                "anchors": [
+                  "beste idéene",
+                  "beste ideene",
+                  "gode idéer"
+                ],
+                "required": false
+              }
+            ],
+            "model": "Fordi det er en måte å bli kjent med hverandre på, og de beste idéene kommer ofte i kaffepausen.",
+            "why": "Kaffepausen er ikke bare en pause: den er måten kollegaene blir kjent med hverandre på. At de beste idéene kommer der, er tekstens egen tilføyelse."
+          }
+        }
       }
     },
-    {
-      "key": "b1-1c-sa2",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1C.",
-      "content": {
-        "question": "Hvor mange timer jobber nordmenn vanligvis i uka?",
-        "context": "Tekst 1C."
-      },
-      "expectedAnswers": {
-        "reference_answer": "37,5 timer.",
-        "accepted_answers": [
-          "37,5 timer",
-          "37,5",
-          "37.5 timer",
-          "trettisju og en halv time"
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-sa3",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1C.",
-      "content": {
-        "question": "Hva gjør en fagforening?",
-        "context": "Tekst 1C."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Den forhandler om lønn og arbeidsvilkår og hjelper ansatte i konflikter.",
-        "accepted_answers": [
-          "forhandler om lønn og arbeidsvilkår",
-          "den forhandler om lønn",
-          "hjelper den ansatte i konflikter"
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-sa4",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1C.",
-      "content": {
-        "question": "Hvorfor er kaffepausen viktig?",
-        "context": "Tekst 1C."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Det er en måte å bli kjent med hverandre på, og gode idéer kommer da.",
-        "accepted_answers": [
-          "en måte å bli kjent med hverandre på",
-          "de beste idéene kommer i kaffepausen",
-          "man blir kjent med hverandre"
-        ]
-      }
-    },
-    {
+{
       "key": "b1-1c-rg1",
       "template": "multiple_choice",
       "instruction": "Riktig eller galt?",
