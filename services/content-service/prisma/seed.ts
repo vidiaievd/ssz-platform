@@ -941,42 +941,152 @@ const templates = [
   {
     code: 'short_answer',
     name: 'Short Answer',
-    description: 'Answer an open comprehension question in a few words or sentences',
+    description: 'Answer a set of open comprehension questions in a few words or sentences',
+    // Rewritten for the design handoff (docs/plan/51-short-answer.md). The old
+    // shape was one question with a list of accepted strings; the new one is a
+    // set of open questions whose key is semantic elements — each element one
+    // thing the answer must say, carrying two or three anchor phrases a student
+    // might say it with. A free answer cannot be compared to a string, which is
+    // what the old shape tried to do.
+    //
+    // Both shapes are described here, and deliberately so. Plan 51 §8 Q1: the
+    // 144 seeded documents of the old form stay live until the catalogue is
+    // rewritten, and this schema is checked on every write to any of them.
+    // Replacing it outright would make every one of those exercises unsaveable.
+    // `isShortAnswerDocument` in the kernel is what every reader dispatches on;
+    // `anyOf` here is the same test spelled for AJV.
+    //
+    // Fourth of the camelCase templates. Like `writing_task`, the content holds
+    // no answer: the elements, the model answer and the explanation are lifted
+    // into expected_answers by the kernel's persistence module, so
+    // `studentSafeContent` has nothing it could fail to strip. The anchors are
+    // not merely sensitive — they are the answer written in the words the
+    // student is being asked to find.
     contentSchema: {
       type: 'object',
-      required: ['question'],
+      anyOf: [{ required: ['questions'] }, { required: ['question'] }],
       properties: {
+        // ── The new form ──
+        title: { type: 'string', description: 'Teacher-facing name of the set' },
+        instruction: {
+          type: 'string',
+          description: 'One line, shown above every question in the runner',
+        },
+        // No `minItems`, deliberately — same reasoning as `writing_task`. This
+        // schema is checked on every write, and a document being written is
+        // unfinished by definition: an author who has not added a question yet
+        // would find the exercise unsaveable, and with autosave, silently so.
+        // That a set needs at least one question is true and is enforced at
+        // publication instead, where it can be reported rather than swallowed.
+        questions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id', 'prompt'],
+            properties: {
+              id: { type: 'string' },
+              // Controls the passage field only, never the grading:
+              // `reading` shows the passage, `listening` keeps it author-side
+              // as the transcript, `opinion` has none.
+              kind: { type: 'string', enum: ['reading', 'listening', 'opinion'] },
+              passage: { type: 'string' },
+              prompt: { type: 'string' },
+            },
+          },
+        },
+        settings: {
+          type: 'object',
+          properties: {
+            // How many required elements a pass needs.
+            passRule: { type: 'string', enum: ['all', 'n'] },
+            passN: { type: 'integer', minimum: 1, maximum: 3 },
+            // Tolerate a one-letter slip inside a word longer than three
+            // characters. The short-word exemption is what keeps `bak` and
+            // `bok` apart, and it is in the kernel, not here.
+            typos: { type: 'boolean' },
+            caseless: { type: 'boolean' },
+            // 0 = off. A shorter answer is flagged too short and can never
+            // reach `pass` — flagged, not failed.
+            minWords: { type: 'integer', minimum: 0 },
+            showBreakdown: { type: 'boolean' },
+            showModel: { type: 'string', enum: ['always', 'onClose', 'never'] },
+            // Display switches only — nothing calls a model in this build
+            // (plan 51 §3.6). Carried from the first commit so that connecting
+            // the stage later needs no migration.
+            aiStage: { type: 'boolean' },
+            aiGrammar: { type: 'boolean' },
+            teacherReview: { type: 'string', enum: ['all', 'flagged', 'none'] },
+            progress: { type: 'boolean' },
+          },
+        },
+
+        // ── The old form, still live ──
+        // One question, answered against a list of accepted strings. Kept until
+        // the 144 documents written this way are rewritten; see the note above.
         question: { type: 'string' },
-        // Optional passage or hint shown alongside the question.
         context: { type: 'string' },
         media_id: { type: 'string' },
-        // Optional soft length guidance for the UI (characters).
         max_length: { type: 'integer' },
       },
     },
-    // This one schema validates two different objects against the same
-    // property bag: content-service validates the AUTHOR's expectedAnswers
-    // (reference_answer/accepted_answers/rubric) with it at authoring time,
-    // while exercise-engine-service validates the STUDENT's submittedAnswer
-    // (text) with the identical stored schema at submit time
-    // (submit-answer.handler.ts passes def.template.answerSchema for both
-    // uses). `anyOf` requires at least one side's shape to be present so
-    // AJV accepts both without silently allowing a fully empty object.
+    // The author's answer key, in either form. Unlike before, this schema no
+    // longer doubles as the learner's submission schema: `short_answer` joins
+    // `OWN_SUBMISSION_SHAPE` in exercise-engine, because the new key is a map
+    // of semantic elements and the new submission is a list of typed answers,
+    // and one schema stretched over both would describe neither. The engine
+    // checks the submission shape in the validator, where a bad one is a client
+    // bug rather than a wrong answer.
     answerSchema: {
       type: 'object',
-      anyOf: [{ required: ['text'] }, { required: ['reference_answer'] }],
       properties: {
-        // Learner's submission (exercise-engine's ShortAnswerValidator).
-        text: { type: 'string' },
-        // Model answer — revealed after submission and used as grading reference.
+        // ── The new form ──
+        questions: {
+          type: 'object',
+          description: 'Keyed by question id',
+          additionalProperties: {
+            type: 'object',
+            properties: {
+              // One element = one thing the answer must say. It grades only
+              // once it has both a label and a non-empty anchor; a half-written
+              // one is persisted as authored and filtered at grading time, so
+              // the author may walk away mid-sentence.
+              elements: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    label: { type: 'string', description: "In the teacher's words" },
+                    // 2-3 phrasings a student might use. Never shown to the
+                    // student — they are the answer.
+                    anchors: { type: 'array', items: { type: 'string' } },
+                    // Optional elements are reported in the breakdown but never
+                    // block a pass.
+                    required: { type: 'boolean' },
+                  },
+                },
+              },
+              // The answer the author would accept. Required at publication:
+              // it is what the key is validated against, and a key its own
+              // author's answer cannot pass is one no student will pass.
+              model: { type: 'string' },
+              // Shown under every verdict.
+              why: { type: 'string' },
+            },
+          },
+        },
+
+        // ── The old form, still live ──
+        text: { type: 'string', description: "The learner's submission, old form" },
         reference_answer: { type: 'string' },
-        // Optional exact-match shortcuts for instant auto-grading.
         accepted_answers: { type: 'array', items: { type: 'string' } },
-        // Optional grading guidance for LLM / teacher review.
         rubric: { type: 'string' },
         explanation: { type: 'string' },
       },
     },
+    // Read by the old form's diff only. The new form takes every check setting
+    // from `content.settings`, where the author set it, rather than from a
+    // template default no builder surfaces.
     defaultCheckSettings: { case_sensitive: false, trim_whitespace: true },
     supportedLanguages: Prisma.DbNull,
   },

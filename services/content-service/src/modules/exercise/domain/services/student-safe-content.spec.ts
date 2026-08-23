@@ -281,4 +281,118 @@ describe('studentSafeContent', () => {
       expect(project(old, {}).prompt).toBe('Skriv om ferien din.');
     });
   });
+  describe('short_answer', () => {
+    // The anchors are not merely sensitive: they are the answer written in the words the
+    // student is being asked to find. This block is the guard on that.
+    const shortAnswerContent = {
+      title: 'Leseforståelse — sykkelregler',
+      instruction: 'Svar med egne ord.',
+      questions: [
+        {
+          id: 'q1',
+          kind: 'reading',
+          passage: 'Fra 1. januar må alle som sykler i mørket ha lys foran og bak.',
+          prompt: 'Hva er nytt fra 1. januar?',
+        },
+        {
+          id: 'q2',
+          kind: 'listening',
+          passage: 'God morgen, dette er nyhetene fra NRK.',
+          prompt: 'Hvem snakker?',
+        },
+      ],
+      settings: {
+        passRule: 'all',
+        passN: 2,
+        typos: true,
+        caseless: true,
+        minWords: 3,
+        showBreakdown: true,
+        showModel: 'onClose',
+        aiStage: false,
+        aiGrammar: true,
+        teacherReview: 'flagged',
+        progress: true,
+      },
+    };
+
+    const shortAnswerKey = {
+      questions: {
+        q1: {
+          elements: [
+            { id: 'e1', label: 'Kravet om lykt', anchors: ['lykt foran'], required: true },
+          ],
+          model: 'Alle syklister må ha lykt foran og bak i mørket.',
+          why: 'Regelen står i første setning.',
+        },
+        q2: {
+          elements: [{ id: 'e2', label: 'Kringkasteren', anchors: ['nrk'], required: true }],
+          model: 'Det er NRK som sender nyhetene.',
+          why: 'Kanalen nevner seg selv.',
+        },
+      },
+    };
+
+    type Projection = {
+      instruction: string;
+      questions: Array<{ id: string; prompt: string; passage?: string; model?: string }>;
+      settings: { showModel: string; showBreakdown: boolean };
+    };
+
+    const project = (
+      content: Record<string, unknown> = shortAnswerContent,
+      answers: Record<string, unknown> = shortAnswerKey,
+    ) => studentSafeContent('short_answer', content, answers) as unknown as Projection;
+
+    it('keeps the questions and drops the elements, the model answers and the explanations', () => {
+      const projected = project();
+
+      expect(projected.questions.map((q) => q.id)).toEqual(['q1', 'q2']);
+      expect(projected.questions[0]?.prompt).toBe('Hva er nytt fra 1. januar?');
+
+      const serialised = JSON.stringify(projected);
+      expect(serialised).not.toContain('lykt foran');
+      expect(serialised).not.toContain('Kravet om lykt');
+      expect(serialised).not.toContain('Alle syklister');
+      expect(serialised).not.toContain('Regelen står');
+    });
+
+    it('withholds a listening transcript — it is what the audio says', () => {
+      const projected = project();
+
+      expect(projected.questions[0]?.passage).toBeDefined();
+      expect(projected.questions[1]?.passage).toBeUndefined();
+      expect(JSON.stringify(projected)).not.toContain('God morgen');
+    });
+
+    it('carries the model answer when the author shows it while writing', () => {
+      // The same case as `showRubric: 'always'` above, and the second reason this
+      // function takes the answer column at all — plan 51 §6.2.
+      const always = {
+        ...shortAnswerContent,
+        settings: { ...shortAnswerContent.settings, showModel: 'always' },
+      };
+
+      expect(project(always).questions[0]?.model).toBe(
+        'Alle syklister må ha lykt foran og bak i mørket.',
+      );
+    });
+
+    it('leaves a document of the old form exactly as it is', () => {
+      // Plan 51 §8 Q1: 144 of these are still live. The new projection would find no
+      // `questions` and hand back an empty set, blanking an exercise that works.
+      const old = { question: 'Hvorfor trenger de egenkapital?', context: 'Tekst 3A.' };
+
+      expect(
+        studentSafeContent('short_answer', old, { accepted_answers: ['De må ha egenkapital'] }),
+      ).toBe(old);
+    });
+
+    it('survives a document whose key has already been taken away', () => {
+      // content-service projects and nulls the key; the engine's start-attempt projects
+      // again. The second pass must not throw and must not blank the questions.
+      expect(() => project(shortAnswerContent, {})).not.toThrow();
+      expect(project(shortAnswerContent, {}).questions.map((q) => q.id)).toEqual(['q1', 'q2']);
+    });
+  });
 });

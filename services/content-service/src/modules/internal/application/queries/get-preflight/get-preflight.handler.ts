@@ -10,9 +10,11 @@ import { GetPreflightQuery } from './get-preflight.query.js';
 import { TEMPLATE_CODE as GAP_FILL_TEMPLATE } from '@ssz/shared-kernel/wordbank-gapfill';
 import { TEMPLATE_CODE as MATCH_PAIRS_TEMPLATE } from '@ssz/shared-kernel/match-pairs';
 import { TEMPLATE_CODE as WRITING_TASK_TEMPLATE } from '@ssz/shared-kernel/writing-task';
+import { TEMPLATE_CODE as SHORT_ANSWER_TEMPLATE } from '@ssz/shared-kernel/short-answer';
 import { gapFillViolations } from './gap-fill-preflight.js';
 import { matchPairsViolations } from './match-pairs-preflight.js';
 import { writingTaskViolations } from './writing-task-preflight.js';
+import { shortAnswerViolations } from './short-answer-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
 
@@ -453,7 +455,14 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
         where: {
           id: { in: exerciseIds },
           template: {
-            code: { in: [GAP_FILL_TEMPLATE, MATCH_PAIRS_TEMPLATE, WRITING_TASK_TEMPLATE] },
+            code: {
+              in: [
+                GAP_FILL_TEMPLATE,
+                MATCH_PAIRS_TEMPLATE,
+                WRITING_TASK_TEMPLATE,
+                SHORT_ANSWER_TEMPLATE,
+              ],
+            },
           },
         },
         // The draft too: pre-flight answers "is this publishable", and publishing
@@ -502,10 +511,15 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
 }
 
 /**
- * `writing_task` matters more here than the other two. Gap-fill and match-pairs are
- * auto-checked, so an editorial hole shows up the first time a student answers; a
- * writing task published with an empty rubric surfaces only when a teacher opens a
- * submitted text and finds nothing to mark it against.
+ * `writing_task` matters more here than the two auto-checked templates. Gap-fill and
+ * match-pairs are auto-checked, so an editorial hole shows up the first time a student
+ * answers; a writing task published with an empty rubric surfaces only when a teacher
+ * opens a submitted text and finds nothing to mark it against.
+ *
+ * `short_answer` is auto-checked and still belongs with the writing task, because the
+ * way it fails is silent: a key whose phrases match nothing does not error, it simply
+ * marks every correct answer as covering none of the points. Its rules also skip the
+ * documents of the old form, which have none of the fields these rules ask about.
  */
 function violationsFor(
   templateCode: string,
@@ -513,6 +527,7 @@ function violationsFor(
 ): RuleViolation[] {
   if (templateCode === MATCH_PAIRS_TEMPLATE) return matchPairsViolations(document);
   if (templateCode === WRITING_TASK_TEMPLATE) return writingTaskViolations(document);
+  if (templateCode === SHORT_ANSWER_TEMPLATE) return shortAnswerViolations(document);
   return gapFillViolations(document);
 }
 
