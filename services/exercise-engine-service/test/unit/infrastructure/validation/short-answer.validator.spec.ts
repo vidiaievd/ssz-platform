@@ -245,6 +245,18 @@ describe('ShortAnswerValidator — the form of the design handoff', () => {
       expect((result.value.details as Details).routedItems).toBe(2);
     });
 
+    it("counts nothing as machine-closed under 'all', however well it was answered", () => {
+      // `passedItems` is what the attempt stores as `autoPassedItems`, which is what the
+      // queue offers a batch approval on. Two flawless answers that both go to a person
+      // are not a submission the machine closed, and a hint saying otherwise offers a
+      // batch that `isMachineClean` then refuses.
+      const details = gradeSet(passing, { teacherReview: 'all' }).value.details as Details;
+
+      expect(details.passedItems).toBe(0);
+      expect(details.items.every((item) => item.routing === 'teacher')).toBe(true);
+      expect(details.items.every((item) => item.verdict === 'pass')).toBe(true);
+    });
+
     it("sends only the unclear ones under 'flagged'", () => {
       const result = gradeSet(
         [passing[0]!, { questionId: 'q2', text: 'Nei. Kanskje. Vet ikke helt.' }],
@@ -253,8 +265,36 @@ describe('ShortAnswerValidator — the form of the design handoff', () => {
       expect(result.value.requiresReview).toBe(true);
       const details = result.value.details as Details;
       expect(details.routedItems).toBe(1);
-      expect(details.items[0]!.routing).toBe('auto');
+      expect(details.items[0]!.routing).toBe('pass');
       expect(details.items[1]!.routing).toBe('teacher');
+    });
+
+    /**
+     * The batch button's premise, checked against this template rather than assumed.
+     *
+     * `isMachineClean` sweeps a submission through only when every item was closed by the
+     * check — which for `short_answer` can never be true of anything that reached the
+     * queue at all. Under `'flagged'` an attempt is only routed because at least one
+     * question was unclear; under `'all'` every question is a person's by definition; and
+     * under `'none'` nothing is routed. So the batch never applies here, and it is the
+     * routing rather than a template check that says so.
+     */
+    it('never leaves a routed submission with nothing for a person to read', () => {
+      const cases = [
+        gradeSet(passing, { teacherReview: 'all' }),
+        gradeSet([passing[0]!, { questionId: 'q2', text: 'Nei. Kanskje. Vet ikke helt.' }], {
+          teacherReview: 'flagged',
+        }),
+        gradeSet([{ questionId: 'q1', text: 'Vet ikke.' }], { teacherReview: 'none' }),
+      ];
+
+      for (const result of cases) {
+        const details = result.value.details as Details;
+        const machineClean =
+          details.items.length > 0 && details.items.every((item) => item.routing === 'pass');
+
+        expect(result.value.requiresReview && machineClean).toBe(false);
+      }
     });
 
     it("sends nothing under 'none', even a failed answer", () => {

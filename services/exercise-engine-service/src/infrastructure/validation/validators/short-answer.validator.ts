@@ -4,7 +4,7 @@ import {
   gradeAttempt,
   isShortAnswerDocument,
 } from '@ssz/shared-kernel/short-answer';
-import type { GradedAnswer, SubmittedAnswer } from '@ssz/shared-kernel/short-answer';
+import type { GradedAnswer, Routing, SubmittedAnswer } from '@ssz/shared-kernel/short-answer';
 import { Result } from '../../../shared/kernel/result.js';
 import { ValidationError } from '../../../shared/application/ports/answer-validator.port.js';
 import type { ValidationOutcome } from '../../../shared/application/ports/answer-validator.port.js';
@@ -59,13 +59,21 @@ export class ShortAnswerValidator implements IPerTypeValidator {
     }
 
     const outcome = gradeAttempt(document, answers);
-    const routing = (answer: GradedAnswer): 'teacher' | 'auto' =>
-      routedToTeacher(document.settings.teacherReview, answer) ? 'teacher' : 'auto';
+    const routing = (answer: GradedAnswer): Routing =>
+      routedToTeacher(document.settings.teacherReview, answer) ? 'teacher' : 'pass';
 
     const details = {
       totalItems: outcome.answers.length,
       routedItems: outcome.answers.filter((a) => routing(a) === 'teacher').length,
-      passedItems: outcome.answers.filter((a) => a.result?.verdict === 'pass').length,
+      // Questions the machine closed by itself — not questions that scored a `pass`.
+      // Under `teacherReview: 'all'` every question goes to a person however well it was
+      // answered, and the two numbers part company there. This one is the one the rest of
+      // the system reads: `submit-answer` writes it onto the attempt as `autoPassedItems`,
+      // which is what the queue's batch button offers and what `isMachineClean` re-checks
+      // before approving. Counting verdicts here would have the hint promise a batch the
+      // gate then refuses. The verdict tally the student's completion screen shows is
+      // counted from `items[]` in the learner-facing projection instead.
+      passedItems: outcome.answers.filter((a) => routing(a) === 'pass').length,
       // The percentage the queue shows beside the verdict, and the one the SRS consumer
       // routes on. Over elements rather than over questions (plan 51 §3.4).
       coveredElements: outcome.covered,
@@ -126,7 +134,7 @@ function routedToTeacher(
  * A question the document no longer holds is reported as itself rather than skipped. The
  * student answered something, and a row missing from the queue is an answer nobody reads.
  */
-function toTeacherDetail(answer: GradedAnswer, routing: 'teacher' | 'auto') {
+function toTeacherDetail(answer: GradedAnswer, routing: Routing) {
   const result = answer.result;
 
   return {

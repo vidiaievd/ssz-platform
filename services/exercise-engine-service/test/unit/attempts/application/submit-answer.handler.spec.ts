@@ -209,6 +209,53 @@ const TRANSLATE_DETAILS = {
   ],
 };
 
+/**
+ * As the short-answer validator writes them: every element carries the anchor phrase that
+ * matched, which is the answer in the words the student was asked to find.
+ *
+ * `teacherReview: 'flagged'` — one question closed by the check, one sent on. Note that
+ * `passedItems` counts the closed one, not the passing one: the two are the same number
+ * here and part company under `teacherReview: 'all'`.
+ */
+const SHORT_ANSWER_DETAILS = {
+  totalItems: 2,
+  routedItems: 1,
+  passedItems: 1,
+  coveredElements: 2,
+  totalElements: 3,
+  items: [
+    {
+      itemId: 'q1',
+      prompt: 'Hva må alle syklister ha?',
+      submitted: 'Alle må ha lys foran og bak.',
+      verdict: 'pass',
+      covered: 1,
+      total: 1,
+      tooShort: false,
+      words: 6,
+      elements: [{ id: 'e1', label: 'lys', required: true, hit: true, anchor: 'lys foran' }],
+      model: 'Alle syklister må ha lys foran og bak.',
+      routing: 'pass',
+    },
+    {
+      itemId: 'q2',
+      prompt: 'Er det lurt å sykle om vinteren?',
+      submitted: 'Nei. Kanskje.',
+      verdict: 'partial',
+      covered: 1,
+      total: 2,
+      tooShort: true,
+      words: 2,
+      elements: [
+        { id: 'e2', label: 'nei', required: true, hit: true, anchor: 'nei' },
+        { id: 'e3', label: 'glatt', required: true, hit: false, anchor: null },
+      ],
+      model: 'Nei, fordi det er glatt om vinteren.',
+      routing: 'teacher',
+    },
+  ],
+};
+
 const makeGapFillAttempt = () => makeInProgressAttempt('word_bank_gap_fill');
 
 const makeGapFillDef = (): ExerciseDefinition => {
@@ -514,5 +561,47 @@ describe('SubmitAnswerHandler', () => {
     });
     // The key, the diff against it and the rules it tripped stay with the teacher.
     expect(JSON.stringify(result.value.details)).not.toContain('Jeg');
+  });
+
+  it('short_answer: hands back the verdicts and the tally, and never an anchor phrase', async () => {
+    const handler = makeHandler(
+      makeRepo(makeInProgressAttempt('short_answer')),
+      makeContentClient(),
+      makeValidator({
+        correct: false,
+        score: 0,
+        details: SHORT_ANSWER_DETAILS,
+        requiresReview: true,
+      }),
+      makeFeedback(), makePublisher(),
+    );
+
+    const result = await handler.execute(cmd);
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.details).toEqual({
+      totalItems: 2,
+      passedItems: 1,
+      routedItems: 1,
+      // Counted from the verdicts here, not taken from `passedItems`: that field counts
+      // what the check closed, which is a different question from how the student did.
+      verdicts: { pass: 1, partial: 1, fail: 0 },
+      items: [
+        { itemId: 'q1', verdict: 'pass', covered: 1, total: 1, tooShort: false, routing: 'pass' },
+        {
+          itemId: 'q2',
+          verdict: 'partial',
+          covered: 1,
+          total: 2,
+          tooShort: true,
+          routing: 'teacher',
+        },
+      ],
+    });
+    // The element labels, the phrases that matched them and the author's model answer are
+    // the key written out, and none of them travel.
+    const wire = JSON.stringify(result.value.details);
+    expect(wire).not.toContain('lys foran');
+    expect(wire).not.toContain('glatt');
   });
 });

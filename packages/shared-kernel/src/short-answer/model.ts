@@ -33,6 +33,15 @@ export function kindConfig(kind: QuestionKind): KindConfig {
   return KINDS.find((k) => k.id === kind) ?? KINDS[0]!;
 }
 
+/**
+ * Where a graded question goes: closed by the check, or to a person.
+ *
+ * The same two words `translate` and `error_correction` use, and deliberately so — the
+ * queue, `isMachineClean` and the batch approval all read this field across every
+ * template, and a third vocabulary here would read as "no item was ever auto-passed".
+ */
+export type Routing = 'pass' | 'teacher';
+
 /** One thing the answer must say, and the phrasings that count as saying it. */
 export interface KeyElement {
   id: string;

@@ -96,6 +96,13 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
  * The runner could count that itself from the per-question replies it already holds, and
  * this is deliberately the server's count instead — it is the one recomputed against the
  * key as it stands now.
+ *
+ * That tally is counted here, from the verdicts, rather than taken from the validator's
+ * `passedItems`. The two are not the same number and only look alike: `passedItems`
+ * counts questions the *check* closed, and under `teacherReview: 'all'` it is zero over
+ * three flawless answers, because every one of them still goes to a person. `passedItems`
+ * travels on unchanged for the routing line — how much of this went to a teacher — while
+ * `verdicts` is what the three counters read.
  */
 function shortAnswerVerdicts(details: unknown): unknown {
   if (typeof details !== 'object' || details === null) return undefined;
@@ -108,10 +115,17 @@ function shortAnswerVerdicts(details: unknown): unknown {
   };
   if (!Array.isArray(items)) return undefined;
 
+  const verdictOf = (item: unknown): unknown => (item as { verdict?: unknown }).verdict;
+
   return {
     totalItems,
     passedItems,
     routedItems,
+    verdicts: {
+      pass: items.filter((item) => verdictOf(item) === 'pass').length,
+      partial: items.filter((item) => verdictOf(item) === 'partial').length,
+      fail: items.filter((item) => verdictOf(item) === 'fail').length,
+    },
     items: items.map((item) => {
       const { itemId, verdict, covered, total, tooShort, routing } = item as {
         itemId: string;
