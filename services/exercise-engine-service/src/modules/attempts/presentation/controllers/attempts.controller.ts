@@ -101,6 +101,15 @@ export function toAttemptDto(attempt: Attempt): AttemptResponseDto {
     // writes this column.
     draftAnswer: attempt.draftAnswer,
     draftSavedAt: attempt.draftSavedAt?.toISOString() ?? null,
+    // Handed-in questions of a `short_answer` set, read back the same way and for the
+    // same reason as the draft above: it is the learner's own work, and a runner
+    // re-entering the set has no other way to know which questions are already closed
+    // (plan 51 §8 Q6). No key can reach it — the anchor phrases are never written here.
+    answeredQuestions: attempt.answeredQuestions.map(({ questionId, text, verdict }) => ({
+      questionId,
+      text,
+      verdict,
+    })),
     id: attempt.id,
     userId: attempt.userId,
     exerciseId: attempt.exerciseId,

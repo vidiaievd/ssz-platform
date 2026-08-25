@@ -83,6 +83,25 @@ export class AttemptResponseDto {
   @ApiPropertyOptional({ nullable: true, description: 'When the draft was last taken.' })
   draftSavedAt!: string | null;
 
+  @ApiProperty({
+    description:
+      'Questions of a `short_answer` set already handed in on this attempt, oldest ' +
+      'first. Empty for every other template — it is the only one that takes answers ' +
+      'before the attempt closes. A runner re-entering a set reads this to know which ' +
+      'question it is on; the texts are the learner\'s own and the verdicts are the ' +
+      'ones they were already shown.',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        questionId: { type: 'string' },
+        text: { type: 'string' },
+        verdict: { type: 'string', enum: ['pass', 'partial', 'fail'] },
+      },
+    },
+  })
+  answeredQuestions!: Array<{ questionId: string; text: string; verdict: string }>;
+
   @ApiPropertyOptional({
     nullable: true,
     description:

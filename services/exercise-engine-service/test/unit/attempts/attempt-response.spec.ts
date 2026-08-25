@@ -110,3 +110,31 @@ describe('toAttemptDto — the rubric a learner may read', () => {
     expect(dto.rubricMarks).toBeNull();
   });
 });
+
+describe('toAttemptDto — the questions already handed in', () => {
+  it('reads back the learner\'s own answers and the verdicts they were shown', () => {
+    const dto = toAttemptDto(
+      attempt({
+        templateCode: 'short_answer',
+        answeredQuestions: [
+          {
+            questionId: 'q1',
+            text: 'I tre år.',
+            verdict: 'pass',
+            answeredAt: new Date('2026-08-21T10:05:00Z'),
+          },
+        ],
+      }),
+    );
+
+    // No `answeredAt`: a runner re-entering the set needs what was written and how it
+    // was judged, and the timestamp is the queue's business (plan 51 §8 Q6).
+    expect(dto.answeredQuestions).toEqual([
+      { questionId: 'q1', text: 'I tre år.', verdict: 'pass' },
+    ]);
+  });
+
+  it('is empty for a template that answers nothing before it closes', () => {
+    expect(toAttemptDto(attempt()).answeredQuestions).toEqual([]);
+  });
+});
