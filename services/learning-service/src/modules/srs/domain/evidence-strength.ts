@@ -89,7 +89,17 @@ const NEAR_CERTAIN_BANK_SIZE = 3;
  * Every future plan that touches an exercise type owes this table a row.
  */
 const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
-  // The learner produces the language and it is checked. The strongest evidence there is.
+  // Still the strongest evidence after plan 51, and now for the reason the row always
+  // gave: the answer is produced from nothing — one to three sentences in the learner's
+  // own words, with nothing on screen to copy from. What changed is the checking. The
+  // old form matched the line against a list of accepted strings; the new one asks
+  // whether the things the answer had to say were said, an element at a time, by anchor
+  // phrase now and by AI later, with a teacher last. So coverage is not the same fact as
+  // a word recalled correctly: an element can go uncovered because the learner said it
+  // in a phrasing the key does not list, which is a gap in the key rather than in the
+  // memory. That is what the floor is for — a `partial` scores low enough for
+  // `scoreToRating` to call AGAIN, and HARD is where it lands instead, so an incomplete
+  // answer does not reset an interval it never disproved. The cap stays at the top.
   short_answer: FREE_PRODUCTION,
   // Still the strongest evidence after plan 50, and for a slightly different reason: the
   // answer is now a whole text a teacher reads and marks against a rubric, not a line
