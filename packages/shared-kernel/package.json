@@ -35,6 +35,10 @@
     "./short-answer": {
       "import": "./dist/short-answer/index.js",
       "types": "./dist/short-answer/index.d.ts"
+    },
+    "./sentence-schema": {
+      "import": "./dist/sentence-schema/index.js",
+      "types": "./dist/sentence-schema/index.d.ts"
     }
   },
   "files": [
