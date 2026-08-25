@@ -59,4 +59,21 @@ export class StartAttemptResponseDto {
 
   @ApiProperty({ description: 'Merged check settings (template defaults + exercise overrides)' })
   checkSettings!: Record<string, unknown>;
+
+  @ApiProperty({
+    description:
+      'Answers already handed in on this attempt, oldest first. Empty for a fresh ' +
+      'attempt; only `short_answer` takes answers before the attempt closes, so only ' +
+      'a resumed set arrives with anything here.',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        questionId: { type: 'string' },
+        text: { type: 'string' },
+        verdict: { type: 'string', enum: ['pass', 'partial', 'fail'] },
+      },
+    },
+  })
+  answeredQuestions!: Array<{ questionId: string; text: string; verdict: string }>;
 }

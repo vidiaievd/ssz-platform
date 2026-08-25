@@ -45,6 +45,13 @@ export type StartAttemptError =
   | ContentClientError
   | { code: 'ALREADY_IN_PROGRESS'; attemptId: string };
 
+/** One question of a `short_answer` set already handed in on this attempt. */
+export interface ResumedAnswer {
+  questionId: string;
+  text: string;
+  verdict: 'pass' | 'partial' | 'fail';
+}
+
 export interface StartAttemptResult {
   attemptId: string;
   templateCode: string;
@@ -56,6 +63,15 @@ export interface StartAttemptResult {
   expectedAnswers: unknown;
   answerSchema: unknown;
   checkSettings: Record<string, unknown>;
+  /**
+   * What has already been handed in on this attempt, in the order it was handed in.
+   *
+   * Empty for a fresh attempt, and empty for every template but `short_answer` — it is
+   * the only one that takes answers before the attempt closes. A caller resuming a set
+   * reads it to know which question it is on; the verdicts are the ones the student was
+   * already shown, and the texts are their own words.
+   */
+  answeredQuestions: ResumedAnswer[];
 }
 
 /**
@@ -211,8 +227,53 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
   async execute(
     command: StartAttemptCommand,
   ): Promise<Result<StartAttemptResult, StartAttemptError>> {
-    // Resume existing in-progress attempt if present
     const existing = await this.attempts.findInProgress(command.userId, command.exerciseId);
+
+    /*
+     * An open attempt that already holds answers is resumed rather than reported as a
+     * conflict — the caller would otherwise abandon it and start again, which is right
+     * for every template whose unfinished work only ever lived in the browser and wrong
+     * for this one (plan 51 §8 Q6).
+     *
+     * A `short_answer` answer is handed in for good: it is graded on the server, written
+     * onto the attempt, and refused a second time. Starting over would let a reload
+     * re-play a question the domain says is closed, and would leave the answers already
+     * in on a row nothing reads. So the attempt comes back as it stands, with what has
+     * been answered on it.
+     *
+     * Only an attempt with answers takes this path. An empty one is still a conflict, so
+     * the twelve other templates keep the behaviour they were built on.
+     */
+    if (existing && existing.answeredQuestions.length > 0) {
+      const resumedDef = await this.contentClient.getExerciseForAttempt(
+        command.exerciseId,
+        command.language,
+        existing.checkMode,
+      );
+      if (resumedDef.isFail) {
+        return Result.fail<StartAttemptResult, StartAttemptError>(resumedDef.error);
+      }
+
+      return Result.ok<StartAttemptResult, StartAttemptError>({
+        attemptId: existing.id,
+        templateCode: existing.templateCode,
+        targetLanguage: existing.targetLanguage,
+        difficultyLevel: existing.difficultyLevel,
+        checkMode: existing.checkMode,
+        ...withheldWhereNeeded(existing.templateCode, resumedDef.value.exercise),
+        answerSchema: resumedDef.value.template.answerSchema,
+        checkSettings: {
+          ...(resumedDef.value.template.defaultCheckSettings ?? {}),
+          ...(resumedDef.value.exercise.answerCheckSettings ?? {}),
+        },
+        answeredQuestions: existing.answeredQuestions.map(({ questionId, text, verdict }) => ({
+          questionId,
+          text,
+          verdict,
+        })),
+      });
+    }
+
     if (existing) {
       return Result.fail<StartAttemptResult, StartAttemptError>({
         code: 'ALREADY_IN_PROGRESS',
@@ -272,6 +333,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       ...withheldWhereNeeded(def.exercise.templateCode, def.exercise),
       answerSchema: def.template.answerSchema,
       checkSettings,
+      answeredQuestions: [],
     });
   }
 

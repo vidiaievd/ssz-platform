@@ -135,6 +135,52 @@ const makeHandler = (
 
 const cmd = new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE');
 
+/** An open attempt, optionally holding questions already handed in. */
+const inProgress = (
+  answeredQuestions: Array<{ questionId: string; text: string; verdict: 'pass' | 'partial' | 'fail'; answeredAt: Date }> = [],
+  templateCode = 'short_answer',
+) =>
+  Attempt.reconstitute({
+    id: 'attempt-open',
+    userId: 'user-1',
+    exerciseId: 'ex-1',
+    assignmentId: null,
+    enrollmentId: null,
+    templateCode,
+    targetLanguage: 'no',
+    difficultyLevel: 'A1',
+    checkMode: 'PRACTICE',
+    practicedAtoms: [],
+    status: 'IN_PROGRESS',
+    score: null,
+    passed: null,
+    timeSpentSeconds: 0,
+    submittedAnswer: null,
+    validationDetails: null,
+    feedback: null,
+    answerHash: null,
+    revisionCount: 0,
+    answersRevealed: false,
+    selfChecksUsed: 0,
+    startedAt: new Date(),
+    submittedAt: null,
+    scoredAt: null,
+    reviewedByUserId: null,
+    reviewedAt: null,
+    reviewComment: null,
+    reviewDecisions: null,
+    schoolId: null,
+    containerId: null,
+    groupId: null,
+    exercisePath: null,
+    reviewClaimedBy: null,
+    reviewClaimedAt: null,
+    previousAttemptId: null,
+    autoPassedItems: null,
+    totalItems: null,
+    answeredQuestions,
+  } as any);
+
 describe('StartAttemptHandler', () => {
   it('returns ALREADY_IN_PROGRESS when an in-progress attempt exists', async () => {
     const repo = makeRepo();
@@ -186,6 +232,52 @@ describe('StartAttemptHandler', () => {
     const err = result.error as { code: string; attemptId: string };
     expect(err.code).toBe('ALREADY_IN_PROGRESS');
     expect(err.attemptId).toBe('attempt-existing');
+  });
+
+  // Plan 51 §8 Q6: a `short_answer` answer is final, so the attempt holding it is
+  // resumed rather than reported as a conflict the caller resolves by abandoning it.
+  it('resumes an open attempt that already holds answers, with what was answered', async () => {
+    const repo = makeRepo();
+    repo.findInProgress.mockResolvedValue(
+      inProgress([
+        { questionId: 'q1', text: 'I tre år.', verdict: 'pass', answeredAt: new Date() },
+        { questionId: 'q2', text: 'Vet ikke.', verdict: 'fail', answeredAt: new Date() },
+      ]),
+    );
+
+    const contentClient = makeContentClient();
+    contentClient.getExerciseForAttempt.mockResolvedValue(
+      Result.ok(
+        makeExerciseDef({
+          templateCode: 'short_answer',
+          content: { instruction: '', questions: [{ id: 'q1', kind: 'reading', passage: '', prompt: 'Hvor lenge?' }] },
+          expectedAnswers: { questions: {} },
+        }),
+      ),
+    );
+
+    const handler = makeHandler(repo, contentClient, makeOrganizationClient(), makePublisher());
+    const result = await handler.execute(cmd);
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.attemptId).toBe('attempt-open');
+    expect(result.value.answeredQuestions).toEqual([
+      { questionId: 'q1', text: 'I tre år.', verdict: 'pass' },
+      { questionId: 'q2', text: 'Vet ikke.', verdict: 'fail' },
+    ]);
+    // Resumed, not restarted: no second row, and no second `attempt.started` event.
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('still reports a conflict for an open attempt holding nothing', async () => {
+    const repo = makeRepo();
+    repo.findInProgress.mockResolvedValue(inProgress([], 'multiple_choice'));
+
+    const handler = makeHandler(repo, makeContentClient(), makeOrganizationClient(), makePublisher());
+    const result = await handler.execute(cmd);
+
+    expect(result.isFail).toBe(true);
+    expect((result.error as { code: string }).code).toBe('ALREADY_IN_PROGRESS');
   });
 
   it('returns ContentClientError when exercise is not found', async () => {
