@@ -144,8 +144,8 @@ export interface StartAttemptResult {
  * accept it, the rule and the per-chunk notes — is in its own column, and so is `row.text`,
  * the sentence in its correct order, which plan 52 §3.2 adds to the handoff's list. What
  * the student gets is the pieces, and they are *shuffled here*: a bank in sentence order
- * hands over the answer as surely as the key would. Two live document shapes again (plan
- * 52 §8 Q3), so the shape decides whether there is anything to project.
+ * hands over the answer as surely as the key would. A document that is not a set is
+ * handed on unprojected (plan 52 §8 Q7) — there is nothing in it to take away.
  *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
@@ -219,9 +219,9 @@ function withheldWhereNeeded(
   }
 
   if (templateCode === SENTENCE_SCHEMA) {
-    // A document of the old form is the sentence, the fields and the words — the exercise
-    // as the student is meant to see it, and its key is what PRACTICE mode has always
-    // shipped. Projecting it would find no `rows` and blank the exercise.
+    // Not a set at all — a document predating the rewrite (plan 52 §8 Q7). Handed on as
+    // it stands: projecting it would find no `rows` and blank the exercise, which looks
+    // like an exercise with nothing in it rather than one that needs rewriting.
     if (!isSentenceSchemaDocument(exercise.content)) {
       return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };
     }

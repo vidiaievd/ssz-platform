@@ -62,9 +62,7 @@ const OWN_SUBMISSION_SHAPE = new Set([
   // AJV used to check it, rather than nowhere.
   'short_answer',
   // And `sentence_schema` on its own rewrite (plan 52): its key is a map of fields per
-  // chunk, its submission a board per sentence. Like `short_answer`, the older of its two
-  // live shapes *was* describable by one schema — so that shape is now checked in
-  // `sentence-schema-legacy.ts`, where AJV used to check it, rather than nowhere.
+  // chunk, its submission a board per sentence. Its shape is checked in the validator.
   'sentence_schema',
 ]);
 

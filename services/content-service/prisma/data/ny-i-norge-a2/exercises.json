@@ -1170,87 +1170,112 @@
       "instruction": "Добавьте aldri и разместите слова главного предложения по полям схемы (setningsskjema).",
       "hint": "Наречие aldri стоит в midtfelt — после спрягаемого глагола, перед вторым глаголом.",
       "content": {
-        "sentence": "Lars har aldri likt Lotte.",
-        "source_sentence": "Lars har likt Lotte.",
-        "schema_type": "main",
-        "fields": [
+        "title": "Setningsskjema — aldri i midtfeltet",
+        "instruction": "Sett inn aldri og legg ordene i setningsskjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "main"
+        ],
+        "schema": {
+          "main": [
+            {
+              "id": "forfelt",
+              "short": "F",
+              "label": "Forfelt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "verbal1",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "midtfelt",
+              "short": "a",
+              "label": "Midtfelt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "verbal2",
+              "short": "V",
+              "label": "Verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "",
+              "optional": false
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "forfelt",
-            "label": "Forfelt"
-          },
-          {
-            "id": "verbal1",
-            "label": "Verbal"
-          },
-          {
-            "id": "midtfelt",
-            "label": "Midtfelt (adverbial/subjekt)"
-          },
-          {
-            "id": "verbal2",
-            "label": "Verbal"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt (objekt/adverbial)"
+            "id": "r1",
+            "clause": "main",
+            "source": "Lars har likt Lotte.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "Lars"
+              },
+              {
+                "id": "r1c2",
+                "text": "har"
+              },
+              {
+                "id": "r1c3",
+                "text": "aldri"
+              },
+              {
+                "id": "r1c4",
+                "text": "likt"
+              },
+              {
+                "id": "r1c5",
+                "text": "Lotte"
+              }
+            ],
+            "extras": []
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "Lars"
-          },
-          {
-            "id": "t2",
-            "text": "har"
-          },
-          {
-            "id": "t3",
-            "text": "aldri"
-          },
-          {
-            "id": "t4",
-            "text": "likt"
-          },
-          {
-            "id": "t5",
-            "text": "Lotte"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": false,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
-          {
-            "field_id": "forfelt",
-            "token_ids": [
-              "t1"
-            ]
-          },
-          {
-            "field_id": "verbal1",
-            "token_ids": [
-              "t2"
-            ]
-          },
-          {
-            "field_id": "midtfelt",
-            "token_ids": [
-              "t3"
-            ]
-          },
-          {
-            "field_id": "verbal2",
-            "token_ids": [
-              "t4"
-            ]
-          },
-          {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t5"
-            ]
+        "rows": {
+          "r1": {
+            "text": "Lars har aldri likt Lotte",
+            "why": "Наречие aldri стоит в midtfelt: после спрягаемого глагола har и перед вторым глаголом likt.",
+            "fields": {
+              "r1c1": "forfelt",
+              "r1c2": "verbal1",
+              "r1c3": "midtfelt",
+              "r1c4": "verbal2",
+              "r1c5": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r1c3": "aldri — наречие предложения: его место после спрягаемого глагола, а не перед ним."
+            }
           }
-        ]
+        }
       }
     },
     {
@@ -1259,89 +1284,112 @@
       "instruction": "Присоедините это предложение к «Jeg synes …» с помощью at и разместите придаточное по полям схемы.",
       "hint": "Subjunksjon at открывает leddsetning; поля adverbial и второй verbal здесь остаются пустыми.",
       "content": {
-        "sentence": "Jeg synes at Oslo er en fin by.",
-        "source_sentence": "Oslo er en fin by.",
-        "schema_type": "subordinate",
-        "fields": [
+        "title": "Leddsetningsskjema med at",
+        "instruction": "Knytt setningen til «Jeg synes …» med at og legg ordene i skjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "sub"
+        ],
+        "schema": {
+          "sub": [
+            {
+              "id": "subjunksjon",
+              "short": "sub",
+              "label": "Subjunksjon",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "subjekt",
+              "short": "n",
+              "label": "Subjekt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "adverbial",
+              "short": "a",
+              "label": "Adverbial",
+              "hint": "",
+              "optional": true
+            },
+            {
+              "id": "verbal",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "verbal2",
+              "short": "V",
+              "label": "Verbal",
+              "hint": "",
+              "optional": true
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "",
+              "optional": false
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "subjunksjon",
-            "label": "subjunksjon"
-          },
-          {
-            "id": "subjekt",
-            "label": "SUBJEKT"
-          },
-          {
-            "id": "adverbial",
-            "label": "adverbial"
-          },
-          {
-            "id": "verbal",
-            "label": "verbal"
-          },
-          {
-            "id": "verbal2",
-            "label": "VERBAL"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt (objekt/adverbial)"
+            "id": "r1",
+            "clause": "sub",
+            "source": "Oslo er en fin by.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "at"
+              },
+              {
+                "id": "r1c2",
+                "text": "Oslo"
+              },
+              {
+                "id": "r1c3",
+                "text": "er"
+              },
+              {
+                "id": "r1c4",
+                "text": "en fin by"
+              }
+            ],
+            "extras": []
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "at"
-          },
-          {
-            "id": "t2",
-            "text": "Oslo"
-          },
-          {
-            "id": "t3",
-            "text": "er"
-          },
-          {
-            "id": "t4",
-            "text": "en fin by"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": false,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
-          {
-            "field_id": "subjunksjon",
-            "token_ids": [
-              "t1"
-            ]
-          },
-          {
-            "field_id": "subjekt",
-            "token_ids": [
-              "t2"
-            ]
-          },
-          {
-            "field_id": "adverbial",
-            "token_ids": []
-          },
-          {
-            "field_id": "verbal",
-            "token_ids": [
-              "t3"
-            ]
-          },
-          {
-            "field_id": "verbal2",
-            "token_ids": []
-          },
-          {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t4"
-            ]
+        "rows": {
+          "r1": {
+            "text": "at Oslo er en fin by",
+            "why": "Subjunksjon at открывает придаточное: at + подлежащее + глагол. Поля adverbial и второй verbal здесь остаются пустыми.",
+            "fields": {
+              "r1c1": "subjunksjon",
+              "r1c2": "subjekt",
+              "r1c3": "verbal",
+              "r1c4": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {}
           }
-        ]
+        }
       }
     },
     {

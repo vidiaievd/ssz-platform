@@ -14,7 +14,6 @@ import {
   type RowGrading,
 } from '../../../shared/application/services/sentence-schema-rows.js';
 import type { IPerTypeValidator, PerTypeValidateInput } from './per-type-validator.interface.js';
-import { gradeLegacySentenceSchema } from './sentence-schema-legacy.js';
 
 /**
  * Grades `sentence_schema`: a set of sentences laid out on a topological field board.
@@ -30,12 +29,11 @@ import { gradeLegacySentenceSchema } from './sentence-schema-legacy.js';
  * `REVIEWABLE_EXERCISE_TYPES` and should not be: a piece is either in a field the key
  * accepts or it is not, and there is nothing here for a teacher to decide.
  *
- * Two document shapes reach this validator, and the shape decides which grader runs.
- * Plan 52 §8 Q3 reseeds one exercise of the seven, so six of the old form — one sentence,
- * inline fields, `placements` — stay live; `sentence-schema-legacy.ts` holds that path
- * unchanged. Dispatching on the document rather than on a version field is deliberate:
- * those six were written before any version existed, so a field could only ever be absent
- * there — the same test, spelled less honestly.
+ * One document shape, not two. The rewrite carried a second grader for exactly one plan
+ * phase; plan 52 §8 Q7 ended that by rewriting all seven seeded exercises. A document
+ * that is not a set is now refused as an invalid exercise rather than graded by a second
+ * path — the failure a student would otherwise get is a score of zero on an exercise
+ * nobody can see is broken.
  *
  * The client's own verdicts are never read. Each sentence was already graded once, by
  * `check-row`, and the runner was told the marks — but a submission is a request, and the
@@ -45,7 +43,12 @@ import { gradeLegacySentenceSchema } from './sentence-schema-legacy.js';
 export class SentenceSchemaValidator implements IPerTypeValidator {
   validate(input: PerTypeValidateInput): Result<ValidationOutcome, ValidationError> {
     if (!isSentenceSchemaDocument(input.content)) {
-      return gradeLegacySentenceSchema(input);
+      return Result.fail(
+        new ValidationError(
+          'INVALID_EXERCISE',
+          'This exercise is not a sentence set — its document predates the rewrite',
+        ),
+      );
     }
 
     const submitted = readSubmittedRows(input.submittedAnswer);

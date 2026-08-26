@@ -281,9 +281,9 @@ describe('CheckRowHandler', () => {
     expect((await handler.execute(check())).error).toEqual({ code: 'UNSUPPORTED_TEMPLATE' });
   });
 
-  it('refuses a document of the old form — it is answered by submitting', async () => {
-    // Plan 52 §8 Q3: six of the seven exercises stay that way, one sentence each, with
-    // no sentence ids to check against.
+  it('refuses a document that is not a set — there are no sentences to check', async () => {
+    // A leftover from before the rewrite (plan 52 §8 Q7). Read as an empty set it would
+    // answer "no such sentence" about every sentence the exercise has.
     const { handler } = makeHandler(makeAttempt(), {
       content: {
         sentence: 'I morgen skal jeg reise til Bergen.',

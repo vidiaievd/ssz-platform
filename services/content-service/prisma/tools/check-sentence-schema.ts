@@ -14,7 +14,8 @@
  * 3. **Nothing of the key reaches the student.** Every exercise, not a sample: one leaked
  *    `chunk.field` map is the whole answer, and so is `row.text`.
  *
- * Documents of the old form are counted and skipped (plan 52 §8 Q3).
+ * A document that is not a set at all is reported as such and fails the run: plan 52 §8 Q7
+ * left none behind, so one turning up means a file was restored from before the rewrite.
  *
  *   npx tsx prisma/tools/check-sentence-schema.ts
  *   npx tsx prisma/tools/check-sentence-schema.ts --file norsk-b1
@@ -54,7 +55,7 @@ function main(): void {
   let leakCount = 0;
   let mismatchCount = 0;
   let seen = 0;
-  let legacy = 0;
+  let strays = 0;
 
   for (const course of only) {
     const file = join(DATA_DIR, course, 'exercises.json');
@@ -64,7 +65,8 @@ function main(): void {
       for (const ex of items) {
         if (ex.template !== 'sentence_schema') continue;
         if (!isSentenceSchemaDocument(ex.content)) {
-          legacy += 1;
+          strays += 1;
+          console.log(`✗ ${course}/${unit} ${ex.key} — not a sentence set; predates the rewrite`);
           continue;
         }
         seen += 1;
@@ -153,10 +155,10 @@ function main(): void {
   }
 
   console.log(
-    `\n${seen} new-form exercise(s) checked, ${legacy} still on the old form. ` +
+    `\n${seen} exercise(s) checked, ${strays} not a set at all. ` +
       `${blockerCount} blocker(s), ${mismatchCount} inconsistenc(ies), ${leakCount} leak(s).`,
   );
-  if (blockerCount > 0 || leakCount > 0 || mismatchCount > 0) process.exit(1);
+  if (blockerCount > 0 || leakCount > 0 || mismatchCount > 0 || strays > 0) process.exit(1);
 }
 
 /** The parameters an issue carries, for the ones whose numbers are the diagnosis. */

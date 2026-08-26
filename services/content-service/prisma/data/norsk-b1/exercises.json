@@ -4954,74 +4954,100 @@
       "instruction": "Начните предложение с Derfor и разместите слова по полям (helsetning).",
       "hint": "Наречие-связка в forfelt вызывает инверсию: глагол остаётся на 2-м месте, подлежащее уходит за него.",
       "content": {
-        "sentence": "Derfor meldte jeg meg inn i et kor.",
-        "source_sentence": "Jeg meldte meg inn i et kor.",
-        "schema_type": "main",
-        "fields": [
+        "title": "Inversjon etter Derfor",
+        "instruction": "Begynn setningen med Derfor og legg ordene i skjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "main"
+        ],
+        "schema": {
+          "main": [
+            {
+              "id": "forfelt",
+              "short": "F",
+              "label": "Forfelt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "verbal1",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "midtfelt",
+              "short": "n",
+              "label": "Midtfelt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "",
+              "optional": false
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "forfelt",
-            "label": "Forfelt"
-          },
-          {
-            "id": "verbal1",
-            "label": "Verbal"
-          },
-          {
-            "id": "midtfelt",
-            "label": "Midtfelt (subjekt/adverbial)"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt"
+            "id": "r1",
+            "clause": "main",
+            "source": "Jeg meldte meg inn i et kor.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "Derfor"
+              },
+              {
+                "id": "r1c2",
+                "text": "meldte"
+              },
+              {
+                "id": "r1c3",
+                "text": "jeg meg inn"
+              },
+              {
+                "id": "r1c4",
+                "text": "i et kor"
+              }
+            ],
+            "extras": []
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "Derfor"
-          },
-          {
-            "id": "t2",
-            "text": "meldte"
-          },
-          {
-            "id": "t3",
-            "text": "jeg meg inn"
-          },
-          {
-            "id": "t4",
-            "text": "i et kor"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": false,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
-          {
-            "field_id": "forfelt",
-            "token_ids": [
-              "t1"
-            ]
-          },
-          {
-            "field_id": "verbal1",
-            "token_ids": [
-              "t2"
-            ]
-          },
-          {
-            "field_id": "midtfelt",
-            "token_ids": [
-              "t3"
-            ]
-          },
-          {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t4"
-            ]
+        "rows": {
+          "r1": {
+            "text": "Derfor meldte jeg meg inn i et kor",
+            "why": "Наречие-связка на первом месте вызывает инверсию: Forfelt Derfor, Verbal meldte, и только потом подлежащее.",
+            "fields": {
+              "r1c1": "forfelt",
+              "r1c2": "verbal1",
+              "r1c3": "midtfelt",
+              "r1c4": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r1c3": "Подлежащее уходит за глагол: первое место уже занято словом Derfor."
+            }
           }
-        ],
-        "explanation": "Наречие-связка на 1-м месте вызывает инверсию: Forfelt Derfor, Verbal meldte, затем подлежащее."
+        }
       }
     },
     {
@@ -5030,73 +5056,100 @@
       "instruction": "Начните предложение с Til slutt и разместите слова по полям (helsetning).",
       "hint": "Первое место занято обстоятельством — значит подлежащее встаёт после глагола.",
       "content": {
-        "sentence": "Til slutt besto hun prøven.",
-        "source_sentence": "Hun besto prøven.",
-        "schema_type": "main",
-        "fields": [
+        "title": "Inversjon etter Til slutt",
+        "instruction": "Begynn setningen med Til slutt og legg ordene i skjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "main"
+        ],
+        "schema": {
+          "main": [
+            {
+              "id": "forfelt",
+              "short": "F",
+              "label": "Forfelt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "verbal1",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "midtfelt",
+              "short": "n",
+              "label": "Midtfelt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "",
+              "optional": false
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "forfelt",
-            "label": "Forfelt"
-          },
-          {
-            "id": "verbal1",
-            "label": "Verbal"
-          },
-          {
-            "id": "midtfelt",
-            "label": "Midtfelt (subjekt)"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt"
+            "id": "r1",
+            "clause": "main",
+            "source": "Hun besto prøven.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "Til slutt"
+              },
+              {
+                "id": "r1c2",
+                "text": "besto"
+              },
+              {
+                "id": "r1c3",
+                "text": "hun"
+              },
+              {
+                "id": "r1c4",
+                "text": "prøven"
+              }
+            ],
+            "extras": []
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "Til slutt"
-          },
-          {
-            "id": "t2",
-            "text": "besto"
-          },
-          {
-            "id": "t3",
-            "text": "hun"
-          },
-          {
-            "id": "t4",
-            "text": "prøven"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": false,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
-          {
-            "field_id": "forfelt",
-            "token_ids": [
-              "t1"
-            ]
-          },
-          {
-            "field_id": "verbal1",
-            "token_ids": [
-              "t2"
-            ]
-          },
-          {
-            "field_id": "midtfelt",
-            "token_ids": [
-              "t3"
-            ]
-          },
-          {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t4"
-            ]
+        "rows": {
+          "r1": {
+            "text": "Til slutt besto hun prøven",
+            "why": "Первое поле занято обстоятельством Til slutt, поэтому глагол остаётся на втором месте, а подлежащее встаёт после него.",
+            "fields": {
+              "r1c1": "forfelt",
+              "r1c2": "verbal1",
+              "r1c3": "midtfelt",
+              "r1c4": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r1c3": "Первое место занято обстоятельством — значит подлежащее идёт после глагола."
+            }
           }
-        ]
+        }
       }
     },
     {
@@ -5105,88 +5158,112 @@
       "instruction": "Присоедините предложение с fordi и разместите слова по полям (leddsetning).",
       "hint": "При переходе в придаточное ikke переезжает вперёд — перед глаголом.",
       "content": {
-        "sentence": "… fordi hun ikke ga opp.",
-        "source_sentence": "Hun ga ikke opp.",
-        "schema_type": "subordinate",
-        "fields": [
+        "title": "Leddsetning med fordi",
+        "instruction": "Knytt setningen til med fordi og legg ordene i skjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "sub"
+        ],
+        "schema": {
+          "sub": [
+            {
+              "id": "subjunksjon",
+              "short": "sub",
+              "label": "Subjunksjon",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "subjekt",
+              "short": "n",
+              "label": "Subjekt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "adverbial",
+              "short": "a",
+              "label": "Adverbial",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "verbal",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "",
+              "optional": false
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "subjunksjon",
-            "label": "Subjunksjon"
-          },
-          {
-            "id": "subjekt",
-            "label": "Subjekt"
-          },
-          {
-            "id": "adverbial",
-            "label": "Adverbial"
-          },
-          {
-            "id": "verbal",
-            "label": "Verbal"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt"
+            "id": "r1",
+            "clause": "sub",
+            "source": "Hun ga ikke opp.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "fordi"
+              },
+              {
+                "id": "r1c2",
+                "text": "hun"
+              },
+              {
+                "id": "r1c3",
+                "text": "ikke"
+              },
+              {
+                "id": "r1c4",
+                "text": "ga"
+              },
+              {
+                "id": "r1c5",
+                "text": "opp"
+              }
+            ],
+            "extras": []
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "fordi"
-          },
-          {
-            "id": "t2",
-            "text": "hun"
-          },
-          {
-            "id": "t3",
-            "text": "ikke"
-          },
-          {
-            "id": "t4",
-            "text": "ga"
-          },
-          {
-            "id": "t5",
-            "text": "opp"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": false,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
-          {
-            "field_id": "subjunksjon",
-            "token_ids": [
-              "t1"
-            ]
-          },
-          {
-            "field_id": "subjekt",
-            "token_ids": [
-              "t2"
-            ]
-          },
-          {
-            "field_id": "adverbial",
-            "token_ids": [
-              "t3"
-            ]
-          },
-          {
-            "field_id": "verbal",
-            "token_ids": [
-              "t4"
-            ]
-          },
-          {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t5"
-            ]
+        "rows": {
+          "r1": {
+            "text": "fordi hun ikke ga opp",
+            "why": "В придаточном ikke стоит перед глаголом — в отличие от главного предложения, где было бы «ga ikke opp».",
+            "fields": {
+              "r1c1": "subjunksjon",
+              "r1c2": "subjekt",
+              "r1c3": "adverbial",
+              "r1c4": "verbal",
+              "r1c5": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r1c3": "Здесь ikke идёт ПЕРЕД глаголом: это порядок придаточного предложения."
+            }
           }
-        ],
-        "explanation": "В придаточном ikke стоит перед глаголом (в отличие от главного предложения)."
+        }
       }
     },
     {
@@ -5195,73 +5272,98 @@
       "instruction": "Присоедините предложение с selv om и разместите слова по полям (leddsetning).",
       "hint": "Subjunksjon selv om занимает первое поле, дальше идёт подлежащее.",
       "content": {
-        "sentence": "… selv om det var tungt.",
-        "source_sentence": "Det var tungt.",
-        "schema_type": "subordinate",
-        "fields": [
+        "title": "Leddsetning med selv om",
+        "instruction": "Knytt setningen til med selv om og legg ordene i skjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "sub"
+        ],
+        "schema": {
+          "sub": [
+            {
+              "id": "subjunksjon",
+              "short": "sub",
+              "label": "Subjunksjon",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "subjekt",
+              "short": "n",
+              "label": "Subjekt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "verbal",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "",
+              "optional": false
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "subjunksjon",
-            "label": "Subjunksjon"
-          },
-          {
-            "id": "subjekt",
-            "label": "Subjekt"
-          },
-          {
-            "id": "verbal",
-            "label": "Verbal"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt"
+            "id": "r1",
+            "clause": "sub",
+            "source": "Det var tungt.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "selv om"
+              },
+              {
+                "id": "r1c2",
+                "text": "det"
+              },
+              {
+                "id": "r1c3",
+                "text": "var"
+              },
+              {
+                "id": "r1c4",
+                "text": "tungt"
+              }
+            ],
+            "extras": []
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "selv om"
-          },
-          {
-            "id": "t2",
-            "text": "det"
-          },
-          {
-            "id": "t3",
-            "text": "var"
-          },
-          {
-            "id": "t4",
-            "text": "tungt"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": false,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
-          {
-            "field_id": "subjunksjon",
-            "token_ids": [
-              "t1"
-            ]
-          },
-          {
-            "field_id": "subjekt",
-            "token_ids": [
-              "t2"
-            ]
-          },
-          {
-            "field_id": "verbal",
-            "token_ids": [
-              "t3"
-            ]
-          },
-          {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t4"
-            ]
+        "rows": {
+          "r1": {
+            "text": "selv om det var tungt",
+            "why": "Subjunksjon selv om занимает первое поле, за ним сразу подлежащее и глагол — обычный порядок придаточного.",
+            "fields": {
+              "r1c1": "subjunksjon",
+              "r1c2": "subjekt",
+              "r1c3": "verbal",
+              "r1c4": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {}
           }
-        ]
+        }
       }
     },
     {

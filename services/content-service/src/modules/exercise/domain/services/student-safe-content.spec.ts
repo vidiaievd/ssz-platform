@@ -573,9 +573,11 @@ describe('studentSafeContent', () => {
       expect(project(schemaContent, halfWritten).rows).toEqual([]);
     });
 
-    it('leaves a document of the old form exactly as it is', () => {
-      // Plan 52 §8 Q3: six of the seven exercises stay this way. The new projection
-      // would find no `rows` and hand back an empty set, blanking an exercise that works.
+    it('hands back a document that is not a set at all, rather than blanking it', () => {
+      // Plan 52 §8 Q7: nothing is left on the old form. One that turns up anyway — an
+      // old backup, a hand-written document — is a leftover, and projecting it would
+      // find no `rows` and return an empty set, which looks like a working exercise
+      // with nothing in it.
       const old = {
         sentence: 'I morgen skal jeg reise til Bergen.',
         source_sentence: 'Jeg skal reise til Bergen i morgen.',

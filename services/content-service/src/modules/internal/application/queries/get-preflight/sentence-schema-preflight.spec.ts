@@ -138,9 +138,10 @@ describe('sentenceSchemaViolations', () => {
     expect(violation?.severity).toBe('warning');
   });
 
-  it('says nothing about a document of the old form', () => {
-    // Plan 52 §8 Q3 leaves six of the seven exercises this way. They have no rows, no
-    // chunks and no `why`; judged by these rules, every one would report three blockers.
+  it('says the document is the wrong shape, once, rather than four things it lacks', () => {
+    // Plan 52 §8 Q7: nothing is left on the old form, so one arriving is a leftover.
+    // Judged as an empty set it would report three or four blockers about fields it has
+    // no place to hold — true, and useless.
     const old = {
       id: 'ex-old',
       content: {
@@ -153,6 +154,12 @@ describe('sentenceSchemaViolations', () => {
       expectedAnswers: { placements: [{ field_id: 'forfelt', token_ids: ['t1'] }] },
     };
 
-    expect(sentenceSchemaViolations(old)).toEqual([]);
+    const violations = sentenceSchemaViolations(old);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({
+      ruleCode: 'SENTENCESCHEMA_NOT_A_SET',
+      severity: 'blocker',
+      itemId: 'ex-old',
+    });
   });
 });

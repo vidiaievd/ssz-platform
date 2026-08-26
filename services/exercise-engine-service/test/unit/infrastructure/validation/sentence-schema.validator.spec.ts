@@ -2,106 +2,10 @@ import { SentenceSchemaValidator } from '../../../../src/infrastructure/validati
 
 const validator = new SentenceSchemaValidator();
 
-// Two document shapes reach this validator and the shape decides which grader runs
-// (plan 52 §8 Q3: one exercise of the seven was reseeded, six stay as they were).
-//
-// The first block below is the old form — one sentence, inline fields, an ordered list of
-// token ids per field — and it passes no `content` at all, which is exactly how those six
-// documents arrive. The second is the set.
-
-// "Lars har aldri likt Lotte" → Forfelt | Verbal | Midtfelt | Verbal | Sluttfelt
-const expected = {
-  placements: [
-    { field_id: 'forfelt', token_ids: ['t1'] },
-    { field_id: 'verbal1', token_ids: ['t2'] },
-    { field_id: 'midtfelt', token_ids: ['t3'] },
-    { field_id: 'verbal2', token_ids: ['t4'] },
-    { field_id: 'sluttfelt', token_ids: ['t5'] },
-  ],
-};
-
-const run = (
-  placements: Array<{ field_id: string; token_ids: string[] }>,
-  checkSettings: Record<string, unknown> = { allow_partial_credit: true, order_sensitive: true },
-) =>
-  validator.validate({
-    submittedAnswer: { placements },
-    expectedAnswers: expected,
-    checkSettings,
-    targetLanguage: 'no',
-  });
-
-describe('SentenceSchemaValidator — one sentence, the old form', () => {
-  it('scores 100 when every field matches', () => {
-    const result = run(expected.placements);
-    expect(result.value.correct).toBe(true);
-    expect(result.value.score).toBe(100);
-    expect(result.value.requiresReview).toBe(false);
-  });
-
-  it('gives partial credit per field', () => {
-    const result = run([
-      { field_id: 'forfelt', token_ids: ['t1'] }, // correct
-      { field_id: 'verbal1', token_ids: ['t2'] }, // correct
-      { field_id: 'midtfelt', token_ids: ['t4'] }, // wrong
-      { field_id: 'verbal2', token_ids: ['t3'] }, // wrong
-      { field_id: 'sluttfelt', token_ids: ['t5'] }, // correct
-    ]);
-    expect(result.value.score).toBe(60);
-    expect(result.value.correct).toBe(false);
-  });
-
-  it('is order-sensitive within a field', () => {
-    const result = run([
-      { field_id: 'forfelt', token_ids: ['t1'] },
-      { field_id: 'verbal1', token_ids: ['t2'] },
-      { field_id: 'midtfelt', token_ids: ['t3'] },
-      { field_id: 'verbal2', token_ids: ['t4'] },
-      { field_id: 'sluttfelt', token_ids: ['t5', 'extra'] }, // wrong length/order
-    ]);
-    expect(result.value.score).toBe(80);
-  });
-
-  it('treats a missing submitted field as incorrect', () => {
-    const result = run([
-      { field_id: 'forfelt', token_ids: ['t1'] },
-      // verbal1 missing
-      { field_id: 'midtfelt', token_ids: ['t3'] },
-      { field_id: 'verbal2', token_ids: ['t4'] },
-      { field_id: 'sluttfelt', token_ids: ['t5'] },
-    ]);
-    expect(result.value.score).toBe(80);
-  });
-
-  it('with allow_partial_credit=false scores 0 unless all fields match', () => {
-    const result = run(
-      [
-        { field_id: 'forfelt', token_ids: ['t1'] },
-        { field_id: 'verbal1', token_ids: ['t2'] },
-        { field_id: 'midtfelt', token_ids: ['t3'] },
-        { field_id: 'verbal2', token_ids: ['t4'] },
-        { field_id: 'sluttfelt', token_ids: ['wrong'] },
-      ],
-      { allow_partial_credit: false },
-    );
-    expect(result.value.score).toBe(0);
-  });
-
-  it('exposes per-field results in details', () => {
-    const result = run([
-      { field_id: 'forfelt', token_ids: ['t1'] },
-      { field_id: 'verbal1', token_ids: ['wrong'] },
-      { field_id: 'midtfelt', token_ids: ['t3'] },
-      { field_id: 'verbal2', token_ids: ['t4'] },
-      { field_id: 'sluttfelt', token_ids: ['t5'] },
-    ]);
-    const details = result.value.details as { fields: Array<{ field_id: string; correct: boolean }> };
-    expect(details.fields.find((f) => f.field_id === 'verbal1')?.correct).toBe(false);
-    expect(details.fields.find((f) => f.field_id === 'forfelt')?.correct).toBe(true);
-  });
-});
-
-// ── The set, rewritten for the design handoff ────────────────────────────────
+// One document shape. The rewrite (plan 52) replaced one sentence with a set, and §8 Q7
+// then removed the second grader that had carried the old documents through one plan
+// phase: all seven seeded exercises were rewritten, so a document that is not a set is a
+// leftover and is refused rather than quietly graded.
 
 const settings = {
   labels: true,
@@ -208,7 +112,7 @@ const runSet = (
     targetLanguage: 'no',
   });
 
-describe('SentenceSchemaValidator — the set', () => {
+describe('SentenceSchemaValidator', () => {
   it('scores 100 when every sentence is laid out correctly', () => {
     const result = runSet([
       { rowId: 'r1', placement: solvedR1 },
@@ -334,5 +238,24 @@ describe('SentenceSchemaValidator — the set', () => {
 
     const marks = (result.value.details as SetDetails).items.find((i) => i.itemId === 'r1');
     expect(Object.keys(marks?.byItem ?? {})).toEqual(['c1', 'c2', 'c3', 'c4']);
+  });
+
+  it('refuses a document that is not a set, rather than scoring it zero', () => {
+    // A leftover from before the rewrite. Graded as an empty set it would score a student
+    // nothing on an exercise nobody can see is broken; refused, it says what is wrong.
+    const result = validator.validate({
+      submittedAnswer: { rows: [] },
+      expectedAnswers: { placements: [{ field_id: 'forfelt', token_ids: ['t1'] }] },
+      content: {
+        sentence: 'I morgen skal jeg reise til Bergen.',
+        fields: [{ id: 'forfelt', label: 'Forfelt' }],
+        tokens: [{ id: 't1', text: 'I morgen' }],
+      },
+      checkSettings: {},
+      targetLanguage: 'no',
+    });
+
+    expect(result.isFail).toBe(true);
+    expect(result.error.code).toBe('INVALID_EXERCISE');
   });
 });

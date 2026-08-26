@@ -29,16 +29,30 @@ export interface SentenceSchemaPreflightViolation {
  * without it ships a board that says "wrong" and nothing else — exactly the hole audit 34
  * §5.4 records against this template.
  *
- * Documents of the old form are skipped rather than judged. Plan 52 §8 Q3 leaves six of
- * the seven live, and they have no rows, no chunks and no `why` — running these rules
- * over one would report three blockers on an exercise that works.
+ * A document that is not a set at all — one predating the rewrite (plan 52 §8 Q7 left
+ * none behind, but nothing stops one being restored from an old backup) — is reported as
+ * one blocker saying so, rather than as the three or four that reading it as an empty set
+ * would produce. The author needs to be told the document is the wrong shape, not that it
+ * is missing a rule it has no place to put.
  */
 export function sentenceSchemaViolations(exercise: {
   id: string;
   content: unknown;
   expectedAnswers: unknown;
 }): SentenceSchemaPreflightViolation[] {
-  if (!isSentenceSchemaDocument(exercise.content)) return [];
+  if (!isSentenceSchemaDocument(exercise.content)) {
+    return [
+      {
+        ruleCode: 'SENTENCESCHEMA_NOT_A_SET',
+        severity: 'blocker',
+        itemType: 'EXERCISE',
+        itemId: exercise.id,
+        detail:
+          'The exercise is not a sentence set — it predates the rewrite and has to be ' +
+          'written again before it can be published',
+      },
+    ];
+  }
 
   const document = fromPersisted(exercise.content, exercise.expectedAnswers);
 

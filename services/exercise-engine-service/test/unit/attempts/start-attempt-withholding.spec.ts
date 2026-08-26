@@ -505,9 +505,10 @@ describe('StartAttemptHandler — what leaves with the attempt', () => {
       expect(result.value.expectedAnswers).toBeNull();
     });
 
-    it('leaves a document of the old form exactly as it is', async () => {
-      // Plan 52 §8 Q3: six of the seven exercises stay this way, and the new projection
-      // would find no `rows` and blank them.
+    it('hands on a document that is not a set, rather than blanking it', async () => {
+      // Plan 52 §8 Q7: nothing is left on the old form. One that turns up anyway would
+      // project to no `rows` at all, which reads as an exercise with nothing in it
+      // rather than one that needs rewriting.
       const old = {
         sentence: 'I morgen skal jeg reise til Bergen.',
         source_sentence: 'Jeg skal reise til Bergen i morgen.',

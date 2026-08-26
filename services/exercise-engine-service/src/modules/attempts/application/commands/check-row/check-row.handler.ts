@@ -107,8 +107,9 @@ export class CheckRowHandler implements ICommandHandler<CheckRowCommand> {
     }
 
     const { content, expectedAnswers } = defResult.value.exercise;
-    // A document of the old form is one sentence with no ids to check against; it is
-    // answered by submitting, as it always was (plan 52 §8 Q3).
+    // A document that is not a set has no sentence ids to check against — a leftover from
+    // before the rewrite (plan 52 §8 Q7). Refused rather than read as an empty set, which
+    // would answer "no such sentence" about every sentence it has.
     if (!isSentenceSchemaDocument(content)) {
       return Result.fail({ code: 'UNSUPPORTED_TEMPLATE' });
     }

@@ -527,7 +527,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
  * `sentence_schema` fails more silently still. A sentence whose words are not all placed
  * has no key, so the student projection drops it: the exercise publishes clean and shows
  * fewer sentences than the author wrote, or an empty board. Nothing errors, and nobody
- * is told. It skips its own old form for the same reason `short_answer` does.
+ * is told.
  */
 function violationsFor(
   templateCode: string,

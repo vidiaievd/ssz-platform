@@ -1287,12 +1287,11 @@ const templates = [
     // freely editable, so the same runtime serves the setningsskjema, the German
     // Feldermodell, or three unnamed boxes.
     //
-    // Both shapes are described here, and deliberately so. Plan 52 §8 Q3 reseeds
-    // only the first lesson of Norsk B1 — one exercise of the seven — so six
-    // documents of the old form stay live, and this schema is checked on every
-    // write to any of them. Replacing it outright would make those six
-    // unsaveable. `isSentenceSchemaDocument` in the kernel is what every reader
-    // dispatches on; the `anyOf` below is the same test spelled for AJV.
+    // One shape, not two. Plan 52 §8 Q7 reversed the decision to keep the old
+    // form alive: all seven seeded exercises were rewritten, so there is no
+    // document left that the old schema describes and nothing to dispatch on.
+    // A document that still has `sentence` / `fields` / `tokens` is refused here
+    // rather than accepted and quietly graded as an empty set.
     //
     // Fifth of the camelCase templates. The content holds no answer: which field
     // each chunk belongs in, which other fields also accept it, the rule and the
@@ -1302,9 +1301,8 @@ const templates = [
     // order is the answer written out as a string.
     contentSchema: {
       type: 'object',
-      anyOf: [{ required: ['rows'] }, { required: ['sentence', 'fields', 'tokens'] }],
+      required: ['rows'],
       properties: {
-        // ── The new form ──
         title: { type: 'string', description: 'Teacher-facing name of the set' },
         instruction: {
           type: 'string',
@@ -1428,66 +1426,17 @@ const templates = [
             },
           },
         },
-
-        // ── The old form, still live ──
-        // One sentence, its fields declared inline, its words pre-split. Kept
-        // until the six documents written this way are rewritten; see the note
-        // above.
-        sentence: { type: 'string' },
-        source_sentence: { type: 'string' },
-        schema_type: { type: 'string', enum: ['main', 'subordinate'] },
-        fields: {
-          type: 'array',
-          minItems: 2,
-          items: {
-            type: 'object',
-            required: ['id', 'label'],
-            properties: {
-              id: { type: 'string' },
-              label: { type: 'string' },
-            },
-          },
-        },
-        tokens: {
-          type: 'array',
-          minItems: 2,
-          items: {
-            type: 'object',
-            required: ['id', 'text'],
-            properties: {
-              id: { type: 'string' },
-              text: { type: 'string' },
-            },
-          },
-        },
-        // Arbitrary given placements. Not carried into the new form: the handoff
-        // has one pre-fill switch and no arbitrary worked example, and this was
-        // declared for eighteen months and used by none of the seven exercises
-        // (plan 52 Q4).
-        prefilled: {
-          type: 'array',
-          items: {
-            type: 'object',
-            required: ['field_id', 'token_id'],
-            properties: {
-              field_id: { type: 'string' },
-              token_id: { type: 'string' },
-            },
-          },
-        },
-        context: { type: 'string' },
       },
     },
-    // The author's key, in either form. As with `short_answer`, this schema no
-    // longer doubles as the learner's submission schema: `sentence_schema` joins
-    // `OWN_SUBMISSION_SHAPE` in exercise-engine, because the new key is a map of
-    // fields per chunk and the new submission is a board per sentence. The old
-    // form's submission shape is checked in the legacy grader, where AJV used to
-    // check it, rather than nowhere.
+    // The author's key. As with `short_answer`, this schema does not double as
+    // the learner's submission schema: `sentence_schema` sits in
+    // `OWN_SUBMISSION_SHAPE` in exercise-engine, because the key is a map of
+    // fields per chunk and the submission is a board per sentence. One schema
+    // over both would describe neither, and the one guarding the author's
+    // document is the one worth keeping strict.
     answerSchema: {
       type: 'object',
       properties: {
-        // ── The new form ──
         // Keyed by row id, so reordering the sentences cannot shuffle the key
         // onto the wrong ones.
         rows: {
@@ -1525,28 +1474,13 @@ const templates = [
             },
           },
         },
-
-        // ── The old form, still live ──
-        placements: {
-          type: 'array',
-          items: {
-            type: 'object',
-            required: ['field_id', 'token_ids'],
-            properties: {
-              field_id: { type: 'string' },
-              // Ordered tokens placed in this field; empty array allowed.
-              token_ids: { type: 'array', items: { type: 'string' } },
-            },
-          },
-        },
-        explanation: { type: 'string' },
       },
     },
-    // Read by the old form only. The new form takes every switch from
-    // `content.settings`, where the author set it: `order` decides whether order
-    // inside a field is graded, and partial credit is the platform's own rule
-    // about how a set is scored (plan 52 §3.4) rather than a template default no
-    // builder surfaces.
+    // `allow_partial_credit` is the one setting still read here: it decides what
+    // an imperfect sentence is worth to the set (plan 52 §3.4). `order_sensitive`
+    // is carried for the attempts written against it and is no longer read —
+    // whether order inside a field is graded is `content.settings.order`, where
+    // the author set it.
     defaultCheckSettings: { allow_partial_credit: true, order_sensitive: true },
     supportedLanguages: Prisma.DbNull,
   },

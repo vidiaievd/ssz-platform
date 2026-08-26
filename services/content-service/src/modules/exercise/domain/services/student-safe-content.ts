@@ -70,11 +70,12 @@ import {
  * over the answer as surely as the key would, and a runner that shuffled it locally would
  * be shuffling something the network tab had already shown in order.
  *
- * It is the second template with two live document shapes. Plan 52 §8 Q3 reseeds one
- * exercise of the seven, so six of the old form — one sentence, `fields`, `tokens`,
- * `placements` — stay live, and they keep nothing secret in their content: their key was
- * always in the other column. Running the new projection over one would return an empty
- * set and blank the exercise, so the shape is checked first.
+ * It carried two document shapes for exactly one plan phase. Plan 52 §8 Q7 ended that:
+ * all seven seeded exercises were rewritten, so a document that still looks like the old
+ * one is a leftover rather than a form to support — and it is handed back untouched,
+ * unprojected, rather than run through a projection that would read it as an empty set
+ * and blank the exercise. `short_answer` above still has two, and this is what the end of
+ * that looks like.
  *
  * There are exactly two places content leaves this service towards a learner, and both
  * call this: the exercise response DTO and the internal attempt envelope in `graded`
@@ -112,8 +113,9 @@ export function studentSafeContent(
   }
 
   if (templateCode === SENTENCE_SCHEMA) {
-    // The old form's content is the sentence, the fields and the words — the exercise as
-    // the student is meant to see it. It travels as it always has.
+    // Not a set at all — a document predating the rewrite, or one written by hand. There
+    // is nothing here to project and nothing to hide either: its key was always in the
+    // other column. Handed back as it stands, so what is wrong with it stays visible.
     if (!isSentenceSchemaDocument(content)) return content;
 
     // Assembled from both columns before it can be taken apart: the projection has to
