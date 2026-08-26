@@ -389,101 +389,281 @@
     {
       "key": "b1-g3-ss1",
       "template": "sentence_schema",
-      "instruction": "Перестройте предложение в придаточное с at и разместите слова по полям (leddsetning).",
+      "instruction": "Перестройте каждое предложение в придаточное и разместите слова по полям (leddsetning).",
       "hint": "В придаточном ikke стоит перед глаголом. Порядок полей: subjunksjon — subjekt — adverbial — verbal — sluttfelt.",
       "content": {
-        "sentence": "… at han ikke hadde tatt fagbrevet ennå.",
-        "source_sentence": "Han hadde ikke tatt fagbrevet ennå.",
-        "schema_type": "subordinate",
-        "fields": [
+        "title": "Indirekte tale — leddsetningsskjema",
+        "instruction": "Bygg om setningen til en leddsetning og legg ordene i skjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "sub"
+        ],
+        "schema": {
+          "sub": [
+            {
+              "id": "subjunksjon",
+              "short": "sub",
+              "label": "Subjunksjon",
+              "hint": "at, om eller spørreordet",
+              "optional": false
+            },
+            {
+              "id": "subjekt",
+              "short": "n",
+              "label": "Subjekt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "adverbial",
+              "short": "a",
+              "label": "Adverbial",
+              "hint": "ikke, alltid, ofte — foran verbet",
+              "optional": true
+            },
+            {
+              "id": "verbal",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "Finitt verb først, så infinitiv eller partisipp",
+              "optional": false
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "Objekt og andre utfyllinger",
+              "optional": true
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "subjunksjon",
-            "label": "Subjunksjon"
+            "id": "r1",
+            "clause": "sub",
+            "source": "Han hadde ikke tatt fagbrevet ennå.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "at"
+              },
+              {
+                "id": "r1c2",
+                "text": "han"
+              },
+              {
+                "id": "r1c3",
+                "text": "ikke"
+              },
+              {
+                "id": "r1c4",
+                "text": "hadde"
+              },
+              {
+                "id": "r1c5",
+                "text": "tatt"
+              },
+              {
+                "id": "r1c6",
+                "text": "fagbrevet"
+              },
+              {
+                "id": "r1c7",
+                "text": "ennå"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r1x1",
+                "text": "hadde ikke"
+              },
+              {
+                "id": "r1x2",
+                "text": "har"
+              }
+            ]
           },
           {
-            "id": "subjekt",
-            "label": "Subjekt"
+            "id": "r2",
+            "clause": "sub",
+            "source": "«Har du bil?», spurte hun.",
+            "chunks": [
+              {
+                "id": "r2c1",
+                "text": "om"
+              },
+              {
+                "id": "r2c2",
+                "text": "jeg"
+              },
+              {
+                "id": "r2c3",
+                "text": "hadde"
+              },
+              {
+                "id": "r2c4",
+                "text": "bil"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r2x1",
+                "text": "at"
+              },
+              {
+                "id": "r2x2",
+                "text": "hadde jeg"
+              }
+            ]
           },
           {
-            "id": "adverbial",
-            "label": "Adverbial"
+            "id": "r3",
+            "clause": "sub",
+            "source": "«Hvor bor du?», spurte han.",
+            "chunks": [
+              {
+                "id": "r3c1",
+                "text": "hvor"
+              },
+              {
+                "id": "r3c2",
+                "text": "jeg"
+              },
+              {
+                "id": "r3c3",
+                "text": "bodde"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r3x1",
+                "text": "om"
+              },
+              {
+                "id": "r3x2",
+                "text": "bor"
+              }
+            ]
           },
           {
-            "id": "verbal",
-            "label": "Verbal"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt"
+            "id": "r4",
+            "clause": "sub",
+            "source": "«Jeg skal ikke jobbe på lørdag», sa Bartek.",
+            "chunks": [
+              {
+                "id": "r4c1",
+                "text": "at"
+              },
+              {
+                "id": "r4c2",
+                "text": "han"
+              },
+              {
+                "id": "r4c3",
+                "text": "ikke"
+              },
+              {
+                "id": "r4c4",
+                "text": "skulle"
+              },
+              {
+                "id": "r4c5",
+                "text": "jobbe"
+              },
+              {
+                "id": "r4c6",
+                "text": "på lørdag"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r4x1",
+                "text": "skal"
+              },
+              {
+                "id": "r4x2",
+                "text": "jeg"
+              }
+            ]
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "at"
-          },
-          {
-            "id": "t2",
-            "text": "han"
-          },
-          {
-            "id": "t3",
-            "text": "ikke"
-          },
-          {
-            "id": "t4",
-            "text": "hadde"
-          },
-          {
-            "id": "t5",
-            "text": "tatt"
-          },
-          {
-            "id": "t6",
-            "text": "fagbrevet"
-          },
-          {
-            "id": "t7",
-            "text": "ennå"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": true,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": true,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
-          {
-            "field_id": "subjunksjon",
-            "token_ids": [
-              "t1"
-            ]
+        "rows": {
+          "r1": {
+            "text": "at han ikke hadde tatt fagbrevet ennå",
+            "why": "В придаточном ikke стоит перед глаголом: at + подлежащее + ikke + глагол. В главном предложении было бы «hadde ikke tatt».",
+            "fields": {
+              "r1c1": "subjunksjon",
+              "r1c2": "subjekt",
+              "r1c3": "adverbial",
+              "r1c4": "verbal",
+              "r1c5": "verbal",
+              "r1c6": "sluttfelt",
+              "r1c7": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r1c3": "Здесь ikke идёт ПЕРЕД глаголом — это главное отличие придаточного от главного предложения."
+            }
           },
-          {
-            "field_id": "subjekt",
-            "token_ids": [
-              "t2"
-            ]
+          "r2": {
+            "text": "om jeg hadde bil",
+            "why": "Общий вопрос вводится om, и инверсия в нём исчезает: om + подлежащее + глагол. После spurte время сдвигается: har → hadde.",
+            "fields": {
+              "r2c1": "subjunksjon",
+              "r2c2": "subjekt",
+              "r2c3": "verbal",
+              "r2c4": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r2c1": "Вопрос «да/нет» вводится om, а не at."
+            }
           },
-          {
-            "field_id": "adverbial",
-            "token_ids": [
-              "t3"
-            ]
+          "r3": {
+            "text": "hvor jeg bodde",
+            "why": "Вопросительное слово само занимает место союза: hvor + подлежащее + глагол, без om и без инверсии. После spurte: bor → bodde.",
+            "fields": {
+              "r3c1": "subjunksjon",
+              "r3c2": "subjekt",
+              "r3c3": "verbal"
+            },
+            "alt": {},
+            "fb": {
+              "r3c1": "После вопросительного слова om не нужен — hvor само вводит придаточное."
+            }
           },
-          {
-            "field_id": "verbal",
-            "token_ids": [
-              "t4",
-              "t5"
-            ]
-          },
-          {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t6",
-              "t7"
-            ]
+          "r4": {
+            "text": "at han ikke skulle jobbe på lørdag",
+            "why": "После глагола в прошедшем (sa) время сдвигается: skal → skulle, а jeg → han. ikke остаётся перед глаголом, а «på lørdag» — одна составляющая и стоит целиком в sluttfelt.",
+            "fields": {
+              "r4c1": "subjunksjon",
+              "r4c2": "subjekt",
+              "r4c3": "adverbial",
+              "r4c4": "verbal",
+              "r4c5": "verbal",
+              "r4c6": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r4c4": "После глагола в прошедшем (sa) skal превращается в skulle.",
+              "r4c6": "«på lørdag» — один член предложения, его не разбивают на два поля."
+            }
           }
-        ],
-        "explanation": "В придаточном: subjunksjon at, subjekt han, adverbial ikke ПЕРЕД глаголом, verbal hadde tatt, затем sluttfelt."
+        }
       }
     },
     {
