@@ -135,10 +135,18 @@ const makeHandler = (
 
 const cmd = new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE');
 
-/** An open attempt, optionally holding questions already handed in. */
+/** An open attempt, optionally holding work already done on it. */
 const inProgress = (
   answeredQuestions: Array<{ questionId: string; text: string; verdict: 'pass' | 'partial' | 'fail'; answeredAt: Date }> = [],
   templateCode = 'short_answer',
+  checkedRows: Array<{
+    rowId: string;
+    attempts: number;
+    placement: Record<string, string[]>;
+    solved: boolean;
+    revealed: boolean;
+    checkedAt: Date;
+  }> = [],
 ) =>
   Attempt.reconstitute({
     id: 'attempt-open',
@@ -179,6 +187,7 @@ const inProgress = (
     autoPassedItems: null,
     totalItems: null,
     answeredQuestions,
+    checkedRows,
   } as any);
 
 describe('StartAttemptHandler', () => {
@@ -266,6 +275,45 @@ describe('StartAttemptHandler', () => {
       { questionId: 'q2', text: 'Vet ikke.', verdict: 'fail' },
     ]);
     // Resumed, not restarted: no second row, and no second `attempt.started` event.
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  // Plan 52 §3.3, and a sharper case than the one above: a `sentence_schema` sentence is
+  // not final, but a revealed one is. Starting over would erase the reveal, and revealing
+  // every sentence and then reloading would be the cheapest route to a full score.
+  it('resumes an open attempt that holds checked sentences, boards and all', async () => {
+    const repo = makeRepo();
+    repo.findInProgress.mockResolvedValue(
+      inProgress([], 'sentence_schema', [
+        {
+          rowId: 'r1',
+          attempts: 3,
+          placement: { 'f-sub': ['c1'] },
+          solved: false,
+          revealed: true,
+          checkedAt: new Date(),
+        },
+      ]),
+    );
+
+    const contentClient = makeContentClient();
+    contentClient.getExerciseForAttempt.mockResolvedValue(
+      Result.ok(
+        makeExerciseDef({
+          templateCode: 'sentence_schema',
+          content: { instruction: '', clauses: ['sub'], schema: { sub: [] }, rows: [], settings: {} },
+          expectedAnswers: { rows: {} },
+        }),
+      ),
+    );
+
+    const handler = makeHandler(repo, contentClient, makeOrganizationClient(), makePublisher());
+    const result = await handler.execute(cmd);
+
+    expect(result.value.attemptId).toBe('attempt-open');
+    expect(result.value.checkedRows).toEqual([
+      { rowId: 'r1', attempts: 3, placement: { 'f-sub': ['c1'] }, solved: false, revealed: true },
+    ]);
     expect(repo.save).not.toHaveBeenCalled();
   });
 

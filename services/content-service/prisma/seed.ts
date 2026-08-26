@@ -1277,20 +1277,165 @@ const templates = [
   {
     code: 'sentence_schema',
     name: 'Sentence Schema',
-    description: 'Place the words of a sentence into topological fields (Norwegian setningsskjema)',
+    description: 'Lay a set of sentences out on a topological field board — one schema, many sentences',
+    // Rewritten for the design handoff (docs/plan/52-sentence-schema.md). The old
+    // shape was one sentence, its fields declared inline as `{ id, label }`, its
+    // words as `tokens[]`, and the key an ordered `placements[]` — snake_case
+    // throughout. The new one is a **set of sentences over one schema**, and the
+    // governing idea is that the field set is data rather than Norwegian: a
+    // schema is a field list per clause type, seeded from a language pack and
+    // freely editable, so the same runtime serves the setningsskjema, the German
+    // Feldermodell, or three unnamed boxes.
+    //
+    // Both shapes are described here, and deliberately so. Plan 52 §8 Q3 reseeds
+    // only the first lesson of Norsk B1 — one exercise of the seven — so six
+    // documents of the old form stay live, and this schema is checked on every
+    // write to any of them. Replacing it outright would make those six
+    // unsaveable. `isSentenceSchemaDocument` in the kernel is what every reader
+    // dispatches on; the `anyOf` below is the same test spelled for AJV.
+    //
+    // Fifth of the camelCase templates. The content holds no answer: which field
+    // each chunk belongs in, which other fields also accept it, the rule and the
+    // per-chunk notes are lifted into expected_answers by the kernel's
+    // persistence module — and so is `row.text`, which the handoff's Security
+    // section omits and plan 52 §3.2 adds, because a sentence in the correct
+    // order is the answer written out as a string.
     contentSchema: {
       type: 'object',
-      required: ['sentence', 'fields', 'tokens'],
+      anyOf: [{ required: ['rows'] }, { required: ['sentence', 'fields', 'tokens'] }],
       properties: {
-        // The target sentence. Held back from the learner while
-        // `source_sentence` is set, and shown with the feedback instead.
+        // ── The new form ──
+        title: { type: 'string', description: 'Teacher-facing name of the set' },
+        instruction: {
+          type: 'string',
+          description: 'One line, shown above the board in the runner',
+        },
+        // Which language pack the schema was seeded from — provenance only. The
+        // schema below is authoritative and may have been edited past
+        // recognition; a converted exercise with hand-written fields carries
+        // `blank`, and that is correct.
+        presetId: { type: 'string' },
+        // Which clause types are switched on, and so selectable per sentence.
+        clauses: {
+          type: 'array',
+          items: { type: 'string', enum: ['main', 'sub', 'yesno', 'hv', 'imp'] },
+        },
+        // The board: an ordered field list per clause type. Field ids are scoped
+        // to the clause they live in — that is the single most consequential fact
+        // in this model, because it is why changing a sentence's clause type
+        // clears its placements instead of remapping them.
+        schema: {
+          type: 'object',
+          additionalProperties: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['id', 'short'],
+              properties: {
+                id: { type: 'string' },
+                // The key shown on the board: "F", "v", "n", "VF". Terse on purpose.
+                short: { type: 'string' },
+                label: { type: 'string' },
+                hint: { type: 'string' },
+                // May legitimately stay empty: drives the `—` in an empty cell
+                // and stops the grader expecting something there.
+                optional: { type: 'boolean' },
+              },
+            },
+          },
+        },
+        // No `minItems` on `rows`, and none on `chunks` either — the same
+        // reasoning as `writing_task` and `short_answer`. This schema is checked
+        // on every write, and a document being written is unfinished by
+        // definition: an author who has typed a sentence but not yet split it,
+        // or who has added no sentence at all, would find the exercise
+        // unsaveable, and with autosave, silently so. That a set needs a
+        // deliverable sentence is true and is enforced at publication instead,
+        // where it can be reported rather than swallowed.
+        rows: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: { type: 'string' },
+              clause: { type: 'string', enum: ['main', 'sub', 'yesno', 'hv', 'imp'] },
+              // The sentence the student starts from, when the task is "rewrite,
+              // then lay out" rather than "lay out". An extension beyond the
+              // handoff (plan 52 §3.8): every seeded exercise of this type is a
+              // transformation, and the model as drawn cannot express one. It is
+              // a prompt and nothing else — never tokenized, never banked, never
+              // graded.
+              source: { type: 'string' },
+              // The pieces of the sentence, in sentence order. One chunk may be
+              // several words joined ("I morgen"): that is how "one constituent"
+              // gets expressed, and it is what makes the V2 rule checkable.
+              // The texts stay here because they are the word bank the student
+              // must see; what is withheld is where each one goes.
+              chunks: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['id', 'text'],
+                  properties: {
+                    id: { type: 'string' },
+                    text: { type: 'string' },
+                  },
+                },
+              },
+              // Distractors: pieces that belong in no field and are always
+              // wrong. They never count toward the sentence, so a row made only
+              // of extras cannot exist.
+              extras: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['id', 'text'],
+                  properties: {
+                    id: { type: 'string' },
+                    text: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+        // Nine switches over one answer key — the same exercise from heavily
+        // scaffolded to bare. Listed here in the builder's order: strongest
+        // support first.
+        settings: {
+          type: 'object',
+          properties: {
+            labels: { type: 'boolean', description: 'Show field names, not only the short keys' },
+            hints: { type: 'boolean' },
+            counts: {
+              type: 'boolean',
+              description: 'Show how many chunks belong in each field — a partial key, enforced in the projection',
+            },
+            prefill: { type: 'string', enum: ['none', 'first'] },
+            // Declared by the handoff and left unbuilt by it; plan 52 Q6 keeps
+            // that. Carried so building it later needs no migration. Nothing
+            // reads it.
+            markEmpty: { type: 'boolean' },
+            perField: { type: 'boolean', description: 'Mark each field, not only the sentence' },
+            hintAfterMistake: { type: 'boolean' },
+            shuffle: { type: 'boolean', description: 'Shuffle the bank — applied server-side' },
+            extras: { type: 'boolean', description: 'Include the distractors in the bank' },
+            order: {
+              type: 'string',
+              enum: ['strict', 'loose'],
+              description: 'Whether order inside a single field is graded',
+            },
+          },
+        },
+
+        // ── The old form, still live ──
+        // One sentence, its fields declared inline, its words pre-split. Kept
+        // until the six documents written this way are rewritten; see the note
+        // above.
         sentence: { type: 'string' },
-        // Optional starting point that turns the task into a transformation:
-        // the learner rebuilds `sentence` from this one instead of copying it.
         source_sentence: { type: 'string' },
-        // Drives UI labelling for main vs subordinate clause schemas.
         schema_type: { type: 'string', enum: ['main', 'subordinate'] },
-        // Ordered columns of the schema.
         fields: {
           type: 'array',
           minItems: 2,
@@ -1303,7 +1448,6 @@ const templates = [
             },
           },
         },
-        // Pre-split, draggable words / chunks.
         tokens: {
           type: 'array',
           minItems: 2,
@@ -1316,7 +1460,10 @@ const templates = [
             },
           },
         },
-        // Optional given placements (worked example row).
+        // Arbitrary given placements. Not carried into the new form: the handoff
+        // has one pre-fill switch and no arbitrary worked example, and this was
+        // declared for eighteen months and used by none of the seven exercises
+        // (plan 52 Q4).
         prefilled: {
           type: 'array',
           items: {
@@ -1331,10 +1478,55 @@ const templates = [
         context: { type: 'string' },
       },
     },
+    // The author's key, in either form. As with `short_answer`, this schema no
+    // longer doubles as the learner's submission schema: `sentence_schema` joins
+    // `OWN_SUBMISSION_SHAPE` in exercise-engine, because the new key is a map of
+    // fields per chunk and the new submission is a board per sentence. The old
+    // form's submission shape is checked in the legacy grader, where AJV used to
+    // check it, rather than nowhere.
     answerSchema: {
       type: 'object',
-      required: ['placements'],
       properties: {
+        // ── The new form ──
+        // Keyed by row id, so reordering the sentences cannot shuffle the key
+        // onto the wrong ones.
+        rows: {
+          type: 'object',
+          description: 'Keyed by sentence id',
+          additionalProperties: {
+            type: 'object',
+            properties: {
+              // The sentence in its correct order — answer-bearing, which is why
+              // it lives here and not in the content.
+              text: { type: 'string' },
+              // Why the sentence is built this way. Required at publication: it
+              // is shown on success, it is the last-resort explanation for a
+              // wrong placement, and it is the escalating hint. One line doing
+              // three jobs is why an exercise without it cannot be published.
+              why: { type: 'string' },
+              // chunkId → the field it belongs in.
+              fields: {
+                type: 'object',
+                additionalProperties: { type: ['string', 'null'] },
+              },
+              // chunkId → other fields that also accept it. How "I morgen" is
+              // right in the forfelt *and* in the adverbial, without a second
+              // full layout.
+              alt: {
+                type: 'object',
+                additionalProperties: { type: 'array', items: { type: 'string' } },
+              },
+              // chunkId → the explanation shown instead of the default when that
+              // chunk lands wrong.
+              fb: {
+                type: 'object',
+                additionalProperties: { type: 'string' },
+              },
+            },
+          },
+        },
+
+        // ── The old form, still live ──
         placements: {
           type: 'array',
           items: {
@@ -1350,6 +1542,11 @@ const templates = [
         explanation: { type: 'string' },
       },
     },
+    // Read by the old form only. The new form takes every switch from
+    // `content.settings`, where the author set it: `order` decides whether order
+    // inside a field is graded, and partial credit is the platform's own rule
+    // about how a set is scored (plan 52 §3.4) rather than a template default no
+    // builder surfaces.
     defaultCheckSettings: { allow_partial_credit: true, order_sensitive: true },
     supportedLanguages: Prisma.DbNull,
   },

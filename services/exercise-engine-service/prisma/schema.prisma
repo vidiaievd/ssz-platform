@@ -158,6 +158,21 @@ model Attempt {
   // next runner that hands work in piece by piece needs no migration.
   answeredQuestions Json? @map("answered_questions")
 
+  // ── Work checked sentence by sentence ───────────────────────────────────
+  // `sentence_schema` lays out a set of sentences and checks them one at a time, with
+  // unlimited retries per sentence (plan 52 §3.3). Not answers: a wrong board is a step
+  // in solving, so this holds the running state of each sentence rather than a decision —
+  // `[{ rowId, attempts, placement, solved, revealed, checkedAt }]`.
+  //
+  // Its reason to exist beyond resuming a reload is `revealed`. `Vis riktig skjema` puts
+  // the answer on the board, and a revealed sentence scores nothing however it looks
+  // afterwards — so that fact has to be the server's, not a flag the submission carries
+  // and a client could leave out.
+  //
+  // Untyped for the same reason the two columns above are: nothing here knows the
+  // template, and the next runner that works through a set in place needs no migration.
+  checkedRows Json? @map("checked_rows")
+
   // ── Teacher review ──────────────────────────────────────────────────────
   // Free-form attempts stop at ROUTED_FOR_REVIEW, where the only verdict left is a
   // person's. What that person decided lives here.

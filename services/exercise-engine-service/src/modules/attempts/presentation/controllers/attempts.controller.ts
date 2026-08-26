@@ -40,10 +40,15 @@ import type { SaveDraftError, SaveDraftResult } from '../../application/commands
 import { SaveDraftRequestDto, SaveDraftResponseDto } from '../dto/save-draft.dto.js';
 import { SelfCheckCommand } from '../../application/commands/self-check/self-check.command.js';
 import { AnswerQuestionCommand } from '../../application/commands/answer-question/answer-question.command.js';
+import { CheckRowCommand } from '../../application/commands/check-row/check-row.command.js';
 import type {
   AnswerQuestionError,
   AnswerQuestionResult,
 } from '../../application/commands/answer-question/answer-question.handler.js';
+import type {
+  CheckRowError,
+  CheckRowResult,
+} from '../../application/commands/check-row/check-row.handler.js';
 import type {
   SelfCheckError,
   SelfCheckResult,
@@ -71,6 +76,11 @@ import {
   AnswerQuestionResponseDto,
   AnswerQuestionResultDto,
 } from '../dto/answer-question.dto.js';
+import {
+  CheckRowRequestDto,
+  CheckRowResponseDto,
+  CheckRowResultDto,
+} from '../dto/check-row.dto.js';
 import { AttemptResponseDto, ListAttemptsResponseDto } from '../dto/attempt-response.dto.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import { ContentClientError } from '../../../../shared/application/ports/content-client.port.js';
@@ -109,6 +119,16 @@ export function toAttemptDto(attempt: Attempt): AttemptResponseDto {
       questionId,
       text,
       verdict,
+    })),
+    // The same again for a `sentence_schema` set: the boards as last checked, and which
+    // sentences are closed. `revealed` is the one that has to survive a reload — a
+    // sentence the student was shown must not reopen as one they can still solve.
+    checkedRows: attempt.checkedRows.map(({ rowId, attempts, placement, solved, revealed }) => ({
+      rowId,
+      attempts,
+      placement,
+      solved,
+      revealed,
     })),
     id: attempt.id,
     userId: attempt.userId,
@@ -384,6 +404,67 @@ export class AttemptsController {
       // The domain's own words: already answered, or the set is already in.
       throw new UnprocessableEntityException(
         err instanceof Error ? err.message : 'Cannot answer this question',
+      );
+    }
+
+    return result.value;
+  }
+
+  @Post(':attemptId/rows')
+  @HttpCode(HttpStatus.OK)
+  @ApiExtraModels(CheckRowResultDto)
+  @ApiOperation({
+    summary: 'Check one sentence of a sentence-schema set',
+    description:
+      'sentence_schema only. The set is worked through a sentence at a time and a ' +
+      'sentence may be checked as often as the student likes: being wrong is a step in ' +
+      'solving, not a verdict. Graded on the server, because which field a piece belongs ' +
+      'in is the answer. Pass `reveal` to be shown the sentence instead — it closes and ' +
+      'scores nothing. A sentence already solved or revealed is refused. The attempt ' +
+      'stays in progress; POST /submit closes it with every board in one aggregate.',
+  })
+  @ApiResponse({ status: 200, type: CheckRowResponseDto })
+  @ApiResponse({ status: 400, description: 'Empty board, or no such sentence in the set' })
+  @ApiResponse({ status: 404, description: 'Attempt not found' })
+  @ApiResponse({ status: 403, description: 'Not your attempt' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'Sentence already closed, attempt no longer in progress, or not a sentence-schema set',
+  })
+  async checkRow(
+    @Param('exerciseId') _exerciseId: string,
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Body() dto: CheckRowRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<CheckRowResult> {
+    const result: Result<CheckRowResult, CheckRowError> = await this.commandBus.execute(
+      new CheckRowCommand(attemptId, user.userId, dto.rowId, dto.placement, dto.reveal === true),
+    );
+
+    if (result.isFail) {
+      const err = result.error;
+      if ('code' in err) {
+        if (err.code === 'ATTEMPT_NOT_FOUND') throw new NotFoundException('Attempt not found');
+        if (err.code === 'FORBIDDEN') throw new ForbiddenException('Not your attempt');
+        if (err.code === 'NOTHING_PLACED') {
+          throw new BadRequestException('There is nothing on the board to check');
+        }
+        if (err.code === 'ROW_NOT_FOUND') {
+          throw new BadRequestException('This exercise has no such sentence to solve');
+        }
+        if (err.code === 'UNSUPPORTED_TEMPLATE') {
+          throw new UnprocessableEntityException(
+            'This exercise is not worked through a sentence at a time',
+          );
+        }
+      }
+      if (err instanceof ContentClientError) {
+        throw new UnprocessableEntityException(err.message);
+      }
+      // The domain's own words: the sentence is already closed, or the set is already in.
+      throw new UnprocessableEntityException(
+        err instanceof Error ? err.message : 'Cannot check this sentence',
       );
     }
 

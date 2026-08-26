@@ -536,4 +536,76 @@ describe('Attempt entity', () => {
       expect(attempt.answeredQuestions).toHaveLength(1);
     });
   });
+  describe('checkRow()', () => {
+    const board = (rowId: string, solved = false, revealed = false) => ({
+      rowId,
+      placement: { 'f-sub': ['c1'], 'f-v': ['c3'] },
+      solved,
+      revealed,
+    });
+
+    it('counts the checks on a sentence and keeps the last board', () => {
+      // Unlike an answer, a check decides nothing: the handoff gives the student `Rett
+      // opp` and unlimited retries, and the counter is what they see as `Forsøk N`.
+      const attempt = makeAttempt();
+
+      expect(attempt.checkRow(board('r1')).isOk).toBe(true);
+      expect(attempt.checkRow(board('r1')).isOk).toBe(true);
+
+      expect(attempt.checkedRows).toHaveLength(1);
+      expect(attempt.checkedRows[0]).toMatchObject({ rowId: 'r1', attempts: 2, solved: false });
+      expect(attempt.checkedRows[0]?.checkedAt).toBeInstanceOf(Date);
+    });
+
+    it('refuses a sentence that is already solved', () => {
+      const attempt = makeAttempt();
+      attempt.checkRow(board('r1', true));
+
+      const again = attempt.checkRow(board('r1'));
+      expect(again.isFail).toBe(true);
+      expect(again.error).toBeInstanceOf(InvalidAttemptTransitionError);
+      // A refused check changes nothing — the solved board still stands.
+      expect(attempt.checkedRows[0]?.solved).toBe(true);
+      expect(attempt.checkedRows[0]?.attempts).toBe(1);
+    });
+
+    it('refuses a sentence that was revealed, and does not spend an attempt on the reveal', () => {
+      // `Vis riktig skjema` puts the answer on the board. Anything checked afterwards
+      // would be the answer handed straight back, so the refusal is the model's, not the
+      // runner's disabled button.
+      const attempt = makeAttempt();
+      attempt.checkRow(board('r1'));
+      attempt.checkRow({ ...board('r1'), revealed: true });
+
+      expect(attempt.checkedRows[0]).toMatchObject({ revealed: true, attempts: 1 });
+      expect(attempt.checkRow(board('r1')).isFail).toBe(true);
+    });
+
+    it('keeps the sentences apart', () => {
+      const attempt = makeAttempt();
+      attempt.checkRow(board('r1', true));
+      attempt.checkRow(board('r2'));
+
+      expect(attempt.checkedRows.map((row) => row.rowId)).toEqual(['r1', 'r2']);
+    });
+
+    it('refuses once the set is no longer open', () => {
+      const attempt = makeAttempt();
+      attempt.submit({ rows: [] }, 'hash');
+
+      expect(attempt.checkRow(board('r1')).isFail).toBe(true);
+      expect(attempt.checkedRows).toHaveLength(0);
+    });
+
+    it('hands back copies, so the state cannot be edited from outside', () => {
+      const attempt = makeAttempt();
+      attempt.checkRow(board('r1'));
+
+      attempt.checkedRows[0]!.revealed = true;
+      attempt.checkedRows.push(board('r2') as never);
+
+      expect(attempt.checkedRows).toHaveLength(1);
+      expect(attempt.checkedRows[0]?.revealed).toBe(false);
+    });
+  });
 });

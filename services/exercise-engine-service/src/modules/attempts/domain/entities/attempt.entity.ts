@@ -46,6 +46,31 @@ export interface AnsweredQuestion {
   answeredAt: Date;
 }
 
+/**
+ * One sentence of a `sentence_schema` set, as the attempt last saw it.
+ *
+ * Unlike an answered question, a checked sentence is **not** final: the handoff gives the
+ * student `Rett opp` and unlimited retries, so this is the row's running state rather than
+ * a record of a decision — how many checks it has taken, where the pieces stand, and
+ * whether it is closed.
+ *
+ * A row closes two ways, and the difference is the whole reason this is stored rather than
+ * recomputed from the submission: solved, or revealed. `Vis riktig skjema` fills the
+ * answer in, so a revealed row is worth nothing however the board looks afterwards — and
+ * a client that could simply omit the flag on submit would have found the cheapest route
+ * to a full score.
+ */
+export interface CheckedRow {
+  rowId: string;
+  /** How many times `Sjekk` has been pressed on this sentence. 1-based, as the runner shows it. */
+  attempts: number;
+  /** `fieldId → item ids, in the order they were stacked` — the board as last checked. */
+  placement: Record<string, string[]>;
+  solved: boolean;
+  revealed: boolean;
+  checkedAt: Date;
+}
+
 export interface PracticedAtom {
   atomType: string;
   atomId: string;
@@ -105,6 +130,7 @@ export interface AttemptPersistenceProps {
   draftAnswer: unknown;
   draftSavedAt: Date | null;
   answeredQuestions: AnsweredQuestion[] | null;
+  checkedRows: CheckedRow[] | null;
   rubricMarks: RubricMarks | null;
   rubricSnapshot: RubricSnapshot | null;
 }
@@ -201,6 +227,7 @@ export class Attempt extends AggregateRoot {
     private _rubricMarks: RubricMarks | null = null,
     private _rubricSnapshot: RubricSnapshot | null = null,
     private _answeredQuestions: AnsweredQuestion[] = [],
+    private _checkedRows: CheckedRow[] = [],
   ) {
     super(id);
   }
@@ -293,6 +320,7 @@ export class Attempt extends AggregateRoot {
       props.rubricMarks,
       props.rubricSnapshot,
       props.answeredQuestions ?? [],
+      props.checkedRows ?? [],
     );
   }
 
@@ -643,6 +671,65 @@ export class Attempt extends AggregateRoot {
   }
 
   /**
+   * Check one sentence of a `sentence_schema` set.
+   *
+   * Where `answerQuestion` above records a decision, this records a state. The handoff
+   * gives the student `Sjekk`, then `Rett opp (N)` with the correct pieces kept, and
+   * unlimited retries — so being wrong here is a step in solving, not a verdict, and the
+   * runner shows `Forsøk N` rather than a mark. What the attempt keeps is the running
+   * count, the board as last checked, and whether the sentence is closed.
+   *
+   * The refusal is the point of the method, and it is a different refusal: not "you have
+   * answered this already" but "this sentence is finished". A solved sentence locks, and
+   * a revealed one locks harder — `Vis riktig skjema` puts the answer on the board, so
+   * anything checked afterwards would be the answer handed back. A runner that only hides
+   * the button is a runner one replayed request away from a revealed sentence scoring
+   * full marks.
+   *
+   * Only while the attempt is open: a sentence checked after the set went in would be an
+   * edit to work already graded.
+   */
+  checkRow(props: {
+    rowId: string;
+    placement: Record<string, string[]>;
+    solved: boolean;
+    revealed: boolean;
+  }): Result<CheckedRow, InvalidAttemptTransitionError> {
+    if (this._status !== 'IN_PROGRESS') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot check a sentence on an attempt with status ${this._status}`,
+        ),
+      );
+    }
+
+    const existing = this._checkedRows.find((row) => row.rowId === props.rowId);
+    if (existing && (existing.solved || existing.revealed)) {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Sentence ${props.rowId} is already ${existing.revealed ? 'revealed' : 'solved'}`,
+        ),
+      );
+    }
+
+    const checked: CheckedRow = {
+      rowId: props.rowId,
+      // A reveal is not an attempt at the sentence: the counter the student sees stands
+      // still while the answer is shown to them.
+      attempts: (existing?.attempts ?? 0) + (props.revealed ? 0 : 1),
+      placement: props.placement,
+      solved: props.solved,
+      revealed: props.revealed,
+      checkedAt: new Date(),
+    };
+
+    if (existing) this._checkedRows[this._checkedRows.indexOf(existing)] = checked;
+    else this._checkedRows.push(checked);
+
+    return Result.ok(checked);
+  }
+
+  /**
    * A teacher's verdict on a submission that the machine could not close.
    *
    * Two outcomes and no third: approved, which scores the attempt and ends it, or
@@ -917,6 +1004,8 @@ export class Attempt extends AggregateRoot {
   get draftSavedAt(): Date | null { return this._draftSavedAt; }
   /** A copy: the list is append-only through `answerQuestion`, never from outside. */
   get answeredQuestions(): AnsweredQuestion[] { return [...this._answeredQuestions]; }
+  /** A copy: rows are written only through `checkRow`. */
+  get checkedRows(): CheckedRow[] { return this._checkedRows.map((row) => ({ ...row })); }
   get rubricMarks(): RubricMarks | null { return this._rubricMarks; }
   get rubricSnapshot(): RubricSnapshot | null { return this._rubricSnapshot; }
 

@@ -395,4 +395,200 @@ describe('studentSafeContent', () => {
       expect(project(shortAnswerContent, {}).questions.map((q) => q.id)).toEqual(['q1', 'q2']);
     });
   });
+  describe('sentence_schema', () => {
+    // Plan 52 §3.2. The key is `chunk.field`, `chunk.alt`, `row.why` and `row.fb` — and
+    // `row.text`, which the handoff's Security section omits: a sentence in its correct
+    // order is the answer written out as a string.
+    const settings = {
+      labels: true,
+      hints: false,
+      counts: false,
+      prefill: 'none',
+      markEmpty: false,
+      perField: true,
+      hintAfterMistake: true,
+      // Off in the fixture so the bank can be asserted in order. The shuffle itself is
+      // tested below — it is a security property here, not a presentation one.
+      shuffle: false,
+      extras: true,
+      order: 'strict',
+    };
+
+    const schemaContent = {
+      title: 'Indirekte tale',
+      instruction: 'Bygg om setningen og legg den i skjemaet.',
+      presetId: 'blank',
+      clauses: ['sub'],
+      schema: {
+        sub: [
+          { id: 'f-sub', short: 'sub', label: 'Subjunksjon', hint: '', optional: false },
+          { id: 'f-subj', short: 'n', label: 'Subjekt', hint: '', optional: false },
+          { id: 'f-adv', short: 'a', label: 'Adverbial', hint: '', optional: true },
+          { id: 'f-v', short: 'v', label: 'Verbal', hint: '', optional: false },
+          { id: 'f-slutt', short: 'N', label: 'Sluttfelt', hint: '', optional: true },
+        ],
+      },
+      rows: [
+        {
+          id: 'r1',
+          clause: 'sub',
+          source: '«Jeg kommer i morgen», sa han.',
+          chunks: [
+            { id: 'c1', text: 'at' },
+            { id: 'c2', text: 'han' },
+            { id: 'c3', text: 'kommer' },
+            { id: 'c4', text: 'i morgen' },
+          ],
+          extras: [{ id: 'x1', text: 'ikke' }],
+        },
+      ],
+      settings,
+    } as Record<string, unknown>;
+
+    const schemaKey = {
+      rows: {
+        r1: {
+          text: 'at han kommer i morgen',
+          why: 'Subjunksjonen «at» innleder leddsetningen, og verbet står etter subjektet.',
+          fields: { c1: 'f-sub', c2: 'f-subj', c3: 'f-v', c4: 'f-slutt' },
+          alt: { c4: ['f-adv'] },
+          fb: { c3: 'I en leddsetning kommer verbet etter subjektet.' },
+        },
+      },
+    } as Record<string, unknown>;
+
+    interface Projection {
+      title: string;
+      instruction: string;
+      rows: Array<{
+        id: string;
+        source: string;
+        bank: Array<{ id: string; text: string }>;
+        counts: Record<string, number> | null;
+        start: Record<string, string[]>;
+        fields: Array<{ id: string; short: string }>;
+      }>;
+    }
+
+    const project = (
+      content: Record<string, unknown> = schemaContent,
+      answers: Record<string, unknown> = schemaKey,
+    ) => studentSafeContent('sentence_schema', content, answers) as unknown as Projection;
+
+    it('ships the pieces and drops every trace of where they go', () => {
+      const projected = project();
+
+      expect(projected.rows[0]?.bank.map((item) => item.text)).toEqual([
+        'at',
+        'han',
+        'kommer',
+        'i morgen',
+        'ikke',
+      ]);
+
+      // The field ids do travel, and must: they are the columns of the board the
+      // student places into. What may not travel is the mapping from a piece to its
+      // field, which is the whole answer.
+      expect(projected.rows[0]?.fields.map((f) => f.id)).toEqual([
+        'f-sub',
+        'f-subj',
+        'f-adv',
+        'f-v',
+        'f-slutt',
+      ]);
+
+      const serialised = JSON.stringify(projected);
+      for (const pairing of ['"c1":"f-sub"', '"c3":"f-v"', '"c4":["f-adv"]']) {
+        expect(serialised).not.toContain(pairing);
+      }
+      expect(serialised).not.toContain('Subjunksjonen «at»');
+      expect(serialised).not.toContain('verbet etter subjektet');
+    });
+
+    it('withholds the sentence itself — it is the word order, written out', () => {
+      // Not on the handoff's list, and the one addition plan 52 §3.2 makes to it. The
+      // runner never renders `row.text`, so withholding it costs nothing.
+      expect(JSON.stringify(project())).not.toContain('at han kommer i morgen');
+    });
+
+    it('keeps the sentence to rewrite — it is the prompt, not the key', () => {
+      // §3.8: the transformation mode is the one extension beyond the handoff, and it
+      // exists because every seeded exercise of this type is a transformation. The
+      // source is shown, banked from nothing, and graded not at all.
+      expect(project().rows[0]?.source).toBe('«Jeg kommer i morgen», sa han.');
+      expect(project().rows[0]?.bank.map((i) => i.text)).not.toContain('sa');
+    });
+
+    it('shuffles the bank here, where the key is, rather than in the browser', () => {
+      // A bank in sentence order is the answer in order. The shuffle is part of the
+      // projection for that reason and not because the pieces look nicer mixed up.
+      const shuffling = {
+        ...schemaContent,
+        settings: { ...settings, shuffle: true },
+      };
+
+      const orders = new Set(
+        Array.from({ length: 20 }, () =>
+          project(shuffling)
+            .rows[0]?.bank.map((i) => i.id)
+            .join(','),
+        ),
+      );
+
+      expect(orders.size).toBeGreaterThan(1);
+      // Same pieces every time — only the order moves.
+      for (const order of orders) {
+        expect(order.split(',').sort()).toEqual(['c1', 'c2', 'c3', 'c4', 'x1']);
+      }
+    });
+
+    it('withholds the per-field counts unless the author switched them on', () => {
+      // The numbers are a partial key: a one-chunk field with a count of one is solved
+      // by elimination. So the author's decision is enforced where the payload is built.
+      expect(project().rows[0]?.counts).toBeNull();
+
+      const counting = { ...schemaContent, settings: { ...settings, counts: true } };
+      expect(project(counting).rows[0]?.counts).toEqual({
+        'f-sub': 1,
+        'f-subj': 1,
+        'f-adv': 0,
+        'f-v': 1,
+        'f-slutt': 1,
+      });
+    });
+
+    it('drops a sentence the author has not finished placing', () => {
+      // A row with an unplaced chunk has no key to be graded against, and a student
+      // cannot be asked to solve a sentence whose answer does not exist yet.
+      const halfWritten = {
+        ...schemaKey,
+        rows: {
+          r1: {
+            ...(schemaKey['rows'] as Record<string, Record<string, unknown>>)['r1'],
+            fields: { c1: 'f-sub', c2: null, c3: null, c4: null },
+          },
+        },
+      };
+
+      expect(project(schemaContent, halfWritten).rows).toEqual([]);
+    });
+
+    it('leaves a document of the old form exactly as it is', () => {
+      // Plan 52 §8 Q3: six of the seven exercises stay this way. The new projection
+      // would find no `rows` and hand back an empty set, blanking an exercise that works.
+      const old = {
+        sentence: 'I morgen skal jeg reise til Bergen.',
+        source_sentence: 'Jeg skal reise til Bergen i morgen.',
+        schema_type: 'main',
+        fields: [{ id: 'forfelt', label: 'Forfelt' }],
+        tokens: [{ id: 't1', text: 'I morgen' }],
+      };
+
+      expect(
+        studentSafeContent('sentence_schema', old, {
+          placements: [{ field_id: 'forfelt', token_ids: ['t1'] }],
+        }),
+      ).toBe(old);
+    });
+  });
 });

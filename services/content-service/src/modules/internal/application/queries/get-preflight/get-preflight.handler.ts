@@ -11,10 +11,12 @@ import { TEMPLATE_CODE as GAP_FILL_TEMPLATE } from '@ssz/shared-kernel/wordbank-
 import { TEMPLATE_CODE as MATCH_PAIRS_TEMPLATE } from '@ssz/shared-kernel/match-pairs';
 import { TEMPLATE_CODE as WRITING_TASK_TEMPLATE } from '@ssz/shared-kernel/writing-task';
 import { TEMPLATE_CODE as SHORT_ANSWER_TEMPLATE } from '@ssz/shared-kernel/short-answer';
+import { TEMPLATE_CODE as SENTENCE_SCHEMA_TEMPLATE } from '@ssz/shared-kernel/sentence-schema';
 import { gapFillViolations } from './gap-fill-preflight.js';
 import { matchPairsViolations } from './match-pairs-preflight.js';
 import { writingTaskViolations } from './writing-task-preflight.js';
 import { shortAnswerViolations } from './short-answer-preflight.js';
+import { sentenceSchemaViolations } from './sentence-schema-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
 
@@ -461,6 +463,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
                 MATCH_PAIRS_TEMPLATE,
                 WRITING_TASK_TEMPLATE,
                 SHORT_ANSWER_TEMPLATE,
+                SENTENCE_SCHEMA_TEMPLATE,
               ],
             },
           },
@@ -520,6 +523,11 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
  * way it fails is silent: a key whose phrases match nothing does not error, it simply
  * marks every correct answer as covering none of the points. Its rules also skip the
  * documents of the old form, which have none of the fields these rules ask about.
+ *
+ * `sentence_schema` fails more silently still. A sentence whose words are not all placed
+ * has no key, so the student projection drops it: the exercise publishes clean and shows
+ * fewer sentences than the author wrote, or an empty board. Nothing errors, and nobody
+ * is told. It skips its own old form for the same reason `short_answer` does.
  */
 function violationsFor(
   templateCode: string,
@@ -528,6 +536,7 @@ function violationsFor(
   if (templateCode === MATCH_PAIRS_TEMPLATE) return matchPairsViolations(document);
   if (templateCode === WRITING_TASK_TEMPLATE) return writingTaskViolations(document);
   if (templateCode === SHORT_ANSWER_TEMPLATE) return shortAnswerViolations(document);
+  if (templateCode === SENTENCE_SCHEMA_TEMPLATE) return sentenceSchemaViolations(document);
   return gapFillViolations(document);
 }
 

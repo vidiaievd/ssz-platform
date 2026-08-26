@@ -66,4 +66,4 @@ export {
 } from './persistence.js';
 
 export type { ProjectedItem, ProjectedRow, Shuffle, StudentProjection, StudentResult } from './projection.js';
-export { bankOf, keyIsDue, toStudentProjection } from './projection.js';
+export { bankOf, keyIsDue, revealRow, toStudentProjection, toStudentResult } from './projection.js';

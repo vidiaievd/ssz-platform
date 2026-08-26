@@ -1,9 +1,11 @@
 import type { AttemptModel } from '../../../../../generated/prisma/models/Attempt.js';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
 import { readRubricMarks, readRubricSnapshot } from '@ssz/shared-kernel/writing-task';
+import { readPlacement } from '../../../../shared/application/services/sentence-schema-rows.js';
 import type {
   AnsweredQuestion,
   AttemptStatus,
+  CheckedRow,
   CheckMode,
   DifficultyLevel,
   ExercisePathSnapshot,
@@ -33,6 +35,38 @@ function readAnsweredQuestions(value: unknown): AnsweredQuestion[] {
       text: typeof text === 'string' ? text : '',
       verdict: verdict === 'pass' || verdict === 'partial' ? verdict : 'fail',
       answeredAt: typeof answeredAt === 'string' ? new Date(answeredAt) : new Date(0),
+    });
+  }
+  return out;
+}
+
+/**
+ * The per-sentence state of a `sentence_schema` set, read rather than cast.
+ *
+ * Same reason as the list above, with one field that matters more: `revealed` decides
+ * whether the sentence scores at all, so a row that turned out to hold something else
+ * must read as "not revealed and not solved" — an honest fresh sentence — rather than as
+ * a truthy object whose flags are `undefined`. `checkedAt` is revived from its JSON
+ * string; a `Date` does not survive the column.
+ */
+function readCheckedRows(value: unknown): CheckedRow[] {
+  if (!Array.isArray(value)) return [];
+
+  const out: CheckedRow[] = [];
+  for (const raw of value) {
+    if (typeof raw !== 'object' || raw === null) continue;
+    const { rowId, attempts, placement, solved, revealed, checkedAt } = raw as Record<
+      string,
+      unknown
+    >;
+    if (typeof rowId !== 'string' || rowId === '') continue;
+    out.push({
+      rowId,
+      attempts: typeof attempts === 'number' && attempts > 0 ? attempts : 1,
+      placement: readPlacement(placement) ?? {},
+      solved: solved === true,
+      revealed: revealed === true,
+      checkedAt: typeof checkedAt === 'string' ? new Date(checkedAt) : new Date(0),
     });
   }
   return out;
@@ -82,6 +116,7 @@ export class AttemptMapper {
       draftAnswer: row.draftAnswer,
       draftSavedAt: row.draftSavedAt,
       answeredQuestions: readAnsweredQuestions(row.answeredQuestions),
+      checkedRows: readCheckedRows(row.checkedRows),
       // Read rather than cast, unlike the columns above. These two decide how the
       // submission is graded at all: a snapshot cast out of a JSON column that turned
       // out not to hold criteria would still be truthy, and the review handler would
@@ -137,6 +172,7 @@ export class AttemptMapper {
       draftSavedAt: attempt.draftSavedAt,
       answeredQuestions:
         attempt.answeredQuestions as unknown as AttemptModel['answeredQuestions'],
+      checkedRows: attempt.checkedRows as unknown as AttemptModel['checkedRows'],
       rubricMarks: attempt.rubricMarks as unknown as AttemptModel['rubricMarks'],
       rubricSnapshot: attempt.rubricSnapshot as unknown as AttemptModel['rubricSnapshot'],
     };

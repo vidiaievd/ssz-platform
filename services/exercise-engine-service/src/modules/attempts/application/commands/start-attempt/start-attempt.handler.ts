@@ -21,7 +21,6 @@ import {
   toStudentProjection as mpToStudentProjection,
   TEMPLATE_CODE as MATCH_PAIRS,
 } from '@ssz/shared-kernel/match-pairs';
-import type { ProjectedItem as MatchPairsItem } from '@ssz/shared-kernel/match-pairs';
 import {
   TEMPLATE_CODE as WRITING_TASK,
   toStudentProjection as wtToStudentProjection,
@@ -31,6 +30,12 @@ import {
   TEMPLATE_CODE as SHORT_ANSWER,
   toStudentProjection as saToStudentProjection,
 } from '@ssz/shared-kernel/short-answer';
+import {
+  fromPersisted as ssFromPersisted,
+  isSentenceSchemaDocument,
+  TEMPLATE_CODE as SENTENCE_SCHEMA,
+  toStudentProjection as ssToStudentProjection,
+} from '@ssz/shared-kernel/sentence-schema';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -44,6 +49,15 @@ import type { ExercisePathSnapshot } from '../../../domain/entities/attempt.enti
 export type StartAttemptError =
   | ContentClientError
   | { code: 'ALREADY_IN_PROGRESS'; attemptId: string };
+
+/** One sentence of a `sentence_schema` set already worked on in this attempt. */
+export interface ResumedRow {
+  rowId: string;
+  attempts: number;
+  placement: Record<string, string[]>;
+  solved: boolean;
+  revealed: boolean;
+}
 
 /** One question of a `short_answer` set already handed in on this attempt. */
 export interface ResumedAnswer {
@@ -72,6 +86,16 @@ export interface StartAttemptResult {
    * already shown, and the texts are their own words.
    */
   answeredQuestions: ResumedAnswer[];
+  /**
+   * The sentences already worked on in this attempt, for `sentence_schema` and nothing
+   * else.
+   *
+   * A caller resuming a set reads it to put the boards back and to know which sentences
+   * are closed. `revealed` in particular cannot be recovered from anywhere else: the
+   * student was shown that sentence, and reopening it on a reload would let a reveal be
+   * replayed as a solve.
+   */
+  checkedRows: ResumedRow[];
 }
 
 /**
@@ -114,6 +138,14 @@ export interface StartAttemptResult {
  * one setting that reaches back into the key, exactly as `showRubric` does above. It is
  * also the one template here with two live document shapes (plan 51 §8 Q1), so the shape
  * decides whether there is anything to project at all.
+ *
+ * `sentence_schema` is the eighth, and the one where the arrangement is as much of the
+ * masking as the omission. Its key — the field each chunk belongs in, the fields that also
+ * accept it, the rule and the per-chunk notes — is in its own column, and so is `row.text`,
+ * the sentence in its correct order, which plan 52 §3.2 adds to the handoff's list. What
+ * the student gets is the pieces, and they are *shuffled here*: a bank in sentence order
+ * hands over the answer as surely as the key would. Two live document shapes again (plan
+ * 52 §8 Q3), so the shape decides whether there is anything to project.
  *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
@@ -186,6 +218,31 @@ function withheldWhereNeeded(
     };
   }
 
+  if (templateCode === SENTENCE_SCHEMA) {
+    // A document of the old form is the sentence, the fields and the words — the exercise
+    // as the student is meant to see it, and its key is what PRACTICE mode has always
+    // shipped. Projecting it would find no `rows` and blank the exercise.
+    if (!isSentenceSchemaDocument(exercise.content)) {
+      return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };
+    }
+
+    // As for `writing_task` below: in `graded` mode content-service has already projected
+    // this and answered with no key. A second pass would read a projection — whose rows
+    // carry a bank rather than chunks — as a set where nothing is placed, and hand back an
+    // empty board. With no key in hand there is nothing left to withhold either.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      exerciseContent: ssToStudentProjection(
+        ssFromPersisted(exercise.content, exercise.expectedAnswers),
+        shuffled,
+      ),
+      expectedAnswers: null,
+    };
+  }
+
   if (templateCode === WRITING_TASK) {
     // In `graded` mode content-service has already projected this document and answered
     // with no key at all. Projecting a projection would then drop the one thing §5 is
@@ -205,8 +262,15 @@ function withheldWhereNeeded(
   return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };
 }
 
-/** Fisher-Yates over a copy, seeded by the platform CSPRNG rather than Math.random. */
-function shuffled<T extends string | MatchPairsItem>(items: T[]): T[] {
+/**
+ * Fisher-Yates over a copy, seeded by the platform CSPRNG rather than Math.random.
+ *
+ * Unconstrained in its element type: each kernel names its own shape for a bank item — a
+ * string here, `{ itemId, text }` there, `{ id, text }` in the third — and a union of them
+ * all would need widening for every template that arrives next, while adding nothing this
+ * function could get wrong.
+ */
+function shuffled<T>(items: T[]): T[] {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i -= 1) {
     const j = randomInt(i + 1);
@@ -241,10 +305,16 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
      * in on a row nothing reads. So the attempt comes back as it stands, with what has
      * been answered on it.
      *
-     * Only an attempt with answers takes this path. An empty one is still a conflict, so
-     * the twelve other templates keep the behaviour they were built on.
+     * `sentence_schema` joins on the same reasoning and a sharper case (plan 52 §3.3).
+     * Its sentences are not final — they may be checked as often as the student likes —
+     * but one thing about them is: a sentence closed with `Vis riktig skjema` was shown
+     * to the student, and it scores nothing. Starting over would erase that, and revealing
+     * every sentence and then reloading would be the cheapest route to a full score.
+     *
+     * Only an attempt with work on it takes this path. An empty one is still a conflict,
+     * so the eleven other templates keep the behaviour they were built on.
      */
-    if (existing && existing.answeredQuestions.length > 0) {
+    if (existing && (existing.answeredQuestions.length > 0 || existing.checkedRows.length > 0)) {
       const resumedDef = await this.contentClient.getExerciseForAttempt(
         command.exerciseId,
         command.language,
@@ -271,6 +341,15 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
           text,
           verdict,
         })),
+        checkedRows: existing.checkedRows.map(
+          ({ rowId, attempts, placement, solved, revealed }) => ({
+            rowId,
+            attempts,
+            placement,
+            solved,
+            revealed,
+          }),
+        ),
       });
     }
 
@@ -334,6 +413,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       answerSchema: def.template.answerSchema,
       checkSettings,
       answeredQuestions: [],
+      checkedRows: [],
     });
   }
 

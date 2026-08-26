@@ -76,4 +76,30 @@ export class StartAttemptResponseDto {
     },
   })
   answeredQuestions!: Array<{ questionId: string; text: string; verdict: string }>;
+
+  @ApiProperty({
+    description:
+      'Sentences already worked on in this attempt — `sentence_schema` only, and empty ' +
+      'for a fresh attempt. A resumed set puts the boards back from this. `revealed` ' +
+      'cannot be recovered from anywhere else: the student was shown that sentence, and ' +
+      'it scores nothing.',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        rowId: { type: 'string' },
+        attempts: { type: 'integer' },
+        placement: { type: 'object', additionalProperties: { type: 'array', items: { type: 'string' } } },
+        solved: { type: 'boolean' },
+        revealed: { type: 'boolean' },
+      },
+    },
+  })
+  checkedRows!: Array<{
+    rowId: string;
+    attempts: number;
+    placement: Record<string, string[]>;
+    solved: boolean;
+    revealed: boolean;
+  }>;
 }

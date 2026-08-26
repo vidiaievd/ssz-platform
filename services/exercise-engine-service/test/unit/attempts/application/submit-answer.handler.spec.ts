@@ -358,6 +358,70 @@ describe('SubmitAnswerHandler', () => {
     expect(result.value.score).toBe(40);
   });
 
+  describe('sentence_schema — what the submission is not trusted about', () => {
+    // Plan 52 §3.4: `Vis riktig skjema` puts the answer on the board, and a revealed
+    // sentence scores nothing. The reveal is recorded on the attempt when it happens, so
+    // a client submitting the board it was just shown with the flag left off does not get
+    // to keep the marks.
+    const revealedAttempt = () => {
+      const attempt = makeInProgressAttempt('sentence_schema');
+      attempt.checkRow({ rowId: 'r1', placement: {}, solved: false, revealed: true });
+      return attempt;
+    };
+
+    const submit = (rows: unknown) =>
+      new SubmitAnswerCommand('attempt-1', 'user-1', { rows }, 30, 'no');
+
+    it('writes the recorded reveal over what the client claims', async () => {
+      const validator = makeValidator();
+      const handler = makeHandler(
+        makeRepo(revealedAttempt()), makeContentClient(), validator,
+        makeFeedback(), makePublisher(),
+      );
+
+      await handler.execute(
+        submit([
+          { rowId: 'r1', placement: { 'f-sub': ['c1'] }, revealed: false },
+          { rowId: 'r2', placement: { 'f-sub': ['d1'] }, revealed: false },
+        ]),
+      );
+
+      const submitted = validator.validate.mock.calls[0]?.[0].submittedAnswer as {
+        rows: Array<{ rowId: string; revealed: boolean }>;
+      };
+      expect(submitted.rows).toEqual([
+        { rowId: 'r1', placement: { 'f-sub': ['c1'] }, revealed: true },
+        { rowId: 'r2', placement: { 'f-sub': ['d1'] }, revealed: false },
+      ]);
+    });
+
+    it('leaves a submission alone when nothing was revealed', async () => {
+      const validator = makeValidator();
+      const rows = [{ rowId: 'r1', placement: { 'f-sub': ['c1'] }, revealed: false }];
+      const handler = makeHandler(
+        makeRepo(makeInProgressAttempt('sentence_schema')), makeContentClient(), validator,
+        makeFeedback(), makePublisher(),
+      );
+
+      await handler.execute(submit(rows));
+
+      expect(validator.validate.mock.calls[0]?.[0].submittedAnswer).toEqual({ rows });
+    });
+
+    it('leaves every other template’s submission untouched', async () => {
+      const validator = makeValidator();
+      const handler = makeHandler(
+        makeRepo(), makeContentClient(), validator, makeFeedback(), makePublisher(),
+      );
+
+      await handler.execute(cmd);
+
+      expect(validator.validate.mock.calls[0]?.[0].submittedAnswer).toEqual({
+        correct_option_ids: ['A'],
+      });
+    });
+  });
+
   describe('routing for review (plan 44 §44.5)', () => {
     it('fills in the review context the attempt started without', async () => {
       const repo = makeRepo();

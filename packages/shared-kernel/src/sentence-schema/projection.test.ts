@@ -2,8 +2,9 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { chunk, content, row } from './fixtures.test-support.js';
-import { bankOf, keyIsDue, toStudentProjection } from './projection.js';
+import { chunk, content, MAIN_FIELDS, row } from './fixtures.test-support.js';
+import { grade } from './grading.js';
+import { bankOf, keyIsDue, revealRow, toStudentProjection, toStudentResult } from './projection.js';
 
 const reversed = <T,>(items: T[]): T[] => [...items].reverse();
 
@@ -111,5 +112,108 @@ describe('bankOf', () => {
 
     expect(bankOf(r, settings)).toHaveLength(7);
     expect(bankOf(r, { ...settings, extras: false })).toHaveLength(6);
+  });
+});
+
+describe('toStudentResult', () => {
+  const settings = content().settings;
+  const solved = { F: ['c1'], v: ['c2'], n: ['c3'], a: ['c4'], V: ['c5'], N: ['c6'] };
+  const wrong = { F: ['c2'], v: ['c1'], n: ['c3'], a: ['c4'], V: ['c5'], N: ['c6'] };
+
+  const check = (placement: Record<string, string[]>, attempt = 1, revealed = false) => {
+    const r = row();
+    return toStudentResult({
+      row: r,
+      fields: MAIN_FIELDS,
+      marks: grade(r, MAIN_FIELDS, placement, settings),
+      settings,
+      attempt,
+      revealed,
+    });
+  };
+
+  it('holds the sentence and the rule back while the row is still open', () => {
+    // `Rett opp` only means something while the answer is unknown, and `row.text` is the
+    // word order written out.
+    const result = check(wrong);
+
+    expect(result.text).toBeNull();
+    expect(result.why).toBeNull();
+    expect(result.solution).toBeNull();
+    expect(result.solved).toBe(false);
+  });
+
+  it('hands the sentence and the rule over once the row is solved', () => {
+    const result = check(solved);
+
+    expect(result.solved).toBe(true);
+    expect(result.score).toBe(100);
+    expect(result.text).toBe('I morgen skal jeg ikke lese boka');
+    expect(result.banner?.text).toBe('Det finitte verbet står på plass to.');
+  });
+
+  it('resolves the banner server-side, because the chain runs over the key', () => {
+    // `row.fb[chunkId]` → a default for the kind of mistake → `row.why`. The first and
+    // the last of those never reach a browser, so the resolved note is what travels.
+    // On `c1`, not `c2`: the banner speaks about the mistake nearest the start of the
+    // sentence, and in this board both pieces are misplaced.
+    const r = row({ fb: { c1: 'Adverbialet hører ikke hjemme på verbets plass.' } });
+    const marks = grade(r, MAIN_FIELDS, wrong, settings);
+    const result = toStudentResult({
+      row: r,
+      fields: MAIN_FIELDS,
+      marks,
+      settings,
+      attempt: 1,
+      revealed: false,
+    });
+
+    expect(result.banner).toEqual({
+      source: 'override',
+      text: 'Adverbialet hører ikke hjemme på verbets plass.',
+      code: null,
+      hint: '',
+    });
+  });
+
+  it('escalates to the rule from the second attempt', () => {
+    expect(check(wrong, 1).banner?.hint).toBe('');
+    expect(check(wrong, 2).banner?.hint).toBe('Det finitte verbet står på plass to.');
+  });
+
+  it('drops the per-field marks when the author turned them off, and keeps the verdict', () => {
+    // §6.8: hiding where the mistake is must not hide that there is one.
+    const r = row();
+    const bare = { ...settings, perField: false };
+    const result = toStudentResult({
+      row: r,
+      fields: MAIN_FIELDS,
+      marks: grade(r, MAIN_FIELDS, wrong, bare),
+      settings: bare,
+      attempt: 1,
+      revealed: false,
+    });
+
+    expect(result.byField).toBeNull();
+    expect(result.byItem['c2']).toBe('field');
+    expect(result.banner).not.toBeNull();
+  });
+});
+
+describe('revealRow', () => {
+  const settings = content().settings;
+
+  it('fills the board in and still counts the sentence as not solved', () => {
+    // The marks come out perfect because the answer was put there. `Vis riktig skjema`
+    // ends the sentence; it does not win it (plan 52 §3.4).
+    const r = row();
+    const { placement, result } = revealRow(r, MAIN_FIELDS, settings, 2);
+
+    expect(placement).toEqual({ F: ['c1'], v: ['c2'], n: ['c3'], a: ['c4'], V: ['c5'], N: ['c6'] });
+    expect(result.solved).toBe(false);
+    expect(result.score).toBe(0);
+    expect(result.solution).toEqual(placement);
+    expect(result.text).toBe('I morgen skal jeg ikke lese boka');
+    expect(result.banner?.text).toBe('Det finitte verbet står på plass to.');
   });
 });

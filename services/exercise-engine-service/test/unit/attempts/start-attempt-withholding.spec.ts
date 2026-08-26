@@ -398,6 +398,132 @@ describe('StartAttemptHandler — what leaves with the attempt', () => {
     });
   });
 
+  describe('sentence_schema', () => {
+    // The key is which field each piece belongs in — and `row.text`, the sentence in its
+    // correct order, which the handoff's Security section omits and plan 52 §3.2 adds.
+    const schemaContent = {
+      title: 'Indirekte tale',
+      instruction: 'Bygg om setningen og legg den i skjemaet.',
+      presetId: 'blank',
+      clauses: ['sub'],
+      schema: {
+        sub: [
+          { id: 'f-sub', short: 'sub', label: 'Subjunksjon', hint: '', optional: false },
+          { id: 'f-subj', short: 'n', label: 'Subjekt', hint: '', optional: false },
+          { id: 'f-v', short: 'v', label: 'Verbal', hint: '', optional: false },
+          { id: 'f-slutt', short: 'N', label: 'Sluttfelt', hint: '', optional: true },
+        ],
+      },
+      rows: [
+        {
+          id: 'r1',
+          clause: 'sub',
+          source: '«Jeg kommer i morgen», sa han.',
+          chunks: [
+            { id: 'c1', text: 'at' },
+            { id: 'c2', text: 'han' },
+            { id: 'c3', text: 'kommer' },
+            { id: 'c4', text: 'i morgen' },
+          ],
+          extras: [],
+        },
+      ],
+      settings: {
+        labels: true,
+        hints: false,
+        counts: false,
+        prefill: 'none',
+        markEmpty: false,
+        perField: true,
+        hintAfterMistake: true,
+        shuffle: false,
+        extras: true,
+        order: 'strict',
+      },
+    };
+
+    const schemaKey = {
+      rows: {
+        r1: {
+          text: 'at han kommer i morgen',
+          why: 'Subjunksjonen «at» innleder leddsetningen.',
+          fields: { c1: 'f-sub', c2: 'f-subj', c3: 'f-v', c4: 'f-slutt' },
+          alt: {},
+          fb: { c1: 'Subjunksjonen står først.' },
+        },
+      },
+    };
+
+    it('ships the pieces and no placement, no rule, no note, no sentence', async () => {
+      const handler = makeHandler('sentence_schema', schemaContent, schemaKey);
+      const result = await handler.execute(practice);
+
+      const projected = result.value.exerciseContent as {
+        rows: Array<{ bank: Array<{ id: string; text: string }>; source: string }>;
+      };
+      expect(projected.rows[0]?.bank.map((i) => i.text)).toEqual([
+        'at',
+        'han',
+        'kommer',
+        'i morgen',
+      ]);
+      // The sentence to rewrite is the prompt and stays (§3.8); the target does not.
+      expect(projected.rows[0]?.source).toBe('«Jeg kommer i morgen», sa han.');
+
+      const wire = JSON.stringify(result.value);
+      expect(wire).not.toContain('at han kommer i morgen');
+      expect(wire).not.toContain('Subjunksjonen står først');
+      expect(wire).not.toContain('"c1":"f-sub"');
+      expect(result.value.expectedAnswers).toBeNull();
+    });
+
+    it('does not re-project a set content-service already projected', async () => {
+      // `graded` mode: the key never left content-service. A second pass would read a
+      // projection — whose rows carry a bank rather than chunks — as a set where nothing
+      // is placed, and hand back an empty board.
+      const alreadyProjected = {
+        title: 'Indirekte tale',
+        instruction: 'Bygg om setningen og legg den i skjemaet.',
+        rows: [
+          {
+            id: 'r1',
+            clause: 'sub',
+            fields: schemaContent.schema.sub,
+            bank: [{ id: 'c1', text: 'at' }],
+            source: '«Jeg kommer i morgen», sa han.',
+            counts: null,
+            start: {},
+          },
+        ],
+        settings: schemaContent.settings,
+      };
+      const handler = makeHandler('sentence_schema', alreadyProjected, null);
+
+      const result = await handler.execute(practice);
+
+      expect(result.value.exerciseContent).toEqual(alreadyProjected);
+      expect(result.value.expectedAnswers).toBeNull();
+    });
+
+    it('leaves a document of the old form exactly as it is', async () => {
+      // Plan 52 §8 Q3: six of the seven exercises stay this way, and the new projection
+      // would find no `rows` and blank them.
+      const old = {
+        sentence: 'I morgen skal jeg reise til Bergen.',
+        source_sentence: 'Jeg skal reise til Bergen i morgen.',
+        schema_type: 'main',
+        fields: [{ id: 'forfelt', label: 'Forfelt' }],
+        tokens: [{ id: 't1', text: 'I morgen' }],
+      };
+      const key = { placements: [{ field_id: 'forfelt', token_ids: ['t1'] }] };
+      const handler = makeHandler('sentence_schema', old, key);
+
+      const result = await handler.execute(practice);
+      expect(result.value.exerciseContent).toEqual(old);
+      expect(result.value.expectedAnswers).toEqual(key);
+    });
+  });
+
   it('leaves the other templates exactly as they were', async () => {
     const content = { text_with_blanks: 'Jeg ___1___ norsk' };
     const answers = { blanks: [{ blank_id: 1, accepted_answers: ['snakker'] }] };

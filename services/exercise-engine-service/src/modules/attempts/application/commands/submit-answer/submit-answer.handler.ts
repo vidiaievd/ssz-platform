@@ -8,6 +8,7 @@ import {
 import { TEMPLATE_CODE as MATCH_PAIRS } from '@ssz/shared-kernel/match-pairs';
 import { isTranslateCode } from '@ssz/shared-kernel/translate';
 import { TEMPLATE_CODE as SHORT_ANSWER } from '@ssz/shared-kernel/short-answer';
+import { TEMPLATE_CODE as SENTENCE_SCHEMA } from '@ssz/shared-kernel/sentence-schema';
 import {
   fromPersisted as writingTaskFromPersisted,
   snapshotRubric,
@@ -23,6 +24,7 @@ import { ANSWER_VALIDATOR, type IAnswerValidator, ValidationError } from '../../
 import { FEEDBACK_GENERATOR, type IFeedbackGenerator } from '../../../../../shared/application/ports/feedback-generator.port.js';
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
+import type { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
 
@@ -69,6 +71,12 @@ export interface SubmitAnswerResult {
  * automatically, which sentences closed on a hit and which went to a teacher. That much
  * is stripped out below.
  *
+ * `sentence_schema` travels whole, like the two above it and for the same reason: its
+ * details are marks rather than the key. Which piece went wrong and how — `field`,
+ * `order`, `extra` — is what the student is owed after a check, and the sentence, the
+ * rule and the per-chunk notes are not in there. They reach the runner from `check-row`
+ * instead, one sentence at a time, and only once that sentence is closed.
+ *
  * `short_answer` is the same case again and the sharpest of them: every element in its
  * details carries the anchor phrase that matched, and the anchors are the answer written
  * in the words the student was asked to find. The student has already been told about
@@ -81,7 +89,44 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
   if (templateCode === MATCH_PAIRS) return details;
   if (isTranslateCode(templateCode)) return translateRouting(details);
   if (templateCode === SHORT_ANSWER) return shortAnswerVerdicts(details);
+  if (templateCode === SENTENCE_SCHEMA) return details;
   return undefined;
+}
+
+/**
+ * The submission, with what the attempt knows about it written over what the client says.
+ *
+ * `sentence_schema` only, and about one field: `revealed`. `Vis riktig skjema` puts the
+ * answer on the board, and a revealed sentence scores nothing (plan 52 §3.4) — so a client
+ * that could reveal a sentence and then submit the board it was just shown with the flag
+ * left off would have found the cheapest route to a full score. The reveal was recorded on
+ * the attempt when it happened; that record wins.
+ *
+ * It only ever adds reveals. A client claiming to have revealed a sentence it did not is
+ * claiming a worse score, and there is nothing to defend against there.
+ *
+ * Everything else in the submission is the learner's own work and is taken as sent.
+ */
+function withRecordedReveals(attempt: Attempt, submitted: unknown): unknown {
+  if (attempt.templateCode !== SENTENCE_SCHEMA) return submitted;
+
+  const revealed = new Set(
+    attempt.checkedRows.filter((row) => row.revealed).map((row) => row.rowId),
+  );
+  if (revealed.size === 0) return submitted;
+
+  const rows = (submitted as { rows?: unknown })?.rows;
+  if (!Array.isArray(rows)) return submitted;
+
+  return {
+    ...(submitted as Record<string, unknown>),
+    rows: rows.map((row) => {
+      const rowId = (row as { rowId?: unknown })?.rowId;
+      return typeof rowId === 'string' && revealed.has(rowId)
+        ? { ...(row as Record<string, unknown>), revealed: true }
+        : row;
+    }),
+  };
 }
 
 /**
@@ -290,6 +335,8 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
 
     attempt.addTimeSpent(command.timeSpentSeconds);
 
+    const submittedAnswer = withRecordedReveals(attempt, command.submittedAnswer);
+
     // A practice attempt that has already been checked is reopened rather than
     // refused: checks are unlimited, and the attempt is the thing being worked on.
     // The entity decides whether this one may be — graded attempts and revealed
@@ -303,10 +350,10 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     }
 
     const answerHash = createHash('sha256')
-      .update(JSON.stringify(command.submittedAnswer))
+      .update(JSON.stringify(submittedAnswer))
       .digest('hex');
 
-    const submitResult = attempt.submit(command.submittedAnswer, answerHash);
+    const submitResult = attempt.submit(submittedAnswer, answerHash);
     if (submitResult.isFail) {
       return Result.fail(submitResult.error as AttemptDomainError);
     }
@@ -335,7 +382,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       answerSchema: def.template.answerSchema as object,
       expectedAnswers: def.exercise.expectedAnswers,
       content: def.exercise.content,
-      submittedAnswer: command.submittedAnswer,
+      submittedAnswer,
       checkSettings,
       targetLanguage: attempt.targetLanguage,
     });
