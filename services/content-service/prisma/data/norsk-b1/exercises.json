@@ -6095,6 +6095,334 @@
       }
     },
     {
+      "key": "b1-1a-ss-01",
+      "template": "sentence_schema",
+      "instruction": "Поставьте наречие в начало предложения и разложите слова по полям — спрягаемый глагол остаётся на втором месте.",
+      "hint": "Форфельт вмещает ровно одно составляющее. На месте два — только спрягаемый глагол; инфинитив и причастие уходят дальше, в поле инфинитного глагола.",
+      "content": {
+        "title": "Ordstilling — forfelt og V2",
+        "instruction": "Start setningen med adverbialet, og legg ordene i skjemaet.",
+        "presetId": "nb-full",
+        "clauses": [
+          "main"
+        ],
+        "schema": {
+          "main": [
+            {
+              "id": "forfelt",
+              "short": "F",
+              "label": "Forfelt",
+              "hint": "Ett ledd — det setningen starter med",
+              "optional": true
+            },
+            {
+              "id": "finitt",
+              "short": "v",
+              "label": "Finitt verbal",
+              "hint": "Det bøyde verbet — alltid på plass to",
+              "optional": false
+            },
+            {
+              "id": "subjekt",
+              "short": "n",
+              "label": "Subjekt",
+              "hint": "Bak verbet når noe annet står i forfeltet",
+              "optional": true
+            },
+            {
+              "id": "adverbial",
+              "short": "a",
+              "label": "Setningsadverbial",
+              "hint": "ikke, bare, alltid — etter subjektet",
+              "optional": true
+            },
+            {
+              "id": "infinitt",
+              "short": "V",
+              "label": "Infinitt verbal",
+              "hint": "Infinitiv eller partisipp",
+              "optional": true
+            },
+            {
+              "id": "objekt",
+              "short": "N",
+              "label": "Objekt / predikativ",
+              "hint": "Det verbet peker mot",
+              "optional": true
+            },
+            {
+              "id": "sluttfelt",
+              "short": "A",
+              "label": "Adverbial",
+              "hint": "Tid, sted, måte",
+              "optional": true
+            }
+          ]
+        },
+        "rows": [
+          {
+            "id": "r1",
+            "clause": "main",
+            "source": "Han sitter foran datamaskinen en kveld.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "En kveld"
+              },
+              {
+                "id": "r1c2",
+                "text": "sitter"
+              },
+              {
+                "id": "r1c3",
+                "text": "han"
+              },
+              {
+                "id": "r1c4",
+                "text": "foran datamaskinen"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r1x1",
+                "text": "han sitter"
+              },
+              {
+                "id": "r1x2",
+                "text": "kvelden"
+              }
+            ]
+          },
+          {
+            "id": "r2",
+            "clause": "main",
+            "source": "Han finner plutselig en annonse.",
+            "chunks": [
+              {
+                "id": "r2c1",
+                "text": "Plutselig"
+              },
+              {
+                "id": "r2c2",
+                "text": "finner"
+              },
+              {
+                "id": "r2c3",
+                "text": "han"
+              },
+              {
+                "id": "r2c4",
+                "text": "en annonse"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r2x1",
+                "text": "han finner"
+              },
+              {
+                "id": "r2x2",
+                "text": "annonsen"
+              }
+            ]
+          },
+          {
+            "id": "r3",
+            "clause": "main",
+            "source": "Han skriver først en søknad.",
+            "chunks": [
+              {
+                "id": "r3c1",
+                "text": "Først"
+              },
+              {
+                "id": "r3c2",
+                "text": "skriver"
+              },
+              {
+                "id": "r3c3",
+                "text": "han"
+              },
+              {
+                "id": "r3c4",
+                "text": "en søknad"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r3x1",
+                "text": "han skriver"
+              },
+              {
+                "id": "r3x2",
+                "text": "søknaden"
+              }
+            ]
+          },
+          {
+            "id": "r4",
+            "clause": "main",
+            "source": "Han må bare vente nå.",
+            "chunks": [
+              {
+                "id": "r4c1",
+                "text": "Nå"
+              },
+              {
+                "id": "r4c2",
+                "text": "må"
+              },
+              {
+                "id": "r4c3",
+                "text": "han"
+              },
+              {
+                "id": "r4c4",
+                "text": "bare"
+              },
+              {
+                "id": "r4c5",
+                "text": "vente"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r4x1",
+                "text": "han må"
+              },
+              {
+                "id": "r4x2",
+                "text": "å vente"
+              }
+            ]
+          },
+          {
+            "id": "r5",
+            "clause": "main",
+            "source": "Norsken hans har blitt mye bedre det siste året.",
+            "chunks": [
+              {
+                "id": "r5c1",
+                "text": "Det siste året"
+              },
+              {
+                "id": "r5c2",
+                "text": "har"
+              },
+              {
+                "id": "r5c3",
+                "text": "norsken hans"
+              },
+              {
+                "id": "r5c4",
+                "text": "blitt"
+              },
+              {
+                "id": "r5c5",
+                "text": "mye bedre"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r5x1",
+                "text": "norsken hans har"
+              },
+              {
+                "id": "r5x2",
+                "text": "bedre"
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": true,
+          "order": "strict"
+        }
+      },
+      "expectedAnswers": {
+        "rows": {
+          "r1": {
+            "text": "En kveld sitter han foran datamaskinen",
+            "why": "Когда предложение начинается не с подлежащего, спрягаемый глагол всё равно остаётся на втором месте, а подлежащее уходит за него: En kveld — sitter — han. Это правило V2.",
+            "fields": {
+              "r1c1": "forfelt",
+              "r1c2": "finitt",
+              "r1c3": "subjekt",
+              "r1c4": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r1c3": "После вынесенного вперёд наречия подлежащее идёт третьим, а не первым: «En kveld han sitter» невозможно.",
+              "r1c4": "«foran datamaskinen» — одно составляющее, его не разбивают на два поля."
+            }
+          },
+          "r2": {
+            "text": "Plutselig finner han en annonse",
+            "why": "«Plutselig» занимает форфельт, поэтому дальше идёт глагол, а потом подлежащее: Plutselig finner han. Форфельт вмещает ровно одно составляющее.",
+            "fields": {
+              "r2c1": "forfelt",
+              "r2c2": "finitt",
+              "r2c3": "subjekt",
+              "r2c4": "objekt"
+            },
+            "alt": {},
+            "fb": {}
+          },
+          "r3": {
+            "text": "Først skriver han en søknad",
+            "why": "«Først» стоит в форфельте, значит глагол идёт вторым, а подлежащее — третьим: Først skriver han en søknad.",
+            "fields": {
+              "r3c1": "forfelt",
+              "r3c2": "finitt",
+              "r3c3": "subjekt",
+              "r3c4": "objekt"
+            },
+            "alt": {},
+            "fb": {}
+          },
+          "r4": {
+            "text": "Nå må han bare vente",
+            "why": "На втором месте стоит только спрягаемый глагол — må. Инфинитив vente уходит в поле инфинитного глагола, а «bare» — предложенческое наречие: оно стоит после подлежащего и перед инфинитивом.",
+            "fields": {
+              "r4c1": "forfelt",
+              "r4c2": "finitt",
+              "r4c3": "subjekt",
+              "r4c4": "adverbial",
+              "r4c5": "infinitt"
+            },
+            "alt": {},
+            "fb": {
+              "r4c4": "«bare» — предложенческое наречие: его место после подлежащего, а не в конце.",
+              "r4c5": "Инфинитив не может стоять на втором месте — там только спрягаемый глагол (må)."
+            }
+          },
+          "r5": {
+            "text": "Det siste året har norsken hans blitt mye bedre",
+            "why": "«Det siste året» — одно составляющее, поэтому оно целиком занимает форфельт. Спрягаемое har стоит на втором месте, а причастие blitt — в поле инфинитного глагола.",
+            "fields": {
+              "r5c1": "forfelt",
+              "r5c2": "finitt",
+              "r5c3": "subjekt",
+              "r5c4": "infinitt",
+              "r5c5": "objekt"
+            },
+            "alt": {},
+            "fb": {
+              "r5c4": "blitt — причастие; оно идёт в поле инфинитного глагола, а не рядом с har на месте два."
+            }
+          }
+        }
+      }
+    },
+    {
       "key": "b1-1a-err-01",
       "template": "error_correction",
       "instruction": "В каждом предложении один фрагмент содержит ошибку в косвенной речи. Найдите и исправьте её.",

@@ -22,12 +22,16 @@ incrementally with no code change:
 
 ## Status
 **All 10 leksjoner fully authored.** 40 lesson texts, 10 grammar lessons, 29 vocab
-sections (462 words), 442 exercises — all validated against the live Ajv template
+sections (462 words), 428 exercises — all validated against the live Ajv template
 schemas extracted from `seed.ts` (0 invalid), no duplicate exercise keys.
 
-Per-template breakdown: short_answer 147, fill_in_blank 140, multiple_choice 120,
-match_pairs 12, writing_task 11, sentence_schema 5, word_bank_fill 3,
-multiple_choice_group 2, text_order 1, error_correction 1.
+Per-template breakdown: short_answer 138, fill_in_blank 128, multiple_choice 120,
+match_pairs 12, writing_task 11, word_bank_gap_fill 6, sentence_schema 6,
+translate_to_target 2, multiple_choice_group 2, text_order 1, error_correction 1,
+translate_from_target 1.
+
+The total is lower than the 442 this file used to claim because merges replaced runs
+of single-blank drills with one block each (see below) — no exercise was lost.
 
 Every `fill_in_blank` exercise carries exactly one blank (`___1___`), matching what
 the web runner's `FillBody`/`FillSolver` support today (single-blank only, per
