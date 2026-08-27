@@ -26,7 +26,7 @@ export {
 } from './model.js';
 
 export type { Preset } from './presets.js';
-export { emptySchema, preset, PRESETS } from './presets.js';
+export { emptySchema, packsFor, preset, PRESETS } from './presets.js';
 
 export { chunksToText, join, retokenize, split, tokenize } from './tokenize.js';
 

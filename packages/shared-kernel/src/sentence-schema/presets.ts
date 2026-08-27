@@ -20,6 +20,14 @@ export interface Preset {
   id: string;
   /** "Norsk", "Deutsch", "Any language" — shown on the pack card. */
   lang: string;
+  /**
+   * The course languages this pack is meant for, as ISO 639-1 codes.
+   *
+   * Empty means "any language" — the blank pack, which is a shape rather than a claim
+   * about a grammar. Norwegian claims `nn` alongside `nb`: the two share the sentence
+   * chart, and the platform already holds a `nn` course.
+   */
+  langs: readonly string[];
   /** "Setningsskjema — fullt". */
   name: string;
   /** One line under the name. */
@@ -45,6 +53,7 @@ export const PRESETS: readonly Preset[] = [
   {
     id: 'nb-full',
     lang: 'Norsk',
+    langs: ['nb', 'nn', 'no'],
     name: 'Setningsskjema — fullt',
     desc: 'Seven fields, the standard Norwegian sentence chart.',
     build: () => ({
@@ -94,6 +103,7 @@ export const PRESETS: readonly Preset[] = [
   {
     id: 'nb-simple',
     lang: 'Norsk',
+    langs: ['nb', 'nn', 'no'],
     name: 'Setningsskjema — enkelt',
     desc: 'Four fields for A1–A2: first slot, verb, subject, rest.',
     build: () => ({
@@ -112,6 +122,7 @@ export const PRESETS: readonly Preset[] = [
   {
     id: 'de-topo',
     lang: 'Deutsch',
+    langs: ['de'],
     name: 'Topologisches Feldermodell',
     desc: 'Vorfeld, Satzklammer, Mittelfeld, Nachfeld.',
     build: () => ({
@@ -147,6 +158,7 @@ export const PRESETS: readonly Preset[] = [
   {
     id: 'blank',
     lang: 'Any language',
+    langs: [],
     name: 'Tomt skjema',
     desc: 'Three unnamed fields — name them yourself.',
     build: () => ({
@@ -158,6 +170,31 @@ export const PRESETS: readonly Preset[] = [
     }),
   },
 ];
+
+/**
+ * The packs worth offering an author working in `language`, in declaration order.
+ *
+ * Three rules, together in one function because each of them alone produces a builder
+ * that lies (plan 52, Q8):
+ *
+ * - a pack whose `langs` is empty is always offered — `blank` is three unnamed boxes,
+ *   which is a shape, not a grammar;
+ * - `keep` — the pack the exercise already sits on — is always offered, however foreign.
+ *   Filtering it out would leave the author's own selection invisible in the grid;
+ * - when nothing matches the language, the result is the language-agnostic packs alone.
+ *   That is the honest answer for a course in a language the platform has no chart for,
+ *   and the builder pairs it with the sequence-only mode, which needs no chart at all.
+ *
+ * Matching is on the subtag before any dash and case-insensitive, so `nb-NO` and `NB`
+ * both find the Norwegian packs. The stored code is a closed list today; being forgiving
+ * here costs one line and survives the list being opened later.
+ */
+export function packsFor(language: string, keep?: string): readonly Preset[] {
+  const code = language.trim().toLowerCase().split('-')[0] ?? '';
+  return PRESETS.filter(
+    (p) => p.langs.length === 0 || p.id === keep || p.langs.includes(code),
+  );
+}
 
 /** The named pack, or the first one. Never throws: `presetId` is provenance, not a key. */
 export function preset(id: string): Preset {
