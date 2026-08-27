@@ -21,6 +21,8 @@ export {
   newExtra,
   newField,
   newRow,
+  ORDER_FIELD,
+  ORDER_FIELD_ID,
 } from './model.js';
 
 export type { Preset } from './presets.js';

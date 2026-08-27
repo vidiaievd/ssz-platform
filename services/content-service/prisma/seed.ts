@@ -1424,6 +1424,13 @@ const templates = [
               enum: ['strict', 'loose'],
               description: 'Whether order inside a single field is graded',
             },
+            // Collapses the board to one nameless slot and grades the sequence
+            // alone. The schema stays in the document: this is a switch over the
+            // same sentences, not a second document shape.
+            orderOnly: {
+              type: 'boolean',
+              description: 'Grade word order only — no fields, no field names',
+            },
           },
         },
       },

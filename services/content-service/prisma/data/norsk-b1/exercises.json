@@ -6423,6 +6423,280 @@
       }
     },
     {
+      "key": "b1-1a-ss-02",
+      "template": "sentence_schema",
+      "instruction": "Соберите предложение в правильном порядке. Части речи определять не нужно — важен только порядок слов.",
+      "hint": "Ищите глагол: в повествовательном предложении он стоит вторым. Всё остальное выстраивается вокруг него.",
+      "content": {
+        "title": "Ordstilling — sett sammen setningen",
+        "instruction": "Legg ordene i riktig rekkefølge.",
+        "presetId": "nb-full",
+        "clauses": [
+          "main"
+        ],
+        "schema": {
+          "main": [
+            {
+              "id": "forfelt",
+              "short": "F",
+              "label": "Forfelt",
+              "hint": "",
+              "optional": true
+            },
+            {
+              "id": "finitt",
+              "short": "v",
+              "label": "Finitt verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "subjekt",
+              "short": "n",
+              "label": "Subjekt",
+              "hint": "",
+              "optional": true
+            },
+            {
+              "id": "sluttfelt",
+              "short": "A",
+              "label": "Resten",
+              "hint": "",
+              "optional": true
+            }
+          ]
+        },
+        "rows": [
+          {
+            "id": "r1",
+            "clause": "main",
+            "source": "",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "Bartek"
+              },
+              {
+                "id": "r1c2",
+                "text": "har jobbet"
+              },
+              {
+                "id": "r1c3",
+                "text": "som elektriker"
+              },
+              {
+                "id": "r1c4",
+                "text": "i tre år"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r1x1",
+                "text": "jobber"
+              }
+            ]
+          },
+          {
+            "id": "r2",
+            "clause": "main",
+            "source": "",
+            "chunks": [
+              {
+                "id": "r2c1",
+                "text": "Han"
+              },
+              {
+                "id": "r2c2",
+                "text": "vil gjerne ha"
+              },
+              {
+                "id": "r2c3",
+                "text": "mer ansvar"
+              },
+              {
+                "id": "r2c4",
+                "text": "og en høyere lønn"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r2x1",
+                "text": "gjerne"
+              }
+            ]
+          },
+          {
+            "id": "r3",
+            "clause": "main",
+            "source": "",
+            "chunks": [
+              {
+                "id": "r3c1",
+                "text": "Nordby Elektro AS"
+              },
+              {
+                "id": "r3c2",
+                "text": "er"
+              },
+              {
+                "id": "r3c3",
+                "text": "et voksende firma"
+              },
+              {
+                "id": "r3c4",
+                "text": "med tolv ansatte"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r3x1",
+                "text": "ansatte"
+              }
+            ]
+          },
+          {
+            "id": "r4",
+            "clause": "main",
+            "source": "",
+            "chunks": [
+              {
+                "id": "r4c1",
+                "text": "Anne"
+              },
+              {
+                "id": "r4c2",
+                "text": "hjelper"
+              },
+              {
+                "id": "r4c3",
+                "text": "ham"
+              },
+              {
+                "id": "r4c4",
+                "text": "med å lese gjennom søknaden"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r4x1",
+                "text": "å hjelpe"
+              }
+            ]
+          },
+          {
+            "id": "r5",
+            "clause": "main",
+            "source": "",
+            "chunks": [
+              {
+                "id": "r5c1",
+                "text": "Bartek"
+              },
+              {
+                "id": "r5c2",
+                "text": "retter"
+              },
+              {
+                "id": "r5c3",
+                "text": "feilene"
+              },
+              {
+                "id": "r5c4",
+                "text": "og sender søknaden"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r5x1",
+                "text": "rettet"
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labels": false,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": false,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": true,
+          "order": "strict",
+          "orderOnly": true
+        }
+      },
+      "expectedAnswers": {
+        "rows": {
+          "r1": {
+            "text": "Bartek har jobbet som elektriker i tre år",
+            "why": "Основное предложение начинается с подлежащего: Bartek — har jobbet — som elektriker — i tre år. Дополнения и обстоятельства идут после глагола, в порядке «кем» → «как долго».",
+            "fields": {
+              "r1c1": "__order__",
+              "r1c2": "__order__",
+              "r1c3": "__order__",
+              "r1c4": "__order__"
+            },
+            "alt": {},
+            "fb": {
+              "r1c2": "har jobbet — сложная форма перфекта, обе части идут вместе сразу после подлежащего."
+            }
+          },
+          "r2": {
+            "text": "Han vil gjerne ha mer ansvar og en høyere lønn",
+            "why": "После модального глагола vil идут наречие gjerne и инфинитив ha — единой группой. Затем то, что он хочет получить.",
+            "fields": {
+              "r2c1": "__order__",
+              "r2c2": "__order__",
+              "r2c3": "__order__",
+              "r2c4": "__order__"
+            },
+            "alt": {},
+            "fb": {}
+          },
+          "r3": {
+            "text": "Nordby Elektro AS er et voksende firma med tolv ansatte",
+            "why": "Глагол-связка er стоит вторым, а определение «med tolv ansatte» идёт за тем словом, которое оно определяет, — за firma.",
+            "fields": {
+              "r3c1": "__order__",
+              "r3c2": "__order__",
+              "r3c3": "__order__",
+              "r3c4": "__order__"
+            },
+            "alt": {},
+            "fb": {}
+          },
+          "r4": {
+            "text": "Anne hjelper ham med å lese gjennom søknaden",
+            "why": "Дополнение в дательном (ham) идёт сразу после глагола, а предложная группа «med å lese …» — в конце.",
+            "fields": {
+              "r4c1": "__order__",
+              "r4c2": "__order__",
+              "r4c3": "__order__",
+              "r4c4": "__order__"
+            },
+            "alt": {},
+            "fb": {
+              "r4c4": "Предложная группа с инфинитивом уходит в конец предложения, а не между глаголом и дополнением."
+            }
+          },
+          "r5": {
+            "text": "Bartek retter feilene og sender søknaden",
+            "why": "Два сказуемых при одном подлежащем соединяются через og: первое действие целиком, затем второе. Подлежащее во второй части не повторяется.",
+            "fields": {
+              "r5c1": "__order__",
+              "r5c2": "__order__",
+              "r5c3": "__order__",
+              "r5c4": "__order__"
+            },
+            "alt": {},
+            "fb": {}
+          }
+        }
+      }
+    },
+    {
       "key": "b1-1a-err-01",
       "template": "error_correction",
       "instruction": "В каждом предложении один фрагмент содержит ошибку в косвенной речи. Найдите и исправьте её.",

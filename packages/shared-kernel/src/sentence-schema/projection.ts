@@ -62,7 +62,7 @@ export function toStudentProjection(
   ex: SentenceSchemaContent,
   shuffle: Shuffle = identity,
 ): StudentProjection {
-  const rows = ex.rows.filter(isDeliverable).map((row): ProjectedRow => {
+  const rows = ex.rows.filter((r) => isDeliverable(r, ex.settings.orderOnly)).map((row): ProjectedRow => {
     const fields = fieldsFor(ex, row);
     const items: ProjectedItem[] = [
       ...row.chunks.map((c) => ({ id: c.id, text: c.text })),
@@ -74,8 +74,10 @@ export function toStudentProjection(
       fields,
       bank: ex.settings.shuffle ? shuffle(items) : items,
       source: row.source,
-      counts: ex.settings.counts ? countsFor(row, fields) : null,
-      start: initialPlacement(row, ex.settings.prefill),
+      // Sequence-only has one slot, and its count is the length of the sentence — a
+      // number that tells the learner nothing they cannot see in the bank.
+      counts: ex.settings.counts && !ex.settings.orderOnly ? countsFor(row, fields) : null,
+      start: initialPlacement(row, ex.settings.prefill, ex.settings.orderOnly),
     };
   });
 
@@ -169,7 +171,7 @@ export function toStudentResult(args: {
     solved: marks.solved,
     // A revealed sentence is worth nothing however the board looks: the answer was put
     // there for the student (plan 52 §3.4).
-    score: revealed ? 0 : marks.solved ? 100 : scoreRow(row, fields, marks),
+    score: revealed ? 0 : marks.solved ? 100 : scoreRow(row, fields, marks, settings.orderOnly),
     why: due ? row.why : null,
     text: due ? row.text : null,
     solution: revealed ? solution(row) : null,
@@ -193,7 +195,7 @@ export function revealRow(
   settings: Settings,
   attempt: number,
 ): { placement: Placement; result: StudentResult } {
-  const placement = solution(row);
+  const placement = solution(row, settings.orderOnly);
   const marks = grade(row, fields, placement, settings);
   const result = toStudentResult({ row, fields, marks, settings, attempt, revealed: true });
 

@@ -42,11 +42,20 @@ export type IssueCode = Issue['code'];
 /** Everything wrong with the document, in authoring order: step 1, then 2, 3, 4. */
 export function issues(ex: SentenceSchemaContent): Issue[] {
   const out: Issue[] = [];
+  /*
+    Sequence-only plays on one nameless slot, so every rule about the schema and about
+    where a chunk sits stops having a subject. Reporting them anyway would put an author
+    in front of blockers about fields their exercise does not use — and, worse, block
+    publishing a finished set on them.
+  */
+  const seq = ex.settings.orderOnly;
 
   // ── Step 1 ────────────────────────────────────────────────────────────────
-  if (ex.clauses.length === 0) out.push({ code: 'NO_CLAUSE_ON', level: 'blocker', step: 1 });
+  if (!seq && ex.clauses.length === 0) {
+    out.push({ code: 'NO_CLAUSE_ON', level: 'blocker', step: 1 });
+  }
 
-  for (const clause of ex.clauses) {
+  for (const clause of seq ? [] : ex.clauses) {
     if ((ex.schema[clause] ?? []).length === 0) {
       out.push({ code: 'CLAUSE_NO_FIELDS', level: 'blocker', step: 1, clause });
     }
@@ -55,7 +64,7 @@ export function issues(ex: SentenceSchemaContent): Issue[] {
   // Switching a clause type off does not break the sentences written in it — they keep
   // their schema and keep working. It only means no *new* sentence can choose it, which
   // is a warning about the author's intent, not about the document.
-  for (const row of ex.rows) {
+  for (const row of seq ? [] : ex.rows) {
     if (!ex.clauses.includes(row.clause)) {
       out.push({ code: 'ROW_CLAUSE_OFF', level: 'warning', step: 1, rowId: row.id, clause: row.clause });
     }
@@ -70,12 +79,12 @@ export function issues(ex: SentenceSchemaContent): Issue[] {
       continue;
     }
 
-    const unplaced = row.chunks.filter((c) => c.field === null).length;
+    const unplaced = seq ? 0 : row.chunks.filter((c) => c.field === null).length;
     if (unplaced > 0) {
       out.push({ code: 'ROW_UNPLACED', level: 'blocker', step: 2, rowId: row.id, count: unplaced });
     }
 
-    const fields = ex.schema[row.clause] ?? [];
+    const fields = seq ? [] : (ex.schema[row.clause] ?? []);
     for (const field of fields) {
       if (!field.optional && expectedIn(row, field.id) === 0) {
         out.push({ code: 'ROW_REQUIRED_FIELD_EMPTY', level: 'warning', step: 2, rowId: row.id, fieldId: field.id });
@@ -94,7 +103,7 @@ export function issues(ex: SentenceSchemaContent): Issue[] {
     }
   }
 
-  if (ex.rows.every((r) => !isDeliverable(r))) {
+  if (ex.rows.every((r) => !isDeliverable(r, seq))) {
     out.push({ code: 'NO_DELIVERABLE_ROWS', level: 'blocker', step: 2 });
   }
 
@@ -158,7 +167,7 @@ export interface Passes {
 }
 
 export function passes(ex: SentenceSchemaContent): Passes {
-  const deliverable = ex.rows.filter(isDeliverable);
+  const deliverable = ex.rows.filter((r) => isDeliverable(r, ex.settings.orderOnly));
   return {
     deliverableRows: deliverable.length,
     clausesCovered: CLAUSE_IDS.filter((c) => deliverable.some((r) => r.clause === c)),

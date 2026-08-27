@@ -8,6 +8,7 @@
 // in both.
 
 import type { Chunk, Field, OrderMode, Row, Settings } from './model.js';
+import { ORDER_FIELD_ID } from './model.js';
 
 /** Where every item currently sits: fieldId → placed item ids, in the order placed. */
 export type Placement = Record<string, string[]>;
@@ -68,9 +69,17 @@ export function grade(row: Row, fields: Field[], placement: Placement, settings:
       let mark: ItemMark;
       if (!chunk) {
         mark = 'extra';
-      } else if (chunk.field !== field.id && !chunk.alt.includes(field.id)) {
+      } else if (!settings.orderOnly && chunk.field !== field.id && !chunk.alt.includes(field.id)) {
+        // Sequence-only makes no claim about which field a piece belongs to, so there is
+        // no such thing as the wrong one. A distractor is still `extra`: it is not a
+        // chunk of the sentence at all, which is a different statement.
         mark = 'field';
-      } else if (settings.order === 'strict' && (indexById.get(itemId) ?? 0) < highestAccepted) {
+      } else if (
+        (settings.orderOnly || settings.order === 'strict') &&
+        (indexById.get(itemId) ?? 0) < highestAccepted
+      ) {
+        // `loose` is meaningless here — order is the only thing being asked — so the mode
+        // grades strictly whatever the flag says, rather than accepting every board.
         mark = 'order';
       } else {
         mark = 'ok';
@@ -94,7 +103,11 @@ export function grade(row: Row, fields: Field[], placement: Placement, settings:
 
   for (const field of fields) {
     const placed = placement[field.id] ?? [];
-    const awaited = placed.length === 0 && row.chunks.some((c) => c.field === field.id && !acceptedIds.has(c.id));
+    const awaited =
+      placed.length === 0 &&
+      (settings.orderOnly
+        ? row.chunks.some((c) => !acceptedIds.has(c.id))
+        : row.chunks.some((c) => c.field === field.id && !acceptedIds.has(c.id)));
     if (awaited) missingFields += 1;
     byField[field.id] =
       fieldHasWrong[field.id] || awaited ? 'bad' : placed.length > 0 ? 'ok' : 'empty';
@@ -126,7 +139,10 @@ export function expectedIn(row: Row, fieldId: string): number {
 }
 
 /** The board as the key has it — what `Vis riktig skjema` fills in. */
-export function solution(row: Row): Placement {
+export function solution(row: Row, orderOnly = false): Placement {
+  // One slot, the sentence in its own order: the key of a sequence-only row is the row.
+  if (orderOnly) return { [ORDER_FIELD_ID]: row.chunks.map((c) => c.id) };
+
   const out: Placement = {};
   for (const chunk of row.chunks) {
     if (chunk.field === null) continue;
@@ -142,10 +158,16 @@ export function solution(row: Row): Placement {
  * no arbitrary pre-fill and neither do we (plan 52 Q4) — `prefilled[]` of the old schema
  * was declared for eighteen months and used by none of the seven exercises.
  */
-export function initialPlacement(row: Row, prefill: Settings['prefill']): Placement {
+export function initialPlacement(
+  row: Row,
+  prefill: Settings['prefill'],
+  orderOnly = false,
+): Placement {
   if (prefill !== 'first') return {};
   const first = row.chunks[0];
-  if (!first || first.field === null) return {};
+  if (!first) return {};
+  if (orderOnly) return { [ORDER_FIELD_ID]: [first.id] };
+  if (first.field === null) return {};
   return { [first.field]: [first.id] };
 }
 
@@ -175,7 +197,16 @@ export function keepCorrect(placement: Placement, marks: GradeResult): Placement
  * Only fields the key has an opinion about count: a field that should be empty and is
  * empty is neither earned nor missed.
  */
-export function scoreRow(row: Row, fields: Field[], marks: GradeResult): number {
+export function scoreRow(row: Row, fields: Field[], marks: GradeResult, orderOnly = false): number {
+  // One slot would make every sequence-only sentence all-or-nothing, which is not what a
+  // percentage is for here: getting six of seven pieces in order is most of the way, and
+  // the SRS reads this number.
+  if (orderOnly) {
+    if (row.chunks.length === 0) return 100;
+    const right = row.chunks.filter((c) => marks.byItem[c.id] === 'ok').length;
+    return Math.round((100 * right) / row.chunks.length);
+  }
+
   const judged = fields.filter((f) => marks.byField[f.id] !== 'empty' || expectedIn(row, f.id) > 0);
   if (judged.length === 0) return 100;
   const ok = judged.filter((f) => marks.byField[f.id] === 'ok').length;

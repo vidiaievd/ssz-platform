@@ -138,6 +138,20 @@ export interface Settings {
   /** Include `row.extras` in the bank. Off hides them; it never deletes them. */
   extras: boolean;
   order: OrderMode;
+  /**
+   * Grade the sequence and nothing else: one slot for the whole sentence, no named
+   * fields, no claim about which constituent a piece is.
+   *
+   * A second exercise inside the type rather than a second type. The schema stays in the
+   * document untouched — this collapses the board at runtime, so an author can turn it on
+   * to drill word order and off again to drill the chart, over the same sentences, without
+   * losing the field work in between.
+   *
+   * It also changes what a row needs to be deliverable: with no fields to place into,
+   * writing the sentence is the whole of the authoring. `isDeliverable` takes the flag
+   * for that reason.
+   */
+  orderOnly: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -151,6 +165,24 @@ export const DEFAULT_SETTINGS: Settings = {
   shuffle: true,
   extras: true,
   order: 'strict',
+  orderOnly: false,
+};
+
+/**
+ * The one slot a sequence-only exercise is played on.
+ *
+ * Nameless on purpose: `short` and `label` are empty, so the board draws a bare cell and
+ * no head. A learner told to put the words in order should not be reading a field name —
+ * that is the very claim this mode is set up to stop making.
+ */
+export const ORDER_FIELD_ID = '__order__';
+
+export const ORDER_FIELD: Field = {
+  id: ORDER_FIELD_ID,
+  short: '',
+  label: '',
+  hint: '',
+  optional: false,
 };
 
 /** A field list per clause type. Only the clause types in `clauses` are usable. */
@@ -210,8 +242,15 @@ export function emptyContent(schema: Schema, presetId: string): SentenceSchemaCo
   };
 }
 
-/** The fields of the clause this row is written in. Empty when the clause has none. */
+/**
+ * The fields this row is played on.
+ *
+ * The single place the sequence-only collapse happens. Everything downstream — the
+ * projection, both boards, the grader's caller — asks this rather than reading `schema`,
+ * so one branch here is the whole of the mode's effect on layout.
+ */
 export function fieldsFor(content: SentenceSchemaContent, row: Row): Field[] {
+  if (content.settings.orderOnly) return [ORDER_FIELD];
   return content.schema[row.clause] ?? [];
 }
 
@@ -221,12 +260,17 @@ export function fieldsFor(content: SentenceSchemaContent, row: Row): Field[] {
  * Only deliverable rows reach a student. A half-placed row is a normal state of writing,
  * not an error — it blocks assignment, never editing.
  */
-export function isDeliverable(row: Row): boolean {
-  return row.text.trim() !== '' && row.chunks.length > 0 && row.chunks.every((c) => c.field !== null);
+export function isDeliverable(row: Row, orderOnly = false): boolean {
+  if (row.text.trim() === '' || row.chunks.length === 0) return false;
+  // Sequence-only asks nothing of the fields, so a sentence is finished as soon as it is
+  // written. Requiring placements there would be asking the author to answer a question
+  // the exercise never puts to anybody.
+  if (orderOnly) return true;
+  return row.chunks.every((c) => c.field !== null);
 }
 
 export function deliverableRows(content: SentenceSchemaContent): Row[] {
-  return content.rows.filter(isDeliverable);
+  return content.rows.filter((row) => isDeliverable(row, content.settings.orderOnly));
 }
 
 function newId(): string {

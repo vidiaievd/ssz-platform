@@ -312,6 +312,9 @@ function readSettings(value: unknown): Settings {
         ? (prefill as PrefillMode)
         : DEFAULT_SETTINGS.prefill,
     markEmpty: asBoolean(record['markEmpty'], DEFAULT_SETTINGS.markEmpty),
+    // Absent in every document written before the mode existed, and `false` is what those
+    // documents mean: a schema exercise, graded on its fields.
+    orderOnly: asBoolean(record['orderOnly'], DEFAULT_SETTINGS.orderOnly),
     perField: asBoolean(record['perField'], DEFAULT_SETTINGS.perField),
     hintAfterMistake: asBoolean(record['hintAfterMistake'], DEFAULT_SETTINGS.hintAfterMistake),
     shuffle: asBoolean(record['shuffle'], DEFAULT_SETTINGS.shuffle),
