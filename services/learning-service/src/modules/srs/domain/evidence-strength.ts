@@ -130,6 +130,14 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   multiple_choice: CLOSED_SET,
   multiple_choice_group: CLOSED_SET,
   word_bank_fill: CLOSED_SET,
+
+  // Also closed, but not for the sentence above: the recall here is *where* a piece goes
+  // and in what order, not which word it is. Plan 52 loosened the set in two ways without
+  // changing the rating — the bank may carry distractors, so what is on screen is no
+  // longer exactly the answer; and a sentence may be checked as often as the learner
+  // likes, so a success can be converged on by trying, the same caveat that costs
+  // `match_pairs` its old argument below. Both push down rather than up, and CLOSED_SET
+  // is already the cautious end of recognition.
   sentence_schema: CLOSED_SET,
 
   // Elimination does most of the work: the last line is free.
