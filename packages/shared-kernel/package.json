@@ -39,6 +39,10 @@
     "./sentence-schema": {
       "import": "./dist/sentence-schema/index.js",
       "types": "./dist/sentence-schema/index.d.ts"
+    },
+    "./multiple-choice": {
+      "import": "./dist/multiple-choice/index.js",
+      "types": "./dist/multiple-choice/index.d.ts"
     }
   },
   "files": [
