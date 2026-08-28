@@ -667,120 +667,155 @@
       }
     },
     {
-      "key": "b1-g4-mc1",
+      "key": "b1-g4-mc",
       "template": "multiple_choice",
-      "instruction": "После глагола в прошедшем — какая форма верна?",
+      "instruction": "Косвенная речь: выберите форму, которая согласуется с глаголом в прошедшем.",
       "content": {
-        "question": "Han sa at han ___ syk.",
-        "options": [
+        "title": "Indirekte tale — hvilken form?",
+        "instruction": "Velg formen som passer etter sa, spurte og fortalte.",
+        "questions": [
           {
-            "id": "a",
-            "text": "er"
+            "id": "q1",
+            "kind": "grammar",
+            "context": "",
+            "stem": "Han sa at han ___ syk.",
+            "options": [
+              {
+                "id": "a",
+                "text": "er",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "var",
+                "fixed": false
+              }
+            ]
           },
           {
-            "id": "b",
-            "text": "var"
+            "id": "q2",
+            "kind": "grammar",
+            "context": "",
+            "stem": "Hun spurte om jeg ___ tid.",
+            "options": [
+              {
+                "id": "a",
+                "text": "har",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "hadde",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "grammar",
+            "context": "",
+            "stem": "Bartek sa at han ___ reise.",
+            "options": [
+              {
+                "id": "a",
+                "text": "skal",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "skulle",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q4",
+            "kind": "grammar",
+            "context": "",
+            "stem": "De fortalte at de allerede ___.",
+            "options": [
+              {
+                "id": "a",
+                "text": "har spist",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "hadde spist",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q5",
+            "kind": "grammar",
+            "context": "",
+            "stem": "Han forklarte at han ___ komme.",
+            "options": [
+              {
+                "id": "a",
+                "text": "kan ikke",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "ikke kunne",
+                "fixed": false
+              }
+            ]
           }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
         ],
-        "explanation": "presens → preteritum после «sa»."
-      }
-    },
-    {
-      "key": "b1-g4-mc2",
-      "template": "multiple_choice",
-      "instruction": "Выберите правильную форму.",
-      "content": {
-        "question": "Hun spurte om jeg ___ tid.",
-        "options": [
-          {
-            "id": "a",
-            "text": "har"
-          },
-          {
-            "id": "b",
-            "text": "hadde"
-          }
-        ]
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
-        ]
-      }
-    },
-    {
-      "key": "b1-g4-mc3",
-      "template": "multiple_choice",
-      "instruction": "Выберите правильную форму.",
-      "content": {
-        "question": "Bartek sa at han ___ reise.",
-        "options": [
-          {
-            "id": "a",
-            "text": "skal"
+        "questions": {
+          "q1": {
+            "correctOptionId": "b",
+            "why": "Etter et fortellerverb i preteritum (sa) flyttes tida ett steg tilbake: presens «er» blir preteritum «var».",
+            "options": {
+              "a": "«er» er presens. Hovedsetningen står i preteritum («sa»), og leddsetningen følger etter."
+            }
           },
-          {
-            "id": "b",
-            "text": "skulle"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
-        ]
-      }
-    },
-    {
-      "key": "b1-g4-mc4",
-      "template": "multiple_choice",
-      "instruction": "Выберите правильную форму.",
-      "content": {
-        "question": "De fortalte at de allerede ___.",
-        "options": [
-          {
-            "id": "a",
-            "text": "har spist"
+          "q2": {
+            "correctOptionId": "b",
+            "why": "«spurte» står i preteritum, så «har» blir «hadde». Tidsforskyvningen gjelder også i indirekte spørsmål med «om».",
+            "options": {
+              "a": "«har» ville handlet om tida di nå, ikke om det hun spurte om den gangen."
+            }
           },
-          {
-            "id": "b",
-            "text": "hadde spist"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
-        ]
-      }
-    },
-    {
-      "key": "b1-g4-mc5",
-      "template": "multiple_choice",
-      "instruction": "Выберите правильную форму.",
-      "content": {
-        "question": "Han forklarte at han ___ komme.",
-        "options": [
-          {
-            "id": "a",
-            "text": "kan ikke"
+          "q3": {
+            "correctOptionId": "b",
+            "why": "Modalverbene følger samme regel som andre verb: «skal» blir «skulle» etter et fortellerverb i preteritum.",
+            "options": {
+              "a": "«skal» er presens. Modalverb er ikke unntak fra tidsforskyvningen."
+            }
           },
-          {
-            "id": "b",
-            "text": "ikke kunne"
+          "q4": {
+            "correctOptionId": "b",
+            "why": "Perfektum «har spist» blir pluskvamperfektum «hadde spist»: måltidet var allerede ferdig da de fortalte det.",
+            "options": {
+              "a": "«har spist» knytter handlingen til nå. Her er både fortellingen og måltidet fortid."
+            }
+          },
+          "q5": {
+            "correctOptionId": "b",
+            "why": "To ting skjer samtidig: «kan» blir «kunne» etter «forklarte», og i en leddsetning står «ikke» foran det bøyde verbet.",
+            "options": {
+              "a": "Begge delene er feil her: «kan» er presens, og «ikke» kan ikke stå etter verbet i en leddsetning."
+            }
           }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
-        ],
-        "explanation": "В придаточном ikke стоит перед глаголом, и kan→kunne."
+        }
       }
     },
     {
@@ -7626,120 +7661,156 @@
         }
       }
     },
-{
-      "key": "b1-1c-rg1",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
-      "content": {
-        "question": "I Norge sier de ansatte ofte «du» til sjefen.",
-        "options": [
-          {
-            "id": "r",
-            "text": "Riktig"
-          },
-          {
-            "id": "g",
-            "text": "Galt"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "r"
-        ]
-      }
-    },
     {
-      "key": "b1-1c-rg2",
+      "key": "b1-1c-rg",
       "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
+      "instruction": "Прочитайте утверждение и решите, верно ли оно по тексту 1C.",
       "content": {
-        "question": "Overtid er veldig vanlig i Norge.",
-        "options": [
+        "title": "Riktig eller galt — norsk arbeidsliv",
+        "instruction": "Riktig eller galt? Svar ut fra teksten om norsk arbeidsliv.",
+        "questions": [
           {
-            "id": "r",
-            "text": "Riktig"
+            "id": "q1",
+            "kind": "reading",
+            "context": "",
+            "stem": "I Norge sier de ansatte ofte «du» til sjefen.",
+            "options": [
+              {
+                "id": "r",
+                "text": "Riktig",
+                "fixed": false
+              },
+              {
+                "id": "g",
+                "text": "Galt",
+                "fixed": false
+              }
+            ]
           },
           {
-            "id": "g",
-            "text": "Galt"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "g"
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-rg3",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
-      "content": {
-        "question": "De fleste har fem uker ferie om sommeren.",
-        "options": [
-          {
-            "id": "r",
-            "text": "Riktig"
+            "id": "q2",
+            "kind": "reading",
+            "context": "",
+            "stem": "Overtid er veldig vanlig i Norge.",
+            "options": [
+              {
+                "id": "r",
+                "text": "Riktig",
+                "fixed": false
+              },
+              {
+                "id": "g",
+                "text": "Galt",
+                "fixed": false
+              }
+            ]
           },
           {
-            "id": "g",
-            "text": "Galt"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "r"
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-rg4",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
-      "content": {
-        "question": "Det er ikke lov å være uenig med sjefen.",
-        "options": [
-          {
-            "id": "r",
-            "text": "Riktig"
+            "id": "q3",
+            "kind": "reading",
+            "context": "",
+            "stem": "De fleste har fem uker ferie om sommeren.",
+            "options": [
+              {
+                "id": "r",
+                "text": "Riktig",
+                "fixed": false
+              },
+              {
+                "id": "g",
+                "text": "Galt",
+                "fixed": false
+              }
+            ]
           },
           {
-            "id": "g",
-            "text": "Galt"
+            "id": "q4",
+            "kind": "reading",
+            "context": "",
+            "stem": "Det er ikke lov å være uenig med sjefen.",
+            "options": [
+              {
+                "id": "r",
+                "text": "Riktig",
+                "fixed": false
+              },
+              {
+                "id": "g",
+                "text": "Galt",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q5",
+            "kind": "reading",
+            "context": "",
+            "stem": "En fagforening forhandler om lønn.",
+            "options": [
+              {
+                "id": "r",
+                "text": "Riktig",
+                "fixed": false
+              },
+              {
+                "id": "g",
+                "text": "Galt",
+                "fixed": false
+              }
+            ]
           }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "g"
         ],
-        "explanation": "Det er lov, så lenge man er saklig og høflig."
-      }
-    },
-    {
-      "key": "b1-1c-rg5",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
-      "content": {
-        "question": "En fagforening forhandler om lønn.",
-        "options": [
-          {
-            "id": "r",
-            "text": "Riktig"
-          },
-          {
-            "id": "g",
-            "text": "Galt"
-          }
-        ]
+        "settings": {
+          "letters": false,
+          "layout": "grid",
+          "shuffle": false,
+          "shuffleQuestions": false,
+          "instant": true,
+          "retry": "none",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "correct_option_ids": [
-          "r"
-        ]
+        "questions": {
+          "q1": {
+            "correctOptionId": "r",
+            "why": "Teksten kaller norsk arbeidsliv flatt: på mange arbeidsplasser sier de ansatte «du» til sjefen og bruker fornavnet.",
+            "options": {
+              "g": "«Galt» ville passet i et land der man tiltaler sjefen formelt. Teksten sier at mange innvandrere synes nettopp dette er uvant i begynnelsen."
+            }
+          },
+          "q2": {
+            "correctOptionId": "g",
+            "why": "Nordmenn jobber vanligvis 37,5 timer i uka og går hjem klokka fire. Teksten sier rett ut at overtid ikke er så vanlig.",
+            "options": {
+              "r": "Overtid finnes, men det er ikke normalen. Teksten framhever balansen mellom jobb og fritid: mange prioriterer familie og fritid høyt."
+            }
+          },
+          "q3": {
+            "correctOptionId": "r",
+            "why": "Det står i avsnittet om jobb og fritid: om sommeren har de fleste fem uker ferie.",
+            "options": {
+              "g": "Fem uker er tallet teksten oppgir, og det gjelder de fleste — ikke et unntak for noen få."
+            }
+          },
+          "q4": {
+            "correctOptionId": "g",
+            "why": "Det er lov å være uenig med sjefen, så lenge man er saklig og høflig. Alle får si sin mening i møtene.",
+            "options": {
+              "r": "Uenighet er ikke forbudt. Det er formen som teller: saklig og høflig."
+            }
+          },
+          "q5": {
+            "correctOptionId": "r",
+            "why": "De fleste arbeidsplasser er organisert gjennom en fagforening, og den forhandler om lønn og arbeidsvilkår.",
+            "options": {
+              "g": "Dette er nettopp fagforeningens oppgave. Den hjelper også den ansatte hvis det oppstår en konflikt."
+            }
+          }
+        }
       }
     },
     {

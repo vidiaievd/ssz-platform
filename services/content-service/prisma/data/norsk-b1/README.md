@@ -22,11 +22,11 @@ incrementally with no code change:
 
 ## Status
 **All 10 leksjoner fully authored.** 40 lesson texts, 10 grammar lessons, 29 vocab
-sections (462 words), 428 exercises — all validated against the live Ajv template
+sections (462 words), 421 exercises — all validated against the live Ajv template
 schemas extracted from `seed.ts` (0 invalid), no duplicate exercise keys.
 
-Per-template breakdown: short_answer 138, fill_in_blank 128, multiple_choice 120,
-match_pairs 12, writing_task 11, word_bank_gap_fill 6, sentence_schema 6,
+Per-template breakdown: short_answer 138, fill_in_blank 128, multiple_choice 112,
+match_pairs 12, writing_task 11, sentence_schema 7, word_bank_gap_fill 6,
 translate_to_target 2, multiple_choice_group 2, text_order 1, error_correction 1,
 translate_from_target 1.
 
@@ -76,6 +76,29 @@ the question it belongs to once the answers are unlocked.
 
 No conversion tool for these yet — the remaining `multiple_choice` runs in leksjoner
 2–10 are still one exercise per question.
+
+### Question sets (`multiple_choice`)
+
+Leksjon 1's own two runs are no longer among them. Plan 53 rewrote `multiple_choice`
+itself into a **set of questions answered one at a time**, and leksjon 1 is the reseeded
+lesson: `b1-g4-mc1…mc5` are now the set `b1-g4-mc`, and `b1-1c-rg1…rg5` the set
+`b1-1c-rg`. The five riktig/galt statements became one `multiple_choice` set rather than
+a `multiple_choice_group`: they do not share a column, they merely share their two
+options (plan 53 §3.7).
+
+Both sets carry what the old form could not hold at all — a rule behind the right answer
+on every question (`expectedAnswers.questions[].why`, required at publication) and a
+rebuttal behind every wrong option (`…questions[].options[optionId]`), which is what the
+student is shown when they pick it. The key is a question id → option id map in
+`expectedAnswers`; the content column holds no trace of which option is right, so there
+is nothing there for the student projection to forget to strip.
+
+`prisma/tools/check-multiple-choice.ts` runs the kernel over these documents: it reports
+undeliverable questions, keys pointing at options that do not exist, questions with no
+rule, and anything of the key that reaches the student. It also prints the distractor
+audit, which flags every riktig/galt question as a coin toss — correctly, and by
+decision (plan 53 §8 Q6). This course's other 110 `multiple_choice` exercises stay on
+the old single-question form and are counted and skipped.
 
 Exercise key scheme: text sub-lessons use `b1-{leksjon}{letter}-{type}-{n}` (e.g.
 `b1-3b-fib-02`); grammar-module exercises for leksjon 1 use `b1-g{subsection}-*`
