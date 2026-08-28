@@ -86,28 +86,48 @@ const writingAnswers = {
   model: 'Hei, jeg heter Anna og skriver til dere fordi…',
 };
 
+/**
+ * One definition per check mode, so a test can say what `PRACTICE` answers and what
+ * `GRADED` answers separately — which is the whole subject of the `multiple_choice`
+ * cases below. `null` stands for a fetch that fails.
+ */
+type DefinitionByMode = (
+  mode: string,
+) => { content: unknown; expectedAnswers: unknown } | null;
+
 function makeHandler(templateCode: string, content: unknown, expectedAnswers: unknown) {
+  return makeHandlerByMode(templateCode, () => ({ content, expectedAnswers })).handler;
+}
+
+/** The same handler, plus the modes it asked content-service for, in order. */
+function makeHandlerByMode(templateCode: string, byMode: DefinitionByMode) {
+  const modes: string[] = [];
   const attempts = {
     findInProgress: jest.fn(() => Promise.resolve(null)),
     findLatestReturned: jest.fn(() => Promise.resolve(null)),
     save: jest.fn(),
   };
   const contentClient = {
-    getExerciseForAttempt: jest.fn(() =>
-      Promise.resolve(
+    getExerciseForAttempt: jest.fn((_id: string, _language: string, mode: string) => {
+      modes.push(mode);
+      const definition = byMode(mode);
+      if (definition === null) {
+        return Promise.resolve(Result.fail({ statusCode: 503, message: 'Content is away' }));
+      }
+      return Promise.resolve(
         Result.ok({
           exercise: {
             templateCode,
             targetLanguage: 'no',
             difficultyLevel: 'B1',
-            content,
-            expectedAnswers,
+            content: definition.content,
+            expectedAnswers: definition.expectedAnswers,
             answerCheckSettings: null,
           },
           template: { answerSchema: {}, defaultCheckSettings: {} },
         }),
-      ),
-    ),
+      );
+    }),
     getPracticedAtoms: jest.fn(() => Promise.resolve(Result.ok([]))),
     // Not under test here — resolved to a miss so the review-context snapshot
     // (plan 44 §44.4) stays a no-op and this file can focus on withholding.
@@ -122,15 +142,18 @@ function makeHandler(templateCode: string, content: unknown, expectedAnswers: un
   const publisher = { publish: jest.fn(() => Promise.resolve()) };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return new StartAttemptHandler(
+  const handler = new StartAttemptHandler(
     attempts as any,
     contentClient as any,
     new ReviewContextResolver(contentClient as any, organizationClient as any),
     publisher as any,
   );
+
+  return { handler, modes };
 }
 
 const practice = new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE');
+const graded = new StartAttemptCommand('user-1', 'ex-1', 'no', 'assignment-1', null, 'GRADED');
 
 describe('StartAttemptHandler — what leaves with the attempt', () => {
   it('ships no answers for a gap-fill, even in PRACTICE mode', async () => {
@@ -629,6 +652,110 @@ describe('StartAttemptHandler — what leaves with the attempt', () => {
 
       expect(result.value.exerciseContent).toEqual(alreadyProjected);
       expect(result.value.expectedAnswers).toBeNull();
+    });
+
+    describe('in GRADED mode the deal still belongs to the attempt (plan 53 §8 Q7)', () => {
+      // What content-service ships in `graded` mode: already projected, key gone, and
+      // dealt with a CSPRNG whose result is then cached by (exercise, language, mode) —
+      // so the order belongs to a five-minute Redis entry rather than to this attempt.
+      // The fix is the arrangement `submit-answer`, `reveal-answers` and
+      // `answer-question` already use: ask for the document as PRACTICE and deal here.
+      const alreadyProjected = {
+        instruction: choiceContent.instruction,
+        questions: [
+          {
+            id: 'q1',
+            kind: 'grammar',
+            stem: choiceContent.questions[0]!.stem,
+            options: [
+              { id: 'o3', text: 'har vært' },
+              { id: 'o1', text: 'var' },
+              { id: 'o2', text: 'er' },
+              { id: 'o4', text: 'Ingen av disse' },
+            ],
+          },
+        ],
+        settings: { letters: true, layout: 'list', instant: false, retry: 'one', eliminate: true, progress: true },
+      };
+
+      const byMode: DefinitionByMode = (mode) =>
+        mode === 'PRACTICE'
+          ? { content: choiceContent, expectedAnswers: choiceKey }
+          : { content: alreadyProjected, expectedAnswers: null };
+
+      it('fetches the unprojected document and deals it with the attempt seed', async () => {
+        const { handler, modes } = makeHandlerByMode('multiple_choice', byMode);
+
+        const result = (await handler.execute(graded)).value;
+
+        expect(modes).toEqual(['GRADED', 'PRACTICE']);
+        const dealt = (result.exerciseContent as Projection).questions[0]!.options
+          .map((o) => o.id)
+          .join(',');
+        const expected = (
+          mcToStudentProjection(choiceContent, attemptShuffle(result.attemptId)) as Projection
+        ).questions[0]!.options
+          .map((o) => o.id)
+          .join(',');
+        expect(dealt).toBe(expected);
+        // The key was in hand to deal from and still does not travel.
+        expect(result.expectedAnswers).toBeNull();
+        expect(JSON.stringify(result.exerciseContent)).not.toContain('Presens flyttes');
+      });
+
+      it('pins the fixed option last, as the first deal did', async () => {
+        const { handler } = makeHandlerByMode('multiple_choice', byMode);
+        const projection = (await handler.execute(graded)).value.exerciseContent as Projection;
+        const options = projection.questions[0]!.options;
+
+        expect(options.map((o) => o.id).sort()).toEqual(['o1', 'o2', 'o3', 'o4']);
+        expect(options[options.length - 1]!.id).toBe('o4');
+      });
+
+      it('hands on the projected envelope when the second fetch fails', async () => {
+        // A worse card than the attempt should have, rather than no card at all.
+        const { handler, modes } = makeHandlerByMode('multiple_choice', (mode) =>
+          mode === 'PRACTICE' ? null : { content: alreadyProjected, expectedAnswers: null },
+        );
+
+        const result = (await handler.execute(graded)).value;
+
+        expect(modes).toEqual(['GRADED', 'PRACTICE']);
+        expect(result.exerciseContent).toEqual(alreadyProjected);
+        expect(result.expectedAnswers).toBeNull();
+      });
+
+      it('does not fetch twice for a document of the old form', async () => {
+        const old = {
+          question: 'Han sa at han ___ sliten.',
+          options: [
+            { id: 'a', text: 'var' },
+            { id: 'b', text: 'er' },
+          ],
+        };
+        const { handler, modes } = makeHandlerByMode('multiple_choice', () => ({
+          content: old,
+          expectedAnswers: null,
+        }));
+
+        const result = (await handler.execute(graded)).value;
+
+        expect(modes).toEqual(['GRADED']);
+        expect(result.exerciseContent).toEqual(old);
+      });
+
+      it('does not fetch twice for any other template', async () => {
+        // The second fetch is `multiple_choice`'s alone: no other projection deals an
+        // order that has to belong to the attempt.
+        const { handler, modes } = makeHandlerByMode('writing_task', () => ({
+          content: writingContent,
+          expectedAnswers: null,
+        }));
+
+        await handler.execute(graded);
+
+        expect(modes).toEqual(['GRADED']);
+      });
     });
 
     it('hands on a document of the old form, rather than blanking it', async () => {

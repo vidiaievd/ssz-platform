@@ -45,7 +45,12 @@ import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
 import { ATTEMPT_REPOSITORY, type IAttemptRepository } from '../../../domain/repositories/attempt.repository.js';
-import { CONTENT_CLIENT, type IContentClient, ContentClientError } from '../../../../../shared/application/ports/content-client.port.js';
+import {
+  CONTENT_CLIENT,
+  type ExerciseDefinition,
+  type IContentClient,
+  ContentClientError,
+} from '../../../../../shared/application/ports/content-client.port.js';
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
 import { attemptShuffle } from '../../../../../shared/application/services/multiple-choice-attempt.js';
@@ -179,10 +184,13 @@ export interface StartAttemptResult {
  * in it to withhold: which option is right is neither a flag nor a position but a map in
  * `expected_answers`. What its projection does instead is drop the option rows the author
  * left blank and *deal the order* — and unlike every shuffle above, this one is seeded by
- * the attempt rather than by the CSPRNG. It has to be: the server counts the 50/50 in the
- * order it dealt, so a reload that re-dealt would leave the student looking at one order
- * while the judge worked in another (plan 53 §3.4). It has two live document shapes like
- * `short_answer`, and one of them has nothing to project.
+ * the attempt rather than by the CSPRNG, so that the order belongs to the attempt and a
+ * reload does not re-deal the card the student is looking at (plan 53 §3.4, §8 Q7). The
+ * order and the 50/50 are independent, incidentally: `eliminate` runs over the author's
+ * own option list and is seeded by `(attempt, question, try)`, so it would survive a
+ * re-deal — the reason for the per-attempt seed is what the student sees, not what the
+ * judge computes. It has two live document shapes like `short_answer`, and one of them has
+ * nothing to project.
  *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
@@ -264,10 +272,12 @@ function withheldWhereNeeded(
       return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };
     }
 
-    // As for the three below: in `graded` mode content-service has already projected this
-    // and answered with no key. Projecting a projection would deal the options a second
-    // time, and the order the student is shown would stop being the order this attempt's
-    // 50/50 is counted in (plan 53 §6.2).
+    // A `graded` envelope content-service has already projected, reaching here only
+    // because `documentToDealFrom` could not fetch the unprojected document. Handed on as
+    // it stands: projecting a projection would deal the options a second time on top of an
+    // order that is already arbitrary, and would still not be an order this attempt owns
+    // (plan 53 §6.2). What the student loses is the per-attempt deal, not correctness —
+    // the verdict and the 50/50 work in option ids.
     if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
       return { exerciseContent: exercise.content, expectedAnswers: null };
     }
@@ -395,13 +405,20 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         return Result.fail<StartAttemptResult, StartAttemptError>(resumedDef.error);
       }
 
+      const resumedSource = await this.documentToDealFrom(
+        resumedDef.value,
+        command.exerciseId,
+        command.language,
+        existing.checkMode,
+      );
+
       return Result.ok<StartAttemptResult, StartAttemptError>({
         attemptId: existing.id,
         templateCode: existing.templateCode,
         targetLanguage: existing.targetLanguage,
         difficultyLevel: existing.difficultyLevel,
         checkMode: existing.checkMode,
-        ...withheldWhereNeeded(existing.templateCode, resumedDef.value.exercise, existing.id),
+        ...withheldWhereNeeded(existing.templateCode, resumedSource, existing.id),
         answerSchema: resumedDef.value.template.answerSchema,
         checkSettings: {
           ...(resumedDef.value.template.defaultCheckSettings ?? {}),
@@ -484,19 +501,81 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       ...(def.exercise.answerCheckSettings ?? {}),
     };
 
+    const source = await this.documentToDealFrom(
+      def,
+      command.exerciseId,
+      command.language,
+      attempt.checkMode,
+    );
+
     return Result.ok<StartAttemptResult, StartAttemptError>({
       attemptId: attempt.id,
       templateCode: def.exercise.templateCode,
       targetLanguage: def.exercise.targetLanguage,
       difficultyLevel: def.exercise.difficultyLevel,
       checkMode: attempt.checkMode,
-      ...withheldWhereNeeded(def.exercise.templateCode, def.exercise, attempt.id),
+      ...withheldWhereNeeded(def.exercise.templateCode, source, attempt.id),
       answerSchema: def.template.answerSchema,
       checkSettings,
       answeredQuestions: [],
       checkedRows: [],
       pickedOptions: [],
     });
+  }
+
+  /**
+   * The document `withheldWhereNeeded` deals `multiple_choice` from.
+   *
+   * This handler is the one place in the module that fetches the definition in the
+   * attempt's own mode. `submit-answer`, `reveal-answers` and `answer-question` all ask
+   * for `PRACTICE` whatever the attempt is, and say why: the server needs the real
+   * document to work with, and only a projection of the result ever goes back. For eight
+   * templates the difference does not show here — content-service's projection and the
+   * engine's agree on what to take away.
+   *
+   * For `multiple_choice` it shows, because its projection does not only take away, it
+   * **deals an order**. In `graded` mode that deal is made by content-service with a
+   * CSPRNG and then cached by `(exerciseId, language, mode)` for the definition cache's
+   * TTL, which is five minutes. So the order would belong to a Redis entry rather than to
+   * the attempt: every student starting the same assignment inside that window would be
+   * dealt the same one — in the mode where a shuffle exists precisely so that «I picked B»
+   * means nothing — and an attempt living across the expiry would find its card re-dealt
+   * under it, closed questions included (plan 53 §8 Q7).
+   *
+   * So for this template, and only where the envelope has already been projected, the
+   * document is fetched a second time as `PRACTICE` and dealt here, seeded by the attempt.
+   * The key that arrives with it is read by the projection and does not leave: the
+   * `multiple_choice` branch answers `expectedAnswers: null` on both paths. The extra
+   * fetch is nearly always a cache hit, because `answer-question` fills that same entry on
+   * every pick.
+   *
+   * A failed fetch is not an error. The already-projected envelope is still a playable
+   * exercise; the attempt loses its own deal and nothing else, which is a worse card than
+   * it should have rather than no card at all.
+   */
+  private async documentToDealFrom(
+    definition: ExerciseDefinition,
+    exerciseId: string,
+    language: string,
+    checkMode: string,
+  ): Promise<ExerciseDefinition['exercise']> {
+    const exercise = definition.exercise;
+    if (checkMode === 'PRACTICE' || exercise.templateCode !== MULTIPLE_CHOICE) return exercise;
+    // The old single-question form travels unprojected in both modes — there is no deal
+    // to take back, and its key is what `PRACTICE` has always shipped for it.
+    if (!isMultipleChoiceDocument(exercise.content)) return exercise;
+    // A key in hand means this envelope was never projected, so it is already the
+    // document. Only the projected one — answered with no key — needs fetching again.
+    if (exercise.expectedAnswers !== null && exercise.expectedAnswers !== undefined) {
+      return exercise;
+    }
+
+    const practice = await this.contentClient.getExerciseForAttempt(
+      exerciseId,
+      language,
+      'PRACTICE',
+    );
+    return practice.isOk ? practice.value.exercise : exercise;
   }
 
   /**
