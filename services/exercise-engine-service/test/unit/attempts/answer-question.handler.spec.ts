@@ -88,7 +88,7 @@ function makeHandler(attempt: unknown, document: unknown = { content, expectedAn
 }
 
 const command = (questionId = 'q1', text = 'Alle må ha lys foran og bak når det er mørkt.') =>
-  new AnswerQuestionCommand('att-1', 'user-1', questionId, text);
+  new AnswerQuestionCommand('att-1', 'user-1', questionId, { kind: 'text', text });
 
 describe('AnswerQuestionHandler', () => {
   it('grades the answer and reports what it covered', async () => {

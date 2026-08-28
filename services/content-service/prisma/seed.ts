@@ -165,11 +165,114 @@ const templates = [
   {
     code: 'multiple_choice',
     name: 'Multiple Choice',
-    description: 'Select the correct answer from several options',
+    description: 'Answer a set of multiple-choice questions one at a time',
+    // Rewritten for the design handoff (docs/plan/53-multiple-choice.md). The
+    // old shape was one question, a flat list of options and a key that was an
+    // array of ids; the new one is a **set of questions answered one at a
+    // time**, each with a rule behind the right answer (`why`) and a rebuttal
+    // behind every wrong one. That is the whole point of the rewrite: five
+    // «choose the right form» exercises in a row used to be five cards with
+    // five «Check» buttons, and a wrong pick used to be told only that it was
+    // wrong.
+    //
+    // Both shapes are described here, and deliberately so. Plan 53 §8 Q2 keeps
+    // the reseed to the first lesson of `norsk-b1`, so 121 seeded documents of
+    // the old form stay live and this schema is checked on every write to any
+    // of them. Replacing it outright would make every one of those exercises
+    // unsaveable. `isMultipleChoiceDocument` in the kernel is what every reader
+    // dispatches on — the validator, both runners, the projection, the preview
+    // — and the `anyOf` below is the same test spelled for AJV.
+    //
+    // Sixth of the camelCase templates, and the one where the content column is
+    // emptiest of answers by construction: which option is correct is never a
+    // flag here and never an order, it is a question id → option id map in
+    // expected_answers. There is nothing in this schema for a projection to
+    // forget to strip.
     contentSchema: {
       type: 'object',
-      required: ['question', 'options'],
+      anyOf: [{ required: ['questions'] }, { required: ['question'] }],
       properties: {
+        // ── The new form ──
+        title: { type: 'string', description: 'Teacher-facing name of the set' },
+        instruction: {
+          type: 'string',
+          description: 'One line, shown above every question in the runner',
+        },
+        // No `minItems` on `questions`, and none on `options` either — the same
+        // reasoning as `writing_task`, `short_answer` and `sentence_schema`.
+        // This schema is checked on every write, and a document being written
+        // is unfinished by definition: an author who has typed a stem but not
+        // yet its options, or who has added no question at all, would find the
+        // exercise unsaveable, and with autosave, silently so. That a set needs
+        // a deliverable question, and a question two written options, is true
+        // and is enforced at publication instead, where it can be reported
+        // rather than swallowed.
+        questions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: { type: 'string' },
+              // Carries no scoring logic. It decides whether a passage is
+              // offered and expected, and whether the student is shown it:
+              // `reading` shows it, `listening` keeps it author-side as the
+              // transcript, the other two rarely have one (plan 53 §3.8).
+              kind: { type: 'string', enum: ['grammar', 'vocab', 'reading', 'listening'] },
+              context: { type: 'string', description: 'The passage above the stem' },
+              // `___` marks a gap inside the sentence.
+              stem: { type: 'string' },
+              options: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['id'],
+                  properties: {
+                    id: { type: 'string' },
+                    text: { type: 'string' },
+                    // Pinned to the bottom of the list and never shuffled —
+                    // «Alle over», «Ingen av disse». A choice about the option
+                    // rather than about the answer, so it lives here.
+                    fixed: { type: 'boolean' },
+                  },
+                },
+                maxItems: 8,
+              },
+            },
+          },
+        },
+        // Eleven switches over one set. Exercise-wide: the handoff has no
+        // per-question overrides, and adding one would make half the panel grey
+        // on every card.
+        settings: {
+          type: 'object',
+          properties: {
+            letters: { type: 'boolean', description: 'A/B/C badges rather than radio bullets' },
+            layout: { type: 'string', enum: ['list', 'grid'] },
+            // Applied server-side, per attempt: an order computed in the
+            // browser is an order the network tab already showed unshuffled,
+            // and it would disagree with the order the server counted the
+            // 50/50 by (plan 53 §3.4).
+            shuffle: { type: 'boolean' },
+            shuffleQuestions: { type: 'boolean' },
+            instant: { type: 'boolean', description: 'Judge on tap, with no Check button' },
+            // The attempt budget: none = 1, one = 2, unlimited = 99.
+            retry: { type: 'string', enum: ['none', 'one', 'unlimited'] },
+            // 50/50. Computed on the server for the same reason the shuffle is:
+            // the client does not know which options are wrong, and that is the
+            // whole point of keeping the key off it.
+            eliminate: { type: 'boolean' },
+            showWhyWrong: { type: 'boolean' },
+            explainOnCorrect: { type: 'boolean' },
+            progress: { type: 'boolean' },
+          },
+        },
+
+        // ── The old form, still live ──
+        // One question and a flat option list, its key an array of ids in
+        // expected_answers. Kept until the 121 documents written this way are
+        // rewritten; see the note above. It is also what the placement test and
+        // the listening/reading lesson stages read (plan 53 §1.2).
         question: { type: 'string' },
         options: {
           type: 'array',
@@ -188,10 +291,49 @@ const templates = [
         media_id: { type: 'string' },
       },
     },
+    // The author's answer key, in either form. As with `short_answer` and
+    // `sentence_schema`, this schema no longer doubles as the learner's
+    // submission schema: `multiple_choice` joins `OWN_SUBMISSION_SHAPE` in
+    // exercise-engine, because the new key is a map of correct option ids and
+    // the new submission is a list of picks with the attempt each was made on.
+    // One schema over both would describe neither, and the one guarding the
+    // author's document is the one worth keeping strict.
     answerSchema: {
       type: 'object',
-      required: ['correct_option_ids'],
       properties: {
+        // ── The new form ──
+        // Keyed by question id, so reordering the questions cannot shuffle the
+        // key onto the wrong ones.
+        questions: {
+          type: 'object',
+          description: 'Keyed by question id',
+          additionalProperties: {
+            type: 'object',
+            properties: {
+              // Exactly one. The model enforces it — marking a key clears every
+              // other in that question — and there is no shape here for a
+              // second one to be written into.
+              correctOptionId: { type: 'string' },
+              // The rule behind the right answer. Required at publication: it
+              // is what the student is shown when the question closes, and a
+              // set that only ever says «not right» is the hole this rewrite
+              // exists to close.
+              why: { type: 'string' },
+              // optionId → the rebuttal shown when *that* option is picked.
+              // Half of the handoff is written for this field: «-en is the
+              // masculine ending, and «bok» is feminine» is worth more than a
+              // red cross. Only wrong options need one, and only options that
+              // have one appear here.
+              options: {
+                type: 'object',
+                description: 'Keyed by option id',
+                additionalProperties: { type: 'string' },
+              },
+            },
+          },
+        },
+
+        // ── The old form, still live ──
         // Array to support both single-answer and multi-select variants.
         // Single-answer exercises have exactly one element.
         correct_option_ids: {
@@ -202,6 +344,10 @@ const templates = [
         explanation: { type: 'string' },
       },
     },
+    // Read by the old grader alone: partial credit is a multi-select idea, and
+    // the new form has exactly one key per question. Left in place because the
+    // 121 documents that use it are graded by `multiple-choice-legacy.ts`,
+    // which reads it exactly as it always did.
     defaultCheckSettings: { allow_partial_credit: false },
     supportedLanguages: Prisma.DbNull,
   },

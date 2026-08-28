@@ -31,6 +31,11 @@ import {
   toStudentProjection as saToStudentProjection,
 } from '@ssz/shared-kernel/short-answer';
 import {
+  isMultipleChoiceDocument,
+  TEMPLATE_CODE as MULTIPLE_CHOICE,
+  toStudentProjection as mcToStudentProjection,
+} from '@ssz/shared-kernel/multiple-choice';
+import {
   fromPersisted as ssFromPersisted,
   isSentenceSchemaDocument,
   TEMPLATE_CODE as SENTENCE_SCHEMA,
@@ -43,6 +48,7 @@ import { ATTEMPT_REPOSITORY, type IAttemptRepository } from '../../../domain/rep
 import { CONTENT_CLIENT, type IContentClient, ContentClientError } from '../../../../../shared/application/ports/content-client.port.js';
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
+import { attemptShuffle } from '../../../../../shared/application/services/multiple-choice-attempt.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { ExercisePathSnapshot } from '../../../domain/entities/attempt.entity.js';
 
@@ -64,6 +70,18 @@ export interface ResumedAnswer {
   questionId: string;
   text: string;
   verdict: 'pass' | 'partial' | 'fail';
+}
+
+/** One question of a `multiple_choice` set already picked at on this attempt. */
+export interface ResumedPick {
+  questionId: string;
+  /** In order; `picks[0]` is the first try, the only one that scores. */
+  picks: string[];
+  /** The options a 50/50 has already dimmed. */
+  eliminated: string[];
+  correct: boolean;
+  closed: boolean;
+  revealed: boolean;
 }
 
 export interface StartAttemptResult {
@@ -96,6 +114,16 @@ export interface StartAttemptResult {
    * replayed as a solve.
    */
   checkedRows: ResumedRow[];
+  /**
+   * The questions already picked at in this attempt, for `multiple_choice` and nothing
+   * else.
+   *
+   * A caller resuming a set reads it to know which questions are finished and which
+   * options are already dimmed. `picks` in particular cannot be recovered from anywhere
+   * else, and it is the score: only a first-attempt hit counts, so a reload that started
+   * every question over would hand out full marks for a second try.
+   */
+  pickedOptions: ResumedPick[];
 }
 
 /**
@@ -147,12 +175,22 @@ export interface StartAttemptResult {
  * hands over the answer as surely as the key would. A document that is not a set is
  * handed on unprojected (plan 52 §8 Q7) — there is nothing in it to take away.
  *
+ * `multiple_choice` is the ninth, and the one whose content column was built with nothing
+ * in it to withhold: which option is right is neither a flag nor a position but a map in
+ * `expected_answers`. What its projection does instead is drop the option rows the author
+ * left blank and *deal the order* — and unlike every shuffle above, this one is seeded by
+ * the attempt rather than by the CSPRNG. It has to be: the server counts the 50/50 in the
+ * order it dealt, so a reload that re-dealt would leave the student looking at one order
+ * while the judge worked in another (plan 53 §3.4). It has two live document shapes like
+ * `short_answer`, and one of them has nothing to project.
+ *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
  */
 function withheldWhereNeeded(
   templateCode: string,
   exercise: { content: unknown; expectedAnswers: unknown },
+  attemptId: string,
 ): { exerciseContent: unknown; expectedAnswers: unknown } {
   if (templateCode === WORD_BANK_GAP_FILL) {
     return {
@@ -214,6 +252,28 @@ function withheldWhereNeeded(
 
     return {
       exerciseContent: saToStudentProjection(exercise.content, exercise.expectedAnswers),
+      expectedAnswers: null,
+    };
+  }
+
+  if (templateCode === MULTIPLE_CHOICE) {
+    // A document of the old form: one question, its options plain text, its key in the
+    // other column — which is what PRACTICE mode has always shipped for it. Projecting it
+    // would find no `questions` and blank the exercise.
+    if (!isMultipleChoiceDocument(exercise.content)) {
+      return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };
+    }
+
+    // As for the three below: in `graded` mode content-service has already projected this
+    // and answered with no key. Projecting a projection would deal the options a second
+    // time, and the order the student is shown would stop being the order this attempt's
+    // 50/50 is counted in (plan 53 §6.2).
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      exerciseContent: mcToStudentProjection(exercise.content, attemptShuffle(attemptId)),
       expectedAnswers: null,
     };
   }
@@ -311,10 +371,21 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
      * to the student, and it scores nothing. Starting over would erase that, and revealing
      * every sentence and then reloading would be the cheapest route to a full score.
      *
+     * `multiple_choice` joins on the sharpest case of the three (plan 53 §3.3). Its
+     * questions have an attempt budget, and which try a question was taken on is the
+     * score — only a first-attempt hit counts. Starting over would hand a reload a fresh
+     * first try at every question, which is a full score for anyone who reloads after a
+     * miss. A revealed question would reopen the same way.
+     *
      * Only an attempt with work on it takes this path. An empty one is still a conflict,
-     * so the eleven other templates keep the behaviour they were built on.
+     * so the ten other templates keep the behaviour they were built on.
      */
-    if (existing && (existing.answeredQuestions.length > 0 || existing.checkedRows.length > 0)) {
+    if (
+      existing &&
+      (existing.answeredQuestions.length > 0 ||
+        existing.checkedRows.length > 0 ||
+        existing.pickedOptions.length > 0)
+    ) {
       const resumedDef = await this.contentClient.getExerciseForAttempt(
         command.exerciseId,
         command.language,
@@ -330,7 +401,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         targetLanguage: existing.targetLanguage,
         difficultyLevel: existing.difficultyLevel,
         checkMode: existing.checkMode,
-        ...withheldWhereNeeded(existing.templateCode, resumedDef.value.exercise),
+        ...withheldWhereNeeded(existing.templateCode, resumedDef.value.exercise, existing.id),
         answerSchema: resumedDef.value.template.answerSchema,
         checkSettings: {
           ...(resumedDef.value.template.defaultCheckSettings ?? {}),
@@ -347,6 +418,16 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
             attempts,
             placement,
             solved,
+            revealed,
+          }),
+        ),
+        pickedOptions: existing.pickedOptions.map(
+          ({ questionId, picks, eliminated, correct, closed, revealed }) => ({
+            questionId,
+            picks,
+            eliminated,
+            correct,
+            closed,
             revealed,
           }),
         ),
@@ -409,11 +490,12 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       targetLanguage: def.exercise.targetLanguage,
       difficultyLevel: def.exercise.difficultyLevel,
       checkMode: attempt.checkMode,
-      ...withheldWhereNeeded(def.exercise.templateCode, def.exercise),
+      ...withheldWhereNeeded(def.exercise.templateCode, def.exercise, attempt.id),
       answerSchema: def.template.answerSchema,
       checkSettings,
       answeredQuestions: [],
       checkedRows: [],
+      pickedOptions: [],
     });
   }
 

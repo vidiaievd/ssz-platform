@@ -70,6 +70,9 @@ describe('SchemaBasedAnswerValidator', () => {
       expect((result.error as ValidationError).code).toBe('SCHEMA_MISMATCH');
     });
 
+    // Checked by the legacy multiple-choice reader rather than by AJV since plan 53:
+    // the template joined `OWN_SUBMISSION_SHAPE`, and the shape its old form still has
+    // is now guarded where AJV used to guard it rather than nowhere.
     it('returns SCHEMA_MISMATCH when submitted answer is empty array (minItems: 1)', async () => {
       const validator = makeValidator();
       const result = await validator.validate({

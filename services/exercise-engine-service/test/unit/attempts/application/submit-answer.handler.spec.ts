@@ -358,6 +358,64 @@ describe('SubmitAnswerHandler', () => {
     expect(result.value.score).toBe(40);
   });
 
+  describe('multiple_choice — what the submission is not trusted about at all', () => {
+    // Plan 53 §3.5. Which try a question was taken on *is* the score — only a
+    // first-attempt hit counts — and the client has no business asserting it. Every pick
+    // reached the server through `answer-question` as it was made, so the whole list is
+    // replaced rather than patched.
+    const pickedAttempt = () => {
+      const attempt = makeInProgressAttempt('multiple_choice');
+      attempt.pickOption({ questionId: 'q1', optionId: 'o2', correct: false, closed: false, revealed: false });
+      attempt.pickOption({ questionId: 'q1', optionId: 'o1', correct: true, closed: true, revealed: false });
+      attempt.pickOption({ questionId: 'q2', optionId: 'p2', correct: false, closed: false, revealed: false });
+      attempt.pickOption({ questionId: 'q2', optionId: null, correct: false, closed: true, revealed: true });
+      return attempt;
+    };
+
+    const submit = (answers: unknown) =>
+      new SubmitAnswerCommand('attempt-1', 'user-1', { answers }, 30, 'no');
+
+    it('replaces the claimed picks with what the attempt recorded', async () => {
+      const validator = makeValidator();
+      const handler = makeHandler(
+        makeRepo(pickedAttempt()), makeContentClient(), validator,
+        makeFeedback(), makePublisher(),
+      );
+
+      // The client claims both questions right on the first try. Neither is.
+      await handler.execute(
+        submit([
+          { questionId: 'q1', optionId: 'o1', attempt: 1 },
+          { questionId: 'q2', optionId: 'p1', attempt: 1 },
+        ]),
+      );
+
+      const submitted = validator.validate.mock.calls[0]?.[0].submittedAnswer as {
+        answers: Array<{ questionId: string; optionId: string | null; attempt: number }>;
+      };
+      expect(submitted.answers).toEqual([
+        // Right, but on the second try — so it scores nothing.
+        { questionId: 'q1', optionId: 'o1', attempt: 2 },
+        // Revealed: the answer was shown to them, so it is not theirs to submit.
+        { questionId: 'q2', optionId: null, attempt: 1 },
+      ]);
+    });
+
+    it('leaves a submission alone when the attempt recorded no picks', async () => {
+      // A document of the old form, submitted the way it always was.
+      const validator = makeValidator();
+      const answer = { correct_option_ids: ['a'] };
+      const handler = makeHandler(
+        makeRepo(makeInProgressAttempt('multiple_choice')), makeContentClient(), validator,
+        makeFeedback(), makePublisher(),
+      );
+
+      await handler.execute(new SubmitAnswerCommand('attempt-1', 'user-1', answer, 30, 'no'));
+
+      expect(validator.validate.mock.calls[0]?.[0].submittedAnswer).toEqual(answer);
+    });
+  });
+
   describe('sentence_schema — what the submission is not trusted about', () => {
     // Plan 52 §3.4: `Vis riktig skjema` puts the answer on the board, and a revealed
     // sentence scores nothing. The reveal is recorded on the attempt when it happens, so

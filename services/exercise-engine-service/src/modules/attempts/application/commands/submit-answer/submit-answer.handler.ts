@@ -9,6 +9,7 @@ import { TEMPLATE_CODE as MATCH_PAIRS } from '@ssz/shared-kernel/match-pairs';
 import { isTranslateCode } from '@ssz/shared-kernel/translate';
 import { TEMPLATE_CODE as SHORT_ANSWER } from '@ssz/shared-kernel/short-answer';
 import { TEMPLATE_CODE as SENTENCE_SCHEMA } from '@ssz/shared-kernel/sentence-schema';
+import { TEMPLATE_CODE as MULTIPLE_CHOICE } from '@ssz/shared-kernel/multiple-choice';
 import {
   fromPersisted as writingTaskFromPersisted,
   snapshotRubric,
@@ -96,7 +97,9 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
 /**
  * The submission, with what the attempt knows about it written over what the client says.
  *
- * `sentence_schema` only, and about one field: `revealed`. `Vis riktig skjema` puts the
+ * Two templates work through a set in place, and both keep facts on the server that the
+ * submission cannot be trusted to carry. `multiple_choice` is handled wholesale below;
+ * this is `sentence_schema`, and it is about one field: `revealed`. `Vis riktig skjema` puts the
  * answer on the board, and a revealed sentence scores nothing (plan 52 §3.4) — so a client
  * that could reveal a sentence and then submit the board it was just shown with the flag
  * left off would have found the cheapest route to a full score. The reveal was recorded on
@@ -108,6 +111,7 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
  * Everything else in the submission is the learner's own work and is taken as sent.
  */
 function withRecordedReveals(attempt: Attempt, submitted: unknown): unknown {
+  if (attempt.templateCode === MULTIPLE_CHOICE) return withRecordedPicks(attempt, submitted);
   if (attempt.templateCode !== SENTENCE_SCHEMA) return submitted;
 
   const revealed = new Set(
@@ -126,6 +130,39 @@ function withRecordedReveals(attempt: Attempt, submitted: unknown): unknown {
         ? { ...(row as Record<string, unknown>), revealed: true }
         : row;
     }),
+  };
+}
+
+/**
+ * The picks of a `multiple_choice` set, taken from the attempt rather than from the body.
+ *
+ * A replacement, not an overlay — which is where this parts company with the reveals
+ * above. Every field of a pick is answer-bearing: which option was chosen decides whether
+ * the question was right, and **which try it was chosen on decides whether it scores**,
+ * since only a first-attempt hit counts (plan 53 §3.5). A client that could send its own
+ * `attempt: 1` beside a second-try answer would be scoring itself.
+ *
+ * It can be a replacement because there is nothing else for the client to contribute:
+ * every pick reached the server through `answer-question` as it was made, was judged
+ * there, and was written onto the attempt. A question missing from this list is one the
+ * student never answered, which the kernel counts as wrong — the same thing a client
+ * omitting it would have meant.
+ *
+ * A resubmission of an old-form document is left alone: it has no per-question state and
+ * is graded from its own body, as it always was.
+ */
+function withRecordedPicks(attempt: Attempt, submitted: unknown): unknown {
+  const picked = attempt.pickedOptions;
+  if (picked.length === 0) return submitted;
+
+  return {
+    answers: picked.map((q) => ({
+      questionId: q.questionId,
+      // A revealed question has no pick to score. Null rather than the last option they
+      // tried: they were shown the answer, and the answer is not theirs.
+      optionId: q.revealed ? null : (q.picks[q.picks.length - 1] ?? null),
+      attempt: Math.max(1, q.picks.length),
+    })),
   };
 }
 

@@ -40,6 +40,7 @@ import type { SaveDraftError, SaveDraftResult } from '../../application/commands
 import { SaveDraftRequestDto, SaveDraftResponseDto } from '../dto/save-draft.dto.js';
 import { SelfCheckCommand } from '../../application/commands/self-check/self-check.command.js';
 import { AnswerQuestionCommand } from '../../application/commands/answer-question/answer-question.command.js';
+import type { AnswerPayload } from '../../application/commands/answer-question/answer-question.command.js';
 import { CheckRowCommand } from '../../application/commands/check-row/check-row.command.js';
 import type {
   AnswerQuestionError,
@@ -71,6 +72,7 @@ import {
   TranslateSelfCheckItemDto,
 } from '../dto/self-check.dto.js';
 import {
+  AnswerQuestionChoiceResultDto,
   AnswerQuestionElementDto,
   AnswerQuestionRequestDto,
   AnswerQuestionResponseDto,
@@ -130,6 +132,19 @@ export function toAttemptDto(attempt: Attempt): AttemptResponseDto {
       solved,
       revealed,
     })),
+    // And again for a `multiple_choice` set: which questions are finished, which options
+    // are dimmed, and — the one that carries the marks — which try each was taken on.
+    // No key can reach it: these are the options the student chose, not the right ones.
+    pickedOptions: attempt.pickedOptions.map(
+      ({ questionId, picks, eliminated, correct, closed, revealed }) => ({
+        questionId,
+        picks,
+        eliminated,
+        correct,
+        closed,
+        revealed,
+      }),
+    ),
     id: attempt.id,
     userId: attempt.userId,
     exerciseId: attempt.exerciseId,
@@ -351,15 +366,18 @@ export class AttemptsController {
 
   @Post(':attemptId/answers')
   @HttpCode(HttpStatus.OK)
-  @ApiExtraModels(AnswerQuestionElementDto, AnswerQuestionResultDto)
+  @ApiExtraModels(AnswerQuestionElementDto, AnswerQuestionResultDto, AnswerQuestionChoiceResultDto)
   @ApiOperation({
-    summary: 'Hand in one question of a short-answer set',
+    summary: 'Hand in one question of a set',
     description:
-      'short_answer only. The set is answered a question at a time and each answer is ' +
-      'final: the verdict comes back at once and the same question cannot be answered ' +
-      'again. Graded on the server, because the phrases the answer is matched against ' +
-      'are the answer. The attempt stays in progress; POST /submit closes it with every ' +
-      'answer in one aggregate and regrades all of them.',
+      'short_answer and multiple_choice. Both are answered a question at a time and both ' +
+      'are graded on the server, for the same reason: what the answer is matched against ' +
+      'is the answer. Send `text` for a short-answer set — each answer is final and the ' +
+      'same question cannot be answered again. Send `optionId` for a multiple-choice set — ' +
+      'a question has an attempt budget, and the key comes back only once it closes ' +
+      '(right, revealed, or out of tries); send `reveal` instead of an option to close it ' +
+      'and be shown the answer. The attempt stays in progress; POST /submit closes it with ' +
+      'every answer in one aggregate and regrades all of them.',
   })
   @ApiResponse({ status: 200, type: AnswerQuestionResponseDto })
   @ApiResponse({ status: 400, description: 'Empty answer, or no such question in the set' })
@@ -368,7 +386,8 @@ export class AttemptsController {
   @ApiResponse({
     status: 422,
     description:
-      'Question already answered, attempt no longer in progress, or not a short-answer set',
+      'Question already answered or closed, attempt no longer in progress, or a template ' +
+      'that is not answered a question at a time',
   })
   async answerQuestion(
     @Param('exerciseId') _exerciseId: string,
@@ -378,7 +397,7 @@ export class AttemptsController {
   ): Promise<AnswerQuestionResult> {
     const result: Result<AnswerQuestionResult, AnswerQuestionError> =
       await this.commandBus.execute(
-        new AnswerQuestionCommand(attemptId, user.userId, dto.questionId, dto.text),
+        new AnswerQuestionCommand(attemptId, user.userId, dto.questionId, readPayload(dto)),
       );
 
     if (result.isFail) {
@@ -386,6 +405,11 @@ export class AttemptsController {
       if ('code' in err) {
         if (err.code === 'ATTEMPT_NOT_FOUND') throw new NotFoundException('Attempt not found');
         if (err.code === 'FORBIDDEN') throw new ForbiddenException('Not your attempt');
+        if (err.code === 'QUESTION_CLOSED') {
+          throw new UnprocessableEntityException(
+            'This question is finished — it was answered, revealed, or all its attempts are spent',
+          );
+        }
         if (err.code === 'EMPTY_ANSWER') {
           throw new BadRequestException('An answer cannot be handed in empty');
         }
@@ -589,4 +613,19 @@ export class AttemptsController {
       offset: result.offset,
     };
   }
+}
+
+/**
+ * The body, read as the payload the attempt's own template is answered with.
+ *
+ * The kind is decided here rather than by the caller naming it: a client that could
+ * choose would be choosing which judge runs, and the attempt already knows. `reveal`
+ * marks the body as a pick even with no option in it — it is the one multiple-choice
+ * action that hands in nothing.
+ */
+function readPayload(dto: AnswerQuestionRequestDto): AnswerPayload {
+  if (dto.optionId !== undefined || dto.reveal === true) {
+    return { kind: 'option', optionId: dto.optionId ?? null, reveal: dto.reveal === true };
+  }
+  return { kind: 'text', text: dto.text ?? '' };
 }

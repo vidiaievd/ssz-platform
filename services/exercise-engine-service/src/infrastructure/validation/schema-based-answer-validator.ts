@@ -64,6 +64,13 @@ const OWN_SUBMISSION_SHAPE = new Set([
   // And `sentence_schema` on its own rewrite (plan 52): its key is a map of fields per
   // chunk, its submission a board per sentence. Its shape is checked in the validator.
   'sentence_schema',
+  // And `multiple_choice` on its own (plan 53): its key is a correct option id per
+  // question with the rebuttals beside it, its submission a list of picks carrying the
+  // attempt each was made on. Like `short_answer` it has two live document shapes, and
+  // the older of them *was* describable by one schema — so its submission shape is now
+  // checked in `multiple-choice-legacy.ts`, where AJV used to check it, rather than
+  // nowhere.
+  'multiple_choice',
 ]);
 
 @Injectable()

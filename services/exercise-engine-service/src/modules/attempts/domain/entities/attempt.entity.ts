@@ -71,6 +71,35 @@ export interface CheckedRow {
   checkedAt: Date;
 }
 
+/**
+ * One question of a `multiple_choice` set, as the attempt last saw it.
+ *
+ * Between the two lists above in kind, and the difference is the attempt budget. An
+ * answered question is final on the first try; a checked sentence may be retried without
+ * limit; a picked question has `settings.retry` tries and then closes — right, revealed
+ * with «Vis svaret», or out of budget.
+ *
+ * Every field here is answer-bearing, which is why it is stored rather than sent up with
+ * the submission. `picks` is in order and `picks[0]` is the only one that scores, so the
+ * try a question was taken on *is* the score. `eliminated` has to accumulate across picks
+ * or the 50/50 deals itself again on every wrong answer. And `revealed` costs the
+ * question its marks however the last pick looked — a client that could leave the flag
+ * off would have found the cheapest route to a full score.
+ */
+export interface PickedOption {
+  questionId: string;
+  /** The option picked on each attempt, in order. `picks[0]` is the first try. */
+  picks: string[];
+  /** The options a 50/50 has dimmed so far. Cumulative, never re-dealt. */
+  eliminated: string[];
+  correct: boolean;
+  /** No further pick is possible: right, revealed, or the budget is spent. */
+  closed: boolean;
+  /** The student asked to be shown the answer instead of trying again. */
+  revealed: boolean;
+  pickedAt: Date;
+}
+
 export interface PracticedAtom {
   atomType: string;
   atomId: string;
@@ -131,6 +160,7 @@ export interface AttemptPersistenceProps {
   draftSavedAt: Date | null;
   answeredQuestions: AnsweredQuestion[] | null;
   checkedRows: CheckedRow[] | null;
+  pickedOptions: PickedOption[] | null;
   rubricMarks: RubricMarks | null;
   rubricSnapshot: RubricSnapshot | null;
 }
@@ -228,6 +258,7 @@ export class Attempt extends AggregateRoot {
     private _rubricSnapshot: RubricSnapshot | null = null,
     private _answeredQuestions: AnsweredQuestion[] = [],
     private _checkedRows: CheckedRow[] = [],
+    private _pickedOptions: PickedOption[] = [],
   ) {
     super(id);
   }
@@ -321,6 +352,7 @@ export class Attempt extends AggregateRoot {
       props.rubricSnapshot,
       props.answeredQuestions ?? [],
       props.checkedRows ?? [],
+      props.pickedOptions ?? [],
     );
   }
 
@@ -730,6 +762,81 @@ export class Attempt extends AggregateRoot {
   }
 
   /**
+   * Pick one option of a `multiple_choice` set.
+   *
+   * The third of these methods and the one in between the other two. `answerQuestion`
+   * records a decision that is final on the first try; `checkRow` records a state that
+   * may be retried without limit; this records a state with a **budget**. The handoff
+   * gives a question `settings.retry` attempts — none, one, or effectively unlimited —
+   * and it closes when the pick is right, when the student asks to be shown the answer,
+   * or when the budget runs out.
+   *
+   * The refusal is the point of the method, and plan 53 §3.3 states it as a rule about
+   * the model rather than the UI: "a repeat answer past the attempt budget is refused by
+   * the server, not by a greyed-out button". A runner that only hides the option is a
+   * runner one replayed request away from a fourth try at a two-try question.
+   *
+   * Everything judged is judged by the caller, from the kernel and the current key: this
+   * only counts, accumulates and locks. `eliminated` is written whole rather than
+   * appended to, because the 50/50 is computed against the set already dimmed and the
+   * kernel returns the cumulative result.
+   *
+   * A reveal is not an attempt at the question: it neither adds a pick nor spends a try,
+   * exactly as a revealed sentence does not count as a check above. It closes the
+   * question, and a closed question scores nothing it had not already earned.
+   *
+   * Only while the attempt is open: a question picked after the set went in would be an
+   * edit to work already graded.
+   */
+  pickOption(props: {
+    questionId: string;
+    /** The option picked, or `null` when the student asked to be shown the answer. */
+    optionId: string | null;
+    correct: boolean;
+    closed: boolean;
+    revealed: boolean;
+    /** The cumulative dimmed set from the kernel, or undefined to leave it as it stands. */
+    eliminated?: readonly string[];
+  }): Result<PickedOption, InvalidAttemptTransitionError> {
+    if (this._status !== 'IN_PROGRESS') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot answer a question on an attempt with status ${this._status}`,
+        ),
+      );
+    }
+
+    const existing = this._pickedOptions.find((q) => q.questionId === props.questionId);
+    if (existing?.closed === true) {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Question ${props.questionId} is already ${
+            existing.revealed ? 'revealed' : existing.correct ? 'answered' : 'out of attempts'
+          }`,
+        ),
+      );
+    }
+
+    const picked: PickedOption = {
+      questionId: props.questionId,
+      picks:
+        props.revealed || props.optionId === null
+          ? [...(existing?.picks ?? [])]
+          : [...(existing?.picks ?? []), props.optionId],
+      eliminated: [...(props.eliminated ?? existing?.eliminated ?? [])],
+      correct: props.correct,
+      closed: props.closed,
+      revealed: props.revealed,
+      pickedAt: new Date(),
+    };
+
+    if (existing) this._pickedOptions[this._pickedOptions.indexOf(existing)] = picked;
+    else this._pickedOptions.push(picked);
+
+    return Result.ok(picked);
+  }
+
+  /**
    * A teacher's verdict on a submission that the machine could not close.
    *
    * Two outcomes and no third: approved, which scores the attempt and ends it, or
@@ -1006,6 +1113,10 @@ export class Attempt extends AggregateRoot {
   get answeredQuestions(): AnsweredQuestion[] { return [...this._answeredQuestions]; }
   /** A copy: rows are written only through `checkRow`. */
   get checkedRows(): CheckedRow[] { return this._checkedRows.map((row) => ({ ...row })); }
+  /** A copy: questions are written only through `pickOption`. */
+  get pickedOptions(): PickedOption[] {
+    return this._pickedOptions.map((q) => ({ ...q, picks: [...q.picks], eliminated: [...q.eliminated] }));
+  }
   get rubricMarks(): RubricMarks | null { return this._rubricMarks; }
   get rubricSnapshot(): RubricSnapshot | null { return this._rubricSnapshot; }
 

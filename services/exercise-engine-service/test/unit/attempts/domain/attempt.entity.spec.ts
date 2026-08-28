@@ -608,4 +608,106 @@ describe('Attempt entity', () => {
       expect(attempt.checkedRows[0]?.revealed).toBe(false);
     });
   });
+  describe('pickOption()', () => {
+    const pick = (
+      questionId: string,
+      optionId: string | null,
+      over: { correct?: boolean; closed?: boolean; revealed?: boolean; eliminated?: string[] } = {},
+    ) => ({
+      questionId,
+      optionId,
+      correct: over.correct ?? false,
+      closed: over.closed ?? false,
+      revealed: over.revealed ?? false,
+      ...(over.eliminated ? { eliminated: over.eliminated } : {}),
+    });
+
+    it('keeps the picks in order, because the first one is the only one that scores', () => {
+      const attempt = makeAttempt();
+
+      expect(attempt.pickOption(pick('q1', 'o2')).isOk).toBe(true);
+      expect(attempt.pickOption(pick('q1', 'o3')).isOk).toBe(true);
+
+      expect(attempt.pickedOptions).toHaveLength(1);
+      expect(attempt.pickedOptions[0]).toMatchObject({ questionId: 'q1', picks: ['o2', 'o3'] });
+      expect(attempt.pickedOptions[0]?.pickedAt).toBeInstanceOf(Date);
+    });
+
+    it('refuses a pick at a question that is already right', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o1', { correct: true, closed: true }));
+
+      const again = attempt.pickOption(pick('q1', 'o2'));
+      expect(again.isFail).toBe(true);
+      expect(again.error).toBeInstanceOf(InvalidAttemptTransitionError);
+      // A refused pick changes nothing — the answer that stood still stands.
+      expect(attempt.pickedOptions[0]).toMatchObject({ correct: true, picks: ['o1'] });
+    });
+
+    it('refuses a pick at a question whose budget is spent', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o2'));
+      attempt.pickOption(pick('q1', 'o3', { closed: true }));
+
+      expect(attempt.pickOption(pick('q1', 'o1')).isFail).toBe(true);
+      expect(attempt.pickedOptions[0]?.picks).toEqual(['o2', 'o3']);
+    });
+
+    it('refuses a revealed question, and spends no try on the reveal itself', () => {
+      // «Vis svaret» shows the key. Anything picked afterwards would be the answer
+      // handed straight back, so the refusal is the model's rather than a hidden button.
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o2'));
+      attempt.pickOption(pick('q1', null, { closed: true, revealed: true }));
+
+      expect(attempt.pickedOptions[0]).toMatchObject({ revealed: true, picks: ['o2'] });
+      expect(attempt.pickOption(pick('q1', 'o1')).isFail).toBe(true);
+    });
+
+    it('accumulates the dimmed set rather than dealing it again', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o2', { eliminated: ['o2', 'o4'] }));
+      // A second 50/50 narrows what is left; the kernel hands back the cumulative set.
+      attempt.pickOption(pick('q1', 'o3', { eliminated: ['o2', 'o4', 'o3'] }));
+
+      expect(attempt.pickedOptions[0]?.eliminated).toEqual(['o2', 'o4', 'o3']);
+    });
+
+    it('leaves the dimmed set alone when this pick did not fire a 50/50', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o2', { eliminated: ['o2', 'o4'] }));
+      attempt.pickOption(pick('q1', 'o3'));
+
+      expect(attempt.pickedOptions[0]?.eliminated).toEqual(['o2', 'o4']);
+    });
+
+    it('keeps the questions apart', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o1', { correct: true, closed: true }));
+      attempt.pickOption(pick('q2', 'p2'));
+
+      expect(attempt.pickedOptions.map((q) => q.questionId)).toEqual(['q1', 'q2']);
+    });
+
+    it('refuses once the set is no longer open', () => {
+      const attempt = makeAttempt();
+      attempt.submit({ answers: [] }, 'hash');
+
+      expect(attempt.pickOption(pick('q1', 'o1')).isFail).toBe(true);
+      expect(attempt.pickedOptions).toHaveLength(0);
+    });
+
+    it('hands back copies, so the state cannot be edited from outside', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o2'));
+
+      attempt.pickedOptions[0]!.closed = true;
+      attempt.pickedOptions[0]!.picks.push('o1');
+      attempt.pickedOptions.push(pick('q2', 'p1') as never);
+
+      expect(attempt.pickedOptions).toHaveLength(1);
+      expect(attempt.pickedOptions[0]?.closed).toBe(false);
+      expect(attempt.pickedOptions[0]?.picks).toEqual(['o2']);
+    });
+  });
 });

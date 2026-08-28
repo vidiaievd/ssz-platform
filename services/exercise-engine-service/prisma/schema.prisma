@@ -173,6 +173,26 @@ model Attempt {
   // template, and the next runner that works through a set in place needs no migration.
   checkedRows Json? @map("checked_rows")
 
+  // ── Questions picked one at a time ──────────────────────────────────────
+  // `multiple_choice` asks a set of questions and takes one pick at a time, with an
+  // attempt budget per question and a 50/50 that dims distractors (plan 53 §3.3).
+  // Neither final like an answered question nor freely retryable like a checked
+  // sentence: a question has a budget, and it closes when the budget is spent, when the
+  // pick is right, or when the student asks to be shown the answer. This holds that —
+  // `[{ questionId, picks, eliminated, correct, closed, revealed, pickedAt }]`.
+  //
+  // Its reason to exist beyond resuming a reload is that every field of it is
+  // answer-bearing. Which try a question was taken on *is* the score, since only a
+  // first-attempt hit counts; the dimmed set has to accumulate across picks or the 50/50
+  // resets on every wrong answer; and `closed` is what refuses a second pick past the
+  // budget in the model rather than in a disabled button. A client that sent its own
+  // numbers on submit would be scoring itself.
+  //
+  // Untyped for the same reason the three columns above are: nothing here knows the
+  // template, and the next runner that works through a set pick by pick needs no
+  // migration.
+  pickedOptions Json? @map("picked_options")
+
   // ── Teacher review ──────────────────────────────────────────────────────
   // Free-form attempts stop at ROUTED_FOR_REVIEW, where the only verdict left is a
   // person's. What that person decided lives here.

@@ -12,11 +12,13 @@ import { TEMPLATE_CODE as MATCH_PAIRS_TEMPLATE } from '@ssz/shared-kernel/match-
 import { TEMPLATE_CODE as WRITING_TASK_TEMPLATE } from '@ssz/shared-kernel/writing-task';
 import { TEMPLATE_CODE as SHORT_ANSWER_TEMPLATE } from '@ssz/shared-kernel/short-answer';
 import { TEMPLATE_CODE as SENTENCE_SCHEMA_TEMPLATE } from '@ssz/shared-kernel/sentence-schema';
+import { TEMPLATE_CODE as MULTIPLE_CHOICE_TEMPLATE } from '@ssz/shared-kernel/multiple-choice';
 import { gapFillViolations } from './gap-fill-preflight.js';
 import { matchPairsViolations } from './match-pairs-preflight.js';
 import { writingTaskViolations } from './writing-task-preflight.js';
 import { shortAnswerViolations } from './short-answer-preflight.js';
 import { sentenceSchemaViolations } from './sentence-schema-preflight.js';
+import { multipleChoiceViolations } from './multiple-choice-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
 
@@ -464,6 +466,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
                 WRITING_TASK_TEMPLATE,
                 SHORT_ANSWER_TEMPLATE,
                 SENTENCE_SCHEMA_TEMPLATE,
+                MULTIPLE_CHOICE_TEMPLATE,
               ],
             },
           },
@@ -478,6 +481,11 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
           draftContent: true,
           draftExpectedAnswers: true,
           draftUpdatedAt: true,
+          // Read by `multiple_choice` alone, and by two of its rules: the distractor
+          // audit's list of absolutes and its duplicate comparison are language-bound,
+          // and a pack chosen by anything other than the course language would look for
+          // Norwegian words in Ukrainian text (plan 53 §3.6).
+          targetLanguage: true,
           template: { select: { code: true } },
         },
       }),
@@ -503,6 +511,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
         id: exercise.id,
         content: pending ? exercise.draftContent : exercise.content,
         expectedAnswers: pending ? exercise.draftExpectedAnswers : exercise.expectedAnswers,
+        language: exercise.targetLanguage,
       };
       const violations = violationsFor(exercise.template.code, document);
 
@@ -528,15 +537,21 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
  * has no key, so the student projection drops it: the exercise publishes clean and shows
  * fewer sentences than the author wrote, or an empty board. Nothing errors, and nobody
  * is told.
+ *
+ * `multiple_choice` fails the same way and more often, because the key is not in the
+ * content at all: a question with no correct option marked still projects, still renders,
+ * and marks every pick wrong. Its rules skip documents of the old form, which have none
+ * of the fields they ask about.
  */
 function violationsFor(
   templateCode: string,
-  document: { id: string; content: unknown; expectedAnswers: unknown },
+  document: { id: string; content: unknown; expectedAnswers: unknown; language?: string },
 ): RuleViolation[] {
   if (templateCode === MATCH_PAIRS_TEMPLATE) return matchPairsViolations(document);
   if (templateCode === WRITING_TASK_TEMPLATE) return writingTaskViolations(document);
   if (templateCode === SHORT_ANSWER_TEMPLATE) return shortAnswerViolations(document);
   if (templateCode === SENTENCE_SCHEMA_TEMPLATE) return sentenceSchemaViolations(document);
+  if (templateCode === MULTIPLE_CHOICE_TEMPLATE) return multipleChoiceViolations(document);
   return gapFillViolations(document);
 }
 

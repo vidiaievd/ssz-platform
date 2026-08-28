@@ -102,4 +102,32 @@ export class StartAttemptResponseDto {
     solved: boolean;
     revealed: boolean;
   }>;
+
+  @ApiProperty({
+    description:
+      'Questions already picked at in this attempt — `multiple_choice` only, and empty ' +
+      'for a fresh attempt. A resumed set reads it to know which questions are finished ' +
+      'and which options a 50/50 has already dimmed. `picks` is the score: only a ' +
+      'first-attempt hit counts, so a reload must not hand out a fresh first try.',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        questionId: { type: 'string' },
+        picks: { type: 'array', items: { type: 'string' } },
+        eliminated: { type: 'array', items: { type: 'string' } },
+        correct: { type: 'boolean' },
+        closed: { type: 'boolean' },
+        revealed: { type: 'boolean' },
+      },
+    },
+  })
+  pickedOptions!: Array<{
+    questionId: string;
+    picks: string[];
+    eliminated: string[];
+    correct: boolean;
+    closed: boolean;
+    revealed: boolean;
+  }>;
 }

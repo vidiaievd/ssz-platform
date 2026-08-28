@@ -19,6 +19,11 @@ import {
   toStudentProjection as shortAnswerProjection,
 } from '@ssz/shared-kernel/short-answer';
 import {
+  isMultipleChoiceDocument,
+  TEMPLATE_CODE as MULTIPLE_CHOICE,
+  toStudentProjection as multipleChoiceProjection,
+} from '@ssz/shared-kernel/multiple-choice';
+import {
   fromPersisted as sentenceSchemaDocument,
   isSentenceSchemaDocument,
   TEMPLATE_CODE as SENTENCE_SCHEMA,
@@ -28,7 +33,7 @@ import {
 /**
  * The content an exercise may show a student before they answer.
  *
- * For ten of the thirteen templates this is the content itself: the answers live in
+ * For seven of the thirteen templates this is the content itself: the answers live in
  * `expected_answers`, a separate column that student-facing responses never carry. Two
  * templates store their content solved, and serving it unchanged would put every answer
  * in the browser the moment the exercise opens:
@@ -77,6 +82,22 @@ import {
  * and blank the exercise. `short_answer` above still has two, and this is what the end of
  * that looks like.
  *
+ * `multiple_choice` is the sixth, and the one whose content column was built to have
+ * nothing to leak. Which option is right is not a flag on the option and not its position
+ * — it is a question id → option id map in `expected_answers`, put there by the kernel's
+ * persistence module along with the rule behind the key and every rebuttal. So this
+ * projection withholds by construction rather than by omission, and what it actually does
+ * here is two other things: it drops options the author left blank, which are persisted as
+ * authored and must not reach the runner, and it *shuffles* — for the same reason
+ * `sentence_schema` does, and one more. The order the server computes the 50/50 by has to
+ * be the order the student is looking at, so a runner that shuffled locally would be
+ * numbering the options differently from the judge (plan 53 §3.4).
+ *
+ * It has two live document shapes, like `short_answer` and for the same reason: plan 53 §8
+ * Q2 reseeds the first lesson of `norsk-b1` and leaves 121 exercises of the old
+ * single-question form in place. Those hold no key in their content either — the correct
+ * ids were always in `expected_answers` — so an old document travels as it always has.
+ *
  * There are exactly two places content leaves this service towards a learner, and both
  * call this: the exercise response DTO and the internal attempt envelope in `graded`
  * mode. Anything that needs the raw document (the builder, the grading engine) asks for
@@ -123,6 +144,19 @@ export function studentSafeContent(
     // count the chunks per field when the author asked for counts.
     const document = sentenceSchemaDocument(content, expectedAnswers);
     const projection = sentenceSchemaProjection(document, shuffled);
+    return projection as unknown as Record<string, unknown>;
+  }
+
+  if (templateCode === MULTIPLE_CHOICE) {
+    // The old form: one question, its options plain text, its key in the other column.
+    // There is nothing here to project and nothing to hide, and running the new
+    // projection over it would find no `questions` and blank the exercise.
+    if (!isMultipleChoiceDocument(content)) return content;
+
+    // The content column alone, unlike the four above: no setting on this template
+    // reveals part of the key early, so there is nothing for the answer column to carry
+    // into what the student sees before they pick.
+    const projection = multipleChoiceProjection(content, shuffled);
     return projection as unknown as Record<string, unknown>;
   }
 

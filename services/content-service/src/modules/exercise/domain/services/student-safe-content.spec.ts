@@ -593,4 +593,155 @@ describe('studentSafeContent', () => {
       ).toBe(old);
     });
   });
+  describe('multiple_choice', () => {
+    // Plan 53 §3.2. The content column is built to have nothing to leak: which option is
+    // right is neither a flag nor a position, it is a map in the other column. What this
+    // projection has to get right is the two things it does beyond omitting — dropping
+    // blank option rows, and shuffling server-side so the order the 50/50 is counted in
+    // is the order the student is looking at.
+    const mcContent = {
+      title: 'Indirekte tale',
+      instruction: 'Velg riktig form.',
+      questions: [
+        {
+          id: 'q1',
+          kind: 'grammar',
+          context: '',
+          stem: 'Han sa at han ___ sliten.',
+          options: [
+            { id: 'o1', text: 'var', fixed: false },
+            { id: 'o2', text: 'er', fixed: false },
+            { id: 'o3', text: '', fixed: false },
+            { id: 'o4', text: 'Ingen av disse', fixed: true },
+          ],
+        },
+        {
+          id: 'q2',
+          kind: 'listening',
+          context: 'God morgen, dette er NRK.',
+          stem: 'Hvilken kanal sender nyhetene?',
+          options: [
+            { id: 'p1', text: 'NRK', fixed: false },
+            { id: 'p2', text: 'TV2', fixed: false },
+          ],
+        },
+      ],
+      settings: { shuffle: true, letters: true, retry: 'one', eliminate: true },
+    };
+
+    const mcKey = {
+      questions: {
+        q1: {
+          correctOptionId: 'o1',
+          why: 'Etter «sa at» flyttes presens til preteritum.',
+          options: { o2: 'Presens holder seg ikke etter et preteritum.' },
+        },
+        p1: { correctOptionId: 'p1', why: 'Kanalen nevner seg selv.', options: {} },
+      },
+    };
+
+    type Projection = {
+      instruction: string;
+      questions: Array<{
+        id: string;
+        stem: string;
+        context?: string;
+        options: Array<{ id: string; text: string }>;
+      }>;
+      settings: { letters: boolean; retry: string; eliminate: boolean };
+    };
+
+    const project = (content: Record<string, unknown> = mcContent) =>
+      studentSafeContent('multiple_choice', content, mcKey) as unknown as Projection;
+
+    it('carries no key, no rule and no rebuttal, in any field', () => {
+      const serialised = JSON.stringify(project());
+
+      expect(serialised).not.toContain('correctOptionId');
+      expect(serialised).not.toContain('correct');
+      expect(serialised).not.toContain('Etter «sa at»');
+      expect(serialised).not.toContain('Presens holder seg ikke');
+    });
+
+    it('drops the blank option row and keeps the written ones', () => {
+      const options = project().questions[0]?.options ?? [];
+
+      expect(options).toHaveLength(3);
+      expect(options.map((o) => o.id).sort()).toEqual(['o1', 'o2', 'o4']);
+    });
+
+    it('keeps a pinned option last however the rest fall', () => {
+      // «Ingen av disse» that floats into the middle of the list is a bug the reader
+      // sees before the author does.
+      for (let i = 0; i < 20; i += 1) {
+        const options = project().questions[0]?.options ?? [];
+        expect(options[options.length - 1]?.id).toBe('o4');
+      }
+    });
+
+    it('shuffles the options rather than shipping them in author order', () => {
+      const orders = new Set(
+        Array.from({ length: 40 }, () =>
+          (project().questions[0]?.options ?? []).map((o) => o.id).join(','),
+        ),
+      );
+
+      expect(orders.size).toBeGreaterThan(1);
+    });
+
+    it('withholds a listening passage — it is what the audio says', () => {
+      expect(project().questions[1]?.context).toBeUndefined();
+      expect(JSON.stringify(project())).not.toContain('dette er NRK');
+    });
+
+    it('ships only the settings the runner may act on', () => {
+      const settings = project().settings;
+
+      expect(settings.retry).toBe('one');
+      expect(settings.eliminate).toBe(true);
+      // `shuffle` was applied here, not shipped: a client cannot act on it and could
+      // only contradict what it was sent.
+      expect(settings).not.toHaveProperty('shuffle');
+      expect(settings).not.toHaveProperty('showWhyWrong');
+      expect(settings).not.toHaveProperty('explainOnCorrect');
+    });
+
+    it('drops a question that could not be answered', () => {
+      const half = {
+        ...mcContent,
+        questions: [
+          ...mcContent.questions,
+          { id: 'q3', kind: 'grammar', context: '', stem: '', options: [] },
+        ],
+      };
+
+      expect(project(half).questions.map((q) => q.id)).toEqual(['q1', 'q2']);
+    });
+
+    it('leaves a document of the old form exactly as it is', () => {
+      // Plan 53 §8 Q2: 121 of these are still live. The new projection would find no
+      // `questions` and hand back an empty set, blanking an exercise that works.
+      const old = {
+        question: 'Han sa at han ___ sliten.',
+        options: [
+          { id: 'a', text: 'var' },
+          { id: 'b', text: 'er' },
+        ],
+      };
+
+      expect(
+        studentSafeContent('multiple_choice', old, { correct_option_ids: ['a'] }),
+      ).toBe(old);
+    });
+
+    it('survives a document whose key has already been taken away', () => {
+      // content-service projects and nulls the key; the engine's start-attempt projects
+      // again. The second pass must not throw and must not blank the questions.
+      expect(() => studentSafeContent('multiple_choice', mcContent, {})).not.toThrow();
+      expect(
+        (studentSafeContent('multiple_choice', mcContent, {}) as unknown as Projection).questions
+          .map((q) => q.id),
+      ).toEqual(['q1', 'q2']);
+    });
+  });
 });

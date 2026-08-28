@@ -3,6 +3,8 @@ import { ReviewContextResolver } from '../../../src/modules/attempts/application
 import { StartAttemptHandler } from '../../../src/modules/attempts/application/commands/start-attempt/start-attempt.handler.js';
 import { StartAttemptCommand } from '../../../src/modules/attempts/application/commands/start-attempt/start-attempt.command.js';
 import { Result } from '../../../src/shared/kernel/result.js';
+import { attemptShuffle } from '../../../src/shared/application/services/multiple-choice-attempt.js';
+import { toStudentProjection as mcToStudentProjection } from '@ssz/shared-kernel/multiple-choice';
 
 // `checkMode: PRACTICE` means "ship the answers so the client can check locally", and
 // that is safe for eleven templates whose answers are a separate key. It is not safe
@@ -518,6 +520,129 @@ describe('StartAttemptHandler — what leaves with the attempt', () => {
       };
       const key = { placements: [{ field_id: 'forfelt', token_ids: ['t1'] }] };
       const handler = makeHandler('sentence_schema', old, key);
+
+      const result = await handler.execute(practice);
+      expect(result.value.exerciseContent).toEqual(old);
+      expect(result.value.expectedAnswers).toEqual(key);
+    });
+  });
+
+  describe('multiple_choice', () => {
+    // Plan 53 §3.2 and §3.4. Nothing in the content column says which option is right —
+    // the key is a map in the other column — so what has to be got right here is the
+    // dealing: the order is the server's, and it must be the *attempt's* rather than a
+    // fresh throw, because that is the order the 50/50 will be counted in.
+    const choiceContent = {
+      title: 'Indirekte tale',
+      instruction: 'Velg riktig form.',
+      questions: [
+        {
+          id: 'q1',
+          kind: 'grammar',
+          context: '',
+          stem: 'Han sa at han ___ sliten.',
+          options: [
+            { id: 'o1', text: 'var', fixed: false },
+            { id: 'o2', text: 'er', fixed: false },
+            { id: 'o3', text: 'har vært', fixed: false },
+            { id: 'o4', text: 'Ingen av disse', fixed: true },
+          ],
+        },
+      ],
+      settings: { shuffle: true, letters: true, retry: 'one', eliminate: true },
+    };
+    const choiceKey = {
+      questions: {
+        q1: {
+          correctOptionId: 'o1',
+          why: 'Presens flyttes til preteritum.',
+          options: { o2: 'Presens holder seg ikke.' },
+        },
+      },
+    };
+
+    type Projection = {
+      questions: Array<{ id: string; options: Array<{ id: string; text: string }> }>;
+      settings: Record<string, unknown>;
+    };
+
+    it('ships no key, no rule and no rebuttal, even in PRACTICE mode', async () => {
+      const handler = makeHandler('multiple_choice', choiceContent, choiceKey);
+      const result = await handler.execute(practice);
+
+      expect(result.value.expectedAnswers).toBeNull();
+      const serialised = JSON.stringify(result.value.exerciseContent);
+      expect(serialised).not.toContain('correctOptionId');
+      expect(serialised).not.toContain('Presens flyttes');
+      expect(serialised).not.toContain('Presens holder seg');
+    });
+
+    it('deals the options and pins the fixed one last', async () => {
+      const handler = makeHandler('multiple_choice', choiceContent, choiceKey);
+      const projection = (await handler.execute(practice)).value.exerciseContent as Projection;
+      const options = projection.questions[0]!.options;
+
+      expect(options.map((o) => o.id).sort()).toEqual(['o1', 'o2', 'o3', 'o4']);
+      expect(options[options.length - 1]!.id).toBe('o4');
+    });
+
+    it('deals the same order twice for the same attempt', async () => {
+      // The seed is the attempt (plan 53 §3.4): a reload must not re-deal the card the
+      // student is looking at, or the judge and the screen number the options apart.
+      const handler = makeHandler('multiple_choice', choiceContent, choiceKey);
+      const first = (await handler.execute(practice)).value;
+      const order = (attemptId: string) => {
+        const shuffle = attemptShuffle(attemptId);
+        return (mcToStudentProjection(choiceContent, shuffle) as Projection).questions[0]!.options
+          .map((o) => o.id)
+          .join(',');
+      };
+
+      expect(order(first.attemptId)).toBe(
+        (first.exerciseContent as Projection).questions[0]!.options.map((o) => o.id).join(','),
+      );
+    });
+
+    it('hands on a document already projected by content-service without dealing again', async () => {
+      // Plan 53 §6.2: in `graded` mode the key is gone, and a second pass would re-deal
+      // the options the student has already been shown.
+      const alreadyProjected = {
+        instruction: choiceContent.instruction,
+        questions: [
+          {
+            id: 'q1',
+            kind: 'grammar',
+            stem: choiceContent.questions[0]!.stem,
+            options: [
+              { id: 'o3', text: 'har vært' },
+              { id: 'o1', text: 'var' },
+              { id: 'o2', text: 'er' },
+              { id: 'o4', text: 'Ingen av disse' },
+            ],
+          },
+        ],
+        settings: { letters: true, layout: 'list', instant: false, retry: 'one', eliminate: true, progress: true },
+      };
+      const handler = makeHandler('multiple_choice', alreadyProjected, null);
+
+      const result = await handler.execute(practice);
+
+      expect(result.value.exerciseContent).toEqual(alreadyProjected);
+      expect(result.value.expectedAnswers).toBeNull();
+    });
+
+    it('hands on a document of the old form, rather than blanking it', async () => {
+      // Plan 53 §8 Q2 leaves 121 of them live, and PRACTICE has always shipped their
+      // key. Projecting one would find no `questions` and empty the exercise.
+      const old = {
+        question: 'Han sa at han ___ sliten.',
+        options: [
+          { id: 'a', text: 'var' },
+          { id: 'b', text: 'er' },
+        ],
+      };
+      const key = { correct_option_ids: ['a'] };
+      const handler = makeHandler('multiple_choice', old, key);
 
       const result = await handler.execute(practice);
       expect(result.value.exerciseContent).toEqual(old);

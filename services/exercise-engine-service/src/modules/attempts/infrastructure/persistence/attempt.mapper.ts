@@ -7,6 +7,7 @@ import type {
   AttemptStatus,
   CheckedRow,
   CheckMode,
+  PickedOption,
   DifficultyLevel,
   ExercisePathSnapshot,
   PracticedAtom,
@@ -72,6 +73,45 @@ function readCheckedRows(value: unknown): CheckedRow[] {
   return out;
 }
 
+/**
+ * The per-question pick state of a `multiple_choice` set, read rather than cast.
+ *
+ * Same reason as the two lists above, and with two fields that carry the score outright:
+ * `picks` decides which try a question was taken on — only the first one counts — and
+ * `closed` is what refuses a pick past the budget. A row that turned out to hold
+ * something else must read as an honest untouched question rather than as a truthy object
+ * whose `picks` is `undefined` and whose `closed` is falsy in one place and thrown on in
+ * another. `pickedAt` is revived from its JSON string; a `Date` does not survive the
+ * column.
+ */
+function readPickedOptions(value: unknown): PickedOption[] {
+  if (!Array.isArray(value)) return [];
+
+  const out: PickedOption[] = [];
+  for (const raw of value) {
+    if (typeof raw !== 'object' || raw === null) continue;
+    const { questionId, picks, eliminated, correct, closed, revealed, pickedAt } = raw as Record<
+      string,
+      unknown
+    >;
+    if (typeof questionId !== 'string' || questionId === '') continue;
+    out.push({
+      questionId,
+      picks: readIds(picks),
+      eliminated: readIds(eliminated),
+      correct: correct === true,
+      closed: closed === true,
+      revealed: revealed === true,
+      pickedAt: typeof pickedAt === 'string' ? new Date(pickedAt) : new Date(0),
+    });
+  }
+  return out;
+}
+
+function readIds(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
+}
+
 export class AttemptMapper {
   static toDomain(row: AttemptModel): Attempt {
     return Attempt.reconstitute({
@@ -117,6 +157,7 @@ export class AttemptMapper {
       draftSavedAt: row.draftSavedAt,
       answeredQuestions: readAnsweredQuestions(row.answeredQuestions),
       checkedRows: readCheckedRows(row.checkedRows),
+      pickedOptions: readPickedOptions(row.pickedOptions),
       // Read rather than cast, unlike the columns above. These two decide how the
       // submission is graded at all: a snapshot cast out of a JSON column that turned
       // out not to hold criteria would still be truthy, and the review handler would
@@ -173,6 +214,7 @@ export class AttemptMapper {
       answeredQuestions:
         attempt.answeredQuestions as unknown as AttemptModel['answeredQuestions'],
       checkedRows: attempt.checkedRows as unknown as AttemptModel['checkedRows'],
+      pickedOptions: attempt.pickedOptions as unknown as AttemptModel['pickedOptions'],
       rubricMarks: attempt.rubricMarks as unknown as AttemptModel['rubricMarks'],
       rubricSnapshot: attempt.rubricSnapshot as unknown as AttemptModel['rubricSnapshot'],
     };
