@@ -43,6 +43,10 @@
     "./multiple-choice": {
       "import": "./dist/multiple-choice/index.js",
       "types": "./dist/multiple-choice/index.d.ts"
+    },
+    "./multiple-choice-group": {
+      "import": "./dist/multiple-choice-group/index.js",
+      "types": "./dist/multiple-choice-group/index.d.ts"
     }
   },
   "files": [
