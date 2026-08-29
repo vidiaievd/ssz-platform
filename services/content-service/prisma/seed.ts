@@ -471,10 +471,19 @@ const templates = [
 
         // ── The old form, still live ──
         // `items[]`, each question free to carry its own options, its key an
-        // array of ids in expected_answers. Two seeded documents are written
-        // this way and are rewritten in phase 3; this branch goes with them
-        // (plan 54 phase 7). Per-row options and `media_id` exist only here —
-        // the new form has neither, by decision Q1.
+        // array of ids in expected_answers. No document in the catalogue is
+        // written this way any more — the two that were are rewritten in phase
+        // 3 — but the branch stays as long as the form does: the general
+        // authoring form still round-trips a document of this shape, and a
+        // schema is checked on every write, so dropping it would make such a
+        // document editable only until it was saved (plan 54 phase 7, precedent
+        // plan 51). Per-row options exist only here — the new form has none, by
+        // decision Q1.
+        //
+        // `media_id` is gone from both forms. Audio in an exercise is a field
+        // of the item, shared by every template rather than owned by this one,
+        // and it is separate work; the old declaration described nothing — not
+        // one document in either course ever carried it (plan 54 §6, caveat 4).
         options: {
           type: 'array',
           items: {
@@ -515,7 +524,6 @@ const templates = [
           },
         },
         context: { type: 'string' },
-        media_id: { type: 'string' },
       },
     },
     // The author's answer key, in either form. As with `multiple_choice`,
