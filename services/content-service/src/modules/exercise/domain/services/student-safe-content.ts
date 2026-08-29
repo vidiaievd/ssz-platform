@@ -29,6 +29,11 @@ import {
   TEMPLATE_CODE as SENTENCE_SCHEMA,
   toStudentProjection as sentenceSchemaProjection,
 } from '@ssz/shared-kernel/sentence-schema';
+import {
+  isMultipleChoiceGroupDocument,
+  TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP,
+  toStudentProjection as multipleChoiceGroupProjection,
+} from '@ssz/shared-kernel/multiple-choice-group';
 
 /**
  * The content an exercise may show a student before they answer.
@@ -98,6 +103,16 @@ import {
  * single-question form in place. Those hold no key in their content either — the correct
  * ids were always in `expected_answers` — so an old document travels as it always has.
  *
+ * `multiple_choice_group` is the seventh, and the one where the omission and the
+ * *readiness* are the same question. Its key is which shared column each statement
+ * belongs in, and it is in `expected_answers` along with the author's line and the quote
+ * that proves it — so nothing in the content column has to be taken away. What has to be
+ * decided is which rows exist at all: a statement is ready only when it has text *and* a
+ * marked column, and the mark is on the other side. `content` alone cannot tell a
+ * finished statement from a half-written one, which is why this projection is the one
+ * that takes both columns and could not be written to take one (plan 54 §1, fact 2). The
+ * rows are shuffled here too, columns never.
+ *
  * There are exactly two places content leaves this service towards a learner, and both
  * call this: the exercise response DTO and the internal attempt envelope in `graded`
  * mode. Anything that needs the raw document (the builder, the grading engine) asks for
@@ -160,6 +175,32 @@ export function studentSafeContent(
     return projection as unknown as Record<string, unknown>;
   }
 
+  if (templateCode === MULTIPLE_CHOICE_GROUP) {
+    // The old form: `items[]`, each question carrying its own options, its key in
+    // the other column. Nothing here to hide, and running the new projection over
+    // one would find no `rows` and blank the exercise.
+    if (!isMultipleChoiceGroupDocument(content)) return content;
+
+    // Both columns, and this one is easy to get wrong: a row is ready only if the
+    // author marked which column it belongs in, and that mark lives in
+    // `expected_answers`. `content` alone cannot tell a finished statement from a
+    // half-written one, so a call with `{}` here would hand back an empty table —
+    // silently, and looking exactly like a table nobody has written yet.
+    //
+    // The projection asks the key column one question per row — «is there an
+    // answer?» — and carries neither the answer, nor the author's line, nor the
+    // quote. The quote is the part worth naming: it is the line of the passage
+    // that proves the statement, which on a Riktig/Galt row is the answer written
+    // out in the author's own words (plan 54 §3.2).
+    //
+    // And it *shuffles the rows*, for the reason `sentence_schema` and
+    // `multiple_choice` do: an order computed in the browser is an order the
+    // network tab had already shown unshuffled. Columns are never shuffled — that
+    // would break the table header and the muscle memory of a Riktig/Galt grid.
+    const projection = multipleChoiceGroupProjection(content, expectedAnswers, shuffled);
+    return projection as unknown as Record<string, unknown>;
+  }
+
   if (templateCode === WRITING_TASK) {
     const projection = writingTaskProjection(content, expectedAnswers);
     return projection as unknown as Record<string, unknown>;
@@ -178,7 +219,7 @@ export function studentSafeContent(
  * union of all three would have to be widened for every template that arrives next,
  * while adding nothing this function could get wrong.
  */
-function shuffled<T>(items: T[]): T[] {
+function shuffled<T>(items: readonly T[]): T[] {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i -= 1) {
     const j = randomInt(i + 1);

@@ -13,12 +13,14 @@ import { TEMPLATE_CODE as WRITING_TASK_TEMPLATE } from '@ssz/shared-kernel/writi
 import { TEMPLATE_CODE as SHORT_ANSWER_TEMPLATE } from '@ssz/shared-kernel/short-answer';
 import { TEMPLATE_CODE as SENTENCE_SCHEMA_TEMPLATE } from '@ssz/shared-kernel/sentence-schema';
 import { TEMPLATE_CODE as MULTIPLE_CHOICE_TEMPLATE } from '@ssz/shared-kernel/multiple-choice';
+import { TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP_TEMPLATE } from '@ssz/shared-kernel/multiple-choice-group';
 import { gapFillViolations } from './gap-fill-preflight.js';
 import { matchPairsViolations } from './match-pairs-preflight.js';
 import { writingTaskViolations } from './writing-task-preflight.js';
 import { shortAnswerViolations } from './short-answer-preflight.js';
 import { sentenceSchemaViolations } from './sentence-schema-preflight.js';
 import { multipleChoiceViolations } from './multiple-choice-preflight.js';
+import { multipleChoiceGroupViolations } from './multiple-choice-group-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
 
@@ -467,6 +469,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
                 SHORT_ANSWER_TEMPLATE,
                 SENTENCE_SCHEMA_TEMPLATE,
                 MULTIPLE_CHOICE_TEMPLATE,
+                MULTIPLE_CHOICE_GROUP_TEMPLATE,
               ],
             },
           },
@@ -542,6 +545,12 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
  * content at all: a question with no correct option marked still projects, still renders,
  * and marks every pick wrong. Its rules skip documents of the old form, which have none
  * of the fields they ask about.
+ *
+ * `multiple_choice_group` fails one step earlier still. A statement with no column marked
+ * is not shown to the student and marked wrong — it is *dropped*, because the readiness of
+ * a row is decided by the key column that the projection is otherwise withholding. The
+ * table publishes clean and shows fewer statements than the author wrote, or none at all.
+ * Its rules skip documents of the old form for the same reason as `multiple_choice`'s.
  */
 function violationsFor(
   templateCode: string,
@@ -552,6 +561,9 @@ function violationsFor(
   if (templateCode === SHORT_ANSWER_TEMPLATE) return shortAnswerViolations(document);
   if (templateCode === SENTENCE_SCHEMA_TEMPLATE) return sentenceSchemaViolations(document);
   if (templateCode === MULTIPLE_CHOICE_TEMPLATE) return multipleChoiceViolations(document);
+  if (templateCode === MULTIPLE_CHOICE_GROUP_TEMPLATE) {
+    return multipleChoiceGroupViolations(document);
+  }
   return gapFillViolations(document);
 }
 

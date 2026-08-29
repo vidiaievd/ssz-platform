@@ -744,4 +744,161 @@ describe('studentSafeContent', () => {
       ).toEqual(['q1', 'q2']);
     });
   });
+
+  describe('multiple_choice_group', () => {
+    // Plan 54 §3.2. Two things separate this from `multiple_choice`. The key is not only
+    // which column is right — the author's line and the quote go with it, and the quote is
+    // the line of the passage that proves the statement, which on a Riktig/Galt row is the
+    // answer written out in the author's own words. And readiness is decided *by the key*:
+    // a row is shown only when it carries a marked column, so this is the one projection
+    // that could not have been written to read the content column alone.
+    const mcgContent = {
+      title: 'Tekst 1A',
+      instruction: 'Er påstandene riktige eller gale?',
+      source: {
+        mode: 'inline',
+        label: 'Bartek søker ny jobb',
+        text: 'Bartek er snekker. Han søker en ny jobb i Bergen.',
+      },
+      columns: [
+        { id: 'c1', label: 'Riktig', short: 'R' },
+        { id: 'c2', label: 'Galt', short: 'G' },
+      ],
+      rows: [
+        { id: 'r1', text: 'Bartek er snekker.' },
+        { id: 'r2', text: 'Bartek søker jobb i Oslo.' },
+        // Written but never marked — dropped, and the only place that is decided.
+        { id: 'r3', text: 'Bartek bor i Bergen.' },
+        // Marked but never written — dropped too.
+        { id: 'r4', text: '' },
+      ],
+      settings: {
+        numbering: true,
+        shuffleRows: false,
+        layout: 'auto',
+        showText: true,
+        retry: 'one',
+        lockCorrect: true,
+        showWhy: 'wrong',
+        revealKey: true,
+        passThreshold: 70,
+        progress: true,
+      },
+    };
+
+    const mcgKey = {
+      rows: {
+        r1: { answer: 'c1', why: 'Første setning.', quote: 'Bartek er snekker.' },
+        r2: { answer: 'c2', why: 'Bergen, ikke Oslo.', quote: 'Han søker en ny jobb i Bergen.' },
+        r4: { answer: 'c1', why: '', quote: '' },
+      },
+    };
+
+    type McgProjection = {
+      instruction: string;
+      source: { mode: string; label: string; text?: string; lessonId?: string };
+      columns: Array<{ id: string; label: string }>;
+      rows: Array<{ id: string; text: string }>;
+      settings: Record<string, unknown>;
+    };
+
+    const project = (
+      content: Record<string, unknown> = mcgContent,
+      key: Record<string, unknown> = mcgKey,
+    ) => studentSafeContent('multiple_choice_group', content, key) as unknown as McgProjection;
+
+    it('ships the statements and the columns, and nothing that decides them', () => {
+      const projected = project();
+
+      expect(projected.instruction).toBe('Er påstandene riktige eller gale?');
+      expect(projected.columns).toEqual([
+        { id: 'c1', label: 'Riktig' },
+        { id: 'c2', label: 'Galt' },
+      ]);
+      expect(projected.rows).toEqual([
+        { id: 'r1', text: 'Bartek er snekker.' },
+        { id: 'r2', text: 'Bartek søker jobb i Oslo.' },
+      ]);
+    });
+
+    it('drops a statement with no column marked and one with no text', () => {
+      expect(project().rows.map((r) => r.id)).toEqual(['r1', 'r2']);
+    });
+
+    it('carries no answer, no explanation and no quote anywhere in the payload', () => {
+      const serialized = JSON.stringify(project());
+
+      // Structural rather than a search for the ids: a quote is a substring of the
+      // passage the projection is *supposed* to send, so looking for its text would
+      // find the passage and prove nothing. These are the fields it would arrive in.
+      expect(serialized).not.toContain('answer');
+      expect(serialized).not.toContain('why');
+      expect(serialized).not.toContain('quote');
+      expect(serialized).not.toContain('Bergen, ikke Oslo');
+    });
+
+    it('hands back an empty table rather than a leak when the key column is missing', () => {
+      // The trap this projection is built around: it takes both columns, and a caller
+      // that forgot the second gets nothing rather than everything.
+      expect(project(mcgContent, {}).rows).toEqual([]);
+    });
+
+    it('withholds the passage when the author chose not to show it', () => {
+      const hidden = {
+        ...mcgContent,
+        settings: { ...mcgContent.settings, showText: false },
+      };
+
+      expect(project(hidden).source.text).toBeUndefined();
+      expect(project().source.text).toContain('Bartek er snekker.');
+    });
+
+    it('leaves a document of the old form exactly as it is', () => {
+      // Two seeded exercises are still written this way until phase 3 (plan 54 §1.1).
+      // The new projection would find no `rows` and blank them.
+      const old = {
+        context: 'Tekst 1A',
+        options: [
+          { id: 'r', text: 'Riktig' },
+          { id: 'g', text: 'Galt' },
+        ],
+        items: [{ id: '1', question: 'Bartek er snekker.' }],
+      };
+
+      expect(
+        studentSafeContent('multiple_choice_group', old, {
+          items: [{ id: '1', correct_option_ids: ['r'] }],
+        }),
+      ).toBe(old);
+    });
+
+    it('shuffles the rows and never the columns when the author asked for it', () => {
+      const shuffling = {
+        ...mcgContent,
+        rows: Array.from({ length: 12 }, (_, i) => ({ id: `s${i}`, text: `Påstand ${i}` })),
+        settings: { ...mcgContent.settings, shuffleRows: true },
+      };
+      const key = {
+        rows: Object.fromEntries(
+          Array.from({ length: 12 }, (_, i) => [`s${i}`, { answer: 'c1', why: 'x', quote: '' }]),
+        ),
+      };
+
+      const orders = new Set(
+        Array.from({ length: 20 }, () => project(shuffling, key).rows.map((r) => r.id).join(',')),
+      );
+      expect(orders.size).toBeGreaterThan(1);
+
+      // The header never moves: shuffling it would break the table and the muscle memory
+      // of a Riktig/Galt grid (IMPLEMENTATION.md, "Things that will bite you").
+      expect(project(shuffling, key).columns.map((c) => c.id)).toEqual(['c1', 'c2']);
+    });
+
+    it('keeps the author order when the author did not', () => {
+      const orders = new Set(
+        Array.from({ length: 10 }, () => project().rows.map((r) => r.id).join(',')),
+      );
+      expect([...orders]).toEqual(['r1,r2']);
+    });
+  });
 });

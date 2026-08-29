@@ -415,8 +415,15 @@ export class Attempt extends AggregateRoot {
    * Practice only, and never after a reveal: once the answers have been handed over,
    * checking again measures nothing. A graded attempt is a submission to a teacher and
    * stays a single shot.
+   *
+   * `maxChecks` is the budget, counted in checks of the whole thing including the first.
+   * Omitted means unlimited, which is `word_bank_gap_fill`'s spec and was the only
+   * behaviour this method had. `multiple_choice_group` brought a budget with it — its
+   * `retry` setting is 1 / 2 / 99 checks (plan 54 §3.3) — and it has to be spent here
+   * rather than in the runner, because a client that owned it would buy itself another
+   * go for the price of one request.
    */
-  reopenForRecheck(): Result<void, InvalidAttemptTransitionError> {
+  reopenForRecheck(maxChecks?: number): Result<void, InvalidAttemptTransitionError> {
     if (this._checkMode !== 'PRACTICE') {
       return Result.fail(
         new InvalidAttemptTransitionError('Only a practice attempt can be checked again'),
@@ -431,6 +438,16 @@ export class Attempt extends AggregateRoot {
       return Result.fail(
         new InvalidAttemptTransitionError(
           `Cannot check an attempt with status ${this._status} again`,
+        ),
+      );
+    }
+
+    // The check about to be reopened for is number `recheckCount + 2`: the first check
+    // is number 1 and carries no recheck. So a budget of 2 allows exactly one reopen.
+    if (maxChecks !== undefined && this._recheckCount + 2 > maxChecks) {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `No checks left on this attempt (${maxChecks} allowed)`,
         ),
       );
     }

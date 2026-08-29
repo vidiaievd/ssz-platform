@@ -71,6 +71,13 @@ const OWN_SUBMISSION_SHAPE = new Set([
   // checked in `multiple-choice-legacy.ts`, where AJV used to check it, rather than
   // nowhere.
   'multiple_choice',
+  // And `multiple_choice_group` on its own rewrite (plan 54): its key is a column id per
+  // row with the author's line and the proving quote beside it, its submission a map of
+  // picks. Like `short_answer` and `multiple_choice` it has two live document shapes, and
+  // the older of them *was* describable by one schema — so its submission shape is now
+  // checked in `multiple-choice-group-legacy.ts`, where AJV used to check it, rather than
+  // nowhere.
+  'multiple_choice_group',
 ]);
 
 @Injectable()

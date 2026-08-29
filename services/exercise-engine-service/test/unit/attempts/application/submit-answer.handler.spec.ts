@@ -17,6 +17,7 @@ import {
   toExpectedAnswers,
 } from '@ssz/shared-kernel/writing-task';
 import type { WritingTask } from '@ssz/shared-kernel/writing-task';
+import { MultipleChoiceGroupValidator } from '../../../../src/infrastructure/validation/validators/multiple-choice-group.validator.js';
 
 const makeInProgressAttempt = (templateCode = 'multiple_choice') =>
   Attempt.reconstitute({
@@ -725,5 +726,310 @@ describe('SubmitAnswerHandler', () => {
     const wire = JSON.stringify(result.value.details);
     expect(wire).not.toContain('lys foran');
     expect(wire).not.toContain('glatt');
+  });
+});
+
+
+// ── multiple_choice_group ───────────────────────────────────────────────────
+//
+// The one template whose *re*-check is the point. Plan 54 §3.3: the unit of submission is
+// the whole table, so `reopenForRecheck` — written for `word_bank_gap_fill` and unlimited
+// ever since — is exactly the mechanism, and what this phase adds to it is a budget and a
+// freeze. Three of the grader's inputs are the attempt's facts rather than the client's
+// claims, and this is where they are written over the submission.
+//
+// The real validator runs here rather than a mock: what is being tested is the seam
+// between the two, and a mock would agree with whatever the handler sent it.
+
+const MCG_CONTENT = {
+  title: 'Tekst 1A',
+  instruction: 'Er påstandene riktige eller gale?',
+  source: { mode: 'none', label: '', text: '' },
+  columns: [
+    { id: 'c1', label: 'Riktig', short: 'R' },
+    { id: 'c2', label: 'Galt', short: 'G' },
+  ],
+  rows: [
+    { id: 'r1', text: 'Bartek er snekker.' },
+    { id: 'r2', text: 'Bartek søker jobb i Oslo.' },
+    { id: 'r3', text: 'Bartek har jobbet i tre år.' },
+    { id: 'r4', text: 'Bartek bor i Bergen.' },
+  ],
+  settings: {
+    numbering: true,
+    shuffleRows: false,
+    layout: 'auto',
+    showText: true,
+    retry: 'one',
+    lockCorrect: true,
+    showWhy: 'wrong',
+    revealKey: true,
+    passThreshold: 70,
+    progress: true,
+  },
+};
+
+const MCG_KEY = {
+  rows: {
+    r1: { answer: 'c1', why: 'Første setning.', quote: '' },
+    r2: { answer: 'c2', why: 'Bergen, ikke Oslo.', quote: '' },
+    r3: { answer: 'c1', why: 'Teksten sier tre år.', quote: '' },
+    r4: { answer: 'c1', why: 'Han søker der.', quote: '' },
+  },
+};
+
+const makeMcgDef = (
+  settings: Record<string, unknown> = MCG_CONTENT.settings,
+): ExerciseDefinition => ({
+  exercise: {
+    id: 'ex-1',
+    templateCode: 'multiple_choice_group',
+    targetLanguage: 'no',
+    difficultyLevel: 'A1',
+    content: { ...MCG_CONTENT, settings } as unknown as Record<string, unknown>,
+    expectedAnswers: MCG_KEY as unknown as Record<string, unknown>,
+    answerCheckSettings: null,
+  },
+  template: {
+    code: 'multiple_choice_group',
+    contentSchema: {},
+    answerSchema: { type: 'object' },
+    defaultCheckSettings: { allow_partial_credit: true },
+    supportedLanguages: null,
+  },
+  instruction: null,
+});
+
+const makeMcgAttempt = (
+  over: { status?: 'IN_PROGRESS' | 'SCORED'; validationDetails?: unknown; recheckCount?: number } = {},
+) =>
+  Attempt.reconstitute({
+    id: 'attempt-1',
+    userId: 'user-1',
+    exerciseId: 'ex-1',
+    assignmentId: null,
+    enrollmentId: null,
+    templateCode: 'multiple_choice_group',
+    targetLanguage: 'no',
+    difficultyLevel: 'A1',
+    checkMode: 'PRACTICE',
+    practicedAtoms: [],
+    status: over.status ?? 'IN_PROGRESS',
+    score: over.status === 'SCORED' ? 50 : null,
+    passed: over.status === 'SCORED' ? false : null,
+    timeSpentSeconds: 0,
+    submittedAnswer: null,
+    validationDetails: over.validationDetails ?? null,
+    feedback: null,
+    answerHash: null,
+    revisionCount: 0,
+    recheckCount: over.recheckCount ?? 0,
+    startedAt: new Date(),
+    submittedAt: over.status === 'SCORED' ? new Date() : null,
+    scoredAt: over.status === 'SCORED' ? new Date() : null,
+  });
+
+/** The real grader, behind the port the handler talks to. */
+const mcgValidator = (): IAnswerValidator => {
+  const inner = new MultipleChoiceGroupValidator();
+  return {
+    validate: jest
+      .fn<IAnswerValidator['validate']>()
+      .mockImplementation(async (input) => inner.validate(input as never)),
+  };
+};
+
+const runMcg = async (
+  attempt: Attempt,
+  answers: Record<string, string>,
+  extra: Record<string, unknown> = {},
+  def: ExerciseDefinition = makeMcgDef(),
+) => {
+  const repo = makeRepo(attempt);
+  const content = makeContentClient(Result.ok(def));
+  const handler = makeHandler(repo, content, mcgValidator(), makeFeedback(), makePublisher());
+  const result = await handler.execute(
+    new SubmitAnswerCommand('attempt-1', 'user-1', { answers, ...extra }, 30, 'no'),
+  );
+  return { result, attempt, repo };
+};
+
+interface McgDetails {
+  totalItems: number;
+  attempt: number;
+  attemptsLeft: number;
+  closed: boolean;
+  locked: string[];
+  items: Array<{ itemId: string; submitted: string | null; correct: boolean; firstAnswer: string | null; keyColumnId?: string }>;
+}
+
+describe('SubmitAnswerHandler — multiple_choice_group', () => {
+  it('checks the whole table and hands the verdicts back to the runner', async () => {
+    const { result } = await runMcg(makeMcgAttempt(), {
+      r1: 'c1',
+      r2: 'c1',
+      r3: 'c1',
+      r4: 'c2',
+    });
+
+    expect(result.isOk).toBe(true);
+    const details = result.value.details as McgDetails;
+    expect(details.attempt).toBe(1);
+    expect(details.attemptsLeft).toBe(1);
+    expect(details.closed).toBe(false);
+    expect(details.locked.sort()).toEqual(['r1', 'r3']);
+    expect(result.value.score).toBe(50);
+  });
+
+  it('numbers the second check itself rather than believing the client', async () => {
+    // A client sending `attempt: 1` on its second go would buy back the retry it spent.
+    const attempt = makeMcgAttempt({
+      status: 'SCORED',
+      validationDetails: { closed: false, locked: ['r1'], items: [] },
+    });
+
+    const { result } = await runMcg(attempt, { r1: 'c1', r2: 'c2', r3: 'c1', r4: 'c1' }, { attempt: 1 });
+
+    const details = result.value.details as McgDetails;
+    expect(details.attempt).toBe(2);
+    expect(details.attemptsLeft).toBe(0);
+    expect(details.closed).toBe(true);
+    expect(attempt.recheckCount).toBe(1);
+  });
+
+  it('answers a frozen row from the key, whatever the second submission says', async () => {
+    const attempt = makeMcgAttempt({
+      status: 'SCORED',
+      validationDetails: {
+        closed: false,
+        locked: ['r1', 'r3'],
+        items: [
+          { itemId: 'r1', firstAnswer: 'c1' },
+          { itemId: 'r2', firstAnswer: 'c1' },
+          { itemId: 'r3', firstAnswer: 'c1' },
+          { itemId: 'r4', firstAnswer: 'c2' },
+        ],
+      },
+    });
+
+    // The client tries to change a locked row to the wrong column.
+    const { result } = await runMcg(attempt, { r1: 'c2', r2: 'c2', r3: 'c2', r4: 'c1' });
+
+    const details = result.value.details as McgDetails;
+    expect(details.items.find((r) => r.itemId === 'r1')).toMatchObject({
+      submitted: 'c1',
+      correct: true,
+    });
+    expect(details.items.find((r) => r.itemId === 'r3')).toMatchObject({
+      submitted: 'c1',
+      correct: true,
+    });
+    expect(result.value.score).toBe(100);
+  });
+
+  it('carries the first answer per row across the re-check', async () => {
+    // Plan 54 §8 Q4. The first pass is what says whether the cohort understood the text,
+    // and `score()` overwrites `validationDetails` — so it is copied forward rather than
+    // read back out of a record that no longer exists.
+    const attempt = makeMcgAttempt({
+      status: 'SCORED',
+      validationDetails: {
+        closed: false,
+        locked: ['r3', 'r4'],
+        items: [
+          { itemId: 'r1', firstAnswer: 'c2' },
+          { itemId: 'r2', firstAnswer: 'c1' },
+          { itemId: 'r3', firstAnswer: 'c1' },
+          { itemId: 'r4', firstAnswer: 'c1' },
+        ],
+      },
+    });
+
+    const { result } = await runMcg(attempt, { r1: 'c1', r2: 'c2', r3: 'c1', r4: 'c1' });
+
+    const details = result.value.details as McgDetails;
+    const corrected = details.items.find((r) => r.itemId === 'r1')!;
+    expect(corrected.submitted).toBe('c1');
+    expect(corrected.correct).toBe(true);
+    expect(corrected.firstAnswer).toBe('c2');
+    expect(details.items.find((r) => r.itemId === 'r2')!.firstAnswer).toBe('c1');
+  });
+
+  it('refuses a second check when the author allowed none', async () => {
+    const attempt = makeMcgAttempt({
+      status: 'SCORED',
+      validationDetails: { closed: false, locked: [], items: [] },
+    });
+
+    const { result } = await runMcg(
+      attempt,
+      { r1: 'c1', r2: 'c2', r3: 'c1', r4: 'c1' },
+      {},
+      makeMcgDef({ ...MCG_CONTENT.settings, retry: 'none' }),
+    );
+
+    expect(result.isFail).toBe(true);
+    expect(attempt.status).toBe('SCORED');
+    expect(attempt.recheckCount).toBe(0);
+  });
+
+  it('refuses a check on a table the last one closed', async () => {
+    // Closing happens for three reasons and only one of them spends the budget. Without
+    // this, a student who pressed «Vis fasit» could spend the unspent retry on the
+    // answers they had just been shown.
+    const attempt = makeMcgAttempt({
+      status: 'SCORED',
+      validationDetails: { closed: true, locked: [], items: [] },
+    });
+
+    const { result } = await runMcg(attempt, { r1: 'c1', r2: 'c2', r3: 'c1', r4: 'c1' });
+
+    expect(result.isFail).toBe(true);
+    expect(attempt.recheckCount).toBe(0);
+  });
+
+  it('marks the attempt against the pass mark the author set, not the platform default', async () => {
+    // 75% passes the platform's 70 and fails this table's «all or nothing».
+    const attempt = makeMcgAttempt();
+
+    await runMcg(
+      attempt,
+      { r1: 'c1', r2: 'c2', r3: 'c1', r4: 'c2' },
+      {},
+      makeMcgDef({ ...MCG_CONTENT.settings, passThreshold: 100 }),
+    );
+
+    expect(attempt.scoreValue).toBe(75);
+    expect(attempt.passed).toBe(false);
+  });
+
+  it('tells the SRS about the first check and nothing after it', async () => {
+    const first = makeMcgAttempt();
+    const { repo: firstRepo } = await runMcg(first, { r1: 'c1', r2: 'c1', r3: 'c1', r4: 'c1' });
+    expect(firstRepo.save).toHaveBeenCalled();
+    expect(first.recheckCount).toBe(0);
+
+    const again = makeMcgAttempt({
+      status: 'SCORED',
+      validationDetails: { closed: false, locked: [], items: [] },
+    });
+    const publisher = makePublisher();
+    const handler = makeHandler(
+      makeRepo(again),
+      makeContentClient(Result.ok(makeMcgDef())),
+      mcgValidator(),
+      makeFeedback(),
+      publisher,
+    );
+    await handler.execute(
+      new SubmitAnswerCommand('attempt-1', 'user-1', { answers: { r1: 'c1', r2: 'c2', r3: 'c1', r4: 'c1' } }, 30, 'no'),
+    );
+
+    // `AttemptScoredEvent` is raised only while `recheckCount === 0` (plan 54 §3.3): the
+    // SRS sees the first pass, whatever a correction does to the number on screen.
+    expect(publisher.publish).not.toHaveBeenCalledWith(
+      'attempt.scored',
+      expect.anything(),
+    );
   });
 });

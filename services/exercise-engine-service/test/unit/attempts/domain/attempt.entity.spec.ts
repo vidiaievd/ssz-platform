@@ -244,6 +244,42 @@ describe('Attempt entity', () => {
       expect(result.isFail).toBe(true);
       expect(result.error).toBeInstanceOf(InvalidAttemptTransitionError);
     });
+
+    // The budget arrived with `multiple_choice_group` (plan 54 §3.3), whose `retry`
+    // setting is 1, 2 or 99 checks of the whole table. `word_bank_gap_fill` passes
+    // nothing and keeps the unlimited behaviour this method was written with.
+    it('spends a budget of two on exactly one re-check', () => {
+      const attempt = scored();
+
+      expect(attempt.reopenForRecheck(2).isOk).toBe(true);
+      attempt.submit({}, 'h2');
+      attempt.score(60, false, null, null);
+
+      const second = attempt.reopenForRecheck(2);
+      expect(second.isFail).toBe(true);
+      expect(second.error).toBeInstanceOf(InvalidAttemptTransitionError);
+      // Refused rather than half-applied: the attempt is still the scored one.
+      expect(attempt.status).toBe('SCORED');
+      expect(attempt.recheckCount).toBe(1);
+    });
+
+    it('refuses the first re-check under a budget of one', () => {
+      const attempt = scored();
+
+      const result = attempt.reopenForRecheck(1);
+      expect(result.isFail).toBe(true);
+      expect(attempt.recheckCount).toBe(0);
+    });
+
+    it('stays unlimited when no budget is given', () => {
+      const attempt = scored();
+      for (let i = 0; i < 5; i += 1) {
+        expect(attempt.reopenForRecheck().isOk).toBe(true);
+        attempt.submit({}, `h${i}`);
+        attempt.score(60, false, null, null);
+      }
+      expect(attempt.recheckCount).toBe(5);
+    });
   });
 
   describe('routeForReview()', () => {

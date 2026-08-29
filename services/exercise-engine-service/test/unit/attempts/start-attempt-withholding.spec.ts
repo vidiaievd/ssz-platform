@@ -5,6 +5,11 @@ import { StartAttemptCommand } from '../../../src/modules/attempts/application/c
 import { Result } from '../../../src/shared/kernel/result.js';
 import { attemptShuffle } from '../../../src/shared/application/services/multiple-choice-attempt.js';
 import { toStudentProjection as mcToStudentProjection } from '@ssz/shared-kernel/multiple-choice';
+import {
+  shuffled as mcgShuffled,
+  toStudentProjection as mcgToStudentProjection,
+} from '@ssz/shared-kernel/multiple-choice-group';
+import { seedFrom } from '../../../src/shared/application/services/multiple-choice-attempt.js';
 
 // `checkMode: PRACTICE` means "ship the answers so the client can check locally", and
 // that is safe for eleven templates whose answers are a separate key. It is not safe
@@ -547,6 +552,158 @@ describe('StartAttemptHandler — what leaves with the attempt', () => {
       const result = await handler.execute(practice);
       expect(result.value.exerciseContent).toEqual(old);
       expect(result.value.expectedAnswers).toEqual(key);
+    });
+  });
+
+  describe('multiple_choice_group', () => {
+    // Plan 54 §3.2 and §3.5. The inversion worth testing: nothing in this content column
+    // is a secret — the column each statement belongs in, the author's line and the quote
+    // are all in the key column — but the key column is what decides which statements the
+    // student is *shown at all*. A projection built from the content alone would ship the
+    // half-written rows too, and one built with the key missing ships nothing.
+    const groupContent = {
+      title: 'Tekst 1A',
+      instruction: 'Er påstandene riktige eller gale?',
+      source: {
+        mode: 'inline',
+        label: 'Bartek søker ny jobb',
+        text: 'Bartek er snekker. Han søker en ny jobb i Bergen.',
+      },
+      columns: [
+        { id: 'c1', label: 'Riktig', short: 'R' },
+        { id: 'c2', label: 'Galt', short: 'G' },
+      ],
+      rows: [
+        { id: 'r1', text: 'Bartek er snekker.' },
+        { id: 'r2', text: 'Bartek søker jobb i Oslo.' },
+        { id: 'r3', text: 'Bartek bor i Bergen.' },
+      ],
+      settings: {
+        numbering: true,
+        shuffleRows: true,
+        layout: 'auto',
+        showText: true,
+        retry: 'one',
+        lockCorrect: true,
+        showWhy: 'wrong',
+        revealKey: true,
+        passThreshold: 70,
+        progress: true,
+      },
+    };
+    const groupKey = {
+      rows: {
+        r1: { answer: 'c1', why: 'Første setning.', quote: 'Bartek er snekker.' },
+        r2: { answer: 'c2', why: 'Bergen, ikke Oslo.', quote: 'Han søker en ny jobb i Bergen.' },
+        // r3 is written but never marked — it must not reach the student.
+      },
+    };
+
+    type GroupProjection = {
+      columns: Array<{ id: string; label: string }>;
+      rows: Array<{ id: string; text: string }>;
+      source: { text?: string };
+    };
+
+    it('ships no column key, no explanation and no quote, even in PRACTICE mode', async () => {
+      const handler = makeHandler('multiple_choice_group', groupContent, groupKey);
+      const result = await handler.execute(practice);
+
+      expect(result.value.expectedAnswers).toBeNull();
+      const serialised = JSON.stringify(result.value.exerciseContent);
+      expect(serialised).not.toContain('answer');
+      expect(serialised).not.toContain('Bergen, ikke Oslo');
+      // The quote check has to be structural rather than a search for its text: a quote
+      // is a line *of the passage*, which the projection is supposed to send. What must
+      // not travel is the field that says which line proves which statement.
+      expect(serialised).not.toContain('quote');
+    });
+
+    it('drops the statement the author never marked', async () => {
+      const handler = makeHandler('multiple_choice_group', groupContent, groupKey);
+      const projection = (await handler.execute(practice)).value
+        .exerciseContent as GroupProjection;
+
+      expect(projection.rows.map((r) => r.id).sort()).toEqual(['r1', 'r2']);
+    });
+
+    it('deals the row order from the attempt, and never the columns', async () => {
+      const handler = makeHandler('multiple_choice_group', groupContent, groupKey);
+      const result = (await handler.execute(practice)).value;
+      const projection = result.exerciseContent as GroupProjection;
+
+      const expected = mcgToStudentProjection(groupContent, groupKey, (items) =>
+        mcgShuffled(items, seedFrom(result.attemptId)),
+      ) as unknown as GroupProjection;
+
+      expect(projection.rows.map((r) => r.id)).toEqual(expected.rows.map((r) => r.id));
+      expect(projection.columns.map((c) => c.id)).toEqual(['c1', 'c2']);
+    });
+
+    it('hands on a document of the old form as it stands', async () => {
+      const old = {
+        context: 'Tekst 1A',
+        options: [
+          { id: 'r', text: 'Riktig' },
+          { id: 'g', text: 'Galt' },
+        ],
+        items: [{ id: '1', question: 'Bartek er snekker.' }],
+      };
+      const key = { items: [{ id: '1', correct_option_ids: ['r'] }] };
+      const handler = makeHandler('multiple_choice_group', old, key);
+
+      const result = await handler.execute(practice);
+      expect(result.value.exerciseContent).toEqual(old);
+      expect(result.value.expectedAnswers).toEqual(key);
+    });
+
+    it('hands on an envelope whose key has already been taken away', async () => {
+      // The second pass has no key left to ask which rows are finished, so projecting
+      // again would return an empty table rather than a smaller one.
+      const alreadyProjected = {
+        instruction: groupContent.instruction,
+        source: { mode: 'inline', label: 'Bartek', text: groupContent.source.text },
+        columns: [
+          { id: 'c1', label: 'Riktig' },
+          { id: 'c2', label: 'Galt' },
+        ],
+        rows: [{ id: 'r2', text: 'Bartek søker jobb i Oslo.' }, { id: 'r1', text: 'Bartek er snekker.' }],
+        settings: { numbering: true, layout: 'auto', retry: 'one', progress: true, showText: true, passThreshold: 70 },
+      };
+      const handler = makeHandler('multiple_choice_group', alreadyProjected, null);
+
+      const result = await handler.execute(practice);
+      expect(result.value.exerciseContent).toEqual(alreadyProjected);
+      expect(result.value.expectedAnswers).toBeNull();
+    });
+
+    it('in GRADED mode fetches the unprojected document so the deal belongs to the attempt', async () => {
+      const alreadyProjected = {
+        instruction: groupContent.instruction,
+        source: { mode: 'inline', label: 'Bartek', text: groupContent.source.text },
+        columns: [
+          { id: 'c1', label: 'Riktig' },
+          { id: 'c2', label: 'Galt' },
+        ],
+        rows: [{ id: 'r2', text: 'Bartek søker jobb i Oslo.' }, { id: 'r1', text: 'Bartek er snekker.' }],
+        settings: { numbering: true, layout: 'auto', retry: 'one', progress: true, showText: true, passThreshold: 70 },
+      };
+      const { handler, modes } = makeHandlerByMode('multiple_choice_group', (mode) =>
+        mode === 'PRACTICE'
+          ? { content: groupContent, expectedAnswers: groupKey }
+          : { content: alreadyProjected, expectedAnswers: null },
+      );
+
+      const result = (await handler.execute(graded)).value;
+
+      expect(modes).toEqual(['GRADED', 'PRACTICE']);
+      const projection = result.exerciseContent as GroupProjection;
+      const expected = mcgToStudentProjection(groupContent, groupKey, (items) =>
+        mcgShuffled(items, seedFrom(result.attemptId)),
+      ) as unknown as GroupProjection;
+      expect(projection.rows.map((r) => r.id)).toEqual(expected.rows.map((r) => r.id));
+      expect(result.expectedAnswers).toBeNull();
+      expect(JSON.stringify(result.exerciseContent)).not.toContain('Bergen, ikke Oslo');
     });
   });
 

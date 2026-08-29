@@ -352,19 +352,129 @@ const templates = [
     supportedLanguages: Prisma.DbNull,
   },
   {
-    // Several multiple-choice questions checked together, the way a workbook
-    // prints them: a true/false table over one text, or a set of "what does
-    // this word mean?" questions. Deliberately separate from multiple_choice,
-    // which is one question with its own check.
+    // A table of statements about one text, sharing a single set of answer
+    // columns — Riktig / Galt by default. The student answers every row and
+    // hands the whole table in at once: the unit of work is the group, which is
+    // the whole reason this is not `multiple_choice`, where a question carries
+    // its own options, its own attempt budget and its own 50/50.
     code: 'multiple_choice_group',
     name: 'Multiple Choice Group',
     description: 'Answer several multiple-choice questions, checked as one block',
+    // Rewritten for the design handoff (docs/plan/54-multiple-choice-group.md).
+    // The old shape was `items[]`, each question free to carry its own options,
+    // with the key an array of ids per item; the new one is **columns shared by
+    // every row** plus a per-row key, an explanation and the quote from the text
+    // that proves it.
+    //
+    // Both shapes are described here, as they are for `multiple_choice`. Only
+    // two documents in the whole catalogue are written the old way (plan 54 §1),
+    // and they are rewritten in phase 3 — but this schema is checked on every
+    // write, so replacing it outright before that would make both unsaveable in
+    // the meantime. `isMultipleChoiceGroupDocument` in the kernel is what every
+    // reader dispatches on — the validator, the projection, the runners — and
+    // the `anyOf` below is the same test spelled for AJV: a new document always
+    // has `rows`, even while it is empty, and an old one never does.
     contentSchema: {
       type: 'object',
-      required: ['items'],
+      anyOf: [{ required: ['rows'] }, { required: ['items'] }],
       properties: {
-        // Options every question shares — a Riktig / Galt column pair. Questions
-        // may still carry their own; an item's own options always win.
+        // ── The new form ──
+        title: { type: 'string', description: 'Teacher-facing name of the table' },
+        instruction: {
+          type: 'string',
+          description: 'One line, shown above the table in the runner',
+        },
+        // How the material the statements are about reaches the student:
+        // `inline` carries the passage itself, `link` points at the lesson it
+        // was read in, `none` means answering from memory.
+        source: {
+          type: 'object',
+          properties: {
+            mode: { type: 'string', enum: ['none', 'inline', 'link'] },
+            label: { type: 'string', description: 'Heading above the passage, or the link text' },
+            text: { type: 'string', description: 'The passage itself; `inline` only' },
+            // What «Til teksten» points at. The prototype models only the label,
+            // and IMPLEMENTATION.md flags that as a gap: a link with nothing to
+            // link to is a decoration. Plan 54 Q5 decides where the id comes
+            // from; the field is described from the start so the shape does not
+            // change under documents that are already written.
+            lessonId: { type: 'string' },
+          },
+        },
+        // Shared by every row — the whole point of the type. No `minItems` and
+        // no `maxItems`, although «fewer than two» and «more than four» are both
+        // blockers: this schema is checked on every write, and an author who has
+        // added a fifth column would find the document unsaveable and so unable
+        // to delete it again. The bounds are enforced at publication instead
+        // (`multiple-choice-group-preflight.ts`), where they can be reported.
+        columns: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: { type: 'string' },
+              label: { type: 'string' },
+              // The 1-3 character code — «R», «G», «?». Read by bulk paste and
+              // CSV export, never shown to a student.
+              short: { type: 'string' },
+            },
+          },
+        },
+        // The statements, and nothing else: which column each belongs in is in
+        // `expected_answers`, along with the author's line and the quote that
+        // proves it (plan 54 §3.2). There is nothing in this schema for a
+        // projection to forget to strip.
+        //
+        // No `minItems`, for the same reason as `multiple_choice`'s `questions`
+        // and `writing_task`'s and `short_answer`'s before it: a document being
+        // written is unfinished by definition, and with autosave it would be
+        // silently unsaveable.
+        rows: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: { type: 'string' },
+              text: { type: 'string', description: 'The statement' },
+            },
+          },
+        },
+        // Ten switches over one table. Exercise-wide: the handoff has no
+        // per-row overrides.
+        settings: {
+          type: 'object',
+          properties: {
+            numbering: { type: 'boolean', description: '1. 2. 3. in front of each statement' },
+            // Applied server-side, per attempt, and rows only — never the
+            // columns (plan 54 §3.5). An order computed in the browser is an
+            // order the network tab already showed unshuffled.
+            shuffleRows: { type: 'boolean' },
+            layout: { type: 'string', enum: ['auto', 'cards'] },
+            showText: { type: 'boolean', description: 'Show the passage with the exercise' },
+            // The attempt budget, and it counts checks of the whole table:
+            // none = 1, one = 2, unlimited = 99. Enforced on the attempt, not in
+            // the runner — a client that owned the budget would buy itself
+            // another go (plan 54 §3.3).
+            retry: { type: 'string', enum: ['none', 'one', 'unlimited'] },
+            lockCorrect: { type: 'boolean', description: 'Correct rows freeze on retry' },
+            showWhy: { type: 'string', enum: ['never', 'wrong', 'always'] },
+            revealKey: { type: 'boolean', description: 'Mark the right column once attempts run out' },
+            // Percent of rows needed to pass, compared with `>=`. Replaces the
+            // old `allow_partial_credit` flag, which survives as `100` (plan 54
+            // §3.4).
+            passThreshold: { type: 'number', minimum: 0, maximum: 100 },
+            progress: { type: 'boolean', description: 'The «n/total svart» strip' },
+          },
+        },
+
+        // ── The old form, still live ──
+        // `items[]`, each question free to carry its own options, its key an
+        // array of ids in expected_answers. Two seeded documents are written
+        // this way and are rewritten in phase 3; this branch goes with them
+        // (plan 54 phase 7). Per-row options and `media_id` exist only here —
+        // the new form has neither, by decision Q1.
         options: {
           type: 'array',
           items: {
@@ -408,13 +518,44 @@ const templates = [
         media_id: { type: 'string' },
       },
     },
-    // As with word_bank_fill, this one schema validates both sides: the
-    // author's key at authoring time and the learner's picks at submit time,
-    // the submission carrying its chosen id in `correct_option_ids`.
+    // The author's answer key, in either form. As with `multiple_choice`,
+    // `short_answer` and `sentence_schema`, this schema no longer doubles as the
+    // learner's submission schema: `multiple_choice_group` joins
+    // `OWN_SUBMISSION_SHAPE` in exercise-engine, because the new key is a map of
+    // column ids per row with the author's line beside it, and the new
+    // submission is a map of picks. One schema over both would describe neither.
     answerSchema: {
       type: 'object',
-      required: ['items'],
+      // Same test as the content schema, on the side that names the form just as
+      // plainly: a new key is always `rows`, even while it is empty, and an old
+      // one is always `items`.
+      anyOf: [{ required: ['rows'] }, { required: ['items'] }],
       properties: {
+        // ── The new form ──
+        // Keyed by row id, so reordering or shuffling the statements cannot
+        // shuffle the key onto the wrong ones.
+        rows: {
+          type: 'object',
+          description: 'Keyed by row id',
+          additionalProperties: {
+            type: 'object',
+            properties: {
+              // The column this statement belongs in. Null while the author has
+              // not marked it — a state the builder saves and publication
+              // refuses, rather than one the write path rejects.
+              answer: { type: ['string', 'null'] },
+              // Shown after checking, under `settings.showWhy`.
+              why: { type: 'string' },
+              // The verbatim line of `source.text` that proves the statement.
+              // It lives on this side and not in the content, which is the less
+              // obvious half of plan 54 §3.2: on a Riktig/Galt row the quote is
+              // the answer written out in the author's own words.
+              quote: { type: 'string' },
+            },
+          },
+        },
+
+        // ── The old form, still live ──
         items: {
           type: 'array',
           minItems: 1,
@@ -437,6 +578,9 @@ const templates = [
         explanation: { type: 'string' },
       },
     },
+    // Read by the old grader alone. The new form's pass mark is
+    // `settings.passThreshold` on the document, where the author set it, rather
+    // than a template-wide default (plan 54 §3.4, Q3).
     defaultCheckSettings: { allow_partial_credit: true },
     supportedLanguages: Prisma.DbNull,
   },

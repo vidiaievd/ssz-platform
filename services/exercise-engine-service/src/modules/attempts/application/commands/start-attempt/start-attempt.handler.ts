@@ -41,6 +41,12 @@ import {
   TEMPLATE_CODE as SENTENCE_SCHEMA,
   toStudentProjection as ssToStudentProjection,
 } from '@ssz/shared-kernel/sentence-schema';
+import {
+  isMultipleChoiceGroupDocument,
+  shuffled as mcgShuffled,
+  TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP,
+  toStudentProjection as mcgToStudentProjection,
+} from '@ssz/shared-kernel/multiple-choice-group';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -53,7 +59,7 @@ import {
 } from '../../../../../shared/application/ports/content-client.port.js';
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
-import { attemptShuffle } from '../../../../../shared/application/services/multiple-choice-attempt.js';
+import { attemptShuffle, seedFrom } from '../../../../../shared/application/services/multiple-choice-attempt.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { ExercisePathSnapshot } from '../../../domain/entities/attempt.entity.js';
 
@@ -192,6 +198,15 @@ export interface StartAttemptResult {
  * judge computes. It has two live document shapes like `short_answer`, and one of them has
  * nothing to project.
  *
+ * `multiple_choice_group` is the tenth, and the one that inverts the usual reason for
+ * taking both columns. Nothing in its content has to be withheld — the column each
+ * statement belongs in, the author's line and the quote that proves it are all in the key
+ * column already. What the key column decides is which statements *exist*: a row reaches
+ * the student only once it has text and a marked column, so a projection built from the
+ * content alone could not tell a finished statement from a half-written one and would ship
+ * both. It deals its row order from the attempt, exactly as `multiple_choice` deals its
+ * options, and for the same reason; the answer columns never move.
+ *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
  */
@@ -308,6 +323,44 @@ function withheldWhereNeeded(
       exerciseContent: ssToStudentProjection(
         ssFromPersisted(exercise.content, exercise.expectedAnswers),
         shuffled,
+      ),
+      expectedAnswers: null,
+    };
+  }
+
+  if (templateCode === MULTIPLE_CHOICE_GROUP) {
+    // A document of the old form: `items[]` with their own options, its key in the other
+    // column — which is what PRACTICE mode has always shipped for it. Projecting it would
+    // find no `rows` and blank the exercise.
+    if (!isMultipleChoiceGroupDocument(exercise.content)) {
+      return { exerciseContent: exercise.content, expectedAnswers: exercise.expectedAnswers };
+    }
+
+    // A `graded` envelope content-service has already projected, reaching here only
+    // because `documentToDealFrom` could not fetch the unprojected document. Handed on as
+    // it stands: this projection needs the key column to know which statements are
+    // finished, and a second pass over a projection has no key left to ask — it would
+    // hand back an empty table rather than a smaller one.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      // Both columns, and not for the reason `match_pairs` needs both: nothing in this
+      // content column is a secret. The key column is what says whether a *row exists* —
+      // a statement is shown only once the author has marked which column it belongs in —
+      // so `content` alone cannot tell a finished statement from a half-written one, and a
+      // call with no key returns an empty table rather than a leak (plan 54 §1, fact 2).
+      //
+      // The order is dealt here and seeded by the attempt, like `multiple_choice`'s and
+      // for the same reason: in `graded` mode content-service deals with the CSPRNG and
+      // then caches the envelope by `(exerciseId, language, mode)`, so the order would
+      // belong to a Redis entry rather than to the attempt. Rows only — the columns are
+      // the table's header and never move.
+      exerciseContent: mcgToStudentProjection(
+        exercise.content,
+        exercise.expectedAnswers,
+        <T,>(items: readonly T[]): T[] => mcgShuffled(items, seedFrom(attemptId)),
       ),
       expectedAnswers: null,
     };
@@ -542,7 +595,11 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
    * means nothing — and an attempt living across the expiry would find its card re-dealt
    * under it, closed questions included (plan 53 §8 Q7).
    *
-   * So for this template, and only where the envelope has already been projected, the
+   * `multiple_choice_group` joins on exactly the same argument one template later: it
+   * deals the *row* order rather than the option order, and a cached deal would give a
+   * cohort the same shuffled table and re-deal it under an attempt that outlived the TTL.
+   *
+   * So for these templates, and only where the envelope has already been projected, the
    * document is fetched a second time as `PRACTICE` and dealt here, seeded by the attempt.
    * The key that arrives with it is read by the projection and does not leave: the
    * `multiple_choice` branch answers `expectedAnswers: null` on both paths. The extra
@@ -560,10 +617,24 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
     checkMode: string,
   ): Promise<ExerciseDefinition['exercise']> {
     const exercise = definition.exercise;
-    if (checkMode === 'PRACTICE' || exercise.templateCode !== MULTIPLE_CHOICE) return exercise;
-    // The old single-question form travels unprojected in both modes — there is no deal
-    // to take back, and its key is what `PRACTICE` has always shipped for it.
-    if (!isMultipleChoiceDocument(exercise.content)) return exercise;
+    if (checkMode === 'PRACTICE') return exercise;
+    if (
+      exercise.templateCode !== MULTIPLE_CHOICE &&
+      exercise.templateCode !== MULTIPLE_CHOICE_GROUP
+    ) {
+      return exercise;
+    }
+    // The old forms travel unprojected in both modes — there is no deal to take back, and
+    // their keys are what `PRACTICE` has always shipped for them.
+    if (exercise.templateCode === MULTIPLE_CHOICE && !isMultipleChoiceDocument(exercise.content)) {
+      return exercise;
+    }
+    if (
+      exercise.templateCode === MULTIPLE_CHOICE_GROUP &&
+      !isMultipleChoiceGroupDocument(exercise.content)
+    ) {
+      return exercise;
+    }
     // A key in hand means this envelope was never projected, so it is already the
     // document. Only the projected one — answered with no key — needs fetching again.
     if (exercise.expectedAnswers !== null && exercise.expectedAnswers !== undefined) {

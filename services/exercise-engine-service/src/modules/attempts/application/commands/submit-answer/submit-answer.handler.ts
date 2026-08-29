@@ -11,6 +11,11 @@ import { TEMPLATE_CODE as SHORT_ANSWER } from '@ssz/shared-kernel/short-answer';
 import { TEMPLATE_CODE as SENTENCE_SCHEMA } from '@ssz/shared-kernel/sentence-schema';
 import { TEMPLATE_CODE as MULTIPLE_CHOICE } from '@ssz/shared-kernel/multiple-choice';
 import {
+  maxAttempts as mcgMaxAttempts,
+  readContent as mcgReadContent,
+  TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP,
+} from '@ssz/shared-kernel/multiple-choice-group';
+import {
   fromPersisted as writingTaskFromPersisted,
   snapshotRubric,
   TEMPLATE_CODE as WRITING_TASK,
@@ -26,6 +31,7 @@ import { FEEDBACK_GENERATOR, type IFeedbackGenerator } from '../../../../../shar
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { Attempt } from '../../../domain/entities/attempt.entity.js';
+import { InvalidAttemptTransitionError } from '../../../domain/exceptions/attempt.errors.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
 
@@ -91,6 +97,15 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
   if (isTranslateCode(templateCode)) return translateRouting(details);
   if (templateCode === SHORT_ANSWER) return shortAnswerVerdicts(details);
   if (templateCode === SENTENCE_SCHEMA) return details;
+  // `multiple_choice_group` travels whole, and unusually it is the *validator* that
+  // decided how much of the key belongs in it rather than this function. A check reports
+  // which statements are wrong on every pass; the right column, the author's line and the
+  // proving quote appear only once the table is closed — all right, revealed, or out of
+  // attempts — because sending them beside a row that still has a retry left would make
+  // the retry theatre (plan 54 §3.3, README "showKey = closed && settings.revealKey").
+  // What is added here beyond the verdicts is the state the runner draws from: how many
+  // checks are left, and which rows the server has frozen.
+  if (templateCode === MULTIPLE_CHOICE_GROUP) return details;
   return undefined;
 }
 
@@ -112,6 +127,7 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
  */
 function withRecordedReveals(attempt: Attempt, submitted: unknown): unknown {
   if (attempt.templateCode === MULTIPLE_CHOICE) return withRecordedPicks(attempt, submitted);
+  if (attempt.templateCode === MULTIPLE_CHOICE_GROUP) return withRecordedChecks(attempt, submitted);
   if (attempt.templateCode !== SENTENCE_SCHEMA) return submitted;
 
   const revealed = new Set(
@@ -300,6 +316,122 @@ function describeGapResults(
 }
 
 /**
+ * What the previous check of a `multiple_choice_group` table left behind.
+ *
+ * Read off the attempt's own `validationDetails`, which is where the validator wrote it,
+ * and which is the reason this template needs no column of its own. Plans 51, 52 and 53
+ * each added one — `answered_questions`, `checked_rows`, `picked_options` — because in
+ * those types the work is handed in piece by piece and the server has to remember where
+ * the student got to. Here the unit of submission is the whole table, so there is nothing
+ * half-done to remember between requests: everything a second check needs was already
+ * decided by the first one and written down when it scored (plan 54 §3.3).
+ *
+ * Three facts come back out:
+ *
+ *   * `closed` — the table was finished by the last check (all right, revealed, or out of
+ *     attempts), so there is no further check to allow;
+ *   * `locked` — the rows frozen under `lockCorrect`, cumulative;
+ *   * `firstAnswers` — what was picked on the *first* check of this table.
+ *
+ * The last is the answer to plan 54 §8 Q4, and not the one Q4 proposed. Option A assumed
+ * the first check's details would still be there to read: they are not — `score()` writes
+ * `validationDetails` afresh every time, so a re-check overwrites them. Option B was a
+ * column on the attempt. What happens instead is that the value is *carried forward*: each
+ * check copies the previous check's `firstAnswer` per row into its own details, so the
+ * first pass survives in the latest record without a migration and without a second place
+ * to keep it. IMPLEMENTATION.md asks for `firstAnswer` because per-row first-attempt error
+ * rates are what say whether a cohort understood the text; where it is stored was never
+ * the point.
+ */
+interface PreviousCheck {
+  closed: boolean;
+  locked: string[];
+  firstAnswers: Record<string, string | null>;
+}
+
+function previousCheck(attempt: Attempt): PreviousCheck {
+  const empty: PreviousCheck = { closed: false, locked: [], firstAnswers: {} };
+  const details = attempt.validationDetails;
+  if (typeof details !== 'object' || details === null) return empty;
+
+  const { closed, locked, items } = details as {
+    closed?: unknown;
+    locked?: unknown;
+    items?: unknown;
+  };
+
+  const firstAnswers: Record<string, string | null> = {};
+  if (Array.isArray(items)) {
+    for (const raw of items) {
+      if (typeof raw !== 'object' || raw === null) continue;
+      const { itemId, firstAnswer } = raw as { itemId?: unknown; firstAnswer?: unknown };
+      if (typeof itemId !== 'string') continue;
+      firstAnswers[itemId] = typeof firstAnswer === 'string' ? firstAnswer : null;
+    }
+  }
+
+  return {
+    closed: closed === true,
+    locked: Array.isArray(locked) ? locked.filter((id): id is string => typeof id === 'string') : [],
+    firstAnswers,
+  };
+}
+
+/**
+ * A `multiple_choice_group` submission with the attempt's own facts written over it.
+ *
+ * Three of the four inputs the grader needs are not the client's to state, and each of
+ * them is worth one request to a client that could: which check this is (the budget),
+ * which rows are frozen (`lockCorrect`), and what was picked the first time round. The
+ * fourth, `reveal`, *is* the student's — «Vis fasit» is giving up on the retry, and it
+ * closes the table with the score it already had.
+ */
+function withRecordedChecks(attempt: Attempt, submitted: unknown): unknown {
+  const previous = previousCheck(attempt);
+  const base =
+    typeof submitted === 'object' && submitted !== null && !Array.isArray(submitted)
+      ? (submitted as Record<string, unknown>)
+      : {};
+
+  return {
+    ...base,
+    // `recheckCount` has already been incremented for this check by the time this runs,
+    // so the first check is 1 and the first re-check is 2 — the numbering the attempt
+    // budget is written in (`maxAttempts`).
+    attempt: attempt.recheckCount + 1,
+    locked: previous.locked,
+    firstAnswers: previous.firstAnswers,
+  };
+}
+
+/**
+ * The number of checks this attempt is allowed, or `undefined` for unlimited.
+ *
+ * `word_bank_gap_fill` is unlimited by its own spec and is why `reopenForRecheck` exists
+ * at all. `multiple_choice_group` brought a budget with it: `settings.retry` is 1, 2 or 99
+ * checks of the whole table, and the setting is the author's, read off the document rather
+ * than off the attempt — the learner is working under the setting as it stands now.
+ */
+function recheckBudget(templateCode: string, content: unknown): number | undefined {
+  if (templateCode !== MULTIPLE_CHOICE_GROUP) return undefined;
+  return mcgMaxAttempts(mcgReadContent(content).settings);
+}
+
+/**
+ * The refusal that the budget cannot express: a table the last check *closed*.
+ *
+ * A table closes for three reasons and only one of them is the budget running out. The
+ * other two — every row right, and «Vis fasit» — leave checks unspent, and without this a
+ * student who revealed the key could then spend them on the answers they had just been
+ * shown.
+ */
+function refuseClosedTable(attempt: Attempt): InvalidAttemptTransitionError | null {
+  if (attempt.templateCode !== MULTIPLE_CHOICE_GROUP) return null;
+  if (!previousCheck(attempt).closed) return null;
+  return new InvalidAttemptTransitionError('This table is closed and cannot be checked again');
+}
+
+/**
  * How much the validator closed by itself, out of how many items.
  *
  * Written onto the attempt when it routes for review so the queue can show "the
@@ -372,33 +504,12 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
 
     attempt.addTimeSpent(command.timeSpentSeconds);
 
-    const submittedAnswer = withRecordedReveals(attempt, command.submittedAnswer);
-
-    // A practice attempt that has already been checked is reopened rather than
-    // refused: checks are unlimited, and the attempt is the thing being worked on.
-    // The entity decides whether this one may be — graded attempts and revealed
-    // ones may not — and the refusal reaches the caller as it would for any
-    // invalid transition.
-    if (attempt.status === 'SCORED') {
-      const reopened = attempt.reopenForRecheck();
-      if (reopened.isFail) {
-        return Result.fail(reopened.error as AttemptDomainError);
-      }
-    }
-
-    const answerHash = createHash('sha256')
-      .update(JSON.stringify(submittedAnswer))
-      .digest('hex');
-
-    const submitResult = attempt.submit(submittedAnswer, answerHash);
-    if (submitResult.isFail) {
-      return Result.fail(submitResult.error as AttemptDomainError);
-    }
-
-    // Fetch exercise definition for validation. Always requested as PRACTICE — the
-    // server needs the real expectedAnswers to score regardless of the attempt's
-    // checkMode; GRADED only changes what the *client* was shown at start-attempt
-    // and whether the answer may be revealed in feedback below.
+    // Fetched before anything is decided, rather than after the submission is written
+    // onto the attempt. Always requested as PRACTICE — the server needs the real
+    // expectedAnswers to score regardless of the attempt's checkMode; GRADED only
+    // changes what the *client* was shown at start-attempt and whether the answer may
+    // be revealed in feedback below. It moved up here because the recheck budget is a
+    // setting on the document, and the budget is spent before the answer is taken.
     const defResult = await this.contentClient.getExerciseForAttempt(
       attempt.exerciseId,
       attempt.targetLanguage,
@@ -408,6 +519,36 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       return Result.fail(defResult.error);
     }
     const def = defResult.value;
+
+    // A practice attempt that has already been checked is reopened rather than
+    // refused: the attempt is the thing being worked on. The entity decides whether
+    // this one may be — graded attempts, revealed ones, and now ones whose budget is
+    // spent — and the refusal reaches the caller as it would for any invalid
+    // transition.
+    if (attempt.status === 'SCORED') {
+      const closed = refuseClosedTable(attempt);
+      if (closed) return Result.fail(closed);
+
+      const reopened = attempt.reopenForRecheck(
+        recheckBudget(attempt.templateCode, def.exercise.content),
+      );
+      if (reopened.isFail) {
+        return Result.fail(reopened.error as AttemptDomainError);
+      }
+    }
+
+    // After the reopen, deliberately: the facts written over the submission include
+    // which check this is, and `recheckCount` is only current once it has happened.
+    const submittedAnswer = withRecordedReveals(attempt, command.submittedAnswer);
+
+    const answerHash = createHash('sha256')
+      .update(JSON.stringify(submittedAnswer))
+      .digest('hex');
+
+    const submitResult = attempt.submit(submittedAnswer, answerHash);
+    if (submitResult.isFail) {
+      return Result.fail(submitResult.error as AttemptDomainError);
+    }
 
     const checkSettings: Record<string, unknown> = {
       ...(def.template.defaultCheckSettings ?? {}),
@@ -466,7 +607,10 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       });
     }
 
-    const passed = outcome.score >= passingThreshold;
+    // The platform's threshold, unless the validator knows a better one. Only
+    // `multiple_choice_group` does: its pass mark is a field of the document the author
+    // set in step 3 and the student is shown as «kravet er T%» (plan 54 §3.4).
+    const passed = outcome.passed ?? outcome.score >= passingThreshold;
     const feedbackResult = await this.feedbackGenerator.generate({
       templateCode: attempt.templateCode,
       correct: outcome.correct,
