@@ -127,6 +127,16 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   translate_from_target: { successCap: 'GOOD', failureFloor: 'HARD' },
 
   // Some of the answer is given. The words are on screen; the recall is which one.
+  //
+  // Plan 53 kept the rating and replaced the ground under `multiple_choice`. A question
+  // is now one of a set played against the server, and the author may hand out a second
+  // try and a 50/50 that removes wrong options: a success can therefore be arrived at by
+  // elimination rather than recalled, and the event that reaches here reports only where
+  // the learner ended up, not how many tries it took. That is a weaker argument than the
+  // sentence above, not a stronger one — the same caveat plan 52 wrote onto
+  // `sentence_schema` and plan 49 onto `match_pairs` — and it pushes down, while
+  // CLOSED_SET is already the cautious end of recognition. So the row stands; it is here
+  // by decision, not by oversight. The two codes below still hold the plain reading.
   multiple_choice: CLOSED_SET,
   multiple_choice_group: CLOSED_SET,
   word_bank_fill: CLOSED_SET,
