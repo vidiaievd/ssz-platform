@@ -5713,151 +5713,199 @@
       "template": "multiple_choice_group",
       "instruction": "Riktig eller galt? Velg svaret som stemmer med teksten 1A.",
       "content": {
-        "options": [
+        "title": "Riktig eller galt — tekst 1A",
+        "instruction": "Er påstandene riktige eller gale? Svar ut fra teksten om Bartek.",
+        "source": {
+          "mode": "inline",
+          "label": "Tekst 1A — Bartek søker ny jobb",
+          "text": "Bartek har jobbet som elektriker i det samme firmaet i tre år. Han trives med kollegaene, men han har lyst til å utvikle seg. Han vil gjerne ha mer ansvar og en høyere lønn. En kveld sitter han foran datamaskinen og leser stillingsannonser på nettet. Plutselig finner han en annonse som ser interessant ut.\n\nErfaren elektriker søkes\n\nNordby Elektro AS er et voksende firma med tolv ansatte. Vi trenger en selvstendig og nøyaktig elektriker som kan lede mindre prosjekter. Vi tilbyr et godt arbeidsmiljø, konkurransedyktig lønn og gode muligheter for videreutvikling.\n\nVi ønsker at du:\n– har fagbrev som elektriker\n– har minst tre års erfaring\n– snakker og skriver norsk godt\n– har førerkort klasse B\n\nSøknad med CV sendes til post@nordbyelektro.no innen 15. mars. Spørsmål? Ring avdelingsleder Kari Holm på 55 12 34 56.\n\nBartek blir ivrig. Dette passer perfekt for ham! Han har fagbrev, han har mer enn tre års erfaring, og norsken hans har blitt mye bedre det siste året. Han bestemmer seg for å søke med en gang.\n\nFørst skriver han en søknad. Han forteller hvorfor han vil ha jobben, og hva han kan tilby firmaet. Han skriver at han er en ansvarlig og løsningsorientert person som liker å jobbe i team. Deretter oppdaterer han CV-en sin. Han legger til all erfaringen fra det nåværende firmaet, og han passer på at alt ser ryddig og oversiktlig ut.\n\nAnne hjelper ham med å lese gjennom søknaden. Hun sier at den er god, men at han har noen skrivefeil. Bartek retter feilene, og så sender han søknaden. Nå må han bare vente. «Lykke til!» sier Anne. «Jeg krysser fingrene for deg.»"
+        },
+        "columns": [
           {
-            "id": "r",
-            "text": "Riktig"
+            "id": "c-riktig",
+            "label": "Riktig",
+            "short": "R"
           },
           {
-            "id": "g",
-            "text": "Galt"
+            "id": "c-galt",
+            "label": "Galt",
+            "short": "G"
           }
         ],
-        "items": [
+        "rows": [
           {
             "id": "1",
-            "question": "Annonsen ber om en elektriker med fagbrev."
+            "text": "Annonsen ber om en elektriker med fagbrev."
           },
           {
             "id": "2",
-            "question": "Firmaet vil ha en person med minst fem års erfaring."
+            "text": "Firmaet vil ha en person med minst fem års erfaring."
           },
           {
             "id": "3",
-            "question": "Bartek bestemmer seg for å vente en uke før han søker."
+            "text": "Bartek bestemmer seg for å vente en uke før han søker."
           },
           {
             "id": "4",
-            "question": "Anne synes søknaden er god, men med noen skrivefeil."
+            "text": "Anne synes søknaden er god, men med noen skrivefeil."
           }
         ],
-        "context": "Tekst 1A — Bartek søker ny jobb."
+        "settings": {
+          "numbering": true,
+          "shuffleRows": false,
+          "layout": "auto",
+          "showText": true,
+          "retry": "one",
+          "lockCorrect": true,
+          "showWhy": "wrong",
+          "revealKey": true,
+          "passThreshold": 70,
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "items": [
-          {
-            "id": "1",
-            "correct_option_ids": [
-              "r"
-            ]
+        "rows": {
+          "1": {
+            "answer": "c-riktig",
+            "why": "Fagbrev står først på lista over det firmaet ønsker seg.",
+            "quote": "har fagbrev som elektriker"
           },
-          {
-            "id": "2",
-            "correct_option_ids": [
-              "g"
-            ],
-            "explanation": "Annonsen ber om minst tre års erfaring, ikke fem."
+          "2": {
+            "answer": "c-galt",
+            "why": "Annonsen ber om minst tre års erfaring, ikke fem.",
+            "quote": "har minst tre års erfaring"
           },
-          {
-            "id": "3",
-            "correct_option_ids": [
-              "g"
-            ],
-            "explanation": "Han bestemmer seg for å søke med en gang."
+          "3": {
+            "answer": "c-galt",
+            "why": "Han venter ikke: han bestemmer seg for å søke med en gang.",
+            "quote": "Han bestemmer seg for å søke med en gang."
           },
-          {
-            "id": "4",
-            "correct_option_ids": [
-              "r"
-            ]
+          "4": {
+            "answer": "c-riktig",
+            "why": "Anne sier begge deler når hun har lest gjennom søknaden.",
+            "quote": "Hun sier at den er god, men at han har noen skrivefeil."
           }
-        ]
+        }
       }
     },
     {
       "key": "b1-1a-mcg-02",
-      "template": "multiple_choice_group",
+      "template": "multiple_choice",
       "instruction": "Hva betyr ordene? Velg riktig forklaring for hvert ord.",
       "content": {
-        "items": [
+        "title": "Ord fra tekst 1A",
+        "instruction": "Hva betyr ordene? Velg riktig forklaring.",
+        "questions": [
           {
             "id": "1",
-            "question": "selvstendig",
+            "kind": "vocab",
+            "context": "",
+            "stem": "selvstendig",
             "options": [
               {
                 "id": "a",
-                "text": "som trenger mye hjelp"
+                "text": "som trenger mye hjelp",
+                "fixed": false
               },
               {
                 "id": "b",
-                "text": "som kan jobbe alene"
+                "text": "som kan jobbe alene",
+                "fixed": false
               },
               {
                 "id": "c",
-                "text": "som er sjef"
+                "text": "som bestemmer over andre",
+                "fixed": false
               }
             ]
           },
           {
             "id": "2",
-            "question": "oversiktlig",
+            "kind": "vocab",
+            "context": "",
+            "stem": "oversiktlig",
             "options": [
               {
                 "id": "a",
-                "text": "rotete"
+                "text": "rotete og uryddig",
+                "fixed": false
               },
               {
                 "id": "b",
-                "text": "lett å få oversikt over"
+                "text": "lett å få oversikt over",
+                "fixed": false
               },
               {
                 "id": "c",
-                "text": "veldig lang"
+                "text": "veldig lang og detaljert",
+                "fixed": false
               }
             ]
           },
           {
             "id": "3",
-            "question": "et fagbrev",
+            "kind": "vocab",
+            "context": "",
+            "stem": "et fagbrev",
             "options": [
               {
                 "id": "a",
-                "text": "et vanlig brev"
+                "text": "et vanlig brev i posten",
+                "fixed": false
               },
               {
                 "id": "b",
-                "text": "et bevis på fagutdanning"
+                "text": "et bevis på fagutdanning",
+                "fixed": false
               },
               {
                 "id": "c",
-                "text": "en søknad"
+                "text": "en søknad om jobb",
+                "fixed": false
               }
             ]
           }
         ],
-        "context": "Ord fra tekst 1A."
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "items": [
-          {
-            "id": "1",
-            "correct_option_ids": [
-              "b"
-            ]
+        "questions": {
+          "1": {
+            "correctOptionId": "b",
+            "why": "Selvstendig betyr at man klarer å jobbe på egen hånd, uten at noen forteller hva som skal gjøres. Annonsen ber om det fordi den nye elektrikeren skal lede mindre prosjekter.",
+            "options": {
+              "a": "Det er nettopp det motsatte: en selvstendig arbeidstaker trenger lite hjelp.",
+              "c": "Å bestemme over andre er å være leder eller sjef. Man kan være selvstendig uten å ha noen under seg."
+            }
           },
-          {
-            "id": "2",
-            "correct_option_ids": [
-              "b"
-            ]
+          "2": {
+            "correctOptionId": "b",
+            "why": "Oversiktlig beskriver noe som er ordnet slik at man raskt ser hva som står hvor. Bartek passer på at CV-en er det.",
+            "options": {
+              "a": "Rotete er det motsatte av oversiktlig.",
+              "c": "Lengden har ingenting med saken å gjøre — en kort tekst kan være rotete, og en lang kan være oversiktlig."
+            }
           },
-          {
-            "id": "3",
-            "correct_option_ids": [
-              "b"
-            ]
+          "3": {
+            "correctOptionId": "b",
+            "why": "Et fagbrev er dokumentet som viser at man har fullført en fagutdanning. Annonsen krever det, og Bartek har det.",
+            "options": {
+              "a": "Ordet «brev» er felles, men et fagbrev sendes ikke i posten — det er et vitnemål.",
+              "c": "Søknaden er det Bartek skriver selv. Fagbrevet er noe han har fra før."
+            }
           }
-        ]
+        }
       }
     },
     {
@@ -7663,152 +7711,89 @@
     },
     {
       "key": "b1-1c-rg",
-      "template": "multiple_choice",
+      "template": "multiple_choice_group",
       "instruction": "Прочитайте утверждение и решите, верно ли оно по тексту 1C.",
       "content": {
         "title": "Riktig eller galt — norsk arbeidsliv",
-        "instruction": "Riktig eller galt? Svar ut fra teksten om norsk arbeidsliv.",
-        "questions": [
+        "instruction": "Er påstandene riktige eller gale? Svar ut fra teksten om norsk arbeidsliv.",
+        "source": {
+          "mode": "inline",
+          "label": "Tekst 1C — Norsk arbeidsliv",
+          "text": "Det norske arbeidslivet er kjent for å være ganske flatt. Det betyr at avstanden mellom sjefen og de ansatte ikke er så stor. På mange arbeidsplasser sier de ansatte «du» til sjefen og kaller ham eller henne ved fornavn. Mange innvandrere synes dette er uvant i begynnelsen, fordi det er mer formelt i hjemlandet deres.\n\nI Norge er det vanlig at de ansatte er med på å bestemme. Sjefen spør ofte hva medarbeiderne mener før han eller hun tar en avgjørelse. Møter er en viktig del av arbeidsdagen, og alle får lov til å si sin mening. Det er lov å være uenig med sjefen, så lenge man er saklig og høflig.\n\nEn annen viktig ting er balansen mellom jobb og fritid. Nordmenn jobber vanligvis 37,5 timer i uka, og de fleste går hjem klokka fire. Overtid er ikke så vanlig, og mange prioriterer familie og fritid høyt. Om sommeren har de fleste fem uker ferie.\n\nArbeidstakere i Norge har mange rettigheter. Man har rett til fast ansettelse, sykepenger hvis man blir syk, og foreldrepermisjon når man får barn. De fleste arbeidsplasser er organisert gjennom en fagforening som forhandler om lønn og arbeidsvilkår. Hvis det oppstår en konflikt, kan fagforeningen hjelpe den ansatte.\n\nEt typisk norsk fenomen er «kaffepausen». Flere ganger om dagen samles kollegaene for å ta en kopp kaffe og prate litt sammen. Det er ikke bare en pause – det er også en måte å bli kjent med hverandre på. Mange nordmenn sier at de beste idéene kommer nettopp i kaffepausen.\n\nFor mange som er nye i Norge, tar det tid å forstå de uskrevne reglene på arbeidsplassen. Men de fleste opplever at det norske arbeidslivet er trygt, inkluderende og rettferdig."
+        },
+        "columns": [
+          {
+            "id": "c-riktig",
+            "label": "Riktig",
+            "short": "R"
+          },
+          {
+            "id": "c-galt",
+            "label": "Galt",
+            "short": "G"
+          }
+        ],
+        "rows": [
           {
             "id": "q1",
-            "kind": "reading",
-            "context": "",
-            "stem": "I Norge sier de ansatte ofte «du» til sjefen.",
-            "options": [
-              {
-                "id": "r",
-                "text": "Riktig",
-                "fixed": false
-              },
-              {
-                "id": "g",
-                "text": "Galt",
-                "fixed": false
-              }
-            ]
+            "text": "I Norge sier de ansatte ofte «du» til sjefen."
           },
           {
             "id": "q2",
-            "kind": "reading",
-            "context": "",
-            "stem": "Overtid er veldig vanlig i Norge.",
-            "options": [
-              {
-                "id": "r",
-                "text": "Riktig",
-                "fixed": false
-              },
-              {
-                "id": "g",
-                "text": "Galt",
-                "fixed": false
-              }
-            ]
+            "text": "Overtid er veldig vanlig i Norge."
           },
           {
             "id": "q3",
-            "kind": "reading",
-            "context": "",
-            "stem": "De fleste har fem uker ferie om sommeren.",
-            "options": [
-              {
-                "id": "r",
-                "text": "Riktig",
-                "fixed": false
-              },
-              {
-                "id": "g",
-                "text": "Galt",
-                "fixed": false
-              }
-            ]
+            "text": "De fleste har fem uker ferie om sommeren."
           },
           {
             "id": "q4",
-            "kind": "reading",
-            "context": "",
-            "stem": "Det er ikke lov å være uenig med sjefen.",
-            "options": [
-              {
-                "id": "r",
-                "text": "Riktig",
-                "fixed": false
-              },
-              {
-                "id": "g",
-                "text": "Galt",
-                "fixed": false
-              }
-            ]
+            "text": "Det er ikke lov å være uenig med sjefen."
           },
           {
             "id": "q5",
-            "kind": "reading",
-            "context": "",
-            "stem": "En fagforening forhandler om lønn.",
-            "options": [
-              {
-                "id": "r",
-                "text": "Riktig",
-                "fixed": false
-              },
-              {
-                "id": "g",
-                "text": "Galt",
-                "fixed": false
-              }
-            ]
+            "text": "En fagforening forhandler om lønn."
           }
         ],
         "settings": {
-          "letters": false,
-          "layout": "grid",
-          "shuffle": false,
-          "shuffleQuestions": false,
-          "instant": true,
-          "retry": "none",
-          "eliminate": false,
-          "showWhyWrong": true,
-          "explainOnCorrect": true,
+          "numbering": true,
+          "shuffleRows": false,
+          "layout": "auto",
+          "showText": true,
+          "retry": "one",
+          "lockCorrect": true,
+          "showWhy": "wrong",
+          "revealKey": true,
+          "passThreshold": 70,
           "progress": true
         }
       },
       "expectedAnswers": {
-        "questions": {
+        "rows": {
           "q1": {
-            "correctOptionId": "r",
+            "answer": "c-riktig",
             "why": "Teksten kaller norsk arbeidsliv flatt: på mange arbeidsplasser sier de ansatte «du» til sjefen og bruker fornavnet.",
-            "options": {
-              "g": "«Galt» ville passet i et land der man tiltaler sjefen formelt. Teksten sier at mange innvandrere synes nettopp dette er uvant i begynnelsen."
-            }
+            "quote": "På mange arbeidsplasser sier de ansatte «du» til sjefen og kaller ham eller henne ved fornavn."
           },
           "q2": {
-            "correctOptionId": "g",
+            "answer": "c-galt",
             "why": "Nordmenn jobber vanligvis 37,5 timer i uka og går hjem klokka fire. Teksten sier rett ut at overtid ikke er så vanlig.",
-            "options": {
-              "r": "Overtid finnes, men det er ikke normalen. Teksten framhever balansen mellom jobb og fritid: mange prioriterer familie og fritid høyt."
-            }
+            "quote": "Overtid er ikke så vanlig, og mange prioriterer familie og fritid høyt."
           },
           "q3": {
-            "correctOptionId": "r",
+            "answer": "c-riktig",
             "why": "Det står i avsnittet om jobb og fritid: om sommeren har de fleste fem uker ferie.",
-            "options": {
-              "g": "Fem uker er tallet teksten oppgir, og det gjelder de fleste — ikke et unntak for noen få."
-            }
+            "quote": "Om sommeren har de fleste fem uker ferie."
           },
           "q4": {
-            "correctOptionId": "g",
+            "answer": "c-galt",
             "why": "Det er lov å være uenig med sjefen, så lenge man er saklig og høflig. Alle får si sin mening i møtene.",
-            "options": {
-              "r": "Uenighet er ikke forbudt. Det er formen som teller: saklig og høflig."
-            }
+            "quote": "Det er lov å være uenig med sjefen, så lenge man er saklig og høflig."
           },
           "q5": {
-            "correctOptionId": "r",
+            "answer": "c-riktig",
             "why": "De fleste arbeidsplasser er organisert gjennom en fagforening, og den forhandler om lønn og arbeidsvilkår.",
-            "options": {
-              "g": "Dette er nettopp fagforeningens oppgave. Den hjelper også den ansatte hvis det oppstår en konflikt."
-            }
+            "quote": "De fleste arbeidsplasser er organisert gjennom en fagforening som forhandler om lønn og arbeidsvilkår."
           }
         }
       }
