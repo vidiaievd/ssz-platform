@@ -69,8 +69,10 @@ export interface ListMySubmissionsResult {
  * The selection is the invariant, not the `status` filter: only `ROUTED_FOR_REVIEW`,
  * `RETURNED`, and `SCORED` attempts a person actually signed make the list at all — a
  * machine-scored MCQ never appears here, `status=all` just stops narrowing further
- * (plan 47 §1, invariant 1 is enforced by never reading these attempts' `submittedAnswer` or
- * `validationDetails` in the first place, not by trimming them after).
+ * (plan 47 §1, invariant 1 is enforced below by mapping each attempt onto
+ * `MySubmissionEntry` field by field rather than forwarding the row — `submittedAnswer`
+ * and `validationDetails` have nowhere to ride along on, even though the query itself
+ * still reads them off the database like any other column).
  */
 @QueryHandler(ListMySubmissionsQuery)
 export class ListMySubmissionsHandler implements IQueryHandler<ListMySubmissionsQuery> {

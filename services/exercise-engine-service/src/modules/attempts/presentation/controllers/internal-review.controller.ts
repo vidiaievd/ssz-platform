@@ -293,10 +293,12 @@ export class InternalReviewController {
    * is the learner's own history across every school and course they have ever submitted
    * to, and unlike the teacher-facing routes above there is no scope here to narrow by.
    *
-   * `reviewDecisions`, `validationDetails`, and `submittedAnswer` are never read for this
-   * route in the first place (`ListMySubmissionsHandler`) — the field a learner must never
-   * see (the answer key, an unreleased per-sentence note) is not filtered out of the
-   * response, it never enters it. A snapshot test on this route's fields is the guard.
+   * `reviewDecisions`, `validationDetails`, and `submittedAnswer` never leave
+   * `ListMySubmissionsHandler`: it maps each attempt onto `MySubmissionEntry` field by
+   * field rather than forwarding the row, so the field a learner must never see (the
+   * answer key, an unreleased per-sentence note) has nowhere to ride along on even
+   * though Prisma still reads it off the row internally. A snapshot test on this
+   * route's fields is the guard.
    */
   @Get('review/mine')
   async listMySubmissions(
