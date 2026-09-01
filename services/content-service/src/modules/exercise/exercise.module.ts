@@ -20,6 +20,7 @@ import { UpdateExerciseHandler } from './application/commands/update-exercise/up
 import { DeleteExerciseHandler } from './application/commands/delete-exercise/delete-exercise.handler.js';
 import { UpsertExerciseInstructionHandler } from './application/commands/upsert-instruction/upsert-instruction.handler.js';
 import { DeleteExerciseInstructionHandler } from './application/commands/delete-instruction/delete-instruction.handler.js';
+import { SetExerciseSkillsHandler } from './application/commands/set-exercise-skills/set-exercise-skills.handler.js';
 
 // Query handlers
 import { GetExercisesHandler } from './application/queries/get-exercises/get-exercises.handler.js';
@@ -28,6 +29,7 @@ import { GetExerciseForDisplayHandler } from './application/queries/get-exercise
 import { GetExerciseWithAnswersHandler } from './application/queries/get-exercise-with-answers/get-exercise-with-answers.handler.js';
 import { GetExerciseInstructionsHandler } from './application/queries/get-exercise-instructions/get-exercise-instructions.handler.js';
 import { GetExerciseEnvelopeHandler } from './application/queries/get-exercise-envelope/get-exercise-envelope.handler.js';
+import { GetExerciseAxesHandler } from './application/queries/get-exercise-axes/get-exercise-axes.handler.js';
 
 // Controller
 import { ExerciseController } from './presentation/controllers/exercise.controller.js';
@@ -38,6 +40,7 @@ const CommandHandlers = [
   DeleteExerciseHandler,
   UpsertExerciseInstructionHandler,
   DeleteExerciseInstructionHandler,
+  SetExerciseSkillsHandler,
 ];
 
 const QueryHandlers = [
@@ -47,6 +50,7 @@ const QueryHandlers = [
   GetExerciseWithAnswersHandler,
   GetExerciseInstructionsHandler,
   GetExerciseEnvelopeHandler,
+  GetExerciseAxesHandler,
 ];
 
 @Module({

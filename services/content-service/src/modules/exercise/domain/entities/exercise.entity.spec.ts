@@ -21,6 +21,7 @@ function makeExercise(): ExerciseEntity {
     updatedAt: LIVE_AT,
     deletedAt: null,
     draft: null,
+    skillOverride: null,
     instructions: null,
   });
 }
@@ -105,5 +106,52 @@ describe('ExerciseEntity drafts', () => {
     exercise.discardDraft();
 
     expect(exercise.authoringContent).toEqual({ sentences: ['live'] });
+  });
+});
+
+describe('ExerciseEntity skill axes override', () => {
+  it('records the author\'s word with the marker that makes it readable', () => {
+    const exercise = makeExercise();
+
+    exercise.setSkillOverride({ skills: ['listening'], focus: ['grammar'] });
+
+    expect(exercise.skillOverride?.skills).toEqual(['listening']);
+    expect(exercise.skillOverride?.focus).toEqual(['grammar']);
+    expect(exercise.skillOverride?.setAt).toBeInstanceOf(Date);
+  });
+
+  it('keeps "counts towards nothing" apart from "nobody has said"', () => {
+    // Two empty lists with the marker set is a statement about a warm-up; withdrawing
+    // the override is not. Without the marker the database could not tell them apart,
+    // and every derived axis would be one empty save away from being lost.
+    const exercise = makeExercise();
+
+    exercise.setSkillOverride({ skills: [], focus: [] });
+    expect(exercise.skillOverride).not.toBeNull();
+    expect(exercise.skillOverride?.skills).toEqual([]);
+
+    exercise.setSkillOverride(null);
+    expect(exercise.skillOverride).toBeNull();
+  });
+
+  it('lands on the live row rather than waiting in the draft', () => {
+    // The axes are not something a student reads: they are how the catalogue describes
+    // itself. Holding them until a publish would leave the coverage report disagreeing
+    // with the correction its author had just made.
+    const exercise = makeExercise();
+
+    exercise.setSkillOverride({ skills: ['written'], focus: [] });
+
+    expect(exercise.hasDraft).toBe(false);
+    expect(exercise.updatedAt.getTime()).toBeGreaterThan(LIVE_AT.getTime());
+  });
+
+  it('refuses to speak for a deleted exercise', () => {
+    const exercise = makeExercise();
+    exercise.softDelete();
+
+    const result = exercise.setSkillOverride({ skills: ['reading'], focus: [] });
+
+    expect(result.isFail).toBe(true);
   });
 });

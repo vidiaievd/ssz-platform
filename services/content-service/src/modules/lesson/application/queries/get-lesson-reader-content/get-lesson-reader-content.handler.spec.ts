@@ -268,6 +268,7 @@ describe('GetLessonReaderContentHandler', () => {
       updatedAt: new Date(),
       deletedAt: null,
       draft: null,
+      skillOverride: null,
       instructions: [],
     });
 
@@ -321,6 +322,7 @@ describe('GetLessonReaderContentHandler', () => {
       updatedAt: new Date(),
       deletedAt: null,
       draft: null,
+      skillOverride: null,
       instructions: [],
     });
 

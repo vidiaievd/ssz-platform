@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -42,6 +43,7 @@ import {
   type UpdateExerciseResult,
 } from '../../application/commands/update-exercise/update-exercise.handler.js';
 import { DeleteExerciseCommand } from '../../application/commands/delete-exercise/delete-exercise.command.js';
+import { SetExerciseSkillsCommand } from '../../application/commands/set-exercise-skills/set-exercise-skills.command.js';
 import { UpsertExerciseInstructionCommand } from '../../application/commands/upsert-instruction/upsert-instruction.command.js';
 import type { UpsertInstructionResult } from '../../application/commands/upsert-instruction/upsert-instruction.handler.js';
 import { DeleteExerciseInstructionCommand } from '../../application/commands/delete-instruction/delete-instruction.command.js';
@@ -52,6 +54,7 @@ import { GetExerciseQuery } from '../../application/queries/get-exercise/get-exe
 import { GetExerciseForDisplayQuery } from '../../application/queries/get-exercise-for-display/get-exercise-for-display.query.js';
 import { GetExerciseWithAnswersQuery } from '../../application/queries/get-exercise-with-answers/get-exercise-with-answers.query.js';
 import { GetExerciseInstructionsQuery } from '../../application/queries/get-exercise-instructions/get-exercise-instructions.query.js';
+import { GetExerciseAxesQuery } from '../../application/queries/get-exercise-axes/get-exercise-axes.query.js';
 import { GetExerciseRuleLinksQuery } from '../../../grammar-rule/application/queries/get-exercise-rule-links/get-exercise-rule-links.query.js';
 import type { ExerciseRuleLink } from '../../../grammar-rule/application/queries/get-exercise-rule-links/get-exercise-rule-links.handler.js';
 
@@ -60,12 +63,14 @@ import type { ExerciseDomainError } from '../../domain/exceptions/exercise-domai
 import type { ExerciseTemplateDomainError } from '../../../exercise-template/domain/exceptions/exercise-template-domain.exceptions.js';
 import type { ExerciseEntity } from '../../domain/entities/exercise.entity.js';
 import type { ExerciseInstructionEntity } from '../../domain/entities/exercise-instruction.entity.js';
+import type { DerivedProfile } from '@ssz/shared-kernel/skills';
 
 // Request DTOs
 import { CreateExerciseRequestDto } from '../dto/requests/create-exercise.request.dto.js';
 import { UpdateExerciseRequestDto } from '../dto/requests/update-exercise.request.dto.js';
 import { ExerciseListQueryDto } from '../dto/requests/exercise-list-query.dto.js';
 import { UpsertExerciseInstructionRequestDto } from '../dto/requests/upsert-instruction.request.dto.js';
+import { SetExerciseSkillsRequestDto } from '../dto/requests/set-exercise-skills.request.dto.js';
 
 // Response DTOs
 import {
@@ -74,6 +79,7 @@ import {
 } from '../dto/responses/exercise.response.dto.js';
 import { ExerciseInstructionResponseDto } from '../dto/responses/exercise-instruction.response.dto.js';
 import { ExerciseRuleLinkResponseDto } from '../dto/responses/exercise-rule-link.response.dto.js';
+import { ExerciseAxesResponseDto } from '../dto/responses/exercise-axes.response.dto.js';
 import { PaginatedResponseDto } from '../../../../shared/discovery/presentation/dto/paginated-response.dto.js';
 import { ApiPaginatedResponse } from '../../../../shared/discovery/presentation/decorators/api-paginated-response.decorator.js';
 
@@ -257,6 +263,73 @@ export class ExerciseController {
     }
 
     return result.value;
+  }
+
+  // ── Skill axes (plan 55) ───────────────────────────────────────────────────
+  // What the exercise trains is derived, never authored by default: the whole seeded
+  // catalogue carries axes without anyone tagging it. These three routes are the escape
+  // hatch for the cases the derivation gets wrong, and all three answer with what the
+  // exercise trains *now* rather than with what was stored.
+
+  @Get(':id/skills')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.EXERCISE })
+  @ApiOperation({ summary: 'What this exercise trains, and where that answer came from' })
+  @ApiOkResponse({ type: ExerciseAxesResponseDto })
+  async findAxes(@Param('id') id: string): Promise<ExerciseAxesResponseDto> {
+    const result = await this.queryBus.execute<
+      GetExerciseAxesQuery,
+      Result<DerivedProfile, ExerciseDomainError>
+    >(new GetExerciseAxesQuery(id));
+
+    if (result.isFail) throwHttpException(result.error);
+    return ExerciseAxesResponseDto.from(result.value);
+  }
+
+  @Put(':id/skills')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
+  @ApiOperation({ summary: 'Overrule what the platform derived this exercise trains' })
+  @ApiOkResponse({
+    type: ExerciseAxesResponseDto,
+    description: 'The axes as they now stand — `skillSource` comes back as `override`.',
+  })
+  async setAxes(
+    @Param('id') id: string,
+    @Body() dto: SetExerciseSkillsRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ExerciseAxesResponseDto> {
+    const result = await this.commandBus.execute<
+      SetExerciseSkillsCommand,
+      Result<DerivedProfile, ExerciseDomainError>
+    >(new SetExerciseSkillsCommand(user.userId, id, { skills: dto.skills, focus: dto.focus }));
+
+    if (result.isFail) throwHttpException(result.error);
+    return ExerciseAxesResponseDto.from(result.value);
+  }
+
+  @Delete(':id/skills')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
+  @ApiOperation({ summary: 'Withdraw the override and hand the exercise back to derivation' })
+  @ApiOkResponse({
+    type: ExerciseAxesResponseDto,
+    description:
+      'The derived axes, which is what the exercise trains again — not an empty answer. ' +
+      'Withdrawing the override is a different act from declaring the exercise trains ' +
+      'nothing, which is a PUT with two empty lists.',
+  })
+  async clearAxes(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ExerciseAxesResponseDto> {
+    const result = await this.commandBus.execute<
+      SetExerciseSkillsCommand,
+      Result<DerivedProfile, ExerciseDomainError>
+    >(new SetExerciseSkillsCommand(user.userId, id, null));
+
+    if (result.isFail) throwHttpException(result.error);
+    return ExerciseAxesResponseDto.from(result.value);
   }
 
   @Delete(':id')

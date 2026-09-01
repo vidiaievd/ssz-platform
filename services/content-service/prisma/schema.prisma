@@ -750,6 +750,15 @@ model Exercise {
   draftExpectedAnswers     Json?           @map("draft_expected_answers")
   draftAnswerCheckSettings Json?           @map("draft_answer_check_settings")
   draftUpdatedAt           DateTime?       @map("draft_updated_at") @db.Timestamptz
+  // What the author says this exercise trains, overruling what plan 55 derives from
+  // the template, the placement and the document. `override_set_at` is the marker:
+  // null means "trust the derivation" and the two arrays are ignored, non-null means
+  // the author spoke — an empty array then means "counts towards nothing", which is a
+  // statement rather than a gap. Prisma cannot express a nullable list, which is why
+  // the marker is a column of its own rather than a null array.
+  skillsOverride           String[]        @map("skills_override")
+  focusOverride            String[]        @map("focus_override")
+  overrideSetAt            DateTime?       @map("override_set_at") @db.Timestamptz
   ownerUserId              String          @map("owner_user_id") @db.Uuid
   ownerSchoolId            String?         @map("owner_school_id") @db.Uuid
   visibility               Visibility
