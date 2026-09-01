@@ -47,6 +47,10 @@
     "./multiple-choice-group": {
       "import": "./dist/multiple-choice-group/index.js",
       "types": "./dist/multiple-choice-group/index.d.ts"
+    },
+    "./skills": {
+      "import": "./dist/skills/index.js",
+      "types": "./dist/skills/index.d.ts"
     }
   },
   "files": [
