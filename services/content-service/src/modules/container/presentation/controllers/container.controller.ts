@@ -59,6 +59,10 @@ import { UpdateLocalizationRequestDto } from '../dto/requests/update-localizatio
 import { GetContainerActivityQuery } from '../../application/queries/get-container-activity/get-container-activity.query.js';
 import type { ContainerActivityResult } from '../../application/queries/get-container-activity/get-container-activity.handler.js';
 import { ContainerActivityResponseDto } from '../dto/responses/container-activity.response.dto.js';
+import { GetContainerCoverageQuery } from '../../application/queries/get-container-coverage/get-container-coverage.query.js';
+import type { CoverageVersionScope } from '../../application/queries/get-container-coverage/get-container-coverage.query.js';
+import type { ContainerCoverageResult } from '../../application/queries/get-container-coverage/get-container-coverage.handler.js';
+import { ContainerCoverageResponseDto } from '../dto/responses/coverage.response.dto.js';
 import { throwHttpException } from '../utils/domain-error.mapper.js';
 import { GetContainerReviewSettingsQuery } from '../../application/queries/get-review-settings/get-container-review-settings.query.js';
 import type { ContainerReviewSettingsResult } from '../../application/queries/get-review-settings/get-container-review-settings.handler.js';
@@ -222,14 +226,48 @@ export class ContainerController {
    * Always reports the school's promise beside the course's own, so that "inherited" is a
    * number on the screen rather than a blank (criterion 35).
    */
+  /**
+   * What this course actually trains, and what it never touches.
+   *
+   * Counted on demand, with nothing stored: coverage is a property of the content, and
+   * the only service that knows what a module is made of is this one.
+   */
+  @Get(':id/coverage')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({ summary: 'The skills, subjects and answer forms this container trains' })
+  @ApiQuery({
+    name: 'version',
+    required: false,
+    enum: ['draft', 'published', 'both'],
+    description:
+      'Which composition to count. `draft` (default) is what the author is editing; ' +
+      '`published` is what learners have; `both` returns each of them and says whether ' +
+      'they disagree. A container with no unreleased changes reports `diverges: false`.',
+  })
+  @ApiOkResponse({ type: ContainerCoverageResponseDto })
+  async coverage(
+    @Param('id') id: string,
+    @Query('version') version?: string,
+  ): Promise<ContainerCoverageResponseDto> {
+    const scope: CoverageVersionScope =
+      version === 'published' || version === 'both' ? version : 'draft';
+
+    const result = await this.queryBus.execute<
+      GetContainerCoverageQuery,
+      Result<ContainerCoverageResult, ContainerDomainError>
+    >(new GetContainerCoverageQuery(id, scope));
+
+    if (result.isFail) throwHttpException(result.error);
+    return ContainerCoverageResponseDto.from(result.value);
+  }
+
   @Get(':id/review-settings')
   @UseGuards(VisibilityGuard)
   @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER })
   @ApiOperation({ summary: 'The response time this course promises, and the one it inherits' })
   @ApiOkResponse({ type: ContainerReviewSettingsResponseDto })
-  async getReviewSettings(
-    @Param('id') id: string,
-  ): Promise<ContainerReviewSettingsResponseDto> {
+  async getReviewSettings(@Param('id') id: string): Promise<ContainerReviewSettingsResponseDto> {
     const result = await this.queryBus.execute<
       GetContainerReviewSettingsQuery,
       Result<ContainerReviewSettingsResult, ContainerDomainError>
