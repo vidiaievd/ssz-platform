@@ -1,5 +1,6 @@
 import { QueryHandler, IQueryHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
+import type { DerivedProfile } from '@ssz/shared-kernel/skills';
 import { GetExerciseEnvelopeQuery } from './get-exercise-envelope.query.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { ExerciseDomainError } from '../../../domain/exceptions/exercise-domain.exceptions.js';
@@ -8,6 +9,8 @@ import type { IExerciseRepository } from '../../../domain/repositories/exercise.
 import { EXERCISE_TEMPLATE_REPOSITORY } from '../../../../exercise-template/domain/repositories/exercise-template.repository.interface.js';
 import type { IExerciseTemplateRepository } from '../../../../exercise-template/domain/repositories/exercise-template.repository.interface.js';
 import { studentSafeContent } from '../../../domain/services/student-safe-content.js';
+import { EXERCISE_AXES } from '../../../../../shared/skills/domain/exercise-axes.port.js';
+import type { IExerciseAxes } from '../../../../../shared/skills/domain/exercise-axes.port.js';
 
 export interface ExerciseEnvelope {
   exercise: {
@@ -33,6 +36,19 @@ export interface ExerciseEnvelope {
     hint: string | null;
     overrides: Record<string, unknown> | null;
   } | null;
+  /**
+   * What this exercise trains — plan 55 §3.6.
+   *
+   * Carried here rather than fetched separately because the engine already makes this
+   * call at the start of every attempt, and the axes have to be snapshotted onto the
+   * attempt at the same instant `practicedAtoms` is: an exercise that is moved out of a
+   * listening lesson next week must not retroactively change what last week's attempt
+   * says it exercised.
+   *
+   * Always the live document's axes. The engine grades against what the learner was
+   * served, so the unreleased edit is not this call's business.
+   */
+  axes: DerivedProfile;
 }
 
 @QueryHandler(GetExerciseEnvelopeQuery)
@@ -45,6 +61,8 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
     private readonly exerciseRepo: IExerciseRepository,
     @Inject(EXERCISE_TEMPLATE_REPOSITORY)
     private readonly templateRepo: IExerciseTemplateRepository,
+    @Inject(EXERCISE_AXES)
+    private readonly axes: IExerciseAxes,
   ) {}
 
   async execute(
@@ -59,6 +77,16 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
     if (!template) {
       return Result.fail(ExerciseDomainError.EXERCISE_NOT_FOUND);
     }
+
+    // The exercise was found a moment ago, so this cannot miss; the fallback exists so
+    // that a race with a delete degrades to empty axes rather than to a failed attempt.
+    const axes = (await this.axes.forExercise(query.exerciseId)) ?? {
+      skills: [],
+      focus: [],
+      form: 'unknown' as const,
+      skillSource: 'unknown' as const,
+      focusSource: 'unknown' as const,
+    };
 
     const instructions = exercise.instructions ?? [];
     const picked =
@@ -90,6 +118,7 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
         defaultCheckSettings: template.defaultCheckSettings,
         supportedLanguages: template.supportedLanguages,
       },
+      axes,
       instruction: picked
         ? {
             language: picked.instructionLanguage,
