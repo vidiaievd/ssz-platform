@@ -47,6 +47,7 @@ import { join } from 'node:path';
 import { PrismaClient, Prisma } from '../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { v5 as uuidv5 } from 'uuid';
+import { linkModulesToCanDo, type ModuleLink } from './can-do-links.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: `${process.env.DATABASE_URL}` }),
@@ -420,6 +421,32 @@ async function main(): Promise<void> {
       }
     }
   }
+
+  // 4. Can-do links. Last, because the report that decides which descriptors a module
+  // may honestly claim can only be read once every module holds its exercises.
+  const links: ModuleLink[] = modules.map((mod) => ({
+    containerId: id('module-container', mod.key),
+    title: mod.title,
+    vocabularyItemIds: mod.sections
+      .flatMap((section) => section.items)
+      .filter((item) => item.kind === 'vocab')
+      .flatMap((item) =>
+        (vocab[item.key]?.words ?? []).map((_, i) => id('vocab-item', `${item.key}-${i}`)),
+      ),
+  }));
+
+  const linked = await linkModulesToCanDo(prisma, {
+    level: LEVEL,
+    modules: links,
+    createdByUserId: TEACHER_ID,
+    ownerSchoolId: SCHOOL_ID,
+  });
+  console.log(
+    `  \u2713 Can-do links: ${linked.targets} TARGETS, ${linked.introduces} INTRODUCES` +
+      (linked.modulesWithoutTargets.length > 0
+        ? ` (no exercises, so no descriptor: ${linked.modulesWithoutTargets.join(', ')})`
+        : ''),
+  );
 
   console.log('Done.');
 }
