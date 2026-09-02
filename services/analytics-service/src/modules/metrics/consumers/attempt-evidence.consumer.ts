@@ -54,6 +54,12 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
         await channel.assertExchange(EXCHANGE, 'topic', { durable: true });
         await channel.assertQueue(QUEUE, { durable: true });
         await channel.bindQueue(QUEUE, EXCHANGE, BINDING_KEY);
+        // One message at a time, and this is not a throughput setting — it is what makes
+        // the mastery fold correct. A gap-by-gap exercise publishes one event per gap
+        // within a few milliseconds; without a prefetch limit the broker hands over the
+        // whole burst at once, several folds read the same profile row before any of them
+        // writes, and the last write wins. Found live: 14 attempts recorded, 12 counted.
+        await channel.prefetch(1);
         await channel.consume(QUEUE, (msg) => this.handleMessage(channel, msg));
         this.logger.log(`AttemptEvidenceConsumer listening on queue "${QUEUE}"`);
       },
