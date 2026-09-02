@@ -78,6 +78,17 @@ function ratingForAttempt(
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
+ * The stability the schedule settled on, off the card the review command handed back.
+ *
+ * Defensive rather than cast straight through: this is telemetry, and a card shape
+ * without the field must cost a sample, not the SRS update that already happened.
+ */
+function stabilityOf(card: unknown): number | null {
+  const value = (card as { stability?: unknown } | null)?.stability;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/**
  * How long the card sat before this review, in whole-ish days.
  *
  * Read off the card as it was *before* the review — the introduce step returns the
@@ -264,7 +275,14 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
     // only when a rating was actually applied: a review refused by the daily limit
     // changed no schedule, and recording it as though it had would poison the
     // baseline the evidence scale is judged against.
-    await this.publishRatingRecord(p, rating, card, null, null);
+    await this.publishRatingRecord(
+      p,
+      rating,
+      card,
+      null,
+      null,
+      stabilityOf(reviewResult.value),
+    );
   }
 
   /**
@@ -316,7 +334,14 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
         continue;
       }
 
-      await this.publishRatingRecord(p, rating, card, position, gapCount);
+      await this.publishRatingRecord(
+        p,
+        rating,
+        card,
+        position,
+        gapCount,
+        stabilityOf(reviewResult.value),
+      );
     }
   }
 
@@ -333,6 +358,8 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
     cardBeforeReview: ReviewCardDto,
     gapPosition: number | null,
     gapCount: number | null,
+    /** The card's stability once this review had been scheduled — see the payload. */
+    stabilityAfter: number | null,
   ): Promise<void> {
     const payload: AttemptRatedPayload = {
       userId: p.userId,
@@ -348,6 +375,12 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       gapPosition,
       gapCount,
       ratingApplied,
+      // Forwarded rather than re-derived: the engine snapshotted the axes when the
+      // learner started, and this consumer has no way to ask what the exercise trains
+      // — nor any business asking now, weeks of edits later (plan 55 §3.6).
+      skills: p.skills ?? null,
+      focus: p.focus ?? null,
+      stabilityAfter,
     };
 
     try {

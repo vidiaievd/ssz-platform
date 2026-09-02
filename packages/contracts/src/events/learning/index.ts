@@ -1,5 +1,5 @@
 import type { BaseEvent } from '../base.js';
-import type { AnswerForm } from '../exercise-engine/index.js';
+import type { AnswerForm, Focus, Skill } from '../exercise-engine/index.js';
 
 // ─── Event type constants ─────────────────────────────────────────────────────
 
@@ -168,6 +168,27 @@ export interface AttemptRatedPayload {
   gapCount: number | null;
   /** The rating that actually reached FSRS, after any clamping. */
   ratingApplied: 'AGAIN' | 'HARD' | 'GOOD' | 'EASY';
+  /**
+   * What the attempt exercised (plan 55 §3.6), forwarded from the engine's event.
+   *
+   * `null` — not an empty array — for everything published before the axes existed, and
+   * for a publisher that does not report them. The mastery profile groups on these, and
+   * a row that cannot say which cell it belongs to must be left out of every cell rather
+   * than counted into a default one.
+   */
+  skills: Skill[] | null;
+  focus: Focus[] | null;
+  /**
+   * FSRS stability of the card *after* this review, in days.
+   *
+   * Known only here — the engine has no cards and analytics has no scheduler — and until
+   * now thrown away. Without it "forgets quickly" cannot be told apart from "does not
+   * know": both look like a run of poor ratings, and only the stability the schedule
+   * settled on says which one it was (plan 55 §3.9).
+   *
+   * `null` when the publisher did not report it.
+   */
+  stabilityAfter: number | null;
 }
 
 /**
