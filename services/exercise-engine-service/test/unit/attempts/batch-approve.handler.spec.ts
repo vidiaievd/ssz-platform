@@ -34,6 +34,7 @@ function routedAttempt(schoolId: string | null = SCHOOL): Attempt {
     difficultyLevel: 'B1',
     checkMode: 'GRADED',
     practicedAtoms: [],
+    axes: { skills: [], focus: [] },
   });
   attempt.snapshotReviewContext({
     schoolId,
@@ -171,6 +172,7 @@ describe('BatchApproveHandler', () => {
       difficultyLevel: 'B1',
       checkMode: 'GRADED',
       practicedAtoms: [],
+      axes: { skills: [], focus: [] },
     });
     attempt.snapshotReviewContext({
       schoolId: SCHOOL,

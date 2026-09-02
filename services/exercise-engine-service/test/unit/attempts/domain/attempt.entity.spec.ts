@@ -18,7 +18,53 @@ const makeAttempt = () =>
     difficultyLevel: 'B1',
     checkMode: 'PRACTICE',
     practicedAtoms: [],
+    axes: { skills: [], focus: [] },
   });
+
+// Plan 55 §3.6 — the axes are snapshotted at the start and travel with the attempt.
+// Both endings are covered because the free-form one is the evidence the mastery profile
+// most wants: it is the only path a written or spoken attempt takes.
+describe('Attempt axes', () => {
+  const withAxes = () =>
+    Attempt.create({
+      userId: 'user-1',
+      exerciseId: 'ex-1',
+      templateCode: 'writing_task',
+      targetLanguage: 'no',
+      difficultyLevel: 'B1',
+      checkMode: 'PRACTICE',
+      practicedAtoms: [],
+      axes: { skills: ['written'], focus: ['grammar'] },
+    });
+
+  it('reports the axes on a scored attempt', () => {
+    const attempt = withAxes();
+    attempt.submit({}, 'h');
+    attempt.clearDomainEvents();
+    attempt.score(90, true, null, null);
+
+    const ev = attempt.getDomainEvents().find((e) => e instanceof AttemptScoredEvent) as
+      | AttemptScoredEvent
+      | undefined;
+    expect(ev?.payload.skills).toEqual(['written']);
+    expect(ev?.payload.focus).toEqual(['grammar']);
+  });
+
+  it('reports them on an attempt that went for human review instead', () => {
+    const attempt = withAxes();
+    attempt.submit({}, 'h');
+    attempt.clearDomainEvents();
+    attempt.routeForReview();
+
+    const ev = attempt
+      .getDomainEvents()
+      .find((e) => e instanceof AttemptCompletedUnscoredEvent) as
+      | AttemptCompletedUnscoredEvent
+      | undefined;
+    expect(ev?.payload.skills).toEqual(['written']);
+    expect(ev?.payload.focus).toEqual(['grammar']);
+  });
+});
 
 describe('Attempt entity', () => {
   describe('create()', () => {
@@ -51,6 +97,7 @@ describe('Attempt entity', () => {
         difficultyLevel: 'A1',
         checkMode: 'PRACTICE',
         practicedAtoms: [],
+        axes: { skills: [], focus: [] },
         assignmentId: 'assign-99',
       });
       const ev = attempt.getDomainEvents()[0] as AttemptStartedEvent;
@@ -229,6 +276,7 @@ describe('Attempt entity', () => {
         difficultyLevel: 'B1',
         checkMode: 'GRADED',
         practicedAtoms: [],
+        axes: { skills: [], focus: [] },
       });
       attempt.submit({}, 'h');
       attempt.score(40, false, null, null);

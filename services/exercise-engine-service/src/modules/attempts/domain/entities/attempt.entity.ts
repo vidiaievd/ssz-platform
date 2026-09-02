@@ -9,7 +9,7 @@ import {
   ReviewCommentRequiredError,
 } from '../exceptions/attempt.errors.js';
 import { AttemptStartedEvent } from '../events/attempt-started.event.js';
-import type { AnswerForm } from '@ssz/contracts';
+import type { AnswerForm, Focus, Skill } from '@ssz/contracts';
 import type { RubricMarks, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
 import { AttemptCompletedUnscoredEvent } from '../events/attempt-completed-unscored.event.js';
@@ -105,6 +105,12 @@ export interface PracticedAtom {
   atomId: string;
 }
 
+/** What an exercise trains, as Content Service resolved it at attempt start (plan 55 §3.6). */
+export interface AttemptAxes {
+  skills: Skill[];
+  focus: Focus[];
+}
+
 export interface CreateAttemptProps {
   userId: string;
   exerciseId: string;
@@ -115,6 +121,7 @@ export interface CreateAttemptProps {
   difficultyLevel: DifficultyLevel;
   checkMode: CheckMode;
   practicedAtoms: PracticedAtom[];
+  axes: AttemptAxes;
 }
 
 export interface AttemptPersistenceProps {
@@ -128,6 +135,8 @@ export interface AttemptPersistenceProps {
   difficultyLevel: DifficultyLevel;
   checkMode: CheckMode;
   practicedAtoms: PracticedAtom[];
+  skills: Skill[];
+  focus: Focus[];
   status: AttemptStatus;
   score: number | null;
   passed: boolean | null;
@@ -259,6 +268,10 @@ export class Attempt extends AggregateRoot {
     private _answeredQuestions: AnsweredQuestion[] = [],
     private _checkedRows: CheckedRow[] = [],
     private _pickedOptions: PickedOption[] = [],
+    // Appended at the tail like every field added after the fact — the constructor is
+    // positional, and the alternative is renumbering every call site (plan 55 §3.6).
+    private _skills: Skill[] = [],
+    private _focus: Focus[] = [],
   ) {
     super(id);
   }
@@ -290,6 +303,9 @@ export class Attempt extends AggregateRoot {
       null,
       null,
     );
+
+    attempt._skills = props.axes.skills;
+    attempt._focus = props.axes.focus;
 
     attempt.addDomainEvent(
       new AttemptStartedEvent(attempt.id, {
@@ -353,6 +369,8 @@ export class Attempt extends AggregateRoot {
       props.answeredQuestions ?? [],
       props.checkedRows ?? [],
       props.pickedOptions ?? [],
+      props.skills ?? [],
+      props.focus ?? [],
     );
   }
 
@@ -501,6 +519,8 @@ export class Attempt extends AggregateRoot {
           timeSpentSeconds: this._timeSpentSeconds,
           completed: true,
           practicedAtoms: this._practicedAtoms,
+          skills: this._skills,
+          focus: this._focus,
           templateCode: this._templateCode,
           passed,
           ...(answerForm === undefined ? {} : { answerForm }),
@@ -561,6 +581,8 @@ export class Attempt extends AggregateRoot {
         score: null,
         timeSpentSeconds: this._timeSpentSeconds,
         completed: false,
+        skills: this._skills,
+        focus: this._focus,
       }),
     );
 
@@ -937,6 +959,8 @@ export class Attempt extends AggregateRoot {
         timeSpentSeconds: this._timeSpentSeconds,
         completed: true,
         practicedAtoms: this._practicedAtoms,
+        skills: this._skills,
+        focus: this._focus,
         templateCode: this._templateCode,
         passed: this._passed,
       }),
@@ -1152,6 +1176,8 @@ export class Attempt extends AggregateRoot {
   get difficultyLevel(): DifficultyLevel { return this._difficultyLevel; }
   get checkMode(): CheckMode { return this._checkMode; }
   get practicedAtoms(): PracticedAtom[] { return this._practicedAtoms; }
+  get skills(): Skill[] { return this._skills; }
+  get focus(): Focus[] { return this._focus; }
   get status(): AttemptStatus { return this._status; }
   get scoreValue(): number | null { return this._score; }
   get passed(): boolean | null { return this._passed; }

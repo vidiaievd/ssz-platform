@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AnswerForm } from '@ssz/contracts';
+import type { AnswerForm, Focus, Skill } from '@ssz/contracts';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
 
 // Payload matches Learning Service ExerciseAttemptedConsumer contract exactly.
@@ -17,6 +17,11 @@ export interface AttemptScoredPayload {
   // How the answer was produced, as opposed to whether it was right. Present only
   // for templates that can say — today, word_bank_gap_fill. See @ssz/contracts.
   answerForm?: AnswerForm;
+  // What the attempt exercised, snapshotted at its start (plan 55 §3.6) — the channel
+  // and the subject, carried as values so that moving the exercise later cannot rewrite
+  // what an attempt already made. Empty for attempts started before the axes existed.
+  skills: Skill[];
+  focus: Focus[];
   // Calibration context for the SRS evidence scale (plan 36 §A.1). The consumer
   // records these next to the rating it derives, so the scale can later be judged
   // against what it actually did rather than against what it was meant to do.

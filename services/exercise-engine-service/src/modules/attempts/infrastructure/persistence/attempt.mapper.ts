@@ -1,5 +1,6 @@
 import type { AttemptModel } from '../../../../../generated/prisma/models/Attempt.js';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
+import type { Focus, Skill } from '@ssz/contracts';
 import { readRubricMarks, readRubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { readPlacement } from '../../../../shared/application/services/sentence-schema-rows.js';
 import type {
@@ -125,6 +126,11 @@ export class AttemptMapper {
       difficultyLevel: row.difficultyLevel as DifficultyLevel,
       checkMode: row.checkMode as CheckMode,
       practicedAtoms: (row.practicedAtoms as PracticedAtom[] | null) ?? [],
+      // Read back as the union they were written as. Nothing validates them on the way
+      // in — Content Service derives them from a closed vocabulary, and a column that
+      // somehow held a stranger would only make an attempt refuse to load.
+      skills: (row.skills ?? []) as Skill[],
+      focus: (row.focus ?? []) as Focus[],
       status: row.status as AttemptStatus,
       score: row.score,
       passed: row.passed,
@@ -180,6 +186,8 @@ export class AttemptMapper {
       difficultyLevel: attempt.difficultyLevel as AttemptModel['difficultyLevel'],
       checkMode: attempt.checkMode as AttemptModel['checkMode'],
       practicedAtoms: attempt.practicedAtoms as unknown as AttemptModel['practicedAtoms'],
+      skills: attempt.skills,
+      focus: attempt.focus,
       status: attempt.status as AttemptModel['status'],
       score: attempt.scoreValue,
       passed: attempt.passed,

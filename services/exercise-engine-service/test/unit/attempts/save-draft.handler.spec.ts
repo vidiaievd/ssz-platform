@@ -15,6 +15,7 @@ function inProgressAttempt(): Attempt {
     difficultyLevel: 'B1',
     checkMode: 'GRADED',
     practicedAtoms: [],
+    axes: { skills: [], focus: [] },
   });
 }
 

@@ -536,6 +536,11 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       difficultyLevel: def.exercise.difficultyLevel as DifficultyLevel,
       checkMode: command.checkMode,
       practicedAtoms,
+      // Off the envelope fetched a few lines above, not a second call: the axes and the
+      // atoms have to describe the exercise as it stood at this instant (plan 55 §3.6).
+      // An envelope without them — a Content Service that predates the axes — snapshots
+      // nothing rather than blocking the attempt.
+      axes: { skills: def.axes?.skills ?? [], focus: def.axes?.focus ?? [] },
     });
 
     attempt.snapshotReviewContext(

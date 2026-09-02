@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { Focus, Skill } from '@ssz/contracts';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
 
 // Payload matches Learning Service ExerciseAttemptedConsumer contract exactly.
@@ -13,6 +14,11 @@ export interface AttemptCompletedUnscoredPayload {
   score: null;
   timeSpentSeconds: number;
   completed: false;
+  // The axes, as on the scored event (plan 55 §3.6). Carried on this one too because a
+  // free-form attempt is exactly the kind the profile most wants: writing handed to a
+  // teacher is the strongest evidence the platform collects, and it arrives here first.
+  skills: Skill[];
+  focus: Focus[];
 }
 
 export class AttemptCompletedUnscoredEvent implements IDomainEvent {

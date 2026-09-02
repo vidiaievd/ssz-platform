@@ -28,6 +28,7 @@ function routedAttempt(): Attempt {
     difficultyLevel: 'B1',
     checkMode: 'GRADED',
     practicedAtoms: [],
+    axes: { skills: [], focus: [] },
   });
   attempt.snapshotReviewContext({
     schoolId: 'school-1',
@@ -63,6 +64,7 @@ function essayAttempt(rubric: RubricSnapshot | null = RUBRIC): Attempt {
     difficultyLevel: 'B1',
     checkMode: 'GRADED',
     practicedAtoms: [],
+    axes: { skills: [], focus: [] },
   });
   attempt.submit({ text: 'Hei! Jeg skriver til deg om leiligheten.', ticked: [] }, 'hash');
   attempt.routeForReview({ autoPassedItems: 0, totalItems: 1 }, rubric);
@@ -291,6 +293,7 @@ describe('ReviewAttemptHandler', () => {
       difficultyLevel: 'B1',
       checkMode: 'GRADED',
       practicedAtoms: [],
+      axes: { skills: [], focus: [] },
     });
     attempt.submit([{ itemId: 'i1', text: 'Jeg har bodd i Tromsø.' }], 'hash');
     attempt.score(100, true, null, null);

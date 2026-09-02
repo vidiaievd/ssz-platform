@@ -93,6 +93,13 @@ model Attempt {
   // Array<{atomType, atomId}>; fans out SRS rating to vocab/grammar atoms on scoring.
   practicedAtoms Json @default("[]") @map("practiced_atoms")
 
+  // What this attempt exercised, snapshotted from Content Service alongside the atoms
+  // above (plan 55 §3.6). Kept on the attempt rather than looked up when it is scored:
+  // an exercise moved out of a listening lesson next month must not change what last
+  // month's attempt says it trained. Empty for attempts started before the axes existed.
+  skills String[] @default([])
+  focus  String[] @default([])
+
   status AttemptStatus @default(IN_PROGRESS)
 
   // EVENT — score and completion flag published in exercise.attempt.completed

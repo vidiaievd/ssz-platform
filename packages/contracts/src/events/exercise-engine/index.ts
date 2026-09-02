@@ -62,7 +62,37 @@ export interface ExerciseAttemptCompletedPayload {
    * scheduler has no use for it.
    */
   gapResults?: Array<{ gapKey: string; correct: boolean }>;
+  /**
+   * Additive (plan 55 §3.6) — what the attempt exercised, snapshotted at its start.
+   *
+   * The channel (`skills`) and the subject (`focus`) are derived by Content Service from
+   * the exercise, where it stands and what its author declared, and travel here as values
+   * rather than as an exercise id to look up later: an exercise moved out of a listening
+   * lesson next month must not retroactively change what last month's attempt trained.
+   *
+   * Optional for the same reason as `answerForm` and `templateCode` — the events already
+   * in the queue were published before the axes existed, and stay valid. An empty array
+   * is not the same as an absent one: absent means nobody said, empty means the derivation
+   * (or the author) said "nothing counted".
+   */
+  skills?: Skill[];
+  focus?: Focus[];
 }
+
+/**
+ * The four CEFR channels and the subjects that run through them — plan 55 §3.1–3.3.
+ *
+ * Mirrored from `@ssz/shared-kernel/skills` rather than imported: this package deliberately
+ * depends on nothing, so that a service consuming an event never has to take the kernel's
+ * domain logic with it. The kernel owns the vocabulary; a value added there has to be added
+ * here too, and the derivation stays where it is.
+ *
+ * `skill` is `CanDoSkill` from Content Service — the same four channels the can-do
+ * descriptor library is written against. A second, parallel list would mean the coverage
+ * report and can-do progress could never be compared.
+ */
+export type Skill = 'listening' | 'reading' | 'spoken' | 'written';
+export type Focus = 'vocabulary' | 'grammar' | 'orthography' | 'pragmatics';
 
 /**
  * How the learner produced the answer, as opposed to whether it was right.
