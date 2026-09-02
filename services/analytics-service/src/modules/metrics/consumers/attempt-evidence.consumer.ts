@@ -126,6 +126,11 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
           gapPosition: p.gapPosition ?? null,
           gapCount: p.gapCount ?? null,
           ratingApplied: p.ratingApplied,
+          // `null` on the event becomes an empty column: the list is not nullable, and
+          // "nobody said" and "said nothing counts" are both rows the profile skips.
+          skills: p.skills ?? [],
+          focus: p.focus ?? [],
+          stabilityAfter: p.stabilityAfter ?? null,
           occurredAt: new Date(occurredAt),
         },
       ],

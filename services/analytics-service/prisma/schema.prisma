@@ -229,6 +229,17 @@ model AttemptEvidence {
   ratingApplied String   @map("rating_applied") // AGAIN | HARD | GOOD | EASY
   occurredAt    DateTime @map("occurred_at")
 
+  // What the attempt exercised (plan 55 §3.6), flattened for the same reason the answer
+  // form above is: the profile groups on these. Empty means the publisher said nothing —
+  // every event from before the axes existed — and such a row belongs to no cell at all.
+  skills String[] @default([])
+  focus  String[] @default([])
+
+  // FSRS stability after the review, in days. The one number that separates a learner who
+  // forgets quickly from one who never knew: both produce a run of poor ratings, and only
+  // the interval the schedule settled on says which.
+  stabilityAfter Float? @map("stability_after")
+
   @@index([templateCode, answerMode, occurredAt])
   @@index([userId, occurredAt])
   @@map("attempt_evidence")
