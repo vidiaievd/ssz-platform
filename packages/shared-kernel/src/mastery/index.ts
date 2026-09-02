@@ -12,3 +12,12 @@ export type { WeightInput } from './weight.js';
 export { evidenceWeight, failureWeight, succeededAt, successWeight } from './weight.js';
 
 export { foldAttempt } from './ewma.js';
+
+export type {
+  CellProfile,
+  CellVerdict,
+  UncertainCell,
+  WeakestCells,
+  WeakestCellsOptions,
+} from './verdict.js';
+export { weakestCells } from './verdict.js';

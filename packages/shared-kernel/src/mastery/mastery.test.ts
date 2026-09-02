@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { cellsFor } from './model.js';
 import { evidenceWeight, succeededAt } from './weight.js';
 import { foldAttempt } from './ewma.js';
+import { weakestCells } from './verdict.js';
 import type { MasteryObservation } from './model.js';
 
 const AT = new Date('2026-09-02T10:00:00Z');
@@ -136,5 +137,80 @@ describe('foldAttempt', () => {
     expect(next.successRateEwma).toBe(previous.successRateEwma);
     expect(next.attempts).toBe(2);
     expect(next.weightedSample).toBe(previous.weightedSample);
+  });
+});
+
+describe('weakestCells', () => {
+  const cell = (
+    skill: 'reading' | 'listening' | 'written',
+    focus: 'grammar' | 'vocabulary',
+    successRateEwma: number,
+    weightedSample: number,
+    attempts = Math.ceil(weightedSample),
+  ) => ({
+    skill,
+    focus,
+    state: {
+      successRateEwma,
+      meanStability: null,
+      medianSecondsPerItem: null,
+      attempts,
+      weightedSample,
+      lastAttemptAt: AT,
+    },
+  });
+
+  it('says "not enough data" instead of naming a weakness on three attempts', () => {
+    // Rule 3, and the whole reason the two lists are separate: a verdict is acted on.
+    const result = weakestCells([cell('listening', 'grammar', 0.1, 2)], { minWeightedSample: 5 });
+    expect(result.weakest).toEqual([]);
+    expect(result.insufficient).toHaveLength(1);
+    expect(result.insufficient[0]).toMatchObject({
+      skill: 'listening',
+      status: 'insufficient_data',
+      shortfall: 3,
+    });
+  });
+
+  it('orders the verdicts weakest first', () => {
+    const result = weakestCells(
+      [
+        cell('reading', 'grammar', 0.9, 10),
+        cell('listening', 'vocabulary', 0.3, 10),
+        cell('written', 'grammar', 0.6, 10),
+      ],
+      { minWeightedSample: 5 },
+    );
+    expect(result.weakest.map((c) => c.skill)).toEqual(['listening', 'written', 'reading']);
+  });
+
+  it('breaks a tie on the better-evidenced cell', () => {
+    const result = weakestCells(
+      [cell('reading', 'grammar', 0.4, 6), cell('written', 'grammar', 0.4, 20)],
+      { minWeightedSample: 5 },
+    );
+    expect(result.weakest.map((c) => c.skill)).toEqual(['written', 'reading']);
+  });
+
+  it('reads the threshold off the weighted sample, not the attempt count', () => {
+    // Twenty picks out of four options are not twenty answers — that is the whole point
+    // of keeping the two numbers apart.
+    const thin = cell('reading', 'grammar', 0.2, 20 / 3, 20);
+    const result = weakestCells([thin], { minWeightedSample: 10 });
+    expect(result.weakest).toEqual([]);
+    expect(result.insufficient[0]?.attempts).toBe(20);
+  });
+
+  it('limits the verdicts without hiding the uncertain cells', () => {
+    const result = weakestCells(
+      [
+        cell('reading', 'grammar', 0.2, 10),
+        cell('written', 'grammar', 0.3, 10),
+        cell('listening', 'vocabulary', 0.1, 1),
+      ],
+      { minWeightedSample: 5, limit: 1 },
+    );
+    expect(result.weakest).toHaveLength(1);
+    expect(result.insufficient).toHaveLength(1);
   });
 });

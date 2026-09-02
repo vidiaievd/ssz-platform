@@ -26,6 +26,11 @@ export const envSchema = z.object({
   // Q2 closes on live data, and it is configuration rather than a constant precisely so
   // that the answer, when it arrives, is a deployment and not a release.
   MASTERY_EWMA_ALPHA: z.coerce.number().gt(0).max(1).default(0.2),
+
+  // How much evidence a cell needs before the profile will say anything about it
+  // (§3.9 rule 3). Weighted, not counted: twenty picks out of four are worth about seven
+  // typed answers. **Not calibrated** — Q2, same as the alpha above.
+  MASTERY_MIN_WEIGHTED_SAMPLE: z.coerce.number().positive().default(8),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -50,7 +55,9 @@ export interface AppConfig {
   learning: { baseUrl: string };
   exerciseEngine: { baseUrl: string; token: string };
   metrics: { atRiskThresholdDays: number; dropoffCompletionThreshold: number };
-  mastery: { ewmaAlpha: number };
+  mastery: { ewmaAlpha: number; minWeightedSample: number };
+  /** Shared secret for service-to-service routes — the same one the clients above send. */
+  internalServiceToken: string;
 }
 
 export default (): AppConfig => {
@@ -72,6 +79,10 @@ export default (): AppConfig => {
       atRiskThresholdDays: env.AT_RISK_THRESHOLD_DAYS,
       dropoffCompletionThreshold: env.DROPOFF_COMPLETION_THRESHOLD,
     },
-    mastery: { ewmaAlpha: env.MASTERY_EWMA_ALPHA },
+    mastery: {
+      ewmaAlpha: env.MASTERY_EWMA_ALPHA,
+      minWeightedSample: env.MASTERY_MIN_WEIGHTED_SAMPLE,
+    },
+    internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
 };
