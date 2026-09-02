@@ -22,6 +22,10 @@ export interface AttemptScoredPayload {
   // what an attempt already made. Empty for attempts started before the axes existed.
   skills: Skill[];
   focus: Focus[];
+  // The course the work belongs to, from the same start-of-attempt snapshot as the axes.
+  // The mastery profile is kept per course as well as overall — "weak at grammar here" is
+  // the only version of that sentence a teacher can act on.
+  containerId: string | null;
   // Calibration context for the SRS evidence scale (plan 36 §A.1). The consumer
   // records these next to the rating it derives, so the scale can later be judged
   // against what it actually did rather than against what it was meant to do.

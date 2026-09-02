@@ -6,6 +6,7 @@ import { EXCHANGES, LEARNING_EVENT_TYPES } from '@ssz/contracts';
 import type { AttemptRatedPayload, BaseEvent } from '@ssz/contracts';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
+import { SkillMasteryProjector } from '../mastery/skill-mastery.projector.js';
 
 const PROCESSOR_ID = 'attempt-evidence';
 const QUEUE = 'analytics-service.metrics.attempt-evidence';
@@ -32,6 +33,7 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly config: ConfigService<AppConfig>,
     private readonly prisma: PrismaService,
+    private readonly mastery: SkillMasteryProjector,
   ) {}
 
   onModuleInit(): void {
@@ -84,7 +86,12 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      await this.record(eventId, envelope.payload as AttemptRatedPayload, envelope.occurredAt);
+      const payload = envelope.payload as AttemptRatedPayload;
+      await this.record(eventId, payload, envelope.occurredAt);
+      // Inside the same idempotency guard as the record above, and that is the point: the
+      // record is append-only and survives a double delivery, while the profile is a
+      // running average that a replayed attempt would quietly move (plan 55 §5.1).
+      await this.mastery.apply(payload, envelope.occurredAt);
 
       await this.prisma.processedEvent.create({
         data: { eventId, processorId: PROCESSOR_ID, eventType },

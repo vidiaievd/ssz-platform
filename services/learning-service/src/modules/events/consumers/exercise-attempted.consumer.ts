@@ -9,7 +9,9 @@ import { UpsertProgressCommand } from '../../progress/application/commands/upser
 import { IntroduceCardCommand } from '../../srs/application/commands/introduce-card.command.js';
 import { ReviewCardCommand } from '../../srs/application/commands/review-card.command.js';
 import type { ReviewRatingValue } from '../../srs/domain/value-objects/review-rating.vo.js';
-import { clampByEvidence, evidenceStrength } from '../../srs/domain/evidence-strength.js';
+// The table lives in the kernel (plan 55 §3.9): analytics weighs the same attempt into
+// the mastery profile, and a second copy of that judgement would drift from this one.
+import { clampByEvidence, evidenceStrength } from '@ssz/shared-kernel/evidence';
 import { gapCardContentId } from '../../srs/domain/gap-card-id.js';
 import { CanDoEvaluatorService } from '../../can-do/application/services/can-do-evaluator.service.js';
 import type { ReviewCardDto } from '../../srs/application/dto/srs.dto.js';
@@ -380,6 +382,8 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       // — nor any business asking now, weeks of edits later (plan 55 §3.6).
       skills: p.skills ?? null,
       focus: p.focus ?? null,
+      containerId: p.containerId ?? null,
+      timeSpentSeconds: p.timeSpentSeconds ?? null,
       stabilityAfter,
     };
 

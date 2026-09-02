@@ -30,6 +30,7 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@ssz/contracts": "file:../../packages/contracts",
+    "@ssz/shared-kernel": "file:../../packages/shared-kernel",
     "@ssz/messaging": "file:../../packages/messaging",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^1.0.3",

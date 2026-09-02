@@ -77,6 +77,15 @@ export interface ExerciseAttemptCompletedPayload {
    */
   skills?: Skill[];
   focus?: Focus[];
+  /**
+   * Additive (plan 55 §5.1) — the course the exercise was attempted in, snapshotted at
+   * attempt start along with the rest of the review context.
+   *
+   * The mastery profile is kept per course as well as overall: "weak at grammar" is a
+   * different sentence from "weak at grammar in this course", and a teacher can only act
+   * on the second. Absent for practice outside any course, and for older publishers.
+   */
+  containerId?: string | null;
 }
 
 /**

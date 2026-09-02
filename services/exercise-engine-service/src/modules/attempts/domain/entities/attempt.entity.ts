@@ -521,6 +521,7 @@ export class Attempt extends AggregateRoot {
           practicedAtoms: this._practicedAtoms,
           skills: this._skills,
           focus: this._focus,
+          containerId: this._containerId,
           templateCode: this._templateCode,
           passed,
           ...(answerForm === undefined ? {} : { answerForm }),
@@ -583,6 +584,7 @@ export class Attempt extends AggregateRoot {
         completed: false,
         skills: this._skills,
         focus: this._focus,
+        containerId: this._containerId,
       }),
     );
 
@@ -961,6 +963,7 @@ export class Attempt extends AggregateRoot {
         practicedAtoms: this._practicedAtoms,
         skills: this._skills,
         focus: this._focus,
+        containerId: this._containerId,
         templateCode: this._templateCode,
         passed: this._passed,
       }),

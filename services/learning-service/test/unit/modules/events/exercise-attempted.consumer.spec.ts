@@ -331,6 +331,8 @@ describe('ExerciseAttemptedConsumer', () => {
         // recorded as null rather than as an empty cell to count into (plan 55 §3.6).
         skills: null,
         focus: null,
+        containerId: null,
+        timeSpentSeconds: 60,
         stabilityAfter: null,
       });
     });

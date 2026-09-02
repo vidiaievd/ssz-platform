@@ -1,8 +1,6 @@
-import {
-  clampByEvidence,
-  evidenceStrength,
-  ratingRank,
-} from '../../../../../src/modules/srs/domain/evidence-strength.js';
+import { describe, expect, it } from 'vitest';
+
+import { clampByEvidence, evidenceStrength, ratingRank } from './evidence-strength.js';
 
 describe('evidenceStrength', () => {
   describe('the answer form, when the template can describe it', () => {

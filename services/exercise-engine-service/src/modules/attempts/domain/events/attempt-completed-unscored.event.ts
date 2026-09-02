@@ -19,6 +19,7 @@ export interface AttemptCompletedUnscoredPayload {
   // teacher is the strongest evidence the platform collects, and it arrives here first.
   skills: Skill[];
   focus: Focus[];
+  containerId: string | null;
 }
 
 export class AttemptCompletedUnscoredEvent implements IDomainEvent {

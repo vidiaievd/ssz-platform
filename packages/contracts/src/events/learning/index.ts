@@ -178,6 +178,16 @@ export interface AttemptRatedPayload {
    */
   skills: Skill[] | null;
   focus: Focus[] | null;
+  /** The course this was attempted in, forwarded from the engine. Null outside a course. */
+  containerId: string | null;
+  /**
+   * How long the attempt took in total, forwarded unchanged.
+   *
+   * Divided by the number of items downstream rather than here: what an "item" is depends
+   * on how the attempt was graded, and that is the projection's business. Null when the
+   * publisher did not report it.
+   */
+  timeSpentSeconds: number | null;
   /**
    * FSRS stability of the card *after* this review, in days.
    *

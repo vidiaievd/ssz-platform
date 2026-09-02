@@ -1,5 +1,24 @@
-import type { AnswerForm } from '@ssz/contracts';
-import type { ReviewRatingValue } from './value-objects/review-rating.vo.js';
+/**
+ * Lives in the kernel rather than in learning-service because two services now need the
+ * same judgement and neither may hold a second copy of it: learning-service clamps the
+ * rating it sends to FSRS, and analytics weighs the same attempt into the mastery profile
+ * (plan 55 §3.9 rule 2). A weight table invented next to the projection would drift from
+ * the ceilings here within one plan.
+ *
+ * The two types below are mirrored rather than imported: the kernel deliberately depends
+ * on nothing, so `@ssz/contracts` cannot be reached from here. They are structurally the
+ * same shapes, and each service passes its own.
+ */
+
+/** The FSRS rating vocabulary — `ReviewRating` in learning-service. */
+export type ReviewRatingValue = 'AGAIN' | 'HARD' | 'GOOD' | 'EASY';
+
+/** `AnswerForm` from `@ssz/contracts` — how the answer was produced. */
+export interface AnswerForm {
+  mode: 'bank' | 'free';
+  bankSize: number | null;
+  wordsConsumed: boolean;
+}
 
 /**
  * How much knowledge one successful answer actually proves (plan 36 §B.1).

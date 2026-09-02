@@ -21,6 +21,11 @@ export const envSchema = z.object({
 
   AT_RISK_THRESHOLD_DAYS: z.coerce.number().int().positive().default(7),
   DROPOFF_COMPLETION_THRESHOLD: z.coerce.number().min(0).max(1).default(0.3),
+
+  // How fast the mastery profile forgets (plan 55 §3.9 rule 1, Q2). **Not calibrated** —
+  // Q2 closes on live data, and it is configuration rather than a constant precisely so
+  // that the answer, when it arrives, is a deployment and not a release.
+  MASTERY_EWMA_ALPHA: z.coerce.number().gt(0).max(1).default(0.2),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -45,6 +50,7 @@ export interface AppConfig {
   learning: { baseUrl: string };
   exerciseEngine: { baseUrl: string; token: string };
   metrics: { atRiskThresholdDays: number; dropoffCompletionThreshold: number };
+  mastery: { ewmaAlpha: number };
 }
 
 export default (): AppConfig => {
@@ -66,5 +72,6 @@ export default (): AppConfig => {
       atRiskThresholdDays: env.AT_RISK_THRESHOLD_DAYS,
       dropoffCompletionThreshold: env.DROPOFF_COMPLETION_THRESHOLD,
     },
+    mastery: { ewmaAlpha: env.MASTERY_EWMA_ALPHA },
   };
 };
