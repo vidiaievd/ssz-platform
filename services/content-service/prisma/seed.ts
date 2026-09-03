@@ -18,6 +18,65 @@ const prisma = new PrismaClient({
 // under translate_to_target. See packages/shared-kernel/src/translate and
 // docs/plan/42-translate.md.
 
+// ─── The audio layer (plan 56) ────────────────────────────────────────────────
+// Not a template: a block any document may carry. `audio.enabled` turns the
+// exercise it belongs to into a listening exercise, and the same switch is what
+// the skill axes read to report it as `listening` (plan 55 §3.4).
+//
+// Declared on all thirteen templates in one pass, and never required. A document
+// written before this existed has no `audio` field and must stay valid and
+// unchanged — the kernel (`@ssz/shared-kernel/audio`) reads a missing block as
+// switched off, field by field.
+//
+// The clip is an **asset id**, not a URL: a pre-signed URL lives an hour and a
+// document lives years (plan 56 §3.1). `link` carries an external URL instead,
+// and `lesson` borrows a lesson's narration by reference.
+const audioSchema = {
+  type: 'object',
+  description: 'Listening layer — plan 56. Absent or enabled:false means unchanged.',
+  properties: {
+    enabled: { type: 'boolean' },
+    source: { type: 'string', enum: ['asset', 'link', 'lesson'] },
+    assetId: { type: 'string', description: 'media-service asset, uploaded as exercise_asset' },
+    url: { type: 'string', description: 'source=link only; never a pre-signed URL' },
+    lessonRef: {
+      type: 'object',
+      description: 'source=lesson: the narration this clip borrows, by reference',
+      properties: { lessonId: { type: 'string' }, variant: { type: 'string' } },
+    },
+    fileName: { type: 'string' },
+    title: { type: 'string', description: 'What the student sees above the player' },
+    // A hint read from the file by the client and editable by the author:
+    // media-service runs ffprobe but stores no duration (plan 56 §3.7).
+    duration: { type: 'number' },
+    // For a listening exercise this is the answer, and it is dosed like one:
+    // student-safe content drops it unless the policy is `always` (§3.3).
+    transcript: { type: 'string' },
+    translation: { type: 'string' },
+    useSegments: { type: 'boolean' },
+    settings: {
+      type: 'object',
+      properties: {
+        layout: { type: 'string', enum: ['top', 'gate'] },
+        plays: { type: 'integer', enum: [0, 1, 2, 3], description: '0 = unlimited' },
+        seek: { type: 'boolean' },
+        speed: { type: 'boolean' },
+        gate: { type: 'string', enum: ['none', 'first'] },
+        transcriptWhen: { type: 'string', enum: ['never', 'after', 'always'] },
+      },
+    },
+  },
+};
+
+// One item's slice of the clip, in seconds. Absent means the whole clip; read
+// only while `audio.useSegments` is on.
+const itemAudioSchema = {
+  type: 'object',
+  description: 'Timecode of this item within the exercise audio (plan 56)',
+  required: ['start', 'end'],
+  properties: { start: { type: 'number' }, end: { type: 'number' } },
+};
+
 /** Substrings the answer must (or must not) contain, each with its explanation. */
 const translateGuardSchema = {
   type: 'array',
@@ -38,6 +97,7 @@ const translateContentSchema = (defaultDir: 'to_target' | 'from_target') => ({
   type: 'object',
   required: ['items'],
   properties: {
+    audio: audioSchema,
     dir: {
       type: 'string',
       enum: ['to_target', 'from_target', 'both'],
@@ -58,6 +118,7 @@ const translateContentSchema = (defaultDir: 'to_target' | 'from_target') => ({
         type: 'object',
         required: ['id', 'source'],
         properties: {
+          audio: itemAudioSchema,
           id: { type: 'string', description: 'Stable; keys this item in expected_answers' },
           dir: {
             type: 'string',
@@ -74,8 +135,11 @@ const translateContentSchema = (defaultDir: 'to_target' | 'from_target') => ({
               properties: { w: { type: 'string' }, t: { type: 'string' } },
             },
           },
-          // Audio of `source` — per sentence, because the sentences differ.
-          // Only meaningful when the source is in the target language.
+          // Audio of `source` — per sentence, because the sentences differ
+          // (plan 42). Only meaningful when the source is in the target
+          // language, and not the same thing as `audio` above it: that is a
+          // timecode into the exercise's one clip, this is a clip of its own.
+          // Plan 56 phase 6 decides whether the two converge.
           mediaId: { type: 'string' },
         },
       },
@@ -192,6 +256,7 @@ const templates = [
       type: 'object',
       anyOf: [{ required: ['questions'] }, { required: ['question'] }],
       properties: {
+        audio: audioSchema,
         // ── The new form ──
         title: { type: 'string', description: 'Teacher-facing name of the set' },
         instruction: {
@@ -213,6 +278,7 @@ const templates = [
             type: 'object',
             required: ['id'],
             properties: {
+              audio: itemAudioSchema,
               id: { type: 'string' },
               // Carries no scoring logic. It decides whether a passage is
               // offered and expected, and whether the student is shown it:
@@ -288,7 +354,6 @@ const templates = [
           maxItems: 8,
         },
         context: { type: 'string' },
-        media_id: { type: 'string' },
       },
     },
     // The author's answer key, in either form. As with `short_answer` and
@@ -378,6 +443,7 @@ const templates = [
       type: 'object',
       anyOf: [{ required: ['rows'] }, { required: ['items'] }],
       properties: {
+        audio: audioSchema,
         // ── The new form ──
         title: { type: 'string', description: 'Teacher-facing name of the table' },
         instruction: {
@@ -436,6 +502,7 @@ const templates = [
             type: 'object',
             required: ['id'],
             properties: {
+              audio: itemAudioSchema,
               id: { type: 'string' },
               text: { type: 'string', description: 'The statement' },
             },
@@ -480,10 +547,11 @@ const templates = [
         // plan 51). Per-row options exist only here — the new form has none, by
         // decision Q1.
         //
-        // `media_id` is gone from both forms. Audio in an exercise is a field
-        // of the item, shared by every template rather than owned by this one,
-        // and it is separate work; the old declaration described nothing — not
-        // one document in either course ever carried it (plan 54 §6, caveat 4).
+        // `media_id` was gone from both forms before the rest of the templates
+        // caught up: audio in an exercise is not something a type owns. Plan 56
+        // is that separate work, and `audio` above is its one declaration —
+        // dropped into all thirteen schemas at once, with `media_id` dropped
+        // out of the seven that still declared it and none that ever set it.
         options: {
           type: 'array',
           items: {
@@ -600,6 +668,7 @@ const templates = [
       type: 'object',
       required: ['text_with_blanks'],
       properties: {
+        audio: audioSchema,
         text_with_blanks: {
           type: 'string',
           description: 'Use ___N___ for blanks, e.g. "Jeg ___1___ norsk"',
@@ -610,7 +679,6 @@ const templates = [
         // at / om the reason a word fits is the same in all its sentences, so
         // it is authored once here instead of per blank. Feedback only.
         word_notes: { type: 'object', additionalProperties: { type: 'string' } },
-        media_id: { type: 'string' },
       },
     },
     answerSchema: {
@@ -679,6 +747,7 @@ const templates = [
       type: 'object',
       required: ['word_bank', 'items'],
       properties: {
+        audio: audioSchema,
         word_bank: {
           type: 'array',
           items: { type: 'string' },
@@ -701,7 +770,6 @@ const templates = [
           },
         },
         context: { type: 'string' },
-        media_id: { type: 'string' },
         // Notes about the bank words, shared by every blank: in a drill on
         // at / om the reason a word fits is the same in all its sentences, so
         // it is authored once here instead of per blank. Feedback only.
@@ -821,6 +889,7 @@ const templates = [
       type: 'object',
       required: ['sentences', 'settings'],
       properties: {
+        audio: audioSchema,
         sentences: {
           type: 'array',
           minItems: 1,
@@ -828,6 +897,7 @@ const templates = [
             type: 'object',
             required: ['id', 'text', 'gaps'],
             properties: {
+              audio: itemAudioSchema,
               id: { type: 'string', description: 'Stable; every gap key is built from it' },
               text: {
                 type: 'string',
@@ -861,10 +931,6 @@ const templates = [
           },
         },
         context: { type: 'string' },
-        // `mediaId`, not `media_id`: this template is the first under the
-        // camelCase rule. The other twelve still declare `media_id` and rename
-        // in one pass — it is free, no exercise has ever set it.
-        mediaId: { type: 'string' },
       },
     },
     // Everything the student must not see before checking: the explanations,
@@ -932,6 +998,7 @@ const templates = [
       type: 'object',
       required: ['items'],
       properties: {
+        audio: audioSchema,
         items: {
           type: 'array',
           minItems: 2,
@@ -939,6 +1006,7 @@ const templates = [
             type: 'object',
             required: ['id', 'text'],
             properties: {
+              audio: itemAudioSchema,
               id: { type: 'string' },
               text: { type: 'string' },
               // Optional speaker label for dialogues, e.g. "Marina".
@@ -949,7 +1017,6 @@ const templates = [
         // Presentation hint only; scoring is identical either way.
         kind: { type: 'string', enum: ['dialogue', 'sentences'] },
         context: { type: 'string' },
-        media_id: { type: 'string' },
       },
     },
     answerSchema: {
@@ -980,6 +1047,7 @@ const templates = [
       type: 'object',
       required: ['items'],
       properties: {
+        audio: audioSchema,
         // Everything a student may see. The answer key is NOT here — it lives
         // in expected_answers, because the spans are derivable from it and the
         // spans are the exercise.
@@ -990,6 +1058,7 @@ const templates = [
             type: 'object',
             required: ['id', 'wrong'],
             properties: {
+              audio: itemAudioSchema,
               id: { type: 'string', description: 'Stable; keys this item in expected_answers' },
               wrong: { type: 'string', description: 'The sentence the student meets' },
               hint: { type: 'string' },
@@ -1055,7 +1124,6 @@ const templates = [
             visibility: { type: 'string', enum: ['teacher', 'studentBefore', 'studentAfter'] },
           },
         },
-        mediaId: { type: 'string' },
       },
     },
     // The answer key, keyed by item id so reordering items cannot shuffle it.
@@ -1145,6 +1213,7 @@ const templates = [
       type: 'object',
       required: ['pairs', 'settings'],
       properties: {
+        audio: audioSchema,
         pairs: {
           type: 'array',
           minItems: 1,
@@ -1152,6 +1221,7 @@ const templates = [
             type: 'object',
             required: ['id', 'rightId', 'left', 'right'],
             properties: {
+              audio: itemAudioSchema,
               id: { type: 'string', description: 'Stable; keys the feedback matrix row and the student slot' },
               // Deliberately NOT the pair id. Slots are keyed by `id` and pool
               // items by `rightId`, so the student payload shares no identifier
@@ -1264,6 +1334,7 @@ const templates = [
       type: 'object',
       anyOf: [{ required: ['questions'] }, { required: ['question'] }],
       properties: {
+        audio: audioSchema,
         // ── The new form ──
         title: { type: 'string', description: 'Teacher-facing name of the set' },
         instruction: {
@@ -1282,6 +1353,7 @@ const templates = [
             type: 'object',
             required: ['id', 'prompt'],
             properties: {
+              audio: itemAudioSchema,
               id: { type: 'string' },
               // Controls the passage field only, never the grading:
               // `reading` shows the passage, `listening` keeps it author-side
@@ -1323,7 +1395,6 @@ const templates = [
         // the 144 documents written this way are rewritten; see the note above.
         question: { type: 'string' },
         context: { type: 'string' },
-        media_id: { type: 'string' },
         max_length: { type: 'integer' },
       },
     },
@@ -1410,6 +1481,7 @@ const templates = [
       type: 'object',
       required: ['mode', 'prompt', 'points', 'rubric', 'settings'],
       properties: {
+        audio: audioSchema,
         // Decides which material block the task carries and how the prompt is
         // framed; nothing else. `picture` is a mode rather than its own
         // template so that the rubric editor, the validation engine and the
@@ -1601,6 +1673,7 @@ const templates = [
       type: 'object',
       required: ['rows'],
       properties: {
+        audio: audioSchema,
         title: { type: 'string', description: 'Teacher-facing name of the set' },
         instruction: {
           type: 'string',
@@ -1654,6 +1727,7 @@ const templates = [
             type: 'object',
             required: ['id'],
             properties: {
+              audio: itemAudioSchema,
               id: { type: 'string' },
               clause: { type: 'string', enum: ['main', 'sub', 'yesno', 'hv', 'imp'] },
               // The sentence the student starts from, when the task is "rewrite,
