@@ -130,7 +130,11 @@ export function studentSafeContent(
   content: Record<string, unknown>,
   expectedAnswers: Record<string, unknown>,
 ): Record<string, unknown> {
-  return withStudentAudio(projectByTemplate(templateCode, content, expectedAnswers), content);
+  return withStudentAudio(
+    projectByTemplate(templateCode, content, expectedAnswers),
+    content,
+    templateCode,
+  );
 }
 
 /** The per-template half: what this one type keeps back from a learner. */

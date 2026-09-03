@@ -551,4 +551,59 @@ describe('StartAttemptHandler', () => {
       expect(saved.revisionCount).toBe(0);
     });
   });
+
+  /*
+    Plan 56 §3.3, and the reason it is repeated here. A PRACTICE envelope arrives from
+    content-service unprojected — the key is needed to project it — so this handler is the
+    last hand the document passes through before a learner sees it. Everywhere else the
+    transcript of a listening exercise is withheld; without this step every practice
+    attempt would hand it over.
+  */
+  describe('the transcript of a listening exercise', () => {
+    const listening = (transcriptWhen: string) =>
+      makeExerciseDef({
+        templateCode: 'multiple_choice',
+        content: {
+          question: 'Hva feiler det Kari?',
+          options: [{ id: 'o1', text: 'Vondt i halsen' }, { id: 'o2', text: 'Vondt i hodet' }],
+          audio: {
+            enabled: true,
+            source: 'asset',
+            assetId: 'asset-1',
+            title: 'Dialog',
+            transcript: 'Hei, jeg har vondt i halsen.',
+            translation: 'Hi, my throat hurts.',
+            settings: { transcriptWhen },
+          },
+        },
+        expectedAnswers: { correct_option_ids: ['o1'] },
+      });
+
+    const startWith = async (def: ReturnType<typeof makeExerciseDef>) => {
+      const contentClient = makeContentClient();
+      contentClient.getExerciseForAttempt.mockResolvedValue(Result.ok(def));
+      const handler = makeHandler(makeRepo(), contentClient, makeOrganizationClient(), makePublisher());
+      return handler.execute(
+        new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE'),
+      );
+    };
+
+    it('is withheld from the document the learner is dealt', async () => {
+      const result = await startWith(listening('after'));
+
+      expect(result.isOk).toBe(true);
+      const audio = (result.value.exerciseContent as { audio: Record<string, unknown> }).audio;
+      expect(audio.transcript).toBe('');
+      // What the runner needs in order to play the clip is still there.
+      expect(audio.assetId).toBe('asset-1');
+    });
+
+    it('travels when the teacher made it the accommodation path', async () => {
+      const result = await startWith(listening('always'));
+
+      const audio = (result.value.exerciseContent as { audio: Record<string, unknown> }).audio;
+      expect(audio.transcript).toBe('Hei, jeg har vondt i halsen.');
+    });
+  });
+
 });

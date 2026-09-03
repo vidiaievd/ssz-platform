@@ -1,4 +1,4 @@
-import { audioIssues, type AudioIssue } from '@ssz/shared-kernel/audio';
+import { audioIssues, itemsOf, type AudioIssue } from '@ssz/shared-kernel/audio';
 
 export interface AudioPreflightViolation {
   ruleCode: string;
@@ -52,42 +52,6 @@ export function audioViolations(exercise: {
     itemId: exercise.id,
     detail: describeAudioIssue(first, count),
   }));
-}
-
-/**
- * Where each template keeps the things a timecode can hang on.
- *
- * The kernel does not know — it is written against "an item", which is what makes it one
- * module rather than thirteen — so the mapping lives here, next to the only caller that
- * needs it. A template missing from the table is not a bug: `writing_task` has no items
- * to time, and the two retired forms have no builder to write timecodes with. They get
- * the exercise-level rules and nothing else, which is all they can fail.
- */
-const ITEM_KEY: Record<string, string> = {
-  multiple_choice: 'questions',
-  multiple_choice_group: 'rows',
-  word_bank_gap_fill: 'sentences',
-  text_order: 'items',
-  error_correction: 'items',
-  match_pairs: 'pairs',
-  short_answer: 'questions',
-  sentence_schema: 'rows',
-  translate_to_target: 'items',
-  translate_from_target: 'items',
-};
-
-function itemsOf(templateCode: string, content: unknown): Array<{ id: string; audio?: unknown }> {
-  const key = ITEM_KEY[templateCode];
-  if (key === undefined || typeof content !== 'object' || content === null) return [];
-
-  const items = (content as Record<string, unknown>)[key];
-  if (!Array.isArray(items)) return [];
-
-  return items.flatMap((item) =>
-    typeof item === 'object' && item !== null && typeof (item as { id?: unknown }).id === 'string'
-      ? [item as { id: string; audio?: unknown }]
-      : [],
-  );
 }
 
 /** The English fallback for a rule code the web has no copy for. */

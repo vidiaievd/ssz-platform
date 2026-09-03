@@ -60,6 +60,7 @@ import {
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
 import { attemptShuffle, seedFrom } from '../../../../../shared/application/services/multiple-choice-attempt.js';
+import { withStudentAudio } from '@ssz/shared-kernel/audio';
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { ExercisePathSnapshot } from '../../../domain/entities/attempt.entity.js';
 
@@ -211,6 +212,38 @@ export interface StartAttemptResult {
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
  */
 function withheldWhereNeeded(
+  templateCode: string,
+  exercise: { content: unknown; expectedAnswers: unknown },
+  attemptId: string,
+): { exerciseContent: unknown; expectedAnswers: unknown } {
+  const projected = projectByTemplate(templateCode, exercise, attemptId);
+
+  /*
+    The audio layer, on top of whatever the template did — plan 56 §3.3.
+
+    content-service applies the same step, and applying it again here is not redundancy:
+    a PRACTICE envelope arrives *unprojected* (that is the point of it — the key is
+    needed to project), so this function is the last hand the document passes through
+    before a learner sees it. Without this the transcript of a listening exercise would
+    reach the browser on every practice attempt, having been withheld everywhere else.
+
+    A document that carries no audio comes back untouched, object identity and all.
+  */
+  const content = projected.exerciseContent;
+  if (typeof content !== 'object' || content === null || Array.isArray(content)) {
+    return projected;
+  }
+  return {
+    ...projected,
+    exerciseContent: withStudentAudio(
+      content as Record<string, unknown>,
+      exercise.content,
+      templateCode,
+    ),
+  };
+}
+
+function projectByTemplate(
   templateCode: string,
   exercise: { content: unknown; expectedAnswers: unknown },
   attemptId: string,

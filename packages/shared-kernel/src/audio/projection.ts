@@ -21,11 +21,21 @@
 // forget it. It also has to *add* the block back, because the six per-template
 // projections build a new object and would otherwise drop the audio entirely.
 
-import type { ExerciseAudio } from './model.js';
-import { audioOf } from './model.js';
+import { itemsOf } from './items.js';
+import type { ExerciseAudio, ItemAudio } from './model.js';
+import { audioOf, segmentOf } from './model.js';
 
-/** The audio block as a learner may hold it. Same shape; the words may be missing. */
-export type StudentAudio = ExerciseAudio;
+/**
+ * The audio block as a learner may hold it: the same shape, minus the words, plus the
+ * timecodes gathered up.
+ *
+ * `segments` exists because the per-template projections build a new object out of the
+ * content column, and an item's timecode would not survive the trip — nine projections
+ * would each have to learn to carry a field that is not theirs. Gathering them onto the
+ * block instead keeps the layer in one piece: the runner looks a timecode up by item id,
+ * whatever the template calls its items.
+ */
+export type StudentAudio = ExerciseAudio & { segments?: Record<string, ItemAudio> };
 
 /**
  * Blank the transcript unless the policy is `always`.
@@ -38,6 +48,19 @@ export type StudentAudio = ExerciseAudio;
 export function redactTranscript(audio: ExerciseAudio): StudentAudio {
   if (audio.enabled && audio.settings.transcriptWhen === 'always') return audio;
   return { ...audio, transcript: '', translation: '' };
+}
+
+/** Every item's timecode, keyed by item id. Empty when the author is not using them. */
+export function segmentsOf(templateCode: string, content: unknown): Record<string, ItemAudio> {
+  const audio = audioOf(content);
+  if (!audio.enabled || !audio.useSegments) return {};
+
+  const out: Record<string, ItemAudio> = {};
+  for (const item of itemsOf(templateCode, content)) {
+    const segment = segmentOf(audio, item);
+    if (segment !== null) out[item.id] = segment;
+  }
+  return out;
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -60,11 +83,18 @@ function record(value: unknown): Record<string, unknown> | null {
 export function withStudentAudio(
   projected: Record<string, unknown>,
   content: unknown,
+  templateCode = '',
 ): Record<string, unknown> {
   const raw = record(content);
   if (raw === null || raw['audio'] === undefined) return projected;
 
-  return { ...projected, audio: redactTranscript(audioOf(content)) };
+  const segments = segmentsOf(templateCode, content);
+  const audio: StudentAudio = redactTranscript(audioOf(content));
+
+  return {
+    ...projected,
+    audio: Object.keys(segments).length > 0 ? { ...audio, segments } : audio,
+  };
 }
 
 /**
