@@ -441,13 +441,18 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
      * miss. A revealed question would reopen the same way.
      *
      * Only an attempt with work on it takes this path. An empty one is still a conflict,
-     * so the ten other templates keep the behaviour they were built on.
+     * so the ten other templates keep the behaviour they were built on — unless the
+     * caller names it in `joinAttemptId`, which is how a caller that has already been
+     * told about this attempt asks to be handed it instead of conflicted with (see the
+     * command). The projection is dealt from the attempt's own id, so it is the same
+     * board the attempt's opener is looking at.
      */
     if (
       existing &&
       (existing.answeredQuestions.length > 0 ||
         existing.checkedRows.length > 0 ||
-        existing.pickedOptions.length > 0)
+        existing.pickedOptions.length > 0 ||
+        existing.id === command.joinAttemptId)
     ) {
       const resumedDef = await this.contentClient.getExerciseForAttempt(
         command.exerciseId,

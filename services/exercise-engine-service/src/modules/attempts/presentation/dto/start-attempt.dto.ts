@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import type { CheckMode } from '../../domain/entities/attempt.entity.js';
 
 export class StartAttemptRequestDto {
@@ -27,6 +27,18 @@ export class StartAttemptRequestDto {
   @IsEnum(['PRACTICE', 'GRADED'])
   @IsOptional()
   mode?: CheckMode;
+
+  @ApiPropertyOptional({
+    description:
+      'An attempt the caller has already been told is in progress, to be handed back ' +
+      'rather than reported as a conflict. Only the caller\'s own in-progress attempt ' +
+      'at this exercise is joined; anything else is ignored and the usual rules apply. ' +
+      'This is how a second tab that lost the race to start joins the attempt the first ' +
+      'one opened, instead of abandoning it out from under a learner who is using it.',
+  })
+  @IsUUID()
+  @IsOptional()
+  joinAttemptId?: string;
 }
 
 export class StartAttemptResponseDto {

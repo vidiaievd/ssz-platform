@@ -328,6 +328,51 @@ describe('StartAttemptHandler', () => {
     expect((result.error as { code: string }).code).toBe('ALREADY_IN_PROGRESS');
   });
 
+  /*
+    Two tabs starting the same exercise at the same moment both abandon the stale attempt
+    and both start a fresh one; the loser is told about an attempt it never opened. It can
+    submit into that attempt, but it cannot draw the board — the projection is dealt here
+    and seeded by the attempt's id — so it asks for that attempt by name.
+  */
+  it('hands back an empty open attempt when the caller names it', async () => {
+    const repo = makeRepo();
+    repo.findInProgress.mockResolvedValue(inProgress([], 'multiple_choice_group'));
+
+    const contentClient = makeContentClient();
+    contentClient.getExerciseForAttempt.mockResolvedValue(
+      Result.ok(
+        makeExerciseDef({
+          templateCode: 'multiple_choice_group',
+          content: { instruction: '', columns: [], rows: [], settings: {} },
+          expectedAnswers: { rows: {} },
+        }),
+      ),
+    );
+
+    const handler = makeHandler(repo, contentClient, makeOrganizationClient(), makePublisher());
+    const result = await handler.execute(
+      new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE', 'attempt-open'),
+    );
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.attemptId).toBe('attempt-open');
+    // Joined, not restarted: no second row and no second `attempt.started` event.
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('ignores a named attempt that is not the one in progress', async () => {
+    const repo = makeRepo();
+    repo.findInProgress.mockResolvedValue(inProgress([], 'multiple_choice'));
+
+    const handler = makeHandler(repo, makeContentClient(), makeOrganizationClient(), makePublisher());
+    const result = await handler.execute(
+      new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE', 'attempt-someone-elses'),
+    );
+
+    expect(result.isFail).toBe(true);
+    expect((result.error as { code: string }).code).toBe('ALREADY_IN_PROGRESS');
+  });
+
   it('returns ContentClientError when exercise is not found', async () => {
     const repo = makeRepo();
 
