@@ -902,3 +902,96 @@ describe('studentSafeContent', () => {
     });
   });
 });
+
+/*
+  The one cross-cutting step (plan 56 §3.3). A listening exercise's transcript is what the
+  clip says, which is to say the answer, so it leaves this service under the same rules as
+  every other key.
+*/
+describe('the audio block', () => {
+  const audio = (over: Record<string, unknown> = {}) => ({
+    enabled: true,
+    source: 'asset',
+    assetId: 'asset-1',
+    title: 'Dialog: på legekontoret',
+    duration: 96,
+    transcript: 'Hei, jeg har vondt i halsen.',
+    translation: 'Hi, my throat hurts.',
+    settings: { layout: 'top', plays: 0, seek: true, speed: true, gate: 'none', transcriptWhen: 'never', ...(over['settings'] as object ?? {}) },
+    ...over,
+  });
+
+  const mc = (audioBlock: Record<string, unknown>) => ({
+    instruction: 'Hør på dialogen.',
+    questions: [
+      {
+        id: 'q1',
+        kind: 'listening',
+        stem: 'Hva feiler det Kari?',
+        options: [
+          { id: 'o1', text: 'Vondt i halsen', correct: true, why: '', fixed: false },
+          { id: 'o2', text: 'Vondt i hodet', correct: false, why: '', fixed: false },
+        ],
+        why: 'Hun sier det selv.',
+      },
+    ],
+    settings: { letters: true, layout: 'list', shuffle: false, instant: false, retry: 'one', eliminate: false, progress: true },
+    audio: audioBlock,
+  });
+
+  it('leaves an exercise that carries no audio exactly as it was', () => {
+    const content = { question: 'Hva?', context: '' };
+    expect(studentSafeContent('short_answer', content, {})).toBe(content);
+  });
+
+  it('withholds the transcript from a template that projects', () => {
+    const safe = studentSafeContent('multiple_choice', mc(audio()), {}) as Record<string, unknown>;
+    const block = safe['audio'] as Record<string, unknown>;
+
+    expect(block['transcript']).toBe('');
+    expect(block['translation']).toBe('');
+    // What the runner needs to play the clip is still there.
+    expect(block['assetId']).toBe('asset-1');
+    expect(safe['questions']).toHaveLength(1);
+  });
+
+  it('withholds it from a template that does not project either', () => {
+    // `text_order` hands its content back untouched — which is exactly how the transcript
+    // would have travelled if this step were per-template.
+    const content = { items: [{ id: 'i1', text: 'Hei' }], audio: audio() };
+    const safe = studentSafeContent('text_order', content, {}) as Record<string, unknown>;
+
+    expect((safe['audio'] as Record<string, unknown>)['transcript']).toBe('');
+    expect(safe['items']).toEqual(content.items);
+  });
+
+  it('serves the transcript when the teacher set the policy to always', () => {
+    // The accommodation path for a hard-of-hearing student. It has to arrive before the
+    // answer, and while a gate is closed.
+    const safe = studentSafeContent(
+      'multiple_choice',
+      mc(audio({ settings: { transcriptWhen: 'always' } })),
+      {},
+    ) as Record<string, unknown>;
+
+    expect((safe['audio'] as Record<string, unknown>)['transcript']).toBe(
+      'Hei, jeg har vondt i halsen.',
+    );
+  });
+
+  it('puts the block back on a projection that would have dropped it', () => {
+    // `word_bank_gap_fill` builds its projection from scratch; without the wrapper a
+    // listening gap-fill would reach the runner with nothing to listen to.
+    const content = {
+      sentences: [{ id: 's1', text: 'Jeg [heter] Kari', gaps: [] }],
+      settings: { input: 'free' },
+      audio: audio(),
+    };
+    const safe = studentSafeContent('word_bank_gap_fill', content, { feedback: {} }) as Record<
+      string,
+      unknown
+    >;
+
+    expect((safe['audio'] as Record<string, unknown>)['assetId']).toBe('asset-1');
+  });
+});

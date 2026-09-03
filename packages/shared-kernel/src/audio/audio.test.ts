@@ -15,6 +15,8 @@ import {
 import type { AllowanceContext, AllowanceState } from './allowance.js';
 import { canPlay, hasHeard, INITIAL_STATE, isExhausted, isGated, step } from './allowance.js';
 import { audioIssues, hasAudioBlocker, placeAudioIssues } from './issues.js';
+import { transcriptOnReveal, withStudentAudio } from './projection.js';
+import { deriveSkills } from '../skills/derive.js';
 import type { AudioSettings, ExerciseAudio } from './model.js';
 
 const settings = (over: Partial<AudioSettings> = {}): AudioSettings => ({
@@ -405,5 +407,91 @@ describe('placeAudioIssues', () => {
 
     const three = placeAudioIssues(issues, { source: 1, segments: 1, rules: 3, transcript: 3 });
     expect(three.find((i) => i.code === 'AUD_NO_TRANSCRIPT')?.step).toBe(3);
+  });
+});
+
+describe('what the student is allowed to hold', () => {
+  const withTranscript = (when: 'never' | 'after' | 'always', over = {}) =>
+    doc({
+      transcript: 'Hei, jeg har vondt i halsen.',
+      translation: 'Hi, my throat hurts.',
+      settings: settings({ transcriptWhen: when }),
+      ...over,
+    });
+
+  it('leaves a document that never carried audio untouched, object and all', () => {
+    // Every exercise written before this feature goes through here.
+    const content = { questions: [{ id: 'q1' }] };
+    expect(withStudentAudio(content, content)).toBe(content);
+  });
+
+  it('withholds the transcript under `never` and `after`', () => {
+    for (const when of ['never', 'after'] as const) {
+      const projected = withStudentAudio({ questions: [] }, withTranscript(when));
+      const audio = projected['audio'] as ExerciseAudio;
+      expect(audio.transcript).toBe('');
+      expect(audio.translation).toBe('');
+      // The policy itself still travels: the runner has to know whether words are coming.
+      expect(audio.settings.transcriptWhen).toBe(when);
+    }
+  });
+
+  it('serves the transcript under `always` — it is the accommodation path', () => {
+    const projected = withStudentAudio({ questions: [] }, withTranscript('always'));
+    expect((projected['audio'] as ExerciseAudio).transcript).toBe('Hei, jeg har vondt i halsen.');
+  });
+
+  it('withholds the transcript of a switched-off block too', () => {
+    // Switching audio off keeps the material (BEHAVIOR §1). Keeping it is not a reason
+    // to hand it over.
+    const off = withTranscript('always', { enabled: false });
+    const projected = withStudentAudio({ questions: [] }, off);
+    expect((projected['audio'] as ExerciseAudio).transcript).toBe('');
+  });
+
+  it('puts the block back onto a projection that would have dropped it', () => {
+    // The six per-template projections build a new object out of the content column;
+    // without this step a listening exercise would reach the runner with no clip.
+    const projected = withStudentAudio({ instruction: 'Hør etter' }, withTranscript('never'));
+    expect((projected['audio'] as ExerciseAudio).assetId).toBe('asset-1');
+    expect(projected['instruction']).toBe('Hør etter');
+  });
+
+  it('owes a transcript on reveal only under `after`', () => {
+    expect(transcriptOnReveal(withTranscript('after'))).toEqual({
+      transcript: 'Hei, jeg har vondt i halsen.',
+      translation: 'Hi, my throat hurts.',
+    });
+    expect(transcriptOnReveal(withTranscript('always'))).toBeNull();
+    expect(transcriptOnReveal(withTranscript('never'))).toBeNull();
+    expect(transcriptOnReveal(withTranscript('after', { enabled: false }))).toBeNull();
+    expect(transcriptOnReveal({ questions: [] })).toBeNull();
+  });
+
+  it('owes nothing when the author wrote no transcript', () => {
+    expect(transcriptOnReveal(doc({ settings: settings({ transcriptWhen: 'after' }) }))).toBeNull();
+  });
+});
+
+describe('the joint with the skill axes (plan 55 §3.4)', () => {
+  it('reports a block written by this module as listening', () => {
+    // `derive.ts` was written before this module existed and reads `audio.enabled`
+    // defensively, so the two only meet through the shape. This is that meeting: if the
+    // block ever moved or was renamed, every listening exercise on the platform would go
+    // on being counted as reading and nothing would fail but the report.
+    const document = { questions: [], audio: { ...AUDIO_DEFAULT, enabled: true } };
+
+    expect(deriveSkills({ templateCode: 'multiple_choice', content: document }).skills).toEqual([
+      'listening',
+    ]);
+    expect(deriveSkills({ templateCode: 'multiple_choice', content: document }).skillSource).toBe(
+      'document',
+    );
+
+    // And with the switch off it is whatever it was before — reading, here.
+    const off = { questions: [], audio: AUDIO_DEFAULT };
+    expect(deriveSkills({ templateCode: 'multiple_choice', content: off }).skills).toEqual([
+      'reading',
+    ]);
   });
 });

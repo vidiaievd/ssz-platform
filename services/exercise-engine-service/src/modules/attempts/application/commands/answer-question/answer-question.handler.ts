@@ -31,6 +31,7 @@ import {
 import { seedFrom } from '../../../../../shared/application/services/multiple-choice-attempt.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
+import { audioTranscriptFor, type AudioTranscript } from '../../services/audio-transcript.js';
 
 export type AnswerQuestionError =
   | { code: 'ATTEMPT_NOT_FOUND' }
@@ -59,6 +60,14 @@ export interface AnswerQuestionResult {
   result: StudentResult | AnswerVerdict;
   /** Whether this answer is on its way to a teacher, for the routing line. */
   routedForReview: boolean;
+  /**
+   * What the clip said, once the set is finished (plan 56 §3.3).
+   *
+   * Absent until the last question is answered, and absent altogether unless the teacher
+   * set the transcript to show after the answer: one clip covers the whole set, so
+   * handing it over after the first of five questions would answer the other four.
+   */
+  audioTranscript?: AudioTranscript;
 }
 
 /**
@@ -208,14 +217,15 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
     await this.attempts.save(attempt);
 
     const settings = projectedSettings(document.settings);
+    // Questions with no usable key are not answerable and are not counted, so the
+    // `n/total` the student sees matches the set they are actually walking through.
+    const total = document.questions.filter((q) => usableElements(q).length > 0).length;
 
     return Result.ok<AnswerQuestionResult, AnswerQuestionError>({
       attemptId: attempt.id,
       templateCode: SHORT_ANSWER,
       answered: attempt.answeredQuestions.length,
-      // Questions with no usable key are not answerable and are not counted, so the
-      // `n/total` the student sees matches the set they are actually walking through.
-      total: document.questions.filter((q) => usableElements(q).length > 0).length,
+      total,
       result: toStudentResult(
         {
           questionId,
@@ -232,6 +242,10 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
       routedForReview:
         document.settings.teacherReview === 'all' ||
         (document.settings.teacherReview === 'flagged' && result.verdict !== 'pass'),
+      audioTranscript: audioTranscriptFor(
+        exercise.content,
+        attempt.answeredQuestions.length >= total,
+      ),
     });
   }
 
@@ -317,6 +331,10 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
       // Never. The verdict is an id comparison, and «the server counts» is not the same
       // thing as «a person marks» (plan 53 §3.10).
       routedForReview: false,
+      audioTranscript: audioTranscriptFor(
+        exercise.content,
+        attempt.pickedOptions.filter((q) => q.closed).length >= answerable.length,
+      ),
     });
   }
 }

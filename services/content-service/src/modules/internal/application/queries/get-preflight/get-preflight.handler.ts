@@ -21,6 +21,7 @@ import { shortAnswerViolations } from './short-answer-preflight.js';
 import { sentenceSchemaViolations } from './sentence-schema-preflight.js';
 import { multipleChoiceViolations } from './multiple-choice-preflight.js';
 import { multipleChoiceGroupViolations } from './multiple-choice-group-preflight.js';
+import { audioViolations } from './audio-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
 
@@ -91,6 +92,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
       this.checkLessons(byType['LESSON'] ?? [], blockers, warnings),
       this.checkVocabularyLists(byType['VOCABULARY_LIST'] ?? [], blockers, warnings),
       this.checkExercises(byType['EXERCISE'] ?? [], blockers, warnings),
+      this.checkAudio(byType['EXERCISE'] ?? [], blockers, warnings),
       this.checkModules(byType['CONTAINER'] ?? [], blockers),
       this.checkGrammarRules(byType['GRAMMAR_RULE'] ?? [], blockers),
     ]);
@@ -437,6 +439,53 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
           itemId: item.id,
           detail: 'Vocabulary item has no pronunciation audio',
         });
+      }
+    }
+  }
+
+  /**
+   * The audio layer, on every template rather than seven — plan 56 §3.8.
+   *
+   * A query of its own, and not a widening of `checkExercises`: an exercise that says
+   * "listen" can be any of the thirteen, and loading every document of the version to
+   * find the few that do would read a whole course to check a handful of exercises.
+   * Postgres can answer «which of these has audio switched on» from the JSON itself, so
+   * it does — over both columns, because the draft is what publication promotes.
+   */
+  private async checkAudio(
+    items: Array<{ itemType: string; itemId: string }>,
+    blockers: RuleViolation[],
+    warnings: RuleViolation[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+
+    const withAudio = await this.prisma.exercise.findMany({
+      where: {
+        id: { in: items.map((i) => i.itemId) },
+        OR: [
+          { content: { path: ['audio', 'enabled'], equals: true } },
+          { draftContent: { path: ['audio', 'enabled'], equals: true } },
+        ],
+      },
+      select: {
+        id: true,
+        content: true,
+        draftContent: true,
+        draftUpdatedAt: true,
+        template: { select: { code: true } },
+      },
+    });
+
+    for (const exercise of withAudio) {
+      const pending = exercise.draftUpdatedAt !== null;
+      const violations = audioViolations({
+        id: exercise.id,
+        templateCode: exercise.template.code,
+        content: pending ? exercise.draftContent : exercise.content,
+      });
+
+      for (const violation of violations) {
+        (violation.severity === 'blocker' ? blockers : warnings).push(violation);
       }
     }
   }

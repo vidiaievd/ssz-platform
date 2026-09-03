@@ -1,4 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+import { AudioTranscriptDto } from './audio-transcript.dto.js';
 import { IsBoolean, IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class CheckRowRequestDto {
@@ -99,4 +101,12 @@ export class CheckRowResponseDto {
 
   @ApiProperty({ type: CheckRowResultDto })
   result!: CheckRowResultDto;
+
+  @ApiPropertyOptional({
+    type: AudioTranscriptDto,
+    description:
+      'What the clip said. Present only for a listening exercise with transcriptWhen=after, ' +
+      'and only once the exercise is finished — one clip covers the whole set.',
+  })
+  audioTranscript?: AudioTranscriptDto;
 }

@@ -34,6 +34,7 @@ import type { Attempt } from '../../../domain/entities/attempt.entity.js';
 import { InvalidAttemptTransitionError } from '../../../domain/exceptions/attempt.errors.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
+import { audioTranscriptFor, type AudioTranscript } from '../../services/audio-transcript.js';
 
 export type SubmitAnswerError =
   | { code: 'ATTEMPT_NOT_FOUND' }
@@ -50,6 +51,12 @@ export interface SubmitAnswerResult {
   feedback: { summary: string; hints?: string[]; correctAnswer?: unknown };
   /** Per-item verdicts for the templates graded item by item, and nothing for the rest. */
   details?: unknown;
+  /**
+   * What the clip said (plan 56 §3.3). Only for a listening exercise whose teacher set
+   * the transcript to show after the answer — this is the hand-in, so the exercise is
+   * over and there is nothing left to give away.
+   */
+  audioTranscript?: AudioTranscript;
 }
 
 /**
@@ -599,6 +606,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
         score: null,
         requiresReview: true,
         feedback: { summary: 'Your answer has been submitted for review.' },
+        audioTranscript: audioTranscriptFor(def.exercise.content, true),
         // A routed submission is where `translate_*` spends most of its life, and the
         // split it carries — approved outright vs waiting for a teacher — is per
         // sentence. Withholding it here would leave the runner able to say only that
@@ -652,6 +660,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       requiresReview: false,
       feedback,
       details: learnerFacingDetails(attempt.templateCode, outcome.details),
+      audioTranscript: audioTranscriptFor(def.exercise.content, true),
     });
   }
 

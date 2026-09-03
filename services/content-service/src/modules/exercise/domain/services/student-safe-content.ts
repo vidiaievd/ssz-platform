@@ -34,6 +34,7 @@ import {
   TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP,
   toStudentProjection as multipleChoiceGroupProjection,
 } from '@ssz/shared-kernel/multiple-choice-group';
+import { withStudentAudio } from '@ssz/shared-kernel/audio';
 
 /**
  * The content an exercise may show a student before they answer.
@@ -117,8 +118,23 @@ import {
  * call this: the exercise response DTO and the internal attempt envelope in `graded`
  * mode. Anything that needs the raw document (the builder, the grading engine) asks for
  * the expected answers as well, and gets both.
+ *
+ * **One step here is not per-template**, and it is the audio block (plan 56 §3.3). The
+ * transcript of a listening exercise is the answer, so it is withheld unless the policy
+ * is `always` — and the block has to be *put back* afterwards, because the projections
+ * below build a new object out of the content column and would drop it. Thirteen copies
+ * of that rule would be twelve chances to forget it, so it wraps them all instead.
  */
 export function studentSafeContent(
+  templateCode: string,
+  content: Record<string, unknown>,
+  expectedAnswers: Record<string, unknown>,
+): Record<string, unknown> {
+  return withStudentAudio(projectByTemplate(templateCode, content, expectedAnswers), content);
+}
+
+/** The per-template half: what this one type keeps back from a learner. */
+function projectByTemplate(
   templateCode: string,
   content: Record<string, unknown>,
   expectedAnswers: Record<string, unknown>,

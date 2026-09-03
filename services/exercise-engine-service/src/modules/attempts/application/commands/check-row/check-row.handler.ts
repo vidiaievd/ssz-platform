@@ -32,6 +32,7 @@ export type CheckRowError =
   | { code: 'NOTHING_PLACED' }
   | ContentClientError
   | AttemptDomainError;
+import { audioTranscriptFor, type AudioTranscript } from '../../services/audio-transcript.js';
 
 export interface CheckRowResult {
   attemptId: string;
@@ -41,6 +42,8 @@ export interface CheckRowResult {
   total: number;
   /** The marks, and the answer only once the sentence is closed. */
   result: StudentResult;
+  /** What the clip said, once every sentence is closed (plan 56 §3.3). */
+  audioTranscript?: AudioTranscript;
 }
 
 /**
@@ -162,6 +165,10 @@ export class CheckRowHandler implements ICommandHandler<CheckRowCommand> {
       // through.
       total: rows.length,
       result,
+      audioTranscript: audioTranscriptFor(
+        content,
+        attempt.checkedRows.filter((r) => r.solved || r.revealed).length >= rows.length,
+      ),
     });
   }
 }

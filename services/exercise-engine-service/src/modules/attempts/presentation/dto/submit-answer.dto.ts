@@ -1,4 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+import { AudioTranscriptDto } from './audio-transcript.dto.js';
 import { Allow, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
 export class SubmitAnswerRequestDto {
@@ -50,4 +52,12 @@ export class SubmitAnswerResponseDto {
       'Per-item validator output where it is meant for the learner. Present for word_bank_gap_fill as `{ totalGaps, correctGaps, gaps: [{ gapKey, correct, explanation }] }`, for match_pairs as `{ totalPairs, correctPairs, pairs: [{ pairId, correct, explanation }] }` (filled slots only), and for translate_* as the per-sentence routing. Absent for every other template, whose details carry the answer itself.',
   })
   details?: unknown;
+
+  @ApiPropertyOptional({
+    type: AudioTranscriptDto,
+    description:
+      'What the clip said. Present only for a listening exercise with transcriptWhen=after, ' +
+      'and only once the exercise is finished — one clip covers the whole set.',
+  })
+  audioTranscript?: AudioTranscriptDto;
 }

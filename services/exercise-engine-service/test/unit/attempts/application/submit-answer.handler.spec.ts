@@ -359,6 +359,82 @@ describe('SubmitAnswerHandler', () => {
     expect(result.value.score).toBe(40);
   });
 
+  /*
+    Plan 56 §3.3. The transcript of a listening exercise is what the clip says, so it is
+    withheld by the student projection and delivered by whatever delivers the key. For a
+    template this service grades, that is the verdict — and the hand-in is the end of the
+    exercise, so there is nothing left to give away.
+  */
+  describe('the transcript of a listening exercise', () => {
+    const listening = (transcriptWhen: string) => {
+      const def = makeExerciseDef();
+      return {
+        ...def,
+        exercise: {
+          ...def.exercise,
+          content: {
+            audio: {
+              enabled: true,
+              source: 'asset',
+              assetId: 'asset-1',
+              title: 'Dialog',
+              transcript: 'Hei, jeg har vondt i halsen.',
+              translation: 'Hi, my throat hurts.',
+              settings: { transcriptWhen },
+            },
+          },
+        },
+      };
+    };
+
+    it('comes back with the verdict when the teacher chose "after"', async () => {
+      const handler = makeHandler(
+        makeRepo(), makeContentClient(Result.ok(listening('after'))),
+        makeValidator({ correct: true, score: 100, details: null, requiresReview: false }),
+        makeFeedback(), makePublisher(),
+      );
+      const result = await handler.execute(cmd);
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.audioTranscript).toEqual({
+        transcript: 'Hei, jeg har vondt i halsen.',
+        translation: 'Hi, my throat hurts.',
+      });
+    });
+
+    it('does not come back when it travelled with the document already', async () => {
+      // `always` is the accommodation path and was served with the projection; sending it
+      // twice would say the two copies could differ.
+      const handler = makeHandler(
+        makeRepo(), makeContentClient(Result.ok(listening('always'))),
+        makeValidator({ correct: true, score: 100, details: null, requiresReview: false }),
+        makeFeedback(), makePublisher(),
+      );
+      const result = await handler.execute(cmd);
+      expect(result.value.audioTranscript).toBeUndefined();
+    });
+
+    it('never comes back when the teacher chose "never"', async () => {
+      const handler = makeHandler(
+        makeRepo(), makeContentClient(Result.ok(listening('never'))),
+        makeValidator({ correct: true, score: 100, details: null, requiresReview: false }),
+        makeFeedback(), makePublisher(),
+      );
+      const result = await handler.execute(cmd);
+      expect(result.value.audioTranscript).toBeUndefined();
+    });
+
+    it('is absent from an exercise that has no audio at all', async () => {
+      const handler = makeHandler(
+        makeRepo(), makeContentClient(),
+        makeValidator({ correct: true, score: 100, details: null, requiresReview: false }),
+        makeFeedback(), makePublisher(),
+      );
+      const result = await handler.execute(cmd);
+      expect(result.value.audioTranscript).toBeUndefined();
+    });
+  });
+
   describe('multiple_choice — what the submission is not trusted about at all', () => {
     // Plan 53 §3.5. Which try a question was taken on *is* the score — only a
     // first-attempt hit counts — and the client has no business asserting it. Every pick
