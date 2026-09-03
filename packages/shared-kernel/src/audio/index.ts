@@ -1,0 +1,42 @@
+// Public surface of the audio layer — plan 56 phase 1.
+
+export type {
+  AudioLayout,
+  AudioSettings,
+  AudioSource,
+  ExerciseAudio,
+  GateMode,
+  ItemAudio,
+  LessonAudioRef,
+  PlayLimit,
+  TranscriptPolicy,
+} from './model.js';
+export {
+  AUDIO_DEFAULT,
+  audioOf,
+  audioOn,
+  formatDuration,
+  hasClip,
+  parseDuration,
+  segmentOf,
+} from './model.js';
+
+export type {
+  AllowanceContext,
+  AllowanceEvent,
+  AllowanceState,
+  AllowanceStep,
+  PlaybackEffect,
+} from './allowance.js';
+export { canPlay, hasHeard, INITIAL_STATE, isExhausted, isGated, limitOf, step } from './allowance.js';
+
+export type {
+  AudioIssue,
+  AudioIssueCode,
+  AudioIssueLevel,
+  AudioIssuePart,
+  AudioItem,
+  AudioStepMap,
+  PlacedAudioIssue,
+} from './issues.js';
+export { audioIssues, hasAudioBlocker, placeAudioIssues } from './issues.js';
