@@ -36,7 +36,10 @@ const audioSchema = {
   description: 'Listening layer — plan 56. Absent or enabled:false means unchanged.',
   properties: {
     enabled: { type: 'boolean' },
-    source: { type: 'string', enum: ['asset', 'link', 'lesson'] },
+    // `items` says the clip is not here: every item carries its own recording in the
+    // template's own field. Only `translate` has one (plan 56 phase 6), and it is the
+    // merge of plan 42's per-sentence slot into this layer rather than a rival to it.
+    source: { type: 'string', enum: ['asset', 'link', 'lesson', 'items'] },
     assetId: { type: 'string', description: 'media-service asset, uploaded as exercise_asset' },
     url: { type: 'string', description: 'source=link only; never a pre-signed URL' },
     lessonRef: {
@@ -139,7 +142,9 @@ const translateContentSchema = (defaultDir: 'to_target' | 'from_target') => ({
           // (plan 42). Only meaningful when the source is in the target
           // language, and not the same thing as `audio` above it: that is a
           // timecode into the exercise's one clip, this is a clip of its own.
-          // Plan 56 phase 6 decides whether the two converge.
+          // Plan 56 phase 6 converged the two without moving either: this field
+          // is what `audio.source: "items"` plays, so the rules for hearing —
+          // the play limit, the gate, the speed — reach it as well.
           mediaId: { type: 'string' },
         },
       },

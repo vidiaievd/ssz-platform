@@ -141,12 +141,22 @@ export function withSegment(
  *
  * The same `audioIssues` every other surface reads — the builder holds the layer as a
  * draft beside the document, so this is the one place that knows how to hand a draft to a
- * function written against a document. Item ids come from the host builder, because only
- * it knows what an item is.
+ * function written against a document. Items come from the host builder, because only it
+ * knows what an item is.
+ *
+ * An id alone is enough for a template whose items can only carry timecodes. One that
+ * keeps a clip per item (`translate`) passes the clip with the id, because under `source:
+ * 'items'` that is what decides whether the exercise has anything to play at all.
  */
-export function draftIssues(draft: AudioDraft, itemIds: readonly string[]): AudioIssue[] {
+export function draftIssues(
+  draft: AudioDraft,
+  items: readonly (string | { id: string; clip?: string })[],
+): AudioIssue[] {
   return audioIssues(
     { audio: draft.audio },
-    itemIds.map((id) => ({ id, audio: draft.segments[id] })),
+    items.map((item) => {
+      const { id, clip } = typeof item === 'string' ? { id: item, clip: undefined } : item;
+      return { id, audio: draft.segments[id], ...(clip === undefined ? {} : { clip }) };
+    }),
   );
 }

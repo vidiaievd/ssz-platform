@@ -15,6 +15,7 @@ import {
 import type { AllowanceContext, AllowanceState } from './allowance.js';
 import { canPlay, hasHeard, INITIAL_STATE, isExhausted, isGated, step } from './allowance.js';
 import { audioIssues, hasAudioBlocker, placeAudioIssues } from './issues.js';
+import { itemsOf, hasItemClips } from './items.js';
 import { segmentsOf, transcriptOnReveal, withStudentAudio } from './projection.js';
 import {
   applyAudioDraft,
@@ -258,7 +259,10 @@ describe('seeking', () => {
   });
 
   it('clears an active fragment', () => {
-    const state = run([{ type: 'playRange', start: 22, end: 48 }, { type: 'seek', to: 10 }]);
+    const state = run([
+      { type: 'playRange', start: 22, end: 48 },
+      { type: 'seek', to: 10 },
+    ]);
     expect(state.range).toBeNull();
     expect(state.pos).toBe(10);
   });
@@ -315,6 +319,55 @@ describe('audioIssues', () => {
     expect(hasAudioBlocker(issues)).toBe(true);
   });
 
+  /*
+    The fourth source — plan 56 phase 6. `translate` gave every sentence its own recording
+    long before this layer existed, because the sentences come from different sources; the
+    merge makes that a source of the layer rather than a second control beside it.
+  */
+  describe('source: items', () => {
+    const perItem = (over = {}) => doc({ source: 'items', assetId: '', title: '', ...over });
+
+    it('is playable when some item carries a recording, and blocked when none does', () => {
+      expect(hasAudioBlocker(audioIssues(perItem(), [{ id: 'i1' }, { id: 'i2' }]))).toBe(true);
+      expect(
+        hasAudioBlocker(audioIssues(perItem(), [{ id: 'i1', clip: 'media-9' }, { id: 'i2' }])),
+      ).toBe(false);
+    });
+
+    it('asks for neither a title nor a transcript', () => {
+      // Both are about *the* clip above *the* player, and there is no such thing here:
+      // the sentence on screen is the recording's own label, and it is already readable.
+      const codes = audioIssues(perItem({ settings: settings({ transcriptWhen: 'after' }) }), [
+        { id: 'i1', clip: 'media-9' },
+      ]).map((i) => i.code);
+
+      expect(codes).not.toContain('AUD_NO_TITLE');
+      expect(codes).not.toContain('AUD_NO_TRANSCRIPT');
+    });
+
+    it('does not report timecodes, because there is no one clip to cut', () => {
+      const codes = audioIssues(perItem({ useSegments: true }), [
+        { id: 'i1', clip: 'media-9', audio: { start: 40, end: 10 } },
+      ]).map((i) => i.code);
+
+      expect(codes).not.toContain('AUD_SEG_INVERTED');
+    });
+
+    it('reads a per-item clip off the template field it is actually stored in', () => {
+      // `translate` spells it `mediaId`, and this table is the only place that knows.
+      const items = itemsOf('translate_to_target', {
+        items: [
+          { id: 'i1', mediaId: 'media-9' },
+          { id: 'i2', mediaId: '' },
+        ],
+      });
+
+      expect(items.map((item) => item.clip)).toEqual(['media-9', undefined]);
+      expect(hasItemClips('translate_to_target')).toBe(true);
+      expect(hasItemClips('multiple_choice')).toBe(false);
+    });
+  });
+
   it('clears the blocker for each of the three sources', () => {
     expect(hasAudioBlocker(audioIssues(doc({ source: 'asset', assetId: 'a-1' }), items))).toBe(
       false,
@@ -324,7 +377,10 @@ describe('audioIssues', () => {
     ).toBe(false);
     expect(
       hasAudioBlocker(
-        audioIssues(doc({ source: 'lesson', lessonRef: { lessonId: 'l-1', variant: 'nb' } }), items),
+        audioIssues(
+          doc({ source: 'lesson', lessonRef: { lessonId: 'l-1', variant: 'nb' } }),
+          items,
+        ),
       ),
     ).toBe(false);
   });
@@ -334,7 +390,10 @@ describe('audioIssues', () => {
     expect(empty.map((i) => i.code)).toContain('AUD_NO_TRANSCRIPT');
 
     const written = audioIssues(
-      doc({ transcript: 'Hei, jeg har vondt i halsen.', settings: settings({ transcriptWhen: 'after' }) }),
+      doc({
+        transcript: 'Hei, jeg har vondt i halsen.',
+        settings: settings({ transcriptWhen: 'after' }),
+      }),
       items,
     );
     expect(written.map((i) => i.code)).not.toContain('AUD_NO_TRANSCRIPT');
@@ -406,7 +465,9 @@ describe('placeAudioIssues', () => {
   it('puts each issue on the step of the host that owns its fix', () => {
     // Four steps in `multiple_choice`, three in `word_bank_gap_fill` — the same list,
     // placed differently, which is the whole reason the mapping is a parameter.
-    const issues = audioIssues(doc({ assetId: '', settings: settings({ transcriptWhen: 'always' }) }));
+    const issues = audioIssues(
+      doc({ assetId: '', settings: settings({ transcriptWhen: 'always' }) }),
+    );
 
     const four = placeAudioIssues(issues, { source: 1, segments: 1, rules: 3, transcript: 4 });
     expect(four.find((i) => i.code === 'AUD_NO_CLIP')?.step).toBe(1);
@@ -572,7 +633,10 @@ describe('the authored draft', () => {
     // without this the first autosave would drop the whole layer.
     const persisted = {
       title: 'Indirekte tale',
-      questions: [{ id: 'q1', stem: 'Hva sa hun?' }, { id: 'q2', stem: 'Og så?' }],
+      questions: [
+        { id: 'q1', stem: 'Hva sa hun?' },
+        { id: 'q2', stem: 'Og så?' },
+      ],
     };
     const draft = readAudioDraft(stored, 'multiple_choice');
 
@@ -598,7 +662,11 @@ describe('the authored draft', () => {
     // "Never had audio" and "had it and it was switched off" are different documents, and
     // the second must keep its clip so re-enabling restores it.
     const off = { ...stored, audio: { ...stored.audio, enabled: false } };
-    const out = applyAudioDraft({ questions: [] }, readAudioDraft(off, 'multiple_choice'), 'multiple_choice');
+    const out = applyAudioDraft(
+      { questions: [] },
+      readAudioDraft(off, 'multiple_choice'),
+      'multiple_choice',
+    );
 
     expect((out['audio'] as ExerciseAudio).assetId).toBe('a-1');
     expect((out['audio'] as ExerciseAudio).enabled).toBe(false);

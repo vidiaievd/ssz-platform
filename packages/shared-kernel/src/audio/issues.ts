@@ -46,6 +46,8 @@ export type AudioStepMap = Record<AudioIssuePart, number>;
 export interface AudioItem {
   id: string;
   audio?: unknown;
+  /** The item's own recording, under `source: 'items'`. Read for it by `itemsOf`. */
+  clip?: string;
 }
 
 /** An issue with the host's step number attached, ready for a rail or a gate. */
@@ -69,11 +71,17 @@ export function audioIssues(content: unknown, items: readonly AudioItem[] = []):
   if (!audio.enabled) return [];
 
   const out: AudioIssue[] = [];
+  const perItem = audio.source === 'items';
 
-  if (!hasClip(audio)) {
+  // The same blocker asked of a different place. Under `items` there is no clip on the
+  // exercise by definition, and what makes it playable is that some item carries one —
+  // an author who switched listening on and recorded nothing is the case this catches.
+  if (perItem ? !items.some((item) => (item.clip ?? '').trim() !== '') : !hasClip(audio)) {
     out.push({ code: 'AUD_NO_CLIP', level: 'blocker', part: 'source' });
   }
-  if (audio.title.trim() === '') {
+  // Not asked under `items`: the title names *the* clip above *the* player, and a set of
+  // sentences with a recording each has neither. The sentence is its own label there.
+  if (!perItem && audio.title.trim() === '') {
     out.push({ code: 'AUD_NO_TITLE', level: 'warning', part: 'source' });
   }
 
@@ -91,7 +99,10 @@ export function audioIssues(content: unknown, items: readonly AudioItem[] = []):
     out.push({ code: 'AUD_LIMIT_WITH_SEEK', level: 'info', part: 'rules' });
   }
 
-  if (audio.settings.transcriptWhen !== 'never' && audio.transcript.trim() === '') {
+  // A transcript is what one clip says. Under `items` the sentence the recording speaks
+  // is already on the screen — it is the thing being translated — so there is nothing to
+  // withhold and nothing to ask the author for.
+  if (!perItem && audio.settings.transcriptWhen !== 'never' && audio.transcript.trim() === '') {
     out.push({ code: 'AUD_NO_TRANSCRIPT', level: 'warning', part: 'transcript' });
   }
 
@@ -99,7 +110,8 @@ export function audioIssues(content: unknown, items: readonly AudioItem[] = []):
 }
 
 function segmentIssues(audio: ExerciseAudio, items: readonly AudioItem[]): AudioIssue[] {
-  if (!audio.useSegments) return [];
+  // A timecode is a slice of the exercise's clip, and under `items` there is not one.
+  if (!audio.useSegments || audio.source === 'items') return [];
 
   const out: AudioIssue[] = [];
   for (const item of items) {

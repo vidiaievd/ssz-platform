@@ -27,8 +27,15 @@
  * `link` is an external URL. `lesson` borrows the narration of a Read & Listen lesson
  * **by reference**, so replacing it in the lesson replaces it here; it ships last
  * (plan 56 §3.8) because it is the one mode that has to read another aggregate.
+ *
+ * `items` is the fourth, and it says the clip is not here: each item carries its own
+ * recording, in the template's own field (plan 56 phase 6, `items.ts`). It exists because
+ * `translate` already worked that way — a set of sentences from different sources, one
+ * recording each — and the choice was to make that a source of this layer rather than a
+ * second audio control beside it. The rules for hearing then apply to whichever clip is
+ * playing, and there is no exercise-level clip, no timecodes and no one transcript.
  */
-export type AudioSource = 'asset' | 'link' | 'lesson';
+export type AudioSource = 'asset' | 'link' | 'lesson' | 'items';
 
 /** Where the player sits relative to the items. */
 export type AudioLayout = 'top' | 'gate';
@@ -156,7 +163,7 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback
     : fallback;
 }
 
-const SOURCES: readonly AudioSource[] = ['asset', 'link', 'lesson'];
+const SOURCES: readonly AudioSource[] = ['asset', 'link', 'lesson', 'items'];
 const LAYOUTS: readonly AudioLayout[] = ['top', 'gate'];
 const GATES: readonly GateMode[] = ['none', 'first'];
 const POLICIES: readonly TranscriptPolicy[] = ['never', 'after', 'always'];
@@ -227,6 +234,9 @@ export function audioOn(content: unknown): boolean {
 export function hasClip(audio: ExerciseAudio): boolean {
   if (audio.source === 'asset') return audio.assetId.trim() !== '';
   if (audio.source === 'link') return audio.url.trim() !== '';
+  // `items` has no clip *here* — every clip is on an item, and only a caller holding the
+  // items can say whether any exists. `audioIssues` is that caller.
+  if (audio.source === 'items') return false;
   return audio.lessonRef !== null && audio.lessonRef.lessonId.trim() !== '';
 }
 

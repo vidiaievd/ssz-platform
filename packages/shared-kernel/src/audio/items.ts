@@ -24,9 +24,33 @@ const ITEM_KEY: Record<string, string> = {
   translate_from_target: 'items',
 };
 
+/**
+ * Where a template keeps a clip **of its own** on each item — plan 56 phase 6.
+ *
+ * Only `translate` has one, and it predates this layer: plan 42 gave every sentence its
+ * own recording because the sentences come from different sources, which is a shape one
+ * clip with timecodes cannot express. Phase 6 does not delete it and does not set a
+ * second control beside it — it becomes the fourth `AudioSource` (`items`), so the
+ * teacher makes one decision and the rules for hearing apply either way.
+ *
+ * A template absent from this table simply cannot have per-item clips, and `source:
+ * 'items'` on one is an exercise with nothing to play — which is the blocker it should be.
+ */
+const ITEM_CLIP_KEY: Record<string, string> = {
+  translate_to_target: 'mediaId',
+  translate_from_target: 'mediaId',
+};
+
 export interface IdentifiedItem {
   id: string;
   audio?: unknown;
+  /**
+   * The item's own recording, for a template that keeps one (`source: 'items'`).
+   *
+   * Read off the template's own field by `itemsOf`, so that nothing downstream has to
+   * know that `translate` spells it `mediaId`.
+   */
+  clip?: string;
 }
 
 /** Which field of the document holds its items, or `null` for a template with none. */
@@ -42,9 +66,26 @@ export function itemsOf(templateCode: string, content: unknown): IdentifiedItem[
   const items = (content as Record<string, unknown>)[key];
   if (!Array.isArray(items)) return [];
 
-  return items.flatMap((item) =>
-    typeof item === 'object' && item !== null && typeof (item as { id?: unknown }).id === 'string'
-      ? [item as IdentifiedItem]
-      : [],
-  );
+  const clipKey = ITEM_CLIP_KEY[templateCode];
+
+  return items.flatMap((item) => {
+    if (typeof item !== 'object' || item === null) return [];
+    const record = item as Record<string, unknown>;
+    if (typeof record['id'] !== 'string') return [];
+
+    // Spread rather than cast: the clip is read off a field whose name belongs to the
+    // template, and this is the one module allowed to know that name.
+    const clip = clipKey === undefined ? undefined : record[clipKey];
+    return [
+      {
+        ...(item as IdentifiedItem),
+        ...(typeof clip === 'string' && clip !== '' ? { clip } : {}),
+      },
+    ];
+  });
+}
+
+/** Whether this template can hold a clip on each item at all. */
+export function hasItemClips(templateCode: string): boolean {
+  return ITEM_CLIP_KEY[templateCode] !== undefined;
 }
