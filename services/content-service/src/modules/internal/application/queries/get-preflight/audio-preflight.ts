@@ -1,4 +1,5 @@
 import { audioIssues, itemsOf, type AudioIssue } from '@ssz/shared-kernel/audio';
+import { transcriptGivesAway } from '@ssz/shared-kernel/error-correction';
 
 export interface AudioPreflightViolation {
   ruleCode: string;
@@ -45,13 +46,32 @@ export function audioViolations(exercise: {
     else counted.set(issue.code, { level: issue.level, count: 1, first: issue });
   }
 
-  return [...counted].map(([code, { level, count, first }]) => ({
+  const out = [...counted].map(([code, { level, count, first }]) => ({
     ruleCode: `AUDIO_${code}`,
-    severity: level,
+    severity: level as 'blocker' | 'warning',
     itemType: 'EXERCISE' as const,
     itemId: exercise.id,
     detail: describeAudioIssue(first, count),
   }));
+
+  /*
+    The one audio rule that names a template, asked here because this is the only place
+    the server checks audio at all. The rule itself is `error_correction`'s own — the
+    shared list may not be patched per type (INTEGRATION.md) — so this asks its kernel
+    rather than deciding anything.
+  */
+  if (exercise.templateCode === 'error_correction' && transcriptGivesAway(exercise.content)) {
+    out.push({
+      ruleCode: 'AUDIO_AUD_TRANSCRIPT_GIVES_AWAY',
+      severity: 'blocker' as const,
+      itemType: 'EXERCISE' as const,
+      itemId: exercise.id,
+      detail:
+        'The transcript is shown from the start, and on this exercise it is the answer: the clip is the passage read correctly',
+    });
+  }
+
+  return out;
 }
 
 /** The English fallback for a rule code the web has no copy for. */

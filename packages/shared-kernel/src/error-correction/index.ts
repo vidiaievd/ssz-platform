@@ -62,7 +62,7 @@ export {
 } from './engine.js';
 
 export type { Issue, IssueCode, IssueLevel, IssueStep, StepState } from './issues.js';
-export { blockers, isReady, issues, stepState, warnings } from './issues.js';
+export { blockers, isReady, issues, stepState, transcriptGivesAway, warnings } from './issues.js';
 
 export type {
   DocumentEnvelope,
