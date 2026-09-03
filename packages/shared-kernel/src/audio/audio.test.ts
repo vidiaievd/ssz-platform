@@ -16,6 +16,13 @@ import type { AllowanceContext, AllowanceState } from './allowance.js';
 import { canPlay, hasHeard, INITIAL_STATE, isExhausted, isGated, step } from './allowance.js';
 import { audioIssues, hasAudioBlocker, placeAudioIssues } from './issues.js';
 import { segmentsOf, transcriptOnReveal, withStudentAudio } from './projection.js';
+import {
+  applyAudioDraft,
+  readAudioDraft,
+  withAudio,
+  withAudioSettings,
+  withSegment,
+} from './authoring.js';
 import { deriveSkills } from '../skills/derive.js';
 import type { AudioSettings, ExerciseAudio } from './model.js';
 
@@ -533,5 +540,88 @@ describe('timecodes across a projection', () => {
 
     // A template with nothing to time is not a failure — it has no item key at all.
     expect(segmentsOf('writing_task', { prompt: 'Skriv', audio: timed.audio })).toEqual({});
+  });
+});
+
+describe('the authored draft', () => {
+  const stored = {
+    title: 'Indirekte tale',
+    questions: [
+      { id: 'q1', stem: 'Hva sa hun?', audio: { start: 22, end: 48 } },
+      { id: 'q2', stem: 'Og så?' },
+    ],
+    audio: { ...AUDIO_DEFAULT, enabled: true, assetId: 'a-1', useSegments: true },
+  };
+
+  it('reads the block and the timecodes off a loaded document', () => {
+    const draft = readAudioDraft(stored, 'multiple_choice');
+    expect(draft.present).toBe(true);
+    expect(draft.audio.assetId).toBe('a-1');
+    expect(draft.segments).toEqual({ q1: { start: 22, end: 48 } });
+  });
+
+  it('reads timecodes even while they are switched off', () => {
+    // Switching them off must not lose them, exactly as switching audio off keeps the
+    // clip (BEHAVIOR §1).
+    const off = { ...stored, audio: { ...stored.audio, useSegments: false } };
+    expect(readAudioDraft(off, 'multiple_choice').segments).toEqual({ q1: { start: 22, end: 48 } });
+  });
+
+  it('writes the block back onto what the template persisted', () => {
+    // `toContent` builds an explicit object out of the fields the template knows, so
+    // without this the first autosave would drop the whole layer.
+    const persisted = {
+      title: 'Indirekte tale',
+      questions: [{ id: 'q1', stem: 'Hva sa hun?' }, { id: 'q2', stem: 'Og så?' }],
+    };
+    const draft = readAudioDraft(stored, 'multiple_choice');
+
+    const out = applyAudioDraft(persisted, draft, 'multiple_choice');
+    expect((out['audio'] as ExerciseAudio).assetId).toBe('a-1');
+    expect(out['questions']).toEqual([
+      { id: 'q1', stem: 'Hva sa hun?', audio: { start: 22, end: 48 } },
+      { id: 'q2', stem: 'Og så?' },
+    ]);
+  });
+
+  it('leaves an exercise that never had audio exactly as it was', () => {
+    // Every document written before this feature round-trips through the builder without
+    // gaining a field.
+    const persisted = { title: 'Uten lyd', questions: [{ id: 'q1', stem: 'Hva?' }] };
+    const draft = readAudioDraft({ questions: [] }, 'multiple_choice');
+    expect(draft.present).toBe(false);
+
+    expect(applyAudioDraft(persisted, draft, 'multiple_choice')).toBe(persisted);
+  });
+
+  it('keeps writing the block once it exists, even switched off', () => {
+    // "Never had audio" and "had it and it was switched off" are different documents, and
+    // the second must keep its clip so re-enabling restores it.
+    const off = { ...stored, audio: { ...stored.audio, enabled: false } };
+    const out = applyAudioDraft({ questions: [] }, readAudioDraft(off, 'multiple_choice'), 'multiple_choice');
+
+    expect((out['audio'] as ExerciseAudio).assetId).toBe('a-1');
+    expect((out['audio'] as ExerciseAudio).enabled).toBe(false);
+  });
+
+  it('removes a timecode the author cleared', () => {
+    const draft = withSegment(readAudioDraft(stored, 'multiple_choice'), 'q1', null);
+    const out = applyAudioDraft(
+      { questions: [{ id: 'q1', stem: 'Hva sa hun?', audio: { start: 22, end: 48 } }] },
+      draft,
+      'multiple_choice',
+    );
+
+    expect(out['questions']).toEqual([{ id: 'q1', stem: 'Hva sa hun?' }]);
+  });
+
+  it('edits the block without touching the timecodes', () => {
+    const draft = readAudioDraft(stored, 'multiple_choice');
+    const edited = withAudioSettings(withAudio(draft, { title: 'Dialog' }), { plays: 2 });
+
+    expect(edited.audio.title).toBe('Dialog');
+    expect(edited.audio.settings.plays).toBe(2);
+    expect(edited.audio.assetId).toBe('a-1');
+    expect(edited.segments).toEqual(draft.segments);
   });
 });

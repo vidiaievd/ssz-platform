@@ -42,7 +42,17 @@ export type {
 export { audioIssues, hasAudioBlocker, placeAudioIssues } from './issues.js';
 
 export type { StudentAudio } from './projection.js';
-export { redactTranscript, segmentsOf, transcriptOnReveal, withStudentAudio } from './projection.js';
+export { deliveredSegments, redactTranscript, segmentsOf, transcriptOnReveal, withStudentAudio } from './projection.js';
 
 export type { IdentifiedItem } from './items.js';
-export { itemsOf } from './items.js';
+export { itemKey, itemsOf } from './items.js';
+
+export type { AudioDraft } from './authoring.js';
+export {
+  applyAudioDraft,
+  draftIssues,
+  readAudioDraft,
+  withAudio,
+  withAudioSettings,
+  withSegment,
+} from './authoring.js';

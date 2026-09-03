@@ -98,6 +98,28 @@ export function withStudentAudio(
 }
 
 /**
+ * The timecodes as they arrive on the wire, read back by a runner.
+ *
+ * The mirror of what `withStudentAudio` wrote, and defensive in the same way as
+ * `audioOf`: a runner meeting a document from before this feature — or one whose author
+ * has since turned timecodes off — gets an empty map rather than an exception.
+ */
+export function deliveredSegments(content: unknown): Record<string, ItemAudio> {
+  const audio = record(record(content)?.['audio']);
+  const segments = record(audio?.['segments']);
+  if (segments === null) return {};
+
+  const out: Record<string, ItemAudio> = {};
+  for (const [id, value] of Object.entries(segments)) {
+    const seg = record(value);
+    const start = seg?.['start'];
+    const end = seg?.['end'];
+    if (typeof start === 'number' && typeof end === 'number') out[id] = { start, end };
+  }
+  return out;
+}
+
+/**
  * The transcript owed to a student who has reached the answer, or `null`.
  *
  * Answers the delivery side of the `after` policy: the BFF calls it with the document it

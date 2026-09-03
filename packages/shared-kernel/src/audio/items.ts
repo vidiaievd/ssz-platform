@@ -29,6 +29,11 @@ export interface IdentifiedItem {
   audio?: unknown;
 }
 
+/** Which field of the document holds its items, or `null` for a template with none. */
+export function itemKey(templateCode: string): string | null {
+  return ITEM_KEY[templateCode] ?? null;
+}
+
 /** The items of a document, as far as the audio layer is concerned. */
 export function itemsOf(templateCode: string, content: unknown): IdentifiedItem[] {
   const key = ITEM_KEY[templateCode];
