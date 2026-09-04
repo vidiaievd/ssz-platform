@@ -166,6 +166,9 @@ const attempt = (over: Partial<AttemptRatedPayload> = {}): AttemptRatedPayload =
   containerId: 'course-1',
   timeSpentSeconds: null,
   stabilityAfter: null,
+  workContext: null,
+  groupId: null,
+  lessonId: null,
   ...over,
 });
 

@@ -23,5 +23,11 @@ export class StartAttemptCommand {
      * Ignored unless it is the caller's own in-progress attempt at this exercise.
      */
     public readonly joinAttemptId: string | null = null,
+    /**
+     * Scheduled lesson this attempt is done in, when the caller names one (plan 57 §7).
+     * Appended at the tail: the constructor is positional, and every existing call site
+     * passes joinAttemptId last.
+     */
+    public readonly lessonId: string | null = null,
   ) {}
 }

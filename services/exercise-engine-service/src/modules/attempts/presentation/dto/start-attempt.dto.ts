@@ -19,6 +19,16 @@ export class StartAttemptRequestDto {
   enrollmentId?: string;
 
   @ApiPropertyOptional({
+    description:
+      'Scheduled lesson this attempt is being done in. Naming one marks the work as ' +
+      'classwork; leaving it out means homework when an assignment is named, and the ' +
+      "learner's own time otherwise.",
+  })
+  @IsString()
+  @IsOptional()
+  lessonId?: string;
+
+  @ApiPropertyOptional({
     enum: ['PRACTICE', 'GRADED'],
     description:
       'PRACTICE ships expectedAnswers for instant local checking; GRADED withholds them. ' +

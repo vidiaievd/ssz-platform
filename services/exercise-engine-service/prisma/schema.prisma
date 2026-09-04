@@ -230,6 +230,14 @@ model Attempt {
   containerId String? @map("container_id") // top-level course the exercise sits in
   groupId     String? @map("group_id") // student's group at start; null → "no reviewer" in oversight
 
+  // Where this work was done, decided at start and never re-derived (plan 57 §7):
+  // 'classwork' when the caller named the lesson it happened in, 'homework' when it
+  // answers an assignment, 'self_study' otherwise. Null for attempts started before
+  // the field existed — absent is not the same as self_study, and analytics must be
+  // able to tell them apart.
+  workContext String? @map("work_context")
+  lessonId    String? @map("lesson_id") // scheduled lesson this was done in, when known
+
   // {course, module, exercise} titles as of attempt start — survives the
   // exercise/course being renamed or removed later (DATA_MODEL.md B/21).
   exercisePath Json? @map("exercise_path")

@@ -105,6 +105,14 @@ export interface PracticedAtom {
   atomId: string;
 }
 
+/**
+ * Where a piece of work was done (plan 57 §7).
+ *
+ * Decided when the attempt starts and never re-derived: the same exercise is classwork
+ * on Tuesday and homework on Thursday, and only the moment it was opened knows which.
+ */
+export type WorkContext = 'classwork' | 'homework' | 'self_study';
+
 /** What an exercise trains, as Content Service resolved it at attempt start (plan 55 §3.6). */
 export interface AttemptAxes {
   skills: Skill[];
@@ -116,6 +124,8 @@ export interface CreateAttemptProps {
   exerciseId: string;
   assignmentId?: string | null;
   enrollmentId?: string | null;
+  /** Scheduled lesson this attempt is being done in, when the caller knows of one. */
+  lessonId?: string | null;
   templateCode: string;
   targetLanguage: string;
   difficultyLevel: DifficultyLevel;
@@ -137,6 +147,8 @@ export interface AttemptPersistenceProps {
   practicedAtoms: PracticedAtom[];
   skills: Skill[];
   focus: Focus[];
+  workContext: WorkContext | null;
+  lessonId: string | null;
   status: AttemptStatus;
   score: number | null;
   passed: boolean | null;
@@ -272,6 +284,8 @@ export class Attempt extends AggregateRoot {
     // positional, and the alternative is renumbering every call site (plan 55 §3.6).
     private _skills: Skill[] = [],
     private _focus: Focus[] = [],
+    private _workContext: WorkContext | null = null,
+    private _lessonId: string | null = null,
   ) {
     super(id);
   }
@@ -306,6 +320,14 @@ export class Attempt extends AggregateRoot {
 
     attempt._skills = props.axes.skills;
     attempt._focus = props.axes.focus;
+    attempt._lessonId = props.lessonId ?? null;
+    // Derived once, here: a lesson names classwork, an assignment names homework, and
+    // everything else is the learner's own time.
+    attempt._workContext = props.lessonId
+      ? 'classwork'
+      : props.assignmentId
+        ? 'homework'
+        : 'self_study';
 
     attempt.addDomainEvent(
       new AttemptStartedEvent(attempt.id, {
@@ -371,6 +393,8 @@ export class Attempt extends AggregateRoot {
       props.pickedOptions ?? [],
       props.skills ?? [],
       props.focus ?? [],
+      props.workContext ?? null,
+      props.lessonId ?? null,
     );
   }
 
@@ -522,6 +546,9 @@ export class Attempt extends AggregateRoot {
           skills: this._skills,
           focus: this._focus,
           containerId: this._containerId,
+          workContext: this._workContext,
+          groupId: this._groupId,
+          lessonId: this._lessonId,
           templateCode: this._templateCode,
           passed,
           ...(answerForm === undefined ? {} : { answerForm }),
@@ -964,6 +991,9 @@ export class Attempt extends AggregateRoot {
         skills: this._skills,
         focus: this._focus,
         containerId: this._containerId,
+        workContext: this._workContext,
+        groupId: this._groupId,
+        lessonId: this._lessonId,
         templateCode: this._templateCode,
         passed: this._passed,
       }),
@@ -1202,6 +1232,8 @@ export class Attempt extends AggregateRoot {
   get reviewDecisions(): ReviewDecision[] | null { return this._reviewDecisions; }
   get schoolId(): string | null { return this._schoolId; }
   get containerId(): string | null { return this._containerId; }
+  get workContext(): WorkContext | null { return this._workContext; }
+  get lessonId(): string | null { return this._lessonId; }
   get groupId(): string | null { return this._groupId; }
   get exercisePath(): ExercisePathSnapshot | null { return this._exercisePath; }
   get reviewClaimedBy(): string | null { return this._reviewClaimedBy; }

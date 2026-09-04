@@ -207,6 +207,7 @@ export class AttemptsController {
           dto.enrollmentId ?? null,
           dto.mode ?? (dto.assignmentId ? 'GRADED' : 'PRACTICE'),
           dto.joinAttemptId ?? null,
+          dto.lessonId ?? null,
         ),
       );
 

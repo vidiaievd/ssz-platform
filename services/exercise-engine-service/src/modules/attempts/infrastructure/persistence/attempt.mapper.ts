@@ -1,5 +1,6 @@
 import type { AttemptModel } from '../../../../../generated/prisma/models/Attempt.js';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
+import type { WorkContext } from '../../domain/entities/attempt.entity.js';
 import type { Focus, Skill } from '@ssz/contracts';
 import { readRubricMarks, readRubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { readPlacement } from '../../../../shared/application/services/sentence-schema-rows.js';
@@ -131,6 +132,8 @@ export class AttemptMapper {
       // somehow held a stranger would only make an attempt refuse to load.
       skills: (row.skills ?? []) as Skill[],
       focus: (row.focus ?? []) as Focus[],
+      workContext: (row.workContext as WorkContext | null) ?? null,
+      lessonId: row.lessonId,
       status: row.status as AttemptStatus,
       score: row.score,
       passed: row.passed,
@@ -188,6 +191,8 @@ export class AttemptMapper {
       practicedAtoms: attempt.practicedAtoms as unknown as AttemptModel['practicedAtoms'],
       skills: attempt.skills,
       focus: attempt.focus,
+      workContext: attempt.workContext,
+      lessonId: attempt.lessonId,
       status: attempt.status as AttemptModel['status'],
       score: attempt.scoreValue,
       passed: attempt.passed,

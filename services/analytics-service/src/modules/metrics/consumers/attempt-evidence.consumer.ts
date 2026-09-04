@@ -144,6 +144,13 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
           skills: p.skills ?? [],
           focus: p.focus ?? [],
           stabilityAfter: p.stabilityAfter ?? null,
+          // Kept apart from the score on purpose: what was answered and where it was
+          // answered are different questions, and only the second can say whether a
+          // group's homework and its classwork tell the same story (plan 57 §7).
+          workContext: p.workContext ?? null,
+          groupId: p.groupId ?? null,
+          containerId: p.containerId ?? null,
+          lessonId: p.lessonId ?? null,
           occurredAt: new Date(occurredAt),
         },
       ],

@@ -383,6 +383,11 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       skills: p.skills ?? null,
       focus: p.focus ?? null,
       containerId: p.containerId ?? null,
+      // Forwarded, never re-derived here: this consumer runs after the fact, and the
+      // assignment or lesson that decided the context may already be gone (plan 57 §7).
+      workContext: p.workContext ?? null,
+      groupId: p.groupId ?? null,
+      lessonId: p.lessonId ?? null,
       timeSpentSeconds: p.timeSpentSeconds ?? null,
       stabilityAfter,
     };

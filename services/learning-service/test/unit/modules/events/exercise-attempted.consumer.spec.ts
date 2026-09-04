@@ -332,6 +332,11 @@ describe('ExerciseAttemptedConsumer', () => {
         skills: null,
         focus: null,
         containerId: null,
+        // Nothing said where the work was done either: an event from before the field
+        // existed is not silently filed as self_study (plan 57 §7).
+        workContext: null,
+        groupId: null,
+        lessonId: null,
         timeSpentSeconds: 60,
         stabilityAfter: null,
       });

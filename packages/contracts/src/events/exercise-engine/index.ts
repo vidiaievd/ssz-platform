@@ -86,7 +86,26 @@ export interface ExerciseAttemptCompletedPayload {
    * on the second. Absent for practice outside any course, and for older publishers.
    */
   containerId?: string | null;
+  /**
+   * Additive (plan 57 §7) — where the work was done and for whom, decided when the
+   * attempt started.
+   *
+   * `classwork` when the caller named the scheduled lesson it happened in, `homework`
+   * when it answers an assignment, `self_study` otherwise. Carried rather than derived
+   * downstream: by the time a consumer sees this the lesson is over and the assignment
+   * may have been cancelled, and the same exercise is classwork one day and homework the
+   * next. Absent for publishers that predate the field — which is not the same as
+   * `self_study`, and analytics must be able to tell those apart.
+   */
+  workContext?: WorkContext | null;
+  /** The group the learner belonged to at attempt start. Null outside a group. */
+  groupId?: string | null;
+  /** The scheduled lesson the work was done in, when the caller named one. */
+  lessonId?: string | null;
 }
+
+/** Where a piece of work was done — see `workContext` above. */
+export type WorkContext = 'classwork' | 'homework' | 'self_study';
 
 /**
  * The four CEFR channels and the subjects that run through them — plan 55 §3.1–3.3.

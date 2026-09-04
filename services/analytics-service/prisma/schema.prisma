@@ -240,8 +240,21 @@ model AttemptEvidence {
   // the interval the schedule settled on says which.
   stabilityAfter Float? @map("stability_after")
 
+  // Where the work was done and for whom (plan 57 §7), flattened for the same reason
+  // as the fields above: the questions worth asking of this table — does this group do
+  // worse at home than in the room, how does a course's classwork compare to its
+  // homework — are group-bys, and a JSON payload cannot be grouped by.
+  //
+  // `workContext` is null for every event published before the field existed. That is
+  // not `self_study`: nobody said, and a row that cannot say belongs in no bucket.
+  workContext String? @map("work_context")
+  groupId     String? @map("group_id")
+  containerId String? @map("container_id")
+  lessonId    String? @map("lesson_id")
+
   @@index([templateCode, answerMode, occurredAt])
   @@index([userId, occurredAt])
+  @@index([groupId, workContext, occurredAt])
   @@map("attempt_evidence")
 }
 

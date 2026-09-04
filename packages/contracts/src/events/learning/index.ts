@@ -1,3 +1,4 @@
+import type { WorkContext } from '../exercise-engine/index.js';
 import type { BaseEvent } from '../base.js';
 import type { AnswerForm, Focus, Skill } from '../exercise-engine/index.js';
 
@@ -199,6 +200,19 @@ export interface AttemptRatedPayload {
    * `null` when the publisher did not report it.
    */
   stabilityAfter: number | null;
+  /**
+   * Where the work was done, forwarded unchanged from the engine (plan 57 §7).
+   *
+   * The profile answers different questions of classwork and homework — a learner who
+   * scores well in the room and poorly at home is telling you something a combined
+   * number hides — so the distinction has to survive as far as the evidence table.
+   * Null for events published before the field existed.
+   */
+  workContext: WorkContext | null;
+  /** The learner's group at attempt start, forwarded from the engine. Null outside a group. */
+  groupId: string | null;
+  /** The scheduled lesson the work was done in, when one was named. */
+  lessonId: string | null;
 }
 
 /**

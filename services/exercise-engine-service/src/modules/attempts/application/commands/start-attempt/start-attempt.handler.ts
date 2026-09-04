@@ -569,6 +569,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       exerciseId: command.exerciseId,
       assignmentId: command.assignmentId,
       enrollmentId: command.enrollmentId,
+      lessonId: command.lessonId,
       templateCode: def.exercise.templateCode,
       targetLanguage: def.exercise.targetLanguage,
       difficultyLevel: def.exercise.difficultyLevel as DifficultyLevel,
