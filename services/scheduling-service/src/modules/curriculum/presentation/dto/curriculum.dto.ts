@@ -3,9 +3,15 @@ import { IsArray, IsString, IsNumber, IsOptional, IsPositive, IsInt, IsEnum, Min
 import { Type } from 'class-transformer';
 
 export class UpsertUnitDto {
+  /**
+   * Existing unit to update in place. Omit to create a new one. Units are
+   * matched by id rather than replaced wholesale so that lessons already taught
+   * against a unit keep pointing at it — recreating units would cut those links
+   * and silently zero the group's progress.
+   */
+  @ApiPropertyOptional() @IsOptional() @IsString() id?: string;
   @ApiProperty() @IsString() title!: string;
   @ApiProperty() @IsInt() @Min(1) plannedSessions!: number;
-  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) deliveredSessions?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() requiredLevel?: string;
   @ApiPropertyOptional({ enum: ['planned', 'active', 'done', 'overridden'] })
   @IsOptional() @IsEnum(['planned', 'active', 'done', 'overridden'])
@@ -30,7 +36,8 @@ export class UnitDto {
   @ApiProperty() title!: string;
   @ApiProperty() order!: number;
   @ApiProperty() plannedSessions!: number;
-  @ApiProperty() deliveredSessions!: number;
+  @ApiProperty({ description: 'Lessons marked held against this unit. Counted, never typed in.' })
+  deliveredSessions!: number;
   @ApiPropertyOptional() requiredLevel!: string | null;
   @ApiProperty({ enum: ['planned', 'active', 'done', 'overridden'] }) status!: string;
 }
@@ -43,7 +50,6 @@ export class CreateUnitDto {
 
 export class PatchUnitDto {
   @ApiPropertyOptional() @IsOptional() @IsString() title?: string;
-  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) deliveredSessions?: number;
   @ApiPropertyOptional() @IsOptional() @IsEnum(['planned', 'active', 'done', 'overridden']) status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() overrideReason?: string;
 }
