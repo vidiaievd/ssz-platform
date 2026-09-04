@@ -256,6 +256,9 @@ model CurriculumUnit {
   title             String
   order             Int
   plannedSessions   Int        @default(1) @map("planned_sessions")
+  /// Unit of the linked course (content-service) this plan unit teaches. Null
+  /// while unstitched: a teaching plan may run ahead of, or beside, the course.
+  contentUnitId     String?    @map("content_unit_id")
   deliveredSessions Int        @default(0) @map("delivered_sessions")
   requiredLevel     String?    @map("required_level")
   status            UnitStatus @default(planned)

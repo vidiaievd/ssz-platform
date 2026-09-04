@@ -12,6 +12,8 @@ export class UpsertUnitDto {
   @ApiPropertyOptional() @IsOptional() @IsString() id?: string;
   @ApiProperty() @IsString() title!: string;
   @ApiProperty() @IsInt() @Min(1) plannedSessions!: number;
+  /** Unit of the linked course this plan unit teaches; null leaves it unstitched. */
+  @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsString() contentUnitId?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsString() requiredLevel?: string;
   @ApiPropertyOptional({ enum: ['planned', 'active', 'done', 'overridden'] })
   @IsOptional() @IsEnum(['planned', 'active', 'done', 'overridden'])
@@ -38,6 +40,7 @@ export class UnitDto {
   @ApiProperty() plannedSessions!: number;
   @ApiProperty({ description: 'Lessons marked held against this unit. Counted, never typed in.' })
   deliveredSessions!: number;
+  @ApiPropertyOptional({ nullable: true }) contentUnitId!: string | null;
   @ApiPropertyOptional() requiredLevel!: string | null;
   @ApiProperty({ enum: ['planned', 'active', 'done', 'overridden'] }) status!: string;
 }
@@ -50,6 +53,7 @@ export class CreateUnitDto {
 
 export class PatchUnitDto {
   @ApiPropertyOptional() @IsOptional() @IsString() title?: string;
+  @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsString() contentUnitId?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsEnum(['planned', 'active', 'done', 'overridden']) status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() overrideReason?: string;
 }

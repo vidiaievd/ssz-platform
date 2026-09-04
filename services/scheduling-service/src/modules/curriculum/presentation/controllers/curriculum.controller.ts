@@ -15,6 +15,7 @@ type UnitRow = {
   title: string;
   order: number;
   plannedSessions: number;
+  contentUnitId: string | null;
   requiredLevel: string | null;
   status: string;
 };
@@ -59,6 +60,7 @@ export class CurriculumController {
       order: unit.order,
       plannedSessions: unit.plannedSessions,
       deliveredSessions: delivered,
+      contentUnitId: unit.contentUnitId,
       requiredLevel: unit.requiredLevel,
       status,
     };
@@ -117,6 +119,7 @@ export class CurriculumController {
             title: u.title,
             order: index + 1,
             plannedSessions: u.plannedSessions,
+            contentUnitId: u.contentUnitId ?? null,
             requiredLevel: u.requiredLevel ?? null,
             status: (u.status ?? 'planned') as any,
           };
@@ -176,6 +179,7 @@ export class CurriculumController {
       where: { id: unitId },
       data: {
         ...(body.title !== undefined && { title: body.title }),
+        ...(body.contentUnitId !== undefined && { contentUnitId: body.contentUnitId }),
         ...(body.status !== undefined && { status: body.status as any }),
         ...(body.overrideReason !== undefined && { overrideReason: body.overrideReason }),
       },
