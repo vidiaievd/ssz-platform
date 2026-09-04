@@ -67,7 +67,8 @@ export class LessonPrismaRepository implements ILessonRepository {
   async findNextForGroup(groupId: string, limit: number): Promise<Lesson[]> {
     const now = new Date();
     const rows = await this.prisma.lesson.findMany({
-      where: { groupId, date: { gte: now }, status: { not: 'cancelled' } },
+      // Held lessons are history even when their date is today: they are not upcoming.
+      where: { groupId, date: { gte: now }, status: { notIn: ['cancelled', 'held'] } },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
       take: limit,
     });

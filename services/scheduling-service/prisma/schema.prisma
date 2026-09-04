@@ -26,6 +26,11 @@ enum LessonStatus {
   moved
   cancelled
 
+  /// The lesson actually happened. Set by a person, never by the clock: a past
+  /// date only means the slot went by, and group progress is counted from what
+  /// was taught, not from what was scheduled.
+  held
+
   @@map("lesson_status")
 }
 

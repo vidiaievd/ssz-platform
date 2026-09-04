@@ -1,4 +1,4 @@
-export type LessonStatus = 'scheduled' | 'moved' | 'cancelled';
+export type LessonStatus = 'scheduled' | 'moved' | 'cancelled' | 'held';
 
 export class Lesson {
   constructor(
