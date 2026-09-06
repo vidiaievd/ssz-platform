@@ -49,7 +49,36 @@ export class ExerciseResponseDto {
   @ApiPropertyOptional()
   deletedAt!: Date | null;
 
-  static from(entity: ExerciseEntity): ExerciseResponseDto {
+  /**
+   * The instructions, with the one the caller asked for first.
+   *
+   * `/display` takes a `lang` and every client reads `instructions[0]`, so the order of
+   * this array *is* the answer to that question — and the order it used to have was
+   * whatever the database returned. A learner reading the app in Ukrainian was shown the
+   * English instruction, on every exercise that has more than one (found 06.09.2026).
+   *
+   * Ordered rather than filtered: the list is small, an authoring screen has a use for
+   * the rest of it, and dropping languages here would make the endpoint answer a
+   * different question than the one it has always answered. The fallback chain is the
+   * one `get-exercise-envelope.handler.ts` already uses — the asked-for language, then
+   * English, then whatever there is — so the two paths cannot drift into disagreeing
+   * about which instruction a learner gets.
+   */
+  private static ordered(
+    instructions: ExerciseInstructionResponseDto[],
+    preferredLanguage?: string,
+  ): ExerciseInstructionResponseDto[] {
+    const rank = (dto: ExerciseInstructionResponseDto): number => {
+      if (preferredLanguage !== undefined && dto.instructionLanguage === preferredLanguage) {
+        return 0;
+      }
+      return dto.instructionLanguage === 'en' ? 1 : 2;
+    };
+    // A stable sort, so instructions of equal rank keep the order they arrived in.
+    return [...instructions].sort((a, b) => rank(a) - rank(b));
+  }
+
+  static from(entity: ExerciseEntity, preferredLanguage?: string): ExerciseResponseDto {
     const dto = new ExerciseResponseDto();
     dto.id = entity.id;
     dto.exerciseTemplateId = entity.exerciseTemplateId;
@@ -68,7 +97,10 @@ export class ExerciseResponseDto {
     dto.visibility = entity.visibility;
     dto.estimatedDurationSeconds = entity.estimatedDurationSeconds;
     dto.instructions = entity.instructions
-      ? entity.instructions.map((i) => ExerciseInstructionResponseDto.from(i))
+      ? ExerciseResponseDto.ordered(
+          entity.instructions.map((i) => ExerciseInstructionResponseDto.from(i)),
+          preferredLanguage,
+        )
       : null;
     dto.createdAt = entity.createdAt;
     dto.updatedAt = entity.updatedAt;

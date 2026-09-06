@@ -181,7 +181,11 @@ export class ExerciseController {
     >(new GetExerciseForDisplayQuery(id, preferredInstructionLanguage));
 
     if (result.isFail) throwHttpException(result.error);
-    return ExerciseResponseDto.from(result.value);
+    // The `lang` above is the learner's, and it decides which instruction they read
+    // first — clients take `instructions[0]`. Until 06.09.2026 the parameter travelled
+    // this far and was then dropped, so everyone was shown whichever instruction the
+    // database happened to return first.
+    return ExerciseResponseDto.from(result.value, preferredInstructionLanguage);
   }
 
   @Get(':id/answers')
