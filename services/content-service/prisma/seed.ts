@@ -42,8 +42,12 @@ const audioSchema = {
     source: { type: 'string', enum: ['asset', 'link', 'lesson', 'items'] },
     assetId: { type: 'string', description: 'media-service asset, uploaded as exercise_asset' },
     url: { type: 'string', description: 'source=link only; never a pre-signed URL' },
+    // Nullable, and not only for tidiness: `null` is what the model uses for "no
+    // borrowed lesson", so a client that spells the absence out must not be rejected.
+    // The writer omits the field instead (kernel `applyAudioDraft`), and both readings
+    // come back as `null` — this keeps the schema honest about the other one.
     lessonRef: {
-      type: 'object',
+      type: ['object', 'null'],
       description: 'source=lesson: the narration this clip borrows, by reference',
       properties: { lessonId: { type: 'string' }, variant: { type: 'string' } },
     },

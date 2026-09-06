@@ -91,7 +91,19 @@ export function applyAudioDraft(
 ): Record<string, unknown> {
   if (!touched(draft)) return persisted;
 
-  const out: Record<string, unknown> = { ...persisted, audio: draft.audio };
+  /*
+    `lessonRef` is dropped when there is none, rather than written as `null`.
+
+    The model says "no borrowed lesson" with `null`, and the schema of every template says
+    the field is an object — so a document that spells the absence out is rejected by AJV
+    on the way in ("/audio/lessonRef must be object"), which is every exercise whose clip
+    is a file or a link. Absence is spelled by absence: `audioOf` reads a missing field
+    back as `null`, which is where the value came from.
+  */
+  const { lessonRef, ...block } = draft.audio;
+  const audio = lessonRef === null ? block : { ...block, lessonRef };
+
+  const out: Record<string, unknown> = { ...persisted, audio };
 
   const key = itemKey(templateCode);
   if (key === null || !Array.isArray(persisted[key])) return out;

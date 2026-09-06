@@ -628,6 +628,27 @@ describe('the authored draft', () => {
     expect(readAudioDraft(off, 'multiple_choice').segments).toEqual({ q1: { start: 22, end: 48 } });
   });
 
+  it('omits `lessonRef` rather than writing the null the model uses', () => {
+    /*
+      The schema of every template declares `lessonRef` an object, so a document that
+      spells the absence out as `null` is refused by AJV on the way in — which would be
+      every exercise whose clip is a file or a link (found live 06.09, plan 56 phase 8).
+      Absence is written by absence, and read back as `null`.
+    */
+    const written = applyAudioDraft({ questions: [] }, readAudioDraft(stored, 'multiple_choice'), 'multiple_choice');
+    expect(Object.prototype.hasOwnProperty.call(written['audio'] as object, 'lessonRef')).toBe(false);
+    expect(audioOf(written).lessonRef).toBeNull();
+
+    const borrowed = withAudio(readAudioDraft(stored, 'multiple_choice'), {
+      source: 'lesson',
+      lessonRef: { lessonId: 'l-1', variant: 'v-1' },
+    });
+    expect(audioOf(applyAudioDraft({}, borrowed, 'multiple_choice')).lessonRef).toEqual({
+      lessonId: 'l-1',
+      variant: 'v-1',
+    });
+  });
+
   it('writes the block back onto what the template persisted', () => {
     // `toContent` builds an explicit object out of the fields the template knows, so
     // without this the first autosave would drop the whole layer.
