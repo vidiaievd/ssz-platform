@@ -1,19 +1,19 @@
+import { Body, Controller, Get, Inject, Param, Patch, Query } from '@nestjs/common';
 import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  Patch,
-  Query,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
 import { LESSON_REPOSITORY, type ILessonRepository } from '../../domain/repositories/lesson.repository.interface.js';
-import { Inject } from '@nestjs/common';
+import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
+import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Lesson } from '../../domain/entities/lesson.entity.js';
+import { SessionWriterService } from '../../application/services/session-writer.service.js';
+import { PatchSessionDto, SESSION_STATUSES } from '../dto/session.dto.js';
 
 class LessonResponseDto {
   @ApiProperty() id!: string;
@@ -25,40 +25,8 @@ class LessonResponseDto {
   @ApiProperty() endTime!: string;
   @ApiPropertyOptional() teacherId!: string | null;
   @ApiPropertyOptional() room!: string | null;
-  @ApiProperty({ enum: ['scheduled', 'moved', 'cancelled', 'held'] }) status!: string;
+  @ApiProperty({ enum: SESSION_STATUSES }) status!: string;
   @ApiPropertyOptional() curriculumUnitId!: string | null;
-}
-
-class PatchLessonDto {
-  @ApiPropertyOptional({ enum: ['scheduled', 'moved', 'cancelled', 'held'] })
-  @IsOptional() @IsEnum(['scheduled', 'moved', 'cancelled', 'held'])
-  status?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional() @IsString()
-  room?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional() @IsString()
-  teacherId?: string;
-
-  /**
-   * Which curriculum unit this lesson taught. Required to mark a lesson held
-   * (unless the lesson already carries one): group progress is counted per
-   * unit, so a held lesson naming no unit would be a lesson nobody can count.
-   */
-  @ApiPropertyOptional()
-  @IsOptional() @IsString()
-  curriculumUnitId?: string;
-}
-
-/** A lesson's own day counts as past — it is marked held after the last bell, not the next day. */
-function isInTheFuture(date: Date): boolean {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const day = new Date(date);
-  day.setHours(0, 0, 0, 0);
-  return day.getTime() > today.getTime();
 }
 
 function toDto(l: Lesson): LessonResponseDto {
@@ -77,12 +45,19 @@ function toDto(l: Lesson): LessonResponseDto {
   };
 }
 
+/**
+ * The lesson-shaped view of sessions, kept for the callers built against it:
+ * the teacher timetable, the substitution screens and the group page's
+ * "next lessons" strip. New work reads Sessions instead, which carries the
+ * topic, the type and the facts.
+ */
 @ApiTags('Lessons')
 @ApiBearerAuth()
 @Controller('scheduling')
 export class LessonsController {
   constructor(
     @Inject(LESSON_REPOSITORY) private readonly lessons: ILessonRepository,
+    private readonly writer: SessionWriterService,
   ) {}
 
   @Get('groups/:groupId/lessons')
@@ -113,35 +88,21 @@ export class LessonsController {
   }
 
   @Patch('lessons/:lessonId')
-  @ApiOperation({ summary: 'Override a single lesson, or mark it held' })
+  @ApiOperation({
+    summary: 'Change one lesson, or mark it held',
+    description:
+      'Delegates to PATCH /sessions/:id — one set of rules, whichever door a caller comes through.',
+  })
   @ApiResponse({ status: 200, type: LessonResponseDto })
-  @ApiResponse({ status: 400, description: 'held without a unit, or held before it happened' })
+  @ApiResponse({ status: 400, description: 'Held before it happened, or incoherent times' })
   @ApiResponse({ status: 404, description: 'No such lesson' })
   async patch(
     @Param('lessonId') lessonId: string,
-    @Body() body: PatchLessonDto,
+    @Body() body: PatchSessionDto,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<LessonResponseDto> {
-    const lesson = await this.lessons.findById(lessonId);
-    if (!lesson) throw new NotFoundException('Lesson not found');
-
-    if (body.status === 'held') {
-      const unitId = body.curriculumUnitId ?? lesson.curriculumUnitId;
-      if (!unitId) {
-        throw new BadRequestException(
-          'A lesson marked held must name the curriculum unit it taught.',
-        );
-      }
-      if (isInTheFuture(lesson.date)) {
-        throw new BadRequestException('A lesson cannot be held before it happens.');
-      }
-    }
-
-    const updated = await this.lessons.update(lessonId, {
-      ...(body.status && { status: body.status as any }),
-      ...(body.room !== undefined && { room: body.room }),
-      ...(body.teacherId && { teacherId: body.teacherId }),
-      ...(body.curriculumUnitId !== undefined && { curriculumUnitId: body.curriculumUnitId }),
-    });
-    return toDto(updated);
+    // Mapped down rather than spread: this view predates types, topics and
+    // results, and callers built against it should not start seeing them.
+    return toDto(await this.writer.patch(lessonId, body, user));
   }
 }

@@ -15,6 +15,9 @@ import { ReplaceSlotsHandler } from './application/commands/replace-slots/replac
 import { ListSlotsHandler } from './application/queries/list-slots/list-slots.handler.js';
 import { SlotsController } from './presentation/controllers/slots.controller.js';
 import { LessonsController } from './presentation/controllers/lessons.controller.js';
+import { SessionsController } from './presentation/controllers/sessions.controller.js';
+import { SessionAccessService } from './application/services/session-access.service.js';
+import { SessionWriterService } from './application/services/session-writer.service.js';
 import { OrgServiceHttpClient } from '../../infrastructure/org/org-service.http-client.js';
 
 const CommandHandlers = [CreateSlotHandler, DeleteSlotHandler, ReplaceSlotsHandler];
@@ -22,11 +25,13 @@ const QueryHandlers = [ListSlotsHandler];
 
 @Module({
   imports: [CqrsModule],
-  controllers: [SlotsController, LessonsController],
+  controllers: [SlotsController, LessonsController, SessionsController],
   providers: [
     ...CommandHandlers,
     ...QueryHandlers,
     LessonGeneratorService,
+    SessionAccessService,
+    SessionWriterService,
     OrgServiceHttpClient,
     { provide: SLOT_REPOSITORY, useClass: SlotPrismaRepository },
     { provide: LESSON_REPOSITORY, useClass: LessonPrismaRepository },

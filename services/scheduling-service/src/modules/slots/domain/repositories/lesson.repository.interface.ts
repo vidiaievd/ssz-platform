@@ -5,24 +5,29 @@ export const LESSON_REPOSITORY = Symbol('ILessonRepository');
 /** A lesson about to be created. Scores are written separately, never at creation. */
 export type NewLesson = Omit<Lesson, 'id' | 'scores'>;
 
-/** Everything a person can change about a lesson after it exists. */
-export type LessonPatch = Partial<
-  Pick<
-    Lesson,
-    | 'status'
-    | 'type'
-    | 'date'
-    | 'startTime'
-    | 'endTime'
-    | 'room'
-    | 'teacherId'
-    | 'curriculumUnitId'
-    | 'contentUnitId'
-    | 'contentLessonId'
-    | 'attendance'
-    | 'note'
-    | 'passMark'
-  >
+/**
+ * Everything a person can change about a lesson after it exists. Mutable on
+ * purpose — a patch is assembled field by field from what the caller sent.
+ */
+export type LessonPatch = {
+  -readonly [K in LessonPatchField]?: Lesson[K];
+};
+
+type LessonPatchField = keyof Pick<
+  Lesson,
+  | 'status'
+  | 'type'
+  | 'date'
+  | 'startTime'
+  | 'endTime'
+  | 'room'
+  | 'teacherId'
+  | 'curriculumUnitId'
+  | 'contentUnitId'
+  | 'contentLessonId'
+  | 'attendance'
+  | 'note'
+  | 'passMark'
 >;
 
 export interface ILessonRepository {

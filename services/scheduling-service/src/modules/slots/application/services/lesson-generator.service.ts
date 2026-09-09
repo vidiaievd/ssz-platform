@@ -67,9 +67,16 @@ export class LessonGeneratorService {
     const today = utcMidnight(new Date());
 
     // What the group has actually lived through, plus anything a person put
-    // there by hand. None of it is ours to move.
+    // there by hand. None of it is ours to move. Marks count as lived through
+    // even on a session still in the future: somebody sat that exam early, and
+    // re-laying the plan must not take their results with it.
     const kept = existing.filter(
-      (l) => l.extra || l.status === 'held' || l.status === 'cancelled' || l.date < today,
+      (l) =>
+        l.extra ||
+        l.status === 'held' ||
+        l.status === 'cancelled' ||
+        l.scores.length > 0 ||
+        l.date < today,
     );
     const settled = new Set(
       kept.filter((l) => !l.extra && l.planIndex !== null).map((l) => l.planIndex!),
