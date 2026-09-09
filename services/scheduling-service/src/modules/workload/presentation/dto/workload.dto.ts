@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsEnum, IsNumber, IsOptional, IsString, Matches, Max, Min, ValidateNested } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Transform, Type, plainToInstance } from 'class-transformer';
 
 const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 type WeekDayEnum = (typeof WEEKDAYS)[number];
@@ -27,7 +27,14 @@ export class TeacherAvailabilityQueryDto {
     type: [ProposedSlotDto],
     description: 'JSON-encoded array of proposed weekly slots, e.g. slots=[{"weekday":"mon","startTime":"09:00","endTime":"10:00"}]',
   })
-  @Transform(({ value }) => (typeof value === 'string' ? JSON.parse(value) : value))
+  // Parsed here as plain objects, so they must also be turned into ProposedSlotDto
+  // instances here — @Type() only intercepts values class-transformer itself
+  // produces from the raw input, and a JSON.parse'd string bypasses that. Skipped,
+  // the nested ValidateNested pass sees plain objects instead of decorated
+  // instances and whitelist:true rejects every one of their properties as unknown.
+  @Transform(({ value }) =>
+    plainToInstance(ProposedSlotDto, typeof value === 'string' ? JSON.parse(value) : value),
+  )
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProposedSlotDto)
