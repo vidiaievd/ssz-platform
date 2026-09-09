@@ -42,6 +42,13 @@ import { join } from 'node:path';
 import { PrismaClient, Prisma } from '../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { v5 as uuidv5 } from 'uuid';
+import { linkModulesToCanDo, type ModuleLink } from './can-do-links.js';
+import {
+  linkPracticedAtoms,
+  surfacesOf,
+  type CandidateWord,
+  type ExerciseCandidates,
+} from './atom-links.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: `${process.env.DATABASE_URL}` }),
@@ -423,6 +430,70 @@ async function main(): Promise<void> {
       }
     }
   }
+
+  // The atom graph, then the can-do links: both come last, because both read what the
+  // modules ended up holding rather than what the layout says they should hold.
+  const vocabKeysOf = (mod: ModuleDef): string[] =>
+    mod.sections
+      .flatMap((section) => section.items)
+      .filter((item) => item.kind === 'vocab')
+      .map((item) => item.key);
+
+  const wordsFor = (keys: string[]): CandidateWord[] =>
+    keys.flatMap((key) =>
+      (vocab[key]?.words ?? []).map((w, i) => ({
+        vocabularyItemId: id('vocab-item', `${key}-${i}`),
+        surfaces: surfacesOf(w.word, w.grammaticalProperties ?? null),
+      })),
+    );
+
+  // Which words an exercise may be credited with practising: the ones its own module
+  // teaches, or — for the grammar module, which teaches no words of its own — the ones
+  // of its Leksjon. Widening it to the whole course would credit an exercise for every
+  // common noun that happens to appear in it.
+  const candidates: ExerciseCandidates[] = [];
+  for (const level of levels) {
+    const levelWords = wordsFor(level.subLessons.flatMap(vocabKeysOf));
+    for (const mod of level.subLessons) {
+      const own = vocabKeysOf(mod);
+      const words = own.length > 0 ? wordsFor(own) : levelWords;
+      for (const item of mod.sections.flatMap((section) => section.items)) {
+        if (item.kind !== 'exercises') continue;
+        for (const ex of exercises[item.key] ?? []) {
+          candidates.push({ exerciseId: id('exercise', ex.key), words });
+        }
+      }
+    }
+  }
+
+  const atoms = await linkPracticedAtoms(prisma, {
+    candidates,
+    createdByUserId: TEACHER_ID,
+    ownerSchoolId: SCHOOL_ID,
+  });
+  console.log(
+    `  \u2713 Practised atoms: ${atoms.vocabulary} vocabulary, ${atoms.grammar} grammar ` +
+      `(${atoms.unlinked} of ${candidates.length} exercises matched nothing)`,
+  );
+
+  const links: ModuleLink[] = modules.map((mod) => ({
+    containerId: id('module-container', mod.key),
+    title: mod.title,
+    vocabularyItemIds: wordsFor(vocabKeysOf(mod)).map((w) => w.vocabularyItemId),
+  }));
+
+  const linked = await linkModulesToCanDo(prisma, {
+    level: LEVEL,
+    modules: links,
+    createdByUserId: TEACHER_ID,
+    ownerSchoolId: SCHOOL_ID,
+  });
+  console.log(
+    `  \u2713 Can-do links: ${linked.targets} TARGETS, ${linked.introduces} INTRODUCES` +
+      (linked.modulesWithoutTargets.length > 0
+        ? ` (no exercises, so no descriptor: ${linked.modulesWithoutTargets.join(', ')})`
+        : ''),
+  );
 
   console.log('Done.');
 }

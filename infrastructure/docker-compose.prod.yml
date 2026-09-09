@@ -90,6 +90,7 @@ services:
       DATABASE_URL: postgresql://org_service:${ORG_SERVICE_DB_PASSWORD}@postgres:5432/organizations_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
     depends_on:
       postgres:
         condition: service_healthy
@@ -273,6 +274,7 @@ services:
       LEARNING_SERVICE_BASE_URL: http://learning-service:3007
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       EXERCISE_DEFINITION_CACHE_TTL_SECONDS: 300
+      EXERCISE_PLACEMENT_CACHE_TTL_SECONDS: 300
     depends_on:
       postgres:
         condition: service_healthy

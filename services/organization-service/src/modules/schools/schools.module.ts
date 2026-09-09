@@ -31,6 +31,7 @@ import { TransferStudentHandler } from './application/commands/transfer-student/
 import { UpdateGroupMemberRoleHandler } from './application/commands/update-group-member-role/update-group-member-role.handler.js';
 import { RemoveStudentHandler } from './application/commands/remove-student/remove-student.handler.js';
 import { NudgeStudentHandler } from './application/commands/nudge-student/nudge-student.handler.js';
+import { RemindReviewerHandler } from './application/commands/remind-reviewer/remind-reviewer.handler.js';
 import { SendInvitationHandler } from './application/commands/send-invitation/send-invitation.handler.js';
 import { AcceptInvitationHandler } from './application/commands/accept-invitation/accept-invitation.handler.js';
 import { ResendSchoolInvitationHandler } from './application/commands/resend-invitation/resend-invitation.handler.js';
@@ -74,15 +75,22 @@ import { GetStudentHistoryHandler } from './application/queries/get-student-hist
 import { CountSchoolInvitationsHandler } from './application/queries/count-school-invitations/count-school-invitations.handler.js';
 import { GetSchoolInvitationPreviewHandler } from './application/queries/get-invitation-preview/get-invitation-preview.handler.js';
 import { GetMyPermissionsHandler } from './application/queries/get-my-permissions/get-my-permissions.handler.js';
+import { GetReviewSettingsHandler } from './application/queries/get-review-settings/get-review-settings.handler.js';
+import { UpdateReviewSettingsHandler } from './application/commands/update-review-settings/update-review-settings.handler.js';
 import { GetOnboardingSettingsHandler } from './application/queries/get-onboarding-settings/get-onboarding-settings.handler.js';
 import { ListMembershipsHandler } from './application/queries/list-memberships/list-memberships.handler.js';
 import { GetMyMembershipHandler } from './application/queries/get-my-membership/get-my-membership.handler.js';
 import { GetPublicSchoolHandler } from './application/queries/get-public-school/get-public-school.handler.js';
 import { ListPublicSchoolsHandler } from './application/queries/list-public-schools/list-public-schools.handler.js';
+import { GetStudentReviewGroupHandler } from './application/queries/get-student-review-group/get-student-review-group.handler.js';
+import { GetReviewReviewersHandler } from './application/queries/get-review-reviewers/get-review-reviewers.handler.js';
+import { GetReviewEscalationRecipientsHandler } from './application/queries/get-review-escalation-recipients/get-review-escalation-recipients.handler.js';
+import { GetReviewScopeHandler } from './application/queries/get-review-scope/get-review-scope.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
 import { InternalController } from './presentation/controllers/internal.controller.js';
+import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
 import { SchoolGroupsController } from './presentation/controllers/school-groups.controller.js';
 import { SchoolTeachersController } from './presentation/controllers/school-teachers.controller.js';
 import { SchoolMembersController } from './presentation/controllers/school-members.controller.js';
@@ -91,6 +99,7 @@ import { CapabilityResolverService } from './application/services/capability-res
 import { ProfileUpdatedConsumer } from './infrastructure/events/profile-updated.consumer.js';
 
 const CommandHandlers = [
+  UpdateReviewSettingsHandler,
   CreateSchoolHandler,
   UpdateSchoolHandler,
   DeleteSchoolHandler,
@@ -101,6 +110,7 @@ const CommandHandlers = [
   UpdateGroupMemberRoleHandler,
   RemoveStudentHandler,
   NudgeStudentHandler,
+  RemindReviewerHandler,
   SendInvitationHandler,
   AcceptInvitationHandler,
   ResendSchoolInvitationHandler,
@@ -147,10 +157,15 @@ const QueryHandlers = [
   GetSchoolInvitationPreviewHandler,
   GetMyPermissionsHandler,
   GetOnboardingSettingsHandler,
+  GetReviewSettingsHandler,
   ListMembershipsHandler,
   GetMyMembershipHandler,
   GetPublicSchoolHandler,
   ListPublicSchoolsHandler,
+  GetStudentReviewGroupHandler,
+  GetReviewReviewersHandler,
+  GetReviewEscalationRecipientsHandler,
+  GetReviewScopeHandler,
 ];
 
 @Module({
@@ -159,6 +174,7 @@ const QueryHandlers = [
     SchoolsController,
     InvitationsController,
     InternalController,
+    InternalReviewController,
     SchoolGroupsController,
     SchoolTeachersController,
     SchoolMembersController,

@@ -20,9 +20,49 @@
       "import": "./dist/error-correction/index.js",
       "types": "./dist/error-correction/index.d.ts"
     },
+    "./match-pairs": {
+      "import": "./dist/match-pairs/index.js",
+      "types": "./dist/match-pairs/index.d.ts"
+    },
     "./translate": {
       "import": "./dist/translate/index.js",
       "types": "./dist/translate/index.d.ts"
+    },
+    "./writing-task": {
+      "import": "./dist/writing-task/index.js",
+      "types": "./dist/writing-task/index.d.ts"
+    },
+    "./short-answer": {
+      "import": "./dist/short-answer/index.js",
+      "types": "./dist/short-answer/index.d.ts"
+    },
+    "./sentence-schema": {
+      "import": "./dist/sentence-schema/index.js",
+      "types": "./dist/sentence-schema/index.d.ts"
+    },
+    "./multiple-choice": {
+      "import": "./dist/multiple-choice/index.js",
+      "types": "./dist/multiple-choice/index.d.ts"
+    },
+    "./multiple-choice-group": {
+      "import": "./dist/multiple-choice-group/index.js",
+      "types": "./dist/multiple-choice-group/index.d.ts"
+    },
+    "./skills": {
+      "import": "./dist/skills/index.js",
+      "types": "./dist/skills/index.d.ts"
+    },
+    "./evidence": {
+      "import": "./dist/evidence/index.js",
+      "types": "./dist/evidence/index.d.ts"
+    },
+    "./mastery": {
+      "import": "./dist/mastery/index.js",
+      "types": "./dist/mastery/index.d.ts"
+    },
+    "./audio": {
+      "import": "./dist/audio/index.js",
+      "types": "./dist/audio/index.d.ts"
     }
   },
   "files": [

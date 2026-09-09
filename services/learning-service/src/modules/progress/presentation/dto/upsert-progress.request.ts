@@ -8,7 +8,10 @@ export class UpsertProgressRequest {
   contentType!: string;
 
   @ApiProperty({ format: 'uuid' })
-  @IsUUID(4)
+  // Any version, not just 4. Every seeded course derives its ids with uuidv5 from a
+  // stable namespace, so re-seeding keeps the same exercise pointing at the same
+  // progress — and pinning version 4 here rejected the whole seeded catalogue.
+  @IsUUID()
   contentId!: string;
 
   @ApiProperty({ minimum: 0, description: 'Seconds spent in this session' })

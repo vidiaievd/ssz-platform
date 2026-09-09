@@ -7,6 +7,7 @@ import type { AppConfig } from '../../config/configuration.js';
 import type {
   GetMemberRoleOutput,
   IOrganizationClient,
+  StudentReviewGroup,
 } from '../../shared/application/ports/organization-client.port.js';
 import { OrganizationClientError } from '../../shared/application/ports/organization-client.port.js';
 import { Result } from '../../shared/kernel/result.js';
@@ -50,6 +51,26 @@ export class HttpOrganizationClient implements IOrganizationClient {
         );
       }
       return this.mapError(err, `getMemberRole(${schoolId}, ${userId})`);
+    }
+  }
+
+  async resolveStudentGroup(
+    schoolId: string,
+    userId: string,
+  ): Promise<Result<StudentReviewGroup, OrganizationClientError>> {
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get<StudentReviewGroup>(
+          `${this.baseUrl}/api/v1/internal/schools/${schoolId}/students/${userId}/group`,
+          {
+            headers: { 'x-internal-token': this.token },
+            timeout: this.timeout,
+          },
+        ),
+      );
+      return Result.ok(data);
+    } catch (err) {
+      return this.mapError(err, `resolveStudentGroup(${schoolId}, ${userId})`);
     }
   }
 

@@ -15,6 +15,20 @@ import { ExerciseDeletedEvent } from '../events/exercise-deleted.event.js';
 import { ExerciseInstructionEntity } from './exercise-instruction.entity.js';
 
 /**
+ * What the author says this exercise trains, overruling the derivation of plan 55.
+ *
+ * The pair is set and cleared together, never one half of it. A partial override would
+ * leave an exercise half-declared and half-derived, and every screen showing the axes
+ * would have to explain a state nobody asked for; the kernel's `SkillOverride` is built
+ * on the same assumption, with one marker covering both axes.
+ */
+export interface ExerciseSkillOverride {
+  skills: string[];
+  focus: string[];
+  setAt: Date;
+}
+
+/**
  * An edit that has not been released yet — the whole document, not a patch.
  *
  * Materialised in full so that promoting it is a copy rather than a merge: a
@@ -46,6 +60,8 @@ interface ExerciseProps {
   deletedAt: Date | null;
   // Null when nothing is waiting to be released.
   draft: ExerciseDraft | null;
+  // Null when the author has never spoken and the derivation is in charge.
+  skillOverride: ExerciseSkillOverride | null;
   // Loaded on demand — null means not yet fetched.
   instructions: ExerciseInstructionEntity[] | null;
 }
@@ -134,6 +150,9 @@ export class ExerciseEntity extends AggregateRoot {
   get hasDraft(): boolean {
     return this.props.draft !== null;
   }
+  get skillOverride(): ExerciseSkillOverride | null {
+    return this.props.skillOverride;
+  }
 
   // ── Authoring view ────────────────────────────────────────────────────────
   // What the editor must show and validate: the unreleased edit when there is
@@ -211,6 +230,8 @@ export class ExerciseEntity extends AggregateRoot {
       // A brand-new exercise is nobody's live material yet: its first document
       // goes straight into the live columns, and the draft starts empty.
       draft: null,
+      // Nothing is declared at creation: the axes are derived until someone disagrees.
+      skillOverride: null,
       instructions: null,
     });
 
@@ -365,6 +386,42 @@ export class ExerciseEntity extends AggregateRoot {
     );
 
     return true;
+  }
+
+  /**
+   * Records — or withdraws — the author's word on what this exercise trains.
+   *
+   * `null` withdraws it, and withdrawing is not the same as declaring an empty list:
+   * afterwards the derivation is back in charge and the exercise counts as whatever its
+   * template, placement and document say, which is the state every exercise starts in.
+   *
+   * Unlike the document, this lands on the live row immediately and does not wait for a
+   * publish. The axes are not something a student reads — they are how the catalogue
+   * describes itself to its author and to analytics — so holding them in a draft would
+   * mean the coverage report disagreed with the correction the author just made.
+   */
+  setSkillOverride(
+    override: { skills: string[]; focus: string[] } | null,
+  ): Result<void, ExerciseDomainError> {
+    if (this.props.deletedAt !== null) {
+      return Result.fail(ExerciseDomainError.EXERCISE_ALREADY_DELETED);
+    }
+
+    this.props.skillOverride =
+      override === null
+        ? null
+        : { skills: override.skills, focus: override.focus, setAt: new Date() };
+    this.props.updatedAt = new Date();
+
+    this.addDomainEvent(
+      new ExerciseUpdatedEvent({
+        exerciseId: this.id,
+        updatedFields: ['skillsOverride', 'focusOverride'],
+        released: true,
+      }),
+    );
+
+    return Result.ok();
   }
 
   /** Throws the unreleased edit away, leaving students' version untouched. */

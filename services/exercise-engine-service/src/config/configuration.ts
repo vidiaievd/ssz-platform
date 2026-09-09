@@ -29,13 +29,11 @@ export const envSchema = z.object({
   ORGANIZATION_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
   ORGANIZATION_SERVICE_RETRIES: z.coerce.number().int().min(0).default(2),
 
-  LEARNING_SERVICE_BASE_URL: z.string().min(1, 'LEARNING_SERVICE_BASE_URL is required'),
-  LEARNING_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(3000),
-  LEARNING_SERVICE_RETRIES: z.coerce.number().int().min(0).default(1),
 
   INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
 
   EXERCISE_DEFINITION_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  EXERCISE_PLACEMENT_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -89,13 +87,9 @@ export interface AppConfig {
     timeoutMs: number;
     retries: number;
   };
-  learning: {
-    baseUrl: string;
-    timeoutMs: number;
-    retries: number;
-  };
   cache: {
     exerciseDefinitionTtlSeconds: number;
+    exercisePlacementTtlSeconds: number;
   };
   internalServiceToken: string;
 }
@@ -139,13 +133,9 @@ export default (): AppConfig => {
       timeoutMs: env.ORGANIZATION_SERVICE_TIMEOUT_MS,
       retries: env.ORGANIZATION_SERVICE_RETRIES,
     },
-    learning: {
-      baseUrl: env.LEARNING_SERVICE_BASE_URL,
-      timeoutMs: env.LEARNING_SERVICE_TIMEOUT_MS,
-      retries: env.LEARNING_SERVICE_RETRIES,
-    },
     cache: {
       exerciseDefinitionTtlSeconds: env.EXERCISE_DEFINITION_CACHE_TTL_SECONDS,
+      exercisePlacementTtlSeconds: env.EXERCISE_PLACEMENT_CACHE_TTL_SECONDS,
     },
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };

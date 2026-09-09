@@ -6,6 +6,7 @@ import { ForbiddenOperationException } from '../exceptions/forbidden-operation.e
 import { MemberAlreadyExistsException } from '../exceptions/member-already-exists.exception.js';
 import { MemberRole } from '../value-objects/member-role.vo.js';
 import { SchoolType } from '../value-objects/school-type.vo.js';
+import { ReviewSettings } from '../value-objects/review-settings.vo.js';
 import type { SchoolMember } from './school-member.entity.js';
 
 export interface CreateSchoolProps {
@@ -30,6 +31,8 @@ export interface RehydrateSchoolProps extends CreateSchoolProps {
   requireTutorReviewForSelfPaced: boolean;
   defaultExplanationLanguage?: string;
   type: SchoolType;
+  /** Absent for a row written before the promise existed — the default stands in. */
+  reviewSettings?: ReviewSettings;
 }
 
 export class School extends BaseEntity {
@@ -47,6 +50,7 @@ export class School extends BaseEntity {
   private _members: SchoolMember[];
   private _requireTutorReviewForSelfPaced: boolean;
   private _defaultExplanationLanguage: string | undefined;
+  private _reviewSettings: ReviewSettings;
 
   private constructor(
     id: string,
@@ -66,6 +70,7 @@ export class School extends BaseEntity {
     members: SchoolMember[],
     requireTutorReviewForSelfPaced: boolean,
     defaultExplanationLanguage: string | undefined,
+    reviewSettings: ReviewSettings,
   ) {
     super(id, createdAt, updatedAt);
     this._name = name;
@@ -82,6 +87,7 @@ export class School extends BaseEntity {
     this._members = members;
     this._requireTutorReviewForSelfPaced = requireTutorReviewForSelfPaced;
     this._defaultExplanationLanguage = defaultExplanationLanguage;
+    this._reviewSettings = reviewSettings;
   }
 
   static create(props: CreateSchoolProps, eventId: string): School {
@@ -104,6 +110,8 @@ export class School extends BaseEntity {
       [],
       false,
       undefined,
+      // A new school promises what the platform promises until somebody says otherwise.
+      ReviewSettings.default(),
     );
 
     school.addDomainEvent(
@@ -132,6 +140,7 @@ export class School extends BaseEntity {
       props.members,
       props.requireTutorReviewForSelfPaced,
       props.defaultExplanationLanguage,
+      props.reviewSettings ?? ReviewSettings.default(),
     );
   }
 
@@ -159,6 +168,15 @@ export class School extends BaseEntity {
       this._requireTutorReviewForSelfPaced = props.requireTutorReviewForSelfPaced;
     if (props.defaultExplanationLanguage !== undefined)
       this._defaultExplanationLanguage = props.defaultExplanationLanguage ?? undefined;
+    this._updatedAt = new Date();
+  }
+
+  /**
+   * Sets the response promise. Validation lives in the value object, so a promise that
+   * escalates before it is broken cannot reach the column whichever caller writes it.
+   */
+  setReviewSettings(settings: ReviewSettings): void {
+    this._reviewSettings = settings;
     this._updatedAt = new Date();
   }
 
@@ -237,4 +255,5 @@ export class School extends BaseEntity {
   get members(): SchoolMember[] { return [...this._members]; }
   get requireTutorReviewForSelfPaced(): boolean { return this._requireTutorReviewForSelfPaced; }
   get defaultExplanationLanguage(): string | undefined { return this._defaultExplanationLanguage; }
+  get reviewSettings(): ReviewSettings { return this._reviewSettings; }
 }

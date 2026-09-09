@@ -327,7 +327,61 @@ describe('ExerciseAttemptedConsumer', () => {
         gapCount: null,
         // Clamped: a perfect score out of a bank of five is not a perfect recall.
         ratingApplied: 'GOOD',
+        // Nothing said which axes, and this card mock reports no stability: absent is
+        // recorded as null rather than as an empty cell to count into (plan 55 §3.6).
+        skills: null,
+        focus: null,
+        containerId: null,
+        // Nothing said where the work was done either: an event from before the field
+        // existed is not silently filed as self_study (plan 57 §7).
+        workContext: null,
+        groupId: null,
+        lessonId: null,
+        timeSpentSeconds: 60,
+        stabilityAfter: null,
       });
+    });
+
+    it('forwards the axes and the stability the review left behind', async () => {
+      const { consumer, publisher } = makeConsumer({
+        commandBusExecute: (cmd: unknown) => {
+          if (cmd instanceof IntroduceCardCommand) {
+            return Promise.resolve(
+              Result.ok({ id: CARD_ID, state: 'NEW', userId: USER_ID, reps: 0, lastReviewedAt: null }),
+            );
+          }
+          if (cmd instanceof ReviewCardCommand) {
+            return Promise.resolve(
+              Result.ok({ id: CARD_ID, state: 'REVIEW', userId: USER_ID, stability: 12.5 }),
+            );
+          }
+          return Promise.resolve(Result.ok({}));
+        },
+      });
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 100,
+            timeSpentSeconds: 60,
+            completed: true,
+            templateCode: 'short_answer',
+            skills: ['reading'],
+            focus: ['grammar'],
+          }),
+        ),
+      );
+
+      const payload = ratedPayload(publisher);
+      expect(payload.skills).toEqual(['reading']);
+      expect(payload.focus).toEqual(['grammar']);
+      // After the review, not before: this is what tells "forgets quickly" from
+      // "does not know" once the profile is built on it.
+      expect(payload.stabilityAfter).toBe(12.5);
     });
 
     it('counts the attempt from the card as it stood before the review', async () => {

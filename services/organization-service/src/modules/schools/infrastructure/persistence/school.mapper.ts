@@ -1,6 +1,10 @@
 import { School } from '../../domain/entities/school.entity.js';
 import { SchoolMember } from '../../domain/entities/school-member.entity.js';
 import { SchoolType } from '../../domain/value-objects/school-type.vo.js';
+import {
+  ReviewSettings,
+  type ReviewEscalationTarget,
+} from '../../domain/value-objects/review-settings.vo.js';
 
 type PrismaSchoolMember = {
   id: string;
@@ -26,6 +30,10 @@ type PrismaSchool = {
   isActive: boolean;
   requireTutorReviewForSelfPaced: boolean;
   defaultExplanationLanguage: string | null;
+  // Optional on the type, because several reads select a narrower row than the table.
+  reviewRespondWithinHours?: number;
+  reviewEscalateAfterHours?: number;
+  reviewEscalateTo?: string;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -60,6 +68,14 @@ export class SchoolMapper {
       isActive: raw.isActive,
       requireTutorReviewForSelfPaced: raw.requireTutorReviewForSelfPaced,
       defaultExplanationLanguage: raw.defaultExplanationLanguage ?? undefined,
+      reviewSettings:
+        raw.reviewRespondWithinHours === undefined || raw.reviewEscalateAfterHours === undefined
+          ? undefined
+          : ReviewSettings.rehydrate({
+              respondWithinHours: raw.reviewRespondWithinHours,
+              escalateAfterHours: raw.reviewEscalateAfterHours,
+              escalateTo: (raw.reviewEscalateTo ?? 'school_admins') as ReviewEscalationTarget,
+            }),
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt ?? undefined,

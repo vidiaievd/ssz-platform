@@ -1,0 +1,12 @@
+-- Sentences checked one at a time, for `sentence_schema` (plan 52 §3.3).
+--
+-- Nullable and defaultless, like the draft and answered-question columns beside it: an
+-- attempt that predates this, or one whose template hands everything in at once, has no
+-- per-sentence state, and that is a different thing from an empty list.
+--
+-- Not append-only, unlike `answered_questions`: a sentence may be checked again and
+-- again, and each check overwrites the row's state. What the domain refuses is checking a
+-- sentence that is already closed — solved, or revealed with `Vis riktig skjema`. A
+-- constraint here could not express that without knowing the shape, and the shape is
+-- deliberately the template's business.
+ALTER TABLE "attempts" ADD COLUMN "checked_rows" JSONB;

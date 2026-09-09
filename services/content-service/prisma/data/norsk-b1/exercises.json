@@ -389,240 +389,600 @@
     {
       "key": "b1-g3-ss1",
       "template": "sentence_schema",
-      "instruction": "Перестройте предложение в придаточное с at и разместите слова по полям (leddsetning).",
+      "instruction": "Перестройте каждое предложение в придаточное и разместите слова по полям (leddsetning).",
       "hint": "В придаточном ikke стоит перед глаголом. Порядок полей: subjunksjon — subjekt — adverbial — verbal — sluttfelt.",
       "content": {
-        "sentence": "… at han ikke hadde tatt fagbrevet ennå.",
-        "source_sentence": "Han hadde ikke tatt fagbrevet ennå.",
-        "schema_type": "subordinate",
-        "fields": [
+        "title": "Indirekte tale — leddsetningsskjema",
+        "instruction": "Bygg om setningen til en leddsetning og legg ordene i skjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "sub"
+        ],
+        "schema": {
+          "sub": [
+            {
+              "id": "subjunksjon",
+              "short": "sub",
+              "label": "Subjunksjon",
+              "hint": "at, om eller spørreordet",
+              "optional": false
+            },
+            {
+              "id": "subjekt",
+              "short": "n",
+              "label": "Subjekt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "adverbial",
+              "short": "a",
+              "label": "Adverbial",
+              "hint": "ikke, alltid, ofte — foran verbet",
+              "optional": true
+            },
+            {
+              "id": "verbal",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "Finitt verb først, så infinitiv eller partisipp",
+              "optional": false
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "Objekt og andre utfyllinger",
+              "optional": true
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "subjunksjon",
-            "label": "Subjunksjon"
+            "id": "r1",
+            "clause": "sub",
+            "source": "Han hadde ikke tatt fagbrevet ennå.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "at"
+              },
+              {
+                "id": "r1c2",
+                "text": "han"
+              },
+              {
+                "id": "r1c3",
+                "text": "ikke"
+              },
+              {
+                "id": "r1c4",
+                "text": "hadde"
+              },
+              {
+                "id": "r1c5",
+                "text": "tatt"
+              },
+              {
+                "id": "r1c6",
+                "text": "fagbrevet"
+              },
+              {
+                "id": "r1c7",
+                "text": "ennå"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r1x1",
+                "text": "hadde ikke"
+              },
+              {
+                "id": "r1x2",
+                "text": "har"
+              }
+            ]
           },
           {
-            "id": "subjekt",
-            "label": "Subjekt"
+            "id": "r2",
+            "clause": "sub",
+            "source": "«Har du bil?», spurte hun.",
+            "chunks": [
+              {
+                "id": "r2c1",
+                "text": "om"
+              },
+              {
+                "id": "r2c2",
+                "text": "jeg"
+              },
+              {
+                "id": "r2c3",
+                "text": "hadde"
+              },
+              {
+                "id": "r2c4",
+                "text": "bil"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r2x1",
+                "text": "at"
+              },
+              {
+                "id": "r2x2",
+                "text": "hadde jeg"
+              }
+            ]
           },
           {
-            "id": "adverbial",
-            "label": "Adverbial"
+            "id": "r3",
+            "clause": "sub",
+            "source": "«Hvor bor du?», spurte han.",
+            "chunks": [
+              {
+                "id": "r3c1",
+                "text": "hvor"
+              },
+              {
+                "id": "r3c2",
+                "text": "jeg"
+              },
+              {
+                "id": "r3c3",
+                "text": "bodde"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r3x1",
+                "text": "om"
+              },
+              {
+                "id": "r3x2",
+                "text": "bor"
+              }
+            ]
           },
           {
-            "id": "verbal",
-            "label": "Verbal"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt"
+            "id": "r4",
+            "clause": "sub",
+            "source": "«Jeg skal ikke jobbe på lørdag», sa Bartek.",
+            "chunks": [
+              {
+                "id": "r4c1",
+                "text": "at"
+              },
+              {
+                "id": "r4c2",
+                "text": "han"
+              },
+              {
+                "id": "r4c3",
+                "text": "ikke"
+              },
+              {
+                "id": "r4c4",
+                "text": "skulle"
+              },
+              {
+                "id": "r4c5",
+                "text": "jobbe"
+              },
+              {
+                "id": "r4c6",
+                "text": "på lørdag"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r4x1",
+                "text": "skal"
+              },
+              {
+                "id": "r4x2",
+                "text": "jeg"
+              }
+            ]
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "at"
-          },
-          {
-            "id": "t2",
-            "text": "han"
-          },
-          {
-            "id": "t3",
-            "text": "ikke"
-          },
-          {
-            "id": "t4",
-            "text": "hadde"
-          },
-          {
-            "id": "t5",
-            "text": "tatt"
-          },
-          {
-            "id": "t6",
-            "text": "fagbrevet"
-          },
-          {
-            "id": "t7",
-            "text": "ennå"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": true,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": true,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
+        "rows": {
+          "r1": {
+            "text": "at han ikke hadde tatt fagbrevet ennå",
+            "why": "В придаточном ikke стоит перед глаголом: at + подлежащее + ikke + глагол. В главном предложении было бы «hadde ikke tatt».",
+            "fields": {
+              "r1c1": "subjunksjon",
+              "r1c2": "subjekt",
+              "r1c3": "adverbial",
+              "r1c4": "verbal",
+              "r1c5": "verbal",
+              "r1c6": "sluttfelt",
+              "r1c7": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r1c3": "Здесь ikke идёт ПЕРЕД глаголом — это главное отличие придаточного от главного предложения."
+            }
+          },
+          "r2": {
+            "text": "om jeg hadde bil",
+            "why": "Общий вопрос вводится om, и инверсия в нём исчезает: om + подлежащее + глагол. После spurte время сдвигается: har → hadde.",
+            "fields": {
+              "r2c1": "subjunksjon",
+              "r2c2": "subjekt",
+              "r2c3": "verbal",
+              "r2c4": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r2c1": "Вопрос «да/нет» вводится om, а не at."
+            }
+          },
+          "r3": {
+            "text": "hvor jeg bodde",
+            "why": "Вопросительное слово само занимает место союза: hvor + подлежащее + глагол, без om и без инверсии. После spurte: bor → bodde.",
+            "fields": {
+              "r3c1": "subjunksjon",
+              "r3c2": "subjekt",
+              "r3c3": "verbal"
+            },
+            "alt": {},
+            "fb": {
+              "r3c1": "После вопросительного слова om не нужен — hvor само вводит придаточное."
+            }
+          },
+          "r4": {
+            "text": "at han ikke skulle jobbe på lørdag",
+            "why": "После глагола в прошедшем (sa) время сдвигается: skal → skulle, а jeg → han. ikke остаётся перед глаголом, а «på lørdag» — одна составляющая и стоит целиком в sluttfelt.",
+            "fields": {
+              "r4c1": "subjunksjon",
+              "r4c2": "subjekt",
+              "r4c3": "adverbial",
+              "r4c4": "verbal",
+              "r4c5": "verbal",
+              "r4c6": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r4c4": "После глагола в прошедшем (sa) skal превращается в skulle.",
+              "r4c6": "«på lørdag» — один член предложения, его не разбивают на два поля."
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "b1-g4-mc",
+      "template": "multiple_choice",
+      "instruction": "Косвенная речь: выберите форму, которая согласуется с глаголом в прошедшем.",
+      "content": {
+        "title": "Indirekte tale — hvilken form?",
+        "instruction": "Velg formen som passer etter sa, spurte og fortalte.",
+        "questions": [
           {
-            "field_id": "subjunksjon",
-            "token_ids": [
-              "t1"
+            "id": "q1",
+            "kind": "grammar",
+            "context": "",
+            "stem": "Han sa at han ___ syk.",
+            "options": [
+              {
+                "id": "a",
+                "text": "er",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "var",
+                "fixed": false
+              }
             ]
           },
           {
-            "field_id": "subjekt",
-            "token_ids": [
-              "t2"
+            "id": "q2",
+            "kind": "grammar",
+            "context": "",
+            "stem": "Hun spurte om jeg ___ tid.",
+            "options": [
+              {
+                "id": "a",
+                "text": "har",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "hadde",
+                "fixed": false
+              }
             ]
           },
           {
-            "field_id": "adverbial",
-            "token_ids": [
-              "t3"
+            "id": "q3",
+            "kind": "grammar",
+            "context": "",
+            "stem": "Bartek sa at han ___ reise.",
+            "options": [
+              {
+                "id": "a",
+                "text": "skal",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "skulle",
+                "fixed": false
+              }
             ]
           },
           {
-            "field_id": "verbal",
-            "token_ids": [
-              "t4",
-              "t5"
+            "id": "q4",
+            "kind": "grammar",
+            "context": "",
+            "stem": "De fortalte at de allerede ___.",
+            "options": [
+              {
+                "id": "a",
+                "text": "har spist",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "hadde spist",
+                "fixed": false
+              }
             ]
           },
           {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t6",
-              "t7"
+            "id": "q5",
+            "kind": "grammar",
+            "context": "",
+            "stem": "Han forklarte at han ___ komme.",
+            "options": [
+              {
+                "id": "a",
+                "text": "kan ikke",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "ikke kunne",
+                "fixed": false
+              }
             ]
           }
         ],
-        "explanation": "В придаточном: subjunksjon at, subjekt han, adverbial ikke ПЕРЕД глаголом, verbal hadde tatt, затем sluttfelt."
-      }
-    },
-    {
-      "key": "b1-g4-mc1",
-      "template": "multiple_choice",
-      "instruction": "После глагола в прошедшем — какая форма верна?",
-      "content": {
-        "question": "Han sa at han ___ syk.",
-        "options": [
-          {
-            "id": "a",
-            "text": "er"
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "b",
+            "why": "Etter et fortellerverb i preteritum (sa) flyttes tida ett steg tilbake: presens «er» blir preteritum «var».",
+            "options": {
+              "a": "«er» er presens. Hovedsetningen står i preteritum («sa»), og leddsetningen følger etter."
+            }
           },
-          {
-            "id": "b",
-            "text": "var"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
-        ],
-        "explanation": "presens → preteritum после «sa»."
-      }
-    },
-    {
-      "key": "b1-g4-mc2",
-      "template": "multiple_choice",
-      "instruction": "Выберите правильную форму.",
-      "content": {
-        "question": "Hun spurte om jeg ___ tid.",
-        "options": [
-          {
-            "id": "a",
-            "text": "har"
+          "q2": {
+            "correctOptionId": "b",
+            "why": "«spurte» står i preteritum, så «har» blir «hadde». Tidsforskyvningen gjelder også i indirekte spørsmål med «om».",
+            "options": {
+              "a": "«har» ville handlet om tida di nå, ikke om det hun spurte om den gangen."
+            }
           },
-          {
-            "id": "b",
-            "text": "hadde"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
-        ]
-      }
-    },
-    {
-      "key": "b1-g4-mc3",
-      "template": "multiple_choice",
-      "instruction": "Выберите правильную форму.",
-      "content": {
-        "question": "Bartek sa at han ___ reise.",
-        "options": [
-          {
-            "id": "a",
-            "text": "skal"
+          "q3": {
+            "correctOptionId": "b",
+            "why": "Modalverbene følger samme regel som andre verb: «skal» blir «skulle» etter et fortellerverb i preteritum.",
+            "options": {
+              "a": "«skal» er presens. Modalverb er ikke unntak fra tidsforskyvningen."
+            }
           },
-          {
-            "id": "b",
-            "text": "skulle"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
-        ]
-      }
-    },
-    {
-      "key": "b1-g4-mc4",
-      "template": "multiple_choice",
-      "instruction": "Выберите правильную форму.",
-      "content": {
-        "question": "De fortalte at de allerede ___.",
-        "options": [
-          {
-            "id": "a",
-            "text": "har spist"
+          "q4": {
+            "correctOptionId": "b",
+            "why": "Perfektum «har spist» blir pluskvamperfektum «hadde spist»: måltidet var allerede ferdig da de fortalte det.",
+            "options": {
+              "a": "«har spist» knytter handlingen til nå. Her er både fortellingen og måltidet fortid."
+            }
           },
-          {
-            "id": "b",
-            "text": "hadde spist"
+          "q5": {
+            "correctOptionId": "b",
+            "why": "To ting skjer samtidig: «kan» blir «kunne» etter «forklarte», og i en leddsetning står «ikke» foran det bøyde verbet.",
+            "options": {
+              "a": "Begge delene er feil her: «kan» er presens, og «ikke» kan ikke stå etter verbet i en leddsetning."
+            }
           }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
-        ]
+        }
       }
     },
     {
-      "key": "b1-g4-mc5",
-      "template": "multiple_choice",
-      "instruction": "Выберите правильную форму.",
-      "content": {
-        "question": "Han forklarte at han ___ komme.",
-        "options": [
-          {
-            "id": "a",
-            "text": "kan ikke"
+        "key": "b1-g5-write",
+        "template": "writing_task",
+        "instruction": "Перескажите диалог косвенной речью (50–70 слов).",
+        "content": {
+          "mode": "retell",
+          "instruction": "Skriv samtalen om til indirekte tale (50–70 ord).",
+          "prompt": "Kari intervjuer Bartek om en jobb. Gjenfortell samtalen under med indirekte tale, slik du ville fortalt den til en venn etterpå. Bruk riktig subjunksjon (om/at), tidsforskyvning og ordstilling i leddsetningene.",
+          "source": "Kari: Har du erfaring med prosjektledelse?\nBartek: Nei, men jeg lærer fort. Jeg vil gjerne prøve.\nKari: Når kan du begynne?\nBartek: Jeg kan begynne 1. april.",
+          "image": {
+            "caption": "",
+            "alt": ""
           },
-          {
-            "id": "b",
-            "text": "ikke kunne"
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Gjenfortell spørsmålet om erfaring med «om»",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Gjenfortell svaret hans med «at»",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Gjenfortell spørsmålet om når han kan begynne",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Bruk tidsforskyvning: presens blir preteritum",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Kari spurte om …",
+            "Bartek svarte at …",
+            "Så spurte hun …",
+            "Han sa at han …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Subjunksjon (om/at), tidsforskyvning (presens→preteritum) og ordstilling i leddsetning.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 40,
+            "maxWords": 90,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
           }
-        ]
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "spurte om",
+                "om han hadde"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "svarte at",
+                "sa at"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "når han kunne",
+                "spurte når"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "kunne begynne",
+                "lærte fort",
+                "ville gjerne"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Direkte tale, ingen omskriving",
+                "Omskrevet, men feil subjunksjon eller ingen tidsforskyvning",
+                "Riktig subjunksjon, noen feil i tid eller ordstilling",
+                "Riktig subjunksjon, tidsforskyvning og ordstilling hele veien"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Kari spurte om Bartek hadde erfaring med prosjektledelse. Bartek svarte at han ikke hadde det, men at han lærte fort, og at han gjerne ville prøve. Så spurte Kari når han kunne begynne. Bartek sa at han kunne begynne 1. april."
+        }
       },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "b"
-        ],
-        "explanation": "В придаточном ikke стоит перед глаголом, и kan→kunne."
-      }
-    },
-    {
-      "key": "b1-g5-write",
-      "template": "writing_task",
-      "instruction": "Перескажите диалог косвенной речью (50–70 слов).",
-      "content": {
-        "prompt": "Skriv om denne samtalen til indirekte tale (50–70 ord):\n\nKari: Har du erfaring med prosjektledelse?\nBartek: Nei, men jeg lærer fort. Jeg vil gjerne prøve.\nKari: Når kan du begynne?\nBartek: Jeg kan begynne 1. april.",
-        "min_words": 40,
-        "max_words": 90,
-        "instructions": "Bruk riktig subjunksjon (om/at), tidsforskyvning og ordstilling."
-      },
-      "expectedAnswers": {
-        "reference_text": "Kari spurte om Bartek hadde erfaring med prosjektledelse. Bartek svarte at han ikke hadde det, men at han lærte fort, og at han gjerne ville prøve. Så spurte Kari når han kunne begynne. Bartek sa at han kunne begynne 1. april.",
-        "rubric": "Vurder riktig subjunksjon (om/at), tidsforskyvning (presens→preteritum, kan→kunne) og ordstilling i leddsetning.",
-        "criteria": [
-          "subjunksjon",
-          "tidsforskyvning",
-          "ordstilling"
-        ]
-      }
-    },
     {
       "key": "b1-g1-tr-01",
       "template": "translate_to_target",
@@ -1165,25 +1525,174 @@
       }
     },
     {
-      "key": "b1-gr2-write",
-      "template": "writing_task",
-      "instruction": "Напишите короткий рассказ (80–120 слов) о важном событии в жизни.",
-      "content": {
-        "prompt": "Skriv en kort tekst (80–120 ord) om en viktig hendelse i livet ditt: en flytting, et valg, en ny jobb eller utdanning. Bruk preteritum for hendelsene og perfektum når du forteller hvordan det er nå. Bruk minst én setning med pluskvamperfektum («Da jeg …, hadde jeg allerede …»).",
-        "min_words": 80,
-        "max_words": 150,
-        "instructions": "Bruk alle tre fortidsformer: preteritum, perfektum og pluskvamperfektum."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder korrekt bruk av de tre fortidsformene og sammenheng i teksten.",
-        "criteria": [
-          "preteritum",
-          "perfektum",
-          "pluskvamperfektum",
-          "sammenheng"
-        ]
+        "key": "b1-gr2-write",
+        "template": "writing_task",
+        "instruction": "Напишите короткий рассказ (80–120 слов) о важном событии в жизни.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 80–120 ord.",
+          "prompt": "Fortell om en viktig hendelse i livet ditt: en flytting, et valg, en ny jobb eller en utdanning. Fortell hva som skjedde, og hvordan det er nå.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Fortell hva som skjedde, i preteritum",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Fortell hvordan det er nå, i perfektum",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk minst én setning med pluskvamperfektum",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Skriv hvorfor hendelsen var viktig for deg",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "For … år siden …",
+            "Da jeg …, hadde jeg allerede …",
+            "Siden den gangen har jeg …",
+            "I dag …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Preteritum, perfektum og pluskvamperfektum — riktig form og riktig valg av tid.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 80,
+            "maxWords": 150,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "jeg flyttet",
+                "flyttet jeg",
+                "jeg begynte",
+                "begynte jeg"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "jeg har bodd",
+                "jeg har jobbet",
+                "har vært"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "hadde allerede",
+                "hadde jeg",
+                "hadde bodd"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "viktig for meg",
+                "det viktigste",
+                "det betydde"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Fortiden uttrykkes ikke",
+                "Bare preteritum, ofte med feil former",
+                "To av tre fortidsformer, noen feil",
+                "Alle tre fortidsformene brukt riktig og naturlig"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "For fem år siden flyttet jeg fra Gdansk til Norge. Jeg hadde allerede jobbet som elektriker i sju år hjemme, men jeg ville prøve noe nytt.\n\nDen første vinteren var tung. Jeg kunne nesten ingen norsk, og jeg forsto lite på jobben. Derfor begynte jeg på norskkurs to kvelder i uka.\n\nSiden den gangen har jeg tatt fagbrevet mitt om igjen her, og jeg har jobbet i det samme firmaet i tre år. I dag snakker jeg norsk hver dag. Flyttingen var det viktigste valget jeg har tatt."
+        }
       }
-    }
   ],
   "3": [
     {
@@ -1451,25 +1960,169 @@
       }
     },
     {
-      "key": "b1-gr3-write",
-      "template": "writing_task",
-      "instruction": "Напишите короткий текст (70–100 слов) о планах на следующий год.",
-      "content": {
-        "prompt": "Skriv en kort tekst (70–100 ord) om planene dine for det neste året. Hva skal du gjøre? Hva vil du gjerne oppnå? Hva tror du kommer til å skje? Bruk minst tre forskjellige måter å uttrykke framtid på (skal, vil, kommer til å, presens + tid).",
-        "min_words": 70,
-        "max_words": 110,
-        "instructions": "Bruk minst tre ulike futurumsuttrykk."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder minst 3 ulike futurumsuttrykk brukt riktig og med naturlig valg av form.",
-        "criteria": [
-          "skal",
-          "vil",
-          "kommer til å",
-          "presens + tid"
-        ]
+        "key": "b1-gr3-write",
+        "template": "writing_task",
+        "instruction": "Напишите короткий текст (70–100 слов) о планах на следующий год.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 70–100 ord.",
+          "prompt": "Fortell om planene dine for det neste året. Hva skal du gjøre? Hva vil du gjerne oppnå? Hva tror du kommer til å skje?",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Fortell om en avtalt plan med «skal»",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Fortell om et ønske med «vil» eller «har lyst til»",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Fortell om noe du tror skjer, med «kommer til å»",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Bruk presens + tidsuttrykk om noe som står i kalenderen",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Til neste år skal jeg …",
+            "Jeg har lyst til å …",
+            "Jeg tror det kommer til å …",
+            "I mars begynner jeg …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Minst tre ulike futurumsuttrykk (skal, vil, kommer til å, presens + tid), brukt med naturlig valg av form.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 70,
+            "maxWords": 110,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "jeg skal",
+                "skal jeg"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "jeg vil",
+                "har lyst til"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "kommer til å"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "neste år",
+                "til høsten",
+                "i januar"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen framtidsuttrykk",
+                "Ett framtidsuttrykk, gjentatt",
+                "Tre uttrykk, men noen brukt unaturlig",
+                "Tre eller flere uttrykk, hvert brukt der det passer"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Til neste år skal jeg fortsette på norskkurset, og i mars begynner jeg på et nytt kurs i prosjektledelse. Det står allerede i kalenderen.\n\nJeg har lyst til å ta Norskprøven på B1-nivå før sommeren. Jeg vil også trene mer og sove bedre, for i vinter jobbet jeg altfor mye.\n\nJeg tror det kommer til å bli et travelt år, men jeg tror også at jeg kommer til å trives bedre på jobben når jeg forstår alt som blir sagt."
+        }
       }
-    }
   ],
   "4": [
     {
@@ -1738,24 +2391,146 @@
       "hint": "Привычка сейчас → pleier å."
     },
     {
-      "key": "b1-gr4-write",
-      "template": "writing_task",
-      "instruction": "Дайте совет с использованием модальных глаголов (3–5 предложений).",
-      "content": {
-        "prompt": "Velg én situasjon og gi et godt råd med modalverb (bør/burde, må, kan): En venn sover dårlig og er stresset. En kollega jobber altfor mye overtid. Noen føler seg ensom etter å ha flyttet til Norge. Skriv 3–5 setninger med råd.",
-        "min_words": 25,
-        "max_words": 90,
-        "instructions": "Bruk modalverb uten å og minst ett «burde/skulle ha»-uttrykk der det passer."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder riktig bruk av modalverb (uten å) og minst ett burde/skulle ha-uttrykk der det passer.",
-        "criteria": [
-          "modalverb",
-          "burde/skulle ha",
-          "råd"
-        ]
+        "key": "b1-gr4-write",
+        "template": "writing_task",
+        "instruction": "Дайте совет с использованием модальных глаголов (3–5 предложений).",
+        "content": {
+          "mode": "free",
+          "instruction": "Skriv 3–5 setninger med råd.",
+          "prompt": "Velg én situasjon og gi et godt råd: En venn sover dårlig og er stresset. En kollega jobber altfor mye overtid. Noen føler seg ensom etter å ha flyttet til Norge. Skriv rådet direkte til personen.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Si hvilken situasjon du svarer på",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Gi rådet med «bør» eller «burde»",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk minst ett modalverb til (må, kan, kunne)",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Jeg tror du bør …",
+            "Du burde kanskje …",
+            "Du må huske å …",
+            "Du kan prøve å …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Modalverb uten «å», og «burde/skulle ha» der det passer.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 25,
+            "maxWords": 90,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 7,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "du sover",
+                "du jobber",
+                "du føler deg",
+                "du har flyttet"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "du bør",
+                "du burde"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "du må",
+                "du kan",
+                "du kunne"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen modalverb",
+                "Modalverb med «å» eller feil form",
+                "Riktige modalverb, men lite variasjon",
+                "Flere modalverb, riktig form, «burde/skulle ha» brukt naturlig"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Du sover dårlig fordi du tenker på jobben hele kvelden. Jeg tror du bør legge telefonen i et annet rom en time før du legger deg. Du må også si fra til sjefen din når det blir for mye — det er ikke din feil alene. Du kunne kanskje gått en tur etter middag; det hjelper meg selv når jeg er stresset."
+        }
       }
-    }
   ],
   "5": [
     {
@@ -2036,24 +2811,148 @@
       }
     },
     {
-      "key": "b1-gr5-write",
-      "template": "writing_task",
-      "instruction": "Напишите инструкцию (60–90 слов), используя пассив.",
-      "content": {
-        "prompt": "Skriv en kort instruksjon (60–90 ord) om hvordan man sorterer søppel, eller hvordan man gjør en enkel oppgave (f.eks. lage kaffe, vaske klær). Bruk passiv (helst s-passiv): «Matavfallet legges i …», «Plasten samles …», «Knappen trykkes inn …».",
-        "min_words": 60,
-        "max_words": 100,
-        "instructions": "Bruk minst 4 passivsetninger, fortrinnsvis s-passiv."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder minst 4 passivsetninger med riktig form (helst s-passiv for instruksjon).",
-        "criteria": [
-          "passiv",
-          "s-passiv",
-          "instruksjon"
-        ]
+        "key": "b1-gr5-write",
+        "template": "writing_task",
+        "instruction": "Напишите инструкцию (60–90 слов), используя пассив.",
+        "content": {
+          "mode": "free",
+          "instruction": "Skriv en kort instruksjon på 60–90 ord.",
+          "prompt": "Forklar hvordan man sorterer søppel, eller hvordan man gjør en enkel oppgave — for eksempel å lage kaffe eller vaske klær. Skriv slik en bruksanvisning er skrevet, uten å si «du».",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Si hva instruksjonen handler om",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Skriv minst fire trinn i passiv",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk rekkefølgeord mellom trinnene",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Først …",
+            "Deretter …",
+            "… legges i …",
+            "Til slutt …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Passiv, helst s-passiv, med riktig form i en instruksjon.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 60,
+            "maxWords": 100,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 7,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "slik sorteres",
+                "slik lages",
+                "denne instruksjonen"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "legges i",
+                "samles",
+                "trykkes",
+                "vaskes",
+                "helles"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "først",
+                "deretter",
+                "til slutt"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen passivsetninger",
+                "Én eller to passivsetninger, ofte med feil form",
+                "Fire passivsetninger, men blandet med «du»-form",
+                "Fire eller flere korrekte passivsetninger i en jevn instruksjonsstil"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Slik sorteres søppelet hjemme. Først skylles plastemballasjen i kaldt vann og legges i den blå posen. Matavfallet legges i den grønne posen, og posen knytes godt igjen. Papir og papp brettes sammen og settes i den egne beholderen ute. Glass og metall leveres på returpunktet ved butikken. Farlig avfall, for eksempel maling og batterier, kastes aldri i restavfallet, men leveres på gjenvinningsstasjonen. Til slutt settes beholderen ut til veien kvelden før tømmedagen."
+        }
       }
-    }
   ],
   "6": [
     {
@@ -2311,24 +3210,160 @@
       }
     },
     {
-      "key": "b1-gr6-write",
-      "template": "writing_task",
-      "instruction": "Опишите любимое место или приложение с относительными придаточными.",
-      "content": {
-        "prompt": "Skriv en kort tekst (70–100 ord) om favorittstedet ditt, en app eller en nettside du bruker. Beskriv den med minst tre relativsetninger: «Det er en app som …», «et sted der …», «noe jeg ikke kan klare meg uten».",
-        "min_words": 70,
-        "max_words": 110,
-        "instructions": "Bruk minst 3 relativsetninger med riktig ordstilling (preposisjon til slutt)."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder minst 3 relativsetninger, riktig ordstilling og korrekt bruk av som/der/hvor.",
-        "criteria": [
-          "relativsetninger",
-          "ordstilling",
-          "som/der/hvor"
-        ]
+        "key": "b1-gr6-write",
+        "template": "writing_task",
+        "instruction": "Опишите любимое место или приложение с относительными придаточными.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 70–100 ord.",
+          "prompt": "Fortell om favorittstedet ditt, en app eller en nettside du bruker ofte. Beskriv den for noen som ikke kjenner den: hva er det, og hvorfor betyr den noe for deg?",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Si hva stedet eller appen er, med «som»",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Beskriv hvor eller når du bruker den, med «der» eller «hvor»",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Si hvorfor du ikke klarer deg uten",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Det er et sted som …",
+            "… der jeg alltid …",
+            "Det er noe jeg ikke kan klare meg uten.",
+            "Det jeg liker best, er …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Relativsetninger med som/der/hvor og riktig ordstilling (preposisjonen til slutt).",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 70,
+            "maxWords": 110,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "som",
+                "en app som",
+                "et sted som"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "der jeg",
+                "hvor jeg",
+                "der man"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "ikke kan klare meg uten",
+                "som jeg bruker hver"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen relativsetninger",
+                "Én relativsetning, med feil ordstilling",
+                "Tre relativsetninger, noen med feil valg av som/der",
+                "Tre eller flere korrekte relativsetninger med riktig ordstilling"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Favorittstedet mitt er et lite bibliotek som ligger to kvartaler fra jobben. Det er et rom der ingen forventer noe av meg, og der jeg kan sitte i to timer uten å si et ord.\n\nJeg pleier å ta med meg en bok som jeg har lånt uka før, og en kaffe fra kiosken som ligger i første etasje. Damen som jobber der, kjenner meg igjen nå.\n\nDet er noe jeg ikke kan klare meg uten i en travel uke."
+        }
       }
-    }
   ],
   "7": [
     {
@@ -2622,24 +3657,172 @@
       }
     },
     {
-      "key": "b1-gr7-write",
-      "template": "writing_task",
-      "instruction": "Напишите текст (80–120 слов): «Hvis jeg var ordfører …».",
-      "content": {
-        "prompt": "Skriv en kort tekst (80–120 ord): «Hvis jeg var ordfører i byen min, ville jeg …». Fortell hva du ville ha gjort og hvorfor. Bruk minst tre betingelsessetninger av gjerne ulike typer.",
-        "min_words": 80,
-        "max_words": 130,
-        "instructions": "Bruk minst 3 betingelsessetninger, gjerne av ulike typer, og riktig tempus."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder riktig tempus i hoved- og leddsetning, minst 3 betingelsessetninger, gjerne én med inversjon uten hvis.",
-        "criteria": [
-          "betingelsessetninger",
-          "tempus",
-          "inversjon"
-        ]
+        "key": "b1-gr7-write",
+        "template": "writing_task",
+        "instruction": "Напишите текст (80–120 слов): «Hvis jeg var ordfører …».",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 80–120 ord.",
+          "prompt": "«Hvis jeg var ordfører i byen min, ville jeg …» Fortell hva du ville ha gjort, og hvorfor. Tenk på noe du savner i nærmiljøet ditt.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Si hva du ville gjort først, med «hvis … ville»",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Begrunn det: hva ville skjedd da?",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Skriv én betingelse om noe som faktisk kan skje",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Skriv én setning med inversjon uten «hvis»",
+              "required": false
+            }
+          ],
+          "phrases": [
+            "Hvis jeg var ordfører, ville jeg …",
+            "Da ville flere …",
+            "Hadde jeg hatt penger nok, …",
+            "Hvis kommunen bestemmer seg for å …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Betingelsessetninger: riktig tempus i hoved- og leddsetning, gjerne én med inversjon uten «hvis».",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 80,
+            "maxWords": 130,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "hvis jeg var",
+                "ville jeg"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "da ville",
+                "ville flere",
+                "det ville"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "hvis kommunen",
+                "hvis det blir",
+                "hvis flere"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "hadde jeg",
+                "hadde vi",
+                "var det"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen betingelsessetninger",
+                "Én betingelsessetning, feil tempus i hovedsetningen",
+                "Tre betingelsessetninger, noen med feil tempus",
+                "Tre eller flere korrekte, med variasjon i typen"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Hvis jeg var ordfører i byen min, ville jeg begynt med bussene. I dag går de hver time etter klokka seks, og da blir bilen det eneste valget for folk som jobber kveldsskift.\n\nHvis bussene gikk hvert kvarter, ville flere latt bilen stå. Det ville gitt renere luft i sentrum og tryggere skoleveier for barna.\n\nHadde jeg hatt penger nok, ville jeg også bygget et sted der ungdom kan være om kvelden. Hvis kommunen bestemmer seg for å prioritere dette til neste år, blir byen et bedre sted å bo."
+        }
       }
-    }
   ],
   "8": [
     {
@@ -2933,24 +4116,176 @@
       }
     },
     {
-      "key": "b1-gr8-write",
-      "template": "writing_task",
-      "instruction": "Опишите традицию, праздник или блюдо (80–120 слов) с прилагательными.",
-      "content": {
-        "prompt": "Skriv en kort tekst (80–120 ord) om en tradisjon, en høytid eller en rett du er glad i. Bruk minst fem adjektiver, minst én komparativ og én superlativ (f.eks. «den koseligste høytiden», «bedre enn …»), og gjerne et partisipp brukt som adjektiv («håndlaget», «pyntet»).",
-        "min_words": 80,
-        "max_words": 130,
-        "instructions": "Bruk minst 5 adjektiver, inkludert én komparativ og én superlativ."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder riktig gradbøying og superlativ med -e etter den/det/de.",
-        "criteria": [
-          "adjektiv",
-          "komparativ",
-          "superlativ"
-        ]
+        "key": "b1-gr8-write",
+        "template": "writing_task",
+        "instruction": "Опишите традицию, праздник или блюдо (80–120 слов) с прилагательными.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 80–120 ord.",
+          "prompt": "Fortell om en tradisjon, en høytid eller en rett du er glad i. Beskriv den slik at en som aldri har opplevd den, ser den for seg.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Beskriv tradisjonen med minst fem adjektiver",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Sammenlign med noe annet (komparativ)",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk minst én superlativ med den/det/de",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Bruk et partisipp som adjektiv",
+              "required": false
+            }
+          ],
+          "phrases": [
+            "Det er den koseligste …",
+            "Det smaker bedre enn …",
+            "Bordet er pyntet med …",
+            "Hjemme hos oss …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Gradbøying av adjektiv, superlativ med -e etter den/det/de, og samsvar med substantivet.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 80,
+            "maxWords": 130,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "koselig",
+                "varm",
+                "søt",
+                "gammel",
+                "stille"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "bedre enn",
+                "større enn",
+                "koseligere enn"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "den koseligste",
+                "det beste",
+                "de fineste"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "håndlaget",
+                "pyntet",
+                "nybakt",
+                "stekt"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Nesten ingen adjektiver",
+                "Adjektiver uten samsvar, ingen gradbøying",
+                "Komparativ og superlativ til stede, noen formfeil",
+                "Fem eller flere adjektiver med riktig samsvar og gradbøying"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Julaften er den koseligste kvelden i året hjemme hos oss. Huset lukter av nybakt brød, og bordet er pyntet med røde servietter og gamle lysestaker fra bestemor.\n\nVi spiser alltid den samme retten: en enkel, søt grøt med en mandel i. Den smaker bedre enn all annen mat i desember, og den yngste i familien får det største stykket sjokolade hvis han finner mandelen.\n\nKvelden er stille og lang, men det er de fineste timene vi har sammen hele året."
+        }
       }
-    }
   ],
   "9": [
     {
@@ -3210,24 +4545,173 @@
       }
     },
     {
-      "key": "b1-gr9-write",
-      "template": "writing_task",
-      "instruction": "Расскажите о знаменитом человеке (80–120 слов) с eiendomsuttrykk.",
-      "content": {
-        "prompt": "Skriv en kort tekst (80–120 ord) om en kjent person fra hjemlandet ditt eller et forbilde. Hvorfor er personen kjent? Bruk minst tre eiendomsuttrykk (f.eks. «arbeidet hans», «musikken hennes», «drømmen sin») og minst to substantiv med dobbel bestemthet («den kjente forfatteren»).",
-        "min_words": 80,
-        "max_words": 130,
-        "instructions": "Bruk minst 3 eiendomsuttrykk og minst 2 substantiv med dobbel bestemthet."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder riktig sin/hans-bruk og dobbel bestemthet.",
-        "criteria": [
-          "eiendom",
-          "sin/hans",
-          "dobbel bestemthet"
-        ]
+        "key": "b1-gr9-write",
+        "template": "writing_task",
+        "instruction": "Расскажите о знаменитом человеке (80–120 слов) с eiendomsuttrykk.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv en sammenhengende tekst på 80–120 ord.",
+          "prompt": "Fortell om en kjent person fra hjemlandet ditt, eller om et forbilde. Hvem er det, hvorfor er personen kjent, og hva betyr personen for deg?",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Presenter personen og si hvorfor hen er kjent",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Beskriv arbeidet med eiendomsuttrykk",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk minst to substantiv med dobbel bestemthet",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Si hva personen betyr for deg",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Han er kjent for …",
+            "Musikken hennes …",
+            "Den kjente forfatteren …",
+            "For meg betyr han …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Eiendomsuttrykk (sin/hans/hennes) og dobbel bestemthet i substantivfrasen.",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 80,
+            "maxWords": 130,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "er kjent for",
+                "ble kjent"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "arbeidet hans",
+                "musikken hennes",
+                "bøkene hans",
+                "drømmen sin"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "den kjente",
+                "det største",
+                "de gamle"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "for meg",
+                "har lært meg",
+                "betyr"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen eiendomsuttrykk",
+                "Eiendomsuttrykk med feil valg av sin/hans",
+                "Riktig sin/hans, men bare én dobbel bestemthet",
+                "Tre eiendomsuttrykk og to doble bestemtheter, alle korrekte"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Den kjente forfatteren Ryszard Kapuscinski er et forbilde for meg. Han er kjent for reportasjene sine fra Afrika, som han skrev mens han jobbet som eneste utenriksjournalist for det polske byrået.\n\nBøkene hans er ikke lette å lese, for språket hans er tett. Men måten han lyttet på, har lært meg noe: han skrev alltid om de vanlige menneskene, ikke om presidentene.\n\nDa jeg flyttet til Norge, tok jeg med meg den gamle utgaven av «Keiseren». For meg betyr han at man kan komme utenfra og likevel forstå et sted."
+        }
       }
-    }
   ],
   "10": [
     {
@@ -3505,74 +4989,100 @@
       "instruction": "Начните предложение с Derfor и разместите слова по полям (helsetning).",
       "hint": "Наречие-связка в forfelt вызывает инверсию: глагол остаётся на 2-м месте, подлежащее уходит за него.",
       "content": {
-        "sentence": "Derfor meldte jeg meg inn i et kor.",
-        "source_sentence": "Jeg meldte meg inn i et kor.",
-        "schema_type": "main",
-        "fields": [
+        "title": "Inversjon etter Derfor",
+        "instruction": "Begynn setningen med Derfor og legg ordene i skjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "main"
+        ],
+        "schema": {
+          "main": [
+            {
+              "id": "forfelt",
+              "short": "F",
+              "label": "Forfelt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "verbal1",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "midtfelt",
+              "short": "n",
+              "label": "Midtfelt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "",
+              "optional": false
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "forfelt",
-            "label": "Forfelt"
-          },
-          {
-            "id": "verbal1",
-            "label": "Verbal"
-          },
-          {
-            "id": "midtfelt",
-            "label": "Midtfelt (subjekt/adverbial)"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt"
+            "id": "r1",
+            "clause": "main",
+            "source": "Jeg meldte meg inn i et kor.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "Derfor"
+              },
+              {
+                "id": "r1c2",
+                "text": "meldte"
+              },
+              {
+                "id": "r1c3",
+                "text": "jeg meg inn"
+              },
+              {
+                "id": "r1c4",
+                "text": "i et kor"
+              }
+            ],
+            "extras": []
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "Derfor"
-          },
-          {
-            "id": "t2",
-            "text": "meldte"
-          },
-          {
-            "id": "t3",
-            "text": "jeg meg inn"
-          },
-          {
-            "id": "t4",
-            "text": "i et kor"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": false,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
-          {
-            "field_id": "forfelt",
-            "token_ids": [
-              "t1"
-            ]
-          },
-          {
-            "field_id": "verbal1",
-            "token_ids": [
-              "t2"
-            ]
-          },
-          {
-            "field_id": "midtfelt",
-            "token_ids": [
-              "t3"
-            ]
-          },
-          {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t4"
-            ]
+        "rows": {
+          "r1": {
+            "text": "Derfor meldte jeg meg inn i et kor",
+            "why": "Наречие-связка на первом месте вызывает инверсию: Forfelt Derfor, Verbal meldte, и только потом подлежащее.",
+            "fields": {
+              "r1c1": "forfelt",
+              "r1c2": "verbal1",
+              "r1c3": "midtfelt",
+              "r1c4": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r1c3": "Подлежащее уходит за глагол: первое место уже занято словом Derfor."
+            }
           }
-        ],
-        "explanation": "Наречие-связка на 1-м месте вызывает инверсию: Forfelt Derfor, Verbal meldte, затем подлежащее."
+        }
       }
     },
     {
@@ -3581,73 +5091,100 @@
       "instruction": "Начните предложение с Til slutt и разместите слова по полям (helsetning).",
       "hint": "Первое место занято обстоятельством — значит подлежащее встаёт после глагола.",
       "content": {
-        "sentence": "Til slutt besto hun prøven.",
-        "source_sentence": "Hun besto prøven.",
-        "schema_type": "main",
-        "fields": [
+        "title": "Inversjon etter Til slutt",
+        "instruction": "Begynn setningen med Til slutt og legg ordene i skjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "main"
+        ],
+        "schema": {
+          "main": [
+            {
+              "id": "forfelt",
+              "short": "F",
+              "label": "Forfelt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "verbal1",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "midtfelt",
+              "short": "n",
+              "label": "Midtfelt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "",
+              "optional": false
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "forfelt",
-            "label": "Forfelt"
-          },
-          {
-            "id": "verbal1",
-            "label": "Verbal"
-          },
-          {
-            "id": "midtfelt",
-            "label": "Midtfelt (subjekt)"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt"
+            "id": "r1",
+            "clause": "main",
+            "source": "Hun besto prøven.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "Til slutt"
+              },
+              {
+                "id": "r1c2",
+                "text": "besto"
+              },
+              {
+                "id": "r1c3",
+                "text": "hun"
+              },
+              {
+                "id": "r1c4",
+                "text": "prøven"
+              }
+            ],
+            "extras": []
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "Til slutt"
-          },
-          {
-            "id": "t2",
-            "text": "besto"
-          },
-          {
-            "id": "t3",
-            "text": "hun"
-          },
-          {
-            "id": "t4",
-            "text": "prøven"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": false,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
-          {
-            "field_id": "forfelt",
-            "token_ids": [
-              "t1"
-            ]
-          },
-          {
-            "field_id": "verbal1",
-            "token_ids": [
-              "t2"
-            ]
-          },
-          {
-            "field_id": "midtfelt",
-            "token_ids": [
-              "t3"
-            ]
-          },
-          {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t4"
-            ]
+        "rows": {
+          "r1": {
+            "text": "Til slutt besto hun prøven",
+            "why": "Первое поле занято обстоятельством Til slutt, поэтому глагол остаётся на втором месте, а подлежащее встаёт после него.",
+            "fields": {
+              "r1c1": "forfelt",
+              "r1c2": "verbal1",
+              "r1c3": "midtfelt",
+              "r1c4": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r1c3": "Первое место занято обстоятельством — значит подлежащее идёт после глагола."
+            }
           }
-        ]
+        }
       }
     },
     {
@@ -3656,88 +5193,112 @@
       "instruction": "Присоедините предложение с fordi и разместите слова по полям (leddsetning).",
       "hint": "При переходе в придаточное ikke переезжает вперёд — перед глаголом.",
       "content": {
-        "sentence": "… fordi hun ikke ga opp.",
-        "source_sentence": "Hun ga ikke opp.",
-        "schema_type": "subordinate",
-        "fields": [
+        "title": "Leddsetning med fordi",
+        "instruction": "Knytt setningen til med fordi og legg ordene i skjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "sub"
+        ],
+        "schema": {
+          "sub": [
+            {
+              "id": "subjunksjon",
+              "short": "sub",
+              "label": "Subjunksjon",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "subjekt",
+              "short": "n",
+              "label": "Subjekt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "adverbial",
+              "short": "a",
+              "label": "Adverbial",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "verbal",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "",
+              "optional": false
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "subjunksjon",
-            "label": "Subjunksjon"
-          },
-          {
-            "id": "subjekt",
-            "label": "Subjekt"
-          },
-          {
-            "id": "adverbial",
-            "label": "Adverbial"
-          },
-          {
-            "id": "verbal",
-            "label": "Verbal"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt"
+            "id": "r1",
+            "clause": "sub",
+            "source": "Hun ga ikke opp.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "fordi"
+              },
+              {
+                "id": "r1c2",
+                "text": "hun"
+              },
+              {
+                "id": "r1c3",
+                "text": "ikke"
+              },
+              {
+                "id": "r1c4",
+                "text": "ga"
+              },
+              {
+                "id": "r1c5",
+                "text": "opp"
+              }
+            ],
+            "extras": []
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "fordi"
-          },
-          {
-            "id": "t2",
-            "text": "hun"
-          },
-          {
-            "id": "t3",
-            "text": "ikke"
-          },
-          {
-            "id": "t4",
-            "text": "ga"
-          },
-          {
-            "id": "t5",
-            "text": "opp"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": false,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
-          {
-            "field_id": "subjunksjon",
-            "token_ids": [
-              "t1"
-            ]
-          },
-          {
-            "field_id": "subjekt",
-            "token_ids": [
-              "t2"
-            ]
-          },
-          {
-            "field_id": "adverbial",
-            "token_ids": [
-              "t3"
-            ]
-          },
-          {
-            "field_id": "verbal",
-            "token_ids": [
-              "t4"
-            ]
-          },
-          {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t5"
-            ]
+        "rows": {
+          "r1": {
+            "text": "fordi hun ikke ga opp",
+            "why": "В придаточном ikke стоит перед глаголом — в отличие от главного предложения, где было бы «ga ikke opp».",
+            "fields": {
+              "r1c1": "subjunksjon",
+              "r1c2": "subjekt",
+              "r1c3": "adverbial",
+              "r1c4": "verbal",
+              "r1c5": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r1c3": "Здесь ikke идёт ПЕРЕД глаголом: это порядок придаточного предложения."
+            }
           }
-        ],
-        "explanation": "В придаточном ikke стоит перед глаголом (в отличие от главного предложения)."
+        }
       }
     },
     {
@@ -3746,340 +5307,605 @@
       "instruction": "Присоедините предложение с selv om и разместите слова по полям (leddsetning).",
       "hint": "Subjunksjon selv om занимает первое поле, дальше идёт подлежащее.",
       "content": {
-        "sentence": "… selv om det var tungt.",
-        "source_sentence": "Det var tungt.",
-        "schema_type": "subordinate",
-        "fields": [
+        "title": "Leddsetning med selv om",
+        "instruction": "Knytt setningen til med selv om og legg ordene i skjemaet.",
+        "presetId": "blank",
+        "clauses": [
+          "sub"
+        ],
+        "schema": {
+          "sub": [
+            {
+              "id": "subjunksjon",
+              "short": "sub",
+              "label": "Subjunksjon",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "subjekt",
+              "short": "n",
+              "label": "Subjekt",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "verbal",
+              "short": "v",
+              "label": "Verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "sluttfelt",
+              "short": "N",
+              "label": "Sluttfelt",
+              "hint": "",
+              "optional": false
+            }
+          ]
+        },
+        "rows": [
           {
-            "id": "subjunksjon",
-            "label": "Subjunksjon"
-          },
-          {
-            "id": "subjekt",
-            "label": "Subjekt"
-          },
-          {
-            "id": "verbal",
-            "label": "Verbal"
-          },
-          {
-            "id": "sluttfelt",
-            "label": "Sluttfelt"
+            "id": "r1",
+            "clause": "sub",
+            "source": "Det var tungt.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "selv om"
+              },
+              {
+                "id": "r1c2",
+                "text": "det"
+              },
+              {
+                "id": "r1c3",
+                "text": "var"
+              },
+              {
+                "id": "r1c4",
+                "text": "tungt"
+              }
+            ],
+            "extras": []
           }
         ],
-        "tokens": [
-          {
-            "id": "t1",
-            "text": "selv om"
-          },
-          {
-            "id": "t2",
-            "text": "det"
-          },
-          {
-            "id": "t3",
-            "text": "var"
-          },
-          {
-            "id": "t4",
-            "text": "tungt"
-          }
-        ]
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": false,
+          "order": "strict"
+        }
       },
       "expectedAnswers": {
-        "placements": [
-          {
-            "field_id": "subjunksjon",
-            "token_ids": [
-              "t1"
-            ]
-          },
-          {
-            "field_id": "subjekt",
-            "token_ids": [
-              "t2"
-            ]
-          },
-          {
-            "field_id": "verbal",
-            "token_ids": [
-              "t3"
-            ]
-          },
-          {
-            "field_id": "sluttfelt",
-            "token_ids": [
-              "t4"
-            ]
+        "rows": {
+          "r1": {
+            "text": "selv om det var tungt",
+            "why": "Subjunksjon selv om занимает первое поле, за ним сразу подлежащее и глагол — обычный порядок придаточного.",
+            "fields": {
+              "r1c1": "subjunksjon",
+              "r1c2": "subjekt",
+              "r1c3": "verbal",
+              "r1c4": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {}
           }
-        ]
+        }
       }
     },
     {
-      "key": "b1-gr10-write",
-      "template": "writing_task",
-      "instruction": "Напишите leserinnlegg (120–150 слов) в формате Norskprøven.",
-      "content": {
-        "prompt": "Skriv et leserinnlegg (120–150 ord) om ETT av temaene under. Si først hva du mener, gi minst to argumenter, og skriv til slutt hva du håper. Bruk avsnitt og minst fire bindeord (derfor, dessuten, likevel, for eksempel, imidlertid, til slutt).\n\n- Gratis norskkurs til alle innvandrere – bra eller ikke?\n- Bør det være obligatorisk med frivillig arbeid for ungdom?\n- Kollektivtransport bør være gratis i byene.",
-        "min_words": 120,
-        "max_words": 170,
-        "instructions": "Bruk avsnitt og minst 4 bindeord med riktig ordstilling/inversjon."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder (Norskprøven B1): tydelig mening, minst to argumenter, avsnitt, minst fire korrekte bindeord med riktig ordstilling/inversjon, sammenhengende tekst.",
-        "criteria": [
-          "mening",
-          "argumentasjon",
-          "bindeord",
-          "avsnitt",
-          "sammenheng"
-        ]
+        "key": "b1-gr10-write",
+        "template": "writing_task",
+        "instruction": "Напишите leserinnlegg (120–150 слов) в формате Norskprøven.",
+        "content": {
+          "mode": "essay",
+          "instruction": "Skriv et leserinnlegg på 120–150 ord.",
+          "prompt": "Skriv et leserinnlegg om ETT av temaene under:\n\n– Gratis norskkurs til alle innvandrere – bra eller ikke?\n– Bør det være obligatorisk med frivillig arbeid for ungdom?\n– Kollektivtransport bør være gratis i byene.\n\nSkriv til leserne av en lokalavis. Bruk avsnitt.",
+          "source": "",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Si tydelig hva du mener",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Gi minst to argumenter for meningen din",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Bruk minst fire bindeord med riktig ordstilling",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Avslutt med hva du håper skal skje",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Etter min mening …",
+            "For det første …",
+            "Dessuten …",
+            "Likevel …",
+            "Derfor håper jeg at …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Bindeord med riktig ordstilling og inversjon (derfor, dessuten, likevel, imidlertid).",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 120,
+            "maxWords": 170,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "jeg mener",
+                "etter min mening",
+                "jeg er enig i"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "for det første",
+                "dessuten",
+                "for eksempel"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "derfor",
+                "dessuten",
+                "likevel",
+                "imidlertid",
+                "til slutt"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "jeg håper",
+                "håper jeg",
+                "derfor bør"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Ingen bindeord",
+                "Bindeord uten inversjon, ordstillingsfeil i de fleste setningene",
+                "Fire bindeord, noen med feil ordstilling",
+                "Fire eller flere bindeord, alle med riktig inversjon"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Gratis norskkurs til alle\n\nEtter min mening bør norskkurs være gratis for alle som flytter hit. Språket er nøkkelen til alt annet: jobb, naboer, foreldremøter og legetimer.\n\nFor det første koster det samfunnet mer å la være. En som ikke forstår norsk, får sjelden fast jobb, og da betaler ingen skatt av arbeidet. Dessuten går det ut over barna, for foreldre som ikke forstår skolen, kan ikke hjelpe med leksene.\n\nNoen sier at kurs bør koste noe, slik at folk møter opp og tar det alvorlig. Likevel tror jeg det er feil vei: de som har minst fra før, er de som blir borte først, og det er nettopp dem ordningen skulle hjelpe.\n\nImidlertid holder det ikke med gratis kurs alene. Kursene må også finnes på kveldstid, for de fleste av oss står i full jobb mens vi lærer.\n\nDerfor håper jeg at politikerne holder ord denne gangen, og at de første kursene starter allerede til høsten."
+        }
       }
-    }
   ],
   "1A": [
-    {
-      "key": "b1-1a-sa1",
+{
+      "key": "b1-1a-sa",
       "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
+      "instruction": "Ответьте на вопросы по тексту 1A своими словами.",
       "content": {
-        "question": "Hvor lenge har Bartek jobbet i det samme firmaet?",
-        "context": "Tekst 1A — Bartek søker ny jobb."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Han har jobbet der i tre år.",
-        "accepted_answers": [
-          "Han har jobbet der i tre år.",
-          "Han har jobbet i det samme firmaet i tre år.",
-          "Bartek har jobbet der i tre år.",
-          "Han har jobbet der i tre år som elektriker.",
-          "i tre år",
-          "tre år"
-        ]
-      }
-    },
-    {
-      "key": "b1-1a-sa2",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
-      "content": {
-        "question": "Hva vil Bartek gjerne ha i den nye jobben?",
-        "context": "Tekst 1A — Bartek søker ny jobb."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Han vil gjerne ha mer ansvar og en høyere lønn.",
-        "accepted_answers": [
-          "Han vil gjerne ha mer ansvar og en høyere lønn.",
-          "Han vil ha mer ansvar og en høyere lønn.",
-          "Han vil gjerne ha mer ansvar og høyere lønn.",
-          "Han vil ha mer ansvar og høyere lønn.",
-          "Han vil gjerne ha en høyere lønn og mer ansvar.",
-          "Han vil ha høyere lønn og mer ansvar.",
-          "mer ansvar og en høyere lønn",
-          "mer ansvar og høyere lønn",
-          "høyere lønn og mer ansvar"
+        "title": "Leseforståelse 1A — Bartek søker ny jobb",
+        "instruction": "Svar med egne ord, én til tre setninger.",
+        "questions": [
+          {
+            "id": "sa1",
+            "kind": "reading",
+            "passage": "Bartek har jobbet som elektriker i det samme firmaet i tre år. Han trives med kollegaene, men han har lyst til å utvikle seg. Han vil gjerne ha mer ansvar og en høyere lønn.",
+            "prompt": "Hvor lenge har Bartek jobbet i det samme firmaet?"
+          },
+          {
+            "id": "sa2",
+            "kind": "reading",
+            "passage": "Bartek har jobbet som elektriker i det samme firmaet i tre år. Han trives med kollegaene, men han har lyst til å utvikle seg. Han vil gjerne ha mer ansvar og en høyere lønn.",
+            "prompt": "Hva vil Bartek gjerne ha i den nye jobben?"
+          },
+          {
+            "id": "sa3",
+            "kind": "reading",
+            "passage": "Nordby Elektro AS er et voksende firma med tolv ansatte. Vi trenger en selvstendig og nøyaktig elektriker som kan lede mindre prosjekter. Vi tilbyr et godt arbeidsmiljø, konkurransedyktig lønn og gode muligheter for videreutvikling.",
+            "prompt": "Hva slags firma er Nordby Elektro AS?"
+          },
+          {
+            "id": "sa4",
+            "kind": "reading",
+            "passage": "Anne hjelper ham med å lese gjennom søknaden. Hun sier at den er god, men at han har noen skrivefeil. Bartek retter feilene, og så sender han søknaden.",
+            "prompt": "Hva gjør Bartek med søknaden før han sender den?"
+          }
         ],
-        "explanation": "I teksten: «Han vil gjerne ha mer ansvar og en høyere lønn.» Begge delene hører med i svaret."
-      }
-    },
-    {
-      "key": "b1-1a-sa3",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
-      "content": {
-        "question": "Hva slags firma er Nordby Elektro AS?",
-        "context": "Tekst 1A — Bartek søker ny jobb."
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 3,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "reference_answer": "Det er et voksende firma med tolv ansatte.",
-        "accepted_answers": [
-          "Det er et voksende firma med tolv ansatte.",
-          "Nordby Elektro AS er et voksende firma med tolv ansatte.",
-          "Det er et voksende firma med 12 ansatte.",
-          "Det er et voksende firma.",
-          "Det er et firma med tolv ansatte.",
-          "et voksende firma med tolv ansatte",
-          "et voksende firma",
-          "et firma med tolv ansatte",
-          "et firma med 12 ansatte"
-        ],
-        "explanation": "Annonsen sier: «Nordby Elektro AS er et voksende firma med tolv ansatte.»"
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Tidsrommet: tre år",
+                "anchors": [
+                  "tre år",
+                  "3 år"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han har jobbet i det samme firmaet i tre år.",
+            "why": "Svaret står i den første setningen: han har vært i det samme firmaet i tre år."
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Mer ansvar",
+                "anchors": [
+                  "mer ansvar",
+                  "større ansvar"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Høyere lønn",
+                "anchors": [
+                  "høyere lønn",
+                  "bedre lønn",
+                  "mer lønn"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han vil gjerne ha mer ansvar og en høyere lønn.",
+            "why": "Teksten nevner to ting han ønsker seg, og et fullstendig svar tar med begge: mer ansvar og høyere lønn."
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Firmaet vokser",
+                "anchors": [
+                  "voksende firma",
+                  "firma som vokser",
+                  "i vekst"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Tolv ansatte",
+                "anchors": [
+                  "tolv ansatte",
+                  "12 ansatte"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Det er et voksende firma med tolv ansatte.",
+            "why": "Annonsen beskriver firmaet i én setning: det vokser, og det har tolv ansatte."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Han retter skrivefeilene",
+                "anchors": [
+                  "retter skrivefeilene",
+                  "retter feilene",
+                  "retter skrivefeil",
+                  "retter opp feilene"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han retter skrivefeilene i søknaden før han sender den.",
+            "why": "Anne finner noen skrivefeil når hun leser gjennom søknaden, og Bartek retter dem før han sender den."
+          }
+        }
       }
     },
-    {
-      "key": "b1-1a-sa4",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1A полным предложением.",
-      "content": {
-        "question": "Hva gjør Bartek med søknaden før han sender den?",
-        "context": "Tekst 1A — Bartek søker ny jobb."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Han retter skrivefeilene.",
-        "accepted_answers": [
-          "Han retter skrivefeilene.",
-          "Han retter feilene.",
-          "Han retter skrivefeil.",
-          "Bartek retter skrivefeilene.",
-          "Bartek retter feilene.",
-          "Han retter skrivefeilene i søknaden.",
-          "Han retter feilene i søknaden.",
-          "retter skrivefeilene",
-          "retter feilene"
-        ],
-        "explanation": "Anne finner noen skrivefeil, og Bartek retter dem før han sender søknaden."
-      }
-    },
-    {
+{
       "key": "b1-1a-mcg-01",
       "template": "multiple_choice_group",
       "instruction": "Riktig eller galt? Velg svaret som stemmer med teksten 1A.",
       "content": {
-        "options": [
+        "title": "Riktig eller galt — tekst 1A",
+        "instruction": "Er påstandene riktige eller gale? Svar ut fra teksten om Bartek.",
+        "source": {
+          "mode": "inline",
+          "label": "Tekst 1A — Bartek søker ny jobb",
+          "text": "Bartek har jobbet som elektriker i det samme firmaet i tre år. Han trives med kollegaene, men han har lyst til å utvikle seg. Han vil gjerne ha mer ansvar og en høyere lønn. En kveld sitter han foran datamaskinen og leser stillingsannonser på nettet. Plutselig finner han en annonse som ser interessant ut.\n\nErfaren elektriker søkes\n\nNordby Elektro AS er et voksende firma med tolv ansatte. Vi trenger en selvstendig og nøyaktig elektriker som kan lede mindre prosjekter. Vi tilbyr et godt arbeidsmiljø, konkurransedyktig lønn og gode muligheter for videreutvikling.\n\nVi ønsker at du:\n– har fagbrev som elektriker\n– har minst tre års erfaring\n– snakker og skriver norsk godt\n– har førerkort klasse B\n\nSøknad med CV sendes til post@nordbyelektro.no innen 15. mars. Spørsmål? Ring avdelingsleder Kari Holm på 55 12 34 56.\n\nBartek blir ivrig. Dette passer perfekt for ham! Han har fagbrev, han har mer enn tre års erfaring, og norsken hans har blitt mye bedre det siste året. Han bestemmer seg for å søke med en gang.\n\nFørst skriver han en søknad. Han forteller hvorfor han vil ha jobben, og hva han kan tilby firmaet. Han skriver at han er en ansvarlig og løsningsorientert person som liker å jobbe i team. Deretter oppdaterer han CV-en sin. Han legger til all erfaringen fra det nåværende firmaet, og han passer på at alt ser ryddig og oversiktlig ut.\n\nAnne hjelper ham med å lese gjennom søknaden. Hun sier at den er god, men at han har noen skrivefeil. Bartek retter feilene, og så sender han søknaden. Nå må han bare vente. «Lykke til!» sier Anne. «Jeg krysser fingrene for deg.»"
+        },
+        "columns": [
           {
-            "id": "r",
-            "text": "Riktig"
+            "id": "c-riktig",
+            "label": "Riktig",
+            "short": "R"
           },
           {
-            "id": "g",
-            "text": "Galt"
+            "id": "c-galt",
+            "label": "Galt",
+            "short": "G"
           }
         ],
-        "items": [
+        "rows": [
           {
             "id": "1",
-            "question": "Annonsen ber om en elektriker med fagbrev."
+            "text": "Annonsen ber om en elektriker med fagbrev."
           },
           {
             "id": "2",
-            "question": "Firmaet vil ha en person med minst fem års erfaring."
+            "text": "Firmaet vil ha en person med minst fem års erfaring."
           },
           {
             "id": "3",
-            "question": "Bartek bestemmer seg for å vente en uke før han søker."
+            "text": "Bartek bestemmer seg for å vente en uke før han søker."
           },
           {
             "id": "4",
-            "question": "Anne synes søknaden er god, men med noen skrivefeil."
+            "text": "Anne synes søknaden er god, men med noen skrivefeil."
           }
         ],
-        "context": "Tekst 1A — Bartek søker ny jobb."
+        "settings": {
+          "numbering": true,
+          "shuffleRows": false,
+          "layout": "auto",
+          "showText": true,
+          "retry": "one",
+          "lockCorrect": true,
+          "showWhy": "wrong",
+          "revealKey": true,
+          "passThreshold": 70,
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "items": [
-          {
-            "id": "1",
-            "correct_option_ids": [
-              "r"
-            ]
+        "rows": {
+          "1": {
+            "answer": "c-riktig",
+            "why": "Fagbrev står først på lista over det firmaet ønsker seg.",
+            "quote": "har fagbrev som elektriker"
           },
-          {
-            "id": "2",
-            "correct_option_ids": [
-              "g"
-            ],
-            "explanation": "Annonsen ber om minst tre års erfaring, ikke fem."
+          "2": {
+            "answer": "c-galt",
+            "why": "Annonsen ber om minst tre års erfaring, ikke fem.",
+            "quote": "har minst tre års erfaring"
           },
-          {
-            "id": "3",
-            "correct_option_ids": [
-              "g"
-            ],
-            "explanation": "Han bestemmer seg for å søke med en gang."
+          "3": {
+            "answer": "c-galt",
+            "why": "Han venter ikke: han bestemmer seg for å søke med en gang.",
+            "quote": "Han bestemmer seg for å søke med en gang."
           },
-          {
-            "id": "4",
-            "correct_option_ids": [
-              "r"
-            ]
+          "4": {
+            "answer": "c-riktig",
+            "why": "Anne sier begge deler når hun har lest gjennom søknaden.",
+            "quote": "Hun sier at den er god, men at han har noen skrivefeil."
           }
-        ]
+        }
       }
     },
     {
       "key": "b1-1a-mcg-02",
-      "template": "multiple_choice_group",
+      "template": "multiple_choice",
       "instruction": "Hva betyr ordene? Velg riktig forklaring for hvert ord.",
       "content": {
-        "items": [
+        "title": "Ord fra tekst 1A",
+        "instruction": "Hva betyr ordene? Velg riktig forklaring.",
+        "questions": [
           {
             "id": "1",
-            "question": "selvstendig",
+            "kind": "vocab",
+            "context": "",
+            "stem": "selvstendig",
             "options": [
               {
                 "id": "a",
-                "text": "som trenger mye hjelp"
+                "text": "som trenger mye hjelp",
+                "fixed": false
               },
               {
                 "id": "b",
-                "text": "som kan jobbe alene"
+                "text": "som kan jobbe alene",
+                "fixed": false
               },
               {
                 "id": "c",
-                "text": "som er sjef"
+                "text": "som bestemmer over andre",
+                "fixed": false
               }
             ]
           },
           {
             "id": "2",
-            "question": "oversiktlig",
+            "kind": "vocab",
+            "context": "",
+            "stem": "oversiktlig",
             "options": [
               {
                 "id": "a",
-                "text": "rotete"
+                "text": "rotete og uryddig",
+                "fixed": false
               },
               {
                 "id": "b",
-                "text": "lett å få oversikt over"
+                "text": "lett å få oversikt over",
+                "fixed": false
               },
               {
                 "id": "c",
-                "text": "veldig lang"
+                "text": "veldig lang og detaljert",
+                "fixed": false
               }
             ]
           },
           {
             "id": "3",
-            "question": "et fagbrev",
+            "kind": "vocab",
+            "context": "",
+            "stem": "et fagbrev",
             "options": [
               {
                 "id": "a",
-                "text": "et vanlig brev"
+                "text": "et vanlig brev i posten",
+                "fixed": false
               },
               {
                 "id": "b",
-                "text": "et bevis på fagutdanning"
+                "text": "et bevis på fagutdanning",
+                "fixed": false
               },
               {
                 "id": "c",
-                "text": "en søknad"
+                "text": "en søknad om jobb",
+                "fixed": false
               }
             ]
           }
         ],
-        "context": "Ord fra tekst 1A."
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "items": [
-          {
-            "id": "1",
-            "correct_option_ids": [
-              "b"
-            ]
+        "questions": {
+          "1": {
+            "correctOptionId": "b",
+            "why": "Selvstendig betyr at man klarer å jobbe på egen hånd, uten at noen forteller hva som skal gjøres. Annonsen ber om det fordi den nye elektrikeren skal lede mindre prosjekter.",
+            "options": {
+              "a": "Det er nettopp det motsatte: en selvstendig arbeidstaker trenger lite hjelp.",
+              "c": "Å bestemme over andre er å være leder eller sjef. Man kan være selvstendig uten å ha noen under seg."
+            }
           },
-          {
-            "id": "2",
-            "correct_option_ids": [
-              "b"
-            ]
+          "2": {
+            "correctOptionId": "b",
+            "why": "Oversiktlig beskriver noe som er ordnet slik at man raskt ser hva som står hvor. Bartek passer på at CV-en er det.",
+            "options": {
+              "a": "Rotete er det motsatte av oversiktlig.",
+              "c": "Lengden har ingenting med saken å gjøre — en kort tekst kan være rotete, og en lang kan være oversiktlig."
+            }
           },
-          {
-            "id": "3",
-            "correct_option_ids": [
-              "b"
-            ]
+          "3": {
+            "correctOptionId": "b",
+            "why": "Et fagbrev er dokumentet som viser at man har fullført en fagutdanning. Annonsen krever det, og Bartek har det.",
+            "options": {
+              "a": "Ordet «brev» er felles, men et fagbrev sendes ikke i posten — det er et vitnemål.",
+              "c": "Søknaden er det Bartek skriver selv. Fagbrevet er noe han har fra før."
+            }
           }
-        ]
+        }
       }
     },
     {
@@ -4352,6 +6178,608 @@
       }
     },
     {
+      "key": "b1-1a-ss-01",
+      "template": "sentence_schema",
+      "instruction": "Поставьте наречие в начало предложения и разложите слова по полям — спрягаемый глагол остаётся на втором месте.",
+      "hint": "Форфельт вмещает ровно одно составляющее. На месте два — только спрягаемый глагол; инфинитив и причастие уходят дальше, в поле инфинитного глагола.",
+      "content": {
+        "title": "Ordstilling — forfelt og V2",
+        "instruction": "Start setningen med adverbialet, og legg ordene i skjemaet.",
+        "presetId": "nb-full",
+        "clauses": [
+          "main"
+        ],
+        "schema": {
+          "main": [
+            {
+              "id": "forfelt",
+              "short": "F",
+              "label": "Forfelt",
+              "hint": "Ett ledd — det setningen starter med",
+              "optional": true
+            },
+            {
+              "id": "finitt",
+              "short": "v",
+              "label": "Finitt verbal",
+              "hint": "Det bøyde verbet — alltid på plass to",
+              "optional": false
+            },
+            {
+              "id": "subjekt",
+              "short": "n",
+              "label": "Subjekt",
+              "hint": "Bak verbet når noe annet står i forfeltet",
+              "optional": true
+            },
+            {
+              "id": "adverbial",
+              "short": "a",
+              "label": "Setningsadverbial",
+              "hint": "ikke, bare, alltid — etter subjektet",
+              "optional": true
+            },
+            {
+              "id": "infinitt",
+              "short": "V",
+              "label": "Infinitt verbal",
+              "hint": "Infinitiv eller partisipp",
+              "optional": true
+            },
+            {
+              "id": "objekt",
+              "short": "N",
+              "label": "Objekt / predikativ",
+              "hint": "Det verbet peker mot",
+              "optional": true
+            },
+            {
+              "id": "sluttfelt",
+              "short": "A",
+              "label": "Adverbial",
+              "hint": "Tid, sted, måte",
+              "optional": true
+            }
+          ]
+        },
+        "rows": [
+          {
+            "id": "r1",
+            "clause": "main",
+            "source": "Han sitter foran datamaskinen en kveld.",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "En kveld"
+              },
+              {
+                "id": "r1c2",
+                "text": "sitter"
+              },
+              {
+                "id": "r1c3",
+                "text": "han"
+              },
+              {
+                "id": "r1c4",
+                "text": "foran datamaskinen"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r1x1",
+                "text": "han sitter"
+              },
+              {
+                "id": "r1x2",
+                "text": "kvelden"
+              }
+            ]
+          },
+          {
+            "id": "r2",
+            "clause": "main",
+            "source": "Han finner plutselig en annonse.",
+            "chunks": [
+              {
+                "id": "r2c1",
+                "text": "Plutselig"
+              },
+              {
+                "id": "r2c2",
+                "text": "finner"
+              },
+              {
+                "id": "r2c3",
+                "text": "han"
+              },
+              {
+                "id": "r2c4",
+                "text": "en annonse"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r2x1",
+                "text": "han finner"
+              },
+              {
+                "id": "r2x2",
+                "text": "annonsen"
+              }
+            ]
+          },
+          {
+            "id": "r3",
+            "clause": "main",
+            "source": "Han skriver først en søknad.",
+            "chunks": [
+              {
+                "id": "r3c1",
+                "text": "Først"
+              },
+              {
+                "id": "r3c2",
+                "text": "skriver"
+              },
+              {
+                "id": "r3c3",
+                "text": "han"
+              },
+              {
+                "id": "r3c4",
+                "text": "en søknad"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r3x1",
+                "text": "han skriver"
+              },
+              {
+                "id": "r3x2",
+                "text": "søknaden"
+              }
+            ]
+          },
+          {
+            "id": "r4",
+            "clause": "main",
+            "source": "Han må bare vente nå.",
+            "chunks": [
+              {
+                "id": "r4c1",
+                "text": "Nå"
+              },
+              {
+                "id": "r4c2",
+                "text": "må"
+              },
+              {
+                "id": "r4c3",
+                "text": "han"
+              },
+              {
+                "id": "r4c4",
+                "text": "bare"
+              },
+              {
+                "id": "r4c5",
+                "text": "vente"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r4x1",
+                "text": "han må"
+              },
+              {
+                "id": "r4x2",
+                "text": "å vente"
+              }
+            ]
+          },
+          {
+            "id": "r5",
+            "clause": "main",
+            "source": "Norsken hans har blitt mye bedre det siste året.",
+            "chunks": [
+              {
+                "id": "r5c1",
+                "text": "Det siste året"
+              },
+              {
+                "id": "r5c2",
+                "text": "har"
+              },
+              {
+                "id": "r5c3",
+                "text": "norsken hans"
+              },
+              {
+                "id": "r5c4",
+                "text": "blitt"
+              },
+              {
+                "id": "r5c5",
+                "text": "mye bedre"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r5x1",
+                "text": "norsken hans har"
+              },
+              {
+                "id": "r5x2",
+                "text": "bedre"
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labels": true,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": true,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": true,
+          "order": "strict"
+        }
+      },
+      "expectedAnswers": {
+        "rows": {
+          "r1": {
+            "text": "En kveld sitter han foran datamaskinen",
+            "why": "Когда предложение начинается не с подлежащего, спрягаемый глагол всё равно остаётся на втором месте, а подлежащее уходит за него: En kveld — sitter — han. Это правило V2.",
+            "fields": {
+              "r1c1": "forfelt",
+              "r1c2": "finitt",
+              "r1c3": "subjekt",
+              "r1c4": "sluttfelt"
+            },
+            "alt": {},
+            "fb": {
+              "r1c3": "После вынесенного вперёд наречия подлежащее идёт третьим, а не первым: «En kveld han sitter» невозможно.",
+              "r1c4": "«foran datamaskinen» — одно составляющее, его не разбивают на два поля."
+            }
+          },
+          "r2": {
+            "text": "Plutselig finner han en annonse",
+            "why": "«Plutselig» занимает форфельт, поэтому дальше идёт глагол, а потом подлежащее: Plutselig finner han. Форфельт вмещает ровно одно составляющее.",
+            "fields": {
+              "r2c1": "forfelt",
+              "r2c2": "finitt",
+              "r2c3": "subjekt",
+              "r2c4": "objekt"
+            },
+            "alt": {},
+            "fb": {}
+          },
+          "r3": {
+            "text": "Først skriver han en søknad",
+            "why": "«Først» стоит в форфельте, значит глагол идёт вторым, а подлежащее — третьим: Først skriver han en søknad.",
+            "fields": {
+              "r3c1": "forfelt",
+              "r3c2": "finitt",
+              "r3c3": "subjekt",
+              "r3c4": "objekt"
+            },
+            "alt": {},
+            "fb": {}
+          },
+          "r4": {
+            "text": "Nå må han bare vente",
+            "why": "На втором месте стоит только спрягаемый глагол — må. Инфинитив vente уходит в поле инфинитного глагола, а «bare» — предложенческое наречие: оно стоит после подлежащего и перед инфинитивом.",
+            "fields": {
+              "r4c1": "forfelt",
+              "r4c2": "finitt",
+              "r4c3": "subjekt",
+              "r4c4": "adverbial",
+              "r4c5": "infinitt"
+            },
+            "alt": {},
+            "fb": {
+              "r4c4": "«bare» — предложенческое наречие: его место после подлежащего, а не в конце.",
+              "r4c5": "Инфинитив не может стоять на втором месте — там только спрягаемый глагол (må)."
+            }
+          },
+          "r5": {
+            "text": "Det siste året har norsken hans blitt mye bedre",
+            "why": "«Det siste året» — одно составляющее, поэтому оно целиком занимает форфельт. Спрягаемое har стоит на втором месте, а причастие blitt — в поле инфинитного глагола.",
+            "fields": {
+              "r5c1": "forfelt",
+              "r5c2": "finitt",
+              "r5c3": "subjekt",
+              "r5c4": "infinitt",
+              "r5c5": "objekt"
+            },
+            "alt": {},
+            "fb": {
+              "r5c4": "blitt — причастие; оно идёт в поле инфинитного глагола, а не рядом с har на месте два."
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "b1-1a-ss-02",
+      "template": "sentence_schema",
+      "instruction": "Соберите предложение в правильном порядке. Части речи определять не нужно — важен только порядок слов.",
+      "hint": "Ищите глагол: в повествовательном предложении он стоит вторым. Всё остальное выстраивается вокруг него.",
+      "content": {
+        "title": "Ordstilling — sett sammen setningen",
+        "instruction": "Legg ordene i riktig rekkefølge.",
+        "presetId": "nb-full",
+        "clauses": [
+          "main"
+        ],
+        "schema": {
+          "main": [
+            {
+              "id": "forfelt",
+              "short": "F",
+              "label": "Forfelt",
+              "hint": "",
+              "optional": true
+            },
+            {
+              "id": "finitt",
+              "short": "v",
+              "label": "Finitt verbal",
+              "hint": "",
+              "optional": false
+            },
+            {
+              "id": "subjekt",
+              "short": "n",
+              "label": "Subjekt",
+              "hint": "",
+              "optional": true
+            },
+            {
+              "id": "sluttfelt",
+              "short": "A",
+              "label": "Resten",
+              "hint": "",
+              "optional": true
+            }
+          ]
+        },
+        "rows": [
+          {
+            "id": "r1",
+            "clause": "main",
+            "source": "",
+            "chunks": [
+              {
+                "id": "r1c1",
+                "text": "Bartek"
+              },
+              {
+                "id": "r1c2",
+                "text": "har jobbet"
+              },
+              {
+                "id": "r1c3",
+                "text": "som elektriker"
+              },
+              {
+                "id": "r1c4",
+                "text": "i tre år"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r1x1",
+                "text": "jobber"
+              }
+            ]
+          },
+          {
+            "id": "r2",
+            "clause": "main",
+            "source": "",
+            "chunks": [
+              {
+                "id": "r2c1",
+                "text": "Han"
+              },
+              {
+                "id": "r2c2",
+                "text": "vil gjerne ha"
+              },
+              {
+                "id": "r2c3",
+                "text": "mer ansvar"
+              },
+              {
+                "id": "r2c4",
+                "text": "og en høyere lønn"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r2x1",
+                "text": "gjerne"
+              }
+            ]
+          },
+          {
+            "id": "r3",
+            "clause": "main",
+            "source": "",
+            "chunks": [
+              {
+                "id": "r3c1",
+                "text": "Nordby Elektro AS"
+              },
+              {
+                "id": "r3c2",
+                "text": "er"
+              },
+              {
+                "id": "r3c3",
+                "text": "et voksende firma"
+              },
+              {
+                "id": "r3c4",
+                "text": "med tolv ansatte"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r3x1",
+                "text": "ansatte"
+              }
+            ]
+          },
+          {
+            "id": "r4",
+            "clause": "main",
+            "source": "",
+            "chunks": [
+              {
+                "id": "r4c1",
+                "text": "Anne"
+              },
+              {
+                "id": "r4c2",
+                "text": "hjelper"
+              },
+              {
+                "id": "r4c3",
+                "text": "ham"
+              },
+              {
+                "id": "r4c4",
+                "text": "med å lese gjennom søknaden"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r4x1",
+                "text": "å hjelpe"
+              }
+            ]
+          },
+          {
+            "id": "r5",
+            "clause": "main",
+            "source": "",
+            "chunks": [
+              {
+                "id": "r5c1",
+                "text": "Bartek"
+              },
+              {
+                "id": "r5c2",
+                "text": "retter"
+              },
+              {
+                "id": "r5c3",
+                "text": "feilene"
+              },
+              {
+                "id": "r5c4",
+                "text": "og sender søknaden"
+              }
+            ],
+            "extras": [
+              {
+                "id": "r5x1",
+                "text": "rettet"
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labels": false,
+          "hints": false,
+          "counts": false,
+          "prefill": "none",
+          "markEmpty": false,
+          "perField": false,
+          "hintAfterMistake": true,
+          "shuffle": true,
+          "extras": true,
+          "order": "strict",
+          "orderOnly": true
+        }
+      },
+      "expectedAnswers": {
+        "rows": {
+          "r1": {
+            "text": "Bartek har jobbet som elektriker i tre år",
+            "why": "Основное предложение начинается с подлежащего: Bartek — har jobbet — som elektriker — i tre år. Дополнения и обстоятельства идут после глагола, в порядке «кем» → «как долго».",
+            "fields": {
+              "r1c1": "__order__",
+              "r1c2": "__order__",
+              "r1c3": "__order__",
+              "r1c4": "__order__"
+            },
+            "alt": {},
+            "fb": {
+              "r1c2": "har jobbet — сложная форма перфекта, обе части идут вместе сразу после подлежащего."
+            }
+          },
+          "r2": {
+            "text": "Han vil gjerne ha mer ansvar og en høyere lønn",
+            "why": "После модального глагола vil идут наречие gjerne и инфинитив ha — единой группой. Затем то, что он хочет получить.",
+            "fields": {
+              "r2c1": "__order__",
+              "r2c2": "__order__",
+              "r2c3": "__order__",
+              "r2c4": "__order__"
+            },
+            "alt": {},
+            "fb": {}
+          },
+          "r3": {
+            "text": "Nordby Elektro AS er et voksende firma med tolv ansatte",
+            "why": "Глагол-связка er стоит вторым, а определение «med tolv ansatte» идёт за тем словом, которое оно определяет, — за firma.",
+            "fields": {
+              "r3c1": "__order__",
+              "r3c2": "__order__",
+              "r3c3": "__order__",
+              "r3c4": "__order__"
+            },
+            "alt": {},
+            "fb": {}
+          },
+          "r4": {
+            "text": "Anne hjelper ham med å lese gjennom søknaden",
+            "why": "Дополнение в дательном (ham) идёт сразу после глагола, а предложная группа «med å lese …» — в конце.",
+            "fields": {
+              "r4c1": "__order__",
+              "r4c2": "__order__",
+              "r4c3": "__order__",
+              "r4c4": "__order__"
+            },
+            "alt": {},
+            "fb": {
+              "r4c4": "Предложная группа с инфинитивом уходит в конец предложения, а не между глаголом и дополнением."
+            }
+          },
+          "r5": {
+            "text": "Bartek retter feilene og sender søknaden",
+            "why": "Два сказуемых при одном подлежащем соединяются через og: первое действие целиком, затем второе. Подлежащее во второй части не повторяется.",
+            "fields": {
+              "r5c1": "__order__",
+              "r5c2": "__order__",
+              "r5c3": "__order__",
+              "r5c4": "__order__"
+            },
+            "alt": {},
+            "fb": {}
+          }
+        }
+      }
+    },
+    {
       "key": "b1-1a-err-01",
       "template": "error_correction",
       "instruction": "В каждом предложении один фрагмент содержит ошибку в косвенной речи. Найдите и исправьте её.",
@@ -4409,75 +6837,105 @@
       "instruction": "Соедините половины предложений по тексту 1A.",
       "content": {
         "variant": "halves",
-        "context": "Tekst 1A — Bartek søker ny jobb.",
-        "left_items": [
+        "settings": {
+          "distractors": true,
+          "shuffle": true,
+          "showRemaining": true
+        },
+        "pairs": [
           {
-            "id": "l-0",
-            "text": "Bartek har jobbet som elektriker"
+            "id": "p1",
+            "rightId": "h4",
+            "left": "Bartek har jobbet som elektriker",
+            "right": "i det samme firmaet i tre år."
           },
           {
-            "id": "l-1",
-            "text": "Nordby Elektro AS er et voksende firma"
+            "id": "p2",
+            "rightId": "h7",
+            "left": "Nordby Elektro AS er et voksende firma",
+            "right": "med tolv ansatte."
           },
           {
-            "id": "l-2",
-            "text": "Firmaet ønsker en elektriker som"
+            "id": "p3",
+            "rightId": "h2",
+            "left": "Firmaet ønsker en elektriker som",
+            "right": "kan lede mindre prosjekter."
           },
           {
-            "id": "l-3",
-            "text": "Bartek skriver i søknaden at han"
+            "id": "p4",
+            "rightId": "h8",
+            "left": "Bartek skriver i søknaden at han",
+            "right": "er ansvarlig og løsningsorientert."
           },
           {
-            "id": "l-4",
-            "text": "Anne sier at hun"
+            "id": "p5",
+            "rightId": "h5",
+            "left": "Anne sier at hun",
+            "right": "krysser fingrene for ham."
           }
         ],
-        "right_items": [
+        "distractors": [
           {
-            "id": "r-0",
-            "text": "i det samme firmaet i tre år."
+            "id": "h1",
+            "text": "i tre år hos Vestby Installasjon."
           },
           {
-            "id": "r-1",
-            "text": "med tolv ansatte."
+            "id": "h3",
+            "text": "med gode muligheter for videreutvikling."
           },
           {
-            "id": "r-2",
-            "text": "kan lede mindre prosjekter."
-          },
-          {
-            "id": "r-3",
-            "text": "er ansvarlig og løsningsorientert."
-          },
-          {
-            "id": "r-4",
-            "text": "krysser fingrene for ham."
+            "id": "h6",
+            "text": "retter skrivefeilene i søknaden hans."
           }
         ]
       },
       "expectedAnswers": {
-        "pairs": [
-          {
-            "left_id": "l-0",
-            "right_id": "r-0"
+        "feedback": {
+          "p1": {
+            "def": "Начало предложения — о самом Бартеке: где и сколько он работает.",
+            "why": "«Han har jobbet ... i det samme firmaet i tre år» — одна и та же фирма, три года.",
+            "ov": {
+              "h1": {
+                "text": "Vestby Installasjon звучит только в тексте 1B, на интервью. В 1A фирма не названа — сказано лишь «i det samme firmaet».",
+                "origin": "author"
+              }
+            }
           },
-          {
-            "left_id": "l-1",
-            "right_id": "r-1"
+          "p2": {
+            "def": "Это строка из объявления: чем фирма описывает саму себя.",
+            "why": "«Et voksende firma med tolv ansatte» — размер фирмы.",
+            "ov": {
+              "h3": {
+                "text": "Возможности развития фирма предлагает («Vi tilbyr ... gode muligheter for videreutvikling»), а не является ими. После «er et voksende firma» ожидается описание самой фирмы — сколько в ней людей.",
+                "origin": "author"
+              },
+              "h4": {
+                "text": "Три года — это стаж Бартека, а не возраст фирмы. Здесь речь о Nordby Elektro, а не о нём.",
+                "origin": "author"
+              }
+            }
           },
-          {
-            "left_id": "l-2",
-            "right_id": "r-2"
+          "p3": {
+            "def": "После «som» идёт придаточное определительное: что именно электрик должен уметь.",
+            "why": "«En selvstendig og nøyaktig elektriker som kan lede mindre prosjekter» — требование из объявления.",
+            "ov": {}
           },
-          {
-            "left_id": "l-3",
-            "right_id": "r-3"
+          "p4": {
+            "def": "После «at han» идёт то, что Бартек пишет о себе.",
+            "why": "В придаточном с «at» подлежащее стоит перед глаголом: «at han er», а не «at er han».",
+            "ov": {}
           },
-          {
-            "left_id": "l-4",
-            "right_id": "r-4"
+          "p5": {
+            "def": "После «at hun» — то, что Анне говорит о себе.",
+            "why": "Прямая речь «Jeg krysser fingrene for deg» в косвенной становится «hun krysser fingrene for ham»: меняются и лицо глагола, и местоимение.",
+            "ov": {
+              "h6": {
+                "text": "Ошибки исправляет сам Бартек: «Bartek retter feilene». Анне только читает заявление и говорит, что в нём есть описки.",
+                "origin": "author"
+              }
+            }
           }
-        ]
+        }
       }
     },
     {
@@ -4527,148 +6985,249 @@
     }
   ],
   "1B": [
-    {
-      "key": "b1-1b-sa1",
+{
+      "key": "b1-1b-sa",
       "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1B.",
+      "instruction": "Ответьте на вопросы по тексту 1B своими словами.",
       "content": {
-        "question": "Når skal Bartek komme til intervjuet?",
-        "context": "Tekst 1B — Jobbintervjuet."
+        "title": "Leseforståelse 1B — Jobbintervjuet",
+        "instruction": "Svar med egne ord, én til tre setninger.",
+        "questions": [
+          {
+            "id": "sa1",
+            "kind": "reading",
+            "passage": "Etter en uke ringer telefonen. Det er Kari Holm fra Nordby Elektro. Hun sier at de har lest søknaden hans, og at de gjerne vil møte ham til et intervju. De blir enige om at han skal komme tirsdag klokka ti.",
+            "prompt": "Når skal Bartek komme til intervjuet?"
+          },
+          {
+            "id": "sa2",
+            "kind": "reading",
+            "passage": "Tirsdag morgen tar Bartek på seg en ren skjorte og pene bukser. Han kommer et kvarter for tidlig, for han vil ikke risikere å komme for sent. Kari Holm tar imot ham med et fast håndtrykk.",
+            "prompt": "Hvorfor kommer Bartek et kvarter for tidlig?"
+          },
+          {
+            "id": "sa3",
+            "kind": "reading",
+            "passage": "Kari: Hvorfor har du lyst til å bytte jobb?\nBartek: Jeg trives egentlig godt der jeg er, men jeg har lyst til å ta mer ansvar. Hos dere ser jeg en mulighet til å lede prosjekter selv. Det er noe jeg har lyst til å lære mer om.",
+            "prompt": "Hvorfor vil Bartek bytte jobb?"
+          },
+          {
+            "id": "sa4",
+            "kind": "reading",
+            "passage": "Kari forteller om firmaet og om arbeidsoppgavene. Til slutt sier hun at de skal intervjue to kandidater til. Tre dager senere kommer det en e-post: Bartek har fått jobben! Han begynner 1. april.",
+            "prompt": "Hvordan går det til slutt?"
+          }
+        ],
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 3,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "reference_answer": "Tirsdag klokka ti.",
-        "accepted_answers": [
-          "tirsdag klokka ti",
-          "tirsdag kl. ti",
-          "klokka ti på tirsdag",
-          "tirsdag"
-        ]
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Dagen: tirsdag",
+                "anchors": [
+                  "tirsdag"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Klokkeslettet: ti",
+                "anchors": [
+                  "klokka ti",
+                  "klokken ti",
+                  "kl ti"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han skal komme tirsdag klokka ti.",
+            "why": "Både dagen og klokkeslettet hører med: de ble enige om tirsdag klokka ti."
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Han vil ikke komme for sent",
+                "anchors": [
+                  "komme for sent",
+                  "bli for sent",
+                  "komme sent"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Fordi han ikke vil risikere å komme for sent.",
+            "why": "Han går tidlig hjemmefra av én grunn: han vil ikke risikere å komme for sent til intervjuet."
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Mer ansvar",
+                "anchors": [
+                  "mer ansvar",
+                  "større ansvar"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Lede prosjekter selv",
+                "anchors": [
+                  "lede prosjekter",
+                  "leder prosjekter",
+                  "styre prosjekter"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han har lyst til å ta mer ansvar og lede prosjekter selv.",
+            "why": "Bartek sier ikke at han mistrives — han vil videre. Svaret bør nevne begge delene: mer ansvar, og å lede prosjekter selv."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Han får jobben",
+                "anchors": [
+                  "får jobben",
+                  "fikk jobben",
+                  "får stillingen"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Han begynner 1. april",
+                "anchors": [
+                  "1 april",
+                  "første april"
+                ],
+                "required": false
+              }
+            ],
+            "model": "Bartek får jobben og begynner 1. april.",
+            "why": "Det viktigste er at han får jobben. Datoen er en fin detalj, men svaret er riktig uten den."
+          }
+        }
       }
     },
-    {
-      "key": "b1-1b-sa2",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1B.",
-      "content": {
-        "question": "Hvorfor kommer Bartek et kvarter for tidlig?",
-        "context": "Tekst 1B."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Fordi han ikke vil risikere å komme for sent.",
-        "accepted_answers": [
-          "han vil ikke komme for sent",
-          "for ikke å komme for sent",
-          "fordi han ikke vil komme for sent"
-        ]
-      }
-    },
-    {
-      "key": "b1-1b-sa3",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1B.",
-      "content": {
-        "question": "Hvorfor vil Bartek bytte jobb?",
-        "context": "Tekst 1B."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Han vil ta mer ansvar og lede prosjekter selv.",
-        "accepted_answers": [
-          "han vil ta mer ansvar",
-          "for å lede prosjekter",
-          "mer ansvar og lede prosjekter"
-        ]
-      }
-    },
-    {
-      "key": "b1-1b-sa4",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1B.",
-      "content": {
-        "question": "Hvordan går det til slutt?",
-        "context": "Tekst 1B."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Bartek får jobben og begynner 1. april.",
-        "accepted_answers": [
-          "han får jobben",
-          "bartek får jobben",
-          "han får jobben og begynner 1. april"
-        ]
-      }
-    },
-    {
+{
       "key": "b1-1b-match",
       "template": "match_pairs",
       "instruction": "Соедините половины предложений (текст 1B).",
       "content": {
-        "left_items": [
+        "variant": "halves",
+        "settings": {
+          "distractors": true,
+          "shuffle": true,
+          "showRemaining": true
+        },
+        "pairs": [
           {
-            "id": "l1",
-            "text": "Kari tar imot Bartek"
+            "id": "p1",
+            "rightId": "h3",
+            "left": "Kari tar imot Bartek",
+            "right": "med et fast håndtrykk."
           },
           {
-            "id": "l2",
-            "text": "Bartek er utdannet elektriker"
+            "id": "p2",
+            "rightId": "h6",
+            "left": "Bartek er utdannet elektriker",
+            "right": "fra Polen."
           },
           {
-            "id": "l3",
-            "text": "Han vil bytte jobb fordi"
+            "id": "p3",
+            "rightId": "h1",
+            "left": "Han vil bytte jobb fordi",
+            "right": "han vil ta mer ansvar."
           },
           {
-            "id": "l4",
-            "text": "Firmaet skal gi beskjed"
+            "id": "p4",
+            "rightId": "h8",
+            "left": "Firmaet skal gi beskjed",
+            "right": "i løpet av neste uke."
           },
           {
-            "id": "l5",
-            "text": "Bartek får jobben og"
+            "id": "p5",
+            "rightId": "h4",
+            "left": "Bartek får jobben og",
+            "right": "begynner 1. april."
           }
         ],
-        "right_items": [
+        "distractors": [
           {
-            "id": "r1",
-            "text": "med et fast håndtrykk."
+            "id": "h2",
+            "text": "vil han ta mer ansvar."
           },
           {
-            "id": "r2",
-            "text": "fra Polen."
+            "id": "h5",
+            "text": "etter en uke."
           },
           {
-            "id": "r3",
-            "text": "han vil ta mer ansvar."
-          },
-          {
-            "id": "r4",
-            "text": "i løpet av neste uke."
-          },
-          {
-            "id": "r5",
-            "text": "begynner 1. april."
+            "id": "h7",
+            "text": "fra Vestby Installasjon."
           }
         ]
       },
       "expectedAnswers": {
-        "pairs": [
-          {
-            "left_id": "l1",
-            "right_id": "r1"
+        "feedback": {
+          "p1": {
+            "def": "Речь о том, как Кари встречает Бартека, когда он приходит.",
+            "why": "«Kari Holm tar imot ham med et fast håndtrykk» — крепкое рукопожатие при встрече.",
+            "ov": {}
           },
-          {
-            "left_id": "l2",
-            "right_id": "r2"
+          "p2": {
+            "def": "После «er utdannet elektriker» идёт то, где он выучился.",
+            "why": "«Jeg er utdannet elektriker fra Polen» — место образования, а не место работы.",
+            "ov": {
+              "h7": {
+                "text": "Vestby Installasjon — фирма, где Бартек работал последние три года, а не где он получил образование. Выучился он в Польше.",
+                "origin": "author"
+              }
+            }
           },
-          {
-            "left_id": "l3",
-            "right_id": "r3"
+          "p3": {
+            "def": "После союза «fordi» придаточное строится с прямым порядком слов: сначала подлежащее, потом глагол.",
+            "why": "«... fordi han vil ta mer ansvar» — после fordi сначала han, затем vil.",
+            "ov": {
+              "h2": {
+                "text": "Слова верные, порядок неверный. «Fordi» вводит придаточное, а в придаточном инверсии нет: han vil, а не vil han.",
+                "origin": "author"
+              }
+            }
           },
-          {
-            "left_id": "l4",
-            "right_id": "r4"
+          "p4": {
+            "def": "Речь о сроке, который Кари называет в конце разговора.",
+            "why": "«De kommer til å gi beskjed i løpet av neste uke» — срок ответа фирмы.",
+            "ov": {
+              "h5": {
+                "text": "«Etter en uke» — это когда Кари позвонила и позвала на интервью, в самом начале текста. Ответ о работе фирма обещает «i løpet av neste uke».",
+                "origin": "author"
+              }
+            }
           },
-          {
-            "left_id": "l5",
-            "right_id": "r5"
+          "p5": {
+            "def": "После «og» идёт второе действие: что происходит с Бартеком дальше.",
+            "why": "«Bartek har fått jobben! Han begynner 1. april.»",
+            "ov": {}
           }
-        ]
+        }
       }
     },
     {
@@ -4834,210 +7393,409 @@
       }
     },
     {
-      "key": "b1-1b-write",
-      "template": "writing_task",
-      "instruction": "Напишите короткое резюме собеседования (60–90 слов) в косвенной речи.",
-      "content": {
-        "prompt": "Du var til stede på intervjuet i tekst 1B. Skriv et kort referat (60–90 ord) om hva Bartek fortalte. Bruk indirekte tale: «Bartek sa at …», «Han fortalte at …», «Kari spurte om …».",
-        "min_words": 60,
-        "max_words": 120,
-        "instructions": "Bruk minst fire setninger i indirekte tale med riktig ordstilling og tidsforskyvning."
-      },
-      "expectedAnswers": {
-        "rubric": "Vurder bruk av indirekte tale (at/om), riktig ordstilling i leddsetning, tidsforskyvning (presens→preteritum, perfektum→pluskvamperfektum) og sammenheng.",
-        "criteria": [
-          "indirekte tale",
-          "ordstilling",
-          "tidsforskyvning",
-          "sammenheng"
-        ]
+        "key": "b1-1b-write",
+        "template": "writing_task",
+        "instruction": "Напишите короткое резюме собеседования (60–90 слов) в косвенной речи.",
+        "content": {
+          "mode": "retell",
+          "instruction": "Skriv et kort referat på 60–90 ord.",
+          "prompt": "Du var til stede på intervjuet med Bartek. Skriv et kort referat om hva han fortalte, slik en kollega som ikke var der, forstår det. Bruk indirekte tale.",
+          "source": "Kari: Kan du fortelle litt om deg selv og bakgrunnen din?\nBartek: Jeg er utdannet elektriker fra Polen, og jeg tok fagbrevet mitt om igjen her i Norge for to år siden. De siste tre årene har jeg jobbet hos Vestby Installasjon.\nKari: Hvorfor har du lyst til å bytte jobb?\nBartek: Jeg trives godt der jeg er, men jeg har lyst til å ta mer ansvar. Hos dere ser jeg en mulighet til å lede prosjekter selv.\nKari: Hvordan vil du beskrive deg selv som medarbeider?\nBartek: Jeg er nøyaktig og pålitelig, og jeg er flink til å samarbeide.",
+          "image": {
+            "caption": "",
+            "alt": ""
+          },
+          "letter": {
+            "register": "formal",
+            "recipient": ""
+          },
+          "points": [
+            {
+              "id": "p1",
+              "text": "Fortell om bakgrunnen hans",
+              "required": true
+            },
+            {
+              "id": "p2",
+              "text": "Fortell hvorfor han vil bytte jobb",
+              "required": true
+            },
+            {
+              "id": "p3",
+              "text": "Fortell hvordan han beskrev seg selv",
+              "required": true
+            },
+            {
+              "id": "p4",
+              "text": "Ta med minst ett spørsmål fra Kari, med «om» eller spørreord",
+              "required": true
+            }
+          ],
+          "phrases": [
+            "Bartek fortalte at …",
+            "Han sa at han …",
+            "Kari spurte om …",
+            "Til slutt sa han at …"
+          ],
+          "rubric": [
+            {
+              "id": "c1",
+              "name": "Oppgaveløsning",
+              "desc": "Er alle punktene i oppgaven dekket, og holder teksten seg til temaet?",
+              "weight": 2,
+              "metric": "points"
+            },
+            {
+              "id": "c2",
+              "name": "Struktur og sammenheng",
+              "desc": "Innledning, hoveddel og avslutning; bindeord mellom avsnittene.",
+              "weight": 1,
+              "metric": "paragraphs"
+            },
+            {
+              "id": "c3",
+              "name": "Språk og grammatikk",
+              "desc": "Indirekte tale: at/om, ordstilling i leddsetning og tidsforskyvning (presens→preteritum, perfektum→pluskvamperfektum).",
+              "weight": 1,
+              "metric": "language"
+            },
+            {
+              "id": "c4",
+              "name": "Ordforråd og rettskriving",
+              "desc": "Variasjon i ord og kontroll på skrivemåten.",
+              "weight": 1,
+              "metric": "lexis"
+            }
+          ],
+          "settings": {
+            "minWords": 60,
+            "maxWords": 120,
+            "timer": 0,
+            "blockPaste": true,
+            "autosave": true,
+            "showWordCount": true,
+            "showPlan": true,
+            "showPhrases": true,
+            "showRubric": "afterGraded",
+            "showModel": "afterGraded",
+            "passScore": 9,
+            "aiStage": false,
+            "ai": {
+              "grammar": true,
+              "task": true,
+              "structure": true,
+              "lexis": true,
+              "draft": false
+            },
+            "aiVisibility": "teacher",
+            "aiSelfLimit": 0,
+            "revision": "return"
+          }
+        },
+        "expectedAnswers": {
+          "points": {
+            "p1": {
+              "keywords": [
+                "fortalte at",
+                "sa at han var",
+                "utdannet elektriker"
+              ]
+            },
+            "p2": {
+              "keywords": [
+                "fordi han",
+                "at han hadde lyst",
+                "mer ansvar"
+              ]
+            },
+            "p3": {
+              "keywords": [
+                "beskrev seg selv",
+                "at han var",
+                "nøyaktig og pålitelig"
+              ]
+            },
+            "p4": {
+              "keywords": [
+                "spurte om",
+                "spurte hvorfor",
+                "spurte hvordan"
+              ]
+            }
+          },
+          "rubric": {
+            "c1": {
+              "levels": [
+                "Svarer ikke på oppgaven",
+                "Ett av punktene er dekket",
+                "De fleste punktene er dekket",
+                "Alle punktene er dekket og utdypet"
+              ]
+            },
+            "c2": {
+              "levels": [
+                "Ingen struktur",
+                "Løse setninger uten avsnitt",
+                "Avsnitt, men få bindeord",
+                "Tydelig struktur og god flyt"
+              ]
+            },
+            "c3": {
+              "levels": [
+                "Direkte tale, ikke referat",
+                "Referat uten tidsforskyvning, mange ordstillingsfeil",
+                "Riktig at/om, noen feil i tid eller ordstilling",
+                "Fire eller flere korrekte setninger i indirekte tale"
+              ]
+            },
+            "c4": {
+              "levels": [
+                "Svært begrenset ordforråd",
+                "Enkelt og gjentakende",
+                "Passende for nivået",
+                "Variert og presist"
+              ]
+            }
+          },
+          "model": "Bartek fortalte at han var utdannet elektriker fra Polen, og at han hadde tatt fagbrevet sitt om igjen i Norge to år tidligere. Han sa at han de siste tre årene hadde jobbet hos Vestby Installasjon.\n\nKari spurte hvorfor han hadde lyst til å bytte jobb. Bartek svarte at han trivdes godt der han var, men at han ville ta mer ansvar og lede prosjekter selv. Til slutt beskrev han seg selv som nøyaktig og pålitelig, og sa at han var flink til å samarbeide."
+        }
       }
-    }
   ],
   "1C": [
-    {
-      "key": "b1-1c-sa1",
+{
+      "key": "b1-1c-sa",
       "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1C.",
+      "instruction": "Ответьте на вопросы по тексту 1C своими словами.",
       "content": {
-        "question": "Hva betyr det at det norske arbeidslivet er «flatt»?",
-        "context": "Tekst 1C — Arbeidsmiljø i Norge."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Avstanden mellom sjefen og de ansatte er liten.",
-        "accepted_answers": [
-          "avstanden mellom sjefen og de ansatte er liten",
-          "liten avstand mellom sjef og ansatte",
-          "det er kort avstand mellom sjefen og de ansatte"
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-sa2",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1C.",
-      "content": {
-        "question": "Hvor mange timer jobber nordmenn vanligvis i uka?",
-        "context": "Tekst 1C."
-      },
-      "expectedAnswers": {
-        "reference_answer": "37,5 timer.",
-        "accepted_answers": [
-          "37,5 timer",
-          "37,5",
-          "37.5 timer",
-          "trettisju og en halv time"
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-sa3",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1C.",
-      "content": {
-        "question": "Hva gjør en fagforening?",
-        "context": "Tekst 1C."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Den forhandler om lønn og arbeidsvilkår og hjelper ansatte i konflikter.",
-        "accepted_answers": [
-          "forhandler om lønn og arbeidsvilkår",
-          "den forhandler om lønn",
-          "hjelper den ansatte i konflikter"
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-sa4",
-      "template": "short_answer",
-      "instruction": "Ответьте на вопрос по тексту 1C.",
-      "content": {
-        "question": "Hvorfor er kaffepausen viktig?",
-        "context": "Tekst 1C."
-      },
-      "expectedAnswers": {
-        "reference_answer": "Det er en måte å bli kjent med hverandre på, og gode idéer kommer da.",
-        "accepted_answers": [
-          "en måte å bli kjent med hverandre på",
-          "de beste idéene kommer i kaffepausen",
-          "man blir kjent med hverandre"
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-rg1",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
-      "content": {
-        "question": "I Norge sier de ansatte ofte «du» til sjefen.",
-        "options": [
+        "title": "Leseforståelse 1C — Arbeidsmiljø i Norge",
+        "instruction": "Svar med egne ord, én til tre setninger.",
+        "questions": [
           {
-            "id": "r",
-            "text": "Riktig"
+            "id": "sa1",
+            "kind": "reading",
+            "passage": "Det norske arbeidslivet er kjent for å være ganske flatt. Det betyr at avstanden mellom sjefen og de ansatte ikke er så stor. På mange arbeidsplasser sier de ansatte «du» til sjefen og kaller ham eller henne ved fornavn.",
+            "prompt": "Hva betyr det at det norske arbeidslivet er «flatt»?"
           },
           {
-            "id": "g",
-            "text": "Galt"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "r"
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-rg2",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
-      "content": {
-        "question": "Overtid er veldig vanlig i Norge.",
-        "options": [
-          {
-            "id": "r",
-            "text": "Riktig"
+            "id": "sa2",
+            "kind": "reading",
+            "passage": "Nordmenn jobber vanligvis 37,5 timer i uka, og de fleste går hjem klokka fire. Overtid er ikke så vanlig, og mange prioriterer familie og fritid høyt. Om sommeren har de fleste fem uker ferie.",
+            "prompt": "Hvor mange timer jobber nordmenn vanligvis i uka?"
           },
           {
-            "id": "g",
-            "text": "Galt"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "g"
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-rg3",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
-      "content": {
-        "question": "De fleste har fem uker ferie om sommeren.",
-        "options": [
-          {
-            "id": "r",
-            "text": "Riktig"
+            "id": "sa3",
+            "kind": "reading",
+            "passage": "De fleste arbeidsplasser er organisert gjennom en fagforening som forhandler om lønn og arbeidsvilkår. Hvis det oppstår en konflikt, kan fagforeningen hjelpe den ansatte.",
+            "prompt": "Hva gjør en fagforening?"
           },
           {
-            "id": "g",
-            "text": "Galt"
+            "id": "sa4",
+            "kind": "reading",
+            "passage": "Flere ganger om dagen samles kollegaene for å ta en kopp kaffe og prate litt sammen. Det er ikke bare en pause – det er også en måte å bli kjent med hverandre på. Mange nordmenn sier at de beste idéene kommer nettopp i kaffepausen.",
+            "prompt": "Hvorfor er kaffepausen viktig?"
           }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "r"
-        ]
-      }
-    },
-    {
-      "key": "b1-1c-rg4",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
-      "content": {
-        "question": "Det er ikke lov å være uenig med sjefen.",
-        "options": [
-          {
-            "id": "r",
-            "text": "Riktig"
-          },
-          {
-            "id": "g",
-            "text": "Galt"
-          }
-        ]
-      },
-      "expectedAnswers": {
-        "correct_option_ids": [
-          "g"
         ],
-        "explanation": "Det er lov, så lenge man er saklig og høflig."
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 3,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Liten avstand mellom sjef og ansatte",
+                "anchors": [
+                  "liten avstand",
+                  "kort avstand",
+                  "ikke så stor avstand"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Man sier «du» og bruker fornavn",
+                "anchors": [
+                  "sier du til sjefen",
+                  "ved fornavn",
+                  "bruker fornavn"
+                ],
+                "required": false
+              }
+            ],
+            "model": "Det betyr at det er liten avstand mellom sjefen og de ansatte.",
+            "why": "«Flatt» handler om avstanden: sjefen står ikke langt over de ansatte. At man sier «du» og bruker fornavn er et eksempel på det, ikke hele svaret."
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Antall timer: 37,5",
+                "anchors": [
+                  "37,5 timer",
+                  "37,5",
+                  "trettisju og en halv time"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Nordmenn jobber vanligvis 37,5 timer i uka.",
+            "why": "Tallet står rett ut i teksten: 37,5 timer i uka."
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Forhandler om lønn og arbeidsvilkår",
+                "anchors": [
+                  "forhandler om lønn",
+                  "forhandle om lønn",
+                  "forhandler om arbeidsvilkår"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Hjelper den ansatte i konflikter",
+                "anchors": [
+                  "hjelper ansatte",
+                  "hjelper den ansatte",
+                  "hjelpe den ansatte",
+                  "hjelper i konflikter"
+                ],
+                "required": false
+              }
+            ],
+            "model": "Den forhandler om lønn og arbeidsvilkår, og den hjelper ansatte i konflikter.",
+            "why": "Hovedoppgaven er å forhandle om lønn og arbeidsvilkår. Hjelp i konflikter er en oppgave til, men svaret er riktig uten den."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Man blir kjent med hverandre",
+                "anchors": [
+                  "bli kjent med hverandre",
+                  "blir kjent med hverandre",
+                  "bli kjent med kollegaene"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "De beste idéene kommer der",
+                "anchors": [
+                  "beste idéene",
+                  "beste ideene",
+                  "gode idéer"
+                ],
+                "required": false
+              }
+            ],
+            "model": "Fordi det er en måte å bli kjent med hverandre på, og de beste idéene kommer ofte i kaffepausen.",
+            "why": "Kaffepausen er ikke bare en pause: den er måten kollegaene blir kjent med hverandre på. At de beste idéene kommer der, er tekstens egen tilføyelse."
+          }
+        }
       }
     },
     {
-      "key": "b1-1c-rg5",
-      "template": "multiple_choice",
-      "instruction": "Riktig eller galt?",
+      "key": "b1-1c-rg",
+      "template": "multiple_choice_group",
+      "instruction": "Прочитайте утверждение и решите, верно ли оно по тексту 1C.",
       "content": {
-        "question": "En fagforening forhandler om lønn.",
-        "options": [
+        "title": "Riktig eller galt — norsk arbeidsliv",
+        "instruction": "Er påstandene riktige eller gale? Svar ut fra teksten om norsk arbeidsliv.",
+        "source": {
+          "mode": "inline",
+          "label": "Tekst 1C — Norsk arbeidsliv",
+          "text": "Det norske arbeidslivet er kjent for å være ganske flatt. Det betyr at avstanden mellom sjefen og de ansatte ikke er så stor. På mange arbeidsplasser sier de ansatte «du» til sjefen og kaller ham eller henne ved fornavn. Mange innvandrere synes dette er uvant i begynnelsen, fordi det er mer formelt i hjemlandet deres.\n\nI Norge er det vanlig at de ansatte er med på å bestemme. Sjefen spør ofte hva medarbeiderne mener før han eller hun tar en avgjørelse. Møter er en viktig del av arbeidsdagen, og alle får lov til å si sin mening. Det er lov å være uenig med sjefen, så lenge man er saklig og høflig.\n\nEn annen viktig ting er balansen mellom jobb og fritid. Nordmenn jobber vanligvis 37,5 timer i uka, og de fleste går hjem klokka fire. Overtid er ikke så vanlig, og mange prioriterer familie og fritid høyt. Om sommeren har de fleste fem uker ferie.\n\nArbeidstakere i Norge har mange rettigheter. Man har rett til fast ansettelse, sykepenger hvis man blir syk, og foreldrepermisjon når man får barn. De fleste arbeidsplasser er organisert gjennom en fagforening som forhandler om lønn og arbeidsvilkår. Hvis det oppstår en konflikt, kan fagforeningen hjelpe den ansatte.\n\nEt typisk norsk fenomen er «kaffepausen». Flere ganger om dagen samles kollegaene for å ta en kopp kaffe og prate litt sammen. Det er ikke bare en pause – det er også en måte å bli kjent med hverandre på. Mange nordmenn sier at de beste idéene kommer nettopp i kaffepausen.\n\nFor mange som er nye i Norge, tar det tid å forstå de uskrevne reglene på arbeidsplassen. Men de fleste opplever at det norske arbeidslivet er trygt, inkluderende og rettferdig."
+        },
+        "columns": [
           {
-            "id": "r",
-            "text": "Riktig"
+            "id": "c-riktig",
+            "label": "Riktig",
+            "short": "R"
           },
           {
-            "id": "g",
-            "text": "Galt"
+            "id": "c-galt",
+            "label": "Galt",
+            "short": "G"
           }
-        ]
+        ],
+        "rows": [
+          {
+            "id": "q1",
+            "text": "I Norge sier de ansatte ofte «du» til sjefen."
+          },
+          {
+            "id": "q2",
+            "text": "Overtid er veldig vanlig i Norge."
+          },
+          {
+            "id": "q3",
+            "text": "De fleste har fem uker ferie om sommeren."
+          },
+          {
+            "id": "q4",
+            "text": "Det er ikke lov å være uenig med sjefen."
+          },
+          {
+            "id": "q5",
+            "text": "En fagforening forhandler om lønn."
+          }
+        ],
+        "settings": {
+          "numbering": true,
+          "shuffleRows": false,
+          "layout": "auto",
+          "showText": true,
+          "retry": "one",
+          "lockCorrect": true,
+          "showWhy": "wrong",
+          "revealKey": true,
+          "passThreshold": 70,
+          "progress": true
+        }
       },
       "expectedAnswers": {
-        "correct_option_ids": [
-          "r"
-        ]
+        "rows": {
+          "q1": {
+            "answer": "c-riktig",
+            "why": "Teksten kaller norsk arbeidsliv flatt: på mange arbeidsplasser sier de ansatte «du» til sjefen og bruker fornavnet.",
+            "quote": "På mange arbeidsplasser sier de ansatte «du» til sjefen og kaller ham eller henne ved fornavn."
+          },
+          "q2": {
+            "answer": "c-galt",
+            "why": "Nordmenn jobber vanligvis 37,5 timer i uka og går hjem klokka fire. Teksten sier rett ut at overtid ikke er så vanlig.",
+            "quote": "Overtid er ikke så vanlig, og mange prioriterer familie og fritid høyt."
+          },
+          "q3": {
+            "answer": "c-riktig",
+            "why": "Det står i avsnittet om jobb og fritid: om sommeren har de fleste fem uker ferie.",
+            "quote": "Om sommeren har de fleste fem uker ferie."
+          },
+          "q4": {
+            "answer": "c-galt",
+            "why": "Det er lov å være uenig med sjefen, så lenge man er saklig og høflig. Alle får si sin mening i møtene.",
+            "quote": "Det er lov å være uenig med sjefen, så lenge man er saklig og høflig."
+          },
+          "q5": {
+            "answer": "c-riktig",
+            "why": "De fleste arbeidsplasser er organisert gjennom en fagforening, og den forhandler om lønn og arbeidsvilkår.",
+            "quote": "De fleste arbeidsplasser er organisert gjennom en fagforening som forhandler om lønn og arbeidsvilkår."
+          }
+        }
       }
     },
     {

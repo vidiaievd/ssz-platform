@@ -29,6 +29,7 @@ function makeExercise(updatedAt = STORED_AT): ExerciseEntity {
     updatedAt,
     deletedAt: null,
     draft: null,
+    skillOverride: null,
     instructions: null,
   });
 }

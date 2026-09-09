@@ -28,6 +28,9 @@ export interface ExerciseCreateData {
   draftExpectedAnswers: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
   draftAnswerCheckSettings: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
   draftUpdatedAt: Date | null;
+  skillsOverride: string[];
+  focusOverride: string[];
+  overrideSetAt: Date | null;
   ownerUserId: string;
   ownerSchoolId: string | null;
   visibility: $Enums.Visibility;
@@ -69,6 +72,17 @@ export class ExerciseMapper {
               answerCheckSettings: raw.draftAnswerCheckSettings as Record<string, unknown> | null,
               updatedAt: raw.draftUpdatedAt,
             },
+      // `override_set_at` is the marker, exactly as `draft_updated_at` is above: the two
+      // arrays mean nothing without it, because an empty Postgres array cannot tell
+      // "nobody spoke" apart from "the author says: nothing".
+      skillOverride:
+        raw.overrideSetAt === null
+          ? null
+          : {
+              skills: raw.skillsOverride,
+              focus: raw.focusOverride,
+              setAt: raw.overrideSetAt,
+            },
       ownerUserId: raw.ownerUserId,
       ownerSchoolId: raw.ownerSchoolId,
       visibility: prismaVisibilityToDomain(raw.visibility),
@@ -101,6 +115,9 @@ export class ExerciseMapper {
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
       draftUpdatedAt: entity.draft?.updatedAt ?? null,
+      skillsOverride: entity.skillOverride?.skills ?? [],
+      focusOverride: entity.skillOverride?.focus ?? [],
+      overrideSetAt: entity.skillOverride?.setAt ?? null,
       ownerUserId: entity.ownerUserId,
       ownerSchoolId: entity.ownerSchoolId,
       visibility: domainVisibilityToPrisma(entity.visibility),
@@ -129,6 +146,9 @@ export class ExerciseMapper {
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
       draftUpdatedAt: entity.draft?.updatedAt ?? null,
+      skillsOverride: entity.skillOverride?.skills ?? [],
+      focusOverride: entity.skillOverride?.focus ?? [],
+      overrideSetAt: entity.skillOverride?.setAt ?? null,
       visibility: domainVisibilityToPrisma(entity.visibility),
       estimatedDurationSeconds: entity.estimatedDurationSeconds,
       updatedAt: entity.updatedAt,

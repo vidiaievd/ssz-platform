@@ -6,6 +6,7 @@ import { EXCHANGES, LEARNING_EVENT_TYPES } from '@ssz/contracts';
 import type { AttemptRatedPayload, BaseEvent } from '@ssz/contracts';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
+import { SkillMasteryProjector } from '../mastery/skill-mastery.projector.js';
 
 const PROCESSOR_ID = 'attempt-evidence';
 const QUEUE = 'analytics-service.metrics.attempt-evidence';
@@ -32,6 +33,7 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly config: ConfigService<AppConfig>,
     private readonly prisma: PrismaService,
+    private readonly mastery: SkillMasteryProjector,
   ) {}
 
   onModuleInit(): void {
@@ -52,6 +54,12 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
         await channel.assertExchange(EXCHANGE, 'topic', { durable: true });
         await channel.assertQueue(QUEUE, { durable: true });
         await channel.bindQueue(QUEUE, EXCHANGE, BINDING_KEY);
+        // One message at a time, and this is not a throughput setting — it is what makes
+        // the mastery fold correct. A gap-by-gap exercise publishes one event per gap
+        // within a few milliseconds; without a prefetch limit the broker hands over the
+        // whole burst at once, several folds read the same profile row before any of them
+        // writes, and the last write wins. Found live: 14 attempts recorded, 12 counted.
+        await channel.prefetch(1);
         await channel.consume(QUEUE, (msg) => this.handleMessage(channel, msg));
         this.logger.log(`AttemptEvidenceConsumer listening on queue "${QUEUE}"`);
       },
@@ -84,7 +92,12 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      await this.record(eventId, envelope.payload as AttemptRatedPayload, envelope.occurredAt);
+      const payload = envelope.payload as AttemptRatedPayload;
+      await this.record(eventId, payload, envelope.occurredAt);
+      // Inside the same idempotency guard as the record above, and that is the point: the
+      // record is append-only and survives a double delivery, while the profile is a
+      // running average that a replayed attempt would quietly move (plan 55 §5.1).
+      await this.mastery.apply(payload, envelope.occurredAt);
 
       await this.prisma.processedEvent.create({
         data: { eventId, processorId: PROCESSOR_ID, eventType },
@@ -126,6 +139,18 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
           gapPosition: p.gapPosition ?? null,
           gapCount: p.gapCount ?? null,
           ratingApplied: p.ratingApplied,
+          // `null` on the event becomes an empty column: the list is not nullable, and
+          // "nobody said" and "said nothing counts" are both rows the profile skips.
+          skills: p.skills ?? [],
+          focus: p.focus ?? [],
+          stabilityAfter: p.stabilityAfter ?? null,
+          // Kept apart from the score on purpose: what was answered and where it was
+          // answered are different questions, and only the second can say whether a
+          // group's homework and its classwork tell the same story (plan 57 §7).
+          workContext: p.workContext ?? null,
+          groupId: p.groupId ?? null,
+          containerId: p.containerId ?? null,
+          lessonId: p.lessonId ?? null,
           occurredAt: new Date(occurredAt),
         },
       ],

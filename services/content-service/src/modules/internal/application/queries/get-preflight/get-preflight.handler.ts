@@ -8,7 +8,20 @@ import {
 import { OrganizationServiceUnavailableException } from '../../../../../shared/access-control/infrastructure/clients/organization-service-unavailable.exception.js';
 import { GetPreflightQuery } from './get-preflight.query.js';
 import { TEMPLATE_CODE as GAP_FILL_TEMPLATE } from '@ssz/shared-kernel/wordbank-gapfill';
+import { TEMPLATE_CODE as MATCH_PAIRS_TEMPLATE } from '@ssz/shared-kernel/match-pairs';
+import { TEMPLATE_CODE as WRITING_TASK_TEMPLATE } from '@ssz/shared-kernel/writing-task';
+import { TEMPLATE_CODE as SHORT_ANSWER_TEMPLATE } from '@ssz/shared-kernel/short-answer';
+import { TEMPLATE_CODE as SENTENCE_SCHEMA_TEMPLATE } from '@ssz/shared-kernel/sentence-schema';
+import { TEMPLATE_CODE as MULTIPLE_CHOICE_TEMPLATE } from '@ssz/shared-kernel/multiple-choice';
+import { TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP_TEMPLATE } from '@ssz/shared-kernel/multiple-choice-group';
 import { gapFillViolations } from './gap-fill-preflight.js';
+import { matchPairsViolations } from './match-pairs-preflight.js';
+import { writingTaskViolations } from './writing-task-preflight.js';
+import { shortAnswerViolations } from './short-answer-preflight.js';
+import { sentenceSchemaViolations } from './sentence-schema-preflight.js';
+import { multipleChoiceViolations } from './multiple-choice-preflight.js';
+import { multipleChoiceGroupViolations } from './multiple-choice-group-preflight.js';
+import { audioViolations } from './audio-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
 
@@ -79,6 +92,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
       this.checkLessons(byType['LESSON'] ?? [], blockers, warnings),
       this.checkVocabularyLists(byType['VOCABULARY_LIST'] ?? [], blockers, warnings),
       this.checkExercises(byType['EXERCISE'] ?? [], blockers, warnings),
+      this.checkAudio(byType['EXERCISE'] ?? [], blockers, warnings),
       this.checkModules(byType['CONTAINER'] ?? [], blockers),
       this.checkGrammarRules(byType['GRAMMAR_RULE'] ?? [], blockers),
     ]);
@@ -429,6 +443,53 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
     }
   }
 
+  /**
+   * The audio layer, on every template rather than seven — plan 56 §3.8.
+   *
+   * A query of its own, and not a widening of `checkExercises`: an exercise that says
+   * "listen" can be any of the thirteen, and loading every document of the version to
+   * find the few that do would read a whole course to check a handful of exercises.
+   * Postgres can answer «which of these has audio switched on» from the JSON itself, so
+   * it does — over both columns, because the draft is what publication promotes.
+   */
+  private async checkAudio(
+    items: Array<{ itemType: string; itemId: string }>,
+    blockers: RuleViolation[],
+    warnings: RuleViolation[],
+  ): Promise<void> {
+    if (items.length === 0) return;
+
+    const withAudio = await this.prisma.exercise.findMany({
+      where: {
+        id: { in: items.map((i) => i.itemId) },
+        OR: [
+          { content: { path: ['audio', 'enabled'], equals: true } },
+          { draftContent: { path: ['audio', 'enabled'], equals: true } },
+        ],
+      },
+      select: {
+        id: true,
+        content: true,
+        draftContent: true,
+        draftUpdatedAt: true,
+        template: { select: { code: true } },
+      },
+    });
+
+    for (const exercise of withAudio) {
+      const pending = exercise.draftUpdatedAt !== null;
+      const violations = audioViolations({
+        id: exercise.id,
+        templateCode: exercise.template.code,
+        content: pending ? exercise.draftContent : exercise.content,
+      });
+
+      for (const violation of violations) {
+        (violation.severity === 'blocker' ? blockers : warnings).push(violation);
+      }
+    }
+  }
+
   private async checkExercises(
     items: Array<{ itemType: string; itemId: string }>,
     blockers: RuleViolation[],
@@ -443,10 +504,25 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
         where: { exerciseId: { in: exerciseIds } },
         select: { exerciseId: true },
       }),
-      // Only the template that carries its own editorial rules needs its
-      // document loaded; the rest are covered by EXERCISE_INCOMPLETE alone.
+      // Only the templates that carry their own editorial rules need their
+      // documents loaded; the rest are covered by EXERCISE_INCOMPLETE alone.
       this.prisma.exercise.findMany({
-        where: { id: { in: exerciseIds }, template: { code: GAP_FILL_TEMPLATE } },
+        where: {
+          id: { in: exerciseIds },
+          template: {
+            code: {
+              in: [
+                GAP_FILL_TEMPLATE,
+                MATCH_PAIRS_TEMPLATE,
+                WRITING_TASK_TEMPLATE,
+                SHORT_ANSWER_TEMPLATE,
+                SENTENCE_SCHEMA_TEMPLATE,
+                MULTIPLE_CHOICE_TEMPLATE,
+                MULTIPLE_CHOICE_GROUP_TEMPLATE,
+              ],
+            },
+          },
+        },
         // The draft too: pre-flight answers "is this publishable", and publishing
         // is what promotes the draft. Judging the live document would clear a
         // publish on work the author has already replaced.
@@ -457,6 +533,12 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
           draftContent: true,
           draftExpectedAnswers: true,
           draftUpdatedAt: true,
+          // Read by `multiple_choice` alone, and by two of its rules: the distractor
+          // audit's list of absolutes and its duplicate comparison are language-bound,
+          // and a pack chosen by anything other than the course language would look for
+          // Norwegian words in Ukrainian text (plan 53 §3.6).
+          targetLanguage: true,
+          template: { select: { code: true } },
         },
       }),
     ]);
@@ -477,15 +559,61 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
 
     for (const exercise of exercises) {
       const pending = exercise.draftUpdatedAt !== null;
-      for (const violation of gapFillViolations({
+      const document = {
         id: exercise.id,
         content: pending ? exercise.draftContent : exercise.content,
         expectedAnswers: pending ? exercise.draftExpectedAnswers : exercise.expectedAnswers,
-      })) {
+        language: exercise.targetLanguage,
+      };
+      const violations = violationsFor(exercise.template.code, document);
+
+      for (const violation of violations) {
         (violation.severity === 'blocker' ? blockers : warnings).push(violation);
       }
     }
   }
+}
+
+/**
+ * `writing_task` matters more here than the two auto-checked templates. Gap-fill and
+ * match-pairs are auto-checked, so an editorial hole shows up the first time a student
+ * answers; a writing task published with an empty rubric surfaces only when a teacher
+ * opens a submitted text and finds nothing to mark it against.
+ *
+ * `short_answer` is auto-checked and still belongs with the writing task, because the
+ * way it fails is silent: a key whose phrases match nothing does not error, it simply
+ * marks every correct answer as covering none of the points. Its rules also skip the
+ * documents of the old form, which have none of the fields these rules ask about.
+ *
+ * `sentence_schema` fails more silently still. A sentence whose words are not all placed
+ * has no key, so the student projection drops it: the exercise publishes clean and shows
+ * fewer sentences than the author wrote, or an empty board. Nothing errors, and nobody
+ * is told.
+ *
+ * `multiple_choice` fails the same way and more often, because the key is not in the
+ * content at all: a question with no correct option marked still projects, still renders,
+ * and marks every pick wrong. Its rules skip documents of the old form, which have none
+ * of the fields they ask about.
+ *
+ * `multiple_choice_group` fails one step earlier still. A statement with no column marked
+ * is not shown to the student and marked wrong — it is *dropped*, because the readiness of
+ * a row is decided by the key column that the projection is otherwise withholding. The
+ * table publishes clean and shows fewer statements than the author wrote, or none at all.
+ * Its rules skip documents of the old form for the same reason as `multiple_choice`'s.
+ */
+function violationsFor(
+  templateCode: string,
+  document: { id: string; content: unknown; expectedAnswers: unknown; language?: string },
+): RuleViolation[] {
+  if (templateCode === MATCH_PAIRS_TEMPLATE) return matchPairsViolations(document);
+  if (templateCode === WRITING_TASK_TEMPLATE) return writingTaskViolations(document);
+  if (templateCode === SHORT_ANSWER_TEMPLATE) return shortAnswerViolations(document);
+  if (templateCode === SENTENCE_SCHEMA_TEMPLATE) return sentenceSchemaViolations(document);
+  if (templateCode === MULTIPLE_CHOICE_TEMPLATE) return multipleChoiceViolations(document);
+  if (templateCode === MULTIPLE_CHOICE_GROUP_TEMPLATE) {
+    return multipleChoiceGroupViolations(document);
+  }
+  return gapFillViolations(document);
 }
 
 function groupBy<T>(arr: T[], key: (item: T) => string): Record<string, T[]> {

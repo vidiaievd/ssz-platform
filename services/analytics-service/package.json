@@ -1,7 +1,7 @@
 {
   "name": "analytics-service",
   "version": "0.1.0",
-  "description": "SSZ Platform — Analytics Service (reporting context: metrics, audit, event archive)",
+  "description": "SSZ Platform \u2014 Analytics Service (reporting context: metrics, audit, event archive)",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -11,8 +11,10 @@
     "start:dev": "nest start --watch",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "test": "jest",
-    "test:e2e": "jest --config jest.e2e.config.js"
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:e2e": "jest --config jest.e2e.config.js",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:cov": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.19",
@@ -24,6 +26,7 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@ssz/contracts": "file:../../packages/contracts",
+    "@ssz/shared-kernel": "file:../../packages/shared-kernel",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^1.0.3",
     "class-transformer": "^0.5.1",

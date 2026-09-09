@@ -65,6 +65,9 @@ import type { ContainerDomainError } from '../../../container/domain/exceptions/
 import { GetModuleReaderStructureQuery } from '../../application/queries/get-module-reader-structure/get-module-reader-structure.query.js';
 import type { ModuleReaderStructureResult } from '../../application/queries/get-module-reader-structure/get-module-reader-structure.handler.js';
 
+import { GetExercisePlacementQuery } from '../../application/queries/get-exercise-placement/get-exercise-placement.query.js';
+import type { ExercisePlacementResult } from '../../application/queries/get-exercise-placement/get-exercise-placement.handler.js';
+
 // Service-to-service routes only — @Public() exempts them from the global
 // JwtAuthGuard (APP_GUARD runs before any controller-level guard), and
 // InternalAuthGuard takes over instead, requiring x-internal-token. Excluded
@@ -320,6 +323,15 @@ export class InternalController {
   ): Promise<ModuleReaderStructureResult> {
     return this.queryBus.execute<GetModuleReaderStructureQuery, ModuleReaderStructureResult>(
       new GetModuleReaderStructureQuery(moduleId),
+    );
+  }
+
+  // Exercise Engine calls this once per attempt start to snapshot which
+  // course/module a submission belongs to (plan 44 §44.1).
+  @Get('exercises/:id/placement')
+  async getExercisePlacement(@Param('id') id: string): Promise<ExercisePlacementResult> {
+    return this.queryBus.execute<GetExercisePlacementQuery, ExercisePlacementResult>(
+      new GetExercisePlacementQuery(id),
     );
   }
 }

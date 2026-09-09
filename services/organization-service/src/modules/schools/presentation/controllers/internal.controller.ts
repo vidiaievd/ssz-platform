@@ -5,11 +5,13 @@ import {
   Param,
   ParseUUIDPipe,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { Inject } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { Public } from '../../../../common/decorators/public.decorator.js';
+import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { GetSchoolQuery } from '../../application/queries/get-school/get-school.query.js';
 import {
   SCHOOL_GROUP_REPOSITORY,
@@ -29,6 +31,7 @@ interface BatchMemberRoleResponse {
 
 @ApiExcludeController()
 @Public()
+@UseGuards(InternalAuthGuard)
 @Controller('internal/schools')
 export class InternalController {
   constructor(

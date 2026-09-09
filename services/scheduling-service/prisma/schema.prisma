@@ -26,6 +26,11 @@ enum LessonStatus {
   moved
   cancelled
 
+  /// The lesson actually happened. Set by a person, never by the clock: a past
+  /// date only means the slot went by, and group progress is counted from what
+  /// was taught, not from what was scheduled.
+  held
+
   @@map("lesson_status")
 }
 
@@ -251,6 +256,9 @@ model CurriculumUnit {
   title             String
   order             Int
   plannedSessions   Int        @default(1) @map("planned_sessions")
+  /// Unit of the linked course (content-service) this plan unit teaches. Null
+  /// while unstitched: a teaching plan may run ahead of, or beside, the course.
+  contentUnitId     String?    @map("content_unit_id")
   deliveredSessions Int        @default(0) @map("delivered_sessions")
   requiredLevel     String?    @map("required_level")
   status            UnitStatus @default(planned)

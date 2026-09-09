@@ -1,6 +1,7 @@
 import { Attempt } from '../../../../src/modules/attempts/domain/entities/attempt.entity.js';
 import { AttemptStartedEvent } from '../../../../src/modules/attempts/domain/events/attempt-started.event.js';
 import { AttemptScoredEvent } from '../../../../src/modules/attempts/domain/events/attempt-scored.event.js';
+import { AttemptCompletedUnscoredEvent } from '../../../../src/modules/attempts/domain/events/attempt-completed-unscored.event.js';
 import { AttemptRoutedForReviewEvent } from '../../../../src/modules/attempts/domain/events/attempt-routed-for-review.event.js';
 import {
   AttemptAlreadySubmittedError,
@@ -17,7 +18,53 @@ const makeAttempt = () =>
     difficultyLevel: 'B1',
     checkMode: 'PRACTICE',
     practicedAtoms: [],
+    axes: { skills: [], focus: [] },
   });
+
+// Plan 55 §3.6 — the axes are snapshotted at the start and travel with the attempt.
+// Both endings are covered because the free-form one is the evidence the mastery profile
+// most wants: it is the only path a written or spoken attempt takes.
+describe('Attempt axes', () => {
+  const withAxes = () =>
+    Attempt.create({
+      userId: 'user-1',
+      exerciseId: 'ex-1',
+      templateCode: 'writing_task',
+      targetLanguage: 'no',
+      difficultyLevel: 'B1',
+      checkMode: 'PRACTICE',
+      practicedAtoms: [],
+      axes: { skills: ['written'], focus: ['grammar'] },
+    });
+
+  it('reports the axes on a scored attempt', () => {
+    const attempt = withAxes();
+    attempt.submit({}, 'h');
+    attempt.clearDomainEvents();
+    attempt.score(90, true, null, null);
+
+    const ev = attempt.getDomainEvents().find((e) => e instanceof AttemptScoredEvent) as
+      | AttemptScoredEvent
+      | undefined;
+    expect(ev?.payload.skills).toEqual(['written']);
+    expect(ev?.payload.focus).toEqual(['grammar']);
+  });
+
+  it('reports them on an attempt that went for human review instead', () => {
+    const attempt = withAxes();
+    attempt.submit({}, 'h');
+    attempt.clearDomainEvents();
+    attempt.routeForReview();
+
+    const ev = attempt
+      .getDomainEvents()
+      .find((e) => e instanceof AttemptCompletedUnscoredEvent) as
+      | AttemptCompletedUnscoredEvent
+      | undefined;
+    expect(ev?.payload.skills).toEqual(['written']);
+    expect(ev?.payload.focus).toEqual(['grammar']);
+  });
+});
 
 describe('Attempt entity', () => {
   describe('create()', () => {
@@ -50,6 +97,7 @@ describe('Attempt entity', () => {
         difficultyLevel: 'A1',
         checkMode: 'PRACTICE',
         practicedAtoms: [],
+        axes: { skills: [], focus: [] },
         assignmentId: 'assign-99',
       });
       const ev = attempt.getDomainEvents()[0] as AttemptStartedEvent;
@@ -168,12 +216,14 @@ describe('Attempt entity', () => {
       return attempt;
     };
 
-    it('puts a scored practice attempt back in progress and counts the revision', () => {
+    it('puts a scored practice attempt back in progress and counts the re-check', () => {
       const attempt = scored();
       const result = attempt.reopenForRecheck();
       expect(result.isOk).toBe(true);
       expect(attempt.status).toBe('IN_PROGRESS');
-      expect(attempt.revisionCount).toBe(1);
+      expect(attempt.recheckCount).toBe(1);
+      // The resubmission counter is a different thing and stays put.
+      expect(attempt.revisionCount).toBe(0);
       expect(attempt.submit({}, 'h2').isOk).toBe(true);
     });
 
@@ -188,6 +238,25 @@ describe('Attempt entity', () => {
       // Progress and the SRS heard about the first check. A correction is the
       // learner reading the feedback, not fresh evidence that they knew the word.
       expect(attempt.getDomainEvents()).toHaveLength(0);
+    });
+
+    it('still reports a resubmission after a RETURNED verdict as fresh evidence', () => {
+      const attempt = makeAttempt();
+      // What start-attempt writes for the second go at a returned exercise: a
+      // different attempt entirely, not a re-check of the scored one.
+      attempt.snapshotReviewContext({
+        schoolId: null,
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        previousAttemptId: 'attempt-1',
+        revisionCount: 1,
+      });
+      attempt.submit({}, 'h');
+      attempt.clearDomainEvents();
+
+      expect(attempt.score(80, true, null, null).isOk).toBe(true);
+      expect(attempt.getDomainEvents()).toHaveLength(1);
     });
 
     it('refuses once the answers were revealed', () => {
@@ -207,6 +276,7 @@ describe('Attempt entity', () => {
         difficultyLevel: 'B1',
         checkMode: 'GRADED',
         practicedAtoms: [],
+        axes: { skills: [], focus: [] },
       });
       attempt.submit({}, 'h');
       attempt.score(40, false, null, null);
@@ -222,6 +292,42 @@ describe('Attempt entity', () => {
       expect(result.isFail).toBe(true);
       expect(result.error).toBeInstanceOf(InvalidAttemptTransitionError);
     });
+
+    // The budget arrived with `multiple_choice_group` (plan 54 §3.3), whose `retry`
+    // setting is 1, 2 or 99 checks of the whole table. `word_bank_gap_fill` passes
+    // nothing and keeps the unlimited behaviour this method was written with.
+    it('spends a budget of two on exactly one re-check', () => {
+      const attempt = scored();
+
+      expect(attempt.reopenForRecheck(2).isOk).toBe(true);
+      attempt.submit({}, 'h2');
+      attempt.score(60, false, null, null);
+
+      const second = attempt.reopenForRecheck(2);
+      expect(second.isFail).toBe(true);
+      expect(second.error).toBeInstanceOf(InvalidAttemptTransitionError);
+      // Refused rather than half-applied: the attempt is still the scored one.
+      expect(attempt.status).toBe('SCORED');
+      expect(attempt.recheckCount).toBe(1);
+    });
+
+    it('refuses the first re-check under a budget of one', () => {
+      const attempt = scored();
+
+      const result = attempt.reopenForRecheck(1);
+      expect(result.isFail).toBe(true);
+      expect(attempt.recheckCount).toBe(0);
+    });
+
+    it('stays unlimited when no budget is given', () => {
+      const attempt = scored();
+      for (let i = 0; i < 5; i += 1) {
+        expect(attempt.reopenForRecheck().isOk).toBe(true);
+        attempt.submit({}, `h${i}`);
+        attempt.score(60, false, null, null);
+      }
+      expect(attempt.recheckCount).toBe(5);
+    });
   });
 
   describe('routeForReview()', () => {
@@ -233,20 +339,82 @@ describe('Attempt entity', () => {
       expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
     });
 
-    it('raises AttemptRoutedForReviewEvent with completed=false and score=null', () => {
+    it('tells progress the attempt finished unscored', () => {
       const attempt = makeAttempt();
       attempt.addTimeSpent(15);
       attempt.submit({}, 'h');
       attempt.clearDomainEvents();
       attempt.routeForReview();
-      const events = attempt.getDomainEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]).toBeInstanceOf(AttemptRoutedForReviewEvent);
-      const ev = events[0] as AttemptRoutedForReviewEvent;
+
+      const ev = attempt
+        .getDomainEvents()
+        .find((e) => e instanceof AttemptCompletedUnscoredEvent) as AttemptCompletedUnscoredEvent;
+      expect(ev).toBeDefined();
       expect(ev.eventType).toBe('exercise.attempt.completed');
       expect(ev.payload.score).toBeNull();
       expect(ev.payload.completed).toBe(false);
       expect(ev.payload.timeSpentSeconds).toBe(15);
+    });
+
+    it('announces the submission separately, with the context review needs', () => {
+      const attempt = makeAttempt();
+      attempt.snapshotReviewContext({
+        schoolId: 'school-1',
+        containerId: 'course-1',
+        groupId: 'group-1',
+        exercisePath: null,
+        previousAttemptId: null,
+        revisionCount: 0,
+      });
+      attempt.submit({}, 'h');
+      attempt.clearDomainEvents();
+      attempt.routeForReview();
+
+      const ev = attempt
+        .getDomainEvents()
+        .find((e) => e instanceof AttemptRoutedForReviewEvent) as AttemptRoutedForReviewEvent;
+      expect(ev).toBeDefined();
+      expect(ev.eventType).toBe('exercise.attempt.routed_for_review');
+      expect(ev.payload).toMatchObject({
+        attemptId: attempt.id,
+        schoolId: 'school-1',
+        containerId: 'course-1',
+        groupId: 'group-1',
+      });
+      expect(ev.payload.submittedAt).toBe(attempt.submittedAt?.toISOString());
+    });
+
+    it('writes down the machine tally as a hint for the queue', () => {
+      const attempt = makeAttempt();
+      attempt.submit({}, 'h');
+      attempt.routeForReview({ autoPassedItems: 4, totalItems: 5 });
+
+      expect(attempt.autoPassedItems).toBe(4);
+      expect(attempt.totalItems).toBe(5);
+    });
+
+    it('only fills blanks when review context is backfilled later', () => {
+      const attempt = makeAttempt();
+      attempt.snapshotReviewContext({
+        schoolId: 'school-1',
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        previousAttemptId: null,
+        revisionCount: 0,
+      });
+
+      attempt.backfillReviewContext({
+        schoolId: 'school-2',
+        containerId: 'course-1',
+        groupId: 'group-1',
+      });
+
+      // The school was snapshotted when the learner started; where they are now
+      // does not rewrite where they were.
+      expect(attempt.schoolId).toBe('school-1');
+      expect(attempt.containerId).toBe('course-1');
+      expect(attempt.groupId).toBe('group-1');
     });
 
     it('fails when not SUBMITTED', () => {
@@ -400,6 +568,230 @@ describe('Attempt entity', () => {
       const result = attempt.useSelfCheck(3);
       expect(result.isFail).toBe(true);
       expect(attempt.selfChecksUsed).toBe(0);
+    });
+  });
+  describe('answerQuestion()', () => {
+    const answer = (questionId: string, verdict: 'pass' | 'partial' | 'fail' = 'pass') => ({
+      questionId,
+      text: 'Alle må ha lys foran og bak når det er mørkt.',
+      verdict,
+    });
+
+    it('records each answer once, in the order they were handed in', () => {
+      const attempt = makeAttempt();
+
+      expect(attempt.answerQuestion(answer('q1')).isOk).toBe(true);
+      expect(attempt.answerQuestion(answer('q2', 'partial')).isOk).toBe(true);
+
+      expect(attempt.answeredQuestions.map((a) => a.questionId)).toEqual(['q1', 'q2']);
+      expect(attempt.answeredQuestions[1]).toMatchObject({ verdict: 'partial' });
+      expect(attempt.answeredQuestions[0]?.answeredAt).toBeInstanceOf(Date);
+    });
+
+    it('refuses a second answer to the same question', () => {
+      // IMPLEMENTATION.md puts this in the model rather than the UI: the review queue
+      // assumes one answer per student per question, and a hidden button is one replayed
+      // request away from two.
+      const attempt = makeAttempt();
+      attempt.answerQuestion(answer('q1'));
+
+      const again = attempt.answerQuestion({ questionId: 'q1', text: 'Noe annet.', verdict: 'fail' });
+      expect(again.isFail).toBe(true);
+      expect(again.error).toBeInstanceOf(InvalidAttemptTransitionError);
+      // A refused answer changes nothing — the first one still stands.
+      expect(attempt.answeredQuestions).toHaveLength(1);
+      expect(attempt.answeredQuestions[0]?.verdict).toBe('pass');
+    });
+
+    it('refuses once the set is no longer open', () => {
+      const attempt = makeAttempt();
+      attempt.submit({ answers: [] }, 'hash');
+
+      const late = attempt.answerQuestion(answer('q1'));
+      expect(late.isFail).toBe(true);
+      expect(attempt.answeredQuestions).toHaveLength(0);
+    });
+
+    it('hands back a copy, so the list cannot be appended to from outside', () => {
+      const attempt = makeAttempt();
+      attempt.answerQuestion(answer('q1'));
+
+      attempt.answeredQuestions.push(answer('q2') as never);
+      expect(attempt.answeredQuestions).toHaveLength(1);
+    });
+  });
+  describe('checkRow()', () => {
+    const board = (rowId: string, solved = false, revealed = false) => ({
+      rowId,
+      placement: { 'f-sub': ['c1'], 'f-v': ['c3'] },
+      solved,
+      revealed,
+    });
+
+    it('counts the checks on a sentence and keeps the last board', () => {
+      // Unlike an answer, a check decides nothing: the handoff gives the student `Rett
+      // opp` and unlimited retries, and the counter is what they see as `Forsøk N`.
+      const attempt = makeAttempt();
+
+      expect(attempt.checkRow(board('r1')).isOk).toBe(true);
+      expect(attempt.checkRow(board('r1')).isOk).toBe(true);
+
+      expect(attempt.checkedRows).toHaveLength(1);
+      expect(attempt.checkedRows[0]).toMatchObject({ rowId: 'r1', attempts: 2, solved: false });
+      expect(attempt.checkedRows[0]?.checkedAt).toBeInstanceOf(Date);
+    });
+
+    it('refuses a sentence that is already solved', () => {
+      const attempt = makeAttempt();
+      attempt.checkRow(board('r1', true));
+
+      const again = attempt.checkRow(board('r1'));
+      expect(again.isFail).toBe(true);
+      expect(again.error).toBeInstanceOf(InvalidAttemptTransitionError);
+      // A refused check changes nothing — the solved board still stands.
+      expect(attempt.checkedRows[0]?.solved).toBe(true);
+      expect(attempt.checkedRows[0]?.attempts).toBe(1);
+    });
+
+    it('refuses a sentence that was revealed, and does not spend an attempt on the reveal', () => {
+      // `Vis riktig skjema` puts the answer on the board. Anything checked afterwards
+      // would be the answer handed straight back, so the refusal is the model's, not the
+      // runner's disabled button.
+      const attempt = makeAttempt();
+      attempt.checkRow(board('r1'));
+      attempt.checkRow({ ...board('r1'), revealed: true });
+
+      expect(attempt.checkedRows[0]).toMatchObject({ revealed: true, attempts: 1 });
+      expect(attempt.checkRow(board('r1')).isFail).toBe(true);
+    });
+
+    it('keeps the sentences apart', () => {
+      const attempt = makeAttempt();
+      attempt.checkRow(board('r1', true));
+      attempt.checkRow(board('r2'));
+
+      expect(attempt.checkedRows.map((row) => row.rowId)).toEqual(['r1', 'r2']);
+    });
+
+    it('refuses once the set is no longer open', () => {
+      const attempt = makeAttempt();
+      attempt.submit({ rows: [] }, 'hash');
+
+      expect(attempt.checkRow(board('r1')).isFail).toBe(true);
+      expect(attempt.checkedRows).toHaveLength(0);
+    });
+
+    it('hands back copies, so the state cannot be edited from outside', () => {
+      const attempt = makeAttempt();
+      attempt.checkRow(board('r1'));
+
+      attempt.checkedRows[0]!.revealed = true;
+      attempt.checkedRows.push(board('r2') as never);
+
+      expect(attempt.checkedRows).toHaveLength(1);
+      expect(attempt.checkedRows[0]?.revealed).toBe(false);
+    });
+  });
+  describe('pickOption()', () => {
+    const pick = (
+      questionId: string,
+      optionId: string | null,
+      over: { correct?: boolean; closed?: boolean; revealed?: boolean; eliminated?: string[] } = {},
+    ) => ({
+      questionId,
+      optionId,
+      correct: over.correct ?? false,
+      closed: over.closed ?? false,
+      revealed: over.revealed ?? false,
+      ...(over.eliminated ? { eliminated: over.eliminated } : {}),
+    });
+
+    it('keeps the picks in order, because the first one is the only one that scores', () => {
+      const attempt = makeAttempt();
+
+      expect(attempt.pickOption(pick('q1', 'o2')).isOk).toBe(true);
+      expect(attempt.pickOption(pick('q1', 'o3')).isOk).toBe(true);
+
+      expect(attempt.pickedOptions).toHaveLength(1);
+      expect(attempt.pickedOptions[0]).toMatchObject({ questionId: 'q1', picks: ['o2', 'o3'] });
+      expect(attempt.pickedOptions[0]?.pickedAt).toBeInstanceOf(Date);
+    });
+
+    it('refuses a pick at a question that is already right', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o1', { correct: true, closed: true }));
+
+      const again = attempt.pickOption(pick('q1', 'o2'));
+      expect(again.isFail).toBe(true);
+      expect(again.error).toBeInstanceOf(InvalidAttemptTransitionError);
+      // A refused pick changes nothing — the answer that stood still stands.
+      expect(attempt.pickedOptions[0]).toMatchObject({ correct: true, picks: ['o1'] });
+    });
+
+    it('refuses a pick at a question whose budget is spent', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o2'));
+      attempt.pickOption(pick('q1', 'o3', { closed: true }));
+
+      expect(attempt.pickOption(pick('q1', 'o1')).isFail).toBe(true);
+      expect(attempt.pickedOptions[0]?.picks).toEqual(['o2', 'o3']);
+    });
+
+    it('refuses a revealed question, and spends no try on the reveal itself', () => {
+      // «Vis svaret» shows the key. Anything picked afterwards would be the answer
+      // handed straight back, so the refusal is the model's rather than a hidden button.
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o2'));
+      attempt.pickOption(pick('q1', null, { closed: true, revealed: true }));
+
+      expect(attempt.pickedOptions[0]).toMatchObject({ revealed: true, picks: ['o2'] });
+      expect(attempt.pickOption(pick('q1', 'o1')).isFail).toBe(true);
+    });
+
+    it('accumulates the dimmed set rather than dealing it again', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o2', { eliminated: ['o2', 'o4'] }));
+      // A second 50/50 narrows what is left; the kernel hands back the cumulative set.
+      attempt.pickOption(pick('q1', 'o3', { eliminated: ['o2', 'o4', 'o3'] }));
+
+      expect(attempt.pickedOptions[0]?.eliminated).toEqual(['o2', 'o4', 'o3']);
+    });
+
+    it('leaves the dimmed set alone when this pick did not fire a 50/50', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o2', { eliminated: ['o2', 'o4'] }));
+      attempt.pickOption(pick('q1', 'o3'));
+
+      expect(attempt.pickedOptions[0]?.eliminated).toEqual(['o2', 'o4']);
+    });
+
+    it('keeps the questions apart', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o1', { correct: true, closed: true }));
+      attempt.pickOption(pick('q2', 'p2'));
+
+      expect(attempt.pickedOptions.map((q) => q.questionId)).toEqual(['q1', 'q2']);
+    });
+
+    it('refuses once the set is no longer open', () => {
+      const attempt = makeAttempt();
+      attempt.submit({ answers: [] }, 'hash');
+
+      expect(attempt.pickOption(pick('q1', 'o1')).isFail).toBe(true);
+      expect(attempt.pickedOptions).toHaveLength(0);
+    });
+
+    it('hands back copies, so the state cannot be edited from outside', () => {
+      const attempt = makeAttempt();
+      attempt.pickOption(pick('q1', 'o2'));
+
+      attempt.pickedOptions[0]!.closed = true;
+      attempt.pickedOptions[0]!.picks.push('o1');
+      attempt.pickedOptions.push(pick('q2', 'p1') as never);
+
+      expect(attempt.pickedOptions).toHaveLength(1);
+      expect(attempt.pickedOptions[0]?.closed).toBe(false);
+      expect(attempt.pickedOptions[0]?.picks).toEqual(['o2']);
     });
   });
 });

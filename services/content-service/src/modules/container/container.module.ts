@@ -20,6 +20,8 @@ import { CONTAINER_SECTION_REPOSITORY } from './domain/repositories/container-se
 
 // Command handlers
 import { CreateContainerHandler } from './application/commands/create-container/create-container.handler.js';
+import { SetContainerReviewSettingsHandler } from './application/commands/set-review-settings/set-container-review-settings.handler.js';
+import { GetContainerReviewSettingsHandler } from './application/queries/get-review-settings/get-container-review-settings.handler.js';
 import { UpdateContainerHandler } from './application/commands/update-container/update-container.handler.js';
 import { DeleteContainerHandler } from './application/commands/delete-container/delete-container.handler.js';
 import { ArchiveContainerHandler } from './application/commands/archive-container/archive-container.handler.js';
@@ -52,6 +54,7 @@ import { GetVersionItemsHandler } from './application/queries/get-version-items/
 import { GetVersionSectionsHandler } from './application/queries/get-version-sections/get-version-sections.handler.js';
 import { GetCurriculumTreeHandler } from './application/queries/get-curriculum-tree/get-curriculum-tree.handler.js';
 import { GetContainerActivityHandler } from './application/queries/get-container-activity/get-container-activity.handler.js';
+import { GetContainerCoverageHandler } from './application/queries/get-container-coverage/get-container-coverage.handler.js';
 import { GetPublishStatesHandler } from './application/queries/get-publish-states/get-publish-states.handler.js';
 import { PublishStateReader } from './application/services/publish-state.reader.js';
 import { EXERCISE_DRAFT_PROMOTER } from './application/ports/exercise-draft-promoter.port.js';
@@ -66,6 +69,7 @@ import { ContainerSectionController } from './presentation/controllers/container
 const CommandHandlers = [
   CreateContainerHandler,
   UpdateContainerHandler,
+  SetContainerReviewSettingsHandler,
   DeleteContainerHandler,
   ArchiveContainerHandler,
   RestoreContainerHandler,
@@ -90,6 +94,7 @@ const CommandHandlers = [
 
 const QueryHandlers = [
   GetContainerHandler,
+  GetContainerReviewSettingsHandler,
   GetContainersHandler,
   GetContainerBySlugHandler,
   GetContainerVersionsHandler,
@@ -99,6 +104,7 @@ const QueryHandlers = [
   GetCurriculumTreeHandler,
   GetPublishStatesHandler,
   GetContainerActivityHandler,
+  GetContainerCoverageHandler,
 ];
 
 @Module({

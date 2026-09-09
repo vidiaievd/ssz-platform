@@ -1,5 +1,6 @@
+import type { WorkContext } from '../exercise-engine/index.js';
 import type { BaseEvent } from '../base.js';
-import type { AnswerForm } from '../exercise-engine/index.js';
+import type { AnswerForm, Focus, Skill } from '../exercise-engine/index.js';
 
 // ─── Event type constants ─────────────────────────────────────────────────────
 
@@ -14,9 +15,6 @@ export const LEARNING_EVENT_TYPES = {
   ENROLLMENT_UNENROLLED: 'learning.enrollment.unenrolled',
   PROGRESS_COMPLETED: 'learning.progress.completed',
   PROGRESS_UPDATED: 'learning.progress.updated',
-  SUBMISSION_CREATED: 'learning.submission.created',
-  SUBMISSION_REVIEWED: 'learning.submission.reviewed',
-  SUBMISSION_RESUBMITTED: 'learning.submission.resubmitted',
   VOCABULARY_LOOKED_UP: 'learning.vocabulary.looked_up',
   ATTEMPT_RATED: 'learning.attempt.rated',
   SRS_LIMIT_REFUSED: 'learning.srs.limit_refused',
@@ -103,34 +101,6 @@ export interface ProgressUpdatedPayload {
   score: number | null;
 }
 
-// ─── Submission payload interfaces ────────────────────────────────────────────
-
-export interface SubmissionCreatedPayload {
-  submissionId: string;
-  userId: string;
-  exerciseId: string;
-  assignmentId: string | null;
-  schoolId: string | null;
-}
-
-export interface SubmissionReviewedPayload {
-  submissionId: string;
-  userId: string;
-  exerciseId: string;
-  assignmentId: string | null;
-  reviewerId: string;
-  decision: string;
-  feedback: string | null;
-  score: number | null;
-}
-
-export interface SubmissionResubmittedPayload {
-  submissionId: string;
-  userId: string;
-  exerciseId: string;
-  revisionNumber: number;
-}
-
 // ─── Vocabulary payload interfaces ───────────────────────────────────────────
 
 /**
@@ -199,6 +169,50 @@ export interface AttemptRatedPayload {
   gapCount: number | null;
   /** The rating that actually reached FSRS, after any clamping. */
   ratingApplied: 'AGAIN' | 'HARD' | 'GOOD' | 'EASY';
+  /**
+   * What the attempt exercised (plan 55 §3.6), forwarded from the engine's event.
+   *
+   * `null` — not an empty array — for everything published before the axes existed, and
+   * for a publisher that does not report them. The mastery profile groups on these, and
+   * a row that cannot say which cell it belongs to must be left out of every cell rather
+   * than counted into a default one.
+   */
+  skills: Skill[] | null;
+  focus: Focus[] | null;
+  /** The course this was attempted in, forwarded from the engine. Null outside a course. */
+  containerId: string | null;
+  /**
+   * How long the attempt took in total, forwarded unchanged.
+   *
+   * Divided by the number of items downstream rather than here: what an "item" is depends
+   * on how the attempt was graded, and that is the projection's business. Null when the
+   * publisher did not report it.
+   */
+  timeSpentSeconds: number | null;
+  /**
+   * FSRS stability of the card *after* this review, in days.
+   *
+   * Known only here — the engine has no cards and analytics has no scheduler — and until
+   * now thrown away. Without it "forgets quickly" cannot be told apart from "does not
+   * know": both look like a run of poor ratings, and only the stability the schedule
+   * settled on says which one it was (plan 55 §3.9).
+   *
+   * `null` when the publisher did not report it.
+   */
+  stabilityAfter: number | null;
+  /**
+   * Where the work was done, forwarded unchanged from the engine (plan 57 §7).
+   *
+   * The profile answers different questions of classwork and homework — a learner who
+   * scores well in the room and poorly at home is telling you something a combined
+   * number hides — so the distinction has to survive as far as the evidence table.
+   * Null for events published before the field existed.
+   */
+  workContext: WorkContext | null;
+  /** The learner's group at attempt start, forwarded from the engine. Null outside a group. */
+  groupId: string | null;
+  /** The scheduled lesson the work was done in, when one was named. */
+  lessonId: string | null;
 }
 
 /**
@@ -237,9 +251,6 @@ export type EnrollmentUnenrolledEvent = BaseEvent<EnrollmentUnenrolledPayload>;
 export type ProgressCompletedEvent = BaseEvent<ProgressCompletedPayload>;
 export type ProgressUpdatedEvent = BaseEvent<ProgressUpdatedPayload>;
 
-export type SubmissionCreatedEvent = BaseEvent<SubmissionCreatedPayload>;
-export type SubmissionReviewedEvent = BaseEvent<SubmissionReviewedPayload>;
-export type SubmissionResubmittedEvent = BaseEvent<SubmissionResubmittedPayload>;
 
 export type VocabularyLookedUpEvent = BaseEvent<VocabularyLookedUpPayload>;
 

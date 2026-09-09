@@ -93,6 +93,13 @@ model Attempt {
   // Array<{atomType, atomId}>; fans out SRS rating to vocab/grammar atoms on scoring.
   practicedAtoms Json @default("[]") @map("practiced_atoms")
 
+  // What this attempt exercised, snapshotted from Content Service alongside the atoms
+  // above (plan 55 §3.6). Kept on the attempt rather than looked up when it is scored:
+  // an exercise moved out of a listening lesson next month must not change what last
+  // month's attempt says it trained. Empty for attempts started before the axes existed.
+  skills String[] @default([])
+  focus  String[] @default([])
+
   status AttemptStatus @default(IN_PROGRESS)
 
   // EVENT — score and completion flag published in exercise.attempt.completed
@@ -110,8 +117,16 @@ model Attempt {
   // Answer hash for idempotency check on re-submission (SHA-256 of submittedAnswer JSON).
   answerHash String? @map("answer_hash")
 
-  // Reserved for future resubmission support.
+  // Which resubmission of the same exercise this is after a RETURNED verdict —
+  // attemptNo (plan 44 DATA_MODEL.md §1) is revisionCount + 1. Set from the
+  // previous RETURNED attempt's count at start (see previousAttemptId below).
   revisionCount Int @default(0) @map("revision_count")
+
+  // How many times the learner re-checked *this* attempt after seeing a score.
+  // Deliberately separate from revisionCount: a re-check is the same work being
+  // corrected with the wrong gaps on screen (only the first is evidence), while a
+  // resubmission after a teacher returned it is new work that must count again.
+  recheckCount Int @default(0) @map("recheck_count")
 
   // The learner asked to be shown the answers instead of working them out. A
   // separate action from being wrong, and recorded because it changes what the
@@ -123,12 +138,74 @@ model Attempt {
   // spending, so that a client cannot buy itself more by asking again.
   selfChecksUsed Int @default(0) @map("self_checks_used")
 
+  // ── Work in progress ────────────────────────────────────────────────────
+  // The unfinished answer, autosaved while the attempt is open, in the same
+  // template-shaped JSON `submittedAnswer` will hold. Written for `writing_task`
+  // (plan 50 phase 2), where a lost 200-word text is the worst thing this feature
+  // can do to a student, but deliberately not typed to it: nothing here knows the
+  // template, and the next runner that wants a crash-proof draft needs no migration.
+  //
+  // Not a second answer: it is never validated, never scored, and submitting reads
+  // the body of the submit request, not this column.
+  draftAnswer  Json?     @map("draft_answer")
+  draftSavedAt DateTime? @map("draft_saved_at") @db.Timestamptz
+
+  // ── Answers handed in one at a time ─────────────────────────────────────
+  // `short_answer` asks a set of open questions and hands back a verdict after each
+  // one, with no way back (plan 51 §3.3). The attempt stays one attempt — progress,
+  // SRS, the review queue and the locks are all built on "attempt = unit of review" —
+  // but the answers arrive and are graded one by one, and that is what this holds:
+  // `[{ questionId, text, verdict, answeredAt }]`, append-only.
+  //
+  // Not `draftAnswer`. A draft is overwritable by design, which is the opposite of
+  // what these are: a handed-in answer is final, and the domain refuses a second one
+  // for the same question rather than trusting the runner to hide the button.
+  //
+  // Untyped for the same reason the draft is: nothing here knows the template, and the
+  // next runner that hands work in piece by piece needs no migration.
+  answeredQuestions Json? @map("answered_questions")
+
+  // ── Work checked sentence by sentence ───────────────────────────────────
+  // `sentence_schema` lays out a set of sentences and checks them one at a time, with
+  // unlimited retries per sentence (plan 52 §3.3). Not answers: a wrong board is a step
+  // in solving, so this holds the running state of each sentence rather than a decision —
+  // `[{ rowId, attempts, placement, solved, revealed, checkedAt }]`.
+  //
+  // Its reason to exist beyond resuming a reload is `revealed`. `Vis riktig skjema` puts
+  // the answer on the board, and a revealed sentence scores nothing however it looks
+  // afterwards — so that fact has to be the server's, not a flag the submission carries
+  // and a client could leave out.
+  //
+  // Untyped for the same reason the two columns above are: nothing here knows the
+  // template, and the next runner that works through a set in place needs no migration.
+  checkedRows Json? @map("checked_rows")
+
+  // ── Questions picked one at a time ──────────────────────────────────────
+  // `multiple_choice` asks a set of questions and takes one pick at a time, with an
+  // attempt budget per question and a 50/50 that dims distractors (plan 53 §3.3).
+  // Neither final like an answered question nor freely retryable like a checked
+  // sentence: a question has a budget, and it closes when the budget is spent, when the
+  // pick is right, or when the student asks to be shown the answer. This holds that —
+  // `[{ questionId, picks, eliminated, correct, closed, revealed, pickedAt }]`.
+  //
+  // Its reason to exist beyond resuming a reload is that every field of it is
+  // answer-bearing. Which try a question was taken on *is* the score, since only a
+  // first-attempt hit counts; the dimmed set has to accumulate across picks or the 50/50
+  // resets on every wrong answer; and `closed` is what refuses a second pick past the
+  // budget in the model rather than in a disabled button. A client that sent its own
+  // numbers on submit would be scoring itself.
+  //
+  // Untyped for the same reason the three columns above are: nothing here knows the
+  // template, and the next runner that works through a set pick by pick needs no
+  // migration.
+  pickedOptions Json? @map("picked_options")
+
   // ── Teacher review ──────────────────────────────────────────────────────
   // Free-form attempts stop at ROUTED_FOR_REVIEW, where the only verdict left is a
   // person's. What that person decided lives here.
 
   reviewedByUserId String?   @map("reviewed_by_user_id")
-  reviewedAt       DateTime? @map("reviewed_at")
+  reviewedAt       DateTime? @map("reviewed_at") @db.Timestamptz
 
   // The teacher's word to the learner about the submission as a whole.
   reviewComment String? @map("review_comment")
@@ -142,12 +219,72 @@ model Attempt {
   submittedAt DateTime? @map("submitted_at")
   scoredAt    DateTime? @map("scored_at")
 
+  // ── Review context (plan 44) ────────────────────────────────────────────
+  // Snapshotted at attempt start (see start-attempt.handler.ts) — the source
+  // of truth for "who may review this" and "where does it show up" is
+  // Organization/Content Service at that moment, not a live join later. All
+  // nullable: a missing value means the attempt predates the migration, or
+  // the owning service didn't answer — never a reason to fail the start.
+
+  schoolId    String? @map("school_id") // null — attempt happened outside any school
+  containerId String? @map("container_id") // top-level course the exercise sits in
+  groupId     String? @map("group_id") // student's group at start; null → "no reviewer" in oversight
+
+  // Where this work was done, decided at start and never re-derived (plan 57 §7):
+  // 'classwork' when the caller named the lesson it happened in, 'homework' when it
+  // answers an assignment, 'self_study' otherwise. Null for attempts started before
+  // the field existed — absent is not the same as self_study, and analytics must be
+  // able to tell them apart.
+  workContext String? @map("work_context")
+  lessonId    String? @map("lesson_id") // scheduled lesson this was done in, when known
+
+  // {course, module, exercise} titles as of attempt start — survives the
+  // exercise/course being renamed or removed later (DATA_MODEL.md B/21).
+  exercisePath Json? @map("exercise_path")
+
+  // Soft "someone is looking at this" marker — expires 15 min after
+  // reviewClaimedAt; no background job clears it, expiry is checked on read.
+  reviewClaimedBy String?   @map("review_claimed_by")
+  reviewClaimedAt DateTime? @map("review_claimed_at") @db.Timestamptz
+
+  // The RETURNED attempt this one resubmits, if any — feeds attemptNo/`previous`.
+  previousAttemptId String? @map("previous_attempt_id")
+
+  // Snapshot of the validator's own tally at the moment the attempt routed
+  // for review — a hint for the queue list, not the truth (§0.3): a single
+  // verdict or batch-approve always recomputes the parse before acting.
+  autoPassedItems Int? @map("auto_passed_items")
+  totalItems      Int? @map("total_items")
+
+  // ── Rubric grading (plan 50 §3.2) ───────────────────────────────────────
+  // `writing_task` is not marked per item — a teacher sets one mark 0-3 per
+  // rubric criterion, and the score is `Σ mark × weight` against
+  // `settings.passScore`. Both columns are null for every other template.
+
+  // What the teacher set: Record<criterionId, 0..3>. Written by the verdict,
+  // never by the client's score — the client sends judgements, the server does
+  // the arithmetic.
+  rubricMarks Json? @map("rubric_marks")
+
+  // The rubric as it stood when this submission reached the queue: criteria with
+  // their weights and level descriptors, plus the pass threshold. Marks are
+  // meaningless without the criteria they were set against, and an author editing
+  // the rubric afterwards must not silently restate a past verdict
+  // (IMPLEMENTATION.md, "Persistence").
+  rubricSnapshot Json? @map("rubric_snapshot")
+
   @@index([userId, status])
   @@index([exerciseId])
   // The review queue: everything waiting on one exercise.
   @@index([exerciseId, status])
   @@index([assignmentId, status])
   @@index([userId, exerciseId, startedAt])
+  // Oversight's own queue scoping (plan 44 §1).
+  @@index([schoolId, status, submittedAt])
+  @@index([groupId, status, submittedAt])
+  @@index([containerId, status])
+  // Decision journal and median-response-time aggregate.
+  @@index([schoolId, reviewedAt])
   @@map("attempts")
 }
 

@@ -189,25 +189,6 @@ model SchoolActivity {
   @@map("school_activity")
 }
 
-// ─── Projection: SubmissionProjection ─────────────────────────────────────────
-// Built from learning.submission.* events + seed.
-// Used for pending_reviews count and oldest-pending age.
-
-model SubmissionProjection {
-  submissionId String    @id @map("submission_id")
-  userId       String    @map("user_id")
-  exerciseId   String    @map("exercise_id")
-  assignmentId String?   @map("assignment_id")
-  schoolId     String?   @map("school_id")
-  status       String    // PENDING_REVIEW | APPROVED | REJECTED | REVISION_REQUESTED | RESUBMITTED
-  submittedAt  DateTime  @map("submitted_at")
-  reviewedAt   DateTime? @map("reviewed_at")
-
-  @@index([schoolId, status])
-  @@index([userId])
-  @@map("submission_projection")
-}
-
 // ─── Projection: AttemptEvidence ──────────────────────────────────────────────
 // Built from learning.attempt.rated (plan 36 §A.1). One row per attempt that
 // actually moved an SRS card.
@@ -248,9 +229,81 @@ model AttemptEvidence {
   ratingApplied String   @map("rating_applied") // AGAIN | HARD | GOOD | EASY
   occurredAt    DateTime @map("occurred_at")
 
+  // What the attempt exercised (plan 55 §3.6), flattened for the same reason the answer
+  // form above is: the profile groups on these. Empty means the publisher said nothing —
+  // every event from before the axes existed — and such a row belongs to no cell at all.
+  skills String[] @default([])
+  focus  String[] @default([])
+
+  // FSRS stability after the review, in days. The one number that separates a learner who
+  // forgets quickly from one who never knew: both produce a run of poor ratings, and only
+  // the interval the schedule settled on says which.
+  stabilityAfter Float? @map("stability_after")
+
+  // Where the work was done and for whom (plan 57 §7), flattened for the same reason
+  // as the fields above: the questions worth asking of this table — does this group do
+  // worse at home than in the room, how does a course's classwork compare to its
+  // homework — are group-bys, and a JSON payload cannot be grouped by.
+  //
+  // `workContext` is null for every event published before the field existed. That is
+  // not `self_study`: nobody said, and a row that cannot say belongs in no bucket.
+  workContext String? @map("work_context")
+  groupId     String? @map("group_id")
+  containerId String? @map("container_id")
+  lessonId    String? @map("lesson_id")
+
   @@index([templateCode, answerMode, occurredAt])
   @@index([userId, occurredAt])
+  @@index([groupId, workContext, occurredAt])
   @@map("attempt_evidence")
+}
+
+// ─── Projection: SkillMastery ─────────────────────────────────────────────────
+// The learner's profile, one row per (learner × course × skill × focus) — plan 55 §4.
+//
+// Built from the same `learning.attempt.rated` stream as `attempt_evidence` beside it,
+// and in the same consumer. That table is the raw record and never changes; this one is
+// the running answer, and it is a projection precisely so that recomputing it from the
+// records stays possible when the weights or the window change.
+//
+// `courseId` is nullable because practice outside a course is evidence too — it just is
+// not evidence about that course. A learner therefore has both: rows for each course, and
+// a row with no course for everything done outside one.
+
+model SkillMastery {
+  id       String  @id @default(uuid())
+  userId   String  @map("user_id")
+  courseId String? @map("course_id")
+
+  // `unknown` is a value here, not a missing one: it is where an attempt lands whose axis
+  // nothing could derive, and today that is most of them (no ContentRelation rows are
+  // seeded). Printing that bucket is the point — "no data about grammar" is an answer.
+  skill String
+  focus String
+
+  // Exponentially weighted, not a lifetime mean: weakness has to be able to expire
+  // (§3.9 rule 1). Each attempt moves it by the strength of the evidence it carried.
+  successRateEwma Float  @map("success_rate_ewma")
+  // Does it stay in memory — the number that tells "forgets quickly" from "never knew".
+  meanStability   Float? @map("mean_stability")
+  // NOT a median: a true one would mean keeping the sample. This is an EWMA of seconds
+  // per item, named for the question it answers rather than for its arithmetic (§5 item 1).
+  medianSecondsPerItem Float? @map("median_seconds_per_item")
+
+  attempts Int @default(0)
+  // The same attempts counted by what they proved. Separate from `attempts` because the
+  // confidence threshold reads this one: twenty picks out of four are not twenty answers.
+  weightedSample Float @default(0) @map("weighted_sample")
+
+  lastAttemptAt DateTime @map("last_attempt_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // The migration creates this index with NULLS NOT DISTINCT, which the schema language
+  // cannot express: without it Postgres treats every no-course row as distinct and the
+  // profile outside a course becomes an append-only log. Read the migration, not this line.
+  @@unique([userId, courseId, skill, focus])
+  @@index([userId, updatedAt])
+  @@map("skill_mastery")
 }
 
 // ─── Projection: SrsLimitRefusal ──────────────────────────────────────────────

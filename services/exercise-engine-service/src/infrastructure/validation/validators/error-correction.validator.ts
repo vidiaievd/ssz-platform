@@ -1,10 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  fromPersisted,
-  judge,
-  readEdits,
-  route,
-} from '@ssz/shared-kernel/error-correction';
+import { fromPersisted, judge, readEdits, route } from '@ssz/shared-kernel/error-correction';
 import type { Item, Judgement, Routing, StudentEdits } from '@ssz/shared-kernel/error-correction';
 import { Result } from '../../../shared/kernel/result.js';
 import { ValidationError } from '../../../shared/application/ports/answer-validator.port.js';
@@ -121,6 +116,10 @@ function toTeacherDetail(
   return {
     itemId: item.id,
     verdict: judgement.verdict,
+    /** The faulty sentence the student was given — what they were asked to repair. */
+    prompt: item.wrong,
+    /** The author's aside to whoever marks this. Never sent to a learner. */
+    note: item.teacherNote ?? null,
     // What the check did with this sentence by itself. The review handler credits a
     // `pass` without asking the teacher, exactly as it does for translate.
     routing,

@@ -42,12 +42,10 @@ function makeAttempt(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeHandler(attempt: unknown) {
+function makeHandler(attempt: unknown, exercise: unknown = { content, expectedAnswers }) {
   const attempts = { findById: jest.fn(() => Promise.resolve(attempt)), save: jest.fn() };
   const contentClient = {
-    getExerciseForAttempt: jest.fn(() =>
-      Promise.resolve(Result.ok({ exercise: { content, expectedAnswers } })),
-    ),
+    getExerciseForAttempt: jest.fn(() => Promise.resolve(Result.ok({ exercise }))),
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handler = new RevealAnswersHandler(attempts as any, contentClient as any);
@@ -62,6 +60,9 @@ describe('RevealAnswersHandler', () => {
     const result = await handler.execute(command);
 
     expect(result.isOk).toBe(true);
+    // The gap payload is unchanged by the template discriminator: a client that only
+    // knows about gaps keeps working and can ignore the new field.
+    expect(result.value.templateCode).toBe('word_bank_gap_fill');
     expect(result.value.answers).toEqual([
       {
         gapKey: 's1#3',
@@ -119,5 +120,75 @@ describe('RevealAnswersHandler', () => {
     const { handler } = makeHandler(null);
     const result = await handler.execute(command);
     expect(result.error).toEqual({ code: 'ATTEMPT_NOT_FOUND' });
+  });
+
+  describe('match_pairs', () => {
+    const mpContent = {
+      variant: 'halves',
+      settings: { distractors: true, shuffle: true, showRemaining: true },
+      pairs: [
+        { id: 'p1', rightId: 'h3', left: 'Hvis det regner i morgen,', right: 'blir vi hjemme.' },
+        { id: 'p2', rightId: 'h1', left: 'Jeg rakk ikke bussen fordi', right: 'jeg sto opp for sent.' },
+        // Half-written: no slot was ever offered for it, so nothing to reveal into.
+        { id: 'p3', rightId: 'h4', left: 'Da vi var små,', right: '' },
+      ],
+      distractors: [{ id: 'h2', text: 'sto jeg opp for sent.' }],
+    };
+
+    const mpAnswers = {
+      feedback: {
+        p1: {
+          def: 'Etter «fordi» står subjektet først.',
+          why: 'En leddsetning først skyver verbet foran subjektet.',
+          ov: {},
+        },
+        // Whitespace only — the same "not written" as an absent note.
+        p2: { def: 'Sjekk ordstillingen.', why: '   ', ov: {} },
+      },
+    };
+
+    const revealPairs = () =>
+      makeHandler(makeAttempt({ templateCode: 'match_pairs' }), {
+        content: mpContent,
+        expectedAnswers: mpAnswers,
+      }).handler.execute(command);
+
+    it('returns each slot with its own half and the note on why it is right', async () => {
+      const result = await revealPairs();
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.templateCode).toBe('match_pairs');
+      expect(result.value.answers).toEqual([
+        {
+          pairId: 'p1',
+          rightId: 'h3',
+          text: 'blir vi hjemme.',
+          why: 'En leddsetning først skyver verbet foran subjektet.',
+        },
+        { pairId: 'p2', rightId: 'h1', text: 'jeg sto opp for sent.', why: null },
+      ]);
+    });
+
+    it('skips a half-written pair, which the student never had a slot for', async () => {
+      const result = await revealPairs();
+      expect(result.value.answers.map((a: { pairId: string }) => a.pairId)).not.toContain('p3');
+    });
+
+    it('never returns a distractor', async () => {
+      const result = await revealPairs();
+      expect(JSON.stringify(result.value)).not.toContain('sto jeg opp for sent.');
+    });
+
+    it('records the reveal, so the attempt counts as weaker evidence', async () => {
+      const attempt = makeAttempt({ templateCode: 'match_pairs' });
+      const { handler, attempts } = makeHandler(attempt, {
+        content: mpContent,
+        expectedAnswers: mpAnswers,
+      });
+      await handler.execute(command);
+
+      expect(attempt.revealAnswers).toHaveBeenCalled();
+      expect(attempts.save).toHaveBeenCalledWith(attempt);
+    });
   });
 });

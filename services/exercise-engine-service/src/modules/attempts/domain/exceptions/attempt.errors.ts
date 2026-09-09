@@ -18,6 +18,18 @@ export class AttemptNotSubmittedError extends DomainError {
   }
 }
 
+/**
+ * A submission was sent back with nothing said about why.
+ *
+ * The one outcome a learner cannot act on: "try again" without a reason is the silence
+ * the marking queue exists to end, and the second attempt would be a guess (criterion 18).
+ */
+export class ReviewCommentRequiredError extends DomainError {
+  constructor() {
+    super('A submission sent back must say why');
+  }
+}
+
 export class InvalidScoreError extends DomainError {
   constructor(score: number) {
     super(`Score must be between 0 and 100, got ${score}`);
@@ -28,4 +40,5 @@ export type AttemptDomainError =
   | InvalidAttemptTransitionError
   | AttemptAlreadySubmittedError
   | AttemptNotSubmittedError
+  | ReviewCommentRequiredError
   | InvalidScoreError;

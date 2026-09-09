@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AnswerForm } from '@ssz/contracts';
+import type { AnswerForm, Focus, Skill, WorkContext } from '@ssz/contracts';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
 
 // Payload matches Learning Service ExerciseAttemptedConsumer contract exactly.
@@ -17,6 +17,22 @@ export interface AttemptScoredPayload {
   // How the answer was produced, as opposed to whether it was right. Present only
   // for templates that can say — today, word_bank_gap_fill. See @ssz/contracts.
   answerForm?: AnswerForm;
+  // What the attempt exercised, snapshotted at its start (plan 55 §3.6) — the channel
+  // and the subject, carried as values so that moving the exercise later cannot rewrite
+  // what an attempt already made. Empty for attempts started before the axes existed.
+  skills: Skill[];
+  focus: Focus[];
+  // The course the work belongs to, from the same start-of-attempt snapshot as the axes.
+  // The mastery profile is kept per course as well as overall — "weak at grammar here" is
+  // the only version of that sentence a teacher can act on.
+  containerId: string | null;
+  // Where the work was done and for whom (plan 57 §7). Decided when the attempt
+  // started, forwarded rather than re-derived: by the time analytics sees this, the
+  // lesson is over and the assignment may be gone. `workContext` is null only for
+  // attempts opened before the field existed — absent is not self_study.
+  workContext: WorkContext | null;
+  groupId: string | null;
+  lessonId: string | null;
   // Calibration context for the SRS evidence scale (plan 36 §A.1). The consumer
   // records these next to the rating it derives, so the scale can later be judged
   // against what it actually did rather than against what it was meant to do.

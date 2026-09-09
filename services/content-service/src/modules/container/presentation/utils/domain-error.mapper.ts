@@ -36,6 +36,7 @@ const UNPROCESSABLE_ERRORS = new Set<ContainerDomainError>([
   ContainerDomainError.DUPLICATE_ITEM_POSITION,
   ContainerDomainError.DUPLICATE_SECTION_POSITION,
   ContainerDomainError.SECTION_BELONGS_TO_DIFFERENT_VERSION,
+  ContainerDomainError.INVALID_REVIEW_RESPONSE_TIME,
 ]);
 
 export function throwHttpException(error: ContainerDomainError): never {

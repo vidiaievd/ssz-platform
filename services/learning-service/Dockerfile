@@ -12,6 +12,19 @@ COPY packages/contracts/src ./src
 COPY packages/contracts/tsconfig.json ./
 RUN npm run build
 
+# ── Stage 1b: build shared kernel ─────────────────────────────────────────────
+# The evidence-strength table moved here (plan 55 §3.9): analytics weighs the same
+# attempt into the mastery profile, and two copies of that judgement would drift.
+FROM node:22-bookworm-slim AS kernel-builder
+
+WORKDIR /workspace/packages/shared-kernel
+
+COPY packages/shared-kernel/package*.json ./
+RUN npm ci
+COPY packages/shared-kernel/src ./src
+COPY packages/shared-kernel/tsconfig.json ./
+RUN npm run build
+
 # ── Stage 2: build messaging ───────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS messaging-builder
 
@@ -39,6 +52,8 @@ COPY --from=contracts-builder /workspace/packages/contracts/package.json /worksp
 COPY --from=contracts-builder /workspace/packages/contracts/dist         /workspace/packages/contracts/dist
 COPY --from=messaging-builder /workspace/packages/messaging/package.json /workspace/packages/messaging/package.json
 COPY --from=messaging-builder /workspace/packages/messaging/dist         /workspace/packages/messaging/dist
+COPY --from=kernel-builder /workspace/packages/shared-kernel/package.json /workspace/packages/shared-kernel/package.json
+COPY --from=kernel-builder /workspace/packages/shared-kernel/dist         /workspace/packages/shared-kernel/dist
 
 WORKDIR /workspace/services/learning-service
 

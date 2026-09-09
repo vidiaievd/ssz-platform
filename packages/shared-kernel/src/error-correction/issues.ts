@@ -6,6 +6,7 @@
 // the teacher UI is localised into four languages, so English prose in shared logic
 // could not be rendered. Same contract as `wordbank-gapfill/issues.ts`.
 
+import { audioOf } from '../audio/model.js';
 import type { ErrorCorrection, SpanKey } from './model.js';
 import { align, authoredItems, coverage, hardSpans, spans, words } from './engine.js';
 
@@ -169,6 +170,27 @@ export function issues(ex: ErrorCorrection): Issue[] {
   }
 
   return out;
+}
+
+/**
+ * The one audio rule this type owns — plan 56 §4, phase 6.
+ *
+ * A transcript shown from the start hands this exercise away: the clip is the passage
+ * read *correctly*, so its words are the corrections the student is being asked to make.
+ * `after` and `never` are both fine — the first is the model answer arriving when the
+ * work is in, which every other template does too.
+ *
+ * It lives here rather than in the shared `audioIssues` because INTEGRATION.md forbids
+ * patching that list per template: the layer is written once for thirteen documents, and
+ * a rule that names one of them belongs to that one. Both surfaces that enforce it — the
+ * builder's rail and the server's publish preflight — call this.
+ *
+ * Takes raw content rather than an `ErrorCorrection` because the audio block belongs to
+ * no template and `fromPersisted` does not carry it.
+ */
+export function transcriptGivesAway(content: unknown): boolean {
+  const audio = audioOf(content);
+  return audio.enabled && audio.settings.transcriptWhen === 'always';
 }
 
 export const blockers = (ex: ErrorCorrection): Issue[] =>

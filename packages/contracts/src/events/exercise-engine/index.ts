@@ -5,6 +5,7 @@ import type { BaseEvent } from '../base.js';
 export const EXERCISE_ENGINE_EVENT_TYPES = {
   ATTEMPT_STARTED: 'exercise.attempt.started',
   ATTEMPT_COMPLETED: 'exercise.attempt.completed',
+  ATTEMPT_ROUTED_FOR_REVIEW: 'exercise.attempt.routed_for_review',
   ATTEMPT_REVIEWED: 'exercise.attempt.reviewed',
 } as const;
 
@@ -61,7 +62,65 @@ export interface ExerciseAttemptCompletedPayload {
    * scheduler has no use for it.
    */
   gapResults?: Array<{ gapKey: string; correct: boolean }>;
+  /**
+   * Additive (plan 55 §3.6) — what the attempt exercised, snapshotted at its start.
+   *
+   * The channel (`skills`) and the subject (`focus`) are derived by Content Service from
+   * the exercise, where it stands and what its author declared, and travel here as values
+   * rather than as an exercise id to look up later: an exercise moved out of a listening
+   * lesson next month must not retroactively change what last month's attempt trained.
+   *
+   * Optional for the same reason as `answerForm` and `templateCode` — the events already
+   * in the queue were published before the axes existed, and stay valid. An empty array
+   * is not the same as an absent one: absent means nobody said, empty means the derivation
+   * (or the author) said "nothing counted".
+   */
+  skills?: Skill[];
+  focus?: Focus[];
+  /**
+   * Additive (plan 55 §5.1) — the course the exercise was attempted in, snapshotted at
+   * attempt start along with the rest of the review context.
+   *
+   * The mastery profile is kept per course as well as overall: "weak at grammar" is a
+   * different sentence from "weak at grammar in this course", and a teacher can only act
+   * on the second. Absent for practice outside any course, and for older publishers.
+   */
+  containerId?: string | null;
+  /**
+   * Additive (plan 57 §7) — where the work was done and for whom, decided when the
+   * attempt started.
+   *
+   * `classwork` when the caller named the scheduled lesson it happened in, `homework`
+   * when it answers an assignment, `self_study` otherwise. Carried rather than derived
+   * downstream: by the time a consumer sees this the lesson is over and the assignment
+   * may have been cancelled, and the same exercise is classwork one day and homework the
+   * next. Absent for publishers that predate the field — which is not the same as
+   * `self_study`, and analytics must be able to tell those apart.
+   */
+  workContext?: WorkContext | null;
+  /** The group the learner belonged to at attempt start. Null outside a group. */
+  groupId?: string | null;
+  /** The scheduled lesson the work was done in, when the caller named one. */
+  lessonId?: string | null;
 }
+
+/** Where a piece of work was done — see `workContext` above. */
+export type WorkContext = 'classwork' | 'homework' | 'self_study';
+
+/**
+ * The four CEFR channels and the subjects that run through them — plan 55 §3.1–3.3.
+ *
+ * Mirrored from `@ssz/shared-kernel/skills` rather than imported: this package deliberately
+ * depends on nothing, so that a service consuming an event never has to take the kernel's
+ * domain logic with it. The kernel owns the vocabulary; a value added there has to be added
+ * here too, and the derivation stays where it is.
+ *
+ * `skill` is `CanDoSkill` from Content Service — the same four channels the can-do
+ * descriptor library is written against. A second, parallel list would mean the coverage
+ * report and can-do progress could never be compared.
+ */
+export type Skill = 'listening' | 'reading' | 'spoken' | 'written';
+export type Focus = 'vocabulary' | 'grammar' | 'orthography' | 'pragmatics';
 
 /**
  * How the learner produced the answer, as opposed to whether it was right.
@@ -85,6 +144,31 @@ export interface AnswerForm {
 }
 
 /**
+ * Published when a submission starts waiting for a person — plan 44 §44.5.
+ *
+ * `attempt.completed` travels at the same moment and says the learner finished
+ * without a score; its shape is frozen by the Learning Service consumer, and progress
+ * is all it is about. This one is about the *queue*: which school, course and group
+ * the work landed in, which is what a reminder or an escalation needs to work out who
+ * to tell. Nothing outside review consumes it.
+ *
+ * The context fields are the snapshot taken when the learner started (or filled in on
+ * the way here). `null` means a neighbouring service could not say — the work is still
+ * waiting, it just has no group to chase.
+ */
+export interface ExerciseAttemptRoutedForReviewPayload {
+  attemptId: string;
+  userId: string;
+  exerciseId: string;
+  templateCode: string;
+  schoolId: string | null;
+  containerId: string | null;
+  groupId: string | null;
+  /** ISO 8601 — the clock every "how long has this been waiting" answer starts from. */
+  submittedAt: string;
+}
+
+/**
  * Published when a person has marked a submission — plan 42.
  *
  * Separate from `attempt.completed` rather than a flag on it, because the two answer
@@ -104,11 +188,45 @@ export interface ExerciseAttemptReviewedPayload {
   exerciseId: string;
   templateCode: string;
   reviewerId: string;
+  /**
+   * The school the work was handed in to, snapshotted when the attempt started.
+   *
+   * `null` for practice outside a school, and for attempts that predate plan 44. It rides
+   * along so that a consumer building a school-wide feed does not have to keep its own
+   * copy of every submission just to learn which school a verdict belongs to.
+   */
+  schoolId: string | null;
+  /**
+   * The course the work belongs to, snapshotted when the attempt started.
+   *
+   * On the letter rather than looked up by its reader: a notification is written once and
+   * read weeks later, and a consumer that resolved the course at read time would answer
+   * for where the exercise sits *now* — or fail to answer at all once it has moved.
+   */
+  containerId: string | null;
+  /**
+   * Course · module · exercise as they read when the learner started (plan 44 §0.3).
+   *
+   * What lets a message name the work instead of pointing at "an exercise": `null` only
+   * for attempts that predate the snapshot, and a consumer must still say something
+   * sensible without it.
+   */
+  exercisePath: { course: string; module: string | null; exercise: string | null } | null;
   outcome: 'approved' | 'returned';
   /** 0–100 on an approval; `null` when the work was sent back unmarked. */
   score: number | null;
   /** What the teacher wrote about the submission as a whole, if anything. */
   comment: string | null;
+  /**
+   * A person wrote something, anywhere — the overall comment or a note on a single
+   * sentence.
+   *
+   * Not the same question as `comment !== null`: a teacher may approve with nothing to
+   * say in general and a remark on one sentence, and the learner must still be told there
+   * is something to read. It is the flag that separates "marked, nothing to add" from
+   * "marked, go and look" (plan 44 §44.9, criterion 40).
+   */
+  hasComment: boolean;
   /** How much of the submission counted. Both `0` when there was nothing readable. */
   approvedItems: number;
   totalItems: number;
@@ -120,3 +238,5 @@ export interface ExerciseAttemptReviewedPayload {
 export type ExerciseAttemptStartedEvent = BaseEvent<ExerciseAttemptStartedPayload>;
 export type ExerciseAttemptCompletedEvent = BaseEvent<ExerciseAttemptCompletedPayload>;
 export type ExerciseAttemptReviewedEvent = BaseEvent<ExerciseAttemptReviewedPayload>;
+export type ExerciseAttemptRoutedForReviewEvent =
+  BaseEvent<ExerciseAttemptRoutedForReviewPayload>;

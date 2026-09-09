@@ -19,14 +19,8 @@ import { WordBankGapFillValidator } from './validators/word-bank-gap-fill.valida
 import { TextOrderValidator } from './validators/text-order.validator.js';
 import { ErrorCorrectionValidator } from './validators/error-correction.validator.js';
 import { TranslateValidator } from './validators/translate.validator.js';
+import { WritingTaskValidator } from './validators/writing-task.validator.js';
 import type { IPerTypeValidator } from './validators/per-type-validator.interface.js';
-
-// Template codes that require human review — not scored by rule-based logic.
-//
-// The translate pair left in plan 42: its check engine cannot reject either, but it can
-// approve a hit on the answer key, and refusing to do even that meant a word-perfect
-// translation waited for a teacher alongside an empty one.
-const FREE_FORM_CODES = new Set(['writing_task']);
 
 /**
  * Templates whose submission does not share a shape with the author's answer key, so
@@ -46,12 +40,44 @@ const FREE_FORM_CODES = new Set(['writing_task']);
  *
  * So did the translate pair: its key is a set of accepted translations per sentence, and
  * its submission is one typed sentence per item.
+ *
+ * And `match_pairs`: its key is a matrix of explanations per (pair x wrong half), and
+ * its submission is a list of placements.
  */
 const OWN_SUBMISSION_SHAPE = new Set([
   'word_bank_gap_fill',
   'error_correction',
   'translate_to_target',
   'translate_from_target',
+  'match_pairs',
+  // And `writing_task`: its key is the point keywords, the rubric descriptors and an
+  // example answer, while its submission is a written text and a set of ticked checklist
+  // ids. One schema cannot describe both, and the one that guards the author's document
+  // is the one worth keeping strict.
+  'writing_task',
+  // `short_answer` joined on the rewrite (plan 51): its key is a map of semantic
+  // elements per question, its submission a list of typed answers. It is the one entry
+  // here with two live document shapes, and the older of them *was* describable by one
+  // schema — so its submission shape is now checked in `short-answer-legacy.ts`, where
+  // AJV used to check it, rather than nowhere.
+  'short_answer',
+  // And `sentence_schema` on its own rewrite (plan 52): its key is a map of fields per
+  // chunk, its submission a board per sentence. Its shape is checked in the validator.
+  'sentence_schema',
+  // And `multiple_choice` on its own (plan 53): its key is a correct option id per
+  // question with the rebuttals beside it, its submission a list of picks carrying the
+  // attempt each was made on. Like `short_answer` it has two live document shapes, and
+  // the older of them *was* describable by one schema — so its submission shape is now
+  // checked in `multiple-choice-legacy.ts`, where AJV used to check it, rather than
+  // nowhere.
+  'multiple_choice',
+  // And `multiple_choice_group` on its own rewrite (plan 54): its key is a column id per
+  // row with the author's line and the proving quote beside it, its submission a map of
+  // picks. Like `short_answer` and `multiple_choice` it has two live document shapes, and
+  // the older of them *was* describable by one schema — so its submission shape is now
+  // checked in `multiple-choice-group-legacy.ts`, where AJV used to check it, rather than
+  // nowhere.
+  'multiple_choice_group',
 ]);
 
 @Injectable()
@@ -74,6 +100,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     toValidator: TextOrderValidator,
     ecValidator: ErrorCorrectionValidator,
     trValidator: TranslateValidator,
+    wtValidator: WritingTaskValidator,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     this.ajv = new (Ajv as any)({ allErrors: true, strict: false });
@@ -93,6 +120,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       ['error_correction', ecValidator],
       ['translate_to_target', trValidator],
       ['translate_from_target', trValidator],
+      ['writing_task', wtValidator],
     ]);
   }
 
@@ -110,17 +138,16 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       }
     }
 
-    // Step 2 — Free-form templates: route for human review without scoring
-    if (FREE_FORM_CODES.has(input.templateCode)) {
-      return Result.ok<ValidationOutcome, ValidationError>({
-        correct: false,
-        score: 0,
-        details: null,
-        requiresReview: true,
-      });
-    }
-
-    // Step 3 — Dispatch to per-type validator
+    // Step 2 — Dispatch to per-type validator.
+    //
+    // There is no free-form bypass left. `writing_task` was the last code routed by
+    // membership of a set — no validator, no facts, `details: null` — and it now has a
+    // validator of its own that routes for review unconditionally *and* measures the
+    // text for the teacher's queue (plan 50). The translate pair left the same set in
+    // plan 42, for the opposite reason: its engine can approve a hit on the key.
+    //
+    // So an unrecognised template is now always an error rather than sometimes a silent
+    // route to a human.
     const validator = this.validators.get(input.templateCode);
     if (!validator) {
       return Result.fail(

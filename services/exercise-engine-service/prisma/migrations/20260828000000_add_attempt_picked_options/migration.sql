@@ -1,0 +1,13 @@
+-- Questions picked one at a time, for `multiple_choice` (plan 53 §3.3).
+--
+-- Nullable and defaultless, like the draft, answered-question and checked-row columns
+-- beside it: an attempt that predates this, or one whose template hands everything in at
+-- once, has no per-question pick state, and that is a different thing from an empty list.
+--
+-- Neither append-only like `answered_questions` nor freely overwritable like
+-- `checked_rows`: a question may be picked again while it has attempts left, and each
+-- pick is appended to that question's own list. What the domain refuses is picking at a
+-- question that is already closed — right, revealed, or out of budget. A constraint here
+-- could not express that without knowing the shape, and the shape is deliberately the
+-- template's business.
+ALTER TABLE "attempts" ADD COLUMN "picked_options" JSONB;

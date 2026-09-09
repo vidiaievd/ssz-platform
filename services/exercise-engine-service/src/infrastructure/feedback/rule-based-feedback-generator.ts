@@ -110,10 +110,14 @@ export class RuleBasedFeedbackGenerator implements IFeedbackGenerator {
         const answers = blanks.map((b) => b.accepted_answers[0] ?? '').filter(Boolean);
         return answers.length > 0 ? answers.join(' / ') : null;
       }
-      case 'match_pairs': {
-        const pairs: Array<{ left_id: string; right_id: string }> = expected.pairs ?? [];
-        return pairs.map((p) => `${p.left_id} → ${p.right_id}`).join(', ') || null;
-      }
+      // `match_pairs` was here, reading `expected.pairs` as `{left_id, right_id}` and
+      // joining the ids into "l1 → r1, l2 → r2" — a string no learner could read. That
+      // key no longer exists (plan 49 moved the pairing into `content.pairs`), and the
+      // template is deliberately not given a replacement case: it withholds its answers,
+      // so handing them back in a summary on the first wrong submit would undo the point
+      // of the reveal being a separate, recorded action. Its explanations arrive per
+      // slot in the verdict instead. `word_bank_gap_fill` is absent for the same reason
+      // and has always been.
       default:
         return null;
     }

@@ -1,5 +1,5 @@
 # Build context: repo root (ssz-platform/)
-# Required because @ssz/contracts is a local file: dependency.
+# Required because @ssz/contracts and @ssz/shared-kernel are local file: dependencies.
 
 # ── Stage 1: build contracts ───────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS contracts-builder
@@ -12,12 +12,27 @@ COPY packages/contracts/src ./src
 COPY packages/contracts/tsconfig.json ./
 RUN npm run build
 
+# ── Stage 1b: build shared kernel ─────────────────────────────────────────────
+# The mastery arithmetic and the evidence table it reads live there (plan 55 §5.1), so
+# that the weights are the same judgement the scheduler clamps by, not a second copy.
+FROM node:22-bookworm-slim AS kernel-builder
+
+WORKDIR /workspace/packages/shared-kernel
+
+COPY packages/shared-kernel/package*.json ./
+RUN npm ci
+COPY packages/shared-kernel/src ./src
+COPY packages/shared-kernel/tsconfig.json ./
+RUN npm run build
+
 # ── Stage 2: build service ────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder
 ARG NODE_ENV=development
 
 COPY --from=contracts-builder /workspace/packages/contracts/package.json /workspace/packages/contracts/package.json
 COPY --from=contracts-builder /workspace/packages/contracts/dist         /workspace/packages/contracts/dist
+COPY --from=kernel-builder /workspace/packages/shared-kernel/package.json /workspace/packages/shared-kernel/package.json
+COPY --from=kernel-builder /workspace/packages/shared-kernel/dist         /workspace/packages/shared-kernel/dist
 
 WORKDIR /workspace/services/analytics-service
 

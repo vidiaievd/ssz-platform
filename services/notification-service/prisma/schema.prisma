@@ -28,6 +28,9 @@ enum NotificationType {
   PLACEMENT_REVIEW_READY
   GROUP_ASSIGNED
   ATTEMPT_REVIEWED
+  REVIEW_DIGEST
+  REVIEW_ESCALATION
+  REVIEW_SCHOOL_SUMMARY
 
   @@map("notification_type")
 }
@@ -76,6 +79,28 @@ model Notification {
   @@index([status])
   @@index([createdAt])
   @@map("notifications")
+}
+
+/**
+ * What each reviewer was last told about their queue (plan 47.5).
+ * The row that keeps a digest from being a letter per submission: a learner who hands in
+ * twelve exercises at one sitting must produce one message, and the next run must be able
+ * to tell "twelve more arrived" from "the same twelve are still there".
+ * `lastMaxSubmittedAt` is what answers that, and it is deliberately not a count: work
+ * marked and work handed in between two runs can cancel out and leave the number where it
+ * was, while the newest submission time only ever moves when something new arrives.
+ */
+model ReviewDigestState {
+  userId             String    @id @map("user_id")
+  lastSentAt         DateTime  @map("last_sent_at")
+  lastMaxSubmittedAt DateTime  @map("last_max_submitted_at")
+  /**
+   * Separate clock: escalation is a daily question and must not be reset by a digest.
+   */
+  lastEscalatedAt    DateTime? @map("last_escalated_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  @@map("review_digest_state")
 }
 
 model ProcessedEvent {

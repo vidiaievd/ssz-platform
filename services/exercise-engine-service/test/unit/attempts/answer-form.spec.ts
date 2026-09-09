@@ -103,7 +103,6 @@ async function publishedPayload(
       ),
     } as never,
     { generate: jest.fn(() => Result.ok({ summary: 'Bra!' })) } as never,
-    { createSubmission: jest.fn(() => Promise.resolve(Result.ok(undefined))) } as never,
     {
       publish: jest.fn((type: string, payload: Record<string, unknown>) => {
         published.push({ type, payload });

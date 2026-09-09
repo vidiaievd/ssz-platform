@@ -9,7 +9,9 @@ import { UpsertProgressCommand } from '../../progress/application/commands/upser
 import { IntroduceCardCommand } from '../../srs/application/commands/introduce-card.command.js';
 import { ReviewCardCommand } from '../../srs/application/commands/review-card.command.js';
 import type { ReviewRatingValue } from '../../srs/domain/value-objects/review-rating.vo.js';
-import { clampByEvidence, evidenceStrength } from '../../srs/domain/evidence-strength.js';
+// The table lives in the kernel (plan 55 §3.9): analytics weighs the same attempt into
+// the mastery profile, and a second copy of that judgement would drift from this one.
+import { clampByEvidence, evidenceStrength } from '@ssz/shared-kernel/evidence';
 import { gapCardContentId } from '../../srs/domain/gap-card-id.js';
 import { CanDoEvaluatorService } from '../../can-do/application/services/can-do-evaluator.service.js';
 import type { ReviewCardDto } from '../../srs/application/dto/srs.dto.js';
@@ -76,6 +78,17 @@ function ratingForAttempt(
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * The stability the schedule settled on, off the card the review command handed back.
+ *
+ * Defensive rather than cast straight through: this is telemetry, and a card shape
+ * without the field must cost a sample, not the SRS update that already happened.
+ */
+function stabilityOf(card: unknown): number | null {
+  const value = (card as { stability?: unknown } | null)?.stability;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
 
 /**
  * How long the card sat before this review, in whole-ish days.
@@ -264,7 +277,14 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
     // only when a rating was actually applied: a review refused by the daily limit
     // changed no schedule, and recording it as though it had would poison the
     // baseline the evidence scale is judged against.
-    await this.publishRatingRecord(p, rating, card, null, null);
+    await this.publishRatingRecord(
+      p,
+      rating,
+      card,
+      null,
+      null,
+      stabilityOf(reviewResult.value),
+    );
   }
 
   /**
@@ -316,7 +336,14 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
         continue;
       }
 
-      await this.publishRatingRecord(p, rating, card, position, gapCount);
+      await this.publishRatingRecord(
+        p,
+        rating,
+        card,
+        position,
+        gapCount,
+        stabilityOf(reviewResult.value),
+      );
     }
   }
 
@@ -333,6 +360,8 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
     cardBeforeReview: ReviewCardDto,
     gapPosition: number | null,
     gapCount: number | null,
+    /** The card's stability once this review had been scheduled — see the payload. */
+    stabilityAfter: number | null,
   ): Promise<void> {
     const payload: AttemptRatedPayload = {
       userId: p.userId,
@@ -348,6 +377,19 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       gapPosition,
       gapCount,
       ratingApplied,
+      // Forwarded rather than re-derived: the engine snapshotted the axes when the
+      // learner started, and this consumer has no way to ask what the exercise trains
+      // — nor any business asking now, weeks of edits later (plan 55 §3.6).
+      skills: p.skills ?? null,
+      focus: p.focus ?? null,
+      containerId: p.containerId ?? null,
+      // Forwarded, never re-derived here: this consumer runs after the fact, and the
+      // assignment or lesson that decided the context may already be gone (plan 57 §7).
+      workContext: p.workContext ?? null,
+      groupId: p.groupId ?? null,
+      lessonId: p.lessonId ?? null,
+      timeSpentSeconds: p.timeSpentSeconds ?? null,
+      stabilityAfter,
     };
 
     try {

@@ -7,6 +7,13 @@ export interface CourseTeacher {
   role: string;
 }
 
+/** What a school promises about answering work (plan 44 §44.12). */
+export interface SchoolReviewSettings {
+  respondWithinHours: number;
+  escalateAfterHours: number;
+  escalateTo: string;
+}
+
 export interface IOrganizationClient {
   /**
    * Returns the user's role in the given school, or null if not a member.
@@ -22,6 +29,13 @@ export interface IOrganizationClient {
    * after all retries.
    */
   getCourseTeachers(schoolId: string, courseId: string): Promise<CourseTeacher[]>;
+
+  /**
+   * The school's promised response time — what a course inherits when it sets none.
+   * `null` when the school is unknown to organization-service.
+   * Throws OrganizationServiceUnavailableException if the service is unreachable.
+   */
+  getSchoolReviewSettings(schoolId: string): Promise<SchoolReviewSettings | null>;
 }
 
 export const ORGANIZATION_CLIENT = Symbol('IOrganizationClient');

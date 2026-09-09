@@ -15,15 +15,18 @@ const QUEUES = {
   [EXCHANGES.ORGANIZATION]: 'analytics-service.audit.organization',
   [EXCHANGES.CONTENT]: 'analytics-service.audit.content',
   [EXCHANGES.LEARNING]: 'analytics-service.audit.learning',
+  [EXCHANGES.EXERCISE_ENGINE]: 'analytics-service.audit.exercise-engine',
 } as const;
 
 const BINDINGS: Record<string, string[]> = {
   [EXCHANGES.ORGANIZATION]: ['school.member.added'],
   [EXCHANGES.CONTENT]: ['content.container.published'],
-  [EXCHANGES.LEARNING]: [
-    'learning.enrollment.created',
-    'learning.submission.created',
-    'learning.submission.reviewed',
+  [EXCHANGES.LEARNING]: ['learning.enrollment.created'],
+  // Review moved to the exercise engine in plan 44: an attempt is the submission now,
+  // and both events carry the school themselves, so the feed needs no copy of its own.
+  [EXCHANGES.EXERCISE_ENGINE]: [
+    'exercise.attempt.routed_for_review',
+    'exercise.attempt.reviewed',
   ],
 };
 
@@ -185,8 +188,13 @@ export class SchoolActivityConsumer implements OnModuleInit, OnModuleDestroy {
         };
       }
 
-      case 'learning.submission.created': {
-        const p = payload as unknown as { submissionId: string; userId: string; exerciseId: string; schoolId: string | null };
+      case 'exercise.attempt.routed_for_review': {
+        const p = payload as unknown as {
+          attemptId: string;
+          userId: string;
+          exerciseId: string;
+          schoolId: string | null;
+        };
         if (!p.schoolId) return null;
         const actorName = await this.resolveDisplayName(p.userId);
         return {
@@ -197,35 +205,32 @@ export class SchoolActivityConsumer implements OnModuleInit, OnModuleDestroy {
           eventType,
           tag: 'review',
           what: 'submitted for review',
-          targetId: p.submissionId,
+          targetId: p.attemptId,
           occurredAt: ts,
         };
       }
 
-      case 'learning.submission.reviewed': {
+      case 'exercise.attempt.reviewed': {
         const p = payload as unknown as {
-          submissionId: string;
+          attemptId: string;
           reviewerId: string;
           userId: string;
-          decision: string;
-          schoolId?: string | null;
+          outcome: string;
+          schoolId: string | null;
         };
-        // schoolId may not be in reviewed event — look it up from SubmissionProjection
-        const sub = await this.prisma.submissionProjection.findUnique({
-          where: { submissionId: p.submissionId },
-          select: { schoolId: true },
-        });
-        if (!sub?.schoolId) return null;
+        // The verdict carries its own school (plan 44 §44.14): practice outside a school,
+        // and work that predates the snapshot, simply do not belong to any feed.
+        if (!p.schoolId) return null;
         const actorName = await this.resolveDisplayName(p.reviewerId);
         return {
           id: randomUUID(),
-          schoolId: sub.schoolId,
+          schoolId: p.schoolId,
           actorId: p.reviewerId,
           actorName,
           eventType,
           tag: 'review',
-          what: `reviewed submission — ${p.decision.toLowerCase()}`,
-          targetId: p.submissionId,
+          what: `reviewed submission — ${p.outcome.toLowerCase()}`,
+          targetId: p.attemptId,
           occurredAt: ts,
         };
       }

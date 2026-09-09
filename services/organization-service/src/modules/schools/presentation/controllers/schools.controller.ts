@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
@@ -43,6 +44,7 @@ import { UpdateStudentCommand } from '../../application/commands/update-student/
 import { TransferStudentCommand } from '../../application/commands/transfer-student/transfer-student.command.js';
 import { RemoveStudentCommand } from '../../application/commands/remove-student/remove-student.command.js';
 import { NudgeStudentCommand } from '../../application/commands/nudge-student/nudge-student.command.js';
+import { RemindReviewerCommand } from '../../application/commands/remind-reviewer/remind-reviewer.command.js';
 import { CreateSchoolRequestDto } from '../dto/create-school.request.dto.js';
 import { UpdateSchoolRequestDto } from '../dto/update-school.request.dto.js';
 import { AddMemberRequestDto } from '../dto/add-member.request.dto.js';
@@ -58,9 +60,19 @@ import { StudentDetailResponseDto } from '../dto/student-detail.response.dto.js'
 import { StudentMembershipResponseDto } from '../dto/student-membership.response.dto.js';
 import { StudentLevelHistoryEntryResponseDto } from '../dto/student-level-history.response.dto.js';
 import { NudgeStudentResponseDto } from '../dto/nudge-student.response.dto.js';
+import {
+  RemindReviewerRequestDto,
+  RemindReviewerResponseDto,
+} from '../dto/remind-reviewer.dto.js';
 import { UpdateStudentRequestDto } from '../dto/update-student.request.dto.js';
 import { TransferStudentRequestDto } from '../dto/transfer-student.request.dto.js';
 import { MemberRole } from '../../domain/value-objects/member-role.vo.js';
+import { GetReviewSettingsQuery } from '../../application/queries/get-review-settings/get-review-settings.query.js';
+import { UpdateReviewSettingsCommand } from '../../application/commands/update-review-settings/update-review-settings.command.js';
+import {
+  ReviewSettingsResponseDto,
+  UpdateReviewSettingsRequestDto,
+} from '../dto/review-settings.dto.js';
 
 @ApiTags('Schools')
 @ApiBearerAuth('JWT')
@@ -404,4 +416,63 @@ export class SchoolsController {
   ): Promise<NudgeStudentResponseDto> {
     return this.commandBus.execute(new NudgeStudentCommand(user.sub, schoolId, userId));
   }
+  /**
+   * Ask a colleague to look at what is waiting on them — one message with a number in it.
+   *
+   * Not a notification: this records that the reminder was asked for, refuses a second one
+   * inside a day, and announces it. What the reviewer actually receives is the
+   * notification service's business (plan 47).
+   */
+  @Post(':schoolId/review-reminders')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remind a reviewer of the work waiting on them (owner/admin/manager)' })
+  @ApiResponse({ status: 200, type: RemindReviewerResponseDto })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'School not found, or that person is not a member' })
+  @ApiResponse({ status: 429, description: 'Rate-limited — at most one reminder per reviewer per 24h' })
+  async remindReviewer(
+    @CurrentUser() user: JwtPayload,
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Body() dto: RemindReviewerRequestDto,
+  ): Promise<RemindReviewerResponseDto> {
+    return this.commandBus.execute(
+      new RemindReviewerCommand(user.sub, schoolId, dto.teacherId, dto.pending),
+    );
+  }
+
+  @Get(':id/review-settings')
+  @ApiOperation({ summary: 'How long this school promises a learner will wait for a verdict' })
+  @ApiResponse({ status: 200, type: ReviewSettingsResponseDto })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async getReviewSettings(
+    @Param('id', ParseUUIDPipe) schoolId: string,
+  ): Promise<ReviewSettingsResponseDto> {
+    return this.queryBus.execute(new GetReviewSettingsQuery(schoolId));
+  }
+
+  /**
+   * Set whole, never patched: the escalation cannot be checked against a promise the
+   * request did not send, so both durations travel together (see the command).
+   */
+  @Put(':id/review-settings')
+  @ApiOperation({ summary: 'Set the response time this school promises' })
+  @ApiResponse({ status: 200, type: ReviewSettingsResponseDto })
+  @ApiResponse({ status: 403, description: 'Only owner or admin' })
+  @ApiResponse({ status: 422, description: 'Escalation earlier than the promise itself' })
+  async updateReviewSettings(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) schoolId: string,
+    @Body() dto: UpdateReviewSettingsRequestDto,
+  ): Promise<ReviewSettingsResponseDto> {
+    return this.commandBus.execute(
+      new UpdateReviewSettingsCommand(
+        schoolId,
+        user.sub,
+        dto.respondWithinHours,
+        dto.escalateAfterHours,
+        dto.escalateTo,
+      ),
+    );
+  }
+
 }

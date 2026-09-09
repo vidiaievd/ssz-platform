@@ -32,6 +32,7 @@ export interface ContainerCreateData {
   accessTier: $Enums.AccessTier;
   levelSystem: $Enums.LevelSystem;
   gatingMode: $Enums.GatingMode;
+  reviewRespondWithinHours: number | null;
   currentPublishedVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -58,6 +59,7 @@ export class ContainerMapper {
       accessTier: prismaAccessTierToDomain(raw.accessTier),
       levelSystem: prismaLevelSystemToDomain(raw.levelSystem),
       gatingMode: prismaGatingModeToDomain(raw.gatingMode),
+      reviewRespondWithinHours: raw.reviewRespondWithinHours,
       currentPublishedVersionId: raw.currentPublishedVersionId,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
@@ -82,6 +84,7 @@ export class ContainerMapper {
       accessTier: domainAccessTierToPrisma(entity.accessTier),
       levelSystem: domainLevelSystemToPrisma(entity.levelSystem),
       gatingMode: domainGatingModeToPrisma(entity.gatingMode),
+      reviewRespondWithinHours: entity.reviewRespondWithinHours,
       currentPublishedVersionId: entity.currentPublishedVersionId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
@@ -103,6 +106,7 @@ export class ContainerMapper {
       accessTier: domainAccessTierToPrisma(entity.accessTier),
       levelSystem: domainLevelSystemToPrisma(entity.levelSystem),
       gatingMode: domainGatingModeToPrisma(entity.gatingMode),
+      reviewRespondWithinHours: entity.reviewRespondWithinHours,
       currentPublishedVersionId: entity.currentPublishedVersionId,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,

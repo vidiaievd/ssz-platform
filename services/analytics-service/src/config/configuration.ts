@@ -16,10 +16,21 @@ export const envSchema = z.object({
 
   ORGANIZATION_SERVICE_URL: z.string().default('http://organization-service:3002'),
   LEARNING_SERVICE_URL: z.string().default('http://learning-service:3005'),
+  EXERCISE_ENGINE_SERVICE_URL: z.string().default('http://exercise-engine-service:3006'),
   INTERNAL_SERVICE_TOKEN: z.string().default('internal-dev-token'),
 
   AT_RISK_THRESHOLD_DAYS: z.coerce.number().int().positive().default(7),
   DROPOFF_COMPLETION_THRESHOLD: z.coerce.number().min(0).max(1).default(0.3),
+
+  // How fast the mastery profile forgets (plan 55 §3.9 rule 1, Q2). **Not calibrated** —
+  // Q2 closes on live data, and it is configuration rather than a constant precisely so
+  // that the answer, when it arrives, is a deployment and not a release.
+  MASTERY_EWMA_ALPHA: z.coerce.number().gt(0).max(1).default(0.2),
+
+  // How much evidence a cell needs before the profile will say anything about it
+  // (§3.9 rule 3). Weighted, not counted: twenty picks out of four are worth about seven
+  // typed answers. **Not calibrated** — Q2, same as the alpha above.
+  MASTERY_MIN_WEIGHTED_SAMPLE: z.coerce.number().positive().default(8),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -42,7 +53,11 @@ export interface AppConfig {
   jwt: { publicKey: string | undefined; publicKeyPath: string | undefined; issuer: string; audience: string };
   organization: { baseUrl: string; token: string };
   learning: { baseUrl: string };
+  exerciseEngine: { baseUrl: string; token: string };
   metrics: { atRiskThresholdDays: number; dropoffCompletionThreshold: number };
+  mastery: { ewmaAlpha: number; minWeightedSample: number };
+  /** Shared secret for service-to-service routes — the same one the clients above send. */
+  internalServiceToken: string;
 }
 
 export default (): AppConfig => {
@@ -59,9 +74,15 @@ export default (): AppConfig => {
     },
     organization: { baseUrl: env.ORGANIZATION_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
     learning: { baseUrl: env.LEARNING_SERVICE_URL },
+    exerciseEngine: { baseUrl: env.EXERCISE_ENGINE_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
     metrics: {
       atRiskThresholdDays: env.AT_RISK_THRESHOLD_DAYS,
       dropoffCompletionThreshold: env.DROPOFF_COMPLETION_THRESHOLD,
     },
+    mastery: {
+      ewmaAlpha: env.MASTERY_EWMA_ALPHA,
+      minWeightedSample: env.MASTERY_MIN_WEIGHTED_SAMPLE,
+    },
+    internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
 };

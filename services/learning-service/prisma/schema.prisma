@@ -49,24 +49,6 @@ enum ProgressStatus {
   @@map("progress_status")
 }
 
-enum SubmissionStatus {
-  PENDING_REVIEW     @map("pending_review")
-  APPROVED           @map("approved")
-  REJECTED           @map("rejected")
-  REVISION_REQUESTED @map("revision_requested")
-  RESUBMITTED        @map("resubmitted")
-
-  @@map("submission_status")
-}
-
-enum RevisionDecision {
-  APPROVED           @map("approved")
-  REJECTED           @map("rejected")
-  REVISION_REQUESTED @map("revision_requested")
-
-  @@map("revision_decision")
-}
-
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 // Tutor-created assignment of specific content to a student.
@@ -88,8 +70,6 @@ model Assignment {
   cancelledReason String?          @map("cancelled_reason")
   notes           String?
   deletedAt       DateTime?        @map("deleted_at")
-
-  submissions Submission[]
 
   @@index([assigneeId, status])
   @@index([assignerId, status])
@@ -140,50 +120,6 @@ model UserProgress {
   @@index([userId])
   @@index([contentType, contentId])
   @@map("user_progress")
-}
-
-// Free-form exercise submission. Tracks current revision number;
-// full history is in submission_revisions.
-// school_id is set when routing to school teachers (no specific reviewer_id).
-model Submission {
-  id                    String           @id @default(uuid())
-  userId                String           @map("user_id")
-  exerciseId            String           @map("exercise_id")
-  assignmentId          String?          @map("assignment_id")
-  schoolId              String?          @map("school_id")
-  status                SubmissionStatus @default(PENDING_REVIEW)
-  currentRevisionNumber Int              @default(1) @map("current_revision_number")
-  submittedAt           DateTime         @default(now()) @map("submitted_at")
-  deletedAt             DateTime?        @map("deleted_at")
-
-  assignment Assignment?         @relation(fields: [assignmentId], references: [id])
-  revisions  SubmissionRevision[]
-
-  @@index([userId, status])
-  @@index([assignmentId])
-  @@index([schoolId, status])
-  @@map("submissions")
-}
-
-// One row per submit/resubmit. decision is null until reviewed.
-// content JSON shape: { text?: string; mediaRefs?: string[] }
-model SubmissionRevision {
-  id             String            @id @default(uuid())
-  submissionId   String            @map("submission_id")
-  revisionNumber Int               @map("revision_number")
-  content        Json
-  submittedAt    DateTime          @default(now()) @map("submitted_at")
-  reviewedBy     String?           @map("reviewed_by")
-  reviewedAt     DateTime?         @map("reviewed_at")
-  feedback       String?
-  score          Int?
-  decision       RevisionDecision?
-
-  submission Submission @relation(fields: [submissionId], references: [id])
-
-  @@unique([submissionId, revisionNumber])
-  @@index([submissionId])
-  @@map("submission_revisions")
 }
 
 // ─── Outbox ───────────────────────────────────────────────────────────────────

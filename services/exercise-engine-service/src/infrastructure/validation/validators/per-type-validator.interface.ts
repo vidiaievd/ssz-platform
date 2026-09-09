@@ -6,8 +6,9 @@ export interface PerTypeValidateInput {
   expectedAnswers: unknown;
   /**
    * exercise.content. Optional here although the dispatcher always passes it: only
-   * word_bank_gap_fill reads it (its answers live inside the content), and the other
-   * nine validators would otherwise have to name a field they never look at.
+   * word_bank_gap_fill and match_pairs read it — the two templates that store their
+   * answers inside the content — and the other nine validators would otherwise have to
+   * name a field they never look at.
    */
   content?: unknown;
   /**

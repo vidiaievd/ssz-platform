@@ -8,6 +8,11 @@ export interface GetMemberRoleOutput {
   role: MemberRole;
 }
 
+export interface StudentReviewGroup {
+  groupId: string | null;
+  groupName: string | null;
+}
+
 export class OrganizationClientError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -23,4 +28,10 @@ export interface IOrganizationClient {
     schoolId: string,
     userId: string,
   ): Promise<Result<GetMemberRoleOutput, OrganizationClientError>>;
+
+  /** Best-effort at attempt start (plan 44 §44.4) — a miss must not block starting. */
+  resolveStudentGroup(
+    schoolId: string,
+    userId: string,
+  ): Promise<Result<StudentReviewGroup, OrganizationClientError>>;
 }

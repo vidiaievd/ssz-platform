@@ -32,6 +32,25 @@ export const envSchema = z.object({
   EMAIL_FROM_ADDRESS: z.string().default('noreply@ssz.local'),
 
   APP_BASE_URL: z.string().default('http://localhost:3000'),
+
+  // ── The review digest (plan 47.5) ────────────────────────────────────────────
+  // Two neighbours and one shared secret: the engine knows what is waiting, the
+  // organization service knows who reviews it, and every internal route on the platform
+  // is gated by `x-internal-token` rather than a borrowed user token.
+  EXERCISE_SERVICE_URL: z.string().optional(),
+  ORGANIZATION_SERVICE_URL: z.string().optional(),
+  INTERNAL_SERVICE_TOKEN: z.string().optional(),
+  /**
+   * How often teachers hear about their queue. A platform constant rather than a school
+   * setting, until somebody asks otherwise (plan 47 §4.2): another field in a school's
+   * settings costs more than this flexibility is worth today.
+   */
+  REVIEW_DIGEST_INTERVAL_HOURS: z.coerce.number().int().positive().max(24).default(6),
+  /** Off by default: a job that writes to people should be turned on deliberately. */
+  REVIEW_DIGEST_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -53,6 +72,13 @@ export interface AppConfig {
   rabbitmq: { url: string | undefined; exchange: string };
   redis: { host: string; port: number; password: string | undefined };
   jwt: { publicKey: string | undefined; publicKeyPath: string | undefined; issuer: string; audience: string };
+  review: {
+    exerciseServiceUrl: string | undefined;
+    organizationServiceUrl: string | undefined;
+    internalToken: string | undefined;
+    digestIntervalHours: number;
+    digestEnabled: boolean;
+  };
   email: {
     host: string;
     port: number;
@@ -76,6 +102,13 @@ export default (): AppConfig => {
       publicKeyPath: env.JWT_PUBLIC_KEY_PATH,
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,
+    },
+    review: {
+      exerciseServiceUrl: env.EXERCISE_SERVICE_URL,
+      organizationServiceUrl: env.ORGANIZATION_SERVICE_URL,
+      internalToken: env.INTERNAL_SERVICE_TOKEN,
+      digestIntervalHours: env.REVIEW_DIGEST_INTERVAL_HOURS,
+      digestEnabled: env.REVIEW_DIGEST_ENABLED,
     },
     email: {
       host: env.SMTP_HOST,

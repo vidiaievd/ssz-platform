@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import type { AppConfig } from './config/configuration.js';
 import { AppConfigModule } from './config/app-config.module.js';
@@ -37,6 +38,10 @@ import { PasswordResetHandler } from './modules/notifications/handlers/password-
         };
       },
     }),
+    // Timers for the review digest and its escalation (plan 47.5). Both jobs check for
+    // themselves whether they are switched on, so registering the scheduler costs a
+    // service with the digest disabled nothing but an idle cron entry.
+    ScheduleModule.forRoot(),
     PrismaModule,
     RabbitmqModule,
     EmailModule,
