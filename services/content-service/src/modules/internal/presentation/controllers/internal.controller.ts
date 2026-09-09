@@ -59,6 +59,8 @@ import type { PreflightResult } from '../../application/queries/get-preflight/ge
 import { GetLeafItemsQuery } from '../../../container/application/queries/get-leaf-items/get-leaf-items.query.js';
 import type { LeafItem } from '../../../container/application/queries/get-leaf-items/get-leaf-items.handler.js';
 import { GetContainerQuery } from '../../../container/application/queries/get-container/get-container.query.js';
+import { GetCourseOutlineQuery } from '../../../container/application/queries/get-course-outline/get-course-outline.query.js';
+import type { CourseOutlineResult } from '../../../container/application/queries/get-course-outline/get-course-outline.handler.js';
 import type { GetContainerResult } from '../../../container/application/queries/get-container/get-container.handler.js';
 import type { ContainerDomainError } from '../../../container/domain/exceptions/container-domain.exceptions.js';
 
@@ -266,6 +268,21 @@ export class InternalController {
       moduleId: i.moduleId,
       isRequired: i.isRequired,
     }));
+  }
+
+  // scheduling-service lays a group's sessions over the course content, so it
+  // needs the published course as an ordered outline: units, and the items
+  // within each. Nothing published yet is answered with an empty outline rather
+  // than a 404 — the course exists, it just cannot be taught from yet.
+  @Get('containers/:id/outline')
+  async getCourseOutline(@Param('id') id: string): Promise<CourseOutlineResult> {
+    const result = await this.queryBus.execute<
+      GetCourseOutlineQuery,
+      Result<CourseOutlineResult, ContainerDomainError>
+    >(new GetCourseOutlineQuery(id));
+
+    if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
+    return result.value;
   }
 
   // Learning Service's EnrollInContainerHandler reads this before creating an
