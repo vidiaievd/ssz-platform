@@ -101,6 +101,7 @@ export class InternalController {
     endDate: string | null;
     status: string;
     lang: string | null;
+    courseId: string | null;
   }> {
     const group = await this.groupRepository.findById(groupId);
     if (!group || group.isDeleted || group.schoolId !== schoolId) {
@@ -114,6 +115,9 @@ export class InternalController {
       endDate: group.endDate?.toISOString() ?? null,
       status: group.status,
       lang: group.lang ?? null,
+      // scheduling-service plans a group's sessions from the course it is taught
+      // from, so the course has to travel with the group.
+      courseId: group.courseId ?? null,
     };
   }
 

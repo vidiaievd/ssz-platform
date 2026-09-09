@@ -30,6 +30,8 @@ export interface GroupInfo {
   endDate: string | null;
   status: string;
   lang?: string | null;
+  /** The course the group is taught from; null while none is linked. */
+  courseId?: string | null;
 }
 
 export const ORG_SERVICE_PORT = Symbol('IOrgServicePort');

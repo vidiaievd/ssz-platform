@@ -7,6 +7,8 @@ import { LessonPrismaRepository } from './infrastructure/persistence/lesson.pris
 import { LessonGeneratorService } from './application/services/lesson-generator.service.js';
 import { CURRICULUM_PLAN_READER } from './application/ports/curriculum-plan.reader.js';
 import { CurriculumPlanPrismaReader } from './infrastructure/persistence/curriculum-plan.prisma.reader.js';
+import { COURSE_OUTLINE_READER } from './application/ports/course-outline.reader.js';
+import { ContentServiceHttpClient } from '../../infrastructure/content/content-service.http-client.js';
 import { CreateSlotHandler } from './application/commands/create-slot/create-slot.handler.js';
 import { DeleteSlotHandler } from './application/commands/delete-slot/delete-slot.handler.js';
 import { ReplaceSlotsHandler } from './application/commands/replace-slots/replace-slots.handler.js';
@@ -29,6 +31,7 @@ const QueryHandlers = [ListSlotsHandler];
     { provide: SLOT_REPOSITORY, useClass: SlotPrismaRepository },
     { provide: LESSON_REPOSITORY, useClass: LessonPrismaRepository },
     { provide: CURRICULUM_PLAN_READER, useClass: CurriculumPlanPrismaReader },
+    { provide: COURSE_OUTLINE_READER, useClass: ContentServiceHttpClient },
   ],
   exports: [LESSON_REPOSITORY, LessonGeneratorService, OrgServiceHttpClient],
 })

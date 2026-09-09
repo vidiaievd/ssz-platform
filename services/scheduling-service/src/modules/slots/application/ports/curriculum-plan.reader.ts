@@ -10,6 +10,12 @@ export interface PlannedUnit {
   plannedSessions: number;
   /** Lessons already marked held against this unit — sessions that no longer need a slot. */
   deliveredSessions: number;
+  /**
+   * Unit of the linked course this plan unit teaches, when someone has stitched
+   * the two together. Lets a generated session name its plan unit from the
+   * course unit it covers, instead of waiting to be pointed at one by hand.
+   */
+  contentUnitId: string | null;
 }
 
 /**

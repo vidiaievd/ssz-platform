@@ -89,22 +89,80 @@ export class GetCourseOutlineHandler implements IQueryHandler<
     >(new GetCurriculumTreeQuery(versionId));
     if (tree.isFail) return Result.fail(tree.error);
 
-    let order = 0;
-    const units: CourseOutlineUnit[] = tree.value.levels.flatMap((level) =>
-      level.modules.map((module) => {
-        order += 1;
-        return {
-          id: module.containerId,
-          placementId: module.id,
-          title: module.title ?? module.titleEn,
-          order,
-          items: orderedItems(module),
-        };
-      }),
-    );
-
-    return Result.ok({ containerId: container.id, versionId, units });
+    return Result.ok({
+      containerId: container.id,
+      versionId,
+      units: unitsOf(tree.value, container.id, container.title),
+    });
   }
+}
+
+/** A unit before it is put in order — sorted on where it sits in the version. */
+interface UnsortedUnit extends Omit<CourseOutlineUnit, 'order'> {
+  sortKey: [number, number];
+}
+
+/**
+ * A course's units in teaching order.
+ *
+ * Usually a unit is a module. But a course may also hold lessons directly,
+ * without modules at all, and those lessons are just as teachable — ignoring
+ * them would leave such a course looking empty to anyone planning from it. The
+ * lessons a course keeps in one of its own levels therefore form a unit of their
+ * own, named after that level, or after the course when it has no levels.
+ */
+function unitsOf(
+  tree: CurriculumTreeResult,
+  containerId: string,
+  courseTitle: string,
+): CourseOutlineUnit[] {
+  const units: UnsortedUnit[] = [];
+
+  tree.levels.forEach((level, levelIndex) => {
+    for (const module of level.modules) {
+      units.push({
+        id: module.containerId,
+        placementId: module.id,
+        title: module.title ?? module.titleEn,
+        sortKey: [levelIndex, module.position],
+        items: orderedItems(module),
+      });
+    }
+
+    if (level.items.length) {
+      units.push({
+        // A level is not a container of its own, so the course stands in as the
+        // unit's identity when the level has no id.
+        id: level.id ?? containerId,
+        placementId: level.id ?? containerId,
+        title: level.title ?? courseTitle,
+        sortKey: [levelIndex, Math.min(...level.items.map((i) => i.position))],
+        items: toOutlineItems(level.items),
+      });
+    }
+  });
+
+  // Lessons placed on the course itself, in no level. A flat course is nothing
+  // but these.
+  if (tree.ungroupedItems.length) {
+    units.push({
+      id: containerId,
+      placementId: containerId,
+      title: courseTitle,
+      sortKey: [tree.levels.length, 0],
+      items: toOutlineItems(tree.ungroupedItems),
+    });
+  }
+
+  return units
+    .sort((a, b) => a.sortKey[0] - b.sortKey[0] || a.sortKey[1] - b.sortKey[1])
+    .map((unit, i) => ({
+      id: unit.id,
+      placementId: unit.placementId,
+      title: unit.title,
+      order: i + 1,
+      items: unit.items,
+    }));
 }
 
 /**
@@ -116,7 +174,14 @@ function orderedItems(module: {
   sections: Array<{ items: CurriculumTreeItemNode[] }>;
   ungroupedItems: CurriculumTreeItemNode[];
 }): CourseOutlineItem[] {
-  return [...module.sections.flatMap((section) => section.items), ...module.ungroupedItems]
+  return toOutlineItems([
+    ...module.sections.flatMap((section) => section.items),
+    ...module.ungroupedItems,
+  ]);
+}
+
+function toOutlineItems(items: CurriculumTreeItemNode[]): CourseOutlineItem[] {
+  return [...items]
     .sort((a, b) => a.position - b.position)
     .map((item) => ({
       id: item.refId,

@@ -16,6 +16,7 @@ export const envSchema = z.object({
 
   ORGANIZATION_SERVICE_URL: z.string().default('http://organization-service:3002'),
   PROFILE_SERVICE_URL: z.string().default('http://user-profile-service:3001'),
+  CONTENT_SERVICE_URL: z.string().default('http://content-service:3003'),
   INTERNAL_SERVICE_TOKEN: z.string().default('internal-dev-token'),
 
   REDIS_HOST: z.string().default('redis'),
@@ -43,6 +44,7 @@ export interface AppConfig {
   jwt: { publicKey: string | undefined; publicKeyPath: string | undefined; issuer: string; audience: string };
   organization: { baseUrl: string; token: string };
   profile: { baseUrl: string };
+  content: { baseUrl: string; token: string };
   redis: { host: string; port: number; password: string | undefined };
 }
 
@@ -60,6 +62,7 @@ export default (): AppConfig => {
     },
     organization: { baseUrl: env.ORGANIZATION_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
     profile: { baseUrl: env.PROFILE_SERVICE_URL },
+    content: { baseUrl: env.CONTENT_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
     redis: { host: env.REDIS_HOST, port: env.REDIS_PORT, password: env.REDIS_PASSWORD },
   };
 };
