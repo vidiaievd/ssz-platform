@@ -7,6 +7,7 @@ import {
 } from '../ports/curriculum-plan.reader.js';
 import type { Slot, WeekDay } from '../../domain/entities/slot.entity.js';
 import type { Lesson } from '../../domain/entities/lesson.entity.js';
+import type { NewLesson } from '../../domain/repositories/lesson.repository.interface.js';
 
 const WEEKDAY_JS: Record<WeekDay, number> = {
   sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
@@ -60,7 +61,7 @@ export class LessonGeneratorService {
       byWeekday.get(day)!.push(slot);
     }
 
-    const toCreate: Array<Omit<Lesson, 'id'>> = [];
+    const toCreate: NewLesson[] = [];
     const cursor = new Date(startDate);
     cursor.setHours(0, 0, 0, 0);
     const end = new Date(endDate);
@@ -80,7 +81,15 @@ export class LessonGeneratorService {
             teacherId,
             room: slot.room,
             status: 'scheduled',
+            type: 'lesson',
             curriculumUnitId: null, // filled in below, once the whole run is known
+            contentUnitId: null,
+            contentLessonId: null,
+            attendance: null,
+            note: null,
+            extra: false,
+            planIndex: null,
+            passMark: null,
           });
         }
       }

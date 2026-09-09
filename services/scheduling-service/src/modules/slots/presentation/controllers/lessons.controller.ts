@@ -23,7 +23,7 @@ class LessonResponseDto {
   @ApiProperty() date!: string;
   @ApiProperty() startTime!: string;
   @ApiProperty() endTime!: string;
-  @ApiProperty() teacherId!: string;
+  @ApiPropertyOptional() teacherId!: string | null;
   @ApiPropertyOptional() room!: string | null;
   @ApiProperty({ enum: ['scheduled', 'moved', 'cancelled', 'held'] }) status!: string;
   @ApiPropertyOptional() curriculumUnitId!: string | null;
