@@ -330,3 +330,70 @@ model SrsLimitRefusal {
   @@index([userId, occurredAt])
   @@map("srs_limit_refusals")
 }
+
+// ─── Projection: CourseOutlineItem ────────────────────────────────────────────
+// The published course as a flat map of item → unit — plan 58, phase 1.
+//
+// Without it "absorbed" cannot be asked at all: analytics knows which items a learner
+// finished, and the group's chart asks about *units*. Nothing in this service joined the
+// two, and the join cannot be done per request — a group's progress touches every item of
+// a course on every read.
+//
+// Pulled from content-service's `internal/containers/:id/outline` rather than projected
+// from events: the outline is a fact about the published version, it changes only when a
+// course is published, and rebuilding it from a stream of item-level events would mean
+// re-deriving the version's shape here. Refreshed on `content.container.published`.
+//
+// Describes the published version only. A group is taught what students can see.
+
+model CourseOutlineItem {
+  id          String  @id @default(uuid())
+  containerId String  @map("container_id")
+  /// Which published version this row describes. Rows of an older version are deleted on
+  /// refresh, not kept: two versions in the table would double every unit's item count.
+  versionId   String  @map("version_id")
+  /// The unit's stable identity — the module container, or the course itself for a flat
+  /// course that holds its lessons directly (content-service decides this, not us).
+  unitId      String  @map("unit_id")
+  unitOrder   Int     @map("unit_order")
+  unitTitle   String? @map("unit_title")
+  itemId      String  @map("item_id")
+  itemType    String  @map("item_type") // LESSON | EXERCISE | VOCABULARY_LIST | GRAMMAR_RULE
+  position    Int
+
+  refreshedAt DateTime @default(now()) @map("refreshed_at")
+
+  @@unique([containerId, itemId])
+  @@index([containerId, unitOrder])
+  @@index([itemId])
+  @@map("course_outline_item")
+}
+
+// ─── Projection: ItemProgress ─────────────────────────────────────────────────
+// Whether a learner is done with one item of a course — plan 58, phase 1.
+//
+// `progress_activity` beside it is an append-only log: it answers "when did this person
+// last do anything", and it cannot answer "how much of unit 4 have they passed" without
+// replaying itself. This table is the current state, one row per (learner × item), and it
+// is what `absorbed` is counted from.
+//
+// Not counted from `attempt_evidence`: that table holds attempts that reached FSRS, and a
+// course is not made of those alone — a lesson read or a word list worked through is part
+// of the unit the chart is about. The denominator is the unit's items, so the numerator
+// has to be able to speak about every one of them.
+//
+// `NEEDS_REVIEW` is deliberately not "passed": the work is with a teacher, and a learner
+// who is waiting for an answer has not yet taken anything away from it.
+
+model ItemProgress {
+  userId      String   @map("user_id")
+  contentType String   @map("content_type") // LESSON | EXERCISE | VOCABULARY_LIST | GRAMMAR_RULE
+  contentId   String   @map("content_id")
+  status      String // NOT_STARTED | IN_PROGRESS | COMPLETED | NEEDS_REVIEW
+  updatedAt   DateTime @map("updated_at")
+
+  @@id([userId, contentType, contentId])
+  @@index([contentId])
+  @@index([userId, status])
+  @@map("item_progress")
+}

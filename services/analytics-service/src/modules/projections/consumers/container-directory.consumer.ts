@@ -6,6 +6,7 @@ import { EXCHANGES } from '@ssz/contracts';
 import type { BaseEvent } from '@ssz/contracts';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
+import { CourseOutlineService } from '../course-outline.service.js';
 
 const PROCESSOR_ID = 'container-directory';
 const QUEUE = 'analytics-service.projections.container-directory';
@@ -16,6 +17,9 @@ const BINDING_KEYS = [
   'content.container.updated',
   'content.container.deleted',
   'content.container.archived',
+  // Plan 58: the published outline is what "absorbed" is divided by, so it has to be
+  // re-read the moment the course a group is taught from changes shape.
+  'content.container.published',
 ] as const;
 
 // content-service uses BaseEvent<ContainerCreatedPayload> — payload is the pure payload object.
@@ -40,6 +44,10 @@ interface ContainerDeletedPayload {
   ownerUserId: string;
 }
 
+interface ContainerPublishedPayload {
+  containerId: string;
+}
+
 @Injectable()
 export class ContainerDirectoryConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ContainerDirectoryConsumer.name);
@@ -49,6 +57,7 @@ export class ContainerDirectoryConsumer implements OnModuleInit, OnModuleDestroy
   constructor(
     private readonly config: ConfigService<AppConfig>,
     private readonly prisma: PrismaService,
+    private readonly courseOutline: CourseOutlineService,
   ) {}
 
   onModuleInit(): void {
@@ -68,6 +77,10 @@ export class ContainerDirectoryConsumer implements OnModuleInit, OnModuleDestroy
       setup: async (channel: ConfirmChannel) => {
         await channel.assertExchange(EXCHANGE, 'topic', { durable: true });
         await channel.assertQueue(QUEUE, { durable: true });
+        // One at a time: a publish triggers an outline refresh that talks to another
+        // service, and a batch handed over at once would run several of those against the
+        // same rows.
+        await channel.prefetch(1);
         for (const key of BINDING_KEYS) {
           await channel.bindQueue(QUEUE, EXCHANGE, key);
         }
@@ -165,6 +178,12 @@ export class ContainerDirectoryConsumer implements OnModuleInit, OnModuleDestroy
           where: { containerId: p.containerId },
           data: { deletedAt: new Date() },
         });
+        break;
+      }
+
+      case 'content.container.published': {
+        const p = payload as unknown as ContainerPublishedPayload;
+        await this.courseOutline.refresh(p.containerId);
         break;
       }
 

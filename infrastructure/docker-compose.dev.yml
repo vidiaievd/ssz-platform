@@ -329,8 +329,10 @@ services:
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       ORGANIZATION_SERVICE_URL: http://organization-service:3002
-      LEARNING_SERVICE_URL: http://learning-service:3005
+      LEARNING_SERVICE_URL: http://learning-service:3007
+      CONTENT_SERVICE_URL: http://content-service:3003
       EXERCISE_ENGINE_SERVICE_URL: http://exercise-engine-service:3006
+      SCHEDULING_SERVICE_URL: http://scheduling-service:3009
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
       AT_RISK_THRESHOLD_DAYS: 7
       DROPOFF_COMPLETION_THRESHOLD: 0.3

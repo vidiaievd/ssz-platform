@@ -13,6 +13,7 @@ import { EventArchiveModule } from './modules/event-archive/event-archive.module
 import { ProjectionsModule } from './modules/projections/projections.module.js';
 import { MetricsModule } from './modules/metrics/metrics.module.js';
 import { SchoolAnalyticsModule } from './modules/school-analytics/school-analytics.module.js';
+import { GroupAnalyticsModule } from './modules/group-analytics/group-analytics.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 
 @Module({
@@ -42,6 +43,7 @@ import { AuditModule } from './modules/audit/audit.module.js';
     ProjectionsModule,
     MetricsModule,
     SchoolAnalyticsModule,
+    GroupAnalyticsModule,
     AuditModule,
   ],
   providers: [

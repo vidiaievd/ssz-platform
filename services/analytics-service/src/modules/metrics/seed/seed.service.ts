@@ -41,25 +41,77 @@ export class SeedService implements OnApplicationBootstrap {
     private readonly config: ConfigService<AppConfig>,
     private readonly prisma: PrismaService,
   ) {
-    this.learningBaseUrl = this.config.get<AppConfig['learning']>('learning')?.baseUrl ?? 'http://learning-service:3005';
+    this.learningBaseUrl = this.config.get<AppConfig['learning']>('learning')?.baseUrl ?? 'http://learning-service:3007';
     this.serviceToken = this.config.get<AppConfig['organization']>('organization')?.token ?? 'internal-dev-token';
   }
 
   async onApplicationBootstrap(): Promise<void> {
     try {
-      const alreadySeeded = await this.prisma.enrollmentProjection.count();
-      if (alreadySeeded > 0) {
-        this.logger.log('SeedService: skipping seed — enrollment_projection already populated');
-        return;
+      // Guarded per projection, not once for all of them. A projection added later —
+      // `item_progress` is the first — would otherwise never be filled anywhere the
+      // service has already run, which is every environment that has one.
+      const [enrollments, itemProgress] = await Promise.all([
+        this.prisma.enrollmentProjection.count(),
+        this.prisma.itemProgress.count(),
+      ]);
+
+      if (enrollments === 0) {
+        this.logger.log('SeedService: starting initial seed from learning-service snapshot');
+        await this.seedEnrollments();
+        await this.seedProgress();
+      } else {
+        this.logger.log('SeedService: skipping enrollments/activity — already populated');
       }
 
-      this.logger.log('SeedService: starting initial seed from learning-service snapshot');
-      await this.seedEnrollments();
-      await this.seedProgress();
-      this.logger.log('SeedService: initial seed complete');
+      if (itemProgress === 0) await this.seedItemProgress();
+
+      this.logger.log('SeedService: seed complete');
     } catch (err) {
       this.logger.warn(`SeedService: seed failed (non-fatal, live events will build projections): ${String(err)}`);
     }
+  }
+
+  /**
+   * Backfill of the state `absorbed` is counted from — plan 58, phase 1.
+   *
+   * Separate from `seedProgress()` above even though it reads the same pages: that one
+   * builds an append-only activity log from a snapshot and is meaningless to run twice,
+   * this one builds current state and is safe to rebuild whenever the table is empty.
+   *
+   * Without it every environment restored from a dump shows zero absorbed for everybody —
+   * a course's items are only marked passed by events, and events are not replayed.
+   */
+  private async seedItemProgress(): Promise<void> {
+    let cursor: string | undefined;
+    let total = 0;
+
+    do {
+      // learning-service mounts everything under a global `/api/v1`, internal routes
+      // included — a call without it 404s silently.
+      const url = new URL(`${this.learningBaseUrl}/api/v1/internal/analytics/snapshot/progress`);
+      url.searchParams.set('limit', '500');
+      if (cursor) url.searchParams.set('cursor', cursor);
+
+      const page = await this.fetchPage<ProgressRow>(url.toString());
+
+      if (page.data.length > 0) {
+        await this.prisma.itemProgress.createMany({
+          data: page.data.map((r) => ({
+            userId: r.userId,
+            contentType: r.contentType,
+            contentId: r.contentId,
+            status: r.status,
+            updatedAt: new Date(r.completedAt ?? r.lastAttemptAt ?? r.createdAt),
+          })),
+          skipDuplicates: true,
+        });
+        total += page.data.length;
+      }
+
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+
+    this.logger.log(`SeedService: seeded ${total} item_progress rows`);
   }
 
   private async seedEnrollments(): Promise<void> {
@@ -67,7 +119,7 @@ export class SeedService implements OnApplicationBootstrap {
     let total = 0;
 
     do {
-      const url = new URL(`${this.learningBaseUrl}/internal/analytics/snapshot/enrollments`);
+      const url = new URL(`${this.learningBaseUrl}/api/v1/internal/analytics/snapshot/enrollments`);
       url.searchParams.set('limit', '500');
       if (cursor) url.searchParams.set('cursor', cursor);
 
@@ -101,7 +153,9 @@ export class SeedService implements OnApplicationBootstrap {
     let total = 0;
 
     do {
-      const url = new URL(`${this.learningBaseUrl}/internal/analytics/snapshot/progress`);
+      // learning-service mounts everything under a global `/api/v1`, internal routes
+      // included — a call without it 404s silently.
+      const url = new URL(`${this.learningBaseUrl}/api/v1/internal/analytics/snapshot/progress`);
       url.searchParams.set('limit', '500');
       if (cursor) url.searchParams.set('cursor', cursor);
 
