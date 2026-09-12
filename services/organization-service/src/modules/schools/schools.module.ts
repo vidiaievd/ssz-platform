@@ -60,6 +60,7 @@ import { CompleteMembershipOnboardingHandler } from './application/commands/comp
 import { MarkGroupAssignedSeenHandler } from './application/commands/mark-group-assigned-seen/mark-group-assigned-seen.handler.js';
 
 import { GetSchoolHandler } from './application/queries/get-school/get-school.handler.js';
+import { GetWorkspaceHandler } from './application/queries/get-workspace/get-workspace.handler.js';
 import { GetSchoolBySlugHandler } from './application/queries/get-school-by-slug/get-school-by-slug.handler.js';
 import { ListMySchoolsHandler } from './application/queries/list-my-schools/list-my-schools.handler.js';
 import { CheckNameAvailableHandler } from './application/queries/check-name-available/check-name-available.handler.js';
@@ -88,6 +89,7 @@ import { GetReviewEscalationRecipientsHandler } from './application/queries/get-
 import { GetReviewScopeHandler } from './application/queries/get-review-scope/get-review-scope.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
+import { WorkspacesController } from './presentation/controllers/workspaces.controller.js';
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
 import { InternalController } from './presentation/controllers/internal.controller.js';
 import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
@@ -145,6 +147,7 @@ const CommandHandlers = [
 
 const QueryHandlers = [
   GetSchoolHandler,
+  GetWorkspaceHandler,
   GetSchoolBySlugHandler,
   ListMySchoolsHandler,
   GetSoloWorkspaceHandler,
@@ -177,6 +180,7 @@ const QueryHandlers = [
   imports: [CqrsModule],
   controllers: [
     SchoolsController,
+    WorkspacesController,
     InvitationsController,
     InternalController,
     InternalReviewController,

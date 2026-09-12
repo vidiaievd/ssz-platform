@@ -250,6 +250,19 @@ export class School extends BaseEntity {
     return this._members.find((m) => m.userId === userId)?.role;
   }
 
+  /**
+   * What this user is here, owner included.
+   *
+   * The owner holds no roster row — `schools.ownerId` is the record of it — so asking the
+   * roster alone answers "nobody" for the one person who may do everything. Every caller
+   * that needs an effective role must go through this, or it will gate the owner out of
+   * their own workspace. A solo tutor's workspace has exactly one such person.
+   */
+  roleOf(userId: string): MemberRole | null {
+    if (this._ownerId === userId) return MemberRole.OWNER;
+    return this.getMemberRole(userId) ?? null;
+  }
+
   get name(): string { return this._name; }
   get slug(): string { return this._slug; }
   get ownerId(): string { return this._ownerId; }
