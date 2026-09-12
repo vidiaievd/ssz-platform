@@ -17,6 +17,7 @@ export type {
   CellProfile,
   CellVerdict,
   UncertainCell,
+  WeaknessReason,
   WeakestCells,
   WeakestCellsOptions,
 } from './verdict.js';
