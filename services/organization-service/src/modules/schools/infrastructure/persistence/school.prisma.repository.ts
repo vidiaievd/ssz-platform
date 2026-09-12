@@ -227,13 +227,16 @@ export class SchoolPrismaRepository implements ISchoolRepository {
         },
       });
 
-      // Sync members: delete all and recreate from domain state
-      await tx.schoolMember.deleteMany({ where: { schoolId: school.id } });
-
+      // Sync members by upserting what the aggregate holds and removing only what it
+      // dropped. Deleting the whole roster first would take the columns the aggregate
+      // does not carry (status, level) and, through the cascade, every member's
+      // teacher attrs and capability grants with it — one accepted invitation would
+      // quietly reset the rest of the roster.
       const members = school.members;
-      if (members.length > 0) {
-        await tx.schoolMember.createMany({
-          data: members.map((m) => ({
+      for (const m of members) {
+        await tx.schoolMember.upsert({
+          where: { schoolId_userId: { schoolId: m.schoolId, userId: m.userId } },
+          create: {
             id: m.id,
             schoolId: m.schoolId,
             userId: m.userId,
@@ -241,9 +244,21 @@ export class SchoolPrismaRepository implements ISchoolRepository {
             joinedAt: m.joinedAt,
             name: m.name,
             avatarUrl: m.avatarUrl,
-          })),
+          },
+          update: {
+            role: m.role,
+            name: m.name,
+            avatarUrl: m.avatarUrl,
+          },
         });
       }
+
+      await tx.schoolMember.deleteMany({
+        where: {
+          schoolId: school.id,
+          ...(members.length > 0 ? { userId: { notIn: members.map((m) => m.userId) } } : {}),
+        },
+      });
     });
   }
 }
