@@ -40,6 +40,10 @@ export interface IOrganizationClient {
    */
   resolveLearnerReviewContext(
     userId: string,
-    hints?: { courseId?: string | null; preferredSchoolId?: string | null },
+    hints?: {
+      courseId?: string | null;
+      preferredSchoolId?: string | null;
+      preferredTeacherId?: string | null;
+    },
   ): Promise<Result<LearnerReviewContext, OrganizationClientError>>;
 }

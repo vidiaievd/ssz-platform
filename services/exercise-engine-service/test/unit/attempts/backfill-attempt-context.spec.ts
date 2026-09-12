@@ -7,6 +7,7 @@ const PLACEMENT = {
   moduleTitle: 'Leksjon 19',
   exerciseTitle: 'Leserinnlegg',
   ownerSchoolId: 'school-1',
+  ownerUserId: 'author-1',
 };
 
 const blank = {

@@ -30,6 +30,7 @@ interface Placement {
   moduleTitle: string | null;
   exerciseTitle: string | null;
   ownerSchoolId: string | null;
+  ownerUserId: string | null;
 }
 
 interface AttemptRow {
@@ -157,10 +158,12 @@ async function getLearnerContext(
   userId: string,
   courseId: string | null,
   ownerSchoolId: string | null,
+  ownerUserId: string | null,
 ): Promise<LearnerContext> {
   const params = new URLSearchParams();
   if (courseId) params.set('courseId', courseId);
   if (ownerSchoolId) params.set('preferredSchoolId', ownerSchoolId);
+  if (ownerUserId) params.set('preferredTeacherId', ownerUserId);
   const query = params.size > 0 ? `?${params.toString()}` : '';
 
   try {
@@ -234,6 +237,7 @@ async function runPhase(
                 row.userId,
                 row.containerId ?? placement?.containerId ?? null,
                 placement?.ownerSchoolId ?? null,
+                placement?.ownerUserId ?? null,
               )
             : { schoolId: row.schoolId, groupId: row.groupId };
 

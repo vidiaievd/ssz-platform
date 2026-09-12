@@ -118,6 +118,7 @@ const makeContentClient = (result = Result.ok(makeExerciseDef())): jest.Mocked<I
         moduleTitle: 'Leksjon 7',
         exerciseTitle: 'Perfektum',
         ownerSchoolId: 'school-1',
+        ownerUserId: 'author-1',
       }),
     ),
 });

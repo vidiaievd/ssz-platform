@@ -43,6 +43,7 @@ const makePlacement = (overrides: Partial<ExercisePlacement> = {}): ExercisePlac
   moduleTitle: 'Leksjon 7',
   exerciseTitle: 'Perfektum',
   ownerSchoolId: 'school-1',
+  ownerUserId: 'author-1',
   ...overrides,
 });
 
@@ -457,6 +458,7 @@ describe('StartAttemptHandler', () => {
       expect(organizationClient.resolveLearnerReviewContext).toHaveBeenCalledWith('user-1', {
         courseId: 'course-1',
         preferredSchoolId: 'school-1',
+        preferredTeacherId: 'author-1',
       });
       const saved = repo.save.mock.calls[0]![0];
       expect(saved.schoolId).toBe('school-1');
@@ -485,6 +487,7 @@ describe('StartAttemptHandler', () => {
       expect(organizationClient.resolveLearnerReviewContext).toHaveBeenCalledWith('user-1', {
         courseId: 'course-1',
         preferredSchoolId: null,
+        preferredTeacherId: 'author-1',
       });
       const saved = repo.save.mock.calls[0]![0];
       expect(saved.schoolId).toBe('school-1');

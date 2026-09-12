@@ -54,9 +54,10 @@ export class InternalReviewController {
     @Param('userId') userId: string,
     @Query('courseId') courseId?: string,
     @Query('preferredSchoolId') preferredSchoolId?: string,
+    @Query('preferredTeacherId') preferredTeacherId?: string,
   ): Promise<LearnerReviewContextResult> {
     return this.queryBus.execute<GetLearnerReviewContextQuery, LearnerReviewContextResult>(
-      new GetLearnerReviewContextQuery(userId, courseId, preferredSchoolId),
+      new GetLearnerReviewContextQuery(userId, courseId, preferredSchoolId, preferredTeacherId),
     );
   }
 

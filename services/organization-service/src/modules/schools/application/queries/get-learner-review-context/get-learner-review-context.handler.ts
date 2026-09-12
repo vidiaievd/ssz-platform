@@ -39,7 +39,7 @@ export class GetLearnerReviewContextHandler
     });
 
     if (memberships.length > 0) {
-      const chosen = this.pickGroup(memberships, query);
+      const chosen = await this.pickGroup(memberships, query);
       return {
         schoolId: chosen.group.schoolId,
         groupId: chosen.group.id,
@@ -74,15 +74,31 @@ export class GetLearnerReviewContextHandler
 
   /**
    * Deterministic tie-break for a student sitting in more than one active group:
-   * the group teaching the course in question wins, then a group in the school
-   * that owns the content, then the group joined most recently — never
-   * "whichever came back first".
+   * the group teaching the course in question wins, then a group taught by the person
+   * whose content this is, then a group in the school that owns the content, then the
+   * group joined most recently — never "whichever came back first".
+   *
+   * The author rule is what a learner who studies both at a school and with a private
+   * tutor needs: their tutor's own course names no school and is tied to no group, so
+   * without it the tutor's homework lands in the school's queue.
    */
-  private pickGroup(memberships: any[], query: GetLearnerReviewContextQuery): any {
+  private async pickGroup(
+    memberships: any[],
+    query: GetLearnerReviewContextQuery,
+  ): Promise<any> {
     const byCourse = query.courseId
       ? memberships.find((m) => m.group.courseId === query.courseId)
       : undefined;
     if (byCourse) return byCourse;
+
+    if (query.preferredTeacherId && memberships.length > 1) {
+      const byAuthor = await this.groupsTaughtBy(
+        query.preferredTeacherId,
+        memberships.map((m) => m.group.id),
+      );
+      const taught = memberships.find((m) => byAuthor.has(m.group.id));
+      if (taught) return taught;
+    }
 
     const bySchool = query.preferredSchoolId
       ? memberships.find((m) => m.group.schoolId === query.preferredSchoolId)
@@ -90,5 +106,22 @@ export class GetLearnerReviewContextHandler
     if (bySchool) return bySchool;
 
     return memberships.reduce((latest, m) => (m.addedAt > latest.addedAt ? m : latest));
+  }
+
+  /** Which of these groups that person teaches today — the same window reviewers use. */
+  private async groupsTaughtBy(teacherId: string, groupIds: string[]): Promise<Set<string>> {
+    const now = new Date();
+    const rows = await (this.prisma as any).groupTeacher.findMany({
+      where: {
+        userId: teacherId,
+        groupId: { in: groupIds },
+        AND: [
+          { OR: [{ fromDate: null }, { fromDate: { lte: now } }] },
+          { OR: [{ toDate: null }, { toDate: { gte: now } }] },
+        ],
+      },
+      select: { groupId: true },
+    });
+    return new Set<string>(rows.map((r: any) => r.groupId));
   }
 }

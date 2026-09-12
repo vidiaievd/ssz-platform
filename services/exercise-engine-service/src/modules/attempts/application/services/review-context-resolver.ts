@@ -26,7 +26,8 @@ export interface ReviewContext {
  * working through a borrowed or public course got `schoolId = null` and fell out of
  * every queue, and a private tutor's course owns no school at all, so their students'
  * work was unreachable in principle. The content's school still travels as a hint —
- * it breaks ties when the learner sits in more than one group.
+ * it breaks ties when the learner sits in more than one group, as does the course's
+ * author — which is what tells a learner's tutor group from their school group.
  *
  * Every lookup is best-effort. Starting or handing in an exercise matters more than
  * knowing any of this, and a neighbour that doesn't answer only means the attempt
@@ -48,12 +49,14 @@ export class ReviewContextResolver {
   async resolve(userId: string, exerciseId: string): Promise<ReviewContext> {
     let containerId: string | null = null;
     let ownerSchoolId: string | null = null;
+    let ownerUserId: string | null = null;
     let exercisePath: ExercisePathSnapshot | null = null;
 
     const placementResult = await this.contentClient.getExercisePlacement(exerciseId);
     if (placementResult.isOk) {
       const placement = placementResult.value;
       ownerSchoolId = placement.ownerSchoolId;
+      ownerUserId = placement.ownerUserId;
       containerId = placement.containerId;
       exercisePath = {
         course: placement.containerTitle,
@@ -72,6 +75,7 @@ export class ReviewContextResolver {
     const contextResult = await this.organizationClient.resolveLearnerReviewContext(userId, {
       courseId: containerId,
       preferredSchoolId: ownerSchoolId,
+      preferredTeacherId: ownerUserId,
     });
     if (contextResult.isOk) {
       schoolId = contextResult.value.schoolId;

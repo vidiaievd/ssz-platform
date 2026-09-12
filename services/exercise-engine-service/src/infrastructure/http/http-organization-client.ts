@@ -56,11 +56,16 @@ export class HttpOrganizationClient implements IOrganizationClient {
 
   async resolveLearnerReviewContext(
     userId: string,
-    hints?: { courseId?: string | null; preferredSchoolId?: string | null },
+    hints?: {
+      courseId?: string | null;
+      preferredSchoolId?: string | null;
+      preferredTeacherId?: string | null;
+    },
   ): Promise<Result<LearnerReviewContext, OrganizationClientError>> {
     const params: Record<string, string> = {};
     if (hints?.courseId) params['courseId'] = hints.courseId;
     if (hints?.preferredSchoolId) params['preferredSchoolId'] = hints.preferredSchoolId;
+    if (hints?.preferredTeacherId) params['preferredTeacherId'] = hints.preferredTeacherId;
 
     try {
       const { data } = await firstValueFrom(
