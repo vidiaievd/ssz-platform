@@ -10,6 +10,9 @@ const { GetGroupProgressHandler } = await import(
 const { GetGroupProgressQuery } = await import(
   '../../../../src/modules/group-analytics/queries/get-group-progress.query.js'
 );
+const { GroupUnitsService } = await import(
+  '../../../../src/modules/group-analytics/group-units.service.js'
+);
 
 const GROUP = 'g1';
 const SCHOOL = 's1';
@@ -63,6 +66,7 @@ function handlerFor(options: Options = {}) {
           new Map(Object.entries(options.absorbed?.[unit.unitId] ?? {})),
         ]),
       ),
+    deliveryOf: (groupId: string) => folding.deliveryOf(groupId),
     evidenceByUnit: async () =>
       new Map(
         units.map((unit) => [
@@ -77,7 +81,12 @@ function handlerFor(options: Options = {}) {
       ),
   };
 
-  const scheduling = { getGroupDelivery: async () => options.delivery ?? null };
+  // The folding of plan units onto course units is the service's, not the handler's, so
+  // the stub delegates to the real one rather than restating it — the suite would
+  // otherwise pass against a fold nobody ships.
+  const folding = new GroupUnitsService(null as never, null as never, {
+    getGroupDelivery: async () => options.delivery ?? null,
+  } as never);
   const config = {
     get: (key: string) =>
       key === 'mastery'
@@ -85,12 +94,7 @@ function handlerFor(options: Options = {}) {
         : { minLearnersPerUnit: 1, workContextSplitFrom: '2026-09-04' },
   };
 
-  return new GetGroupProgressHandler(
-    prisma as never,
-    unitsService as never,
-    scheduling as never,
-    config as never,
-  );
+  return new GetGroupProgressHandler(prisma as never, unitsService as never, config as never);
 }
 
 const query = new GetGroupProgressQuery(GROUP, VIEWER);
@@ -235,6 +239,9 @@ describe('a plan unit stitched to nothing', () => {
 describe('cells nobody can judge', () => {
   it('counts learner × unit cells under the weighted threshold', async () => {
     const result = await handlerFor({
+      absorbed: {
+        u1: { anna: { passed: 1, touched: true }, bjorn: { passed: 2, touched: true } },
+      },
       evidence: {
         u1: {
           anna: { attempts: 3, weightedSample: 2.5, successWeight: 2 },
@@ -243,8 +250,23 @@ describe('cells nobody can judge', () => {
       },
     }).execute(query);
 
+    // Anna only; Bjorn cleared the bar, and the untouched second unit is `notStarted`,
+    // which is a different sentence from "we cannot judge this".
     expect(result.summary.notJudgeable).toBe(1);
     expect(result.minWeightedSample).toBe(8);
+  });
+
+  it('calls a unit a learner only read unjudged, never unstarted', async () => {
+    const result = await handlerFor({
+      // Touched and passed, with no gradeable attempt behind it: a lesson that was read.
+      absorbed: { u1: { anna: { passed: 2, touched: true } } },
+    }).execute(query);
+
+    // The share is exact — two items of two — but nothing gradeable stands behind it, so
+    // the cell is hatched rather than green. What it must never be is `notStarted`: the
+    // reading happened, and that is the counter that would deny it.
+    expect(result.units[0].absorbed?.median).toBe(100);
+    expect(result.summary.notJudgeable).toBe(1);
   });
 });
 

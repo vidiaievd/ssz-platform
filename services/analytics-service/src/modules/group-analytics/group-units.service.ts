@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { cellStateOf, type CellState } from '@ssz/shared-kernel/analytics';
 import { evidenceWeight, succeededAt } from '@ssz/shared-kernel/mastery';
 import type { ReviewRatingValue } from '@ssz/shared-kernel/evidence';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CourseOutlineService } from '../projections/course-outline.service.js';
+import { SchedulingClient } from '../../infrastructure/http/scheduling.client.js';
 
 /** One unit of the published course, with the items the numbers are counted over. */
 export interface CourseUnit {
@@ -29,6 +31,37 @@ export interface LearnerEvidence {
   successWeight: number;
 }
 
+/** What the lesson journal says about one course unit. */
+export interface UnitDelivery {
+  /** 1 taught in full, 0.5 begun, 0 not at all. */
+  value: 0 | 0.5 | 1;
+  lessons: number;
+  lastHeldAt: string | null;
+  /** A unit of the teaching plan names this course unit. */
+  linked: boolean;
+}
+
+/** A plan unit nobody stitched to the course — shown always (DECISIONS §O3). */
+export interface UnlinkedPlanUnit {
+  curriculumUnitId: string;
+  title: string;
+  lessons: number;
+  lastHeldAt: string | null;
+}
+
+/**
+ * The journal's side of the two axes, already keyed by course unit.
+ *
+ * `null` from `deliveryOf` means the timetable could not be asked at all; this object
+ * with an empty map means it was asked and taught nothing.
+ */
+export interface GroupDeliveryView {
+  byUnit: Map<string, UnitDelivery>;
+  unlinkedPlanUnits: UnlinkedPlanUnit[];
+  lessonsHeld: number;
+  lessonsPlanned: number;
+}
+
 export interface UnitEvidence {
   byLearner: Map<string, LearnerEvidence>;
   attempts: number;
@@ -50,7 +83,66 @@ export class GroupUnitsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly outline: CourseOutlineService,
+    private readonly scheduling: SchedulingClient,
   ) {}
+
+  /**
+   * What the group was actually taught, folded onto the course's own units.
+   *
+   * `null` when scheduling could not be reached — the callers then answer "we could not
+   * ask the timetable" instead of drawing a course nobody taught (plan 58 §2 G). Several
+   * plan units may teach the same course unit, so lessons add up and the latest date
+   * wins.
+   */
+  async deliveryOf(groupId: string): Promise<GroupDeliveryView | null> {
+    const delivery = await this.scheduling.getGroupDelivery(groupId);
+    if (delivery === null) return null;
+
+    const held = new Map<string, { lessons: number; sessions: number; lastHeldAt: string | null }>();
+    const unlinkedPlanUnits: UnlinkedPlanUnit[] = [];
+
+    for (const unit of delivery.units) {
+      if (unit.contentUnitId === null) {
+        unlinkedPlanUnits.push({
+          curriculumUnitId: unit.curriculumUnitId,
+          title: unit.title,
+          lessons: unit.lessonsHeld,
+          lastHeldAt: unit.lastHeldAt,
+        });
+        continue;
+      }
+
+      const seen = held.get(unit.contentUnitId) ?? { lessons: 0, sessions: 0, lastHeldAt: null };
+      seen.lessons += unit.lessonsHeld;
+      seen.sessions += unit.plannedSessions;
+      if (unit.lastHeldAt !== null && (seen.lastHeldAt === null || unit.lastHeldAt > seen.lastHeldAt)) {
+        seen.lastHeldAt = unit.lastHeldAt;
+      }
+      held.set(unit.contentUnitId, seen);
+    }
+
+    const byUnit = new Map<string, UnitDelivery>();
+    for (const [unitId, seen] of held) {
+      // Half is "begun but not finished", a different sentence from either end: a unit
+      // two lessons into four has been delivered to nobody's satisfaction, and rounding
+      // it either way would make the chart lean the same way every time.
+      const value: 0 | 0.5 | 1 =
+        seen.lessons === 0 ? 0 : seen.sessions > 0 && seen.lessons >= seen.sessions ? 1 : 0.5;
+      byUnit.set(unitId, {
+        value,
+        lessons: seen.lessons,
+        lastHeldAt: seen.lastHeldAt,
+        linked: true,
+      });
+    }
+
+    return {
+      byUnit,
+      unlinkedPlanUnits,
+      lessonsHeld: delivery.lessonsHeld,
+      lessonsPlanned: delivery.lessonsPlanned,
+    };
+  }
 
   /**
    * The course's units, freshening the outline if this is the first time anyone asked.
@@ -247,3 +339,93 @@ export function qualityOf(evidence: { weightedSample: number; successWeight: num
   if (evidence.weightedSample <= 0) return null;
   return evidence.successWeight / evidence.weightedSample;
 }
+
+/**
+ * What the journal says about one course unit, for a unit it never mentions.
+ *
+ * A course unit no plan unit names has been taught to nobody as far as the journal can
+ * tell, and that is a statement about the plan (`linked: false`), not about the group.
+ */
+export function unitDeliveryOf(delivery: GroupDeliveryView, unitId: string): UnitDelivery {
+  return delivery.byUnit.get(unitId) ?? { value: 0, lessons: 0, lastHeldAt: null, linked: false };
+}
+
+/**
+ * One learner's share of one unit — the number both the chart and the heatmap print.
+ *
+ * `null`, never `0`, for a learner who has not opened the unit, and for a unit with no
+ * items at all: neither of them has a result to be low.
+ */
+export function absorbedShareOf(
+  cell: LearnerAbsorbed | undefined,
+  unit: Pick<CourseUnit, 'items'>,
+): number | null {
+  if (cell === undefined || !cell.touched) return null;
+  if (unit.items === 0) return null;
+  return cell.passed / unit.items;
+}
+
+/** One learner's one unit, as both the heatmap and the group's summary read it. */
+export interface LearnerUnitCell {
+  state: CellState;
+  /** `0..1`, not percent — the surfaces round once, on their way out. */
+  value: number | null;
+  weightedSample: number;
+}
+
+/**
+ * Name what one learner did with one unit — the single computation behind the heatmap
+ * (phase 3) and behind the `notJudgeable` counter in the group's summary (§O5).
+ *
+ * Two of them would drift apart the first time either changed its mind about what counts
+ * as started, and the screens sit one above the other: the summary claims a number of
+ * cells no reader can judge, and the map underneath has to hatch exactly those.
+ *
+ * The value is `absorbed` — the share of the unit's items this learner passed, which is
+ * what the map's legend is labelled with — while the verdict threshold is counted in
+ * weighted attempts, as the tooltip promises ("3 of 8 weighted samples"). Engagement and
+ * evidence are deliberately different questions: reading a text is engagement that leaves
+ * no weighted sample behind, and a learner who did the reading must not be called
+ * `notStarted`.
+ */
+export function learnerCellOf(input: {
+  unit: CourseUnit;
+  absorbed: LearnerAbsorbed | undefined;
+  evidence: LearnerEvidence | undefined;
+  /** `null` when the timetable could not be asked — then no cell is blamed on delivery. */
+  delivered: UnitDelivery | null;
+  minWeightedSample: number;
+}): LearnerUnitCell {
+  const { unit, absorbed, evidence, delivered, minWeightedSample } = input;
+  const share = absorbedShareOf(absorbed, unit);
+  const weightedSample = evidence?.weightedSample ?? 0;
+
+  // Any sign of the learner meeting the unit at all, whether or not it was gradeable:
+  // an opened lesson counts, and so does a single attempt.
+  const engaged = (evidence?.attempts ?? 0) + (absorbed?.touched === true ? 1 : 0);
+
+  const state = cellStateOf({
+    // `undefined`, not `false`: an unreachable timetable is not a unit nobody taught.
+    delivered: delivered === null ? undefined : delivered.value > 0,
+    linked: delivered === null ? undefined : delivered.linked,
+    items: unit.items,
+    attempts: engaged,
+    sample: weightedSample,
+    minSample: minWeightedSample,
+    value: share,
+  });
+
+  // A cell the reader is being told something else about carries no number: one learner
+  // who ran ahead of the class does not turn "we have not taught this yet" into a score,
+  // and a share printed under a `notDelivered` shape would be read as one. `insufficient`
+  // keeps its number — the screen shows it under the hatching, beside the evidence it
+  // was made on.
+  return {
+    state,
+    value: HOLDS_NO_NUMBER.has(state) ? null : share,
+    weightedSample,
+  };
+}
+
+/** States whose whole message is that there is nothing to score here. */
+const HOLDS_NO_NUMBER = new Set<CellState>(['notStarted', 'notDelivered', 'unlinked', 'noContent']);

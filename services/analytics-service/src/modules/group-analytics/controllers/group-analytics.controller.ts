@@ -11,7 +11,9 @@ import {
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
 import { GetGroupProgressQuery } from '../queries/get-group-progress.query.js';
+import { GetGroupHeatmapQuery } from '../queries/get-group-heatmap.query.js';
 import { GroupProgressResponseDto } from '../dto/group-progress-response.dto.js';
+import { GroupHeatmapResponseDto } from '../dto/group-heatmap-response.dto.js';
 
 /**
  * Group surfaces, keyed by the group and not by its school (plan 58 §2 E).
@@ -36,5 +38,17 @@ export class GroupAnalyticsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<GroupProgressResponseDto> {
     return this.queryBus.execute(new GetGroupProgressQuery(groupId, user.userId));
+  }
+
+  @Get('heatmap')
+  @ApiOperation({ summary: 'Every learner of the group against every unit of its course' })
+  @ApiParam({ name: 'groupId', format: 'uuid' })
+  @ApiOkResponse({ type: GroupHeatmapResponseDto })
+  @ApiNotFoundResponse({ description: 'Group not found or viewer is not in its school' })
+  async heatmap(
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<GroupHeatmapResponseDto> {
+    return this.queryBus.execute(new GetGroupHeatmapQuery(groupId, user.userId));
   }
 }

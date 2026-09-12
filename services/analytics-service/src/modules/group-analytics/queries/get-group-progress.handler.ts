@@ -3,9 +3,16 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
 import { cellStateOf, distributionOf, pct } from '@ssz/shared-kernel/analytics';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
-import { SchedulingClient, type GroupDelivery } from '../../../infrastructure/http/scheduling.client.js';
 import type { AppConfig } from '../../../config/configuration.js';
-import { GroupUnitsService, qualityOf, weighAttempt, type CourseUnit } from '../group-units.service.js';
+import {
+  GroupUnitsService,
+  absorbedShareOf,
+  learnerCellOf,
+  qualityOf,
+  unitDeliveryOf,
+  weighAttempt,
+  type CourseUnit,
+} from '../group-units.service.js';
 import { GetGroupProgressQuery } from './get-group-progress.query.js';
 import type {
   GroupProgressResponseDto,
@@ -52,7 +59,6 @@ export class GetGroupProgressHandler
   constructor(
     private readonly prisma: PrismaService,
     private readonly units: GroupUnitsService,
-    private readonly scheduling: SchedulingClient,
     config: ConfigService<AppConfig>,
   ) {
     this.minWeightedSample = config.get<AppConfig['mastery']>('mastery')?.minWeightedSample ?? 8;
@@ -84,7 +90,7 @@ export class GetGroupProgressHandler
     const userIds = roster.map((row) => row.userId);
 
     // ── 2. Everything the answer is built from, asked for at once ───────────
-    const delivery = await this.scheduling.getGroupDelivery(groupId);
+    const delivery = await this.units.deliveryOf(groupId);
     const courseId = group.courseId;
 
     const courseUnits = courseId === null ? [] : await this.units.unitsOf(courseId);
@@ -95,48 +101,34 @@ export class GetGroupProgressHandler
       this.outlineRefreshedAt(courseId),
     ]);
 
-    // ── 3. The plan's units, keyed by the course unit they teach ────────────
-    const plannedByContentUnit = new Map<string, { lessons: number; lastHeldAt: string | null }>();
-    for (const unit of delivery?.units ?? []) {
-      if (unit.contentUnitId === null) continue;
-      const seen = plannedByContentUnit.get(unit.contentUnitId) ?? { lessons: 0, lastHeldAt: null };
-      seen.lessons += unit.lessonsHeld;
-      if (unit.lastHeldAt !== null && (seen.lastHeldAt === null || unit.lastHeldAt > seen.lastHeldAt)) {
-        seen.lastHeldAt = unit.lastHeldAt;
-      }
-      plannedByContentUnit.set(unit.contentUnitId, seen);
-    }
-    const plannedSessions = new Map<string, number>();
-    for (const unit of delivery?.units ?? []) {
-      if (unit.contentUnitId === null) continue;
-      plannedSessions.set(
-        unit.contentUnitId,
-        (plannedSessions.get(unit.contentUnitId) ?? 0) + unit.plannedSessions,
-      );
-    }
-
     // ── 4. One unit of the chart at a time ──────────────────────────────────
     let notJudgeable = 0;
     const units: GroupProgressUnitDto[] = courseUnits.map((unit) => {
       const learners = absorbed.get(unit.unitId) ?? new Map();
-      const ratios: number[] = [];
-      for (const userId of userIds) {
-        const cell = learners.get(userId);
-        // Untouched is absent from the sample, not present at zero: a learner who has not
-        // opened the unit has no result, and averaging them in would drag the group's line
-        // down with people who were never asked.
-        if (cell === undefined || !cell.touched) continue;
-        ratios.push(unit.items === 0 ? 0 : cell.passed / unit.items);
-      }
+      // Untouched is absent from the sample, not present at zero: a learner who has not
+      // opened the unit has no result, and averaging them in would drag the group's line
+      // down with people who were never asked.
+      const ratios = userIds
+        .map((userId) => absorbedShareOf(learners.get(userId), unit))
+        .filter((ratio): ratio is number => ratio !== null);
 
-      const distribution = unit.items === 0 ? null : distributionOf(ratios);
+      const distribution = distributionOf(ratios);
       const unitEvidence = evidence.get(unit.unitId);
+      const deliveredOf = delivery === null ? null : unitDeliveryOf(delivery, unit.unitId);
 
-      for (const learner of unitEvidence?.byLearner.values() ?? []) {
-        if (learner.attempts > 0 && learner.weightedSample < this.minWeightedSample) notJudgeable += 1;
+      // The same cell the heatmap under this chart draws, counted rather than drawn:
+      // the summary promises a number of unjudgeable cells and the map below has to
+      // hatch exactly those, so both ask one helper (§O5).
+      for (const userId of userIds) {
+        const cell = learnerCellOf({
+          unit,
+          absorbed: learners.get(userId),
+          evidence: unitEvidence?.byLearner.get(userId),
+          delivered: deliveredOf,
+          minWeightedSample: this.minWeightedSample,
+        });
+        if (cell.state === 'insufficient') notJudgeable += 1;
       }
-
-      const deliveredOf = deliveryOfUnit(unit, plannedByContentUnit, plannedSessions, delivery);
 
       return {
         unitId: unit.unitId,
@@ -171,14 +163,7 @@ export class GetGroupProgressHandler
     });
 
     // ── 5. Plan units nobody stitched — shown always (§O3) ──────────────────
-    const unlinkedPlanUnits: UnlinkedPlanUnitDto[] = (delivery?.units ?? [])
-      .filter((unit) => unit.contentUnitId === null)
-      .map((unit) => ({
-        curriculumUnitId: unit.curriculumUnitId,
-        title: unit.title,
-        lessons: unit.lessonsHeld,
-        lastHeldAt: unit.lastHeldAt,
-      }));
+    const unlinkedPlanUnits: UnlinkedPlanUnitDto[] = delivery?.unlinkedPlanUnits ?? [];
 
     // ── 6. Summary and work context ─────────────────────────────────────────
     const overall = this.overallAbsorbed(userIds, courseUnits, absorbed, units);
@@ -360,32 +345,6 @@ export class GetGroupProgressHandler
     });
     return row?.refreshedAt ?? null;
   }
-}
-
-/**
- * What the journal says about one course unit.
- *
- * `null` when the timetable could not be asked at all — the caller then draws "we could
- * not reach the schedule" instead of a unit nobody taught.
- */
-function deliveryOfUnit(
-  unit: CourseUnit,
-  held: Map<string, { lessons: number; lastHeldAt: string | null }>,
-  planned: Map<string, number>,
-  delivery: GroupDelivery | null,
-): GroupProgressUnitDto['delivered'] {
-  if (delivery === null) return null;
-
-  const linked = planned.has(unit.unitId);
-  const lessons = held.get(unit.unitId)?.lessons ?? 0;
-  const sessions = planned.get(unit.unitId) ?? 0;
-
-  // Half is "started but not finished", which is a different sentence from either end:
-  // a unit two lessons into four has been delivered to nobody's satisfaction, and
-  // rounding it either way would make the chart lie in one direction consistently.
-  const value: 0 | 0.5 | 1 = lessons === 0 ? 0 : sessions > 0 && lessons >= sessions ? 1 : 0.5;
-
-  return { value, lessons, lastHeldAt: held.get(unit.unitId)?.lastHeldAt ?? null, linked };
 }
 
 /** `null` keys a bucket of its own; a Map cannot be keyed by it directly. */

@@ -14,9 +14,10 @@ const UNITS = [
   { unitId: 'u1', no: 1, title: 'Leksjon 17', itemIds: ['i1', 'i2', 'i3', 'i4'], items: 4 },
 ];
 
-function serviceWith(prisma: unknown) {
+function serviceWith(prisma: unknown, delivery: unknown = null) {
   const outline = { ensureFresh: async () => undefined };
-  return new GroupUnitsService(prisma as never, outline as never);
+  const scheduling = { getGroupDelivery: async () => delivery };
+  return new GroupUnitsService(prisma as never, outline as never, scheduling as never);
 }
 
 describe('absorbedByUnit', () => {
