@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { BaseEvent } from '@ssz/contracts';
 import type { IEventPublisher } from '../../shared/application/ports/event-publisher.interface.js';
@@ -29,15 +29,26 @@ const ROUTING_KEYS: Record<string, string> = {
   'school.enrollment.rejected': 'school.enrollment.rejected',
   'school.enrollment.placement_review_ready': 'school.enrollment.placement_review_ready',
   'school.enrollment.group_assigned': 'school.enrollment.group_assigned',
+  'tutoring.invitation.sent': 'tutoring.invitation.sent',
+  'tutoring.group.created': 'tutoring.group.created',
+  'tutoring.student.added': 'tutoring.student.added',
+  'tutoring.student.removed': 'tutoring.student.removed',
 };
 
 @Injectable()
 export class OutboxEventPublisherService implements IEventPublisher {
+  private readonly logger = new Logger(OutboxEventPublisherService.name);
+
   constructor(private readonly outboxStore: PrismaOutboxStore) {}
 
   async publish(event: IDomainEvent): Promise<void> {
     const routingKey = ROUTING_KEYS[event.eventType];
-    if (!routingKey) return; // unknown event type — skip (same behaviour as before)
+    if (!routingKey) {
+      this.logger.error(
+        `No routing key for event type "${event.eventType}" [${event.eventId}] — event dropped, not published`,
+      );
+      return;
+    }
 
     const envelope: BaseEvent<IDomainEvent> = {
       eventId: event.eventId,

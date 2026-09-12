@@ -36,6 +36,7 @@
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.3.6",
+    "@ssz/contracts": "file:../../packages/contracts",
     "@ssz/messaging": "file:../../packages/messaging"
   },
   "devDependencies": {

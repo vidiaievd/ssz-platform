@@ -5,6 +5,7 @@ import { welcomeTemplate } from '../../infrastructure/email/templates/welcome.te
 import { emailVerificationTemplate } from '../../infrastructure/email/templates/email-verification.template.js';
 import { passwordResetTemplate } from '../../infrastructure/email/templates/password-reset.template.js';
 import { schoolInvitationTemplate } from '../../infrastructure/email/templates/school-invitation.template.js';
+import { tutoringInvitationTemplate } from '../../infrastructure/email/templates/tutoring-invitation.template.js';
 import type { NotificationType, NotificationChannel } from '../../../generated/prisma/enums.js';
 
 export interface SendWelcomeEmailInput {
@@ -36,6 +37,14 @@ export interface SendSchoolInvitationInput {
   expiresAt: string;
   /** Present when the invitee already has an account (kind=onboard_existing). Used for proper recipient tracking. */
   recipientUserId?: string;
+}
+
+export interface SendTutoringInvitationInput {
+  invitationId: string;
+  email: string;
+  tutorName: string;
+  invitationUrl: string;
+  expiresAt: string;
 }
 
 @Injectable()
@@ -132,6 +141,30 @@ export class NotificationsService {
         inviterName: input.inviterName,
         invitationUrl: input.invitationUrl,
         role: input.role,
+        expiresAt: input.expiresAt,
+      },
+    });
+
+    await this.sendEmail(notification.id, input.email, template);
+  }
+
+  async sendTutoringInvitation(input: SendTutoringInvitationInput): Promise<void> {
+    const template = tutoringInvitationTemplate({
+      tutorName: input.tutorName,
+      invitationUrl: input.invitationUrl,
+      expiresAt: input.expiresAt,
+    });
+
+    const notification = await this.repo.create({
+      type: 'TUTORING_INVITATION' as NotificationType,
+      channel: 'EMAIL' as NotificationChannel,
+      recipientId: input.invitationId,
+      recipientEmail: input.email,
+      subject: template.subject,
+      templateKey: 'tutoring-invitation',
+      templateData: {
+        tutorName: input.tutorName,
+        invitationUrl: input.invitationUrl,
         expiresAt: input.expiresAt,
       },
     });

@@ -1,0 +1,1 @@
+ALTER TYPE "notification_type" ADD VALUE 'TUTORING_INVITATION';

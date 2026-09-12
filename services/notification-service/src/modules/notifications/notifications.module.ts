@@ -12,6 +12,7 @@ import { SubstituteRequestHandler } from './handlers/substitute-request.handler.
 import { SubstituteAssignedHandler } from './handlers/substitute-assigned.handler.js';
 import { AlertRaisedHandler } from './handlers/alert-raised.handler.js';
 import { SchoolInvitationSentHandler } from './handlers/school-invitation-sent.handler.js';
+import { TutoringInvitationSentHandler } from './handlers/tutoring-invitation-sent.handler.js';
 import { TeacherProfileChangedHandler } from './handlers/teacher-profile-changed.handler.js';
 import { EnrollmentRequestHandler } from './handlers/enrollment-request.handler.js';
 import { EnrollmentApprovedHandler } from './handlers/enrollment-approved.handler.js';
@@ -44,6 +45,7 @@ import { ReviewReviewersClient } from './schedules/clients/review-reviewers.clie
     SubstituteAssignedHandler,
     AlertRaisedHandler,
     SchoolInvitationSentHandler,
+    TutoringInvitationSentHandler,
     TeacherProfileChangedHandler,
     EnrollmentRequestHandler,
     EnrollmentApprovedHandler,
