@@ -46,6 +46,8 @@ export interface AppConfig {
   profile: { baseUrl: string };
   content: { baseUrl: string; token: string };
   redis: { host: string; port: number; password: string | undefined };
+  /** Shared secret for service-to-service routes — the same one the clients above send. */
+  internalServiceToken: string;
 }
 
 export default (): AppConfig => {
@@ -64,5 +66,6 @@ export default (): AppConfig => {
     profile: { baseUrl: env.PROFILE_SERVICE_URL },
     content: { baseUrl: env.CONTENT_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
     redis: { host: env.REDIS_HOST, port: env.REDIS_PORT, password: env.REDIS_PASSWORD },
+    internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
 };
