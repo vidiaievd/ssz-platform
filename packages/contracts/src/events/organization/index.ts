@@ -47,6 +47,13 @@ export interface SchoolInvitationSentPayload {
   invitationId: string;
   schoolId: string;
   schoolName: string;
+  /**
+   * What the invitation is into. SOLO means one private tutor's workspace: the
+   * invitee must never be told they were invited to a school, and `inviterName`
+   * is the tutor's own name. Absent on events published before solo workspaces
+   * existed — treat as SCHOOL.
+   */
+  workspaceKind?: 'SCHOOL' | 'SOLO';
   inviteeEmail: string;
   inviterName: string;
   /** Full invitation acceptance URL */

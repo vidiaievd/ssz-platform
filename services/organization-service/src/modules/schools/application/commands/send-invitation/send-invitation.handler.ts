@@ -24,6 +24,10 @@ import { SchoolInvitation } from '../../../domain/entities/school-invitation.ent
 import { SchoolInvitationSentEvent } from '../../../domain/events/school-invitation-sent.event.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
 import { CapabilityResolverService } from '../../services/capability-resolver.service.js';
+import {
+  PROFILE_SERVICE_PORT,
+  type IProfileServicePort,
+} from '../../../../../shared/application/ports/profile-service.interface.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import type { Env } from '../../../../../config/configuration.js';
 
@@ -36,6 +40,7 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
     @Inject(SCHOOL_INVITATION_REPOSITORY)
     private readonly invitationRepository: ISchoolInvitationRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
+    @Inject(PROFILE_SERVICE_PORT) private readonly profileService: IProfileServicePort,
     private readonly tokenService: InvitationTokenService,
     private readonly capabilityResolver: CapabilityResolverService,
     private readonly prisma: PrismaService,
@@ -110,6 +115,12 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
     const appBaseUrl = this.config.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
     const invitationUrl = `${appBaseUrl}/invite/${token}`;
 
+    // A solo workspace has no staff to sign the invitation — the tutor invites in
+    // their own name, and the email must not mention a school at all.
+    const inviterName = school.isSolo
+      ? (await this.profileService.getProfileSummary(school.ownerId))?.name ?? 'Your tutor'
+      : 'School Admin';
+
     await this.eventPublisher.publish(
       new SchoolInvitationSentEvent(
         randomUUID(),
@@ -117,11 +128,12 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
         command.schoolId,
         school.name,
         command.email,
-        'School Admin',
+        inviterName,
         invitationUrl,
         command.role,
         expiresAt.toISOString(),
         command.recipientUserId,
+        school.kind,
       ),
     );
 

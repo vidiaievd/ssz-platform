@@ -24,6 +24,8 @@ import { CreateTutoringGroupCommand } from '../../application/commands/create-tu
 import { UpdateTutoringGroupCommand } from '../../application/commands/update-tutoring-group/update-tutoring-group.command.js';
 import { DeleteTutoringGroupCommand } from '../../application/commands/delete-tutoring-group/delete-tutoring-group.command.js';
 import { RemoveStudentCommand } from '../../application/commands/remove-student/remove-student.command.js';
+import { GetSoloWorkspaceQuery } from '../../../schools/application/queries/get-solo-workspace/get-solo-workspace.query.js';
+import { ProvisionSoloWorkspaceCommand } from '../../../schools/application/commands/provision-solo-workspace/provision-solo-workspace.command.js';
 import { GetMyGroupQuery } from '../../application/queries/get-my-group/get-my-group.query.js';
 import { GetMyTutorQuery } from '../../application/queries/get-my-tutor/get-my-tutor.query.js';
 import { CreateTutoringGroupRequestDto } from '../dto/create-tutoring-group.request.dto.js';
@@ -32,6 +34,7 @@ import {
   CreateTutoringGroupResponseDto,
   TutoringGroupResponseDto,
   TutoringGroupSummaryResponseDto,
+  TutoringWorkspaceResponseDto,
 } from '../dto/tutoring-group.response.dto.js';
 
 @ApiTags('Tutoring')
@@ -42,6 +45,24 @@ export class TutoringController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {}
+
+  @Get('workspace')
+  @Roles('tutor')
+  @ApiOperation({
+    summary: "The tutor's own workspace — where their roster, assignments and review live",
+  })
+  @ApiResponse({ status: 200, type: TutoringWorkspaceResponseDto })
+  async getWorkspace(@CurrentUser() user: JwtPayload): Promise<TutoringWorkspaceResponseDto> {
+    const existing = await this.queryBus.execute(new GetSoloWorkspaceQuery(user.sub));
+    if (existing) return existing as TutoringWorkspaceResponseDto;
+
+    // A tutor who registered before workspaces existed gets one the first time they
+    // look for it, rather than a 404 they can do nothing about.
+    await this.commandBus.execute(new ProvisionSoloWorkspaceCommand(user.sub));
+    return (await this.queryBus.execute(
+      new GetSoloWorkspaceQuery(user.sub),
+    )) as TutoringWorkspaceResponseDto;
+  }
 
   @Post('group')
   @Roles('tutor')

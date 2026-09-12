@@ -28,6 +28,20 @@ export class TutoringGroupSummaryResponseDto {
   @ApiProperty() createdAt!: Date;
 }
 
+export class TutoringWorkspaceResponseDto {
+  @ApiProperty({ description: "The workspace the tutor owns — a school row of kind SOLO, never shown to anyone as a school" })
+  schoolId!: string;
+
+  @ApiPropertyOptional({ description: "The group the tutor's learners belong to" })
+  groupId!: string | null;
+
+  @ApiProperty({ description: 'What the tutor calls their practice' })
+  name!: string;
+
+  @ApiProperty({ description: 'Learners on the roster' })
+  studentCount!: number;
+}
+
 export class CreateTutoringGroupResponseDto {
   @ApiProperty() id!: string;
 }

@@ -20,7 +20,16 @@ import { CurrentUser } from '../../../../common/decorators/current-user.decorato
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import { Roles } from '../../../../common/decorators/roles.decorator.js';
 import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.service.js';
-import { SendTutoringInvitationCommand } from '../../application/commands/send-invitation/send-invitation.command.js';
+import { SendInvitationCommand } from '../../../schools/application/commands/send-invitation/send-invitation.command.js';
+import { ResendSchoolInvitationCommand } from '../../../schools/application/commands/resend-invitation/resend-invitation.command.js';
+import { RevokeSchoolInvitationCommand } from '../../../schools/application/commands/revoke-invitation/revoke-invitation.command.js';
+import { ProvisionSoloWorkspaceCommand } from '../../../schools/application/commands/provision-solo-workspace/provision-solo-workspace.command.js';
+import { GetSoloWorkspaceQuery } from '../../../schools/application/queries/get-solo-workspace/get-solo-workspace.query.js';
+import type { SoloWorkspaceResult } from '../../../schools/application/queries/get-solo-workspace/get-solo-workspace.handler.js';
+import { ListSchoolInvitationsQuery } from '../../../schools/application/queries/list-school-invitations/list-school-invitations.query.js';
+import { MemberRole } from '../../../schools/domain/value-objects/member-role.vo.js';
+import type { SchoolInvitation } from '../../../schools/domain/entities/school-invitation.entity.js';
+import { InvitationNotFoundException } from '../../../schools/domain/exceptions/invitation-not-found.exception.js';
 import { AcceptTutoringInvitationCommand } from '../../application/commands/accept-invitation/accept-invitation.command.js';
 import { ResendTutoringInvitationCommand } from '../../application/commands/resend-invitation/resend-tutoring-invitation.command.js';
 import { RevokeTutoringInvitationCommand } from '../../application/commands/revoke-invitation/revoke-tutoring-invitation.command.js';
@@ -52,10 +61,25 @@ export class TutoringInvitationsController {
   async listInvitations(
     @CurrentUser() user: JwtPayload,
   ): Promise<TutoringInvitationResponseDto[]> {
-    const invitations: TutoringInvitation[] = await this.queryBus.execute(
+    // Two sources during the move: invitations the tutor sends now live in the
+    // workspace, while the ones sent before still sit in tutoring_invitations and
+    // must not vanish from the tutor's list (they are removed with the module in
+    // phase 3).
+    const workspace = await this.findWorkspace(user.sub);
+    const fromWorkspace: SchoolInvitation[] = workspace
+      ? await this.queryBus.execute(
+          new ListSchoolInvitationsQuery(user.sub, workspace.schoolId, { role: MemberRole.STUDENT }),
+        )
+      : [];
+
+    const legacy: TutoringInvitation[] = await this.queryBus.execute(
       new ListPendingInvitationsQuery(user.sub),
     );
-    return invitations.map((inv) => this.toDto(inv));
+
+    return [
+      ...fromWorkspace.map((inv) => this.schoolInvitationToDto(inv)),
+      ...legacy.map((inv) => this.toDto(inv)),
+    ];
   }
 
   @Post('group/invitations')
@@ -68,9 +92,26 @@ export class TutoringInvitationsController {
     @CurrentUser() user: JwtPayload,
     @Body() dto: SendTutoringInvitationRequestDto,
   ): Promise<SendTutoringInvitationResponseDto> {
-    return this.commandBus.execute(
-      new SendTutoringInvitationCommand(user.sub, dto.email),
-    );
+    const workspace = await this.requireWorkspace(user.sub);
+
+    const result: { invitationId: string; token: string; expiresAt: string } =
+      await this.commandBus.execute(
+        new SendInvitationCommand(
+          user.sub,
+          workspace.schoolId,
+          dto.email,
+          MemberRole.STUDENT,
+          'register',
+          workspace.groupId,
+        ),
+      );
+
+    return {
+      invitationId: result.invitationId,
+      token: result.token,
+      expiresAt: result.expiresAt,
+      deliveryStatus: 'queued',
+    };
   }
 
   @Post('group/invitations/:invitationId/resend')
@@ -84,6 +125,18 @@ export class TutoringInvitationsController {
     @CurrentUser() user: JwtPayload,
     @Param('invitationId', ParseUUIDPipe) invitationId: string,
   ): Promise<ResendTutoringInvitationResponseDto> {
+    const workspace = await this.findWorkspace(user.sub);
+    if (workspace) {
+      try {
+        return await this.commandBus.execute(
+          new ResendSchoolInvitationCommand(user.sub, workspace.schoolId, invitationId),
+        );
+      } catch (err) {
+        // Not a workspace invitation — it predates the move, so the old table answers.
+        if (!(err instanceof InvitationNotFoundException)) throw err;
+      }
+    }
+
     return this.commandBus.execute(
       new ResendTutoringInvitationCommand(user.sub, invitationId),
     );
@@ -100,6 +153,18 @@ export class TutoringInvitationsController {
     @CurrentUser() user: JwtPayload,
     @Param('invitationId', ParseUUIDPipe) invitationId: string,
   ): Promise<void> {
+    const workspace = await this.findWorkspace(user.sub);
+    if (workspace) {
+      try {
+        await this.commandBus.execute(
+          new RevokeSchoolInvitationCommand(user.sub, workspace.schoolId, invitationId),
+        );
+        return;
+      } catch (err) {
+        if (!(err instanceof InvitationNotFoundException)) throw err;
+      }
+    }
+
     await this.commandBus.execute(
       new RevokeTutoringInvitationCommand(user.sub, invitationId),
     );
@@ -130,6 +195,39 @@ export class TutoringInvitationsController {
     await this.commandBus.execute(
       new AcceptTutoringInvitationCommand(user.sub, user.email, token),
     );
+  }
+
+  private findWorkspace(tutorId: string): Promise<SoloWorkspaceResult | null> {
+    return this.queryBus.execute(new GetSoloWorkspaceQuery(tutorId));
+  }
+
+  /**
+   * A tutor who registered before workspaces existed has none until something asks
+   * for it — inviting a student is that something.
+   */
+  private async requireWorkspace(tutorId: string): Promise<SoloWorkspaceResult> {
+    const existing = await this.findWorkspace(tutorId);
+    if (existing?.groupId) return existing;
+
+    await this.commandBus.execute(new ProvisionSoloWorkspaceCommand(tutorId));
+    const provisioned = await this.findWorkspace(tutorId);
+    if (!provisioned) {
+      throw new Error(`Solo workspace could not be provisioned for tutor ${tutorId}`);
+    }
+    return provisioned;
+  }
+
+  private schoolInvitationToDto(inv: SchoolInvitation): TutoringInvitationResponseDto {
+    return {
+      invitationId: inv.id,
+      email: inv.email,
+      status: inv.status,
+      createdAt: inv.createdAt.toISOString(),
+      expiresAt: inv.expiresAt.toISOString(),
+      acceptedAt: inv.acceptedAt ? inv.acceptedAt.toISOString() : null,
+      lastSentAt: inv.lastSentAt.toISOString(),
+      resendCount: inv.resendCount,
+    };
   }
 
   private toDto(inv: TutoringInvitation): TutoringInvitationResponseDto {

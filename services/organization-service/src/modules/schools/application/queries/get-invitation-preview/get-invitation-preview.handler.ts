@@ -11,10 +11,15 @@ import {
 } from '../../../domain/repositories/school.repository.interface.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
 import { InvitationNotFoundException } from '../../../domain/exceptions/invitation-not-found.exception.js';
+import {
+  PROFILE_SERVICE_PORT,
+  type IProfileServicePort,
+} from '../../../../../shared/application/ports/profile-service.interface.js';
 
 export interface InvitationPreviewResult {
-  schoolName: string;
-  schoolSlug: string;
+  /** Null for an invitation into a solo tutor workspace — there is no school to name. */
+  schoolName: string | null;
+  schoolSlug: string | null;
   role: string;
   kind: string;
   email: string;
@@ -33,6 +38,7 @@ export class GetSchoolInvitationPreviewHandler implements IQueryHandler<GetSchoo
     private readonly invitationRepository: ISchoolInvitationRepository,
     @Inject(SCHOOL_REPOSITORY)
     private readonly schoolRepository: ISchoolRepository,
+    @Inject(PROFILE_SERVICE_PORT) private readonly profileService: IProfileServicePort,
     private readonly tokenService: InvitationTokenService,
   ) {}
 
@@ -62,15 +68,22 @@ export class GetSchoolInvitationPreviewHandler implements IQueryHandler<GetSchoo
     const school = await this.schoolRepository.findById(invitation.schoolId);
     if (!school) throw new InvitationNotFoundException(query.token);
 
+    // A solo workspace names nobody but the tutor: the page behind this link is
+    // the same page a school invitation opens, and it reads these two fields to
+    // decide which contour to draw (see InviteCard).
+    const invitedByName = school.isSolo
+      ? (await this.profileService.getProfileSummary(school.ownerId))?.name ?? null
+      : null;
+
     return {
-      schoolName: school.name,
-      schoolSlug: school.slug,
+      schoolName: school.isSolo ? null : school.name,
+      schoolSlug: school.isSolo ? null : school.slug,
       role: invitation.role,
       kind: invitation.kind,
       email: decoded.email,
       firstName: invitation.firstName ?? null,
       lastName: invitation.lastName ?? null,
-      invitedByName: null,
+      invitedByName,
       status,
       expiresAt: invitation.expiresAt.toISOString(),
       teachingLanguages: invitation.teacherLanguages?.map((l) => ({ code: l.code, level: l.level ?? null })) ?? null,

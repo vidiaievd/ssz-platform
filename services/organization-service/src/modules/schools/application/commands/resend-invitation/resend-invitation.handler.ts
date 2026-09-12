@@ -24,6 +24,10 @@ import { InvitationResendThrottledException } from '../../../domain/exceptions/i
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { SchoolInvitationSentEvent } from '../../../domain/events/school-invitation-sent.event.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
+import {
+  PROFILE_SERVICE_PORT,
+  type IProfileServicePort,
+} from '../../../../../shared/application/ports/profile-service.interface.js';
 import type { Env } from '../../../../../config/configuration.js';
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -36,6 +40,7 @@ export class ResendSchoolInvitationHandler implements ICommandHandler<ResendScho
     @Inject(SCHOOL_INVITATION_REPOSITORY)
     private readonly invitationRepository: ISchoolInvitationRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
+    @Inject(PROFILE_SERVICE_PORT) private readonly profileService: IProfileServicePort,
     private readonly tokenService: InvitationTokenService,
     private readonly config: ConfigService<Env>,
   ) {}
@@ -93,6 +98,11 @@ export class ResendSchoolInvitationHandler implements ICommandHandler<ResendScho
     const appBaseUrl = this.config.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
     const invitationUrl = `${appBaseUrl}/invite/${newToken}`;
 
+    // See SendInvitationHandler: a solo workspace invites in the tutor's own name.
+    const inviterName = school.isSolo
+      ? (await this.profileService.getProfileSummary(school.ownerId))?.name ?? 'Your tutor'
+      : 'School Admin';
+
     await this.eventPublisher.publish(
       new SchoolInvitationSentEvent(
         randomUUID(),
@@ -100,10 +110,12 @@ export class ResendSchoolInvitationHandler implements ICommandHandler<ResendScho
         invitation.schoolId,
         school.name,
         invitation.email,
-        'School Admin',
+        inviterName,
         invitationUrl,
         invitation.role,
         newExpiresAt.toISOString(),
+        undefined,
+        school.kind,
       ),
     );
 
