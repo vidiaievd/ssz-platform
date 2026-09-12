@@ -25,6 +25,15 @@ interface ProgressRow {
   createdAt: string;
 }
 
+interface ContainerRow {
+  containerId: string;
+  title: string;
+  lang: string;
+  ownerUserId: string;
+  ownerSchoolId: string | null;
+  containerType: string;
+}
+
 interface SnapshotPage<T> {
   data: T[];
   nextCursor: string | null;
@@ -35,6 +44,7 @@ export class SeedService implements OnApplicationBootstrap {
   private readonly logger = new Logger(SeedService.name);
 
   private readonly learningBaseUrl: string;
+  private readonly contentBaseUrl: string;
   private readonly serviceToken: string;
 
   constructor(
@@ -42,6 +52,7 @@ export class SeedService implements OnApplicationBootstrap {
     private readonly prisma: PrismaService,
   ) {
     this.learningBaseUrl = this.config.get<AppConfig['learning']>('learning')?.baseUrl ?? 'http://learning-service:3007';
+    this.contentBaseUrl = this.config.get<AppConfig['content']>('content')?.baseUrl ?? 'http://content-service:3003';
     this.serviceToken = this.config.get<AppConfig['organization']>('organization')?.token ?? 'internal-dev-token';
   }
 
@@ -50,9 +61,10 @@ export class SeedService implements OnApplicationBootstrap {
       // Guarded per projection, not once for all of them. A projection added later —
       // `item_progress` is the first — would otherwise never be filled anywhere the
       // service has already run, which is every environment that has one.
-      const [enrollments, itemProgress] = await Promise.all([
+      const [enrollments, itemProgress, containers] = await Promise.all([
         this.prisma.enrollmentProjection.count(),
         this.prisma.itemProgress.count(),
+        this.prisma.containerDirectory.count(),
       ]);
 
       if (enrollments === 0) {
@@ -64,6 +76,9 @@ export class SeedService implements OnApplicationBootstrap {
       }
 
       if (itemProgress === 0) await this.seedItemProgress();
+      // Last on purpose: it names the courses the rows above refer to, so it wants them
+      // already loaded.
+      if (containers === 0) await this.seedContainerDirectory();
 
       this.logger.log('SeedService: seed complete');
     } catch (err) {
@@ -112,6 +127,89 @@ export class SeedService implements OnApplicationBootstrap {
     } while (cursor);
 
     this.logger.log(`SeedService: seeded ${total} item_progress rows`);
+  }
+
+  /**
+   * Backfill of the course directory — plan 58, phase 5.
+   *
+   * `container_directory` is built from `content.container.*` events, and events are not
+   * replayed: every environment restored from a dump has it empty, and nothing that
+   * names a course by title or asks who owns it can answer at all. Dev has been in that
+   * state since the projection was added.
+   *
+   * Only the containers this service already has numbers about are fetched — enrolments,
+   * profiles and the courses groups teach — because that is the set anything can ask
+   * about, and it is a handful rather than a catalogue. A container content-service will
+   * not describe is skipped and logged, never invented: a directory row with a guessed
+   * title would be worse than a missing one.
+   */
+  private async seedContainerDirectory(): Promise<void> {
+    const [enrolled, courses, groups] = await Promise.all([
+      this.prisma.enrollmentProjection.findMany({
+        distinct: ['containerId'],
+        select: { containerId: true },
+      }),
+      this.prisma.skillMastery.findMany({ distinct: ['courseId'], select: { courseId: true } }),
+      this.prisma.groupDirectory.findMany({ distinct: ['courseId'], select: { courseId: true } }),
+    ]);
+
+    const ids = new Set<string>();
+    for (const row of enrolled) ids.add(row.containerId);
+    for (const row of courses) if (row.courseId !== null) ids.add(row.courseId);
+    for (const row of groups) if (row.courseId !== null) ids.add(row.courseId);
+
+    let seeded = 0;
+    for (const containerId of ids) {
+      const row = await this.fetchContainer(containerId);
+      if (row === null) continue;
+
+      await this.prisma.containerDirectory.upsert({
+        where: { containerId },
+        create: { ...row, leafItemCount: 0 },
+        update: row,
+      });
+      seeded += 1;
+    }
+
+    this.logger.log(
+      `SeedService: seeded ${seeded} container_directory rows of ${ids.size} referenced`,
+    );
+  }
+
+  private async fetchContainer(containerId: string): Promise<ContainerRow | null> {
+    let res: Response;
+    try {
+      // content-service mounts everything under a global `/api/v1`, internal routes
+      // included — a call without it 404s silently.
+      //
+      // Caught per container rather than left to the caller's one big try: these two
+      // services start together, and a content-service still opening its port must cost
+      // one row, not the whole backfill including the rows already fetched.
+      res = await fetch(
+        `${this.contentBaseUrl}/api/v1/internal/containers/${containerId}/directory`,
+        { headers: { 'x-internal-token': this.serviceToken } },
+      );
+    } catch (error) {
+      this.logger.warn(
+        `SeedService: container ${containerId} unreachable: ${(error as Error).message}`,
+      );
+      return null;
+    }
+
+    if (!res.ok) {
+      this.logger.warn(`SeedService: container ${containerId} not described: ${res.status}`);
+      return null;
+    }
+
+    const body = (await res.json()) as ContainerRow & { containerId: string };
+    return {
+      containerId: body.containerId,
+      title: body.title,
+      lang: body.lang,
+      ownerUserId: body.ownerUserId,
+      ownerSchoolId: body.ownerSchoolId ?? null,
+      containerType: body.containerType,
+    };
   }
 
   private async seedEnrollments(): Promise<void> {

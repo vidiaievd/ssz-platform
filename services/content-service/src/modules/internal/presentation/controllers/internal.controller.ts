@@ -321,6 +321,38 @@ export class InternalController {
     };
   }
 
+  // analytics-service projects a container directory from content.container.* events,
+  // and events are not replayed: every environment restored from a dump — dev included —
+  // has an empty directory and cannot answer a single question about a course by name.
+  // This is what its backfill reads, one container at a time, for the handful of
+  // containers analytics already has numbers about.
+  @Get('containers/:id/directory')
+  async getContainerDirectory(@Param('id') id: string): Promise<{
+    containerId: string;
+    title: string;
+    lang: string;
+    ownerUserId: string;
+    ownerSchoolId: string | null;
+    containerType: string;
+  }> {
+    const result = await this.queryBus.execute<
+      GetContainerQuery,
+      Result<GetContainerResult, ContainerDomainError>
+    >(new GetContainerQuery(id, ''));
+
+    if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
+
+    const container = result.value.container;
+    return {
+      containerId: id,
+      title: container.title,
+      lang: container.targetLanguage,
+      ownerUserId: container.ownerUserId,
+      ownerSchoolId: container.ownerSchoolId,
+      containerType: container.containerType,
+    };
+  }
+
   // Learning Service's EnrollInContainerHandler reads this before creating an
   // enrollment (content-client.ts's getAccessTier); it compares the result
   // against uppercase literals ('ASSIGNED_ONLY', 'FREE_WITHIN_SCHOOL', ...),

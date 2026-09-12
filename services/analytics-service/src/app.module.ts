@@ -15,6 +15,7 @@ import { MetricsModule } from './modules/metrics/metrics.module.js';
 import { SchoolAnalyticsModule } from './modules/school-analytics/school-analytics.module.js';
 import { GroupAnalyticsModule } from './modules/group-analytics/group-analytics.module.js';
 import { StudentAnalyticsModule } from './modules/student-analytics/student-analytics.module.js';
+import { CourseAnalyticsModule } from './modules/course-analytics/course-analytics.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 
 @Module({
@@ -46,6 +47,7 @@ import { AuditModule } from './modules/audit/audit.module.js';
     SchoolAnalyticsModule,
     GroupAnalyticsModule,
     StudentAnalyticsModule,
+    CourseAnalyticsModule,
     AuditModule,
   ],
   providers: [
