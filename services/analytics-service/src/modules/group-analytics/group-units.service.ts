@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { cellStateOf, type CellState } from '@ssz/shared-kernel/analytics';
+import { cellStateOf, distributionOf, type CellState } from '@ssz/shared-kernel/analytics';
 import { evidenceWeight, succeededAt } from '@ssz/shared-kernel/mastery';
 import type { ReviewRatingValue } from '@ssz/shared-kernel/evidence';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
@@ -290,6 +290,58 @@ export class GroupUnitsService {
 
     return byUnit;
   }
+}
+
+/**
+ * How much of the course each learner has taken away, over the units that were taught.
+ *
+ * Counted over taught units only: the half of the course nobody has reached yet is not a
+ * shortfall of the group, and counting it would put every group below its own line in
+ * week one. A learner who has touched none of them is absent from the map rather than
+ * present at zero — which is what makes "nothing measured yet" answerable.
+ *
+ * The group's median and one learner's own number come out of this same map: the chart
+ * says where the group is, the learner's screen says where they are against it, and the
+ * two would part company the first time one of them redefined "taught".
+ */
+export function absorbedOverall(input: {
+  userIds: readonly string[];
+  units: readonly CourseUnit[];
+  absorbed: Map<string, Map<string, LearnerAbsorbed>>;
+  /** `null` → the timetable could not be asked; then every unit counts. */
+  delivery: GroupDeliveryView | null;
+}): Map<string, number> {
+  const { userIds, units, absorbed, delivery } = input;
+
+  const counted = units.filter((unit) => {
+    if (unit.items === 0) return false;
+    if (delivery === null) return true;
+    return unitDeliveryOf(delivery, unit.unitId).value > 0;
+  });
+
+  const shares = new Map<string, number>();
+  if (counted.length === 0) return shares;
+
+  for (const userId of userIds) {
+    let passed = 0;
+    let items = 0;
+    let touched = false;
+    for (const unit of counted) {
+      const cell = absorbed.get(unit.unitId)?.get(userId);
+      if (cell === undefined || !cell.touched) continue;
+      touched = true;
+      passed += cell.passed;
+      items += unit.items;
+    }
+    if (touched && items > 0) shares.set(userId, passed / items);
+  }
+
+  return shares;
+}
+
+/** The distribution of `absorbedOverall`, or `null` when nobody in it was measured. */
+export function absorbedDistribution(shares: Map<string, number>) {
+  return distributionOf([...shares.values()]);
 }
 
 /** The columns of `attempt_evidence` the evidence scale reads. */

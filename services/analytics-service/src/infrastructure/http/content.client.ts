@@ -17,6 +17,24 @@ export interface OutlineUnit {
   items: OutlineItem[];
 }
 
+/**
+ * What a published course actually trains, as the coverage report counts it.
+ *
+ * `bySkill` and `byFocus` are margins of the same table, not the table itself: a pair may
+ * be empty while both of its margins are not. The caller may therefore conclude "this
+ * course teaches none of that" from a zero margin, and must not conclude the opposite
+ * from a non-zero one.
+ */
+export interface CourseCoverage {
+  containerId: string;
+  /** False when nothing is published — not a course of zeroes, a course with no version. */
+  available: boolean;
+  total: number;
+  bySkill: Record<string, number>;
+  byFocus: Record<string, number>;
+  emptySkills: string[];
+}
+
 export interface CourseOutline {
   containerId: string;
   /** `null` when nothing is published — a legal state, not a failure. */
@@ -66,6 +84,35 @@ export class ContentClient {
     } catch (error) {
       this.logger.warn(
         `Outline for container ${containerId} unreachable: ${(error as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * What the published course trains, so that "the learner has not done this" can be
+   * told from "the course contains none of it" (plan 58, phase 4).
+   *
+   * `null` when content could not be asked, and the caller then leaves the question open
+   * rather than answering `noContent`: blaming the course for a request that timed out
+   * is the same class of lie as a zero.
+   */
+  async getCoverage(containerId: string): Promise<CourseCoverage | null> {
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/api/v1/internal/containers/${containerId}/coverage`,
+        { headers: { 'x-internal-token': this.token } },
+      );
+
+      if (!res.ok) {
+        this.logger.warn(`Coverage for container ${containerId} failed: ${res.status}`);
+        return null;
+      }
+
+      return (await res.json()) as CourseCoverage;
+    } catch (error) {
+      this.logger.warn(
+        `Coverage for container ${containerId} unreachable: ${(error as Error).message}`,
       );
       return null;
     }

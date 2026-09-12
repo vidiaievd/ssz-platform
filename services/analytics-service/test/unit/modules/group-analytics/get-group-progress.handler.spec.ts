@@ -13,6 +13,9 @@ const { GetGroupProgressQuery } = await import(
 const { GroupUnitsService } = await import(
   '../../../../src/modules/group-analytics/group-units.service.js'
 );
+const { WorkContextService } = await import(
+  '../../../../src/modules/group-analytics/work-context.service.js'
+);
 
 const GROUP = 'g1';
 const SCHOOL = 's1';
@@ -32,6 +35,7 @@ interface Options {
   evidence?: Record<string, Record<string, { attempts: number; weightedSample: number; successWeight: number }>>;
   delivery?: unknown;
   attempts?: unknown[];
+  unattributed?: number;
 }
 
 function handlerFor(options: Options = {}) {
@@ -52,6 +56,7 @@ function handlerFor(options: Options = {}) {
     attemptEvidence: {
       findMany: async () => options.attempts ?? [],
       findFirst: async () => null,
+      count: async () => options.unattributed ?? 0,
     },
     itemProgress: { findFirst: async () => null },
     courseOutlineItem: { findFirst: async () => null },
@@ -94,7 +99,15 @@ function handlerFor(options: Options = {}) {
         : { minLearnersPerUnit: 1, workContextSplitFrom: '2026-09-04' },
   };
 
-  return new GetGroupProgressHandler(prisma as never, unitsService as never, config as never);
+  // The bucket count is the service's; the handler only asks for it.
+  const workContext = new WorkContextService(prisma as never);
+
+  return new GetGroupProgressHandler(
+    prisma as never,
+    unitsService as never,
+    workContext as never,
+    config as never,
+  );
 }
 
 const query = new GetGroupProgressQuery(GROUP, VIEWER);

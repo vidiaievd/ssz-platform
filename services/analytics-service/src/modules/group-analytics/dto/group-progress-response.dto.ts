@@ -106,4 +106,11 @@ export class GroupProgressResponseDto {
   @ApiProperty({ type: [UnlinkedPlanUnitDto] }) unlinkedPlanUnits!: UnlinkedPlanUnitDto[];
   @ApiProperty({ type: GroupProgressSummaryDto }) summary!: GroupProgressSummaryDto;
   @ApiProperty({ type: [WorkContextBucketDto] }) workContext!: WorkContextBucketDto[];
+
+  @ApiProperty({
+    description:
+      'Attempts naming no course, and so in no bucket — nearly all of them older than ' +
+      'workContextSplitFrom. Shown so an empty bar is not read as an idle group',
+  })
+  workContextUnattributed!: number;
 }

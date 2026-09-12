@@ -61,6 +61,9 @@ import type { LeafItem } from '../../../container/application/queries/get-leaf-i
 import { GetContainerQuery } from '../../../container/application/queries/get-container/get-container.query.js';
 import { GetCourseOutlineQuery } from '../../../container/application/queries/get-course-outline/get-course-outline.query.js';
 import type { CourseOutlineResult } from '../../../container/application/queries/get-course-outline/get-course-outline.handler.js';
+
+import { GetContainerCoverageQuery } from '../../../container/application/queries/get-container-coverage/get-container-coverage.query.js';
+import type { ContainerCoverageResult } from '../../../container/application/queries/get-container-coverage/get-container-coverage.handler.js';
 import type { GetContainerResult } from '../../../container/application/queries/get-container/get-container.handler.js';
 import type { ContainerDomainError } from '../../../container/domain/exceptions/container-domain.exceptions.js';
 
@@ -283,6 +286,39 @@ export class InternalController {
 
     if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
     return result.value;
+  }
+
+  // analytics-service asks what a course trains before it names a learner's cell
+  // empty: a `skill` no exercise touches is `noContent` — a fact about the course,
+  // not about the learner — and only this service can tell the two apart. The
+  // published composition, not the draft: the learner's grid is about the course
+  // they actually have. A course with nothing published answers `available: false`
+  // and empty tallies, never a course full of zeroes.
+  @Get('containers/:id/coverage')
+  async getContainerCoverage(@Param('id') id: string): Promise<{
+    containerId: string;
+    available: boolean;
+    total: number;
+    bySkill: Record<string, number>;
+    byFocus: Record<string, number>;
+    emptySkills: string[];
+  }> {
+    const result = await this.queryBus.execute<
+      GetContainerCoverageQuery,
+      Result<ContainerCoverageResult, ContainerDomainError>
+    >(new GetContainerCoverageQuery(id, 'published'));
+
+    if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
+
+    const report = result.value.published;
+    return {
+      containerId: id,
+      available: report?.available ?? false,
+      total: report?.coverage.total ?? 0,
+      bySkill: report?.coverage.bySkill ?? {},
+      byFocus: report?.coverage.byFocus ?? {},
+      emptySkills: report?.coverage.emptySkills ?? [],
+    };
   }
 
   // Learning Service's EnrollInContainerHandler reads this before creating an

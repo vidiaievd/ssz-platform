@@ -6,13 +6,16 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service.j
 import type { AppConfig } from '../../../config/configuration.js';
 import {
   GroupUnitsService,
+  absorbedDistribution,
+  absorbedOverall,
   absorbedShareOf,
   learnerCellOf,
   qualityOf,
   unitDeliveryOf,
-  weighAttempt,
   type CourseUnit,
+  type GroupDeliveryView,
 } from '../group-units.service.js';
+import { WorkContextService } from '../work-context.service.js';
 import { GetGroupProgressQuery } from './get-group-progress.query.js';
 import type {
   GroupProgressResponseDto,
@@ -20,14 +23,6 @@ import type {
   UnlinkedPlanUnitDto,
   WorkContextBucketDto,
 } from '../dto/group-progress-response.dto.js';
-
-/** The buckets of DECISIONS §O2, always all four — `classwork` is empty and says so. */
-const WORK_CONTEXTS: Array<'homework' | 'self_study' | 'classwork' | null> = [
-  'homework',
-  'self_study',
-  'classwork',
-  null,
-];
 
 /**
  * Where "below the line" is drawn, as a share of the group's median.
@@ -59,6 +54,7 @@ export class GetGroupProgressHandler
   constructor(
     private readonly prisma: PrismaService,
     private readonly units: GroupUnitsService,
+    private readonly workContext: WorkContextService,
     config: ConfigService<AppConfig>,
   ) {
     this.minWeightedSample = config.get<AppConfig['mastery']>('mastery')?.minWeightedSample ?? 8;
@@ -166,8 +162,8 @@ export class GetGroupProgressHandler
     const unlinkedPlanUnits: UnlinkedPlanUnitDto[] = delivery?.unlinkedPlanUnits ?? [];
 
     // ── 6. Summary and work context ─────────────────────────────────────────
-    const overall = this.overallAbsorbed(userIds, courseUnits, absorbed, units);
-    const workContext = await this.workContextOf(userIds, courseId);
+    const overall = this.overallAbsorbed(userIds, courseUnits, absorbed, delivery);
+    const workContext = await this.workContext.of(userIds, courseId);
 
     // The oldest input decides how stale the answer is, so the newest of them is the most
     // the footer may claim. A group nothing has happened to still has its own row's time.
@@ -195,121 +191,32 @@ export class GetGroupProgressHandler
         notJudgeable,
         lastActivityAt: lastActivity?.toISOString() ?? null,
       },
-      workContext,
+      workContext: workContext.buckets,
+      workContextUnattributed: workContext.unattributed,
     };
   }
 
   /**
    * Where the group as a whole stands, and how many of it are adrift.
    *
-   * Counted over the units that were actually taught: a course's later half is not a
-   * shortfall of the group, and including it would put every group below its own line in
-   * week one.
+   * The shares themselves are `absorbedOverall`, shared with the learner's own screen so
+   * that "you are here, the group is there" is two readings of one number.
    */
   private overallAbsorbed(
     userIds: readonly string[],
     courseUnits: readonly CourseUnit[],
     absorbed: Map<string, Map<string, { passed: number; touched: boolean }>>,
-    units: readonly GroupProgressUnitDto[],
+    delivery: GroupDeliveryView | null,
   ): { median: number | null; belowLine: number } {
-    const taught = new Set(
-      units.filter((unit) => unit.delivered === null || unit.delivered.value > 0).map((u) => u.unitId),
-    );
-    const counted = courseUnits.filter((unit) => taught.has(unit.unitId) && unit.items > 0);
-    if (counted.length === 0) return { median: null, belowLine: 0 };
-
-    const perLearner: number[] = [];
-    for (const userId of userIds) {
-      let passed = 0;
-      let items = 0;
-      let touched = false;
-      for (const unit of counted) {
-        const cell = absorbed.get(unit.unitId)?.get(userId);
-        if (cell === undefined || !cell.touched) continue;
-        touched = true;
-        passed += cell.passed;
-        items += unit.items;
-      }
-      if (touched && items > 0) perLearner.push(passed / items);
-    }
-
-    const distribution = distributionOf(perLearner);
+    const shares = absorbedOverall({ userIds, units: courseUnits, absorbed, delivery });
+    const distribution = absorbedDistribution(shares);
     if (distribution === null) return { median: null, belowLine: 0 };
 
     const line = distribution.median * BELOW_LINE_FACTOR;
     return {
       median: distribution.median,
-      belowLine: perLearner.filter((value) => value < line).length,
+      belowLine: [...shares.values()].filter((value) => value < line).length,
     };
-  }
-
-  /**
-   * How the group's work splits by where it was done (DECISIONS §O2).
-   *
-   * Scoped by learner and course rather than by the attempt's `groupId`: work done alone
-   * carries no group, and filtering on one would leave the `self_study` bucket
-   * permanently empty — the exact false zero this plan is about.
-   *
-   * `classwork` is present and empty on purpose: nothing sets it until the lesson-aware
-   * attempt of plans 59/60 lands, and an absent bucket would read as "we never work in
-   * class" rather than as "this is not recorded yet".
-   */
-  private async workContextOf(
-    userIds: readonly string[],
-    courseId: string | null,
-  ): Promise<WorkContextBucketDto[]> {
-    const empty = WORK_CONTEXTS.map((key) => ({ key, attempts: 0, share: 0, median: null }));
-    if (userIds.length === 0 || courseId === null) return empty;
-
-    const rows = await this.prisma.attemptEvidence.findMany({
-      where: { userId: { in: [...userIds] }, containerId: courseId },
-      select: {
-        userId: true,
-        workContext: true,
-        passed: true,
-        ratingApplied: true,
-        answerMode: true,
-        bankSize: true,
-        wordsConsumed: true,
-        templateCode: true,
-        gapPosition: true,
-      },
-    });
-    if (rows.length === 0) return empty;
-
-    const buckets = new Map<string, Map<string, { weight: number; success: number; attempts: number }>>();
-    for (const context of WORK_CONTEXTS) buckets.set(keyOf(context), new Map());
-
-    for (const row of rows) {
-      // Anything the service does not recognise joins the nameless bucket rather than
-      // being dropped: the total has to add up to the attempts the group really made.
-      const bucket = buckets.get(bucketKeyOf(row.workContext)) as Map<
-        string,
-        { weight: number; success: number; attempts: number }
-      >;
-      const learner = bucket.get(row.userId) ?? { weight: 0, success: 0, attempts: 0 };
-      const { succeeded, weight } = weighAttempt(row);
-      learner.attempts += 1;
-      learner.weight += weight;
-      if (succeeded) learner.success += weight;
-      bucket.set(row.userId, learner);
-    }
-
-    return WORK_CONTEXTS.map((context) => {
-      const bucket = buckets.get(keyOf(context)) ?? new Map();
-      const attempts = [...bucket.values()].reduce((sum, learner) => sum + learner.attempts, 0);
-      const rates = [...bucket.values()]
-        .filter((learner) => learner.weight > 0)
-        .map((learner) => learner.success / learner.weight);
-      const distribution = distributionOf(rates);
-
-      return {
-        key: context,
-        attempts,
-        share: Math.round((attempts / rows.length) * 100),
-        median: pct(distribution?.median ?? null),
-      };
-    });
   }
 
   /** The last thing anybody in this group did on this course, attempts or items alike. */
@@ -345,25 +252,6 @@ export class GetGroupProgressHandler
     });
     return row?.refreshedAt ?? null;
   }
-}
-
-/** `null` keys a bucket of its own; a Map cannot be keyed by it directly. */
-function keyOf(context: 'homework' | 'self_study' | 'classwork' | null): string {
-  return context ?? UNSAID;
-}
-
-const UNSAID = '__unsaid__';
-
-/**
- * Which bucket a stored context falls in.
- *
- * Anything unrecognised — an older vocabulary, a typo from a publisher — joins the
- * nameless bucket rather than being dropped, so that the shares still add up to the
- * attempts the group really made.
- */
-function bucketKeyOf(stored: string | null): string {
-  const known = WORK_CONTEXTS.find((context) => context !== null && context === stored);
-  return known ?? UNSAID;
 }
 
 function newest(dates: readonly Date[]): Date {
