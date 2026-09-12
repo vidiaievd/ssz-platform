@@ -45,6 +45,21 @@ enum SchoolType {
   HYBRID
 }
 
+/**
+ * What a workspace row actually is. SCHOOL is an organisation with staff; SOLO is
+ * one private tutor's own space — same tables, same authorisation, but the word
+ * "school" must never reach a SOLO user (plan 59, variant B).
+ *
+ * Upper-case member names on purpose: Prisma writes the *name* to the column,
+ * never a `@map` value.
+ */
+enum SchoolKind {
+  SCHOOL
+  SOLO
+
+  @@map("school_kind")
+}
+
 enum GroupStatus {
   draft
   active
@@ -106,6 +121,7 @@ model School {
   contactEmail String?    @map("contact_email")
   city         String?
   type         SchoolType @default(ONLINE)
+  kind         SchoolKind @default(SCHOOL)
   isActive     Boolean    @default(true)
   // School policies
   requireTutorReviewForSelfPaced Boolean @default(false)

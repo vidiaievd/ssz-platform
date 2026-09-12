@@ -58,7 +58,7 @@ export class SchoolPrismaRepository implements ISchoolRepository {
 
   async findAllActive(): Promise<School[]> {
     const rows = await (this.prisma as any).school.findMany({
-      where: { deletedAt: null, isActive: true },
+      where: { deletedAt: null, isActive: true, kind: 'SCHOOL' },
       include: INCLUDE_MEMBERS,
       orderBy: { createdAt: 'desc' },
     });
@@ -77,7 +77,8 @@ export class SchoolPrismaRepository implements ISchoolRepository {
       }
     }
 
-    const baseConditions: any[] = [{ deletedAt: null, isActive: true }];
+    // kind: a solo tutor workspace is private by construction and never listed.
+    const baseConditions: any[] = [{ deletedAt: null, isActive: true, kind: 'SCHOOL' }];
     if (type) baseConditions.push({ type });
     if (q) {
       baseConditions.push({
@@ -130,7 +131,7 @@ export class SchoolPrismaRepository implements ISchoolRepository {
 
   async findPublicSchoolDetail(slug: string): Promise<PublicSchoolDetail | null> {
     const raw = await (this.prisma as any).school.findFirst({
-      where: { slug, deletedAt: null, isActive: true },
+      where: { slug, deletedAt: null, isActive: true, kind: 'SCHOOL' },
       include: {
         members: true,
         groups: {
@@ -201,6 +202,7 @@ export class SchoolPrismaRepository implements ISchoolRepository {
           contactEmail: school.contactEmail ?? null,
           city: school.city ?? null,
           type: school.type,
+          kind: school.kind,
           isActive: school.isActive,
           requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
           defaultExplanationLanguage: school.defaultExplanationLanguage ?? null,

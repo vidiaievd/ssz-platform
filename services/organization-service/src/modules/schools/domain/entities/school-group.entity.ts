@@ -148,6 +148,17 @@ export class SchoolGroup {
     return [];
   }
 
+  /**
+   * Opens a solo tutor's only group without the school publishing checklist.
+   * That checklist asks for a course and a primary teacher chosen among colleagues;
+   * a private tutor has neither decision to make, and their learners must land in a
+   * live group from the day the workspace exists (plan 59, variant B).
+   */
+  openAsSoloDefault(): void {
+    this._props.status = 'active';
+    this._props.updatedAt = new Date();
+  }
+
   archive(): void {
     if (this._props.status !== 'archived') {
       this._props.status = 'archived';

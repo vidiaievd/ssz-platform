@@ -6,6 +6,7 @@ import { ForbiddenOperationException } from '../exceptions/forbidden-operation.e
 import { MemberAlreadyExistsException } from '../exceptions/member-already-exists.exception.js';
 import { MemberRole } from '../value-objects/member-role.vo.js';
 import { SchoolType } from '../value-objects/school-type.vo.js';
+import { SchoolKind } from '../value-objects/school-kind.vo.js';
 import { ReviewSettings } from '../value-objects/review-settings.vo.js';
 import type { SchoolMember } from './school-member.entity.js';
 
@@ -20,6 +21,8 @@ export interface CreateSchoolProps {
   contactEmail?: string;
   city?: string;
   type?: SchoolType;
+  /** Defaults to SCHOOL — only tutor provisioning asks for SOLO. */
+  kind?: SchoolKind;
 }
 
 export interface RehydrateSchoolProps extends CreateSchoolProps {
@@ -31,6 +34,8 @@ export interface RehydrateSchoolProps extends CreateSchoolProps {
   requireTutorReviewForSelfPaced: boolean;
   defaultExplanationLanguage?: string;
   type: SchoolType;
+  /** Absent for a row written before solo workspaces existed — it is a school. */
+  kind?: SchoolKind;
   /** Absent for a row written before the promise existed — the default stands in. */
   reviewSettings?: ReviewSettings;
 }
@@ -45,6 +50,7 @@ export class School extends BaseEntity {
   private _contactEmail: string | undefined;
   private _city: string | undefined;
   private _type: SchoolType;
+  private _kind: SchoolKind;
   private _isActive: boolean;
   private _deletedAt: Date | undefined;
   private _members: SchoolMember[];
@@ -63,6 +69,7 @@ export class School extends BaseEntity {
     contactEmail: string | undefined,
     city: string | undefined,
     type: SchoolType,
+    kind: SchoolKind,
     isActive: boolean,
     createdAt: Date,
     updatedAt: Date,
@@ -82,6 +89,7 @@ export class School extends BaseEntity {
     this._contactEmail = contactEmail;
     this._city = city;
     this._type = type;
+    this._kind = kind;
     this._isActive = isActive;
     this._deletedAt = deletedAt;
     this._members = members;
@@ -103,6 +111,7 @@ export class School extends BaseEntity {
       props.contactEmail,
       props.city,
       props.type ?? SchoolType.ONLINE,
+      props.kind ?? SchoolKind.SCHOOL,
       true,
       now,
       now,
@@ -133,6 +142,7 @@ export class School extends BaseEntity {
       props.contactEmail,
       props.city,
       props.type,
+      props.kind ?? SchoolKind.SCHOOL,
       props.isActive,
       props.createdAt,
       props.updatedAt,
@@ -249,6 +259,9 @@ export class School extends BaseEntity {
   get contactEmail(): string | undefined { return this._contactEmail; }
   get city(): string | undefined { return this._city; }
   get type(): SchoolType { return this._type; }
+  get kind(): SchoolKind { return this._kind; }
+  /** A private tutor's own workspace — never public, never named a school to its users. */
+  get isSolo(): boolean { return this._kind === SchoolKind.SOLO; }
   get isActive(): boolean { return this._isActive; }
   get deletedAt(): Date | undefined { return this._deletedAt; }
   get isDeleted(): boolean { return this._deletedAt !== undefined; }

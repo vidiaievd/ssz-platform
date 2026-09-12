@@ -97,10 +97,13 @@ import { SchoolMembersController } from './presentation/controllers/school-membe
 import { EnrollmentController } from './presentation/controllers/enrollment.controller.js';
 import { CapabilityResolverService } from './application/services/capability-resolver.service.js';
 import { ProfileUpdatedConsumer } from './infrastructure/events/profile-updated.consumer.js';
+import { UserRegisteredConsumer } from './infrastructure/events/user-registered.consumer.js';
+import { ProvisionSoloWorkspaceHandler } from './application/commands/provision-solo-workspace/provision-solo-workspace.handler.js';
 
 const CommandHandlers = [
   UpdateReviewSettingsHandler,
   CreateSchoolHandler,
+  ProvisionSoloWorkspaceHandler,
   UpdateSchoolHandler,
   DeleteSchoolHandler,
   AddMemberHandler,
@@ -186,6 +189,7 @@ const QueryHandlers = [
     InvitationTokenService,
     CapabilityResolverService,
     ProfileUpdatedConsumer,
+    UserRegisteredConsumer,
     ProfileServiceHttpClient,
     SchedulingServiceHttpClient,
     {
