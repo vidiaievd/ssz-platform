@@ -97,7 +97,9 @@ describe('AttemptsController (integration)', () => {
   };
   const mockOrganizationClient = {
     getMemberRole: jest.fn(),
-    resolveStudentGroup: jest.fn(),
+    resolveLearnerReviewContext: jest
+      .fn()
+      .mockResolvedValue(Result.ok({ schoolId: null, groupId: null, groupName: null })),
   };
   const mockValidator = { validate: jest.fn() };
   const mockFeedback = { generate: jest.fn() };

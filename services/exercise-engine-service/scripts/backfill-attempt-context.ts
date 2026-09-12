@@ -42,6 +42,12 @@ interface AttemptRow {
   exercisePath: unknown;
 }
 
+/** What organization-service knows about where the learner belongs. */
+export interface LearnerContext {
+  schoolId: string | null;
+  groupId: string | null;
+}
+
 export interface ContextPatch {
   schoolId?: string;
   containerId?: string;
@@ -55,18 +61,29 @@ export interface ContextPatch {
  * Only blanks are filled. A value snapshotted when the learner started describes where
  * they were *then*, and a backfill running months later has no business overwriting it
  * with where they are now — the same rule `Attempt.backfillReviewContext` already keeps.
+ *
+ * The school comes from the learner first and from the content's owner only as a last
+ * resort, exactly as ReviewContextResolver now does it (plan 59 §3, phase 3.2). That is
+ * what reaches the work already waiting: a private tutor's course owns no school, so
+ * every submission of theirs sits here with `school_id = NULL` and no queue can show it.
  */
 export function contextPatch(
   row: Pick<AttemptRow, 'schoolId' | 'containerId' | 'groupId' | 'exercisePath'>,
   placement: Placement | null,
-  groupId: string | null,
+  learner: LearnerContext,
 ): ContextPatch {
   const patch: ContextPatch = {};
+
+  if (row.schoolId === null) {
+    const schoolId = learner.schoolId ?? placement?.ownerSchoolId ?? null;
+    if (schoolId !== null) patch.schoolId = schoolId;
+  }
+  if (row.groupId === null && learner.groupId !== null) {
+    patch.groupId = learner.groupId;
+  }
+
   if (placement === null) return patch;
 
-  if (row.schoolId === null && placement.ownerSchoolId !== null) {
-    patch.schoolId = placement.ownerSchoolId;
-  }
   if (row.containerId === null && placement.containerId !== null) {
     patch.containerId = placement.containerId;
   }
@@ -76,9 +93,6 @@ export function contextPatch(
       module: placement.moduleTitle,
       exercise: placement.exerciseTitle,
     };
-  }
-  if (row.groupId === null && groupId !== null) {
-    patch.groupId = groupId;
   }
 
   return patch;
@@ -132,30 +146,34 @@ async function getPlacement(exerciseId: string): Promise<Placement | null> {
 }
 
 /**
- * The learner's group *now*, not on the day they handed the work in.
+ * Where the learner belongs *now*, not on the day they handed the work in.
  *
  * organization-service can answer as of a date, but only from the memberships it still
  * holds — a learner moved between groups since leaves no trace to resolve against. So a
  * mover is filed under their current group, which the report says out loud: it is a known
  * limit of backfilled history, not a bug to hunt later.
  */
-async function getGroupId(
-  schoolId: string,
+async function getLearnerContext(
   userId: string,
   courseId: string | null,
-): Promise<string | null> {
-  const query = courseId ? `?courseId=${courseId}` : '';
+  ownerSchoolId: string | null,
+): Promise<LearnerContext> {
+  const params = new URLSearchParams();
+  if (courseId) params.set('courseId', courseId);
+  if (ownerSchoolId) params.set('preferredSchoolId', ownerSchoolId);
+  const query = params.size > 0 ? `?${params.toString()}` : '';
+
   try {
     const res = await fetch(
-      `${ORGANIZATION_BASE_URL}/api/v1/internal/schools/${schoolId}/students/${userId}/group${query}`,
+      `${ORGANIZATION_BASE_URL}/api/v1/internal/students/${userId}/review-context${query}`,
       { headers: { 'x-internal-token': INTERNAL_TOKEN ?? '' } },
     );
-    if (!res.ok) return null;
-    const body = (await res.json()) as { groupId: string | null };
-    return body.groupId;
+    if (!res.ok) return { schoolId: null, groupId: null };
+    const body = (await res.json()) as LearnerContext;
+    return { schoolId: body.schoolId ?? null, groupId: body.groupId ?? null };
   } catch (err) {
-    console.warn(`  group lookup failed for ${userId}: ${describe(err)}`);
-    return null;
+    console.warn(`  review-context lookup failed for ${userId}: ${describe(err)}`);
+    return { schoolId: null, groupId: null };
   }
 }
 
@@ -206,20 +224,24 @@ async function runPhase(
     for (const row of rows) {
       try {
         const placement = await getPlacement(row.exerciseId);
-        if (placement === null) {
-          report.noPlacement += 1;
-          continue;
-        }
+        if (placement === null) report.noPlacement += 1;
 
-        const schoolId = row.schoolId ?? placement.ownerSchoolId;
-        const groupId =
-          row.groupId === null && schoolId !== null
-            ? await getGroupId(schoolId, row.userId, row.containerId ?? placement.containerId)
-            : row.groupId;
+        // Asked even when the placement is missing: the learner's workspace does not
+        // depend on the content, and a row with a school is a row a queue can show.
+        const learner =
+          row.schoolId === null || row.groupId === null
+            ? await getLearnerContext(
+                row.userId,
+                row.containerId ?? placement?.containerId ?? null,
+                placement?.ownerSchoolId ?? null,
+              )
+            : { schoolId: row.schoolId, groupId: row.groupId };
 
+        const schoolId = row.schoolId ?? learner.schoolId ?? placement?.ownerSchoolId ?? null;
+        const groupId = row.groupId ?? learner.groupId;
         if (schoolId !== null && groupId === null) report.noGroup += 1;
 
-        const patch = contextPatch(row, placement, groupId);
+        const patch = contextPatch(row, placement, learner);
         if (Object.keys(patch).length === 0) continue;
 
         if (!DRY_RUN) {
