@@ -1,9 +1,11 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { InternalAuthGuard } from './internal-auth.guard.js';
+import { Public } from '../../common/decorators/public.decorator.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 
 @ApiExcludeController()
+@Public()
 @UseGuards(InternalAuthGuard)
 @Controller('internal/analytics/snapshot')
 export class AnalyticsSnapshotController {

@@ -107,6 +107,9 @@ export class WorkloadCalculatorService {
     const byKey = new Map<string, Lesson[]>();
     for (const lesson of all) {
       if (lesson.status === 'cancelled') continue;
+      // An unassigned lesson clashes with nothing: there is no one to be in two
+      // places at once.
+      if (!lesson.teacherId) continue;
       const key = `${lesson.teacherId}::${lesson.date.toISOString().slice(0, 10)}`;
       if (!byKey.has(key)) byKey.set(key, []);
       byKey.get(key)!.push(lesson);
@@ -200,6 +203,8 @@ export class WorkloadCalculatorService {
     const lessonsByTeacher = new Map<string, Lesson[]>();
     for (const lesson of futureLessons) {
       if (lesson.status === 'cancelled') continue;
+      // Nobody's calendar is blocked by a lesson nobody is teaching.
+      if (!lesson.teacherId) continue;
       if (!lessonsByTeacher.has(lesson.teacherId)) lessonsByTeacher.set(lesson.teacherId, []);
       lessonsByTeacher.get(lesson.teacherId)!.push(lesson);
     }
@@ -281,6 +286,8 @@ export class WorkloadCalculatorService {
     const seen = new Map<string, SchoolTimetableEntry>();
     for (const lesson of lessons) {
       if (lesson.status === 'cancelled') continue;
+      // The timetable is per teacher; an unassigned lesson belongs on no one's.
+      if (!lesson.teacherId) continue;
       const weekday = JS_WEEKDAY[lesson.date.getDay()]!;
       const key = `${lesson.teacherId}::${weekday}::${lesson.startTime}::${lesson.endTime}::${lesson.groupId}`;
       if (!seen.has(key)) {

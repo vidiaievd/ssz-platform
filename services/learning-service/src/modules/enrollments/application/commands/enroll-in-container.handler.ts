@@ -32,8 +32,12 @@ export class EnrollInContainerHandler
   ) {}
 
   async execute(cmd: EnrollInContainerCommand): Promise<Result<EnrollmentDto, EnrollmentApplicationError>> {
+    // A learner who already holds this course is told so; one who left it is let back in
+    // on the row they left behind. Building a second aggregate for them used to break the
+    // `(userId, containerId)` unique index and surface as a 500 — an ordinary act
+    // answered with an incident.
     const existing = await this.repo.findByUserAndContainer(cmd.userId, cmd.containerId);
-    if (existing && existing.status === 'ACTIVE') {
+    if (existing && existing.status !== 'UNENROLLED') {
       return Result.fail(new EnrollmentAlreadyExistsError(cmd.containerId));
     }
 
@@ -65,10 +69,19 @@ export class EnrollInContainerHandler
       return Result.fail(new AccessDeniedForContainerError(tier));
     }
 
-    const enrollment = Enrollment.create(
-      { userId: cmd.userId, containerId: cmd.containerId, schoolId: cmd.schoolId },
-      this.clock.now(),
-    );
+    let enrollment: Enrollment;
+    if (existing) {
+      const revived = existing.reenrol(this.clock.now(), cmd.schoolId ?? null);
+      if (revived.isFail) {
+        return Result.fail(new EnrollmentAlreadyExistsError(cmd.containerId));
+      }
+      enrollment = existing;
+    } else {
+      enrollment = Enrollment.create(
+        { userId: cmd.userId, containerId: cmd.containerId, schoolId: cmd.schoolId },
+        this.clock.now(),
+      );
+    }
 
     await this.repo.save(enrollment);
 
@@ -80,7 +93,9 @@ export class EnrollInContainerHandler
     }
     enrollment.clearDomainEvents();
 
-    this.logger.log(`Enrolled user ${cmd.userId} in container ${cmd.containerId}`);
+    this.logger.log(
+      `${existing ? 'Re-enrolled' : 'Enrolled'} user ${cmd.userId} in container ${cmd.containerId}`,
+    );
     return Result.ok(toEnrollmentDto(enrollment));
   }
 }

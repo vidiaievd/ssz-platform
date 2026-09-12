@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { CandidateRankingService } from '../../application/services/candidate-ranking.service.js';
@@ -61,6 +61,11 @@ export class SubstitutionsController {
   ): Promise<SubRequestResponseDto> {
     const lesson = await this.prisma.lesson.findUnique({ where: { id: body.lessonId } });
     if (!lesson) throw new Error('Lesson not found');
+    // Cover is cover *for someone*. A lesson nobody is assigned to needs a
+    // teacher, not a substitute.
+    if (!lesson.teacherId) {
+      throw new BadRequestException('This lesson has no teacher to cover for.');
+    }
 
     const now = new Date();
     const daysUntil = Math.floor((new Date(body.coverFrom).getTime() - now.getTime()) / 86_400_000);

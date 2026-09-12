@@ -113,6 +113,43 @@ export class Enrollment extends AggregateRoot {
     return Result.ok();
   }
 
+  /**
+   * Come back to a course this learner had left.
+   *
+   * The same row is brought back to life rather than a second one created: `(userId,
+   * containerId)` is unique, and the old code built a fresh aggregate for a learner who
+   * already had a row — which reached the database as a constraint violation and left the
+   * caller with a 500 for a perfectly ordinary act. Only an UNENROLLED enrollment can be
+   * revived; a COMPLETED one is not in the way, and clearing a completion to "start again"
+   * would erase something the learner earned.
+   *
+   * The creation event is raised again on purpose: downstream projections flip a learner
+   * back to ACTIVE on it, and they are keyed by the enrollment id — the same id they were
+   * told about the first time.
+   */
+  reenrol(now: Date, schoolId?: string | null): Result<void, EnrollmentDomainError> {
+    if (this._status !== 'UNENROLLED') {
+      return Result.fail(new InvalidEnrollmentTransitionError(this._status, 'ACTIVE'));
+    }
+
+    this._status = 'ACTIVE';
+    this._enrolledAt = now;
+    this._unenrolledAt = null;
+    this._unenrollReason = null;
+    if (schoolId !== undefined) this._schoolId = schoolId;
+
+    this.addDomainEvent(
+      new EnrollmentCreatedEvent(this.id, {
+        enrollmentId: this.id,
+        userId: this._userId,
+        containerId: this._containerId,
+        schoolId: this._schoolId,
+      }),
+    );
+
+    return Result.ok();
+  }
+
   unenroll(reason?: string): Result<void, EnrollmentDomainError> {
     if (this._status === 'UNENROLLED') {
       return Result.fail(new EnrollmentAlreadyUnenrolledError());

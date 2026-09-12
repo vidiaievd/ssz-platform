@@ -15,6 +15,9 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import type { Result } from '../../../../shared/kernel/result.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
+import { VisibilityCheckerService } from '../../../../shared/access-control/domain/services/visibility-checker.service.js';
+import { EntityResolverRegistry } from '../../../../shared/access-control/infrastructure/registry/entity-resolver-registry.js';
 
 import { ListRelationsBySourceQuery } from '../../../content-relation/application/queries/list-relations-by-source/list-relations-by-source.query.js';
 import { ListRelationsByTargetQuery } from '../../../content-relation/application/queries/list-relations-by-target/list-relations-by-target.query.js';
@@ -59,6 +62,11 @@ import type { PreflightResult } from '../../application/queries/get-preflight/ge
 import { GetLeafItemsQuery } from '../../../container/application/queries/get-leaf-items/get-leaf-items.query.js';
 import type { LeafItem } from '../../../container/application/queries/get-leaf-items/get-leaf-items.handler.js';
 import { GetContainerQuery } from '../../../container/application/queries/get-container/get-container.query.js';
+import { GetCourseOutlineQuery } from '../../../container/application/queries/get-course-outline/get-course-outline.query.js';
+import type { CourseOutlineResult } from '../../../container/application/queries/get-course-outline/get-course-outline.handler.js';
+
+import { GetContainerCoverageQuery } from '../../../container/application/queries/get-container-coverage/get-container-coverage.query.js';
+import type { ContainerCoverageResult } from '../../../container/application/queries/get-container-coverage/get-container-coverage.handler.js';
 import type { GetContainerResult } from '../../../container/application/queries/get-container/get-container.handler.js';
 import type { ContainerDomainError } from '../../../container/domain/exceptions/container-domain.exceptions.js';
 
@@ -75,12 +83,68 @@ import type { ExercisePlacementResult } from '../../application/queries/get-exer
 /** Page size used when walking a vocabulary list's items internally. */
 const INTERNAL_ITEMS_PAGE_SIZE = 200;
 
+/**
+ * How another service names a piece of content, and how this one does.
+ *
+ * Learning Service speaks `ContentRef` — `EXERCISE`, `LESSON`, … — because that is what
+ * an assignment stores. The mapping lives here rather than at the caller so that the
+ * wire contract is a name and not a private enum value.
+ */
+const CONTENT_TYPE_TO_ENTITY: Record<string, TaggableEntityType> = {
+  CONTAINER: TaggableEntityType.CONTAINER,
+  LESSON: TaggableEntityType.LESSON,
+  VOCABULARY_LIST: TaggableEntityType.VOCABULARY_LIST,
+  GRAMMAR_RULE: TaggableEntityType.GRAMMAR_RULE,
+  EXERCISE: TaggableEntityType.EXERCISE,
+};
+
 @ApiExcludeController()
 @Public()
 @UseGuards(InternalAuthGuard)
 @Controller('internal')
 export class InternalController {
-  constructor(private readonly queryBus: QueryBus) {}
+  constructor(
+    private readonly queryBus: QueryBus,
+    private readonly visibility: VisibilityCheckerService,
+    private readonly entities: EntityResolverRegistry,
+  ) {}
+
+  /**
+   * May this learner see this piece of content — the question Learning Service asks
+   * before it puts something on somebody's homework list.
+   *
+   * **This route did not exist**, and its absence was invisible: the caller could not
+   * tell a 404 from a refusal, so it read every answer as "not visible" and quietly
+   * dropped every learner from every group assignment. Assignments on a course the whole
+   * class was enrolled in came back empty, with a warning line per student and a 201.
+   *
+   * The verdict is the same `VisibilityCheckerService` every guarded route runs, given a
+   * user with no platform-admin powers: a service asking on someone's behalf must not be
+   * able to see more than that someone. A missing entity is a 404 and stays
+   * distinguishable from `isVisible: false`, which is a fact about the person.
+   */
+  @Get('content-items/:type/:id/visibility')
+  async checkVisibility(
+    @Param('type') type: string,
+    @Param('id') id: string,
+    @Query('userId') userId: string,
+  ): Promise<{ isVisible: boolean; reason?: string }> {
+    if (!userId) throw new BadRequestException('userId query parameter is required');
+
+    const entityType = CONTENT_TYPE_TO_ENTITY[type.toUpperCase()];
+    if (!entityType) throw new BadRequestException(`Unknown content type: '${type}'`);
+
+    const entity = await this.entities.resolve(entityType, id);
+    if (!entity) throw new NotFoundException(`No ${type} with id ${id}`);
+
+    const decision = await this.visibility.canAccess(
+      { userId, roles: [], isPlatformAdmin: false },
+      entity,
+      'view',
+    );
+
+    return { isVisible: decision.allowed, ...(decision.reason && { reason: decision.reason }) };
+  }
 
   @Get('content-relations')
   async listContentRelations(
@@ -266,6 +330,86 @@ export class InternalController {
       moduleId: i.moduleId,
       isRequired: i.isRequired,
     }));
+  }
+
+  // scheduling-service lays a group's sessions over the course content, so it
+  // needs the published course as an ordered outline: units, and the items
+  // within each. Nothing published yet is answered with an empty outline rather
+  // than a 404 — the course exists, it just cannot be taught from yet.
+  @Get('containers/:id/outline')
+  async getCourseOutline(@Param('id') id: string): Promise<CourseOutlineResult> {
+    const result = await this.queryBus.execute<
+      GetCourseOutlineQuery,
+      Result<CourseOutlineResult, ContainerDomainError>
+    >(new GetCourseOutlineQuery(id));
+
+    if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
+    return result.value;
+  }
+
+  // analytics-service asks what a course trains before it names a learner's cell
+  // empty: a `skill` no exercise touches is `noContent` — a fact about the course,
+  // not about the learner — and only this service can tell the two apart. The
+  // published composition, not the draft: the learner's grid is about the course
+  // they actually have. A course with nothing published answers `available: false`
+  // and empty tallies, never a course full of zeroes.
+  @Get('containers/:id/coverage')
+  async getContainerCoverage(@Param('id') id: string): Promise<{
+    containerId: string;
+    available: boolean;
+    total: number;
+    bySkill: Record<string, number>;
+    byFocus: Record<string, number>;
+    emptySkills: string[];
+  }> {
+    const result = await this.queryBus.execute<
+      GetContainerCoverageQuery,
+      Result<ContainerCoverageResult, ContainerDomainError>
+    >(new GetContainerCoverageQuery(id, 'published'));
+
+    if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
+
+    const report = result.value.published;
+    return {
+      containerId: id,
+      available: report?.available ?? false,
+      total: report?.coverage.total ?? 0,
+      bySkill: report?.coverage.bySkill ?? {},
+      byFocus: report?.coverage.byFocus ?? {},
+      emptySkills: report?.coverage.emptySkills ?? [],
+    };
+  }
+
+  // analytics-service projects a container directory from content.container.* events,
+  // and events are not replayed: every environment restored from a dump — dev included —
+  // has an empty directory and cannot answer a single question about a course by name.
+  // This is what its backfill reads, one container at a time, for the handful of
+  // containers analytics already has numbers about.
+  @Get('containers/:id/directory')
+  async getContainerDirectory(@Param('id') id: string): Promise<{
+    containerId: string;
+    title: string;
+    lang: string;
+    ownerUserId: string;
+    ownerSchoolId: string | null;
+    containerType: string;
+  }> {
+    const result = await this.queryBus.execute<
+      GetContainerQuery,
+      Result<GetContainerResult, ContainerDomainError>
+    >(new GetContainerQuery(id, ''));
+
+    if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
+
+    const container = result.value.container;
+    return {
+      containerId: id,
+      title: container.title,
+      lang: container.targetLanguage,
+      ownerUserId: container.ownerUserId,
+      ownerSchoolId: container.ownerSchoolId,
+      containerType: container.containerType,
+    };
   }
 
   // Learning Service's EnrollInContainerHandler reads this before creating an

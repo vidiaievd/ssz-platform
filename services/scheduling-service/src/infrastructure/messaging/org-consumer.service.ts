@@ -7,6 +7,7 @@ import type { AppConfig } from '../../config/configuration.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { LessonGeneratorService } from '../../modules/slots/application/services/lesson-generator.service.js';
 import { OrgServiceHttpClient } from '../org/org-service.http-client.js';
+import type { WeekDay } from '../../modules/slots/domain/entities/slot.entity.js';
 
 const QUEUE = 'scheduling-service.org-groups';
 
@@ -87,43 +88,40 @@ export class OrgConsumerService implements OnModuleInit, OnModuleDestroy {
   private async handleGroupPublished(payload: Record<string, unknown>): Promise<void> {
     const groupId = payload['groupId'] as string | undefined;
     const schoolId = payload['schoolId'] as string | undefined;
-    const startDate = payload['startDate'] as string | undefined;
-    const endDate = payload['endDate'] as string | undefined;
+    if (!groupId || !schoolId) return;
 
-    if (!groupId || !schoolId || !startDate || !endDate) return;
-
-    const [slots, teachers] = await Promise.all([
+    // The event says the group is published; the group's own facts say what to
+    // plan. Reading term dates and course off the payload silently did nothing
+    // for as long as this handler has existed — the published event has never
+    // carried either of them.
+    const [group, slots, teachers] = await Promise.all([
+      this.orgClient.getGroup(schoolId, groupId),
       this.prisma.slot.findMany({ where: { groupId } }),
       this.orgClient.getGroupTeachers(schoolId, groupId),
     ]);
 
+    if (!group?.startDate || !slots.length) return;
+
     const primaryTeacher = teachers.find((t) => t.role === 'primary');
-    if (!slots.length || !primaryTeacher) return;
-
-    // Delete existing future scheduled lessons before regenerating
-    await this.prisma.lesson.deleteMany({
-      where: { groupId, date: { gte: new Date(startDate) }, status: 'scheduled' },
-    });
-
-    await this.lessonGenerator.generate({
+    const planned = await this.lessonGenerator.regenerateTail({
       groupId,
       schoolId,
-      teacherId: primaryTeacher.userId,
+      teacherId: primaryTeacher?.userId ?? null,
       slots: slots.map((s) => ({
         id: s.id,
         groupId: s.groupId,
         schoolId: s.schoolId,
-        weekday: s.weekday as any,
+        weekday: s.weekday as WeekDay,
         startTime: s.startTime,
         endTime: s.endTime,
         room: s.room,
         createdAt: s.createdAt,
       })),
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      courseId: group.courseId ?? null,
+      startDate: new Date(group.startDate),
     });
 
-    this.logger.log(`Generated lessons for published group ${groupId}`);
+    this.logger.log(`Planned ${planned.length} sessions for published group ${groupId}`);
   }
 
   private async handleGroupArchived(payload: Record<string, unknown>): Promise<void> {

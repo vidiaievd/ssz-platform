@@ -34,6 +34,18 @@ enum LessonStatus {
   @@map("lesson_status")
 }
 
+/// What kind of session a lesson is. A checkpoint exam is a lesson of type
+/// `exam`, not a separate entity: that puts the assessment in the same log as
+/// the teaching, with one model behind both.
+enum LessonType {
+  lesson
+  exam
+  make_up
+  review
+
+  @@map("lesson_type")
+}
+
 enum AbsenceKind {
   sick
   leave
@@ -143,18 +155,72 @@ model Lesson {
   date             DateTime        @db.Date
   startTime        String          @map("start_time")
   endTime          String          @map("end_time")
-  teacherId        String          @map("teacher_id")
+  /// Who actually taught it. Null is legal — a slot can be scheduled before
+  /// anyone is assigned to it; such a lesson counts towards nobody's workload.
+  teacherId        String?         @map("teacher_id")
   room             String?
   status           LessonStatus    @default(scheduled)
+  type             LessonType      @default(lesson)
   curriculumUnitId String?         @map("curriculum_unit_id")
   curriculumUnit   CurriculumUnit? @relation(fields: [curriculumUnitId], references: [id], onDelete: SetNull)
 
+  /// The topic, as a reference into the linked course rather than free text:
+  /// unit and item identify the content itself, not its placement in a version,
+  /// so republishing the course does not orphan the topic. Both null while no
+  /// topic is assigned — a legal state for a lesson nobody has planned yet.
+  contentUnitId   String? @map("content_unit_id")
+  contentLessonId String? @map("content_lesson_id")
+
+  /// How many of the group turned up. Only meaningful once held, and never for
+  /// an exam — there the results say who was there.
+  attendance Int?
+  /// Why it was cancelled. Printed in the log next to the crossed-out topic.
+  note       String? @db.Text
+  /// Outside the group's weekly pattern — a make-up class, an extra exam.
+  /// Such a lesson has no place in the generated plan, hence no planIndex.
+  extra      Boolean @default(false)
+  planIndex  Int?    @map("plan_index")
+  /// Pass mark for this exam alone, overriding the school's. Null follows the school.
+  passMark   Int?    @map("pass_mark")
+
   substituteRequests SubstituteRequest[]
+  scores             LessonScore[]
 
   @@index([groupId, date])
   @@index([schoolId, date])
   @@index([teacherId, date])
   @@map("lessons")
+}
+
+// ─── Exam results ─────────────────────────────────────────────────────────────
+
+/// One student's score on one exam. Kept as rows keyed by student rather than a
+/// blob on the lesson, so a student who leaves the group simply stops being
+/// found — they drop out of the average instead of skewing it.
+model LessonScore {
+  id        String   @id @default(uuid())
+  lessonId  String   @map("lesson_id")
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  studentId String   @map("student_id")
+  /// 0..100. Null means "not graded yet", which is not the same as zero and is
+  /// counted as neither a pass nor a fail.
+  score     Int?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([lessonId, studentId])
+  @@index([lessonId])
+  @@map("lesson_scores")
+}
+
+/// Where a school's pass mark lives. A single exam may override it; see
+/// Lesson.passMark.
+model GradingPolicy {
+  schoolId  String   @id @map("school_id")
+  passMark  Int      @default(60) @map("pass_mark")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("grading_policies")
 }
 
 // ─── Workload policy (per school, with defaults) ──────────────────────────────

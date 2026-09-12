@@ -30,6 +30,7 @@ export class CurriculumPlanPrismaReader implements ICurriculumPlanReader {
       order: u.order,
       plannedSessions: u.plannedSessions,
       deliveredSessions: heldByUnit.get(u.id) ?? 0,
+      contentUnitId: u.contentUnitId,
     }));
   }
 }

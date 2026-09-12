@@ -62,6 +62,9 @@ export class ProgressActivityConsumer implements OnModuleInit, OnModuleDestroy {
       setup: async (channel: ConfirmChannel) => {
         await channel.assertExchange(EXCHANGE, 'topic', { durable: true });
         await channel.assertQueue(QUEUE, { durable: true });
+        // One at a time: `item_progress` below is last-write-wins per item, and a batch
+        // delivered at once would let an older status land after a newer one.
+        await channel.prefetch(1);
         for (const key of BINDING_KEYS) {
           await channel.bindQueue(QUEUE, EXCHANGE, key);
         }
@@ -125,6 +128,7 @@ export class ProgressActivityConsumer implements OnModuleInit, OnModuleDestroy {
             occurredAt: ts,
           },
         });
+        await this.rememberState(p.userId, p.contentType, p.contentId, p.status, ts);
         break;
       }
 
@@ -140,12 +144,50 @@ export class ProgressActivityConsumer implements OnModuleInit, OnModuleDestroy {
             occurredAt: new Date(p.completedAt ?? occurredAt),
           },
         });
+        await this.rememberState(
+          p.userId,
+          p.contentType,
+          p.contentId,
+          'COMPLETED',
+          new Date(p.completedAt ?? occurredAt),
+        );
         break;
       }
 
       default:
         this.logger.warn(`ProgressActivityConsumer: unhandled event type "${eventType}"`);
     }
+  }
+
+  /**
+   * The current state of one item for one learner — plan 58, phase 1.
+   *
+   * Written beside the activity log rather than instead of it: the log answers "when did
+   * this person last do anything" and cannot answer "how much of unit 4 is passed"
+   * without replaying itself, which is the question every group screen asks.
+   *
+   * Last write wins, guarded by the timestamp. Events for one item arrive in order today,
+   * but a redelivery after a restart does not have to, and an older `IN_PROGRESS`
+   * overwriting a newer `COMPLETED` would silently subtract from a learner's progress.
+   */
+  private async rememberState(
+    userId: string,
+    contentType: string,
+    contentId: string,
+    status: string,
+    at: Date,
+  ): Promise<void> {
+    const key = {
+      userId_contentType_contentId: { userId, contentType, contentId },
+    };
+    const known = await this.prisma.itemProgress.findUnique({ where: key });
+    if (known && known.updatedAt > at) return;
+
+    await this.prisma.itemProgress.upsert({
+      where: key,
+      create: { userId, contentType, contentId, status, updatedAt: at },
+      update: { status, updatedAt: at },
+    });
   }
 
   async onModuleDestroy(): Promise<void> {

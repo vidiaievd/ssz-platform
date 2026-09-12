@@ -91,10 +91,18 @@ export class CreateGroupAssignmentHandler
     for (const assigneeId of memberIds) {
       if (assigneeId === cmd.assignerId) continue;
 
-      // Check content visibility per student
+      // Check content visibility per student. A refusal is a fact about that one learner
+      // and skips them; a content service that could not answer is not, and used to be
+      // folded into the same branch — so a broken upstream returned "201, nobody was
+      // assigned anything" and the caller had no way to know the difference.
       const visibilityResult = await this.contentClient.checkVisibilityForUser(contentRef, assigneeId);
-      if (visibilityResult.isFail || !visibilityResult.value.isVisible) {
-        this.logger.warn(`Content not visible for student ${assigneeId} — skipping`);
+      if (visibilityResult.isFail) {
+        return Result.fail(new ContentServiceUnavailableError(visibilityResult.error.message));
+      }
+      if (!visibilityResult.value.isVisible) {
+        this.logger.warn(
+          `Content not visible for student ${assigneeId} (${visibilityResult.value.reason ?? 'no reason given'}) — skipping`,
+        );
         continue;
       }
 

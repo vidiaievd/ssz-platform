@@ -56,6 +56,10 @@
       "import": "./dist/evidence/index.js",
       "types": "./dist/evidence/index.d.ts"
     },
+    "./analytics": {
+      "import": "./dist/analytics/index.js",
+      "types": "./dist/analytics/index.d.ts"
+    },
     "./mastery": {
       "import": "./dist/mastery/index.js",
       "types": "./dist/mastery/index.d.ts"

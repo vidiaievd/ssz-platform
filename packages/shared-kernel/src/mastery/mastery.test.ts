@@ -201,6 +201,62 @@ describe('weakestCells', () => {
     expect(result.insufficient[0]?.attempts).toBe(20);
   });
 
+  // Plan 58 §O6 — the label is the whole reason `meanStability` is kept.
+  describe('reason', () => {
+    const stable = (
+      skill: 'reading' | 'listening' | 'written',
+      successRateEwma: number,
+      meanStability: number | null,
+    ) => ({
+      skill,
+      focus: 'grammar' as const,
+      state: {
+        successRateEwma,
+        meanStability,
+        medianSecondsPerItem: null,
+        attempts: 10,
+        weightedSample: 10,
+        lastAttemptAt: AT,
+      },
+    });
+
+    it('tells "forgets fast" from "never learned" by stability, not by the percentage', () => {
+      // Identical success rates; opposite lessons for the teacher.
+      const result = weakestCells(
+        [stable('reading', 0.2, 1.5), stable('listening', 0.2, 30), stable('written', 0.2, 12)],
+        { minWeightedSample: 5 },
+      );
+      const bySkill = Object.fromEntries(result.weakest.map((c) => [c.skill, c.reason]));
+      expect(bySkill.reading).toBe('forgets');
+      expect(bySkill.listening).toBe('never-knew');
+    });
+
+    it('calls a cell inside the acting range "watch", however short its memory', () => {
+      const result = weakestCells([stable('reading', 0.8, 0.5), stable('listening', 0.9, 40)], {
+        minWeightedSample: 5,
+      });
+      expect(result.weakest.every((c) => c.reason === 'watch')).toBe(true);
+    });
+
+    it('claims nothing about a learner whose memory was never observed', () => {
+      const result = weakestCells([stable('reading', 0.1, null)], { minWeightedSample: 5 });
+      expect(result.weakest[0]?.reason).toBeNull();
+    });
+
+    it('reads "short" against this learner, not against a fixed number of days', () => {
+      // Six days is long for a quick learner and short for a slow one; the same cell
+      // gets opposite labels in the two profiles, which is the point.
+      const quick = weakestCells([stable('reading', 0.2, 6), stable('written', 0.9, 20)], {
+        minWeightedSample: 5,
+      });
+      const slow = weakestCells([stable('reading', 0.2, 6), stable('written', 0.9, 2)], {
+        minWeightedSample: 5,
+      });
+      expect(quick.weakest.find((c) => c.skill === 'reading')?.reason).toBe('forgets');
+      expect(slow.weakest.find((c) => c.skill === 'reading')?.reason).toBe('never-knew');
+    });
+  });
+
   it('limits the verdicts without hiding the uncertain cells', () => {
     const result = weakestCells(
       [
