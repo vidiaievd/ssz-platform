@@ -107,6 +107,48 @@ describe('Enrollment entity', () => {
     });
   });
 
+  describe('reenrol', () => {
+    const LATER = new Date('2026-03-01T09:00:00Z');
+
+    it('brings a learner who left back to ACTIVE on the same row', () => {
+      const enrollment = makeEnrollment();
+      enrollment.unenroll('too busy');
+      enrollment.clearDomainEvents();
+      const { id } = enrollment;
+
+      const result = enrollment.reenrol(LATER);
+
+      expect(result.isOk).toBe(true);
+      expect(enrollment.id).toBe(id);
+      expect(enrollment.status).toBe('ACTIVE');
+      expect(enrollment.enrolledAt).toEqual(LATER);
+      // The reason they left is not history worth keeping against them once they return.
+      expect(enrollment.unenrolledAt).toBeNull();
+      expect(enrollment.unenrollReason).toBeNull();
+      expect(enrollment.getDomainEvents()).toHaveLength(1);
+    });
+
+    it('refuses on an enrollment that is already active', () => {
+      const enrollment = makeEnrollment();
+
+      const result = enrollment.reenrol(LATER);
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(InvalidEnrollmentTransitionError);
+    });
+
+    // Clearing a completion to start again would erase something the learner earned.
+    it('refuses on a completed enrollment', () => {
+      const enrollment = makeEnrollment();
+      enrollment.complete(NOW);
+
+      const result = enrollment.reenrol(LATER);
+
+      expect(result.isFail).toBe(true);
+      expect(enrollment.status).toBe('COMPLETED');
+    });
+  });
+
   describe('reconstitute', () => {
     it('restores from persistence without raising events', () => {
       const enrollment = Enrollment.reconstitute({

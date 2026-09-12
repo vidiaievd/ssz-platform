@@ -15,6 +15,9 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import type { Result } from '../../../../shared/kernel/result.js';
+import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
+import { VisibilityCheckerService } from '../../../../shared/access-control/domain/services/visibility-checker.service.js';
+import { EntityResolverRegistry } from '../../../../shared/access-control/infrastructure/registry/entity-resolver-registry.js';
 
 import { ListRelationsBySourceQuery } from '../../../content-relation/application/queries/list-relations-by-source/list-relations-by-source.query.js';
 import { ListRelationsByTargetQuery } from '../../../content-relation/application/queries/list-relations-by-target/list-relations-by-target.query.js';
@@ -80,12 +83,68 @@ import type { ExercisePlacementResult } from '../../application/queries/get-exer
 /** Page size used when walking a vocabulary list's items internally. */
 const INTERNAL_ITEMS_PAGE_SIZE = 200;
 
+/**
+ * How another service names a piece of content, and how this one does.
+ *
+ * Learning Service speaks `ContentRef` — `EXERCISE`, `LESSON`, … — because that is what
+ * an assignment stores. The mapping lives here rather than at the caller so that the
+ * wire contract is a name and not a private enum value.
+ */
+const CONTENT_TYPE_TO_ENTITY: Record<string, TaggableEntityType> = {
+  CONTAINER: TaggableEntityType.CONTAINER,
+  LESSON: TaggableEntityType.LESSON,
+  VOCABULARY_LIST: TaggableEntityType.VOCABULARY_LIST,
+  GRAMMAR_RULE: TaggableEntityType.GRAMMAR_RULE,
+  EXERCISE: TaggableEntityType.EXERCISE,
+};
+
 @ApiExcludeController()
 @Public()
 @UseGuards(InternalAuthGuard)
 @Controller('internal')
 export class InternalController {
-  constructor(private readonly queryBus: QueryBus) {}
+  constructor(
+    private readonly queryBus: QueryBus,
+    private readonly visibility: VisibilityCheckerService,
+    private readonly entities: EntityResolverRegistry,
+  ) {}
+
+  /**
+   * May this learner see this piece of content — the question Learning Service asks
+   * before it puts something on somebody's homework list.
+   *
+   * **This route did not exist**, and its absence was invisible: the caller could not
+   * tell a 404 from a refusal, so it read every answer as "not visible" and quietly
+   * dropped every learner from every group assignment. Assignments on a course the whole
+   * class was enrolled in came back empty, with a warning line per student and a 201.
+   *
+   * The verdict is the same `VisibilityCheckerService` every guarded route runs, given a
+   * user with no platform-admin powers: a service asking on someone's behalf must not be
+   * able to see more than that someone. A missing entity is a 404 and stays
+   * distinguishable from `isVisible: false`, which is a fact about the person.
+   */
+  @Get('content-items/:type/:id/visibility')
+  async checkVisibility(
+    @Param('type') type: string,
+    @Param('id') id: string,
+    @Query('userId') userId: string,
+  ): Promise<{ isVisible: boolean; reason?: string }> {
+    if (!userId) throw new BadRequestException('userId query parameter is required');
+
+    const entityType = CONTENT_TYPE_TO_ENTITY[type.toUpperCase()];
+    if (!entityType) throw new BadRequestException(`Unknown content type: '${type}'`);
+
+    const entity = await this.entities.resolve(entityType, id);
+    if (!entity) throw new NotFoundException(`No ${type} with id ${id}`);
+
+    const decision = await this.visibility.canAccess(
+      { userId, roles: [], isPlatformAdmin: false },
+      entity,
+      'view',
+    );
+
+    return { isVisible: decision.allowed, ...(decision.reason && { reason: decision.reason }) };
+  }
 
   @Get('content-relations')
   async listContentRelations(

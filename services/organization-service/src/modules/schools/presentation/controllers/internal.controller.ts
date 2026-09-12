@@ -42,8 +42,15 @@ export class InternalController {
 
   /**
    * Returns the school role of a specific user within a specific school.
-   * Used by Content Service for permission checks.
-   * Returns 404 if the user is not a member.
+   * Used by Content Service and Learning Service for permission checks.
+   *
+   * **The owner is not on the roster.** Ownership lives in `schools.ownerId` and creating
+   * a school writes no `school_members` row for its owner, so a lookup that reads only
+   * the roster answers "nobody" about the one person who answers for everything. Read
+   * live: an owner assigning homework to their own group got a 403 saying they were not
+   * a teacher of their own school.
+   *
+   * Returns 404 only when the user is neither a member nor the owner.
    */
   @Get(':schoolId/members/:userId/role')
   async getMemberRole(
@@ -55,12 +62,9 @@ export class InternalController {
       new GetSchoolQuery(schoolId, userId),
     );
 
+    // A roster row wins over ownership: an owner who also sits on the roster has whatever
+    // role was written there, and nothing here should quietly promote them.
     const member = school.members.find((m) => m.userId === userId);
-    if (!member) {
-      throw new NotFoundException(`User ${userId} is not a member of school ${schoolId}`);
-    }
-
-    // Also owner has implicit access — report as OWNER if no member record
     const role = member?.role ?? (school.ownerId === userId ? 'OWNER' : null);
     if (!role) {
       throw new NotFoundException(`User ${userId} is not a member of school ${schoolId}`);

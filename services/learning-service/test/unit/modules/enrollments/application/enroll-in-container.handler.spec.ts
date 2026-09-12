@@ -101,16 +101,42 @@ describe('EnrollInContainerHandler', () => {
     expect(result.error).toBeInstanceOf(EnrollmentAlreadyExistsError);
   });
 
-  it('enrolls when previously unenrolled (non-ACTIVE existing)', async () => {
+  // The row is unique on (userId, containerId), so "enrol again" has to be the same row
+  // brought back — saving a second aggregate reached the database as a constraint
+  // violation and the learner got a 500 for pressing Enrol.
+  it('revives the row a learner left rather than creating a second one', async () => {
     const existing = Enrollment.create({ userId: USER_ID, containerId: CONTAINER_ID }, NOW);
     existing.unenroll();
-    const { handler, repo } = makeHandler({ existingEnrollment: existing });
+    const { handler, repo, publisher } = makeHandler({ existingEnrollment: existing });
     const cmd = new EnrollInContainerCommand(USER_ID, CONTAINER_ID);
 
     const result = await handler.execute(cmd);
 
     expect(result.isOk).toBe(true);
+    expect(result.value.id).toBe(existing.id);
+    expect(result.value.status).toBe('ACTIVE');
     expect(repo.save).toHaveBeenCalledTimes(1);
+    expect((repo.save as unknown as jest.Mock).mock.calls[0]?.[0]).toBe(existing);
+    // Projections downstream flip a learner back to ACTIVE on this event, keyed by the
+    // enrollment id they were already told about.
+    expect(publisher.publish).toHaveBeenCalledWith(
+      'learning.enrollment.created',
+      expect.objectContaining({ enrollmentId: existing.id }),
+    );
+  });
+
+  // Finishing a course is not "no longer enrolled": re-enrolling would have to clear the
+  // completion, and the learner keeps their access either way.
+  it('refuses to re-enrol a learner who completed the course', async () => {
+    const existing = Enrollment.create({ userId: USER_ID, containerId: CONTAINER_ID }, NOW);
+    existing.complete(NOW);
+    const { handler, repo } = makeHandler({ existingEnrollment: existing });
+
+    const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
+
+    expect(result.isFail).toBe(true);
+    expect(result.error).toBeInstanceOf(EnrollmentAlreadyExistsError);
+    expect(repo.save).not.toHaveBeenCalled();
   });
 
   it('fails with ASSIGNED_ONLY tier', async () => {
