@@ -7,6 +7,7 @@ import { SchoolGroup } from '../../../domain/entities/school-group.entity.js';
 import { InvitationStatus } from '../../../domain/value-objects/invitation-status.vo.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { GroupAssignedEvent } from '../../../domain/events/group-assigned.event.js';
+import { GroupMemberAddedEvent } from '../../../domain/events/group-member-added.event.js';
 
 function makeSchool(): School {
   return School.create({ id: 's-1', name: 'Test School', slug: 'test-school', ownerId: 'owner-1' }, 'evt-1');
@@ -92,6 +93,25 @@ describe('AcceptInvitationHandler', () => {
     expect(eventPublisher.publish).toHaveBeenCalledWith(expect.any(GroupAssignedEvent));
   });
 
+  /**
+   * The roster event, not the pipeline one: without it the learner joins a group whose
+   * entitlements, enrolment and analytics projections never hear about them.
+   */
+  it('announces the learner joining the group, like add-group-member does', async () => {
+    invitationRepo.findByToken.mockResolvedValue(makeInvitation({ targetGroupId: 'g-1' }));
+    groupRepo.findById.mockResolvedValue(makeGroup());
+
+    await handler.execute(new AcceptInvitationCommand('student-1', 'student@example.com', 'tok-1'));
+
+    expect(eventPublisher.publish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'school.group.member.added',
+        groupId: 'g-1',
+        userId: 'student-1',
+      }),
+    );
+  });
+
   it('leaves the membership at onboarding when the invite has no target group', async () => {
     invitationRepo.findByToken.mockResolvedValue(makeInvitation());
 
@@ -100,6 +120,7 @@ describe('AcceptInvitationHandler', () => {
     expect(groupRepo.saveWithMember).not.toHaveBeenCalled();
     expect(membershipRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'onboarding' }));
     expect(eventPublisher.publish).not.toHaveBeenCalledWith(expect.any(GroupAssignedEvent));
+    expect(eventPublisher.publish).not.toHaveBeenCalledWith(expect.any(GroupMemberAddedEvent));
   });
 
   it('does not touch membership status when the target group no longer exists', async () => {

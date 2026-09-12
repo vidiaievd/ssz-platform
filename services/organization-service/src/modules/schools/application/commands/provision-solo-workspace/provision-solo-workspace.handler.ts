@@ -21,6 +21,7 @@ import {
 import { School } from '../../../domain/entities/school.entity.js';
 import { SchoolGroup } from '../../../domain/entities/school-group.entity.js';
 import { SchoolKind } from '../../../domain/value-objects/school-kind.vo.js';
+import { GroupPublishedEvent } from '../../../domain/events/group-published.event.js';
 
 export interface ProvisionSoloWorkspaceResult {
   schoolId: string;
@@ -113,6 +114,21 @@ export class ProvisionSoloWorkspaceHandler
       role: 'primary',
       createdAt: new Date(),
     });
+
+    // The group opens here instead of through `publish-school-group`, so the event that
+    // command sends has to be sent here too — it is what puts the group in the
+    // projections the analytics screens read (plan 59 §1.1 F).
+    await this.eventPublisher.publish(
+      new GroupPublishedEvent(
+        randomUUID(),
+        schoolId,
+        group.id,
+        group.name,
+        group.courseId ?? null,
+        group.lang ?? null,
+        group.level ?? null,
+      ),
+    );
 
     return group.id;
   }

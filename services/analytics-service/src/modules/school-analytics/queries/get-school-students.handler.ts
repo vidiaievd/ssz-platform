@@ -46,10 +46,12 @@ export class GetSchoolStudentsHandler implements IQueryHandler<GetSchoolStudents
 
     // ── 3. Batch-fetch supporting projections ───────────────────────────────
     const [groupMemberships, userDirs, enrollments, recentActivities] = await Promise.all([
-      // Groups per user for this school
-      (this.prisma as any).groupMembership.findMany({
+      // Groups per user for this school. GroupMembership carries no relation to
+      // GroupDirectory — they are two projections fed by two events, not a join — so the
+      // names are looked up separately below. Asking Prisma to `include` the group threw
+      // on every school with a learner on its roster.
+      this.prisma.groupMembership.findMany({
         where: { schoolId, userId: { in: userIds } },
-        include: { group: true },
       }),
       // Display names
       this.prisma.userDirectory.findMany({
@@ -73,6 +75,11 @@ export class GetSchoolStudentsHandler implements IQueryHandler<GetSchoolStudents
       if (!groupsByUser.has(gm.userId)) groupsByUser.set(gm.userId, []);
       groupsByUser.get(gm.userId)!.push(gm);
     }
+
+    const groupDirs = await this.prisma.groupDirectory.findMany({
+      where: { groupId: { in: [...new Set(groupMemberships.map((gm) => gm.groupId))] } },
+    });
+    const groupById = new Map(groupDirs.map((g) => [g.groupId, g]));
 
     const nameByUser = new Map(userDirs.map((u) => [u.userId, u.displayName]));
 
@@ -114,12 +121,15 @@ export class GetSchoolStudentsHandler implements IQueryHandler<GetSchoolStudents
         status = 'at-risk';
       }
 
-      const groups: StudentGroupDto[] = userGroups.map((gm) => ({
-        id: gm.groupId,
-        name: gm.group?.name ?? gm.groupId,
-        lang: gm.group?.lang ?? null,
-        level: gm.group?.level ?? null,
-      }));
+      const groups: StudentGroupDto[] = userGroups.map((gm) => {
+        const group = groupById.get(gm.groupId);
+        return {
+          id: gm.groupId,
+          name: group?.name ?? gm.groupId,
+          lang: group?.lang ?? null,
+          level: group?.level ?? null,
+        };
+      });
 
       return {
         userId: member.userId,

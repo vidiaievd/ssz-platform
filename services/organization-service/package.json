@@ -13,7 +13,8 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "node --experimental-vm-modules node_modules/.bin/jest",
-    "test:e2e": "node --experimental-vm-modules node_modules/.bin/jest --config ./test/jest-e2e.json"
+    "test:e2e": "node --experimental-vm-modules node_modules/.bin/jest --config ./test/jest-e2e.json",
+    "backfill:projection-events": "tsc -p tsconfig.scripts.json && node --env-file=.env dist/scripts/backfill-projection-events.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

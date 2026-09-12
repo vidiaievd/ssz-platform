@@ -30,6 +30,7 @@ import { UserPlatformRoleAssignedEvent } from '../../../domain/events/user-platf
 import { SchoolTeacherAcceptedEvent } from '../../../domain/events/school-teacher-accepted.event.js';
 import { EnrollmentApprovedEvent } from '../../../domain/events/enrollment-approved.event.js';
 import { GroupAssignedEvent } from '../../../domain/events/group-assigned.event.js';
+import { GroupMemberAddedEvent } from '../../../domain/events/group-member-added.event.js';
 import { InvitationTokenService } from '../../../infrastructure/invitation-token.service.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import { SchoolGroup } from '../../../domain/entities/school-group.entity.js';
@@ -163,6 +164,25 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
         if (group && !group.isDeleted && group.schoolId === school.id) {
           await this.groupRepository.saveWithMember(group, command.actorId, randomUUID());
           assignedGroup = group;
+
+          // The same event `add-group-member` sends, because the same thing happened.
+          // Without it an invited learner joins a group no neighbour hears about: no
+          // entitlement to the group's materials (content-service), no enrolment in its
+          // course (learning-service), and nothing in the group projections analytics
+          // reads. `school.enrollment.group_assigned` below is about the membership
+          // pipeline, not about the roster.
+          await this.eventPublisher.publish(
+            new GroupMemberAddedEvent(
+              randomUUID(),
+              school.id,
+              group.id,
+              command.actorId,
+              group.courseId ?? null,
+              group.status,
+              new Date().toISOString(),
+            ),
+          );
+
           if (membership.canTransitionTo('placement-review')) {
             membership.transitionTo('placement-review');
           }
