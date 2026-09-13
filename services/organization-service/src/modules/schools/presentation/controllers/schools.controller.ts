@@ -212,6 +212,7 @@ export class SchoolsController {
         dto.type,
         dto.requireTutorReviewForSelfPaced,
         dto.defaultExplanationLanguage,
+        dto.showGroupPositionToStudents,
       ),
     );
   }

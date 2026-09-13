@@ -84,6 +84,7 @@ import { GetMyMembershipHandler } from './application/queries/get-my-membership/
 import { GetPublicSchoolHandler } from './application/queries/get-public-school/get-public-school.handler.js';
 import { ListPublicSchoolsHandler } from './application/queries/list-public-schools/list-public-schools.handler.js';
 import { GetLearnerReviewContextHandler } from './application/queries/get-learner-review-context/get-learner-review-context.handler.js';
+import { GetLearnerPositionContextHandler } from './application/queries/get-learner-position-context/get-learner-position-context.handler.js';
 import { GetReviewReviewersHandler } from './application/queries/get-review-reviewers/get-review-reviewers.handler.js';
 import { GetReviewEscalationRecipientsHandler } from './application/queries/get-review-escalation-recipients/get-review-escalation-recipients.handler.js';
 import { GetReviewScopeHandler } from './application/queries/get-review-scope/get-review-scope.handler.js';
@@ -93,6 +94,7 @@ import { WorkspacesController } from './presentation/controllers/workspaces.cont
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
 import { InternalController } from './presentation/controllers/internal.controller.js';
 import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
+import { InternalLearnerController } from './presentation/controllers/internal-learner.controller.js';
 import { SchoolGroupsController } from './presentation/controllers/school-groups.controller.js';
 import { SchoolTeachersController } from './presentation/controllers/school-teachers.controller.js';
 import { SchoolMembersController } from './presentation/controllers/school-members.controller.js';
@@ -171,6 +173,7 @@ const QueryHandlers = [
   GetPublicSchoolHandler,
   ListPublicSchoolsHandler,
   GetLearnerReviewContextHandler,
+  GetLearnerPositionContextHandler,
   GetReviewReviewersHandler,
   GetReviewEscalationRecipientsHandler,
   GetReviewScopeHandler,
@@ -184,6 +187,7 @@ const QueryHandlers = [
     InvitationsController,
     InternalController,
     InternalReviewController,
+    InternalLearnerController,
     SchoolGroupsController,
     SchoolTeachersController,
     SchoolMembersController,

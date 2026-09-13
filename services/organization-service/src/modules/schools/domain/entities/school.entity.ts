@@ -38,6 +38,8 @@ export interface RehydrateSchoolProps extends CreateSchoolProps {
   kind?: SchoolKind;
   /** Absent for a row written before the promise existed — the default stands in. */
   reviewSettings?: ReviewSettings;
+  /** Absent for a row written before the setting existed — learners see their band. */
+  showGroupPositionToStudents?: boolean;
 }
 
 export class School extends BaseEntity {
@@ -57,6 +59,7 @@ export class School extends BaseEntity {
   private _requireTutorReviewForSelfPaced: boolean;
   private _defaultExplanationLanguage: string | undefined;
   private _reviewSettings: ReviewSettings;
+  private _showGroupPositionToStudents: boolean;
 
   private constructor(
     id: string,
@@ -78,6 +81,7 @@ export class School extends BaseEntity {
     requireTutorReviewForSelfPaced: boolean,
     defaultExplanationLanguage: string | undefined,
     reviewSettings: ReviewSettings,
+    showGroupPositionToStudents: boolean,
   ) {
     super(id, createdAt, updatedAt);
     this._name = name;
@@ -96,6 +100,7 @@ export class School extends BaseEntity {
     this._requireTutorReviewForSelfPaced = requireTutorReviewForSelfPaced;
     this._defaultExplanationLanguage = defaultExplanationLanguage;
     this._reviewSettings = reviewSettings;
+    this._showGroupPositionToStudents = showGroupPositionToStudents;
   }
 
   static create(props: CreateSchoolProps, eventId: string): School {
@@ -121,6 +126,10 @@ export class School extends BaseEntity {
       undefined,
       // A new school promises what the platform promises until somebody says otherwise.
       ReviewSettings.default(),
+      // A learner is told roughly where they stand until the school decides otherwise:
+      // the sentence carries no rank and no classmate's number, and a school that would
+      // rather not compare at all can turn it off.
+      true,
     );
 
     school.addDomainEvent(
@@ -151,6 +160,7 @@ export class School extends BaseEntity {
       props.requireTutorReviewForSelfPaced,
       props.defaultExplanationLanguage,
       props.reviewSettings ?? ReviewSettings.default(),
+      props.showGroupPositionToStudents ?? true,
     );
   }
 
@@ -165,6 +175,7 @@ export class School extends BaseEntity {
     type?: SchoolType;
     requireTutorReviewForSelfPaced?: boolean;
     defaultExplanationLanguage?: string | null;
+    showGroupPositionToStudents?: boolean;
   }): void {
     if (props.name !== undefined) this._name = props.name;
     if (props.slug !== undefined) this._slug = props.slug;
@@ -178,6 +189,8 @@ export class School extends BaseEntity {
       this._requireTutorReviewForSelfPaced = props.requireTutorReviewForSelfPaced;
     if (props.defaultExplanationLanguage !== undefined)
       this._defaultExplanationLanguage = props.defaultExplanationLanguage ?? undefined;
+    if (props.showGroupPositionToStudents !== undefined)
+      this._showGroupPositionToStudents = props.showGroupPositionToStudents;
     this._updatedAt = new Date();
   }
 
@@ -282,4 +295,6 @@ export class School extends BaseEntity {
   get requireTutorReviewForSelfPaced(): boolean { return this._requireTutorReviewForSelfPaced; }
   get defaultExplanationLanguage(): string | undefined { return this._defaultExplanationLanguage; }
   get reviewSettings(): ReviewSettings { return this._reviewSettings; }
+  /** Whether a learner of this school is told where they stand in their group, in words. */
+  get showGroupPositionToStudents(): boolean { return this._showGroupPositionToStudents; }
 }

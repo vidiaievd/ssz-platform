@@ -131,6 +131,10 @@ model School {
   reviewRespondWithinHours Int                    @default(48) @map("review_respond_within_hours")
   reviewEscalateAfterHours Int                    @default(72) @map("review_escalate_after_hours")
   reviewEscalateTo         ReviewEscalationTarget @default(school_admins) @map("review_escalate_to")
+  // Whether a learner is told, in one sentence and without a rank, roughly where they
+  // stand in their group. On by default: the sentence carries no classmate's number and
+  // no percentile, and a school that would rather not compare at all turns it off here.
+  showGroupPositionToStudents Boolean @default(true) @map("show_group_position_to_students")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?

@@ -38,6 +38,9 @@ type PrismaSchool = {
   reviewRespondWithinHours?: number;
   reviewEscalateAfterHours?: number;
   reviewEscalateTo?: string;
+  // Optional for the same reason, and absent from a row written before the setting
+  // existed: such a school shows the band, which is what it was doing already.
+  showGroupPositionToStudents?: boolean;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -81,6 +84,7 @@ export class SchoolMapper {
               escalateAfterHours: raw.reviewEscalateAfterHours,
               escalateTo: (raw.reviewEscalateTo ?? 'school_admins') as ReviewEscalationTarget,
             }),
+      showGroupPositionToStudents: raw.showGroupPositionToStudents,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt ?? undefined,

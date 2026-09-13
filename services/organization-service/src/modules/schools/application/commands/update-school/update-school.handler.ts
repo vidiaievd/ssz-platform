@@ -43,6 +43,7 @@ export class UpdateSchoolHandler implements ICommandHandler<UpdateSchoolCommand>
       city: command.city,
       type: command.type,
       requireTutorReviewForSelfPaced: command.requireTutorReviewForSelfPaced,
+      showGroupPositionToStudents: command.showGroupPositionToStudents,
       defaultExplanationLanguage: command.defaultExplanationLanguage,
     });
 

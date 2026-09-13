@@ -71,6 +71,7 @@ export class SchoolResponseDto {
   @ApiProperty({ enum: SchoolType, default: SchoolType.ONLINE }) type!: SchoolType;
   @ApiProperty() isActive!: boolean;
   @ApiProperty({ default: false }) requireTutorReviewForSelfPaced!: boolean;
+  @ApiProperty({ default: true }) showGroupPositionToStudents!: boolean;
   @ApiPropertyOptional() defaultExplanationLanguage?: string;
   @ApiProperty() createdAt!: Date;
   @ApiProperty() updatedAt!: Date;

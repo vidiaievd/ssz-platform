@@ -74,6 +74,16 @@ export class UpdateSchoolRequestDto {
   requireTutorReviewForSelfPaced?: boolean;
 
   @ApiPropertyOptional({
+    example: true,
+    description:
+      'Whether learners are told, in one sentence and without a rank, roughly where they ' +
+      'stand in their group. Never a percentile, a median, or a classmate’s number.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  showGroupPositionToStudents?: boolean;
+
+  @ApiPropertyOptional({
     example: 'uk',
     description: 'Default language for exercise explanations (ISO 639-1 code). Null to use student locale.',
   })
