@@ -1,7 +1,7 @@
 import type { AttemptModel } from '../../../../../generated/prisma/models/Attempt.js';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
-import type { WorkContext } from '../../domain/entities/attempt.entity.js';
-import type { Focus, Skill } from '@ssz/contracts';
+import type { AttemptItemTarget, WorkContext } from '../../domain/entities/attempt.entity.js';
+import type { Focus, Modality, Skill } from '@ssz/contracts';
 import { readRubricMarks, readRubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { readPlacement } from '../../../../shared/application/services/sentence-schema-rows.js';
 import type {
@@ -132,6 +132,11 @@ export class AttemptMapper {
       // somehow held a stranger would only make an attempt refuse to load.
       skills: (row.skills ?? []) as Skill[],
       focus: (row.focus ?? []) as Focus[],
+      // Same treatment as `practicedAtoms`: written by this service from a closed
+      // vocabulary, and an attempt that refused to load over a stranger in the column
+      // would cost the learner their work rather than protect anything.
+      itemTargets: (row.itemTargets as AttemptItemTarget[] | null) ?? [],
+      modality: (row.modality as Modality | null) ?? 'unknown',
       workContext: (row.workContext as WorkContext | null) ?? null,
       lessonId: row.lessonId,
       status: row.status as AttemptStatus,
@@ -191,6 +196,8 @@ export class AttemptMapper {
       practicedAtoms: attempt.practicedAtoms as unknown as AttemptModel['practicedAtoms'],
       skills: attempt.skills,
       focus: attempt.focus,
+      itemTargets: attempt.itemTargets as unknown as AttemptModel['itemTargets'],
+      modality: attempt.modality,
       workContext: attempt.workContext,
       lessonId: attempt.lessonId,
       status: attempt.status as AttemptModel['status'],

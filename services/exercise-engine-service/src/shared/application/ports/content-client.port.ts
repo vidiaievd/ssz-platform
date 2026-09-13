@@ -1,4 +1,4 @@
-import type { Focus, Skill } from '@ssz/contracts';
+import type { Focus, Modality, Skill } from '@ssz/contracts';
 import type { Result } from '../../kernel/result.js';
 
 export const CONTENT_CLIENT = Symbol('IContentClient');
@@ -44,6 +44,20 @@ export interface ExerciseDefinition {
    * the attempt then reports no axes rather than failing to start.
    */
   axes?: ExerciseAxes;
+  /**
+   * What each piece of the exercise is about (plan 63 §2 D), on the same envelope and
+   * for the same reason as the axes: the address has to be snapshotted onto the attempt
+   * at the instant it starts.
+   *
+   * Optional and empty by default — a Content Service that predates the address answers
+   * without it, and most of the catalogue has none.
+   */
+  targets?: Array<{
+    itemKey: string | null;
+    atomType: string;
+    atomId: string;
+    role: string;
+  }>;
 }
 
 /** The axes as Content Service resolves them. Sources are for authors, not for attempts. */
@@ -51,6 +65,8 @@ export interface ExerciseAxes {
   skills: Skill[];
   focus: Focus[];
   form?: string;
+  /** How the learner had to produce the answer (plan 63 §2 E). */
+  modality?: Modality;
 }
 
 // Atom that this exercise practices, from the ContentRelation graph (PRACTICED_BY,

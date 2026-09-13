@@ -795,3 +795,109 @@ describe('Attempt entity', () => {
     });
   });
 });
+
+// Plan 63 §2 D/E — the address of each piece, and how the answer had to be produced,
+// snapshotted at the start and published with the verdict.
+describe('Attempt addresses', () => {
+  const addressed = () =>
+    Attempt.create({
+      userId: 'user-1',
+      exerciseId: 'ex-1',
+      templateCode: 'word_bank_gap_fill',
+      targetLanguage: 'no',
+      difficultyLevel: 'B1',
+      checkMode: 'PRACTICE',
+      practicedAtoms: [],
+      axes: { skills: ['written'], focus: ['grammar'], modality: 'recall' },
+      itemTargets: [
+        { itemKey: 's1#5', atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' },
+        { itemKey: 's1#5', atomType: 'vocabulary_item', atomId: 'word-1', role: 'context' },
+        { itemKey: 's2#3', atomType: 'vocabulary_item', atomId: 'word-2', role: 'focus' },
+      ],
+    });
+
+  const scoredEventOf = (attempt: Attempt) =>
+    attempt.getDomainEvents().find((e) => e instanceof AttemptScoredEvent) as AttemptScoredEvent;
+
+  it('hangs each gap verdict on the addresses of that gap', () => {
+    // The join is done here, where the snapshot lives, so that no consumer ever has to
+    // look a gap key back up against an address the author may since have moved.
+    const attempt = addressed();
+    attempt.submit({}, 'h');
+    attempt.clearDomainEvents();
+    attempt.score(50, false, null, null, undefined, [
+      { gapKey: 's1#5', correct: true },
+      { gapKey: 's2#3', correct: false },
+    ]);
+
+    const payload = scoredEventOf(attempt).payload;
+    expect(payload.gapResults?.[0]).toEqual({
+      gapKey: 's1#5',
+      correct: true,
+      targets: [
+        { atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' },
+        { atomType: 'vocabulary_item', atomId: 'word-1', role: 'context' },
+      ],
+    });
+    expect(payload.gapResults?.[1]?.targets).toEqual([
+      { atomType: 'vocabulary_item', atomId: 'word-2', role: 'focus' },
+    ]);
+  });
+
+  it('leaves an unaddressed gap without a targets key at all', () => {
+    // "Nobody addressed this gap" and "this gap is about nothing" are different
+    // statements, and only the first is true of the catalogue today.
+    const attempt = addressed();
+    attempt.submit({}, 'h');
+    attempt.clearDomainEvents();
+    attempt.score(100, true, null, null, undefined, [{ gapKey: 's9#1', correct: true }]);
+
+    expect(scoredEventOf(attempt).payload.gapResults?.[0]).toEqual({
+      gapKey: 's9#1',
+      correct: true,
+    });
+  });
+
+  it('carries the modality with the verdict', () => {
+    const attempt = addressed();
+    attempt.submit({}, 'h');
+    attempt.clearDomainEvents();
+    attempt.score(100, true, null, null);
+
+    expect(scoredEventOf(attempt).payload.modality).toBe('recall');
+  });
+
+  it('says unknown where nothing judged the template', () => {
+    const attempt = makeAttempt();
+    attempt.submit({}, 'h');
+    attempt.clearDomainEvents();
+    attempt.score(100, true, null, null);
+
+    expect(scoredEventOf(attempt).payload.modality).toBe('unknown');
+  });
+
+  it('publishes the whole-exercise address for a template that grades as one', () => {
+    // A `writing_task` has nothing to point inside; the score of the attempt is the
+    // verdict, so the address travels on its own rather than on a gap result.
+    const attempt = Attempt.create({
+      userId: 'user-1',
+      exerciseId: 'ex-1',
+      templateCode: 'writing_task',
+      targetLanguage: 'no',
+      difficultyLevel: 'B1',
+      checkMode: 'GRADED',
+      practicedAtoms: [],
+      axes: { skills: ['written'], focus: [], modality: 'production' },
+      itemTargets: [
+        { itemKey: null, atomType: 'grammar_rule_atom', atomId: 'atom-7', role: 'focus' },
+      ],
+    });
+    attempt.submit({}, 'h');
+    attempt.clearDomainEvents();
+    attempt.score(80, true, null, null);
+
+    expect(scoredEventOf(attempt).payload.targets).toEqual([
+      { atomType: 'grammar_rule_atom', atomId: 'atom-7', role: 'focus' },
+    ]);
+  });
+});

@@ -55,6 +55,7 @@ import {
   CONTENT_CLIENT,
   type ExerciseDefinition,
   type IContentClient,
+  type PracticedAtomRef,
   ContentClientError,
 } from '../../../../../shared/application/ports/content-client.port.js';
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
@@ -561,9 +562,17 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
     // Best-effort — a relation-graph hiccup must not block starting the attempt;
     // it only means this attempt won't feed the SRS fan-out on scoring.
     const atomsResult = await this.contentClient.getPracticedAtoms(command.exerciseId);
-    const practicedAtoms = atomsResult.isOk ? atomsResult.value : [];
+    const relationAtoms = atomsResult.isOk ? atomsResult.value : [];
 
     const def = defResult.value;
+    const itemTargets = def.targets ?? [];
+
+    // The union, not a replacement (plan 63 §3, phase 2). The addresses are the finer
+    // truth and everything from phase 5 hangs on them, but they exist for a fraction of
+    // the catalogue: dropping the relation graph here would quietly empty the fan-out
+    // that plan 21 has been feeding for months, for every exercise nobody has addressed
+    // yet. The old model is retired in phase 7, deliberately and after comparison.
+    const practicedAtoms = mergeAtoms(relationAtoms, itemTargets);
     const attempt = Attempt.create({
       userId: command.userId,
       exerciseId: command.exerciseId,
@@ -579,7 +588,20 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       // atoms have to describe the exercise as it stood at this instant (plan 55 §3.6).
       // An envelope without them — a Content Service that predates the axes — snapshots
       // nothing rather than blocking the attempt.
-      axes: { skills: def.axes?.skills ?? [], focus: def.axes?.focus ?? [] },
+      axes: {
+        skills: def.axes?.skills ?? [],
+        focus: def.axes?.focus ?? [],
+        modality: def.axes?.modality ?? 'unknown',
+      },
+      // Snapshotted at the same instant as the atoms and the axes, and for the same
+      // reason: an author re-anchoring this gap next month must not rewrite what this
+      // attempt proved (plan 63 §2 D).
+      itemTargets: itemTargets.map((target) => ({
+        itemKey: target.itemKey,
+        atomType: target.atomType,
+        atomId: target.atomId,
+        role: target.role === 'context' ? ('context' as const) : ('focus' as const),
+      })),
     });
 
     attempt.snapshotReviewContext(
@@ -718,4 +740,22 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       revisionCount: previous ? previous.revisionCount + 1 : 0,
     };
   }
+}
+
+/**
+ * Atoms named by the relation graph, plus atoms named by the addresses, once each.
+ *
+ * Addressed exercises name the same atom in both places — the address is the finer
+ * statement about an atom the graph already knew — so the union has to dedupe, or the
+ * fan-out rates the same card twice for one attempt.
+ */
+function mergeAtoms(
+  relationAtoms: PracticedAtomRef[],
+  targets: Array<{ atomType: string; atomId: string }>,
+): PracticedAtomRef[] {
+  const merged = new Map<string, PracticedAtomRef>();
+  for (const atom of [...relationAtoms, ...targets]) {
+    merged.set(`${atom.atomType}:${atom.atomId}`, { atomType: atom.atomType, atomId: atom.atomId });
+  }
+  return [...merged.values()];
 }

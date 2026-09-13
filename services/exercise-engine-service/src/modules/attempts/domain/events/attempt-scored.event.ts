@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AnswerForm, Focus, Skill, WorkContext } from '@ssz/contracts';
+import type { AnswerForm, AttemptTarget, Focus, Modality, Skill, WorkContext } from '@ssz/contracts';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
 
 // Payload matches Learning Service ExerciseAttemptedConsumer contract exactly.
@@ -40,7 +40,14 @@ export interface AttemptScoredPayload {
   passed: boolean;
   // Per-gap verdicts, for templates graded gap by gap (plan 36 §C.1) — what lets the
   // scheduler hold a card per gap instead of one per exercise. Absent for the rest.
-  gapResults?: Array<{ gapKey: string; correct: boolean }>;
+  gapResults?: Array<{ gapKey: string; correct: boolean; targets?: AttemptTarget[] }>;
+  // What the exercise as a whole was about (plan 63 §2 D) — the addresses of the item
+  // whose key is null, which is all a template that grades as one can carry. Absent
+  // where nobody addressed it, which is most of the catalogue.
+  targets?: AttemptTarget[];
+  // How the learner had to produce the answer (plan 63 §2 E). Snapshotted with the axes;
+  // 'unknown' for attempts started before it existed and for templates nobody has judged.
+  modality: Modality;
 }
 
 export class AttemptScoredEvent implements IDomainEvent {

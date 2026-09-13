@@ -100,6 +100,20 @@ model Attempt {
   skills String[] @default([])
   focus  String[] @default([])
 
+  // What each piece of the exercise was about, snapshotted with the atoms above
+  // (plan 63 §2 D) — Array<{itemKey: string|null, atomType, atomId, role}>. The address
+  // is what a learner's memory hangs on from phase 5, and it has to be the address as it
+  // stood when the attempt was answered: re-anchoring a gap next month must not rewrite
+  // what this attempt proved. Empty for an exercise nobody has addressed, which is most
+  // of the catalogue.
+  itemTargets Json @default("[]") @map("item_targets")
+
+  // How the learner had to produce the answer (plan 63 §2 E): recognition | recall |
+  // production, or 'unknown' where nothing has judged the template. A second axis, not a
+  // second name for the answer form — `sentence_schema` gives every chunk and still
+  // demands the order from memory.
+  modality String @default("unknown")
+
   status AttemptStatus @default(IN_PROGRESS)
 
   // EVENT — score and completion flag published in exercise.attempt.completed
