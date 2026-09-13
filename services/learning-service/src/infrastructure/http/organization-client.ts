@@ -4,6 +4,8 @@ import axios, { type AxiosInstance } from 'axios';
 import type { AppConfig } from '../../config/configuration.js';
 import type {
   IOrganizationClient,
+  LearnerWorkspaceHints,
+  LearnerWorkspaceRef,
   SchoolRole,
 } from '../../shared/application/ports/organization-client.port.js';
 import { OrganizationClientError } from '../../shared/application/ports/organization-client.port.js';
@@ -43,6 +45,30 @@ export class OrganizationClient implements IOrganizationClient {
         return Result.ok(null);
       }
       return this.mapError(err, `getMemberRole(${schoolId}, ${userId})`);
+    }
+  }
+
+  async getLearnerWorkspace(
+    userId: string,
+    hints: LearnerWorkspaceHints = {},
+  ): Promise<Result<LearnerWorkspaceRef, OrganizationClientError>> {
+    try {
+      const params: Record<string, string> = {};
+      if (hints.courseId) params.courseId = hints.courseId;
+      if (hints.preferredSchoolId) params.preferredSchoolId = hints.preferredSchoolId;
+      if (hints.preferredTeacherId) params.preferredTeacherId = hints.preferredTeacherId;
+
+      const { data } = await this.http.get<LearnerWorkspaceRef>(
+        `/students/${userId}/review-context`,
+        { params },
+      );
+      return Result.ok({
+        schoolId: data.schoolId ?? null,
+        groupId: data.groupId ?? null,
+        groupName: data.groupName ?? null,
+      });
+    } catch (err) {
+      return this.mapError(err, `getLearnerWorkspace(${userId})`);
     }
   }
 

@@ -5,6 +5,7 @@ import type { AppConfig } from '../../config/configuration.js';
 import type {
   AccessTier,
   CanDoDescriptorRef,
+  ContainerOwnerRef,
   ContentMetadata,
   ContentRelationRef,
   CourseLeafItemRef,
@@ -118,6 +119,23 @@ export class ContentClient implements IContentClient {
       return Result.ok(data.accessTier);
     } catch (err) {
       return this.mapError(err, `getAccessTier(${containerId})`);
+    }
+  }
+
+  async getContainerOwner(
+    containerId: string,
+  ): Promise<Result<ContainerOwnerRef, ContentClientError>> {
+    try {
+      const { data } = await this.http.get<{
+        ownerUserId: string;
+        ownerSchoolId: string | null;
+      }>(`/containers/${containerId}/directory`);
+      return Result.ok({
+        ownerUserId: data.ownerUserId,
+        ownerSchoolId: data.ownerSchoolId ?? null,
+      });
+    } catch (err) {
+      return this.mapError(err, `getContainerOwner(${containerId})`);
     }
   }
 

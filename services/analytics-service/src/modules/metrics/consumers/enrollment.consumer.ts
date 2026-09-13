@@ -70,6 +70,11 @@ export class EnrollmentConsumer implements OnModuleInit, OnModuleDestroy {
         for (const key of BINDING_KEYS) {
           await channel.bindQueue(QUEUE, EXCHANGE, key);
         }
+        // One unacked message at a time: this queue carries a per-enrollment history
+        // ("created", then "completed"/"unenrolled"), and without a prefetch the broker
+        // hands the whole batch over at once and the handlers race — a backfill that
+        // re-announced four learners left two of them showing as still enrolled.
+        await channel.prefetch(1);
         await channel.consume(QUEUE, (msg) => this.handleMessage(channel, msg));
         this.logger.log(`EnrollmentConsumer listening on queue "${QUEUE}"`);
       },
@@ -118,6 +123,26 @@ export class EnrollmentConsumer implements OnModuleInit, OnModuleDestroy {
     switch (eventType) {
       case 'learning.enrollment.created': {
         const p = payload as unknown as EnrollmentCreatedPayload;
+        // `update: {}` used to make this event say nothing on a second telling, and the
+        // event is told a second time for two ordinary reasons: a learner comes back to a
+        // course they left, and a backfill re-announces a row whose workspace was only
+        // learned later (plan 59 §4, tutor KPIs). Both were silently ignored, so a
+        // re-enrolled learner stayed UNENROLLED here and a tutor's students stayed
+        // attributed to nobody. The event means "this learner holds this course now" —
+        // the projection now says exactly that.
+        const enrolledAt = new Date(occurredAt);
+        const known = await this.prisma.enrollmentProjection.findUnique({
+          where: { enrollmentId: p.enrollmentId },
+        });
+
+        // What happened after this event stays happened. Prefetch keeps a live history in
+        // order, but a replayed one can still arrive behind what it precedes, and
+        // resurrecting a learner who left is a worse lie than the one being repaired.
+        const supersededBy =
+          known &&
+          ((known.unenrolledAt !== null && known.unenrolledAt > enrolledAt) ||
+            (known.completedAt !== null && known.completedAt > enrolledAt));
+
         await this.prisma.enrollmentProjection.upsert({
           where: { enrollmentId: p.enrollmentId },
           create: {
@@ -126,9 +151,19 @@ export class EnrollmentConsumer implements OnModuleInit, OnModuleDestroy {
             containerId: p.containerId,
             schoolId: p.schoolId ?? null,
             status: 'ACTIVE',
-            enrolledAt: new Date(occurredAt),
+            enrolledAt,
           },
-          update: {},
+          update: supersededBy
+            ? { userId: p.userId, containerId: p.containerId, schoolId: p.schoolId ?? null }
+            : {
+                userId: p.userId,
+                containerId: p.containerId,
+                schoolId: p.schoolId ?? null,
+                status: 'ACTIVE',
+                enrolledAt,
+                completedAt: null,
+                unenrolledAt: null,
+              },
         });
         break;
       }

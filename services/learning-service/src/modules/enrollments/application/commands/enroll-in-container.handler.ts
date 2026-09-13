@@ -69,16 +69,24 @@ export class EnrollInContainerHandler
       return Result.fail(new AccessDeniedForContainerError(tier));
     }
 
+    // Which workspace this enrolment belongs to. The caller names one only when the
+    // learner reached the course through a school's shelf; on a private tutor's course
+    // nobody names anything, and the row used to be stored with `schoolId: null` — the
+    // tutor's dashboard then counted zero students of a course they teach themselves.
+    // Attribution is not access: it is resolved after the tier checks above, so what a
+    // learner may enrol in is still decided by the workspace the caller stated.
+    const schoolId = cmd.schoolId ?? (await this.resolveWorkspace(cmd.userId, cmd.containerId));
+
     let enrollment: Enrollment;
     if (existing) {
-      const revived = existing.reenrol(this.clock.now(), cmd.schoolId ?? null);
+      const revived = existing.reenrol(this.clock.now(), schoolId);
       if (revived.isFail) {
         return Result.fail(new EnrollmentAlreadyExistsError(cmd.containerId));
       }
       enrollment = existing;
     } else {
       enrollment = Enrollment.create(
-        { userId: cmd.userId, containerId: cmd.containerId, schoolId: cmd.schoolId },
+        { userId: cmd.userId, containerId: cmd.containerId, schoolId },
         this.clock.now(),
       );
     }
@@ -97,5 +105,41 @@ export class EnrollInContainerHandler
       `${existing ? 'Re-enrolled' : 'Enrolled'} user ${cmd.userId} in container ${cmd.containerId}`,
     );
     return Result.ok(toEnrollmentDto(enrollment));
+  }
+
+  /**
+   * The learner's own workspace, asked of the service that owns rosters.
+   *
+   * Same rule the review queue learned in phase 3: the workspace comes from the learner,
+   * with the course and its author as tie-breaks for someone who studies both at a school
+   * and with a private tutor — without the author hint their tutor's homework is filed
+   * under the school (plan 59 §3.2).
+   *
+   * Neither neighbour being reachable loses the attribution, not the enrolment: a learner
+   * pressing "Enrol" should not be told the platform is broken because a dashboard would
+   * miss a number.
+   */
+  private async resolveWorkspace(userId: string, containerId: string): Promise<string | null> {
+    const owner = await this.contentClient.getContainerOwner(containerId);
+    if (owner.isFail) {
+      this.logger.warn(
+        `Enrolment of ${userId} in ${containerId} stored without a workspace: ${owner.error.message}`,
+      );
+      return null;
+    }
+
+    const context = await this.orgClient.getLearnerWorkspace(userId, {
+      courseId: containerId,
+      preferredSchoolId: owner.value.ownerSchoolId,
+      preferredTeacherId: owner.value.ownerUserId,
+    });
+    if (context.isFail) {
+      this.logger.warn(
+        `Enrolment of ${userId} in ${containerId} stored without a workspace: ${context.error.message}`,
+      );
+      return null;
+    }
+
+    return context.value.schoolId;
   }
 }
