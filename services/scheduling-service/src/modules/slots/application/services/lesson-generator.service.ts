@@ -13,6 +13,10 @@ import {
   type ICourseOutlineReader,
 } from '../ports/course-outline.reader.js';
 import {
+  CURRICULUM_PLAN_WRITER,
+  type ICurriculumPlanWriter,
+} from '../ports/curriculum-plan.writer.js';
+import {
   buildPlanItems,
   layoutPlan,
   occurrenceKey,
@@ -32,6 +36,11 @@ export interface GenerateLessonsInput {
   /** The course the group is taught from. Without one there is nothing to plan. */
   courseId: string | null;
   startDate: Date;
+  /**
+   * Which kind of workspace this group belongs to. A private tutor has no planner screen,
+   * so theirs is derived from the course here; a school's is written by a person.
+   */
+  workspaceKind?: 'SCHOOL' | 'SOLO';
 }
 
 @Injectable()
@@ -41,6 +50,7 @@ export class LessonGeneratorService {
   constructor(
     @Inject(LESSON_REPOSITORY) private readonly lessons: ILessonRepository,
     @Inject(CURRICULUM_PLAN_READER) private readonly plan: ICurriculumPlanReader,
+    @Inject(CURRICULUM_PLAN_WRITER) private readonly planWriter: ICurriculumPlanWriter,
     @Inject(COURSE_OUTLINE_READER) private readonly course: ICourseOutlineReader,
   ) {}
 
@@ -110,6 +120,14 @@ export class LessonGeneratorService {
     if (!outline?.units.length) {
       this.logger.log(`No published course content for group ${groupId} — no sessions planned`);
       return [];
+    }
+
+    // A tutor's group gets its teaching plan from the course, here, before the sessions
+    // are stitched to it — there is no planner screen for them to draw one on, and a group
+    // with no plan has no unit for a session to name, which leaves `delivered` at zero
+    // however many lessons are held (plan 62, phase 1).
+    if (input.workspaceKind === 'SOLO') {
+      await this.planWriter.ensureFromCourse({ groupId, schoolId, outline });
     }
 
     const items = buildPlanItems(outline.units).filter((i) => !settled.has(i.planIndex));

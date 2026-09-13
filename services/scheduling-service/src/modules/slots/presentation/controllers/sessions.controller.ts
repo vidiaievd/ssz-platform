@@ -197,6 +197,7 @@ export class SessionsController {
       slots,
       courseId: group.courseId ?? null,
       startDate: new Date(group.startDate!),
+      workspaceKind: group.workspaceKind,
     });
 
     const after = await this.lessons.findAllByGroup(groupId);

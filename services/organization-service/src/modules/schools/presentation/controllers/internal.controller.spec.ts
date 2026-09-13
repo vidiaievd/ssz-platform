@@ -9,7 +9,7 @@ const STRANGER_ID = '44444444-0000-4000-8000-000000000004';
 
 function makeController(school: { ownerId: string; members: Array<{ userId: string; role: string }> }) {
   const queryBus = { execute: jest.fn<() => Promise<unknown>>().mockResolvedValue(school) };
-  return new InternalController(queryBus as never, {} as never);
+  return new InternalController(queryBus as never, {} as never, {} as never);
 }
 
 const SCHOOL = {

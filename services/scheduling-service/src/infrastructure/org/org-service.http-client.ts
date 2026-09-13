@@ -32,6 +32,8 @@ export interface GroupInfo {
   lang?: string | null;
   /** The course the group is taught from; null while none is linked. */
   courseId?: string | null;
+  /** Which kind of workspace owns the group — a school, or one tutor's own space. */
+  workspaceKind?: 'SCHOOL' | 'SOLO';
 }
 
 export const ORG_SERVICE_PORT = Symbol('IOrgServicePort');

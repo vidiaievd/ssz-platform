@@ -119,6 +119,7 @@ export class OrgConsumerService implements OnModuleInit, OnModuleDestroy {
       })),
       courseId: group.courseId ?? null,
       startDate: new Date(group.startDate),
+      workspaceKind: group.workspaceKind,
     });
 
     this.logger.log(`Planned ${planned.length} sessions for published group ${groupId}`);
