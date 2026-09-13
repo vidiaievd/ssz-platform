@@ -61,7 +61,45 @@ export interface ExerciseAttemptCompletedPayload {
    * Deliberately not the explanation: that is feedback for the learner, and the
    * scheduler has no use for it.
    */
-  gapResults?: Array<{ gapKey: string; correct: boolean }>;
+  gapResults?: Array<{
+    gapKey: string;
+    correct: boolean;
+    /**
+     * Additive (plan 63 §2 D) — what this gap was about, snapshotted at attempt start.
+     *
+     * Carried beside the verdict rather than looked up later for the reason every other
+     * snapshot here is carried: an author re-anchoring a gap next month must not silently
+     * rewrite what last month's attempt proved. Absent means nobody addressed the gap,
+     * which is the state most of the catalogue is in and not an error.
+     */
+    targets?: AttemptTarget[];
+  }>;
+  /**
+   * Additive (plan 63 §2 D) — what the exercise as a whole was about.
+   *
+   * The address of an item whose key is `null`: templates that grade as one (`writing_task`,
+   * `short_answer`) have nothing to point inside, and their evidence belongs to the
+   * exercise. Separate from `gapResults` because there is no per-gap verdict to hang it on
+   * — the score of the attempt is the verdict.
+   */
+  targets?: AttemptTarget[];
+  /**
+   * Additive (plan 63 §2 E) — how the learner had to produce the answer.
+   *
+   * Derived by Content Service on the same ladder as the axes and travelling as a value
+   * for the same reason. `unknown` is a real answer: a template nobody has judged, or a
+   * gap-fill whose document has not said whether its words come off a strip.
+   */
+  modality?: Modality;
+  /**
+   * Additive (plan 63 §3, phase 2) — milliseconds spent on each addressable item, keyed
+   * the way the template keys its own results.
+   *
+   * Latency separates "knew it" from "worked it out", which is the difference between
+   * recall and reconstruction and is invisible in a verdict. Optional and expected to
+   * stay optional: only templates that can measure an item in isolation report it.
+   */
+  latencyMsPerItem?: Record<string, number>;
   /**
    * Additive (plan 55 §3.6) — what the attempt exercised, snapshotted at its start.
    *
@@ -103,6 +141,27 @@ export interface ExerciseAttemptCompletedPayload {
   /** The scheduled lesson the work was done in, when the caller named one. */
   lessonId?: string | null;
 }
+
+/**
+ * One atom an item was about, with the weight of the evidence it produces — plan 63 §2 D.
+ *
+ * `focus` is what the item examined; `context` is what the learner had to know to get
+ * there and was not examined on — the word inside a gap that is testing an ending. Both
+ * are proof, and they are not equal proof, which is why the role travels with the address
+ * rather than being inferred downstream from the template.
+ *
+ * `atomType` is a string rather than a union on purpose: it already carries whatever
+ * Content Service snapshots into `practicedAtoms`, and a new kind of atom must not make
+ * events in the queue invalid.
+ */
+export interface AttemptTarget {
+  atomType: string;
+  atomId: string;
+  role: 'focus' | 'context';
+}
+
+/** How the learner had to know it — mirrored from `@ssz/shared-kernel/skills`. */
+export type Modality = 'recognition' | 'recall' | 'production' | 'unknown';
 
 /** Where a piece of work was done — see `workContext` above. */
 export type WorkContext = 'classwork' | 'homework' | 'self_study';
