@@ -882,6 +882,7 @@ model GrammarRule {
 
   explanations GrammarRuleExplanation[]
   exercisePool GrammarRuleExercisePool[]
+  atoms        GrammarRuleAtom[]
 
   @@index([ownerUserId])
   @@index([ownerSchoolId])
@@ -991,6 +992,75 @@ model GrammarRuleExercisePool {
   @@index([grammarRuleId])
   @@index([exerciseId])
   @@map("grammar_rule_exercise_pool")
+}
+
+// ─── Grammar rule atoms (plan 63, phase 0) ────────────────────────────────────
+
+// Which track of the SRS a fact belongs to — plan 63 §2 C.
+//
+// `LEXIS` on an atom that lives inside a grammar rule looks like a contradiction and is
+// not one: the gender of a Norwegian noun (`et hus`) is learnt with the word, one word at
+// a time, while the ending that follows from it (`huset`) is learnt once as a rule. Score
+// them on the same track and a learner who simply does not know forty genders reads as
+// "bad at definite forms", which is the opposite of what to do about it.
+enum AtomTrack {
+  LEXIS   @map("lexis")
+  GRAMMAR @map("grammar")
+
+  @@map("atom_track")
+}
+
+// One thing inside a rule that can be known or not known on its own — plan 63 §2 B.
+//
+// The unit the learner's memory is kept against, and the address an exercise points at.
+// NOT a chapter: "bestemt form av substantiv" is a rule, and a learner can be reliable on
+// its definite singular while helpless at double definiteness. Aggregate those into one
+// number and the number says 70%, which is true of a learner who half-knows everything
+// and of one who knows half of it perfectly — and neither a teacher nor a generator can
+// act on it.
+//
+// Nor a word form: a card per `huset`/`boka`/`bilen` gives a learner who understood the
+// rule perfectly three hundred cards, which is grammar turned back into vocabulary. The
+// whole leverage of a rule is that it generalises to a noun never seen before.
+//
+// The rule of thumb for splitting, from the plan: **split when two parts can be wrong
+// independently.** If you can picture a learner reliably right on A and reliably wrong on
+// B, they are separate atoms; if you cannot, they are one.
+//
+// A rule with no atoms keeps working exactly as before — it is then read as having a
+// single implicit atom — so nothing has to be marked up before this ships.
+model GrammarRuleAtom {
+  id            String @id @default(uuid()) @db.Uuid
+  grammarRuleId String @map("grammar_rule_id") @db.Uuid
+
+  // Stable address. Cards and exercise targets are keyed by it, so it survives every
+  // edit of `title` — renaming what the author sees must never orphan a learner's
+  // schedule. Lowercase kebab, unique within the rule.
+  key String @db.VarChar(60)
+
+  // What the author and the teacher read: "Definite plural", "Double definiteness".
+  title       String  @db.VarChar(200)
+  description String? @db.Text
+
+  track    AtomTrack
+  position Int
+
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  // Soft delete, because an atom that has been practised owns review cards and exercise
+  // targets elsewhere. Merging two atoms into one is a later plan; until it exists, the
+  // only way out is to retire one and re-address by hand.
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+
+  grammarRule GrammarRule @relation(fields: [grammarRuleId], references: [id], onDelete: Cascade)
+
+  // Partial unique on (grammar_rule_id, key) WHERE deleted_at IS NULL is enforced via raw
+  // SQL in the migration — Prisma cannot express it. Without the partial form, retiring
+  // an atom would permanently reserve its key inside the rule.
+  @@index([grammarRuleId])
+  @@index([grammarRuleId, deletedAt])
+  @@map("grammar_rule_atoms")
 }
 
 // ─── Block 5: Tags ─────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { $Enums } from '../../../../../../generated/prisma/client.js';
 import { GrammarTopic } from '../../../domain/value-objects/grammar-topic.vo.js';
+import { AtomTrack } from '../../../domain/value-objects/atom-track.vo.js';
 import { VariantStatus } from '../../../../lesson/domain/value-objects/variant-status.vo.js';
 
 // DifficultyLevel and Visibility conversions are defined in the container module.
@@ -64,3 +65,30 @@ export function domainGrammarTopicToPrisma(value: GrammarTopic): $Enums.GrammarT
 
 // Re-export VariantStatus type for convenience within this module.
 export { VariantStatus };
+
+// ─── AtomTrack ────────────────────────────────────────────────────────────────
+//
+// A Prisma enum carries member NAMES (`LEXIS`), not the `@map` values (`lexis`), so the
+// domain's lowercase value cannot be handed to the client as-is: it type-checks and fails
+// at runtime. These two tables are the only crossing point.
+
+const PRISMA_TO_DOMAIN_ATOM_TRACK: Record<$Enums.AtomTrack, AtomTrack> = {
+  LEXIS: AtomTrack.LEXIS,
+  GRAMMAR: AtomTrack.GRAMMAR,
+};
+
+const DOMAIN_TO_PRISMA_ATOM_TRACK: Record<AtomTrack, $Enums.AtomTrack> = {
+  [AtomTrack.LEXIS]: 'LEXIS',
+  [AtomTrack.GRAMMAR]: 'GRAMMAR',
+};
+
+export function prismaAtomTrackToDomain(value: $Enums.AtomTrack): AtomTrack {
+  return PRISMA_TO_DOMAIN_ATOM_TRACK[value];
+}
+
+export function domainAtomTrackToPrisma(value: AtomTrack): $Enums.AtomTrack {
+  return DOMAIN_TO_PRISMA_ATOM_TRACK[value];
+}
+
+// Re-export for convenience within this module.
+export { AtomTrack };

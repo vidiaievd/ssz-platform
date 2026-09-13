@@ -10,6 +10,7 @@ import { PrismaGrammarRuleExplanationRepository } from './infrastructure/persist
 import { PrismaGrammarRuleExercisePoolRepository } from './infrastructure/persistence/prisma-grammar-rule-exercise-pool.repository.js';
 import { PrismaGrammarRuleCompareExampleRepository } from './infrastructure/persistence/prisma-grammar-rule-compare-example.repository.js';
 import { PrismaGrammarRuleQuickCheckRepository } from './infrastructure/persistence/prisma-grammar-rule-quick-check.repository.js';
+import { PrismaGrammarRuleAtomRepository } from './infrastructure/persistence/prisma-grammar-rule-atom.repository.js';
 import { PrismaExerciseRepository } from '../exercise/infrastructure/persistence/prisma-exercise.repository.js';
 
 // DI tokens
@@ -18,6 +19,7 @@ import { GRAMMAR_RULE_EXPLANATION_REPOSITORY } from './domain/repositories/gramm
 import { GRAMMAR_RULE_EXERCISE_POOL_REPOSITORY } from './domain/repositories/grammar-rule-exercise-pool.repository.interface.js';
 import { GRAMMAR_RULE_COMPARE_EXAMPLE_REPOSITORY } from './domain/repositories/grammar-rule-compare-example.repository.interface.js';
 import { GRAMMAR_RULE_QUICK_CHECK_REPOSITORY } from './domain/repositories/grammar-rule-quick-check.repository.interface.js';
+import { GRAMMAR_RULE_ATOM_REPOSITORY } from './domain/repositories/grammar-rule-atom.repository.interface.js';
 import { EXERCISE_REPOSITORY } from '../exercise/domain/repositories/exercise.repository.interface.js';
 
 // Command handlers
@@ -34,6 +36,11 @@ import { AddPoolEntryHandler } from './application/commands/add-pool-entry/add-p
 import { UpdatePoolEntryHandler } from './application/commands/update-pool-entry/update-pool-entry.handler.js';
 import { RemovePoolEntryHandler } from './application/commands/remove-pool-entry/remove-pool-entry.handler.js';
 import { ReorderPoolHandler } from './application/commands/reorder-pool/reorder-pool.handler.js';
+import { CreateAtomHandler } from './application/commands/create-atom/create-atom.handler.js';
+import { UpdateAtomHandler } from './application/commands/update-atom/update-atom.handler.js';
+import { DeleteAtomHandler } from './application/commands/delete-atom/delete-atom.handler.js';
+import { ReorderAtomsHandler } from './application/commands/reorder-atoms/reorder-atoms.handler.js';
+import { MoveAtomHandler } from './application/commands/move-atom/move-atom.handler.js';
 
 // Query handlers
 import { GetGrammarRulesHandler } from './application/queries/get-grammar-rules/get-grammar-rules.handler.js';
@@ -45,6 +52,7 @@ import { GetPoolEntriesHandler } from './application/queries/get-pool-entries/ge
 import { GetRandomPoolExerciseHandler } from './application/queries/get-random-pool-exercise/get-random-pool-exercise.handler.js';
 import { GetPoolExerciseIdsHandler } from './application/queries/get-pool-exercise-ids/get-pool-exercise-ids.handler.js';
 import { GetExerciseRuleLinksHandler } from './application/queries/get-exercise-rule-links/get-exercise-rule-links.handler.js';
+import { GetAtomsHandler } from './application/queries/get-atoms/get-atoms.handler.js';
 
 // Controller
 import { GrammarRuleController } from './presentation/controllers/grammar-rule.controller.js';
@@ -63,6 +71,11 @@ const CommandHandlers = [
   UpdatePoolEntryHandler,
   RemovePoolEntryHandler,
   ReorderPoolHandler,
+  CreateAtomHandler,
+  UpdateAtomHandler,
+  DeleteAtomHandler,
+  ReorderAtomsHandler,
+  MoveAtomHandler,
 ];
 
 const QueryHandlers = [
@@ -75,6 +88,7 @@ const QueryHandlers = [
   GetRandomPoolExerciseHandler,
   GetPoolExerciseIdsHandler,
   GetExerciseRuleLinksHandler,
+  GetAtomsHandler,
 ];
 
 @Module({
@@ -99,6 +113,7 @@ const QueryHandlers = [
       provide: GRAMMAR_RULE_QUICK_CHECK_REPOSITORY,
       useClass: PrismaGrammarRuleQuickCheckRepository,
     },
+    { provide: GRAMMAR_RULE_ATOM_REPOSITORY, useClass: PrismaGrammarRuleAtomRepository },
     { provide: EXERCISE_REPOSITORY, useClass: PrismaExerciseRepository },
 
     // CQRS handlers
