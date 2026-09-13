@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { GroupAnalyticsController } from './controllers/group-analytics.controller.js';
+import { SchoolGroupGapsController } from './controllers/school-group-gaps.controller.js';
 import { GetGroupProgressHandler } from './queries/get-group-progress.handler.js';
 import { GetGroupHeatmapHandler } from './queries/get-group-heatmap.handler.js';
+import { GetGroupGapsHandler } from './queries/get-group-gaps.handler.js';
 import { GroupUnitsService } from './group-units.service.js';
 import { WorkContextService } from './work-context.service.js';
 import { SchedulingClient } from '../../infrastructure/http/scheduling.client.js';
@@ -10,10 +12,11 @@ import { ProjectionsModule } from '../projections/projections.module.js';
 
 @Module({
   imports: [CqrsModule, ProjectionsModule],
-  controllers: [GroupAnalyticsController],
+  controllers: [GroupAnalyticsController, SchoolGroupGapsController],
   providers: [
     GetGroupProgressHandler,
     GetGroupHeatmapHandler,
+    GetGroupGapsHandler,
     GroupUnitsService,
     WorkContextService,
     SchedulingClient,
