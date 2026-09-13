@@ -224,3 +224,71 @@ describe('focus, which has its own chain', () => {
     expect(result.focusSource).toBe('unknown');
   });
 });
+
+describe('modality, the second axis (plan 63 §2 E)', () => {
+  it('reads the gap-fill flag, because the template covers both modalities', () => {
+    const bank = deriveSkills({
+      templateCode: 'word_bank_gap_fill',
+      content: { settings: { input: 'bank' } },
+    });
+    expect(bank.modality).toBe('recognition');
+    expect(bank.modalitySource).toBe('document');
+
+    const free = deriveSkills({
+      templateCode: 'word_bank_gap_fill',
+      content: { settings: { input: 'free' } },
+    });
+    expect(free.modality).toBe('recall');
+    expect(free.modalitySource).toBe('document');
+  });
+
+  it('says unknown for a gap-fill whose document has not chosen', () => {
+    // The template row is `unknown` on purpose: guessing would be wrong for half the
+    // catalogue whichever way it guessed.
+    const result = deriveSkills({ templateCode: 'word_bank_gap_fill' });
+    expect(result.modality).toBe('unknown');
+    expect(result.modalitySource).toBe('unknown');
+  });
+
+  it('falls back to the template for every other type', () => {
+    expect(deriveSkills({ templateCode: 'writing_task' }).modality).toBe('production');
+    expect(deriveSkills({ templateCode: 'multiple_choice' }).modality).toBe('recognition');
+    expect(deriveSkills({ templateCode: 'sentence_schema' }).modality).toBe('recall');
+    expect(deriveSkills({ templateCode: 'writing_task' }).modalitySource).toBe('template');
+  });
+
+  /**
+   * The distinction the axis exists for: two `bank` templates can differ in modality, and
+   * one template's two documents can differ in it while the form says the same word.
+   */
+  it('is not a second name for the answer form', () => {
+    const schema = deriveSkills({ templateCode: 'sentence_schema' });
+    expect(schema.form).toBe('bank');
+    expect(schema.modality).toBe('recall');
+  });
+
+  it('lets the author overrule it, and ignores a value it does not recognise', () => {
+    const spoken = deriveSkills({
+      templateCode: 'multiple_choice',
+      override: { skills: ['reading'], focus: [], modality: 'production', setAt: new Date() },
+    });
+    expect(spoken.modality).toBe('production');
+    expect(spoken.modalitySource).toBe('override');
+
+    const nonsense = deriveSkills({
+      templateCode: 'multiple_choice',
+      override: { skills: ['reading'], focus: [], modality: 'fluency', setAt: new Date() },
+    });
+    expect(nonsense.modality).toBe('recognition');
+    expect(nonsense.modalitySource).toBe('template');
+  });
+
+  it('is not touched by placement — a heard prompt is still answered the same way', () => {
+    const result = deriveSkills({
+      templateCode: 'short_answer',
+      placement: { listeningStage: 'comprehension' },
+    });
+    expect(result.skills).toEqual(['listening']);
+    expect(result.modality).toBe('production');
+  });
+});

@@ -22,8 +22,8 @@
 // one combined `source` would have to lie about one of them.
 
 import { templateProfile } from './by-template.js';
-import type { Focus, FocusSource, Form, Skill, SkillSource } from './model.js';
-import { orderFocuses, orderSkills, parseFocuses, parseSkills } from './model.js';
+import type { Focus, FocusSource, Form, Modality, Skill, SkillSource } from './model.js';
+import { isModality, orderFocuses, orderSkills, parseFocuses, parseSkills } from './model.js';
 
 /** How the exercise sits in its lesson. Every field optional: most exercises have none. */
 export interface Placement {
@@ -52,6 +52,14 @@ export interface Placement {
 export interface SkillOverride {
   skills?: unknown;
   focus?: unknown;
+  /**
+   * What the author said about *how* the exercise is answered (plan 63 §2 E).
+   *
+   * Nothing writes it yet — there is no column for it — and the field is here so that the
+   * rung exists in one place when something does. An unrecognised value is ignored rather
+   * than trusted, exactly as the two lists above are filtered.
+   */
+  modality?: unknown;
   setAt?: Date | string | null;
 }
 
@@ -74,8 +82,17 @@ export interface DerivedProfile {
   skills: Skill[];
   focus: Focus[];
   form: Form;
+  /** How the learner had to know it — plan 63 §2 E. */
+  modality: Modality;
   skillSource: SkillSource;
   focusSource: FocusSource;
+  /**
+   * Which rung answered the modality. Its own chain — override → document → template —
+   * because placement says nothing about how an answer is produced: a `short_answer`
+   * standing as a listening stage is heard rather than read, and still written from
+   * nothing.
+   */
+  modalitySource: SkillSource;
 }
 
 function hasSpoken(override: SkillOverride | null | undefined): boolean {
@@ -109,7 +126,10 @@ function record(value: unknown): Record<string, unknown> | null {
  *   production), `bank` means chosen from a strip (recognition). The template merged two
  *   old types, so the document is the only thing that can tell them apart.
  */
-function fromDocument(templateCode: string, content: unknown): { skills: Skill[]; form?: Form } | null {
+function fromDocument(
+  templateCode: string,
+  content: unknown,
+): { skills: Skill[]; form?: Form; modality?: Modality } | null {
   const doc = record(content);
   if (!doc) return null;
 
@@ -118,8 +138,11 @@ function fromDocument(templateCode: string, content: unknown): { skills: Skill[]
 
   if (templateCode === 'word_bank_gap_fill') {
     const input = record(doc['settings'])?.['input'];
-    if (input === 'free') return { skills: ['written'], form: 'free' };
-    if (input === 'bank') return { skills: ['reading'], form: 'bank' };
+    // Typed from nothing is retrieval; chosen off a strip is recognition. The same flag
+    // settles all three columns, which is the whole argument for reading the document
+    // here rather than splitting the template back in two.
+    if (input === 'free') return { skills: ['written'], form: 'free', modality: 'recall' };
+    if (input === 'bank') return { skills: ['reading'], form: 'bank', modality: 'recognition' };
   }
 
   return null;
@@ -196,5 +219,17 @@ export function deriveSkills(input: DeriveInput): DerivedProfile {
     }
   }
 
-  return { skills, focus, form, skillSource, focusSource };
+  const overriddenModality = hasSpoken(input.override) && isModality(input.override?.modality);
+  const modality: Modality = overriddenModality
+    ? (input.override?.modality as Modality)
+    : (document?.modality ?? profile?.modality ?? 'unknown');
+  const modalitySource: SkillSource = overriddenModality
+    ? 'override'
+    : document?.modality
+      ? 'document'
+      : profile?.modality && profile.modality !== 'unknown'
+        ? 'template'
+        : 'unknown';
+
+  return { skills, focus, form, modality, skillSource, focusSource, modalitySource };
 }

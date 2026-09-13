@@ -39,6 +39,29 @@ export const FORMS = ['bank', 'free', 'mixed', 'unknown'] as const;
 export type Form = (typeof FORMS)[number];
 
 /**
+ * How the learner knew it, as opposed to what they knew — plan 63 §2 E.
+ *
+ * A second axis, independent of skill and focus, and the one that tells two learners
+ * apart where every other number says they are equal: 90 % on a bank of five words and
+ * 30 % typing the same words from nothing is not "uneven knowledge of grammar", it is
+ * knowledge that has reached recognition and no further. The cure is production, not more
+ * of the same exercises, and nothing in the platform can see that today.
+ *
+ *   recognition — the answer is on screen among others; the learner picks it out
+ *   recall      — the answer has to come from memory, with the shape of it given:
+ *                 a gap to type into, a word to translate, an order to rebuild
+ *   production  — the learner writes their own language beyond the item
+ *
+ * `unknown` is the honest gap, as everywhere else here: a template nobody has judged.
+ */
+export const MODALITIES = ['recognition', 'recall', 'production', 'unknown'] as const;
+export type Modality = (typeof MODALITIES)[number];
+
+export function isModality(value: unknown): value is Modality {
+  return typeof value === 'string' && (MODALITIES as readonly string[]).includes(value);
+}
+
+/**
  * Which rung of the priority chain produced a value (plan 55 §3.4).
  *
  * Returned to the caller, not kept for tidiness: the coverage strip has to be able to
