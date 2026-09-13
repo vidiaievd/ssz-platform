@@ -56,6 +56,7 @@ import { GetCurriculumTreeHandler } from './application/queries/get-curriculum-t
 import { GetCourseOutlineHandler } from './application/queries/get-course-outline/get-course-outline.handler.js';
 import { GetContainerActivityHandler } from './application/queries/get-container-activity/get-container-activity.handler.js';
 import { GetContainerCoverageHandler } from './application/queries/get-container-coverage/get-container-coverage.handler.js';
+import { GetAtomCoverageHandler } from './application/queries/get-atom-coverage/get-atom-coverage.handler.js';
 import { GetPublishStatesHandler } from './application/queries/get-publish-states/get-publish-states.handler.js';
 import { PublishStateReader } from './application/services/publish-state.reader.js';
 import { EXERCISE_DRAFT_PROMOTER } from './application/ports/exercise-draft-promoter.port.js';
@@ -107,6 +108,7 @@ const QueryHandlers = [
   GetPublishStatesHandler,
   GetContainerActivityHandler,
   GetContainerCoverageHandler,
+  GetAtomCoverageHandler,
 ];
 
 @Module({

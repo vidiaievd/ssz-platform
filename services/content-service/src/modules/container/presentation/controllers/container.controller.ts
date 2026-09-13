@@ -63,6 +63,10 @@ import { GetContainerCoverageQuery } from '../../application/queries/get-contain
 import type { CoverageVersionScope } from '../../application/queries/get-container-coverage/get-container-coverage.query.js';
 import type { ContainerCoverageResult } from '../../application/queries/get-container-coverage/get-container-coverage.handler.js';
 import { ContainerCoverageResponseDto } from '../dto/responses/coverage.response.dto.js';
+import { GetAtomCoverageQuery } from '../../application/queries/get-atom-coverage/get-atom-coverage.query.js';
+import type { AtomCoverageVersionScope } from '../../application/queries/get-atom-coverage/get-atom-coverage.query.js';
+import type { AtomCoverageResult } from '../../application/queries/get-atom-coverage/get-atom-coverage.handler.js';
+import { AtomCoverageResponseDto } from '../dto/responses/atom-coverage.response.dto.js';
 import { throwHttpException } from '../utils/domain-error.mapper.js';
 import { GetContainerReviewSettingsQuery } from '../../application/queries/get-review-settings/get-container-review-settings.query.js';
 import type { ContainerReviewSettingsResult } from '../../application/queries/get-review-settings/get-container-review-settings.handler.js';
@@ -260,6 +264,44 @@ export class ContainerController {
 
     if (result.isFail) throwHttpException(result.error);
     return ContainerCoverageResponseDto.from(result.value);
+  }
+
+  /**
+   * What this course teaches against what it ever asks — plan 63 §4.2.
+   *
+   * The coverage report above counts exercises by channel and subject; this one counts the
+   * facts themselves. It is the only place that can say "this lesson introduces twenty-four
+   * words, six of which no exercise asks about, and both its rules are only ever tested by
+   * picking an answer off a list".
+   */
+  @Get(':id/atom-coverage')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({
+    summary: 'The words and rule atoms this container teaches, against the items that test them',
+  })
+  @ApiQuery({
+    name: 'version',
+    required: false,
+    enum: ['draft', 'published'],
+    description:
+      'Which composition to read. `draft` (default) is what the author is editing; ' +
+      '`published` is what learners have.',
+  })
+  @ApiOkResponse({ type: AtomCoverageResponseDto })
+  async atomCoverage(
+    @Param('id') id: string,
+    @Query('version') version?: string,
+  ): Promise<AtomCoverageResponseDto> {
+    const scope: AtomCoverageVersionScope = version === 'published' ? 'published' : 'draft';
+
+    const result = await this.queryBus.execute<
+      GetAtomCoverageQuery,
+      Result<AtomCoverageResult, ContainerDomainError>
+    >(new GetAtomCoverageQuery(id, scope));
+
+    if (result.isFail) throwHttpException(result.error);
+    return AtomCoverageResponseDto.from(result.value);
   }
 
   @Get(':id/review-settings')
