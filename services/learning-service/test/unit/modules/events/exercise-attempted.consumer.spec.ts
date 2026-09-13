@@ -339,6 +339,12 @@ describe('ExerciseAttemptedConsumer', () => {
         lessonId: null,
         timeSpentSeconds: 60,
         stabilityAfter: null,
+        // Plan 63 phase 3 — what was rated and what it is evidence about. Nothing said
+        // any of it here: no modality from the publisher, no author's address.
+        contentType: 'EXERCISE',
+        modality: null,
+        itemKey: null,
+        targets: null,
       });
     });
 
@@ -855,5 +861,112 @@ describe('ExerciseAttemptedConsumer', () => {
       expect(calls.some((c) => c instanceof ReviewCardCommand)).toBe(false);
       expect(channel.ack).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+// Plan 63 phase 3 — what a rating is evidence *about* travels with it, so that analytics
+// can hold a fact per atom instead of a fact per exercise.
+describe('ExerciseAttemptedConsumer — the address on a rating', () => {
+  /** Every rated payload the consumer published, in order. */
+  function allRated(publisher: { publish: { mock: { calls: unknown[][] } } }) {
+    return publisher.publish.mock.calls
+      .filter((c) => c[0] === 'learning.attempt.rated')
+      .map((c) => c[1] as Record<string, any>);
+  }
+
+  const attempt = (over: Record<string, unknown> = {}) => ({
+    userId: USER_ID,
+    exerciseId: EXERCISE_ID,
+    score: 100,
+    timeSpentSeconds: 30,
+    completed: true,
+    templateCode: 'word_bank_gap_fill',
+    passed: true,
+    modality: 'recall',
+    practicedAtoms: [],
+    ...over,
+  });
+
+  it('hands each gap rating the addresses of that gap', async () => {
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            gapResults: [
+              {
+                gapKey: 's1#5',
+                correct: true,
+                targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' }],
+              },
+              { gapKey: 's2#3', correct: false },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const rated = allRated(publisher);
+    expect(rated[0]).toMatchObject({
+      contentType: 'EXERCISE_GAP',
+      itemKey: 's1#5',
+      modality: 'recall',
+      targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' }],
+    });
+    // Nobody addressed the second gap. Absent, not empty: "nobody said" is not the same
+    // sentence as "this gap is about nothing".
+    expect(rated[1]).toMatchObject({ itemKey: 's2#3', targets: null });
+  });
+
+  it('reports the word the fan-out just rated, which nothing did before', async () => {
+    // The fan-out has been rating vocabulary cards since plan 21 and publishing nothing,
+    // so analytics held no row saying which word came back or how it went.
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            practicedAtoms: [{ atomType: 'vocabulary_item', atomId: 'word-1' }],
+            targets: [{ atomType: 'vocabulary_item', atomId: 'word-1', role: 'context' }],
+          }),
+        ),
+      ),
+    );
+
+    const word = allRated(publisher).find((r) => r.contentType === 'VOCABULARY_WORD');
+    expect(word).toMatchObject({
+      targets: [{ atomType: 'vocabulary_item', atomId: 'word-1', role: 'context' }],
+      itemKey: null,
+    });
+  });
+
+  it('leaves the role unsaid for an atom no author addressed', async () => {
+    // It arrived through the practised-atom graph, which knows the exercise practises the
+    // word and nothing about what it was doing there. Calling that `focus` would turn
+    // "nobody said" into the strongest evidence the scale has.
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(attempt({ practicedAtoms: [{ atomType: 'vocabulary_item', atomId: 'word-9' }] })),
+      ),
+    );
+
+    const word = allRated(publisher).find((r) => r.contentType === 'VOCABULARY_WORD');
+    expect(word?.targets).toEqual([
+      { atomType: 'vocabulary_item', atomId: 'word-9', role: null },
+    ]);
+  });
+
+  it('marks the exercise-level rating as such, so nothing counts a word as an attempt', async () => {
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(envelope(attempt({ templateCode: 'writing_task' }))),
+    );
+
+    expect(allRated(publisher)[0]).toMatchObject({ contentType: 'EXERCISE', itemKey: null });
   });
 });

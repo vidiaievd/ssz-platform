@@ -103,6 +103,39 @@ function daysSince(lastReviewedAt: string | null | undefined, now: Date): number
   return elapsed > 0 ? elapsed / MS_PER_DAY : 0;
 }
 
+/**
+ * What a rating is evidence about, as this consumer hands it to the record.
+ *
+ * `contentType` says which kind of card was rated, so that a consumer counting attempts
+ * never counts a word coming back as one (plan 63 phase 3).
+ */
+interface RatingAddress {
+  contentType: string;
+  itemKey: string | null;
+  targets: Array<{ atomType: string; atomId: string; role: 'focus' | 'context' | null }> | null;
+}
+
+/**
+ * The role an author gave this atom somewhere in the exercise, if any.
+ *
+ * The same atom can be the focus of one gap and the context of another; the strongest
+ * claim wins, because the evidence about the atom is as strong as the strongest thing
+ * that examined it. `null` — nobody addressed it — stays `null`: the fan-out knows the
+ * exercise practises the word and nothing about what it was doing there.
+ */
+function roleOfAtom(
+  p: ExerciseAttemptCompletedPayload,
+  atomId: string,
+): 'focus' | 'context' | null {
+  const roles = [...(p.targets ?? []), ...(p.gapResults ?? []).flatMap((gap) => gap.targets ?? [])]
+    .filter((target) => target.atomId === atomId)
+    .map((target) => target.role);
+
+  if (roles.includes('focus')) return 'focus';
+  if (roles.includes('context')) return 'context';
+  return null;
+}
+
 @Injectable()
 export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ExerciseAttemptedConsumer.name);
@@ -234,7 +267,37 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
             this.logger.debug(
               `SRS fan-out review skipped for vocab ${vocabularyItemId} / user ${p.userId}: ${atomReviewResult.error?.message}`,
             );
+            continue;
           }
+
+          // The fan-out has been rating words for months and telling nobody (plan 63
+          // phase 3): every word a learner has met came back on schedule, and analytics
+          // held not one row saying which word or how it went. The rating record says so
+          // now, marked as a word rather than as an attempt so that nothing counting
+          // attempts starts counting these too.
+          await this.publishRatingRecord(
+            p,
+            rating,
+            atomIntroduceResult.value as ReviewCardDto,
+            null,
+            null,
+            stabilityOf(atomReviewResult.value),
+            {
+              contentType: 'VOCABULARY_WORD',
+              itemKey: null,
+              // The role only if an author addressed this word somewhere in the exercise.
+              // An atom that arrived through the practised-atom graph has no role, and
+              // calling it `focus` would turn "nobody said" into the strongest evidence
+              // the scale has.
+              targets: [
+                {
+                  atomType: 'vocabulary_item',
+                  atomId: vocabularyItemId,
+                  role: roleOfAtom(p, vocabularyItemId),
+                },
+              ],
+            },
+          );
         }
       }
 
@@ -277,14 +340,13 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
     // only when a rating was actually applied: a review refused by the daily limit
     // changed no schedule, and recording it as though it had would poison the
     // baseline the evidence scale is judged against.
-    await this.publishRatingRecord(
-      p,
-      rating,
-      card,
-      null,
-      null,
-      stabilityOf(reviewResult.value),
-    );
+    await this.publishRatingRecord(p, rating, card, null, null, stabilityOf(reviewResult.value), {
+      contentType: 'EXERCISE',
+      itemKey: null,
+      // A template that grades as one addresses the exercise as a whole, and that is
+      // exactly the list the engine snapshots under a null item key.
+      targets: p.targets ?? null,
+    });
   }
 
   /**
@@ -343,6 +405,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
         position,
         gapCount,
         stabilityOf(reviewResult.value),
+        { contentType: 'EXERCISE_GAP', itemKey: gap.gapKey, targets: gap.targets ?? null },
       );
     }
   }
@@ -362,6 +425,12 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
     gapCount: number | null,
     /** The card's stability once this review had been scheduled — see the payload. */
     stabilityAfter: number | null,
+    /**
+     * What this rating is evidence about, and which piece of the exercise produced it
+     * (plan 63 §2 D). Forwarded from the attempt's own snapshot, never looked up: by the
+     * time this runs the author may have re-anchored the gap.
+     */
+    address: RatingAddress = { itemKey: null, targets: null, contentType: 'EXERCISE' },
   ): Promise<void> {
     const payload: AttemptRatedPayload = {
       userId: p.userId,
@@ -390,6 +459,12 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       lessonId: p.lessonId ?? null,
       timeSpentSeconds: p.timeSpentSeconds ?? null,
       stabilityAfter,
+      modality: p.modality ?? null,
+      contentType: address.contentType,
+      itemKey: address.itemKey,
+      // Absent rather than empty when nobody addressed it: an empty list would read as
+      // "this rating is about nothing", and the truth is that nobody has said yet.
+      targets: address.targets && address.targets.length > 0 ? address.targets : null,
     };
 
     try {
