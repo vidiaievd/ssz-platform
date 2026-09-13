@@ -175,6 +175,16 @@ export class ModalityGapDto {
     description: 'One reading per modality, every key present, zeroes included',
   })
   byModality!: Record<string, ModalityReadingDto>;
+
+  @ApiProperty({
+    example: 4,
+    description:
+      'Ratings of this atom’s own SRS card. The same answers as the readings above seen ' +
+      'from the card side — one submission rates the item and then the word’s card — so ' +
+      'they are reported here and never added to a modality, which would count each ' +
+      'answer twice and only for words',
+  })
+  cardReviews!: number;
 }
 
 export class ModalityGapSummaryDto {
@@ -204,6 +214,13 @@ export class ModalityGapSummaryDto {
       'examine it. A learner with nothing but these has been measured on nothing',
   })
   contextObservations!: number;
+
+  @ApiProperty({
+    description:
+      'Card-side ratings across all atoms, excluded from every tally above for the reason ' +
+      'given on the finding',
+  })
+  cardReviews!: number;
 
   @ApiProperty({
     example: { recognition: 84, recall: 31, production: 0, unknown: 4 },

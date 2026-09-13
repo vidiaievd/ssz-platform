@@ -48,6 +48,14 @@ interface AtomRollup {
   atomType: string;
   atomId: string;
   buckets: Record<Modality, Bucket>;
+  /**
+   * The same answers seen from the card side. Counted, never added to a bucket: today
+   * every one of these is the fan-out of an attempt that is already in the buckets, so
+   * folding them in would count one answer twice — and only for words, since grammar
+   * atoms have no card of their own until phase 5. That would make the two tracks
+   * silently incomparable.
+   */
+  cardReviews: number;
 }
 
 /**
@@ -92,6 +100,7 @@ export class GetModalityGapHandler
         atomType: true,
         atomId: true,
         role: true,
+        contentType: true,
         modality: true,
         passed: true,
         score: true,
@@ -102,24 +111,41 @@ export class GetModalityGapHandler
     });
 
     const rollups = new Map<string, AtomRollup>();
+    /** Card-side ratings per atom, kept out of the buckets — see the loop below. */
+    const cardReviews = new Map<string, number>();
     let contextObservations = 0;
+    let cardObservations = 0;
     let examined = 0;
 
     for (const row of rows) {
+      const key = `${row.atomType}:${row.atomId}`;
+
+      // A rating of the atom's own card is the same answer as the item rating beside it:
+      // one submission rates the exercise and then fans out to the word's card. Counted
+      // apart and deciding nothing, because folding it in would count that answer twice —
+      // and only for words, since grammar atoms have no card of their own until phase 5,
+      // which would leave the two tracks silently incomparable. When a card review
+      // arrives with no exercise behind it, this is where it will show up, and it will be
+      // independent evidence then.
+      if (row.contentType === 'VOCABULARY_WORD' || row.contentType === 'GRAMMAR_ATOM') {
+        cardReviews.set(key, (cardReviews.get(key) ?? 0) + 1);
+        cardObservations += 1;
+        continue;
+      }
+
       // Not examined on it, so it says nothing about how they know it. Counted, because
       // "nothing here was ever tested, only required" is itself worth seeing.
       if (row.role === 'context') {
         contextObservations += 1;
         continue;
       }
-      examined += 1;
-
-      const key = `${row.atomType}:${row.atomId}`;
       const rollup = rollups.get(key) ?? {
         atomType: row.atomType,
         atomId: row.atomId,
         buckets: emptyBuckets(),
+        cardReviews: 0,
       };
+
       // A row from before the modality existed, or from a template nobody has judged,
       // lands in `unknown` and is never counted towards a verdict.
       const modality: Modality = isModality(row.modality) ? row.modality : 'unknown';
@@ -131,6 +157,7 @@ export class GetModalityGapHandler
         bucket.stabilityCount += 1;
       }
       if (bucket.lastAt === null || row.occurredAt > bucket.lastAt) bucket.lastAt = row.occurredAt;
+      examined += 1;
       rollups.set(key, rollup);
     }
 
@@ -150,13 +177,15 @@ export class GetModalityGapHandler
       even: 0,
       observations: examined,
       contextObservations,
+      cardReviews: cardObservations,
       byModality: Object.fromEntries(MODALITIES.map((modality) => [modality, 0])) as Record<
         Modality,
         number
       >,
     };
 
-    for (const rollup of rollups.values()) {
+    for (const [key, rollup] of rollups) {
+      rollup.cardReviews = cardReviews.get(key) ?? 0;
       for (const modality of MODALITIES) {
         summary.byModality[modality] += rollup.buckets[modality].attempts;
       }
@@ -209,6 +238,7 @@ export class GetModalityGapHandler
           parentId: descriptor?.parentId ?? null,
           verdict: finding.verdict,
           gap: finding.gap,
+          cardReviews: finding.rollup.cardReviews,
           byModality: readings(finding.rollup),
         };
       }),

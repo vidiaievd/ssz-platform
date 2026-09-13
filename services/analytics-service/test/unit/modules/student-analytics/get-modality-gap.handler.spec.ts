@@ -18,6 +18,7 @@ interface Row {
   atomType?: string;
   atomId: string;
   role?: string | null;
+  contentType?: string;
   modality: string | null;
   passed?: boolean | null;
   score?: number;
@@ -39,6 +40,7 @@ function handlerFor(rows: Row[], names: Record<string, string> = {}, reachable =
               atomType: row.atomType ?? 'vocabulary_item',
               atomId: row.atomId,
               role: row.role ?? 'focus',
+              contentType: row.contentType ?? 'EXERCISE',
               modality: row.modality,
               passed: row.passed ?? null,
               score: row.score ?? 100,
@@ -89,7 +91,7 @@ function handlerFor(rows: Row[], names: Record<string, string> = {}, reachable =
 }
 
 /** `n` observations of one atom in one modality, all right or all wrong. */
-function runOf(atomId: string, modality: string, n: number, passed: boolean, extra: Partial<Row> = {}): Row[] {
+function runOf(atomId: string, modality: string | null, n: number, passed: boolean, extra: Partial<Row> = {}): Row[] {
   return Array.from({ length: n }, () => ({ atomId, modality, passed, ...extra }));
 }
 
@@ -249,6 +251,25 @@ describe('GetModalityGapHandler (plan 63 §4.1)', () => {
     expect(result.gaps).toHaveLength(1);
     expect(result.gaps[0]?.title).toBeNull();
     expect(result.namesAvailable).toBe(false);
+  });
+
+  it('counts the card side of the same answer apart, so nothing is counted twice', async () => {
+    // One submission: the item is rated, then the word's own card is rated from it.
+    const handler = handlerFor([
+      ...runOf('w-1', 'recognition', 4, true),
+      ...runOf('w-1', 'recognition', 4, true, { contentType: 'VOCABULARY_WORD' }),
+    ]);
+
+    const result = (await handler.execute(query())) as never as {
+      gaps: Array<{ byModality: Record<string, { attempts: number }>; cardReviews: number }>;
+      summary: { observations: number; cardReviews: number; byModality: Record<string, number> };
+    };
+
+    expect(result.gaps[0]?.byModality.recognition?.attempts).toBe(4);
+    expect(result.gaps[0]?.cardReviews).toBe(4);
+    expect(result.summary.observations).toBe(4);
+    expect(result.summary.cardReviews).toBe(4);
+    expect(result.summary.byModality.recognition).toBe(4);
   });
 
   it('reports the bars a verdict was made against', async () => {
