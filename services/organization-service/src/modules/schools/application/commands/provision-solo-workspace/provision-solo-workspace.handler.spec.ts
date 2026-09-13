@@ -61,6 +61,7 @@ describe('ProvisionSoloWorkspaceHandler', () => {
       name: 'Norsk med Dmytro',
       mode: 'online',
     });
+    existingGroup.openAsSoloDefault();
 
     const { handler, schoolRepository, groupRepository, published } = setup(
       [existingSchool],
@@ -73,5 +74,57 @@ describe('ProvisionSoloWorkspaceHandler', () => {
     expect(schoolRepository.save).not.toHaveBeenCalled();
     expect(groupRepository.save).not.toHaveBeenCalled();
     expect(published()).toEqual([]);
+  });
+
+  // A tutor may now have groups of their own beside the workspace's one (plan 59 §5), so
+  // "the default group" can no longer mean "whichever row came back first". A workspace
+  // provisioned before the flag existed has its oldest group adopted — it is the group
+  // that has always held everybody.
+  it('adopts the oldest group of a workspace provisioned before the flag existed', async () => {
+    const existingSchool = { id: 'ws-1', isSolo: true, isDeleted: false };
+    const unflagged = SchoolGroup.create({
+      id: 'group-1',
+      schoolId: 'ws-1',
+      name: 'My students',
+      mode: 'online',
+    });
+    const tutorsOwn = SchoolGroup.create({
+      id: 'group-2',
+      schoolId: 'ws-1',
+      name: 'Tuesday 19:00',
+      mode: 'online',
+    });
+
+    const { handler, groupRepository } = setup([existingSchool], [unflagged, tutorsOwn]);
+
+    const result = await handler.execute(new ProvisionSoloWorkspaceCommand(TUTOR_ID));
+
+    expect(result.groupId).toBe('group-1');
+    expect(unflagged.isDefault).toBe(true);
+    expect(groupRepository.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the flagged group even when another one is older in the list', async () => {
+    const existingSchool = { id: 'ws-1', isSolo: true, isDeleted: false };
+    const tutorsOwn = SchoolGroup.create({
+      id: 'group-2',
+      schoolId: 'ws-1',
+      name: 'Tuesday 19:00',
+      mode: 'online',
+    });
+    const theDefault = SchoolGroup.create({
+      id: 'group-1',
+      schoolId: 'ws-1',
+      name: 'My students',
+      mode: 'online',
+    });
+    theDefault.openAsSoloDefault();
+
+    const { handler, groupRepository } = setup([existingSchool], [tutorsOwn, theDefault]);
+
+    const result = await handler.execute(new ProvisionSoloWorkspaceCommand(TUTOR_ID));
+
+    expect(result.groupId).toBe('group-1');
+    expect(groupRepository.save).not.toHaveBeenCalled();
   });
 });

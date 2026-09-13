@@ -53,6 +53,12 @@ export interface SchoolGroupProps {
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date | null;
+  /**
+   * The group a solo workspace provisions for itself (plan 59 §5). It holds every learner
+   * the tutor takes on and is what fills their marking queue, and it is never shown as a
+   * group — the tutor's real groups sit beside it. False for every school group.
+   */
+  isDefault?: boolean;
   members: SchoolGroupMemberProps[];
   teachers: GroupTeacherProps[];
   materials: GroupMaterialProps[];
@@ -95,6 +101,7 @@ export class SchoolGroup {
     return new SchoolGroup({
       ...props,
       status: 'draft',
+      isDefault: false,
       mode: props.mode ?? 'online',
       createdAt: now,
       updatedAt: now,
@@ -156,6 +163,21 @@ export class SchoolGroup {
    */
   openAsSoloDefault(): void {
     this._props.status = 'active';
+    this._props.isDefault = true;
+    this._props.updatedAt = new Date();
+  }
+
+  /**
+   * Opens a group a solo tutor created by hand.
+   *
+   * The publishing checklist asks for a course and for a primary teacher chosen among
+   * colleagues. A tutor has no colleagues, and a group of theirs that stays in draft is a
+   * group no neighbour hears about: not in the projections the progress screen reads, and
+   * not in the queue their own marking comes through (plan 59 §5). A course they may add
+   * later, as a school group does.
+   */
+  openAsSoloGroup(): void {
+    this._props.status = 'active';
     this._props.updatedAt = new Date();
   }
 
@@ -209,6 +231,7 @@ export class SchoolGroup {
   get updatedAt(): Date { return this._props.updatedAt; }
   get deletedAt(): Date | null | undefined { return this._props.deletedAt; }
   get isDeleted(): boolean { return !!this._props.deletedAt; }
+  get isDefault(): boolean { return this._props.isDefault ?? false; }
   get members(): SchoolGroupMemberProps[] { return [...this._props.members]; }
   get memberUserIds(): string[] { return this._props.members.map((m) => m.userId); }
   get studentCount(): number { return this._props.members.length; }

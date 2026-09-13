@@ -93,15 +93,32 @@ export class ProvisionSoloWorkspaceHandler
     return { schoolId: school.id, groupId, created: true };
   }
 
-  /** One group per solo workspace: the first one found, or a new open one. */
+  /**
+   * The workspace's default group: the one that holds every learner the tutor takes on.
+   *
+   * Named by a flag rather than by being first in the list — a tutor may now have groups
+   * of their own beside it (plan 59 §5), and "whichever row came back first" stops being
+   * the same group the moment there are two. A workspace provisioned before the flag
+   * existed has its oldest group adopted as the default, which is what it has always been.
+   */
   private async ensureDefaultGroup(
     schoolId: string,
     tutorId: string,
     name: string,
   ): Promise<string> {
-    const groups = await this.groupRepository.findBySchoolId(schoolId);
-    const existing = groups.find((g) => !g.isDeleted);
-    if (existing) return existing.id;
+    const groups = (await this.groupRepository.findBySchoolId(schoolId)).filter(
+      (g) => !g.isDeleted,
+    );
+
+    const marked = groups.find((g) => g.isDefault);
+    if (marked) return marked.id;
+
+    const oldest = groups[0];
+    if (oldest) {
+      oldest.openAsSoloDefault();
+      await this.groupRepository.save(oldest);
+      return oldest.id;
+    }
 
     const group = SchoolGroup.create({ id: randomUUID(), schoolId, name, mode: 'online' });
     group.openAsSoloDefault();

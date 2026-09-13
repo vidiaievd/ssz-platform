@@ -299,6 +299,12 @@ model SchoolGroup {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   deletedAt   DateTime?   @map("deleted_at")
 
+  // The group a solo workspace provisions for itself: it holds every learner the tutor
+  // takes on and is what fills their marking queue, but it is never shown as a group —
+  // a tutor's real groups sit beside it (plan 59 §5). One per workspace, enforced by a
+  // partial unique index Prisma cannot express (see the migration).
+  isDefault   Boolean     @default(false) @map("is_default")
+
   members   SchoolGroupMember[]
   teachers  GroupTeacher[]
   materials GroupMaterial[]

@@ -140,6 +140,14 @@ export class MemberRosterGroupResponseDto {
 
   @ApiPropertyOptional({ description: 'Group CEFR level', nullable: true })
   level!: string | null;
+
+  @ApiProperty({
+    description:
+      "The workspace's own group, which every learner of a private tutor belongs to. " +
+      'It is never shown as a group — a roster that drew it would put everybody in one.',
+    example: false,
+  })
+  isDefault!: boolean;
 }
 
 export class MemberRosterItemResponseDto {

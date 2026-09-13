@@ -44,6 +44,7 @@ type PrismaSchoolGroup = {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  isDefault: boolean;
   members: PrismaSchoolGroupMember[];
   teachers: PrismaGroupTeacher[];
   materials: PrismaGroupMaterial[];
@@ -69,6 +70,7 @@ export class SchoolGroupMapper {
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt,
+      isDefault: raw.isDefault,
       members: raw.members.map((m) => ({
         id: m.id,
         groupId: m.groupId,
