@@ -13,6 +13,16 @@ export interface AtomDescriptor {
   parentId: string | null;
 }
 
+/** Words and grammar atoms an exercise is already linked to, before anything is addressed. */
+export interface CandidateAtoms {
+  /** Living vocabulary items the exercise is recorded as practising, with their word. */
+  words: Array<{ atomId: string; word: string }>;
+  /** Living atoms of every rule the exercise is recorded as practising. */
+  grammarAtoms: Array<{ atomId: string; title: string; ruleId: string; track: string }>;
+  /** Rules linked to the exercise that have no atoms cut yet — nothing to suggest from. */
+  rulesWithoutAtoms: Array<{ ruleId: string; title: string }>;
+}
+
 export interface IExerciseItemTargetRepository {
   findByExerciseId(exerciseId: string): Promise<ExerciseItemTarget[]>;
 
@@ -26,6 +36,17 @@ export interface IExerciseItemTargetRepository {
     itemKey: string | null,
     targets: ExerciseItemTarget[],
   ): Promise<void>;
+
+  /**
+   * The atoms this exercise is already known to practise, from relations the seed and the
+   * authoring panel have been writing all along — `vocabulary_item PRACTICED_BY exercise`
+   * and `grammar_rule PRACTICED_BY exercise`, plus the rule's exercise pool.
+   *
+   * This is why the catalogue does not have to be addressed by hand: the exercise level is
+   * already known for roughly half of it, and what phase 1 adds is *which piece* of the
+   * exercise each of those atoms belongs to.
+   */
+  findCandidateAtoms(exerciseId: string): Promise<CandidateAtoms>;
 
   /**
    * Resolves the atoms named by a set of targets, skipping the ones that no longer exist.

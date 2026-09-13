@@ -34,6 +34,9 @@ import { GetItemTargetsQuery } from '../../application/queries/get-item-targets/
 import type { ExerciseTargetsView } from '../../application/queries/get-item-targets/get-item-targets.handler.js';
 import { SetItemTargetsRequestDto } from '../dto/requests/set-item-targets.request.dto.js';
 import { ExerciseTargetsResponseDto } from '../dto/responses/exercise-targets.response.dto.js';
+import { GetTargetSuggestionsQuery } from '../../application/queries/get-target-suggestions/get-target-suggestions.query.js';
+import type { TargetSuggestionsView } from '../../application/queries/get-target-suggestions/get-target-suggestions.handler.js';
+import { TargetSuggestionsResponseDto } from '../dto/responses/target-suggestions.response.dto.js';
 import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
@@ -523,5 +526,30 @@ export class ExerciseController {
     );
 
     if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Get(':id/target-suggestions')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
+  @ApiOperation({
+    summary: 'What this exercise is probably about, item by item',
+    description:
+      'Proposals only — nothing is written. Built from what the catalogue already records: ' +
+      'the PRACTICED_BY relations and grammar pools filled by the seed and the authoring ' +
+      'panel. A word is matched to a gap through its inflected form, because a gap answering ' +
+      '`stillingsannonser` for the listed `stillingsannonse` is the ordinary case rather ' +
+      'than the exception.',
+  })
+  @ApiOkResponse({ type: TargetSuggestionsResponseDto })
+  async getTargetSuggestions(
+    @Param('id') exerciseId: string,
+  ): Promise<TargetSuggestionsResponseDto> {
+    const result = await this.queryBus.execute<
+      GetTargetSuggestionsQuery,
+      Result<TargetSuggestionsView, ExerciseDomainError>
+    >(new GetTargetSuggestionsQuery(exerciseId));
+
+    if (result.isFail) throwHttpException(result.error);
+    return TargetSuggestionsResponseDto.from(result.value);
   }
 }

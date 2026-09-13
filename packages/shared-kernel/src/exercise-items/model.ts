@@ -17,6 +17,21 @@ export interface ExerciseItem {
   key: string;
   /** What the author sees in the builder: `G1`, the left half of a pair, a question stem. */
   label: string;
+  /**
+   * The surface text this piece is *about* — the word that fills the gap, the left half of
+   * a pair. Shown, not matched.
+   */
+  value: string;
+  /**
+   * Every surface form a suggester should try against a vocabulary list.
+   *
+   * More than one because a pair is a word and its meaning, and **which half holds the word
+   * is not fixed**: the seeded `match_pairs` exercises put names on the left and the words
+   * on the right, and a suggester looking only at the left half of those finds nothing at
+   * all. Matching both is not a guess — the pair as a whole is about the word, whichever
+   * side it was typed on.
+   */
+  matchValues: string[];
 }
 
 /**

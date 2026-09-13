@@ -45,6 +45,18 @@ describe('itemsOf', () => {
     expect(items?.[0].label).toBe('P1 — Hvis det regner');
   });
 
+  it('offers both halves of a pair for matching', () => {
+    // Which half holds the word is not fixed. The seeded corpus puts names on the left and
+    // the words on the right, and looking only at the left finds nothing at all.
+    const items = itemsOf('match_pairs', MATCH_PAIRS_CONTENT, {});
+    expect(items?.[0].matchValues).toEqual(['Hvis det regner', 'blir vi hjemme']);
+  });
+
+  it('offers the answer of a gap for matching', () => {
+    const items = itemsOf('word_bank_gap_fill', GAP_FILL_CONTENT, {});
+    expect(items?.[0].matchValues).toEqual(['bor']);
+  });
+
   it('answers null for a template that grades as a whole', () => {
     // Not an empty array: "this type cannot be addressed inside" and "this document has no
     // pieces yet" are different sentences, and the builder says different things about them.

@@ -60,6 +60,8 @@ function gapFillItems(content: unknown, expectedAnswers: unknown): ExerciseItem[
       // `G1 — bor` reads better in a dropdown than `G1`: the author is choosing what a gap
       // is about, and the answer word is the thing that tells them which gap this is.
       label: gap.answer === '' ? gap.label : `${gap.label} — ${gap.answer}`,
+      value: gap.answer,
+      matchValues: [gap.answer],
     }));
   } catch {
     return [];
@@ -73,6 +75,9 @@ function matchPairsItems(content: unknown, expectedAnswers: unknown): ExerciseIt
     return document.pairs.map((pair, index) => ({
       key: pair.id,
       label: pair.left === '' ? `P${index + 1}` : `P${index + 1} — ${pair.left}`,
+      value: pair.left,
+      // Both halves: see `matchValues`. The seeded corpus puts the word on the right.
+      matchValues: [pair.left, pair.right].filter((half) => half !== ''),
     }));
   } catch {
     return [];
