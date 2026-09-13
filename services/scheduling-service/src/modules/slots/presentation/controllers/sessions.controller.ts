@@ -9,8 +9,9 @@ import {
   Patch,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   LESSON_REPOSITORY,
   type ILessonRepository,
@@ -22,6 +23,7 @@ import { OrgServiceHttpClient } from '../../../../infrastructure/org/org-service
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
+import { parseRange, resolveScheduleTarget } from './my-schedule.rules.js';
 import {
   CreateSessionDto,
   GradingPolicyDto,
@@ -47,6 +49,34 @@ export class SessionsController {
     private readonly orgClient: OrgServiceHttpClient,
     private readonly prisma: PrismaService,
   ) {}
+
+  @Get('teachers/:teacherId/sessions')
+  @ApiOperation({
+    summary: "One teacher's own sessions in a window, across every group they teach",
+    description:
+      'The schedule a private tutor opens: dated sessions rather than the weekly pattern, ' +
+      'cancelled ones included so a called-off lesson is visible rather than missing. ' +
+      'Names are not resolved here — the caller already holds the groups and the roster, ' +
+      'and asking organization-service once per session would be a lookup per row.',
+  })
+  @ApiQuery({ name: 'from', example: '2026-09-14', description: 'First day, inclusive' })
+  @ApiQuery({ name: 'to', example: '2026-09-20', description: 'Last day, inclusive' })
+  @ApiResponse({ status: 200, type: [SessionResponseDto] })
+  @ApiResponse({ status: 400, description: 'Missing, unordered or too wide a range' })
+  @ApiResponse({ status: 403, description: "Somebody else's schedule" })
+  async mySessions(
+    @Param('teacherId') teacherId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<SessionResponseDto[]> {
+    const target = resolveScheduleTarget(teacherId, user);
+    const range = parseRange(from, to);
+    const sessions = await this.lessons.findByTeacherAndDateRange(target, range.from, range.to, {
+      includeCancelled: true,
+    });
+    return sessions.map(toSessionDto);
+  }
 
   @Get('schools/:schoolId/groups/:groupId/sessions')
   @ApiOperation({

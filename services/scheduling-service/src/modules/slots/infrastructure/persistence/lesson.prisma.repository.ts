@@ -136,10 +136,20 @@ export class LessonPrismaRepository implements ILessonRepository {
     return rows.map(LessonMapper.toDomain);
   }
 
-  async findByTeacherAndDateRange(teacherId: string, from: Date, to: Date): Promise<Lesson[]> {
+  async findByTeacherAndDateRange(
+    teacherId: string,
+    from: Date,
+    to: Date,
+    options: { includeCancelled?: boolean } = {},
+  ): Promise<Lesson[]> {
     const rows = await this.prisma.lesson.findMany({
-      where: { teacherId, date: { gte: from, lte: to }, status: { not: 'cancelled' } },
+      where: {
+        teacherId,
+        date: { gte: from, lte: to },
+        ...(options.includeCancelled ? {} : { status: { not: 'cancelled' } }),
+      },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      include: { scores: true },
     });
     return rows.map(LessonMapper.toDomain);
   }
