@@ -16,4 +16,11 @@ export enum ExerciseDomainError {
   // wholesale on update, so the later write would silently take the earlier
   // author's text with it.
   EXERCISE_MODIFIED_ELSEWHERE = 'EXERCISE_MODIFIED_ELSEWHERE',
+  // Plan 63, phase 1 — item targets.
+  INVALID_TARGET_ITEM_KEY = 'INVALID_TARGET_ITEM_KEY',
+  // The key names no piece of this document — either the template grades as a whole, or the
+  // gap it named has been edited away.
+  TARGET_ITEM_NOT_IN_DOCUMENT = 'TARGET_ITEM_NOT_IN_DOCUMENT',
+  TARGET_ATOM_NOT_FOUND = 'TARGET_ATOM_NOT_FOUND',
+  DUPLICATE_TARGET_ATOM = 'DUPLICATE_TARGET_ATOM',
 }

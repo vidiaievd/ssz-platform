@@ -15,6 +15,7 @@ const NOT_FOUND: Set<AnyExerciseError> = new Set([
   ExerciseDomainError.EXERCISE_NOT_FOUND,
   ExerciseDomainError.INSTRUCTION_NOT_FOUND,
   ExerciseTemplateDomainError.TEMPLATE_NOT_FOUND,
+  ExerciseDomainError.TARGET_ATOM_NOT_FOUND,
 ]);
 
 const GONE: Set<AnyExerciseError> = new Set([ExerciseDomainError.EXERCISE_ALREADY_DELETED]);
@@ -24,6 +25,7 @@ const CONFLICT: Set<AnyExerciseError> = new Set([
   // The update endpoint throws its own 409 so the body can carry the current
   // `updatedAt`; this keeps the code a conflict for anything that maps it here.
   ExerciseDomainError.EXERCISE_MODIFIED_ELSEWHERE,
+  ExerciseDomainError.DUPLICATE_TARGET_ATOM,
 ]);
 
 const UNPROCESSABLE: Set<AnyExerciseError> = new Set([
@@ -32,6 +34,8 @@ const UNPROCESSABLE: Set<AnyExerciseError> = new Set([
   ExerciseDomainError.EXERCISE_HAS_PUBLISHED_CONTAINER_REFERENCES,
   ExerciseTemplateDomainError.TEMPLATE_NOT_ACTIVE,
   ExerciseTemplateDomainError.LANGUAGE_NOT_SUPPORTED_BY_TEMPLATE,
+  ExerciseDomainError.INVALID_TARGET_ITEM_KEY,
+  ExerciseDomainError.TARGET_ITEM_NOT_IN_DOCUMENT,
 ]);
 
 export function throwHttpException(error: AnyExerciseError): never {

@@ -6,10 +6,12 @@ import type { IExerciseRepository } from './domain/repositories/exercise.reposit
 
 // Infrastructure — Prisma repositories
 import { PrismaExerciseRepository } from './infrastructure/persistence/prisma-exercise.repository.js';
+import { PrismaExerciseItemTargetRepository } from './infrastructure/persistence/prisma-exercise-item-target.repository.js';
 import { PrismaExerciseInstructionRepository } from './infrastructure/persistence/prisma-exercise-instruction.repository.js';
 
 // DI tokens
 import { EXERCISE_REPOSITORY } from './domain/repositories/exercise.repository.interface.js';
+import { EXERCISE_ITEM_TARGET_REPOSITORY } from './domain/repositories/exercise-item-target.repository.interface.js';
 import { EXERCISE_INSTRUCTION_REPOSITORY } from './domain/repositories/exercise-instruction.repository.interface.js';
 import { EXERCISE_TEMPLATE_REPOSITORY } from '../exercise-template/domain/repositories/exercise-template.repository.interface.js';
 import { PrismaExerciseTemplateRepository } from '../exercise-template/infrastructure/persistence/prisma-exercise-template.repository.js';
@@ -34,6 +36,9 @@ import { GetExerciseAxesHandler } from './application/queries/get-exercise-axes/
 // Controller
 import { ExerciseController } from './presentation/controllers/exercise.controller.js';
 
+import { SetItemTargetsHandler } from './application/commands/set-item-targets/set-item-targets.handler.js';
+import { GetItemTargetsHandler } from './application/queries/get-item-targets/get-item-targets.handler.js';
+
 const CommandHandlers = [
   CreateExerciseHandler,
   UpdateExerciseHandler,
@@ -41,6 +46,7 @@ const CommandHandlers = [
   UpsertExerciseInstructionHandler,
   DeleteExerciseInstructionHandler,
   SetExerciseSkillsHandler,
+  SetItemTargetsHandler,
 ];
 
 const QueryHandlers = [
@@ -51,6 +57,7 @@ const QueryHandlers = [
   GetExerciseInstructionsHandler,
   GetExerciseEnvelopeHandler,
   GetExerciseAxesHandler,
+  GetItemTargetsHandler,
 ];
 
 @Module({
@@ -59,6 +66,10 @@ const QueryHandlers = [
   providers: [
     // Repository bindings
     { provide: EXERCISE_REPOSITORY, useClass: PrismaExerciseRepository },
+    {
+      provide: EXERCISE_ITEM_TARGET_REPOSITORY,
+      useClass: PrismaExerciseItemTargetRepository,
+    },
     { provide: EXERCISE_INSTRUCTION_REPOSITORY, useClass: PrismaExerciseInstructionRepository },
     { provide: EXERCISE_TEMPLATE_REPOSITORY, useClass: PrismaExerciseTemplateRepository },
 

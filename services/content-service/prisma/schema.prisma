@@ -770,6 +770,7 @@ model Exercise {
   template        ExerciseTemplate          @relation(fields: [exerciseTemplateId], references: [id])
   instructions    ExerciseInstruction[]
   poolEntries     GrammarRuleExercisePool[]
+  itemTargets     ExerciseItemTarget[]
   listeningStages LessonListeningStage[]
   videoQuestions  LessonVideoQuestion[]
 
@@ -1061,6 +1062,86 @@ model GrammarRuleAtom {
   @@index([grammarRuleId])
   @@index([grammarRuleId, deletedAt])
   @@map("grammar_rule_atoms")
+}
+
+// ─── Exercise item targets (plan 63, phase 1) ─────────────────────────────────
+
+// Which kind of atom a target points at. The two are the same sort of thing — a fact that
+// can be known or not known — kept in different tables because a word already had one.
+enum AtomType {
+  VOCABULARY_ITEM   @map("vocabulary_item")
+  GRAMMAR_RULE_ATOM @map("grammar_rule_atom")
+
+  @@map("atom_type")
+}
+
+// What the piece of work proves about the atom it names.
+//
+// `FOCUS` is what the item is testing. `CONTEXT` is what the learner had to know anyway to
+// get there: the gap `Vi bor i ___ huset` tests a grammatical ending, and it also requires
+// the word `hus`, but nobody was examined on the word. Full evidence for the first, weak
+// for the second — which is how one item can honestly serve a mixed exercise instead of
+// being forced to declare itself lexical or grammatical.
+enum TargetRole {
+  FOCUS   @map("focus")
+  CONTEXT @map("context")
+
+  @@map("target_role")
+}
+
+// What one piece of an exercise is about — plan 63 §2 D.
+//
+// The missing level. Today an exercise knows which rule it belongs to (via the pool) and a
+// learner's card knows which exercise it came from, and nothing anywhere says which *word*
+// or which *part of a rule* the third gap was testing. Without that, a teacher sees a failing
+// exercise rather than a failing fact, and a generator has nothing to generate about.
+//
+// Deliberately NOT inside the exercise document. Thirteen `content_schema`s live in the
+// database, each with its own shape of item, and every one would have to change and be
+// re-seeded — a change that reads fine and refuses every write until the seed is run again.
+// One table beside them costs one editor control and works the same for every template.
+//
+// `item_key` is whatever the template already calls its pieces in the per-item verdicts it
+// publishes (`sentenceId#tokenIndex` for a gap, the pair id for a pair), because a target
+// keyed differently from the evidence could never be joined to it. Null means the target is
+// about the whole exercise, which is the only option for templates that grade as a whole.
+//
+// The key is not stable: a gap's key holds a token index, so editing the sentence moves it.
+// A target is therefore resolved against the live document on every read and reported broken
+// if its key is gone — the same treatment `lesson_text_spans` gives a rotted offset, and for
+// the same reason. Nothing is stored about brokenness: a flag would need invalidating on
+// every edit of the document.
+//
+// Not versioned, like the exercise pool and tags beside it: this is a pointer at content,
+// not content. Re-addressing an item changes what counts from now on and never what has
+// already been counted — evidence carries the atom id it was recorded against.
+model ExerciseItemTarget {
+  id         String     @id @default(uuid()) @db.Uuid
+  exerciseId String     @map("exercise_id") @db.Uuid
+  itemKey    String?    @map("item_key") @db.VarChar(120)
+  atomType   AtomType   @map("atom_type")
+  // Polymorphic by `atomType` (VOCABULARY_ITEM -> vocabulary_items.id, GRAMMAR_RULE_ATOM ->
+  // grammar_rule_atoms.id) and therefore carrying no FK, mirroring ContentRelation and
+  // LessonTextSpan.ref_id. An unresolvable atom is treated as broken at read time.
+  atomId     String     @map("atom_id") @db.Uuid
+  role       TargetRole
+
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  // An atom is named at most once per item. Naming it twice in two roles is not a richer
+  // statement, it is a contradiction about how much the item proves.
+  //
+  // The migration creates this with NULLS NOT DISTINCT, which the schema language cannot
+  // express: `item_key` is null for every whole-exercise target, and without the clause
+  // Postgres treats each null as distinct and the constraint does nothing at all for them.
+  // Read the migration, not this line.
+  @@unique([exerciseId, itemKey, atomType, atomId])
+  @@index([exerciseId])
+  @@index([atomType, atomId])
+  @@map("exercise_item_targets")
 }
 
 // ─── Block 5: Tags ─────────────────────────────────────────────────────────────
