@@ -35,26 +35,26 @@ describe('itemsOf', () => {
 
   it('labels a gap with the answer word, so the author can tell which one it is', () => {
     const items = itemsOf('word_bank_gap_fill', GAP_FILL_CONTENT, {});
-    expect(items?.[0].label).toBe('G1 — bor');
-    expect(items?.[1].label).toBe('G2 — huset');
+    expect(items?.[0]?.label).toBe('G1 — bor');
+    expect(items?.[1]?.label).toBe('G2 — huset');
   });
 
   it('keys a pair by its pair id', () => {
     const items = itemsOf('match_pairs', MATCH_PAIRS_CONTENT, {});
     expect(items?.map((item) => item.key)).toEqual(['p1', 'p2']);
-    expect(items?.[0].label).toBe('P1 — Hvis det regner');
+    expect(items?.[0]?.label).toBe('P1 — Hvis det regner');
   });
 
   it('offers both halves of a pair for matching', () => {
     // Which half holds the word is not fixed. The seeded corpus puts names on the left and
     // the words on the right, and looking only at the left finds nothing at all.
     const items = itemsOf('match_pairs', MATCH_PAIRS_CONTENT, {});
-    expect(items?.[0].matchValues).toEqual(['Hvis det regner', 'blir vi hjemme']);
+    expect(items?.[0]?.matchValues).toEqual(['Hvis det regner', 'blir vi hjemme']);
   });
 
   it('offers the answer of a gap for matching', () => {
     const items = itemsOf('word_bank_gap_fill', GAP_FILL_CONTENT, {});
-    expect(items?.[0].matchValues).toEqual(['bor']);
+    expect(items?.[0]?.matchValues).toEqual(['bor']);
   });
 
   it('answers null for a template that grades as a whole', () => {
