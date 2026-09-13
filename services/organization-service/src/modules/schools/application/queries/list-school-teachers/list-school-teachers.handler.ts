@@ -42,7 +42,12 @@ export class ListSchoolTeachersHandler implements IQueryHandler<ListSchoolTeache
       orderBy: { joinedAt: 'asc' },
     });
 
-    if (rows.length === 0) return [];
+    // A private tutor's workspace has no TEACHER rows: the tutor owns it and teaches it,
+    // and they are deliberately absent from their own roster. Asking a screen to name the
+    // teacher of a session then answered "?" — on sessions the tutor teaches themselves.
+    const soloOwner = school.isSolo ? await this.ownerAsTeacher(school.ownerId) : null;
+
+    if (rows.length === 0) return soloOwner ? [soloOwner] : [];
 
     // name/avatarUrl are denormalized onto SchoolMember (synced via profile.* events) —
     // no live profile-service call needed for those. Teaching languages aren't
@@ -64,6 +69,31 @@ export class ListSchoolTeachersHandler implements IQueryHandler<ListSchoolTeache
       }),
     );
 
-    return enriched;
+    return soloOwner ? [soloOwner, ...enriched] : enriched;
+  }
+
+  /**
+   * The tutor as the one teacher of their workspace.
+   *
+   * Their name comes from profile-service rather than from a roster row, because the row
+   * does not exist: ownership is what makes them staff here, and the roster is the list of
+   * their learners.
+   */
+  private async ownerAsTeacher(ownerId: string): Promise<SchoolTeacherDto> {
+    const [profile, teachingLangs] = await Promise.all([
+      this.profileService.getProfileSummary(ownerId),
+      this.profileService.getTeachingLanguages(ownerId),
+    ]);
+
+    return {
+      userId: ownerId,
+      name: profile?.name ?? ownerId,
+      avatarUrl: profile?.avatarUrl ?? null,
+      langs: teachingLangs?.langs ?? [],
+      maxWeeklyHours: null,
+      availability: [],
+      employmentType: null,
+      status: 'active',
+    } satisfies SchoolTeacherDto;
   }
 }
