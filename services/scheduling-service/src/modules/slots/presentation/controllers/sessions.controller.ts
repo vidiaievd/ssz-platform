@@ -105,8 +105,18 @@ export class SessionsController {
     @Body() body: CreateSessionDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<SessionResponseDto> {
-    const created = await this.writer.create({ ...body, groupId, schoolId }, user);
+    // A session nobody is named on belongs to nobody's week. The generated ones take the
+    // group's primary teacher, and an extra one added by hand has to do the same, or it
+    // vanishes from the schedule of the very person who just added it.
+    const teacherId = body.teacherId ?? (await this.primaryTeacherOf(schoolId, groupId));
+
+    const created = await this.writer.create({ ...body, teacherId, groupId, schoolId }, user);
     return toSessionDto(created);
+  }
+
+  private async primaryTeacherOf(schoolId: string, groupId: string): Promise<string | null> {
+    const teachers = await this.orgClient.getGroupTeachers(schoolId, groupId);
+    return teachers.find((teacher) => teacher.role === 'primary')?.userId ?? null;
   }
 
   @Patch('sessions/:sessionId')
