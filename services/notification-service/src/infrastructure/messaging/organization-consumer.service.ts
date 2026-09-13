@@ -6,6 +6,7 @@ import { EXCHANGES } from '@ssz/contracts';
 import type { AppConfig } from '../../config/configuration.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { SchoolInvitationSentHandler } from '../../modules/notifications/handlers/school-invitation-sent.handler.js';
+import { TutoringInvitationSentHandler } from '../../modules/notifications/handlers/tutoring-invitation-sent.handler.js';
 import { TeacherProfileChangedHandler } from '../../modules/notifications/handlers/teacher-profile-changed.handler.js';
 import { EnrollmentRequestHandler } from '../../modules/notifications/handlers/enrollment-request.handler.js';
 import { EnrollmentApprovedHandler } from '../../modules/notifications/handlers/enrollment-approved.handler.js';
@@ -29,6 +30,7 @@ export class OrganizationConsumerService implements OnModuleInit, OnModuleDestro
     private readonly config: ConfigService<AppConfig>,
     private readonly prisma: PrismaService,
     private readonly schoolInvitationSentHandler: SchoolInvitationSentHandler,
+    private readonly tutoringInvitationSentHandler: TutoringInvitationSentHandler,
     private readonly teacherProfileChangedHandler: TeacherProfileChangedHandler,
     private readonly enrollmentRequestHandler: EnrollmentRequestHandler,
     private readonly enrollmentApprovedHandler: EnrollmentApprovedHandler,
@@ -39,6 +41,7 @@ export class OrganizationConsumerService implements OnModuleInit, OnModuleDestro
   ) {
     this.handlers = [
       schoolInvitationSentHandler,
+      tutoringInvitationSentHandler,
       teacherProfileChangedHandler,
       enrollmentRequestHandler,
       enrollmentApprovedHandler,

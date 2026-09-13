@@ -7,9 +7,13 @@ export class TutoringInvitationSentEvent implements IDomainEvent {
 
   constructor(
     eventId: string,
+    readonly invitationId: string,
     readonly tutorGroupId: string,
     readonly inviteeEmail: string,
     readonly invitationToken: string,
+    readonly invitationUrl: string,
+    readonly tutorName: string,
+    readonly expiresAt: string,
   ) {
     this.eventId = eventId;
     this.occurredAt = new Date();

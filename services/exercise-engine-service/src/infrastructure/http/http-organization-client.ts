@@ -7,7 +7,7 @@ import type { AppConfig } from '../../config/configuration.js';
 import type {
   GetMemberRoleOutput,
   IOrganizationClient,
-  StudentReviewGroup,
+  LearnerReviewContext,
 } from '../../shared/application/ports/organization-client.port.js';
 import { OrganizationClientError } from '../../shared/application/ports/organization-client.port.js';
 import { Result } from '../../shared/kernel/result.js';
@@ -54,23 +54,33 @@ export class HttpOrganizationClient implements IOrganizationClient {
     }
   }
 
-  async resolveStudentGroup(
-    schoolId: string,
+  async resolveLearnerReviewContext(
     userId: string,
-  ): Promise<Result<StudentReviewGroup, OrganizationClientError>> {
+    hints?: {
+      courseId?: string | null;
+      preferredSchoolId?: string | null;
+      preferredTeacherId?: string | null;
+    },
+  ): Promise<Result<LearnerReviewContext, OrganizationClientError>> {
+    const params: Record<string, string> = {};
+    if (hints?.courseId) params['courseId'] = hints.courseId;
+    if (hints?.preferredSchoolId) params['preferredSchoolId'] = hints.preferredSchoolId;
+    if (hints?.preferredTeacherId) params['preferredTeacherId'] = hints.preferredTeacherId;
+
     try {
       const { data } = await firstValueFrom(
-        this.httpService.get<StudentReviewGroup>(
-          `${this.baseUrl}/api/v1/internal/schools/${schoolId}/students/${userId}/group`,
+        this.httpService.get<LearnerReviewContext>(
+          `${this.baseUrl}/api/v1/internal/students/${userId}/review-context`,
           {
             headers: { 'x-internal-token': this.token },
+            params,
             timeout: this.timeout,
           },
         ),
       );
       return Result.ok(data);
     } catch (err) {
-      return this.mapError(err, `resolveStudentGroup(${schoolId}, ${userId})`);
+      return this.mapError(err, `resolveLearnerReviewContext(${userId})`);
     }
   }
 

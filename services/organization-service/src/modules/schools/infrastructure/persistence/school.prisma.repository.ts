@@ -58,7 +58,7 @@ export class SchoolPrismaRepository implements ISchoolRepository {
 
   async findAllActive(): Promise<School[]> {
     const rows = await (this.prisma as any).school.findMany({
-      where: { deletedAt: null, isActive: true },
+      where: { deletedAt: null, isActive: true, kind: 'SCHOOL' },
       include: INCLUDE_MEMBERS,
       orderBy: { createdAt: 'desc' },
     });
@@ -77,7 +77,8 @@ export class SchoolPrismaRepository implements ISchoolRepository {
       }
     }
 
-    const baseConditions: any[] = [{ deletedAt: null, isActive: true }];
+    // kind: a solo tutor workspace is private by construction and never listed.
+    const baseConditions: any[] = [{ deletedAt: null, isActive: true, kind: 'SCHOOL' }];
     if (type) baseConditions.push({ type });
     if (q) {
       baseConditions.push({
@@ -130,7 +131,7 @@ export class SchoolPrismaRepository implements ISchoolRepository {
 
   async findPublicSchoolDetail(slug: string): Promise<PublicSchoolDetail | null> {
     const raw = await (this.prisma as any).school.findFirst({
-      where: { slug, deletedAt: null, isActive: true },
+      where: { slug, deletedAt: null, isActive: true, kind: 'SCHOOL' },
       include: {
         members: true,
         groups: {
@@ -201,9 +202,11 @@ export class SchoolPrismaRepository implements ISchoolRepository {
           contactEmail: school.contactEmail ?? null,
           city: school.city ?? null,
           type: school.type,
+          kind: school.kind,
           isActive: school.isActive,
           requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
           defaultExplanationLanguage: school.defaultExplanationLanguage ?? null,
+          showGroupPositionToStudents: school.showGroupPositionToStudents,
           createdAt: school.createdAt,
           updatedAt: school.updatedAt,
           deletedAt: school.deletedAt ?? null,
@@ -220,18 +223,22 @@ export class SchoolPrismaRepository implements ISchoolRepository {
           isActive: school.isActive,
           requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
           defaultExplanationLanguage: school.defaultExplanationLanguage ?? null,
+          showGroupPositionToStudents: school.showGroupPositionToStudents,
           updatedAt: school.updatedAt,
           deletedAt: school.deletedAt ?? null,
         },
       });
 
-      // Sync members: delete all and recreate from domain state
-      await tx.schoolMember.deleteMany({ where: { schoolId: school.id } });
-
+      // Sync members by upserting what the aggregate holds and removing only what it
+      // dropped. Deleting the whole roster first would take the columns the aggregate
+      // does not carry (status, level) and, through the cascade, every member's
+      // teacher attrs and capability grants with it — one accepted invitation would
+      // quietly reset the rest of the roster.
       const members = school.members;
-      if (members.length > 0) {
-        await tx.schoolMember.createMany({
-          data: members.map((m) => ({
+      for (const m of members) {
+        await tx.schoolMember.upsert({
+          where: { schoolId_userId: { schoolId: m.schoolId, userId: m.userId } },
+          create: {
             id: m.id,
             schoolId: m.schoolId,
             userId: m.userId,
@@ -239,9 +246,21 @@ export class SchoolPrismaRepository implements ISchoolRepository {
             joinedAt: m.joinedAt,
             name: m.name,
             avatarUrl: m.avatarUrl,
-          })),
+          },
+          update: {
+            role: m.role,
+            name: m.name,
+            avatarUrl: m.avatarUrl,
+          },
         });
       }
+
+      await tx.schoolMember.deleteMany({
+        where: {
+          schoolId: school.id,
+          ...(members.length > 0 ? { userId: { notIn: members.map((m) => m.userId) } } : {}),
+        },
+      });
     });
   }
 }

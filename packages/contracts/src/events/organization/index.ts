@@ -21,6 +21,7 @@ export const ORGANIZATION_EVENT_TYPES = {
   GROUP_ASSIGNED: 'school.enrollment.group_assigned',
   STUDENT_REMOVED: 'school.student.removed',
   STUDENT_NUDGED: 'school.student.nudged',
+  TUTORING_INVITATION_SENT: 'tutoring.invitation.sent',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -46,6 +47,13 @@ export interface SchoolInvitationSentPayload {
   invitationId: string;
   schoolId: string;
   schoolName: string;
+  /**
+   * What the invitation is into. SOLO means one private tutor's workspace: the
+   * invitee must never be told they were invited to a school, and `inviterName`
+   * is the tutor's own name. Absent on events published before solo workspaces
+   * existed — treat as SCHOOL.
+   */
+  workspaceKind?: 'SCHOOL' | 'SOLO';
   inviteeEmail: string;
   inviterName: string;
   /** Full invitation acceptance URL */
@@ -167,6 +175,16 @@ export interface StudentNudgedPayload {
   occurredAt: string;
 }
 
+export interface TutoringInvitationSentPayload {
+  invitationId: string;
+  tutorGroupId: string;
+  inviteeEmail: string;
+  tutorName: string;
+  /** Full invitation acceptance URL */
+  invitationUrl: string;
+  expiresAt: string; // ISO 8601
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type SchoolCreatedEvent = BaseEvent<SchoolCreatedPayload>;
@@ -186,6 +204,7 @@ export type PlacementReviewReadyEvent = BaseEvent<PlacementReviewReadyPayload>;
 export type GroupAssignedEvent = BaseEvent<GroupAssignedPayload>;
 export type StudentRemovedEvent = BaseEvent<StudentRemovedPayload>;
 export type StudentNudgedEvent = BaseEvent<StudentNudgedPayload>;
+export type TutoringInvitationSentEvent = BaseEvent<TutoringInvitationSentPayload>;
 
 export type AnyOrganizationEvent =
   | SchoolCreatedEvent
@@ -204,4 +223,5 @@ export type AnyOrganizationEvent =
   | PlacementReviewReadyEvent
   | GroupAssignedEvent
   | StudentRemovedEvent
-  | StudentNudgedEvent;
+  | StudentNudgedEvent
+  | TutoringInvitationSentEvent;

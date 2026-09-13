@@ -1,6 +1,7 @@
 import { School } from '../../domain/entities/school.entity.js';
 import { SchoolMember } from '../../domain/entities/school-member.entity.js';
 import { SchoolType } from '../../domain/value-objects/school-type.vo.js';
+import { SchoolKind } from '../../domain/value-objects/school-kind.vo.js';
 import {
   ReviewSettings,
   type ReviewEscalationTarget,
@@ -27,6 +28,9 @@ type PrismaSchool = {
   contactEmail: string | null;
   city: string | null;
   type: string;
+  // Optional on the type: reads written before solo workspaces existed select a
+  // narrower row, and a row without a kind is a school.
+  kind?: string;
   isActive: boolean;
   requireTutorReviewForSelfPaced: boolean;
   defaultExplanationLanguage: string | null;
@@ -34,6 +38,9 @@ type PrismaSchool = {
   reviewRespondWithinHours?: number;
   reviewEscalateAfterHours?: number;
   reviewEscalateTo?: string;
+  // Optional for the same reason, and absent from a row written before the setting
+  // existed: such a school shows the band, which is what it was doing already.
+  showGroupPositionToStudents?: boolean;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -65,6 +72,7 @@ export class SchoolMapper {
       contactEmail: raw.contactEmail ?? undefined,
       city: raw.city ?? undefined,
       type: (raw.type as SchoolType) ?? SchoolType.ONLINE,
+      kind: (raw.kind as SchoolKind) ?? SchoolKind.SCHOOL,
       isActive: raw.isActive,
       requireTutorReviewForSelfPaced: raw.requireTutorReviewForSelfPaced,
       defaultExplanationLanguage: raw.defaultExplanationLanguage ?? undefined,
@@ -76,6 +84,7 @@ export class SchoolMapper {
               escalateAfterHours: raw.reviewEscalateAfterHours,
               escalateTo: (raw.reviewEscalateTo ?? 'school_admins') as ReviewEscalationTarget,
             }),
+      showGroupPositionToStudents: raw.showGroupPositionToStudents,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt ?? undefined,

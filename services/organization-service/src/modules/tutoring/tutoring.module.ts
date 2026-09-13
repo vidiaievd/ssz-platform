@@ -3,10 +3,12 @@ import { CqrsModule } from '@nestjs/cqrs';
 
 import { TUTORING_GROUP_REPOSITORY } from './domain/repositories/tutoring-group.repository.interface.js';
 import { TUTORING_INVITATION_REPOSITORY } from './domain/repositories/tutoring-invitation.repository.interface.js';
+import { PROFILE_SERVICE_PORT } from '../../shared/application/ports/profile-service.interface.js';
 
 import { TutoringGroupPrismaRepository } from './infrastructure/persistence/tutoring-group.prisma.repository.js';
 import { TutoringInvitationPrismaRepository } from './infrastructure/persistence/tutoring-invitation.prisma.repository.js';
 import { TutoringInvitationTokenService } from './infrastructure/tutoring-invitation-token.service.js';
+import { ProfileServiceHttpClient } from '../../infrastructure/profile/profile-service.http-client.js';
 
 import { CreateTutoringGroupHandler } from './application/commands/create-tutoring-group/create-tutoring-group.handler.js';
 import { UpdateTutoringGroupHandler } from './application/commands/update-tutoring-group/update-tutoring-group.handler.js';
@@ -57,6 +59,10 @@ const QueryHandlers = [
     {
       provide: TUTORING_INVITATION_REPOSITORY,
       useClass: TutoringInvitationPrismaRepository,
+    },
+    {
+      provide: PROFILE_SERVICE_PORT,
+      useClass: ProfileServiceHttpClient,
     },
   ],
 })

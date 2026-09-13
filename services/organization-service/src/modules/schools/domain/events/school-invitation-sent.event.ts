@@ -16,6 +16,11 @@ export class SchoolInvitationSentEvent implements IDomainEvent {
     readonly role: string,
     readonly expiresAt: string,
     readonly recipientUserId?: string,
+    /**
+     * SOLO when the invitation is into a private tutor's workspace — the invitee
+     * is never told about a school, and `inviterName` is the tutor's own name.
+     */
+    readonly workspaceKind: 'SCHOOL' | 'SOLO' = 'SCHOOL',
   ) {
     this.eventId = eventId;
     this.occurredAt = new Date();

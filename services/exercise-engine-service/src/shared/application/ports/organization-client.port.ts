@@ -8,7 +8,9 @@ export interface GetMemberRoleOutput {
   role: MemberRole;
 }
 
-export interface StudentReviewGroup {
+/** Where a learner's work belongs: their workspace, and their group inside it. */
+export interface LearnerReviewContext {
+  schoolId: string | null;
   groupId: string | null;
   groupName: string | null;
 }
@@ -29,9 +31,19 @@ export interface IOrganizationClient {
     userId: string,
   ): Promise<Result<GetMemberRoleOutput, OrganizationClientError>>;
 
-  /** Best-effort at attempt start (plan 44 §44.4) — a miss must not block starting. */
-  resolveStudentGroup(
-    schoolId: string,
+  /**
+   * Best-effort at attempt start (plan 44 §44.4) — a miss must not block starting.
+   *
+   * Asked about the learner, not about a school: the workspace is part of the answer.
+   * `preferredSchoolId` is the content owner's school when it has one, and only breaks
+   * ties (plan 59 §3, phase 3.2).
+   */
+  resolveLearnerReviewContext(
     userId: string,
-  ): Promise<Result<StudentReviewGroup, OrganizationClientError>>;
+    hints?: {
+      courseId?: string | null;
+      preferredSchoolId?: string | null;
+      preferredTeacherId?: string | null;
+    },
+  ): Promise<Result<LearnerReviewContext, OrganizationClientError>>;
 }

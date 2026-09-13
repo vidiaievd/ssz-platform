@@ -14,8 +14,8 @@ import { QueryBus } from '@nestjs/cqrs';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 
-import { GetStudentReviewGroupQuery } from '../../application/queries/get-student-review-group/get-student-review-group.query.js';
-import type { StudentReviewGroupResult } from '../../application/queries/get-student-review-group/get-student-review-group.handler.js';
+import { GetLearnerReviewContextQuery } from '../../application/queries/get-learner-review-context/get-learner-review-context.query.js';
+import type { LearnerReviewContextResult } from '../../application/queries/get-learner-review-context/get-learner-review-context.handler.js';
 
 import { GetReviewReviewersQuery } from '../../application/queries/get-review-reviewers/get-review-reviewers.query.js';
 import type { ReviewReviewersResult } from '../../application/queries/get-review-reviewers/get-review-reviewers.handler.js';
@@ -40,14 +40,24 @@ import type { ReviewScopeResult } from '../../application/queries/get-review-sco
 export class InternalReviewController {
   constructor(private readonly queryBus: QueryBus) {}
 
-  @Get('schools/:schoolId/students/:userId/group')
-  async getStudentGroup(
-    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+  /**
+   * Where a learner's work belongs — their workspace and their group in it.
+   *
+   * Not under `schools/:schoolId`: the caller (exercise-engine, at attempt start)
+   * knows the learner, and the school is exactly what it is asking for. The content's
+   * owner school, when there is one, comes along as a tie-break hint only, so work on
+   * a borrowed or public course keeps the learner's own school instead of losing it
+   * (plan 59 §3, phase 3.2).
+   */
+  @Get('students/:userId/review-context')
+  async getLearnerReviewContext(
     @Param('userId') userId: string,
     @Query('courseId') courseId?: string,
-  ): Promise<StudentReviewGroupResult> {
-    return this.queryBus.execute<GetStudentReviewGroupQuery, StudentReviewGroupResult>(
-      new GetStudentReviewGroupQuery(schoolId, userId, courseId),
+    @Query('preferredSchoolId') preferredSchoolId?: string,
+    @Query('preferredTeacherId') preferredTeacherId?: string,
+  ): Promise<LearnerReviewContextResult> {
+    return this.queryBus.execute<GetLearnerReviewContextQuery, LearnerReviewContextResult>(
+      new GetLearnerReviewContextQuery(userId, courseId, preferredSchoolId, preferredTeacherId),
     );
   }
 

@@ -80,6 +80,7 @@ export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
         createdAt: group.createdAt,
         updatedAt: group.updatedAt,
         deletedAt: group.deletedAt ?? null,
+        isDefault: group.isDefault,
       },
       update: {
         name: group.name,
@@ -96,6 +97,7 @@ export class SchoolGroupPrismaRepository implements ISchoolGroupRepository {
         endDate: group.endDate ?? null,
         updatedAt: group.updatedAt,
         deletedAt: group.deletedAt ?? null,
+        isDefault: group.isDefault,
       },
     });
   }

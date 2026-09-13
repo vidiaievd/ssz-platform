@@ -26,6 +26,12 @@ export interface ExercisePlacementResult {
   moduleTitle: string | null;
   exerciseTitle: string | null;
   ownerSchoolId: string | null;
+  /**
+   * Who authored the course. A personal course belongs to no school, so this is the
+   * only thing that says whose teaching it is — which is how review decides between a
+   * learner's school group and their tutor's group (plan 59 §3, phase 3.2).
+   */
+  ownerUserId: string;
 }
 
 interface ContainerRow {
@@ -33,6 +39,7 @@ interface ContainerRow {
   title: string;
   containerType: string;
   ownerSchoolId: string | null;
+  ownerUserId: string;
 }
 
 /** One placement, walked to the top: the course it ends at and the module it started in. */
@@ -103,6 +110,7 @@ export class GetExercisePlacementHandler implements IQueryHandler<
       moduleTitle: chain.moduleTitle,
       exerciseTitle: this.titleOf(exercise),
       ownerSchoolId: chain.root.ownerSchoolId,
+      ownerUserId: chain.root.ownerUserId,
     };
   }
 
@@ -145,7 +153,13 @@ export class GetExercisePlacementHandler implements IQueryHandler<
   private async container(id: string): Promise<ContainerRow | null> {
     return this.prisma.container.findUnique({
       where: { id },
-      select: { id: true, title: true, containerType: true, ownerSchoolId: true },
+      select: {
+        id: true,
+        title: true,
+        containerType: true,
+        ownerSchoolId: true,
+        ownerUserId: true,
+      },
     });
   }
 

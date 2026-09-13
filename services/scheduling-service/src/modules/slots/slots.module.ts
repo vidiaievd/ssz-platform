@@ -7,6 +7,8 @@ import { LessonPrismaRepository } from './infrastructure/persistence/lesson.pris
 import { LessonGeneratorService } from './application/services/lesson-generator.service.js';
 import { CURRICULUM_PLAN_READER } from './application/ports/curriculum-plan.reader.js';
 import { CurriculumPlanPrismaReader } from './infrastructure/persistence/curriculum-plan.prisma.reader.js';
+import { CURRICULUM_PLAN_WRITER } from './application/ports/curriculum-plan.writer.js';
+import { CurriculumPlanPrismaWriter } from './infrastructure/persistence/curriculum-plan.prisma.writer.js';
 import { COURSE_OUTLINE_READER } from './application/ports/course-outline.reader.js';
 import { ContentServiceHttpClient } from '../../infrastructure/content/content-service.http-client.js';
 import { CreateSlotHandler } from './application/commands/create-slot/create-slot.handler.js';
@@ -16,6 +18,7 @@ import { ListSlotsHandler } from './application/queries/list-slots/list-slots.ha
 import { SlotsController } from './presentation/controllers/slots.controller.js';
 import { LessonsController } from './presentation/controllers/lessons.controller.js';
 import { SessionsController } from './presentation/controllers/sessions.controller.js';
+import { InternalSessionsController } from './presentation/controllers/internal-sessions.controller.js';
 import { SessionAccessService } from './application/services/session-access.service.js';
 import { SessionWriterService } from './application/services/session-writer.service.js';
 import { OrgServiceHttpClient } from '../../infrastructure/org/org-service.http-client.js';
@@ -25,7 +28,7 @@ const QueryHandlers = [ListSlotsHandler];
 
 @Module({
   imports: [CqrsModule],
-  controllers: [SlotsController, LessonsController, SessionsController],
+  controllers: [SlotsController, LessonsController, SessionsController, InternalSessionsController],
   providers: [
     ...CommandHandlers,
     ...QueryHandlers,
@@ -36,6 +39,7 @@ const QueryHandlers = [ListSlotsHandler];
     { provide: SLOT_REPOSITORY, useClass: SlotPrismaRepository },
     { provide: LESSON_REPOSITORY, useClass: LessonPrismaRepository },
     { provide: CURRICULUM_PLAN_READER, useClass: CurriculumPlanPrismaReader },
+    { provide: CURRICULUM_PLAN_WRITER, useClass: CurriculumPlanPrismaWriter },
     { provide: COURSE_OUTLINE_READER, useClass: ContentServiceHttpClient },
   ],
   exports: [LESSON_REPOSITORY, LessonGeneratorService, OrgServiceHttpClient],

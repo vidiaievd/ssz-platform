@@ -118,6 +118,7 @@ const makeContentClient = (result = Result.ok(makeExerciseDef())): jest.Mocked<I
         moduleTitle: 'Leksjon 7',
         exerciseTitle: 'Perfektum',
         ownerSchoolId: 'school-1',
+        ownerUserId: 'author-1',
       }),
     ),
 });
@@ -125,9 +126,11 @@ const makeContentClient = (result = Result.ok(makeExerciseDef())): jest.Mocked<I
 const makeReviewContext = (content: IContentClient) =>
   new ReviewContextResolver(content as any, {
     getMemberRole: jest.fn(),
-    resolveStudentGroup: jest
+    resolveLearnerReviewContext: jest
       .fn()
-      .mockResolvedValue(Result.ok({ groupId: 'group-1', groupName: 'A2 Kveld' })),
+      .mockResolvedValue(
+        Result.ok({ schoolId: 'school-1', groupId: 'group-1', groupName: 'A2 Kveld' }),
+      ),
   } as any);
 
 const makeValidator = (outcome = { correct: true, score: 100, details: null, requiresReview: false }): jest.Mocked<IAnswerValidator> => ({

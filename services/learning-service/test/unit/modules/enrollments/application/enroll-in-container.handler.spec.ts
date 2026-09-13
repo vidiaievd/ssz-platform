@@ -25,12 +25,18 @@ const NOW = new Date('2026-01-01T12:00:00Z');
 // jest.fn typed as returning Promise<unknown> so mockResolvedValue accepts any value
 const mockFn = () => jest.fn<() => Promise<unknown>>();
 
+const OWNER_ID = 'dddddddd-0000-4000-8000-000000000004';
+const LEARNER_WORKSPACE_ID = 'eeeeeeee-0000-4000-8000-000000000005';
+
 const makeHandler = (overrides: Partial<{
   existingEnrollment: Enrollment | null;
   accessTier: string;
   tierError: boolean;
   memberRole: string | null;
   orgError: boolean;
+  learnerWorkspaceId: string | null;
+  workspaceLookupError: boolean;
+  ownerLookupError: boolean;
 }> = {}) => {
   const {
     existingEnrollment = null,
@@ -38,6 +44,9 @@ const makeHandler = (overrides: Partial<{
     tierError = false,
     memberRole = 'STUDENT',
     orgError = false,
+    learnerWorkspaceId = LEARNER_WORKSPACE_ID,
+    workspaceLookupError = false,
+    ownerLookupError = false,
   } = overrides;
 
   const repo = {
@@ -55,12 +64,20 @@ const makeHandler = (overrides: Partial<{
       ? mockFn().mockResolvedValue(Result.fail(new ContentClientError('timeout')))
       : mockFn().mockResolvedValue(Result.ok(accessTier)),
     getContainerLeafItems: jest.fn(),
+    getContainerOwner: ownerLookupError
+      ? mockFn().mockResolvedValue(Result.fail(new ContentClientError('timeout')))
+      : mockFn().mockResolvedValue(Result.ok({ ownerUserId: OWNER_ID, ownerSchoolId: null })),
   } as unknown as IContentClient;
 
   const orgClient = {
     getMemberRole: orgError
       ? mockFn().mockResolvedValue(Result.fail(new OrganizationClientError('timeout')))
       : mockFn().mockResolvedValue(Result.ok(memberRole)),
+    getLearnerWorkspace: workspaceLookupError
+      ? mockFn().mockResolvedValue(Result.fail(new OrganizationClientError('timeout')))
+      : mockFn().mockResolvedValue(
+          Result.ok({ schoolId: learnerWorkspaceId, groupId: null, groupName: null }),
+        ),
   } as unknown as IOrganizationClient;
 
   const publisher = {
@@ -73,6 +90,8 @@ const makeHandler = (overrides: Partial<{
     handler: new EnrollInContainerHandler(repo, contentClient, orgClient, publisher, clock),
     repo,
     publisher,
+    contentClient,
+    orgClient,
   };
 };
 
@@ -196,6 +215,82 @@ describe('EnrollInContainerHandler', () => {
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBeInstanceOf(ContentServiceUnavailableError);
+  });
+
+  // A private tutor's course belongs to no school, so nobody names one when their student
+  // enrols — and the row used to be stored with no workspace at all, which is why the
+  // tutor's dashboard counted zero students of a course they teach themselves.
+  describe('workspace attribution when the caller names none', () => {
+    it('files the enrolment under the learner\'s own workspace', async () => {
+      const { handler, publisher, orgClient } = makeHandler();
+
+      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.schoolId).toBe(LEARNER_WORKSPACE_ID);
+      expect(publisher.publish).toHaveBeenCalledWith(
+        'learning.enrollment.created',
+        expect.objectContaining({ schoolId: LEARNER_WORKSPACE_ID }),
+      );
+      // The course's author breaks the tie for a learner who studies both at a school and
+      // with a private tutor — without it the tutor's course lands in the school.
+      expect(orgClient.getLearnerWorkspace).toHaveBeenCalledWith(USER_ID, {
+        courseId: CONTAINER_ID,
+        preferredSchoolId: null,
+        preferredTeacherId: OWNER_ID,
+      });
+    });
+
+    it('keeps the workspace the caller stated rather than asking', async () => {
+      const { handler, orgClient } = makeHandler();
+
+      const result = await handler.execute(
+        new EnrollInContainerCommand(USER_ID, CONTAINER_ID, SCHOOL_ID),
+      );
+
+      expect(result.value.schoolId).toBe(SCHOOL_ID);
+      expect(orgClient.getLearnerWorkspace).not.toHaveBeenCalled();
+    });
+
+    it('carries the resolved workspace onto a row the learner is coming back to', async () => {
+      const existing = Enrollment.create({ userId: USER_ID, containerId: CONTAINER_ID }, NOW);
+      existing.unenroll();
+      const { handler } = makeHandler({ existingEnrollment: existing });
+
+      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.schoolId).toBe(LEARNER_WORKSPACE_ID);
+    });
+
+    // Losing a number on a dashboard is not a reason to refuse a learner the course.
+    it('still enrols when the neighbour cannot be asked', async () => {
+      const { handler } = makeHandler({ workspaceLookupError: true });
+
+      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.schoolId).toBeNull();
+    });
+
+    it('still enrols when the course owner cannot be read', async () => {
+      const { handler, orgClient } = makeHandler({ ownerLookupError: true });
+
+      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.schoolId).toBeNull();
+      expect(orgClient.getLearnerWorkspace).not.toHaveBeenCalled();
+    });
+
+    it('leaves the enrolment unattributed when the learner is in no workspace', async () => {
+      const { handler } = makeHandler({ learnerWorkspaceId: null });
+
+      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.schoolId).toBeNull();
+    });
   });
 
   it('fails when Organization Service is unavailable', async () => {

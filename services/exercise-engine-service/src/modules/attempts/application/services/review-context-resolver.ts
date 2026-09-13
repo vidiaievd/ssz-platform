@@ -17,8 +17,17 @@ export interface ReviewContext {
 }
 
 /**
- * Where a submission would show up in review: the school and course the exercise
- * belongs to, the group the learner is in, and the path as it read at the time.
+ * Where a submission would show up in review: the workspace the learner belongs to,
+ * the course the exercise belongs to, the group the learner is in, and the path as it
+ * read at the time.
+ *
+ * The workspace comes from the learner, not from the content (plan 59 §3, phase 3.2).
+ * Taking it from the content's owner lost the school twice over: a school's learner
+ * working through a borrowed or public course got `schoolId = null` and fell out of
+ * every queue, and a private tutor's course owns no school at all, so their students'
+ * work was unreachable in principle. The content's school still travels as a hint —
+ * it breaks ties when the learner sits in more than one group, as does the course's
+ * author — which is what tells a learner's tutor group from their school group.
  *
  * Every lookup is best-effort. Starting or handing in an exercise matters more than
  * knowing any of this, and a neighbour that doesn't answer only means the attempt
@@ -38,14 +47,16 @@ export class ReviewContextResolver {
   ) {}
 
   async resolve(userId: string, exerciseId: string): Promise<ReviewContext> {
-    let schoolId: string | null = null;
     let containerId: string | null = null;
+    let ownerSchoolId: string | null = null;
+    let ownerUserId: string | null = null;
     let exercisePath: ExercisePathSnapshot | null = null;
 
     const placementResult = await this.contentClient.getExercisePlacement(exerciseId);
     if (placementResult.isOk) {
       const placement = placementResult.value;
-      schoolId = placement.ownerSchoolId;
+      ownerSchoolId = placement.ownerSchoolId;
+      ownerUserId = placement.ownerUserId;
       containerId = placement.containerId;
       exercisePath = {
         course: placement.containerTitle,
@@ -58,18 +69,26 @@ export class ReviewContextResolver {
       );
     }
 
+    let schoolId: string | null = null;
     let groupId: string | null = null;
-    if (schoolId) {
-      const groupResult = await this.organizationClient.resolveStudentGroup(schoolId, userId);
-      if (groupResult.isOk) {
-        groupId = groupResult.value.groupId;
-      } else {
-        this.logger.warn(
-          `Group resolution failed for user ${userId} in school ${schoolId}: ${groupResult.error.message}`,
-        );
-      }
+
+    const contextResult = await this.organizationClient.resolveLearnerReviewContext(userId, {
+      courseId: containerId,
+      preferredSchoolId: ownerSchoolId,
+      preferredTeacherId: ownerUserId,
+    });
+    if (contextResult.isOk) {
+      schoolId = contextResult.value.schoolId;
+      groupId = contextResult.value.groupId;
+    } else {
+      this.logger.warn(
+        `Review context resolution failed for user ${userId}: ${contextResult.error.message}`,
+      );
     }
 
-    return { schoolId, containerId, groupId, exercisePath };
+    // Last resort, and only when the learner's own workspace is unknown: a learner
+    // who is on no roster at all but is working through a school's course still belongs
+    // in that school's oversight, exactly as before this became learner-led.
+    return { schoolId: schoolId ?? ownerSchoolId, containerId, groupId, exercisePath };
   }
 }

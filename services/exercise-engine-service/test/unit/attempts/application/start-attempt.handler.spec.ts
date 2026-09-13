@@ -43,6 +43,7 @@ const makePlacement = (overrides: Partial<ExercisePlacement> = {}): ExercisePlac
   moduleTitle: 'Leksjon 7',
   exerciseTitle: 'Perfektum',
   ownerSchoolId: 'school-1',
+  ownerUserId: 'author-1',
   ...overrides,
 });
 
@@ -111,9 +112,11 @@ const makeContentClient = (): jest.Mocked<IContentClient> => ({
 
 const makeOrganizationClient = (): jest.Mocked<IOrganizationClient> => ({
   getMemberRole: jest.fn<IOrganizationClient['getMemberRole']>(),
-  resolveStudentGroup: jest
-    .fn<IOrganizationClient['resolveStudentGroup']>()
-    .mockResolvedValue(Result.ok({ groupId: 'group-1', groupName: 'A2 Kveld' })),
+  resolveLearnerReviewContext: jest
+    .fn<IOrganizationClient['resolveLearnerReviewContext']>()
+    .mockResolvedValue(
+      Result.ok({ schoolId: 'school-1', groupId: 'group-1', groupName: 'A2 Kveld' }),
+    ),
 });
 
 const makePublisher = (): jest.Mocked<IEventPublisher> => ({
@@ -445,14 +448,18 @@ describe('StartAttemptHandler', () => {
       contentClient.getExercisePlacement.mockResolvedValue(Result.ok(makePlacement()));
 
       const organizationClient = makeOrganizationClient();
-      organizationClient.resolveStudentGroup.mockResolvedValue(
-        Result.ok({ groupId: 'group-1', groupName: 'A2 Kveld' }),
+      organizationClient.resolveLearnerReviewContext.mockResolvedValue(
+        Result.ok({ schoolId: 'school-1', groupId: 'group-1', groupName: 'A2 Kveld' }),
       );
 
       const handler = makeHandler(repo, contentClient, organizationClient, makePublisher());
       await handler.execute(cmd);
 
-      expect(organizationClient.resolveStudentGroup).toHaveBeenCalledWith('school-1', 'user-1');
+      expect(organizationClient.resolveLearnerReviewContext).toHaveBeenCalledWith('user-1', {
+        courseId: 'course-1',
+        preferredSchoolId: 'school-1',
+        preferredTeacherId: 'author-1',
+      });
       const saved = repo.save.mock.calls[0]![0];
       expect(saved.schoolId).toBe('school-1');
       expect(saved.containerId).toBe('course-1');
@@ -464,7 +471,30 @@ describe('StartAttemptHandler', () => {
       });
     });
 
-    it('starts the attempt with null context when the placement lookup fails', async () => {
+    // The learner's workspace does not depend on the content: plan 59 §3 phase 3.2.
+    it('keeps the learner workspace when the course belongs to no school', async () => {
+      const repo = makeRepo();
+      const contentClient = makeContentClient();
+      contentClient.getExerciseForAttempt.mockResolvedValue(Result.ok(makeExerciseDef()));
+      contentClient.getExercisePlacement.mockResolvedValue(
+        Result.ok(makePlacement({ ownerSchoolId: null })),
+      );
+
+      const organizationClient = makeOrganizationClient();
+      const handler = makeHandler(repo, contentClient, organizationClient, makePublisher());
+      await handler.execute(cmd);
+
+      expect(organizationClient.resolveLearnerReviewContext).toHaveBeenCalledWith('user-1', {
+        courseId: 'course-1',
+        preferredSchoolId: null,
+        preferredTeacherId: 'author-1',
+      });
+      const saved = repo.save.mock.calls[0]![0];
+      expect(saved.schoolId).toBe('school-1');
+      expect(saved.groupId).toBe('group-1');
+    });
+
+    it('still places the learner when the placement lookup fails', async () => {
       const repo = makeRepo();
       const contentClient = makeContentClient();
       contentClient.getExerciseForAttempt.mockResolvedValue(Result.ok(makeExerciseDef()));
@@ -477,21 +507,60 @@ describe('StartAttemptHandler', () => {
       const result = await handler.execute(cmd);
 
       expect(result.isOk).toBe(true);
-      expect(organizationClient.resolveStudentGroup).not.toHaveBeenCalled();
       const saved = repo.save.mock.calls[0]![0];
-      expect(saved.schoolId).toBeNull();
+      expect(saved.schoolId).toBe('school-1');
+      expect(saved.groupId).toBe('group-1');
       expect(saved.containerId).toBeNull();
-      expect(saved.groupId).toBeNull();
       expect(saved.exercisePath).toBeNull();
     });
 
-    it('starts the attempt with a null group when group resolution fails', async () => {
+    it('falls back to the content school when the learner belongs nowhere', async () => {
       const repo = makeRepo();
       const contentClient = makeContentClient();
       contentClient.getExerciseForAttempt.mockResolvedValue(Result.ok(makeExerciseDef()));
 
       const organizationClient = makeOrganizationClient();
-      organizationClient.resolveStudentGroup.mockResolvedValue(
+      organizationClient.resolveLearnerReviewContext.mockResolvedValue(
+        Result.ok({ schoolId: null, groupId: null, groupName: null }),
+      );
+
+      const handler = makeHandler(repo, contentClient, organizationClient, makePublisher());
+      await handler.execute(cmd);
+
+      const saved = repo.save.mock.calls[0]![0];
+      expect(saved.schoolId).toBe('school-1');
+      expect(saved.groupId).toBeNull();
+    });
+
+    it('starts the attempt with null context when nothing knows where it belongs', async () => {
+      const repo = makeRepo();
+      const contentClient = makeContentClient();
+      contentClient.getExerciseForAttempt.mockResolvedValue(Result.ok(makeExerciseDef()));
+      contentClient.getExercisePlacement.mockResolvedValue(
+        Result.ok(makePlacement({ ownerSchoolId: null })),
+      );
+
+      const organizationClient = makeOrganizationClient();
+      organizationClient.resolveLearnerReviewContext.mockResolvedValue(
+        Result.ok({ schoolId: null, groupId: null, groupName: null }),
+      );
+
+      const handler = makeHandler(repo, contentClient, organizationClient, makePublisher());
+      const result = await handler.execute(cmd);
+
+      expect(result.isOk).toBe(true);
+      const saved = repo.save.mock.calls[0]![0];
+      expect(saved.schoolId).toBeNull();
+      expect(saved.groupId).toBeNull();
+    });
+
+    it('starts the attempt with a null group when context resolution fails', async () => {
+      const repo = makeRepo();
+      const contentClient = makeContentClient();
+      contentClient.getExerciseForAttempt.mockResolvedValue(Result.ok(makeExerciseDef()));
+
+      const organizationClient = makeOrganizationClient();
+      organizationClient.resolveLearnerReviewContext.mockResolvedValue(
         Result.fail(new OrganizationClientError(500, 'unreachable')),
       );
 
@@ -501,24 +570,6 @@ describe('StartAttemptHandler', () => {
       expect(result.isOk).toBe(true);
       const saved = repo.save.mock.calls[0]![0];
       expect(saved.schoolId).toBe('school-1');
-      expect(saved.groupId).toBeNull();
-    });
-
-    it('leaves the group null when the placement has no owning school', async () => {
-      const repo = makeRepo();
-      const contentClient = makeContentClient();
-      contentClient.getExerciseForAttempt.mockResolvedValue(Result.ok(makeExerciseDef()));
-      contentClient.getExercisePlacement.mockResolvedValue(
-        Result.ok(makePlacement({ ownerSchoolId: null })),
-      );
-
-      const organizationClient = makeOrganizationClient();
-      const handler = makeHandler(repo, contentClient, organizationClient, makePublisher());
-      await handler.execute(cmd);
-
-      expect(organizationClient.resolveStudentGroup).not.toHaveBeenCalled();
-      const saved = repo.save.mock.calls[0]![0];
-      expect(saved.schoolId).toBeNull();
       expect(saved.groupId).toBeNull();
     });
 

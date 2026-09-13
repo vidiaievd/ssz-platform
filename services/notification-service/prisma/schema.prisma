@@ -21,6 +21,7 @@ enum NotificationType {
   VACANCY_ALERT
   UNCOVERED_LESSON
   SCHOOL_INVITATION
+  TUTORING_INVITATION
   TEACHER_PROFILE_CHANGED
   ENROLLMENT_REQUEST
   ENROLLMENT_APPROVED
@@ -31,6 +32,7 @@ enum NotificationType {
   REVIEW_DIGEST
   REVIEW_ESCALATION
   REVIEW_SCHOOL_SUMMARY
+  LESSON_REMINDER
 
   @@map("notification_type")
 }
@@ -101,6 +103,23 @@ model ReviewDigestState {
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
   @@map("review_digest_state")
+}
+
+/**
+ * Who has already been told about which lesson (plan 62).
+ *
+ * A reminder is worth sending once. The job runs on a timer and a rerun — a redeploy, a
+ * missed hour caught up — must not write to the same learner about the same lesson twice,
+ * so the row is written after the message and keyed by the pair.
+ */
+model LessonReminder {
+  sessionId String   @map("session_id")
+  userId    String   @map("user_id")
+  sentAt    DateTime @default(now()) @map("sent_at")
+
+  @@id([sessionId, userId])
+  @@index([sentAt])
+  @@map("lesson_reminders")
 }
 
 model ProcessedEvent {

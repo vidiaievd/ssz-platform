@@ -19,6 +19,19 @@ export class SchoolInvitationSentHandler implements IMessageHandler<SchoolInvita
   async handle(payload: SchoolInvitationSentPayload, meta: MessageMeta): Promise<void> {
     this.logger.log(`Handling school.invitation.sent for email=${payload.inviteeEmail} school=${payload.schoolId} [${meta.eventId}]`);
 
+    // A private tutor's workspace is carried on the same event, but the invitee
+    // must never read the word "school": same invitation, the tutoring letter.
+    if (payload.workspaceKind === 'SOLO') {
+      await this.notifications.sendTutoringInvitation({
+        invitationId: payload.invitationId,
+        email: payload.inviteeEmail,
+        tutorName: payload.inviterName,
+        invitationUrl: payload.invitationUrl,
+        expiresAt: payload.expiresAt,
+      });
+      return;
+    }
+
     const tasks: Promise<unknown>[] = [
       this.notifications.sendSchoolInvitation({
         invitationId: payload.invitationId,

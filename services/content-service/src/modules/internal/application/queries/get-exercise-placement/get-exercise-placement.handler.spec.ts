@@ -11,6 +11,7 @@ const MODULE_ID = 'module-1';
 const ORPHAN_MODULE_ID = 'module-orphan';
 const COURSE_ID = 'course-1';
 const SCHOOL_ID = 'school-1';
+const AUTHOR_ID = 'author-1';
 
 const INSTRUCTION = 'Выберите правильный союз: «da» или «når».';
 
@@ -19,6 +20,7 @@ interface ContainerRow {
   title: string;
   containerType: 'COURSE' | 'MODULE' | 'COLLECTION';
   ownerSchoolId: string | null;
+  ownerUserId: string;
 }
 
 const CONTAINERS: Record<string, ContainerRow> = {
@@ -27,18 +29,21 @@ const CONTAINERS: Record<string, ContainerRow> = {
     title: 'Leksjon 7 · I går',
     containerType: 'MODULE',
     ownerSchoolId: SCHOOL_ID,
+    ownerUserId: AUTHOR_ID,
   },
   [ORPHAN_MODULE_ID]: {
     id: ORPHAN_MODULE_ID,
     title: 'Leksjon 7 (gammel)',
     containerType: 'MODULE',
     ownerSchoolId: SCHOOL_ID,
+    ownerUserId: AUTHOR_ID,
   },
   [COURSE_ID]: {
     id: COURSE_ID,
     title: 'Ny i Norge A2',
     containerType: 'COURSE',
     ownerSchoolId: SCHOOL_ID,
+    ownerUserId: AUTHOR_ID,
   },
 };
 
@@ -102,6 +107,7 @@ describe('GetExercisePlacementHandler', () => {
       moduleTitle: 'Leksjon 7 · I går',
       exerciseTitle: INSTRUCTION,
       ownerSchoolId: SCHOOL_ID,
+      ownerUserId: AUTHOR_ID,
     });
   });
 

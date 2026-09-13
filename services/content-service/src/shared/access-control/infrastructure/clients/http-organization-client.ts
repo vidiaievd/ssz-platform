@@ -64,7 +64,18 @@ export class HttpOrganizationClient implements IOrganizationClient {
           return null;
         }
 
-        if (status === 401 || status === 403) {
+        // A 403 here is organization-service's own answer about this person: they are not
+        // in that school. Reading it as a broken token turned every "somebody else's
+        // course" into a 500, which the reader sees as a broken platform rather than as a
+        // course that is not theirs (plan 61, phase 2). Only 401 is the guard refusing us.
+        if (status === 403) {
+          this.logger.debug(
+            `getMemberRole 403 — user ${userId} is not a member of school ${schoolId}`,
+          );
+          return null;
+        }
+
+        if (status === 401) {
           this.logger.error('getMemberRole auth failure — INTERNAL_SERVICE_TOKEN misconfigured');
           throw new Error('Internal auth misconfigured');
         }

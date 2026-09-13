@@ -45,6 +45,21 @@ enum SchoolType {
   HYBRID
 }
 
+/**
+ * What a workspace row actually is. SCHOOL is an organisation with staff; SOLO is
+ * one private tutor's own space — same tables, same authorisation, but the word
+ * "school" must never reach a SOLO user (plan 59, variant B).
+ *
+ * Upper-case member names on purpose: Prisma writes the *name* to the column,
+ * never a `@map` value.
+ */
+enum SchoolKind {
+  SCHOOL
+  SOLO
+
+  @@map("school_kind")
+}
+
 enum GroupStatus {
   draft
   active
@@ -106,6 +121,7 @@ model School {
   contactEmail String?    @map("contact_email")
   city         String?
   type         SchoolType @default(ONLINE)
+  kind         SchoolKind @default(SCHOOL)
   isActive     Boolean    @default(true)
   // School policies
   requireTutorReviewForSelfPaced Boolean @default(false)
@@ -115,6 +131,10 @@ model School {
   reviewRespondWithinHours Int                    @default(48) @map("review_respond_within_hours")
   reviewEscalateAfterHours Int                    @default(72) @map("review_escalate_after_hours")
   reviewEscalateTo         ReviewEscalationTarget @default(school_admins) @map("review_escalate_to")
+  // Whether a learner is told, in one sentence and without a rank, roughly where they
+  // stand in their group. On by default: the sentence carries no classmate's number and
+  // no percentile, and a school that would rather not compare at all turns it off here.
+  showGroupPositionToStudents Boolean @default(true) @map("show_group_position_to_students")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
@@ -282,6 +302,12 @@ model SchoolGroup {
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
   deletedAt   DateTime?   @map("deleted_at")
+
+  // The group a solo workspace provisions for itself: it holds every learner the tutor
+  // takes on and is what fills their marking queue, but it is never shown as a group —
+  // a tutor's real groups sit beside it (plan 59 §5). One per workspace, enforced by a
+  // partial unique index Prisma cannot express (see the migration).
+  isDefault   Boolean     @default(false) @map("is_default")
 
   members   SchoolGroupMember[]
   teachers  GroupTeacher[]

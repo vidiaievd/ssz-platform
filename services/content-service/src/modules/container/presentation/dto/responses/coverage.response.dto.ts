@@ -38,6 +38,15 @@ class CoverageTalliesDto {
   byForm!: Record<string, number>;
 
   @ApiProperty({
+    example: { listening: { vocabulary: 0, grammar: 0, orthography: 0, pragmatics: 0, unknown: 0 } },
+    description:
+      'The skill × focus table the two tallies above are the margins of. A pair can be ' +
+      'empty while neither of its margins is, so "this course never trains listening ' +
+      'grammar" is a statement only this field can make.',
+  })
+  byPair!: Record<string, Record<string, number>>;
+
+  @ApiProperty({
     example: ['listening', 'spoken'],
     description:
       'Channels no exercise trains, named rather than left to be diffed out of `bySkill`. ' +
@@ -58,6 +67,7 @@ class CoverageTalliesDto {
     dto.bySkill = coverage.bySkill;
     dto.byFocus = coverage.byFocus;
     dto.byForm = coverage.byForm;
+    dto.byPair = coverage.byPair;
     dto.emptySkills = coverage.emptySkills;
     dto.unclassified = coverage.unclassified;
     return dto;

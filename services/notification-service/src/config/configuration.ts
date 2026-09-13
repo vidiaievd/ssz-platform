@@ -51,6 +51,18 @@ export const envSchema = z.object({
     .string()
     .default('false')
     .transform((v) => v === 'true'),
+
+  // ── Lesson reminders (plan 62, open question 2) ──────────────────────────────
+  // The schedule knows when a lesson is; this service decides whether to tell the
+  // learner about it the evening before.
+  SCHEDULING_SERVICE_URL: z.string().optional(),
+  /** The hour, in UTC, at which tomorrow's lessons are announced. */
+  LESSON_REMINDER_HOUR: z.coerce.number().int().min(0).max(23).default(18),
+  /** Off by default, like every other job that writes to people. */
+  LESSON_REMINDER_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -78,6 +90,13 @@ export interface AppConfig {
     internalToken: string | undefined;
     digestIntervalHours: number;
     digestEnabled: boolean;
+  };
+  lessonReminder: {
+    schedulingServiceUrl: string | undefined;
+    organizationServiceUrl: string | undefined;
+    internalToken: string | undefined;
+    hour: number;
+    enabled: boolean;
   };
   email: {
     host: string;
@@ -109,6 +128,13 @@ export default (): AppConfig => {
       internalToken: env.INTERNAL_SERVICE_TOKEN,
       digestIntervalHours: env.REVIEW_DIGEST_INTERVAL_HOURS,
       digestEnabled: env.REVIEW_DIGEST_ENABLED,
+    },
+    lessonReminder: {
+      schedulingServiceUrl: env.SCHEDULING_SERVICE_URL,
+      organizationServiceUrl: env.ORGANIZATION_SERVICE_URL,
+      internalToken: env.INTERNAL_SERVICE_TOKEN,
+      hour: env.LESSON_REMINDER_HOUR,
+      enabled: env.LESSON_REMINDER_ENABLED,
     },
     email: {
       host: env.SMTP_HOST,

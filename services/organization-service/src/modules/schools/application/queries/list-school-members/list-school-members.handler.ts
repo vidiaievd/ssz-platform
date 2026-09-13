@@ -19,6 +19,12 @@ export interface MemberRosterGroupDto {
   name: string;
   lang: string | null;
   level: string | null;
+  /**
+   * True for the group a solo workspace provisions for itself, which holds every learner
+   * the tutor takes on and is never shown as a group (plan 59 §5). A roster that drew it
+   * would put every one of them in a group called "My students".
+   */
+  isDefault: boolean;
 }
 
 export interface MemberRosterItemDto {
@@ -80,6 +86,7 @@ export class ListSchoolMembersHandler implements IQueryHandler<ListSchoolMembers
         name: row.group.name,
         lang: row.group.lang ?? null,
         level: row.group.level ?? null,
+        isDefault: row.group.isDefault ?? false,
       });
       groupsByUserId.set(row.userId, list);
     }

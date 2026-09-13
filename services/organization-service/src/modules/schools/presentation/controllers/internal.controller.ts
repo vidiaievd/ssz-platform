@@ -14,6 +14,10 @@ import { Public } from '../../../../common/decorators/public.decorator.js';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { GetSchoolQuery } from '../../application/queries/get-school/get-school.query.js';
 import {
+  SCHOOL_REPOSITORY,
+  type ISchoolRepository,
+} from '../../domain/repositories/school.repository.interface.js';
+import {
   SCHOOL_GROUP_REPOSITORY,
   type ISchoolGroupRepository,
 } from '../../domain/repositories/school-group.repository.interface.js';
@@ -38,6 +42,8 @@ export class InternalController {
     private readonly queryBus: QueryBus,
     @Inject(SCHOOL_GROUP_REPOSITORY)
     private readonly groupRepository: ISchoolGroupRepository,
+    @Inject(SCHOOL_REPOSITORY)
+    private readonly schoolRepository: ISchoolRepository,
   ) {}
 
   /**
@@ -106,8 +112,12 @@ export class InternalController {
     status: string;
     lang: string | null;
     courseId: string | null;
+    workspaceKind: 'SCHOOL' | 'SOLO';
   }> {
-    const group = await this.groupRepository.findById(groupId);
+    const [group, school] = await Promise.all([
+      this.groupRepository.findById(groupId),
+      this.schoolRepository.findById(schoolId),
+    ]);
     if (!group || group.isDeleted || group.schoolId !== schoolId) {
       throw new NotFoundException(`Group ${groupId} not found in school ${schoolId}`);
     }
@@ -122,6 +132,10 @@ export class InternalController {
       // scheduling-service plans a group's sessions from the course it is taught
       // from, so the course has to travel with the group.
       courseId: group.courseId ?? null,
+      // A school's teaching plan is written by a person in the planner; a private tutor
+      // has no planner, so scheduling derives theirs from the course. It has to be told
+      // which kind of workspace this group belongs to before it may do that.
+      workspaceKind: school?.isSolo ? 'SOLO' : 'SCHOOL',
     };
   }
 

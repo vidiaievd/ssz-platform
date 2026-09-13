@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/**/*",
+    "generated/**/*",
+    "scripts/**/*"
+  ],
+  "compilerOptions": {
+    "noEmit": false,
+    "tsBuildInfoFile": "./dist/tsconfig.scripts.tsbuildinfo"
+  }
+}

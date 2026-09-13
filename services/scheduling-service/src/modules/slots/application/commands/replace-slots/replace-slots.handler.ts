@@ -46,6 +46,7 @@ export class ReplaceSlotsHandler implements ICommandHandler<ReplaceSlotsCommand,
         teacherId: primaryTeacher?.userId ?? null,
         slots: created,
         courseId: group.courseId ?? null,
+        workspaceKind: group.workspaceKind,
         startDate: new Date(group.startDate),
       });
     }

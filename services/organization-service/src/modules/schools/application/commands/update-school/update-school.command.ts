@@ -14,5 +14,9 @@ export class UpdateSchoolCommand {
     public readonly type?: SchoolType,
     public readonly requireTutorReviewForSelfPaced?: boolean,
     public readonly defaultExplanationLanguage?: string | null,
+    // Appended rather than placed beside the other policy: every caller of this command
+    // passes its arguments positionally, and slotting one into the middle silently
+    // renames what the next argument means.
+    public readonly showGroupPositionToStudents?: boolean,
   ) {}
 }

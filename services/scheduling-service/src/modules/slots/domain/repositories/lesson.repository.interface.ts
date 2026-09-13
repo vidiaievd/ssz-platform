@@ -48,6 +48,22 @@ export interface ILessonRepository {
   countByTeacher(teacherId: string, from: Date, to: Date): Promise<number>;
   findNextForGroup(groupId: string, limit: number): Promise<Lesson[]>;
   findBySchoolAndDateRange(schoolId: string, from: Date, to: Date): Promise<Lesson[]>;
-  findByTeacherAndDateRange(teacherId: string, from: Date, to: Date): Promise<Lesson[]>;
+  /**
+   * Every school's sessions in a window, cancelled ones left out.
+   *
+   * For the one caller that is nobody's screen: the job that reminds learners of a lesson
+   * tomorrow has no school to ask about — it asks about the day.
+   */
+  findInDateRange(from: Date, to: Date): Promise<Lesson[]>;
+  /**
+   * One teacher's sessions in a window. Cancelled ones are left out unless asked for:
+   * workload counts what will be taught, a schedule shows what was called off too.
+   */
+  findByTeacherAndDateRange(
+    teacherId: string,
+    from: Date,
+    to: Date,
+    options?: { includeCancelled?: boolean },
+  ): Promise<Lesson[]>;
   updateStatus(ids: string[], status: LessonStatus): Promise<void>;
 }

@@ -142,7 +142,9 @@ function makeHandlerByMode(templateCode: string, byMode: DefinitionByMode) {
   };
   const organizationClient = {
     getMemberRole: jest.fn(),
-    resolveStudentGroup: jest.fn(),
+    resolveLearnerReviewContext: jest.fn(() =>
+      Promise.resolve(Result.ok({ schoolId: null, groupId: null, groupName: null })),
+    ),
   };
   const publisher = { publish: jest.fn(() => Promise.resolve()) };
 

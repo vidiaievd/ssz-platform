@@ -32,9 +32,13 @@ export class ListMySchoolsHandler implements IQueryHandler<ListMySchoolsQuery> {
       this.schoolRepository.findMemberSchools(actorId),
     ]);
 
-    // Merge and deduplicate by id
+    // Merge and deduplicate by id. A solo tutor workspace is deliberately left out:
+    // this list feeds the school contour, and until the tutor screens read it
+    // deliberately (plan 59, phase 2) a tutor must not be shown their own space
+    // described as a school.
     const seen = new Set<string>();
     const all = [...owned, ...memberOf].filter((s) => {
+      if (s.isSolo) return false;
       if (seen.has(s.id)) return false;
       seen.add(s.id);
       return true;

@@ -38,6 +38,7 @@ export interface SchoolDto {
   type: SchoolType;
   isActive: boolean;
   requireTutorReviewForSelfPaced: boolean;
+  showGroupPositionToStudents: boolean;
   defaultExplanationLanguage?: string;
   createdAt: Date;
   updatedAt: Date;

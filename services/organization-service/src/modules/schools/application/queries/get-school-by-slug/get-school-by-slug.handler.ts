@@ -36,6 +36,7 @@ export class GetSchoolBySlugHandler implements IQueryHandler<GetSchoolBySlugQuer
       type: school.type,
       isActive: school.isActive,
       requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
+      showGroupPositionToStudents: school.showGroupPositionToStudents,
       defaultExplanationLanguage: school.defaultExplanationLanguage,
       createdAt: school.createdAt,
       updatedAt: school.updatedAt,

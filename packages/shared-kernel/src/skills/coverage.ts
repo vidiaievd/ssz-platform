@@ -19,12 +19,30 @@ export type SkillTally = Record<Skill, number>;
 export type FocusTally = Record<Focus | 'unknown', number>;
 export type FormTally = Record<Form, number>;
 
+/**
+ * The table itself, not its two margins: how many exercises train this skill *and* this
+ * subject.
+ *
+ * The margins cannot answer that. A course whose `bySkill.listening` is 12 and whose
+ * `byFocus.grammar` is 40 may contain no listening-grammar exercise at all, and a reader
+ * who multiplies the two margins is inventing a cell. Screen E of plan 58 asks exactly
+ * this question — "covered but unreached" against "not taught at all" — and the
+ * difference between those two sentences is a cell of this table being zero or not.
+ *
+ * An exercise carrying two skills and two subjects is counted in all four cells, for the
+ * same reason the margins double-count: the question is "does anything here train this
+ * pair", not "how do the exercises divide up".
+ */
+export type PairTally = Record<Skill, Record<Focus | 'unknown', number>>;
+
 export interface Coverage {
   /** How many exercises were counted. Not the sum of any tally: an exercise can carry two skills. */
   total: number;
   bySkill: SkillTally;
   byFocus: FocusTally;
   byForm: FormTally;
+  /** The skill × focus table behind the two margins above. Every cell present, zeroes included. */
+  byPair: PairTally;
   /** Skills no exercise trains. Named explicitly so the caller need not diff against SKILLS. */
   emptySkills: Skill[];
   /** Exercises whose skill could not be derived at all — an unknown template code. */
@@ -43,6 +61,15 @@ function emptyFormTally(): FormTally {
   return { bank: 0, free: 0, mixed: 0, unknown: 0 };
 }
 
+function emptyPairTally(): PairTally {
+  return {
+    listening: emptyFocusTally(),
+    reading: emptyFocusTally(),
+    spoken: emptyFocusTally(),
+    written: emptyFocusTally(),
+  };
+}
+
 /**
  * Count a set of already-derived profiles.
  *
@@ -53,6 +80,7 @@ export function tally(profiles: readonly DerivedProfile[]): Coverage {
   const bySkill = emptySkillTally();
   const byFocus = emptyFocusTally();
   const byForm = emptyFormTally();
+  const byPair = emptyPairTally();
   let unclassified = 0;
 
   for (const profile of profiles) {
@@ -65,6 +93,12 @@ export function tally(profiles: readonly DerivedProfile[]): Coverage {
     else for (const focus of profile.focus) byFocus[focus] += 1;
 
     byForm[profile.form] += 1;
+
+    // The cells of the table, on the same terms as the margins: an exercise with no
+    // subject lands in the `unknown` column rather than in none, so that a row of the
+    // table adds up to the exercises that train that skill.
+    const foci = profile.focus.length === 0 ? (['unknown'] as const) : profile.focus;
+    for (const skill of profile.skills) for (const focus of foci) byPair[skill][focus] += 1;
   }
 
   return {
@@ -72,6 +106,7 @@ export function tally(profiles: readonly DerivedProfile[]): Coverage {
     bySkill,
     byFocus,
     byForm,
+    byPair,
     emptySkills: SKILLS.filter((skill) => bySkill[skill] === 0),
     unclassified,
   };

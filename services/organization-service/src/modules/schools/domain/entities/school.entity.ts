@@ -6,6 +6,7 @@ import { ForbiddenOperationException } from '../exceptions/forbidden-operation.e
 import { MemberAlreadyExistsException } from '../exceptions/member-already-exists.exception.js';
 import { MemberRole } from '../value-objects/member-role.vo.js';
 import { SchoolType } from '../value-objects/school-type.vo.js';
+import { SchoolKind } from '../value-objects/school-kind.vo.js';
 import { ReviewSettings } from '../value-objects/review-settings.vo.js';
 import type { SchoolMember } from './school-member.entity.js';
 
@@ -20,6 +21,8 @@ export interface CreateSchoolProps {
   contactEmail?: string;
   city?: string;
   type?: SchoolType;
+  /** Defaults to SCHOOL — only tutor provisioning asks for SOLO. */
+  kind?: SchoolKind;
 }
 
 export interface RehydrateSchoolProps extends CreateSchoolProps {
@@ -31,8 +34,12 @@ export interface RehydrateSchoolProps extends CreateSchoolProps {
   requireTutorReviewForSelfPaced: boolean;
   defaultExplanationLanguage?: string;
   type: SchoolType;
+  /** Absent for a row written before solo workspaces existed — it is a school. */
+  kind?: SchoolKind;
   /** Absent for a row written before the promise existed — the default stands in. */
   reviewSettings?: ReviewSettings;
+  /** Absent for a row written before the setting existed — learners see their band. */
+  showGroupPositionToStudents?: boolean;
 }
 
 export class School extends BaseEntity {
@@ -45,12 +52,14 @@ export class School extends BaseEntity {
   private _contactEmail: string | undefined;
   private _city: string | undefined;
   private _type: SchoolType;
+  private _kind: SchoolKind;
   private _isActive: boolean;
   private _deletedAt: Date | undefined;
   private _members: SchoolMember[];
   private _requireTutorReviewForSelfPaced: boolean;
   private _defaultExplanationLanguage: string | undefined;
   private _reviewSettings: ReviewSettings;
+  private _showGroupPositionToStudents: boolean;
 
   private constructor(
     id: string,
@@ -63,6 +72,7 @@ export class School extends BaseEntity {
     contactEmail: string | undefined,
     city: string | undefined,
     type: SchoolType,
+    kind: SchoolKind,
     isActive: boolean,
     createdAt: Date,
     updatedAt: Date,
@@ -71,6 +81,7 @@ export class School extends BaseEntity {
     requireTutorReviewForSelfPaced: boolean,
     defaultExplanationLanguage: string | undefined,
     reviewSettings: ReviewSettings,
+    showGroupPositionToStudents: boolean,
   ) {
     super(id, createdAt, updatedAt);
     this._name = name;
@@ -82,12 +93,14 @@ export class School extends BaseEntity {
     this._contactEmail = contactEmail;
     this._city = city;
     this._type = type;
+    this._kind = kind;
     this._isActive = isActive;
     this._deletedAt = deletedAt;
     this._members = members;
     this._requireTutorReviewForSelfPaced = requireTutorReviewForSelfPaced;
     this._defaultExplanationLanguage = defaultExplanationLanguage;
     this._reviewSettings = reviewSettings;
+    this._showGroupPositionToStudents = showGroupPositionToStudents;
   }
 
   static create(props: CreateSchoolProps, eventId: string): School {
@@ -103,6 +116,7 @@ export class School extends BaseEntity {
       props.contactEmail,
       props.city,
       props.type ?? SchoolType.ONLINE,
+      props.kind ?? SchoolKind.SCHOOL,
       true,
       now,
       now,
@@ -112,6 +126,10 @@ export class School extends BaseEntity {
       undefined,
       // A new school promises what the platform promises until somebody says otherwise.
       ReviewSettings.default(),
+      // A learner is told roughly where they stand until the school decides otherwise:
+      // the sentence carries no rank and no classmate's number, and a school that would
+      // rather not compare at all can turn it off.
+      true,
     );
 
     school.addDomainEvent(
@@ -133,6 +151,7 @@ export class School extends BaseEntity {
       props.contactEmail,
       props.city,
       props.type,
+      props.kind ?? SchoolKind.SCHOOL,
       props.isActive,
       props.createdAt,
       props.updatedAt,
@@ -141,6 +160,7 @@ export class School extends BaseEntity {
       props.requireTutorReviewForSelfPaced,
       props.defaultExplanationLanguage,
       props.reviewSettings ?? ReviewSettings.default(),
+      props.showGroupPositionToStudents ?? true,
     );
   }
 
@@ -155,6 +175,7 @@ export class School extends BaseEntity {
     type?: SchoolType;
     requireTutorReviewForSelfPaced?: boolean;
     defaultExplanationLanguage?: string | null;
+    showGroupPositionToStudents?: boolean;
   }): void {
     if (props.name !== undefined) this._name = props.name;
     if (props.slug !== undefined) this._slug = props.slug;
@@ -168,6 +189,8 @@ export class School extends BaseEntity {
       this._requireTutorReviewForSelfPaced = props.requireTutorReviewForSelfPaced;
     if (props.defaultExplanationLanguage !== undefined)
       this._defaultExplanationLanguage = props.defaultExplanationLanguage ?? undefined;
+    if (props.showGroupPositionToStudents !== undefined)
+      this._showGroupPositionToStudents = props.showGroupPositionToStudents;
     this._updatedAt = new Date();
   }
 
@@ -240,6 +263,19 @@ export class School extends BaseEntity {
     return this._members.find((m) => m.userId === userId)?.role;
   }
 
+  /**
+   * What this user is here, owner included.
+   *
+   * The owner holds no roster row — `schools.ownerId` is the record of it — so asking the
+   * roster alone answers "nobody" for the one person who may do everything. Every caller
+   * that needs an effective role must go through this, or it will gate the owner out of
+   * their own workspace. A solo tutor's workspace has exactly one such person.
+   */
+  roleOf(userId: string): MemberRole | null {
+    if (this._ownerId === userId) return MemberRole.OWNER;
+    return this.getMemberRole(userId) ?? null;
+  }
+
   get name(): string { return this._name; }
   get slug(): string { return this._slug; }
   get ownerId(): string { return this._ownerId; }
@@ -249,6 +285,9 @@ export class School extends BaseEntity {
   get contactEmail(): string | undefined { return this._contactEmail; }
   get city(): string | undefined { return this._city; }
   get type(): SchoolType { return this._type; }
+  get kind(): SchoolKind { return this._kind; }
+  /** A private tutor's own workspace — never public, never named a school to its users. */
+  get isSolo(): boolean { return this._kind === SchoolKind.SOLO; }
   get isActive(): boolean { return this._isActive; }
   get deletedAt(): Date | undefined { return this._deletedAt; }
   get isDeleted(): boolean { return this._deletedAt !== undefined; }
@@ -256,4 +295,6 @@ export class School extends BaseEntity {
   get requireTutorReviewForSelfPaced(): boolean { return this._requireTutorReviewForSelfPaced; }
   get defaultExplanationLanguage(): string | undefined { return this._defaultExplanationLanguage; }
   get reviewSettings(): ReviewSettings { return this._reviewSettings; }
+  /** Whether a learner of this school is told where they stand in their group, in words. */
+  get showGroupPositionToStudents(): boolean { return this._showGroupPositionToStudents; }
 }

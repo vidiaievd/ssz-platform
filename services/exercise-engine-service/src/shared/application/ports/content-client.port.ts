@@ -70,6 +70,8 @@ export interface ExercisePlacement {
   moduleTitle: string | null;
   exerciseTitle: string | null;
   ownerSchoolId: string | null;
+  /** Who authored the course — the only thing a personal course says about whose it is. */
+  ownerUserId: string | null;
 }
 
 export class ContentClientError extends Error {

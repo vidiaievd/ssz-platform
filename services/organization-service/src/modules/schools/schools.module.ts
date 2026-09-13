@@ -60,6 +60,7 @@ import { CompleteMembershipOnboardingHandler } from './application/commands/comp
 import { MarkGroupAssignedSeenHandler } from './application/commands/mark-group-assigned-seen/mark-group-assigned-seen.handler.js';
 
 import { GetSchoolHandler } from './application/queries/get-school/get-school.handler.js';
+import { GetWorkspaceHandler } from './application/queries/get-workspace/get-workspace.handler.js';
 import { GetSchoolBySlugHandler } from './application/queries/get-school-by-slug/get-school-by-slug.handler.js';
 import { ListMySchoolsHandler } from './application/queries/list-my-schools/list-my-schools.handler.js';
 import { CheckNameAvailableHandler } from './application/queries/check-name-available/check-name-available.handler.js';
@@ -82,25 +83,32 @@ import { ListMembershipsHandler } from './application/queries/list-memberships/l
 import { GetMyMembershipHandler } from './application/queries/get-my-membership/get-my-membership.handler.js';
 import { GetPublicSchoolHandler } from './application/queries/get-public-school/get-public-school.handler.js';
 import { ListPublicSchoolsHandler } from './application/queries/list-public-schools/list-public-schools.handler.js';
-import { GetStudentReviewGroupHandler } from './application/queries/get-student-review-group/get-student-review-group.handler.js';
+import { GetLearnerReviewContextHandler } from './application/queries/get-learner-review-context/get-learner-review-context.handler.js';
+import { GetLearnerPositionContextHandler } from './application/queries/get-learner-position-context/get-learner-position-context.handler.js';
 import { GetReviewReviewersHandler } from './application/queries/get-review-reviewers/get-review-reviewers.handler.js';
 import { GetReviewEscalationRecipientsHandler } from './application/queries/get-review-escalation-recipients/get-review-escalation-recipients.handler.js';
 import { GetReviewScopeHandler } from './application/queries/get-review-scope/get-review-scope.handler.js';
 
 import { SchoolsController } from './presentation/controllers/schools.controller.js';
+import { WorkspacesController } from './presentation/controllers/workspaces.controller.js';
 import { InvitationsController } from './presentation/controllers/invitations.controller.js';
 import { InternalController } from './presentation/controllers/internal.controller.js';
 import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
+import { InternalLearnerController } from './presentation/controllers/internal-learner.controller.js';
 import { SchoolGroupsController } from './presentation/controllers/school-groups.controller.js';
 import { SchoolTeachersController } from './presentation/controllers/school-teachers.controller.js';
 import { SchoolMembersController } from './presentation/controllers/school-members.controller.js';
 import { EnrollmentController } from './presentation/controllers/enrollment.controller.js';
 import { CapabilityResolverService } from './application/services/capability-resolver.service.js';
 import { ProfileUpdatedConsumer } from './infrastructure/events/profile-updated.consumer.js';
+import { UserRegisteredConsumer } from './infrastructure/events/user-registered.consumer.js';
+import { ProvisionSoloWorkspaceHandler } from './application/commands/provision-solo-workspace/provision-solo-workspace.handler.js';
+import { GetSoloWorkspaceHandler } from './application/queries/get-solo-workspace/get-solo-workspace.handler.js';
 
 const CommandHandlers = [
   UpdateReviewSettingsHandler,
   CreateSchoolHandler,
+  ProvisionSoloWorkspaceHandler,
   UpdateSchoolHandler,
   DeleteSchoolHandler,
   AddMemberHandler,
@@ -141,8 +149,10 @@ const CommandHandlers = [
 
 const QueryHandlers = [
   GetSchoolHandler,
+  GetWorkspaceHandler,
   GetSchoolBySlugHandler,
   ListMySchoolsHandler,
+  GetSoloWorkspaceHandler,
   CheckNameAvailableHandler,
   CheckSlugAvailableHandler,
   ListSchoolInvitationsHandler,
@@ -162,7 +172,8 @@ const QueryHandlers = [
   GetMyMembershipHandler,
   GetPublicSchoolHandler,
   ListPublicSchoolsHandler,
-  GetStudentReviewGroupHandler,
+  GetLearnerReviewContextHandler,
+  GetLearnerPositionContextHandler,
   GetReviewReviewersHandler,
   GetReviewEscalationRecipientsHandler,
   GetReviewScopeHandler,
@@ -172,9 +183,11 @@ const QueryHandlers = [
   imports: [CqrsModule],
   controllers: [
     SchoolsController,
+    WorkspacesController,
     InvitationsController,
     InternalController,
     InternalReviewController,
+    InternalLearnerController,
     SchoolGroupsController,
     SchoolTeachersController,
     SchoolMembersController,
@@ -186,6 +199,7 @@ const QueryHandlers = [
     InvitationTokenService,
     CapabilityResolverService,
     ProfileUpdatedConsumer,
+    UserRegisteredConsumer,
     ProfileServiceHttpClient,
     SchedulingServiceHttpClient,
     {

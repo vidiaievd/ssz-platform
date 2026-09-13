@@ -19,6 +19,14 @@ export interface ContentMetadata {
   estimatedMinutes?: number;
 }
 
+// Who a course belongs to. Read at enrolment to break ties when the learner's own
+// workspace is not obvious — a learner who studies both at a school and with a private
+// tutor sits in two of them (plan 59 §4, KPI).
+export interface ContainerOwnerRef {
+  ownerUserId: string;
+  ownerSchoolId: string | null;
+}
+
 export interface VisibilityResult {
   isVisible: boolean;
   reason?: string;
@@ -102,6 +110,12 @@ export interface IContentClient {
   getAccessTier(
     containerId: string,
   ): Promise<Result<AccessTier, ContentClientError>>;
+
+  // Owner of a container — the author and, when there is one, their school.
+  // Calls GET /api/v1/internal/containers/{id}/directory on Content Service.
+  getContainerOwner(
+    containerId: string,
+  ): Promise<Result<ContainerOwnerRef, ContentClientError>>;
 
   // Returns all leaf content refs in a container (for completion tracking).
   // Leaf items are: LESSON, VOCABULARY_LIST, GRAMMAR_RULE, EXERCISE.
