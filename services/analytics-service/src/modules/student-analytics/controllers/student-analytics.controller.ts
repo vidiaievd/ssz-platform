@@ -12,11 +12,13 @@ import {
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
 import {
+  GetModalityGapQuery,
   GetStudentGridQuery,
   GetStudentPositionQuery,
   GetStudentWorkContextQuery,
 } from '../queries/student-analytics.queries.js';
 import {
+  ModalityGapResponseDto,
   StudentGridResponseDto,
   StudentPositionResponseDto,
   StudentWorkContextResponseDto,
@@ -78,6 +80,36 @@ export class StudentAnalyticsController {
   ): Promise<StudentWorkContextResponseDto> {
     return this.queryBus.execute(
       new GetStudentWorkContextQuery(studentId, user.userId, courseId ?? null),
+    );
+  }
+
+  /**
+   * What this learner knows only one way — plan 63 §4.1.
+   *
+   * The answer to "what should we work on", as opposed to "how many percent": 90 % picking
+   * a word off a list against 30 % typing it is not uneven knowledge, it is knowledge that
+   * has reached recognition and stopped, and more of the same exercises will not move it.
+   */
+  @Get('modality-gap')
+  @ApiOperation({ summary: 'Facts this learner recognises and cannot produce' })
+  @ApiParam({ name: 'studentId', format: 'uuid' })
+  @ApiQuery({ name: 'courseId', required: false, description: 'Narrow to one course' })
+  @ApiQuery({ name: 'limit', required: false, description: 'How many findings to return (default 25)' })
+  @ApiOkResponse({ type: ModalityGapResponseDto })
+  @ApiNotFoundResponse({ description: 'No student the viewer shares a school with' })
+  async modalityGap(
+    @Param('studentId', ParseUUIDPipe) studentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('courseId') courseId?: string,
+    @Query('limit') limit?: string,
+  ): Promise<ModalityGapResponseDto> {
+    // Clamped rather than rejected: a page size is never worth a 400, and a screen asking
+    // for a thousand findings is asking for a list nobody reads.
+    const parsed = Number.parseInt(limit ?? '', 10);
+    const size = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 100) : 25;
+
+    return this.queryBus.execute(
+      new GetModalityGapQuery(studentId, user.userId, courseId ?? null, size),
     );
   }
 }

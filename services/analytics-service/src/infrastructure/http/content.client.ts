@@ -36,6 +36,16 @@ export interface CourseCoverage {
   emptySkills: string[];
 }
 
+/** An atom as content-service names it. Absent from an answer means retired or gone. */
+export interface AtomDescriptor {
+  atomType: string;
+  atomId: string;
+  title: string;
+  track: string | null;
+  /** The grammar rule an atom belongs to; null for a word. */
+  parentId: string | null;
+}
+
 export interface CourseOutline {
   containerId: string;
   /** `null` when nothing is published — a legal state, not a failure. */
@@ -116,6 +126,42 @@ export class ContentClient {
         `Coverage for container ${containerId} unreachable: ${(error as Error).message}`,
       );
       return null;
+    }
+  }
+
+  /**
+   * What the atoms a report is about are called (plan 63, phase 4).
+   *
+   * This service holds addresses and nothing else — an address reaches it through the
+   * event stream as two strings — so the names have to be asked for. Best-effort like the
+   * rest: unreachable answers an empty map and the caller draws the row without a name
+   * rather than dropping a real finding because content-service was restarting.
+   */
+  async describeAtoms(
+    refs: ReadonlyArray<{ atomType: string; atomId: string }>,
+  ): Promise<Map<string, AtomDescriptor>> {
+    const named = new Map<string, AtomDescriptor>();
+    if (refs.length === 0) return named;
+
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/internal/atoms/describe`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-internal-token': this.token },
+        body: JSON.stringify({ refs }),
+      });
+
+      if (!res.ok) {
+        this.logger.warn(`Atom names failed: ${res.status}`);
+        return named;
+      }
+
+      for (const atom of (await res.json()) as AtomDescriptor[]) {
+        named.set(`${atom.atomType}:${atom.atomId}`, atom);
+      }
+      return named;
+    } catch (error) {
+      this.logger.warn(`Atom names unreachable: ${(error as Error).message}`);
+      return named;
     }
   }
 }

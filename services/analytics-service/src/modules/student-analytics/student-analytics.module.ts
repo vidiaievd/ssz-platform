@@ -4,6 +4,7 @@ import { StudentAnalyticsController } from './controllers/student-analytics.cont
 import { GetStudentGridHandler } from './queries/get-student-grid.handler.js';
 import { GetStudentPositionHandler } from './queries/get-student-position.handler.js';
 import { GetStudentWorkContextHandler } from './queries/get-student-work-context.handler.js';
+import { GetModalityGapHandler } from './queries/get-modality-gap.handler.js';
 import { StudentAccessService } from './student-access.service.js';
 import { ContentClient } from '../../infrastructure/http/content.client.js';
 // The learner's position is the group's own median read from the other side, and the
@@ -18,6 +19,7 @@ import { GroupAnalyticsModule } from '../group-analytics/group-analytics.module.
     GetStudentGridHandler,
     GetStudentPositionHandler,
     GetStudentWorkContextHandler,
+    GetModalityGapHandler,
     StudentAccessService,
     ContentClient,
   ],

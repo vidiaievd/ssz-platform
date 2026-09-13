@@ -28,6 +28,8 @@ import type { ContentRelationEntity } from '../../../content-relation/domain/ent
 import { GetPoolExerciseIdsQuery } from '../../../grammar-rule/application/queries/get-pool-exercise-ids/get-pool-exercise-ids.query.js';
 
 import { GetExerciseEnvelopeQuery } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.query.js';
+import { DescribeAtomsQuery } from '../../../exercise/application/queries/describe-atoms/describe-atoms.query.js';
+import type { AtomDescriptor } from '../../../exercise/domain/repositories/exercise-item-target.repository.interface.js';
 import type { ExerciseEnvelope } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.handler.js';
 import type { ExerciseDomainError } from '../../../exercise/domain/exceptions/exercise-domain.exceptions.js';
 import { throwHttpException } from '../../../exercise/presentation/utils/domain-error.mapper.js';
@@ -253,6 +255,23 @@ export class InternalController {
     return result.value;
   }
 
+  // analytics-service reports about atoms and holds only their addresses: an address
+  // travels through the event stream as two strings and nothing more. Without this it
+  // would either draw uuids on a teacher's screen or keep a copy of the catalogue.
+  // Addresses that resolve to nothing are absent from the answer, not an error — a
+  // retired atom is an ordinary thing for an old record to point at.
+  @Post('atoms/describe')
+  @HttpCode(200)
+  async describeAtoms(
+    @Body() dto: { refs?: Array<{ atomType: string; atomId: string }> },
+  ): Promise<AtomDescriptor[]> {
+    const refs = dto.refs ?? [];
+    if (refs.length > 500) throw new BadRequestException('At most 500 atoms per request');
+    return this.queryBus.execute<DescribeAtomsQuery, AtomDescriptor[]>(
+      new DescribeAtomsQuery(refs),
+    );
+  }
+
   // Learning Service reads list metadata for the auto-add-to-SRS flag
   // (vocabulary-enrollment consumer) — the public route is JWT + visibility
   // guarded, which service-to-service traffic cannot satisfy.
@@ -294,11 +313,12 @@ export class InternalController {
   }
 
   @Get('can-do/descriptors')
-  async getCanDoDescriptorsByIds(
-    @Query('ids') ids?: string,
-  ): Promise<CanDoDescriptorResponse[]> {
+  async getCanDoDescriptorsByIds(@Query('ids') ids?: string): Promise<CanDoDescriptorResponse[]> {
     if (!ids) return [];
-    const idList = ids.split(',').map((s) => s.trim()).filter(Boolean);
+    const idList = ids
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const descriptors = await this.queryBus.execute<
       GetCanDoDescriptorsByIdsQuery,
       CanDoDescriptorEntity[]
@@ -307,9 +327,7 @@ export class InternalController {
   }
 
   @Get('modules/:id/can-do')
-  async getModuleCanDo(
-    @Param('id') moduleId: string,
-  ): Promise<CanDoDescriptorResponse[]> {
+  async getModuleCanDo(@Param('id') moduleId: string): Promise<CanDoDescriptorResponse[]> {
     const descriptors = await this.queryBus.execute<
       GetCanDoDescriptorsByModuleQuery,
       CanDoDescriptorEntity[]

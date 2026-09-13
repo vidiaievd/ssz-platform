@@ -108,3 +108,136 @@ export class StudentWorkContextResponseDto {
   })
   unattributed!: number;
 }
+
+// ─── The recognition ↔ production gap (plan 63 §4.1) ──────────────────────────
+
+export class ModalityReadingDto {
+  @ApiProperty({ example: 12 }) attempts!: number;
+  @ApiProperty({ example: 11 }) correct!: number;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description:
+      'Null for a modality never attempted — the opposite statement from a zero, and the ' +
+      'whole reason this screen exists',
+  })
+  successRate!: number | null;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description: 'Mean FSRS stability in days after these reviews; null where none was recorded',
+  })
+  meanStability!: number | null;
+
+  @ApiProperty({ type: Date, nullable: true })
+  lastAt!: Date | null;
+}
+
+export class ModalityGapDto {
+  @ApiProperty({ enum: ['vocabulary_item', 'grammar_rule_atom'] }) atomType!: string;
+  @ApiProperty() atomId!: string;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Null when content-service could not be asked; the finding still stands',
+  })
+  title!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, enum: ['lexis', 'grammar', null] })
+  track!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'The rule a grammar atom belongs to' })
+  parentId!: string | null;
+
+  @ApiProperty({
+    enum: ['recognition_only', 'production_untried', 'production_failing', 'recall_failing'],
+    description:
+      'What is lopsided about this fact. `recognition_only` and `production_untried` are ' +
+      'about what was never asked; the two `_failing` ones are about what was asked and ' +
+      'went badly',
+  })
+  verdict!: string;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description:
+      'How far the deeper modality falls below the shallow one, 0..1. Null where nothing ' +
+      'deeper was ever attempted — a gap of zero would claim they produce it as well as ' +
+      'they recognise it',
+  })
+  gap!: number | null;
+
+  @ApiProperty({
+    description: 'One reading per modality, every key present, zeroes included',
+  })
+  byModality!: Record<string, ModalityReadingDto>;
+}
+
+export class ModalityGapSummaryDto {
+  @ApiProperty({ description: 'Atoms this learner has any addressed evidence about' })
+  addressedAtoms!: number;
+
+  @ApiProperty({ description: 'Of those, the ones with evidence enough to judge' })
+  judged!: number;
+
+  @ApiProperty({ description: 'Too little evidence to say anything. Not a verdict of "fine"' })
+  insufficient!: number;
+
+  @ApiProperty() recognitionOnly!: number;
+  @ApiProperty() productionUntried!: number;
+  @ApiProperty() productionFailing!: number;
+  @ApiProperty() recallFailing!: number;
+
+  @ApiProperty({ description: 'Judged and not lopsided' })
+  even!: number;
+
+  @ApiProperty({ description: 'Observations behind all of it — items that tested an atom' })
+  observations!: number;
+
+  @ApiProperty({
+    description:
+      'Observations excluded from every verdict: the item required the atom but did not ' +
+      'examine it. A learner with nothing but these has been measured on nothing',
+  })
+  contextObservations!: number;
+
+  @ApiProperty({
+    example: { recognition: 84, recall: 31, production: 0, unknown: 4 },
+    description:
+      'Observations by modality, zeroes included. A `production: 0` here is a fact about ' +
+      'the course, not about the learner — see the author’s coverage report',
+  })
+  byModality!: Record<string, number>;
+}
+
+export class ModalityGapResponseDto {
+  @ApiProperty() studentId!: string;
+  @ApiProperty({ type: String, nullable: true }) courseId!: string | null;
+
+  @ApiProperty({
+    example: 3,
+    description: 'Observations required before an atom is judged at all, reported with the verdicts',
+  })
+  minAttempts!: number;
+
+  @ApiProperty({
+    example: { strong: 0.8, failing: 0.6 },
+    description: 'The bars a verdict was made against, so the verdict can be read against them',
+  })
+  thresholds!: { strong: number; failing: number };
+
+  @ApiProperty({
+    description: 'False when the atom names could not be asked for — labels missing, findings intact',
+  })
+  namesAvailable!: boolean;
+
+  @ApiProperty({ type: ModalityGapSummaryDto })
+  summary!: ModalityGapSummaryDto;
+
+  @ApiProperty({ type: [ModalityGapDto], description: 'Widest measured gap first' })
+  gaps!: ModalityGapDto[];
+}

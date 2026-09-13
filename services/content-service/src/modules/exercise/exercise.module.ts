@@ -38,6 +38,7 @@ import { ExerciseController } from './presentation/controllers/exercise.controll
 
 import { SetItemTargetsHandler } from './application/commands/set-item-targets/set-item-targets.handler.js';
 import { GetItemTargetsHandler } from './application/queries/get-item-targets/get-item-targets.handler.js';
+import { DescribeAtomsHandler } from './application/queries/describe-atoms/describe-atoms.handler.js';
 import { GetTargetSuggestionsHandler } from './application/queries/get-target-suggestions/get-target-suggestions.handler.js';
 
 const CommandHandlers = [
@@ -59,6 +60,7 @@ const QueryHandlers = [
   GetExerciseEnvelopeHandler,
   GetExerciseAxesHandler,
   GetItemTargetsHandler,
+  DescribeAtomsHandler,
   GetTargetSuggestionsHandler,
 ];
 
