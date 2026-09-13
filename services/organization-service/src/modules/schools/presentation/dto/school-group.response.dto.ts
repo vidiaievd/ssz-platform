@@ -38,6 +38,13 @@ export class SchoolGroupResponseDto {
   @ApiPropertyOptional() startDate?: Date | null;
   @ApiPropertyOptional() endDate?: Date | null;
   @ApiProperty() studentCount!: number;
+  @ApiProperty({
+    description:
+      "The workspace's own group, which every learner of a private tutor belongs to. " +
+      'It is never shown as a group — not as a page, not as a filter, not as a row.',
+    example: false,
+  })
+  isDefault!: boolean;
   @ApiProperty({ type: [SchoolGroupMemberResponseDto] }) members!: SchoolGroupMemberResponseDto[];
   @ApiProperty({ type: [GroupTeacherResponseDto] }) teachers!: GroupTeacherResponseDto[];
   @ApiProperty({ type: [GroupMaterialResponseDto] }) materials!: GroupMaterialResponseDto[];
@@ -61,6 +68,7 @@ export class SchoolGroupResponseDto {
     dto.startDate = group.startDate;
     dto.endDate = group.endDate;
     dto.studentCount = group.studentCount;
+    dto.isDefault = group.isDefault;
     dto.members = group.members.map((m) => ({ id: m.id, userId: m.userId, addedAt: m.addedAt }));
     dto.teachers = group.teachers.map((t) => ({
       id: t.id,
@@ -97,6 +105,13 @@ export class SchoolGroupSummaryResponseDto {
   @ApiPropertyOptional() startDate?: Date | null;
   @ApiPropertyOptional() endDate?: Date | null;
   @ApiProperty() studentCount!: number;
+  @ApiProperty({
+    description:
+      "The workspace's own group, which every learner of a private tutor belongs to. " +
+      'It is never shown as a group — not as a page, not as a filter, not as a row.',
+    example: false,
+  })
+  isDefault!: boolean;
   @ApiProperty({ type: [GroupTeacherResponseDto] }) teachers!: GroupTeacherResponseDto[];
   @ApiProperty({ type: [GroupMaterialResponseDto] }) materials!: GroupMaterialResponseDto[];
   @ApiProperty() createdAt!: Date;
@@ -118,6 +133,7 @@ export class SchoolGroupSummaryResponseDto {
     dto.startDate = group.startDate;
     dto.endDate = group.endDate;
     dto.studentCount = group.studentCount;
+    dto.isDefault = group.isDefault;
     dto.teachers = group.teachers.map((t) => ({
       id: t.id,
       userId: t.userId,
