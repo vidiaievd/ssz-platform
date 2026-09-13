@@ -101,12 +101,12 @@ describe('HttpOrganizationClient.getMemberRole', () => {
     expect(httpSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('throws Error immediately on 403 without retrying', async () => {
+  it('reads a 403 as "not a member", not as a broken token', async () => {
+    // organization-service answers 403 when the person is not in that school. Treating it
+    // as misconfiguration turned every request for somebody else's course into a 500.
     const client = makeClient([() => makeAxiosError(403)]);
     const httpSpy = (client as any).http.get as jest.Mock;
-    await expect(client.getMemberRole('user-1', 'school-1')).rejects.toThrow(
-      'Internal auth misconfigured',
-    );
+    await expect(client.getMemberRole('user-1', 'school-1')).resolves.toBeNull();
     expect(httpSpy).toHaveBeenCalledTimes(1);
   });
 
