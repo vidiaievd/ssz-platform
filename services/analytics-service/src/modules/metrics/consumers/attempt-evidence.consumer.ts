@@ -6,6 +6,7 @@ import { EXCHANGES, LEARNING_EVENT_TYPES } from '@ssz/contracts';
 import type { AttemptRatedPayload, BaseEvent } from '@ssz/contracts';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
+import type { AtomEvidenceCreateManyInput } from '../../../../generated/prisma/models/AtomEvidence.js';
 import { SkillMasteryProjector } from '../mastery/skill-mastery.projector.js';
 
 const PROCESSOR_ID = 'attempt-evidence';
@@ -94,6 +95,7 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
 
       const payload = envelope.payload as AttemptRatedPayload;
       await this.record(eventId, payload, envelope.occurredAt);
+      await this.recordAtoms(eventId, payload, envelope.occurredAt);
       // Inside the same idempotency guard as the record above, and that is the point: the
       // record is append-only and survives a double delivery, while the profile is a
       // running average that a replayed attempt would quietly move (plan 55 §5.1).
@@ -118,6 +120,11 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
     p: AttemptRatedPayload,
     occurredAt: string,
   ): Promise<void> {
+    // A word coming back through the fan-out is not an attempt at an exercise, and this
+    // table's rows are counted as attempts in five places (plan 63 phase 3). It belongs
+    // in `atom_evidence` and nowhere else.
+    if (p.contentType === 'VOCABULARY_WORD' || p.contentType === 'GRAMMAR_ATOM') return;
+
     const form = p.answerForm ?? null;
 
     // `create` guarded by the unique eventId rather than an upsert: a redelivery is
@@ -152,10 +159,63 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
           containerId: p.containerId ?? null,
           lessonId: p.lessonId ?? null,
           occurredAt: new Date(occurredAt),
+          modality: p.modality ?? null,
         },
       ],
       skipDuplicates: true,
     });
+  }
+
+  /**
+   * The same rating, recorded once per atom it is evidence about (plan 63 phase 3).
+   *
+   * Nothing is written for a rating nobody addressed, which is most of the catalogue —
+   * and that absence is the honest answer to "what does this learner know about this
+   * fact": nobody has said which fact it was about.
+   *
+   * `skipDuplicates` over the (event, atom) pair rather than over the event: one rating
+   * legitimately writes several rows here, and a redelivery has to collide with each of
+   * them individually.
+   */
+  private async recordAtoms(
+    eventId: string,
+    p: AttemptRatedPayload,
+    occurredAt: string,
+  ): Promise<void> {
+    const targets = p.targets ?? [];
+    if (targets.length === 0) return;
+
+    // The same atom addressed twice in one item is one observation, not two: a gap that
+    // names a word as focus and again as context would otherwise rate it twice, and the
+    // unique index would reject the second write and take the whole batch with it.
+    const seen = new Set<string>();
+    const rows: AtomEvidenceCreateManyInput[] = [];
+    for (const target of targets) {
+      const key = `${target.atomType}:${target.atomId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({
+        eventId,
+        userId: p.userId,
+        exerciseId: p.exerciseId,
+        atomType: target.atomType,
+        atomId: target.atomId,
+        role: target.role ?? null,
+        itemKey: p.itemKey ?? null,
+        contentType: p.contentType ?? null,
+        modality: p.modality ?? null,
+        ratingApplied: p.ratingApplied,
+        score: Math.round(p.score),
+        passed: p.passed ?? null,
+        stabilityAfter: p.stabilityAfter ?? null,
+        containerId: p.containerId ?? null,
+        groupId: p.groupId ?? null,
+        workContext: p.workContext ?? null,
+        occurredAt: new Date(occurredAt),
+      });
+    }
+
+    await this.prisma.atomEvidence.createMany({ data: rows, skipDuplicates: true });
   }
 
   async onModuleDestroy(): Promise<void> {

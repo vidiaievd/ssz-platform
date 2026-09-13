@@ -169,6 +169,12 @@ const attempt = (over: Partial<AttemptRatedPayload> = {}): AttemptRatedPayload =
   workContext: null,
   groupId: null,
   lessonId: null,
+  // Plan 63 phase 3 — the address of the rating. The profile does not read any of it;
+  // the fixture carries it so the payload stays a whole one.
+  contentType: 'EXERCISE',
+  modality: null,
+  itemKey: null,
+  targets: null,
   ...over,
 });
 
