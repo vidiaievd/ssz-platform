@@ -231,6 +231,11 @@ services:
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
       REVIEW_DIGEST_ENABLED: ${REVIEW_DIGEST_ENABLED:-false}
       REVIEW_DIGEST_INTERVAL_HOURS: ${REVIEW_DIGEST_INTERVAL_HOURS:-6}
+      # Lesson reminders (plan 62): the timetable says when a lesson is, this service
+      # decides whether to tell the learner the evening before. Off by the same rule.
+      SCHEDULING_SERVICE_URL: http://scheduling-service:3009
+      LESSON_REMINDER_ENABLED: ${LESSON_REMINDER_ENABLED:-false}
+      LESSON_REMINDER_HOUR: ${LESSON_REMINDER_HOUR:-18}
     ports:
       - "3005:3005"
     depends_on:

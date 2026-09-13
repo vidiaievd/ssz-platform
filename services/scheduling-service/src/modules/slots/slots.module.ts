@@ -18,6 +18,7 @@ import { ListSlotsHandler } from './application/queries/list-slots/list-slots.ha
 import { SlotsController } from './presentation/controllers/slots.controller.js';
 import { LessonsController } from './presentation/controllers/lessons.controller.js';
 import { SessionsController } from './presentation/controllers/sessions.controller.js';
+import { InternalSessionsController } from './presentation/controllers/internal-sessions.controller.js';
 import { SessionAccessService } from './application/services/session-access.service.js';
 import { SessionWriterService } from './application/services/session-writer.service.js';
 import { OrgServiceHttpClient } from '../../infrastructure/org/org-service.http-client.js';
@@ -27,7 +28,7 @@ const QueryHandlers = [ListSlotsHandler];
 
 @Module({
   imports: [CqrsModule],
-  controllers: [SlotsController, LessonsController, SessionsController],
+  controllers: [SlotsController, LessonsController, SessionsController, InternalSessionsController],
   providers: [
     ...CommandHandlers,
     ...QueryHandlers,

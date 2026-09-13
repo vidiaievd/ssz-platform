@@ -29,6 +29,8 @@ import { ReviewDigestService } from './schedules/review-digest.service.js';
 import { ReviewDigestStateRepository } from './schedules/review-digest-state.repository.js';
 import { ReviewLoadClient } from './schedules/clients/review-load.client.js';
 import { ReviewReviewersClient } from './schedules/clients/review-reviewers.client.js';
+import { LessonReminderService } from './schedules/lesson-reminder.service.js';
+import { LessonsClient } from './schedules/clients/lessons.client.js';
 
 @Module({
   imports: [HttpModule],
@@ -66,6 +68,8 @@ import { ReviewReviewersClient } from './schedules/clients/review-reviewers.clie
     ReviewDigestStateRepository,
     ReviewLoadClient,
     ReviewReviewersClient,
+    LessonReminderService,
+    LessonsClient,
   ],
   exports: [NotificationsService, UserRegisteredHandler, EmailVerificationHandler, PasswordResetHandler],
 })
