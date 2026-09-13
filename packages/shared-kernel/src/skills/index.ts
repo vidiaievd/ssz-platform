@@ -26,6 +26,7 @@ export type {
   CoverageDifference,
   FocusTally,
   FormTally,
+  PairTally,
   SkillTally,
 } from './coverage.js';
 export { coverage, diff, diverges, share, tally } from './coverage.js';

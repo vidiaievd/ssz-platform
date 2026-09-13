@@ -360,6 +360,7 @@ export class InternalController {
     total: number;
     bySkill: Record<string, number>;
     byFocus: Record<string, number>;
+    byPair: Record<string, Record<string, number>>;
     emptySkills: string[];
   }> {
     const result = await this.queryBus.execute<
@@ -376,6 +377,9 @@ export class InternalController {
       total: report?.coverage.total ?? 0,
       bySkill: report?.coverage.bySkill ?? {},
       byFocus: report?.coverage.byFocus ?? {},
+      // The table, not only its margins: a pair can be empty while neither margin is,
+      // and that difference is the whole of "not taught" against "taught, unreached".
+      byPair: report?.coverage.byPair ?? {},
       emptySkills: report?.coverage.emptySkills ?? [],
     };
   }

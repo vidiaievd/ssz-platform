@@ -39,6 +39,41 @@ describe('tallies', () => {
     expect(result.byFocus.grammar).toBe(1);
   });
 
+  it('answers the pair, which neither margin can', () => {
+    // The point of the table: `match_pairs` is reading × vocabulary, `writing_task` is
+    // written × unknown. Both margins of reading × unknown are non-zero and the pair
+    // itself is empty — multiply the margins and the screen invents a cell.
+    const result = coverage([ex('match_pairs'), ex('writing_task')]);
+    expect(result.bySkill.reading).toBe(1);
+    expect(result.byFocus.unknown).toBe(1);
+    expect(result.byPair.reading.unknown).toBe(0);
+    expect(result.byPair.reading.vocabulary).toBe(1);
+    expect(result.byPair.written.unknown).toBe(1);
+  });
+
+  it('keeps every row of the table, zeroes included', () => {
+    const result = coverage([]);
+    expect(Object.keys(result.byPair)).toEqual(['listening', 'reading', 'spoken', 'written']);
+    expect(result.byPair.listening).toEqual({
+      vocabulary: 0,
+      grammar: 0,
+      orthography: 0,
+      pragmatics: 0,
+      unknown: 0,
+    });
+  });
+
+  it('sums a row of the table to the skill margin', () => {
+    const exercises = [ex('short_answer'), ex('error_correction'), ex('writing_task')];
+    const result = coverage(exercises);
+    for (const skill of ['listening', 'reading', 'spoken', 'written'] as const) {
+      const row = Object.values(result.byPair[skill]).reduce((a, b) => a + b, 0);
+      // True only while no exercise carries two subjects at once; the assertion is here
+      // to notice the day one does, not to forbid it.
+      expect(row).toBe(result.bySkill[skill]);
+    }
+  });
+
   it('names the skills nothing trains', () => {
     const result = coverage([ex('multiple_choice'), ex('match_pairs')]);
     expect(result.emptySkills).toEqual(['listening', 'spoken', 'written']);

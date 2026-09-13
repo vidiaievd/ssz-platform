@@ -108,12 +108,12 @@ const FOCUS_AXIS: readonly string[] = [...FOCUSES, 'unknown'];
 /**
  * How many published items stand behind one cell — or `undefined` where we cannot say.
  *
- * The coverage report gives the two margins of the table, not the table itself, so a zero
- * margin is conclusive ("this course trains no listening at all") while a non-zero one is
- * not ("it trains listening, and it trains grammar, but perhaps never both at once").
- * Concluding only from the zeroes means some genuinely empty pairs come back as
- * `notStarted` rather than `noContent` — the safe direction: a learner is never told the
- * course is missing something it actually contains.
+ * The report carries the table itself (`byPair`), and a cell of it is the answer. Where
+ * content-service is older than that field, only the margins are available: a zero margin
+ * is still conclusive ("this course trains no listening at all") while a non-zero one is
+ * not, so some genuinely empty pairs come back as `notStarted` rather than `noContent` —
+ * the safe direction, in which a learner is never told the course is missing something it
+ * actually contains.
  */
 function itemsFor(
   coverage: CourseCoverage | null,
@@ -121,6 +121,10 @@ function itemsFor(
   focus: string,
 ): number | undefined {
   if (coverage === null || !coverage.available) return undefined;
+
+  const pairs = coverage.byPair?.[skill];
+  if (pairs !== undefined) return pairs[focus] ?? 0;
+
   if (coverage.emptySkills.includes(skill)) return 0;
   if ((coverage.bySkill[skill] ?? 0) === 0) return 0;
   if ((coverage.byFocus[focus] ?? 0) === 0) return 0;

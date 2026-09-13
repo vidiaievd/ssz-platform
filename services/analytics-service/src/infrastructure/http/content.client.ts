@@ -20,10 +20,9 @@ export interface OutlineUnit {
 /**
  * What a published course actually trains, as the coverage report counts it.
  *
- * `bySkill` and `byFocus` are margins of the same table, not the table itself: a pair may
- * be empty while both of its margins are not. The caller may therefore conclude "this
- * course teaches none of that" from a zero margin, and must not conclude the opposite
- * from a non-zero one.
+ * `bySkill` and `byFocus` are margins of the same table; `byPair` is the table. A margin
+ * of zero is conclusive on its own, a non-zero one never is — which is why the pairs are
+ * asked for rather than multiplied out of the margins.
  */
 export interface CourseCoverage {
   containerId: string;
@@ -32,6 +31,8 @@ export interface CourseCoverage {
   total: number;
   bySkill: Record<string, number>;
   byFocus: Record<string, number>;
+  /** `byPair[skill][focus]`. Absent from an older content-service; then the margins are all there is. */
+  byPair?: Record<string, Record<string, number>>;
   emptySkills: string[];
 }
 
