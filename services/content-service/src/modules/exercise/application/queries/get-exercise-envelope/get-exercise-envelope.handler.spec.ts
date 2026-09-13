@@ -7,6 +7,9 @@ import type { IExerciseRepository } from '../../../domain/repositories/exercise.
 import type { IExerciseTemplateRepository } from '../../../../exercise-template/domain/repositories/exercise-template.repository.interface.js';
 import type { ExerciseTemplateEntity } from '../../../../exercise-template/domain/entities/exercise-template.entity.js';
 import type { IExerciseAxes } from '../../../../../shared/skills/domain/exercise-axes.port.js';
+import type { IExerciseItemTargetRepository } from '../../../domain/repositories/exercise-item-target.repository.interface.js';
+import { ExerciseItemTarget } from '../../../domain/entities/exercise-item-target.entity.js';
+import { AtomType, TargetRole } from '../../../domain/value-objects/atom-type.vo.js';
 
 const AT = new Date('2026-09-01T10:00:00.000Z');
 
@@ -18,7 +21,7 @@ const LISTENING = {
   focusSource: 'unknown',
 };
 
-function build(axes: unknown) {
+function build(axes: unknown, targets: ExerciseItemTarget[] = []) {
   const exercise = ExerciseEntity.reconstitute('ex-1', {
     exerciseTemplateId: 'template-1',
     templateCode: 'short_answer',
@@ -51,9 +54,14 @@ function build(axes: unknown) {
       } as unknown as ExerciseTemplateEntity),
   } as unknown as IExerciseTemplateRepository;
 
-  return new GetExerciseEnvelopeHandler(repo, templates, {
-    forExercise: () => Promise.resolve(axes),
-  } as unknown as IExerciseAxes);
+  return new GetExerciseEnvelopeHandler(
+    repo,
+    templates,
+    { forExercise: () => Promise.resolve(axes) } as unknown as IExerciseAxes,
+    {
+      findByExerciseId: () => Promise.resolve(targets),
+    } as unknown as IExerciseItemTargetRepository,
+  );
 }
 
 describe('GetExerciseEnvelopeHandler axes', () => {
@@ -79,5 +87,39 @@ describe('GetExerciseEnvelopeHandler axes', () => {
 
     expect(result.value.axes.skills).toEqual([]);
     expect(result.value.axes.skillSource).toBe('unknown');
+  });
+});
+
+describe('GetExerciseEnvelopeHandler targets', () => {
+  it('carries what each piece is about, so the attempt can snapshot it', async () => {
+    // The address has to reach the attempt at the instant it starts, along with the axes
+    // and the atoms: an author re-anchoring this gap next month must not change what this
+    // attempt proved.
+    const target = ExerciseItemTarget.create({
+      exerciseId: 'ex-1',
+      itemKey: 's1#5',
+      atomType: AtomType.GRAMMAR_RULE_ATOM,
+      atomId: 'atom-1',
+      role: TargetRole.FOCUS,
+      createdByUserId: 'user-1',
+    });
+    expect(target.isOk).toBe(true);
+
+    const handler = build(LISTENING, [target.value]);
+
+    const result = await handler.execute(new GetExerciseEnvelopeQuery('ex-1', 'ru', 'graded'));
+
+    expect(result.value.targets).toEqual([
+      { itemKey: 's1#5', atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' },
+    ]);
+  });
+
+  it('answers an empty list for an exercise nobody has addressed', async () => {
+    // Most of the catalogue. Not a failure, and not a reason to refuse the attempt.
+    const handler = build(LISTENING);
+
+    const result = await handler.execute(new GetExerciseEnvelopeQuery('ex-1', 'ru', 'graded'));
+
+    expect(result.value.targets).toEqual([]);
   });
 });

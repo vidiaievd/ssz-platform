@@ -11,6 +11,8 @@ import type { IExerciseTemplateRepository } from '../../../../exercise-template/
 import { studentSafeContent } from '../../../domain/services/student-safe-content.js';
 import { EXERCISE_AXES } from '../../../../../shared/skills/domain/exercise-axes.port.js';
 import type { IExerciseAxes } from '../../../../../shared/skills/domain/exercise-axes.port.js';
+import { EXERCISE_ITEM_TARGET_REPOSITORY } from '../../../domain/repositories/exercise-item-target.repository.interface.js';
+import type { IExerciseItemTargetRepository } from '../../../domain/repositories/exercise-item-target.repository.interface.js';
 
 export interface ExerciseEnvelope {
   exercise: {
@@ -49,6 +51,24 @@ export interface ExerciseEnvelope {
    * served, so the unreleased edit is not this call's business.
    */
   axes: DerivedProfile;
+  /**
+   * What each piece of this exercise is about — plan 63 §2 D.
+   *
+   * Here for the same reason the axes are: the engine snapshots the address onto the
+   * attempt at the instant it starts, so that re-anchoring a gap next month cannot rewrite
+   * what this attempt proved. An unaddressed exercise answers with an empty list, which is
+   * the state most of the catalogue is in and not a failure.
+   *
+   * The live document's targets, not the draft's: the learner is answering what was
+   * published, and an address is only meaningful against the document it was written for.
+   */
+  targets: Array<{
+    /** The template's own name for the piece; `null` addresses the exercise as a whole. */
+    itemKey: string | null;
+    atomType: string;
+    atomId: string;
+    role: string;
+  }>;
 }
 
 @QueryHandler(GetExerciseEnvelopeQuery)
@@ -63,6 +83,8 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
     private readonly templateRepo: IExerciseTemplateRepository,
     @Inject(EXERCISE_AXES)
     private readonly axes: IExerciseAxes,
+    @Inject(EXERCISE_ITEM_TARGET_REPOSITORY)
+    private readonly itemTargets: IExerciseItemTargetRepository,
   ) {}
 
   async execute(
@@ -84,9 +106,16 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
       skills: [],
       focus: [],
       form: 'unknown' as const,
+      modality: 'unknown' as const,
       skillSource: 'unknown' as const,
       focusSource: 'unknown' as const,
+      modalitySource: 'unknown' as const,
     };
+
+    // Not resolved against the atoms here: a target whose atom has been retired is the
+    // editor's problem to show, and an attempt that refused to start over one would punish
+    // the learner for an author's housekeeping. The consumer skips what it cannot place.
+    const targets = await this.itemTargets.findByExerciseId(query.exerciseId);
 
     const instructions = exercise.instructions ?? [];
     const picked =
@@ -119,6 +148,12 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
         supportedLanguages: template.supportedLanguages,
       },
       axes,
+      targets: targets.map((target) => ({
+        itemKey: target.itemKey,
+        atomType: target.atomType,
+        atomId: target.atomId,
+        role: target.role,
+      })),
       instruction: picked
         ? {
             language: picked.instructionLanguage,
