@@ -1,0 +1,522 @@
+{
+ "09dff7cd": [
+  [
+   "perfect-formation",
+   "focus"
+  ]
+ ],
+ "0ac7c231": [
+  [
+   "som-subject-object",
+   "focus"
+  ]
+ ],
+ "0c36de5f": [
+  [
+   "perfect-formation",
+   "focus"
+  ]
+ ],
+ "123f1226": [
+  [
+   "double-definiteness",
+   "focus"
+  ]
+ ],
+ "1f060015": [
+  [
+   "strong-preterite",
+   "focus"
+  ]
+ ],
+ "2038af6f": [
+  [
+   "irregular-comparison",
+   "focus"
+  ],
+  [
+   "comparison",
+   "context"
+  ]
+ ],
+ "35f59cdf": [
+  [
+   "irregular-comparison",
+   "focus"
+  ]
+ ],
+ "4761688e": [
+  [
+   "comparison",
+   "focus"
+  ]
+ ],
+ "4f161aec": [
+  [
+   "s-passive",
+   "focus"
+  ]
+ ],
+ "51423c00": [
+  [
+   "weak-preterite",
+   "focus"
+  ]
+ ],
+ "5af631f2": [
+  [
+   "s-passive",
+   "focus"
+  ]
+ ],
+ "6a4a84c9": [
+  [
+   "s-passive",
+   "focus"
+  ]
+ ],
+ "6f491e32": [
+  [
+   "der-hvor",
+   "focus"
+  ]
+ ],
+ "7b92f97a": [
+  [
+   "perfect-formation",
+   "focus"
+  ],
+  [
+   "tense-choice",
+   "context"
+  ]
+ ],
+ "7f8008b4": [
+  [
+   "double-definiteness",
+   "focus"
+  ]
+ ],
+ "8354c9ea": [
+  [
+   "irregular-comparison",
+   "focus"
+  ],
+  [
+   "definite-form",
+   "context"
+  ]
+ ],
+ "9fe575f4": [
+  [
+   "der-hvor",
+   "focus"
+  ]
+ ],
+ "acea0d35": [
+  [
+   "perfect-formation",
+   "focus"
+  ]
+ ],
+ "ba3b67ef": [
+  [
+   "weak-preterite",
+   "focus"
+  ]
+ ],
+ "c2db4c13": [
+  [
+   "double-definiteness",
+   "focus"
+  ]
+ ],
+ "d252e78d": [
+  [
+   "som-subject-object",
+   "focus"
+  ]
+ ],
+ "d39a3475": [
+  [
+   "s-passive",
+   "focus"
+  ]
+ ],
+ "e0d8c436": [
+  [
+   "strong-preterite",
+   "focus"
+  ]
+ ],
+ "e9aeacd2": [
+  [
+   "s-passive",
+   "focus"
+  ]
+ ],
+ "ec2c1b78": [
+  [
+   "som-subject-object",
+   "focus"
+  ],
+  [
+   "preposition-placement",
+   "context"
+  ]
+ ],
+ "fe2a3b67": [
+  [
+   "comparison",
+   "focus"
+  ]
+ ],
+ "fe5934e8": [
+  [
+   "double-definiteness",
+   "focus"
+  ]
+ ],
+ "ad1d8cb9": [
+  [
+   "irregular-comparison",
+   "focus"
+  ]
+ ],
+ "1b8d8fd0": [
+  [
+   "comparison",
+   "focus"
+  ]
+ ],
+ "260ae358": [
+  [
+   "som-subject-object",
+   "focus"
+  ]
+ ],
+ "3a7a910e": [
+  [
+   "possessive",
+   "focus"
+  ]
+ ],
+ "3fbf28ee": [
+  [
+   "comparison",
+   "focus"
+  ]
+ ],
+ "50bd76d9": [
+  [
+   "som-subject-object",
+   "focus"
+  ]
+ ],
+ "57ae126e": [
+  [
+   "som-subject-object",
+   "focus"
+  ]
+ ],
+ "77fdd227": [
+  [
+   "passive-choice",
+   "focus"
+  ],
+  [
+   "s-passive",
+   "context"
+  ]
+ ],
+ "794d18d6": [
+  [
+   "passive-choice",
+   "focus"
+  ],
+  [
+   "s-passive",
+   "context"
+  ]
+ ],
+ "85791156": [
+  [
+   "tense-choice",
+   "focus"
+  ]
+ ],
+ "942b53b2": [
+  [
+   "pluperfect-formation",
+   "focus"
+  ],
+  [
+   "tense-choice",
+   "context"
+  ]
+ ],
+ "a695288d": [
+  [
+   "comparison",
+   "focus"
+  ]
+ ],
+ "ac1cf206": [
+  [
+   "possessive",
+   "focus"
+  ]
+ ],
+ "b47c7b22": [
+  [
+   "som-subject-object",
+   "focus"
+  ]
+ ],
+ "bbd3f94f": [
+  [
+   "possessive",
+   "focus"
+  ]
+ ],
+ "bd18b180": [
+  [
+   "passive-choice",
+   "focus"
+  ],
+  [
+   "bli-passive",
+   "context"
+  ]
+ ],
+ "bf6f74d2": [
+  [
+   "pluperfect-formation",
+   "focus"
+  ],
+  [
+   "tense-choice",
+   "context"
+  ]
+ ],
+ "c76652ea": [
+  [
+   "possessive",
+   "focus"
+  ]
+ ],
+ "ce13c213": [
+  [
+   "tense-choice",
+   "focus"
+  ]
+ ],
+ "ce9df16d": [
+  [
+   "tense-choice",
+   "focus"
+  ]
+ ],
+ "e3f294d6": [
+  [
+   "passive-choice",
+   "focus"
+  ],
+  [
+   "bli-passive",
+   "context"
+  ]
+ ],
+ "e720180f": [
+  [
+   "tense-choice",
+   "focus"
+  ],
+  [
+   "perfect-formation",
+   "context"
+  ]
+ ],
+ "edda124c": [
+  [
+   "possessive",
+   "focus"
+  ]
+ ],
+ "ede897d2": [
+  [
+   "bli-passive",
+   "focus"
+  ]
+ ],
+ "f5f0194b": [
+  [
+   "comparison",
+   "focus"
+  ]
+ ],
+ "fa2a070f": [
+  [
+   "comparison",
+   "focus"
+  ]
+ ],
+ "0a6e38d1": [
+  [
+   "possessive",
+   "focus"
+  ]
+ ],
+ "23e37da9": [
+  [
+   "pluperfect-formation",
+   "focus"
+  ]
+ ],
+ "3b2d7173": [
+  [
+   "possessive",
+   "focus"
+  ],
+  [
+   "definite-plural",
+   "context"
+  ]
+ ],
+ "402f882d": [
+  [
+   "som-subject-object",
+   "focus"
+  ]
+ ],
+ "554d4cc7": [
+  [
+   "possessive",
+   "focus"
+  ]
+ ],
+ "5a4ddc2c": [
+  [
+   "pluperfect-formation",
+   "focus"
+  ]
+ ],
+ "70fff9a7": [
+  [
+   "bli-passive",
+   "focus"
+  ],
+  [
+   "agent-phrase",
+   "focus"
+  ]
+ ],
+ "a8295cb3": [
+  [
+   "pluperfect-formation",
+   "focus"
+  ]
+ ],
+ "a9c03471": [
+  [
+   "possessive",
+   "focus"
+  ]
+ ],
+ "b1ed0e30": [
+  [
+   "preposition-placement",
+   "focus"
+  ],
+  [
+   "som-subject-object",
+   "context"
+  ]
+ ],
+ "b9197811": [
+  [
+   "bli-passive",
+   "focus"
+  ]
+ ],
+ "c34fb0fd": [
+  [
+   "preposition-placement",
+   "focus"
+  ],
+  [
+   "som-subject-object",
+   "context"
+  ]
+ ],
+ "d28f9143": [
+  [
+   "bli-passive",
+   "focus"
+  ],
+  [
+   "agent-phrase",
+   "context"
+  ]
+ ],
+ "d88fa90c": [
+  [
+   "pluperfect-formation",
+   "focus"
+  ]
+ ],
+ "da8ad2fe": [
+  [
+   "bli-passive",
+   "focus"
+  ]
+ ],
+ "f6024c59": [
+  [
+   "som-subject-object",
+   "focus"
+  ]
+ ],
+ "1337b86b": [
+  [
+   "som-subject-object",
+   "focus"
+  ]
+ ],
+ "51d396c9": [
+  [
+   "indefinite-agreement",
+   "focus"
+  ],
+  [
+   "comparison",
+   "focus"
+  ]
+ ],
+ "b70f9181": [
+  [
+   "s-passive",
+   "focus"
+  ],
+  [
+   "passive-choice",
+   "context"
+  ]
+ ],
+ "b8d307c6": [
+  [
+   "tense-choice",
+   "focus"
+  ],
+  [
+   "perfect-formation",
+   "context"
+  ]
+ ],
+ "d82cfad8": [
+  [
+   "possessive",
+   "focus"
+  ]
+ ]
+}
