@@ -258,3 +258,148 @@ export class ModalityGapResponseDto {
   @ApiProperty({ type: [ModalityGapDto], description: 'Widest measured gap first' })
   gaps!: ModalityGapDto[];
 }
+
+/** Why one atom is being proposed — plan 63 phase 8. */
+export type PracticeReason = 'due' | 'weak' | 'modality-gap' | 'upcoming';
+
+export class NextPracticeEvidenceDto {
+  @ApiProperty({ type: String, nullable: true, description: 'When the schedule wants it back' })
+  dueAt!: string | null;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description: 'Days overdue. Negative is not returned — a card not yet due is not a `due` candidate',
+  })
+  overdueDays!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true, description: 'FSRS stability, in days' })
+  stability!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true }) reps!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) lapses!: number | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'The modality verdict behind a `modality-gap` candidate',
+  })
+  verdict!: string | null;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description: 'How far production sits below the shallowest modality the learner is reliable at',
+  })
+  gap!: number | null;
+
+  @ApiProperty({
+    type: Object,
+    nullable: true,
+    example: { recognition: 6, recall: 2, production: 0, unknown: 0 },
+    description: 'Observations by modality for a gap candidate; items by modality for an upcoming one',
+  })
+  byModality!: Record<string, number> | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'The unit an `upcoming` atom is introduced in',
+  })
+  unitId!: string | null;
+
+  @ApiProperty({ type: String, nullable: true }) unitTitle!: string | null;
+
+  @ApiProperty({
+    type: [String],
+    nullable: true,
+    description:
+      'How the upcoming unit introduces it — a glossary mark, a text span, an author’s ' +
+      'relation, or only a rule pool',
+  })
+  introducedBy!: string[] | null;
+}
+
+export class NextPracticeCandidateDto {
+  @ApiProperty() atomType!: string;
+  @ApiProperty() atomId!: string;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Null when names could not be asked for' })
+  title!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: '`lexis` | `grammar`' })
+  track!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'The rule a grammar atom belongs to' })
+  parentId!: string | null;
+
+  @ApiProperty({
+    enum: ['due', 'weak', 'modality-gap', 'upcoming'],
+    description: 'Which of the four sources put this atom on the list',
+  })
+  reason!: PracticeReason;
+
+  @ApiProperty({
+    description:
+      'How it should be asked this time — `production` where the learner recognises and ' +
+      'has never produced, `recognition` for a fact they have not met yet',
+  })
+  requiredModality!: string;
+
+  @ApiProperty({ type: NextPracticeEvidenceDto, description: 'What the proposal is made on' })
+  evidence!: NextPracticeEvidenceDto;
+}
+
+export class NextPracticeSourcesDto {
+  @ApiProperty({ description: 'Cards the schedule wants back now' })
+  due!: number;
+
+  @ApiProperty({ description: 'Cards that have been round several times and still will not stick' })
+  weak!: number;
+
+  @ApiProperty({ description: 'Atoms known one way only' })
+  modalityGap!: number;
+
+  @ApiProperty({ description: 'Atoms the next unit introduces and the learner has not met' })
+  upcoming!: number;
+
+  @ApiProperty({
+    type: [String],
+    description:
+      'Sources that could not be asked. A list assembled without one of them is thinner ' +
+      'and still true; an empty list from an unreachable service would be a lie',
+  })
+  unavailable!: string[];
+}
+
+export class NextPracticeResponseDto {
+  @ApiProperty() studentId!: string;
+  @ApiProperty({ type: String, nullable: true }) courseId!: string | null;
+
+  @ApiProperty({ description: 'The budget asked for, in minutes' })
+  budgetMinutes!: number;
+
+  @ApiProperty({
+    description: 'What one probe is assumed to cost. Reported so the caller can disagree with it',
+  })
+  secondsPerItem!: number;
+
+  @ApiProperty({ description: 'How many candidates the budget pays for' })
+  capacity!: number;
+
+  @ApiProperty({
+    type: Object,
+    nullable: true,
+    description: 'The unit the learner is heading into, or null when the course is finished or unknown',
+  })
+  nextUnit!: { unitId: string; unitTitle: string | null } | null;
+
+  @ApiProperty({ type: NextPracticeSourcesDto })
+  sources!: NextPracticeSourcesDto;
+
+  @ApiProperty({
+    type: [NextPracticeCandidateDto],
+    description: 'Interleaved across the reasons, most urgent first within each',
+  })
+  candidates!: NextPracticeCandidateDto[];
+}

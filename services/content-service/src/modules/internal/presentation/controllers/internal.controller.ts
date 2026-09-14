@@ -29,6 +29,8 @@ import { GetPoolExerciseIdsQuery } from '../../../grammar-rule/application/queri
 
 import { GetExerciseEnvelopeQuery } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.query.js';
 import { DescribeAtomsQuery } from '../../../exercise/application/queries/describe-atoms/describe-atoms.query.js';
+import { GetAtomCoverageQuery } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.query.js';
+import type { AtomCoverageResult } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.handler.js';
 import type { AtomDescriptor } from '../../../exercise/domain/repositories/exercise-item-target.repository.interface.js';
 import type { ExerciseEnvelope } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.handler.js';
 import type { ExerciseDomainError } from '../../../exercise/domain/exceptions/exercise-domain.exceptions.js';
@@ -371,6 +373,52 @@ export class InternalController {
   // published composition, not the draft: the learner's grid is about the course
   // they actually have. A course with nothing published answers `available: false`
   // and empty tallies, never a course full of zeroes.
+  // analytics-service asks what a *unit* teaches when it puts together the next practice
+  // (plan 63 phase 8): the atoms a learner is about to meet are the only look forward the
+  // assistant has, and they are a fact about the published composition of that unit.
+  // The public route beside this one is guarded by visibility, which service-to-service
+  // traffic cannot satisfy; the answer here is trimmed to the atoms themselves, since a
+  // caller planning fifteen minutes has no use for the report's issues.
+  @Get('containers/:id/atom-coverage')
+  async getContainerAtomCoverage(@Param('id') id: string): Promise<{
+    containerId: string;
+    available: boolean;
+    atoms: Array<{
+      atomType: string;
+      atomId: string;
+      title: string;
+      track: string;
+      parentId: string | null;
+      introducedBy: string[];
+      focusItems: number;
+      contextItems: number;
+      byModality: Record<string, number>;
+    }>;
+  }> {
+    const result = await this.queryBus.execute<
+      GetAtomCoverageQuery,
+      Result<AtomCoverageResult, ContainerDomainError>
+    >(new GetAtomCoverageQuery(id, 'published'));
+
+    if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
+
+    return {
+      containerId: id,
+      available: result.value.available,
+      atoms: result.value.atoms.map((atom) => ({
+        atomType: atom.atomType,
+        atomId: atom.atomId,
+        title: atom.title,
+        track: atom.track,
+        parentId: atom.parentId,
+        introducedBy: atom.introducedBy,
+        focusItems: atom.focusItems,
+        contextItems: atom.contextItems,
+        byModality: atom.byModality,
+      })),
+    };
+  }
+
   @Get('containers/:id/coverage')
   async getContainerCoverage(@Param('id') id: string): Promise<{
     containerId: string;
