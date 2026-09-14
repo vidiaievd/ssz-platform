@@ -1,3 +1,4 @@
+import type { SrsTrack } from '../../domain/value-objects/srs-track.js';
 import type { ReviewCard } from '../../domain/entities/review-card.entity.js';
 import type { SrsStats } from '../../domain/repositories/srs-repository.interface.js';
 import type { PredictedInterval } from '../ports/srs-scheduler.port.js';
@@ -141,7 +142,14 @@ export function toSrsCardStateDto(card: ReviewCard): SrsCardStateDto {
 
 export interface DueCardsEnvelope {
   cards: ReviewCardDto[];
+  /**
+   * Reviews done today and the cap they are counted against, both for the track the
+   * caller asked about — or summed across the tracks when it asked for the day as a
+   * whole (plan 63 phase 6), so that the pair is always about the same thing.
+   */
   reviewedToday: number;
   dailyLimit: number;
+  /** Which memory the two numbers above are about; null when they are about both. */
+  track: SrsTrack | null;
   streakDays: number;
 }

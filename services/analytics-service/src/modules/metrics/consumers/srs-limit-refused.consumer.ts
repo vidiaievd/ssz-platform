@@ -109,6 +109,9 @@ export class SrsLimitRefusedConsumer implements OnModuleInit, OnModuleDestroy {
           userId: p.userId,
           kind: p.kind,
           contentType: p.contentType,
+          // Null rather than guessed when the publisher predates the split: "we do not
+          // know which budget" and "the lexical budget" must not read the same.
+          track: p.track ?? null,
           // The refusal's own timestamp, not the envelope's: the day boundary the cap
           // used is the one the counts have to be grouped by.
           occurredAt: new Date(p.occurredAt),

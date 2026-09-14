@@ -14,6 +14,7 @@ import {
 import { Transform, Type } from 'class-transformer';
 import type { ReviewRatingValue } from '../../domain/value-objects/review-rating.vo.js';
 import type { SrsContentType, SrsSeedKind } from '../../domain/entities/review-card.entity.js';
+import type { SrsTrack } from '../../domain/value-objects/srs-track.js';
 
 export class ReviewCardRequest {
   @ApiProperty({
@@ -99,6 +100,18 @@ export class GetDueCardsRequest {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   includeExamples?: boolean;
+
+  @ApiPropertyOptional({
+    enum: ['lexis', 'grammar'],
+    description:
+      'Return only cards of one memory — words (`lexis`) or rules (`grammar`). Omit for ' +
+      'the day’s whole queue. `reviewedToday` and `dailyLimit` follow the same filter: ' +
+      'one track’s budget when a track is named, the sum of both when none is.',
+    example: 'lexis',
+  })
+  @IsOptional()
+  @IsEnum(['lexis', 'grammar'])
+  track?: SrsTrack;
 }
 
 export class IntroduceCardRequest {

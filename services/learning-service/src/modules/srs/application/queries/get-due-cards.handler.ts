@@ -36,14 +36,15 @@ export class GetDueCardsHandler implements IQueryHandler<GetDueCardsQuery, DueCa
     // Fetch cards and metadata in parallel.
     const [cardDtos, reviewedToday, streakDays] = await Promise.all([
       this.fetchCards(query, now),
-      this.limitsPolicy.getReviewedCount(query.userId, now),
+      this.limitsPolicy.getReviewedCount(query.userId, now, query.track),
       this.repo.getStreakDays(query.userId, now),
     ]);
 
     return {
       cards: await this.enrichVocabularyCards(cardDtos, query),
       reviewedToday,
-      dailyLimit: this.limitsPolicy.getDailyReviewLimit(),
+      dailyLimit: this.limitsPolicy.getDailyReviewLimit(query.track),
+      track: query.track ?? null,
       streakDays,
     };
   }
@@ -89,7 +90,12 @@ export class GetDueCardsHandler implements IQueryHandler<GetDueCardsQuery, DueCa
 
   private async fetchCards(query: GetDueCardsQuery, now: Date) {
     // Try Redis cache first.
-    const cachedIds = await this.dueQueue.getDueCardIds(query.userId, now, query.limit);
+    const cachedIds = await this.dueQueue.getDueCardIds(
+      query.userId,
+      now,
+      query.limit,
+      query.track,
+    );
 
     if (cachedIds !== null) {
       const cards = await Promise.all(cachedIds.map((id) => this.repo.findById(id)));
@@ -98,12 +104,13 @@ export class GetDueCardsHandler implements IQueryHandler<GetDueCardsQuery, DueCa
     }
 
     // Cache miss: query DB and populate the cache lazily.
-    const cards = await this.repo.findDueCards(query.userId, query.limit, now);
+    const cards = await this.repo.findDueCards(query.userId, query.limit, now, query.track);
 
     if (cards.length > 0) {
       await this.dueQueue.populate(
         query.userId,
         cards.map((c) => ({ id: c.id, dueAt: c.dueAt })),
+        query.track,
       );
     }
 

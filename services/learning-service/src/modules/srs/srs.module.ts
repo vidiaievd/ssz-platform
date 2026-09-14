@@ -31,6 +31,7 @@ import { GetContentMasteryHandler } from './application/queries/get-content-mast
 
 // Services
 import { GrammarRuleMasteryService } from './application/services/grammar-rule-mastery.service.js';
+import { AtomTrackResolverService } from './application/services/atom-track-resolver.service.js';
 
 // Presentation
 import { SrsController } from './presentation/srs.controller.js';
@@ -65,6 +66,7 @@ const QueryHandlers = [
     RedisDueQueueService,
     RedisReviewIdempotencyService,
     GrammarRuleMasteryService,
+    AtomTrackResolverService,
     ...CommandHandlers,
     ...QueryHandlers,
   ],

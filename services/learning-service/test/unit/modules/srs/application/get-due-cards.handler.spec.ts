@@ -19,11 +19,11 @@ const DAILY_LIMIT = 100;
 const STREAK_DAYS = 7;
 
 function makeCards(n: number): ReviewCard[] {
-  return Array.from({ length: n }, () => ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, NOW));
+  return Array.from({ length: n }, () => ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, 'lexis', NOW));
 }
 
 function makeVocabCard(itemId: string): ReviewCard {
-  return ReviewCard.create(USER_ID, 'VOCABULARY_WORD', itemId, NOW);
+  return ReviewCard.create(USER_ID, 'VOCABULARY_WORD', itemId, 'lexis', NOW);
 }
 
 function makeDisplayItem(itemId: string, word: string) {
@@ -154,10 +154,11 @@ describe('GetDueCardsHandler', () => {
     const result = await handler.execute(new GetDueCardsQuery(USER_ID, 20));
 
     expect(result.cards).toHaveLength(3);
-    expect(repo.findDueCards).toHaveBeenCalledWith(USER_ID, 20, NOW);
+    expect(repo.findDueCards).toHaveBeenCalledWith(USER_ID, 20, NOW, undefined);
     expect(dueQueue.populate).toHaveBeenCalledWith(
       USER_ID,
       expect.arrayContaining([{ id: cards[0].id, dueAt: expect.any(Date) }]),
+      undefined,
     );
     expect(repo.findById).not.toHaveBeenCalled();
   });
@@ -232,5 +233,33 @@ describe('GetDueCardsHandler', () => {
     expect(result.cards).toHaveLength(0);
     expect(repo.findById).not.toHaveBeenCalled();
     expect(repo.findDueCards).not.toHaveBeenCalled();
+  });
+
+  // Plan 63 phase 6 — one memory rather than the day's whole queue.
+  describe('track filter', () => {
+    it('carries the track into the repository, the cache and the budget numbers', async () => {
+      const cards = makeCards(1);
+      const { handler, repo, dueQueue } = makeHandler({ dbCards: cards });
+
+      const result = await handler.execute(
+        new GetDueCardsQuery(USER_ID, 20, 'en', false, 'grammar'),
+      );
+
+      expect(repo.findDueCards).toHaveBeenCalledWith(USER_ID, 20, NOW, 'grammar');
+      // The cached set is per track: filtering a page of the whole queue after reading
+      // it would answer "nothing due" while a hundred grammar cards waited behind it.
+      expect(dueQueue.getDueCardIds).toHaveBeenCalledWith(USER_ID, NOW, 20, 'grammar');
+      expect(dueQueue.populate).toHaveBeenCalledWith(USER_ID, expect.any(Array), 'grammar');
+      expect(result.track).toBe('grammar');
+    });
+
+    it('reports the day as a whole when nobody named a track', async () => {
+      const { handler, repo } = makeHandler({ dbCards: makeCards(1) });
+
+      const result = await handler.execute(new GetDueCardsQuery(USER_ID, 20));
+
+      expect(repo.findDueCards).toHaveBeenCalledWith(USER_ID, 20, NOW, undefined);
+      expect(result.track).toBeNull();
+    });
   });
 });

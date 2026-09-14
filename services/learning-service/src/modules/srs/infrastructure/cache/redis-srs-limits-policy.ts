@@ -5,10 +5,17 @@ import type {
   ISrsLimitsPolicy,
   SrsLimitKind,
 } from '../../application/ports/srs-limits-policy.port.js';
+import { SRS_TRACKS, type SrsTrack } from '../../domain/value-objects/srs-track.js';
 import type { AppConfig } from '../../../../config/configuration.js';
 
 // MVP simplification: all daily caps use midnight UTC as the day boundary.
 // Per-user timezone support deferred to post-MVP.
+
+// Fallbacks for a config that predates the per-track caps (plan 63 phase 6). The whole
+// of the old budget goes to the lexical track, which is where every card a learner is
+// served today already lives.
+const FALLBACK_NEW: Record<SrsTrack, number> = { lexis: 20, grammar: 5 };
+const FALLBACK_REVIEWS: Record<SrsTrack, number> = { lexis: 200, grammar: 50 };
 
 @Injectable()
 export class RedisSrsLimitsPolicy implements ISrsLimitsPolicy {
@@ -19,50 +26,72 @@ export class RedisSrsLimitsPolicy implements ISrsLimitsPolicy {
     private readonly config: ConfigService<AppConfig>,
   ) {}
 
-  async canIntroduceNewCard(userId: string, today: Date): Promise<boolean> {
-    const limit = this.config.get<AppConfig['srs']>('srs')?.dailyNewCardsLimit ?? 20;
-    const count = await this.getCount(this.newCardKey(userId, today));
-    return count < limit;
+  async canIntroduceNewCard(userId: string, track: SrsTrack, today: Date): Promise<boolean> {
+    const count = await this.getCount(this.newCardKey(userId, track, today));
+    return count < this.newCardLimit(track);
   }
 
-  async canReview(userId: string, today: Date): Promise<boolean> {
-    const limit = this.config.get<AppConfig['srs']>('srs')?.dailyReviewsLimit ?? 200;
-    const count = await this.getCount(this.reviewKey(userId, today));
-    return count < limit;
+  async canReview(userId: string, track: SrsTrack, today: Date): Promise<boolean> {
+    const count = await this.getCount(this.reviewKey(userId, track, today));
+    return count < this.reviewLimit(track);
   }
 
-  async incrementNewCardCount(userId: string, today: Date): Promise<void> {
-    await this.increment(this.newCardKey(userId, today), today);
+  async incrementNewCardCount(userId: string, track: SrsTrack, today: Date): Promise<void> {
+    await this.increment(this.newCardKey(userId, track, today), today);
   }
 
-  async incrementReviewCount(userId: string, today: Date): Promise<void> {
-    await this.increment(this.reviewKey(userId, today), today);
+  async incrementReviewCount(userId: string, track: SrsTrack, today: Date): Promise<void> {
+    await this.increment(this.reviewKey(userId, track, today), today);
   }
 
-  async recordRefusal(userId: string, kind: SrsLimitKind, today: Date): Promise<void> {
-    await this.increment(this.refusedKey(userId, kind, today), today);
+  async recordRefusal(
+    userId: string,
+    kind: SrsLimitKind,
+    track: SrsTrack,
+    today: Date,
+  ): Promise<void> {
+    await this.increment(this.refusedKey(userId, kind, track, today), today);
   }
 
-  async getReviewedCount(userId: string, today: Date): Promise<number> {
-    return this.getCount(this.reviewKey(userId, today));
+  async getReviewedCount(userId: string, today: Date, track?: SrsTrack): Promise<number> {
+    if (track) return this.getCount(this.reviewKey(userId, track, today));
+
+    // "How much have I done today", asked of the day rather than of one memory. Summed
+    // over the tracks instead of read from a separate total, so the two can never
+    // disagree about the same reviews.
+    const counts = await Promise.all(
+      SRS_TRACKS.map((t) => this.getCount(this.reviewKey(userId, t, today))),
+    );
+    return counts.reduce((sum, count) => sum + count, 0);
   }
 
-  getDailyReviewLimit(): number {
-    return this.config.get<AppConfig['srs']>('srs')?.dailyReviewsLimit ?? 200;
+  getDailyReviewLimit(track?: SrsTrack): number {
+    if (track) return this.reviewLimit(track);
+    return SRS_TRACKS.reduce((sum, t) => sum + this.reviewLimit(t), 0);
   }
 
-  private newCardKey(userId: string, date: Date): string {
-    return `srs:limits:${userId}:new:${this.dateString(date)}`;
+  private newCardLimit(track: SrsTrack): number {
+    const srs = this.config.get<AppConfig['srs']>('srs');
+    return srs?.dailyNewCardsLimitByTrack?.[track] ?? FALLBACK_NEW[track];
   }
 
-  private reviewKey(userId: string, date: Date): string {
-    return `srs:limits:${userId}:reviews:${this.dateString(date)}`;
+  private reviewLimit(track: SrsTrack): number {
+    const srs = this.config.get<AppConfig['srs']>('srs');
+    return srs?.dailyReviewsLimitByTrack?.[track] ?? FALLBACK_REVIEWS[track];
+  }
+
+  private newCardKey(userId: string, track: SrsTrack, date: Date): string {
+    return `srs:limits:${userId}:${track}:new:${this.dateString(date)}`;
+  }
+
+  private reviewKey(userId: string, track: SrsTrack, date: Date): string {
+    return `srs:limits:${userId}:${track}:reviews:${this.dateString(date)}`;
   }
 
   /** Mirrors the segment of the counter that refused, so the pair reads as a pair. */
-  private refusedKey(userId: string, kind: SrsLimitKind, date: Date): string {
+  private refusedKey(userId: string, kind: SrsLimitKind, track: SrsTrack, date: Date): string {
     const segment = kind === 'new' ? 'new' : 'reviews';
-    return `srs:limits:${userId}:refused:${segment}:${this.dateString(date)}`;
+    return `srs:limits:${userId}:${track}:refused:${segment}:${this.dateString(date)}`;
   }
 
   private dateString(date: Date): string {

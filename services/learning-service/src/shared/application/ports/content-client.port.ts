@@ -184,6 +184,24 @@ export interface IContentClient {
     translationLanguage: string,
     options?: { includeExamples?: boolean; examplesLimit?: number },
   ): Promise<Result<VocabularyItemDisplayRef[], ContentClientError>>;
+
+  // Atoms by address (plan 63 phase 6). A review card holds an atom id and nothing
+  // else, and which SRS track it charges is a fact only Content Service has. Addresses
+  // that resolve to nothing are absent from the answer, not an error — a retired atom
+  // is an ordinary thing for a learner's card to point at.
+  describeAtoms(
+    refs: Array<{ atomType: string; atomId: string }>,
+  ): Promise<Result<AtomDescriptorRef[], ContentClientError>>;
+}
+
+/** Mirrors content-service's AtomDescriptor over the wire. */
+export interface AtomDescriptorRef {
+  atomType: string;
+  atomId: string;
+  title: string;
+  /** 'lexis' | 'grammar'; null for an atom kind that has no track of its own. */
+  track: string | null;
+  parentId: string | null;
 }
 
 // Mirrors content-service's VocabularyItemDisplayResult over the wire.

@@ -34,6 +34,16 @@ export const envSchema = z.object({
   SRS_MAX_INTERVAL_DAYS: z.coerce.number().int().positive().default(365),
   SRS_DAILY_NEW_CARDS_LIMIT: z.coerce.number().int().positive().default(20),
   SRS_DAILY_REVIEWS_LIMIT: z.coerce.number().int().positive().default(200),
+  // Per-track caps (plan 63 phase 6). The two above are what a learner used to get in
+  // total; these are what each track gets of it. Left unset, the lexical track keeps the
+  // old numbers whole — every card a learner is actually served today is lexical, the
+  // grammar track is still shadow, and the sum of what can be *spent* therefore does not
+  // move. The lexical numbers come down to 15 / 150 in phase 7, when the atom cards stop
+  // being shadow and start spending the grammar budget.
+  SRS_DAILY_NEW_CARDS_LIMIT_LEXIS: z.coerce.number().int().nonnegative().optional(),
+  SRS_DAILY_REVIEWS_LIMIT_LEXIS: z.coerce.number().int().nonnegative().optional(),
+  SRS_DAILY_NEW_CARDS_LIMIT_GRAMMAR: z.coerce.number().int().nonnegative().default(5),
+  SRS_DAILY_REVIEWS_LIMIT_GRAMMAR: z.coerce.number().int().nonnegative().default(50),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -92,6 +102,9 @@ export interface AppConfig {
     maxIntervalDays: number;
     dailyNewCardsLimit: number;
     dailyReviewsLimit: number;
+    /** The same two caps, one budget per SRS track (plan 63 phase 6). */
+    dailyNewCardsLimitByTrack: Record<'lexis' | 'grammar', number>;
+    dailyReviewsLimitByTrack: Record<'lexis' | 'grammar', number>;
   };
 }
 
@@ -139,6 +152,14 @@ export default (): AppConfig => {
       maxIntervalDays: env.SRS_MAX_INTERVAL_DAYS,
       dailyNewCardsLimit: env.SRS_DAILY_NEW_CARDS_LIMIT,
       dailyReviewsLimit: env.SRS_DAILY_REVIEWS_LIMIT,
+      dailyNewCardsLimitByTrack: {
+        lexis: env.SRS_DAILY_NEW_CARDS_LIMIT_LEXIS ?? env.SRS_DAILY_NEW_CARDS_LIMIT,
+        grammar: env.SRS_DAILY_NEW_CARDS_LIMIT_GRAMMAR,
+      },
+      dailyReviewsLimitByTrack: {
+        lexis: env.SRS_DAILY_REVIEWS_LIMIT_LEXIS ?? env.SRS_DAILY_REVIEWS_LIMIT,
+        grammar: env.SRS_DAILY_REVIEWS_LIMIT_GRAMMAR,
+      },
     },
   };
 };

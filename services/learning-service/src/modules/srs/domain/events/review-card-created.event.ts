@@ -5,6 +5,8 @@ export interface ReviewCardCreatedPayload {
   userId: string;
   contentType: string;
   contentId: string;
+  /** Which daily budget the card belongs to — 'lexis' | 'grammar' (plan 63 phase 6). */
+  track: string;
   dueAt: string;
   // Present only when the card was created via the skip-known seed path
   // (ReviewCard.createSeeded) rather than normal introduction.

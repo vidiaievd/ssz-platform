@@ -6,7 +6,8 @@ import {
   SHADOW_CONTENT_TYPES,
   type SrsContentType,
 } from '../../domain/entities/review-card.entity.js';
-import { SrsCardMapper } from './srs-card.mapper.js';
+import type { SrsTrack } from '../../domain/value-objects/srs-track.js';
+import { SrsCardMapper, toPrismaTrack } from './srs-card.mapper.js';
 
 @Injectable()
 export class PrismaSrsRepository implements ISrsRepository {
@@ -59,12 +60,20 @@ export class PrismaSrsRepository implements ISrsRepository {
     return rows.map(SrsCardMapper.toDomain);
   }
 
-  async findDueCards(userId: string, limit: number, now: Date): Promise<ReviewCard[]> {
+  async findDueCards(
+    userId: string,
+    limit: number,
+    now: Date,
+    track?: SrsTrack,
+  ): Promise<ReviewCard[]> {
     const rows = await this.prisma.srsReviewCard.findMany({
       where: {
         userId,
         dueAt: { lte: now },
         state: { not: 'SUSPENDED' as any },
+        // Absent rather than both tracks when nobody asked: a client that wants one
+        // memory says so, and one that wants the day's work gets the day's work.
+        ...(track ? { track: toPrismaTrack(track) as any } : {}),
         ...this.notShadow,
       },
       orderBy: { dueAt: 'asc' },

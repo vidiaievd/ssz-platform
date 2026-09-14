@@ -281,6 +281,13 @@ export interface SrsLimitRefusedPayload {
   kind: 'new' | 'review';
   /** Card kind the refusal fell on — EXERCISE | EXERCISE_GAP | VOCABULARY_WORD. */
   contentType: string;
+  /**
+   * Which of the two daily budgets refused — 'lexis' | 'grammar' (plan 63 phase 6).
+   *
+   * Optional because every refusal already in the queue predates the split, and those
+   * were all charged to what is now the lexical budget.
+   */
+  track?: string;
   /** When the refusal happened, as the scheduler saw the day. */
   occurredAt: string;
 }

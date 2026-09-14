@@ -46,6 +46,7 @@ describe('GetCardStatesHandler', () => {
       USER_ID,
       'VOCABULARY_WORD',
       WORD_A,
+      'lexis',
       'DIAGNOSTIC_KNOWN',
       NOW,
     );
@@ -66,7 +67,7 @@ describe('GetCardStatesHandler', () => {
   });
 
   it('omits content ids the user has no card for', async () => {
-    const cardA = ReviewCard.create(USER_ID, 'VOCABULARY_WORD', WORD_A, NOW);
+    const cardA = ReviewCard.create(USER_ID, 'VOCABULARY_WORD', WORD_A, 'lexis', NOW);
     const { handler } = makeHandler([cardA]);
 
     const result = await handler.execute(
@@ -77,8 +78,8 @@ describe('GetCardStatesHandler', () => {
   });
 
   it('does not leak cards belonging to another user', async () => {
-    const mine = ReviewCard.create(USER_ID, 'VOCABULARY_WORD', WORD_A, NOW);
-    const theirs = ReviewCard.create(OTHER_ID, 'VOCABULARY_WORD', WORD_B, NOW);
+    const mine = ReviewCard.create(USER_ID, 'VOCABULARY_WORD', WORD_A, 'lexis', NOW);
+    const theirs = ReviewCard.create(OTHER_ID, 'VOCABULARY_WORD', WORD_B, 'lexis', NOW);
     const { handler, findByUserAndContents } = makeHandler([mine, theirs]);
 
     const result = await handler.execute(
@@ -93,7 +94,7 @@ describe('GetCardStatesHandler', () => {
   });
 
   it('does not return cards of a different content type', async () => {
-    const exerciseCard = ReviewCard.create(USER_ID, 'EXERCISE', WORD_A, NOW);
+    const exerciseCard = ReviewCard.create(USER_ID, 'EXERCISE', WORD_A, 'lexis', NOW);
     const { handler } = makeHandler([exerciseCard]);
 
     const result = await handler.execute(
@@ -104,7 +105,7 @@ describe('GetCardStatesHandler', () => {
   });
 
   it('collapses duplicate content ids before querying', async () => {
-    const cardA = ReviewCard.create(USER_ID, 'VOCABULARY_WORD', WORD_A, NOW);
+    const cardA = ReviewCard.create(USER_ID, 'VOCABULARY_WORD', WORD_A, 'lexis', NOW);
     const { handler, findByUserAndContents } = makeHandler([cardA]);
 
     const result = await handler.execute(

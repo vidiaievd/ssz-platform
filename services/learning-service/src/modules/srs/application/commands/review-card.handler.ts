@@ -19,6 +19,7 @@ import { toReviewCardDto, type ReviewCardDto } from '../dto/srs.dto.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import { RedisDueQueueService } from '../../infrastructure/cache/redis-due-queue.service.js';
 import { RedisReviewIdempotencyService } from '../../infrastructure/cache/redis-review-idempotency.service.js';
+import type { SrsTrack } from '../../domain/value-objects/srs-track.js';
 import { ReviewCardCommand } from './review-card.command.js';
 
 @CommandHandler(ReviewCardCommand)
@@ -72,11 +73,13 @@ export class ReviewCardHandler
     // (plan 63 phase 5), so it neither spends the quota nor may be refused by it —
     // being refused would stop the shadow model collecting exactly on the days the
     // real one is busiest.
+    // The budget consulted is the card's own (plan 63 phase 6): a day of words spent
+    // is not a reason to turn away a rule that came due, and the other way round.
     if (!cmd.carryOnPastLimit && !cmd.shadow) {
-      const canReview = await this.limitsPolicy.canReview(cmd.userId, reviewedAt);
+      const canReview = await this.limitsPolicy.canReview(cmd.userId, card.track, reviewedAt);
       if (!canReview) {
         await this.releaseKey(cmd);
-        await this.recordRefusal(cmd.userId, card.contentType, reviewedAt);
+        await this.recordRefusal(cmd.userId, card.contentType, card.track, reviewedAt);
         return Result.fail(new SrsReviewLimitError());
       }
     }
@@ -94,11 +97,11 @@ export class ReviewCardHandler
     if (!cmd.shadow) {
       // Counted even past the cap: "how much have I done today" has to stay true
       // precisely when it stops matching the quota, or the number means nothing.
-      await this.limitsPolicy.incrementReviewCount(cmd.userId, reviewedAt);
+      await this.limitsPolicy.incrementReviewCount(cmd.userId, card.track, reviewedAt);
       // And kept out of the cached due queue, which is read by card id: a shadow card
       // that got in there would be served from the cache to a client that cannot draw
       // it, whatever the DB-side filter says.
-      await this.dueQueue.upsert(cmd.userId, card.id, card.dueAt);
+      await this.dueQueue.upsert(cmd.userId, card.id, card.dueAt, card.track);
     }
 
     this.logger.log(
@@ -125,15 +128,17 @@ export class ReviewCardHandler
   private async recordRefusal(
     userId: string,
     contentType: string,
+    track: SrsTrack,
     reviewedAt: Date,
   ): Promise<void> {
     try {
-      await this.limitsPolicy.recordRefusal(userId, 'review', reviewedAt);
+      await this.limitsPolicy.recordRefusal(userId, 'review', track, reviewedAt);
 
       const payload: SrsLimitRefusedPayload = {
         userId,
         kind: 'review',
         contentType,
+        track,
         occurredAt: reviewedAt.toISOString(),
       };
       await this.publisher.publish(LEARNING_EVENT_TYPES.SRS_LIMIT_REFUSED, payload);

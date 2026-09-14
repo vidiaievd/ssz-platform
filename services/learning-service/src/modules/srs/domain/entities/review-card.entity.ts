@@ -6,6 +6,7 @@ import { CardSuspendedError, type SrsDomainError } from '../exceptions/srs.error
 import { ReviewCardCreatedEvent } from '../events/review-card-created.event.js';
 import { ReviewCardReviewedEvent } from '../events/review-card-reviewed.event.js';
 import { ReviewCardSuspendedEvent } from '../events/review-card-suspended.event.js';
+import type { SrsTrack } from '../value-objects/srs-track.js';
 
 /**
  * `EXERCISE_GAP` points at one gap inside an exercise, with `contentId` shaped
@@ -66,6 +67,7 @@ export interface ReviewCardPersistenceProps {
   userId: string;
   contentType: SrsContentType;
   contentId: string;
+  track: SrsTrack;
   state: ReviewCardState;
   dueAt: Date;
   stability: number;
@@ -86,6 +88,7 @@ export class ReviewCard extends AggregateRoot {
     private _userId: string,
     private _contentType: SrsContentType,
     private _contentId: string,
+    private readonly _track: SrsTrack,
     private _state: ReviewCardState,
     private _dueAt: Date,
     private _stability: number,
@@ -106,6 +109,7 @@ export class ReviewCard extends AggregateRoot {
     userId: string,
     contentType: SrsContentType,
     contentId: string,
+    track: SrsTrack,
     now: Date,
   ): ReviewCard {
     const card = new ReviewCard(
@@ -113,6 +117,7 @@ export class ReviewCard extends AggregateRoot {
       userId,
       contentType,
       contentId,
+      track,
       'NEW',
       now,   // due immediately — first review happens on introduction
       0,
@@ -130,6 +135,7 @@ export class ReviewCard extends AggregateRoot {
       userId,
       contentType,
       contentId,
+      track,
       dueAt: now.toISOString(),
     }));
     return card;
@@ -139,6 +145,7 @@ export class ReviewCard extends AggregateRoot {
     userId: string,
     contentType: SrsContentType,
     contentId: string,
+    track: SrsTrack,
     seedKind: SrsSeedKind,
     now: Date,
   ): ReviewCard {
@@ -150,6 +157,7 @@ export class ReviewCard extends AggregateRoot {
       userId,
       contentType,
       contentId,
+      track,
       'REVIEW',
       dueAt,
       stability,
@@ -171,6 +179,7 @@ export class ReviewCard extends AggregateRoot {
       userId,
       contentType,
       contentId,
+      track,
       dueAt: dueAt.toISOString(),
       seedKind,
     }));
@@ -183,6 +192,7 @@ export class ReviewCard extends AggregateRoot {
       props.userId,
       props.contentType,
       props.contentId,
+      props.track,
       props.state,
       props.dueAt,
       props.stability,
@@ -267,6 +277,7 @@ export class ReviewCard extends AggregateRoot {
   get userId(): string { return this._userId; }
   get contentType(): SrsContentType { return this._contentType; }
   get contentId(): string { return this._contentId; }
+  get track(): SrsTrack { return this._track; }
   get state(): ReviewCardState { return this._state; }
   get dueAt(): Date { return this._dueAt; }
   get stability(): number { return this._stability; }

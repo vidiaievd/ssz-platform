@@ -398,9 +398,14 @@ model SrsLimitRefusal {
   userId      String   @map("user_id")
   kind        String // new | review
   contentType String   @map("content_type") // EXERCISE | EXERCISE_GAP | VOCABULARY_WORD
+  // Which of the two daily budgets refused — lexis | grammar (plan 63 phase 6). Null on
+  // every refusal recorded before the budgets were split; all of those were the one
+  // budget that is now the lexical one.
+  track       String?
   occurredAt  DateTime @map("occurred_at")
 
   @@index([kind, occurredAt])
+  @@index([track, occurredAt])
   @@index([userId, occurredAt])
   @@map("srs_limit_refusals")
 }

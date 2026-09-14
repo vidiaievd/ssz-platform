@@ -9,7 +9,7 @@ const USER_ID    = 'c3254eb9-3fb3-4559-9dbf-2cea12f40ed5';
 const CONTENT_ID = 'eb1aa566-c4e0-4ffa-8018-e9ce2abc5d08';
 
 function freshCard(): ReviewCard {
-  return ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, NOW);
+  return ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, 'lexis', NOW);
 }
 
 function schedulingResult(overrides: Partial<SchedulingResult> = {}): SchedulingResult {
@@ -81,6 +81,7 @@ describe('ReviewCard', () => {
         userId: USER_ID,
         contentType: 'EXERCISE',
         contentId: CONTENT_ID,
+        track: 'lexis',
         state: 'REVIEW',
         dueAt: NOW,
         stability: 4.0,
@@ -166,6 +167,7 @@ describe('ReviewCard', () => {
         userId: USER_ID,
         contentType: 'VOCABULARY_WORD',
         contentId: CONTENT_ID,
+        track: 'lexis',
         state: 'REVIEW',
         dueAt: LATER,
         stability: 9.2,
@@ -190,7 +192,7 @@ describe('ReviewCard', () => {
 
   describe('createSeeded', () => {
     it('starts in REVIEW with the seed stamped as the last review', () => {
-      const card = ReviewCard.createSeeded(USER_ID, 'VOCABULARY_WORD', CONTENT_ID, 'CLAIMED_KNOWN', NOW);
+      const card = ReviewCard.createSeeded(USER_ID, 'VOCABULARY_WORD', CONTENT_ID, 'lexis', 'CLAIMED_KNOWN', NOW);
 
       expect(card.state).toBe('REVIEW');
       expect(card.stability).toBe(14);
@@ -200,8 +202,8 @@ describe('ReviewCard', () => {
     });
 
     it('gives a diagnostic seed a further-out due date than a self-declared one', () => {
-      const claimed = ReviewCard.createSeeded(USER_ID, 'VOCABULARY_WORD', CONTENT_ID, 'CLAIMED_KNOWN', NOW);
-      const diagnostic = ReviewCard.createSeeded(USER_ID, 'VOCABULARY_WORD', CONTENT_ID, 'DIAGNOSTIC_KNOWN', NOW);
+      const claimed = ReviewCard.createSeeded(USER_ID, 'VOCABULARY_WORD', CONTENT_ID, 'lexis', 'CLAIMED_KNOWN', NOW);
+      const diagnostic = ReviewCard.createSeeded(USER_ID, 'VOCABULARY_WORD', CONTENT_ID, 'lexis', 'DIAGNOSTIC_KNOWN', NOW);
 
       expect(diagnostic.dueAt.getTime()).toBeGreaterThan(claimed.dueAt.getTime());
       expect(diagnostic.lastReviewedAt).toEqual(NOW);

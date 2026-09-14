@@ -174,6 +174,21 @@ enum SrsContentType {
   @@map("srs_content_type")
 }
 
+// Which of the two memories a card belongs to — plan 63 §2 C / phase 6.
+//
+// A property of the *atom*, denormalised onto the card so that "what is due on the
+// grammar track" is a plain WHERE rather than a per-card call into content-service.
+// A word is lexis by definition; a grammar atom carries its own track, which is how
+// "the gender of a noun" ends up on the lexical track while staying a label inside a
+// grammar rule. The exercise-scoped types that predate atoms are lexis too: they are
+// the pre-atom record of the same practice, and they retire in phase 7.
+enum SrsTrack {
+  LEXIS   @map("lexis")
+  GRAMMAR @map("grammar")
+
+  @@map("srs_track")
+}
+
 enum SrsCardState {
   NEW        @map("new")
   LEARNING   @map("learning")
@@ -192,6 +207,9 @@ model SrsReviewCard {
   userId         String         @map("user_id")
   contentType    SrsContentType @map("content_type")
   contentId      String         @map("content_id")
+  // Resolved once, when the card is introduced. An author moving an atom between tracks
+  // afterwards does not rewrite history here — the next introduction reads the new value.
+  track          SrsTrack       @default(LEXIS) @map("track")
   state          SrsCardState   @default(NEW) @map("state")
   dueAt          DateTime       @map("due_at")
   stability      Float          @default(0)
@@ -207,6 +225,8 @@ model SrsReviewCard {
 
   // (userId, dueAt, state) — the primary query for "what is due now".
   @@index([userId, dueAt, state])
+  // The same question asked of one track (plan 63 phase 6).
+  @@index([userId, track, dueAt, state])
   @@unique([userId, contentType, contentId])
   @@map("srs_review_cards")
 }
