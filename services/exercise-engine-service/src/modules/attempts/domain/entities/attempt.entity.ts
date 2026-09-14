@@ -15,6 +15,7 @@ import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
 import { AttemptCompletedUnscoredEvent } from '../events/attempt-completed-unscored.event.js';
 import { AttemptRoutedForReviewEvent } from '../events/attempt-routed-for-review.event.js';
 import { AttemptReviewedEvent } from '../events/attempt-reviewed.event.js';
+import { AttemptReturnedEvent } from '../events/attempt-returned.event.js';
 
 export type AttemptStatus =
   | 'IN_PROGRESS'
@@ -999,6 +1000,38 @@ export class Attempt extends AggregateRoot {
 
     if (props.outcome === 'returned') {
       this._status = 'RETURNED';
+
+      // The work is not done and keeps no score — the learner has been asked to do it
+      // again, and the letter to them says exactly that. What a person judged about their
+      // language is another matter, and it is recorded (plan 63 §4): without this, a
+      // failed free-form answer left no trace at all, and the only evidence ever
+      // collected about recall and production was evidence of success.
+      this.addDomainEvent(
+        new AttemptReturnedEvent(this.id, {
+          userId: this._userId,
+          exerciseId: this._exerciseId,
+          // What the verdict credited, on an approval's scale. Zero when nobody said —
+          // a return with no item decisions is a return of the whole submission.
+          score: props.score ?? 0,
+          timeSpentSeconds: this._timeSpentSeconds,
+          completed: false,
+          passed: false,
+          reviewOutcome: 'returned',
+          practicedAtoms: this._practicedAtoms,
+          skills: this._skills,
+          focus: this._focus,
+          containerId: this._containerId,
+          workContext: this._workContext,
+          groupId: this._groupId,
+          lessonId: this._lessonId,
+          templateCode: this._templateCode,
+          modality: this._modality,
+          ...(this.wholeExerciseTargets().length === 0
+            ? {}
+            : { targets: this.wholeExerciseTargets() }),
+        }),
+      );
+
       this.addReviewedEvent(props, null);
       return Result.ok();
     }

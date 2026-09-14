@@ -129,6 +129,101 @@ describe('ExerciseAttemptedConsumer', () => {
       expect(calls.some((c) => c instanceof ReviewCardCommand)).toBe(false);
     });
 
+    /**
+     * A teacher read the work and sent it back (plan 63 §4). Two things follow, and they
+     * pull in opposite directions: the memory hears the verdict, and progress does not —
+     * the learner has been asked to do it again, and a draft's score must not overwrite a
+     * mark they may already hold on this exercise.
+     *
+     * Until this arrived, only approvals were rated, so everything the platform knew
+     * about recall and production was evidence of success.
+     */
+    it('rates work a teacher sent back, and records no progress for it', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 0,
+            timeSpentSeconds: 120,
+            completed: false,
+            passed: false,
+            reviewOutcome: 'returned',
+            templateCode: 'short_answer',
+          }),
+        ),
+      );
+
+      const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+      expect(calls.some((c) => c instanceof ReviewCardCommand)).toBe(true);
+      expect(calls.some((c) => c instanceof UpsertProgressCommand)).toBe(false);
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * The floor under a free-form failure exists because a machine marking typed text
+     * wrong may be punishing a typo. A teacher is not, and a verdict must not be lifted
+     * off the floor — that would forgive the one failure nobody should forgive, and only
+     * in the modalities people mark.
+     */
+    it('rates a teacher’s rejection AGAIN, where a machine’s would be lifted to HARD', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 0,
+            timeSpentSeconds: 120,
+            completed: false,
+            passed: false,
+            reviewOutcome: 'returned',
+            templateCode: 'short_answer',
+            answerForm: { mode: 'free' },
+          }),
+        ),
+      );
+
+      const review = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .find((c: unknown) => c instanceof ReviewCardCommand) as { rating: string };
+      expect(review.rating).toBe('AGAIN');
+    });
+
+    /**
+     * The moment the work was handed over is not a verdict — nobody has read it yet —
+     * and it must stay unrated however long it waits in the queue.
+     */
+    it('still rates nothing for a free form that is merely waiting for a person', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: null,
+            timeSpentSeconds: 120,
+            completed: false,
+            templateCode: 'short_answer',
+          }),
+        ),
+      );
+
+      const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+      expect(calls.some((c) => c instanceof ReviewCardCommand)).toBe(false);
+      expect(calls.some((c) => c instanceof UpsertProgressCommand)).toBe(true);
+    });
+
     it('marks the event as processed and acks on success', async () => {
       const { consumer, prisma } = makeConsumer();
       const channel = makeChannel();

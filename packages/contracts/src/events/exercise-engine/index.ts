@@ -92,6 +92,24 @@ export interface ExerciseAttemptCompletedPayload {
    */
   modality?: Modality;
   /**
+   * Additive (plan 63 §4) — a person's verdict, where a person gave one.
+   *
+   * `approved` needs no special reading: the attempt is scored and complete, exactly as a
+   * machine-scored one. `returned` is the case this field exists for. Work sent back is
+   * not progress — the learner is being told to do it again, `completed` stays false and
+   * the attempt keeps no score — but it *is* evidence about the language, and the
+   * strongest kind there is: a person read the answer and judged it not good enough.
+   *
+   * Without it a failed free-form answer left no trace anywhere. An approval was recorded
+   * and a return was not, so the only evidence the platform ever collected about recall
+   * and production was evidence of success, while recognition (auto-graded, and free to
+   * mark an answer wrong) recorded both. The two modalities were being compared on
+   * samples selected by opposite rules.
+   *
+   * Absent on every publisher that predates it, and on every machine-scored attempt.
+   */
+  reviewOutcome?: 'approved' | 'returned';
+  /**
    * Additive (plan 63 §3, phase 2) — milliseconds spent on each addressable item, keyed
    * the way the template keys its own results.
    *

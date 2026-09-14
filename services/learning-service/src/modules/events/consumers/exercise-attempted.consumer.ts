@@ -67,8 +67,17 @@ function ratingForAttempt(
   /** Where in its block the gap sat, so a spent bank can decay across it (§B.3). */
   gapPosition: number | null = null,
 ): ReviewRatingValue {
+  const rating = scoreToRating(score);
+
+  // A person read this one. The floor under a free-form failure is there because a
+  // machine marking typed text wrong may be punishing a typo (`FREE_PRODUCTION` in the
+  // kernel) — and that doubt is exactly what a teacher's verdict removes. Lifting their
+  // judgement off the floor would forgive the one failure nobody should forgive, and it
+  // would do it only to the modalities people mark: recall and production.
+  if (p.reviewOutcome !== undefined) return rating;
+
   return clampByEvidence(
-    scoreToRating(score),
+    rating,
     evidenceStrength({
       answerForm: p.answerForm,
       templateCode: p.templateCode,
@@ -201,23 +210,40 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
 
       const p = payload as ExerciseAttemptCompletedPayload;
 
+      // Work a teacher sent back (plan 63 §4). It moves memory and not progress, and the
+      // two clauses below are the whole of that: no progress row, and a rating all the
+      // same. The submission was already recorded as an attempt when it was routed for
+      // review; writing it again now — with the teacher's partial credit, and
+      // `completed: false` — would overwrite a mark the learner may already have earned
+      // on this exercise with the score of a draft they are being asked to redo.
+      const sentBack = p.reviewOutcome === 'returned';
+
       // 1. Progress tracking (existing behaviour — unchanged).
-      const progressResult = await this.commandBus.execute(
-        new UpsertProgressCommand(
-          p.userId,
-          'EXERCISE',
-          p.exerciseId,
-          p.timeSpentSeconds ?? 0,
-          p.score ?? null,
-          p.completed ?? false,
-        ),
-      );
-      if (progressResult.isFail) {
-        this.logger.warn(`UpsertProgress failed for event ${eventId}: ${progressResult.error?.message}`);
+      if (!sentBack) {
+        const progressResult = await this.commandBus.execute(
+          new UpsertProgressCommand(
+            p.userId,
+            'EXERCISE',
+            p.exerciseId,
+            p.timeSpentSeconds ?? 0,
+            p.score ?? null,
+            p.completed ?? false,
+          ),
+        );
+        if (progressResult.isFail) {
+          this.logger.warn(
+            `UpsertProgress failed for event ${eventId}: ${progressResult.error?.message}`,
+          );
+        }
       }
 
-      // 2 & 3. SRS. An attempt is rated only when it is closed-form and scored —
-      //    free-form (completed=false, score=null) awaits human review.
+      // 2 & 3. SRS. An attempt is rated when it is closed-form and scored, and when a
+      //    person read it and ruled on it — an approval through the scored event above,
+      //    a return through `reviewOutcome`. What is never rated is the moment a free
+      //    form is handed over (`completed: false`, `score: null`): nobody has judged it
+      //    yet. Recording only the approvals, which is what this consumer did until the
+      //    return arrived, made every piece of evidence about recall and production
+      //    evidence of success.
       //
       //    Which cards get rated depends on how the attempt was graded. A gap-graded
       //    template holds a card per gap (plan 36 §C.1) and no card for the exercise
@@ -225,7 +251,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       //    had. All exercises are SRS-eligible by default in MVP — see
       //    docs/research/sprint-06-srs-content-flags.md.
       const gapResults = p.gapResults ?? [];
-      const rated = p.completed === true && p.score !== null;
+      const rated = p.score !== null && (p.completed === true || sentBack);
 
       if (gapResults.length > 0) {
         if (rated) await this.reviewGapCards(p, gapResults);
