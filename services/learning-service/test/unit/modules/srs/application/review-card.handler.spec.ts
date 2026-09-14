@@ -352,3 +352,35 @@ describe('ReviewCardHandler', () => {
     });
   });
 });
+
+// Plan 63 phase 5 — a shadow review is not the learner's work: it reschedules the card
+// it is about and must leave every number the learner sees exactly where it was.
+describe('ReviewCardHandler — shadow reviews', () => {
+  function shadowCmd(cardId: string) {
+    return new ReviewCardCommand(USER_ID, cardId, 'GOOD', undefined, undefined, undefined, true);
+  }
+
+  it('reschedules the card without counting a review or touching the due queue', async () => {
+    const card = makeCard('REVIEW');
+    const { handler, repo, limitsPolicy, dueQueue } = makeHandler({ card });
+
+    const result = await handler.execute(shadowCmd(card.id));
+
+    expect(result.isOk).toBe(true);
+    expect(repo.save).toHaveBeenCalledTimes(1);
+    expect(limitsPolicy.incrementReviewCount).not.toHaveBeenCalled();
+    // A shadow card in the cached queue would be served to a client that cannot draw it,
+    // whatever the DB-side filter says.
+    expect(dueQueue.upsert).not.toHaveBeenCalled();
+  });
+
+  it('is not refused by the daily review cap', async () => {
+    const card = makeCard('REVIEW');
+    const { handler, limitsPolicy } = makeHandler({ card, canReview: false });
+
+    const result = await handler.execute(shadowCmd(card.id));
+
+    expect(result.isOk).toBe(true);
+    expect(limitsPolicy.canReview).not.toHaveBeenCalled();
+  });
+});

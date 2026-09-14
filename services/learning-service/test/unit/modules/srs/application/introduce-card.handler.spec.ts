@@ -168,3 +168,31 @@ describe('IntroduceCardHandler', () => {
     });
   });
 });
+
+// Plan 63 phase 5 — the shadow half of the fan-out opens cards nobody is shown.
+describe('IntroduceCardHandler — shadow cards', () => {
+  const shadowCmd = new IntroduceCardCommand(USER_ID, 'GRAMMAR_ATOM', CONTENT_ID, undefined, true);
+
+  it('creates the card without charging the daily new-card budget', async () => {
+    const { handler, repo, limitsPolicy } = makeHandler();
+
+    const result = await handler.execute(shadowCmd);
+
+    expect(result.isOk).toBe(true);
+    expect(repo.save).toHaveBeenCalledTimes(1);
+    expect(limitsPolicy.incrementNewCardCount).not.toHaveBeenCalled();
+  });
+
+  it('is not refused when the learner has spent the day s budget', async () => {
+    // The budget caps how much new material a person is asked to carry, and nobody is
+    // being asked to carry this one. Refusing it would stop the shadow model collecting
+    // on exactly the days the learner works hardest.
+    const { handler, limitsPolicy } = makeHandler({ canIntroduce: false });
+
+    const result = await handler.execute(shadowCmd);
+
+    expect(result.isOk).toBe(true);
+    expect(limitsPolicy.canIntroduceNewCard).not.toHaveBeenCalled();
+    expect(limitsPolicy.recordRefusal).not.toHaveBeenCalled();
+  });
+});

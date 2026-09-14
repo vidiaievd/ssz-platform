@@ -3,3 +3,7 @@
 
 export type { AnswerForm, EvidenceInput, EvidenceStrength, ReviewRatingValue } from './evidence-strength.js';
 export { clampByEvidence, evidenceStrength, ratingRank } from './evidence-strength.js';
+
+// What one answer proves about one atom inside it — plan 63 phase 5.
+export type { AtomEvidenceInput, AtomModality, AtomRole } from './atom-evidence.js';
+export { atomEvidenceStrength, strongerClaim } from './atom-evidence.js';

@@ -13,7 +13,24 @@ import { ReviewCardSuspendedEvent } from '../events/review-card-suspended.event.
  * under `EXERCISE`, so that code taking an `EXERCISE` card's `contentId` for an
  * exercise UUID keeps being right.
  */
-export type SrsContentType = 'EXERCISE' | 'EXERCISE_GAP' | 'VOCABULARY_WORD';
+export type SrsContentType = 'EXERCISE' | 'EXERCISE_GAP' | 'VOCABULARY_WORD' | 'GRAMMAR_ATOM';
+
+/**
+ * Card types written in shadow (plan 63 phase 5).
+ *
+ * The fan-out rates a grammar atom's card from the same attempts as the cards the
+ * learner already has, and the point of the phase is that the two models run side by
+ * side long enough to be compared. That only holds if the new one changes nothing the
+ * learner can see: these cards are kept out of the due queue, out of the streak, and
+ * out of every count the queue reports about itself. Nothing renders a grammar atom
+ * yet either, so a card of this type reaching `GET /srs/due` would be an item the
+ * client cannot draw.
+ *
+ * The list is read wherever a query answers a learner rather than an analyst — see
+ * `PrismaSrsRepository`. It empties in phase 7, when the comparison is settled and the
+ * old types are the ones suspended.
+ */
+export const SHADOW_CONTENT_TYPES: readonly SrsContentType[] = ['GRAMMAR_ATOM'];
 
 // Mirrors FSRS State enum (New=0, Learning=1, Review=2, Relearning=3) plus our own Suspended.
 export type ReviewCardState = 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING' | 'SUSPENDED';

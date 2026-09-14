@@ -67,7 +67,12 @@ export class ReviewCardHandler
     //
     // This is exactly what must not be reused for the new-card cap: that one is paid
     // three weeks out, by someone who is not in the room.
-    if (!cmd.carryOnPastLimit) {
+    //
+    // A shadow review skips it for a third reason again: it is not the learner's work
+    // (plan 63 phase 5), so it neither spends the quota nor may be refused by it —
+    // being refused would stop the shadow model collecting exactly on the days the
+    // real one is busiest.
+    if (!cmd.carryOnPastLimit && !cmd.shadow) {
       const canReview = await this.limitsPolicy.canReview(cmd.userId, reviewedAt);
       if (!canReview) {
         await this.releaseKey(cmd);
@@ -86,10 +91,15 @@ export class ReviewCardHandler
     }
 
     await this.repo.save(card);
-    // Counted even past the cap: "how much have I done today" has to stay true
-    // precisely when it stops matching the quota, or the number means nothing.
-    await this.limitsPolicy.incrementReviewCount(cmd.userId, reviewedAt);
-    await this.dueQueue.upsert(cmd.userId, card.id, card.dueAt);
+    if (!cmd.shadow) {
+      // Counted even past the cap: "how much have I done today" has to stay true
+      // precisely when it stops matching the quota, or the number means nothing.
+      await this.limitsPolicy.incrementReviewCount(cmd.userId, reviewedAt);
+      // And kept out of the cached due queue, which is read by card id: a shadow card
+      // that got in there would be served from the cache to a client that cannot draw
+      // it, whatever the DB-side filter says.
+      await this.dueQueue.upsert(cmd.userId, card.id, card.dueAt);
+    }
 
     this.logger.log(
       `Card ${card.id} reviewed by ${cmd.userId} — rating: ${cmd.rating}, next due: ${card.dueAt.toISOString()}`,

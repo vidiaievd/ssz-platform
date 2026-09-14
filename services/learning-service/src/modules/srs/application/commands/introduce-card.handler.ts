@@ -36,7 +36,8 @@ export class IntroduceCardHandler
 
     // Seeded (skip-known) cards bypass the daily new-card limit — they represent
     // material the learner already knows, not new learning effort.
-    if (!cmd.seedKind) {
+    // A shadow card is charged to nobody (plan 63 phase 5) — see the command.
+    if (!cmd.seedKind && !cmd.shadow) {
       const canIntroduce = await this.limitsPolicy.canIntroduceNewCard(cmd.userId, now);
       if (!canIntroduce) {
         await this.recordRefusal(cmd, now);
@@ -48,7 +49,7 @@ export class IntroduceCardHandler
       ? ReviewCard.createSeeded(cmd.userId, cmd.contentType, cmd.contentId, cmd.seedKind, now)
       : ReviewCard.create(cmd.userId, cmd.contentType, cmd.contentId, now);
     await this.repo.save(card);
-    if (!cmd.seedKind) {
+    if (!cmd.seedKind && !cmd.shadow) {
       await this.limitsPolicy.incrementNewCardCount(cmd.userId, now);
     }
 

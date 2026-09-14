@@ -1065,3 +1065,222 @@ describe('ExerciseAttemptedConsumer — the address on a rating', () => {
     expect(allRated(publisher)[0]).toMatchObject({ contentType: 'EXERCISE', itemKey: null });
   });
 });
+
+// Plan 63 phase 5 — memory starts moving onto the atom. The grammar cards below are
+// written in shadow: rated by the same answers as the cards the learner already has,
+// charged to no budget and shown to nobody, so that the two models can be compared
+// before the old ones are switched off in phase 7.
+describe('ExerciseAttemptedConsumer — grammar atom cards, in shadow', () => {
+  function allRated(publisher: { publish: { mock: { calls: unknown[][] } } }) {
+    return publisher.publish.mock.calls
+      .filter((c) => c[0] === 'learning.attempt.rated')
+      .map((c) => c[1] as Record<string, any>);
+  }
+
+  const attempt = (over: Record<string, unknown> = {}) => ({
+    userId: USER_ID,
+    exerciseId: EXERCISE_ID,
+    score: 100,
+    timeSpentSeconds: 30,
+    completed: true,
+    templateCode: 'word_bank_gap_fill',
+    passed: true,
+    modality: 'recall',
+    practicedAtoms: [],
+    ...over,
+  });
+
+  /** Every command of a kind the bus was asked to run, in order. */
+  function commandsOf<T>(commandBus: { execute: { mock: { calls: unknown[][] } } }, kind: any): T[] {
+    return commandBus.execute.mock.calls.map((c) => c[0]).filter((c) => c instanceof kind) as T[];
+  }
+
+  it('opens a card for a grammar atom a gap addressed, and rates it on that gap', async () => {
+    const { consumer, commandBus } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            // Chosen from what was on screen, so a wrong answer is a plain lapse — there
+            // is no spelling to have slipped on.
+            modality: 'recognition',
+            gapResults: [
+              {
+                gapKey: 's1#5',
+                correct: false,
+                targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' }],
+              },
+              { gapKey: 's2#3', correct: true },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const introduced = commandsOf<any>(commandBus, IntroduceCardCommand).find(
+      (c) => c.contentType === 'GRAMMAR_ATOM',
+    );
+    expect(introduced).toMatchObject({ contentId: 'atom-1', shadow: true });
+
+    // The gap it was addressed by was wrong, and it is rated on that — not on the
+    // attempt, which scored 100 on the rest of the block.
+    const review = commandsOf<any>(commandBus, ReviewCardCommand).at(-1);
+    expect(review).toMatchObject({ rating: 'AGAIN', shadow: true });
+  });
+
+  it('marks the rating GRAMMAR_ATOM, so analytics keeps it out of the attempts table', async () => {
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            gapResults: [
+              {
+                gapKey: 's1#5',
+                correct: true,
+                targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' }],
+              },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    expect(allRated(publisher).at(-1)).toMatchObject({
+      contentType: 'GRAMMAR_ATOM',
+      itemKey: 's1#5',
+      modality: 'recall',
+      targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' }],
+    });
+  });
+
+  it('rates an atom once for an attempt that addressed it twice, keeping the lapse', async () => {
+    // Two gaps, one right and one wrong, both pointing at the same rule. One answer must
+    // move a card once, and the informative half of it is the failure.
+    const { consumer, commandBus } = makeConsumer();
+    const target = { atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' };
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            modality: 'recognition',
+            gapResults: [
+              { gapKey: 's1#5', correct: true, targets: [target] },
+              { gapKey: 's2#3', correct: false, targets: [target] },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const grammarIntroductions = commandsOf<any>(commandBus, IntroduceCardCommand).filter(
+      (c) => c.contentType === 'GRAMMAR_ATOM',
+    );
+    expect(grammarIntroductions).toHaveLength(1);
+    expect(commandsOf<any>(commandBus, ReviewCardCommand).at(-1)).toMatchObject({
+      rating: 'AGAIN',
+    });
+  });
+
+  it('barely moves a card for an atom the item only needed', async () => {
+    const { consumer, commandBus } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            gapResults: [
+              {
+                gapKey: 's1#5',
+                correct: false,
+                targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'context' }],
+              },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    // Failing the gap says nothing about the rule that was merely in the sentence: the
+    // lapse belongs to whatever the gap was testing.
+    expect(commandsOf<any>(commandBus, ReviewCardCommand).at(-1)).toMatchObject({
+      rating: 'HARD',
+    });
+  });
+
+  it('writes nothing for an exercise no author has addressed', async () => {
+    const { consumer, commandBus } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(envelope(attempt({ gapResults: [{ gapKey: 's1#5', correct: true }] }))),
+    );
+
+    expect(
+      commandsOf<any>(commandBus, IntroduceCardCommand).filter(
+        (c) => c.contentType === 'GRAMMAR_ATOM',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('rates an addressed word on its own gap rather than on the whole attempt', async () => {
+    // The bug this phase fixes: the fan-out rated every word of an exercise with the
+    // score of the attempt while the gaps beside them were rated one by one, so a word
+    // could be rated GOOD as a gap and AGAIN as a word by the same submission.
+    const { consumer, commandBus, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            score: 90,
+            practicedAtoms: [{ atomType: 'vocabulary_item', atomId: 'word-1' }],
+            gapResults: [
+              {
+                gapKey: 's1#5',
+                correct: false,
+                targets: [{ atomType: 'vocabulary_item', atomId: 'word-1', role: 'focus' }],
+              },
+              { gapKey: 's2#3', correct: true },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const vocabIntroduce = commandsOf<any>(commandBus, IntroduceCardCommand).findIndex(
+      (c) => c.contentType === 'VOCABULARY_WORD',
+    );
+    expect(vocabIntroduce).toBeGreaterThanOrEqual(0);
+
+    // The attempt scored 90 — a GOOD for anything rated on it. The gap that asked for
+    // this word was wrong, and typing it wrong is a lapse held off the floor because it
+    // may be a misspelling: HARD, on the word's own evidence rather than the block's.
+    const word = allRated(publisher).find((r) => r.contentType === 'VOCABULARY_WORD');
+    expect(word).toMatchObject({ ratingApplied: 'HARD', itemKey: 's1#5' });
+  });
+
+  it('leaves an unaddressed word on the attempt score, which is still the best there is', async () => {
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            score: 100,
+            practicedAtoms: [{ atomType: 'vocabulary_item', atomId: 'word-9' }],
+            gapResults: [{ gapKey: 's1#5', correct: false }],
+          }),
+        ),
+      ),
+    );
+
+    const word = allRated(publisher).find((r) => r.contentType === 'VOCABULARY_WORD');
+    expect(word).toMatchObject({ itemKey: null });
+    expect(word?.targets).toEqual([
+      { atomType: 'vocabulary_item', atomId: 'word-9', role: null },
+    ]);
+  });
+});
