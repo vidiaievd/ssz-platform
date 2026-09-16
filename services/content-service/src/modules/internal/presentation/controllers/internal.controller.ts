@@ -4,13 +4,14 @@ import {
   Controller,
   Get,
   HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { QueryBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { Public } from '../../../../common/decorators/public.decorator.js';
@@ -29,6 +30,13 @@ import { GetPoolExerciseIdsQuery } from '../../../grammar-rule/application/queri
 
 import { GetExerciseEnvelopeQuery } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.query.js';
 import { GetExerciseTemplateByCodeQuery } from '../../../exercise-template/application/queries/get-exercise-template-by-code/get-exercise-template-by-code.query.js';
+import { CreateExerciseCommand } from '../../../exercise/application/commands/create-exercise/create-exercise.command.js';
+import { DeleteExerciseCommand } from '../../../exercise/application/commands/delete-exercise/delete-exercise.command.js';
+import { SetItemTargetsCommand } from '../../../exercise/application/commands/set-item-targets/set-item-targets.command.js';
+import { AtomType, TargetRole } from '../../../exercise/domain/value-objects/atom-type.vo.js';
+import { DifficultyLevel } from '../../../container/domain/value-objects/difficulty-level.vo.js';
+import { Visibility } from '../../../container/domain/value-objects/visibility.vo.js';
+import { InternalCreateExerciseRequestDto } from '../dto/internal-create-exercise.request.dto.js';
 import type { ExerciseTemplateEntity } from '../../../exercise-template/domain/entities/exercise-template.entity.js';
 import type { ExerciseTemplateDomainError } from '../../../exercise-template/domain/exceptions/exercise-template-domain.exceptions.js';
 import { DescribeAtomsQuery } from '../../../exercise/application/queries/describe-atoms/describe-atoms.query.js';
@@ -112,6 +120,7 @@ const CONTENT_TYPE_TO_ENTITY: Record<string, TaggableEntityType> = {
 export class InternalController {
   constructor(
     private readonly queryBus: QueryBus,
+    private readonly commandBus: CommandBus,
     private readonly visibility: VisibilityCheckerService,
     private readonly entities: EntityResolverRegistry,
   ) {}
@@ -227,6 +236,90 @@ export class InternalController {
       supportedLanguages: template.supportedLanguages,
       isActive: template.isActive,
     };
+  }
+
+  /**
+   * Put an exercise in the catalogue on behalf of a person (plan 63 phase 9, step 4).
+   *
+   * The one write on this controller, and it exists for one gesture: a disposable task
+   * that turned out to be worth keeping. The Exercise Engine holds those — they never
+   * reach Content Service otherwise — so promotion has to be a call in this direction.
+   *
+   * It is deliberately the *narrow* shape of authoring rather than the full one. The
+   * exercise is private and owned by the named person, whatever else the caller might
+   * have asked for: this service cannot check whether that person may write into a
+   * school, and a service token is not a reason to believe they can. Everything else an
+   * author does with it afterwards — sharing it, putting it in a course, adding it to a
+   * rule's pool — goes through the routes that do check.
+   *
+   * All or nothing. The addresses are the point of promoting a probe rather than
+   * retyping it, so an exercise whose targets could not be written is rolled back rather
+   * than left as a plausible-looking exercise about nothing.
+   */
+  @Post('exercises')
+  @HttpCode(HttpStatus.CREATED)
+  async createExerciseForUser(
+    @Body() dto: InternalCreateExerciseRequestDto,
+  ): Promise<{ exerciseId: string }> {
+    const created = await this.commandBus.execute<
+      CreateExerciseCommand,
+      Result<{ exerciseId: string }, ExerciseDomainError | ExerciseTemplateDomainError>
+    >(
+      new CreateExerciseCommand(
+        dto.ownerUserId,
+        await this.templateIdForCode(dto.templateCode),
+        dto.targetLanguage,
+        dto.difficultyLevel as DifficultyLevel,
+        dto.content,
+        dto.expectedAnswers ?? {},
+        Visibility.PRIVATE,
+        dto.answerCheckSettings,
+      ),
+    );
+
+    if (created.isFail) throwHttpException(created.error);
+    const { exerciseId } = created.value;
+
+    // Grouped by item, because that is the unit the command replaces: one call per item
+    // saying everything that item is about.
+    const byItem = new Map<
+      string | null,
+      Array<{ atomType: AtomType; atomId: string; role: TargetRole }>
+    >();
+    for (const target of dto.targets ?? []) {
+      const key = target.itemKey ?? null;
+      const list = byItem.get(key) ?? [];
+      list.push({
+        atomType: target.atomType as AtomType,
+        atomId: target.atomId,
+        role: target.role as TargetRole,
+      });
+      byItem.set(key, list);
+    }
+
+    for (const [itemKey, targets] of byItem) {
+      const addressed = await this.commandBus.execute<
+        SetItemTargetsCommand,
+        Result<void, ExerciseDomainError>
+      >(new SetItemTargetsCommand(dto.ownerUserId, exerciseId, itemKey, targets));
+
+      if (addressed.isFail) {
+        await this.commandBus.execute(new DeleteExerciseCommand(dto.ownerUserId, exerciseId));
+        throwHttpException(addressed.error);
+      }
+    }
+
+    return { exerciseId };
+  }
+
+  private async templateIdForCode(code: string): Promise<string> {
+    const result = await this.queryBus.execute<
+      GetExerciseTemplateByCodeQuery,
+      Result<ExerciseTemplateEntity, ExerciseTemplateDomainError>
+    >(new GetExerciseTemplateByCodeQuery(code));
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value.id;
   }
 
   @Get('grammar-rules/:id/pool-exercise-ids')

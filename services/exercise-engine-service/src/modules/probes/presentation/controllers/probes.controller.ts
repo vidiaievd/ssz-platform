@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   DefaultValuePipe,
   Delete,
@@ -23,15 +24,25 @@ import { CreateProbeCommand } from '../../application/commands/create-probe/crea
 import type { CreateProbeError } from '../../application/commands/create-probe/create-probe.handler.js';
 import { DiscardProbeCommand } from '../../application/commands/discard-probe/discard-probe.command.js';
 import type { DiscardProbeError } from '../../application/commands/discard-probe/discard-probe.handler.js';
+import { PromoteProbeCommand } from '../../application/commands/promote-probe/promote-probe.command.js';
+import type {
+  PromoteProbeError,
+  PromoteProbeResult,
+} from '../../application/commands/promote-probe/promote-probe.handler.js';
 import { GetProbeQuery } from '../../application/queries/get-probe/get-probe.query.js';
 import type { GetProbeError } from '../../application/queries/get-probe/get-probe.handler.js';
 import { ListMyProbesQuery } from '../../application/queries/list-my-probes/list-my-probes.query.js';
 import type { ProbeTask } from '../../domain/entities/probe-task.entity.js';
-import { ProbeExpiredError, ProbeNotYoursError } from '../../domain/exceptions/probe.errors.js';
+import {
+  ProbeAlreadyPromotedError,
+  ProbeExpiredError,
+  ProbeNotYoursError,
+} from '../../domain/exceptions/probe.errors.js';
 import {
   CreateProbeRequestDto,
   ListProbesResponseDto,
   ProbeResponseDto,
+  PromoteProbeResponseDto,
 } from '../dto/probe.dto.js';
 import { toProbeResponse } from './probe-response.js';
 
@@ -145,6 +156,44 @@ export class ProbesController {
 
     if (result.isFail) throw probeReadError(result.error);
     return toProbeResponse(result.value);
+  }
+
+  @Post(':probeId/promote')
+  @ApiOperation({
+    summary: 'Keep this one — copy the probe into the catalogue as an exercise',
+    description:
+      'The task becomes an ordinary exercise, private to you, with the addresses it was ' +
+      'built around already on it. The probe itself does not become that exercise and ' +
+      'still expires: this records which exercise it became. A probe past its time may ' +
+      'still be promoted — the clock is about answering the question, not about whether ' +
+      'it was a good one — but a swept one is gone for good.',
+  })
+  @ApiResponse({ status: 201, type: PromoteProbeResponseDto })
+  @ApiResponse({ status: 404, description: 'No such probe' })
+  @ApiResponse({ status: 409, description: 'Already promoted — the exercise id is in the body' })
+  @ApiResponse({ status: 422, description: 'Content Service would not take it' })
+  async promote(
+    @Param('probeId') probeId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<PromoteProbeResponseDto> {
+    const result: Result<PromoteProbeResult, PromoteProbeError> = await this.commandBus.execute(
+      new PromoteProbeCommand(probeId, user.userId),
+    );
+
+    if (result.isFail) {
+      const err: PromoteProbeError = result.error;
+      if (err === null || err instanceof ProbeNotYoursError) {
+        throw new NotFoundException('Probe not found');
+      }
+      if (err instanceof ProbeAlreadyPromotedError) {
+        // The id goes in a field rather than only in the sentence: a caller that raced
+        // itself has to be able to open what already exists.
+        throw new ConflictException({ message: err.message, exerciseId: err.exerciseId });
+      }
+      throw new UnprocessableEntityException(err.message);
+    }
+
+    return { exerciseId: result.value.exerciseId };
   }
 
   @Delete(':probeId')

@@ -253,6 +253,15 @@ export class ListProbesResponseDto {
   items!: ProbeResponseDto[];
 }
 
+export class PromoteProbeResponseDto {
+  @ApiProperty({
+    description:
+      'The catalogue exercise the task was kept as. Private to whoever promoted it, and ' +
+      'from this moment a thing of its own — the probe still expires.',
+  })
+  exerciseId!: string;
+}
+
 export class SweepProbesResponseDto {
   @ApiProperty({ description: 'How many expired probes were deleted.' })
   deleted!: number;

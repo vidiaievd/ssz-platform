@@ -6,6 +6,7 @@ import { isAxiosError } from 'axios';
 import type { AppConfig } from '../../config/configuration.js';
 import type {
   CheckMode,
+  CreateExerciseInput,
   ExerciseDefinition,
   ExercisePlacement,
   ExerciseTemplateDefinition,
@@ -113,6 +114,42 @@ export class HttpContentClient implements IContentClient {
       return Result.ok(data);
     } catch (err) {
       return this.mapError(err, `getTemplateByCode(${code})`);
+    }
+  }
+
+  async createExercise(
+    input: CreateExerciseInput,
+  ): Promise<Result<{ exerciseId: string }, ContentClientError>> {
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.post<{ exerciseId: string }>(
+          `${this.baseUrl}/api/v1/internal/exercises`,
+          {
+            ownerUserId: input.ownerUserId,
+            templateCode: input.templateCode,
+            targetLanguage: input.targetLanguage,
+            difficultyLevel: input.difficultyLevel,
+            content: input.content,
+            expectedAnswers: input.expectedAnswers ?? {},
+            ...(input.answerCheckSettings
+              ? { answerCheckSettings: input.answerCheckSettings }
+              : {}),
+            targets: input.targets.map((target) => ({
+              ...(target.itemKey === null ? {} : { itemKey: target.itemKey }),
+              atomType: target.atomType,
+              atomId: target.atomId,
+              role: target.role,
+            })),
+          },
+          {
+            headers: { 'x-internal-token': this.token },
+            timeout: this.timeout,
+          },
+        ),
+      );
+      return Result.ok(data);
+    } catch (err) {
+      return this.mapError(err, `createExercise(${input.templateCode})`);
     }
   }
 

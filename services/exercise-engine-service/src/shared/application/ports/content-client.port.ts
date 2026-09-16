@@ -149,4 +149,34 @@ export interface IContentClient {
    * every other attempt is judged against.
    */
   getTemplateByCode(code: string): Promise<Result<ExerciseTemplateDefinition, ContentClientError>>;
+
+  /**
+   * Put a task into the catalogue, owned by a person (plan 63 phase 9, step 4).
+   *
+   * The only write this port has, and the only one it should ever have: the engine is not
+   * an authoring tool, and the single thing it holds that Content Service cannot see is a
+   * probe somebody decided was worth keeping. The exercise is created private to
+   * `ownerUserId` — anything wider is a question about schools and courses that this call
+   * is in no position to answer.
+   */
+  createExercise(
+    input: CreateExerciseInput,
+  ): Promise<Result<{ exerciseId: string }, ContentClientError>>;
+}
+
+/** A task being promoted into the catalogue, with the addresses that make it worth it. */
+export interface CreateExerciseInput {
+  ownerUserId: string;
+  templateCode: string;
+  targetLanguage: string;
+  difficultyLevel: string;
+  content: unknown;
+  expectedAnswers: unknown;
+  answerCheckSettings: Record<string, unknown> | null;
+  targets: Array<{
+    itemKey: string | null;
+    atomType: string;
+    atomId: string;
+    role: 'focus' | 'context';
+  }>;
 }

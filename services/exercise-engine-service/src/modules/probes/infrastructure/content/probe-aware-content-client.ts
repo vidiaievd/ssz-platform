@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type {
   CheckMode,
+  CreateExerciseInput,
   ExerciseDefinition,
   ExercisePlacement,
   ExerciseTemplateDefinition,
@@ -132,6 +133,12 @@ export class ProbeAwareContentClient implements IContentClient {
     code: string,
   ): Promise<Result<ExerciseTemplateDefinition, ContentClientError>> {
     return this.catalogue.getTemplateByCode(code);
+  }
+
+  async createExercise(
+    input: CreateExerciseInput,
+  ): Promise<Result<{ exerciseId: string }, ContentClientError>> {
+    return this.catalogue.createExercise(input);
   }
 
   private async isProbe(exerciseId: string): Promise<boolean> {

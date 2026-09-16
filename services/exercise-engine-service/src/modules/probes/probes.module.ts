@@ -4,6 +4,7 @@ import { PROBE_TASK_REPOSITORY } from './domain/repositories/probe-task.reposito
 import { PrismaProbeTaskRepository } from './infrastructure/persistence/prisma-probe-task.repository.js';
 import { CreateProbeHandler } from './application/commands/create-probe/create-probe.handler.js';
 import { DiscardProbeHandler } from './application/commands/discard-probe/discard-probe.handler.js';
+import { PromoteProbeHandler } from './application/commands/promote-probe/promote-probe.handler.js';
 import { GetProbeHandler } from './application/queries/get-probe/get-probe.handler.js';
 import { ListMyProbesHandler } from './application/queries/list-my-probes/list-my-probes.handler.js';
 import { ProbeSweeper } from './application/services/probe-sweeper.service.js';
@@ -27,6 +28,7 @@ import { InternalProbesController } from './presentation/controllers/internal-pr
     ProbeSweeper,
     CreateProbeHandler,
     DiscardProbeHandler,
+    PromoteProbeHandler,
     GetProbeHandler,
     ListMyProbesHandler,
   ],

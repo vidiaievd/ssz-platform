@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type {
   CheckMode,
+  CreateExerciseInput,
   ExerciseDefinition,
   ExercisePlacement,
   ExerciseTemplateDefinition,
@@ -60,6 +61,14 @@ export class CachedContentClient implements IContentClient {
     code: string,
   ): Promise<Result<ExerciseTemplateDefinition, ContentClientError>> {
     return this.http.getTemplateByCode(code);
+  }
+
+  // Nothing to cache and nothing to invalidate: a promotion creates a row that did not
+  // exist, so no entry here can be describing it yet.
+  async createExercise(
+    input: CreateExerciseInput,
+  ): Promise<Result<{ exerciseId: string }, ContentClientError>> {
+    return this.http.createExercise(input);
   }
 
   async getExercisePlacement(
