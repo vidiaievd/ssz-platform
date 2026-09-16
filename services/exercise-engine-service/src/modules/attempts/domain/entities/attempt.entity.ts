@@ -153,6 +153,16 @@ export interface CreateAttemptProps {
   axes: AttemptAxes;
   /** What each piece of the exercise is about, as Content Service resolved it. */
   itemTargets?: AttemptItemTarget[];
+  /**
+   * The task was a disposable probe rather than a catalogue exercise (plan 63 phase 9).
+   *
+   * Snapshotted rather than looked up, and this one has a sharper reason than the rest of
+   * the snapshot: the probe is *designed to disappear*. By the time a teacher marks this
+   * work or a consumer reads the event it produced, the row it was resolved from is very
+   * likely gone — so the only place the fact can live is here, on the attempt, which
+   * outlives it.
+   */
+  ephemeral?: boolean;
 }
 
 export interface AttemptPersistenceProps {
@@ -170,6 +180,7 @@ export interface AttemptPersistenceProps {
   focus: Focus[];
   itemTargets?: AttemptItemTarget[];
   modality?: Modality;
+  ephemeral?: boolean;
   workContext: WorkContext | null;
   lessonId: string | null;
   status: AttemptStatus;
@@ -311,6 +322,7 @@ export class Attempt extends AggregateRoot {
     private _lessonId: string | null = null,
     private _itemTargets: AttemptItemTarget[] = [],
     private _modality: Modality = 'unknown',
+    private _ephemeral: boolean = false,
   ) {
     super(id);
   }
@@ -347,6 +359,7 @@ export class Attempt extends AggregateRoot {
     attempt._focus = props.axes.focus;
     attempt._modality = props.axes.modality ?? 'unknown';
     attempt._itemTargets = props.itemTargets ?? [];
+    attempt._ephemeral = props.ephemeral ?? false;
     attempt._lessonId = props.lessonId ?? null;
     // Derived once, here: a lesson names classwork, an assignment names homework, and
     // everything else is the learner's own time.
@@ -424,6 +437,7 @@ export class Attempt extends AggregateRoot {
       props.lessonId ?? null,
       props.itemTargets ?? [],
       props.modality ?? 'unknown',
+      props.ephemeral ?? false,
     );
   }
 
@@ -576,6 +590,7 @@ export class Attempt extends AggregateRoot {
           focus: this._focus,
           containerId: this._containerId,
           workContext: this._workContext,
+          ephemeral: this._ephemeral,
           groupId: this._groupId,
           lessonId: this._lessonId,
           templateCode: this._templateCode,
@@ -647,6 +662,7 @@ export class Attempt extends AggregateRoot {
         skills: this._skills,
         focus: this._focus,
         containerId: this._containerId,
+        ephemeral: this._ephemeral,
       }),
     );
 
@@ -1022,6 +1038,7 @@ export class Attempt extends AggregateRoot {
           focus: this._focus,
           containerId: this._containerId,
           workContext: this._workContext,
+          ephemeral: this._ephemeral,
           groupId: this._groupId,
           lessonId: this._lessonId,
           templateCode: this._templateCode,
@@ -1059,6 +1076,7 @@ export class Attempt extends AggregateRoot {
         focus: this._focus,
         containerId: this._containerId,
         workContext: this._workContext,
+        ephemeral: this._ephemeral,
         groupId: this._groupId,
         lessonId: this._lessonId,
         templateCode: this._templateCode,
@@ -1311,6 +1329,8 @@ export class Attempt extends AggregateRoot {
   get practicedAtoms(): PracticedAtom[] { return this._practicedAtoms; }
   get itemTargets(): AttemptItemTarget[] { return this._itemTargets; }
   get modality(): Modality { return this._modality; }
+  /** This attempt was on a disposable probe — see `ephemeral` on the create props. */
+  get ephemeral(): boolean { return this._ephemeral; }
   get skills(): Skill[] { return this._skills; }
   get focus(): Focus[] { return this._focus; }
   get status(): AttemptStatus { return this._status; }

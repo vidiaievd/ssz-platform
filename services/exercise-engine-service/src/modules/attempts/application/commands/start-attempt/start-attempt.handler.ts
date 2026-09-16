@@ -216,6 +216,7 @@ function withheldWhereNeeded(
   templateCode: string,
   exercise: { content: unknown; expectedAnswers: unknown },
   attemptId: string,
+  checkMode: string,
 ): { exerciseContent: unknown; expectedAnswers: unknown } {
   const projected = projectByTemplate(templateCode, exercise, attemptId);
 
@@ -231,17 +232,38 @@ function withheldWhereNeeded(
     A document that carries no audio comes back untouched, object identity and all.
   */
   const content = projected.exerciseContent;
-  if (typeof content !== 'object' || content === null || Array.isArray(content)) {
-    return projected;
+  const withAudio =
+    typeof content !== 'object' || content === null || Array.isArray(content)
+      ? projected
+      : {
+          ...projected,
+          exerciseContent: withStudentAudio(
+            content as Record<string, unknown>,
+            exercise.content,
+            templateCode,
+          ),
+        };
+
+  /*
+    The last word on the key, and the one rule that holds for every template.
+
+    `GRADED` means the client is not trusted with the answers, and until now that was
+    enforced a service away: Content Service dropped the key before the envelope left it,
+    and the projections above — which exist to hide answers stored *inside* a content
+    column — were the only thing this handler did about it. The templates with no
+    projection (`fill_in_blank` and its like, whose key is a plain separate field) relied
+    entirely on the envelope arriving without one.
+
+    A probe arrives from the engine's own table (plan 63 phase 9), so nothing upstream
+    took the key away — and for those templates it went straight to the browser. Stating
+    the invariant here rather than adding a branch per template is what makes it hold for
+    the next template as well as the last one: in `GRADED`, the client gets no key,
+    whoever supplied the document.
+  */
+  if (checkMode === 'GRADED') {
+    return { ...withAudio, expectedAnswers: null };
   }
-  return {
-    ...projected,
-    exerciseContent: withStudentAudio(
-      content as Record<string, unknown>,
-      exercise.content,
-      templateCode,
-    ),
-  };
+  return withAudio;
 }
 
 function projectByTemplate(
@@ -510,7 +532,12 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         targetLanguage: existing.targetLanguage,
         difficultyLevel: existing.difficultyLevel,
         checkMode: existing.checkMode,
-        ...withheldWhereNeeded(existing.templateCode, resumedSource, existing.id),
+        ...withheldWhereNeeded(
+          existing.templateCode,
+          resumedSource,
+          existing.id,
+          existing.checkMode,
+        ),
         answerSchema: resumedDef.value.template.answerSchema,
         checkSettings: {
           ...(resumedDef.value.template.defaultCheckSettings ?? {}),
@@ -602,6 +629,10 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         atomId: target.atomId,
         role: target.role === 'context' ? ('context' as const) : ('focus' as const),
       })),
+      // Where the definition came from, snapshotted for the same reason as everything
+      // above it and one more: the probe it came from is meant to be gone by tomorrow
+      // (plan 63 phase 9).
+      ephemeral: def.ephemeral === true,
     });
 
     attempt.snapshotReviewContext(
@@ -633,7 +664,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       targetLanguage: def.exercise.targetLanguage,
       difficultyLevel: def.exercise.difficultyLevel,
       checkMode: attempt.checkMode,
-      ...withheldWhereNeeded(def.exercise.templateCode, source, attempt.id),
+      ...withheldWhereNeeded(def.exercise.templateCode, source, attempt.id, attempt.checkMode),
       answerSchema: def.template.answerSchema,
       checkSettings,
       answeredQuestions: [],

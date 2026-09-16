@@ -154,6 +154,24 @@ export interface ExerciseAttemptCompletedPayload {
    * `self_study`, and analytics must be able to tell those apart.
    */
   workContext?: WorkContext | null;
+  /**
+   * Additive (plan 63 phase 9) — the task was a disposable probe, not a catalogue
+   * exercise.
+   *
+   * The evidence it produces about an **atom** is ordinary evidence and must be treated
+   * as such: that is the entire point of moving memory onto the atom in the first place
+   * (§2 A), and it is what makes a generated task worth anything at all.
+   *
+   * What a consumer must *not* do with it is write anything keyed by the exercise. A
+   * progress row, a card on the exercise, a card on one of its gaps — all of them would
+   * name an id that will not exist tomorrow, and a learner's record would slowly fill
+   * with rows pointing at questions nobody can look up. "Completed 40 exercises" would
+   * count tasks that were thrown away by design.
+   *
+   * Absent means a catalogue exercise, which is every event published before this field
+   * existed and the overwhelming majority of those after it.
+   */
+  ephemeral?: boolean;
   /** The group the learner belonged to at attempt start. Null outside a group. */
   groupId?: string | null;
   /** The scheduled lesson the work was done in, when the caller named one. */

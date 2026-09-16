@@ -8,6 +8,7 @@ import type {
   CheckMode,
   ExerciseDefinition,
   ExercisePlacement,
+  ExerciseTemplateDefinition,
   IContentClient,
   PracticedAtomRef,
 } from '../../shared/application/ports/content-client.port.js';
@@ -58,17 +59,18 @@ export class HttpContentClient implements IContentClient {
   ): Promise<Result<PracticedAtomRef[], ContentClientError>> {
     try {
       const { data } = await firstValueFrom(
-        this.httpService.get<
-          Array<{ sourceType: string; sourceId: string }>
-        >(`${this.baseUrl}/api/v1/internal/content-relations`, {
-          params: {
-            targetType: 'exercise',
-            targetId: exerciseId,
-            relationKind: 'practiced_by',
+        this.httpService.get<Array<{ sourceType: string; sourceId: string }>>(
+          `${this.baseUrl}/api/v1/internal/content-relations`,
+          {
+            params: {
+              targetType: 'exercise',
+              targetId: exerciseId,
+              relationKind: 'practiced_by',
+            },
+            headers: { 'x-internal-token': this.token },
+            timeout: this.timeout,
           },
-          headers: { 'x-internal-token': this.token },
-          timeout: this.timeout,
-        }),
+        ),
       );
       return Result.ok(data.map((r) => ({ atomType: r.sourceType, atomId: r.sourceId })));
     } catch (err) {
@@ -92,6 +94,25 @@ export class HttpContentClient implements IContentClient {
       return Result.ok(data);
     } catch (err) {
       return this.mapError(err, `getExercisePlacement(${exerciseId})`);
+    }
+  }
+
+  async getTemplateByCode(
+    code: string,
+  ): Promise<Result<ExerciseTemplateDefinition, ContentClientError>> {
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get<ExerciseTemplateDefinition>(
+          `${this.baseUrl}/api/v1/internal/exercise-templates/${encodeURIComponent(code)}`,
+          {
+            headers: { 'x-internal-token': this.token },
+            timeout: this.timeout,
+          },
+        ),
+      );
+      return Result.ok(data);
+    } catch (err) {
+      return this.mapError(err, `getTemplateByCode(${code})`);
     }
   }
 

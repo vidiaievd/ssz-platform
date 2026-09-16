@@ -28,6 +28,9 @@ import type { ContentRelationEntity } from '../../../content-relation/domain/ent
 import { GetPoolExerciseIdsQuery } from '../../../grammar-rule/application/queries/get-pool-exercise-ids/get-pool-exercise-ids.query.js';
 
 import { GetExerciseEnvelopeQuery } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.query.js';
+import { GetExerciseTemplateByCodeQuery } from '../../../exercise-template/application/queries/get-exercise-template-by-code/get-exercise-template-by-code.query.js';
+import type { ExerciseTemplateEntity } from '../../../exercise-template/domain/entities/exercise-template.entity.js';
+import type { ExerciseTemplateDomainError } from '../../../exercise-template/domain/exceptions/exercise-template-domain.exceptions.js';
 import { DescribeAtomsQuery } from '../../../exercise/application/queries/describe-atoms/describe-atoms.query.js';
 import { GetAtomCoverageQuery } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.query.js';
 import type { AtomCoverageResult } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.handler.js';
@@ -187,6 +190,43 @@ export class InternalController {
 
     if (result.isFail) throwHttpException(result.error);
     return result.value;
+  }
+
+  /**
+   * One exercise template, by the code a document names it with (plan 63 phase 9).
+   *
+   * The public route takes an id, which is what a builder holds after listing the
+   * templates. A caller holding only a *document* has no id to offer — and that is the
+   * Exercise Engine assembling a disposable task around a template code. Its answer
+   * schema and default check settings have to come from here rather than be carried on
+   * the task, or a probe would be validated against a snapshot of a template while every
+   * catalogue exercise is validated against the template itself.
+   */
+  @Get('exercise-templates/:code')
+  async getExerciseTemplateByCode(@Param('code') code: string): Promise<{
+    code: string;
+    contentSchema: unknown;
+    answerSchema: unknown;
+    defaultCheckSettings: Record<string, unknown>;
+    supportedLanguages: string[] | null;
+    isActive: boolean;
+  }> {
+    const result = await this.queryBus.execute<
+      GetExerciseTemplateByCodeQuery,
+      Result<ExerciseTemplateEntity, ExerciseTemplateDomainError>
+    >(new GetExerciseTemplateByCodeQuery(code));
+
+    if (result.isFail) throwHttpException(result.error);
+    const template = result.value;
+
+    return {
+      code: template.code,
+      contentSchema: template.contentSchema,
+      answerSchema: template.answerSchema,
+      defaultCheckSettings: template.defaultCheckSettings ?? {},
+      supportedLanguages: template.supportedLanguages,
+      isActive: template.isActive,
+    };
   }
 
   @Get('grammar-rules/:id/pool-exercise-ids')

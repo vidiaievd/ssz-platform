@@ -114,6 +114,14 @@ model Attempt {
   // demands the order from memory.
   modality String @default("unknown")
 
+  // The task was a disposable probe rather than a catalogue exercise (plan 63 phase 9).
+  //
+  // Snapshotted at start because the probe is designed to disappear: by the time this
+  // attempt is marked, or the event it published is read, the row it was resolved from is
+  // very likely swept. Everything downstream that must not write catalogue-shaped state
+  // against an id with no future — a progress row, a card on the exercise — reads this.
+  ephemeral Boolean @default(false)
+
   status AttemptStatus @default(IN_PROGRESS)
 
   // EVENT — score and completion flag published in exercise.attempt.completed

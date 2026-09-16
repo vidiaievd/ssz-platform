@@ -1284,3 +1284,112 @@ describe('ExerciseAttemptedConsumer — grammar atom cards, in shadow', () => {
     ]);
   });
 });
+
+// Plan 63 phase 9. A probe is a task made for one learner and gone by tomorrow. What it
+// proves about an atom is ordinary evidence; what it would say about an *exercise* is a
+// pointer to a row that will not exist.
+describe('ExerciseAttemptedConsumer — work done on a disposable probe', () => {
+  const GRAMMAR_ATOM = 'passive-choice';
+  const VOCAB_ATOM = '7d1e2f3a-0000-4000-8000-000000000001';
+
+  function probeEvent(overrides: Record<string, unknown> = {}) {
+    return envelope({
+      userId: USER_ID,
+      exerciseId: EXERCISE_ID,
+      score: 100,
+      timeSpentSeconds: 40,
+      completed: true,
+      ephemeral: true,
+      modality: 'production',
+      templateCode: 'fill_in_blank',
+      practicedAtoms: [{ atomType: 'vocabulary_item', atomId: VOCAB_ATOM }],
+      targets: [{ atomType: 'grammar_rule_atom', atomId: GRAMMAR_ATOM, role: 'focus' }],
+      ...overrides,
+    });
+  }
+
+  it('writes no progress row', async () => {
+    // "Completed 40 exercises" must not count tasks that were thrown away by design.
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(probeEvent()));
+
+    const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+    expect(calls.some((c) => c instanceof UpsertProgressCommand)).toBe(false);
+  });
+
+  it('introduces no card on the probe itself', async () => {
+    // A card on a probe would come back due on a task nobody can look up.
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(probeEvent()));
+
+    const introduced = commandBus.execute.mock.calls
+      .map((c: unknown[]) => c[0])
+      .filter((c: unknown): c is IntroduceCardCommand => c instanceof IntroduceCardCommand);
+
+    expect(introduced.some((c) => c.contentType === 'EXERCISE')).toBe(false);
+    expect(introduced.some((c) => c.contentId === EXERCISE_ID)).toBe(false);
+  });
+
+  it('introduces no card on a probe gap either', async () => {
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        probeEvent({
+          gapResults: [
+            {
+              gapKey: 's1#3',
+              correct: true,
+              targets: [{ atomType: 'grammar_rule_atom', atomId: GRAMMAR_ATOM, role: 'focus' }],
+            },
+          ],
+        }),
+      ),
+    );
+
+    const introduced = commandBus.execute.mock.calls
+      .map((c: unknown[]) => c[0])
+      .filter((c: unknown): c is IntroduceCardCommand => c instanceof IntroduceCardCommand);
+
+    expect(introduced.some((c) => c.contentType === 'EXERCISE_GAP')).toBe(false);
+  });
+
+  it('still rates the atoms — which is the only reason a probe is worth answering', async () => {
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(probeEvent()));
+
+    const introduced = commandBus.execute.mock.calls
+      .map((c: unknown[]) => c[0])
+      .filter((c: unknown): c is IntroduceCardCommand => c instanceof IntroduceCardCommand);
+
+    expect(
+      introduced.some((c) => c.contentType === 'VOCABULARY_WORD' && c.contentId === VOCAB_ATOM),
+    ).toBe(true);
+    expect(
+      introduced.some((c) => c.contentType === 'GRAMMAR_ATOM' && c.contentId === GRAMMAR_ATOM),
+    ).toBe(true);
+  });
+
+  it('leaves a catalogue attempt exactly as it was', async () => {
+    // The flag is absent on every event published before it existed, and on the
+    // overwhelming majority of those after it.
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(probeEvent({ ephemeral: undefined })),
+    );
+
+    const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+    expect(calls.some((c) => c instanceof UpsertProgressCommand)).toBe(true);
+    expect(
+      calls
+        .filter((c: unknown): c is IntroduceCardCommand => c instanceof IntroduceCardCommand)
+        .some((c) => c.contentType === 'EXERCISE'),
+    ).toBe(true);
+  });
+});

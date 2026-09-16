@@ -3,6 +3,7 @@ import type {
   CheckMode,
   ExerciseDefinition,
   ExercisePlacement,
+  ExerciseTemplateDefinition,
   IContentClient,
   PracticedAtomRef,
 } from '../../shared/application/ports/content-client.port.js';
@@ -49,6 +50,16 @@ export class CachedContentClient implements IContentClient {
     exerciseId: string,
   ): Promise<Result<PracticedAtomRef[], ContentClientError>> {
     return this.http.getPracticedAtoms(exerciseId);
+  }
+
+  // Not cached, and not for the reason above: this is asked once per *probe* attempt, and
+  // probes are the rare case by construction. A template that turned out to be worth
+  // caching would want invalidating on a reseed, which is a moving part bought for a call
+  // that hardly happens.
+  async getTemplateByCode(
+    code: string,
+  ): Promise<Result<ExerciseTemplateDefinition, ContentClientError>> {
+    return this.http.getTemplateByCode(code);
   }
 
   async getExercisePlacement(

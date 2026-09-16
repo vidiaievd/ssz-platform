@@ -136,6 +136,7 @@ export class AttemptMapper {
       // vocabulary, and an attempt that refused to load over a stranger in the column
       // would cost the learner their work rather than protect anything.
       itemTargets: (row.itemTargets as AttemptItemTarget[] | null) ?? [],
+      ephemeral: row.ephemeral,
       modality: (row.modality as Modality | null) ?? 'unknown',
       workContext: (row.workContext as WorkContext | null) ?? null,
       lessonId: row.lessonId,
@@ -197,6 +198,7 @@ export class AttemptMapper {
       skills: attempt.skills,
       focus: attempt.focus,
       itemTargets: attempt.itemTargets as unknown as AttemptModel['itemTargets'],
+      ephemeral: attempt.ephemeral,
       modality: attempt.modality,
       workContext: attempt.workContext,
       lessonId: attempt.lessonId,

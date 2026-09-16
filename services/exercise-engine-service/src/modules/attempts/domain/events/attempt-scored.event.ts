@@ -48,6 +48,13 @@ export interface AttemptScoredPayload {
   // How the learner had to produce the answer (plan 63 §2 E). Snapshotted with the axes;
   // 'unknown' for attempts started before it existed and for templates nobody has judged.
   modality: Modality;
+  /**
+   * The task was a disposable probe (plan 63 phase 9).
+   *
+   * The consumer keeps the evidence about the atoms and writes nothing keyed by the
+   * exercise: the id names a row that is meant to be gone tomorrow.
+   */
+  ephemeral: boolean;
 }
 
 export class AttemptScoredEvent implements IDomainEvent {

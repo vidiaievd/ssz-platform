@@ -303,8 +303,28 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       // on this exercise with the score of a draft they are being asked to redo.
       const sentBack = p.reviewOutcome === 'returned';
 
+      /*
+        Work done on a disposable task (plan 63 phase 9).
+
+        Everything this consumer writes falls into two kinds, and a probe separates them
+        cleanly for the first time. Evidence about an **atom** — the fan-out below, and
+        the grammar cards beside it — is ordinary evidence and is kept: that a learner
+        can or cannot form the passive is a fact about them, and it does not matter
+        whether the sentence they proved it on was written by an author last year or
+        generated for them this afternoon. That is the whole point of having moved memory
+        onto the atom (§2 A); without it, nothing generated could ever have counted.
+
+        Anything keyed by the **exercise** is dropped: the progress row, the card on the
+        exercise, the cards on its gaps. The id names a row that is designed to be gone
+        tomorrow, so those would be a learner's history slowly filling with pointers to
+        questions nobody can look up — "completed 40 exercises", counting tasks that were
+        thrown away on purpose, and a review queue bringing back a gap in a sentence that
+        no longer exists.
+      */
+      const ephemeral = p.ephemeral === true;
+
       // 1. Progress tracking (existing behaviour — unchanged).
-      if (!sentBack) {
+      if (!sentBack && !ephemeral) {
         const progressResult = await this.commandBus.execute(
           new UpsertProgressCommand(
             p.userId,
@@ -338,7 +358,11 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       const gapResults = p.gapResults ?? [];
       const rated = p.score !== null && (p.completed === true || sentBack);
 
-      if (gapResults.length > 0) {
+      if (ephemeral) {
+        // No card on the exercise and none on its gaps — see `ephemeral` above. The
+        // verdicts are not lost: they are read as atom observations a few lines down,
+        // which is where a probe's evidence belongs.
+      } else if (gapResults.length > 0) {
         if (rated) await this.reviewGapCards(p, gapResults);
       } else {
         const introduceResult = await this.commandBus.execute(
@@ -438,6 +462,11 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
 
       // 5. Can-do progress evaluation — recompute descriptor achievement
       //    for any modules whose atoms were practiced.
+      //
+      //    Run for a probe too, deliberately: this reads the state of the atoms the
+      //    attempt just moved and re-derives what the learner can do. It writes nothing
+      //    keyed by the exercise, and refusing it would mean a learner who practised an
+      //    atom on a generated task stayed short of a descriptor they had in fact earned.
       if (p.completed === true && p.practicedAtoms && p.practicedAtoms.length > 0) {
         await this.canDoEvaluator.evaluateForAtoms(p.userId, p.practicedAtoms);
       }

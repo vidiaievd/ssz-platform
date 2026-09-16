@@ -58,6 +58,31 @@ export interface ExerciseDefinition {
     atomId: string;
     role: string;
   }>;
+  /**
+   * This definition came from a disposable task rather than from the catalogue —
+   * plan 63 phase 9.
+   *
+   * Absent and false mean the same thing, which is the common case: an exercise an author
+   * wrote and a course points at. `true` says the task is a probe — nobody maintains it,
+   * nothing in a course points at it, and it will not exist tomorrow.
+   *
+   * It rides on the envelope so that the attempt can snapshot it, and the attempt has to,
+   * because the probe outlives nothing: by the time a teacher marks the work or a
+   * consumer reads the event, the row it was resolved from may be gone. Everything
+   * downstream that must not write catalogue-shaped state against an id with no future
+   * reads the attempt, never the probe table.
+   */
+  ephemeral?: boolean;
+}
+
+/** One template, as the engine needs it to run an attempt on a task. */
+export interface ExerciseTemplateDefinition {
+  code: string;
+  contentSchema: unknown;
+  answerSchema: unknown;
+  defaultCheckSettings: Record<string, unknown>;
+  supportedLanguages: string[] | null;
+  isActive: boolean;
 }
 
 /** The axes as Content Service resolves them. Sources are for authors, not for attempts. */
@@ -111,7 +136,17 @@ export interface IContentClient {
   getPracticedAtoms(exerciseId: string): Promise<Result<PracticedAtomRef[], ContentClientError>>;
 
   /** Best-effort at attempt start (plan 44 §44.4) — a miss must not block starting. */
-  getExercisePlacement(
-    exerciseId: string,
-  ): Promise<Result<ExercisePlacement, ContentClientError>>;
+  getExercisePlacement(exerciseId: string): Promise<Result<ExercisePlacement, ContentClientError>>;
+
+  /**
+   * One template by the code a document names it with (plan 63 phase 9).
+   *
+   * Every other route here is addressed by exercise id, because every other task the
+   * engine runs is a catalogue exercise and arrives with its template attached. A probe
+   * has no id in the catalogue and carries only a code, and its answer schema and check
+   * settings have to come from the same place a catalogue exercise's do — a schema
+   * snapshotted onto the task at the moment it was written would drift away from the one
+   * every other attempt is judged against.
+   */
+  getTemplateByCode(code: string): Promise<Result<ExerciseTemplateDefinition, ContentClientError>>;
 }

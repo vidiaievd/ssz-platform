@@ -20,6 +20,13 @@ export interface AttemptCompletedUnscoredPayload {
   skills: Skill[];
   focus: Focus[];
   containerId: string | null;
+  /**
+   * The task was a disposable probe (plan 63 phase 9).
+   *
+   * The consumer keeps the evidence about the atoms and writes nothing keyed by the
+   * exercise: the id names a row that is meant to be gone tomorrow.
+   */
+  ephemeral: boolean;
 }
 
 export class AttemptCompletedUnscoredEvent implements IDomainEvent {

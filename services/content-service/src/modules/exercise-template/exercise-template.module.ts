@@ -10,11 +10,16 @@ import { EXERCISE_TEMPLATE_REPOSITORY } from './domain/repositories/exercise-tem
 // Query handlers
 import { GetExerciseTemplatesHandler } from './application/queries/get-exercise-templates/get-exercise-templates.handler.js';
 import { GetExerciseTemplateHandler } from './application/queries/get-exercise-template/get-exercise-template.handler.js';
+import { GetExerciseTemplateByCodeHandler } from './application/queries/get-exercise-template-by-code/get-exercise-template-by-code.handler.js';
 
 // Controller
 import { ExerciseTemplateController } from './presentation/controllers/exercise-template.controller.js';
 
-const QueryHandlers = [GetExerciseTemplatesHandler, GetExerciseTemplateHandler];
+const QueryHandlers = [
+  GetExerciseTemplatesHandler,
+  GetExerciseTemplateHandler,
+  GetExerciseTemplateByCodeHandler,
+];
 
 @Module({
   imports: [CqrsModule],
