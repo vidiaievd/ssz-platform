@@ -14,6 +14,7 @@ import { HttpClientsModule } from './infrastructure/http/http.module.js';
 import { ValidationModule } from './infrastructure/validation/validation.module.js';
 import { FeedbackModule } from './infrastructure/feedback/feedback.module.js';
 import { AttemptsModule } from './modules/attempts/attempts.module.js';
+import { ProbesModule } from './modules/probes/probes.module.js';
 import { EventsModule } from './modules/events/events.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 
@@ -46,6 +47,7 @@ import { HealthModule } from './modules/health/health.module.js';
     FeedbackModule,
     CqrsModule.forRoot(),
     AttemptsModule,
+    ProbesModule,
     EventsModule,
     HealthModule,
   ],
