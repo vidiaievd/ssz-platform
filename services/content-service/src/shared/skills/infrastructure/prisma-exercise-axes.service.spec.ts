@@ -10,6 +10,8 @@ interface Rows {
   stages?: unknown[];
   videoQuestions?: unknown[];
   relations?: unknown[];
+  /** `ExerciseItemTarget` rows — what an exercise is about, element by element. */
+  targets?: unknown[];
 }
 
 /**
@@ -25,6 +27,7 @@ function prismaWith(rows: Rows): PrismaService {
     lessonListeningStage: { findMany: () => Promise.resolve(rows.stages ?? []) },
     lessonVideoQuestion: { findMany: () => Promise.resolve(rows.videoQuestions ?? []) },
     contentRelation: { findMany: () => Promise.resolve(rows.relations ?? []) },
+    exerciseItemTarget: { findMany: () => Promise.resolve(rows.targets ?? []) },
   } as unknown as PrismaService;
 }
 
@@ -199,5 +202,63 @@ describe('PrismaExerciseAxesService', () => {
     );
 
     await expect(service.forExercises([])).resolves.toEqual(new Map());
+  });
+
+  // Plan 64, decision H: the element key is what turns a subject into a share.
+  it('reads the subject element by element where the catalogue says so', async () => {
+    const service = new PrismaExerciseAxesService(
+      prismaWith({
+        exercises: [exerciseRow({ template: { code: 'multiple_choice' } })],
+        targets: [
+          // Prisma hands back the enum member NAME here too.
+          { exerciseId: 'ex-1', itemKey: 'q1', atomType: 'VOCABULARY_ITEM', atomId: 'v-1' },
+          { exerciseId: 'ex-1', itemKey: 'q2', atomType: 'GRAMMAR_RULE_ATOM', atomId: 'g-1' },
+          { exerciseId: 'ex-1', itemKey: 'q3', atomType: 'GRAMMAR_RULE_ATOM', atomId: 'g-2' },
+        ],
+      }),
+    );
+
+    const axes = await service.forExercise('ex-1');
+
+    expect(axes?.focusSource).toBe('atoms');
+    expect(axes?.focusWeights.vocabulary).toBeCloseTo(1 / 3);
+    expect(axes?.focusWeights.grammar).toBeCloseTo(2 / 3);
+  });
+
+  // Most of the catalogue has never been addressed, and the older graph still
+  // knows what those exercises are about.
+  it('falls back to the relation graph for an exercise nobody has addressed', async () => {
+    const service = new PrismaExerciseAxesService(
+      prismaWith({
+        exercises: [exerciseRow()],
+        relations: [{ sourceType: 'GRAMMAR_RULE', sourceId: 'r-1', targetId: 'ex-1' }],
+      }),
+    );
+
+    const axes = await service.forExercise('ex-1');
+
+    expect(axes?.focus).toEqual(['grammar']);
+    expect(axes?.focusSource).toBe('atoms');
+    // One statement about the whole exercise, whatever it is made of.
+    expect(axes?.focusWeights).toEqual({ grammar: 1 });
+  });
+
+  // An addressed exercise is addressed: weighing its leftover relation rows as
+  // elements would count rows nobody wrote as elements.
+  it('does not mix the two graphs for one exercise', async () => {
+    const service = new PrismaExerciseAxesService(
+      prismaWith({
+        exercises: [exerciseRow()],
+        targets: [
+          { exerciseId: 'ex-1', itemKey: 'q1', atomType: 'VOCABULARY_ITEM', atomId: 'v-1' },
+        ],
+        relations: [{ sourceType: 'GRAMMAR_RULE', sourceId: 'r-1', targetId: 'ex-1' }],
+      }),
+    );
+
+    const axes = await service.forExercise('ex-1');
+
+    expect(axes?.focus).toEqual(['vocabulary']);
+    expect(axes?.focusWeights).toEqual({ vocabulary: 1 });
   });
 });

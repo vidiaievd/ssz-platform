@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { atomEvidenceStrength, strongerClaim } from './atom-evidence.js';
+import type { AtomRole } from './atom-evidence.js';
 import { clampByEvidence } from './evidence-strength.js';
+import type { ReviewRatingValue } from './evidence-strength.js';
+
+/**
+ * Typed rather than `as const`: `strongerClaim` is generic over one claim shape, and two
+ * arguments frozen to their own literals cannot be the same `T`.
+ */
+type Claim = { role: AtomRole; rating: ReviewRatingValue };
 
 const FREE = { mode: 'free', bankSize: null, wordsConsumed: false } as const;
 const BANK_OF_FIVE = { mode: 'bank', bankSize: 5, wordsConsumed: true } as const;
@@ -66,15 +74,15 @@ describe('atomEvidenceStrength', () => {
 
 describe('strongerClaim', () => {
   it('prefers the item that examined the atom over the one that merely needed it', () => {
-    const focus = { role: 'focus', rating: 'EASY' } as const;
-    const context = { role: 'context', rating: 'AGAIN' } as const;
+    const focus: Claim = { role: 'focus', rating: 'EASY' };
+    const context: Claim = { role: 'context', rating: 'AGAIN' };
     expect(strongerClaim(focus, context)).toBe(focus);
     expect(strongerClaim(context, focus)).toBe(focus);
   });
 
   it('keeps the worse of two equal claims — a lapse is the informative half', () => {
-    const good = { role: 'focus', rating: 'GOOD' } as const;
-    const again = { role: 'focus', rating: 'AGAIN' } as const;
+    const good: Claim = { role: 'focus', rating: 'GOOD' };
+    const again: Claim = { role: 'focus', rating: 'AGAIN' };
     expect(strongerClaim(good, again)).toBe(again);
     expect(strongerClaim(again, good)).toBe(again);
   });

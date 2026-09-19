@@ -219,6 +219,59 @@ describe('focus, which has its own chain', () => {
     expect(result.focusSource).toBe('unknown');
   });
 
+  // Decision H of plan 64: a set of eight questions, three about words and five
+  // about a rule, is three-eighths vocabulary — not "both subjects, equally".
+  it('weighs the subject by elements when the graph names them', () => {
+    const atoms = [
+      { atomType: 'vocabulary_item', itemKey: 'q1' },
+      { atomType: 'vocabulary_item', itemKey: 'q2' },
+      { atomType: 'vocabulary_item', itemKey: 'q3' },
+      { atomType: 'grammar_rule_atom', itemKey: 'q4' },
+      { atomType: 'grammar_rule_atom', itemKey: 'q5' },
+      { atomType: 'grammar_rule_atom', itemKey: 'q6' },
+      { atomType: 'grammar_rule_atom', itemKey: 'q7' },
+      { atomType: 'grammar_rule_atom', itemKey: 'q8' },
+    ];
+
+    const result = deriveSkills({ templateCode: 'multiple_choice', atoms });
+
+    expect(result.focus).toEqual(['vocabulary', 'grammar']);
+    expect(result.focusWeights.vocabulary).toBeCloseTo(3 / 8);
+    expect(result.focusWeights.grammar).toBeCloseTo(5 / 8);
+  });
+
+  it('counts an element naming both subjects in both', () => {
+    const result = deriveSkills({
+      templateCode: 'short_answer',
+      atoms: [
+        { atomType: 'vocabulary_item', itemKey: 'q1' },
+        { atomType: 'grammar_rule_atom', itemKey: 'q1' },
+        { atomType: 'grammar_rule_atom', itemKey: 'q2' },
+      ],
+    });
+
+    expect(result.focusWeights.vocabulary).toBeCloseTo(0.5);
+    expect(result.focusWeights.grammar).toBeCloseTo(1);
+  });
+
+  // The older graph says "this exercise is about grammar", which is one exercise's
+  // worth of evidence however many rows carry it.
+  it('treats atoms with no element key as one statement about the whole exercise', () => {
+    const result = deriveSkills({
+      templateCode: 'match_pairs',
+      atoms: [{ atomType: 'grammar_rule' }, { atomType: 'grammar_rule' }],
+    });
+
+    expect(result.focusWeights).toEqual({ grammar: 1 });
+  });
+
+  // A template's hint is a claim about the type; weighing it would invent a
+  // precision nobody recorded.
+  it('weighs nothing when the subject did not come from the graph', () => {
+    expect(deriveSkills({ templateCode: 'error_correction' }).focusWeights).toEqual({});
+    expect(deriveSkills({ templateCode: 'writing_task', atoms: [] }).focusWeights).toEqual({});
+  });
+
   it('ignores an atom type it does not recognise', () => {
     const result = deriveSkills({ templateCode: 'writing_task', atoms: [{ atomType: 'can_do_descriptor' }] });
     expect(result.focusSource).toBe('unknown');

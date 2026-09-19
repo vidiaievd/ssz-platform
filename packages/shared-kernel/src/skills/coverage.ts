@@ -35,11 +35,27 @@ export type FormTally = Record<Form, number>;
  */
 export type PairTally = Record<Skill, Record<Focus | 'unknown', number>>;
 
+/**
+ * The subject axis again, counted in elements instead of exercises.
+ *
+ * A set of eight questions, three about words and five about a rule, adds 0.375 to
+ * vocabulary and 0.625 to grammar here, while `byFocus` above counts it once under each.
+ * Both are true and they answer different questions — "does anything here teach grammar"
+ * against "how much of this is grammar" — which is why the weighted reading is a second
+ * tally rather than a correction of the first (plan 64, decision H).
+ *
+ * Exercises whose subject nobody recorded land in `unknown` at their full weight of one,
+ * so the tally still sums to the number of exercises counted.
+ */
+export type WeightedFocusTally = Record<Focus | 'unknown', number>;
+
 export interface Coverage {
   /** How many exercises were counted. Not the sum of any tally: an exercise can carry two skills. */
   total: number;
   bySkill: SkillTally;
   byFocus: FocusTally;
+  /** The same axis in elements rather than exercises. See `WeightedFocusTally`. */
+  byFocusWeighted: WeightedFocusTally;
   byForm: FormTally;
   /** The skill × focus table behind the two margins above. Every cell present, zeroes included. */
   byPair: PairTally;
@@ -79,6 +95,7 @@ function emptyPairTally(): PairTally {
 export function tally(profiles: readonly DerivedProfile[]): Coverage {
   const bySkill = emptySkillTally();
   const byFocus = emptyFocusTally();
+  const byFocusWeighted = emptyFocusTally();
   const byForm = emptyFormTally();
   const byPair = emptyPairTally();
   let unclassified = 0;
@@ -91,6 +108,21 @@ export function tally(profiles: readonly DerivedProfile[]): Coverage {
     // bucket has to add up to the number of exercises or it cannot be read as a share.
     if (profile.focus.length === 0) byFocus.unknown += 1;
     else for (const focus of profile.focus) byFocus[focus] += 1;
+
+    // Weighted where the element-level graph could say something, and evenly split over
+    // the subjects the exercise names where it could not: a claim about the whole
+    // exercise is one exercise's worth of evidence either way.
+    // Read defensively: profiles also arrive from an event payload written by an older
+    // build, and one missing field should cost the weighted reading of that exercise,
+    // not the whole report.
+    const weights = Object.entries(profile.focusWeights ?? {}) as [Focus, number][];
+    if (weights.length > 0) {
+      for (const [focus, weight] of weights) byFocusWeighted[focus] += weight;
+    } else if (profile.focus.length === 0) {
+      byFocusWeighted.unknown += 1;
+    } else {
+      for (const focus of profile.focus) byFocusWeighted[focus] += 1 / profile.focus.length;
+    }
 
     byForm[profile.form] += 1;
 
@@ -105,6 +137,7 @@ export function tally(profiles: readonly DerivedProfile[]): Coverage {
     total: profiles.length,
     bySkill,
     byFocus,
+    byFocusWeighted,
     byForm,
     byPair,
     emptySkills: SKILLS.filter((skill) => bySkill[skill] === 0),

@@ -136,18 +136,56 @@ export class PrismaExerciseAxesService implements IExerciseAxes {
     return out;
   }
 
-  /** `PRACTICED_BY` edges, atom → exercise: the same graph the attempt snapshot uses. */
+  /**
+   * What each exercise is about, by element where the catalogue says so.
+   *
+   * `ExerciseItemTarget` carries the element key, and the element key is what turns the
+   * subject from a flag into a share: a set of three vocabulary questions and five
+   * grammar ones is three-eighths vocabulary, not "both subjects, equally" (plan 64,
+   * decision H). `ContentRelation` cannot say that — its edges hang off the exercise as
+   * a whole — so it stays as the fallback for exercises nobody has addressed yet, which
+   * is most of the catalogue.
+   *
+   * Per exercise rather than globally: an exercise with one target and four untargeted
+   * relations is an exercise that has been addressed, and mixing the two graphs would
+   * weigh the four rows nobody wrote as elements.
+   */
   private async atoms(ids: string[]): Promise<Map<string, AtomRef[]>> {
-    const relations = await this.prisma.contentRelation.findMany({
-      where: { targetType: 'EXERCISE', targetId: { in: ids }, relationKind: 'PRACTICED_BY' },
-      select: { sourceType: true, sourceId: true, targetId: true },
+    const targets = await this.prisma.exerciseItemTarget.findMany({
+      where: { exerciseId: { in: ids } },
+      select: { exerciseId: true, itemKey: true, atomType: true, atomId: true },
     });
 
     const out = new Map<string, AtomRef[]>();
+    for (const target of targets) {
+      const list = out.get(target.exerciseId) ?? [];
+      // Prisma hands back the enum member NAME (`VOCABULARY_ITEM`), not its `@map` value;
+      // the kernel reads the mapped form, and casting the raw name would match nothing.
+      list.push({
+        atomType: target.atomType.toLowerCase(),
+        atomId: target.atomId,
+        itemKey: target.itemKey,
+      });
+      out.set(target.exerciseId, list);
+    }
+
+    const unaddressed = ids.filter((id) => !out.has(id));
+    if (unaddressed.length === 0) return out;
+
+    const relations = await this.prisma.contentRelation.findMany({
+      where: {
+        targetType: 'EXERCISE',
+        targetId: { in: unaddressed },
+        relationKind: 'PRACTICED_BY',
+      },
+      select: { sourceType: true, sourceId: true, targetId: true },
+    });
+
     for (const relation of relations) {
       const list = out.get(relation.targetId) ?? [];
       // Lowered for the same reason as the enums above: the kernel reads `atomType` as
-      // the mapped value (`grammar_rule`, `vocabulary_item`).
+      // the mapped value (`grammar_rule`, `vocabulary_item`). No element key — the older
+      // graph speaks about the exercise, and saying otherwise would invent elements.
       list.push({ atomType: relation.sourceType.toLowerCase(), atomId: relation.sourceId });
       out.set(relation.targetId, list);
     }

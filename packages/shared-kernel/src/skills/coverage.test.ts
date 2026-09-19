@@ -128,3 +128,44 @@ describe('divergence between versions (Q5)', () => {
     expect(diff(a, b).some((cell) => cell.axis === 'form')).toBe(true);
   });
 });
+
+describe('the subject axis, counted in elements (plan 64, decision H)', () => {
+  it('splits one exercise across the subjects its elements name', () => {
+    const result = coverage([
+      ex('multiple_choice', {
+        atoms: [
+          { atomType: 'vocabulary_item', itemKey: 'q1' },
+          { atomType: 'grammar_rule_atom', itemKey: 'q2' },
+          { atomType: 'grammar_rule_atom', itemKey: 'q3' },
+          { atomType: 'grammar_rule_atom', itemKey: 'q4' },
+        ],
+      }),
+    ]);
+
+    // Counted once under each subject, as before …
+    expect(result.byFocus.vocabulary).toBe(1);
+    expect(result.byFocus.grammar).toBe(1);
+    // … and by how much of the exercise each one actually is.
+    expect(result.byFocusWeighted.vocabulary).toBeCloseTo(0.25);
+    expect(result.byFocusWeighted.grammar).toBeCloseTo(0.75);
+  });
+
+  // Whatever is or is not recorded, the weighted tally has to stay readable as a
+  // share of the exercises counted.
+  it('still adds up to the exercises counted', () => {
+    const result = coverage([
+      ex('error_correction'),
+      ex('writing_task'),
+      ex('match_pairs', {
+        atoms: [
+          { atomType: 'vocabulary_item', itemKey: 'a' },
+          { atomType: 'grammar_rule_atom', itemKey: 'b' },
+        ],
+      }),
+    ]);
+
+    const sum = Object.values(result.byFocusWeighted).reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(3);
+    expect(result.byFocusWeighted.unknown).toBe(1);
+  });
+});

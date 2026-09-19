@@ -66,6 +66,16 @@ export interface SkillOverride {
 export interface AtomRef {
   atomType: string;
   atomId?: string;
+  /**
+   * Which element of the exercise names this atom, where the catalogue records it
+   * (`ExerciseItemTarget.itemKey`). Null for an atom named by the whole exercise, which
+   * is all the older `PRACTICED_BY` graph can say.
+   *
+   * The key is what makes a subject a share rather than a flag: a set of eight questions,
+   * three about words and five about a rule, is three-eighths vocabulary — not "both
+   * subjects, equally" (plan 64, decision H).
+   */
+  itemKey?: string | null;
 }
 
 export interface DeriveInput {
@@ -78,9 +88,21 @@ export interface DeriveInput {
   override?: SkillOverride | null;
 }
 
+/**
+ * How much of the exercise each subject accounts for, 0–1 per subject.
+ *
+ * Shares of *elements*, not of exercises, and they need not sum to 1: an element about a
+ * word inside a rule names both subjects and counts in both. Empty whenever the subject
+ * did not come from the atom graph — a template's hint is a claim about the type, and
+ * weighing it would invent a precision nobody recorded.
+ */
+export type FocusWeights = Partial<Record<Focus, number>>;
+
 export interface DerivedProfile {
   skills: Skill[];
   focus: Focus[];
+  /** Empty unless `focusSource` is `atoms`. See `FocusWeights`. */
+  focusWeights: FocusWeights;
   form: Form;
   /** How the learner had to know it — plan 63 §2 E. */
   modality: Modality;
@@ -157,15 +179,51 @@ function fromDocument(
  * `unknown` bucket, and the reason the grammar-rule pool (audit 34 §5 item 3) matters
  * beyond spaced repetition.
  */
+function atomFocus(atom: AtomRef): Focus | null {
+  const type = atom.atomType.toLowerCase();
+  if (type.includes('grammar')) return 'grammar';
+  if (type.includes('word') || type.includes('vocab')) return 'vocabulary';
+  return null;
+}
+
 function fromAtoms(atoms: readonly AtomRef[] | undefined): Focus[] | null {
   if (!atoms || atoms.length === 0) return null;
   const found = new Set<Focus>();
   for (const atom of atoms) {
-    const type = atom.atomType.toLowerCase();
-    if (type.includes('grammar')) found.add('grammar');
-    else if (type.includes('word') || type.includes('vocab')) found.add('vocabulary');
+    const focus = atomFocus(atom);
+    if (focus) found.add(focus);
   }
   return found.size > 0 ? orderFocuses(found) : null;
+}
+
+/**
+ * The same graph, read by element rather than by exercise.
+ *
+ * An atom with no `itemKey` stands for the whole exercise and gets a bucket of its own,
+ * so a catalogue that predates element-level targets still weighs in at 1 — the older
+ * shape says "this exercise is about grammar", which is exactly one element's worth of
+ * evidence and should not read as eight.
+ */
+function weighAtoms(atoms: readonly AtomRef[] | undefined): FocusWeights {
+  if (!atoms || atoms.length === 0) return {};
+
+  const byItem = new Map<string, Set<Focus>>();
+  for (const atom of atoms) {
+    const focus = atomFocus(atom);
+    if (!focus) continue;
+    const key = atom.itemKey ?? '';
+    const bucket = byItem.get(key) ?? new Set<Focus>();
+    bucket.add(focus);
+    byItem.set(key, bucket);
+  }
+
+  if (byItem.size === 0) return {};
+
+  const weights: FocusWeights = {};
+  for (const foci of byItem.values()) {
+    for (const focus of foci) weights[focus] = (weights[focus] ?? 0) + 1 / byItem.size;
+  }
+  return weights;
 }
 
 export function deriveSkills(input: DeriveInput): DerivedProfile {
@@ -201,6 +259,7 @@ export function deriveSkills(input: DeriveInput): DerivedProfile {
 
   let focus: Focus[];
   let focusSource: FocusSource;
+  let focusWeights: FocusWeights = {};
 
   if (hasSpoken(input.override)) {
     focus = parseFocuses(input.override?.focus);
@@ -210,6 +269,7 @@ export function deriveSkills(input: DeriveInput): DerivedProfile {
     if (fromGraph) {
       focus = fromGraph;
       focusSource = 'atoms';
+      focusWeights = weighAtoms(input.atoms);
     } else if (profile && profile.focus.length > 0) {
       focus = orderFocuses(profile.focus);
       focusSource = 'template';
@@ -231,5 +291,5 @@ export function deriveSkills(input: DeriveInput): DerivedProfile {
         ? 'template'
         : 'unknown';
 
-  return { skills, focus, form, modality, skillSource, focusSource, modalitySource };
+  return { skills, focus, focusWeights, form, modality, skillSource, focusSource, modalitySource };
 }

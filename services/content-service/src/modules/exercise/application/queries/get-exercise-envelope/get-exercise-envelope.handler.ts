@@ -105,6 +105,7 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
     const axes = (await this.axes.forExercise(query.exerciseId)) ?? {
       skills: [],
       focus: [],
+      focusWeights: {},
       form: 'unknown' as const,
       modality: 'unknown' as const,
       skillSource: 'unknown' as const,
