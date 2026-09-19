@@ -60,6 +60,16 @@ export interface CurriculumTreeItemNode {
    * exercise or lesson behind this row is already live and is not reported here.
    */
   pendingChange: ItemPendingChange | null;
+  /**
+   * Which exercise template this row uses — `word_bank_gap_fill`, `match_pairs`
+   * and so on. Null for every other item type, and for an exercise whose
+   * template row has gone.
+   *
+   * The title already carries the template's display name, which is the same
+   * information for a reader; the code is here because the editor draws one
+   * pictogram per type and cannot key a picture off a translated name.
+   */
+  templateCode: string | null;
   // Best-effort from any PUBLISHED variant/explanation (LESSON/GRAMMAR_RULE) or
   // the item's own estimate (EXERCISE); null for VOCABULARY_LIST.
   durationMinutes: number | null;
@@ -70,6 +80,7 @@ interface LeafItemMeta {
   title: string | null;
   lessonKind: LessonKind | null;
   state: 'draft' | 'published' | null;
+  templateCode: string | null;
   durationMinutes: number | null;
 }
 
@@ -359,6 +370,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       isRequired: item.isRequired,
       lessonKind: meta?.lessonKind ?? null,
       state: meta?.state ?? null,
+      templateCode: meta?.templateCode ?? null,
       isLive: liveItemIds === null ? null : liveItemIds.has(item.itemId),
       pendingChange: changeByItemId?.get(item.itemId) ?? null,
       durationMinutes: meta?.durationMinutes ?? null,
@@ -461,6 +473,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
               ? 'published'
               : 'draft'
             : 'draft',
+          templateCode: null,
           durationMinutes: durationByLessonId.get(lesson.id) ?? null,
         });
       }
@@ -473,7 +486,13 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
         select: { id: true, title: true },
       });
       rows.forEach((r) =>
-        meta.set(r.id, { title: r.title, lessonKind: null, state: null, durationMinutes: null }),
+        meta.set(r.id, {
+          title: r.title,
+          lessonKind: null,
+          state: null,
+          templateCode: null,
+          durationMinutes: null,
+        }),
       );
     }
 
@@ -502,6 +521,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
           title: r.title,
           lessonKind: null,
           state: null,
+          templateCode: null,
           durationMinutes: durationByRuleId.get(r.id) ?? null,
         }),
       );
@@ -511,13 +531,18 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     if (exerciseIds.length > 0) {
       const rows = await this.prisma.exercise.findMany({
         where: { id: { in: exerciseIds } },
-        select: { id: true, estimatedDurationSeconds: true, template: { select: { name: true } } },
+        select: {
+          id: true,
+          estimatedDurationSeconds: true,
+          template: { select: { code: true, name: true } },
+        },
       });
       rows.forEach((r) =>
         meta.set(r.id, {
           title: r.template.name ?? null,
           lessonKind: null,
           state: null,
+          templateCode: r.template.code ?? null,
           durationMinutes:
             r.estimatedDurationSeconds != null ? Math.ceil(r.estimatedDurationSeconds / 60) : null,
         }),

@@ -39,6 +39,7 @@ const MODULE_ITEM_ID = 'module-item-1';
 const LESSON_SECTION_ID = 'lesson-section-1';
 const LESSON_ITEM_ID = 'lesson-item-1';
 const LESSON_ID = 'lesson-1';
+const EXERCISE_ID = 'exercise-1';
 
 function makeCourse(): ContainerEntity {
   const result = ContainerEntity.create(
@@ -107,6 +108,20 @@ function makeOwnLessonItem(sectionId: string | null): ContainerItemEntity {
   );
 }
 
+/** An exercise attached straight to the requested version, beside the module's own material. */
+function makeOwnExerciseItem(): ContainerItemEntity {
+  return ContainerItemEntity.create(
+    {
+      containerVersionId: COURSE_VERSION_ID,
+      position: 2,
+      itemType: ContainerItemType.EXERCISE,
+      itemId: EXERCISE_ID,
+      xpReward: 5,
+    },
+    'own-item-exercise',
+  );
+}
+
 function makeLessonItem(): ContainerItemEntity {
   return ContainerItemEntity.create(
     {
@@ -140,6 +155,12 @@ interface Fixture {
   moduleVersionRows?: { id: string; containerId: string; status: string; versionNumber: number }[];
   /** Items of versions other than the course's and the module's default draft. */
   extraItemsByVersionId?: Record<string, ContainerItemEntity[]>;
+  /** Exercise rows the tree's exercise items resolve against. */
+  exerciseRows?: {
+    id: string;
+    estimatedDurationSeconds: number | null;
+    template: { code: string; name: string };
+  }[];
 }
 
 function makeHandler(fixture: Fixture = {}) {
@@ -242,7 +263,7 @@ function makeHandler(fixture: Fixture = {}) {
     vocabularyList: { findMany: jest.fn().mockResolvedValue([]) },
     grammarRule: { findMany: jest.fn().mockResolvedValue([]) },
     grammarRuleExplanation: { findMany: jest.fn().mockResolvedValue([]) },
-    exercise: { findMany: jest.fn().mockResolvedValue([]) },
+    exercise: { findMany: jest.fn().mockResolvedValue(fixture.exerciseRows ?? []) },
   } as any;
 
   const states = Object.entries(
@@ -296,6 +317,35 @@ describe('GetCurriculumTreeHandler', () => {
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(ContainerDomainError.VERSION_NOT_FOUND);
+  });
+
+  // The row already carries the template's display name as its title; the code is
+  // what the editor keys a per-type pictogram off, and a name it would have to
+  // translate cannot do that (plan 64, phase 2a).
+  it('names the template an exercise row uses', async () => {
+    const handler = makeHandler({
+      ownItem: makeOwnExerciseItem(),
+      exerciseRows: [
+        {
+          id: EXERCISE_ID,
+          estimatedDurationSeconds: 120,
+          template: { code: 'word_bank_gap_fill', name: 'Word Bank Gap-Fill' },
+        },
+      ],
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+
+    const exercise = result.value.ungroupedItems.find((i) => i.refId === EXERCISE_ID);
+    expect(exercise?.templateCode).toBe('word_bank_gap_fill');
+    expect(exercise?.title).toBe('Word Bank Gap-Fill');
+    // Nothing else has a template, and saying otherwise would draw an exercise's
+    // picture on a lesson.
+    const lesson = result.value.levels[0].modules[0].sections[0].items[0];
+    expect(lesson.templateCode).toBeNull();
   });
 
   it('builds a level → module → section → item tree', async () => {
@@ -529,7 +579,12 @@ describe('GetCurriculumTreeHandler', () => {
   it('still prefers a draft over a published version, whatever their numbers', async () => {
     const handler = makeHandler({
       moduleVersionRows: [
-        { id: 'module-version-published', containerId: MODULE_ID, status: 'PUBLISHED', versionNumber: 9 },
+        {
+          id: 'module-version-published',
+          containerId: MODULE_ID,
+          status: 'PUBLISHED',
+          versionNumber: 9,
+        },
         { id: MODULE_VERSION_ID, containerId: MODULE_ID, status: 'DRAFT', versionNumber: 2 },
       ],
     });
