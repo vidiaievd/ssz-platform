@@ -1,13 +1,20 @@
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
-import { coverageIssues, diff, tally } from '@ssz/shared-kernel/skills';
-import type { Coverage, CoverageDifference, CoverageIssue } from '@ssz/shared-kernel/skills';
+import { checkElements, coverageIssues, diff, parseRecipe, tally } from '@ssz/shared-kernel/skills';
+import type {
+  Coverage,
+  CoverageDifference,
+  CoverageIssue,
+  Recipe,
+  RecipeIssue,
+} from '@ssz/shared-kernel/skills';
 import { GetContainerCoverageQuery } from './get-container-coverage.query.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
 import { EXERCISE_AXES } from '../../../../../shared/skills/domain/exercise-axes.port.js';
 import type { IExerciseAxes } from '../../../../../shared/skills/domain/exercise-axes.port.js';
+import { CoverageRecipeResolver } from '../../services/coverage-recipe-resolver.service.js';
 
 /** One version's answer to "what does this train". */
 export interface CoverageReport {
@@ -28,12 +35,24 @@ export interface ModuleCoverage {
   title: string;
   coverage: Coverage;
   issues: CoverageIssue[];
+  /**
+   * What this lesson lacks against the recipe (plan 64, decisions L–P). Warnings only,
+   * never a gate. Empty when the recipe is empty — which is also what a recipe nobody set
+   * looks like, and deliberately so: the platform does not impose a method.
+   */
+  recipeIssues: RecipeIssue[];
 }
 
 export interface ContainerCoverageResult {
   containerId: string;
   containerType: string;
   title: string;
+  /**
+   * The recipe the lessons below were checked against — the container's own, else its
+   * workspace's, else empty. Returned so the report can say "checked against N rules"
+   * without a second request.
+   */
+  recipe: Recipe;
   draft: CoverageReport | null;
   published: CoverageReport | null;
   /**
@@ -67,6 +86,7 @@ export class GetContainerCoverageHandler implements IQueryHandler<
     private readonly prisma: PrismaService,
     @Inject(EXERCISE_AXES)
     private readonly axes: IExerciseAxes,
+    private readonly recipes: CoverageRecipeResolver,
   ) {}
 
   async execute(
@@ -74,15 +94,29 @@ export class GetContainerCoverageHandler implements IQueryHandler<
   ): Promise<Result<ContainerCoverageResult, ContainerDomainError>> {
     const container = await this.prisma.container.findFirst({
       where: { id: query.containerId, deletedAt: null },
-      select: { id: true, title: true, containerType: true },
+      select: {
+        id: true,
+        title: true,
+        containerType: true,
+        ownerSchoolId: true,
+        coverageRecipe: true,
+      },
     });
     if (!container) return Result.fail(ContainerDomainError.CONTAINER_NOT_FOUND);
+
+    const { recipe } = await this.recipes.resolve({
+      ownerSchoolId: container.ownerSchoolId,
+      coverageRecipe:
+        container.coverageRecipe === null ? null : parseRecipe(container.coverageRecipe),
+    });
 
     const wantsDraft = query.version === 'draft' || query.version === 'both';
     const wantsPublished = query.version === 'published' || query.version === 'both';
 
-    const draft = wantsDraft ? await this.report(query.containerId, 'draft') : null;
-    const published = wantsPublished ? await this.report(query.containerId, 'published') : null;
+    const draft = wantsDraft ? await this.report(query.containerId, 'draft', recipe) : null;
+    const published = wantsPublished
+      ? await this.report(query.containerId, 'published', recipe)
+      : null;
 
     // Only a real comparison counts as divergence. One side missing is not a difference
     // between two versions — it is the absence of one of them, which `available` says.
@@ -94,6 +128,7 @@ export class GetContainerCoverageHandler implements IQueryHandler<
       containerId: container.id,
       containerType: container.containerType,
       title: container.title,
+      recipe,
       draft,
       published,
       diverges: differences.length > 0,
@@ -104,6 +139,7 @@ export class GetContainerCoverageHandler implements IQueryHandler<
   private async report(
     containerId: string,
     version: 'draft' | 'published',
+    recipe: Recipe,
   ): Promise<CoverageReport> {
     const versionId = await this.versionId(containerId, version);
     if (versionId === null) {
@@ -152,6 +188,7 @@ export class GetContainerCoverageHandler implements IQueryHandler<
         title: child.title,
         coverage: childCoverage,
         issues: coverageIssues(childCoverage),
+        recipeIssues: await this.checkLesson(ids, version, recipe),
       });
     }
 
@@ -254,6 +291,24 @@ export class GetContainerCoverageHandler implements IQueryHandler<
       for (const stage of variant.listeningStages) into.add(stage.exerciseId);
       if (variant.videoQuestion) into.add(variant.videoQuestion.exerciseId);
     }
+  }
+
+  /**
+   * One lesson against the recipe, counted in elements rather than exercises.
+   *
+   * A lesson here is a direct child of the container asked about — on a course, the
+   * sub-lesson modules (table A of plan 64). An empty recipe costs no query: it is what
+   * every course without a standard looks like, and the report must not get slower for
+   * a feature nobody switched on.
+   */
+  private async checkLesson(
+    ids: Set<string>,
+    version: 'draft' | 'published',
+    recipe: Recipe,
+  ): Promise<RecipeIssue[]> {
+    if (recipe.rules.length === 0) return [];
+    const elements = await this.axes.elementsFor([...ids], version === 'draft' ? 'draft' : 'live');
+    return checkElements([...elements.values()].flat(), recipe);
   }
 
   /** The composition scope decides the document scope too: a draft view reads drafts. */

@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { deriveSkills } from '@ssz/shared-kernel/skills';
-import type { AtomRef, DerivedProfile, Placement } from '@ssz/shared-kernel/skills';
+import { deriveSkills, elementsOf } from '@ssz/shared-kernel/skills';
+import type {
+  AtomRef,
+  DeriveInput,
+  DerivedProfile,
+  Placement,
+  RecipeElement,
+} from '@ssz/shared-kernel/skills';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import type { AxesScope, IExerciseAxes } from '../domain/exercise-axes.port.js';
 
@@ -30,8 +36,29 @@ export class PrismaExerciseAxesService implements IExerciseAxes {
     exerciseIds: readonly string[],
     scope: AxesScope = 'live',
   ): Promise<Map<string, DerivedProfile>> {
-    const ids = [...new Set(exerciseIds)];
     const out = new Map<string, DerivedProfile>();
+    for (const [id, input] of await this.inputs(exerciseIds, scope))
+      out.set(id, deriveSkills(input));
+    return out;
+  }
+
+  /** The elements of many exercises — see the port. Same three queries, no more. */
+  async elementsFor(
+    exerciseIds: readonly string[],
+    scope: AxesScope = 'live',
+  ): Promise<Map<string, RecipeElement[]>> {
+    const out = new Map<string, RecipeElement[]>();
+    for (const [id, input] of await this.inputs(exerciseIds, scope)) out.set(id, elementsOf(input));
+    return out;
+  }
+
+  /** Everything the kernel needs to judge each exercise, read in one batch. */
+  private async inputs(
+    exerciseIds: readonly string[],
+    scope: AxesScope,
+  ): Promise<Map<string, DeriveInput>> {
+    const ids = [...new Set(exerciseIds)];
+    const out = new Map<string, DeriveInput>();
     if (ids.length === 0) return out;
 
     const [exercises, placements, atoms] = await Promise.all([
@@ -61,23 +88,20 @@ export class PrismaExerciseAxesService implements IExerciseAxes {
           ? exercise.draftContent
           : exercise.content;
 
-      out.set(
-        exercise.id,
-        deriveSkills({
-          templateCode: exercise.template.code,
-          content,
-          atoms: atoms.get(exercise.id) ?? [],
-          placement: placements.get(exercise.id) ?? null,
-          override:
-            exercise.overrideSetAt === null
-              ? null
-              : {
-                  skills: exercise.skillsOverride,
-                  focus: exercise.focusOverride,
-                  setAt: exercise.overrideSetAt,
-                },
-        }),
-      );
+      out.set(exercise.id, {
+        templateCode: exercise.template.code,
+        content,
+        atoms: atoms.get(exercise.id) ?? [],
+        placement: placements.get(exercise.id) ?? null,
+        override:
+          exercise.overrideSetAt === null
+            ? null
+            : {
+                skills: exercise.skillsOverride,
+                focus: exercise.focusOverride,
+                setAt: exercise.overrideSetAt,
+              },
+      });
     }
 
     return out;

@@ -1,6 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { FOCUSES, FORMS, MODALITIES, SKILLS } from '@ssz/shared-kernel/skills';
-import type { Coverage, CoverageDifference, CoverageIssue } from '@ssz/shared-kernel/skills';
+import type {
+  Coverage,
+  CoverageDifference,
+  CoverageIssue,
+  Recipe,
+  RecipeIssue,
+} from '@ssz/shared-kernel/skills';
+import { RecipeDto } from '../../../../coverage-recipe/presentation/dto/recipe.dto.js';
 import type {
   ContainerCoverageResult,
   CoverageReport,
@@ -57,7 +64,9 @@ class CoverageTalliesDto {
   byModality!: Record<string, number>;
 
   @ApiProperty({
-    example: { listening: { vocabulary: 0, grammar: 0, orthography: 0, pragmatics: 0, unknown: 0 } },
+    example: {
+      listening: { vocabulary: 0, grammar: 0, orthography: 0, pragmatics: 0, unknown: 0 },
+    },
     description:
       'The skill × focus table the two tallies above are the margins of. A pair can be ' +
       'empty while neither of its margins is, so "this course never trains listening ' +
@@ -108,12 +117,23 @@ class ModuleCoverageDto {
   @ApiProperty({ type: 'array', items: { type: 'object', additionalProperties: true } })
   issues!: CoverageIssue[];
 
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', additionalProperties: true },
+    description:
+      'What this lesson lacks against the recipe: `RECIPE_BELOW_MIN` or ' +
+      '`RECIPE_ABOVE_SHARE`, each with the rule, its index and the counts in elements. ' +
+      'Always warnings; none blocks publishing. Empty under an empty recipe.',
+  })
+  recipeIssues!: RecipeIssue[];
+
   static from(module: ModuleCoverage): ModuleCoverageDto {
     const dto = new ModuleCoverageDto();
     dto.containerId = module.containerId;
     dto.title = module.title;
     dto.coverage = CoverageTalliesDto.from(module.coverage);
     dto.issues = module.issues;
+    dto.recipeIssues = module.recipeIssues;
     return dto;
   }
 }
@@ -167,6 +187,14 @@ export class ContainerCoverageResponseDto {
   @ApiProperty()
   title!: string;
 
+  @ApiProperty({
+    type: RecipeDto,
+    description:
+      'The recipe the lessons were checked against — the course’s own, else its ' +
+      'workspace’s, else empty',
+  })
+  recipe!: Recipe;
+
   @ApiPropertyOptional({ type: CoverageReportDto, nullable: true })
   draft!: CoverageReportDto | null;
 
@@ -196,6 +224,7 @@ export class ContainerCoverageResponseDto {
     dto.containerId = result.containerId;
     dto.containerType = result.containerType;
     dto.title = result.title;
+    dto.recipe = result.recipe;
     dto.draft = result.draft ? CoverageReportDto.from(result.draft) : null;
     dto.published = result.published ? CoverageReportDto.from(result.published) : null;
     dto.diverges = result.diverges;

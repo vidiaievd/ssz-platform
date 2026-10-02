@@ -25,6 +25,7 @@ import { GetContainerReviewSettingsHandler } from './application/queries/get-rev
 import { SetContainerCoverageRecipeHandler } from './application/commands/set-coverage-recipe/set-container-coverage-recipe.handler.js';
 import { GetContainerCoverageRecipeHandler } from './application/queries/get-coverage-recipe/get-container-coverage-recipe.handler.js';
 import { CoverageRecipeModule } from '../coverage-recipe/coverage-recipe.module.js';
+import { CoverageRecipeResolver } from './application/services/coverage-recipe-resolver.service.js';
 import { UpdateContainerHandler } from './application/commands/update-container/update-container.handler.js';
 import { DeleteContainerHandler } from './application/commands/delete-container/delete-container.handler.js';
 import { ArchiveContainerHandler } from './application/commands/archive-container/archive-container.handler.js';
@@ -135,6 +136,7 @@ const QueryHandlers = [
 
     // Read-model services
     PublishStateReader,
+    CoverageRecipeResolver,
 
     // CQRS handlers
     ...CommandHandlers,

@@ -10,6 +10,7 @@ import { ContainerType } from '../../../domain/value-objects/container-type.vo.j
 import { DifficultyLevel } from '../../../domain/value-objects/difficulty-level.vo.js';
 import { Visibility } from '../../../domain/value-objects/visibility.vo.js';
 import { AccessTier } from '../../../domain/value-objects/access-tier.vo.js';
+import { CoverageRecipeResolver } from '../../services/coverage-recipe-resolver.service.js';
 import { WorkspaceCoverageRecipeEntity } from '../../../../coverage-recipe/domain/entities/workspace-coverage-recipe.entity.js';
 
 const SCHOOL = 'school-1';
@@ -50,7 +51,10 @@ function makeHandler(
     ),
   };
   return {
-    handler: new GetContainerCoverageRecipeHandler(containers as never, workspaces as never),
+    handler: new GetContainerCoverageRecipeHandler(
+      containers as never,
+      new CoverageRecipeResolver(workspaces as never),
+    ),
     workspaces,
   };
 }

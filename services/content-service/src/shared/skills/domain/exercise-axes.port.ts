@@ -1,4 +1,4 @@
-import type { DerivedProfile } from '@ssz/shared-kernel/skills';
+import type { DerivedProfile, RecipeElement } from '@ssz/shared-kernel/skills';
 
 export const EXERCISE_AXES = Symbol('EXERCISE_AXES');
 
@@ -30,4 +30,15 @@ export interface IExerciseAxes {
     exerciseIds: readonly string[],
     scope?: AxesScope,
   ): Promise<Map<string, DerivedProfile>>;
+
+  /**
+   * The countable pieces of many exercises, keyed by id (plan 64, decision M): one per
+   * `ExerciseItemTarget.itemKey`, or one for an exercise nobody addressed. Read off the
+   * same batch as `forExercises`, because the element key lives in the atom graph and the
+   * profile alone has dropped it.
+   */
+  elementsFor(
+    exerciseIds: readonly string[],
+    scope?: AxesScope,
+  ): Promise<Map<string, RecipeElement[]>>;
 }

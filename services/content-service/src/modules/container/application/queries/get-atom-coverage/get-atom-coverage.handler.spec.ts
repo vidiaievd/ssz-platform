@@ -150,6 +150,7 @@ function prismaFrom(fixture: Fixture): PrismaService {
 function axesFrom(modalities: Record<string, string>): IExerciseAxes {
   return {
     forExercise: () => Promise.resolve(null),
+    elementsFor: () => Promise.resolve(new Map()),
     forExercises: (ids: readonly string[]) =>
       Promise.resolve(
         new Map(
