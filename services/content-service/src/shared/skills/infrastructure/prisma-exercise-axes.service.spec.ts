@@ -57,7 +57,9 @@ describe('PrismaExerciseAxesService', () => {
 
   it('reads a listening stage as listening, whatever the template says', async () => {
     // The placement rung exists for exactly this: a short_answer about a recording is
-    // not a reading exercise, and no flag inside its document would ever say so.
+    // not a reading exercise, and no flag inside its document would ever say so. It is
+    // still written, though: the recording replaces the input, not the answer (plan 64,
+    // decision F).
     const service = new PrismaExerciseAxesService(
       prismaWith({
         exercises: [exerciseRow()],
@@ -74,7 +76,7 @@ describe('PrismaExerciseAxesService', () => {
 
     const axes = await service.forExercise('ex-1');
 
-    expect(axes?.skills).toEqual(['listening']);
+    expect(axes?.skills).toEqual(['listening', 'written']);
     expect(axes?.skillSource).toBe('placement');
   });
 

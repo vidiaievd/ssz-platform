@@ -3,7 +3,8 @@
 // Three axes, deliberately separate, because collapsing them is the mistake this module
 // exists to prevent:
 //
-//   skill — the channel: listening / reading / spoken / written
+//   skill — the channel: listening / reading / spoken / written, read off the pair
+//           input × output since plan 64 (decision F) — see `channelsOf`
 //   focus — the subject: vocabulary / grammar / orthography / pragmatics
 //   form  — how the answer was produced (bank / free), which already lives in
 //           `AnswerForm` and `evidence-strength.ts` and is only *counted* here
@@ -22,6 +23,57 @@
 /** The four CEFR channels. Order is canonical — reports and tests depend on it. */
 export const SKILLS = ['listening', 'reading', 'spoken', 'written'] as const;
 export type Skill = (typeof SKILLS)[number];
+
+/**
+ * What the learner has to take in to answer — plan 64, decision F.
+ *
+ * The channel used to be one list, and anything that changed how the exercise is
+ * perceived replaced the whole list: a `short_answer` about a recording became
+ * `listening` and stopped being written production, though the learner still wrote the
+ * answer. Perception and production are two facts; they are now two fields, and the
+ * CEFR channel is read off the pair by `channelsOf`.
+ *
+ * `text` means material in the target language that has to be *understood* to answer —
+ * a passage, a stem, options to read. The frame of an item does not count: a sentence
+ * with a gap in it is the shape of the answer, not something to comprehend, and a gap
+ * fill is not a reading exercise. `none` is that case, and also a prompt written in the
+ * language of explanation (rule 1 of `by-template.ts`, applied to the input side).
+ * `image` is reserved: it names a channel CEFR does not measure, so it produces none.
+ */
+export const INPUTS = ['text', 'audio', 'video', 'image', 'none'] as const;
+export type Input = (typeof INPUTS)[number];
+
+/**
+ * What the learner produces. `written_l1` is the answer written in the language of
+ * explanation — real work, and not written production in the language being learnt
+ * (rule 1 of `by-template.ts`). `spoken` is unreachable today: nothing records speech.
+ */
+export const OUTPUTS = ['none', 'written_target', 'written_l1', 'spoken'] as const;
+export type Output = (typeof OUTPUTS)[number];
+
+/**
+ * The CEFR channels an exercise trains, from what goes in and what comes out.
+ *
+ * Pure and total, and the only place the mapping lives: the coverage report, can-do
+ * descriptors and `SkillMastery` keep reading `Skill`, and none of them has to learn
+ * the two new fields to stay correct.
+ */
+export function channelsOf(input: Input, output: Output): Skill[] {
+  const channels: Skill[] = [];
+  if (input === 'text') channels.push('reading');
+  if (input === 'audio' || input === 'video') channels.push('listening');
+  if (output === 'written_target') channels.push('written');
+  if (output === 'spoken') channels.push('spoken');
+  return orderSkills(channels);
+}
+
+export function isInput(value: unknown): value is Input {
+  return typeof value === 'string' && (INPUTS as readonly string[]).includes(value);
+}
+
+export function isOutput(value: unknown): value is Output {
+  return typeof value === 'string' && (OUTPUTS as readonly string[]).includes(value);
+}
 
 /** The subject being trained. Canonical order, as above. */
 export const FOCUSES = ['vocabulary', 'grammar', 'orthography', 'pragmatics'] as const;

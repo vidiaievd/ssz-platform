@@ -1,13 +1,18 @@
 // Public surface of the skill axes — plan 55 phase 1.
 
-export type { Focus, FocusSource, Form, Modality, Skill, SkillSource } from './model.js';
+export type { Focus, FocusSource, Form, Input, Modality, Output, Skill, SkillSource } from './model.js';
 export {
+  channelsOf,
   FOCUS_SOURCES,
   FOCUSES,
   FORMS,
+  INPUTS,
   MODALITIES,
+  OUTPUTS,
   isFocus,
+  isInput,
   isModality,
+  isOutput,
   isSkill,
   orderFocuses,
   orderSkills,
