@@ -3,7 +3,10 @@
 //
 // Three tallies, and **the third matters more than the first two**: a course can be
 // impeccably balanced across the four skills and still consist, 84% of it, of picking an
-// answer out of a list. `bySkill` and `byFocus` cannot see that; `byForm` can.
+// answer out of a list. `bySkill` and `byFocus` cannot see that; `byModality` can.
+// (`byForm` came first and stays — it is the raw fact of whether a bank was on screen —
+// but it puts `sentence_schema` and `multiple_choice` in one bucket, and the report reads
+// `byModality` since plan 64, decision G.)
 //
 // Every bucket is always present, including the zeroes. That is the rule of §3.10 and it
 // is the whole reason this returns records rather than the entries it happened to see:
@@ -12,12 +15,13 @@
 
 import type { DeriveInput, DerivedProfile } from './derive.js';
 import { deriveSkills } from './derive.js';
-import type { Focus, Form, Skill } from './model.js';
-import { FOCUSES, FORMS, SKILLS } from './model.js';
+import type { Focus, Form, Modality, Skill } from './model.js';
+import { FOCUSES, FORMS, isModality, MODALITIES, SKILLS } from './model.js';
 
 export type SkillTally = Record<Skill, number>;
 export type FocusTally = Record<Focus | 'unknown', number>;
 export type FormTally = Record<Form, number>;
+export type ModalityTally = Record<Modality, number>;
 
 /**
  * The table itself, not its two margins: how many exercises train this skill *and* this
@@ -57,6 +61,8 @@ export interface Coverage {
   /** The same axis in elements rather than exercises. See `WeightedFocusTally`. */
   byFocusWeighted: WeightedFocusTally;
   byForm: FormTally;
+  /** How the answer had to be known — recognition, recall, production (plan 64, decision G). */
+  byModality: ModalityTally;
   /** The skill × focus table behind the two margins above. Every cell present, zeroes included. */
   byPair: PairTally;
   /** Skills no exercise trains. Named explicitly so the caller need not diff against SKILLS. */
@@ -75,6 +81,10 @@ function emptyFocusTally(): FocusTally {
 
 function emptyFormTally(): FormTally {
   return { bank: 0, free: 0, mixed: 0, unknown: 0 };
+}
+
+function emptyModalityTally(): ModalityTally {
+  return { recognition: 0, recall: 0, production: 0, unknown: 0 };
 }
 
 function emptyPairTally(): PairTally {
@@ -97,6 +107,7 @@ export function tally(profiles: readonly DerivedProfile[]): Coverage {
   const byFocus = emptyFocusTally();
   const byFocusWeighted = emptyFocusTally();
   const byForm = emptyFormTally();
+  const byModality = emptyModalityTally();
   const byPair = emptyPairTally();
   let unclassified = 0;
 
@@ -125,6 +136,9 @@ export function tally(profiles: readonly DerivedProfile[]): Coverage {
     }
 
     byForm[profile.form] += 1;
+    // Defensive for the same reason as the weights above: a profile from an event written
+    // before plan 63 carries no modality, and that is `unknown`, not a crash.
+    byModality[isModality(profile.modality) ? profile.modality : 'unknown'] += 1;
 
     // The cells of the table, on the same terms as the margins: an exercise with no
     // subject lands in the `unknown` column rather than in none, so that a row of the
@@ -139,6 +153,7 @@ export function tally(profiles: readonly DerivedProfile[]): Coverage {
     byFocus,
     byFocusWeighted,
     byForm,
+    byModality,
     byPair,
     emptySkills: SKILLS.filter((skill) => bySkill[skill] === 0),
     unclassified,
@@ -156,7 +171,7 @@ export function share(count: number, total: number): number {
 
 /** A cell of the report that differs between two versions of the same module (§3.7, Q5). */
 export interface CoverageDifference {
-  axis: 'skill' | 'focus' | 'form';
+  axis: 'skill' | 'focus' | 'form' | 'modality';
   key: string;
   draft: number;
   published: number;
@@ -183,6 +198,15 @@ export function diff(draft: Coverage, published: Coverage): CoverageDifference[]
   for (const form of FORMS)
     if (draft.byForm[form] !== published.byForm[form])
       out.push({ axis: 'form', key: form, draft: draft.byForm[form], published: published.byForm[form] });
+
+  for (const modality of MODALITIES)
+    if (draft.byModality[modality] !== published.byModality[modality])
+      out.push({
+        axis: 'modality',
+        key: modality,
+        draft: draft.byModality[modality],
+        published: published.byModality[modality],
+      });
 
   return out;
 }

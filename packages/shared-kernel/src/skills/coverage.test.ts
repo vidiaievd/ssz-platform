@@ -19,6 +19,7 @@ describe('tallies', () => {
     expect(result.bySkill).toEqual({ listening: 0, reading: 0, spoken: 0, written: 0 });
     expect(result.byFocus).toEqual({ vocabulary: 0, grammar: 0, orthography: 0, pragmatics: 0, unknown: 0 });
     expect(result.byForm).toEqual({ bank: 0, free: 0, mixed: 0, unknown: 0 });
+    expect(result.byModality).toEqual({ recognition: 0, recall: 0, production: 0, unknown: 0 });
     expect(result.emptySkills).toEqual(['listening', 'reading', 'spoken', 'written']);
     expect(result.total).toBe(0);
   });
@@ -92,6 +93,21 @@ describe('tallies', () => {
     const result = coverage(exercises);
     expect(result.byForm.bank).toBe(4);
     expect(result.byForm.free).toBe(0);
+  });
+
+  it('tells rebuilding from picking, where the form column cannot (plan 64, decision G)', () => {
+    // Both are `bank`: the pieces are on screen in either. Only one of them can be
+    // answered without knowing where the finite verb goes.
+    const result = coverage([ex('sentence_schema'), ex('multiple_choice')]);
+    expect(result.byForm.bank).toBe(2);
+    expect(result.byModality.recall).toBe(1);
+    expect(result.byModality.recognition).toBe(1);
+  });
+
+  it('counts a profile from an older event, with no modality, as unknown', () => {
+    const { modality: _dropped, ...older } = deriveSkills(ex('writing_task'));
+    const result = tally([older as never]);
+    expect(result.byModality.unknown).toBe(1);
   });
 
   it('accepts profiles derived elsewhere', () => {

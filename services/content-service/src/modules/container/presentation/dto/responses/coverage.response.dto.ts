@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { FOCUSES, FORMS, SKILLS } from '@ssz/shared-kernel/skills';
+import { FOCUSES, FORMS, MODALITIES, SKILLS } from '@ssz/shared-kernel/skills';
 import type { Coverage, CoverageDifference, CoverageIssue } from '@ssz/shared-kernel/skills';
 import type {
   ContainerCoverageResult,
@@ -41,11 +41,20 @@ class CoverageTalliesDto {
   @ApiProperty({
     example: { bank: 380, free: 60, mixed: 12, unknown: 0 },
     description:
-      `Recognition against production (${FORMS.join(', ')}). The row that matters most: a ` +
-      'course can be perfectly balanced across the four channels and still be 84% picking ' +
-      'an answer off a list, and only this tally can see that.',
+      `Whether a bank of answers was on screen (${FORMS.join(', ')}). A raw fact kept for ` +
+      'the issue rules; the report reads `byModality`, because a bank of chunks to put in ' +
+      'order and a bank of options to pick from land here in one bucket.',
   })
   byForm!: Record<string, number>;
+
+  @ApiProperty({
+    example: { recognition: 300, recall: 110, production: 40, unknown: 2 },
+    description:
+      `How the answer had to be known (${MODALITIES.join(', ')}). The row that matters ` +
+      'most: a course can be perfectly balanced across the four channels and still be 84% ' +
+      'picking an answer off a list, and only this tally can see that (plan 64, decision G).',
+  })
+  byModality!: Record<string, number>;
 
   @ApiProperty({
     example: { listening: { vocabulary: 0, grammar: 0, orthography: 0, pragmatics: 0, unknown: 0 } },
@@ -78,6 +87,7 @@ class CoverageTalliesDto {
     dto.byFocus = coverage.byFocus;
     dto.byFocusWeighted = coverage.byFocusWeighted;
     dto.byForm = coverage.byForm;
+    dto.byModality = coverage.byModality;
     dto.byPair = coverage.byPair;
     dto.emptySkills = coverage.emptySkills;
     dto.unclassified = coverage.unclassified;

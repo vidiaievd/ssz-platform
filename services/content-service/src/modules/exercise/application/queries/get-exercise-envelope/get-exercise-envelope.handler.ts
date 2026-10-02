@@ -104,6 +104,8 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
     // that a race with a delete degrades to empty axes rather than to a failed attempt.
     const axes = (await this.axes.forExercise(query.exerciseId)) ?? {
       skills: [],
+      input: 'none' as const,
+      output: 'none' as const,
       focus: [],
       focusWeights: {},
       form: 'unknown' as const,
