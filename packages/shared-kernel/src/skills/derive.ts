@@ -211,8 +211,11 @@ function fromDocument(templateCode: string, content: unknown): DocumentReading |
  * That is not a reason to guess harder in the table — it is the reason the report has an
  * `unknown` bucket, and the reason the grammar-rule pool (audit 34 §5 item 3) matters
  * beyond spaced repetition.
+ *
+ * Exported for `recipe.ts`, which reads the same graph element by element and must not
+ * classify an atom by a second rule.
  */
-function atomFocus(atom: AtomRef): Focus | null {
+export function atomFocus(atom: AtomRef): Focus | null {
   const type = atom.atomType.toLowerCase();
   if (type.includes('grammar')) return 'grammar';
   if (type.includes('word') || type.includes('vocab')) return 'vocabulary';

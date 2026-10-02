@@ -41,3 +41,19 @@ export { coverage, diff, diverges, share, tally } from './coverage.js';
 
 export type { CoverageIssue, CoverageIssueLevel, CoverageIssueOptions } from './issues.js';
 export { coverageIssues, warnings } from './issues.js';
+
+export type { Recipe, RecipeAxis, RecipeElement, RecipeIssue, RecipePresetId, RecipeRule } from './recipe.js';
+export {
+  checkElements,
+  checkRecipe,
+  elementsOf,
+  EMPTY_RECIPE,
+  matches,
+  MAX_RECIPE_RULES,
+  parseRecipe,
+  parseRule,
+  readRecipe,
+  RECIPE_AXES,
+  RECIPE_PRESET_IDS,
+  RECIPE_PRESETS,
+} from './recipe.js';
