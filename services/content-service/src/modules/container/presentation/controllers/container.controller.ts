@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
@@ -73,6 +74,11 @@ import type { ContainerReviewSettingsResult } from '../../application/queries/ge
 import { SetContainerReviewSettingsCommand } from '../../application/commands/set-review-settings/set-container-review-settings.command.js';
 import { SetContainerReviewSettingsRequestDto } from '../dto/requests/review-settings.request.dto.js';
 import { ContainerReviewSettingsResponseDto } from '../dto/responses/review-settings.response.dto.js';
+import { GetContainerCoverageRecipeQuery } from '../../application/queries/get-coverage-recipe/get-container-coverage-recipe.query.js';
+import type { ContainerCoverageRecipeResult } from '../../application/queries/get-coverage-recipe/get-container-coverage-recipe.handler.js';
+import { SetContainerCoverageRecipeCommand } from '../../application/commands/set-coverage-recipe/set-container-coverage-recipe.command.js';
+import { SetContainerCoverageRecipeRequestDto } from '../dto/requests/coverage-recipe.request.dto.js';
+import { ContainerCoverageRecipeResponseDto } from '../dto/responses/coverage-recipe.response.dto.js';
 
 @ApiTags('Containers')
 @ApiBearerAuth()
@@ -302,6 +308,44 @@ export class ContainerController {
 
     if (result.isFail) throwHttpException(result.error);
     return AtomCoverageResponseDto.from(result.value);
+  }
+
+  @Get(':id/coverage-recipe')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({
+    summary: 'The recipe this course’s lessons are held to, and the one it inherits',
+  })
+  @ApiOkResponse({ type: ContainerCoverageRecipeResponseDto })
+  async getCoverageRecipe(@Param('id') id: string): Promise<ContainerCoverageRecipeResponseDto> {
+    const result = await this.queryBus.execute<
+      GetContainerCoverageRecipeQuery,
+      Result<ContainerCoverageRecipeResult, ContainerDomainError>
+    >(new GetContainerCoverageRecipeQuery(id));
+
+    if (result.isFail) throwHttpException(result.error);
+    return ContainerCoverageRecipeResponseDto.from(result.value);
+  }
+
+  /** `null` gives the recipe back to the workspace; the response says what applies now. */
+  @Put(':id/coverage-recipe')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({ summary: 'Set or clear this course’s own recipe' })
+  @ApiOkResponse({ type: ContainerCoverageRecipeResponseDto })
+  @ApiBadRequestResponse({ description: 'INVALID_COVERAGE_RECIPE — a rule does not parse' })
+  async setCoverageRecipe(
+    @Param('id') id: string,
+    @Body() dto: SetContainerCoverageRecipeRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ContainerCoverageRecipeResponseDto> {
+    const applied = await this.commandBus.execute<
+      SetContainerCoverageRecipeCommand,
+      Result<void, ContainerDomainError>
+    >(new SetContainerCoverageRecipeCommand(user.userId, id, dto.recipe));
+
+    if (applied.isFail) throwHttpException(applied.error);
+    return this.getCoverageRecipe(id);
   }
 
   @Get(':id/review-settings')

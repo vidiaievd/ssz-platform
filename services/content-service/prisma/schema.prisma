@@ -159,6 +159,10 @@ model Container {
   // Null means the school's own promise applies — the course has not overridden it
   // (plan 44 §44.12). Only meaningful for containerType=COURSE.
   reviewRespondWithinHours  Int?            @map("review_respond_within_hours")
+  // What every lesson of THIS course is expected to train (plan 64, decision O).
+  // Null inherits the workspace's recipe; `{ "rules": [] }` is a course that has opted
+  // out of the workspace's. Shape: `Recipe` in @ssz/shared-kernel/skills.
+  coverageRecipe            Json?           @map("coverage_recipe")
   // Raw FK to container_versions.id (DEFERRABLE INITIALLY DEFERRED) added via migration.
   currentPublishedVersionId String?         @map("current_published_version_id") @db.Uuid
   createdAt                 DateTime        @default(now()) @map("created_at") @db.Timestamptz
@@ -175,6 +179,20 @@ model Container {
   @@index([targetLanguage, difficultyLevel])
   @@index([deletedAt, visibility, targetLanguage])
   @@map("containers")
+}
+
+// A workspace's methodological standard for a lesson (plan 64, decision O): one row per
+// school, SCHOOL and SOLO alike, keyed by organization-service's id — there is no FK,
+// schools live in another database. No row means the workspace has set no recipe, which
+// is a legitimate state; the platform does not impose a method.
+model WorkspaceCoverageRecipe {
+  schoolId        String   @id @map("school_id") @db.Uuid
+  // Shape: `Recipe` in @ssz/shared-kernel/skills, validated by `readRecipe` on write.
+  recipe          Json
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByUserId String   @map("updated_by_user_id") @db.Uuid
+
+  @@map("workspace_coverage_recipes")
 }
 
 // One container can have many versions. Only one draft and one published version
