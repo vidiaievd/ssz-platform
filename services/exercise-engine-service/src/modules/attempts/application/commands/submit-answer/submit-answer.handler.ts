@@ -16,6 +16,11 @@ import {
   TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP,
 } from '@ssz/shared-kernel/multiple-choice-group';
 import {
+  maxChecks as sbMaxChecks,
+  readContent as sbReadContent,
+  TEMPLATE_CODE as SORT_INTO_BUCKETS,
+} from '@ssz/shared-kernel/sort-into-buckets';
+import {
   fromPersisted as writingTaskFromPersisted,
   snapshotRubric,
   TEMPLATE_CODE as WRITING_TASK,
@@ -113,8 +118,23 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
   // What is added here beyond the verdicts is the state the runner draws from: how many
   // checks are left, and which rows the server has frozen.
   if (templateCode === MULTIPLE_CHOICE_GROUP) return details;
+  // `sort_into_buckets` travels whole for the same reason (plan 66): the kernel's `check`
+  // already decided how much of the key a check may carry — which tiles are wrong and why
+  // on every pass, the right bucket, each item's `why` and each bucket's rule only once the
+  // board is closed under `revealKey`. The explanation for a wrong bucket is resolved there
+  // too; the feedback map itself never leaves the server.
+  if (templateCode === SORT_INTO_BUCKETS) return details;
   return undefined;
 }
+
+/**
+ * The templates checked as one board, with a budget of checks and a frozen set carried from
+ * one check to the next in the attempt's own details (plan 54 §3.3). `sort_into_buckets`
+ * joined with plan 66: the mechanics are the same, and so are the field names its validator
+ * writes — `closed`, `locked`, `items[].itemId`, `items[].firstAnswer` — so the helpers
+ * below read both without knowing which they hold.
+ */
+const WHOLE_BOARD_CHECKS: ReadonlySet<string> = new Set([MULTIPLE_CHOICE_GROUP, SORT_INTO_BUCKETS]);
 
 /**
  * The submission, with what the attempt knows about it written over what the client says.
@@ -134,7 +154,7 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
  */
 function withRecordedReveals(attempt: Attempt, submitted: unknown): unknown {
   if (attempt.templateCode === MULTIPLE_CHOICE) return withRecordedPicks(attempt, submitted);
-  if (attempt.templateCode === MULTIPLE_CHOICE_GROUP) return withRecordedChecks(attempt, submitted);
+  if (WHOLE_BOARD_CHECKS.has(attempt.templateCode)) return withRecordedChecks(attempt, submitted);
   if (attempt.templateCode !== SENTENCE_SCHEMA) return submitted;
 
   const revealed = new Set(
@@ -310,6 +330,7 @@ function describeGapResults(
   templateCode: string,
   details: unknown,
 ): Array<{ gapKey: string; correct: boolean }> | undefined {
+  if (templateCode === SORT_INTO_BUCKETS) return sortItemResults(details);
   if (templateCode !== WORD_BANK_GAP_FILL) return undefined;
   if (typeof details !== 'object' || details === null) return undefined;
 
@@ -319,6 +340,29 @@ function describeGapResults(
   return gaps.map((gap) => {
     const { gapKey, correct } = gap as { gapKey: string; correct: boolean };
     return { gapKey, correct };
+  });
+}
+
+/**
+ * The per-item verdicts of a `sort_into_buckets` board, keyed by item id (plan 66, Q3-A).
+ *
+ * Carried in `gapResults` because that is the one road per-item evidence has to the
+ * scheduler: each verdict is joined to the addresses of its item, so review can bring back
+ * the tiles that were misfiled rather than the whole board (AC-X5). The key is the item id,
+ * exactly as `itemsOf` in the kernel spells it for addressing.
+ *
+ * The verdict is the *first* check's — the only one an event is published for, and the one
+ * the score counts. Read off `firstCorrect` rather than `correct` so that the meaning holds
+ * even if a later check were ever to publish.
+ */
+function sortItemResults(details: unknown): Array<{ gapKey: string; correct: boolean }> | undefined {
+  if (typeof details !== 'object' || details === null) return undefined;
+  const { items } = details as { items?: unknown };
+  if (!Array.isArray(items)) return undefined;
+
+  return items.flatMap((raw) => {
+    const { itemId, firstCorrect } = (raw ?? {}) as { itemId?: unknown; firstCorrect?: unknown };
+    return typeof itemId === 'string' ? [{ gapKey: itemId, correct: firstCorrect === true }] : [];
   });
 }
 
@@ -420,8 +464,10 @@ function withRecordedChecks(attempt: Attempt, submitted: unknown): unknown {
  * than off the attempt — the learner is working under the setting as it stands now.
  */
 function recheckBudget(templateCode: string, content: unknown): number | undefined {
-  if (templateCode !== MULTIPLE_CHOICE_GROUP) return undefined;
-  return mcgMaxAttempts(mcgReadContent(content).settings);
+  if (templateCode === MULTIPLE_CHOICE_GROUP) return mcgMaxAttempts(mcgReadContent(content).settings);
+  // `settings.attempts`: 1, 2 or 3 checks of the board, or 0 for unlimited (plan 66).
+  if (templateCode === SORT_INTO_BUCKETS) return sbMaxChecks(sbReadContent(content).settings) ?? undefined;
+  return undefined;
 }
 
 /**
@@ -433,7 +479,7 @@ function recheckBudget(templateCode: string, content: unknown): number | undefin
  * shown.
  */
 function refuseClosedTable(attempt: Attempt): InvalidAttemptTransitionError | null {
-  if (attempt.templateCode !== MULTIPLE_CHOICE_GROUP) return null;
+  if (!WHOLE_BOARD_CHECKS.has(attempt.templateCode)) return null;
   if (!previousCheck(attempt).closed) return null;
   return new InvalidAttemptTransitionError('This table is closed and cannot be checked again');
 }

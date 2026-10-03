@@ -10,6 +10,10 @@ import {
   toStudentProjection as mcgToStudentProjection,
 } from '@ssz/shared-kernel/multiple-choice-group';
 import { seedFrom } from '../../../src/shared/application/services/multiple-choice-attempt.js';
+import {
+  shuffled as sbShuffled,
+  toStudentProjection as sbToStudentProjection,
+} from '@ssz/shared-kernel/sort-into-buckets';
 
 // `checkMode: PRACTICE` means "ship the answers so the client can check locally", and
 // that is safe for eleven templates whose answers are a separate key. It is not safe
@@ -944,5 +948,99 @@ describe('StartAttemptHandler — what leaves with the attempt', () => {
     const result = await handler.execute(practice);
     expect(result.value.exerciseContent).toEqual(content);
     expect(result.value.expectedAnswers).toEqual(answers);
+  });
+});
+
+// AC-S11 of plan 66, asserted on the server as the spec demands: the payload a student
+// receives carries no bucket per item, no `also`, no `why` and no feedback. Structural —
+// the answer for `bil` is the string `en`, which is also a bucket label the student is
+// supposed to see, so a search for the answer text could not tell a leak from the board.
+describe('StartAttemptHandler — sort_into_buckets', () => {
+  const sortContent = {
+    title: 'Kjønn',
+    instruction: 'Sorter substantivene.',
+    buckets: [
+      { id: 'b1', label: 'en', rule: 'Hankjønn. Bestemt form -en.' },
+      { id: 'b2', label: 'et', rule: 'Intetkjønn.' },
+    ],
+    useNone: true,
+    noneLabel: 'Ingen av delene',
+    items: [
+      { id: 'i1', text: 'bil' },
+      { id: 'i2', text: 'hus' },
+      { id: 'i3', text: 'gutt' },
+      { id: 'i4', text: 'eple' },
+      { id: 'i5', text: 'stol' },
+    ],
+    settings: { shuffle: true, showRemaining: false, hints: true, revealKey: true, attempts: 0, threshold: 70 },
+  };
+  const sortKey = {
+    items: {
+      i1: { bucketId: 'b1', also: [], why: 'En bil.', fb: { def: 'Hankjønn.', ov: { b2: 'Ikke et.' } } },
+      i2: { bucketId: 'b2', also: ['b1'], why: 'Et hus.', fb: { def: 'Intetkjønn.', ov: {} } },
+      i3: { bucketId: 'b1', also: [], why: 'En gutt.', fb: { def: 'Hankjønn.', ov: {} } },
+      i4: { bucketId: 'b2', also: [], why: 'Et eple.', fb: { def: 'Intetkjønn.', ov: {} } },
+      // i5 is written but never assigned — it must not reach the student.
+    },
+  };
+
+  type Projection = {
+    buckets: Array<Record<string, unknown>>;
+    items: Array<Record<string, unknown>>;
+    settings: Record<string, unknown>;
+  };
+
+  it('ships items as id and text and buckets as id, label and hint — nothing that decides them', async () => {
+    const handler = makeHandler('sort_into_buckets', sortContent, sortKey);
+    const result = (await handler.execute(practice)).value;
+
+    expect(result.expectedAnswers).toBeNull();
+    const projection = result.exerciseContent as Projection;
+    for (const item of projection.items) expect(Object.keys(item).sort()).toEqual(['id', 'text']);
+    for (const bucket of projection.buckets) {
+      expect(Object.keys(bucket).every((k) => ['id', 'label', 'hint'].includes(k))).toBe(true);
+    }
+    const serialised = JSON.stringify(result.exerciseContent);
+    for (const field of ['bucketId', 'also', 'why', 'fb', 'def', 'ov', 'rule']) {
+      expect(serialised).not.toContain(`"${field}"`);
+    }
+  });
+
+  it('drops the item the author never assigned', async () => {
+    const handler = makeHandler('sort_into_buckets', sortContent, sortKey);
+    const projection = (await handler.execute(practice)).value.exerciseContent as Projection;
+    expect(projection.items.map((i) => i.id).sort()).toEqual(['i1', 'i2', 'i3', 'i4']);
+  });
+
+  it('deals the pool from the attempt, and never moves the buckets', async () => {
+    const handler = makeHandler('sort_into_buckets', sortContent, sortKey);
+    const result = (await handler.execute(practice)).value;
+    const projection = result.exerciseContent as Projection;
+
+    const expected = sbToStudentProjection(sortContent, sortKey, (items) =>
+      sbShuffled(items, seedFrom(result.attemptId)),
+    );
+    expect(projection.items.map((i) => i.id)).toEqual(expected.items.map((i) => i.id));
+    expect(projection.buckets.map((b) => b.id)).toEqual(['b1', 'b2', 'none']);
+  });
+
+  it('in GRADED mode fetches the unprojected document so the deal belongs to the attempt', async () => {
+    const alreadyProjected = sbToStudentProjection(sortContent, sortKey);
+    const { handler, modes } = makeHandlerByMode('sort_into_buckets', (mode) =>
+      mode === 'PRACTICE'
+        ? { content: sortContent, expectedAnswers: sortKey }
+        : { content: alreadyProjected, expectedAnswers: null },
+    );
+
+    const result = (await handler.execute(graded)).value;
+
+    expect(modes).toEqual(['GRADED', 'PRACTICE']);
+    const expected = sbToStudentProjection(sortContent, sortKey, (items) =>
+      sbShuffled(items, seedFrom(result.attemptId)),
+    );
+    expect((result.exerciseContent as Projection).items.map((i) => i.id)).toEqual(
+      expected.items.map((i) => i.id),
+    );
+    expect(result.expectedAnswers).toBeNull();
   });
 });

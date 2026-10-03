@@ -47,6 +47,11 @@ import {
   TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP,
   toStudentProjection as mcgToStudentProjection,
 } from '@ssz/shared-kernel/multiple-choice-group';
+import {
+  shuffled as sbShuffled,
+  TEMPLATE_CODE as SORT_INTO_BUCKETS,
+  toStudentProjection as sbToStudentProjection,
+} from '@ssz/shared-kernel/sort-into-buckets';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -208,6 +213,10 @@ export interface StartAttemptResult {
  * content alone could not tell a finished statement from a half-written one and would ship
  * both. It deals its row order from the attempt, exactly as `multiple_choice` deals its
  * options, and for the same reason; the answer columns never move.
+ *
+ * `sort_into_buckets` (plan 66) is the same case again: the bucket of an item is the key,
+ * so only the key column can say which items are ready, and the pool is dealt from the
+ * attempt while the buckets stay where the author put them.
  *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
@@ -417,6 +426,34 @@ function projectByTemplate(
         exercise.content,
         exercise.expectedAnswers,
         <T,>(items: readonly T[]): T[] => mcgShuffled(items, seedFrom(attemptId)),
+      ),
+      expectedAnswers: null,
+    };
+  }
+
+  if (templateCode === SORT_INTO_BUCKETS) {
+    // A `graded` envelope content-service has already projected, reaching here only
+    // because `documentToDealFrom` could not fetch the unprojected document. Handed on as
+    // it stands, for the reason `multiple_choice_group` gives: the projection needs the
+    // key column to know which items are ready, and a second pass over a projection
+    // would hand back an empty pool rather than a smaller one.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      // Both columns: the bucket of each item is the key, and only the key column can say
+      // whether an item is ready — the projection asks it that and nothing else (plan 66).
+      //
+      // The pool is dealt here and seeded by the attempt, as `multiple_choice_group`
+      // deals its rows: in `graded` mode content-service's own deal would be cached by
+      // `(exerciseId, language, mode)` and belong to a Redis entry rather than to the
+      // attempt. The buckets never move — the same zone in the same place is what lets a
+      // student apply a rule rather than hunt for it.
+      exerciseContent: sbToStudentProjection(
+        exercise.content,
+        exercise.expectedAnswers,
+        <T,>(items: readonly T[]): T[] => sbShuffled(items, seedFrom(attemptId)),
       ),
       expectedAnswers: null,
     };
@@ -717,7 +754,8 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
     if (checkMode === 'PRACTICE') return exercise;
     if (
       exercise.templateCode !== MULTIPLE_CHOICE &&
-      exercise.templateCode !== MULTIPLE_CHOICE_GROUP
+      exercise.templateCode !== MULTIPLE_CHOICE_GROUP &&
+      exercise.templateCode !== SORT_INTO_BUCKETS
     ) {
       return exercise;
     }

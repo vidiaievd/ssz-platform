@@ -18,6 +18,7 @@ import {
 } from '@ssz/shared-kernel/writing-task';
 import type { WritingTask } from '@ssz/shared-kernel/writing-task';
 import { MultipleChoiceGroupValidator } from '../../../../src/infrastructure/validation/validators/multiple-choice-group.validator.js';
+import { SortIntoBucketsValidator } from '../../../../src/infrastructure/validation/validators/sort-into-buckets.validator.js';
 
 const makeInProgressAttempt = (templateCode = 'multiple_choice') =>
   Attempt.reconstitute({
@@ -1110,5 +1111,277 @@ describe('SubmitAnswerHandler — multiple_choice_group', () => {
       'attempt.scored',
       expect.anything(),
     );
+  });
+});
+
+
+// ── sort_into_buckets ───────────────────────────────────────────────────────
+//
+// Plan 66. The board is checked whole with `multiple_choice_group`'s machinery — a budget
+// of checks, a frozen set, the first placement carried forward — and the real validator
+// runs behind the port for the reason given above: what is under test is the seam.
+
+const SB_SETTINGS = { shuffle: false, showRemaining: false, hints: true, revealKey: true, attempts: 2, threshold: 70 };
+
+const SB_CONTENT = {
+  title: 'Kjønn',
+  instruction: 'Sorter substantivene.',
+  buckets: [
+    { id: 'b1', label: 'en', rule: 'Hankjønn.' },
+    { id: 'b2', label: 'et', rule: 'Intetkjønn.' },
+  ],
+  useNone: false,
+  noneLabel: '',
+  items: [
+    { id: 'i1', text: 'bil' },
+    { id: 'i2', text: 'gutt' },
+    { id: 'i3', text: 'hus' },
+    { id: 'i4', text: 'eple' },
+  ],
+  settings: SB_SETTINGS,
+};
+
+const SB_KEY = {
+  items: {
+    i1: { bucketId: 'b1', also: [], why: 'En bil.', fb: { def: 'Bil er hankjønn.', ov: {} } },
+    i2: { bucketId: 'b1', also: [], why: 'En gutt.', fb: { def: 'Gutt er hankjønn.', ov: {} } },
+    i3: { bucketId: 'b2', also: [], why: 'Et hus.', fb: { def: 'Hus er intetkjønn.', ov: {} } },
+    i4: { bucketId: 'b2', also: [], why: 'Et eple.', fb: { def: 'Eple er intetkjønn.', ov: {} } },
+  },
+};
+
+const RIGHT_PLACEMENTS = [
+  { itemId: 'i1', bucketId: 'b1' },
+  { itemId: 'i2', bucketId: 'b1' },
+  { itemId: 'i3', bucketId: 'b2' },
+  { itemId: 'i4', bucketId: 'b2' },
+];
+
+const makeSbDef = (settings: Record<string, unknown> = SB_SETTINGS): ExerciseDefinition => ({
+  exercise: {
+    id: 'ex-1',
+    templateCode: 'sort_into_buckets',
+    targetLanguage: 'nb',
+    difficultyLevel: 'A1',
+    content: { ...SB_CONTENT, settings } as unknown as Record<string, unknown>,
+    expectedAnswers: SB_KEY as unknown as Record<string, unknown>,
+    answerCheckSettings: null,
+  },
+  template: {
+    code: 'sort_into_buckets',
+    contentSchema: {},
+    answerSchema: { type: 'object' },
+    defaultCheckSettings: {},
+    supportedLanguages: null,
+  },
+  instruction: null,
+});
+
+const makeSbAttempt = (
+  over: { status?: 'IN_PROGRESS' | 'SCORED'; validationDetails?: unknown; recheckCount?: number } = {},
+) =>
+  Attempt.reconstitute({
+    id: 'attempt-1',
+    userId: 'user-1',
+    exerciseId: 'ex-1',
+    assignmentId: null,
+    enrollmentId: null,
+    templateCode: 'sort_into_buckets',
+    targetLanguage: 'nb',
+    difficultyLevel: 'A1',
+    checkMode: 'PRACTICE',
+    practicedAtoms: [],
+    status: over.status ?? 'IN_PROGRESS',
+    score: over.status === 'SCORED' ? 50 : null,
+    passed: over.status === 'SCORED' ? false : null,
+    timeSpentSeconds: 0,
+    submittedAnswer: null,
+    validationDetails: over.validationDetails ?? null,
+    feedback: null,
+    answerHash: null,
+    revisionCount: 0,
+    recheckCount: over.recheckCount ?? 0,
+    startedAt: new Date(),
+    submittedAt: over.status === 'SCORED' ? new Date() : null,
+    scoredAt: over.status === 'SCORED' ? new Date() : null,
+  });
+
+const sbValidator = (): IAnswerValidator => {
+  const inner = new SortIntoBucketsValidator();
+  return {
+    validate: jest
+      .fn<IAnswerValidator['validate']>()
+      .mockImplementation(async (input) => inner.validate(input as never)),
+  };
+};
+
+const runSb = async (
+  attempt: Attempt,
+  placements: Array<{ itemId: string; bucketId: string }>,
+  extra: Record<string, unknown> = {},
+  def: ExerciseDefinition = makeSbDef(),
+) => {
+  const publisher = makePublisher();
+  const handler = makeHandler(
+    makeRepo(attempt),
+    makeContentClient(Result.ok(def)),
+    sbValidator(),
+    makeFeedback(),
+    publisher,
+  );
+  const result = await handler.execute(
+    new SubmitAnswerCommand('attempt-1', 'user-1', { placements, ...extra }, 30, 'nb'),
+  );
+  return { result, attempt, publisher };
+};
+
+interface SbDetails {
+  attempt: number;
+  checksLeft: number | null;
+  closed: boolean;
+  locked: string[];
+  correctNow: number;
+  rules: Array<{ bucketId: string; rule: string }>;
+  items: Array<{
+    itemId: string;
+    chosenBucketId: string | null;
+    correct: boolean;
+    firstAnswer: string | null;
+    explanation?: string;
+    correctBucketId?: string;
+    why?: string;
+  }>;
+}
+
+/** The first check's details, as `score()` would have left them on the attempt. */
+const afterFirstCheck = (firstAnswers: Record<string, string | null>, locked: string[]) => ({
+  closed: false,
+  locked,
+  items: Object.entries(firstAnswers).map(([itemId, firstAnswer]) => ({ itemId, firstAnswer })),
+});
+
+describe('SubmitAnswerHandler — sort_into_buckets', () => {
+  it('scores the first check over every item, an unplaced one counting as wrong (AC-S12)', async () => {
+    const { result, attempt } = await runSb(makeSbAttempt(), RIGHT_PLACEMENTS.slice(0, 2));
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.score).toBe(50);
+    expect(attempt.passed).toBe(false);
+    const details = result.value.details as SbDetails;
+    expect(details).toMatchObject({ attempt: 1, checksLeft: 1, closed: false });
+    expect(details.locked.sort()).toEqual(['i1', 'i2']);
+  });
+
+  it('explains a wrong tile and withholds the key while a check is left (AC-S4)', async () => {
+    const placements = [{ itemId: 'i1', bucketId: 'b2' }, ...RIGHT_PLACEMENTS.slice(1)];
+    const { result } = await runSb(makeSbAttempt(), placements);
+
+    const details = result.value.details as SbDetails;
+    const wrong = details.items.find((i) => i.itemId === 'i1')!;
+    expect(wrong).toMatchObject({ correct: false, explanation: 'Bil er hankjønn.' });
+    for (const item of details.items) {
+      expect(item).not.toHaveProperty('correctBucketId');
+      expect(item).not.toHaveProperty('why');
+    }
+    expect(details.rules).toEqual([]);
+  });
+
+  it('keeps the first check as the score when a re-check fixes the board', async () => {
+    const attempt = makeSbAttempt({
+      status: 'SCORED',
+      validationDetails: afterFirstCheck({ i1: 'b2', i2: 'b1', i3: 'b2', i4: 'b2' }, ['i2', 'i3', 'i4']),
+    });
+
+    const { result } = await runSb(attempt, RIGHT_PLACEMENTS, { attempt: 1 });
+
+    const details = result.value.details as SbDetails;
+    // Numbered by the server, not by the client's `attempt: 1`.
+    expect(details.attempt).toBe(2);
+    expect(details.correctNow).toBe(4);
+    expect(details.closed).toBe(true);
+    expect(details.items.find((i) => i.itemId === 'i1')!.firstAnswer).toBe('b2');
+    expect(result.value.score).toBe(75);
+    // Closed with the key on: now the answers and the rules come.
+    expect(details.items.find((i) => i.itemId === 'i1')).toMatchObject({ correctBucketId: 'b1', why: 'En bil.' });
+    expect(details.rules.map((r) => r.bucketId)).toEqual(['b1', 'b2']);
+  });
+
+  it('keeps a locked tile where it was right, whatever is resent', async () => {
+    const attempt = makeSbAttempt({
+      status: 'SCORED',
+      validationDetails: afterFirstCheck({ i1: 'b1', i2: 'b2', i3: 'b2', i4: 'b2' }, ['i1', 'i3', 'i4']),
+    });
+
+    const moved = [
+      { itemId: 'i1', bucketId: 'b2' },
+      { itemId: 'i2', bucketId: 'b2' },
+      { itemId: 'i3', bucketId: 'b2' },
+      { itemId: 'i4', bucketId: 'b2' },
+    ];
+    const { result } = await runSb(attempt, moved);
+
+    const details = result.value.details as SbDetails;
+    expect(details.items.find((i) => i.itemId === 'i1')).toMatchObject({ chosenBucketId: 'b1', correct: true });
+  });
+
+  it('refuses a check beyond the budget (AC-S6)', async () => {
+    const attempt = makeSbAttempt({
+      status: 'SCORED',
+      validationDetails: afterFirstCheck({ i1: 'b2', i2: 'b1', i3: 'b2', i4: 'b2' }, []),
+    });
+
+    const { result } = await runSb(attempt, RIGHT_PLACEMENTS, {}, makeSbDef({ ...SB_SETTINGS, attempts: 1 }));
+
+    expect(result.isFail).toBe(true);
+    expect(attempt.recheckCount).toBe(0);
+  });
+
+  it('refuses a check on a board the last one closed', async () => {
+    const attempt = makeSbAttempt({
+      status: 'SCORED',
+      validationDetails: { ...afterFirstCheck({ i1: 'b1' }, []), closed: true },
+    });
+
+    const { result } = await runSb(attempt, RIGHT_PLACEMENTS, {}, makeSbDef({ ...SB_SETTINGS, attempts: 0 }));
+
+    expect(result.isFail).toBe(true);
+  });
+
+  it('a reveal closes the board, shows the key and fails the attempt (AC-S8)', async () => {
+    const { result, attempt } = await runSb(makeSbAttempt(), RIGHT_PLACEMENTS.slice(0, 3), { reveal: true });
+
+    const details = result.value.details as SbDetails;
+    expect(details.closed).toBe(true);
+    expect(details.items.every((i) => i.correctBucketId !== undefined)).toBe(true);
+    expect(attempt.passed).toBe(false);
+  });
+
+  it("passes against the author's threshold, not the platform default", async () => {
+    const attempt = makeSbAttempt();
+    await runSb(attempt, RIGHT_PLACEMENTS.slice(0, 3), {}, makeSbDef({ ...SB_SETTINGS, threshold: 75 }));
+    expect(attempt.scoreValue).toBe(75);
+    expect(attempt.passed).toBe(true);
+  });
+
+  it('sends the scheduler a verdict per item, keyed by item id (Q3-A, AC-X5)', async () => {
+    const placements = [{ itemId: 'i1', bucketId: 'b2' }, ...RIGHT_PLACEMENTS.slice(1, 3)];
+    const { publisher } = await runSb(makeSbAttempt(), placements);
+
+    const completed = publisher.publish.mock.calls.find(([type]) => type === 'exercise.attempt.completed');
+    expect(completed).toBeDefined();
+    const payload = completed![1] as { gapResults?: Array<{ gapKey: string; correct: boolean }> };
+    expect(payload.gapResults).toEqual([
+      { gapKey: 'i1', correct: false },
+      { gapKey: 'i2', correct: true },
+      { gapKey: 'i3', correct: true },
+      { gapKey: 'i4', correct: false },
+    ]);
+  });
+
+  it('writes the failed attempt as scored, so progress is recorded (AC-X3)', async () => {
+    const { attempt, publisher } = await runSb(makeSbAttempt(), []);
+    expect(attempt.status).toBe('SCORED');
+    expect(attempt.scoreValue).toBe(0);
+    expect(publisher.publish.mock.calls.some(([type]) => type === 'exercise.attempt.completed')).toBe(true);
   });
 });
