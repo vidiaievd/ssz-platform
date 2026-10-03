@@ -4,13 +4,14 @@ import {
   Controller,
   Get,
   HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { QueryBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { Public } from '../../../../common/decorators/public.decorator.js';
@@ -28,6 +29,20 @@ import type { ContentRelationEntity } from '../../../content-relation/domain/ent
 import { GetPoolExerciseIdsQuery } from '../../../grammar-rule/application/queries/get-pool-exercise-ids/get-pool-exercise-ids.query.js';
 
 import { GetExerciseEnvelopeQuery } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.query.js';
+import { GetExerciseTemplateByCodeQuery } from '../../../exercise-template/application/queries/get-exercise-template-by-code/get-exercise-template-by-code.query.js';
+import { CreateExerciseCommand } from '../../../exercise/application/commands/create-exercise/create-exercise.command.js';
+import { DeleteExerciseCommand } from '../../../exercise/application/commands/delete-exercise/delete-exercise.command.js';
+import { SetItemTargetsCommand } from '../../../exercise/application/commands/set-item-targets/set-item-targets.command.js';
+import { AtomType, TargetRole } from '../../../exercise/domain/value-objects/atom-type.vo.js';
+import { DifficultyLevel } from '../../../container/domain/value-objects/difficulty-level.vo.js';
+import { Visibility } from '../../../container/domain/value-objects/visibility.vo.js';
+import { InternalCreateExerciseRequestDto } from '../dto/internal-create-exercise.request.dto.js';
+import type { ExerciseTemplateEntity } from '../../../exercise-template/domain/entities/exercise-template.entity.js';
+import type { ExerciseTemplateDomainError } from '../../../exercise-template/domain/exceptions/exercise-template-domain.exceptions.js';
+import { DescribeAtomsQuery } from '../../../exercise/application/queries/describe-atoms/describe-atoms.query.js';
+import { GetAtomCoverageQuery } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.query.js';
+import type { AtomCoverageResult } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.handler.js';
+import type { AtomDescriptor } from '../../../exercise/domain/repositories/exercise-item-target.repository.interface.js';
 import type { ExerciseEnvelope } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.handler.js';
 import type { ExerciseDomainError } from '../../../exercise/domain/exceptions/exercise-domain.exceptions.js';
 import { throwHttpException } from '../../../exercise/presentation/utils/domain-error.mapper.js';
@@ -105,6 +120,7 @@ const CONTENT_TYPE_TO_ENTITY: Record<string, TaggableEntityType> = {
 export class InternalController {
   constructor(
     private readonly queryBus: QueryBus,
+    private readonly commandBus: CommandBus,
     private readonly visibility: VisibilityCheckerService,
     private readonly entities: EntityResolverRegistry,
   ) {}
@@ -185,6 +201,127 @@ export class InternalController {
     return result.value;
   }
 
+  /**
+   * One exercise template, by the code a document names it with (plan 63 phase 9).
+   *
+   * The public route takes an id, which is what a builder holds after listing the
+   * templates. A caller holding only a *document* has no id to offer — and that is the
+   * Exercise Engine assembling a disposable task around a template code. Its answer
+   * schema and default check settings have to come from here rather than be carried on
+   * the task, or a probe would be validated against a snapshot of a template while every
+   * catalogue exercise is validated against the template itself.
+   */
+  @Get('exercise-templates/:code')
+  async getExerciseTemplateByCode(@Param('code') code: string): Promise<{
+    code: string;
+    contentSchema: unknown;
+    answerSchema: unknown;
+    defaultCheckSettings: Record<string, unknown>;
+    supportedLanguages: string[] | null;
+    isActive: boolean;
+  }> {
+    const result = await this.queryBus.execute<
+      GetExerciseTemplateByCodeQuery,
+      Result<ExerciseTemplateEntity, ExerciseTemplateDomainError>
+    >(new GetExerciseTemplateByCodeQuery(code));
+
+    if (result.isFail) throwHttpException(result.error);
+    const template = result.value;
+
+    return {
+      code: template.code,
+      contentSchema: template.contentSchema,
+      answerSchema: template.answerSchema,
+      defaultCheckSettings: template.defaultCheckSettings ?? {},
+      supportedLanguages: template.supportedLanguages,
+      isActive: template.isActive,
+    };
+  }
+
+  /**
+   * Put an exercise in the catalogue on behalf of a person (plan 63 phase 9, step 4).
+   *
+   * The one write on this controller, and it exists for one gesture: a disposable task
+   * that turned out to be worth keeping. The Exercise Engine holds those — they never
+   * reach Content Service otherwise — so promotion has to be a call in this direction.
+   *
+   * It is deliberately the *narrow* shape of authoring rather than the full one. The
+   * exercise is private and owned by the named person, whatever else the caller might
+   * have asked for: this service cannot check whether that person may write into a
+   * school, and a service token is not a reason to believe they can. Everything else an
+   * author does with it afterwards — sharing it, putting it in a course, adding it to a
+   * rule's pool — goes through the routes that do check.
+   *
+   * All or nothing. The addresses are the point of promoting a probe rather than
+   * retyping it, so an exercise whose targets could not be written is rolled back rather
+   * than left as a plausible-looking exercise about nothing.
+   */
+  @Post('exercises')
+  @HttpCode(HttpStatus.CREATED)
+  async createExerciseForUser(
+    @Body() dto: InternalCreateExerciseRequestDto,
+  ): Promise<{ exerciseId: string }> {
+    const created = await this.commandBus.execute<
+      CreateExerciseCommand,
+      Result<{ exerciseId: string }, ExerciseDomainError | ExerciseTemplateDomainError>
+    >(
+      new CreateExerciseCommand(
+        dto.ownerUserId,
+        await this.templateIdForCode(dto.templateCode),
+        dto.targetLanguage,
+        dto.difficultyLevel as DifficultyLevel,
+        dto.content,
+        dto.expectedAnswers ?? {},
+        Visibility.PRIVATE,
+        dto.answerCheckSettings,
+      ),
+    );
+
+    if (created.isFail) throwHttpException(created.error);
+    const { exerciseId } = created.value;
+
+    // Grouped by item, because that is the unit the command replaces: one call per item
+    // saying everything that item is about.
+    const byItem = new Map<
+      string | null,
+      Array<{ atomType: AtomType; atomId: string; role: TargetRole }>
+    >();
+    for (const target of dto.targets ?? []) {
+      const key = target.itemKey ?? null;
+      const list = byItem.get(key) ?? [];
+      list.push({
+        atomType: target.atomType as AtomType,
+        atomId: target.atomId,
+        role: target.role as TargetRole,
+      });
+      byItem.set(key, list);
+    }
+
+    for (const [itemKey, targets] of byItem) {
+      const addressed = await this.commandBus.execute<
+        SetItemTargetsCommand,
+        Result<void, ExerciseDomainError>
+      >(new SetItemTargetsCommand(dto.ownerUserId, exerciseId, itemKey, targets));
+
+      if (addressed.isFail) {
+        await this.commandBus.execute(new DeleteExerciseCommand(dto.ownerUserId, exerciseId));
+        throwHttpException(addressed.error);
+      }
+    }
+
+    return { exerciseId };
+  }
+
+  private async templateIdForCode(code: string): Promise<string> {
+    const result = await this.queryBus.execute<
+      GetExerciseTemplateByCodeQuery,
+      Result<ExerciseTemplateEntity, ExerciseTemplateDomainError>
+    >(new GetExerciseTemplateByCodeQuery(code));
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value.id;
+  }
+
   @Get('grammar-rules/:id/pool-exercise-ids')
   async getPoolExerciseIds(@Param('id') ruleId: string): Promise<{ exerciseIds: string[] }> {
     const exerciseIds = await this.queryBus.execute<GetPoolExerciseIdsQuery, string[]>(
@@ -253,6 +390,23 @@ export class InternalController {
     return result.value;
   }
 
+  // analytics-service reports about atoms and holds only their addresses: an address
+  // travels through the event stream as two strings and nothing more. Without this it
+  // would either draw uuids on a teacher's screen or keep a copy of the catalogue.
+  // Addresses that resolve to nothing are absent from the answer, not an error — a
+  // retired atom is an ordinary thing for an old record to point at.
+  @Post('atoms/describe')
+  @HttpCode(200)
+  async describeAtoms(
+    @Body() dto: { refs?: Array<{ atomType: string; atomId: string }> },
+  ): Promise<AtomDescriptor[]> {
+    const refs = dto.refs ?? [];
+    if (refs.length > 500) throw new BadRequestException('At most 500 atoms per request');
+    return this.queryBus.execute<DescribeAtomsQuery, AtomDescriptor[]>(
+      new DescribeAtomsQuery(refs),
+    );
+  }
+
   // Learning Service reads list metadata for the auto-add-to-SRS flag
   // (vocabulary-enrollment consumer) — the public route is JWT + visibility
   // guarded, which service-to-service traffic cannot satisfy.
@@ -294,11 +448,12 @@ export class InternalController {
   }
 
   @Get('can-do/descriptors')
-  async getCanDoDescriptorsByIds(
-    @Query('ids') ids?: string,
-  ): Promise<CanDoDescriptorResponse[]> {
+  async getCanDoDescriptorsByIds(@Query('ids') ids?: string): Promise<CanDoDescriptorResponse[]> {
     if (!ids) return [];
-    const idList = ids.split(',').map((s) => s.trim()).filter(Boolean);
+    const idList = ids
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const descriptors = await this.queryBus.execute<
       GetCanDoDescriptorsByIdsQuery,
       CanDoDescriptorEntity[]
@@ -307,9 +462,7 @@ export class InternalController {
   }
 
   @Get('modules/:id/can-do')
-  async getModuleCanDo(
-    @Param('id') moduleId: string,
-  ): Promise<CanDoDescriptorResponse[]> {
+  async getModuleCanDo(@Param('id') moduleId: string): Promise<CanDoDescriptorResponse[]> {
     const descriptors = await this.queryBus.execute<
       GetCanDoDescriptorsByModuleQuery,
       CanDoDescriptorEntity[]
@@ -353,6 +506,52 @@ export class InternalController {
   // published composition, not the draft: the learner's grid is about the course
   // they actually have. A course with nothing published answers `available: false`
   // and empty tallies, never a course full of zeroes.
+  // analytics-service asks what a *unit* teaches when it puts together the next practice
+  // (plan 63 phase 8): the atoms a learner is about to meet are the only look forward the
+  // assistant has, and they are a fact about the published composition of that unit.
+  // The public route beside this one is guarded by visibility, which service-to-service
+  // traffic cannot satisfy; the answer here is trimmed to the atoms themselves, since a
+  // caller planning fifteen minutes has no use for the report's issues.
+  @Get('containers/:id/atom-coverage')
+  async getContainerAtomCoverage(@Param('id') id: string): Promise<{
+    containerId: string;
+    available: boolean;
+    atoms: Array<{
+      atomType: string;
+      atomId: string;
+      title: string;
+      track: string;
+      parentId: string | null;
+      introducedBy: string[];
+      focusItems: number;
+      contextItems: number;
+      byModality: Record<string, number>;
+    }>;
+  }> {
+    const result = await this.queryBus.execute<
+      GetAtomCoverageQuery,
+      Result<AtomCoverageResult, ContainerDomainError>
+    >(new GetAtomCoverageQuery(id, 'published'));
+
+    if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
+
+    return {
+      containerId: id,
+      available: result.value.available,
+      atoms: result.value.atoms.map((atom) => ({
+        atomType: atom.atomType,
+        atomId: atom.atomId,
+        title: atom.title,
+        track: atom.track,
+        parentId: atom.parentId,
+        introducedBy: atom.introducedBy,
+        focusItems: atom.focusItems,
+        contextItems: atom.contextItems,
+        byModality: atom.byModality,
+      })),
+    };
+  }
+
   @Get('containers/:id/coverage')
   async getContainerCoverage(@Param('id') id: string): Promise<{
     containerId: string;

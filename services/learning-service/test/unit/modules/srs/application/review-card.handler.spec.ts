@@ -23,7 +23,7 @@ const OTHER_ID   = 'aaaaaaaa-bbbb-4000-8000-000000000001';
 const CONTENT_ID = 'eb1aa566-c4e0-4ffa-8018-e9ce2abc5d08';
 
 function makeCard(state: ReviewCard['state'] = 'REVIEW'): ReviewCard {
-  const card = ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, NOW);
+  const card = ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, 'lexis', NOW);
   if (state !== 'NEW') {
     // Reconstitute with the desired state
     return ReviewCard.reconstitute({
@@ -31,6 +31,7 @@ function makeCard(state: ReviewCard['state'] = 'REVIEW'): ReviewCard {
       userId: USER_ID,
       contentType: 'EXERCISE',
       contentId: CONTENT_ID,
+      track: 'lexis',
       state,
       dueAt: NOW,
       stability: 5.0,
@@ -166,6 +167,7 @@ describe('ReviewCardHandler', () => {
       userId: OTHER_ID,  // different user
       contentType: 'EXERCISE',
       contentId: CONTENT_ID,
+      track: 'lexis',
       state: 'REVIEW',
       dueAt: NOW,
       stability: 5,
@@ -264,10 +266,11 @@ describe('ReviewCardHandler', () => {
 
       await handler.execute(cmd(card.id));
 
-      expect(limitsPolicy.recordRefusal).toHaveBeenCalledWith(USER_ID, 'review', NOW);
+      expect(limitsPolicy.recordRefusal).toHaveBeenCalledWith(USER_ID, 'review', 'lexis', NOW);
       expect(publisher.publish).toHaveBeenCalledWith('learning.srs.limit_refused', {
         userId: USER_ID,
         kind: 'review',
+        track: 'lexis',
         contentType: 'EXERCISE',
         occurredAt: NOW.toISOString(),
       });
@@ -350,5 +353,37 @@ describe('ReviewCardHandler', () => {
 
       expect(idempotency.release).toHaveBeenCalledWith(USER_ID, 'key-1');
     });
+  });
+});
+
+// Plan 63 phase 5 — a shadow review is not the learner's work: it reschedules the card
+// it is about and must leave every number the learner sees exactly where it was.
+describe('ReviewCardHandler — shadow reviews', () => {
+  function shadowCmd(cardId: string) {
+    return new ReviewCardCommand(USER_ID, cardId, 'GOOD', undefined, undefined, undefined, true);
+  }
+
+  it('reschedules the card without counting a review or touching the due queue', async () => {
+    const card = makeCard('REVIEW');
+    const { handler, repo, limitsPolicy, dueQueue } = makeHandler({ card });
+
+    const result = await handler.execute(shadowCmd(card.id));
+
+    expect(result.isOk).toBe(true);
+    expect(repo.save).toHaveBeenCalledTimes(1);
+    expect(limitsPolicy.incrementReviewCount).not.toHaveBeenCalled();
+    // A shadow card in the cached queue would be served to a client that cannot draw it,
+    // whatever the DB-side filter says.
+    expect(dueQueue.upsert).not.toHaveBeenCalled();
+  });
+
+  it('is not refused by the daily review cap', async () => {
+    const card = makeCard('REVIEW');
+    const { handler, limitsPolicy } = makeHandler({ card, canReview: false });
+
+    const result = await handler.execute(shadowCmd(card.id));
+
+    expect(result.isOk).toBe(true);
+    expect(limitsPolicy.canReview).not.toHaveBeenCalled();
   });
 });

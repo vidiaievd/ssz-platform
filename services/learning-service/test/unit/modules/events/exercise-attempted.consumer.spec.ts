@@ -129,6 +129,101 @@ describe('ExerciseAttemptedConsumer', () => {
       expect(calls.some((c) => c instanceof ReviewCardCommand)).toBe(false);
     });
 
+    /**
+     * A teacher read the work and sent it back (plan 63 §4). Two things follow, and they
+     * pull in opposite directions: the memory hears the verdict, and progress does not —
+     * the learner has been asked to do it again, and a draft's score must not overwrite a
+     * mark they may already hold on this exercise.
+     *
+     * Until this arrived, only approvals were rated, so everything the platform knew
+     * about recall and production was evidence of success.
+     */
+    it('rates work a teacher sent back, and records no progress for it', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 0,
+            timeSpentSeconds: 120,
+            completed: false,
+            passed: false,
+            reviewOutcome: 'returned',
+            templateCode: 'short_answer',
+          }),
+        ),
+      );
+
+      const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+      expect(calls.some((c) => c instanceof ReviewCardCommand)).toBe(true);
+      expect(calls.some((c) => c instanceof UpsertProgressCommand)).toBe(false);
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * The floor under a free-form failure exists because a machine marking typed text
+     * wrong may be punishing a typo. A teacher is not, and a verdict must not be lifted
+     * off the floor — that would forgive the one failure nobody should forgive, and only
+     * in the modalities people mark.
+     */
+    it('rates a teacher’s rejection AGAIN, where a machine’s would be lifted to HARD', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 0,
+            timeSpentSeconds: 120,
+            completed: false,
+            passed: false,
+            reviewOutcome: 'returned',
+            templateCode: 'short_answer',
+            answerForm: { mode: 'free' },
+          }),
+        ),
+      );
+
+      const review = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .find((c: unknown) => c instanceof ReviewCardCommand) as { rating: string };
+      expect(review.rating).toBe('AGAIN');
+    });
+
+    /**
+     * The moment the work was handed over is not a verdict — nobody has read it yet —
+     * and it must stay unrated however long it waits in the queue.
+     */
+    it('still rates nothing for a free form that is merely waiting for a person', async () => {
+      const { consumer, commandBus } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: null,
+            timeSpentSeconds: 120,
+            completed: false,
+            templateCode: 'short_answer',
+          }),
+        ),
+      );
+
+      const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+      expect(calls.some((c) => c instanceof ReviewCardCommand)).toBe(false);
+      expect(calls.some((c) => c instanceof UpsertProgressCommand)).toBe(true);
+    });
+
     it('marks the event as processed and acks on success', async () => {
       const { consumer, prisma } = makeConsumer();
       const channel = makeChannel();
@@ -339,6 +434,12 @@ describe('ExerciseAttemptedConsumer', () => {
         lessonId: null,
         timeSpentSeconds: 60,
         stabilityAfter: null,
+        // Plan 63 phase 3 — what was rated and what it is evidence about. Nothing said
+        // any of it here: no modality from the publisher, no author's address.
+        contentType: 'EXERCISE',
+        modality: null,
+        itemKey: null,
+        targets: null,
       });
     });
 
@@ -855,5 +956,440 @@ describe('ExerciseAttemptedConsumer', () => {
       expect(calls.some((c) => c instanceof ReviewCardCommand)).toBe(false);
       expect(channel.ack).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+// Plan 63 phase 3 — what a rating is evidence *about* travels with it, so that analytics
+// can hold a fact per atom instead of a fact per exercise.
+describe('ExerciseAttemptedConsumer — the address on a rating', () => {
+  /** Every rated payload the consumer published, in order. */
+  function allRated(publisher: { publish: { mock: { calls: unknown[][] } } }) {
+    return publisher.publish.mock.calls
+      .filter((c) => c[0] === 'learning.attempt.rated')
+      .map((c) => c[1] as Record<string, any>);
+  }
+
+  const attempt = (over: Record<string, unknown> = {}) => ({
+    userId: USER_ID,
+    exerciseId: EXERCISE_ID,
+    score: 100,
+    timeSpentSeconds: 30,
+    completed: true,
+    templateCode: 'word_bank_gap_fill',
+    passed: true,
+    modality: 'recall',
+    practicedAtoms: [],
+    ...over,
+  });
+
+  it('hands each gap rating the addresses of that gap', async () => {
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            gapResults: [
+              {
+                gapKey: 's1#5',
+                correct: true,
+                targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' }],
+              },
+              { gapKey: 's2#3', correct: false },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const rated = allRated(publisher);
+    expect(rated[0]).toMatchObject({
+      contentType: 'EXERCISE_GAP',
+      itemKey: 's1#5',
+      modality: 'recall',
+      targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' }],
+    });
+    // Nobody addressed the second gap. Absent, not empty: "nobody said" is not the same
+    // sentence as "this gap is about nothing".
+    expect(rated[1]).toMatchObject({ itemKey: 's2#3', targets: null });
+  });
+
+  it('reports the word the fan-out just rated, which nothing did before', async () => {
+    // The fan-out has been rating vocabulary cards since plan 21 and publishing nothing,
+    // so analytics held no row saying which word came back or how it went.
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            practicedAtoms: [{ atomType: 'vocabulary_item', atomId: 'word-1' }],
+            targets: [{ atomType: 'vocabulary_item', atomId: 'word-1', role: 'context' }],
+          }),
+        ),
+      ),
+    );
+
+    const word = allRated(publisher).find((r) => r.contentType === 'VOCABULARY_WORD');
+    expect(word).toMatchObject({
+      targets: [{ atomType: 'vocabulary_item', atomId: 'word-1', role: 'context' }],
+      itemKey: null,
+    });
+  });
+
+  it('leaves the role unsaid for an atom no author addressed', async () => {
+    // It arrived through the practised-atom graph, which knows the exercise practises the
+    // word and nothing about what it was doing there. Calling that `focus` would turn
+    // "nobody said" into the strongest evidence the scale has.
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(attempt({ practicedAtoms: [{ atomType: 'vocabulary_item', atomId: 'word-9' }] })),
+      ),
+    );
+
+    const word = allRated(publisher).find((r) => r.contentType === 'VOCABULARY_WORD');
+    expect(word?.targets).toEqual([
+      { atomType: 'vocabulary_item', atomId: 'word-9', role: null },
+    ]);
+  });
+
+  it('marks the exercise-level rating as such, so nothing counts a word as an attempt', async () => {
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(envelope(attempt({ templateCode: 'writing_task' }))),
+    );
+
+    expect(allRated(publisher)[0]).toMatchObject({ contentType: 'EXERCISE', itemKey: null });
+  });
+});
+
+// Plan 63 phase 5 — memory starts moving onto the atom. The grammar cards below are
+// written in shadow: rated by the same answers as the cards the learner already has,
+// charged to no budget and shown to nobody, so that the two models can be compared
+// before the old ones are switched off in phase 7.
+describe('ExerciseAttemptedConsumer — grammar atom cards, in shadow', () => {
+  function allRated(publisher: { publish: { mock: { calls: unknown[][] } } }) {
+    return publisher.publish.mock.calls
+      .filter((c) => c[0] === 'learning.attempt.rated')
+      .map((c) => c[1] as Record<string, any>);
+  }
+
+  const attempt = (over: Record<string, unknown> = {}) => ({
+    userId: USER_ID,
+    exerciseId: EXERCISE_ID,
+    score: 100,
+    timeSpentSeconds: 30,
+    completed: true,
+    templateCode: 'word_bank_gap_fill',
+    passed: true,
+    modality: 'recall',
+    practicedAtoms: [],
+    ...over,
+  });
+
+  /** Every command of a kind the bus was asked to run, in order. */
+  function commandsOf<T>(commandBus: { execute: { mock: { calls: unknown[][] } } }, kind: any): T[] {
+    return commandBus.execute.mock.calls.map((c) => c[0]).filter((c) => c instanceof kind) as T[];
+  }
+
+  it('opens a card for a grammar atom a gap addressed, and rates it on that gap', async () => {
+    const { consumer, commandBus } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            // Chosen from what was on screen, so a wrong answer is a plain lapse — there
+            // is no spelling to have slipped on.
+            modality: 'recognition',
+            gapResults: [
+              {
+                gapKey: 's1#5',
+                correct: false,
+                targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' }],
+              },
+              { gapKey: 's2#3', correct: true },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const introduced = commandsOf<any>(commandBus, IntroduceCardCommand).find(
+      (c) => c.contentType === 'GRAMMAR_ATOM',
+    );
+    expect(introduced).toMatchObject({ contentId: 'atom-1', shadow: true });
+
+    // The gap it was addressed by was wrong, and it is rated on that — not on the
+    // attempt, which scored 100 on the rest of the block.
+    const review = commandsOf<any>(commandBus, ReviewCardCommand).at(-1);
+    expect(review).toMatchObject({ rating: 'AGAIN', shadow: true });
+  });
+
+  it('marks the rating GRAMMAR_ATOM, so analytics keeps it out of the attempts table', async () => {
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            gapResults: [
+              {
+                gapKey: 's1#5',
+                correct: true,
+                targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' }],
+              },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    expect(allRated(publisher).at(-1)).toMatchObject({
+      contentType: 'GRAMMAR_ATOM',
+      itemKey: 's1#5',
+      modality: 'recall',
+      targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' }],
+    });
+  });
+
+  it('rates an atom once for an attempt that addressed it twice, keeping the lapse', async () => {
+    // Two gaps, one right and one wrong, both pointing at the same rule. One answer must
+    // move a card once, and the informative half of it is the failure.
+    const { consumer, commandBus } = makeConsumer();
+    const target = { atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'focus' };
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            modality: 'recognition',
+            gapResults: [
+              { gapKey: 's1#5', correct: true, targets: [target] },
+              { gapKey: 's2#3', correct: false, targets: [target] },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const grammarIntroductions = commandsOf<any>(commandBus, IntroduceCardCommand).filter(
+      (c) => c.contentType === 'GRAMMAR_ATOM',
+    );
+    expect(grammarIntroductions).toHaveLength(1);
+    expect(commandsOf<any>(commandBus, ReviewCardCommand).at(-1)).toMatchObject({
+      rating: 'AGAIN',
+    });
+  });
+
+  it('barely moves a card for an atom the item only needed', async () => {
+    const { consumer, commandBus } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            gapResults: [
+              {
+                gapKey: 's1#5',
+                correct: false,
+                targets: [{ atomType: 'grammar_rule_atom', atomId: 'atom-1', role: 'context' }],
+              },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    // Failing the gap says nothing about the rule that was merely in the sentence: the
+    // lapse belongs to whatever the gap was testing.
+    expect(commandsOf<any>(commandBus, ReviewCardCommand).at(-1)).toMatchObject({
+      rating: 'HARD',
+    });
+  });
+
+  it('writes nothing for an exercise no author has addressed', async () => {
+    const { consumer, commandBus } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(envelope(attempt({ gapResults: [{ gapKey: 's1#5', correct: true }] }))),
+    );
+
+    expect(
+      commandsOf<any>(commandBus, IntroduceCardCommand).filter(
+        (c) => c.contentType === 'GRAMMAR_ATOM',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('rates an addressed word on its own gap rather than on the whole attempt', async () => {
+    // The bug this phase fixes: the fan-out rated every word of an exercise with the
+    // score of the attempt while the gaps beside them were rated one by one, so a word
+    // could be rated GOOD as a gap and AGAIN as a word by the same submission.
+    const { consumer, commandBus, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            score: 90,
+            practicedAtoms: [{ atomType: 'vocabulary_item', atomId: 'word-1' }],
+            gapResults: [
+              {
+                gapKey: 's1#5',
+                correct: false,
+                targets: [{ atomType: 'vocabulary_item', atomId: 'word-1', role: 'focus' }],
+              },
+              { gapKey: 's2#3', correct: true },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const vocabIntroduce = commandsOf<any>(commandBus, IntroduceCardCommand).findIndex(
+      (c) => c.contentType === 'VOCABULARY_WORD',
+    );
+    expect(vocabIntroduce).toBeGreaterThanOrEqual(0);
+
+    // The attempt scored 90 — a GOOD for anything rated on it. The gap that asked for
+    // this word was wrong, and typing it wrong is a lapse held off the floor because it
+    // may be a misspelling: HARD, on the word's own evidence rather than the block's.
+    const word = allRated(publisher).find((r) => r.contentType === 'VOCABULARY_WORD');
+    expect(word).toMatchObject({ ratingApplied: 'HARD', itemKey: 's1#5' });
+  });
+
+  it('leaves an unaddressed word on the attempt score, which is still the best there is', async () => {
+    const { consumer, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            score: 100,
+            practicedAtoms: [{ atomType: 'vocabulary_item', atomId: 'word-9' }],
+            gapResults: [{ gapKey: 's1#5', correct: false }],
+          }),
+        ),
+      ),
+    );
+
+    const word = allRated(publisher).find((r) => r.contentType === 'VOCABULARY_WORD');
+    expect(word).toMatchObject({ itemKey: null });
+    expect(word?.targets).toEqual([
+      { atomType: 'vocabulary_item', atomId: 'word-9', role: null },
+    ]);
+  });
+});
+
+// Plan 63 phase 9. A probe is a task made for one learner and gone by tomorrow. What it
+// proves about an atom is ordinary evidence; what it would say about an *exercise* is a
+// pointer to a row that will not exist.
+describe('ExerciseAttemptedConsumer — work done on a disposable probe', () => {
+  const GRAMMAR_ATOM = 'passive-choice';
+  const VOCAB_ATOM = '7d1e2f3a-0000-4000-8000-000000000001';
+
+  function probeEvent(overrides: Record<string, unknown> = {}) {
+    return envelope({
+      userId: USER_ID,
+      exerciseId: EXERCISE_ID,
+      score: 100,
+      timeSpentSeconds: 40,
+      completed: true,
+      ephemeral: true,
+      modality: 'production',
+      templateCode: 'fill_in_blank',
+      practicedAtoms: [{ atomType: 'vocabulary_item', atomId: VOCAB_ATOM }],
+      targets: [{ atomType: 'grammar_rule_atom', atomId: GRAMMAR_ATOM, role: 'focus' }],
+      ...overrides,
+    });
+  }
+
+  it('writes no progress row', async () => {
+    // "Completed 40 exercises" must not count tasks that were thrown away by design.
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(probeEvent()));
+
+    const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+    expect(calls.some((c) => c instanceof UpsertProgressCommand)).toBe(false);
+  });
+
+  it('introduces no card on the probe itself', async () => {
+    // A card on a probe would come back due on a task nobody can look up.
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(probeEvent()));
+
+    const introduced = commandBus.execute.mock.calls
+      .map((c: unknown[]) => c[0])
+      .filter((c: unknown): c is IntroduceCardCommand => c instanceof IntroduceCardCommand);
+
+    expect(introduced.some((c) => c.contentType === 'EXERCISE')).toBe(false);
+    expect(introduced.some((c) => c.contentId === EXERCISE_ID)).toBe(false);
+  });
+
+  it('introduces no card on a probe gap either', async () => {
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        probeEvent({
+          gapResults: [
+            {
+              gapKey: 's1#3',
+              correct: true,
+              targets: [{ atomType: 'grammar_rule_atom', atomId: GRAMMAR_ATOM, role: 'focus' }],
+            },
+          ],
+        }),
+      ),
+    );
+
+    const introduced = commandBus.execute.mock.calls
+      .map((c: unknown[]) => c[0])
+      .filter((c: unknown): c is IntroduceCardCommand => c instanceof IntroduceCardCommand);
+
+    expect(introduced.some((c) => c.contentType === 'EXERCISE_GAP')).toBe(false);
+  });
+
+  it('still rates the atoms — which is the only reason a probe is worth answering', async () => {
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(probeEvent()));
+
+    const introduced = commandBus.execute.mock.calls
+      .map((c: unknown[]) => c[0])
+      .filter((c: unknown): c is IntroduceCardCommand => c instanceof IntroduceCardCommand);
+
+    expect(
+      introduced.some((c) => c.contentType === 'VOCABULARY_WORD' && c.contentId === VOCAB_ATOM),
+    ).toBe(true);
+    expect(
+      introduced.some((c) => c.contentType === 'GRAMMAR_ATOM' && c.contentId === GRAMMAR_ATOM),
+    ).toBe(true);
+  });
+
+  it('leaves a catalogue attempt exactly as it was', async () => {
+    // The flag is absent on every event published before it existed, and on the
+    // overwhelming majority of those after it.
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(probeEvent({ ephemeral: undefined })),
+    );
+
+    const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+    expect(calls.some((c) => c instanceof UpsertProgressCommand)).toBe(true);
+    expect(
+      calls
+        .filter((c: unknown): c is IntroduceCardCommand => c instanceof IntroduceCardCommand)
+        .some((c) => c.contentType === 'EXERCISE'),
+    ).toBe(true);
   });
 });

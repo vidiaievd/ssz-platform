@@ -9,12 +9,13 @@ import {
   ReviewCommentRequiredError,
 } from '../exceptions/attempt.errors.js';
 import { AttemptStartedEvent } from '../events/attempt-started.event.js';
-import type { AnswerForm, Focus, Skill } from '@ssz/contracts';
+import type { AnswerForm, AttemptTarget, Focus, Modality, Skill } from '@ssz/contracts';
 import type { RubricMarks, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
 import { AttemptCompletedUnscoredEvent } from '../events/attempt-completed-unscored.event.js';
 import { AttemptRoutedForReviewEvent } from '../events/attempt-routed-for-review.event.js';
 import { AttemptReviewedEvent } from '../events/attempt-reviewed.event.js';
+import { AttemptReturnedEvent } from '../events/attempt-returned.event.js';
 
 export type AttemptStatus =
   | 'IN_PROGRESS'
@@ -117,6 +118,24 @@ export type WorkContext = 'classwork' | 'homework' | 'self_study';
 export interface AttemptAxes {
   skills: Skill[];
   focus: Focus[];
+  /** How the answer had to be produced (plan 63 §2 E). `unknown` where nothing judged it. */
+  modality?: Modality;
+}
+
+/**
+ * One address snapshotted at attempt start — plan 63 §2 D.
+ *
+ * `itemKey` is the template's own name for the piece (`sentenceId#tokenIndex` for a gap,
+ * the pair id for a pair); `null` addresses the exercise as a whole, which is all a
+ * template that grades as one can offer. The role says how much the evidence weighs:
+ * `focus` is what the item examined, `context` is what the learner had to know to get
+ * there and was not examined on.
+ */
+export interface AttemptItemTarget {
+  itemKey: string | null;
+  atomType: string;
+  atomId: string;
+  role: 'focus' | 'context';
 }
 
 export interface CreateAttemptProps {
@@ -132,6 +151,18 @@ export interface CreateAttemptProps {
   checkMode: CheckMode;
   practicedAtoms: PracticedAtom[];
   axes: AttemptAxes;
+  /** What each piece of the exercise is about, as Content Service resolved it. */
+  itemTargets?: AttemptItemTarget[];
+  /**
+   * The task was a disposable probe rather than a catalogue exercise (plan 63 phase 9).
+   *
+   * Snapshotted rather than looked up, and this one has a sharper reason than the rest of
+   * the snapshot: the probe is *designed to disappear*. By the time a teacher marks this
+   * work or a consumer reads the event it produced, the row it was resolved from is very
+   * likely gone — so the only place the fact can live is here, on the attempt, which
+   * outlives it.
+   */
+  ephemeral?: boolean;
 }
 
 export interface AttemptPersistenceProps {
@@ -147,6 +178,9 @@ export interface AttemptPersistenceProps {
   practicedAtoms: PracticedAtom[];
   skills: Skill[];
   focus: Focus[];
+  itemTargets?: AttemptItemTarget[];
+  modality?: Modality;
+  ephemeral?: boolean;
   workContext: WorkContext | null;
   lessonId: string | null;
   status: AttemptStatus;
@@ -286,6 +320,9 @@ export class Attempt extends AggregateRoot {
     private _focus: Focus[] = [],
     private _workContext: WorkContext | null = null,
     private _lessonId: string | null = null,
+    private _itemTargets: AttemptItemTarget[] = [],
+    private _modality: Modality = 'unknown',
+    private _ephemeral: boolean = false,
   ) {
     super(id);
   }
@@ -320,6 +357,9 @@ export class Attempt extends AggregateRoot {
 
     attempt._skills = props.axes.skills;
     attempt._focus = props.axes.focus;
+    attempt._modality = props.axes.modality ?? 'unknown';
+    attempt._itemTargets = props.itemTargets ?? [];
+    attempt._ephemeral = props.ephemeral ?? false;
     attempt._lessonId = props.lessonId ?? null;
     // Derived once, here: a lesson names classwork, an assignment names homework, and
     // everything else is the learner's own time.
@@ -395,6 +435,9 @@ export class Attempt extends AggregateRoot {
       props.focus ?? [],
       props.workContext ?? null,
       props.lessonId ?? null,
+      props.itemTargets ?? [],
+      props.modality ?? 'unknown',
+      props.ephemeral ?? false,
     );
   }
 
@@ -547,12 +590,19 @@ export class Attempt extends AggregateRoot {
           focus: this._focus,
           containerId: this._containerId,
           workContext: this._workContext,
+          ephemeral: this._ephemeral,
           groupId: this._groupId,
           lessonId: this._lessonId,
           templateCode: this._templateCode,
           passed,
+          modality: this._modality,
           ...(answerForm === undefined ? {} : { answerForm }),
-          ...(gapResults === undefined ? {} : { gapResults }),
+          // Each verdict carries the addresses of the gap it reports, so that a consumer
+          // never has to join a key back to an address the author may have moved since.
+          ...(gapResults === undefined ? {} : { gapResults: this.addressed(gapResults) }),
+          ...(this.wholeExerciseTargets().length === 0
+            ? {}
+            : { targets: this.wholeExerciseTargets() }),
         }),
       );
     }
@@ -612,6 +662,7 @@ export class Attempt extends AggregateRoot {
         skills: this._skills,
         focus: this._focus,
         containerId: this._containerId,
+        ephemeral: this._ephemeral,
       }),
     );
 
@@ -965,6 +1016,39 @@ export class Attempt extends AggregateRoot {
 
     if (props.outcome === 'returned') {
       this._status = 'RETURNED';
+
+      // The work is not done and keeps no score — the learner has been asked to do it
+      // again, and the letter to them says exactly that. What a person judged about their
+      // language is another matter, and it is recorded (plan 63 §4): without this, a
+      // failed free-form answer left no trace at all, and the only evidence ever
+      // collected about recall and production was evidence of success.
+      this.addDomainEvent(
+        new AttemptReturnedEvent(this.id, {
+          userId: this._userId,
+          exerciseId: this._exerciseId,
+          // What the verdict credited, on an approval's scale. Zero when nobody said —
+          // a return with no item decisions is a return of the whole submission.
+          score: props.score ?? 0,
+          timeSpentSeconds: this._timeSpentSeconds,
+          completed: false,
+          passed: false,
+          reviewOutcome: 'returned',
+          practicedAtoms: this._practicedAtoms,
+          skills: this._skills,
+          focus: this._focus,
+          containerId: this._containerId,
+          workContext: this._workContext,
+          ephemeral: this._ephemeral,
+          groupId: this._groupId,
+          lessonId: this._lessonId,
+          templateCode: this._templateCode,
+          modality: this._modality,
+          ...(this.wholeExerciseTargets().length === 0
+            ? {}
+            : { targets: this.wholeExerciseTargets() }),
+        }),
+      );
+
       this.addReviewedEvent(props, null);
       return Result.ok();
     }
@@ -992,10 +1076,18 @@ export class Attempt extends AggregateRoot {
         focus: this._focus,
         containerId: this._containerId,
         workContext: this._workContext,
+        ephemeral: this._ephemeral,
         groupId: this._groupId,
         lessonId: this._lessonId,
         templateCode: this._templateCode,
         passed: this._passed,
+        modality: this._modality,
+        // A free-form template grades as one, so the address it carries is the whole
+        // exercise's — and this is the strongest evidence the platform has, because a
+        // person read the answer.
+        ...(this.wholeExerciseTargets().length === 0
+          ? {}
+          : { targets: this.wholeExerciseTargets() }),
       }),
     );
 
@@ -1208,7 +1300,37 @@ export class Attempt extends AggregateRoot {
   get targetLanguage(): string { return this._targetLanguage; }
   get difficultyLevel(): DifficultyLevel { return this._difficultyLevel; }
   get checkMode(): CheckMode { return this._checkMode; }
+  /**
+   * The addresses of the exercise as a whole — the item whose key is `null`.
+   *
+   * Separate from the per-gap addresses because there is no verdict to hang them on: for
+   * a template that grades as one, the score of the attempt *is* the verdict.
+   */
+  private wholeExerciseTargets(): AttemptTarget[] {
+    return this._itemTargets
+      .filter((target) => target.itemKey === null)
+      .map(({ atomType, atomId, role }) => ({ atomType, atomId, role }));
+  }
+
+  /** Each gap verdict with whatever this attempt snapshotted about that gap. */
+  private addressed(
+    gapResults: Array<{ gapKey: string; correct: boolean }>,
+  ): Array<{ gapKey: string; correct: boolean; targets?: AttemptTarget[] }> {
+    return gapResults.map((result) => {
+      const targets = this._itemTargets
+        .filter((target) => target.itemKey === result.gapKey)
+        .map(({ atomType, atomId, role }) => ({ atomType, atomId, role }));
+      // Absent, not empty: "nobody addressed this gap" and "this gap is about nothing"
+      // are different statements, and only the first is true of the catalogue today.
+      return targets.length === 0 ? result : { ...result, targets };
+    });
+  }
+
   get practicedAtoms(): PracticedAtom[] { return this._practicedAtoms; }
+  get itemTargets(): AttemptItemTarget[] { return this._itemTargets; }
+  get modality(): Modality { return this._modality; }
+  /** This attempt was on a disposable probe — see `ephemeral` on the create props. */
+  get ephemeral(): boolean { return this._ephemeral; }
   get skills(): Skill[] { return this._skills; }
   get focus(): Focus[] { return this._focus; }
   get status(): AttemptStatus { return this._status; }

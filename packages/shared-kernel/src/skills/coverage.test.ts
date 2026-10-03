@@ -19,6 +19,7 @@ describe('tallies', () => {
     expect(result.bySkill).toEqual({ listening: 0, reading: 0, spoken: 0, written: 0 });
     expect(result.byFocus).toEqual({ vocabulary: 0, grammar: 0, orthography: 0, pragmatics: 0, unknown: 0 });
     expect(result.byForm).toEqual({ bank: 0, free: 0, mixed: 0, unknown: 0 });
+    expect(result.byModality).toEqual({ recognition: 0, recall: 0, production: 0, unknown: 0 });
     expect(result.emptySkills).toEqual(['listening', 'reading', 'spoken', 'written']);
     expect(result.total).toBe(0);
   });
@@ -94,6 +95,21 @@ describe('tallies', () => {
     expect(result.byForm.free).toBe(0);
   });
 
+  it('tells rebuilding from picking, where the form column cannot (plan 64, decision G)', () => {
+    // Both are `bank`: the pieces are on screen in either. Only one of them can be
+    // answered without knowing where the finite verb goes.
+    const result = coverage([ex('sentence_schema'), ex('multiple_choice')]);
+    expect(result.byForm.bank).toBe(2);
+    expect(result.byModality.recall).toBe(1);
+    expect(result.byModality.recognition).toBe(1);
+  });
+
+  it('counts a profile from an older event, with no modality, as unknown', () => {
+    const { modality: _dropped, ...older } = deriveSkills(ex('writing_task'));
+    const result = tally([older as never]);
+    expect(result.byModality.unknown).toBe(1);
+  });
+
   it('accepts profiles derived elsewhere', () => {
     const profiles = [ex('writing_task'), ex('match_pairs')].map(deriveSkills);
     expect(tally(profiles)).toEqual(coverage([ex('writing_task'), ex('match_pairs')]));
@@ -126,5 +142,46 @@ describe('divergence between versions (Q5)', () => {
     const a = coverage([ex('word_bank_gap_fill', { content: { settings: { input: 'free' } } })]);
     const b = coverage([ex('word_bank_gap_fill', { content: { settings: { input: 'bank' } } })]);
     expect(diff(a, b).some((cell) => cell.axis === 'form')).toBe(true);
+  });
+});
+
+describe('the subject axis, counted in elements (plan 64, decision H)', () => {
+  it('splits one exercise across the subjects its elements name', () => {
+    const result = coverage([
+      ex('multiple_choice', {
+        atoms: [
+          { atomType: 'vocabulary_item', itemKey: 'q1' },
+          { atomType: 'grammar_rule_atom', itemKey: 'q2' },
+          { atomType: 'grammar_rule_atom', itemKey: 'q3' },
+          { atomType: 'grammar_rule_atom', itemKey: 'q4' },
+        ],
+      }),
+    ]);
+
+    // Counted once under each subject, as before …
+    expect(result.byFocus.vocabulary).toBe(1);
+    expect(result.byFocus.grammar).toBe(1);
+    // … and by how much of the exercise each one actually is.
+    expect(result.byFocusWeighted.vocabulary).toBeCloseTo(0.25);
+    expect(result.byFocusWeighted.grammar).toBeCloseTo(0.75);
+  });
+
+  // Whatever is or is not recorded, the weighted tally has to stay readable as a
+  // share of the exercises counted.
+  it('still adds up to the exercises counted', () => {
+    const result = coverage([
+      ex('error_correction'),
+      ex('writing_task'),
+      ex('match_pairs', {
+        atoms: [
+          { atomType: 'vocabulary_item', itemKey: 'a' },
+          { atomType: 'grammar_rule_atom', itemKey: 'b' },
+        ],
+      }),
+    ]);
+
+    const sum = Object.values(result.byFocusWeighted).reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(3);
+    expect(result.byFocusWeighted.unknown).toBe(1);
   });
 });

@@ -14,9 +14,13 @@ const NOT_FOUND = new Set<GrammarRuleDomainError>([
   GrammarRuleDomainError.POOL_ENTRY_NOT_FOUND,
   GrammarRuleDomainError.EXERCISE_NOT_FOUND_FOR_POOL,
   GrammarRuleDomainError.NO_EXERCISES_AVAILABLE,
+  GrammarRuleDomainError.ATOM_NOT_FOUND,
 ]);
 
-const GONE = new Set<GrammarRuleDomainError>([GrammarRuleDomainError.RULE_ALREADY_DELETED]);
+const GONE = new Set<GrammarRuleDomainError>([
+  GrammarRuleDomainError.RULE_ALREADY_DELETED,
+  GrammarRuleDomainError.ATOM_ALREADY_DELETED,
+]);
 
 const CONFLICT = new Set<GrammarRuleDomainError>([
   GrammarRuleDomainError.DUPLICATE_EXPLANATION,
@@ -24,6 +28,7 @@ const CONFLICT = new Set<GrammarRuleDomainError>([
   GrammarRuleDomainError.SLUG_ALREADY_EXISTS,
   GrammarRuleDomainError.EXPLANATION_ALREADY_PUBLISHED,
   GrammarRuleDomainError.DUPLICATE_COMPARE_EXAMPLE_POSITION,
+  GrammarRuleDomainError.ATOM_KEY_ALREADY_EXISTS,
 ]);
 
 const UNPROCESSABLE = new Set<GrammarRuleDomainError>([
@@ -37,6 +42,8 @@ const UNPROCESSABLE = new Set<GrammarRuleDomainError>([
   GrammarRuleDomainError.EMPTY_TITLE,
   GrammarRuleDomainError.INVALID_COMPARE_EXAMPLE_DATA,
   GrammarRuleDomainError.INVALID_QUICK_CHECK_DATA,
+  GrammarRuleDomainError.INVALID_ATOM_KEY,
+  GrammarRuleDomainError.INVALID_ATOM_DATA,
 ]);
 
 export function throwHttpException(error: GrammarRuleDomainError | string): never {

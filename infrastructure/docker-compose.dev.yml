@@ -275,6 +275,12 @@ services:
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
       EXERCISE_DEFINITION_CACHE_TTL_SECONDS: 300
       EXERCISE_PLACEMENT_CACHE_TTL_SECONDS: 300
+      # Disposable tasks (plan 63 phase 9): how long a probe is worth answering, the
+      # ceiling a caller asking for its own TTL is clamped to, and how many expired rows
+      # one sweep clears.
+      PROBE_DEFAULT_TTL_SECONDS: ${PROBE_DEFAULT_TTL_SECONDS:-21600}
+      PROBE_MAX_TTL_SECONDS: ${PROBE_MAX_TTL_SECONDS:-604800}
+      PROBE_SWEEP_BATCH: ${PROBE_SWEEP_BATCH:-500}
     ports:
       - "3006:3006"
     depends_on:

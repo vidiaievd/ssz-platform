@@ -17,6 +17,8 @@ const cmd = new IntroduceCardCommand(USER_ID, 'EXERCISE', CONTENT_ID);
 function makeHandler(overrides: {
   existingCard?: ReviewCard | null;
   canIntroduce?: boolean;
+  /** What the atom says its track is — only grammar atoms ever ask (plan 63 phase 6). */
+  track?: 'lexis' | 'grammar';
 } = {}) {
   const repo: ISrsRepository = {
     findById: jest.fn(),
@@ -46,11 +48,18 @@ function makeHandler(overrides: {
 
   const clock: IClock = { now: () => NOW };
 
+  const trackResolver = {
+    resolve: jest
+      .fn<() => Promise<'lexis' | 'grammar'>>()
+      .mockResolvedValue(overrides.track ?? 'lexis'),
+  } as any;
+
   return {
-    handler: new IntroduceCardHandler(repo, limitsPolicy, publisher, clock),
+    handler: new IntroduceCardHandler(repo, limitsPolicy, publisher, clock, trackResolver),
     repo,
     limitsPolicy,
     publisher,
+    trackResolver,
   };
 }
 
@@ -80,7 +89,7 @@ describe('IntroduceCardHandler', () => {
   });
 
   it('returns existing card without saving or incrementing limit (idempotent)', async () => {
-    const existing = ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, NOW);
+    const existing = ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, 'lexis', NOW);
     const { handler, repo, limitsPolicy } = makeHandler({ existingCard: existing });
 
     const result = await handler.execute(cmd);
@@ -122,11 +131,14 @@ describe('IntroduceCardHandler', () => {
 
       await handler.execute(cmd);
 
-      expect(limitsPolicy.recordRefusal).toHaveBeenCalledWith(USER_ID, 'new', NOW);
+      expect(limitsPolicy.recordRefusal).toHaveBeenCalledWith(USER_ID, 'new', 'lexis', NOW);
       expect(publisher.publish).toHaveBeenCalledWith('learning.srs.limit_refused', {
         userId: USER_ID,
         kind: 'new',
         contentType: 'EXERCISE',
+        // Which of the two budgets refused (plan 63 phase 6) — a refusal that does not
+        // say cannot be read at all once there are two.
+        track: 'lexis',
         occurredAt: NOW.toISOString(),
       });
     });
@@ -166,5 +178,33 @@ describe('IntroduceCardHandler', () => {
       expect(result.isFail).toBe(true);
       expect(result.error).toBeInstanceOf(SrsNewCardLimitError);
     });
+  });
+});
+
+// Plan 63 phase 5 — the shadow half of the fan-out opens cards nobody is shown.
+describe('IntroduceCardHandler — shadow cards', () => {
+  const shadowCmd = new IntroduceCardCommand(USER_ID, 'GRAMMAR_ATOM', CONTENT_ID, undefined, true);
+
+  it('creates the card without charging the daily new-card budget', async () => {
+    const { handler, repo, limitsPolicy } = makeHandler();
+
+    const result = await handler.execute(shadowCmd);
+
+    expect(result.isOk).toBe(true);
+    expect(repo.save).toHaveBeenCalledTimes(1);
+    expect(limitsPolicy.incrementNewCardCount).not.toHaveBeenCalled();
+  });
+
+  it('is not refused when the learner has spent the day s budget', async () => {
+    // The budget caps how much new material a person is asked to carry, and nobody is
+    // being asked to carry this one. Refusing it would stop the shadow model collecting
+    // on exactly the days the learner works hardest.
+    const { handler, limitsPolicy } = makeHandler({ canIntroduce: false });
+
+    const result = await handler.execute(shadowCmd);
+
+    expect(result.isOk).toBe(true);
+    expect(limitsPolicy.canIntroduceNewCard).not.toHaveBeenCalled();
+    expect(limitsPolicy.recordRefusal).not.toHaveBeenCalled();
   });
 });

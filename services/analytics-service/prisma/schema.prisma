@@ -252,10 +252,84 @@ model AttemptEvidence {
   containerId String? @map("container_id")
   lessonId    String? @map("lesson_id")
 
+  // How the learner had to produce the answer (plan 63 §2 E), flattened like the rest.
+  // The axis that separates two learners every other number here calls equal: 90 % on
+  // recognition and 30 % on recall is not uneven knowledge, it is knowledge that has
+  // reached recognition. Null for everything published before the axis existed.
+  modality String? @map("modality")
+
   @@index([templateCode, answerMode, occurredAt])
   @@index([userId, occurredAt])
   @@index([groupId, workContext, occurredAt])
   @@map("attempt_evidence")
+}
+
+// ─── Projection: AtomEvidence ─────────────────────────────────────────────────
+// One row per (rating × atom it was evidence about) — plan 63 phase 3.
+//
+// A separate table rather than columns on `attempt_evidence`, and the reason is not
+// tidiness. That table is defined as one row per attempt that moved a card, and five
+// readers count its rows as attempts (group progress, the heatmap, group units, work
+// context, the course result). An attempt with six gaps and eight addresses would
+// silently multiply every one of those numbers by eight.
+//
+// So the coarse record keeps its meaning and the fine one gets its own table. The join
+// key between them is `eventId`: both are written from the same rating, inside the same
+// idempotency guard.
+//
+// What this table is for: "which atoms does this learner know only on recognition",
+// "what has never been produced", "what is due and weak" — questions about a fact, which
+// is a thing an exercise-shaped row cannot answer.
+
+model AtomEvidence {
+  id      String @id @default(uuid())
+  eventId String @map("event_id")
+
+  userId     String @map("user_id")
+  exerciseId String @map("exercise_id")
+
+  // `vocabulary_item` | `grammar_rule_atom`. A string, as everywhere this address
+  // travels: a new kind of atom must not require a migration to be recorded.
+  atomType String @map("atom_type")
+  atomId   String @map("atom_id")
+
+  // What the atom was doing in the item: `focus` examined it, `context` merely required
+  // it. Null where nobody said — an atom that arrived through the practised-atom graph
+  // rather than through an author's address, which is most of them today.
+  role String? @map("role")
+
+  // The piece of the exercise this came from, spelled as the template spells it. Null for
+  // a rating of the exercise as a whole, or of a word through the fan-out.
+  itemKey String? @map("item_key")
+
+  // Which kind of card took the rating — EXERCISE | EXERCISE_GAP | VOCABULARY_WORD, and
+  // GRAMMAR_ATOM from phase 5. The same rating can be evidence about an atom whether the
+  // card was the gap's or the atom's own, and the two are not the same measurement.
+  contentType String? @map("content_type")
+
+  modality      String? @map("modality")
+  ratingApplied String  @map("rating_applied")
+  score         Int
+  passed        Boolean?
+  // FSRS stability after this review, in days — "forgets quickly" against "never knew".
+  stabilityAfter Float? @map("stability_after")
+
+  // Scope, carried so a report can ask about one course or one group without joining
+  // back: the same questions the coarse table answers about attempts are asked here
+  // about facts.
+  containerId String? @map("container_id")
+  groupId     String? @map("group_id")
+  workContext String? @map("work_context")
+
+  occurredAt DateTime @map("occurred_at")
+
+  // One rating is one observation about one atom. The pair is what makes a redelivery
+  // idempotent, since a single event legitimately writes several rows here.
+  @@unique([eventId, atomType, atomId])
+  @@index([userId, atomType, atomId, occurredAt])
+  @@index([atomType, atomId, occurredAt])
+  @@index([userId, modality, occurredAt])
+  @@map("atom_evidence")
 }
 
 // ─── Projection: SkillMastery ─────────────────────────────────────────────────
@@ -324,9 +398,14 @@ model SrsLimitRefusal {
   userId      String   @map("user_id")
   kind        String // new | review
   contentType String   @map("content_type") // EXERCISE | EXERCISE_GAP | VOCABULARY_WORD
+  // Which of the two daily budgets refused — lexis | grammar (plan 63 phase 6). Null on
+  // every refusal recorded before the budgets were split; all of those were the one
+  // budget that is now the lexical one.
+  track       String?
   occurredAt  DateTime @map("occurred_at")
 
   @@index([kind, occurredAt])
+  @@index([track, occurredAt])
   @@index([userId, occurredAt])
   @@map("srs_limit_refusals")
 }

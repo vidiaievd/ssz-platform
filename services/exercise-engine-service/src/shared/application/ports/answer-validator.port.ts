@@ -47,4 +47,15 @@ export class ValidationError extends Error {
 
 export interface IAnswerValidator {
   validate(input: ValidateAnswerInput): Promise<Result<ValidationOutcome, ValidationError>>;
+
+  /**
+   * Is there a validator for this template at all.
+   *
+   * Asked before anything is built on a template code, rather than discovered when an
+   * answer arrives (plan 63 phase 9). A catalogue exercise cannot reach the engine on an
+   * unknown template — Content Service would have refused to store it — but a probe is
+   * assembled by a caller and is worth nothing unless it can be scored, so the question
+   * has to be answerable ahead of time.
+   */
+  supports(templateCode: string): boolean;
 }

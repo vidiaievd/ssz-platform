@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
@@ -63,12 +64,21 @@ import { GetContainerCoverageQuery } from '../../application/queries/get-contain
 import type { CoverageVersionScope } from '../../application/queries/get-container-coverage/get-container-coverage.query.js';
 import type { ContainerCoverageResult } from '../../application/queries/get-container-coverage/get-container-coverage.handler.js';
 import { ContainerCoverageResponseDto } from '../dto/responses/coverage.response.dto.js';
+import { GetAtomCoverageQuery } from '../../application/queries/get-atom-coverage/get-atom-coverage.query.js';
+import type { AtomCoverageVersionScope } from '../../application/queries/get-atom-coverage/get-atom-coverage.query.js';
+import type { AtomCoverageResult } from '../../application/queries/get-atom-coverage/get-atom-coverage.handler.js';
+import { AtomCoverageResponseDto } from '../dto/responses/atom-coverage.response.dto.js';
 import { throwHttpException } from '../utils/domain-error.mapper.js';
 import { GetContainerReviewSettingsQuery } from '../../application/queries/get-review-settings/get-container-review-settings.query.js';
 import type { ContainerReviewSettingsResult } from '../../application/queries/get-review-settings/get-container-review-settings.handler.js';
 import { SetContainerReviewSettingsCommand } from '../../application/commands/set-review-settings/set-container-review-settings.command.js';
 import { SetContainerReviewSettingsRequestDto } from '../dto/requests/review-settings.request.dto.js';
 import { ContainerReviewSettingsResponseDto } from '../dto/responses/review-settings.response.dto.js';
+import { GetContainerCoverageRecipeQuery } from '../../application/queries/get-coverage-recipe/get-container-coverage-recipe.query.js';
+import type { ContainerCoverageRecipeResult } from '../../application/queries/get-coverage-recipe/get-container-coverage-recipe.handler.js';
+import { SetContainerCoverageRecipeCommand } from '../../application/commands/set-coverage-recipe/set-container-coverage-recipe.command.js';
+import { SetContainerCoverageRecipeRequestDto } from '../dto/requests/coverage-recipe.request.dto.js';
+import { ContainerCoverageRecipeResponseDto } from '../dto/responses/coverage-recipe.response.dto.js';
 
 @ApiTags('Containers')
 @ApiBearerAuth()
@@ -260,6 +270,82 @@ export class ContainerController {
 
     if (result.isFail) throwHttpException(result.error);
     return ContainerCoverageResponseDto.from(result.value);
+  }
+
+  /**
+   * What this course teaches against what it ever asks — plan 63 §4.2.
+   *
+   * The coverage report above counts exercises by channel and subject; this one counts the
+   * facts themselves. It is the only place that can say "this lesson introduces twenty-four
+   * words, six of which no exercise asks about, and both its rules are only ever tested by
+   * picking an answer off a list".
+   */
+  @Get(':id/atom-coverage')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({
+    summary: 'The words and rule atoms this container teaches, against the items that test them',
+  })
+  @ApiQuery({
+    name: 'version',
+    required: false,
+    enum: ['draft', 'published'],
+    description:
+      'Which composition to read. `draft` (default) is what the author is editing; ' +
+      '`published` is what learners have.',
+  })
+  @ApiOkResponse({ type: AtomCoverageResponseDto })
+  async atomCoverage(
+    @Param('id') id: string,
+    @Query('version') version?: string,
+  ): Promise<AtomCoverageResponseDto> {
+    const scope: AtomCoverageVersionScope = version === 'published' ? 'published' : 'draft';
+
+    const result = await this.queryBus.execute<
+      GetAtomCoverageQuery,
+      Result<AtomCoverageResult, ContainerDomainError>
+    >(new GetAtomCoverageQuery(id, scope));
+
+    if (result.isFail) throwHttpException(result.error);
+    return AtomCoverageResponseDto.from(result.value);
+  }
+
+  @Get(':id/coverage-recipe')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({
+    summary: 'The recipe this course’s lessons are held to, and the one it inherits',
+  })
+  @ApiOkResponse({ type: ContainerCoverageRecipeResponseDto })
+  async getCoverageRecipe(@Param('id') id: string): Promise<ContainerCoverageRecipeResponseDto> {
+    const result = await this.queryBus.execute<
+      GetContainerCoverageRecipeQuery,
+      Result<ContainerCoverageRecipeResult, ContainerDomainError>
+    >(new GetContainerCoverageRecipeQuery(id));
+
+    if (result.isFail) throwHttpException(result.error);
+    return ContainerCoverageRecipeResponseDto.from(result.value);
+  }
+
+  /** `null` gives the recipe back to the workspace; the response says what applies now. */
+  @Put(':id/coverage-recipe')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({ summary: 'Set or clear this course’s own recipe' })
+  @ApiOkResponse({ type: ContainerCoverageRecipeResponseDto })
+  @ApiBadRequestResponse({ description: 'INVALID_COVERAGE_RECIPE — a rule does not parse' })
+  async setCoverageRecipe(
+    @Param('id') id: string,
+    @Body() dto: SetContainerCoverageRecipeRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ContainerCoverageRecipeResponseDto> {
+    const applied = await this.commandBus.execute<
+      SetContainerCoverageRecipeCommand,
+      Result<void, ContainerDomainError>
+    >(new SetContainerCoverageRecipeCommand(user.userId, id, dto.recipe));
+
+    if (applied.isFail) throwHttpException(applied.error);
+    return this.getCoverageRecipe(id);
   }
 
   @Get(':id/review-settings')

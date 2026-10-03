@@ -4,6 +4,7 @@ import axios, { type AxiosInstance } from 'axios';
 import type { AppConfig } from '../../config/configuration.js';
 import type {
   AccessTier,
+  AtomDescriptorRef,
   CanDoDescriptorRef,
   ContainerOwnerRef,
   ContentMetadata,
@@ -276,6 +277,19 @@ export class ContentClient implements IContentClient {
       return Result.ok(data);
     } catch (err) {
       return this.mapError(err, `getVocabularyItemsForDisplay(${itemIds.length} ids)`);
+    }
+  }
+
+  async describeAtoms(
+    refs: Array<{ atomType: string; atomId: string }>,
+  ): Promise<Result<AtomDescriptorRef[], ContentClientError>> {
+    if (refs.length === 0) return Result.ok([]);
+
+    try {
+      const { data } = await this.http.post<AtomDescriptorRef[]>('/atoms/describe', { refs });
+      return Result.ok(data);
+    } catch (err) {
+      return this.mapError(err, `describeAtoms(${refs.length} refs)`);
     }
   }
 

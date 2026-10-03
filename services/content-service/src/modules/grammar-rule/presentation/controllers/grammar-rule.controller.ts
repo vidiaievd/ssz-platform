@@ -54,6 +54,14 @@ import { UpdatePoolEntryCommand } from '../../application/commands/update-pool-e
 import { RemovePoolEntryCommand } from '../../application/commands/remove-pool-entry/remove-pool-entry.command.js';
 import { ReorderPoolCommand } from '../../application/commands/reorder-pool/reorder-pool.command.js';
 
+// Commands — atoms (plan 63, phase 0)
+import { CreateAtomCommand } from '../../application/commands/create-atom/create-atom.command.js';
+import type { CreateAtomResult } from '../../application/commands/create-atom/create-atom.handler.js';
+import { UpdateAtomCommand } from '../../application/commands/update-atom/update-atom.command.js';
+import { DeleteAtomCommand } from '../../application/commands/delete-atom/delete-atom.command.js';
+import { ReorderAtomsCommand } from '../../application/commands/reorder-atoms/reorder-atoms.command.js';
+import { MoveAtomCommand } from '../../application/commands/move-atom/move-atom.command.js';
+
 // Queries
 import { GetGrammarRulesQuery } from '../../application/queries/get-grammar-rules/get-grammar-rules.query.js';
 import { GetGrammarRuleQuery } from '../../application/queries/get-grammar-rule/get-grammar-rule.query.js';
@@ -64,11 +72,13 @@ import type { GetBestExplanationResult } from '../../application/queries/get-bes
 import type { GrammarRuleExplanationWithComposite } from '../../application/queries/get-grammar-rule-explanation/get-grammar-rule-explanation.handler.js';
 import { GetPoolEntriesQuery } from '../../application/queries/get-pool-entries/get-pool-entries.query.js';
 import { GetRandomPoolExerciseQuery } from '../../application/queries/get-random-pool-exercise/get-random-pool-exercise.query.js';
+import { GetAtomsQuery } from '../../application/queries/get-atoms/get-atoms.query.js';
 
 // Domain types
 import type { GrammarRuleDomainError } from '../../domain/exceptions/grammar-rule-domain.exceptions.js';
 import type { GrammarRuleEntity } from '../../domain/entities/grammar-rule.entity.js';
 import type { PoolEntryWithExercise } from '../../domain/repositories/grammar-rule-exercise-pool.repository.interface.js';
+import type { GrammarRuleAtom } from '../../domain/entities/grammar-rule-atom.entity.js';
 import type { ExerciseEntity } from '../../../exercise/domain/entities/exercise.entity.js';
 import { DifficultyLevel } from '../../../container/domain/value-objects/difficulty-level.vo.js';
 
@@ -83,6 +93,10 @@ import { SetQuickCheckRequestDto } from '../dto/requests/set-quick-check.request
 import { AddPoolEntryRequestDto } from '../dto/requests/add-pool-entry.request.dto.js';
 import { UpdatePoolEntryRequestDto } from '../dto/requests/update-pool-entry.request.dto.js';
 import { ReorderPoolRequestDto } from '../dto/requests/reorder-pool.request.dto.js';
+import { CreateAtomRequestDto } from '../dto/requests/create-atom.request.dto.js';
+import { UpdateAtomRequestDto } from '../dto/requests/update-atom.request.dto.js';
+import { ReorderAtomsRequestDto } from '../dto/requests/reorder-atoms.request.dto.js';
+import { MoveAtomRequestDto } from '../dto/requests/move-atom.request.dto.js';
 import { GrammarRuleExplanationsQueryDto } from '../dto/requests/grammar-rule-explanations-query.dto.js';
 import { GrammarRulePoolQueryDto } from '../dto/requests/grammar-rule-pool-query.dto.js';
 
@@ -90,6 +104,7 @@ import { GrammarRulePoolQueryDto } from '../dto/requests/grammar-rule-pool-query
 import { GrammarRuleResponseDto } from '../dto/responses/grammar-rule.response.dto.js';
 import { GrammarRuleExplanationResponseDto } from '../dto/responses/grammar-rule-explanation.response.dto.js';
 import { PoolEntryResponseDto } from '../dto/responses/pool-entry.response.dto.js';
+import { GrammarRuleAtomResponseDto } from '../dto/responses/grammar-rule-atom.response.dto.js';
 import { ExerciseResponseDto } from '../../../exercise/presentation/dto/responses/exercise.response.dto.js';
 
 // Error mapper
@@ -587,6 +602,152 @@ export class GrammarRuleController {
       RemovePoolEntryCommand,
       Result<void, GrammarRuleDomainError>
     >(new RemovePoolEntryCommand(user.userId, ruleId, exerciseId));
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  // ── Atoms sub-resource (plan 63, phase 0) ──────────────────────────────────
+  //
+  // What a rule is made of, once it is more than one thing. Nothing consumes these yet:
+  // exercise targets arrive in phase 1 and review cards in phase 5. A rule with no atoms
+  // behaves exactly as it did before.
+
+  @Post(':id/atoms')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
+  @ApiOperation({ summary: 'Add an atom to a grammar rule' })
+  @ApiCreatedResponse({ description: 'Returns the new atom ID' })
+  async createAtom(
+    @Param('id') ruleId: string,
+    @Body() dto: CreateAtomRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ atomId: string }> {
+    const result = await this.commandBus.execute<
+      CreateAtomCommand,
+      Result<CreateAtomResult, GrammarRuleDomainError>
+    >(new CreateAtomCommand(user.userId, ruleId, dto.key, dto.title, dto.track, dto.description));
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value;
+  }
+
+  @Get(':id/atoms')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.GRAMMAR_RULE })
+  @ApiOperation({ summary: 'List the atoms of a grammar rule, in order' })
+  @ApiOkResponse({ type: [GrammarRuleAtomResponseDto] })
+  async findAtoms(@Param('id') ruleId: string): Promise<GrammarRuleAtomResponseDto[]> {
+    const atoms = await this.queryBus.execute<GetAtomsQuery, GrammarRuleAtom[]>(
+      new GetAtomsQuery(ruleId),
+    );
+    return atoms.map((atom) => GrammarRuleAtomResponseDto.from(atom));
+  }
+
+  @Patch(':id/atoms/:atomId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Update an atom's title, note or track" })
+  @ApiNoContentResponse()
+  async updateAtom(
+    @Param('id') ruleId: string,
+    @Param('atomId') atomId: string,
+    @Body() dto: UpdateAtomRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      UpdateAtomCommand,
+      Result<void, GrammarRuleDomainError>
+    >(
+      new UpdateAtomCommand(
+        user.userId,
+        ruleId,
+        atomId,
+        dto.key,
+        dto.title,
+        dto.description,
+        dto.track,
+      ),
+    );
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Post(':id/atoms/reorder')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Reorder the atoms of a rule' })
+  @ApiNoContentResponse()
+  async reorderAtoms(
+    @Param('id') ruleId: string,
+    @Body() dto: ReorderAtomsRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      ReorderAtomsCommand,
+      Result<void, GrammarRuleDomainError>
+    >(new ReorderAtomsCommand(user.userId, ruleId, dto.items));
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Post(':id/atoms/:atomId/move')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Move an atom under another grammar rule',
+    description:
+      'The operation every restructure is built from: splitting a rule is creating one and ' +
+      'moving atoms across, merging two is moving all of them one way. Nothing a learner ' +
+      'owns moves with it — cards and exercise targets address the atom by id, not by its ' +
+      'rule. Requires edit access to the destination rule as well as to this one.',
+  })
+  @ApiNoContentResponse()
+  async moveAtom(
+    @Param('id') ruleId: string,
+    @Param('atomId') atomId: string,
+    @Body() dto: MoveAtomRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      MoveAtomCommand,
+      Result<void, GrammarRuleDomainError>
+    >(
+      new MoveAtomCommand(
+        user.userId,
+        user.isPlatformAdmin,
+        ruleId,
+        atomId,
+        dto.targetRuleId,
+        dto.key,
+      ),
+    );
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Delete(':id/atoms/:atomId')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.GRAMMAR_RULE })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Retire an atom',
+    description:
+      'Soft delete. A practised atom owns review cards and exercise targets elsewhere, so ' +
+      'the row stays; its key becomes free for reuse inside the rule.',
+  })
+  @ApiNoContentResponse()
+  async deleteAtom(
+    @Param('id') ruleId: string,
+    @Param('atomId') atomId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      DeleteAtomCommand,
+      Result<void, GrammarRuleDomainError>
+    >(new DeleteAtomCommand(user.userId, ruleId, atomId));
 
     if (result.isFail) throwHttpException(result.error);
   }

@@ -124,6 +124,10 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     ]);
   }
 
+  supports(templateCode: string): boolean {
+    return this.validators.has(templateCode);
+  }
+
   async validate(
     input: ValidateAnswerInput,
   ): Promise<Result<ValidationOutcome, ValidationError>> {

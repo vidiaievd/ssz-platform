@@ -1,4 +1,5 @@
 import type { ReviewCard, SrsContentType } from '../entities/review-card.entity.js';
+import type { SrsTrack } from '../value-objects/srs-track.js';
 
 export interface SrsStats {
   newCount: number;
@@ -26,7 +27,13 @@ export interface ISrsRepository {
     contentType: SrsContentType,
     contentIds: string[],
   ): Promise<ReviewCard[]>;
-  findDueCards(userId: string, limit: number, now: Date): Promise<ReviewCard[]>;
+  /** Due cards, narrowed to one memory when the caller names a track (plan 63 phase 6). */
+  findDueCards(
+    userId: string,
+    limit: number,
+    now: Date,
+    track?: SrsTrack,
+  ): Promise<ReviewCard[]>;
   save(card: ReviewCard): Promise<void>;
   countNewToday(userId: string, since: Date): Promise<number>;
   countReviewedToday(userId: string, since: Date): Promise<number>;

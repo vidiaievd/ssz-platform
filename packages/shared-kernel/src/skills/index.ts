@@ -1,11 +1,18 @@
 // Public surface of the skill axes — plan 55 phase 1.
 
-export type { Focus, FocusSource, Form, Skill, SkillSource } from './model.js';
+export type { Focus, FocusSource, Form, Input, Modality, Output, Skill, SkillSource } from './model.js';
 export {
+  channelsOf,
   FOCUS_SOURCES,
   FOCUSES,
   FORMS,
+  INPUTS,
+  MODALITIES,
+  OUTPUTS,
   isFocus,
+  isInput,
+  isModality,
+  isOutput,
   isSkill,
   orderFocuses,
   orderSkills,
@@ -26,6 +33,7 @@ export type {
   CoverageDifference,
   FocusTally,
   FormTally,
+  ModalityTally,
   PairTally,
   SkillTally,
 } from './coverage.js';
@@ -33,3 +41,19 @@ export { coverage, diff, diverges, share, tally } from './coverage.js';
 
 export type { CoverageIssue, CoverageIssueLevel, CoverageIssueOptions } from './issues.js';
 export { coverageIssues, warnings } from './issues.js';
+
+export type { Recipe, RecipeAxis, RecipeElement, RecipeIssue, RecipePresetId, RecipeRule } from './recipe.js';
+export {
+  checkElements,
+  checkRecipe,
+  elementsOf,
+  EMPTY_RECIPE,
+  matches,
+  MAX_RECIPE_RULES,
+  parseRecipe,
+  parseRule,
+  readRecipe,
+  RECIPE_AXES,
+  RECIPE_PRESET_IDS,
+  RECIPE_PRESETS,
+} from './recipe.js';

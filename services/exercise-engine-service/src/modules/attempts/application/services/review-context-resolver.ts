@@ -63,6 +63,16 @@ export class ReviewContextResolver {
         module: placement.moduleTitle,
         exercise: placement.exerciseTitle,
       };
+    } else if (placementResult.error.statusCode === 404) {
+      /*
+        Not placed is a normal state, not a fault: an exercise that sits in no course yet,
+        and — since plan 63 phase 9 — every probe, which sits in no course by design. A
+        warning per attempt would train everyone reading these logs to ignore the line
+        that means Content Service is actually broken.
+      */
+      this.logger.debug(
+        `No placement for exercise ${exerciseId}: ${placementResult.error.message}`,
+      );
     } else {
       this.logger.warn(
         `Placement lookup failed for exercise ${exerciseId}: ${placementResult.error.message}`,

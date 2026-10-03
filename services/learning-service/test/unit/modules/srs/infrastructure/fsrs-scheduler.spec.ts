@@ -17,7 +17,7 @@ function makeScheduler(maxIntervalDays = 365): FsrsScheduler {
 }
 
 function newCard(): ReviewCard {
-  return ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, NOW);
+  return ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, 'lexis', NOW);
 }
 
 function reviewCard(): ReviewCard {
@@ -26,6 +26,7 @@ function reviewCard(): ReviewCard {
     userId: USER_ID,
     contentType: 'EXERCISE',
     contentId: CONTENT_ID,
+    track: 'lexis',
     state: 'REVIEW',
     dueAt: NOW,
     stability: 10.0,
@@ -97,6 +98,7 @@ describe('FsrsScheduler', () => {
         userId: USER_ID,
         contentType: 'EXERCISE',
         contentId: CONTENT_ID,
+        track: 'lexis',
         state: 'REVIEW',
         dueAt: NOW,
         stability: 500.0,
@@ -156,6 +158,7 @@ describe('FsrsScheduler', () => {
         userId: USER_ID,
         contentType: 'VOCABULARY_WORD',
         contentId: CONTENT_ID,
+        track: 'lexis',
         state: 'REVIEW',
         dueAt: new Date('2026-05-13T10:00:00Z'),
         stability: 14,

@@ -159,6 +159,10 @@ model Container {
   // Null means the school's own promise applies — the course has not overridden it
   // (plan 44 §44.12). Only meaningful for containerType=COURSE.
   reviewRespondWithinHours  Int?            @map("review_respond_within_hours")
+  // What every lesson of THIS course is expected to train (plan 64, decision O).
+  // Null inherits the workspace's recipe; `{ "rules": [] }` is a course that has opted
+  // out of the workspace's. Shape: `Recipe` in @ssz/shared-kernel/skills.
+  coverageRecipe            Json?           @map("coverage_recipe")
   // Raw FK to container_versions.id (DEFERRABLE INITIALLY DEFERRED) added via migration.
   currentPublishedVersionId String?         @map("current_published_version_id") @db.Uuid
   createdAt                 DateTime        @default(now()) @map("created_at") @db.Timestamptz
@@ -175,6 +179,20 @@ model Container {
   @@index([targetLanguage, difficultyLevel])
   @@index([deletedAt, visibility, targetLanguage])
   @@map("containers")
+}
+
+// A workspace's methodological standard for a lesson (plan 64, decision O): one row per
+// school, SCHOOL and SOLO alike, keyed by organization-service's id — there is no FK,
+// schools live in another database. No row means the workspace has set no recipe, which
+// is a legitimate state; the platform does not impose a method.
+model WorkspaceCoverageRecipe {
+  schoolId        String   @id @map("school_id") @db.Uuid
+  // Shape: `Recipe` in @ssz/shared-kernel/skills, validated by `readRecipe` on write.
+  recipe          Json
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByUserId String   @map("updated_by_user_id") @db.Uuid
+
+  @@map("workspace_coverage_recipes")
 }
 
 // One container can have many versions. Only one draft and one published version
@@ -770,6 +788,7 @@ model Exercise {
   template        ExerciseTemplate          @relation(fields: [exerciseTemplateId], references: [id])
   instructions    ExerciseInstruction[]
   poolEntries     GrammarRuleExercisePool[]
+  itemTargets     ExerciseItemTarget[]
   listeningStages LessonListeningStage[]
   videoQuestions  LessonVideoQuestion[]
 
@@ -882,6 +901,7 @@ model GrammarRule {
 
   explanations GrammarRuleExplanation[]
   exercisePool GrammarRuleExercisePool[]
+  atoms        GrammarRuleAtom[]
 
   @@index([ownerUserId])
   @@index([ownerSchoolId])
@@ -991,6 +1011,155 @@ model GrammarRuleExercisePool {
   @@index([grammarRuleId])
   @@index([exerciseId])
   @@map("grammar_rule_exercise_pool")
+}
+
+// ─── Grammar rule atoms (plan 63, phase 0) ────────────────────────────────────
+
+// Which track of the SRS a fact belongs to — plan 63 §2 C.
+//
+// `LEXIS` on an atom that lives inside a grammar rule looks like a contradiction and is
+// not one: the gender of a Norwegian noun (`et hus`) is learnt with the word, one word at
+// a time, while the ending that follows from it (`huset`) is learnt once as a rule. Score
+// them on the same track and a learner who simply does not know forty genders reads as
+// "bad at definite forms", which is the opposite of what to do about it.
+enum AtomTrack {
+  LEXIS   @map("lexis")
+  GRAMMAR @map("grammar")
+
+  @@map("atom_track")
+}
+
+// One thing inside a rule that can be known or not known on its own — plan 63 §2 B.
+//
+// The unit the learner's memory is kept against, and the address an exercise points at.
+// NOT a chapter: "bestemt form av substantiv" is a rule, and a learner can be reliable on
+// its definite singular while helpless at double definiteness. Aggregate those into one
+// number and the number says 70%, which is true of a learner who half-knows everything
+// and of one who knows half of it perfectly — and neither a teacher nor a generator can
+// act on it.
+//
+// Nor a word form: a card per `huset`/`boka`/`bilen` gives a learner who understood the
+// rule perfectly three hundred cards, which is grammar turned back into vocabulary. The
+// whole leverage of a rule is that it generalises to a noun never seen before.
+//
+// The rule of thumb for splitting, from the plan: **split when two parts can be wrong
+// independently.** If you can picture a learner reliably right on A and reliably wrong on
+// B, they are separate atoms; if you cannot, they are one.
+//
+// A rule with no atoms keeps working exactly as before — it is then read as having a
+// single implicit atom — so nothing has to be marked up before this ships.
+model GrammarRuleAtom {
+  id            String @id @default(uuid()) @db.Uuid
+  grammarRuleId String @map("grammar_rule_id") @db.Uuid
+
+  // Stable address. Cards and exercise targets are keyed by it, so it survives every
+  // edit of `title` — renaming what the author sees must never orphan a learner's
+  // schedule. Lowercase kebab, unique within the rule.
+  key String @db.VarChar(60)
+
+  // What the author and the teacher read: "Definite plural", "Double definiteness".
+  title       String  @db.VarChar(200)
+  description String? @db.Text
+
+  track    AtomTrack
+  position Int
+
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  // Soft delete, because an atom that has been practised owns review cards and exercise
+  // targets elsewhere. Merging two atoms into one is a later plan; until it exists, the
+  // only way out is to retire one and re-address by hand.
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+
+  grammarRule GrammarRule @relation(fields: [grammarRuleId], references: [id], onDelete: Cascade)
+
+  // Partial unique on (grammar_rule_id, key) WHERE deleted_at IS NULL is enforced via raw
+  // SQL in the migration — Prisma cannot express it. Without the partial form, retiring
+  // an atom would permanently reserve its key inside the rule.
+  @@index([grammarRuleId])
+  @@index([grammarRuleId, deletedAt])
+  @@map("grammar_rule_atoms")
+}
+
+// ─── Exercise item targets (plan 63, phase 1) ─────────────────────────────────
+
+// Which kind of atom a target points at. The two are the same sort of thing — a fact that
+// can be known or not known — kept in different tables because a word already had one.
+enum AtomType {
+  VOCABULARY_ITEM   @map("vocabulary_item")
+  GRAMMAR_RULE_ATOM @map("grammar_rule_atom")
+
+  @@map("atom_type")
+}
+
+// What the piece of work proves about the atom it names.
+//
+// `FOCUS` is what the item is testing. `CONTEXT` is what the learner had to know anyway to
+// get there: the gap `Vi bor i ___ huset` tests a grammatical ending, and it also requires
+// the word `hus`, but nobody was examined on the word. Full evidence for the first, weak
+// for the second — which is how one item can honestly serve a mixed exercise instead of
+// being forced to declare itself lexical or grammatical.
+enum TargetRole {
+  FOCUS   @map("focus")
+  CONTEXT @map("context")
+
+  @@map("target_role")
+}
+
+// What one piece of an exercise is about — plan 63 §2 D.
+//
+// The missing level. Today an exercise knows which rule it belongs to (via the pool) and a
+// learner's card knows which exercise it came from, and nothing anywhere says which *word*
+// or which *part of a rule* the third gap was testing. Without that, a teacher sees a failing
+// exercise rather than a failing fact, and a generator has nothing to generate about.
+//
+// Deliberately NOT inside the exercise document. Thirteen `content_schema`s live in the
+// database, each with its own shape of item, and every one would have to change and be
+// re-seeded — a change that reads fine and refuses every write until the seed is run again.
+// One table beside them costs one editor control and works the same for every template.
+//
+// `item_key` is whatever the template already calls its pieces in the per-item verdicts it
+// publishes (`sentenceId#tokenIndex` for a gap, the pair id for a pair), because a target
+// keyed differently from the evidence could never be joined to it. Null means the target is
+// about the whole exercise, which is the only option for templates that grade as a whole.
+//
+// The key is not stable: a gap's key holds a token index, so editing the sentence moves it.
+// A target is therefore resolved against the live document on every read and reported broken
+// if its key is gone — the same treatment `lesson_text_spans` gives a rotted offset, and for
+// the same reason. Nothing is stored about brokenness: a flag would need invalidating on
+// every edit of the document.
+//
+// Not versioned, like the exercise pool and tags beside it: this is a pointer at content,
+// not content. Re-addressing an item changes what counts from now on and never what has
+// already been counted — evidence carries the atom id it was recorded against.
+model ExerciseItemTarget {
+  id         String     @id @default(uuid()) @db.Uuid
+  exerciseId String     @map("exercise_id") @db.Uuid
+  itemKey    String?    @map("item_key") @db.VarChar(120)
+  atomType   AtomType   @map("atom_type")
+  // Polymorphic by `atomType` (VOCABULARY_ITEM -> vocabulary_items.id, GRAMMAR_RULE_ATOM ->
+  // grammar_rule_atoms.id) and therefore carrying no FK, mirroring ContentRelation and
+  // LessonTextSpan.ref_id. An unresolvable atom is treated as broken at read time.
+  atomId     String     @map("atom_id") @db.Uuid
+  role       TargetRole
+
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  // An atom is named at most once per item. Naming it twice in two roles is not a richer
+  // statement, it is a contradiction about how much the item proves.
+  //
+  // The migration creates this with NULLS NOT DISTINCT, which the schema language cannot
+  // express: `item_key` is null for every whole-exercise target, and without the clause
+  // Postgres treats each null as distinct and the constraint does nothing at all for them.
+  // Read the migration, not this line.
+  @@unique([exerciseId, itemKey, atomType, atomId])
+  @@index([exerciseId])
+  @@index([atomType, atomId])
+  @@map("exercise_item_targets")
 }
 
 // ─── Block 5: Tags ─────────────────────────────────────────────────────────────

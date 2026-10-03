@@ -7,6 +7,9 @@ import { GetContainerCoverageQuery } from './get-container-coverage.query.js';
 import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
 import type { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import type { IExerciseAxes } from '../../../../../shared/skills/domain/exercise-axes.port.js';
+import type { CoverageRecipeResolver } from '../../services/coverage-recipe-resolver.service.js';
+import { EMPTY_RECIPE } from '@ssz/shared-kernel/skills';
+import type { Recipe, RecipeElement, RecipeRule } from '@ssz/shared-kernel/skills';
 
 interface ContainerFixture {
   id: string;
@@ -131,11 +134,26 @@ const COURSE: Fixture = {
   },
 };
 
+/**
+ * The handler under a fixed recipe. The resolver's own chain is tested beside it; here
+ * the only question is what the report does with whichever recipe applies.
+ */
+function handlerWith(
+  prisma: PrismaService,
+  axes: IExerciseAxes,
+  recipe: Recipe = EMPTY_RECIPE,
+): GetContainerCoverageHandler {
+  const resolver = {
+    resolve: () => Promise.resolve({ recipe, inherited: null, overridden: false }),
+  } as unknown as CoverageRecipeResolver;
+  return new GetContainerCoverageHandler(prisma, axes, resolver);
+}
+
 const AXES = axesFrom({ 'ex-a': READING, 'ex-b': READING, 'ex-c': WRITTEN });
 
 describe('GetContainerCoverageHandler', () => {
   it('rolls the whole tree up, and the modules add up to it', async () => {
-    const handler = new GetContainerCoverageHandler(prismaFrom(COURSE), AXES);
+    const handler = handlerWith(prismaFrom(COURSE), AXES);
 
     const result = await handler.execute(new GetContainerCoverageQuery('course-1', 'draft'));
 
@@ -151,7 +169,7 @@ describe('GetContainerCoverageHandler', () => {
   it('prints the zeroes instead of dropping them', async () => {
     // "This course has no listening" is the single most useful sentence the report can
     // say, and it looks exactly like a missing key if the empty cells are skipped.
-    const handler = new GetContainerCoverageHandler(prismaFrom(COURSE), AXES);
+    const handler = handlerWith(prismaFrom(COURSE), AXES);
 
     const result = await handler.execute(new GetContainerCoverageQuery('course-1', 'draft'));
 
@@ -182,7 +200,7 @@ describe('GetContainerCoverageHandler', () => {
         ],
       },
     };
-    const handler = new GetContainerCoverageHandler(
+    const handler = handlerWith(
       prismaFrom(fixture),
       axesFrom({ 'ex-l1': LISTENING, 'ex-l2': LISTENING }),
     );
@@ -206,10 +224,7 @@ describe('GetContainerCoverageHandler', () => {
       },
       items: { 'cv-draft': [{ itemType: 'EXERCISE', itemId: 'ex-a' }] },
     };
-    const handler = new GetContainerCoverageHandler(
-      prismaFrom(fixture),
-      axesFrom({ 'ex-a': READING }),
-    );
+    const handler = handlerWith(prismaFrom(fixture), axesFrom({ 'ex-a': READING }));
 
     const result = await handler.execute(new GetContainerCoverageQuery('course-1', 'both'));
 
@@ -220,7 +235,7 @@ describe('GetContainerCoverageHandler', () => {
   });
 
   it('reports no divergence when nothing is waiting to be released', async () => {
-    const handler = new GetContainerCoverageHandler(prismaFrom(COURSE), AXES);
+    const handler = handlerWith(prismaFrom(COURSE), AXES);
 
     const result = await handler.execute(new GetContainerCoverageQuery('course-1', 'both'));
 
@@ -242,7 +257,7 @@ describe('GetContainerCoverageHandler', () => {
       },
       items: { 'cv-m1': [{ itemType: 'EXERCISE', itemId: 'ex-a' }] },
     };
-    const handler = new GetContainerCoverageHandler(
+    const handler = handlerWith(
       prismaFrom(fixture),
       axesFrom({ 'ex-a': READING }, { 'ex-a': WRITTEN }),
     );
@@ -270,7 +285,7 @@ describe('GetContainerCoverageHandler', () => {
       },
       items: { 'cv-m1': [{ itemType: 'CONTAINER', itemId: 'module-1' }] },
     };
-    const handler = new GetContainerCoverageHandler(prismaFrom(fixture), axesFrom({}));
+    const handler = handlerWith(prismaFrom(fixture), axesFrom({}));
 
     const result = await handler.execute(new GetContainerCoverageQuery('module-1', 'draft'));
 
@@ -278,14 +293,102 @@ describe('GetContainerCoverageHandler', () => {
   });
 
   it('refuses a container that is not there', async () => {
-    const handler = new GetContainerCoverageHandler(
-      prismaFrom({ containers: {}, items: {} }),
-      axesFrom({}),
-    );
+    const handler = handlerWith(prismaFrom({ containers: {}, items: {} }), axesFrom({}));
 
     const result = await handler.execute(new GetContainerCoverageQuery('gone', 'draft'));
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(ContainerDomainError.CONTAINER_NOT_FOUND);
+  });
+});
+
+describe('GetContainerCoverageHandler — the lesson recipe (plan 64, phase 10)', () => {
+  const produces: RecipeRule = { axis: 'output', values: ['none'], negate: true, min: 1 };
+
+  const element = (output: RecipeElement['output'], modality: RecipeElement['modality']) =>
+    ({ exerciseIndex: 0, input: 'text', output, modality, skills: [], focus: [] }) as RecipeElement;
+
+  /** Elements by exercise id; `ex-c` is a set of three questions, the others one each. */
+  const ELEMENTS: Record<string, RecipeElement[]> = {
+    'ex-a': [element('none', 'recognition')],
+    'ex-b': [element('none', 'recognition')],
+    'ex-c': [
+      element('written_target', 'recall'),
+      element('written_target', 'recall'),
+      element('written_target', 'recall'),
+    ],
+  };
+
+  function axesWithElements(): IExerciseAxes & { elementsFor: jest.Mock } {
+    const base = axesFrom({ 'ex-a': READING, 'ex-b': READING, 'ex-c': WRITTEN });
+    return Object.assign(base, {
+      elementsFor: jest.fn((ids: readonly string[]) => {
+        const out = new Map<string, RecipeElement[]>();
+        for (const id of ids) if (ELEMENTS[id]) out.set(id, ELEMENTS[id]);
+        return Promise.resolve(out);
+      }),
+    });
+  }
+
+  it('warns about the lesson that produces nothing, and only that one', async () => {
+    const handler = handlerWith(prismaFrom(COURSE), axesWithElements(), { rules: [produces] });
+
+    const result = await handler.execute(new GetContainerCoverageQuery('course-1', 'draft'));
+
+    const [first, second] = result.value.draft!.modules;
+    expect(first.recipeIssues).toEqual([
+      {
+        code: 'RECIPE_BELOW_MIN',
+        level: 'warning',
+        ruleIndex: 0,
+        rule: produces,
+        count: 0,
+        min: 1,
+        total: 2,
+      },
+    ]);
+    expect(second.recipeIssues).toEqual([]);
+    expect(result.value.recipe).toEqual({ rules: [produces] });
+  });
+
+  it('counts the lesson in elements, not exercises', async () => {
+    // One exercise of three questions against two of one: by exercises Leksjon 2 would
+    // be a single item; by elements it is three, and the share is read off three.
+    const ceiling: RecipeRule = { axis: 'modality', values: ['recall'], maxShare: 0.5 };
+    const handler = handlerWith(prismaFrom(COURSE), axesWithElements(), { rules: [ceiling] });
+
+    const result = await handler.execute(new GetContainerCoverageQuery('course-1', 'draft'));
+
+    expect(result.value.draft!.modules[1].recipeIssues).toEqual([
+      {
+        code: 'RECIPE_ABOVE_SHARE',
+        level: 'warning',
+        ruleIndex: 0,
+        rule: ceiling,
+        count: 3,
+        maxShare: 0.5,
+        total: 3,
+      },
+    ]);
+  });
+
+  it('reads no elements at all under an empty recipe', async () => {
+    const axes = axesWithElements();
+    const handler = handlerWith(prismaFrom(COURSE), axes);
+
+    const result = await handler.execute(new GetContainerCoverageQuery('course-1', 'both'));
+
+    expect(result.value.draft!.modules.every((m) => m.recipeIssues.length === 0)).toBe(true);
+    expect(axes.elementsFor).not.toHaveBeenCalled();
+  });
+
+  it('reads the elements of the scope it reports', async () => {
+    const axes = axesWithElements();
+    const handler = handlerWith(prismaFrom(COURSE), axes, { rules: [produces] });
+
+    await handler.execute(new GetContainerCoverageQuery('course-1', 'both'));
+
+    const scopes = axes.elementsFor.mock.calls.map((call) => call[1]);
+    expect(new Set(scopes)).toEqual(new Set(['draft', 'live']));
   });
 });

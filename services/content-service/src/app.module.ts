@@ -28,6 +28,7 @@ import { InternalModule } from './modules/internal/internal.module.js';
 import { GroupEntitlementModule } from './infrastructure/messaging/group-entitlement.module.js';
 import { CanDoModule } from './modules/can-do/can-do.module.js';
 import { SkillsModule } from './shared/skills/skills.module.js';
+import { CoverageRecipeModule } from './modules/coverage-recipe/coverage-recipe.module.js';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { SkillsModule } from './shared/skills/skills.module.js';
     AccessControlWiringModule,
     DiscoveryModule,
     SkillsModule,
+    CoverageRecipeModule,
     TagModule,
     ContentRelationModule,
     InternalModule,

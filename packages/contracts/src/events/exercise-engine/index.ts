@@ -61,7 +61,63 @@ export interface ExerciseAttemptCompletedPayload {
    * Deliberately not the explanation: that is feedback for the learner, and the
    * scheduler has no use for it.
    */
-  gapResults?: Array<{ gapKey: string; correct: boolean }>;
+  gapResults?: Array<{
+    gapKey: string;
+    correct: boolean;
+    /**
+     * Additive (plan 63 §2 D) — what this gap was about, snapshotted at attempt start.
+     *
+     * Carried beside the verdict rather than looked up later for the reason every other
+     * snapshot here is carried: an author re-anchoring a gap next month must not silently
+     * rewrite what last month's attempt proved. Absent means nobody addressed the gap,
+     * which is the state most of the catalogue is in and not an error.
+     */
+    targets?: AttemptTarget[];
+  }>;
+  /**
+   * Additive (plan 63 §2 D) — what the exercise as a whole was about.
+   *
+   * The address of an item whose key is `null`: templates that grade as one (`writing_task`,
+   * `short_answer`) have nothing to point inside, and their evidence belongs to the
+   * exercise. Separate from `gapResults` because there is no per-gap verdict to hang it on
+   * — the score of the attempt is the verdict.
+   */
+  targets?: AttemptTarget[];
+  /**
+   * Additive (plan 63 §2 E) — how the learner had to produce the answer.
+   *
+   * Derived by Content Service on the same ladder as the axes and travelling as a value
+   * for the same reason. `unknown` is a real answer: a template nobody has judged, or a
+   * gap-fill whose document has not said whether its words come off a strip.
+   */
+  modality?: Modality;
+  /**
+   * Additive (plan 63 §4) — a person's verdict, where a person gave one.
+   *
+   * `approved` needs no special reading: the attempt is scored and complete, exactly as a
+   * machine-scored one. `returned` is the case this field exists for. Work sent back is
+   * not progress — the learner is being told to do it again, `completed` stays false and
+   * the attempt keeps no score — but it *is* evidence about the language, and the
+   * strongest kind there is: a person read the answer and judged it not good enough.
+   *
+   * Without it a failed free-form answer left no trace anywhere. An approval was recorded
+   * and a return was not, so the only evidence the platform ever collected about recall
+   * and production was evidence of success, while recognition (auto-graded, and free to
+   * mark an answer wrong) recorded both. The two modalities were being compared on
+   * samples selected by opposite rules.
+   *
+   * Absent on every publisher that predates it, and on every machine-scored attempt.
+   */
+  reviewOutcome?: 'approved' | 'returned';
+  /**
+   * Additive (plan 63 §3, phase 2) — milliseconds spent on each addressable item, keyed
+   * the way the template keys its own results.
+   *
+   * Latency separates "knew it" from "worked it out", which is the difference between
+   * recall and reconstruction and is invisible in a verdict. Optional and expected to
+   * stay optional: only templates that can measure an item in isolation report it.
+   */
+  latencyMsPerItem?: Record<string, number>;
   /**
    * Additive (plan 55 §3.6) — what the attempt exercised, snapshotted at its start.
    *
@@ -98,11 +154,50 @@ export interface ExerciseAttemptCompletedPayload {
    * `self_study`, and analytics must be able to tell those apart.
    */
   workContext?: WorkContext | null;
+  /**
+   * Additive (plan 63 phase 9) — the task was a disposable probe, not a catalogue
+   * exercise.
+   *
+   * The evidence it produces about an **atom** is ordinary evidence and must be treated
+   * as such: that is the entire point of moving memory onto the atom in the first place
+   * (§2 A), and it is what makes a generated task worth anything at all.
+   *
+   * What a consumer must *not* do with it is write anything keyed by the exercise. A
+   * progress row, a card on the exercise, a card on one of its gaps — all of them would
+   * name an id that will not exist tomorrow, and a learner's record would slowly fill
+   * with rows pointing at questions nobody can look up. "Completed 40 exercises" would
+   * count tasks that were thrown away by design.
+   *
+   * Absent means a catalogue exercise, which is every event published before this field
+   * existed and the overwhelming majority of those after it.
+   */
+  ephemeral?: boolean;
   /** The group the learner belonged to at attempt start. Null outside a group. */
   groupId?: string | null;
   /** The scheduled lesson the work was done in, when the caller named one. */
   lessonId?: string | null;
 }
+
+/**
+ * One atom an item was about, with the weight of the evidence it produces — plan 63 §2 D.
+ *
+ * `focus` is what the item examined; `context` is what the learner had to know to get
+ * there and was not examined on — the word inside a gap that is testing an ending. Both
+ * are proof, and they are not equal proof, which is why the role travels with the address
+ * rather than being inferred downstream from the template.
+ *
+ * `atomType` is a string rather than a union on purpose: it already carries whatever
+ * Content Service snapshots into `practicedAtoms`, and a new kind of atom must not make
+ * events in the queue invalid.
+ */
+export interface AttemptTarget {
+  atomType: string;
+  atomId: string;
+  role: 'focus' | 'context';
+}
+
+/** How the learner had to know it — mirrored from `@ssz/shared-kernel/skills`. */
+export type Modality = 'recognition' | 'recall' | 'production' | 'unknown';
 
 /** Where a piece of work was done — see `workContext` above. */
 export type WorkContext = 'classwork' | 'homework' | 'self_study';

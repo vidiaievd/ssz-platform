@@ -1,5 +1,6 @@
 import type { Container } from '../../../../../../generated/prisma/client.js';
-import { $Enums } from '../../../../../../generated/prisma/client.js';
+import { $Enums, Prisma } from '../../../../../../generated/prisma/client.js';
+import { parseRecipe, type Recipe } from '@ssz/shared-kernel/skills';
 import { ContainerEntity } from '../../../domain/entities/container.entity.js';
 import {
   prismaContainerTypeToDomain,
@@ -33,6 +34,7 @@ export interface ContainerCreateData {
   levelSystem: $Enums.LevelSystem;
   gatingMode: $Enums.GatingMode;
   reviewRespondWithinHours: number | null;
+  coverageRecipe: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
   currentPublishedVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -42,6 +44,14 @@ export interface ContainerCreateData {
 
 // Shape of data passed to prisma.container.update({ data: ... })
 export type ContainerUpdateData = Partial<Omit<ContainerCreateData, 'id' | 'createdAt'>>;
+
+// `Prisma.DbNull`, not `JsonNull`: null here means "inherit", and a JSON `null` stored in
+// the column would read back as a recipe nobody wrote.
+function recipeToJson(
+  recipe: Recipe | null,
+): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {
+  return recipe === null ? Prisma.DbNull : (recipe as unknown as Prisma.InputJsonValue);
+}
 
 export class ContainerMapper {
   static toDomain(raw: Container): ContainerEntity {
@@ -60,6 +70,8 @@ export class ContainerMapper {
       levelSystem: prismaLevelSystemToDomain(raw.levelSystem),
       gatingMode: prismaGatingModeToDomain(raw.gatingMode),
       reviewRespondWithinHours: raw.reviewRespondWithinHours,
+      // Lenient on the way out: a value an axis has since retired costs its rule only.
+      coverageRecipe: raw.coverageRecipe === null ? null : parseRecipe(raw.coverageRecipe),
       currentPublishedVersionId: raw.currentPublishedVersionId,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
@@ -85,6 +97,7 @@ export class ContainerMapper {
       levelSystem: domainLevelSystemToPrisma(entity.levelSystem),
       gatingMode: domainGatingModeToPrisma(entity.gatingMode),
       reviewRespondWithinHours: entity.reviewRespondWithinHours,
+      coverageRecipe: recipeToJson(entity.coverageRecipe),
       currentPublishedVersionId: entity.currentPublishedVersionId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
@@ -107,6 +120,7 @@ export class ContainerMapper {
       levelSystem: domainLevelSystemToPrisma(entity.levelSystem),
       gatingMode: domainGatingModeToPrisma(entity.gatingMode),
       reviewRespondWithinHours: entity.reviewRespondWithinHours,
+      coverageRecipe: recipeToJson(entity.coverageRecipe),
       currentPublishedVersionId: entity.currentPublishedVersionId,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,

@@ -1,6 +1,6 @@
 import type { WorkContext } from '../exercise-engine/index.js';
 import type { BaseEvent } from '../base.js';
-import type { AnswerForm, Focus, Skill } from '../exercise-engine/index.js';
+import type { AnswerForm, Focus, Modality, Skill } from '../exercise-engine/index.js';
 
 // ─── Event type constants ─────────────────────────────────────────────────────
 
@@ -213,6 +213,55 @@ export interface AttemptRatedPayload {
   groupId: string | null;
   /** The scheduled lesson the work was done in, when one was named. */
   lessonId: string | null;
+  /**
+   * Which kind of card was rated — `EXERCISE`, `EXERCISE_GAP`, `VOCABULARY_WORD`, and
+   * from plan 63 phase 5 `GRAMMAR_ATOM`.
+   *
+   * Needed the moment atoms are rated as well as exercises: without it a consumer cannot
+   * tell "the learner answered this exercise" from "this word came back to them", and a
+   * table counting attempts would count both. `null` for publishers that predate it —
+   * every such event is an exercise or gap rating, since nothing else was published.
+   */
+  contentType: string | null;
+  /**
+   * How the learner had to produce the answer (plan 63 §2 E), forwarded from the engine.
+   *
+   * `null` for everything published before the axis existed. Kept beside the rating
+   * because the pair is the whole question the axis exists to answer: a learner at 90 %
+   * on recognition and 30 % on recall is not uneven, they are at recognition.
+   */
+  modality: Modality | null;
+  /**
+   * Which piece of the exercise was rated — the template's own key for it (plan 63 §2 D).
+   *
+   * Set for a card that stands for one gap, `null` for one standing for the whole
+   * exercise or for an atom. The same string the engine puts in `gapResults`, so the two
+   * can be joined without either side knowing how the other spells a gap.
+   */
+  itemKey: string | null;
+  /**
+   * What this rating is evidence *about* — plan 63 §2 A.
+   *
+   * `null` where nobody addressed it, which is most of the catalogue; an empty array
+   * never travels, for the same reason `skills` is nullable. One rating can be evidence
+   * about several atoms at once — a gap testing an ending also needed the word — and
+   * they carry different weight, which is what `role` is for.
+   */
+  targets: RatedTarget[] | null;
+}
+
+/**
+ * One atom a rating is evidence about.
+ *
+ * `role` is nullable here and not in `AttemptTarget`: an address written by an author
+ * says focus or context, while an atom that reached the rating through the practised-atom
+ * fan-out has no role at all — nobody said what it was doing in the exercise. Defaulting
+ * that to `focus` would turn "unknown" into the strongest kind of evidence there is.
+ */
+export interface RatedTarget {
+  atomType: string;
+  atomId: string;
+  role: 'focus' | 'context' | null;
 }
 
 /**
@@ -232,6 +281,13 @@ export interface SrsLimitRefusedPayload {
   kind: 'new' | 'review';
   /** Card kind the refusal fell on — EXERCISE | EXERCISE_GAP | VOCABULARY_WORD. */
   contentType: string;
+  /**
+   * Which of the two daily budgets refused — 'lexis' | 'grammar' (plan 63 phase 6).
+   *
+   * Optional because every refusal already in the queue predates the split, and those
+   * were all charged to what is now the lexical budget.
+   */
+  track?: string;
   /** When the refusal happened, as the scheduler saw the day. */
   occurredAt: string;
 }

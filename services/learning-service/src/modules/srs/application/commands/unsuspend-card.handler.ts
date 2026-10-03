@@ -35,7 +35,7 @@ export class UnsuspendCardHandler
     card.unsuspend(now);
     await this.repo.save(card);
     // Immediately add back to the due queue (unsuspend sets dueAt = now).
-    await this.dueQueue.upsert(cmd.userId, card.id, card.dueAt);
+    await this.dueQueue.upsert(cmd.userId, card.id, card.dueAt, card.track);
 
     this.logger.log(`Card ${card.id} unsuspended by user ${cmd.userId}`);
 

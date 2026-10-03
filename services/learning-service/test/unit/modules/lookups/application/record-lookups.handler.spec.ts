@@ -74,7 +74,7 @@ describe('RecordLookupsHandler', () => {
   });
 
   it("resolves the learner's own SRS state for the word", async () => {
-    const card = ReviewCard.create(USER_ID, 'VOCABULARY_WORD', WORD_A, NOW);
+    const card = ReviewCard.create(USER_ID, 'VOCABULARY_WORD', WORD_A, 'lexis', NOW);
     const { handler, publish } = makeHandler([card]);
 
     await handler.execute(new RecordLookupsCommand(USER_ID, [lookup()]));
@@ -97,7 +97,7 @@ describe('RecordLookupsHandler', () => {
   });
 
   it("never reports another learner's card state", async () => {
-    const theirs = ReviewCard.createSeeded(OTHER_ID, 'VOCABULARY_WORD', WORD_A, 'CLAIMED_KNOWN', NOW);
+    const theirs = ReviewCard.createSeeded(OTHER_ID, 'VOCABULARY_WORD', WORD_A, 'lexis', 'CLAIMED_KNOWN', NOW);
     const { handler, publish, findByUserAndContents } = makeHandler([theirs]);
 
     await handler.execute(new RecordLookupsCommand(USER_ID, [lookup()]));

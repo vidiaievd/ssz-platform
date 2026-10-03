@@ -1,12 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type { ISrsRepository, SrsStats } from '../../domain/repositories/srs-repository.interface.js';
-import { ReviewCard, type SrsContentType } from '../../domain/entities/review-card.entity.js';
-import { SrsCardMapper } from './srs-card.mapper.js';
+import {
+  ReviewCard,
+  SHADOW_CONTENT_TYPES,
+  type SrsContentType,
+} from '../../domain/entities/review-card.entity.js';
+import type { SrsTrack } from '../../domain/value-objects/srs-track.js';
+import { SrsCardMapper, toPrismaTrack } from './srs-card.mapper.js';
 
 @Injectable()
 export class PrismaSrsRepository implements ISrsRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Every query below that answers a learner carries this (plan 63 phase 5).
+   *
+   * Shadow cards are rated by the same attempts as the real ones, so without it they
+   * would show up in the due queue, in the stats, and in a streak the learner never
+   * earned — and a comparison whose act of measuring changes the thing measured is not
+   * a comparison. Addressed by content type rather than by a flag on the row: a card
+   * nothing can render is invisible for what it is, not for who wrote it.
+   */
+  private get notShadow() {
+    return { contentType: { notIn: SHADOW_CONTENT_TYPES as unknown as any[] } };
+  }
 
   async findById(id: string): Promise<ReviewCard | null> {
     const row = await this.prisma.srsReviewCard.findUnique({ where: { id } });
@@ -42,12 +60,21 @@ export class PrismaSrsRepository implements ISrsRepository {
     return rows.map(SrsCardMapper.toDomain);
   }
 
-  async findDueCards(userId: string, limit: number, now: Date): Promise<ReviewCard[]> {
+  async findDueCards(
+    userId: string,
+    limit: number,
+    now: Date,
+    track?: SrsTrack,
+  ): Promise<ReviewCard[]> {
     const rows = await this.prisma.srsReviewCard.findMany({
       where: {
         userId,
         dueAt: { lte: now },
         state: { not: 'SUSPENDED' as any },
+        // Absent rather than both tracks when nobody asked: a client that wants one
+        // memory says so, and one that wants the day's work gets the day's work.
+        ...(track ? { track: toPrismaTrack(track) as any } : {}),
+        ...this.notShadow,
       },
       orderBy: { dueAt: 'asc' },
       take: limit,
@@ -69,6 +96,7 @@ export class PrismaSrsRepository implements ISrsRepository {
       where: {
         userId,
         createdAt: { gte: since },
+        ...this.notShadow,
       },
     });
   }
@@ -78,6 +106,7 @@ export class PrismaSrsRepository implements ISrsRepository {
       where: {
         userId,
         lastReviewedAt: { gte: since },
+        ...this.notShadow,
       },
     });
   }
@@ -86,14 +115,14 @@ export class PrismaSrsRepository implements ISrsRepository {
     const [counts, dueNow, reviewedToday] = await Promise.all([
       this.prisma.srsReviewCard.groupBy({
         by: ['state'],
-        where: { userId },
+        where: { userId, ...this.notShadow },
         _count: { _all: true },
       }),
       this.prisma.srsReviewCard.count({
-        where: { userId, dueAt: { lte: now }, state: { not: 'SUSPENDED' as any } },
+        where: { userId, dueAt: { lte: now }, state: { not: 'SUSPENDED' as any }, ...this.notShadow },
       }),
       this.prisma.srsReviewCard.count({
-        where: { userId, lastReviewedAt: { gte: startOfDayUtc(now) } },
+        where: { userId, lastReviewedAt: { gte: startOfDayUtc(now) }, ...this.notShadow },
       }),
     ]);
 
@@ -119,7 +148,7 @@ export class PrismaSrsRepository implements ISrsRepository {
     // We cap at 366 days of look-back to bound the query.
     const cutoff = new Date(now.getTime() - 366 * 24 * 60 * 60 * 1000);
     const cards = await this.prisma.srsReviewCard.findMany({
-      where: { userId, lastReviewedAt: { gte: cutoff, not: null } },
+      where: { userId, lastReviewedAt: { gte: cutoff, not: null }, ...this.notShadow },
       select: { lastReviewedAt: true },
     });
 

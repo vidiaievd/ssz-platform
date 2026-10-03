@@ -5,25 +5,43 @@
 // of judgements must argue for itself.** Every row below says why it holds what it
 // holds, because the alternative is a table nobody dares change in a year's time.
 //
+// Since plan 64 (decision F) a row does not name its channels. It says what goes in and
+// what comes out, and `channelsOf` in `model.ts` reads the CEFR channels off the pair —
+// so a recording added by the document or by the lesson changes the input and leaves
+// the output alone, instead of replacing the whole list.
+//
 // Two rules govern the whole table:
 //
 // 1. **The axis is about the target language.** Producing a sentence in the language of
-//    explanation is not written production in the language being learnt. This is what
-//    splits the two translate templates: one is `written`, the other is `reading`.
+//    explanation is not written production in the language being learnt
+//    (`written_l1`), and reading a prompt in it is not reading (`input: 'none'`). This is
+//    what splits the two translate templates: one is `written`, the other is `reading`.
 // 2. **A hint is given only where it is structural.** Where a template genuinely could
 //    be about vocabulary or about grammar depending on what the author wrote, the focus
 //    is left empty rather than guessed. An empty focus is visible in the report as
 //    `unknown` and is a truthful statement; a guessed one is noise that cannot be
 //    distinguished from a measurement.
 
-import type { Focus, Form, Skill } from './model.js';
+import type { Focus, Form, Input, Modality, Output } from './model.js';
 
 export interface TemplateProfile {
-  skills: readonly Skill[];
+  /** What has to be taken in to answer. See `INPUTS` for what counts as `text`. */
+  input: Input;
+  /** What the learner makes. The CEFR channel is `channelsOf(input, output)`. */
+  output: Output;
   /** Empty where the template cannot honestly say. See rule 2 above. */
   focus: readonly Focus[];
   /** `mixed` means the document decides — `derive.ts` reads it. */
   form: Form;
+  /**
+   * How the learner has to know it (plan 63 §2 E). `unknown` where the document decides,
+   * the same convention `form: 'mixed'` follows — `derive.ts` reads it there.
+   *
+   * The line this column draws is between *picking* and *retrieving*, not between easy
+   * and hard: a template that puts every answer on screen can only ever prove
+   * recognition, however long the learner stares at it.
+   */
+  modality: Modality;
 }
 
 /**
@@ -37,63 +55,135 @@ export const BY_TEMPLATE: Readonly<Record<string, TemplateProfile>> = {
   // Reads a stem, and usually a passage, then recognises the answer among options.
   // Nothing is produced. No focus hint: a set of questions about a text is comprehension,
   // a set about a verb form is grammar, and only the author knows which was written.
-  multiple_choice: { skills: ['reading'], focus: [], form: 'bank' },
+  multiple_choice: { input: 'text', output: 'none', focus: [], form: 'bank', modality: 'recognition' },
 
   // Same channel as the set above; the difference between the two types is the shared
   // column, which changes the unit of delivery and grading, not the channel.
-  multiple_choice_group: { skills: ['reading'], focus: [], form: 'bank' },
+  multiple_choice_group: {
+    input: 'text',
+    output: 'none',
+    focus: [],
+    form: 'bank',
+    modality: 'recognition',
+  },
 
   // Retired in favour of `word_bank_gap_fill`, still 135 exercises. Typed into the gap
-  // with nothing on offer, so the learner produces the form.
-  fill_in_blank: { skills: ['written'], focus: [], form: 'free' },
+  // with nothing on offer, so the learner produces the form. The sentence around the gap
+  // is the frame of the answer, not material to understand — `input: 'none'`.
+  fill_in_blank: { input: 'none', output: 'written_target', focus: [], form: 'free', modality: 'recall' },
 
   // Retired. Words come from a bank, so nothing is produced — the learner recognises
   // which given word fits. That is reading, not writing, however sentence-shaped the
   // result looks on screen.
-  word_bank_fill: { skills: ['reading'], focus: [], form: 'bank' },
+  word_bank_fill: { input: 'text', output: 'none', focus: [], form: 'bank', modality: 'recognition' },
 
   // The one template whose document genuinely decides: it absorbed `fill_in_blank`, so
   // `settings.input` is `bank` (choose from a strip) or `free` (type it). Both the skill
-  // and the form follow from that, which is why `derive.ts` reads the document here.
-  word_bank_gap_fill: { skills: ['written'], focus: [], form: 'mixed' },
+  // and the form follow from that, which is why `derive.ts` reads the document here: the
+  // row stands for the `free` half, and `bank` turns it into `text → none`.
+  // The modality follows the same flag and is left `unknown` here for the same reason —
+  // a table that guessed would be wrong for half the catalogue in either direction.
+  word_bank_gap_fill: {
+    input: 'none',
+    output: 'written_target',
+    focus: [],
+    form: 'mixed',
+    modality: 'unknown',
+  },
 
   // Ordering given sentences into a coherent text. Everything is on screen; the work is
   // following the thread of the text. Cohesion is arguably `pragmatics`, but that is a
   // reading of the type rather than a property of it — rule 2, no hint.
-  text_order: { skills: ['reading'], focus: [], form: 'bank' },
+  // Recognition, and this is the harder of the two ordering types to place: the cues that
+  // settle the order are printed in the sentences themselves, so nothing has to be
+  // retrieved. Contrast `sentence_schema` below.
+  text_order: { input: 'text', output: 'none', focus: [], form: 'bank', modality: 'recognition' },
 
   // Two moves in one: spot what is wrong (reading, closely) and write the correction
   // (written). The focus hint is the one case where the premise of the type *is* the
   // subject — an exercise built around a broken form is about form.
-  error_correction: { skills: ['reading', 'written'], focus: ['grammar'], form: 'free' },
+  // `recall`: the correct form comes from memory, but the sentence around it is given —
+  // the learner is not composing, they are repairing.
+  error_correction: {
+    input: 'text',
+    output: 'written_target',
+    focus: ['grammar'],
+    form: 'free',
+    modality: 'recall',
+  },
 
-  // Produces target-language sentences from nothing. Rule 1 in its clearest form.
-  translate_to_target: { skills: ['written'], focus: [], form: 'free' },
+  // Produces target-language sentences from nothing. Rule 1 in its clearest form: the
+  // source sentence is in the language of explanation, so nothing is read in the
+  // language being learnt.
+  translate_to_target: {
+    input: 'none',
+    output: 'written_target',
+    focus: [],
+    form: 'free',
+    modality: 'production',
+  },
 
   // The mirror image, and *not* a mirror of the axis: the learner reads the target
   // language and answers in the language of explanation. Understanding is what is being
   // exercised; the writing happens in a language nobody is measuring. Rule 1.
-  translate_from_target: { skills: ['reading'], focus: [], form: 'free' },
+  // `recall`, not `production`: the meaning is retrieved from memory with nothing on
+  // offer, but the language produced is not the one being learnt.
+  translate_from_target: {
+    input: 'text',
+    output: 'written_l1',
+    focus: [],
+    form: 'free',
+    modality: 'recall',
+  },
 
   // Both halves are on screen and the work is recognising which belongs with which.
   // The focus hint is a judgement about the dominant use — word against meaning — and is
   // the row most likely to be overridden by an author, which is exactly what the
   // override column is for.
-  match_pairs: { skills: ['reading'], focus: ['vocabulary'], form: 'bank' },
+  match_pairs: {
+    input: 'text',
+    output: 'none',
+    focus: ['vocabulary'],
+    form: 'bank',
+    modality: 'recognition',
+  },
 
   // Reads a text, answers in a sentence or three of their own. Both channels, and the
-  // strongest evidence in `evidence-strength.ts` for the same reason.
-  short_answer: { skills: ['reading', 'written'], focus: [], form: 'free' },
+  // strongest evidence in `evidence-strength.ts` for the same reason — and `production`,
+  // which is the same judgement on a second axis.
+  short_answer: {
+    input: 'text',
+    output: 'written_target',
+    focus: [],
+    form: 'free',
+    modality: 'production',
+  },
 
   // A whole text, produced. No source to read: the prompt is an instruction, not
-  // material.
-  writing_task: { skills: ['written'], focus: [], form: 'free' },
+  // material — `input: 'none'`.
+  writing_task: {
+    input: 'none',
+    output: 'written_target',
+    focus: [],
+    form: 'free',
+    modality: 'production',
+  },
 
   // Chunks are dragged into fields — given pieces, arranged. The learner does not spell
   // anything, so the form is `bank`, but the channel is written production: what is being
   // built is a sentence in the target language, and word order is the whole point. Hence
-  // the one unambiguous grammar hint in the table.
-  sentence_schema: { skills: ['written'], focus: ['grammar'], form: 'bank' },
+  // the one unambiguous grammar hint in the table. The chunks on screen are pieces of the
+  // answer, not a text to understand, so the input is `none`, as for a gap fill.
+  // `recall` despite `bank`, and the two columns are not saying different things: the
+  // pieces are given, the order is not, and nothing on screen tells the learner where the
+  // finite verb goes. That has to come from the rule they are supposed to have learnt.
+  sentence_schema: {
+    input: 'none',
+    output: 'written_target',
+    focus: ['grammar'],
+    form: 'bank',
+    modality: 'recall',
+  },
 };
 
 /** `undefined` for a code the table does not know — a new template, or a typo. */

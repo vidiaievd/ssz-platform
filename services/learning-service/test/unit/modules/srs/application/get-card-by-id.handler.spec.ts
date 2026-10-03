@@ -28,7 +28,7 @@ function makeHandler(card: ReviewCard | null) {
 
 describe('GetCardByIdHandler', () => {
   it('returns card DTO when card exists and belongs to requesting user', async () => {
-    const card = ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, NOW);
+    const card = ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, 'lexis', NOW);
     const { handler } = makeHandler(card);
 
     const result = await handler.execute(new GetCardByIdQuery(USER_ID, card.id));
@@ -49,7 +49,7 @@ describe('GetCardByIdHandler', () => {
   });
 
   it('returns SrsCardUnauthorizedError when card belongs to a different user', async () => {
-    const card = ReviewCard.create(OTHER_ID, 'EXERCISE', CONTENT_ID, NOW);
+    const card = ReviewCard.create(OTHER_ID, 'EXERCISE', CONTENT_ID, 'lexis', NOW);
     const { handler } = makeHandler(card);
 
     const result = await handler.execute(new GetCardByIdQuery(USER_ID, card.id));

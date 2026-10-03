@@ -52,7 +52,10 @@ export function throwHttpException(error: ContainerDomainError): never {
   if (error === ContainerDomainError.INSUFFICIENT_PERMISSIONS) {
     throw new ForbiddenException(error);
   }
-  if (error === ContainerDomainError.INVALID_VISIBILITY_FOR_OWNER_TYPE) {
+  if (
+    error === ContainerDomainError.INVALID_VISIBILITY_FOR_OWNER_TYPE ||
+    error === ContainerDomainError.INVALID_COVERAGE_RECIPE
+  ) {
     throw new BadRequestException(error);
   }
   throw new UnprocessableEntityException(error);

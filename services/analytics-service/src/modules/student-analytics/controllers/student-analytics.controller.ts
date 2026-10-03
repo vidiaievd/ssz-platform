@@ -12,11 +12,15 @@ import {
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
 import {
+  GetModalityGapQuery,
+  GetNextPracticeQuery,
   GetStudentGridQuery,
   GetStudentPositionQuery,
   GetStudentWorkContextQuery,
 } from '../queries/student-analytics.queries.js';
 import {
+  ModalityGapResponseDto,
+  NextPracticeResponseDto,
   StudentGridResponseDto,
   StudentPositionResponseDto,
   StudentWorkContextResponseDto,
@@ -80,4 +84,89 @@ export class StudentAnalyticsController {
       new GetStudentWorkContextQuery(studentId, user.userId, courseId ?? null),
     );
   }
+
+  /**
+   * What this learner knows only one way — plan 63 §4.1.
+   *
+   * The answer to "what should we work on", as opposed to "how many percent": 90 % picking
+   * a word off a list against 30 % typing it is not uneven knowledge, it is knowledge that
+   * has reached recognition and stopped, and more of the same exercises will not move it.
+   */
+  @Get('modality-gap')
+  @ApiOperation({ summary: 'Facts this learner recognises and cannot produce' })
+  @ApiParam({ name: 'studentId', format: 'uuid' })
+  @ApiQuery({ name: 'courseId', required: false, description: 'Narrow to one course' })
+  @ApiQuery({ name: 'limit', required: false, description: 'How many findings to return (default 25)' })
+  @ApiOkResponse({ type: ModalityGapResponseDto })
+  @ApiNotFoundResponse({ description: 'No student the viewer shares a school with' })
+  async modalityGap(
+    @Param('studentId', ParseUUIDPipe) studentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('courseId') courseId?: string,
+    @Query('limit') limit?: string,
+  ): Promise<ModalityGapResponseDto> {
+    // Clamped rather than rejected: a page size is never worth a 400, and a screen asking
+    // for a thousand findings is asking for a list nobody reads.
+    const parsed = Number.parseInt(limit ?? '', 10);
+    const size = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 100) : 25;
+
+    return this.queryBus.execute(
+      new GetModalityGapQuery(studentId, user.userId, courseId ?? null, size),
+    );
+  }
+
+  /**
+   * What to work on next, and on what grounds — plan 63 §3 phase 8.
+   *
+   * The first route here that proposes rather than reports. It answers in atoms and
+   * modalities, not exercises: the exercise is the disposable probe, and a plan made of
+   * exercises is a plan that goes stale the moment one is edited.
+   */
+  @Get('next-practice')
+  @ApiOperation({ summary: 'What this learner should practise next, with the evidence for each' })
+  @ApiParam({ name: 'studentId', format: 'uuid' })
+  @ApiQuery({
+    name: 'budget',
+    required: false,
+    example: '15m',
+    description: 'How long there is for this — `15m`, `15`, or `1h`. Default 15 minutes',
+  })
+  @ApiQuery({
+    name: 'courseId',
+    required: false,
+    description: 'Narrow to one course, and let the list look ahead to its next unit',
+  })
+  @ApiOkResponse({ type: NextPracticeResponseDto })
+  @ApiNotFoundResponse({ description: 'No student the viewer shares a school with' })
+  async nextPractice(
+    @Param('studentId', ParseUUIDPipe) studentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('budget') budget?: string,
+    @Query('courseId') courseId?: string,
+  ): Promise<NextPracticeResponseDto> {
+    return this.queryBus.execute(
+      new GetNextPracticeQuery(studentId, user.userId, courseId ?? null, parseBudget(budget)),
+    );
+  }
+}
+
+/**
+ * `15m`, `15`, `1h` — minutes either way.
+ *
+ * Unparseable input falls back to the default rather than 400ing: a budget is a hint about
+ * how long the list should be, and refusing to suggest anything because someone wrote
+ * `quarter of an hour` helps nobody. The handler clamps the number it gets.
+ */
+function parseBudget(raw: string | undefined): number {
+  const DEFAULT_MINUTES = 15;
+  if (!raw) return DEFAULT_MINUTES;
+
+  const match = /^\s*(\d+)\s*(m|min|mins|minutes|h|hr|hrs|hours)?\s*$/i.exec(raw);
+  if (!match) return DEFAULT_MINUTES;
+
+  const amount = Number.parseInt(match[1] as string, 10);
+  if (!Number.isFinite(amount) || amount <= 0) return DEFAULT_MINUTES;
+
+  const unit = (match[2] ?? 'm').toLowerCase();
+  return unit.startsWith('h') ? amount * 60 : amount;
 }

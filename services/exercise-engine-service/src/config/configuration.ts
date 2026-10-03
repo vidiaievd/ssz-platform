@@ -34,6 +34,16 @@ export const envSchema = z.object({
 
   EXERCISE_DEFINITION_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   EXERCISE_PLACEMENT_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+
+  // Plan 63 phase 9 — how long a disposable task is worth answering. Six hours by
+  // default: long enough to cover a lesson and the evening after it, short enough that a
+  // learner never meets a question chosen for a memory they no longer have. The ceiling
+  // is what a caller asking for its own TTL is clamped to.
+  PROBE_DEFAULT_TTL_SECONDS: z.coerce.number().int().positive().default(21_600),
+  PROBE_MAX_TTL_SECONDS: z.coerce.number().int().positive().default(604_800),
+  // How many expired probes one sweep clears. Bounded so that a sweep is a short
+  // statement rather than a long lock on the table.
+  PROBE_SWEEP_BATCH: z.coerce.number().int().positive().default(500),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -91,6 +101,11 @@ export interface AppConfig {
     exerciseDefinitionTtlSeconds: number;
     exercisePlacementTtlSeconds: number;
   };
+  probes: {
+    defaultTtlSeconds: number;
+    maxTtlSeconds: number;
+    sweepBatch: number;
+  };
   internalServiceToken: string;
 }
 
@@ -136,6 +151,11 @@ export default (): AppConfig => {
     cache: {
       exerciseDefinitionTtlSeconds: env.EXERCISE_DEFINITION_CACHE_TTL_SECONDS,
       exercisePlacementTtlSeconds: env.EXERCISE_PLACEMENT_CACHE_TTL_SECONDS,
+    },
+    probes: {
+      defaultTtlSeconds: env.PROBE_DEFAULT_TTL_SECONDS,
+      maxTtlSeconds: env.PROBE_MAX_TTL_SECONDS,
+      sweepBatch: env.PROBE_SWEEP_BATCH,
     },
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };

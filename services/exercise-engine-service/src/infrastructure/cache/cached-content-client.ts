@@ -1,8 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type {
   CheckMode,
+  CreateExerciseInput,
   ExerciseDefinition,
   ExercisePlacement,
+  ExerciseTemplateDefinition,
   IContentClient,
   PracticedAtomRef,
 } from '../../shared/application/ports/content-client.port.js';
@@ -49,6 +51,24 @@ export class CachedContentClient implements IContentClient {
     exerciseId: string,
   ): Promise<Result<PracticedAtomRef[], ContentClientError>> {
     return this.http.getPracticedAtoms(exerciseId);
+  }
+
+  // Not cached, and not for the reason above: this is asked once per *probe* attempt, and
+  // probes are the rare case by construction. A template that turned out to be worth
+  // caching would want invalidating on a reseed, which is a moving part bought for a call
+  // that hardly happens.
+  async getTemplateByCode(
+    code: string,
+  ): Promise<Result<ExerciseTemplateDefinition, ContentClientError>> {
+    return this.http.getTemplateByCode(code);
+  }
+
+  // Nothing to cache and nothing to invalidate: a promotion creates a row that did not
+  // exist, so no entry here can be describing it yet.
+  async createExercise(
+    input: CreateExerciseInput,
+  ): Promise<Result<{ exerciseId: string }, ContentClientError>> {
+    return this.http.createExercise(input);
   }
 
   async getExercisePlacement(

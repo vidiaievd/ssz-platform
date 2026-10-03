@@ -54,6 +54,14 @@ export class CurriculumTreeItemResponseDto {
   })
   pendingChange!: string | null;
 
+  @ApiPropertyOptional({
+    example: 'word_bank_gap_fill',
+    description:
+      'Which exercise template this row uses. Null for every other item type. The title ' +
+      'already carries the template name; the code is what a client keys a per-type icon off.',
+  })
+  templateCode!: string | null;
+
   @ApiPropertyOptional({ example: 6 })
   durationMinutes!: number | null;
 
@@ -72,6 +80,7 @@ export class CurriculumTreeItemResponseDto {
     dto.state = node.state;
     dto.isLive = node.isLive;
     dto.pendingChange = node.pendingChange;
+    dto.templateCode = node.templateCode;
     dto.durationMinutes = node.durationMinutes;
     dto.xpReward = node.xpReward;
     return dto;

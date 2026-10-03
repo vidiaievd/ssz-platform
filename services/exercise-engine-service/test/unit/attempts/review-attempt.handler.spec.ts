@@ -221,16 +221,75 @@ describe('ReviewAttemptHandler', () => {
     expect(attempt.scoreValue).toBeNull();
     expect(attempt.reviewComment).toBe('Se på perfektum.');
 
-    // No score to publish, but the learner is owed the answer either way — being sent
-    // back with a comment is the one outcome they most need telling about.
-    expect(publisher.publish).toHaveBeenCalledTimes(1);
-    const [eventType, payload] = publisher.publish.mock.calls[0]!;
-    expect(String(eventType)).toBe('exercise.attempt.reviewed');
-    expect(payload).toMatchObject({
+    // The learner is owed the answer either way — being sent back with a comment is the
+    // one outcome they most need telling about.
+    const [, letter] = publisher.publish.mock.calls.find(
+      ([eventType]) => String(eventType) === 'exercise.attempt.reviewed',
+    )!;
+    expect(letter).toMatchObject({
       outcome: 'returned',
       score: null,
       comment: 'Se på perfektum.',
     });
+  });
+
+  /**
+   * The work is not done and the mark is not given — and a person still read the answer
+   * and judged it, which is the strongest evidence this template produces (plan 63 §4).
+   * Until this event existed, only approvals reached the SRS, so everything the platform
+   * knew about recall and production was what had gone right.
+   */
+  it('records what a person judged, even when the work goes back', async () => {
+    const { handler, publisher } = makeHandler(routedAttempt());
+
+    await handler.execute(
+      new ReviewAttemptCommand(
+        'att-1',
+        'teacher-1',
+        'returned',
+        [{ itemId: 'i2', approved: true }],
+        'Se på perfektum.',
+      ),
+    );
+
+    const [, evidence] = publisher.publish.mock.calls.find(
+      ([eventType]) => String(eventType) === 'exercise.attempt.completed',
+    )!;
+    expect(evidence).toMatchObject({
+      userId: 'user-1',
+      exerciseId: 'ex-1',
+      reviewOutcome: 'returned',
+      // The work is not done and did not pass, whatever partial credit it carried.
+      completed: false,
+      passed: false,
+      // i1 was closed by the machine, i2 the teacher let stand, i3 they did not: two of
+      // three, exactly as an approval would have counted them.
+      score: 67,
+    });
+  });
+
+  /**
+   * The mirror of the approval rule, and the default is the opposite. A teacher who
+   * approves credits what they did not rule against; a teacher who sends the work back
+   * has not silently passed the sentences they said nothing about.
+   */
+  it('credits nothing an unruled sentence, when the verdict is a return', async () => {
+    const { handler, publisher } = makeHandler(routedAttempt(), {
+      totalItems: 2,
+      items: [
+        { itemId: 'q1', routing: 'teacher', verdict: 'off' },
+        { itemId: 'q2', routing: 'teacher', verdict: 'off' },
+      ],
+    });
+
+    await handler.execute(
+      new ReviewAttemptCommand('att-1', 'teacher-1', 'returned', [], 'Skriv hele setninger.'),
+    );
+
+    const [, evidence] = publisher.publish.mock.calls.find(
+      ([eventType]) => String(eventType) === 'exercise.attempt.completed',
+    )!;
+    expect(evidence).toMatchObject({ score: 0, reviewOutcome: 'returned' });
   });
 
   /**

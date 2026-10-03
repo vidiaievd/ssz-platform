@@ -100,6 +100,11 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
         outcome: 'returned',
         decisions,
         comment: command.comment,
+        // Not the attempt's mark — a return keeps none, and the result below still says
+        // `score: null`. It is how much of the work the teacher let stand, which is what
+        // the evidence event carries to the SRS (plan 63 §4): sent back with two of three
+        // sentences approved is not the same failure as sent back with none.
+        score: await this.creditedScore(attempt, command.decisions),
       });
       if (returned.isFail) return Result.fail(toError(returned.error));
 
@@ -148,6 +153,28 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       totalItems,
       rubricScore: null,
     });
+  }
+
+  /**
+   * How much of a returned submission the teacher let stand, 0-100.
+   *
+   * Never fails the verdict. A teacher's decision must not wait on the validator being
+   * able to re-read the document, so a submission that cannot be parsed is scored from
+   * the decisions alone, and one with no decisions at all scores zero — a return of the
+   * whole thing, which is what it is.
+   */
+  private async creditedScore(
+    attempt: Attempt,
+    decisions: ReviewDecision[],
+  ): Promise<number> {
+    const auto = await this.scoring.autoOutcomes(attempt);
+    if (auto.isOk && auto.value.length > 0) {
+      return this.scoring.scoreOf(auto.value, creditedByReturn(auto.value, decisions)).score;
+    }
+
+    if (decisions.length === 0) return 0;
+    const approved = decisions.filter((decision) => decision.approved).length;
+    return Math.round((approved / decisions.length) * 100);
   }
 
   /**
@@ -237,6 +264,20 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
  * they approved the work in the same breath. Folding one into a rejection would quietly
  * mark down the submissions a teacher took the trouble to explain.
  */
+function creditedByReturn(auto: AutoOutcome[], explicit: ReviewDecision[]): ReviewDecision[] {
+  const ruled = new Map(explicit.map((decision) => [decision.itemId, decision]));
+
+  // The mirror of `creditedByApproval`, and the default is the opposite on purpose. A
+  // teacher who approves the work approves what they did not rule against; a teacher who
+  // sends it back has not silently passed the sentences they said nothing about — the
+  // whole submission is what is coming back.
+  return auto.map((item) => ({
+    itemId: item.itemId,
+    approved: ruled.get(item.itemId)?.approved ?? false,
+    comment: ruled.get(item.itemId)?.comment,
+  }));
+}
+
 function creditedByApproval(auto: AutoOutcome[], explicit: ReviewDecision[]): ReviewDecision[] {
   const ruled = new Map(explicit.map((decision) => [decision.itemId, decision]));
 

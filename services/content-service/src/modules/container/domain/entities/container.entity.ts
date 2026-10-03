@@ -13,6 +13,7 @@ import { ContainerUpdatedEvent } from '../events/container-updated.event.js';
 import { ContainerDeletedEvent } from '../events/container-deleted.event.js';
 import { CourseArchivedEvent } from '../events/course-archived.event.js';
 import { CourseRestoredEvent } from '../events/course-restored.event.js';
+import { readRecipe, type Recipe } from '@ssz/shared-kernel/skills';
 
 interface ContainerProps {
   slug: string | null;
@@ -30,6 +31,8 @@ interface ContainerProps {
   gatingMode: GatingMode;
   /** Null: this course makes no promise of its own — the school's stands (§44.12). */
   reviewRespondWithinHours: number | null;
+  /** Null: the workspace's recipe stands. An empty recipe opts out of it (plan 64, O). */
+  coverageRecipe: Recipe | null;
   currentPublishedVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -115,6 +118,9 @@ export class ContainerEntity extends AggregateRoot {
   get reviewRespondWithinHours(): number | null {
     return this.props.reviewRespondWithinHours;
   }
+  get coverageRecipe(): Recipe | null {
+    return this.props.coverageRecipe;
+  }
   get currentPublishedVersionId(): string | null {
     return this.props.currentPublishedVersionId;
   }
@@ -159,6 +165,7 @@ export class ContainerEntity extends AggregateRoot {
       gatingMode: p.gatingMode ?? GatingMode.OPEN,
       // A new course inherits, always: overriding is a decision somebody makes later.
       reviewRespondWithinHours: null,
+      coverageRecipe: null,
       currentPublishedVersionId: null,
       createdAt: now,
       updatedAt: now,
@@ -276,6 +283,34 @@ export class ContainerEntity extends AggregateRoot {
       new ContainerUpdatedEvent({
         containerId: this.id,
         updatedFields: ['reviewRespondWithinHours'],
+      }),
+    );
+
+    return Result.ok();
+  }
+
+  /**
+   * Departs from the workspace's recipe, or goes back to it.
+   *
+   * The same three states as the response promise above, for the same reason: `null`
+   * follows the workspace and keeps following it when the workspace changes its mind,
+   * while an empty recipe is a course that has deliberately opted out. Copying the
+   * workspace's rules in by hand would be a fourth state — "agrees today" — that nobody
+   * could tell apart from the first.
+   */
+  setCoverageRecipe(value: unknown): Result<void, ContainerDomainError> {
+    let recipe: Recipe | null = null;
+    if (value !== null) {
+      recipe = readRecipe(value);
+      if (!recipe) return Result.fail(ContainerDomainError.INVALID_COVERAGE_RECIPE);
+    }
+
+    this.props.coverageRecipe = recipe;
+    this.props.updatedAt = new Date();
+    this.addDomainEvent(
+      new ContainerUpdatedEvent({
+        containerId: this.id,
+        updatedFields: ['coverageRecipe'],
       }),
     );
 

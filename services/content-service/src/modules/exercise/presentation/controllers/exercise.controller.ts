@@ -27,6 +27,16 @@ import {
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
 import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
 import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+
+// Item targets (plan 63, phase 1)
+import { SetItemTargetsCommand } from '../../application/commands/set-item-targets/set-item-targets.command.js';
+import { GetItemTargetsQuery } from '../../application/queries/get-item-targets/get-item-targets.query.js';
+import type { ExerciseTargetsView } from '../../application/queries/get-item-targets/get-item-targets.handler.js';
+import { SetItemTargetsRequestDto } from '../dto/requests/set-item-targets.request.dto.js';
+import { ExerciseTargetsResponseDto } from '../dto/responses/exercise-targets.response.dto.js';
+import { GetTargetSuggestionsQuery } from '../../application/queries/get-target-suggestions/get-target-suggestions.query.js';
+import type { TargetSuggestionsView } from '../../application/queries/get-target-suggestions/get-target-suggestions.handler.js';
+import { TargetSuggestionsResponseDto } from '../dto/responses/target-suggestions.response.dto.js';
 import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
@@ -454,5 +464,92 @@ export class ExerciseController {
     );
 
     return links.map((link) => ExerciseRuleLinkResponseDto.from(link));
+  }
+
+  // ── Item targets (plan 63, phase 1) ────────────────────────────────────────
+  //
+  // What each piece of the exercise is about. Nothing consumes these yet: the engine starts
+  // carrying them in phase 2 and review cards are addressed by them in phase 5.
+
+  @Get(':id/targets')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.EXERCISE })
+  @ApiOperation({
+    summary: 'What each piece of this exercise is about',
+    description:
+      'Every item of the document, addressed or not, resolved against the document as it ' +
+      'stands now — including the unreleased edit, because that is what the builder shows. ' +
+      'Broken targets are reported rather than hidden: a gap key holds a token index, so ' +
+      'editing a sentence moves it.',
+  })
+  @ApiOkResponse({ type: ExerciseTargetsResponseDto })
+  async getTargets(@Param('id') exerciseId: string): Promise<ExerciseTargetsResponseDto> {
+    const result = await this.queryBus.execute<
+      GetItemTargetsQuery,
+      Result<ExerciseTargetsView, ExerciseDomainError>
+    >(new GetItemTargetsQuery(exerciseId));
+
+    if (result.isFail) throwHttpException(result.error);
+    return ExerciseTargetsResponseDto.from(result.value);
+  }
+
+  @Put(':id/targets')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Say what one piece of this exercise is about',
+    description:
+      'Replaces every target of the named item — the statement is "this gap is about these ' +
+      'atoms", not "add one more". An empty array clears it.',
+  })
+  @ApiNoContentResponse()
+  async setTargets(
+    @Param('id') exerciseId: string,
+    @Body() dto: SetItemTargetsRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<
+      SetItemTargetsCommand,
+      Result<void, ExerciseDomainError>
+    >(
+      new SetItemTargetsCommand(
+        user.userId,
+        exerciseId,
+        dto.itemKey ?? null,
+        dto.targets.map((target) => ({
+          atomType: target.atomType,
+          atomId: target.atomId,
+          role: target.role,
+        })),
+      ),
+    );
+
+    if (result.isFail) throwHttpException(result.error);
+  }
+
+  @Get(':id/target-suggestions')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
+  @ApiOperation({
+    summary: 'What this exercise is probably about, item by item',
+    description:
+      'Proposals only — nothing is written. Built from what the catalogue already records: ' +
+      'the PRACTICED_BY relations and grammar pools filled by the seed and the authoring ' +
+      'panel. A word is matched to a gap through its inflected form, because a gap answering ' +
+      '`stillingsannonser` for the listed `stillingsannonse` is the ordinary case rather ' +
+      'than the exception.',
+  })
+  @ApiOkResponse({ type: TargetSuggestionsResponseDto })
+  async getTargetSuggestions(
+    @Param('id') exerciseId: string,
+  ): Promise<TargetSuggestionsResponseDto> {
+    const result = await this.queryBus.execute<
+      GetTargetSuggestionsQuery,
+      Result<TargetSuggestionsView, ExerciseDomainError>
+    >(new GetTargetSuggestionsQuery(exerciseId));
+
+    if (result.isFail) throwHttpException(result.error);
+    return TargetSuggestionsResponseDto.from(result.value);
   }
 }

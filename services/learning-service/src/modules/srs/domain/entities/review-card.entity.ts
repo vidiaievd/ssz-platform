@@ -6,6 +6,7 @@ import { CardSuspendedError, type SrsDomainError } from '../exceptions/srs.error
 import { ReviewCardCreatedEvent } from '../events/review-card-created.event.js';
 import { ReviewCardReviewedEvent } from '../events/review-card-reviewed.event.js';
 import { ReviewCardSuspendedEvent } from '../events/review-card-suspended.event.js';
+import type { SrsTrack } from '../value-objects/srs-track.js';
 
 /**
  * `EXERCISE_GAP` points at one gap inside an exercise, with `contentId` shaped
@@ -13,7 +14,24 @@ import { ReviewCardSuspendedEvent } from '../events/review-card-suspended.event.
  * under `EXERCISE`, so that code taking an `EXERCISE` card's `contentId` for an
  * exercise UUID keeps being right.
  */
-export type SrsContentType = 'EXERCISE' | 'EXERCISE_GAP' | 'VOCABULARY_WORD';
+export type SrsContentType = 'EXERCISE' | 'EXERCISE_GAP' | 'VOCABULARY_WORD' | 'GRAMMAR_ATOM';
+
+/**
+ * Card types written in shadow (plan 63 phase 5).
+ *
+ * The fan-out rates a grammar atom's card from the same attempts as the cards the
+ * learner already has, and the point of the phase is that the two models run side by
+ * side long enough to be compared. That only holds if the new one changes nothing the
+ * learner can see: these cards are kept out of the due queue, out of the streak, and
+ * out of every count the queue reports about itself. Nothing renders a grammar atom
+ * yet either, so a card of this type reaching `GET /srs/due` would be an item the
+ * client cannot draw.
+ *
+ * The list is read wherever a query answers a learner rather than an analyst — see
+ * `PrismaSrsRepository`. It empties in phase 7, when the comparison is settled and the
+ * old types are the ones suspended.
+ */
+export const SHADOW_CONTENT_TYPES: readonly SrsContentType[] = ['GRAMMAR_ATOM'];
 
 // Mirrors FSRS State enum (New=0, Learning=1, Review=2, Relearning=3) plus our own Suspended.
 export type ReviewCardState = 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING' | 'SUSPENDED';
@@ -49,6 +67,7 @@ export interface ReviewCardPersistenceProps {
   userId: string;
   contentType: SrsContentType;
   contentId: string;
+  track: SrsTrack;
   state: ReviewCardState;
   dueAt: Date;
   stability: number;
@@ -69,6 +88,7 @@ export class ReviewCard extends AggregateRoot {
     private _userId: string,
     private _contentType: SrsContentType,
     private _contentId: string,
+    private readonly _track: SrsTrack,
     private _state: ReviewCardState,
     private _dueAt: Date,
     private _stability: number,
@@ -89,6 +109,7 @@ export class ReviewCard extends AggregateRoot {
     userId: string,
     contentType: SrsContentType,
     contentId: string,
+    track: SrsTrack,
     now: Date,
   ): ReviewCard {
     const card = new ReviewCard(
@@ -96,6 +117,7 @@ export class ReviewCard extends AggregateRoot {
       userId,
       contentType,
       contentId,
+      track,
       'NEW',
       now,   // due immediately — first review happens on introduction
       0,
@@ -113,6 +135,7 @@ export class ReviewCard extends AggregateRoot {
       userId,
       contentType,
       contentId,
+      track,
       dueAt: now.toISOString(),
     }));
     return card;
@@ -122,6 +145,7 @@ export class ReviewCard extends AggregateRoot {
     userId: string,
     contentType: SrsContentType,
     contentId: string,
+    track: SrsTrack,
     seedKind: SrsSeedKind,
     now: Date,
   ): ReviewCard {
@@ -133,6 +157,7 @@ export class ReviewCard extends AggregateRoot {
       userId,
       contentType,
       contentId,
+      track,
       'REVIEW',
       dueAt,
       stability,
@@ -154,6 +179,7 @@ export class ReviewCard extends AggregateRoot {
       userId,
       contentType,
       contentId,
+      track,
       dueAt: dueAt.toISOString(),
       seedKind,
     }));
@@ -166,6 +192,7 @@ export class ReviewCard extends AggregateRoot {
       props.userId,
       props.contentType,
       props.contentId,
+      props.track,
       props.state,
       props.dueAt,
       props.stability,
@@ -250,6 +277,7 @@ export class ReviewCard extends AggregateRoot {
   get userId(): string { return this._userId; }
   get contentType(): SrsContentType { return this._contentType; }
   get contentId(): string { return this._contentId; }
+  get track(): SrsTrack { return this._track; }
   get state(): ReviewCardState { return this._state; }
   get dueAt(): Date { return this._dueAt; }
   get stability(): number { return this._stability; }

@@ -100,6 +100,28 @@ model Attempt {
   skills String[] @default([])
   focus  String[] @default([])
 
+  // What each piece of the exercise was about, snapshotted with the atoms above
+  // (plan 63 §2 D) — Array<{itemKey: string|null, atomType, atomId, role}>. The address
+  // is what a learner's memory hangs on from phase 5, and it has to be the address as it
+  // stood when the attempt was answered: re-anchoring a gap next month must not rewrite
+  // what this attempt proved. Empty for an exercise nobody has addressed, which is most
+  // of the catalogue.
+  itemTargets Json @default("[]") @map("item_targets")
+
+  // How the learner had to produce the answer (plan 63 §2 E): recognition | recall |
+  // production, or 'unknown' where nothing has judged the template. A second axis, not a
+  // second name for the answer form — `sentence_schema` gives every chunk and still
+  // demands the order from memory.
+  modality String @default("unknown")
+
+  // The task was a disposable probe rather than a catalogue exercise (plan 63 phase 9).
+  //
+  // Snapshotted at start because the probe is designed to disappear: by the time this
+  // attempt is marked, or the event it published is read, the row it was resolved from is
+  // very likely swept. Everything downstream that must not write catalogue-shaped state
+  // against an id with no future — a progress row, a card on the exercise — reads this.
+  ephemeral Boolean @default(false)
+
   status AttemptStatus @default(IN_PROGRESS)
 
   // EVENT — score and completion flag published in exercise.attempt.completed
@@ -298,4 +320,93 @@ model ProcessedEvent {
   processedAt DateTime @default(now()) @map("processed_at")
 
   @@map("processed_events")
+}
+
+// ─── Probes (plan 63 phase 9) ─────────────────────────────────────────────────
+
+// A disposable task, dealt to one learner, aimed at one atom, alive for a few hours.
+//
+// It is NOT an exercise and must never become one. The catalogue is what authors
+// maintain and what courses are built out of; a probe is a question asked once to find
+// out whether a learner still holds an atom, and its worth is used up the moment it is
+// answered. Keeping them in the catalogue would rot it inside a month — which is the
+// reason this table exists rather than a `disposable` flag on Content Service's Exercise.
+//
+// The row holds a whole exercise definition in the shape Content Service answers with,
+// so that an attempt on a probe is an ordinary attempt: same start, same validators,
+// same scoring, same event. What makes it a probe is where the definition was read from
+// and the address it carries, not a second code path through the engine.
+//
+// Evidence flows to the atom exactly as it does from a catalogue exercise (`targets`),
+// and nowhere else: the consumer is told the attempt was on a probe so that no progress
+// row and no exercise-shaped memory is written against an id that will not exist
+// tomorrow.
+model ProbeTask {
+  id String @id @default(uuid())
+
+  // Whose probe this is. A probe is dealt to one learner and opened by nobody else —
+  // not a sharing rule so much as a statement of what it is: a question asked of one
+  // person on the strength of what their own memory looks like today.
+  userId String @map("user_id")
+
+  // What the probe is *for* — the atom whose state it was made to find out about.
+  // Separate from `targets` below, which is the address the evidence hangs on: the
+  // subject is one atom and never empty, while the addresses may be several and may
+  // point at pieces of the task.
+  subjectAtomType String @map("subject_atom_type")
+  subjectAtomId   String @map("subject_atom_id")
+
+  // The modality the probe was asked to exercise (plan 63 §2 E) — recognition | recall |
+  // production. It is the attempt's modality, not a wish: this is the whole reason a
+  // probe is worth generating when the catalogue already has exercises on the atom, since
+  // what is usually missing is not practice but practice of a kind never yet seen.
+  requiredModality String @map("required_modality")
+
+  // ── The definition ──────────────────────────────────────────────────────
+  // Mirrors ExerciseDefinition (content-client.port.ts). Held whole rather than
+  // assembled on read: a probe outlives nothing and depends on nothing, and a task the
+  // learner is halfway through must not change under them because something upstream did.
+  templateCode    String          @map("template_code")
+  targetLanguage  String          @map("target_language")
+  difficultyLevel DifficultyLevel @map("difficulty_level")
+
+  content             Json
+  expectedAnswers     Json? @map("expected_answers")
+  answerCheckSettings Json? @map("answer_check_settings")
+  // { language, text, hint, overrides } — the instruction as Content Service ships one.
+  instruction Json?
+
+  // What the task exercises (plan 55). Declared by whoever built the probe rather than
+  // derived: there is no placement to derive them from, which is the point of a probe.
+  skills String[] @default([])
+  focus  String[] @default([])
+
+  // What each piece of the task is about (plan 63 §2 D) —
+  // Array<{itemKey, atomType, atomId, role}>, the same shape `ExerciseItemTarget` rows
+  // travel in. Defaulted from the subject atom when the builder names nothing finer.
+  targets Json @default("[]")
+
+  // ── Provenance ──────────────────────────────────────────────────────────
+  // Who made it. `generated` is what the LLM loop will write when it is built; `manual`
+  // is a person assembling one by hand, which is how this phase is tested and how a
+  // teacher will make one for tomorrow's lesson.
+  source          String  @default("manual")
+  createdByUserId String? @map("created_by_user_id")
+
+  // ── Life ────────────────────────────────────────────────────────────────
+  // Past `expiresAt` the probe is gone: refused on read, and deleted by the sweep —
+  // except while an attempt on it is still open, because the learner is looking at it.
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+
+  // The catalogue exercise a person decided this one was worth keeping as. Provenance
+  // only: the exercise is its own thing from that moment, and this row still expires.
+  promotedExerciseId String?   @map("promoted_exercise_id")
+  promotedAt         DateTime? @map("promoted_at") @db.Timestamptz
+
+  // The learner's own list of what is open for them.
+  @@index([userId, expiresAt])
+  // The sweep.
+  @@index([expiresAt])
+  @@map("probe_tasks")
 }

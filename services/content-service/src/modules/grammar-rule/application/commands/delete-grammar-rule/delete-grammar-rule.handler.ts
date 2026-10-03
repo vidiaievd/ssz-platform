@@ -7,6 +7,8 @@ import { GRAMMAR_RULE_REPOSITORY } from '../../../domain/repositories/grammar-ru
 import type { IGrammarRuleRepository } from '../../../domain/repositories/grammar-rule.repository.interface.js';
 import { GRAMMAR_RULE_EXPLANATION_REPOSITORY } from '../../../domain/repositories/grammar-rule-explanation.repository.interface.js';
 import type { IGrammarRuleExplanationRepository } from '../../../domain/repositories/grammar-rule-explanation.repository.interface.js';
+import { GRAMMAR_RULE_ATOM_REPOSITORY } from '../../../domain/repositories/grammar-rule-atom.repository.interface.js';
+import type { IGrammarRuleAtomRepository } from '../../../domain/repositories/grammar-rule-atom.repository.interface.js';
 
 @CommandHandler(DeleteGrammarRuleCommand)
 export class DeleteGrammarRuleHandler implements ICommandHandler<
@@ -18,6 +20,8 @@ export class DeleteGrammarRuleHandler implements ICommandHandler<
     private readonly ruleRepo: IGrammarRuleRepository,
     @Inject(GRAMMAR_RULE_EXPLANATION_REPOSITORY)
     private readonly explanationRepo: IGrammarRuleExplanationRepository,
+    @Inject(GRAMMAR_RULE_ATOM_REPOSITORY)
+    private readonly atomRepo: IGrammarRuleAtomRepository,
   ) {}
 
   async execute(command: DeleteGrammarRuleCommand): Promise<Result<void, GrammarRuleDomainError>> {
@@ -37,6 +41,11 @@ export class DeleteGrammarRuleHandler implements ICommandHandler<
 
     await this.ruleRepo.save(rule);
     await this.explanationRepo.softDeleteByRuleId(command.ruleId);
+    // Atoms follow the rule down, the same way explanations do. Left standing, they would
+    // keep appearing in coverage reports as facts a course is expected to teach, belonging
+    // to a rule nobody can open. Retiring is enough: a practised atom still owns cards and
+    // exercise targets, and those must keep resolving.
+    await this.atomRepo.softDeleteByRuleId(command.ruleId);
 
     return Result.ok();
   }

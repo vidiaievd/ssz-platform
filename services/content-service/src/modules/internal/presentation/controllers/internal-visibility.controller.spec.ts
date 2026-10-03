@@ -15,7 +15,12 @@ function makeController(
   const entities = { resolve: jest.fn().mockResolvedValue(entity) };
   const visibility = { canAccess: jest.fn().mockResolvedValue({ allowed, reason }) };
   return {
-    controller: new InternalController({} as never, visibility as never, entities as never),
+    controller: new InternalController(
+      {} as never,
+      {} as never,
+      visibility as never,
+      entities as never,
+    ),
     entities,
     visibility,
   };

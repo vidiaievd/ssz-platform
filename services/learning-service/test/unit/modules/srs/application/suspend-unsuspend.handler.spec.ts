@@ -19,7 +19,7 @@ const OTHER_ID = 'aaaaaaaa-bbbb-4000-8000-000000000001';
 const CONTENT_ID = 'eb1aa566-c4e0-4ffa-8018-e9ce2abc5d08';
 
 function makeCard(userId = USER_ID): ReviewCard {
-  return ReviewCard.create(userId, 'EXERCISE', CONTENT_ID, NOW);
+  return ReviewCard.create(userId, 'EXERCISE', CONTENT_ID, 'lexis', NOW);
 }
 
 function makeDeps(card: ReviewCard | null) {
@@ -87,7 +87,7 @@ describe('UnsuspendCardHandler', () => {
     expect(result.isOk).toBe(true);
     expect(result.value.state).toBe('REVIEW');
     expect(repo.save).toHaveBeenCalledTimes(1);
-    expect(dueQueue.upsert).toHaveBeenCalledWith(USER_ID, card.id, expect.any(Date));
+    expect(dueQueue.upsert).toHaveBeenCalledWith(USER_ID, card.id, expect.any(Date), 'lexis');
     expect(publisher.publish).toHaveBeenCalledWith('learning.srs.card.suspended', expect.any(Object));
   });
 

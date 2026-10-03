@@ -36,6 +36,30 @@ export interface CourseCoverage {
   emptySkills: string[];
 }
 
+/** An atom as content-service names it. Absent from an answer means retired or gone. */
+export interface AtomDescriptor {
+  atomType: string;
+  atomId: string;
+  title: string;
+  track: string | null;
+  /** The grammar rule an atom belongs to; null for a word. */
+  parentId: string | null;
+}
+
+/** One fact a unit teaches, as the atom coverage report counts it. */
+export interface UnitAtom {
+  atomType: string;
+  atomId: string;
+  title: string;
+  track: string;
+  parentId: string | null;
+  /** Empty for an atom the unit only practises — it is revision, not new material. */
+  introducedBy: string[];
+  focusItems: number;
+  contextItems: number;
+  byModality: Record<string, number>;
+}
+
 export interface CourseOutline {
   containerId: string;
   /** `null` when nothing is published — a legal state, not a failure. */
@@ -116,6 +140,77 @@ export class ContentClient {
         `Coverage for container ${containerId} unreachable: ${(error as Error).message}`,
       );
       return null;
+    }
+  }
+
+  /**
+   * The facts one unit teaches — plan 63 phase 8.
+   *
+   * The only look forward the next-practice list has: everything else it assembles is
+   * about answers already given. What a unit introduces is a fact about its published
+   * composition, so it is asked for rather than derived from the evidence this service
+   * holds — evidence, by definition, says nothing about what has not happened yet.
+   *
+   * `null` when content could not be asked, and the caller then leaves `upcoming` out
+   * instead of reporting that the next unit teaches nothing.
+   */
+  async getUnitAtoms(containerId: string): Promise<UnitAtom[] | null> {
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/api/v1/internal/containers/${containerId}/atom-coverage`,
+        { headers: { 'x-internal-token': this.token } },
+      );
+
+      if (!res.ok) {
+        this.logger.warn(`Atom coverage for container ${containerId} failed: ${res.status}`);
+        return null;
+      }
+
+      const body = (await res.json()) as { available: boolean; atoms: UnitAtom[] };
+      // Nothing published is an empty unit, not an unreachable one: the caller should
+      // stop looking forward rather than retry.
+      return body.available ? body.atoms : [];
+    } catch (error) {
+      this.logger.warn(
+        `Atom coverage for container ${containerId} unreachable: ${(error as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * What the atoms a report is about are called (plan 63, phase 4).
+   *
+   * This service holds addresses and nothing else — an address reaches it through the
+   * event stream as two strings — so the names have to be asked for. Best-effort like the
+   * rest: unreachable answers an empty map and the caller draws the row without a name
+   * rather than dropping a real finding because content-service was restarting.
+   */
+  async describeAtoms(
+    refs: ReadonlyArray<{ atomType: string; atomId: string }>,
+  ): Promise<Map<string, AtomDescriptor>> {
+    const named = new Map<string, AtomDescriptor>();
+    if (refs.length === 0) return named;
+
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/internal/atoms/describe`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-internal-token': this.token },
+        body: JSON.stringify({ refs }),
+      });
+
+      if (!res.ok) {
+        this.logger.warn(`Atom names failed: ${res.status}`);
+        return named;
+      }
+
+      for (const atom of (await res.json()) as AtomDescriptor[]) {
+        named.set(`${atom.atomType}:${atom.atomId}`, atom);
+      }
+      return named;
+    } catch (error) {
+      this.logger.warn(`Atom names unreachable: ${(error as Error).message}`);
+      return named;
     }
   }
 }

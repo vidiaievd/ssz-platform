@@ -11,7 +11,12 @@ import { ReviewCardCommand } from '../../srs/application/commands/review-card.co
 import type { ReviewRatingValue } from '../../srs/domain/value-objects/review-rating.vo.js';
 // The table lives in the kernel (plan 55 §3.9): analytics weighs the same attempt into
 // the mastery profile, and a second copy of that judgement would drift from this one.
-import { clampByEvidence, evidenceStrength } from '@ssz/shared-kernel/evidence';
+import {
+  atomEvidenceStrength,
+  clampByEvidence,
+  evidenceStrength,
+  strongerClaim,
+} from '@ssz/shared-kernel/evidence';
 import { gapCardContentId } from '../../srs/domain/gap-card-id.js';
 import { CanDoEvaluatorService } from '../../can-do/application/services/can-do-evaluator.service.js';
 import type { ReviewCardDto } from '../../srs/application/dto/srs.dto.js';
@@ -67,14 +72,124 @@ function ratingForAttempt(
   /** Where in its block the gap sat, so a spent bank can decay across it (§B.3). */
   gapPosition: number | null = null,
 ): ReviewRatingValue {
+  const rating = scoreToRating(score);
+
+  // A person read this one. The floor under a free-form failure is there because a
+  // machine marking typed text wrong may be punishing a typo (`FREE_PRODUCTION` in the
+  // kernel) — and that doubt is exactly what a teacher's verdict removes. Lifting their
+  // judgement off the floor would forgive the one failure nobody should forgive, and it
+  // would do it only to the modalities people mark: recall and production.
+  if (p.reviewOutcome !== undefined) return rating;
+
   return clampByEvidence(
-    scoreToRating(score),
+    rating,
     evidenceStrength({
       answerForm: p.answerForm,
       templateCode: p.templateCode,
       gapPosition,
     }),
   );
+}
+
+/**
+ * What one attempt says about **one atom inside it** (plan 63 phase 5).
+ *
+ * Same shape as `ratingForAttempt` and a different question. That one asks how well the
+ * answer went and how much the form of the answer proves; this one asks the same of a
+ * thing that was only part of what was answered, so the role the author gave the atom
+ * and the modality of the attempt narrow it further — see `atomEvidenceStrength`.
+ *
+ * `score` is the verdict on the piece the atom was addressed by, never the score of the
+ * attempt: a block of six sentences with one wrong word proves a lapse of the atom in
+ * that one sentence and a recall of the atoms in the other five.
+ */
+function ratingForAtom(
+  p: ExerciseAttemptCompletedPayload,
+  score: number,
+  role: 'focus' | 'context',
+  gapPosition: number | null,
+): ReviewRatingValue {
+  const rating = scoreToRating(score);
+
+  // A person read this one, so the doubt the form-based ceilings exist for is gone —
+  // but only about the answer. It says nothing about an atom the item never asked
+  // about, which is still worth what background is worth.
+  if (p.reviewOutcome !== undefined && role === 'focus') return rating;
+
+  return clampByEvidence(
+    rating,
+    atomEvidenceStrength({
+      answerForm: p.answerForm,
+      templateCode: p.templateCode,
+      gapPosition,
+      role,
+      modality: p.modality,
+    }),
+  );
+}
+
+/** One atom, as one attempt saw it, once the attempt's several views are reconciled. */
+interface AtomObservation {
+  atomType: string;
+  atomId: string;
+  role: 'focus' | 'context';
+  rating: ReviewRatingValue;
+  /** The piece of the exercise this verdict came from; null for the exercise as a whole. */
+  itemKey: string | null;
+  gapPosition: number | null;
+  gapCount: number | null;
+}
+
+/**
+ * Every atom this attempt addressed, each with exactly one verdict (plan 63 phase 5).
+ *
+ * Built from the addresses the engine snapshotted at start: per-gap ones get their own
+ * gap's outcome, and the exercise-level ones — the address of a template that grades as
+ * one — get the score of the attempt.
+ *
+ * Reconciled to one observation per atom rather than one per address, because a single
+ * answer must move a card once. `strongerClaim` decides which of several survives.
+ */
+function collectAtomObservations(p: ExerciseAttemptCompletedPayload): AtomObservation[] {
+  const byAtom = new Map<string, AtomObservation>();
+
+  const add = (observation: AtomObservation): void => {
+    const key = `${observation.atomType}:${observation.atomId}`;
+    const existing = byAtom.get(key);
+    byAtom.set(key, existing ? strongerClaim(existing, observation) : observation);
+  };
+
+  const gapResults = p.gapResults ?? [];
+  const gapCount = gapResults.length;
+
+  for (const [index, gap] of gapResults.entries()) {
+    const position = index + 1;
+    for (const target of gap.targets ?? []) {
+      add({
+        atomType: target.atomType,
+        atomId: target.atomId,
+        role: target.role,
+        rating: ratingForAtom(p, gap.correct ? 100 : 0, target.role, position),
+        itemKey: gap.gapKey,
+        gapPosition: position,
+        gapCount,
+      });
+    }
+  }
+
+  for (const target of p.targets ?? []) {
+    add({
+      atomType: target.atomType,
+      atomId: target.atomId,
+      role: target.role,
+      rating: ratingForAtom(p, p.score as number, target.role, null),
+      itemKey: null,
+      gapPosition: null,
+      gapCount: null,
+    });
+  }
+
+  return [...byAtom.values()];
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -101,6 +216,18 @@ function daysSince(lastReviewedAt: string | null | undefined, now: Date): number
   if (!lastReviewedAt) return null;
   const elapsed = now.getTime() - new Date(lastReviewedAt).getTime();
   return elapsed > 0 ? elapsed / MS_PER_DAY : 0;
+}
+
+/**
+ * What a rating is evidence about, as this consumer hands it to the record.
+ *
+ * `contentType` says which kind of card was rated, so that a consumer counting attempts
+ * never counts a word coming back as one (plan 63 phase 3).
+ */
+interface RatingAddress {
+  contentType: string;
+  itemKey: string | null;
+  targets: Array<{ atomType: string; atomId: string; role: 'focus' | 'context' | null }> | null;
 }
 
 @Injectable()
@@ -168,23 +295,60 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
 
       const p = payload as ExerciseAttemptCompletedPayload;
 
+      // Work a teacher sent back (plan 63 §4). It moves memory and not progress, and the
+      // two clauses below are the whole of that: no progress row, and a rating all the
+      // same. The submission was already recorded as an attempt when it was routed for
+      // review; writing it again now — with the teacher's partial credit, and
+      // `completed: false` — would overwrite a mark the learner may already have earned
+      // on this exercise with the score of a draft they are being asked to redo.
+      const sentBack = p.reviewOutcome === 'returned';
+
+      /*
+        Work done on a disposable task (plan 63 phase 9).
+
+        Everything this consumer writes falls into two kinds, and a probe separates them
+        cleanly for the first time. Evidence about an **atom** — the fan-out below, and
+        the grammar cards beside it — is ordinary evidence and is kept: that a learner
+        can or cannot form the passive is a fact about them, and it does not matter
+        whether the sentence they proved it on was written by an author last year or
+        generated for them this afternoon. That is the whole point of having moved memory
+        onto the atom (§2 A); without it, nothing generated could ever have counted.
+
+        Anything keyed by the **exercise** is dropped: the progress row, the card on the
+        exercise, the cards on its gaps. The id names a row that is designed to be gone
+        tomorrow, so those would be a learner's history slowly filling with pointers to
+        questions nobody can look up — "completed 40 exercises", counting tasks that were
+        thrown away on purpose, and a review queue bringing back a gap in a sentence that
+        no longer exists.
+      */
+      const ephemeral = p.ephemeral === true;
+
       // 1. Progress tracking (existing behaviour — unchanged).
-      const progressResult = await this.commandBus.execute(
-        new UpsertProgressCommand(
-          p.userId,
-          'EXERCISE',
-          p.exerciseId,
-          p.timeSpentSeconds ?? 0,
-          p.score ?? null,
-          p.completed ?? false,
-        ),
-      );
-      if (progressResult.isFail) {
-        this.logger.warn(`UpsertProgress failed for event ${eventId}: ${progressResult.error?.message}`);
+      if (!sentBack && !ephemeral) {
+        const progressResult = await this.commandBus.execute(
+          new UpsertProgressCommand(
+            p.userId,
+            'EXERCISE',
+            p.exerciseId,
+            p.timeSpentSeconds ?? 0,
+            p.score ?? null,
+            p.completed ?? false,
+          ),
+        );
+        if (progressResult.isFail) {
+          this.logger.warn(
+            `UpsertProgress failed for event ${eventId}: ${progressResult.error?.message}`,
+          );
+        }
       }
 
-      // 2 & 3. SRS. An attempt is rated only when it is closed-form and scored —
-      //    free-form (completed=false, score=null) awaits human review.
+      // 2 & 3. SRS. An attempt is rated when it is closed-form and scored, and when a
+      //    person read it and ruled on it — an approval through the scored event above,
+      //    a return through `reviewOutcome`. What is never rated is the moment a free
+      //    form is handed over (`completed: false`, `score: null`): nobody has judged it
+      //    yet. Recording only the approvals, which is what this consumer did until the
+      //    return arrived, made every piece of evidence about recall and production
+      //    evidence of success.
       //
       //    Which cards get rated depends on how the attempt was graded. A gap-graded
       //    template holds a card per gap (plan 36 §C.1) and no card for the exercise
@@ -192,9 +356,13 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       //    had. All exercises are SRS-eligible by default in MVP — see
       //    docs/research/sprint-06-srs-content-flags.md.
       const gapResults = p.gapResults ?? [];
-      const rated = p.completed === true && p.score !== null;
+      const rated = p.score !== null && (p.completed === true || sentBack);
 
-      if (gapResults.length > 0) {
+      if (ephemeral) {
+        // No card on the exercise and none on its gaps — see `ephemeral` above. The
+        // verdicts are not lost: they are read as atom observations a few lines down,
+        // which is where a probe's evidence belongs.
+      } else if (gapResults.length > 0) {
         if (rated) await this.reviewGapCards(p, gapResults);
       } else {
         const introduceResult = await this.commandBus.execute(
@@ -208,6 +376,16 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       if (rated) {
         const rating = ratingForAttempt(p, p.score as number);
 
+        // What the author said each piece of this exercise was about (plan 63 phase 5).
+        // Two consumers of the same list below: the words fan out to cards they already
+        // had, and the grammar atoms get cards of their own for the first time.
+        const observations = collectAtomObservations(p);
+        const observedVocab = new Map(
+          observations
+            .filter((observation) => observation.atomType === 'vocabulary_item')
+            .map((observation) => [observation.atomId, observation]),
+        );
+
         // 4. Fan-out (plan 21 §3) — rate the VOCABULARY_WORD atoms this exercise
         // practices, snapshotted by Exercise Engine at attempt start. Grammar rule
         // atoms are skipped: their mastery is derived from pool-exercise
@@ -217,6 +395,16 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
           .map((atom) => atom.atomId);
 
         for (const vocabularyItemId of vocabAtomIds) {
+          // The word's own verdict where an author addressed it, and the attempt's
+          // score where nobody did (plan 63 phase 5). Until now every word in an
+          // exercise was rated by the score of the whole attempt while the gaps beside
+          // them were rated one by one — so in a single attempt `stillingsannonse`
+          // could be rated GOOD as a gap and AGAIN as a word. An address is what makes
+          // the narrower answer possible; without one the coarse rating is still the
+          // best available and is left alone.
+          const observed = observedVocab.get(vocabularyItemId);
+          const atomRating = observed?.rating ?? rating;
+
           const atomIntroduceResult = await this.commandBus.execute(
             new IntroduceCardCommand(p.userId, 'VOCABULARY_WORD', vocabularyItemId),
           );
@@ -228,18 +416,57 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
           }
 
           const atomReviewResult = await this.commandBus.execute(
-            new ReviewCardCommand(p.userId, atomIntroduceResult.value.id, rating),
+            new ReviewCardCommand(p.userId, atomIntroduceResult.value.id, atomRating),
           );
           if (atomReviewResult.isFail) {
             this.logger.debug(
               `SRS fan-out review skipped for vocab ${vocabularyItemId} / user ${p.userId}: ${atomReviewResult.error?.message}`,
             );
+            continue;
           }
+
+          // The fan-out has been rating words for months and telling nobody (plan 63
+          // phase 3): every word a learner has met came back on schedule, and analytics
+          // held not one row saying which word or how it went. The rating record says so
+          // now, marked as a word rather than as an attempt so that nothing counting
+          // attempts starts counting these too.
+          await this.publishRatingRecord(
+            p,
+            atomRating,
+            atomIntroduceResult.value as ReviewCardDto,
+            observed?.gapPosition ?? null,
+            observed?.gapCount ?? null,
+            stabilityOf(atomReviewResult.value),
+            {
+              contentType: 'VOCABULARY_WORD',
+              itemKey: observed?.itemKey ?? null,
+              // The role only if an author addressed this word somewhere in the exercise.
+              // An atom that arrived through the practised-atom graph has no role, and
+              // calling it `focus` would turn "nobody said" into the strongest evidence
+              // the scale has.
+              targets: [
+                {
+                  atomType: 'vocabulary_item',
+                  atomId: vocabularyItemId,
+                  role: observed?.role ?? null,
+                },
+              ],
+            },
+          );
         }
+
+        // 4b. The shadow half of the same fan-out (plan 63 phase 5) — a card per
+        //     grammar atom this exercise addressed, rated by the same answer.
+        await this.reviewGrammarAtomCards(p, observations);
       }
 
       // 5. Can-do progress evaluation — recompute descriptor achievement
       //    for any modules whose atoms were practiced.
+      //
+      //    Run for a probe too, deliberately: this reads the state of the atoms the
+      //    attempt just moved and re-derives what the learner can do. It writes nothing
+      //    keyed by the exercise, and refusing it would mean a learner who practised an
+      //    atom on a generated task stayed short of a descriptor they had in fact earned.
       if (p.completed === true && p.practicedAtoms && p.practicedAtoms.length > 0) {
         await this.canDoEvaluator.evaluateForAtoms(p.userId, p.practicedAtoms);
       }
@@ -277,14 +504,92 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
     // only when a rating was actually applied: a review refused by the daily limit
     // changed no schedule, and recording it as though it had would poison the
     // baseline the evidence scale is judged against.
-    await this.publishRatingRecord(
-      p,
-      rating,
-      card,
-      null,
-      null,
-      stabilityOf(reviewResult.value),
-    );
+    await this.publishRatingRecord(p, rating, card, null, null, stabilityOf(reviewResult.value), {
+      contentType: 'EXERCISE',
+      itemKey: null,
+      // A template that grades as one addresses the exercise as a whole, and that is
+      // exactly the list the engine snapshots under a null item key.
+      targets: p.targets ?? null,
+    });
+  }
+
+  /**
+   * A card per grammar atom the exercise addressed, written in shadow (plan 63 phase 5).
+   *
+   * This is the model the platform is moving to: memory lives on the atom, so that
+   * passing an exercise a second time proves the learner remembers the exercise, while
+   * the rule it was teaching is scheduled on the evidence of everything that ever asked
+   * about it. Words have worked this way since plan 21; grammar has had nothing at all,
+   * its mastery inferred from how often its exercises came back.
+   *
+   * Shadow means the old cards keep being written and rated exactly as before, and these
+   * change nothing a learner sees: no due queue, no streak, no daily budget (see
+   * `SHADOW_CONTENT_TYPES` and the `shadow` flag on both commands). The two models run
+   * side by side so that their divergence is something to read in a fortnight rather
+   * than a surprise on the day the old ones are switched off in phase 7.
+   *
+   * Non-fatal throughout, like the fan-out above it: nothing that only measures may nack
+   * an attempt whose progress and real schedules are already written.
+   */
+  private async reviewGrammarAtomCards(
+    p: ExerciseAttemptCompletedPayload,
+    observations: AtomObservation[],
+  ): Promise<void> {
+    for (const observation of observations) {
+      if (observation.atomType !== 'grammar_rule_atom') continue;
+
+      const introduceResult = await this.commandBus.execute(
+        new IntroduceCardCommand(p.userId, 'GRAMMAR_ATOM', observation.atomId, undefined, true),
+      );
+      if (introduceResult.isFail) {
+        this.logger.debug(
+          `Shadow introduce skipped for atom ${observation.atomId} / user ${p.userId}: ${introduceResult.error?.message}`,
+        );
+        continue;
+      }
+
+      const card = introduceResult.value as ReviewCardDto;
+      const reviewResult = await this.commandBus.execute(
+        new ReviewCardCommand(
+          p.userId,
+          card.id,
+          observation.rating,
+          undefined,
+          undefined,
+          undefined,
+          true,
+        ),
+      );
+      if (reviewResult.isFail) {
+        this.logger.debug(
+          `Shadow review skipped for atom ${observation.atomId} / user ${p.userId}: ${reviewResult.error?.message}`,
+        );
+        continue;
+      }
+
+      // Recorded like every other rating, and marked `GRAMMAR_ATOM` so that analytics
+      // keeps it out of `attempt_evidence` — where five readers count rows as attempts
+      // — and counts it card-side in the modality gap (plan 63 phases 3 and 4).
+      await this.publishRatingRecord(
+        p,
+        observation.rating,
+        card,
+        observation.gapPosition,
+        observation.gapCount,
+        stabilityOf(reviewResult.value),
+        {
+          contentType: 'GRAMMAR_ATOM',
+          itemKey: observation.itemKey,
+          targets: [
+            {
+              atomType: observation.atomType,
+              atomId: observation.atomId,
+              role: observation.role,
+            },
+          ],
+        },
+      );
+    }
   }
 
   /**
@@ -343,6 +648,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
         position,
         gapCount,
         stabilityOf(reviewResult.value),
+        { contentType: 'EXERCISE_GAP', itemKey: gap.gapKey, targets: gap.targets ?? null },
       );
     }
   }
@@ -362,6 +668,12 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
     gapCount: number | null,
     /** The card's stability once this review had been scheduled — see the payload. */
     stabilityAfter: number | null,
+    /**
+     * What this rating is evidence about, and which piece of the exercise produced it
+     * (plan 63 §2 D). Forwarded from the attempt's own snapshot, never looked up: by the
+     * time this runs the author may have re-anchored the gap.
+     */
+    address: RatingAddress = { itemKey: null, targets: null, contentType: 'EXERCISE' },
   ): Promise<void> {
     const payload: AttemptRatedPayload = {
       userId: p.userId,
@@ -390,6 +702,12 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       lessonId: p.lessonId ?? null,
       timeSpentSeconds: p.timeSpentSeconds ?? null,
       stabilityAfter,
+      modality: p.modality ?? null,
+      contentType: address.contentType,
+      itemKey: address.itemKey,
+      // Absent rather than empty when nobody addressed it: an empty list would read as
+      // "this rating is about nothing", and the truth is that nobody has said yet.
+      targets: address.targets && address.targets.length > 0 ? address.targets : null,
     };
 
     try {
