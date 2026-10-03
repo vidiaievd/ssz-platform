@@ -7,7 +7,7 @@ import { deriveSkills } from './derive.js';
 import { channelsOf, FOCUSES } from './model.js';
 
 describe('the table', () => {
-  it('covers all thirteen template codes of the catalogue', () => {
+  it('covers every template code of the catalogue', () => {
     expect(Object.keys(BY_TEMPLATE).sort()).toEqual(
       [
         'error_correction',
@@ -17,6 +17,7 @@ describe('the table', () => {
         'multiple_choice_group',
         'sentence_schema',
         'short_answer',
+        'sort_into_buckets',
         'text_order',
         'translate_from_target',
         'translate_to_target',
@@ -54,6 +55,7 @@ describe('the table', () => {
       short_answer: ['reading', 'written'],
       writing_task: ['written'],
       sentence_schema: ['written'],
+      sort_into_buckets: ['reading'],
     };
     for (const [code, skills] of Object.entries(before))
       expect(deriveSkills({ templateCode: code }).skills, code).toEqual(skills);
@@ -67,8 +69,22 @@ describe('the table', () => {
   });
 
   it('gives no focus hint where the author, not the type, decides the subject (rule 2)', () => {
-    for (const code of ['multiple_choice', 'short_answer', 'writing_task', 'text_order'])
+    for (const code of ['multiple_choice', 'short_answer', 'writing_task', 'text_order', 'sort_into_buckets'])
       expect(deriveSkills({ templateCode: code }).focus, code).toEqual([]);
+  });
+});
+
+describe('sort_into_buckets (plan 66)', () => {
+  it('is read, recognised, and becomes listening when the audio layer is on', () => {
+    const bare = deriveSkills({ templateCode: 'sort_into_buckets' });
+    expect(bare).toMatchObject({ input: 'text', output: 'none', skills: ['reading'], modality: 'recognition' });
+    const heard = deriveSkills({ templateCode: 'sort_into_buckets', content: { audio: { enabled: true } } });
+    expect(heard).toMatchObject({ input: 'audio', skills: ['listening'], skillSource: 'document' });
+  });
+
+  it('takes its subject from the atoms its items address', () => {
+    const atoms = [{ atomType: 'grammar_rule', itemKey: 'i1' }];
+    expect(deriveSkills({ templateCode: 'sort_into_buckets', atoms }).focus).toEqual(['grammar']);
   });
 });
 

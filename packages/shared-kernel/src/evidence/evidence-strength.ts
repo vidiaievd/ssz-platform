@@ -179,6 +179,20 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   // reports the state they converged to. Until an attempt says how many checks it took,
   // a success here is worth about what elimination used to be worth.
   match_pairs: NEAR_CERTAIN,
+
+  // Plan 66. Every bucket is on screen with its label, and the learner chooses one: the
+  // plain reading of CLOSED_SET — success caps at GOOD, and a wrong bucket is a direct
+  // statement that the feature is missing, so failure gets no mercy. The handoff asks for
+  // exactly this pair ("success ceiling medium, failure floor strong").
+  //
+  // Two caveats push it down, the same direction as the notes above, and they are
+  // expressed per attempt rather than here: the «N igjen» counter turns the tail into
+  // arithmetic, and a board with most items in one bucket is passed by dumping. The engine
+  // reads both off the document and sends `lowered` (below) — the row stays the honest
+  // reading of an ordinary board. Not NEAR_CERTAIN although two or three buckets is a small
+  // set: unlike a spent bank, every item is decided on its own, and the set does not shrink
+  // as the board fills.
+  sort_into_buckets: CLOSED_SET,
 };
 
 export interface EvidenceInput {
@@ -188,6 +202,17 @@ export interface EvidenceInput {
   templateCode?: string | null;
   /** 1-based position of this gap in its block, where the attempt is graded per gap. */
   gapPosition?: number | null;
+  /**
+   * The exercise was delivered in a way that hands part of the answer over, so a success
+   * proves one step less than its form says (plan 66, decision Q2-B).
+   *
+   * Set by the engine from the document, never from the client's word: today by
+   * `sort_into_buckets` when the «N igjen» counter was on or the board was skewed. Lowers
+   * the success ceiling only — a failure says what it said — and never below HARD, the
+   * weakest success FSRS has a word for: a ceiling of AGAIN would turn a recalled item
+   * into a lapse. Absent on every event before plan 66, which therefore rates unchanged.
+   */
+  lowered?: boolean | null;
 }
 
 /**
@@ -218,6 +243,17 @@ function remainingBankSize(form: AnswerForm, gapPosition: number | null | undefi
  * from typing it, and the form is the only thing that does.
  */
 export function evidenceStrength(input: EvidenceInput): EvidenceStrength {
+  const strength = fromFormOrTemplate(input);
+  return input.lowered === true ? lowerCeiling(strength) : strength;
+}
+
+/** One step down the success ceiling, stopping at HARD. The floor is untouched. */
+function lowerCeiling(strength: EvidenceStrength): EvidenceStrength {
+  const rank = Math.max(ratingRank('HARD'), ratingRank(strength.successCap) - 1);
+  return { ...strength, successCap: RATING_ORDER[rank] ?? strength.successCap };
+}
+
+function fromFormOrTemplate(input: EvidenceInput): EvidenceStrength {
   const form = input.answerForm;
 
   if (form) {

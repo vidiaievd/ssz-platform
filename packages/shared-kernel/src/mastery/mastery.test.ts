@@ -37,6 +37,16 @@ describe('cellsFor', () => {
 });
 
 describe('evidenceWeight', () => {
+  it('weighs a lowered success less, and a lowered failure the same (plan 66, Q2-B)', () => {
+    const base = { templateCode: 'sort_into_buckets' };
+    expect(evidenceWeight({ ...base, lowered: true, succeeded: true })).toBeLessThan(
+      evidenceWeight({ ...base, succeeded: true }),
+    );
+    expect(evidenceWeight({ ...base, lowered: true, succeeded: false })).toBe(
+      evidenceWeight({ ...base, succeeded: false }),
+    );
+  });
+
   it('weighs a typed answer above one picked from five', () => {
     const free = evidenceWeight({
       succeeded: true,
