@@ -309,6 +309,18 @@ describe('ExerciseAttemptedConsumer', () => {
       expect(await ratingFor({ ...perfect, templateCode: 'short_answer' })).toBe('EASY');
     });
 
+    it('drops sort_into_buckets one step when the engine says the delivery gave part away', async () => {
+      // Plan 66, Q2-B: the counter or a skewed board. GOOD is the ordinary ceiling.
+      expect(await ratingFor({ ...perfect, templateCode: 'sort_into_buckets' })).toBe('GOOD');
+      expect(
+        await ratingFor({ ...perfect, templateCode: 'sort_into_buckets', evidenceLowered: true }),
+      ).toBe('HARD');
+      // A failure says what it said.
+      expect(
+        await ratingFor({ ...perfect, score: 0, templateCode: 'sort_into_buckets', evidenceLowered: true }),
+      ).toBe('AGAIN');
+    });
+
     it('leaves an unknown template rating exactly as it does today', async () => {
       expect(await ratingFor({ ...perfect, templateCode: 'some_future_type' })).toBe('EASY');
     });
@@ -432,6 +444,8 @@ describe('ExerciseAttemptedConsumer', () => {
         workContext: null,
         groupId: null,
         lessonId: null,
+        // Plan 66 — the engine did not say the delivery gave part of the answer away.
+        evidenceLowered: null,
         timeSpentSeconds: 60,
         stabilityAfter: null,
         // Plan 63 phase 3 — what was rated and what it is evidence about. Nothing said

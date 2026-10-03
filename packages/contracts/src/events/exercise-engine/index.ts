@@ -110,6 +110,19 @@ export interface ExerciseAttemptCompletedPayload {
    */
   reviewOutcome?: 'approved' | 'returned';
   /**
+   * Additive (plan 66, decision Q2-B) — the exercise was delivered in a way that hands part
+   * of the answer over, so a success proves one step less than its form says.
+   *
+   * Decided by the engine from the document, never from the client: today only
+   * `sort_into_buckets`, when its «N igjen» counter was on or most items sat in one
+   * bucket. Every consumer passes it to the kernel's `evidenceStrength` as `lowered`, which
+   * drops the success ceiling one step and leaves the failure floor alone.
+   *
+   * Absent on every publisher before it and on every template that does not send it, which
+   * therefore rates exactly as before.
+   */
+  evidenceLowered?: boolean;
+  /**
    * Additive (plan 63 §3, phase 2) — milliseconds spent on each addressable item, keyed
    * the way the template keys its own results.
    *

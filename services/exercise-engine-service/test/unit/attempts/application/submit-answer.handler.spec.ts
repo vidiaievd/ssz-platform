@@ -1385,3 +1385,48 @@ describe('SubmitAnswerHandler — sort_into_buckets', () => {
     expect(publisher.publish.mock.calls.some(([type]) => type === 'exercise.attempt.completed')).toBe(true);
   });
 });
+
+describe('SubmitAnswerHandler — sort_into_buckets lowers its evidence (plan 66, Q2-B)', () => {
+  const completedPayload = (publisher: ReturnType<typeof makePublisher>) =>
+    publisher.publish.mock.calls.find(([type]) => type === 'exercise.attempt.completed')![1] as {
+      evidenceLowered?: boolean;
+    };
+
+  it('says nothing on an ordinary board', async () => {
+    const { publisher } = await runSb(makeSbAttempt(), RIGHT_PLACEMENTS);
+    expect(completedPayload(publisher)).not.toHaveProperty('evidenceLowered');
+  });
+
+  it('lowers it while the counter is on — read from the document, not the client', async () => {
+    const { publisher } = await runSb(
+      makeSbAttempt(),
+      RIGHT_PLACEMENTS,
+      { counterShown: false },
+      makeSbDef({ ...SB_SETTINGS, showRemaining: true }),
+    );
+    expect(completedPayload(publisher).evidenceLowered).toBe(true);
+  });
+
+  it('lowers it on a skewed board', async () => {
+    const skewed: ExerciseDefinition = {
+      ...makeSbDef(),
+      exercise: {
+        ...makeSbDef().exercise,
+        content: {
+          ...SB_CONTENT,
+          items: [...SB_CONTENT.items, { id: 'i5', text: 'mann' }, { id: 'i6', text: 'stol' }],
+        } as unknown as Record<string, unknown>,
+        expectedAnswers: {
+          items: {
+            ...SB_KEY.items,
+            i3: { ...SB_KEY.items.i3, bucketId: 'b1' },
+            i5: { bucketId: 'b1', also: [], why: '', fb: { def: 'd', ov: {} } },
+            i6: { bucketId: 'b1', also: [], why: '', fb: { def: 'd', ov: {} } },
+          },
+        } as unknown as Record<string, unknown>,
+      },
+    };
+    const { publisher } = await runSb(makeSbAttempt(), RIGHT_PLACEMENTS, {}, skewed);
+    expect(completedPayload(publisher).evidenceLowered).toBe(true);
+  });
+});

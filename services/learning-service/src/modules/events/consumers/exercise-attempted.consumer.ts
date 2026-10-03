@@ -87,6 +87,9 @@ function ratingForAttempt(
       answerForm: p.answerForm,
       templateCode: p.templateCode,
       gapPosition,
+      // The delivery handed part of the answer over (plan 66, Q2-B): one step off the
+      // success ceiling, decided by the engine from the document.
+      lowered: p.evidenceLowered,
     }),
   );
 }
@@ -124,6 +127,7 @@ function ratingForAtom(
       gapPosition,
       role,
       modality: p.modality,
+      lowered: p.evidenceLowered,
     }),
   );
 }
@@ -700,6 +704,8 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       workContext: p.workContext ?? null,
       groupId: p.groupId ?? null,
       lessonId: p.lessonId ?? null,
+      // Forwarded so analytics weighs the attempt by the rule that clamped its rating.
+      evidenceLowered: p.evidenceLowered ?? null,
       timeSpentSeconds: p.timeSpentSeconds ?? null,
       stabilityAfter,
       modality: p.modality ?? null,

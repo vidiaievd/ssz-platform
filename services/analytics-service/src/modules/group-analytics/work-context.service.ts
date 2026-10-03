@@ -76,6 +76,7 @@ export class WorkContextService {
           wordsConsumed: true,
           templateCode: true,
           gapPosition: true,
+          evidenceLowered: true,
         },
       }),
       this.prisma.attemptEvidence.count({

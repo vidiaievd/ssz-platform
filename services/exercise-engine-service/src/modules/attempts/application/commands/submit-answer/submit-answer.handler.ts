@@ -16,6 +16,8 @@ import {
   TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP,
 } from '@ssz/shared-kernel/multiple-choice-group';
 import {
+  fromPersisted as sbFromPersisted,
+  isSkewed as sbIsSkewed,
   maxChecks as sbMaxChecks,
   readContent as sbReadContent,
   TEMPLATE_CODE as SORT_INTO_BUCKETS,
@@ -341,6 +343,22 @@ function describeGapResults(
     const { gapKey, correct } = gap as { gapKey: string; correct: boolean };
     return { gapKey, correct };
   });
+}
+
+/**
+ * Whether this delivery handed part of the answer over — plan 66, decision Q2-B.
+ *
+ * Read off the server's document, never off the client: a runner claiming it hid the
+ * counter would be claiming stronger evidence for itself. Two cases, both
+ * `sort_into_buckets`, both named in the handoff: the «N igjen» counter turns the last items
+ * into arithmetic (DECISIONS §4), and a board with most items in one bucket is passed by
+ * dumping (`isSkewed`, the same rule the builder warns with). The kernel's
+ * `evidenceStrength` then drops the success ceiling one step for every consumer.
+ */
+function evidenceLowered(templateCode: string, content: unknown, expectedAnswers: unknown): boolean {
+  if (templateCode !== SORT_INTO_BUCKETS) return false;
+  if (sbReadContent(content).settings.showRemaining) return true;
+  return sbIsSkewed(sbFromPersisted(content, expectedAnswers));
 }
 
 /**
@@ -691,6 +709,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       feedback,
       answerForm,
       gapResults,
+      evidenceLowered(attempt.templateCode, def.exercise.content, def.exercise.expectedAnswers),
     );
     if (scoreResult.isFail) {
       return Result.fail(scoreResult.error as AttemptDomainError);
