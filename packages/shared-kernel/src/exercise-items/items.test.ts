@@ -26,6 +26,21 @@ const MATCH_PAIRS_CONTENT = {
 };
 
 describe('itemsOf', () => {
+  it('keys a sort item by its id and skips blank rows (plan 66)', () => {
+    const content = {
+      buckets: [{ id: 'b1', label: 'en', rule: '' }],
+      items: [
+        { id: 'i1', text: 'bil' },
+        { id: 'i2', text: '  ' },
+        { id: 'i3', text: 'gutt' },
+      ],
+    };
+    const items = itemsOf('sort_into_buckets', content, { items: { i1: { bucketId: 'b1' } } });
+    expect(items?.map((item) => item.key)).toEqual(['i1', 'i3']);
+    expect(items?.[0]).toMatchObject({ label: 'I1 — bil', matchValues: ['bil'] });
+    expect(isAddressableTemplate('sort_into_buckets')).toBe(true);
+  });
+
   it('keys a gap exactly as gapResults spells it', () => {
     // The whole point: a target keyed differently from the evidence could never be joined
     // to it. `sentenceId#tokenIndex` is not a choice made here, it is what already travels.

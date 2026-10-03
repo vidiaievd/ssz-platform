@@ -20,6 +20,7 @@ import { TextOrderValidator } from './validators/text-order.validator.js';
 import { ErrorCorrectionValidator } from './validators/error-correction.validator.js';
 import { TranslateValidator } from './validators/translate.validator.js';
 import { WritingTaskValidator } from './validators/writing-task.validator.js';
+import { SortIntoBucketsValidator } from './validators/sort-into-buckets.validator.js';
 import type { IPerTypeValidator } from './validators/per-type-validator.interface.js';
 
 /**
@@ -78,6 +79,10 @@ const OWN_SUBMISSION_SHAPE = new Set([
   // checked in `multiple-choice-group-legacy.ts`, where AJV used to check it, rather than
   // nowhere.
   'multiple_choice_group',
+  // And `sort_into_buckets` (plan 66): its key is a bucket, the buckets also accepted and
+  // the feedback per wrong bucket for each item; its submission is a list of placements.
+  // One form only, so its shape is checked in the validator and nowhere else.
+  'sort_into_buckets',
 ]);
 
 @Injectable()
@@ -101,6 +106,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     ecValidator: ErrorCorrectionValidator,
     trValidator: TranslateValidator,
     wtValidator: WritingTaskValidator,
+    sbValidator: SortIntoBucketsValidator,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     this.ajv = new (Ajv as any)({ allErrors: true, strict: false });
@@ -121,6 +127,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       ['translate_to_target', trValidator],
       ['translate_from_target', trValidator],
       ['writing_task', wtValidator],
+      ['sort_into_buckets', sbValidator],
     ]);
   }
 

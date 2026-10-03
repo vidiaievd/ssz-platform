@@ -214,6 +214,12 @@ export interface AttemptRatedPayload {
   /** The scheduled lesson the work was done in, when one was named. */
   lessonId: string | null;
   /**
+   * Forwarded from the engine (plan 66, Q2-B): the delivery handed part of the answer over,
+   * and the rating above was clamped one step lower for it. Analytics weighs the attempt by
+   * the same rule. Absent or null on every event before it — read as «not lowered».
+   */
+  evidenceLowered?: boolean | null;
+  /**
    * Which kind of card was rated — `EXERCISE`, `EXERCISE_GAP`, `VOCABULARY_WORD`, and
    * from plan 63 phase 5 `GRAMMAR_ATOM`.
    *

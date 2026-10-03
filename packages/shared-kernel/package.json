@@ -48,6 +48,10 @@
       "import": "./dist/multiple-choice-group/index.js",
       "types": "./dist/multiple-choice-group/index.d.ts"
     },
+    "./sort-into-buckets": {
+      "import": "./dist/sort-into-buckets/index.js",
+      "types": "./dist/sort-into-buckets/index.d.ts"
+    },
     "./skills": {
       "import": "./dist/skills/index.js",
       "types": "./dist/skills/index.d.ts"

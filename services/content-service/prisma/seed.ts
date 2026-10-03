@@ -1872,6 +1872,128 @@ const templates = [
     defaultCheckSettings: { allow_partial_credit: true, order_sensitive: true },
     supportedLanguages: Prisma.DbNull,
   },
+  {
+    // N items into 2-5 labelled buckets — "classify", where `match_pairs` is "find
+    // the partner" (plan 66, design handoff 01_design_handoff_sort_into_buckets).
+    // An item is written once and clicked into its bucket; that bucket is the key,
+    // so it lives in `expected_answers` and the content below carries no trace of
+    // it. The kernel module `@ssz/shared-kernel/sort-into-buckets` is the one place
+    // that splits the authored document across the two columns and joins it back.
+    code: 'sort_into_buckets',
+    name: 'Sort Into Buckets',
+    description: 'Sort items into labelled groups, with a reason for every wrong group',
+    contentSchema: {
+      type: 'object',
+      required: ['buckets', 'items'],
+      properties: {
+        audio: audioSchema,
+        title: { type: 'string', description: 'Teacher-facing name of the exercise' },
+        instruction: { type: 'string', description: 'One line in the target language' },
+        // No `minItems` and no `maxItems`, although fewer than two and more than
+        // five are both blockers: this schema is checked on every write, and a
+        // document an author is in the middle of must stay saveable — including
+        // one with a sixth bucket they are about to delete. The bounds are
+        // enforced at publication (`sort-into-buckets-preflight.ts`), where they
+        // can be reported. The same reasoning as `multiple_choice_group`'s columns.
+        buckets: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: { type: 'string', description: 'Stable; never a positional index' },
+              label: { type: 'string', description: 'What the student reads on the zone' },
+              // The principle. Its first clause is the in-task hint under
+              // `settings.hints`; the whole of it is shown with the key.
+              rule: { type: 'string' },
+            },
+          },
+        },
+        // The refusal bucket, id `none` — "none of these". It counts toward the
+        // five and replaces a separate list of distractor items (DECISIONS §3).
+        useNone: { type: 'boolean' },
+        noneLabel: { type: 'string' },
+        // Text only: which bucket each item belongs in, which others are also
+        // accepted, why, and the feedback per wrong bucket are all on the key side.
+        // No `minItems` — an unfinished list must stay saveable.
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              audio: itemAudioSchema,
+              id: { type: 'string', description: 'Stable; also the itemKey for addressing' },
+              text: { type: 'string', description: 'One word or a short phrase' },
+              // The item's own recording, under the audio layer's `source: items`
+              // (plan 56) — the same field `translate` uses.
+              mediaId: { type: 'string' },
+            },
+          },
+        },
+        settings: {
+          type: 'object',
+          properties: {
+            // Applied server-side, per attempt: an order dealt in the browser is
+            // an order the network tab already showed unshuffled.
+            shuffle: { type: 'boolean' },
+            // «N igjen». Off by default: it turns the tail into arithmetic, and
+            // while it is on the engine lowers the evidence (plan 66 Q2-B).
+            showRemaining: { type: 'boolean' },
+            hints: { type: 'boolean', description: 'First clause of each rule under its label' },
+            revealKey: { type: 'boolean', description: 'Whether the answers may be shown' },
+            // Checks of the whole board; 0 = unlimited. Enforced on the attempt,
+            // not in the runner.
+            attempts: { type: 'integer', enum: [0, 1, 2, 3] },
+            // Percent of items needed to pass, over the first check, compared
+            // with `>=`.
+            threshold: { type: 'number', minimum: 0, maximum: 100 },
+          },
+        },
+      },
+    },
+    // The author's key. Not the learner's submission schema: `sort_into_buckets`
+    // is in `OWN_SUBMISSION_SHAPE` in exercise-engine, because the key is a map of
+    // buckets and feedback per item while the submission is a list of placements.
+    answerSchema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        // Keyed by item id, so reordering or shuffling the items cannot move a
+        // bucket or an explanation onto another item.
+        items: {
+          type: 'object',
+          additionalProperties: {
+            type: 'object',
+            properties: {
+              // The primary bucket — the answer shown on reveal. Null while the
+              // author has not assigned it: a state the builder saves and
+              // publication refuses.
+              bucketId: { type: ['string', 'null'] },
+              // Buckets accepted in addition — `ei bok` and `en bok`.
+              also: { type: 'array', items: { type: 'string' } },
+              // Why the item belongs where it does; shown with the key.
+              why: { type: 'string' },
+              // Why a wrong bucket is wrong: one default (required at
+              // publication) and optional texts per wrong bucket, keyed by
+              // bucket id. Resolved on the server — the client never holds it.
+              fb: {
+                type: 'object',
+                properties: {
+                  def: { type: 'string' },
+                  ov: { type: 'object', additionalProperties: { type: 'string' } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    // Nothing template-wide: the pass mark is `settings.threshold` on the document,
+    // and partial credit is the type's only mode (SPEC_api_contract §Grading).
+    defaultCheckSettings: {},
+    supportedLanguages: Prisma.DbNull,
+  },
 ];
 
 async function main(): Promise<void> {

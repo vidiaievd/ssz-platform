@@ -46,6 +46,8 @@ export class SkillMasteryProjector {
       answerForm: p.answerForm,
       templateCode: p.templateCode,
       gapPosition: p.gapPosition,
+      // The rating was clamped by the same rule upstream (plan 66, Q2-B).
+      lowered: p.evidenceLowered,
     });
 
     const observation: MasteryObservation = {

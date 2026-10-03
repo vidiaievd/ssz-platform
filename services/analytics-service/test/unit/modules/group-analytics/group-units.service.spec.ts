@@ -134,4 +134,11 @@ describe('weighAttempt', () => {
     expect(weighAttempt({ ...base, passed: null, ratingApplied: 'AGAIN' }).succeeded).toBe(false);
     expect(weighAttempt({ ...base, passed: null, ratingApplied: 'EASY' }).succeeded).toBe(true);
   });
+
+  it('weighs a lowered delivery less on success, the same on failure (plan 66, Q2-B)', () => {
+    const sort = { ...base, templateCode: 'sort_into_buckets', passed: true, ratingApplied: 'GOOD' };
+    expect(weighAttempt({ ...sort, evidenceLowered: true }).weight).toBeLessThan(weighAttempt(sort).weight);
+    const failed = { ...sort, passed: false, ratingApplied: 'AGAIN' };
+    expect(weighAttempt({ ...failed, evidenceLowered: true }).weight).toBe(weighAttempt(failed).weight);
+  });
 });

@@ -995,3 +995,89 @@ describe('the audio block', () => {
     expect((safe['audio'] as Record<string, unknown>)['assetId']).toBe('asset-1');
   });
 });
+
+describe('sort_into_buckets', () => {
+  // Plan 66, AC-S11: the student payload carries items and buckets only — no bucket per
+  // item, no `also`, no `why`, no feedback. Asserted structurally: the answer to «where
+  // does `bil` go» is the string `en`, which is also a bucket label the student is meant
+  // to see, so a search for the answer text could not tell a leak from the board.
+  const content = {
+    title: 'Kjønn',
+    instruction: 'Sorter substantivene.',
+    buckets: [
+      { id: 'b1', label: 'en', rule: 'Hankjønn. Bestemt form -en.' },
+      { id: 'b2', label: 'et', rule: 'Intetkjønn. Bestemt form -et.' },
+    ],
+    useNone: true,
+    noneLabel: 'Ingen av delene',
+    items: [
+      { id: 'i1', text: 'bil' },
+      { id: 'i2', text: 'hus' },
+      // Written but never assigned — dropped.
+      { id: 'i3', text: 'stol' },
+    ],
+    settings: {
+      shuffle: false,
+      showRemaining: false,
+      hints: true,
+      revealKey: true,
+      attempts: 2,
+      threshold: 70,
+    },
+  };
+  const key = {
+    items: {
+      i1: {
+        bucketId: 'b1',
+        also: [],
+        why: 'En bil.',
+        fb: { def: 'Bil er hankjønn.', ov: { b2: 'Ikke et.' } },
+      },
+      i2: {
+        bucketId: 'b2',
+        also: ['b1'],
+        why: 'Et hus.',
+        fb: { def: 'Hus er intetkjønn.', ov: {} },
+      },
+      i3: { bucketId: null, also: [], why: '', fb: { def: '', ov: {} } },
+    },
+  };
+
+  type Projection = {
+    buckets: Array<Record<string, unknown>>;
+    items: Array<Record<string, unknown>>;
+    settings: Record<string, unknown>;
+  };
+  const project = (k: Record<string, unknown> = key) =>
+    studentSafeContent('sort_into_buckets', content, k) as unknown as Projection;
+
+  it('ships ready items as id and text, and buckets with a hint, nothing more', () => {
+    const p = project();
+    expect(p.items).toEqual([
+      { id: 'i1', text: 'bil' },
+      { id: 'i2', text: 'hus' },
+    ]);
+    expect(p.buckets).toEqual([
+      { id: 'b1', label: 'en', hint: 'Hankjønn' },
+      { id: 'b2', label: 'et', hint: 'Intetkjønn' },
+      { id: 'none', label: 'Ingen av delene' },
+    ]);
+    expect(Object.keys(p.settings).sort()).toEqual([
+      'attempts',
+      'revealKey',
+      'showRemaining',
+      'threshold',
+    ]);
+  });
+
+  it('carries none of the key fields anywhere in the payload', () => {
+    const json = JSON.stringify(project());
+    for (const field of ['bucketId', 'also', 'why', 'fb', 'def', 'ov', 'rule']) {
+      expect(json).not.toContain(`"${field}"`);
+    }
+  });
+
+  it('shows nothing without the key column, rather than guessing', () => {
+    expect(project({}).items).toEqual([]);
+  });
+});

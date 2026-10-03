@@ -258,6 +258,12 @@ model AttemptEvidence {
   // reached recognition. Null for everything published before the axis existed.
   modality String? @map("modality")
 
+  // The delivery handed part of the answer over, so a success proves one step less (plan
+  // 66, Q2-B) — today a `sort_into_buckets` board with its counter on or skewed. Weighed by
+  // the same kernel rule that clamped the rating. Null for every row before it: «not said»,
+  // read as «not lowered».
+  evidenceLowered Boolean? @map("evidence_lowered")
+
   @@index([templateCode, answerMode, occurredAt])
   @@index([userId, occurredAt])
   @@index([groupId, workContext, occurredAt])

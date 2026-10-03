@@ -20,6 +20,7 @@ const ITEM_KEY: Record<string, string> = {
   match_pairs: 'pairs',
   short_answer: 'questions',
   sentence_schema: 'rows',
+  sort_into_buckets: 'items',
   translate_to_target: 'items',
   translate_from_target: 'items',
 };
@@ -27,7 +28,7 @@ const ITEM_KEY: Record<string, string> = {
 /**
  * Where a template keeps a clip **of its own** on each item — plan 56 phase 6.
  *
- * Only `translate` has one, and it predates this layer: plan 42 gave every sentence its
+ * `translate` has one, and it predates this layer: plan 42 gave every sentence its
  * own recording because the sentences come from different sources, which is a shape one
  * clip with timecodes cannot express. Phase 6 does not delete it and does not set a
  * second control beside it — it becomes the fourth `AudioSource` (`items`), so the
@@ -39,6 +40,9 @@ const ITEM_KEY: Record<string, string> = {
 const ITEM_CLIP_KEY: Record<string, string> = {
   translate_to_target: 'mediaId',
   translate_from_target: 'mediaId',
+  // A tile is read aloud: the item's recording, beside the slice of the exercise clip it may
+  // carry instead (plan 66 §5, deviation 7).
+  sort_into_buckets: 'mediaId',
 };
 
 export interface IdentifiedItem {

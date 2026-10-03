@@ -158,6 +158,7 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
           groupId: p.groupId ?? null,
           containerId: p.containerId ?? null,
           lessonId: p.lessonId ?? null,
+          evidenceLowered: p.evidenceLowered ?? null,
           occurredAt: new Date(occurredAt),
           modality: p.modality ?? null,
         },

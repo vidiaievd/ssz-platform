@@ -55,6 +55,12 @@ export interface AttemptScoredPayload {
    * exercise: the id names a row that is meant to be gone tomorrow.
    */
   ephemeral: boolean;
+  /**
+   * The delivery handed part of the answer over (plan 66, Q2-B) — today a
+   * `sort_into_buckets` board with its counter on or most items in one bucket. Read off the
+   * document by the engine. Absent everywhere else, which consumers read as «not lowered».
+   */
+  evidenceLowered?: boolean;
 }
 
 export class AttemptScoredEvent implements IDomainEvent {

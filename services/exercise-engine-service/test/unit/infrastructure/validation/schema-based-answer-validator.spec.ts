@@ -12,6 +12,7 @@ import { TextOrderValidator } from '../../../../src/infrastructure/validation/va
 import { WordBankFillValidator } from '../../../../src/infrastructure/validation/validators/word-bank-fill.validator.js';
 import { WordBankGapFillValidator } from '../../../../src/infrastructure/validation/validators/word-bank-gap-fill.validator.js';
 import { SentenceSchemaValidator } from '../../../../src/infrastructure/validation/validators/sentence-schema.validator.js';
+import { SortIntoBucketsValidator } from '../../../../src/infrastructure/validation/validators/sort-into-buckets.validator.js';
 import { ValidationError } from '../../../../src/shared/application/ports/answer-validator.port.js';
 import { Result } from '../../../../src/shared/kernel/result.js';
 
@@ -37,6 +38,7 @@ const makeValidator = () =>
     new ErrorCorrectionValidator(),
     new TranslateValidator(),
     new WritingTaskValidator(),
+    new SortIntoBucketsValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {
@@ -299,6 +301,38 @@ describe('SchemaBasedAnswerValidator', () => {
       });
       expect(result.isOk).toBe(true);
       expect(result.value.score).toBe(100);
+    });
+
+    it('delegates sort_into_buckets to its own validator, past AJV, never to a teacher (AC-X2)', async () => {
+      const validator = makeValidator();
+      expect(validator.supports('sort_into_buckets')).toBe(true);
+      const result = await validator.validate({
+        templateCode: 'sort_into_buckets',
+        // The key's schema, which a list of placements could never satisfy — proof that
+        // AJV is not run over the submission.
+        answerSchema: { type: 'object', required: ['items'] },
+        content: {
+          buckets: [
+            { id: 'b1', label: 'en', rule: '' },
+            { id: 'b2', label: 'et', rule: '' },
+          ],
+          items: [
+            { id: 'i1', text: 'bil' },
+            { id: 'i2', text: 'hus' },
+          ],
+        },
+        expectedAnswers: {
+          items: {
+            i1: { bucketId: 'b1', also: [], why: '', fb: { def: 'Hankjønn.', ov: {} } },
+            i2: { bucketId: 'b2', also: [], why: '', fb: { def: 'Intetkjønn.', ov: {} } },
+          },
+        },
+        submittedAnswer: { placements: [{ itemId: 'i1', bucketId: 'b1' }] },
+        checkSettings: {},
+        targetLanguage: 'nb',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value).toMatchObject({ score: 50, requiresReview: false, correct: false });
     });
   });
 });

@@ -552,6 +552,8 @@ export class Attempt extends AggregateRoot {
     answerForm?: AnswerForm,
     /** Verdict per gap, in gap order; omitted by templates not graded gap by gap. */
     gapResults?: Array<{ gapKey: string; correct: boolean }>,
+    /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
+    evidenceLowered?: boolean,
   ): Result<void, InvalidScoreError | InvalidAttemptTransitionError> {
     if (this._status !== 'SUBMITTED') {
       return Result.fail(
@@ -600,6 +602,7 @@ export class Attempt extends AggregateRoot {
           // Each verdict carries the addresses of the gap it reports, so that a consumer
           // never has to join a key back to an address the author may have moved since.
           ...(gapResults === undefined ? {} : { gapResults: this.addressed(gapResults) }),
+          ...(evidenceLowered === true ? { evidenceLowered: true } : {}),
           ...(this.wholeExerciseTargets().length === 0
             ? {}
             : { targets: this.wholeExerciseTargets() }),

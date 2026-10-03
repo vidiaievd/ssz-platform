@@ -45,7 +45,8 @@ export interface TemplateProfile {
 }
 
 /**
- * All thirteen template codes of the catalogue, including the two officially retired.
+ * All template codes of the catalogue — the thirteen of audit 34, including the two officially
+ * retired, and the new types since (plan 66 onwards).
  *
  * `fill_in_blank` and `word_bank_fill` are absorbed by `word_bank_gap_fill` (plan 35) but
  * carry ~135 exercises between them, and the general authoring form still opens them.
@@ -183,6 +184,25 @@ export const BY_TEMPLATE: Readonly<Record<string, TemplateProfile>> = {
     focus: ['grammar'],
     form: 'bank',
     modality: 'recall',
+  },
+
+  // Items placed into labelled buckets (plan 66). The tiles have to be read and understood
+  // to be placed — `en`, `ei` or `et` is decided by knowing the word — so the input is
+  // `text`; nothing is written, so the output is `none`. Every answer is on screen as a
+  // labelled zone and the learner picks one: `recognition`, however much rule-applying goes
+  // into the pick. The handoff calls this `retrieval: recombine`; that axis became
+  // `modality` in plan 64 (decision G), and recombining given pieces is still choosing
+  // among them — contrast `sentence_schema`, where the order has to come from memory.
+  // No focus hint (rule 2): gender and verb class are grammar, formal against informal is
+  // pragmatics, a meaning field is vocabulary, and only the author knows which was built.
+  // Plan 66 Q1-A keeps it that way — the subject comes from the atoms the items address,
+  // or from the author's override, not from a field in the document.
+  sort_into_buckets: {
+    input: 'text',
+    output: 'none',
+    focus: [],
+    form: 'bank',
+    modality: 'recognition',
   },
 };
 

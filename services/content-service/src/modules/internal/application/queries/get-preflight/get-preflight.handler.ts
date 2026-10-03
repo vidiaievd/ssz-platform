@@ -14,6 +14,7 @@ import { TEMPLATE_CODE as SHORT_ANSWER_TEMPLATE } from '@ssz/shared-kernel/short
 import { TEMPLATE_CODE as SENTENCE_SCHEMA_TEMPLATE } from '@ssz/shared-kernel/sentence-schema';
 import { TEMPLATE_CODE as MULTIPLE_CHOICE_TEMPLATE } from '@ssz/shared-kernel/multiple-choice';
 import { TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP_TEMPLATE } from '@ssz/shared-kernel/multiple-choice-group';
+import { TEMPLATE_CODE as SORT_INTO_BUCKETS_TEMPLATE } from '@ssz/shared-kernel/sort-into-buckets';
 import { gapFillViolations } from './gap-fill-preflight.js';
 import { matchPairsViolations } from './match-pairs-preflight.js';
 import { writingTaskViolations } from './writing-task-preflight.js';
@@ -21,6 +22,7 @@ import { shortAnswerViolations } from './short-answer-preflight.js';
 import { sentenceSchemaViolations } from './sentence-schema-preflight.js';
 import { multipleChoiceViolations } from './multiple-choice-preflight.js';
 import { multipleChoiceGroupViolations } from './multiple-choice-group-preflight.js';
+import { sortIntoBucketsViolations } from './sort-into-buckets-preflight.js';
 import { audioViolations } from './audio-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
@@ -519,6 +521,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
                 SENTENCE_SCHEMA_TEMPLATE,
                 MULTIPLE_CHOICE_TEMPLATE,
                 MULTIPLE_CHOICE_GROUP_TEMPLATE,
+                SORT_INTO_BUCKETS_TEMPLATE,
               ],
             },
           },
@@ -600,6 +603,9 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
  * a row is decided by the key column that the projection is otherwise withholding. The
  * table publishes clean and shows fewer statements than the author wrote, or none at all.
  * Its rules skip documents of the old form for the same reason as `multiple_choice`'s.
+ *
+ * `sort_into_buckets` (plan 66) fails the same way: an item with no bucket is dropped by
+ * the projection, not marked wrong. It has one form only, so nothing is skipped.
  */
 function violationsFor(
   templateCode: string,
@@ -613,6 +619,7 @@ function violationsFor(
   if (templateCode === MULTIPLE_CHOICE_GROUP_TEMPLATE) {
     return multipleChoiceGroupViolations(document);
   }
+  if (templateCode === SORT_INTO_BUCKETS_TEMPLATE) return sortIntoBucketsViolations(document);
   return gapFillViolations(document);
 }
 

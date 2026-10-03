@@ -72,6 +72,14 @@ describe('atomEvidenceStrength', () => {
   });
 });
 
+describe('a lowered delivery reaches the atom (plan 66, Q2-B)', () => {
+  it('caps a focus atom one step lower', () => {
+    expect(
+      atomEvidenceStrength({ role: 'focus', templateCode: 'sort_into_buckets', lowered: true }),
+    ).toEqual({ successCap: 'HARD', failureFloor: 'AGAIN' });
+  });
+});
+
 describe('strongerClaim', () => {
   it('prefers the item that examined the atom over the one that merely needed it', () => {
     const focus: Claim = { role: 'focus', rating: 'EASY' };

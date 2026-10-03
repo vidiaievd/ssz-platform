@@ -92,6 +92,7 @@ describe('evidenceStrength', () => {
       ['multiple_choice_group', 'GOOD', 'AGAIN'],
       ['word_bank_fill', 'GOOD', 'AGAIN'],
       ['sentence_schema', 'GOOD', 'AGAIN'],
+      ['sort_into_buckets', 'GOOD', 'AGAIN'],
       ['match_pairs', 'HARD', 'AGAIN'],
       ['text_order', 'HARD', 'AGAIN'],
     ])('rates %s up to %s and down to %s', (templateCode, successCap, failureFloor) => {
@@ -112,6 +113,29 @@ describe('evidenceStrength', () => {
           evidenceStrength({ templateCode: code }).failureFloor === 'AGAIN',
       );
       expect(unclamped).toEqual([]);
+    });
+  });
+
+  describe('a lowered delivery (plan 66, Q2-B)', () => {
+    it('drops the ceiling of sort_into_buckets one step and leaves the floor', () => {
+      expect(evidenceStrength({ templateCode: 'sort_into_buckets', lowered: true }))
+        .toEqual({ successCap: 'HARD', failureFloor: 'AGAIN' });
+    });
+
+    it('never drops a ceiling below HARD', () => {
+      expect(evidenceStrength({ templateCode: 'match_pairs', lowered: true }).successCap).toBe('HARD');
+    });
+
+    it('lowers a strong form too, and keeps its floor', () => {
+      expect(evidenceStrength({ templateCode: 'short_answer', lowered: true }))
+        .toEqual({ successCap: 'GOOD', failureFloor: 'HARD' });
+    });
+
+    it('changes nothing when absent or false — every older event', () => {
+      for (const lowered of [undefined, null, false]) {
+        expect(evidenceStrength({ templateCode: 'sort_into_buckets', lowered }))
+          .toEqual({ successCap: 'GOOD', failureFloor: 'AGAIN' });
+      }
     });
   });
 

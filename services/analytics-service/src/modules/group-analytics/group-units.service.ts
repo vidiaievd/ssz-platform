@@ -262,6 +262,7 @@ export class GroupUnitsService {
         wordsConsumed: true,
         templateCode: true,
         gapPosition: true,
+        evidenceLowered: true,
       },
     });
 
@@ -353,6 +354,8 @@ export interface WeighableAttempt {
   wordsConsumed: boolean | null;
   templateCode: string | null;
   gapPosition: number | null;
+  /** Plan 66, Q2-B. Optional so a row read by an older select still weighs as before. */
+  evidenceLowered?: boolean | null;
 }
 
 /**
@@ -377,6 +380,7 @@ export function weighAttempt(row: WeighableAttempt): { succeeded: boolean; weigh
           },
     templateCode: row.templateCode,
     gapPosition: row.gapPosition,
+    lowered: row.evidenceLowered,
   });
   return { succeeded, weight };
 }

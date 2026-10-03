@@ -228,6 +228,18 @@ describe('SkillMasteryProjector', () => {
     });
   });
 
+  describe('a delivery that gave part of the answer away (plan 66, Q2-B)', () => {
+    it('weighs a lowered success less than an ordinary one', async () => {
+      const sort = { templateCode: 'sort_into_buckets', answerForm: null };
+      const ordinary = fakePrisma();
+      await projectorOver(ordinary).apply(attempt(sort), AT);
+      const lowered = fakePrisma();
+      await projectorOver(lowered).apply(attempt({ ...sort, evidenceLowered: true }), AT);
+
+      expect(lowered.rows[0]?.weightedSample).toBeLessThan(ordinary.rows[0]!.weightedSample);
+    });
+  });
+
   describe('which cells an attempt lands in', () => {
     it('counts one attempt in full in every cell it is evidence for', async () => {
       const prisma = fakePrisma();

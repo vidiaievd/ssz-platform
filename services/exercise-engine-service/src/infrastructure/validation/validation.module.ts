@@ -3,6 +3,7 @@ import { ANSWER_VALIDATOR } from '../../shared/application/ports/answer-validato
 import { SchemaBasedAnswerValidator } from './schema-based-answer-validator.js';
 import { MultipleChoiceValidator } from './validators/multiple-choice.validator.js';
 import { MultipleChoiceGroupValidator } from './validators/multiple-choice-group.validator.js';
+import { SortIntoBucketsValidator } from './validators/sort-into-buckets.validator.js';
 import { FillInBlankValidator } from './validators/fill-in-blank.validator.js';
 import { MatchPairsValidator } from './validators/match-pairs.validator.js';
 import { ShortAnswerValidator } from './validators/short-answer.validator.js';
@@ -19,6 +20,7 @@ import { WritingTaskValidator } from './validators/writing-task.validator.js';
   providers: [
     MultipleChoiceValidator,
     MultipleChoiceGroupValidator,
+    SortIntoBucketsValidator,
     FillInBlankValidator,
     MatchPairsValidator,
     ShortAnswerValidator,
