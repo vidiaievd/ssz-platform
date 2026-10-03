@@ -366,6 +366,21 @@ describe('audioIssues', () => {
       expect(hasItemClips('translate_to_target')).toBe(true);
       expect(hasItemClips('multiple_choice')).toBe(false);
     });
+
+    it('finds the tiles of a sorting task, with their recording and their timecode', () => {
+      // plan 66 phase 7: `sort_into_buckets` keeps `items`, and a tile's recording is `mediaId`.
+      const items = itemsOf('sort_into_buckets', {
+        items: [
+          { id: 't1', text: 'bil', mediaId: 'media-3' },
+          { id: 't2', text: 'bok', audio: { start: 1, end: 2 } },
+        ],
+      });
+
+      expect(items.map((item) => item.id)).toEqual(['t1', 't2']);
+      expect(items.map((item) => item.clip)).toEqual(['media-3', undefined]);
+      expect(items[1]?.audio).toEqual({ start: 1, end: 2 });
+      expect(hasItemClips('sort_into_buckets')).toBe(true);
+    });
   });
 
   it('clears the blocker for each of the three sources', () => {
