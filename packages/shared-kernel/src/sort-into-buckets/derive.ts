@@ -123,6 +123,28 @@ export function isSkewed(ex: SortIntoBucketsContent): boolean {
   return balance(ex).some((b) => b.share > SB_SKEW_SHARE);
 }
 
+/** What lowers the evidence ceiling of an exercise (plan 66 Q2-B). */
+export type CeilingCause = 'counter' | 'skew' | 'both';
+
+/**
+ * Whether a right answer on this exercise proves less than usual, and why — `null` when it
+ * does not.
+ *
+ * The one rule both sides read: the engine flags the score event with it, and the builder
+ * warns with it, so an author is never told «nothing stands in the way» about an exercise
+ * whose evidence the engine then lowers. Two causes, both from the handoff: the «N left»
+ * counter turns the last tiles into arithmetic — with or without a refusal bucket, which
+ * only blunts the arithmetic — and a skewed board is passed by dumping.
+ */
+export function ceilingCause(ex: SortIntoBucketsContent): CeilingCause | null {
+  const counter = ex.settings.showRemaining;
+  const skew = isSkewed(ex);
+  if (counter && skew) return 'both';
+  if (counter) return 'counter';
+  if (skew) return 'skew';
+  return null;
+}
+
 /**
  * The first clause of a rule — what the student sees under a bucket's label as a hint.
  *

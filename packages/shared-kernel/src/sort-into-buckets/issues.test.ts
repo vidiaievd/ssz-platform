@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { ceilingCause } from './derive.js';
 import { setUseNone, toggleAlso, updateBucket } from './edits.js';
 import { blockers, isReady, issues, stepState, warnings } from './issues.js';
 import { emptyContent, SB_NONE } from './model.js';
@@ -190,6 +191,38 @@ describe('step 4 — difficulty', () => {
     const ex = exercise({ settings: settings({ showRemaining: true }) });
     expect(codes(warnings(ex))).toContain('SB_COUNTER_ARITHMETIC');
     expect(codes(issues(setUseNone(ex, true)))).not.toContain('SB_COUNTER_ARITHMETIC');
+  });
+
+  it('the counter lowers the evidence ceiling with or without a refusal bucket (phase 9)', () => {
+    const ex = exercise({ settings: settings({ showRemaining: true }) });
+    expect(warnings(ex)).toContainEqual({
+      code: 'SB_CEILING_LOWERED',
+      level: 'warning',
+      step: 4,
+      cause: 'counter',
+    });
+    // The refusal bucket silences the arithmetic, not the ceiling — the engine lowers both.
+    const withNone = setUseNone(ex, true);
+    expect(codes(warnings(withNone))).not.toContain('SB_COUNTER_ARITHMETIC');
+    expect(codes(warnings(withNone))).toContain('SB_CEILING_LOWERED');
+    expect(codes(blockers(withNone))).not.toContain('SB_CEILING_LOWERED');
+  });
+
+  it('a skewed board lowers the ceiling too, and both causes are named together', () => {
+    const items = [
+      item('i1', 'bil', EN.id),
+      item('i2', 'gutt', EN.id),
+      item('i3', 'mann', EN.id),
+      item('i4', 'stol', EN.id),
+      item('i5', 'jente', EI.id),
+      item('i6', 'hus', ET.id),
+    ];
+    const fb = Object.fromEntries(items.map((i) => [i.id, { def: 'd', ov: {} }]));
+    const skewed = exercise({ items, fb });
+    expect(ceilingCause(skewed)).toBe('skew');
+    expect(ceilingCause({ ...skewed, settings: settings({ showRemaining: true }) })).toBe('both');
+    expect(ceilingCause(exercise())).toBeNull();
+    expect(codes(issues(exercise()))).not.toContain('SB_CEILING_LOWERED');
   });
 
   it('one attempt with the key on is a warning', () => {

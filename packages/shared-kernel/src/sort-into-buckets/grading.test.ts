@@ -139,6 +139,21 @@ describe('what a check tells the student', () => {
     expect(r.rules.map((x) => x.bucketId)).toEqual([EN.id, EI.id, ET.id]);
   });
 
+  it('a reveal is not a check: it reports the check it closes and spends nothing (phase 9)', () => {
+    const ex = exercise({ settings: settings({ attempts: 2 }) });
+    const first = check({ ex, placements: withWrong('i1', EI.id), attempt: 1 });
+    expect(first.checksLeft).toBe(1);
+    // The engine numbers the reveal as the second submit.
+    const revealed = check({ ex, placements: withWrong('i1', EI.id), attempt: 2, reveal: true });
+    expect(revealed.attempt).toBe(1);
+    expect(revealed.checksLeft).toBe(1);
+    expect(revealed.closed).toBe(true);
+    // A second real check still spends the budget.
+    const second = check({ ex, placements: withWrong('i1', EI.id), attempt: 2 });
+    expect(second.attempt).toBe(2);
+    expect(second.checksLeft).toBe(0);
+  });
+
   it('a closed board under revealKey:false shows no key', () => {
     const ex = exercise({ settings: settings({ revealKey: false }) });
     const r = check({ ex, placements: RIGHT, attempt: 1 });

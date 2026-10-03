@@ -91,6 +91,22 @@ describe('sortIntoBucketsViolations', () => {
     ]);
   });
 
+  it('warns that the counter lowers the evidence, even beside a refusal bucket', () => {
+    const exercise = ready();
+    exercise.content.settings = { ...exercise.content.settings, showRemaining: true };
+    exercise.content.useNone = true;
+    exercise.content.noneLabel = 'Ingen av delene';
+    const found = sortIntoBucketsViolations(exercise);
+    expect(found).toContainEqual(
+      expect.objectContaining({
+        ruleCode: 'SORTINTOBUCKETS_SB_CEILING_LOWERED',
+        severity: 'warning',
+        detail: expect.stringContaining('weaker evidence'),
+      }),
+    );
+    expect(found.map((v) => v.ruleCode)).not.toContain('SORTINTOBUCKETS_SB_COUNTER_ARITHMETIC');
+  });
+
   it('refuses an empty document rather than publishing an empty board', () => {
     const codes = sortIntoBucketsViolations({ id: 'x', content: {}, expectedAnswers: {} }).map(
       (v) => v.ruleCode,

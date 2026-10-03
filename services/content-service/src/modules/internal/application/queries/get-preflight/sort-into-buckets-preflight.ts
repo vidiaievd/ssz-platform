@@ -91,5 +91,11 @@ export function describeSortIntoBucketsIssue(issue: Issue, count: number): strin
       return 'The «items left» counter is on without a refusal bucket, which turns the last items into arithmetic';
     case 'SB_ONE_SHOT_KEY':
       return 'One check with the key shown means most students will read the key instead of thinking';
+    case 'SB_CEILING_LOWERED':
+      return issue.cause === 'skew'
+        ? "Most items are in one bucket, so a right answer counts as weaker evidence in the student's progress"
+        : issue.cause === 'counter'
+          ? "The «items left» counter is on, so a right answer counts as weaker evidence in the student's progress"
+          : "The «items left» counter is on and most items are in one bucket, so a right answer counts as weaker evidence in the student's progress";
   }
 }

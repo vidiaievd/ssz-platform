@@ -19,13 +19,14 @@ export {
   SB_SKEW_SHARE,
 } from './model.js';
 
-export type { BucketBalance, Cell, Coverage, ShownBucket } from './derive.js';
+export type { BucketBalance, CeilingCause, Cell, Coverage, ShownBucket } from './derive.js';
 export {
   accepted,
   accepts,
   balance,
   bucket,
   buckets,
+  ceilingCause,
   cells,
   coverage,
   feedbackFor,

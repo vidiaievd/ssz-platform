@@ -16,8 +16,8 @@ import {
   TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP,
 } from '@ssz/shared-kernel/multiple-choice-group';
 import {
+  ceilingCause as sbCeilingCause,
   fromPersisted as sbFromPersisted,
-  isSkewed as sbIsSkewed,
   maxChecks as sbMaxChecks,
   readContent as sbReadContent,
   TEMPLATE_CODE as SORT_INTO_BUCKETS,
@@ -352,13 +352,14 @@ function describeGapResults(
  * counter would be claiming stronger evidence for itself. Two cases, both
  * `sort_into_buckets`, both named in the handoff: the «N igjen» counter turns the last items
  * into arithmetic (DECISIONS §4), and a board with most items in one bucket is passed by
- * dumping (`isSkewed`, the same rule the builder warns with). The kernel's
+ * dumping. Both are the kernel's `ceilingCause` — the very rule the builder warns with
+ * (`SB_CEILING_LOWERED`), so an author is never told nothing stands in the way of an
+ * exercise whose evidence is lowered here. The kernel's
  * `evidenceStrength` then drops the success ceiling one step for every consumer.
  */
 function evidenceLowered(templateCode: string, content: unknown, expectedAnswers: unknown): boolean {
   if (templateCode !== SORT_INTO_BUCKETS) return false;
-  if (sbReadContent(content).settings.showRemaining) return true;
-  return sbIsSkewed(sbFromPersisted(content, expectedAnswers));
+  return sbCeilingCause(sbFromPersisted(content, expectedAnswers)) !== null;
 }
 
 /**

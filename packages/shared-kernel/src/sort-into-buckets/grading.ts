@@ -137,9 +137,13 @@ export function check(input: CheckInput): CheckResult {
   const correctNow = graded.filter((g) => g.ok).length;
   const pct = total === 0 ? 0 : Math.round((correct / total) * 100);
 
-  const max = maxChecks(s);
-  const checksLeft = max === null ? null : Math.max(0, max - attempt);
   const revealed = input.reveal === true;
+  // A reveal is not a check: it closes the board on the check already made. The engine
+  // numbers every submit, so a reveal arriving as submit N reports check N − 1 and spends
+  // nothing of the budget (plan 66 §5, deviation 8; phase 9, finding 2).
+  const checkNo = revealed && attempt > 1 ? attempt - 1 : attempt;
+  const max = maxChecks(s);
+  const checksLeft = max === null ? null : Math.max(0, max - checkNo);
   const closed = (total > 0 && correctNow === total) || revealed || checksLeft === 0;
   const showKey = closed && s.revealKey;
 
@@ -172,7 +176,7 @@ export function check(input: CheckInput): CheckResult {
     total,
     pct,
     passed: !revealed && pct >= s.threshold,
-    attempt,
+    attempt: checkNo,
     checksLeft,
     closed,
     revealed,

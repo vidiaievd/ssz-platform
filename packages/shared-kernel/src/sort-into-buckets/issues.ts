@@ -16,12 +16,14 @@
 
 import {
   buckets,
+  ceilingCause,
   isSkewed,
   itemsIn,
   normalize,
   readyItems,
   writtenItems,
 } from './derive.js';
+import type { CeilingCause } from './derive.js';
 import type { SortIntoBucketsContent } from './model.js';
 import {
   SB_LONG_ITEM_WORDS,
@@ -59,7 +61,8 @@ export type Issue =
   | { code: 'SB_BUCKET_NO_RULE'; level: 'warning'; step: 3; bucketId: string }
   // ── Step 4 — difficulty ──
   | { code: 'SB_COUNTER_ARITHMETIC'; level: 'warning'; step: 4 }
-  | { code: 'SB_ONE_SHOT_KEY'; level: 'warning'; step: 4 };
+  | { code: 'SB_ONE_SHOT_KEY'; level: 'warning'; step: 4 }
+  | { code: 'SB_CEILING_LOWERED'; level: 'warning'; step: 4; cause: CeilingCause };
 
 export type IssueCode = Issue['code'];
 
@@ -177,6 +180,12 @@ export function issues(ex: SortIntoBucketsContent): Issue[] {
   // ── Step 4 ────────────────────────────────────────────────────────────────
   if (ex.settings.showRemaining && !ex.useNone) {
     out.push({ code: 'SB_COUNTER_ARITHMETIC', level: 'warning', step: 4 });
+  }
+  // The evidence ceiling is said apart from the arithmetic above: a refusal bucket silences
+  // that one, but the engine lowers the ceiling all the same (plan 66 phase 9, finding 1).
+  const cause = ceilingCause(ex);
+  if (cause !== null) {
+    out.push({ code: 'SB_CEILING_LOWERED', level: 'warning', step: 4, cause });
   }
   if (ex.settings.attempts === 1 && ex.settings.revealKey) {
     out.push({ code: 'SB_ONE_SHOT_KEY', level: 'warning', step: 4 });
