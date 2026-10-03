@@ -27,6 +27,9 @@ import type { WorkspaceRecipeResult } from '../../application/queries/get-worksp
 import { SetWorkspaceRecipeCommand } from '../../application/commands/set-workspace-recipe/set-workspace-recipe.command.js';
 import { SetWorkspaceRecipeRequestDto } from '../dto/requests/set-workspace-recipe.request.dto.js';
 import { WorkspaceRecipeResponseDto } from '../dto/responses/workspace-recipe.response.dto.js';
+import { WorkspaceRecipeCoursesResponseDto } from '../dto/responses/workspace-recipe-courses.response.dto.js';
+import { GetWorkspaceRecipeCoursesQuery } from '../../application/queries/get-workspace-recipe-courses/get-workspace-recipe-courses.query.js';
+import type { WorkspaceRecipeCoursesResult } from '../../application/queries/get-workspace-recipe-courses/get-workspace-recipe-courses.handler.js';
 import { RequireWorkspaceAccess, WorkspaceRoleGuard } from '../guards/workspace-role.guard.js';
 
 /**
@@ -55,6 +58,21 @@ export class WorkspaceCoverageRecipeController {
       new GetWorkspaceRecipeQuery(schoolId),
     );
     return WorkspaceRecipeResponseDto.from(result);
+  }
+
+  @Get(':schoolId/courses')
+  @RequireWorkspaceAccess('view')
+  @ApiOperation({ summary: 'How the workspace’s courses use its recipe' })
+  @ApiOkResponse({ type: WorkspaceRecipeCoursesResponseDto })
+  @ApiForbiddenResponse({ description: 'Not a teacher or editor of this workspace' })
+  async courses(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+  ): Promise<WorkspaceRecipeCoursesResponseDto> {
+    const result = await this.queryBus.execute<
+      GetWorkspaceRecipeCoursesQuery,
+      WorkspaceRecipeCoursesResult
+    >(new GetWorkspaceRecipeCoursesQuery(schoolId));
+    return WorkspaceRecipeCoursesResponseDto.from(result);
   }
 
   @Put(':schoolId')
