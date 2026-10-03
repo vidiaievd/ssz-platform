@@ -34,6 +34,10 @@ import {
   TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP,
   toStudentProjection as multipleChoiceGroupProjection,
 } from '@ssz/shared-kernel/multiple-choice-group';
+import {
+  TEMPLATE_CODE as SORT_INTO_BUCKETS,
+  toStudentProjection as sortIntoBucketsProjection,
+} from '@ssz/shared-kernel/sort-into-buckets';
 import { withStudentAudio } from '@ssz/shared-kernel/audio';
 
 /**
@@ -218,6 +222,19 @@ function projectByTemplate(
     // network tab had already shown unshuffled. Columns are never shuffled — that
     // would break the table header and the muscle memory of a Riktig/Galt grid.
     const projection = multipleChoiceGroupProjection(content, expectedAnswers, shuffled);
+    return projection as unknown as Record<string, unknown>;
+  }
+
+  if (templateCode === SORT_INTO_BUCKETS) {
+    // Both columns, for the reason `multiple_choice_group` needs them: an item is ready
+    // only if its bucket is live, and the bucket is the key, in `expected_answers`. The
+    // projection asks that column one question per item — «is there a live bucket?» —
+    // and carries no bucket, no `also`, no `why` and no feedback (AC-S11). The hint
+    // under a bucket is the first clause of its rule, resolved here under
+    // `settings.hints`; the rule itself waits for the key.
+    //
+    // The items are shuffled here when the author asked for it; the buckets never are.
+    const projection = sortIntoBucketsProjection(content, expectedAnswers, shuffled);
     return projection as unknown as Record<string, unknown>;
   }
 
