@@ -93,6 +93,7 @@ describe('evidenceStrength', () => {
       ['word_bank_fill', 'GOOD', 'AGAIN'],
       ['sentence_schema', 'GOOD', 'AGAIN'],
       ['sort_into_buckets', 'GOOD', 'AGAIN'],
+      ['highlight_in_text', 'GOOD', 'AGAIN'],
       ['match_pairs', 'HARD', 'AGAIN'],
       ['text_order', 'HARD', 'AGAIN'],
     ])('rates %s up to %s and down to %s', (templateCode, successCap, failureFloor) => {
@@ -119,6 +120,11 @@ describe('evidenceStrength', () => {
   describe('a lowered delivery (plan 66, Q2-B)', () => {
     it('drops the ceiling of sort_into_buckets one step and leaves the floor', () => {
       expect(evidenceStrength({ templateCode: 'sort_into_buckets', lowered: true }))
+        .toEqual({ successCap: 'HARD', failureFloor: 'AGAIN' });
+    });
+
+    it('drops the ceiling of highlight_in_text one step and leaves the floor (plan 67)', () => {
+      expect(evidenceStrength({ templateCode: 'highlight_in_text', lowered: true }))
         .toEqual({ successCap: 'HARD', failureFloor: 'AGAIN' });
     });
 

@@ -33,6 +33,20 @@ export interface ValidationOutcome {
    * on the author's screen and with the one in the student's summary.
    */
   passed?: boolean;
+  /**
+   * The attempt has work left: record this check on it and keep it open, rather than score
+   * it.
+   *
+   * Omitted by every template checked whole — one submit closes the attempt, and a re-check
+   * reopens it.
+   *
+   * `highlight_in_text` is answered one question per submit (plan 67, Q1-A), and only the
+   * submit that closes the last question closes the attempt. Until then the attempt stays in
+   * progress, the way `short_answer`, `sentence_schema` and `multiple_choice` stay in progress
+   * while their questions are handed in one by one: a reload resumes it, and the evidence —
+   * every question's first check — is published once, on the first and only scoring.
+   */
+  inProgress?: boolean;
 }
 
 export class ValidationError extends Error {

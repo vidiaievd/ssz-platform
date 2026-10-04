@@ -4,6 +4,7 @@ import { SchemaBasedAnswerValidator } from './schema-based-answer-validator.js';
 import { MultipleChoiceValidator } from './validators/multiple-choice.validator.js';
 import { MultipleChoiceGroupValidator } from './validators/multiple-choice-group.validator.js';
 import { SortIntoBucketsValidator } from './validators/sort-into-buckets.validator.js';
+import { HighlightInTextValidator } from './validators/highlight-in-text.validator.js';
 import { FillInBlankValidator } from './validators/fill-in-blank.validator.js';
 import { MatchPairsValidator } from './validators/match-pairs.validator.js';
 import { ShortAnswerValidator } from './validators/short-answer.validator.js';
@@ -21,6 +22,7 @@ import { WritingTaskValidator } from './validators/writing-task.validator.js';
     MultipleChoiceValidator,
     MultipleChoiceGroupValidator,
     SortIntoBucketsValidator,
+    HighlightInTextValidator,
     FillInBlankValidator,
     MatchPairsValidator,
     ShortAnswerValidator,

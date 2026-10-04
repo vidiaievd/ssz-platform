@@ -14,6 +14,7 @@ import {
   shuffled as sbShuffled,
   toStudentProjection as sbToStudentProjection,
 } from '@ssz/shared-kernel/sort-into-buckets';
+import { toStudentProjection as htToStudentProjection } from '@ssz/shared-kernel/highlight-in-text';
 
 // `checkMode: PRACTICE` means "ship the answers so the client can check locally", and
 // that is safe for eleven templates whose answers are a separate key. It is not safe
@@ -1041,6 +1042,83 @@ describe('StartAttemptHandler — sort_into_buckets', () => {
     expect((result.exerciseContent as Projection).items.map((i) => i.id)).toEqual(
       expected.items.map((i) => i.id),
     );
+    expect(result.expectedAnswers).toBeNull();
+  });
+});
+
+describe('StartAttemptHandler — highlight_in_text', () => {
+  // Plan 67, AC-S11 on the server: the passage, its paragraphs and per ready question its
+  // id, prompt, unit and count — nothing that decides an answer. Asserted by key sets: the
+  // answer to «mark the past tense» is a word of the passage the student is meant to read,
+  // so a search for the answer text could not tell a leak from the text.
+  const htContent = {
+    title: 'Preteritum',
+    instruction: 'Les teksten og marker det oppgaven spør om.',
+    text: 'I fjor sommer reiste vi til Bodø.\n\nVi bodde hos tante Kari.',
+    questions: [
+      { id: 'q1', prompt: 'Marker verbene i preteritum.', unit: 'word' },
+      // Written but never marked — it must not reach the student.
+      { id: 'q2', prompt: 'Marker stedene.', unit: 'word' },
+    ],
+    settings: { attempts: 2, threshold: 80, penalty: 'full', showCount: true, hints: true, revealKey: true },
+  };
+  const htKey = {
+    questions: {
+      q1: {
+        spans: [
+          { id: 's1', start: 14, end: 20, why: 'Preteritum av «reise».' },
+          { id: 's2', start: 38, end: 43, why: '' },
+        ],
+        missHint: 'Se etter verb som forteller hva som skjedde.',
+        fpHint: '«Bodø» er et sted.',
+      },
+      q2: { spans: [], missHint: '', fpHint: '' },
+    },
+    orphans: [{ id: 'o1', qid: 'q1', surface: 'kjørte', why: 'Gammelt verb.' }],
+  };
+
+  type Projection = Record<string, unknown> & {
+    questions: Array<Record<string, unknown>>;
+    settings: Record<string, unknown>;
+  };
+
+  it('ships the passage and ready questions as id, prompt, unit and count — nothing that decides them', async () => {
+    const handler = makeHandler('highlight_in_text', htContent, htKey);
+    const result = (await handler.execute(practice)).value;
+
+    expect(result.expectedAnswers).toBeNull();
+    const projection = result.exerciseContent as Projection;
+    expect(Object.keys(projection).sort()).toEqual(['instruction', 'paragraphs', 'questions', 'settings', 'text']);
+    expect(projection.questions).toEqual([
+      { id: 'q1', prompt: 'Marker verbene i preteritum.', unit: 'word', count: 2 },
+    ]);
+    expect(Object.keys(projection.settings).sort()).toEqual(['attempts', 'hints', 'revealKey']);
+
+    const serialised = JSON.stringify(result.exerciseContent);
+    for (const field of ['spans', 'why', 'missHint', 'fpHint', 'orphans', 'threshold', 'penalty']) {
+      expect(serialised).not.toContain(`"${field}"`);
+    }
+    for (const secret of ['Preteritum av', 'Se etter verb', 'er et sted', 'kjørte']) {
+      expect(serialised).not.toContain(secret);
+    }
+  });
+
+  it('in GRADED mode hands on the envelope content-service already projected, under graded settings (Q8-A)', async () => {
+    const alreadyProjected = htToStudentProjection(htContent, htKey);
+    const { handler, modes } = makeHandlerByMode('highlight_in_text', () => ({
+      content: alreadyProjected,
+      expectedAnswers: null,
+    }));
+
+    const result = (await handler.execute(graded)).value;
+
+    // Nothing is dealt, so nothing is fetched again — and the questions are not emptied.
+    expect(modes).toEqual(['GRADED']);
+    expect(result.exerciseContent).toEqual({
+      ...alreadyProjected,
+      // One check per question, no hint, no reveal — what the server will allow.
+      settings: { attempts: 1, hints: false, revealKey: false },
+    });
     expect(result.expectedAnswers).toBeNull();
   });
 });

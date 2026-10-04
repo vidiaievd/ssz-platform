@@ -52,6 +52,14 @@
       "import": "./dist/sort-into-buckets/index.js",
       "types": "./dist/sort-into-buckets/index.d.ts"
     },
+    "./highlight-in-text": {
+      "import": "./dist/highlight-in-text/index.js",
+      "types": "./dist/highlight-in-text/index.d.ts"
+    },
+    "./text": {
+      "import": "./dist/text/index.js",
+      "types": "./dist/text/index.d.ts"
+    },
     "./skills": {
       "import": "./dist/skills/index.js",
       "types": "./dist/skills/index.d.ts"

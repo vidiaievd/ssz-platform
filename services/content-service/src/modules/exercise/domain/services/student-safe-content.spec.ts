@@ -729,9 +729,7 @@ describe('studentSafeContent', () => {
         ],
       };
 
-      expect(
-        studentSafeContent('multiple_choice', old, { correct_option_ids: ['a'] }),
-      ).toBe(old);
+      expect(studentSafeContent('multiple_choice', old, { correct_option_ids: ['a'] })).toBe(old);
     });
 
     it('survives a document whose key has already been taken away', () => {
@@ -739,8 +737,9 @@ describe('studentSafeContent', () => {
       // again. The second pass must not throw and must not blank the questions.
       expect(() => studentSafeContent('multiple_choice', mcContent, {})).not.toThrow();
       expect(
-        (studentSafeContent('multiple_choice', mcContent, {}) as unknown as Projection).questions
-          .map((q) => q.id),
+        (
+          studentSafeContent('multiple_choice', mcContent, {}) as unknown as Projection
+        ).questions.map((q) => q.id),
       ).toEqual(['q1', 'q2']);
     });
   });
@@ -885,7 +884,11 @@ describe('studentSafeContent', () => {
       };
 
       const orders = new Set(
-        Array.from({ length: 20 }, () => project(shuffling, key).rows.map((r) => r.id).join(',')),
+        Array.from({ length: 20 }, () =>
+          project(shuffling, key)
+            .rows.map((r) => r.id)
+            .join(','),
+        ),
       );
       expect(orders.size).toBeGreaterThan(1);
 
@@ -896,7 +899,11 @@ describe('studentSafeContent', () => {
 
     it('keeps the author order when the author did not', () => {
       const orders = new Set(
-        Array.from({ length: 10 }, () => project().rows.map((r) => r.id).join(',')),
+        Array.from({ length: 10 }, () =>
+          project()
+            .rows.map((r) => r.id)
+            .join(','),
+        ),
       );
       expect([...orders]).toEqual(['r1,r2']);
     });
@@ -917,7 +924,15 @@ describe('the audio block', () => {
     duration: 96,
     transcript: 'Hei, jeg har vondt i halsen.',
     translation: 'Hi, my throat hurts.',
-    settings: { layout: 'top', plays: 0, seek: true, speed: true, gate: 'none', transcriptWhen: 'never', ...(over['settings'] as object ?? {}) },
+    settings: {
+      layout: 'top',
+      plays: 0,
+      seek: true,
+      speed: true,
+      gate: 'none',
+      transcriptWhen: 'never',
+      ...((over['settings'] as object) ?? {}),
+    },
     ...over,
   });
 
@@ -935,7 +950,15 @@ describe('the audio block', () => {
         why: 'Hun sier det selv.',
       },
     ],
-    settings: { letters: true, layout: 'list', shuffle: false, instant: false, retry: 'one', eliminate: false, progress: true },
+    settings: {
+      letters: true,
+      layout: 'list',
+      shuffle: false,
+      instant: false,
+      retry: 'one',
+      eliminate: false,
+      progress: true,
+    },
     audio: audioBlock,
   });
 
@@ -945,7 +968,7 @@ describe('the audio block', () => {
   });
 
   it('withholds the transcript from a template that projects', () => {
-    const safe = studentSafeContent('multiple_choice', mc(audio()), {}) as Record<string, unknown>;
+    const safe = studentSafeContent('multiple_choice', mc(audio()), {});
     const block = safe['audio'] as Record<string, unknown>;
 
     expect(block['transcript']).toBe('');
@@ -959,7 +982,7 @@ describe('the audio block', () => {
     // `text_order` hands its content back untouched — which is exactly how the transcript
     // would have travelled if this step were per-template.
     const content = { items: [{ id: 'i1', text: 'Hei' }], audio: audio() };
-    const safe = studentSafeContent('text_order', content, {}) as Record<string, unknown>;
+    const safe = studentSafeContent('text_order', content, {});
 
     expect((safe['audio'] as Record<string, unknown>)['transcript']).toBe('');
     expect(safe['items']).toEqual(content.items);
@@ -972,7 +995,7 @@ describe('the audio block', () => {
       'multiple_choice',
       mc(audio({ settings: { transcriptWhen: 'always' } })),
       {},
-    ) as Record<string, unknown>;
+    );
 
     expect((safe['audio'] as Record<string, unknown>)['transcript']).toBe(
       'Hei, jeg har vondt i halsen.',
@@ -987,10 +1010,7 @@ describe('the audio block', () => {
       settings: { input: 'free' },
       audio: audio(),
     };
-    const safe = studentSafeContent('word_bank_gap_fill', content, { feedback: {} }) as Record<
-      string,
-      unknown
-    >;
+    const safe = studentSafeContent('word_bank_gap_fill', content, { feedback: {} });
 
     expect((safe['audio'] as Record<string, unknown>)['assetId']).toBe('asset-1');
   });
@@ -1079,5 +1099,115 @@ describe('sort_into_buckets', () => {
 
   it('shows nothing without the key column, rather than guessing', () => {
     expect(project({}).items).toEqual([]);
+  });
+});
+
+describe('highlight_in_text', () => {
+  // Plan 67, AC-S11: the student payload carries the passage, its paragraphs and per ready
+  // question its id, prompt, unit and (only under `showCount`) a count — no spans, no `why`,
+  // no hints, no orphans, no threshold, no penalty. Asserted structurally, by key sets: the
+  // answer to «mark the past tense» is a word of the passage the student is meant to see, so
+  // a search for the answer text could not tell a leak from the text.
+  const text = 'I fjor sommer reiste vi til Bodø.\n\nVi bodde hos tante Kari.';
+  const content = {
+    title: 'Preteritum',
+    instruction: 'Les teksten og marker det oppgaven spør om.',
+    text,
+    questions: [
+      { id: 'q1', prompt: '  Marker verbene i preteritum. ', unit: 'word' },
+      { id: 'q2', prompt: 'Marker tidsuttrykkene.', unit: 'phrase' },
+      // Written but never marked — dropped.
+      { id: 'q3', prompt: 'Marker stedene.', unit: 'word' },
+    ],
+    settings: {
+      attempts: 2,
+      threshold: 80,
+      penalty: 'full',
+      showCount: false,
+      hints: true,
+      revealKey: true,
+    },
+  };
+  const key = {
+    questions: {
+      q1: {
+        spans: [
+          { id: 's1', start: 14, end: 20, why: 'Preteritum av «reise».' },
+          { id: 's2', start: 38, end: 43, why: '' },
+        ],
+        missHint: 'Se etter verb som forteller hva som skjedde.',
+        fpHint: '«Bodø» er et sted.',
+      },
+      q2: {
+        spans: [{ id: 's3', start: 0, end: 13, why: 'Når?' }],
+        missHint: 'Når skjedde det?',
+        fpHint: '',
+      },
+      q3: { spans: [], missHint: '', fpHint: '' },
+    },
+    orphans: [{ id: 'o1', qid: 'q1', surface: 'kjørte', why: 'Gammelt verb.' }],
+  };
+
+  type Projection = Record<string, unknown> & {
+    paragraphs: Array<[number, number]>;
+    questions: Array<Record<string, unknown>>;
+    settings: Record<string, unknown>;
+  };
+  const project = (c: Record<string, unknown> = content, k: Record<string, unknown> = key) =>
+    studentSafeContent('highlight_in_text', c, k) as unknown as Projection;
+
+  it('ships the passage, its paragraphs and ready questions, nothing more', () => {
+    const p = project();
+    expect(Object.keys(p).sort()).toEqual([
+      'instruction',
+      'paragraphs',
+      'questions',
+      'settings',
+      'text',
+    ]);
+    expect(p.text).toBe(text);
+    expect(p.paragraphs).toEqual([
+      [0, 33],
+      [35, 59],
+    ]);
+    expect(p.questions).toEqual([
+      { id: 'q1', prompt: 'Marker verbene i preteritum.', unit: 'word', count: null },
+      { id: 'q2', prompt: 'Marker tidsuttrykkene.', unit: 'phrase', count: null },
+    ]);
+    for (const q of p.questions) {
+      expect(Object.keys(q).sort()).toEqual(['count', 'id', 'prompt', 'unit']);
+    }
+    // Neither the pass mark nor the penalty: the verdict is the engine's alone.
+    expect(Object.keys(p.settings).sort()).toEqual(['attempts', 'hints', 'revealKey']);
+  });
+
+  it('carries none of the key fields or texts anywhere in the payload', () => {
+    const json = JSON.stringify(project());
+    const fields = [
+      'spans',
+      'why',
+      'missHint',
+      'fpHint',
+      'orphans',
+      'threshold',
+      'penalty',
+      'title',
+    ];
+    for (const field of fields) {
+      expect(json).not.toContain(`"${field}"`);
+    }
+    const secrets = ['Preteritum av', 'Se etter verb', 'er et sted', 'kjørte', 'Når skjedde'];
+    for (const secret of secrets) {
+      expect(json).not.toContain(secret);
+    }
+  });
+
+  it('states how many marks are expected only under showCount (AC-S10)', () => {
+    const counted = project({ ...content, settings: { ...content.settings, showCount: true } });
+    expect(counted.questions.map((q) => q.count)).toEqual([2, 1]);
+  });
+
+  it('shows no questions without the key column, rather than guessing', () => {
+    expect(project(content, {}).questions).toEqual([]);
   });
 });

@@ -152,4 +152,33 @@ export class StartAttemptResponseDto {
     closed: boolean;
     revealed: boolean;
   }>;
+  @ApiProperty({
+    description:
+      'Questions already worked on in this attempt — `highlight_in_text` only, and empty ' +
+      'for a fresh attempt. A resumed exercise reads it to put the rail back and to know ' +
+      'which questions are closed and how many checks each has spent. The first check of ' +
+      'each question is the record, so a reload must not hand out a fresh one.',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        questionId: { type: 'string' },
+        checks: { type: 'integer' },
+        firstScore: { type: 'number', nullable: true },
+        firstPassed: { type: 'boolean', nullable: true },
+        passed: { type: 'boolean' },
+        revealed: { type: 'boolean' },
+        closed: { type: 'boolean' },
+      },
+    },
+  })
+  questionStates!: Array<{
+    questionId: string;
+    checks: number;
+    firstScore: number | null;
+    firstPassed: boolean | null;
+    passed: boolean;
+    revealed: boolean;
+    closed: boolean;
+  }>;
 }

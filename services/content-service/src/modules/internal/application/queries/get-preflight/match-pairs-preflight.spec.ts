@@ -6,6 +6,8 @@ import { matchPairsViolations } from './match-pairs-preflight.js';
 
 const settings = { distractors: true, shuffle: true, showRemaining: true };
 
+type PairFeedback = { def: string; why: string; ov: Record<string, string> };
+
 /** A complete `halves` exercise: three pairs, one extra, every default written. */
 function ready() {
   return {
@@ -26,11 +28,12 @@ function ready() {
       distractors: [{ id: 'h9', text: 'vi blir hjemme.' }],
     },
     expectedAnswers: {
+      // Keyed by pair id, and tests empty it — so a map, not three fixed keys.
       feedback: {
         p1: { def: 'Se på ordstillingen.', why: '', ov: {} },
         p2: { def: 'Etter «fordi» står subjektet først.', why: '', ov: {} },
         p3: { def: 'Se på ordstillingen.', why: '', ov: {} },
-      },
+      } as Record<string, PairFeedback>,
     },
   };
 }

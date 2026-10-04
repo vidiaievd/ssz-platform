@@ -543,6 +543,31 @@ export class Attempt extends AggregateRoot {
     return Result.ok();
   }
 
+  /**
+   * One part of the work checked, and the attempt kept open for the rest.
+   *
+   * `highlight_in_text` is answered one question per submit (plan 67, Q1-A). A submit that
+   * leaves a question open is graded like any other — the validator's details, which carry
+   * every question's state, are written down — and then the attempt goes back to being
+   * worked on instead of being scored. So it is still the open attempt when the page is
+   * reloaded, the way a `short_answer` set with two answers in is (plan 51 §8 Q6), and it is
+   * scored exactly once, by the submit that closes the last question: that is the first
+   * check `score()` sees, and the one it publishes for.
+   */
+  recordPartialCheck(validationDetails: unknown): Result<void, InvalidAttemptTransitionError> {
+    if (this._status !== 'SUBMITTED') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot record a partial check on attempt with status ${this._status}`,
+        ),
+      );
+    }
+
+    this._validationDetails = validationDetails;
+    this._status = 'IN_PROGRESS';
+    return Result.ok();
+  }
+
   score(
     rawScore: number,
     passed: boolean,

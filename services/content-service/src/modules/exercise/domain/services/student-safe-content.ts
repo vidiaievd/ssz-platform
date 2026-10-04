@@ -38,6 +38,10 @@ import {
   TEMPLATE_CODE as SORT_INTO_BUCKETS,
   toStudentProjection as sortIntoBucketsProjection,
 } from '@ssz/shared-kernel/sort-into-buckets';
+import {
+  TEMPLATE_CODE as HIGHLIGHT_IN_TEXT,
+  toStudentProjection as highlightInTextProjection,
+} from '@ssz/shared-kernel/highlight-in-text';
 import { withStudentAudio } from '@ssz/shared-kernel/audio';
 
 /**
@@ -235,6 +239,16 @@ function projectByTemplate(
     //
     // The items are shuffled here when the author asked for it; the buckets never are.
     const projection = sortIntoBucketsProjection(content, expectedAnswers, shuffled);
+    return projection as unknown as Record<string, unknown>;
+  }
+
+  if (templateCode === HIGHLIGHT_IN_TEXT) {
+    // Both columns, and for the same reason again: a question is ready only if it has
+    // spans, and the spans are the key, in `expected_answers`. The projection asks that
+    // column one question per question — «how many spans?» — and ships the count only
+    // under `settings.showCount`. No spans, no `why`, no hints, no orphans, and neither
+    // the pass mark nor the penalty (AC-S11): the verdict is the engine's alone.
+    const projection = highlightInTextProjection(content, expectedAnswers);
     return projection as unknown as Record<string, unknown>;
   }
 

@@ -8,7 +8,7 @@ import { ContainerDomainError } from '../../../domain/exceptions/container-domai
 import { ContainerType } from '../../../domain/value-objects/container-type.vo.js';
 import { DifficultyLevel } from '../../../domain/value-objects/difficulty-level.vo.js';
 import { Visibility } from '../../../domain/value-objects/visibility.vo.js';
-import { AccessTier } from '../../../domain/value-objects/access-tier.vo.js';
+import { getDefaultAccessTier } from '../../../domain/value-objects/access-tier.vo.js';
 
 const SCHOOL = 'school-1';
 
@@ -21,7 +21,10 @@ function course(ownerSchoolId: string | null = SCHOOL): ContainerEntity {
     ownerUserId: 'author-1',
     ownerSchoolId: ownerSchoolId ?? undefined,
     visibility: ownerSchoolId ? Visibility.SCHOOL_PRIVATE : Visibility.PRIVATE,
-    accessTier: AccessTier.FREE,
+    // Not read by the handler under test; whatever a new container of this visibility gets.
+    accessTier: getDefaultAccessTier(
+      ownerSchoolId ? Visibility.SCHOOL_PRIVATE : Visibility.PRIVATE,
+    ),
   });
   if (created.isFail) throw new Error(String(created.error));
   return created.value;
@@ -37,7 +40,11 @@ function makeHandler(container: ContainerEntity | null, schoolHours: number | nu
       Promise.resolve(
         schoolHours === null
           ? null
-          : { respondWithinHours: schoolHours, escalateAfterHours: 72, escalateTo: 'school_admins' },
+          : {
+              respondWithinHours: schoolHours,
+              escalateAfterHours: 72,
+              escalateTo: 'school_admins',
+            },
       ),
     ),
   };
@@ -109,11 +116,7 @@ describe('GetContainerReviewSettingsHandler', () => {
     const { handler, cache, organization } = makeHandler(course());
 
     await handler.execute(query);
-    expect(cache.set).toHaveBeenCalledWith(
-      `content:school-review-settings:${SCHOOL}`,
-      48,
-      60,
-    );
+    expect(cache.set).toHaveBeenCalledWith(`content:school-review-settings:${SCHOOL}`, 48, 60);
 
     cache.get.mockResolvedValue(48 as never);
     await handler.execute(query);

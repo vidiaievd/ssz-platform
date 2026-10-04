@@ -536,7 +536,10 @@ const templates = [
             retry: { type: 'string', enum: ['none', 'one', 'unlimited'] },
             lockCorrect: { type: 'boolean', description: 'Correct rows freeze on retry' },
             showWhy: { type: 'string', enum: ['never', 'wrong', 'always'] },
-            revealKey: { type: 'boolean', description: 'Mark the right column once attempts run out' },
+            revealKey: {
+              type: 'boolean',
+              description: 'Mark the right column once attempts run out',
+            },
             // Percent of rows needed to pass, compared with `>=`. Replaces the
             // old `allow_partial_credit` flag, which survives as `100` (plan 54
             // §3.4).
@@ -1231,16 +1234,23 @@ const templates = [
             required: ['id', 'rightId', 'left', 'right'],
             properties: {
               audio: itemAudioSchema,
-              id: { type: 'string', description: 'Stable; keys the feedback matrix row and the student slot' },
+              id: {
+                type: 'string',
+                description: 'Stable; keys the feedback matrix row and the student slot',
+              },
               // Deliberately NOT the pair id. Slots are keyed by `id` and pool
               // items by `rightId`, so the student payload shares no identifier
               // between the two columns and cannot be read as an answer key.
               rightId: {
                 type: 'string',
-                description: 'This half as a pool item. Same namespace as distractor ids, never equal to `id`',
+                description:
+                  'This half as a pool item. Same namespace as distractor ids, never equal to `id`',
               },
               left: { type: 'string' },
-              right: { type: 'string', description: 'THE ANSWER for `left`. Never sent to a student before reveal.' },
+              right: {
+                type: 'string',
+                description: 'THE ANSWER for `left`. Never sent to a student before reveal.',
+              },
             },
           },
         },
@@ -1471,7 +1481,8 @@ const templates = [
   {
     code: 'writing_task',
     name: 'Writing Task',
-    description: 'Write a whole text — a letter, an essay, a picture description, a retelling or an open topic',
+    description:
+      'Write a whole text — a letter, an essay, a picture description, a retelling or an open topic',
     // Rewritten for the design handoff (docs/plan/50-writing-task.md). The old
     // shape was a slice of the generic exercise form — prompt, optional topic
     // list, min/max words, snake_case — and had no modes, no must-cover points,
@@ -1541,7 +1552,10 @@ const templates = [
             properties: {
               id: { type: 'string', description: 'Stable; keys this point in expected_answers' },
               text: { type: 'string' },
-              required: { type: 'boolean', description: 'Optional points do not count towards a pass' },
+              required: {
+                type: 'boolean',
+                description: 'Optional points do not count towards a pass',
+              },
             },
           },
         },
@@ -1558,7 +1572,11 @@ const templates = [
             type: 'object',
             required: ['id', 'name'],
             properties: {
-              id: { type: 'string', description: 'Stable; keys this criterion in expected_answers and in an attempt’s marks' },
+              id: {
+                type: 'string',
+                description:
+                  'Stable; keys this criterion in expected_answers and in an attempt’s marks',
+              },
               name: { type: 'string' },
               desc: { type: 'string', description: 'What the criterion is about, teacher-facing' },
               weight: { type: 'integer', enum: [1, 2] },
@@ -1566,7 +1584,10 @@ const templates = [
               // rather than positional (plan 50 §3.4) so a reordered or custom
               // rubric gets sensible suggestions or, with null, none at all.
               // A suggestion is never a grade: a person sets every mark.
-              metric: { type: ['string', 'null'], enum: ['points', 'paragraphs', 'language', 'lexis', null] },
+              metric: {
+                type: ['string', 'null'],
+                enum: ['points', 'paragraphs', 'language', 'lexis', null],
+              },
             },
           },
         },
@@ -1574,9 +1595,15 @@ const templates = [
           type: 'object',
           required: ['minWords', 'maxWords', 'passScore'],
           properties: {
-            minWords: { type: 'integer', description: 'Submit is locked below this; 0 = no minimum' },
+            minWords: {
+              type: 'integer',
+              description: 'Submit is locked below this; 0 = no minimum',
+            },
             maxWords: { type: 'integer', description: '0 = no ceiling' },
-            timer: { type: 'integer', description: 'Minutes, 0 = off; counts down from the first keystroke' },
+            timer: {
+              type: 'integer',
+              description: 'Minutes, 0 = off; counts down from the first keystroke',
+            },
             blockPaste: { type: 'boolean' },
             autosave: { type: 'boolean' },
             showWordCount: { type: 'boolean' },
@@ -1656,7 +1683,8 @@ const templates = [
   {
     code: 'sentence_schema',
     name: 'Sentence Schema',
-    description: 'Lay a set of sentences out on a topological field board — one schema, many sentences',
+    description:
+      'Lay a set of sentences out on a topological field board — one schema, many sentences',
     // Rewritten for the design handoff (docs/plan/52-sentence-schema.md). The old
     // shape was one sentence, its fields declared inline as `{ id, label }`, its
     // words as `tokens[]`, and the key an ordered `placements[]` — snake_case
@@ -1789,7 +1817,8 @@ const templates = [
             hints: { type: 'boolean' },
             counts: {
               type: 'boolean',
-              description: 'Show how many chunks belong in each field — a partial key, enforced in the projection',
+              description:
+                'Show how many chunks belong in each field — a partial key, enforced in the projection',
             },
             prefill: { type: 'string', enum: ['none', 'first'] },
             // Declared by the handoff and left unbuilt by it; plan 52 Q6 keeps
@@ -1991,6 +2020,128 @@ const templates = [
     },
     // Nothing template-wide: the pass mark is `settings.threshold` on the document,
     // and partial credit is the type's only mode (SPEC_api_contract §Grading).
+    defaultCheckSettings: {},
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
+    // One passage, up to four questions over it, the answers marked in the text
+    // (plan 67, design handoff 02_design_handoff_highlight_in_text). A mark is a run
+    // of whole tokens stored as character offsets into `text`; the marks are the key,
+    // so they live in `expected_answers` and the content below carries no trace of
+    // them. The kernel module `@ssz/shared-kernel/highlight-in-text` is the one place
+    // that splits the authored document across the two columns and joins it back.
+    code: 'highlight_in_text',
+    name: 'Highlight In Text',
+    description: 'Mark the words in a passage that answer a question',
+    contentSchema: {
+      type: 'object',
+      required: ['text', 'questions'],
+      properties: {
+        // One clip over the whole passage; questions have no recordings of their own,
+        // so there is no per-question audio field.
+        audio: audioSchema,
+        title: { type: 'string', description: 'Teacher-facing name of the exercise' },
+        instruction: { type: 'string', description: 'Standing instruction above the passage' },
+        // A blank line starts a paragraph — the platform's splitter, shared with the
+        // kernel. A mark never crosses a paragraph.
+        text: { type: 'string', description: 'The one passage the questions are asked over' },
+        // No `minItems` and no `maxItems`, although none is a blocker and more than four
+        // is a warning: this schema is checked on every write, and a document an author
+        // is in the middle of must stay saveable. The bounds are reported at publication
+        // (`highlight-in-text-preflight.ts`) — the reasoning of `sort_into_buckets`'
+        // buckets and `multiple_choice_group`'s columns.
+        questions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: { type: 'string', description: 'Stable; also the itemKey for addressing' },
+              prompt: { type: 'string', description: 'What the student is asked to mark' },
+              // `word`: a tap marks one token. `phrase`: a drag marks a run.
+              unit: { type: 'string', enum: ['word', 'phrase'] },
+            },
+          },
+        },
+        settings: {
+          type: 'object',
+          properties: {
+            // Checks per question; 0 = unlimited. Enforced on the attempt, not in the
+            // runner.
+            attempts: { type: 'integer', enum: [0, 1, 2, 3] },
+            // Percent per question, over its first check and after the penalty,
+            // compared with `>=`. Never projected to the student (AC-S11).
+            threshold: { type: 'number', minimum: 0, maximum: 100 },
+            // What one mark outside the key costs. `off` lowers the evidence.
+            penalty: { type: 'string', enum: ['off', 'half', 'full'] },
+            // «Det er N å finne». Lowers the evidence while on.
+            showCount: { type: 'boolean' },
+            hints: { type: 'boolean', description: 'missHint / fpHint after a failed check' },
+            revealKey: { type: 'boolean', description: 'Whether the key may be shown' },
+          },
+        },
+      },
+    },
+    // The author's key. Not the learner's submission schema: `highlight_in_text` is in
+    // `OWN_SUBMISSION_SHAPE` in exercise-engine, because the key is spans per question
+    // while the submission is one question's marks.
+    answerSchema: {
+      type: 'object',
+      required: ['questions'],
+      properties: {
+        // Keyed by question id, so reordering the questions cannot move a key onto
+        // another question.
+        questions: {
+          type: 'object',
+          additionalProperties: {
+            type: 'object',
+            properties: {
+              // Character offsets into `content.text`: the first token's start and one
+              // past the last token's end. That they sit on token edges of the current
+              // text is checked at publication (`HT_SPAN_OFF_TOKENS`), not here — a
+              // schema cannot tokenize.
+              spans: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['id', 'start', 'end'],
+                  properties: {
+                    id: { type: 'string' },
+                    start: { type: 'integer', minimum: 0 },
+                    end: { type: 'integer', minimum: 0 },
+                    // Why this one counts; shown with the key.
+                    why: { type: 'string' },
+                  },
+                },
+              },
+              // Why a missed mark should have been found — required at publication on a
+              // question with spans. Resolved on the server; the client never holds it.
+              missHint: { type: 'string' },
+              // Why an extra mark is wrong — the traps in this text.
+              fpHint: { type: 'string' },
+            },
+          },
+        },
+        // Marks that lost their words when the passage was edited, waiting for the
+        // author. Here rather than in `content`: an orphan's surface is a former answer.
+        // Any of them blocks publication (`HT_ORPHANED_MARKS`).
+        orphans: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id', 'qid'],
+            properties: {
+              id: { type: 'string' },
+              qid: { type: 'string', description: 'The question the mark belonged to' },
+              surface: { type: 'string', description: 'The words it covered, as written' },
+              why: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    // Nothing template-wide: the pass mark and the penalty are `settings` on the
+    // document, and grading by question is the type's only mode (SPEC_data_model §6).
     defaultCheckSettings: {},
     supportedLanguages: Prisma.DbNull,
   },

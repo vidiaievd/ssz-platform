@@ -30,7 +30,11 @@ import {
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { StartAttemptCommand } from '../../application/commands/start-attempt/start-attempt.command.js';
-import type { StartAttemptResult, StartAttemptError } from '../../application/commands/start-attempt/start-attempt.handler.js';
+import {
+  questionStatesOf,
+  type StartAttemptResult,
+  type StartAttemptError,
+} from '../../application/commands/start-attempt/start-attempt.handler.js';
 import { SubmitAnswerCommand } from '../../application/commands/submit-answer/submit-answer.command.js';
 import type { SubmitAnswerResult, SubmitAnswerError } from '../../application/commands/submit-answer/submit-answer.handler.js';
 import { AbandonAttemptCommand } from '../../application/commands/abandon-attempt/abandon-attempt.command.js';
@@ -145,6 +149,11 @@ export function toAttemptDto(attempt: Attempt): AttemptResponseDto {
         revealed,
       }),
     ),
+    // And for a `highlight_in_text` exercise: which questions are closed and how many checks
+    // each has spent — the first check of each is the evidence, so a reload must not replay
+    // it (plan 67, §8 caveat 7). Read from the attempt's details whatever its mode: these are
+    // counts and flags, never a span of the key.
+    questionStates: questionStatesOf(attempt),
     id: attempt.id,
     userId: attempt.userId,
     exerciseId: attempt.exerciseId,

@@ -193,6 +193,15 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   // set: unlike a spent bank, every item is decided on its own, and the set does not shrink
   // as the board fills.
   sort_into_buckets: CLOSED_SET,
+
+  // Plan 67. The handoff asks for the same pair as sorting ("success ceiling medium, failure
+  // floor strong"), and for the same reason: a missed form is direct evidence the learner
+  // cannot see it in running text, which no gap-fill shows. Not NEAR_CERTAIN although the
+  // answer is on screen: the candidate set is every word of the passage and it does not
+  // shrink as marks are placed. The two deliveries that let the score be reached without
+  // noticing — «Det er N å finne», and no cost for an extra mark — are read off the document
+  // by the engine and sent as `lowered`; the row stays the reading of an ordinary exercise.
+  highlight_in_text: CLOSED_SET,
 };
 
 export interface EvidenceInput {
@@ -206,8 +215,9 @@ export interface EvidenceInput {
    * The exercise was delivered in a way that hands part of the answer over, so a success
    * proves one step less than its form says (plan 66, decision Q2-B).
    *
-   * Set by the engine from the document, never from the client's word: today by
-   * `sort_into_buckets` when the «N igjen» counter was on or the board was skewed. Lowers
+   * Set by the engine from the document, never from the client's word: by
+   * `sort_into_buckets` when the «N igjen» counter was on or the board was skewed, and by
+   * `highlight_in_text` when the expected count was shown or extra marks cost nothing. Lowers
    * the success ceiling only — a failure says what it said — and never below HARD, the
    * weakest success FSRS has a word for: a ceiling of AGAIN would turn a recalled item
    * into a lapse. Absent on every event before plan 66, which therefore rates unchanged.

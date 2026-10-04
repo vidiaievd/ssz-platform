@@ -1,6 +1,7 @@
 import { fromPersisted as gapFillFromPersisted, gaps } from '../wordbank-gapfill/index.js';
 import { fromPersisted as matchPairsFromPersisted } from '../match-pairs/index.js';
 import { fromPersisted as sortFromPersisted } from '../sort-into-buckets/index.js';
+import { fromPersisted as highlightFromPersisted } from '../highlight-in-text/index.js';
 import type { ExerciseItem, ExerciseItems } from './model.js';
 
 // A stand-in envelope for the fields no reader here cares about. The kernel's `fromPersisted`
@@ -13,7 +14,8 @@ const ENVELOPE = { id: '', moduleId: '', title: '', instructions: '', updatedAt:
  * Deliberately short. These are the templates whose per-item verdicts travel in
  * `gapResults` (or, for `match_pairs`, are meant to), so a target on one of their pieces can
  * be joined to evidence about it. `sort_into_buckets` joined with plan 66: its verdict is per
- * item by design, and the engine sends it (decision Q3-A). A
+ * item by design, and the engine sends it (decision Q3-A). `highlight_in_text` joined with
+ * plan 67: its verdict is per question, sent the same way. A
  * template that grades as a whole gains nothing from per-piece targets — the evidence would
  * all carry the same verdict anyway — so it addresses the exercise and no more.
  *
@@ -23,6 +25,7 @@ export const ADDRESSABLE_TEMPLATES: readonly string[] = [
   'word_bank_gap_fill',
   'match_pairs',
   'sort_into_buckets',
+  'highlight_in_text',
 ];
 
 export function isAddressableTemplate(templateCode: string): boolean {
@@ -48,6 +51,8 @@ export function itemsOf(
       return matchPairsItems(content, expectedAnswers);
     case 'sort_into_buckets':
       return sortItems(content, expectedAnswers);
+    case 'highlight_in_text':
+      return highlightItems(content, expectedAnswers);
     default:
       return null;
   }
@@ -115,3 +120,36 @@ function sortItems(content: unknown, expectedAnswers: unknown): ExerciseItem[] {
     return [];
   }
 }
+
+/**
+ * The question id — the key every per-question verdict of `highlight_in_text` carries
+ * (plan 67, SPEC_data_model §7).
+ *
+ * Every question with a prompt, in document order. The passage and the individual spans are
+ * not targets: a question is what is scored, retried and reported. What a suggester matches
+ * is the words the key marks — `fortalte`, `i førti år` — not the prompt, which is about the
+ * feature and names no word.
+ */
+function highlightItems(content: unknown, expectedAnswers: unknown): ExerciseItem[] {
+  try {
+    const document = highlightFromPersisted(content, expectedAnswers);
+    return document.questions
+      .filter((q) => q.prompt.trim() !== '')
+      .map((q, index) => {
+        const words = [...q.spans]
+          .sort((a, b) => a.start - b.start)
+          // Stored spans start and end on token edges, so the slice is the marked words.
+          .map((s) => document.text.slice(s.start, s.end).trim())
+          .filter((w) => w !== '');
+        return {
+          key: q.id,
+          label: `Q${index + 1} — ${q.prompt.trim()}`,
+          value: q.prompt.trim(),
+          matchValues: [...new Set(words)],
+        };
+      });
+  } catch {
+    return [];
+  }
+}
+

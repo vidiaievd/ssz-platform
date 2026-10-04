@@ -21,6 +21,7 @@ import { ErrorCorrectionValidator } from './validators/error-correction.validato
 import { TranslateValidator } from './validators/translate.validator.js';
 import { WritingTaskValidator } from './validators/writing-task.validator.js';
 import { SortIntoBucketsValidator } from './validators/sort-into-buckets.validator.js';
+import { HighlightInTextValidator } from './validators/highlight-in-text.validator.js';
 import type { IPerTypeValidator } from './validators/per-type-validator.interface.js';
 
 /**
@@ -83,6 +84,10 @@ const OWN_SUBMISSION_SHAPE = new Set([
   // the feedback per wrong bucket for each item; its submission is a list of placements.
   // One form only, so its shape is checked in the validator and nowhere else.
   'sort_into_buckets',
+  // And `highlight_in_text` (plan 67): its key is spans per question with the reasons and
+  // the two hints beside them; its submission is one question's marks as character offsets.
+  // One form only, so its shape is checked in the validator and nowhere else.
+  'highlight_in_text',
 ]);
 
 @Injectable()
@@ -107,6 +112,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     trValidator: TranslateValidator,
     wtValidator: WritingTaskValidator,
     sbValidator: SortIntoBucketsValidator,
+    htValidator: HighlightInTextValidator,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     this.ajv = new (Ajv as any)({ allErrors: true, strict: false });
@@ -128,6 +134,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       ['translate_from_target', trValidator],
       ['writing_task', wtValidator],
       ['sort_into_buckets', sbValidator],
+      ['highlight_in_text', htValidator],
     ]);
   }
 

@@ -41,6 +41,30 @@ describe('itemsOf', () => {
     expect(isAddressableTemplate('sort_into_buckets')).toBe(true);
   });
 
+  it('keys a highlight question by its id, matching the marked words (plan 67)', () => {
+    const text = 'Vi reiste til Bodø. I fjor sommer gikk vi.';
+    const content = {
+      text,
+      questions: [
+        { id: 'q1', prompt: 'Marker verbene.', unit: 'word' },
+        { id: 'q2', prompt: '  ', unit: 'word' },
+        { id: 'q3', prompt: 'Marker tiden.', unit: 'phrase' },
+      ],
+    };
+    const at = (w: string) => ({ start: text.indexOf(w), end: text.indexOf(w) + w.length, why: '' });
+    const expected = {
+      questions: {
+        q1: { spans: [{ id: 's2', ...at('gikk') }, { id: 's1', ...at('reiste') }] },
+        q3: { spans: [{ id: 's3', ...at('I fjor sommer') }] },
+      },
+    };
+    const items = itemsOf('highlight_in_text', content, expected);
+    expect(items?.map((item) => item.key)).toEqual(['q1', 'q3']);
+    expect(items?.[0]).toMatchObject({ label: 'Q1 — Marker verbene.', matchValues: ['reiste', 'gikk'] });
+    expect(items?.[1]).toMatchObject({ label: 'Q2 — Marker tiden.', matchValues: ['I fjor sommer'] });
+    expect(isAddressableTemplate('highlight_in_text')).toBe(true);
+  });
+
   it('keys a gap exactly as gapResults spells it', () => {
     // The whole point: a target keyed differently from the evidence could never be joined
     // to it. `sentenceId#tokenIndex` is not a choice made here, it is what already travels.

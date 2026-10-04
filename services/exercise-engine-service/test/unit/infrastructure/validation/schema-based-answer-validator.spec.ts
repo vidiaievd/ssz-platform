@@ -13,6 +13,7 @@ import { WordBankFillValidator } from '../../../../src/infrastructure/validation
 import { WordBankGapFillValidator } from '../../../../src/infrastructure/validation/validators/word-bank-gap-fill.validator.js';
 import { SentenceSchemaValidator } from '../../../../src/infrastructure/validation/validators/sentence-schema.validator.js';
 import { SortIntoBucketsValidator } from '../../../../src/infrastructure/validation/validators/sort-into-buckets.validator.js';
+import { HighlightInTextValidator } from '../../../../src/infrastructure/validation/validators/highlight-in-text.validator.js';
 import { ValidationError } from '../../../../src/shared/application/ports/answer-validator.port.js';
 import { Result } from '../../../../src/shared/kernel/result.js';
 
@@ -39,6 +40,7 @@ const makeValidator = () =>
     new TranslateValidator(),
     new WritingTaskValidator(),
     new SortIntoBucketsValidator(),
+    new HighlightInTextValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {
@@ -333,6 +335,38 @@ describe('SchemaBasedAnswerValidator', () => {
       });
       expect(result.isOk).toBe(true);
       expect(result.value).toMatchObject({ score: 50, requiresReview: false, correct: false });
+    });
+
+    it('delegates highlight_in_text to its own validator, past AJV, never to a teacher (AC-X2)', async () => {
+      const validator = makeValidator();
+      expect(validator.supports('highlight_in_text')).toBe(true);
+      const result = await validator.validate({
+        templateCode: 'highlight_in_text',
+        // The key's schema, which one question's marks could never satisfy — proof that
+        // AJV is not run over the submission.
+        answerSchema: { type: 'object', required: ['questions'] },
+        content: {
+          title: 'Preteritum',
+          text: 'Vi reiste til Bodø.',
+          questions: [{ id: 'q1', prompt: 'Marker verbet.', unit: 'word' }],
+          settings: { attempts: 0, threshold: 70, penalty: 'half' },
+        },
+        expectedAnswers: {
+          questions: { q1: { spans: [{ id: 's1', start: 3, end: 9, why: '' }], missHint: 'x', fpHint: '' } },
+          orphans: [],
+        },
+        submittedAnswer: { questionId: 'q1', marks: [{ start: 3, end: 9 }] },
+        checkSettings: {},
+        targetLanguage: 'nb',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value).toMatchObject({
+        score: 100,
+        passed: true,
+        inProgress: false,
+        requiresReview: false,
+        correct: true,
+      });
     });
   });
 });

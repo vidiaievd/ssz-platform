@@ -12,6 +12,7 @@ describe('the table', () => {
       [
         'error_correction',
         'fill_in_blank',
+        'highlight_in_text',
         'match_pairs',
         'multiple_choice',
         'multiple_choice_group',
@@ -56,6 +57,7 @@ describe('the table', () => {
       writing_task: ['written'],
       sentence_schema: ['written'],
       sort_into_buckets: ['reading'],
+      highlight_in_text: ['reading'],
     };
     for (const [code, skills] of Object.entries(before))
       expect(deriveSkills({ templateCode: code }).skills, code).toEqual(skills);
@@ -69,7 +71,7 @@ describe('the table', () => {
   });
 
   it('gives no focus hint where the author, not the type, decides the subject (rule 2)', () => {
-    for (const code of ['multiple_choice', 'short_answer', 'writing_task', 'text_order', 'sort_into_buckets'])
+    for (const code of ['multiple_choice', 'short_answer', 'writing_task', 'text_order', 'sort_into_buckets', 'highlight_in_text'])
       expect(deriveSkills({ templateCode: code }).focus, code).toEqual([]);
   });
 });
@@ -85,6 +87,20 @@ describe('sort_into_buckets (plan 66)', () => {
   it('takes its subject from the atoms its items address', () => {
     const atoms = [{ atomType: 'grammar_rule', itemKey: 'i1' }];
     expect(deriveSkills({ templateCode: 'sort_into_buckets', atoms }).focus).toEqual(['grammar']);
+  });
+});
+
+describe('highlight_in_text (plan 67)', () => {
+  it('is read, recognised from the passage, and becomes listening when the audio layer is on', () => {
+    const bare = deriveSkills({ templateCode: 'highlight_in_text' });
+    expect(bare).toMatchObject({ input: 'text', output: 'none', skills: ['reading'], modality: 'recognition', focus: [] });
+    const heard = deriveSkills({ templateCode: 'highlight_in_text', content: { audio: { enabled: true } } });
+    expect(heard).toMatchObject({ input: 'audio', skills: ['listening'], skillSource: 'document' });
+  });
+
+  it('takes its subject from the atoms its questions address', () => {
+    const atoms = [{ atomType: 'vocabulary_item', itemKey: 'q1' }];
+    expect(deriveSkills({ templateCode: 'highlight_in_text', atoms }).focus).toEqual(['vocabulary']);
   });
 });
 
