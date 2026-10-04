@@ -1666,9 +1666,18 @@ describe('SubmitAnswerHandler — highlight_in_text', () => {
     const details = reveal.value.details as HtDetails;
     expect(details).toMatchObject({ revealed: true, closed: true });
     expect(details.key?.map((k) => k['why'])).toEqual(['reiste — why', 'bodde — why', 'spiste — why']);
+    // Nothing was checked, so the line must not call the question wrong and ask for a retry.
+    expect(reveal.value.feedback.summary).toBe('The answer has been shown.');
 
     const after = await s.submit({ questionId: 'q1', marks: [htAt('reiste'), htAt('bodde'), htAt('spiste')] });
     expect(after.error).toBeInstanceOf(InvalidAttemptTransitionError);
+  });
+
+  it('keeps the generator\'s line for a check that is not a reveal', async () => {
+    const s = htSession();
+    const check = await s.submit({ questionId: 'q1', marks: [htAt('Kari')] });
+
+    expect(check.value.feedback.summary).not.toBe('The answer has been shown.');
   });
 
   it('still allows the key on a question out of checks, and does not publish twice', async () => {

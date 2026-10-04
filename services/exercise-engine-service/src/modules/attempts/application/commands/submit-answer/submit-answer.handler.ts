@@ -408,6 +408,24 @@ function sortItemResults(details: unknown): Array<{ gapKey: string; correct: boo
 }
 
 /**
+ * The line a closed-by-reveal `highlight_in_text` question carries (plan 67, phase 9).
+ *
+ * The generator knows only right and wrong, and a revealed question is neither: nothing was
+ * checked, the key was shown. Left alone it said «Incorrect. Please try again.» about a
+ * question that has no further attempt to make.
+ */
+function revealedFeedback(
+  templateCode: string,
+  details: unknown,
+): { summary: string } | null {
+  if (templateCode !== HIGHLIGHT_IN_TEXT) return null;
+  if (typeof details !== 'object' || details === null) return null;
+  return (details as { revealed?: unknown }).revealed === true
+    ? { summary: 'The answer has been shown.' }
+    : null;
+}
+
+/**
  * The per-question verdicts of a `highlight_in_text` attempt, keyed by question id (plan 67,
  * the precedent of plan 66 Q3-A).
  *
@@ -801,9 +819,10 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       locale: command.locale,
       revealAnswer: attempt.checkMode === 'PRACTICE',
     });
-    const feedback = feedbackResult.isOk
+    const generated = feedbackResult.isOk
       ? feedbackResult.value
       : { summary: outcome.correct ? 'Correct!' : 'Incorrect. Please try again.' };
+    const feedback = revealedFeedback(attempt.templateCode, outcome.details) ?? generated;
 
     // A question is still open (plan 67, Q1-A): the check is recorded and the attempt goes on
     // being worked on — not scored, so nothing is published, and a reload finds it open. It
