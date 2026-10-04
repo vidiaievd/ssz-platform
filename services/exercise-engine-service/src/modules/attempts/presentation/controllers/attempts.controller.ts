@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  HttpException,
   HttpStatus,
   NotFoundException,
   Param,
@@ -30,11 +31,11 @@ import {
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { StartAttemptCommand } from '../../application/commands/start-attempt/start-attempt.command.js';
-import {
-  questionStatesOf,
-  type StartAttemptResult,
-  type StartAttemptError,
+import type {
+  StartAttemptResult,
+  StartAttemptError,
 } from '../../application/commands/start-attempt/start-attempt.handler.js';
+import { questionStatesOf, segmentStatesOf } from '../../application/services/item-states.js';
 import { SubmitAnswerCommand } from '../../application/commands/submit-answer/submit-answer.command.js';
 import type { SubmitAnswerResult, SubmitAnswerError } from '../../application/commands/submit-answer/submit-answer.handler.js';
 import { AbandonAttemptCommand } from '../../application/commands/abandon-attempt/abandon-attempt.command.js';
@@ -154,6 +155,10 @@ export function toAttemptDto(attempt: Attempt): AttemptResponseDto {
     // it (plan 67, §8 caveat 7). Read from the attempt's details whatever its mode: these are
     // counts and flags, never a span of the key.
     questionStates: questionStatesOf(attempt),
+    // And for a `dictation` exercise, per segment (plan 68 §3.4): the same counts and flags,
+    // the last checked text — the learner's own — and the first check's corrected line, which
+    // that check already showed them.
+    segmentStates: segmentStatesOf(attempt),
     id: attempt.id,
     userId: attempt.userId,
     exerciseId: attempt.exerciseId,
@@ -248,6 +253,7 @@ export class AttemptsController {
   @ApiResponse({ status: 404, description: 'Attempt not found' })
   @ApiResponse({ status: 403, description: 'Not your attempt' })
   @ApiResponse({ status: 422, description: 'Validation error or invalid state transition' })
+  @ApiResponse({ status: 429, description: 'A dictation segment checked again too soon' })
   async submitAnswer(
     @Param('exerciseId') _exerciseId: string,
     @Param('attemptId', ParseUUIDPipe) attemptId: string,
@@ -272,6 +278,11 @@ export class AttemptsController {
         if (err.code === 'FORBIDDEN') throw new ForbiddenException('Not your attempt');
         if (err.code === 'SCHEMA_MISMATCH' || err.code === 'UNSUPPORTED_TEMPLATE') {
           throw new BadRequestException((err as ValidationError).message);
+        }
+        // A `dictation` segment checked again inside two seconds (plan 68, Q4-A; AC-X6). The
+        // runner holds «Sjekk» for that long, so only a script ever sees this.
+        if (err.code === 'DICT_TOO_FAST') {
+          throw new HttpException((err as ValidationError).message, HttpStatus.TOO_MANY_REQUESTS);
         }
       }
       if (err instanceof ContentClientError) {

@@ -45,6 +45,7 @@ export interface ValidationOutcome {
    * progress, the way `short_answer`, `sentence_schema` and `multiple_choice` stay in progress
    * while their questions are handed in one by one: a reload resumes it, and the evidence —
    * every question's first check — is published once, on the first and only scoring.
+   * `dictation` does the same one sentence per submit (plan 68 §3.4).
    */
   inProgress?: boolean;
 }
