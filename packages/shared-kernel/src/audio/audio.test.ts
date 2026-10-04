@@ -381,6 +381,18 @@ describe('audioIssues', () => {
       expect(items[1]?.audio).toEqual({ start: 1, end: 2 });
       expect(hasItemClips('sort_into_buckets')).toBe(true);
     });
+
+    it('finds the sentences of a dictation and carries their timecodes to the student', () => {
+      // plan 68 phase 2: `dictation` keeps `segments`, cut out of the one clip; no own clips.
+      const content = {
+        audio: { enabled: true, useSegments: true, source: 'asset', assetId: 'a-1' },
+        segments: [{ id: 's1', audio: { start: 0, end: 3.5 } }, { id: 's2' }],
+      };
+
+      expect(itemsOf('dictation', content).map((item) => item.id)).toEqual(['s1', 's2']);
+      expect(segmentsOf('dictation', content)).toEqual({ s1: { start: 0, end: 3.5 } });
+      expect(hasItemClips('dictation')).toBe(false);
+    });
   });
 
   it('clears the blocker for each of the three sources', () => {

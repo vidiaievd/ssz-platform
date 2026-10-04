@@ -23,6 +23,9 @@ const ITEM_KEY: Record<string, string> = {
   sort_into_buckets: 'items',
   translate_to_target: 'items',
   translate_from_target: 'items',
+  // A sentence is cut out of the one clip (plan 68). No per-item recording: a dictation is
+  // one voice reading one text, and `ITEM_CLIP_KEY` has no row for it.
+  dictation: 'segments',
 };
 
 /**

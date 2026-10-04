@@ -98,6 +98,20 @@ const NEAR_CERTAIN: EvidenceStrength = { successCap: 'HARD', failureFloor: 'AGAI
 const NEAR_CERTAIN_BANK_SIZE = 3;
 
 /**
+ * Typed from nothing, and a failure already stripped of its slips — plan 68.
+ *
+ * The same value as `UNCLAMPED`, and deliberately not the same constant: that one is "we
+ * cannot tell", this one is a judgement. Success may reach the top for the reason it may
+ * under FREE_PRODUCTION — nothing is offered, so nothing is reached by elimination. The
+ * floor is where the two part. FREE_PRODUCTION holds a failure off AGAIN because it may
+ * only be a slip; a type that names its errors by class has already taken the slips out
+ * before the verdict is reached — a typo or a misplaced comma is counted the way the
+ * author's marking rules say, and a focus word is never «almost right». What still fails
+ * after that is the form not known, and gets no mercy.
+ */
+const NOTHING_OFFERED: EvidenceStrength = { successCap: 'EASY', failureFloor: 'AGAIN' };
+
+/**
  * The scale by template, for the types that cannot describe their answer form.
  *
  * Covers all twelve types of the audit (plan 34) rather than gap-fill alone — that is
@@ -202,7 +216,26 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   // noticing — «Det er N å finne», and no cost for an extra mark — are read off the document
   // by the engine and sent as `lowered`; the row stays the reading of an ordinary exercise.
   highlight_in_text: CLOSED_SET,
+
+  // Plan 68. The handoff asks for "success ceiling strong, failure floor strong": nothing is
+  // offered, so neither outcome can be reached by elimination, and the classifier has
+  // already told a slip from a miss — see NOTHING_OFFERED. The verdict this rates is the
+  // first check of each sentence; later tries change the learner's screen, not the record.
+  // Two deliveries hand part of it over — the word counter, which catches a dropped `og`
+  // before the check, and a transcript that is not held back until after it — and the engine
+  // reads both off the document (`ceilingCause`) and sends `lowered`: strong to medium.
+  dictation: NOTHING_OFFERED,
 };
+
+/**
+ * Whether the type has a row of its own, as opposed to falling through to `UNCLAMPED`.
+ *
+ * Asked by the test that holds every type of the skills table to a row here: a row whose
+ * value happens to equal the fallback (`dictation`) would otherwise be deletable unseen.
+ */
+export function hasTemplateRow(templateCode: string): boolean {
+  return Object.prototype.hasOwnProperty.call(BY_TEMPLATE, templateCode);
+}
 
 export interface EvidenceInput {
   /** How the answer was produced, when the template can say. Takes precedence. */
@@ -217,7 +250,8 @@ export interface EvidenceInput {
    *
    * Set by the engine from the document, never from the client's word: by
    * `sort_into_buckets` when the «N igjen» counter was on or the board was skewed, and by
-   * `highlight_in_text` when the expected count was shown or extra marks cost nothing. Lowers
+   * `highlight_in_text` when the expected count was shown or extra marks cost nothing, and by
+   * `dictation` when the word counter was on or the transcript was not held back. Lowers
    * the success ceiling only — a failure says what it said — and never below HARD, the
    * weakest success FSRS has a word for: a ceiling of AGAIN would turn a recalled item
    * into a lapse. Absent on every event before plan 66, which therefore rates unchanged.

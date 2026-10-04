@@ -10,6 +10,7 @@ describe('the table', () => {
   it('covers every template code of the catalogue', () => {
     expect(Object.keys(BY_TEMPLATE).sort()).toEqual(
       [
+        'dictation',
         'error_correction',
         'fill_in_blank',
         'highlight_in_text',
@@ -58,6 +59,7 @@ describe('the table', () => {
       sentence_schema: ['written'],
       sort_into_buckets: ['reading'],
       highlight_in_text: ['reading'],
+      dictation: ['listening', 'written'],
     };
     for (const [code, skills] of Object.entries(before))
       expect(deriveSkills({ templateCode: code }).skills, code).toEqual(skills);
@@ -101,6 +103,29 @@ describe('highlight_in_text (plan 67)', () => {
   it('takes its subject from the atoms its questions address', () => {
     const atoms = [{ atomType: 'vocabulary_item', itemKey: 'q1' }];
     expect(deriveSkills({ templateCode: 'highlight_in_text', atoms }).focus).toEqual(['vocabulary']);
+  });
+});
+
+describe('dictation (plan 68)', () => {
+  it('is heard and written from nothing on the bare template, the layer changing nothing', () => {
+    const bare = deriveSkills({ templateCode: 'dictation' });
+    expect(bare).toMatchObject({
+      input: 'audio',
+      output: 'written_target',
+      skills: ['listening', 'written'],
+      form: 'free',
+      modality: 'recall',
+    });
+    // The document always carries the block switched on; reading it must not move a thing.
+    const heard = deriveSkills({ templateCode: 'dictation', content: { audio: { enabled: true } } });
+    expect(heard).toMatchObject({ input: 'audio', skills: ['listening', 'written'] });
+  });
+
+  it('takes orthography from the template — the one type that closes that axis', () => {
+    expect(deriveSkills({ templateCode: 'dictation' })).toMatchObject({
+      focus: ['orthography'],
+      focusSource: 'template',
+    });
   });
 });
 

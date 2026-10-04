@@ -2,6 +2,7 @@ import { fromPersisted as gapFillFromPersisted, gaps } from '../wordbank-gapfill
 import { fromPersisted as matchPairsFromPersisted } from '../match-pairs/index.js';
 import { fromPersisted as sortFromPersisted } from '../sort-into-buckets/index.js';
 import { fromPersisted as highlightFromPersisted } from '../highlight-in-text/index.js';
+import { fromPersisted as dictationFromPersisted, readySegments, tokens } from '../dictation/index.js';
 import type { ExerciseItem, ExerciseItems } from './model.js';
 
 // A stand-in envelope for the fields no reader here cares about. The kernel's `fromPersisted`
@@ -15,7 +16,8 @@ const ENVELOPE = { id: '', moduleId: '', title: '', instructions: '', updatedAt:
  * `gapResults` (or, for `match_pairs`, are meant to), so a target on one of their pieces can
  * be joined to evidence about it. `sort_into_buckets` joined with plan 66: its verdict is per
  * item by design, and the engine sends it (decision Q3-A). `highlight_in_text` joined with
- * plan 67: its verdict is per question, sent the same way. A
+ * plan 67: its verdict is per question, sent the same way. `dictation` joined with plan 68:
+ * its verdict is per sentence. A
  * template that grades as a whole gains nothing from per-piece targets — the evidence would
  * all carry the same verdict anyway — so it addresses the exercise and no more.
  *
@@ -26,6 +28,7 @@ export const ADDRESSABLE_TEMPLATES: readonly string[] = [
   'match_pairs',
   'sort_into_buckets',
   'highlight_in_text',
+  'dictation',
 ];
 
 export function isAddressableTemplate(templateCode: string): boolean {
@@ -53,6 +56,8 @@ export function itemsOf(
       return sortItems(content, expectedAnswers);
     case 'highlight_in_text':
       return highlightItems(content, expectedAnswers);
+    case 'dictation':
+      return dictationItems(content, expectedAnswers);
     default:
       return null;
   }
@@ -153,3 +158,45 @@ function highlightItems(content: unknown, expectedAnswers: unknown): ExerciseIte
   }
 }
 
+/** How much of a sentence names it in the builder — enough to tell four apart. */
+const DICTATION_LABEL_LENGTH = 40;
+
+/**
+ * The segment id — the key every per-sentence verdict of `dictation` carries (plan 68,
+ * SPEC_data_model §7). `mode: 'whole'` still has exactly one segment, so it needs no case.
+ *
+ * Every segment with a sentence written, in document order — the same filter that decides
+ * what a learner is given. A focus word is not a target: it is reported inside its sentence's
+ * verdict, and an atom pinned to it could never be joined to evidence. What a suggester
+ * matches is the sentence's words, the focus words first — those are the ones the author
+ * already said the sentence is about.
+ */
+function dictationItems(content: unknown, expectedAnswers: unknown): ExerciseItem[] {
+  try {
+    const document = dictationFromPersisted(content, expectedAnswers);
+    return readySegments(document).map((segment, index) => {
+      const words = tokens(segment.text);
+      const focused = [...segment.focus]
+        .sort((a, b) => a.wordIndex - b.wordIndex)
+        .map((f) => words[f.wordIndex]?.w)
+        .filter((w): w is string => w !== undefined);
+      const sentence = segment.text.trim().replace(/\s+/g, ' ');
+      return {
+        key: segment.id,
+        label: `S${index + 1} — ${clip(sentence, DICTATION_LABEL_LENGTH)}`,
+        value: sentence,
+        matchValues: [...new Set([...focused, ...words.map((t) => t.w)])],
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** Cut at the last word boundary within `max` characters. */
+function clip(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > 0 ? cut.slice(0, space) : cut).replace(/[\s,;:]+$/, '')}…`;
+}

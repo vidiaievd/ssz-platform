@@ -222,6 +222,25 @@ export const BY_TEMPLATE: Readonly<Record<string, TemplateProfile>> = {
     form: 'bank',
     modality: 'recognition',
   },
+
+  // A recording written down a sentence at a time (plan 68). The only type that closes the
+  // orthography axis: nothing is offered, so the candidate set is the language — every letter
+  // the learner puts down is their own, and the diff names what went wrong by class
+  // (diacritic, case, a dropped word). Hence the one structural focus hint besides grammar
+  // in the table (rule 2): the type cannot be about anything but spelling what was heard,
+  // whatever sentences the author chose. The input is `audio` on the bare template, not
+  // only through the layer — the recording is not an option here, it is the material, and
+  // the document cannot switch it off (README: «audio is on and cannot be turned off»).
+  // `written_target` and `free`: the words are typed into an empty field. `recall`, not
+  // `production`: the sentence is given by ear, and the work is putting the heard form on
+  // paper, not composing one — the same line `error_correction` draws.
+  dictation: {
+    input: 'audio',
+    output: 'written_target',
+    focus: ['orthography'],
+    form: 'free',
+    modality: 'recall',
+  },
 };
 
 /** `undefined` for a code the table does not know — a new template, or a typo. */

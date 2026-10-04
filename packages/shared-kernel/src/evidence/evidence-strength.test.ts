@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { clampByEvidence, evidenceStrength, ratingRank } from './evidence-strength.js';
+import { BY_TEMPLATE as SKILLS_BY_TEMPLATE } from '../skills/by-template.js';
+import { clampByEvidence, evidenceStrength, hasTemplateRow, ratingRank } from './evidence-strength.js';
 
 describe('evidenceStrength', () => {
   describe('the answer form, when the template can describe it', () => {
@@ -94,6 +95,7 @@ describe('evidenceStrength', () => {
       ['sentence_schema', 'GOOD', 'AGAIN'],
       ['sort_into_buckets', 'GOOD', 'AGAIN'],
       ['highlight_in_text', 'GOOD', 'AGAIN'],
+      ['dictation', 'EASY', 'AGAIN'],
       ['match_pairs', 'HARD', 'AGAIN'],
       ['text_order', 'HARD', 'AGAIN'],
     ])('rates %s up to %s and down to %s', (templateCode, successCap, failureFloor) => {
@@ -115,6 +117,13 @@ describe('evidenceStrength', () => {
       );
       expect(unclamped).toEqual([]);
     });
+
+    it('owes a row to every type of the skills table but the one that reports its form', () => {
+      // `dictation` rates at the fallback's value by decision (plan 68), so the table above
+      // cannot see its row go missing; this can. `word_bank_gap_fill` sends `answerForm`.
+      const missing = Object.keys(SKILLS_BY_TEMPLATE).filter((code) => !hasTemplateRow(code));
+      expect(missing).toEqual(['word_bank_gap_fill']);
+    });
   });
 
   describe('a lowered delivery (plan 66, Q2-B)', () => {
@@ -126,6 +135,11 @@ describe('evidenceStrength', () => {
     it('drops the ceiling of highlight_in_text one step and leaves the floor (plan 67)', () => {
       expect(evidenceStrength({ templateCode: 'highlight_in_text', lowered: true }))
         .toEqual({ successCap: 'HARD', failureFloor: 'AGAIN' });
+    });
+
+    it('drops the ceiling of dictation from strong to medium and leaves the floor (plan 68)', () => {
+      expect(evidenceStrength({ templateCode: 'dictation', lowered: true }))
+        .toEqual({ successCap: 'GOOD', failureFloor: 'AGAIN' });
     });
 
     it('never drops a ceiling below HARD', () => {
