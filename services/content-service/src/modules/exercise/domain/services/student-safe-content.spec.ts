@@ -729,9 +729,7 @@ describe('studentSafeContent', () => {
         ],
       };
 
-      expect(
-        studentSafeContent('multiple_choice', old, { correct_option_ids: ['a'] }),
-      ).toBe(old);
+      expect(studentSafeContent('multiple_choice', old, { correct_option_ids: ['a'] })).toBe(old);
     });
 
     it('survives a document whose key has already been taken away', () => {
@@ -739,8 +737,9 @@ describe('studentSafeContent', () => {
       // again. The second pass must not throw and must not blank the questions.
       expect(() => studentSafeContent('multiple_choice', mcContent, {})).not.toThrow();
       expect(
-        (studentSafeContent('multiple_choice', mcContent, {}) as unknown as Projection).questions
-          .map((q) => q.id),
+        (
+          studentSafeContent('multiple_choice', mcContent, {}) as unknown as Projection
+        ).questions.map((q) => q.id),
       ).toEqual(['q1', 'q2']);
     });
   });
@@ -885,7 +884,11 @@ describe('studentSafeContent', () => {
       };
 
       const orders = new Set(
-        Array.from({ length: 20 }, () => project(shuffling, key).rows.map((r) => r.id).join(',')),
+        Array.from({ length: 20 }, () =>
+          project(shuffling, key)
+            .rows.map((r) => r.id)
+            .join(','),
+        ),
       );
       expect(orders.size).toBeGreaterThan(1);
 
@@ -896,7 +899,11 @@ describe('studentSafeContent', () => {
 
     it('keeps the author order when the author did not', () => {
       const orders = new Set(
-        Array.from({ length: 10 }, () => project().rows.map((r) => r.id).join(',')),
+        Array.from({ length: 10 }, () =>
+          project()
+            .rows.map((r) => r.id)
+            .join(','),
+        ),
       );
       expect([...orders]).toEqual(['r1,r2']);
     });
@@ -917,7 +924,15 @@ describe('the audio block', () => {
     duration: 96,
     transcript: 'Hei, jeg har vondt i halsen.',
     translation: 'Hi, my throat hurts.',
-    settings: { layout: 'top', plays: 0, seek: true, speed: true, gate: 'none', transcriptWhen: 'never', ...(over['settings'] as object ?? {}) },
+    settings: {
+      layout: 'top',
+      plays: 0,
+      seek: true,
+      speed: true,
+      gate: 'none',
+      transcriptWhen: 'never',
+      ...((over['settings'] as object) ?? {}),
+    },
     ...over,
   });
 
@@ -935,7 +950,15 @@ describe('the audio block', () => {
         why: 'Hun sier det selv.',
       },
     ],
-    settings: { letters: true, layout: 'list', shuffle: false, instant: false, retry: 'one', eliminate: false, progress: true },
+    settings: {
+      letters: true,
+      layout: 'list',
+      shuffle: false,
+      instant: false,
+      retry: 'one',
+      eliminate: false,
+      progress: true,
+    },
     audio: audioBlock,
   });
 
@@ -945,7 +968,7 @@ describe('the audio block', () => {
   });
 
   it('withholds the transcript from a template that projects', () => {
-    const safe = studentSafeContent('multiple_choice', mc(audio()), {}) as Record<string, unknown>;
+    const safe = studentSafeContent('multiple_choice', mc(audio()), {});
     const block = safe['audio'] as Record<string, unknown>;
 
     expect(block['transcript']).toBe('');
@@ -959,7 +982,7 @@ describe('the audio block', () => {
     // `text_order` hands its content back untouched — which is exactly how the transcript
     // would have travelled if this step were per-template.
     const content = { items: [{ id: 'i1', text: 'Hei' }], audio: audio() };
-    const safe = studentSafeContent('text_order', content, {}) as Record<string, unknown>;
+    const safe = studentSafeContent('text_order', content, {});
 
     expect((safe['audio'] as Record<string, unknown>)['transcript']).toBe('');
     expect(safe['items']).toEqual(content.items);
@@ -972,7 +995,7 @@ describe('the audio block', () => {
       'multiple_choice',
       mc(audio({ settings: { transcriptWhen: 'always' } })),
       {},
-    ) as Record<string, unknown>;
+    );
 
     expect((safe['audio'] as Record<string, unknown>)['transcript']).toBe(
       'Hei, jeg har vondt i halsen.',
@@ -987,10 +1010,7 @@ describe('the audio block', () => {
       settings: { input: 'free' },
       audio: audio(),
     };
-    const safe = studentSafeContent('word_bank_gap_fill', content, { feedback: {} }) as Record<
-      string,
-      unknown
-    >;
+    const safe = studentSafeContent('word_bank_gap_fill', content, { feedback: {} });
 
     expect((safe['audio'] as Record<string, unknown>)['assetId']).toBe('asset-1');
   });

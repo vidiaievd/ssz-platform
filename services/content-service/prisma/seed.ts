@@ -536,7 +536,10 @@ const templates = [
             retry: { type: 'string', enum: ['none', 'one', 'unlimited'] },
             lockCorrect: { type: 'boolean', description: 'Correct rows freeze on retry' },
             showWhy: { type: 'string', enum: ['never', 'wrong', 'always'] },
-            revealKey: { type: 'boolean', description: 'Mark the right column once attempts run out' },
+            revealKey: {
+              type: 'boolean',
+              description: 'Mark the right column once attempts run out',
+            },
             // Percent of rows needed to pass, compared with `>=`. Replaces the
             // old `allow_partial_credit` flag, which survives as `100` (plan 54
             // §3.4).
@@ -1231,16 +1234,23 @@ const templates = [
             required: ['id', 'rightId', 'left', 'right'],
             properties: {
               audio: itemAudioSchema,
-              id: { type: 'string', description: 'Stable; keys the feedback matrix row and the student slot' },
+              id: {
+                type: 'string',
+                description: 'Stable; keys the feedback matrix row and the student slot',
+              },
               // Deliberately NOT the pair id. Slots are keyed by `id` and pool
               // items by `rightId`, so the student payload shares no identifier
               // between the two columns and cannot be read as an answer key.
               rightId: {
                 type: 'string',
-                description: 'This half as a pool item. Same namespace as distractor ids, never equal to `id`',
+                description:
+                  'This half as a pool item. Same namespace as distractor ids, never equal to `id`',
               },
               left: { type: 'string' },
-              right: { type: 'string', description: 'THE ANSWER for `left`. Never sent to a student before reveal.' },
+              right: {
+                type: 'string',
+                description: 'THE ANSWER for `left`. Never sent to a student before reveal.',
+              },
             },
           },
         },
@@ -1471,7 +1481,8 @@ const templates = [
   {
     code: 'writing_task',
     name: 'Writing Task',
-    description: 'Write a whole text — a letter, an essay, a picture description, a retelling or an open topic',
+    description:
+      'Write a whole text — a letter, an essay, a picture description, a retelling or an open topic',
     // Rewritten for the design handoff (docs/plan/50-writing-task.md). The old
     // shape was a slice of the generic exercise form — prompt, optional topic
     // list, min/max words, snake_case — and had no modes, no must-cover points,
@@ -1541,7 +1552,10 @@ const templates = [
             properties: {
               id: { type: 'string', description: 'Stable; keys this point in expected_answers' },
               text: { type: 'string' },
-              required: { type: 'boolean', description: 'Optional points do not count towards a pass' },
+              required: {
+                type: 'boolean',
+                description: 'Optional points do not count towards a pass',
+              },
             },
           },
         },
@@ -1558,7 +1572,11 @@ const templates = [
             type: 'object',
             required: ['id', 'name'],
             properties: {
-              id: { type: 'string', description: 'Stable; keys this criterion in expected_answers and in an attempt’s marks' },
+              id: {
+                type: 'string',
+                description:
+                  'Stable; keys this criterion in expected_answers and in an attempt’s marks',
+              },
               name: { type: 'string' },
               desc: { type: 'string', description: 'What the criterion is about, teacher-facing' },
               weight: { type: 'integer', enum: [1, 2] },
@@ -1566,7 +1584,10 @@ const templates = [
               // rather than positional (plan 50 §3.4) so a reordered or custom
               // rubric gets sensible suggestions or, with null, none at all.
               // A suggestion is never a grade: a person sets every mark.
-              metric: { type: ['string', 'null'], enum: ['points', 'paragraphs', 'language', 'lexis', null] },
+              metric: {
+                type: ['string', 'null'],
+                enum: ['points', 'paragraphs', 'language', 'lexis', null],
+              },
             },
           },
         },
@@ -1574,9 +1595,15 @@ const templates = [
           type: 'object',
           required: ['minWords', 'maxWords', 'passScore'],
           properties: {
-            minWords: { type: 'integer', description: 'Submit is locked below this; 0 = no minimum' },
+            minWords: {
+              type: 'integer',
+              description: 'Submit is locked below this; 0 = no minimum',
+            },
             maxWords: { type: 'integer', description: '0 = no ceiling' },
-            timer: { type: 'integer', description: 'Minutes, 0 = off; counts down from the first keystroke' },
+            timer: {
+              type: 'integer',
+              description: 'Minutes, 0 = off; counts down from the first keystroke',
+            },
             blockPaste: { type: 'boolean' },
             autosave: { type: 'boolean' },
             showWordCount: { type: 'boolean' },
@@ -1656,7 +1683,8 @@ const templates = [
   {
     code: 'sentence_schema',
     name: 'Sentence Schema',
-    description: 'Lay a set of sentences out on a topological field board — one schema, many sentences',
+    description:
+      'Lay a set of sentences out on a topological field board — one schema, many sentences',
     // Rewritten for the design handoff (docs/plan/52-sentence-schema.md). The old
     // shape was one sentence, its fields declared inline as `{ id, label }`, its
     // words as `tokens[]`, and the key an ordered `placements[]` — snake_case
@@ -1789,7 +1817,8 @@ const templates = [
             hints: { type: 'boolean' },
             counts: {
               type: 'boolean',
-              description: 'Show how many chunks belong in each field — a partial key, enforced in the projection',
+              description:
+                'Show how many chunks belong in each field — a partial key, enforced in the projection',
             },
             prefill: { type: 'string', enum: ['none', 'first'] },
             // Declared by the handoff and left unbuilt by it; plan 52 Q6 keeps
