@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { PrismaClient, Prisma } from '../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { dictationTemplate } from './templates/dictation.js';
+import { inflectionTableTemplate } from './templates/inflection-table.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({
@@ -2150,6 +2151,11 @@ const templates = [
     // Schema split into templates/dictation.ts so a test can run it through AJV without
     // pulling in the generated Prisma client that this file imports (plan 68 phase 3).
     ...dictationTemplate(audioSchema, itemAudioSchema),
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
+    // Schema in templates/inflection-table.ts, for the reason above (plan 69 phase 3).
+    ...inflectionTableTemplate(audioSchema),
     supportedLanguages: Prisma.DbNull,
   },
 ];

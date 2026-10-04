@@ -2,6 +2,7 @@ import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { MODALITIES } from '@ssz/shared-kernel/skills';
 import type { Modality } from '@ssz/shared-kernel/skills';
+import { derivedTargetRows, withDerived } from '../../../../../shared/targets/derived-targets.js';
 import { GetAtomCoverageQuery } from './get-atom-coverage.query.js';
 import type { AtomCoverageVersionScope } from './get-atom-coverage.query.js';
 import { Result } from '../../../../../shared/kernel/result.js';
@@ -519,10 +520,16 @@ export class GetAtomCoverageHandler implements IQueryHandler<
     const exerciseIds = [...composition.exerciseIds];
     if (exerciseIds.length === 0) return [];
 
-    const rows = await this.prisma.exerciseItemTarget.findMany({
-      where: { exerciseId: { in: exerciseIds } },
-      select: { exerciseId: true, itemKey: true, atomType: true, atomId: true, role: true },
-    });
+    // The author's rows, and the ones a document makes by itself (plan 69, Q1-B): a dictionary
+    // row of an inflection table practises its word whether or not anyone wrote that down.
+    const [explicit, derivedRows] = await Promise.all([
+      this.prisma.exerciseItemTarget.findMany({
+        where: { exerciseId: { in: exerciseIds } },
+        select: { exerciseId: true, itemKey: true, atomType: true, atomId: true, role: true },
+      }),
+      derivedTargetRows(this.prisma, exerciseIds, 'live'),
+    ]);
+    const rows = withDerived(explicit, derivedRows);
     if (rows.length === 0) return [];
 
     const derived = await this.axes.forExercises(exerciseIds, 'live');

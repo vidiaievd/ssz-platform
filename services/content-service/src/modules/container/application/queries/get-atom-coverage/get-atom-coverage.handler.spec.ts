@@ -7,6 +7,7 @@ import { GetAtomCoverageQuery } from './get-atom-coverage.query.js';
 import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
 import type { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import type { IExerciseAxes } from '../../../../../shared/skills/domain/exercise-axes.port.js';
+import { sampleContent, toContent, toExpectedAnswers } from '@ssz/shared-kernel/inflection-table';
 
 interface VariantFixture {
   lessonId: string;
@@ -42,6 +43,16 @@ interface Fixture {
     atomType: 'VOCABULARY_ITEM' | 'GRAMMAR_RULE_ATOM';
     atomId: string;
     role: 'FOCUS' | 'CONTEXT';
+  }>;
+  /** Exercise documents, for the targets a document makes by itself (plan 69, Q1-B). */
+  documents?: Array<{
+    id: string;
+    content: unknown;
+    expectedAnswers: unknown;
+    draftContent: unknown;
+    draftExpectedAnswers: unknown;
+    draftUpdatedAt: Date | null;
+    template: { code: string };
   }>;
 }
 
@@ -103,6 +114,10 @@ function prismaFrom(fixture: Fixture): PrismaService {
         Promise.resolve(
           (fixture.pool ?? []).filter((entry) => where.exerciseId.in.includes(entry.exerciseId)),
         ),
+    },
+    exercise: {
+      findMany: ({ where }: { where: { id: { in: string[] } } }) =>
+        Promise.resolve((fixture.documents ?? []).filter((d) => where.id.in.includes(d.id))),
     },
     exerciseItemTarget: {
       findMany: ({ where }: { where: { exerciseId: { in: string[] } } }) =>
@@ -320,6 +335,48 @@ describe('GetAtomCoverageHandler (plan 63 §4.2)', () => {
     expect(value.summary.untested).toBe(1);
     expect(value.issues).toContainEqual(
       expect.objectContaining({ code: 'atom_context_only', title: 'hus' }),
+    );
+  });
+
+  it("counts an inflection table's dictionary row as practising its word (plan 69, Q1-B)", async () => {
+    // No target row anywhere: the document addresses `bok` by itself, on each cell it asks.
+    const doc = sampleContent();
+    const table = {
+      ...doc,
+      rows: doc.rows.map((r) => ({ ...r, dictId: r.id === 'r2' ? 'w-1' : null })),
+    };
+    const handler = new GetAtomCoverageHandler(
+      prismaFrom({
+        containers: { 'unit-1': UNIT },
+        items: {
+          'v-draft': [
+            { itemType: 'LESSON', itemId: 'lesson-1' },
+            { itemType: 'EXERCISE', itemId: 'ex-1' },
+          ],
+        },
+        variants: [{ lessonId: 'lesson-1', status: 'DRAFT', glossary: ['w-1', 'w-2'] }],
+        words: { 'w-1': 'bok', 'w-2': 'bil' },
+        documents: [
+          {
+            id: 'ex-1',
+            content: toContent(table),
+            expectedAnswers: toExpectedAnswers(table),
+            draftContent: null,
+            draftExpectedAnswers: null,
+            draftUpdatedAt: null,
+            template: { code: 'inflection_table' },
+          },
+        ],
+      }),
+      axesFrom({ 'ex-1': 'recall' }),
+    );
+
+    const { value } = await handler.execute(new GetAtomCoverageQuery('unit-1'));
+
+    expect(value.summary.contextOnly).toBe(1);
+    expect(value.summary.untested).toBe(1);
+    expect(value.issues).toContainEqual(
+      expect.objectContaining({ code: 'atom_context_only', title: 'bok' }),
     );
   });
 

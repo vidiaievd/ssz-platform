@@ -9,6 +9,7 @@ import type {
 } from '@ssz/shared-kernel/skills';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import type { AxesScope, IExerciseAxes } from '../domain/exercise-axes.port.js';
+import { derivedTargetRows, withDerived } from '../../targets/derived-targets.js';
 
 /**
  * Where the exercise is placed and what it practises, read once for a whole batch.
@@ -76,7 +77,7 @@ export class PrismaExerciseAxesService implements IExerciseAxes {
         },
       }),
       this.placements(ids),
-      this.atoms(ids),
+      this.atoms(ids, scope),
     ]);
 
     for (const exercise of exercises) {
@@ -173,12 +174,20 @@ export class PrismaExerciseAxesService implements IExerciseAxes {
    * Per exercise rather than globally: an exercise with one target and four untargeted
    * relations is an exercise that has been addressed, and mixing the two graphs would
    * weigh the four rows nobody wrote as elements.
+   *
+   * The targets a document makes by itself join the author's (plan 69, Q1-B): a dictionary row
+   * of an inflection table is about its word on every cell it asks, and an exercise with only
+   * those is an addressed exercise too.
    */
-  private async atoms(ids: string[]): Promise<Map<string, AtomRef[]>> {
-    const targets = await this.prisma.exerciseItemTarget.findMany({
-      where: { exerciseId: { in: ids } },
-      select: { exerciseId: true, itemKey: true, atomType: true, atomId: true },
-    });
+  private async atoms(ids: string[], scope: AxesScope): Promise<Map<string, AtomRef[]>> {
+    const [rows, derived] = await Promise.all([
+      this.prisma.exerciseItemTarget.findMany({
+        where: { exerciseId: { in: ids } },
+        select: { exerciseId: true, itemKey: true, atomType: true, atomId: true },
+      }),
+      derivedTargetRows(this.prisma, ids, scope),
+    ]);
+    const targets = withDerived(rows, derived);
 
     const out = new Map<string, AtomRef[]>();
     for (const target of targets) {

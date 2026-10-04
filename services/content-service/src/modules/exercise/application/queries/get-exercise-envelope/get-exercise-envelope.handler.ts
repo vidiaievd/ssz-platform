@@ -1,3 +1,4 @@
+import { derivedTargetsOf } from '@ssz/shared-kernel/exercise-items';
 import { QueryHandler, IQueryHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import type { DerivedProfile } from '@ssz/shared-kernel/skills';
@@ -118,7 +119,22 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
     // Not resolved against the atoms here: a target whose atom has been retired is the
     // editor's problem to show, and an attempt that refused to start over one would punish
     // the learner for an author's housekeeping. The consumer skips what it cannot place.
-    const targets = await this.itemTargets.findByExerciseId(query.exerciseId);
+    const explicit = (await this.itemTargets.findByExerciseId(query.exerciseId)).map((target) => ({
+      itemKey: target.itemKey,
+      atomType: target.atomType as string,
+      atomId: target.atomId,
+      role: target.role as string,
+    }));
+    // Plus what the published document addresses by itself (plan 69, Q1-B): a dictionary row of
+    // an inflection table names its word on each cell it asks. An author's row for the same
+    // address wins — they may have said the word is the focus.
+    const written = new Set(explicit.map((t) => `${t.itemKey ?? ''}|${t.atomType}|${t.atomId}`));
+    const targets = [
+      ...explicit,
+      ...derivedTargetsOf(exercise.templateCode, exercise.content, exercise.expectedAnswers).filter(
+        (t) => !written.has(`${t.itemKey}|${t.atomType}|${t.atomId}`),
+      ),
+    ];
 
     const instructions = exercise.instructions ?? [];
     const picked =
@@ -151,12 +167,7 @@ export class GetExerciseEnvelopeHandler implements IQueryHandler<
         supportedLanguages: template.supportedLanguages,
       },
       axes,
-      targets: targets.map((target) => ({
-        itemKey: target.itemKey,
-        atomType: target.atomType,
-        atomId: target.atomId,
-        role: target.role,
-      })),
+      targets,
       instruction: picked
         ? {
             language: picked.instructionLanguage,

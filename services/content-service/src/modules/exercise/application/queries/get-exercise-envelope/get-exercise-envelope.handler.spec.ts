@@ -10,6 +10,7 @@ import type { IExerciseAxes } from '../../../../../shared/skills/domain/exercise
 import type { IExerciseItemTargetRepository } from '../../../domain/repositories/exercise-item-target.repository.interface.js';
 import { ExerciseItemTarget } from '../../../domain/entities/exercise-item-target.entity.js';
 import { AtomType, TargetRole } from '../../../domain/value-objects/atom-type.vo.js';
+import { sampleContent, toContent, toExpectedAnswers } from '@ssz/shared-kernel/inflection-table';
 
 const AT = new Date('2026-09-01T10:00:00.000Z');
 
@@ -21,14 +22,30 @@ const LISTENING = {
   focusSource: 'unknown',
 };
 
-function build(axes: unknown, targets: ExerciseItemTarget[] = []) {
+interface Document {
+  templateCode: string;
+  content: Record<string, unknown>;
+  expectedAnswers: Record<string, unknown>;
+}
+
+const SHORT_ANSWER: Document = {
+  templateCode: 'short_answer',
+  content: { prompt: 'Hva sa hun?' },
+  expectedAnswers: { accepted: ['ja'] },
+};
+
+function build(
+  axes: unknown,
+  targets: ExerciseItemTarget[] = [],
+  document: Document = SHORT_ANSWER,
+) {
   const exercise = ExerciseEntity.reconstitute('ex-1', {
     exerciseTemplateId: 'template-1',
-    templateCode: 'short_answer',
+    templateCode: document.templateCode,
     targetLanguage: 'nb',
     difficultyLevel: DifficultyLevel.B1,
-    content: { prompt: 'Hva sa hun?' },
-    expectedAnswers: { accepted: ['ja'] },
+    content: document.content,
+    expectedAnswers: document.expectedAnswers,
     answerCheckSettings: null,
     ownerUserId: 'user-1',
     ownerSchoolId: null,
@@ -121,5 +138,35 @@ describe('GetExerciseEnvelopeHandler targets', () => {
     const result = await handler.execute(new GetExerciseEnvelopeQuery('ex-1', 'ru', 'graded'));
 
     expect(result.value.targets).toEqual([]);
+  });
+
+  it("adds what an inflection table's dictionary rows address by themselves (plan 69, Q1-B)", async () => {
+    const doc = sampleContent();
+    const table = {
+      ...doc,
+      rows: doc.rows.map((r) => ({ ...r, dictId: r.id === 'r2' ? 'w-bok' : null })),
+    };
+    // The author already said `bok` is the focus of one cell: their row wins over the derived one.
+    const written = ExerciseItemTarget.create({
+      exerciseId: 'ex-1',
+      itemKey: 'r2:defSg',
+      atomType: AtomType.VOCABULARY_ITEM,
+      atomId: 'w-bok',
+      role: TargetRole.FOCUS,
+      createdByUserId: 'user-1',
+    });
+    const handler = build(LISTENING, [written.value], {
+      templateCode: 'inflection_table',
+      content: toContent(table) as unknown as Record<string, unknown>,
+      expectedAnswers: toExpectedAnswers(table) as unknown as Record<string, unknown>,
+    });
+
+    const result = await handler.execute(new GetExerciseEnvelopeQuery('ex-1', 'ru', 'graded'));
+
+    expect(result.value.targets).toEqual([
+      { itemKey: 'r2:defSg', atomType: 'vocabulary_item', atomId: 'w-bok', role: 'focus' },
+      { itemKey: 'r2:indefPl', atomType: 'vocabulary_item', atomId: 'w-bok', role: 'context' },
+      { itemKey: 'r2:defPl', atomType: 'vocabulary_item', atomId: 'w-bok', role: 'context' },
+    ]);
   });
 });
