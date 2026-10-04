@@ -8,9 +8,12 @@ import {
   audioOf,
   audioOn,
   formatDuration,
+  formatTimecode,
   hasClip,
   parseDuration,
+  parseTimecode,
   segmentOf,
+  toTenths,
 } from './model.js';
 import type { AllowanceContext, AllowanceState } from './allowance.js';
 import { canPlay, hasHeard, INITIAL_STATE, isExhausted, isGated, step } from './allowance.js';
@@ -113,6 +116,40 @@ describe('parseDuration / formatDuration', () => {
     expect(formatDuration(96)).toBe('1:36');
     expect(formatDuration(0)).toBe('0:00');
     expect(formatDuration(-5)).toBe('0:00');
+  });
+});
+
+describe('parseTimecode / formatTimecode', () => {
+  it('reads a tenth of a second in every form an author types it', () => {
+    expect(parseTimecode('0:05.5')).toBe(5.5);
+    expect(parseTimecode('1:36.4')).toBe(96.4);
+    expect(parseTimecode('5.5')).toBe(5.5);
+    expect(parseTimecode('0:07')).toBe(7);
+    expect(parseTimecode('96')).toBe(96);
+  });
+
+  it('answers null for what it cannot read, so the field keeps its last value', () => {
+    expect(parseTimecode('1:')).toBeNull();
+    expect(parseTimecode('1:75')).toBeNull();
+    expect(parseTimecode('0:05.')).toBeNull();
+    expect(parseTimecode('0:05.55')).toBeNull();
+    expect(parseTimecode('abc')).toBeNull();
+    expect(parseTimecode('')).toBeNull();
+  });
+
+  it('prints a tenth only where there is one, and round-trips', () => {
+    expect(formatTimecode(5)).toBe('0:05');
+    expect(formatTimecode(5.46)).toBe('0:05.5');
+    expect(formatTimecode(96.4)).toBe('1:36.4');
+    expect(formatTimecode(59.97)).toBe('1:00');
+    expect(formatTimecode(-1)).toBe('0:00');
+    for (const s of [0, 3.7, 12.1, 96.4]) expect(parseTimecode(formatTimecode(s))).toBe(s);
+  });
+
+  it('keeps a player position to a tenth', () => {
+    expect(toTenths(5.46)).toBe(5.5);
+    expect(toTenths(5.44)).toBe(5.4);
+    expect(toTenths(Number.NaN)).toBe(0);
   });
 });
 
@@ -479,6 +516,15 @@ describe('audioIssues', () => {
       audioIssues(doc({ useSegments: false }), [{ id: 'q1' }]),
     );
     expect(segmentOf(audioOf(doc({ useSegments: false })), timed[0])).toBeNull();
+  });
+
+  it('forgives the rounding of the stored length, and nothing more', () => {
+    const near = [{ id: 'q1', audio: { start: 10, end: 14.4 } }];
+    const far = [{ id: 'q1', audio: { start: 10, end: 15 } }];
+    const codes = (items: typeof near) =>
+      audioIssues(doc({ useSegments: true, duration: 14 }), items).map((i) => i.code);
+    expect(codes(near)).not.toContain('AUD_SEG_BEYOND');
+    expect(codes(far)).toContain('AUD_SEG_BEYOND');
   });
 
   it('keeps quiet about a timecode past an unknown duration', () => {
