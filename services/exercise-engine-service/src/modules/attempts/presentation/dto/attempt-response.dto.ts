@@ -159,6 +159,36 @@ export class AttemptResponseDto {
     revealed: boolean;
   }>;
 
+  @ApiProperty({
+    description:
+      'Questions already worked on in this attempt — `highlight_in_text` only, and empty ' +
+      'for any other template or a fresh attempt. A resumed exercise reads it to put the ' +
+      'question rail back and to open the first question still open on the check after its ' +
+      'last; the first check of each question is the evidence, so it must not be replayed.',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        questionId: { type: 'string' },
+        checks: { type: 'integer' },
+        firstScore: { type: 'number', nullable: true },
+        firstPassed: { type: 'boolean', nullable: true },
+        passed: { type: 'boolean' },
+        revealed: { type: 'boolean' },
+        closed: { type: 'boolean' },
+      },
+    },
+  })
+  questionStates!: Array<{
+    questionId: string;
+    checks: number;
+    firstScore: number | null;
+    firstPassed: boolean | null;
+    passed: boolean;
+    revealed: boolean;
+    closed: boolean;
+  }>;
+
   @ApiPropertyOptional({
     nullable: true,
     description:

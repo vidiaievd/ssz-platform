@@ -161,8 +161,13 @@ export interface StartAttemptResult {
   questionStates: QuestionState[];
 }
 
-/** The question states a `highlight_in_text` attempt carries in its details; none for the rest. */
-function questionStatesOf(attempt: { templateCode: string; validationDetails: unknown }): QuestionState[] {
+/**
+ * The question states a `highlight_in_text` attempt carries in its details; none for the rest.
+ *
+ * Exported for the attempt read-back as well: a client that resumes from the list of open
+ * attempts rather than from a start (VoxOrd, plan 67 phase 8) needs the same states.
+ */
+export function questionStatesOf(attempt: { templateCode: string; validationDetails: unknown }): QuestionState[] {
   if (attempt.templateCode !== HIGHLIGHT_IN_TEXT) return [];
   const details = attempt.validationDetails;
   if (typeof details !== 'object' || details === null) return [];

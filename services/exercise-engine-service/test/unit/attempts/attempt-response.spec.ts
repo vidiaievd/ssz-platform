@@ -138,3 +138,45 @@ describe('toAttemptDto — the questions already handed in', () => {
     expect(toAttemptDto(attempt()).answeredQuestions).toEqual([]);
   });
 });
+
+describe('toAttemptDto — the questions of a highlight_in_text attempt (plan 67, phase 8)', () => {
+  const STATE = {
+    questionId: 'q1',
+    checks: 2,
+    firstScore: 0.5,
+    firstPassed: false,
+    passed: true,
+    revealed: false,
+    closed: true,
+  };
+
+  it('reads the question states back from the details of an open attempt', () => {
+    const dto = toAttemptDto(
+      attempt({
+        templateCode: 'highlight_in_text',
+        checkMode: 'PRACTICE',
+        status: 'IN_PROGRESS' as AttemptStatus,
+        validationDetails: { questionId: 'q1', cells: [], questions: [STATE] },
+      }),
+    );
+    expect(dto.questionStates).toEqual([STATE]);
+  });
+
+  it('reads them under GRADED too, where the details themselves are withheld', () => {
+    const dto = toAttemptDto(
+      attempt({
+        templateCode: 'highlight_in_text',
+        checkMode: 'GRADED',
+        status: 'IN_PROGRESS' as AttemptStatus,
+        validationDetails: { questionId: 'q1', cells: [], questions: [STATE] },
+      }),
+    );
+    expect(dto.validationDetails).toBeNull();
+    expect(dto.questionStates).toEqual([STATE]);
+  });
+
+  it('is empty for every other template', () => {
+    const dto = toAttemptDto(attempt({ validationDetails: { questions: [STATE] } }));
+    expect(dto.questionStates).toEqual([]);
+  });
+});
