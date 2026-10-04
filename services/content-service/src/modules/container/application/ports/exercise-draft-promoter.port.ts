@@ -1,8 +1,18 @@
 export const EXERCISE_DRAFT_PROMOTER = Symbol('EXERCISE_DRAFT_PROMOTER');
 
+/** One exercise whose draft became the live document, as it now reads. */
+export interface ReleasedExercise {
+  exerciseId: string;
+  templateCode: string;
+  content: unknown;
+  expectedAnswers: unknown;
+}
+
 export interface PromotedDrafts {
   exercises: number;
   instructions: number;
+  /** The exercises promoted, so the publish can say what each one now holds (plan 68). */
+  released: ReleasedExercise[];
 }
 
 /**
