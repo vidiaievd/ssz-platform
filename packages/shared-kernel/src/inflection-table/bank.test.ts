@@ -6,14 +6,73 @@ import { bankForms, distractors, distractorShortfall, inBank } from './bank.js';
 import { norm } from './compare.js';
 import { pickParadigm, updateInput } from './edits.js';
 import { sampleContent } from './fixture.js';
+import type { InflectionTableContent } from './model.js';
+import { emptyContent, newCell } from './model.js';
 
 const bankDoc = (bankExtra = 3) => updateInput(sampleContent(), { mode: 'bank', bankExtra });
 
+const SLOTS: Record<string, string[]> = {
+  noun: ['indefSg', 'defSg', 'indefPl', 'defPl'],
+  verb: ['inf', 'pres', 'pret', 'perf'],
+  adj: ['pos', 'comp', 'sup'],
+};
+
+/** One row of a paradigm, the first form given and the rest asked, with every distractor asked for. */
+function oneRow(paradigmId: string, lemma: string, forms: string[]): InflectionTableContent {
+  const slots = SLOTS[paradigmId]!;
+  const cells = Object.fromEntries(
+    slots.map((slotId, i) => [slotId, newCell(forms[i] ?? '', i === 0 ? 'prefill' : 'ask')]),
+  );
+  return {
+    ...emptyContent('nb'),
+    paradigmId,
+    slots,
+    rows: [{ id: 'r', lemma, gloss: '', dictId: null, cells }],
+    input: { mode: 'bank', bankExtra: 5, shuffleRows: false },
+  };
+}
+
 describe('distractors', () => {
   it('are the right stem with an ending from the wrong pattern', () => {
-    // Round one offers each cell's first pattern: `jobben`, `jobber`, `jobbene`, `boken`, `boka`
-    // and `husene` are keys or variants and drop out.
-    expect(distractors(bankDoc(5))).toEqual(['boker', 'bokene', 'husen', 'huser', 'søsterer']);
+    // Round one offers each cell's first pattern: `jobben`, `jobber`, `jobbene` and `husene` are
+    // keys, `boken` and `søsteren` the variants bokmål allows beside `boka` and `søstera`, and
+    // `søsterer` is no word.
+    expect(distractors(bankDoc(5))).toEqual(['boker', 'bokene', 'husen', 'huser', 'søsterene']);
+  });
+
+  it('never offer a variant the standard allows beside a key, written down or not', () => {
+    // `boka` without `boken` in its variants: `boken` is still right, and a learner who placed it
+    // would be fined as a false positive.
+    const bok = oneRow('noun', 'ei bok', ['bok', 'boka', 'bøker', 'bøkene']);
+    expect(distractors(bok)).not.toContain('boken');
+    expect(distractors(bok)).toContain('boker');
+    const hus = oneRow('noun', 'et hus', ['hus', 'huset', 'hus', 'husene']);
+    expect(distractors(hus)).not.toContain('husa');
+    const leve = oneRow('verb', 'å leve', ['å leve', 'lever', 'levde', 'har levd']);
+    expect(distractors(leve)).toEqual(['levte', 'har levt']);
+    const kaste = oneRow('verb', 'å kaste', ['å kaste', 'kaster', 'kastet', 'har kastet']);
+    expect(distractors(kaste)).not.toContain('kasta');
+  });
+
+  it('write a shared letter once at the seam, and drop what spells no word', () => {
+    const eple = oneRow('noun', 'et eple', ['eple', 'eplet', 'epler', 'eplene']);
+    expect(distractors(eple)).toEqual(['eplen', 'eplerne']);
+    const laerer = oneRow('noun', 'en lærer', ['lærer', 'læreren', 'lærere', 'lærerne']);
+    for (const d of distractors(laerer)) expect(d).not.toMatch(/erer/);
+    const kaste = oneRow('verb', 'å kaste', ['å kaste', 'kaster', 'kastet', 'har kastet']);
+    expect(distractors(kaste)).toEqual(['kastde']);
+  });
+
+  it('regularise the irregular — the errors a learner actually makes', () => {
+    const skrive = oneRow('verb', 'å skrive', ['å skrive', 'skriver', 'skrev', 'har skrevet']);
+    expect(distractors(skrive)).toEqual(['skrivet', 'har skrivet', 'skrivte', 'har skrivt', 'skrivde']);
+    const god = oneRow('adj', 'god', ['god', 'bedre', 'best']);
+    expect(distractors(god)).toEqual(['godere', 'godest', 'mer god', 'mest god']);
+  });
+
+  it('offer no nynorsk to a bokmål learner', () => {
+    const fin = oneRow('adj', 'fin', ['fin', 'finere', 'finest']);
+    expect(distractors(fin)).toEqual(['mer fin', 'mest fin']);
   });
 
   it('are never a key, a variant or a given form anywhere in the table', () => {

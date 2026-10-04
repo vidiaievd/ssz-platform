@@ -13,8 +13,16 @@
 //              (DECISIONS §3);
 //   stem       the stem the bank's distractors are built on (decision Q2-A): the lemma with
 //              its article stripped, and for `drop-e` one final `e` dropped as well;
-//   endings    per slot, plausible wrong forms on that stem — `{s}` is the stem. The prototype
-//              shipped a fixed Norwegian list of five words instead;
+//   endings    per slot, plausible wrong forms — `{s}` is the stem, `{w}` the lemma without its
+//              article. The prototype shipped a fixed Norwegian list of five words instead;
+//   swaps      per slot, endings the standard lets stand for each other — a key ending in the
+//              first is just as right ending in the second (`boka` / `boken`, `husene` / `husa`,
+//              `levde` / `levet`). Never offered as a distractor: a learner who knows the
+//              variant would be fined for it as a false positive;
+//   elide      letters written once where the stem ends and the ending begins with them
+//              (`eple` + `en` → `eplen`, not `epleen`);
+//   implausible  spellings that are no word of the language (`søsterer`): a distractor the eye
+//              rejects unread turns the bank into elimination, so it is not offered at all;
 //   demo       the example pair and reason the builder shows in step 3, so no Norwegian
 //              reaches the code (README «Language»).
 //
@@ -38,8 +46,14 @@ export interface Slot {
   atom: string;
   /** Suggested form from a dictionary entry; absent where the dictionary has nothing. */
   dict?: string;
-  /** Distractor patterns for the bank; `{s}` is the row's stem. */
+  /**
+   * Distractor patterns for the bank: `{s}` is the row's stem, `{w}` its lemma without the
+   * article. Classic errors only — the wrong gender's ending, a regular ending on an irregular
+   * word — never a variant the standard allows (see `swaps`).
+   */
   endings: readonly string[];
+  /** Interchangeable endings of this slot, `[from, to]`: a key ending in `from` is right in `to` too. */
+  swaps?: readonly (readonly [string, string])[];
 }
 
 export interface Paradigm {
@@ -69,6 +83,10 @@ export interface ParadigmPack {
   articles: Readonly<Record<string, string>>;
   /** Words stripped from the front of a lemma before stemming: articles, the infinitive mark. */
   particles: readonly string[];
+  /** Letters written once at the seam of stem and ending. */
+  elide: readonly string[];
+  /** Letter sequences no generated distractor may contain — they spell no word. */
+  implausible: readonly string[];
   /** Step 3's placeholder reason and the warning's example pair (asked / written). */
   demo: { why: string; asked: string; wrote: string };
   paradigms: readonly Paradigm[];
@@ -83,6 +101,10 @@ export const PACKS: readonly ParadigmPack[] = [
     instruction: 'Fyll ut bøyingen.',
     articles: { masculine: 'en', feminine: 'ei', neuter: 'et' },
     particles: ['en', 'ei', 'et', 'å'],
+    elide: ['e'],
+    // `søster` + `er`, `lærer` + `erne`: a nominal in -er does not take -er again. `kast` + `te`:
+    // a stem in -st takes -et, and nobody writes three consonants there.
+    implausible: ['erer', 'stt'],
     demo: { why: 'Hunkjønn i bokmål: ei bok → boka.', asked: 'bøkene', wrote: 'bøker' },
     paradigms: [
       {
@@ -108,7 +130,14 @@ export const PACKS: readonly ParadigmPack[] = [
             short: 'best. ent.',
             atom: 'nb.noun.def.sg',
             dict: '{p:definite_singular}',
-            endings: ['{s}en', '{s}a', '{s}et'],
+            // The wrong gender. `-a` is not offered: on a feminine it is the key or its variant,
+            // on a masculine or neuter it reads as a plural or a preterite, not as an error here.
+            endings: ['{s}en', '{s}et'],
+            // Feminines take either in bokmål.
+            swaps: [
+              ['a', 'en'],
+              ['en', 'a'],
+            ],
           },
           {
             id: 'indefPl',
@@ -116,7 +145,8 @@ export const PACKS: readonly ParadigmPack[] = [
             short: 'ub. fl.',
             atom: 'nb.noun.indef.pl',
             dict: '{p:plural_form}',
-            endings: ['{s}er', '{s}e', '{s}'],
+            // A regular plural on a word that is not (`boker`, `huser`), and the bare stem.
+            endings: ['{s}er', '{s}'],
           },
           {
             id: 'defPl',
@@ -124,7 +154,12 @@ export const PACKS: readonly ParadigmPack[] = [
             short: 'best. fl.',
             atom: 'nb.noun.def.pl',
             dict: '{p:definite_plural}',
-            endings: ['{s}ene', '{s}a', '{s}erne'],
+            endings: ['{s}ene', '{s}erne'],
+            // Neuters take `-a` beside `-ene` (`husa`).
+            swaps: [
+              ['ene', 'a'],
+              ['a', 'ene'],
+            ],
           },
         ],
       },
@@ -151,7 +186,9 @@ export const PACKS: readonly ParadigmPack[] = [
             short: 'pres.',
             atom: 'nb.verb.pres',
             dict: '{p:present_tense}',
-            endings: ['{s}er', '{s}r', '{s}e'],
+            // The present is the lemma plus `-r` almost without exception; the one plausible slip
+            // is `-er` on a short verb (`boer`). On an `-e` verb the seam folds it into the key.
+            endings: ['{w}er'],
           },
           {
             id: 'pret',
@@ -159,7 +196,14 @@ export const PACKS: readonly ParadigmPack[] = [
             short: 'pret.',
             atom: 'nb.verb.pret',
             dict: '{p:past_tense}',
-            endings: ['{s}et', '{s}te', '{s}de', '{s}dde'],
+            // The other weak classes, and a weak ending on a strong verb (`skrivte`).
+            endings: ['{s}et', '{s}te', '{s}de'],
+            // `kastet` / `kasta`, `levde` / `levet`.
+            swaps: [
+              ['et', 'a'],
+              ['a', 'et'],
+              ['de', 'et'],
+            ],
           },
           {
             id: 'perf',
@@ -167,7 +211,13 @@ export const PACKS: readonly ParadigmPack[] = [
             short: 'perf.',
             atom: 'nb.verb.perf',
             dict: 'har {p:perfect_tense}',
-            endings: ['har {s}et', 'har {s}t', 'har {s}d'],
+            // `har …d` is left out: on most stems it spells a cluster no learner writes.
+            endings: ['har {s}et', 'har {s}t'],
+            swaps: [
+              ['et', 'a'],
+              ['a', 'et'],
+              ['d', 'et'],
+            ],
           },
         ],
       },
@@ -195,14 +245,16 @@ export const PACKS: readonly ParadigmPack[] = [
             label: 'Komparativ',
             short: 'komp.',
             atom: 'nb.adj.comp',
-            endings: ['{s}ere', 'mer {s}', '{s}are'],
+            // A regular degree on an irregular adjective (`godere`) and the periphrastic one on a
+            // short adjective (`mer fin`). `-are` is nynorsk, not an error a bokmål learner makes.
+            endings: ['{s}ere', 'mer {s}'],
           },
           {
             id: 'sup',
             label: 'Superlativ',
             short: 'sup.',
             atom: 'nb.adj.sup',
-            endings: ['{s}est', '{s}ast', 'mest {s}'],
+            endings: ['{s}est', 'mest {s}'],
           },
         ],
       },
