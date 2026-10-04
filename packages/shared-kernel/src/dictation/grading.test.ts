@@ -209,10 +209,53 @@ describe('graded (plan 67, Q8-A)', () => {
   });
 });
 
+describe('check — what a reload needs is in the state', () => {
+  it('the last check as shown, beside the first as recorded (AC-R8, AC-R10)', () => {
+    const first = ok({ ex: sample(), segmentId: 'a', text: 'helt feil' });
+    const second = ok({ ex: sample(), segmentId: 'a', text: 'På sjøkkenet står det en skje.', segments: first.segments });
+    const st = second.segments.find((x) => x.segmentId === 'a');
+    expect(st?.firstScore).toBe(0);
+    expect(st?.last).toEqual({ pct: second.pct, words: second.words, ops: second.ops });
+    // The focus reason travels with the stored line, as it did in the answer.
+    expect(st?.last?.ops.find((o) => o.k === 'sub' && o.focus)).toMatchObject({ why: 'kj- foran ø.' });
+    expect(st?.key).toBeNull();
+    // Two checks of two: closed by the budget, so its slice is owed.
+    expect(st?.closed).toBe(true);
+    expect(st?.transcriptSlice).toBe(A);
+    // After one check it was still open, and carried nothing.
+    expect(first.segments.find((x) => x.segmentId === 'a')?.transcriptSlice).toBeNull();
+  });
+
+  it('the slice once closed, and nothing of a segment still open', () => {
+    const r = ok({ ex: sample(), segmentId: 'a', text: A });
+    expect(r.segments.find((x) => x.segmentId === 'a')?.transcriptSlice).toBe(A);
+    expect(r.segments.find((x) => x.segmentId === 'b')).toMatchObject({ last: null, key: null, transcriptSlice: null });
+    expect(JSON.stringify(r.segments)).not.toContain('hadde');
+  });
+
+  it('the sentence once revealed', () => {
+    const first = ok({ ex: sample(), segmentId: 'a', text: 'helt feil' });
+    const r = ok({ ex: sample(), segmentId: 'a', reveal: true, segments: first.segments });
+    const st = r.segments.find((x) => x.segmentId === 'a');
+    expect(st?.key).toEqual(r.key);
+    expect(st?.transcriptSlice).toBe(A);
+    // A reveal is not a check: the last line stays the one the student wrote.
+    expect(st?.last).toEqual(first.segments.find((x) => x.segmentId === 'a')?.last);
+  });
+
+  it('a graded check stores no reasons, as it showed none', () => {
+    const r = ok({ ex: sample(), segmentId: 'a', text: 'På sjøkkenet står det en sje.', graded: true });
+    const st = r.segments.find((x) => x.segmentId === 'a');
+    expect(JSON.stringify(st?.last)).not.toContain('kj- foran');
+  });
+});
+
 describe('readSegmentStates', () => {
   it('round-trips and never throws on junk', () => {
     const r = ok({ ex: sample(), segmentId: 'a', text: 'feil', now: 5 });
     expect(readSegmentStates(JSON.parse(JSON.stringify(r.segments)))).toEqual(r.segments);
+    const shown = ok({ ex: sample(), segmentId: 'a', reveal: true, segments: r.segments });
+    expect(readSegmentStates(JSON.parse(JSON.stringify(shown.segments)))).toEqual(shown.segments);
     expect(readSegmentStates('x')).toEqual([]);
     expect(readSegmentStates([null, { segmentId: 3 }, { segmentId: 'a' }])).toHaveLength(1);
   });

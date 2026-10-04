@@ -33,6 +33,13 @@
 // Each segment's state keeps its first check: the counters, the classes that occurred, the
 // focus words that came back wrong and the ops themselves. A class-wide report is then a
 // query over attempts, not a re-grade.
+//
+// ── What a reload needs ─────────────────────────────────────────────────────
+// The state also keeps what the student has already been shown about the segment, so a
+// resumed attempt can draw it again without a document to grade against: the last check's
+// corrected line (the summary shows it, AC-R10, beside the first check's score — the
+// record), the sentence once revealed, and the transcript slice once the segment closed.
+// None of it is new to the student: each was in the answer to a submit they made.
 
 import type { DiffOp, DiffResult, WordCounts } from './diff.js';
 import { diff, passes } from './diff.js';
@@ -106,6 +113,21 @@ export interface FirstCheck {
   ops: DiffOp[];
 }
 
+/** The last check of a segment, as the student saw it — the summary's corrected line. */
+export interface LastCheck {
+  /** 0-100 rounded. */
+  pct: number;
+  words: WordCounts;
+  ops: VerdictOp[];
+}
+
+/** The sentence as a reveal showed it. */
+export interface RevealedKey {
+  text: string;
+  why: string;
+  focus: KeyFocus[];
+}
+
 /** What the server carries forward for one segment between submits. */
 export interface SegmentState {
   segmentId: string;
@@ -124,6 +146,12 @@ export interface SegmentState {
   /** Epoch ms of the last check, for the throttle. */
   lastCheckAt: number | null;
   first: FirstCheck | null;
+  /** The last check as shown; `null` until there was one. */
+  last: LastCheck | null;
+  /** The sentence, once revealed. */
+  key: RevealedKey | null;
+  /** The transcript slice, once the segment closed under the `after` policy. */
+  transcriptSlice: string | null;
 }
 
 export interface CheckInput {
@@ -162,7 +190,7 @@ export interface CheckResult {
   /** `segment.why` — after a failed check, under `settings.hints`. */
   why?: string;
   /** Only on a reveal: the sentence, its reason and every focus word with its own. */
-  key?: { text: string; why: string; focus: KeyFocus[] };
+  key?: RevealedKey;
   /** The sentence for the transcript drawer, when the policy allows and the segment closed. */
   transcriptSlice?: string;
   /** Which check of this segment this was (a reveal reports the last). */
@@ -223,7 +251,17 @@ export function check(input: CheckInput): CheckOutcome {
     if (!s.revealKey || prev.checks === 0) return { ok: false, code: 'DICT_REVEAL_NOT_ALLOWED' };
 
     const words = tokens(seg.text);
-    next = { ...prev, revealed: true, closed: true };
+    const key: RevealedKey = {
+      text: seg.text.trim(),
+      why: seg.why.trim(),
+      focus: seg.focus.map((f) => ({
+        focusId: f.id,
+        word: words[f.wordIndex]?.w ?? '',
+        why: f.why.trim(),
+      })),
+    };
+    const slice = sliceOnClose ? seg.text.trim() : null;
+    next = { ...prev, revealed: true, closed: true, key, transcriptSlice: slice };
     result = {
       segmentId,
       pct: pctOf(prev.firstScore ?? 0),
@@ -231,16 +269,8 @@ export function check(input: CheckInput): CheckOutcome {
       words: prev.first?.words ?? emptyCounts(words.length),
       ops: [],
       focus: [],
-      key: {
-        text: seg.text.trim(),
-        why: seg.why.trim(),
-        focus: seg.focus.map((f) => ({
-          focusId: f.id,
-          word: words[f.wordIndex]?.w ?? '',
-          why: f.why.trim(),
-        })),
-      },
-      ...(sliceOnClose ? { transcriptSlice: seg.text.trim() } : {}),
+      key,
+      ...(slice === null ? {} : { transcriptSlice: slice }),
       attempt: prev.checks,
       checksLeft: max === null ? null : Math.max(0, max - prev.checks),
       closed: true,
@@ -263,6 +293,8 @@ export function check(input: CheckInput): CheckOutcome {
     const checksLeft = max === null ? null : Math.max(0, max - checks);
     const closed = passed || checksLeft === 0;
     const misses = focusMisses(seg, d.ops);
+    const ops = withReasons(seg, d.ops, !graded);
+    const slice = closed && sliceOnClose ? seg.text.trim() : null;
 
     next = {
       segmentId,
@@ -280,16 +312,19 @@ export function check(input: CheckInput): CheckOutcome {
         wrongFocus: misses.map((m) => m.focusId),
         ops: d.ops,
       },
+      last: { pct: pctOf(d.score), words: d.words, ops },
+      key: null,
+      transcriptSlice: slice,
     };
     result = {
       segmentId,
       pct: pctOf(d.score),
       passed,
       words: d.words,
-      ops: withReasons(seg, d.ops, !graded),
+      ops,
       focus: graded ? [] : misses,
       ...(!passed && s.hints && seg.why.trim() !== '' ? { why: seg.why.trim() } : {}),
-      ...(closed && sliceOnClose ? { transcriptSlice: seg.text.trim() } : {}),
+      ...(slice === null ? {} : { transcriptSlice: slice }),
       attempt: checks,
       checksLeft,
       closed,
@@ -347,6 +382,9 @@ export function readSegmentStates(value: unknown): SegmentState[] {
         lastText: typeof st['lastText'] === 'string' ? st['lastText'] : '',
         lastCheckAt: typeof st['lastCheckAt'] === 'number' ? st['lastCheckAt'] : null,
         first: readFirst(st['first']),
+        last: readLast(st['last']),
+        key: readKey(st['key']),
+        transcriptSlice: typeof st['transcriptSlice'] === 'string' ? st['transcriptSlice'] : null,
       },
     ];
   });
@@ -355,20 +393,8 @@ export function readSegmentStates(value: unknown): SegmentState[] {
 function readFirst(value: unknown): FirstCheck | null {
   if (typeof value !== 'object' || value === null) return null;
   const f = value as Record<string, unknown>;
-  const w = (typeof f['words'] === 'object' && f['words'] !== null ? f['words'] : {}) as Record<
-    string,
-    unknown
-  >;
-  const n = (k: string): number => (typeof w[k] === 'number' ? (w[k] as number) : 0);
   return {
-    words: {
-      total: n('total'),
-      exact: n('exact'),
-      near: n('near'),
-      wrong: n('wrong'),
-      missing: n('missing'),
-      extra: n('extra'),
-    },
+    words: readCounts(f['words']),
     classes: Array.isArray(f['classes'])
       ? (f['classes'].filter((c) => typeof c === 'string') as ErrorClass[])
       : [],
@@ -377,6 +403,45 @@ function readFirst(value: unknown): FirstCheck | null {
       : [],
     ops: Array.isArray(f['ops']) ? (f['ops'] as DiffOp[]) : [],
   };
+}
+
+function readCounts(value: unknown): WordCounts {
+  const w = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
+  const n = (k: string): number => (typeof w[k] === 'number' ? (w[k] as number) : 0);
+  return {
+    total: n('total'),
+    exact: n('exact'),
+    near: n('near'),
+    wrong: n('wrong'),
+    missing: n('missing'),
+    extra: n('extra'),
+  };
+}
+
+function readLast(value: unknown): LastCheck | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const l = value as Record<string, unknown>;
+  return {
+    pct: typeof l['pct'] === 'number' ? l['pct'] : 0,
+    words: readCounts(l['words']),
+    ops: Array.isArray(l['ops']) ? (l['ops'] as VerdictOp[]) : [],
+  };
+}
+
+function readKey(value: unknown): RevealedKey | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const k = value as Record<string, unknown>;
+  if (typeof k['text'] !== 'string') return null;
+  const focus = Array.isArray(k['focus'])
+    ? k['focus'].flatMap((raw): KeyFocus[] => {
+        if (typeof raw !== 'object' || raw === null) return [];
+        const f = raw as Record<string, unknown>;
+        return typeof f['focusId'] === 'string' && typeof f['word'] === 'string'
+          ? [{ focusId: f['focusId'], word: f['word'], why: typeof f['why'] === 'string' ? f['why'] : '' }]
+          : [];
+      })
+    : [];
+  return { text: k['text'], why: typeof k['why'] === 'string' ? k['why'] : '', focus };
 }
 
 function fresh(segmentId: string): SegmentState {
@@ -391,6 +456,9 @@ function fresh(segmentId: string): SegmentState {
     lastText: '',
     lastCheckAt: null,
     first: null,
+    last: null,
+    key: null,
+    transcriptSlice: null,
   };
 }
 
