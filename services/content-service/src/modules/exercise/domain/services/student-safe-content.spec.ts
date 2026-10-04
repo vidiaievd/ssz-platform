@@ -1081,3 +1081,113 @@ describe('sort_into_buckets', () => {
     expect(project({}).items).toEqual([]);
   });
 });
+
+describe('highlight_in_text', () => {
+  // Plan 67, AC-S11: the student payload carries the passage, its paragraphs and per ready
+  // question its id, prompt, unit and (only under `showCount`) a count — no spans, no `why`,
+  // no hints, no orphans, no threshold, no penalty. Asserted structurally, by key sets: the
+  // answer to «mark the past tense» is a word of the passage the student is meant to see, so
+  // a search for the answer text could not tell a leak from the text.
+  const text = 'I fjor sommer reiste vi til Bodø.\n\nVi bodde hos tante Kari.';
+  const content = {
+    title: 'Preteritum',
+    instruction: 'Les teksten og marker det oppgaven spør om.',
+    text,
+    questions: [
+      { id: 'q1', prompt: '  Marker verbene i preteritum. ', unit: 'word' },
+      { id: 'q2', prompt: 'Marker tidsuttrykkene.', unit: 'phrase' },
+      // Written but never marked — dropped.
+      { id: 'q3', prompt: 'Marker stedene.', unit: 'word' },
+    ],
+    settings: {
+      attempts: 2,
+      threshold: 80,
+      penalty: 'full',
+      showCount: false,
+      hints: true,
+      revealKey: true,
+    },
+  };
+  const key = {
+    questions: {
+      q1: {
+        spans: [
+          { id: 's1', start: 14, end: 20, why: 'Preteritum av «reise».' },
+          { id: 's2', start: 38, end: 43, why: '' },
+        ],
+        missHint: 'Se etter verb som forteller hva som skjedde.',
+        fpHint: '«Bodø» er et sted.',
+      },
+      q2: {
+        spans: [{ id: 's3', start: 0, end: 13, why: 'Når?' }],
+        missHint: 'Når skjedde det?',
+        fpHint: '',
+      },
+      q3: { spans: [], missHint: '', fpHint: '' },
+    },
+    orphans: [{ id: 'o1', qid: 'q1', surface: 'kjørte', why: 'Gammelt verb.' }],
+  };
+
+  type Projection = Record<string, unknown> & {
+    paragraphs: Array<[number, number]>;
+    questions: Array<Record<string, unknown>>;
+    settings: Record<string, unknown>;
+  };
+  const project = (c: Record<string, unknown> = content, k: Record<string, unknown> = key) =>
+    studentSafeContent('highlight_in_text', c, k) as unknown as Projection;
+
+  it('ships the passage, its paragraphs and ready questions, nothing more', () => {
+    const p = project();
+    expect(Object.keys(p).sort()).toEqual([
+      'instruction',
+      'paragraphs',
+      'questions',
+      'settings',
+      'text',
+    ]);
+    expect(p.text).toBe(text);
+    expect(p.paragraphs).toEqual([
+      [0, 33],
+      [35, 59],
+    ]);
+    expect(p.questions).toEqual([
+      { id: 'q1', prompt: 'Marker verbene i preteritum.', unit: 'word', count: null },
+      { id: 'q2', prompt: 'Marker tidsuttrykkene.', unit: 'phrase', count: null },
+    ]);
+    for (const q of p.questions) {
+      expect(Object.keys(q).sort()).toEqual(['count', 'id', 'prompt', 'unit']);
+    }
+    // Neither the pass mark nor the penalty: the verdict is the engine's alone.
+    expect(Object.keys(p.settings).sort()).toEqual(['attempts', 'hints', 'revealKey']);
+  });
+
+  it('carries none of the key fields or texts anywhere in the payload', () => {
+    const json = JSON.stringify(project());
+    const fields = [
+      'spans',
+      'why',
+      'missHint',
+      'fpHint',
+      'orphans',
+      'threshold',
+      'penalty',
+      'title',
+    ];
+    for (const field of fields) {
+      expect(json).not.toContain(`"${field}"`);
+    }
+    const secrets = ['Preteritum av', 'Se etter verb', 'er et sted', 'kjørte', 'Når skjedde'];
+    for (const secret of secrets) {
+      expect(json).not.toContain(secret);
+    }
+  });
+
+  it('states how many marks are expected only under showCount (AC-S10)', () => {
+    const counted = project({ ...content, settings: { ...content.settings, showCount: true } });
+    expect(counted.questions.map((q) => q.count)).toEqual([2, 1]);
+  });
+
+  it('shows no questions without the key column, rather than guessing', () => {
+    expect(project(content, {}).questions).toEqual([]);
+  });
+});

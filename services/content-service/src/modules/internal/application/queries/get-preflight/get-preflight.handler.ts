@@ -15,6 +15,7 @@ import { TEMPLATE_CODE as SENTENCE_SCHEMA_TEMPLATE } from '@ssz/shared-kernel/se
 import { TEMPLATE_CODE as MULTIPLE_CHOICE_TEMPLATE } from '@ssz/shared-kernel/multiple-choice';
 import { TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP_TEMPLATE } from '@ssz/shared-kernel/multiple-choice-group';
 import { TEMPLATE_CODE as SORT_INTO_BUCKETS_TEMPLATE } from '@ssz/shared-kernel/sort-into-buckets';
+import { TEMPLATE_CODE as HIGHLIGHT_IN_TEXT_TEMPLATE } from '@ssz/shared-kernel/highlight-in-text';
 import { gapFillViolations } from './gap-fill-preflight.js';
 import { matchPairsViolations } from './match-pairs-preflight.js';
 import { writingTaskViolations } from './writing-task-preflight.js';
@@ -23,6 +24,7 @@ import { sentenceSchemaViolations } from './sentence-schema-preflight.js';
 import { multipleChoiceViolations } from './multiple-choice-preflight.js';
 import { multipleChoiceGroupViolations } from './multiple-choice-group-preflight.js';
 import { sortIntoBucketsViolations } from './sort-into-buckets-preflight.js';
+import { highlightInTextViolations } from './highlight-in-text-preflight.js';
 import { audioViolations } from './audio-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
@@ -522,6 +524,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
                 MULTIPLE_CHOICE_TEMPLATE,
                 MULTIPLE_CHOICE_GROUP_TEMPLATE,
                 SORT_INTO_BUCKETS_TEMPLATE,
+                HIGHLIGHT_IN_TEXT_TEMPLATE,
               ],
             },
           },
@@ -606,6 +609,10 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
  *
  * `sort_into_buckets` (plan 66) fails the same way: an item with no bucket is dropped by
  * the projection, not marked wrong. It has one form only, so nothing is skipped.
+ *
+ * `highlight_in_text` (plan 67) too: a question with nothing marked is dropped. It also
+ * carries the one check the server makes that the builder never needs to — that every
+ * span still sits on token edges of the text (decision Q3-A, `HT_SPAN_OFF_TOKENS`).
  */
 function violationsFor(
   templateCode: string,
@@ -620,6 +627,7 @@ function violationsFor(
     return multipleChoiceGroupViolations(document);
   }
   if (templateCode === SORT_INTO_BUCKETS_TEMPLATE) return sortIntoBucketsViolations(document);
+  if (templateCode === HIGHLIGHT_IN_TEXT_TEMPLATE) return highlightInTextViolations(document);
   return gapFillViolations(document);
 }
 

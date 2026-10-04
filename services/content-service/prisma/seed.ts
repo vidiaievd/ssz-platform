@@ -1994,6 +1994,128 @@ const templates = [
     defaultCheckSettings: {},
     supportedLanguages: Prisma.DbNull,
   },
+  {
+    // One passage, up to four questions over it, the answers marked in the text
+    // (plan 67, design handoff 02_design_handoff_highlight_in_text). A mark is a run
+    // of whole tokens stored as character offsets into `text`; the marks are the key,
+    // so they live in `expected_answers` and the content below carries no trace of
+    // them. The kernel module `@ssz/shared-kernel/highlight-in-text` is the one place
+    // that splits the authored document across the two columns and joins it back.
+    code: 'highlight_in_text',
+    name: 'Highlight In Text',
+    description: 'Mark the words in a passage that answer a question',
+    contentSchema: {
+      type: 'object',
+      required: ['text', 'questions'],
+      properties: {
+        // One clip over the whole passage; questions have no recordings of their own,
+        // so there is no per-question audio field.
+        audio: audioSchema,
+        title: { type: 'string', description: 'Teacher-facing name of the exercise' },
+        instruction: { type: 'string', description: 'Standing instruction above the passage' },
+        // A blank line starts a paragraph — the platform's splitter, shared with the
+        // kernel. A mark never crosses a paragraph.
+        text: { type: 'string', description: 'The one passage the questions are asked over' },
+        // No `minItems` and no `maxItems`, although none is a blocker and more than four
+        // is a warning: this schema is checked on every write, and a document an author
+        // is in the middle of must stay saveable. The bounds are reported at publication
+        // (`highlight-in-text-preflight.ts`) — the reasoning of `sort_into_buckets`'
+        // buckets and `multiple_choice_group`'s columns.
+        questions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id'],
+            properties: {
+              id: { type: 'string', description: 'Stable; also the itemKey for addressing' },
+              prompt: { type: 'string', description: 'What the student is asked to mark' },
+              // `word`: a tap marks one token. `phrase`: a drag marks a run.
+              unit: { type: 'string', enum: ['word', 'phrase'] },
+            },
+          },
+        },
+        settings: {
+          type: 'object',
+          properties: {
+            // Checks per question; 0 = unlimited. Enforced on the attempt, not in the
+            // runner.
+            attempts: { type: 'integer', enum: [0, 1, 2, 3] },
+            // Percent per question, over its first check and after the penalty,
+            // compared with `>=`. Never projected to the student (AC-S11).
+            threshold: { type: 'number', minimum: 0, maximum: 100 },
+            // What one mark outside the key costs. `off` lowers the evidence.
+            penalty: { type: 'string', enum: ['off', 'half', 'full'] },
+            // «Det er N å finne». Lowers the evidence while on.
+            showCount: { type: 'boolean' },
+            hints: { type: 'boolean', description: 'missHint / fpHint after a failed check' },
+            revealKey: { type: 'boolean', description: 'Whether the key may be shown' },
+          },
+        },
+      },
+    },
+    // The author's key. Not the learner's submission schema: `highlight_in_text` is in
+    // `OWN_SUBMISSION_SHAPE` in exercise-engine, because the key is spans per question
+    // while the submission is one question's marks.
+    answerSchema: {
+      type: 'object',
+      required: ['questions'],
+      properties: {
+        // Keyed by question id, so reordering the questions cannot move a key onto
+        // another question.
+        questions: {
+          type: 'object',
+          additionalProperties: {
+            type: 'object',
+            properties: {
+              // Character offsets into `content.text`: the first token's start and one
+              // past the last token's end. That they sit on token edges of the current
+              // text is checked at publication (`HT_SPAN_OFF_TOKENS`), not here — a
+              // schema cannot tokenize.
+              spans: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['id', 'start', 'end'],
+                  properties: {
+                    id: { type: 'string' },
+                    start: { type: 'integer', minimum: 0 },
+                    end: { type: 'integer', minimum: 0 },
+                    // Why this one counts; shown with the key.
+                    why: { type: 'string' },
+                  },
+                },
+              },
+              // Why a missed mark should have been found — required at publication on a
+              // question with spans. Resolved on the server; the client never holds it.
+              missHint: { type: 'string' },
+              // Why an extra mark is wrong — the traps in this text.
+              fpHint: { type: 'string' },
+            },
+          },
+        },
+        // Marks that lost their words when the passage was edited, waiting for the
+        // author. Here rather than in `content`: an orphan's surface is a former answer.
+        // Any of them blocks publication (`HT_ORPHANED_MARKS`).
+        orphans: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id', 'qid'],
+            properties: {
+              id: { type: 'string' },
+              qid: { type: 'string', description: 'The question the mark belonged to' },
+              surface: { type: 'string', description: 'The words it covered, as written' },
+              why: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    // Nothing template-wide: the pass mark and the penalty are `settings` on the
+    // document, and grading by question is the type's only mode (SPEC_data_model §6).
+    defaultCheckSettings: {},
+    supportedLanguages: Prisma.DbNull,
+  },
 ];
 
 async function main(): Promise<void> {
