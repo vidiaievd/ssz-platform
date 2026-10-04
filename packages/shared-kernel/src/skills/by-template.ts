@@ -204,6 +204,24 @@ export const BY_TEMPLATE: Readonly<Record<string, TemplateProfile>> = {
     form: 'bank',
     modality: 'recognition',
   },
+
+  // Words marked in a passage (plan 67). Recognition — but over a text, not a list of
+  // options: the candidate set is every word in the passage, not four buttons, so the
+  // learner has to *find* the feature in running prose before pointing at it. The input is
+  // `text` (a continuous passage has to be read), nothing is written (`none`), and every
+  // answer is already on screen to be picked (`bank`, `recognition`). The handoff calls this
+  // `retrieval: select`; that axis became `modality` in plan 64 (decision G). It adds to
+  // the share of recognition where recognition is already heavy — the coverage card says
+  // so instead of letting it pass. No focus hint (rule 2): «mark the preterite» is grammar,
+  // «mark what refers to the weather» is vocabulary, and only the author knows which was
+  // built — plan 66 Q1-A, carried over as deviation 14 of plan 67.
+  highlight_in_text: {
+    input: 'text',
+    output: 'none',
+    focus: [],
+    form: 'bank',
+    modality: 'recognition',
+  },
 };
 
 /** `undefined` for a code the table does not know — a new template, or a typo. */
