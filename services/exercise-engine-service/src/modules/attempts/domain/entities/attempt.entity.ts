@@ -543,6 +543,31 @@ export class Attempt extends AggregateRoot {
     return Result.ok();
   }
 
+  /**
+   * One part of the work checked, and the attempt kept open for the rest.
+   *
+   * `highlight_in_text` is answered one question per submit (plan 67, Q1-A). A submit that
+   * leaves a question open is graded like any other — the validator's details, which carry
+   * every question's state, are written down — and then the attempt goes back to being
+   * worked on instead of being scored. So it is still the open attempt when the page is
+   * reloaded, the way a `short_answer` set with two answers in is (plan 51 §8 Q6), and it is
+   * scored exactly once, by the submit that closes the last question: that is the first
+   * check `score()` sees, and the one it publishes for.
+   */
+  recordPartialCheck(validationDetails: unknown): Result<void, InvalidAttemptTransitionError> {
+    if (this._status !== 'SUBMITTED') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot record a partial check on attempt with status ${this._status}`,
+        ),
+      );
+    }
+
+    this._validationDetails = validationDetails;
+    this._status = 'IN_PROGRESS';
+    return Result.ok();
+  }
+
   score(
     rawScore: number,
     passed: boolean,
@@ -554,11 +579,6 @@ export class Attempt extends AggregateRoot {
     gapResults?: Array<{ gapKey: string; correct: boolean }>,
     /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
     evidenceLowered?: boolean,
-    /**
-     * Whether this check is the one the evidence is published for, when the template says.
-     * Omitted means the first check — see below.
-     */
-    evidenceNow?: boolean,
   ): Result<void, InvalidScoreError | InvalidAttemptTransitionError> {
     if (this._status !== 'SUBMITTED') {
       return Result.fail(
@@ -584,14 +604,7 @@ export class Attempt extends AggregateRoot {
     // themselves with the wrong gaps still on screen, and counting it would tell
     // progress and the SRS that the word was known when it had just been shown to
     // be the one they got wrong.
-    //
-    // Unless the template says otherwise. `highlight_in_text` is answered one question
-    // per submit (plan 67, Q1-A), so its first check is the first check of question one
-    // only; the evidence is every question's first check, and it is complete on the
-    // submit that closes the last of them. That submit says so, and is the only one that
-    // publishes — the score it carries is already the mean of the first checks, so a later
-    // check still cannot raise it. An attempt abandoned half-way publishes nothing.
-    if (evidenceNow ?? this._recheckCount === 0) {
+    if (this._recheckCount === 0) {
       this.addDomainEvent(
         new AttemptScoredEvent(this.id, {
           userId: this._userId,

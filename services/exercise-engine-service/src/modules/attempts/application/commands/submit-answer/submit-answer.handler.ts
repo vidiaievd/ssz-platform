@@ -526,6 +526,10 @@ function withRecordedChecks(attempt: Attempt, submitted: unknown): unknown {
  * its own. None of it is the client's to state: a client that could send its own
  * `checks: 0` would buy a question another first try.
  *
+ * The mode is the attempt's too: a graded attempt gives each question one check, no hint and
+ * no reveal (decision Q8-A), and a client that could leave `graded` off would buy itself
+ * the practice budget.
+ *
  * What stays the client's is the question it is answering, its marks, and «Vis fasit».
  */
 function withRecordedQuestions(attempt: Attempt, submitted: unknown): unknown {
@@ -533,7 +537,11 @@ function withRecordedQuestions(attempt: Attempt, submitted: unknown): unknown {
     typeof submitted === 'object' && submitted !== null && !Array.isArray(submitted)
       ? (submitted as Record<string, unknown>)
       : {};
-  return { ...base, questions: recordedQuestions(attempt) };
+  return {
+    ...base,
+    questions: recordedQuestions(attempt),
+    graded: attempt.checkMode === 'GRADED',
+  };
 }
 
 /** The question states the last submit left on the attempt; none before the first. */
@@ -556,8 +564,9 @@ function recheckBudget(templateCode: string, content: unknown): number | undefin
   // `settings.attempts`: 1, 2 or 3 checks of the board, or 0 for unlimited (plan 66).
   if (templateCode === SORT_INTO_BUCKETS) return sbMaxChecks(sbReadContent(content).settings) ?? undefined;
   // `highlight_in_text` has a budget too, but per question rather than per attempt (plan 67,
-  // Q1-A): the attempt is reopened for every submit, and the kernel refuses a question whose
-  // checks are spent.
+  // Q1-A), and the kernel spends it. The attempt is not reopened between questions at all —
+  // it stays in progress until the last one closes; a reopen comes only after that, for
+  // «Vis fasit» on a question that ran out of checks.
   return undefined;
 }
 
@@ -796,6 +805,27 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       ? feedbackResult.value
       : { summary: outcome.correct ? 'Correct!' : 'Incorrect. Please try again.' };
 
+    // A question is still open (plan 67, Q1-A): the check is recorded and the attempt goes on
+    // being worked on — not scored, so nothing is published, and a reload finds it open. It
+    // is scored once, by the submit that closes the last question.
+    if (outcome.inProgress === true) {
+      const partial = attempt.recordPartialCheck(outcome.details);
+      if (partial.isFail) {
+        return Result.fail(partial.error as AttemptDomainError);
+      }
+
+      await this.attempts.save(attempt);
+
+      return Result.ok<SubmitAnswerResult, SubmitAnswerError>({
+        attemptId: attempt.id,
+        correct: outcome.correct,
+        score: outcome.score,
+        requiresReview: false,
+        feedback,
+        details: learnerFacingDetails(attempt.templateCode, outcome.details),
+      });
+    }
+
     const answerForm = describeAnswerForm(attempt.templateCode, def.exercise.content);
     const gapResults = describeGapResults(attempt.templateCode, outcome.details);
     const scoreResult = attempt.score(
@@ -806,7 +836,6 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       answerForm,
       gapResults,
       evidenceLowered(attempt.templateCode, def.exercise.content, def.exercise.expectedAnswers),
-      outcome.evidenceNow,
     );
     if (scoreResult.isFail) {
       return Result.fail(scoreResult.error as AttemptDomainError);

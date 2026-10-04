@@ -71,3 +71,16 @@ export function toStudentProjection(content: unknown, expectedAnswers: unknown):
     settings: { attempts: s.attempts, hints: s.hints, revealKey: s.revealKey },
   };
 }
+
+/**
+ * The settings a graded attempt runs under (plan 67, Q8-A) — one check per question, no hint,
+ * no reveal — written over a projection that may already have been made, by content-service,
+ * before anyone knew the mode. The runner draws «Prøv på nytt» and «Vis fasit» from these, so
+ * they must say what the server will allow. Anything that is not a projection comes back as
+ * it was.
+ */
+export function withGradedSettings(projection: unknown): unknown {
+  if (typeof projection !== 'object' || projection === null || Array.isArray(projection)) return projection;
+  const graded: ProjectedSettings = { attempts: 1, hints: false, revealKey: false };
+  return { ...(projection as Record<string, unknown>), settings: graded };
+}

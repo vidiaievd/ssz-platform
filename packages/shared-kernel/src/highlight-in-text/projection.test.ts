@@ -6,7 +6,7 @@ import { exercise } from './fixtures.test-support.js';
 import { emptyContent } from './model.js';
 import { fromPersisted, toContent, toExpectedAnswers } from './persistence.js';
 import { instructionFor, packFor } from './presets.js';
-import { toStudentProjection } from './projection.js';
+import { toStudentProjection, withGradedSettings } from './projection.js';
 
 const columns = (ex = exercise()) => [toContent(ex), toExpectedAnswers(ex)] as const;
 
@@ -77,5 +77,21 @@ describe('presets', () => {
     expect(packFor('xx')).toBeNull();
     expect(instructionFor('xx')).toBe('');
     expect(JSON.stringify(emptyContent(instructionFor('xx')))).not.toMatch(/marker|teksten/i);
+  });
+});
+
+describe('withGradedSettings (Q8-A)', () => {
+  it('writes one check, no hint and no reveal over a projection, and leaves the rest', () => {
+    const ex = exercise();
+    const projection = toStudentProjection(toContent(ex), toExpectedAnswers(ex));
+    const graded = withGradedSettings(projection) as typeof projection;
+    expect(graded.settings).toEqual({ attempts: 1, hints: false, revealKey: false });
+    expect(graded.questions).toEqual(projection.questions);
+    expect(graded.text).toBe(projection.text);
+  });
+
+  it('hands back anything that is not a projection as it was', () => {
+    expect(withGradedSettings(null)).toBeNull();
+    expect(withGradedSettings(['x'])).toEqual(['x']);
   });
 });

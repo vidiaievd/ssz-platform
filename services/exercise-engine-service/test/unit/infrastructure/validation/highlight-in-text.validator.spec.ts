@@ -281,14 +281,14 @@ describe('HighlightInTextValidator', () => {
       ).toBe('HT_REVEAL_NOT_ALLOWED');
     });
 
-    it('publishes on the submit that closes the last question, and on no other', () => {
+    it('keeps the attempt open until the last question closes', () => {
       const two = exercise(text, [
         question('q1', text, ['reiste']),
         question('q2', text, ['Bodø']),
       ]);
       const first = validate(two, { questionId: 'q1', marks: [at(text, 'reiste')] });
       expect(first.value).toMatchObject({
-        evidenceNow: false,
+        inProgress: true,
         correct: true,
         score: 50,
         passed: false,
@@ -299,7 +299,7 @@ describe('HighlightInTextValidator', () => {
         marks: [at(text, 'Bodø')],
         questions: detailsOf(first).questions,
       });
-      expect(second.value).toMatchObject({ evidenceNow: true, score: 100, passed: true });
+      expect(second.value).toMatchObject({ inProgress: false, score: 100, passed: true });
       expect(detailsOf(second).questions.map((q) => [q['questionId'], q['firstPassed']])).toEqual([
         ['q1', true],
         ['q2', true],

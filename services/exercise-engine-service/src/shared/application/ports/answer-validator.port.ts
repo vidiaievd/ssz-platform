@@ -34,17 +34,19 @@ export interface ValidationOutcome {
    */
   passed?: boolean;
   /**
-   * Whether this submit is the one the evidence is published for, when the validator is the
-   * one that knows.
+   * The attempt has work left: record this check on it and keep it open, rather than score
+   * it.
    *
-   * Omitted by every template whose first check is the evidence — the attempt publishes on
-   * its first check and stays silent on re-checks, which is right for anything checked whole.
+   * Omitted by every template checked whole — one submit closes the attempt, and a re-check
+   * reopens it.
    *
-   * `highlight_in_text` is answered one question per submit (plan 67, Q1-A): its first
-   * submit is the first check of question one, and the evidence is the first check of
-   * *every* question. It publishes once, on the submit that closes the last question.
+   * `highlight_in_text` is answered one question per submit (plan 67, Q1-A), and only the
+   * submit that closes the last question closes the attempt. Until then the attempt stays in
+   * progress, the way `short_answer`, `sentence_schema` and `multiple_choice` stay in progress
+   * while their questions are handed in one by one: a reload resumes it, and the evidence —
+   * every question's first check — is published once, on the first and only scoring.
    */
-  evidenceNow?: boolean;
+  inProgress?: boolean;
 }
 
 export class ValidationError extends Error {

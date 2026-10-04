@@ -221,6 +221,43 @@ describe('the attempt, question by question', () => {
   });
 });
 
+describe('a graded attempt (Q8-A)', () => {
+  const ex = { ...exercise(), settings: { ...exercise().settings, attempts: 3 as const, hints: true, revealKey: true } };
+  const graded = (input: Omit<CheckInput, 'ex' | 'graded'>) => check({ ex, graded: true, ...input });
+
+  it('gives each question one check whatever the settings say, and no hint', () => {
+    const first = graded({ questionId: 'q1', marks: words(ex, 'reiste', 'Bodø') });
+    expect(first.ok && first.result).toMatchObject({ passed: false, closed: true, checksLeft: 0, attempt: 1 });
+    expect(first.ok && first.result).not.toHaveProperty('missHint');
+    expect(first.ok && first.result).not.toHaveProperty('fpHint');
+
+    const again = graded({
+      questionId: 'q1',
+      marks: words(ex, ...PRETERITE),
+      questions: first.ok ? first.result.questions : [],
+    });
+    expect(again).toEqual({ ok: false, code: 'HT_QUESTION_CLOSED' });
+  });
+
+  it('never reveals the key', () => {
+    const first = graded({ questionId: 'q1', marks: words(ex, 'reiste') });
+    const reveal = graded({
+      questionId: 'q1',
+      marks: [],
+      reveal: true,
+      questions: first.ok ? first.result.questions : [],
+    });
+    expect(reveal).toEqual({ ok: false, code: 'HT_REVEAL_NOT_ALLOWED' });
+  });
+
+  it('still answers the questions one at a time and completes on the last', () => {
+    const q1 = graded({ questionId: 'q1', marks: words(ex, ...PRETERITE) });
+    const q2 = graded({ questionId: 'q2', marks: words(ex, ...TIME), questions: q1.ok ? q1.result.questions : [] });
+    expect(q1.ok && q1.result.complete).toBe(false);
+    expect(q2.ok && q2.result).toMatchObject({ complete: true, completedNow: true, attemptPct: 100 });
+  });
+});
+
 describe('readQuestionStates', () => {
   it('reads carried state back without throwing, dropping what is malformed', () => {
     expect(readQuestionStates(null)).toEqual([]);

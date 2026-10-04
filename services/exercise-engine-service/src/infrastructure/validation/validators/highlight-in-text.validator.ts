@@ -21,11 +21,14 @@ import type { IPerTypeValidator, PerTypeValidateInput } from './per-type-validat
  *     to submit; it is carried forward in the attempt's own details the way plan 54 carries
  *     `firstAnswer`, and the handler reads it back from there, never from the client.
  *
+ *   * **whether the attempt is graded** (`graded`) — one check per question, no hint, no
+ *     reveal (decision Q8-A); the mode is the attempt's.
+ *
  * The outcome is about the attempt, not the question: `score` is the mean of the first
  * checks over the ready questions and `passed` compares it with `settings.threshold`. The
- * question's own verdict is in the details, where the runner reads it. `evidenceNow` is the
- * kernel's `completedNow` — the one submit that closed the last question, and the only one
- * the engine publishes for.
+ * question's own verdict is in the details, where the runner reads it. `inProgress` says a
+ * question is still open: the handler records the check and keeps the attempt open, so it is
+ * scored — and its evidence published — once, by the submit that closes the last question.
  *
  * Nothing routes to a teacher: the verdict is a comparison of token runs.
  */
@@ -48,6 +51,7 @@ export class HighlightInTextValidator implements IPerTypeValidator {
       marks: submission.marks,
       reveal: submission.reveal,
       questions: submission.questions,
+      graded: submission.graded,
     });
 
     if (!outcome.ok) {
@@ -59,7 +63,7 @@ export class HighlightInTextValidator implements IPerTypeValidator {
       correct: r.passed,
       score: r.attemptPct,
       passed: r.attemptPassed,
-      evidenceNow: r.completedNow,
+      inProgress: !r.complete,
       // An allowlist of the kernel's result, field by field, so a field added there later
       // does not travel to the learner by being forgotten here.
       details: {
@@ -106,6 +110,7 @@ interface Submission {
   marks: CharRange[];
   reveal: boolean;
   questions: QuestionState[];
+  graded: boolean;
 }
 
 /**
@@ -118,8 +123,8 @@ interface Submission {
  * a reveal — «Sjekk» is disabled without a mark (AC-S1), so an empty check is a client bug
  * rather than an answer.
  *
- * `questions` is read leniently and is not the client's to decide: the submit handler
- * overwrites it with what the attempt records. It is read at all so a direct call in a test
+ * `questions` and `graded` are read leniently and are not the client's to decide: the submit
+ * handler overwrites them with what the attempt records. It is read at all so a direct call in a test
  * can drive a second submit without a database.
  */
 function readSubmission(submitted: unknown): Submission | null {
@@ -129,6 +134,7 @@ function readSubmission(submitted: unknown): Submission | null {
     marks?: unknown;
     reveal?: unknown;
     questions?: unknown;
+    graded?: unknown;
   };
 
   if (typeof raw.questionId !== 'string' || raw.questionId === '') return null;
@@ -151,6 +157,7 @@ function readSubmission(submitted: unknown): Submission | null {
     marks,
     reveal,
     questions: readQuestionStates(raw.questions),
+    graded: raw.graded === true,
   };
 }
 

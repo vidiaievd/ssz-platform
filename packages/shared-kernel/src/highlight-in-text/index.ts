@@ -111,7 +111,7 @@ export {
 } from './persistence.js';
 
 export type { ProjectedQuestion, ProjectedSettings, StudentProjection } from './projection.js';
-export { toStudentProjection } from './projection.js';
+export { toStudentProjection, withGradedSettings } from './projection.js';
 
 export type { LanguagePack } from './presets.js';
 export { instructionFor, packFor, PACKS } from './presets.js';

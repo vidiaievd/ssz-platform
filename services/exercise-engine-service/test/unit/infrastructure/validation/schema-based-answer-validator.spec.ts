@@ -363,7 +363,7 @@ describe('SchemaBasedAnswerValidator', () => {
       expect(result.value).toMatchObject({
         score: 100,
         passed: true,
-        evidenceNow: true,
+        inProgress: false,
         requiresReview: false,
         correct: true,
       });

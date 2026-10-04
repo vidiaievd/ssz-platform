@@ -1103,7 +1103,7 @@ describe('StartAttemptHandler — highlight_in_text', () => {
     }
   });
 
-  it('in GRADED mode hands on the envelope content-service already projected, rather than emptying it', async () => {
+  it('in GRADED mode hands on the envelope content-service already projected, under graded settings (Q8-A)', async () => {
     const alreadyProjected = htToStudentProjection(htContent, htKey);
     const { handler, modes } = makeHandlerByMode('highlight_in_text', () => ({
       content: alreadyProjected,
@@ -1112,9 +1112,13 @@ describe('StartAttemptHandler — highlight_in_text', () => {
 
     const result = (await handler.execute(graded)).value;
 
-    // Nothing is dealt, so nothing is fetched again.
+    // Nothing is dealt, so nothing is fetched again — and the questions are not emptied.
     expect(modes).toEqual(['GRADED']);
-    expect(result.exerciseContent).toEqual(alreadyProjected);
+    expect(result.exerciseContent).toEqual({
+      ...alreadyProjected,
+      // One check per question, no hint, no reveal — what the server will allow.
+      settings: { attempts: 1, hints: false, revealKey: false },
+    });
     expect(result.expectedAnswers).toBeNull();
   });
 });

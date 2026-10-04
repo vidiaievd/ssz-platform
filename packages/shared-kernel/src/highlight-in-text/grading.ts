@@ -151,6 +151,13 @@ export interface CheckInput {
   reveal?: boolean;
   /** Carried forward by the server; absent on the attempt's first submit. */
   questions?: readonly QuestionState[];
+  /**
+   * A graded attempt — the learner is not trusted with the key (plan 67, decision Q8-A). Each
+   * question gets one check whatever `settings.attempts` says, no hint and no reveal: the
+   * attempt is a submission, answered question by question. Stated by the server, never by
+   * the client.
+   */
+  graded?: boolean;
 }
 
 /** A key span as the reveal shows it, numbered in text order. */
@@ -211,7 +218,7 @@ export type CheckOutcome = { ok: true; result: CheckResult } | { ok: false; code
 
 export function check(input: CheckInput): CheckOutcome {
   const { ex, questionId } = input;
-  const s = ex.settings;
+  const s = input.graded === true ? { ...ex.settings, attempts: 1 as const, hints: false, revealKey: false } : ex.settings;
   const ready = readyQuestions(ex);
   const q = ready.find((x) => x.id === questionId);
   if (!q) return { ok: false, code: 'HT_QUESTION_UNKNOWN' };

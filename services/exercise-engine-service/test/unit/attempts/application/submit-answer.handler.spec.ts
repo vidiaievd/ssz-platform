@@ -1514,7 +1514,7 @@ const makeHtDef = (settings: Partial<HtSettings> = {}): ExerciseDefinition => {
   };
 };
 
-const makeHtAttempt = () =>
+const makeHtAttempt = (checkMode: 'PRACTICE' | 'GRADED' = 'PRACTICE') =>
   Attempt.reconstitute({
     id: 'attempt-1',
     userId: 'user-1',
@@ -1524,7 +1524,7 @@ const makeHtAttempt = () =>
     templateCode: 'highlight_in_text',
     targetLanguage: 'nb',
     difficultyLevel: 'B1',
-    checkMode: 'PRACTICE',
+    checkMode,
     practicedAtoms: [],
     status: 'IN_PROGRESS',
     score: null,
@@ -1542,8 +1542,8 @@ const makeHtAttempt = () =>
   });
 
 /** One attempt, one publisher, as many submits as the test makes. */
-const htSession = (def: ExerciseDefinition = makeHtDef()) => {
-  const attempt = makeHtAttempt();
+const htSession = (def: ExerciseDefinition = makeHtDef(), checkMode: 'PRACTICE' | 'GRADED' = 'PRACTICE') => {
+  const attempt = makeHtAttempt(checkMode);
   const repo = makeRepo(attempt);
   const publisher = makePublisher();
   const inner = new HighlightInTextValidator();
@@ -1576,7 +1576,7 @@ interface HtDetails {
 }
 
 describe('SubmitAnswerHandler — highlight_in_text', () => {
-  it('answers one question and publishes nothing while another is open', async () => {
+  it('answers one question, keeps the attempt open and publishes nothing while another is open (§8.7)', async () => {
     const s = htSession();
     const result = await s.submit({ questionId: 'q1', marks: [htAt('reiste'), htAt('bodde'), htAt('spiste')] });
 
@@ -1585,8 +1585,27 @@ describe('SubmitAnswerHandler — highlight_in_text', () => {
     expect(details).toMatchObject({ questionId: 'q1', pct: 100, passed: true, closed: true });
     // The attempt: q1's first check 100, q2 not yet checked.
     expect(result.value.score).toBe(50);
-    expect(s.attempt.status).toBe('SCORED');
+    // Still the open attempt — a reload resumes it — with the record of q1 written down.
+    expect(s.attempt.status).toBe('IN_PROGRESS');
+    expect(s.attempt.recheckCount).toBe(0);
+    expect(s.repo.save).toHaveBeenCalledWith(s.attempt);
+    expect((s.attempt.validationDetails as HtDetails).questions.find((q) => q.questionId === 'q1')).toMatchObject({
+      checks: 1,
+      firstPassed: true,
+      closed: true,
+    });
     expect(s.completed()).toHaveLength(0);
+  });
+
+  it('is scored once, by the submit that closes the last question', async () => {
+    const s = htSession();
+    await s.submit({ questionId: 'q1', marks: [htAt('reiste'), htAt('bodde'), htAt('spiste')] });
+    await s.submit({ questionId: 'q2', marks: [htAt('Bodø')] });
+
+    expect(s.attempt.status).toBe('SCORED');
+    expect(s.attempt.scoreValue).toBe(100);
+    expect(s.attempt.passed).toBe(true);
+    expect(s.completed()).toHaveLength(1);
   });
 
   it('publishes once, on the submit that closes the last question, with the first checks (AC-S12)', async () => {
@@ -1719,5 +1738,41 @@ describe('SubmitAnswerHandler — highlight_in_text lowers its evidence (plan 67
 
   it('lowers it with no penalty for an extra mark (AC-G3)', async () => {
     expect((await finish({ penalty: 'off' })).evidenceLowered).toBe(true);
+  });
+});
+
+describe('SubmitAnswerHandler — highlight_in_text in a graded attempt (Q8-A)', () => {
+  const gradedSession = (settings: Partial<HtSettings> = {}) => htSession(makeHtDef(settings), 'GRADED');
+
+  it('answers every question, one check each, and scores on the last', async () => {
+    const s = gradedSession({ attempts: 3 });
+    const q1 = await s.submit({ questionId: 'q1', marks: [htAt('reiste')] });
+    expect(q1.isOk).toBe(true);
+    expect(q1.value.details as HtDetails).toMatchObject({ closed: true, checksLeft: 0 });
+    expect(q1.value.details).not.toHaveProperty('missHint');
+    expect(s.attempt.status).toBe('IN_PROGRESS');
+
+    const q2 = await s.submit({ questionId: 'q2', marks: [htAt('Bodø')] });
+    expect(q2.isOk).toBe(true);
+    expect(s.attempt.status).toBe('SCORED');
+    expect(s.completed()).toHaveLength(1);
+  });
+
+  it('refuses a second check of a question whatever `settings.attempts` says', async () => {
+    const s = gradedSession({ attempts: 3 });
+    await s.submit({ questionId: 'q1', marks: [htAt('reiste')] });
+
+    const again = await s.submit({ questionId: 'q1', marks: [htAt('reiste'), htAt('bodde'), htAt('spiste')] });
+
+    expect(again.error).toBeInstanceOf(InvalidAttemptTransitionError);
+  });
+
+  it('never reveals the key, even if the client says it is practising', async () => {
+    const s = gradedSession();
+    await s.submit({ questionId: 'q1', marks: [htAt('reiste')], graded: false });
+
+    const reveal = await s.submit({ questionId: 'q1', reveal: true, graded: false });
+
+    expect(reveal.error).toBeInstanceOf(InvalidAttemptTransitionError);
   });
 });

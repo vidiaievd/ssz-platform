@@ -53,9 +53,12 @@ import {
   toStudentProjection as sbToStudentProjection,
 } from '@ssz/shared-kernel/sort-into-buckets';
 import {
+  readQuestionStates,
   TEMPLATE_CODE as HIGHLIGHT_IN_TEXT,
   toStudentProjection as htToStudentProjection,
+  withGradedSettings as htWithGradedSettings,
 } from '@ssz/shared-kernel/highlight-in-text';
+import type { QuestionState } from '@ssz/shared-kernel/highlight-in-text';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -146,6 +149,24 @@ export interface StartAttemptResult {
    * every question over would hand out full marks for a second try.
    */
   pickedOptions: ResumedPick[];
+  /**
+   * The questions already worked on in this attempt, for `highlight_in_text` and nothing else
+   * (plan 67, §8 caveat 7).
+   *
+   * A caller resuming the exercise reads it to put the rail back and to know which questions
+   * are closed and how many checks each has spent. None of it can be recovered from anywhere
+   * else, and two parts of it are the record: the first check of each question is the
+   * evidence, and a reload that started every question over would hand out a fresh first try.
+   */
+  questionStates: QuestionState[];
+}
+
+/** The question states a `highlight_in_text` attempt carries in its details; none for the rest. */
+function questionStatesOf(attempt: { templateCode: string; validationDetails: unknown }): QuestionState[] {
+  if (attempt.templateCode !== HIGHLIGHT_IN_TEXT) return [];
+  const details = attempt.validationDetails;
+  if (typeof details !== 'object' || details === null) return [];
+  return readQuestionStates((details as { questions?: unknown }).questions);
 }
 
 /**
@@ -274,7 +295,13 @@ function withheldWhereNeeded(
     whoever supplied the document.
   */
   if (checkMode === 'GRADED') {
-    return { ...withAudio, expectedAnswers: null };
+    // `highlight_in_text` runs a graded attempt under its own settings — one check per
+    // question, no hint, no reveal (plan 67, Q8-A) — and the runner draws its buttons from
+    // the projection, so the projection has to say so. content-service projected it without
+    // knowing the mode.
+    const exerciseContent =
+      templateCode === HIGHLIGHT_IN_TEXT ? htWithGradedSettings(withAudio.exerciseContent) : withAudio.exerciseContent;
+    return { ...withAudio, exerciseContent, expectedAnswers: null };
   }
   return withAudio;
 }
@@ -555,6 +582,12 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
      * first try at every question, which is a full score for anyone who reloads after a
      * miss. A revealed question would reopen the same way.
      *
+     * `highlight_in_text` is the fourth (plan 67, §8 caveat 7), and for `multiple_choice`'s
+     * reason: a question's first check is its evidence and its budget is per question, so a
+     * reload that started over would replay both. Its questions are checked one per submit
+     * and the attempt stays open until the last is closed; what they left behind is in the
+     * attempt's own details.
+     *
      * Only an attempt with work on it takes this path. An empty one is still a conflict,
      * so the ten other templates keep the behaviour they were built on — unless the
      * caller names it in `joinAttemptId`, which is how a caller that has already been
@@ -567,6 +600,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       (existing.answeredQuestions.length > 0 ||
         existing.checkedRows.length > 0 ||
         existing.pickedOptions.length > 0 ||
+        questionStatesOf(existing).length > 0 ||
         existing.id === command.joinAttemptId)
     ) {
       const resumedDef = await this.contentClient.getExerciseForAttempt(
@@ -626,6 +660,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
             revealed,
           }),
         ),
+        questionStates: questionStatesOf(existing),
       });
     }
 
@@ -729,6 +764,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       answeredQuestions: [],
       checkedRows: [],
       pickedOptions: [],
+      questionStates: [],
     });
   }
 

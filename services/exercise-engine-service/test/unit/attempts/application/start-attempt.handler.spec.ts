@@ -150,6 +150,7 @@ const inProgress = (
     revealed: boolean;
     checkedAt: Date;
   }> = [],
+  validationDetails: unknown = null,
 ) =>
   Attempt.reconstitute({
     id: 'attempt-open',
@@ -167,7 +168,7 @@ const inProgress = (
     passed: null,
     timeSpentSeconds: 0,
     submittedAnswer: null,
-    validationDetails: null,
+    validationDetails,
     feedback: null,
     answerHash: null,
     revisionCount: 0,
@@ -318,6 +319,49 @@ describe('StartAttemptHandler', () => {
       { rowId: 'r1', attempts: 3, placement: { 'f-sub': ['c1'] }, solved: false, revealed: true },
     ]);
     expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  /*
+    Plan 67, §8 caveat 7. A `highlight_in_text` attempt stays open while its questions are
+    checked one per submit, and what they left behind is in its own details: a reload must
+    hand the same attempt back with that record, not start every question over.
+  */
+  it('resumes a highlight_in_text attempt with a question checked, and its states', async () => {
+    const states = [
+      { questionId: 'q1', checks: 2, firstScore: 0.5, firstPassed: false, passed: true, revealed: false, closed: true },
+      { questionId: 'q2', checks: 0, firstScore: null, firstPassed: null, passed: false, revealed: false, closed: false },
+    ];
+    const repo = makeRepo();
+    repo.findInProgress.mockResolvedValue(
+      inProgress([], 'highlight_in_text', [], { questionId: 'q1', cells: [], questions: states }),
+    );
+    const contentClient = makeContentClient();
+    contentClient.getExerciseForAttempt.mockResolvedValue(
+      Result.ok(
+        makeExerciseDef({
+          templateCode: 'highlight_in_text',
+          content: { title: 'T', instruction: '', text: 'Vi reiste.', questions: [{ id: 'q1', prompt: 'P', unit: 'word' }] },
+          expectedAnswers: { questions: { q1: { spans: [{ id: 's', start: 3, end: 9, why: '' }] } }, orphans: [] },
+        }),
+      ),
+    );
+
+    const handler = makeHandler(repo, contentClient, makeOrganizationClient(), makePublisher());
+    const result = await handler.execute(cmd);
+
+    expect(result.value.attemptId).toBe('attempt-open');
+    expect(result.value.questionStates).toEqual(states);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('still reports a conflict for a highlight_in_text attempt nobody has checked anything in', async () => {
+    const repo = makeRepo();
+    repo.findInProgress.mockResolvedValue(inProgress([], 'highlight_in_text'));
+
+    const handler = makeHandler(repo, makeContentClient(), makeOrganizationClient(), makePublisher());
+    const result = await handler.execute(cmd);
+
+    expect((result.error as { code: string }).code).toBe('ALREADY_IN_PROGRESS');
   });
 
   it('still reports a conflict for an open attempt holding nothing', async () => {
