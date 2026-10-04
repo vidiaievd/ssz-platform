@@ -2,8 +2,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { tokenize, wordsOf } from './tokenize.js';
-import { TOKENIZER_FIXTURE } from './tokenizer-fixture.js';
+import { tokenize, wordsOf } from './words.js';
+import { TOKENIZER_FIXTURE } from './words-fixture.js';
 
 describe('tokenize', () => {
   it('AC-M1: finds exactly the fixture words, each at its own offsets', () => {

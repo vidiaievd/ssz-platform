@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient, Prisma } from '../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { dictationTemplate } from './templates/dictation.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({
@@ -2143,6 +2144,12 @@ const templates = [
     // Nothing template-wide: the pass mark and the penalty are `settings` on the
     // document, and grading by question is the type's only mode (SPEC_data_model §6).
     defaultCheckSettings: {},
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
+    // Schema split into templates/dictation.ts so a test can run it through AJV without
+    // pulling in the generated Prisma client that this file imports (plan 68 phase 3).
+    ...dictationTemplate(audioSchema, itemAudioSchema),
     supportedLanguages: Prisma.DbNull,
   },
 ];

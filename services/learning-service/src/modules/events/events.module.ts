@@ -8,6 +8,7 @@ import { ContainerPublishedConsumer } from './consumers/container-published.cons
 import { ContainerDeletedConsumer } from './consumers/container-deleted.consumer.js';
 import { VocabularyEnrollmentConsumer } from './consumers/vocabulary-enrollment.consumer.js';
 import { GroupEnrollmentConsumer } from './consumers/group-enrollment.consumer.js';
+import { ExerciseReleasedConsumer } from './consumers/exercise-released.consumer.js';
 
 @Module({
   imports: [CqrsModule, AssignmentsModule, EnrollmentsModule, CanDoModule],
@@ -17,6 +18,7 @@ import { GroupEnrollmentConsumer } from './consumers/group-enrollment.consumer.j
     ContainerDeletedConsumer,
     VocabularyEnrollmentConsumer,
     GroupEnrollmentConsumer,
+    ExerciseReleasedConsumer,
   ],
 })
 export class EventsModule {}

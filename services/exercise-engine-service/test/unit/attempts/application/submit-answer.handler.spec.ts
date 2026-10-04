@@ -27,6 +27,13 @@ import {
   toExpectedAnswers as htToExpectedAnswers,
 } from '@ssz/shared-kernel/highlight-in-text';
 import type { HighlightInTextContent, Settings as HtSettings } from '@ssz/shared-kernel/highlight-in-text';
+import { DictationValidator } from '../../../../src/infrastructure/validation/validators/dictation.validator.js';
+import {
+  emptyContent as dcEmptyContent,
+  toContent as dcToContent,
+  toExpectedAnswers as dcToExpectedAnswers,
+} from '@ssz/shared-kernel/dictation';
+import type { DictationContent, SegmentState, Settings as DcSettings } from '@ssz/shared-kernel/dictation';
 
 const makeInProgressAttempt = (templateCode = 'multiple_choice') =>
   Attempt.reconstitute({
@@ -1514,14 +1521,14 @@ const makeHtDef = (settings: Partial<HtSettings> = {}): ExerciseDefinition => {
   };
 };
 
-const makeHtAttempt = (checkMode: 'PRACTICE' | 'GRADED' = 'PRACTICE') =>
+const makeHtAttempt = (checkMode: 'PRACTICE' | 'GRADED' = 'PRACTICE', templateCode = 'highlight_in_text') =>
   Attempt.reconstitute({
     id: 'attempt-1',
     userId: 'user-1',
     exerciseId: 'ex-1',
     assignmentId: null,
     enrollmentId: null,
-    templateCode: 'highlight_in_text',
+    templateCode,
     targetLanguage: 'nb',
     difficultyLevel: 'B1',
     checkMode,
@@ -1781,6 +1788,357 @@ describe('SubmitAnswerHandler — highlight_in_text in a graded attempt (Q8-A)',
     await s.submit({ questionId: 'q1', marks: [htAt('reiste')], graded: false });
 
     const reveal = await s.submit({ questionId: 'q1', reveal: true, graded: false });
+
+    expect(reveal.error).toBeInstanceOf(InvalidAttemptTransitionError);
+  });
+});
+
+// ── dictation ───────────────────────────────────────────────────────────────
+//
+// Plan 68 §3.4: the mechanics of highlight_in_text above with a sentence where that type has
+// a question — plus the server's clock, which the throttle (Q4-A) runs on. The real validator
+// runs behind the port, one attempt object goes through every submit of a test, and the clock
+// is a hand the test moves.
+
+const DC_A = 'På kjøkkenet står det en skje.';
+const DC_B = 'Vi hadde ikke hørt noe i går.';
+
+const dcDocument = (
+  settings: Partial<DcSettings> = {},
+  patch: Partial<DictationContent> = {},
+): DictationContent => {
+  const base = dcEmptyContent('nb', 'Hør og skriv.');
+  return {
+    ...base,
+    title: 'Diktat',
+    audio: { ...base.audio, assetId: 'asset-1', title: 'Klipp', duration: 20 },
+    segments: [
+      {
+        id: 'a',
+        text: DC_A,
+        audio: { start: 0, end: 7 },
+        why: 'a — why',
+        focus: [{ id: 'f1', wordIndex: 1, why: 'kj- foran ø.' }],
+      },
+      { id: 'b', text: DC_B, audio: { start: 7, end: 14 }, why: 'b — why', focus: [] },
+    ],
+    settings: { ...base.settings, attempts: 2, threshold: 80, ...settings },
+    ...patch,
+  };
+};
+
+const makeDcDef = (
+  settings: Partial<DcSettings> = {},
+  patch: Partial<DictationContent> = {},
+): ExerciseDefinition => {
+  const doc = dcDocument(settings, patch);
+  return {
+    exercise: {
+      id: 'ex-1',
+      templateCode: 'dictation',
+      targetLanguage: 'nb',
+      difficultyLevel: 'A2',
+      content: dcToContent(doc) as unknown as Record<string, unknown>,
+      expectedAnswers: dcToExpectedAnswers(doc) as unknown as Record<string, unknown>,
+      answerCheckSettings: null,
+    },
+    template: {
+      code: 'dictation',
+      contentSchema: {},
+      answerSchema: { type: 'object' },
+      defaultCheckSettings: {},
+      supportedLanguages: null,
+    },
+    instruction: null,
+  };
+};
+
+/**
+ * The attempt as the database would hand it back: a copy of the last save. A refused submit
+ * leaves its in-memory attempt half-way (`SUBMITTED`) and is never saved, so the next request
+ * must not see that object — the highlight_in_text tests above never submit after a refusal.
+ */
+const asLoaded = (attempt: Attempt): Attempt => {
+  const copy = Object.assign(Object.create(Object.getPrototypeOf(attempt)), structuredClone({ ...attempt })) as Attempt;
+  copy.clearDomainEvents();
+  return copy;
+};
+
+/** One attempt, one publisher, one clock, as many submits as the test makes. */
+const dcSession = (def: ExerciseDefinition = makeDcDef(), checkMode: 'PRACTICE' | 'GRADED' = 'PRACTICE') => {
+  let saved = makeHtAttempt(checkMode, 'dictation');
+  const repo = makeRepo(saved);
+  repo.findById.mockImplementation(async () => asLoaded(saved));
+  repo.save.mockImplementation(async (a) => {
+    saved = asLoaded(a);
+  });
+  const publisher = makePublisher();
+  const inner = new DictationValidator();
+  const validator: IAnswerValidator = {
+    validate: jest
+      .fn<IAnswerValidator['validate']>()
+      .mockImplementation(async (input) => inner.validate(input as never)),
+    supports: () => true,
+  } as IAnswerValidator;
+  let now = 1_000_000;
+  const handler = new SubmitAnswerHandler(
+    repo as any,
+    makeContentClient(Result.ok(def)) as any,
+    validator as any,
+    makeFeedback() as any,
+    publisher as any,
+    makeReviewContext(makeContentClient(Result.ok(def))),
+    { now: () => new Date(now) },
+  );
+  const submit = (answer: Record<string, unknown>, advanceMs = 5_000) => {
+    now += advanceMs;
+    return handler.execute(new SubmitAnswerCommand('attempt-1', 'user-1', answer, 10, 'nb'));
+  };
+  const completed = () =>
+    publisher.publish.mock.calls.filter(([type]) => type === 'exercise.attempt.completed');
+  return {
+    get attempt() {
+      return saved;
+    },
+    repo,
+    submit,
+    completed,
+  };
+};
+
+interface DcDetails {
+  segmentId: string;
+  pct: number;
+  passed: boolean;
+  why?: string;
+  key?: { text: string; why: string };
+  transcriptSlice?: string;
+  attempt: number;
+  checksLeft: number | null;
+  closed: boolean;
+  revealed: boolean;
+  focus: unknown[];
+  segments: SegmentState[];
+}
+
+describe('SubmitAnswerHandler — dictation', () => {
+  it('answers one segment, keeps the attempt open and publishes nothing while another is open', async () => {
+    const s = dcSession();
+    const result = await s.submit({ segmentId: 'a', text: DC_A });
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.details as DcDetails).toMatchObject({ segmentId: 'a', pct: 100, passed: true, closed: true });
+    expect(result.value.score).toBe(50);
+    expect(s.attempt.status).toBe('IN_PROGRESS');
+    expect(s.repo.save).toHaveBeenCalledWith(s.attempt);
+    expect(s.completed()).toHaveLength(0);
+    // The transcript of the whole clip is not handed over between sentences.
+    expect(result.value.audioTranscript).toBeUndefined();
+  });
+
+  it('publishes once, on the submit that closes the last segment, with the first checks (AC-R8)', async () => {
+    const s = dcSession();
+    // a: the first check fails, the retry passes — the record stays the first.
+    const first = await s.submit({ segmentId: 'a', text: 'På sjøkkenet står det en sje.' });
+    expect((first.value.details as DcDetails).passed).toBe(false);
+    await s.submit({ segmentId: 'a', text: DC_A });
+    expect(s.completed()).toHaveLength(0);
+
+    await s.submit({ segmentId: 'b', text: DC_B });
+
+    expect(s.attempt.status).toBe('SCORED');
+    expect(s.completed()).toHaveLength(1);
+    const payload = s.completed()[0]![1] as {
+      score: number;
+      passed: boolean;
+      gapResults?: Array<{ gapKey: string; correct: boolean }>;
+    };
+    // a's first check 4/6 = 67, b 100 → 83, at or over the 80 pass mark.
+    expect(payload.score).toBe(83);
+    expect(payload.passed).toBe(true);
+    expect(payload.gapResults?.map(({ gapKey, correct }) => ({ gapKey, correct }))).toEqual([
+      { gapKey: 'a', correct: false },
+      { gapKey: 'b', correct: true },
+    ]);
+  });
+
+  it('keeps the first check, the last text and the classes on the attempt (Q5-A)', async () => {
+    const s = dcSession();
+    await s.submit({ segmentId: 'a', text: 'På sjøkkenet står det en sje.' });
+    await s.submit({ segmentId: 'a', text: 'På kjøkkenet står det en sje.' });
+
+    const a = (s.attempt.validationDetails as DcDetails).segments.find((st) => st.segmentId === 'a')!;
+    expect(a).toMatchObject({ checks: 2, firstPassed: false, lastText: 'På kjøkkenet står det en sje.' });
+    expect(a.first?.wrongFocus).toEqual(['f1']);
+    expect(a.first?.classes).toEqual(['typo']);
+    expect(a.first?.ops.length).toBeGreaterThan(0);
+  });
+
+  it('counts the checks itself — a forged state from the client changes nothing', async () => {
+    const s = dcSession();
+    await s.submit({ segmentId: 'a', text: 'feil' });
+
+    const forged = [{ segmentId: 'a', checks: 0, firstScore: 1, firstPassed: true, passed: false, revealed: false, closed: false }];
+    const second = await s.submit({ segmentId: 'a', text: 'feil', segments: forged });
+
+    const details = second.value.details as DcDetails;
+    expect(details).toMatchObject({ attempt: 2, checksLeft: 0, closed: true });
+    expect(details.segments.find((st) => st.segmentId === 'a')).toMatchObject({ checks: 2, firstPassed: false });
+  });
+
+  it('refuses a segment past its budget as a closed attempt state, and saves nothing', async () => {
+    const s = dcSession();
+    await s.submit({ segmentId: 'a', text: 'feil' });
+    await s.submit({ segmentId: 'a', text: 'feil' });
+    s.repo.save.mockClear();
+
+    const third = await s.submit({ segmentId: 'a', text: DC_A });
+
+    expect(third.isFail).toBe(true);
+    expect(third.error).toBeInstanceOf(InvalidAttemptTransitionError);
+    expect(s.repo.save).not.toHaveBeenCalled();
+  });
+
+  it('a reveal returns the sentence, closes the segment, and refuses every check after it (AC-R9)', async () => {
+    const s = dcSession();
+    await s.submit({ segmentId: 'a', text: 'feil' });
+
+    const reveal = await s.submit({ segmentId: 'a', reveal: true });
+    const details = reveal.value.details as DcDetails;
+    expect(details).toMatchObject({ revealed: true, closed: true, transcriptSlice: DC_A });
+    expect(details.key).toMatchObject({ text: DC_A, why: 'a — why' });
+    expect(reveal.value.feedback.summary).toBe('The answer has been shown.');
+
+    const after = await s.submit({ segmentId: 'a', text: DC_A });
+    expect(after.error).toBeInstanceOf(InvalidAttemptTransitionError);
+  });
+
+  it('leaves on the attempt what a reload must draw again: last line, sentence, slice', async () => {
+    const s = dcSession();
+    await s.submit({ segmentId: 'a', text: 'feil' });
+    await s.submit({ segmentId: 'a', reveal: true });
+    await s.submit({ segmentId: 'b', text: 'Vi hadde ikke hort noe i går.' });
+
+    const states = (s.attempt.validationDetails as DcDetails).segments;
+    expect(states.find((st) => st.segmentId === 'a')).toMatchObject({
+      key: { text: DC_A, why: 'a — why' },
+      transcriptSlice: DC_A,
+      last: { pct: 0 },
+    });
+    // b passed on its first check with a slip: the line as shown, and the sentence slice.
+    expect(states.find((st) => st.segmentId === 'b')).toMatchObject({
+      key: null,
+      transcriptSlice: DC_B,
+      last: { pct: expect.any(Number) },
+    });
+    expect(states.find((st) => st.segmentId === 'b')?.last?.ops.some((o) => o.k === 'sub')).toBe(true);
+  });
+
+  it('still allows the sentence on a segment out of checks, and does not publish twice', async () => {
+    const s = dcSession(makeDcDef({ attempts: 1 }));
+    await s.submit({ segmentId: 'a', text: 'feil' });
+    await s.submit({ segmentId: 'b', text: 'feil' });
+    expect(s.completed()).toHaveLength(1);
+
+    const reveal = await s.submit({ segmentId: 'a', reveal: true });
+
+    expect(reveal.isOk).toBe(true);
+    expect(s.completed()).toHaveLength(1);
+  });
+
+  it('writes a failed attempt and publishes it as failed (AC-R12)', async () => {
+    const s = dcSession(makeDcDef({ attempts: 1 }));
+    await s.submit({ segmentId: 'a', text: 'feil' });
+    await s.submit({ segmentId: 'b', text: 'feil' });
+
+    expect(s.attempt.status).toBe('SCORED');
+    expect(s.attempt.scoreValue).toBe(0);
+    expect(s.attempt.passed).toBe(false);
+    expect(s.completed()[0]![1]).toMatchObject({ passed: false, score: 0 });
+  });
+
+  it('holds back other sentences and the reason of a passed one (AC-X2)', async () => {
+    const s = dcSession();
+    const result = await s.submit({ segmentId: 'a', text: 'På sjøkkenet står det en sje.' });
+
+    const json = JSON.stringify(result.value.details);
+    for (const secret of ['hadde', 'hørt', 'b — why']) expect(json).not.toContain(secret);
+    expect(result.value.details).not.toHaveProperty('key');
+    expect(result.value.details).not.toHaveProperty('transcriptSlice');
+  });
+});
+
+describe('SubmitAnswerHandler — dictation is throttled on the server\'s clock (AC-X6, Q4-A)', () => {
+  it('refuses a second check of a segment inside two seconds, saves nothing, and takes it after', async () => {
+    const s = dcSession();
+    await s.submit({ segmentId: 'a', text: 'feil' });
+    s.repo.save.mockClear();
+
+    const soon = await s.submit({ segmentId: 'a', text: 'feil igjen' }, 1_000);
+    expect(soon.isFail).toBe(true);
+    expect(soon.error).toBeInstanceOf(ValidationError);
+    expect((soon.error as ValidationError).code).toBe('DICT_TOO_FAST');
+    expect(s.repo.save).not.toHaveBeenCalled();
+
+    const later = await s.submit({ segmentId: 'a', text: 'feil igjen' }, 1_000);
+    expect(later.isOk).toBe(true);
+  });
+
+  it('a time sent by the client is ignored', async () => {
+    const s = dcSession();
+    await s.submit({ segmentId: 'a', text: 'feil' });
+
+    const soon = await s.submit({ segmentId: 'a', text: 'feil igjen', now: 9_999_999_999 }, 500);
+
+    expect((soon.error as ValidationError).code).toBe('DICT_TOO_FAST');
+  });
+});
+
+describe('SubmitAnswerHandler — dictation lowers its evidence (plan 68 §3.7)', () => {
+  const finish = async (settings: Partial<DcSettings>, patch: Partial<DictationContent> = {}) => {
+    const s = dcSession(makeDcDef(settings, patch));
+    await s.submit({ segmentId: 'a', text: DC_A });
+    await s.submit({ segmentId: 'b', text: DC_B });
+    return s.completed()[0]![1] as { evidenceLowered?: boolean };
+  };
+
+  it('says nothing on an ordinary exercise', async () => {
+    expect(await finish({})).not.toHaveProperty('evidenceLowered');
+  });
+
+  it('lowers it while the word count is shown', async () => {
+    expect((await finish({ showWordCount: true })).evidenceLowered).toBe(true);
+  });
+
+  it('lowers it when the transcript is shown before the check', async () => {
+    const base = dcDocument();
+    const audio = { ...base.audio, settings: { ...base.audio.settings, transcriptWhen: 'always' as const } };
+    expect((await finish({}, { audio })).evidenceLowered).toBe(true);
+  });
+});
+
+describe('SubmitAnswerHandler — dictation in a graded attempt (Q8-A)', () => {
+  const gradedSession = (settings: Partial<DcSettings> = {}) => dcSession(makeDcDef(settings), 'GRADED');
+
+  it('one check per segment whatever `settings.attempts` says, no reason, and scores on the last', async () => {
+    const s = gradedSession({ attempts: 3 });
+    const a = await s.submit({ segmentId: 'a', text: 'feil' });
+    expect(a.value.details as DcDetails).toMatchObject({ closed: true, checksLeft: 0, focus: [] });
+    expect(a.value.details).not.toHaveProperty('why');
+
+    const again = await s.submit({ segmentId: 'a', text: DC_A });
+    expect(again.error).toBeInstanceOf(InvalidAttemptTransitionError);
+
+    await s.submit({ segmentId: 'b', text: DC_B });
+    expect(s.attempt.status).toBe('SCORED');
+    expect(s.completed()).toHaveLength(1);
+  });
+
+  it('never reveals the sentence, even if the client says it is practising', async () => {
+    const s = gradedSession();
+    await s.submit({ segmentId: 'a', text: 'feil', graded: false });
+
+    const reveal = await s.submit({ segmentId: 'a', reveal: true, graded: false });
 
     expect(reveal.error).toBeInstanceOf(InvalidAttemptTransitionError);
   });

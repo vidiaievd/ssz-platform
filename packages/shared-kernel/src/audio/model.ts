@@ -275,3 +275,35 @@ export function formatDuration(seconds: number): string {
   const minutes = Math.floor(safe / 60);
   return `${minutes}:${String(safe % 60).padStart(2, '0')}`;
 }
+
+/**
+ * A timecode inside a clip, to a tenth of a second: `1:36`, `1:36.4`, `96.4` and `96` are all
+ * accepted. `null` for anything else, for the same reason as `parseDuration`.
+ *
+ * Item timecodes have a finer grain than the clip's own length: a whole-second end cuts the
+ * tail off a sentence that finishes between two seconds, and a dictation lives on exactly
+ * that tail.
+ */
+export function parseTimecode(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+
+  const colon = trimmed.match(/^(\d+):([0-5]?\d)(?:\.(\d))?$/);
+  if (colon) return Number(colon[1]) * 60 + Number(colon[2]) + Number(colon[3] ?? 0) / 10;
+  const plain = trimmed.match(/^(\d+)(?:\.(\d))?$/);
+  return plain ? Number(plain[1]) + Number(plain[2] ?? 0) / 10 : null;
+}
+
+/** Seconds → `m:ss`, with `.t` only where there is a tenth to show. */
+export function formatTimecode(seconds: number): string {
+  const tenths = Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 10) : 0;
+  const whole = Math.floor(tenths / 10);
+  const fraction = tenths % 10;
+  const base = `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+  return fraction === 0 ? base : `${base}.${fraction}`;
+}
+
+/** A position from a player, kept to a tenth of a second. */
+export function toTenths(seconds: number): number {
+  return Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 10) / 10 : 0;
+}

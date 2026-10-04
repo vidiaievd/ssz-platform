@@ -5,6 +5,7 @@ import { MultipleChoiceValidator } from './validators/multiple-choice.validator.
 import { MultipleChoiceGroupValidator } from './validators/multiple-choice-group.validator.js';
 import { SortIntoBucketsValidator } from './validators/sort-into-buckets.validator.js';
 import { HighlightInTextValidator } from './validators/highlight-in-text.validator.js';
+import { DictationValidator } from './validators/dictation.validator.js';
 import { FillInBlankValidator } from './validators/fill-in-blank.validator.js';
 import { MatchPairsValidator } from './validators/match-pairs.validator.js';
 import { ShortAnswerValidator } from './validators/short-answer.validator.js';
@@ -23,6 +24,7 @@ import { WritingTaskValidator } from './validators/writing-task.validator.js';
     MultipleChoiceGroupValidator,
     SortIntoBucketsValidator,
     HighlightInTextValidator,
+    DictationValidator,
     FillInBlankValidator,
     MatchPairsValidator,
     ShortAnswerValidator,

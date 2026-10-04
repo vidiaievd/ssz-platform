@@ -16,8 +16,11 @@ export {
   audioOf,
   audioOn,
   formatDuration,
+  formatTimecode,
   hasClip,
   parseDuration,
+  parseTimecode,
+  toTenths,
   segmentOf,
 } from './model.js';
 

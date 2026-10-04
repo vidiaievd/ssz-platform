@@ -14,6 +14,8 @@ import { WordBankGapFillValidator } from '../../../../src/infrastructure/validat
 import { SentenceSchemaValidator } from '../../../../src/infrastructure/validation/validators/sentence-schema.validator.js';
 import { SortIntoBucketsValidator } from '../../../../src/infrastructure/validation/validators/sort-into-buckets.validator.js';
 import { HighlightInTextValidator } from '../../../../src/infrastructure/validation/validators/highlight-in-text.validator.js';
+import { DictationValidator } from '../../../../src/infrastructure/validation/validators/dictation.validator.js';
+import { emptyContent as dcEmptyContent, toContent as dcToContent, toExpectedAnswers as dcToExpectedAnswers } from '@ssz/shared-kernel/dictation';
 import { ValidationError } from '../../../../src/shared/application/ports/answer-validator.port.js';
 import { Result } from '../../../../src/shared/kernel/result.js';
 
@@ -41,6 +43,7 @@ const makeValidator = () =>
     new WritingTaskValidator(),
     new SortIntoBucketsValidator(),
     new HighlightInTextValidator(),
+    new DictationValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {
@@ -356,6 +359,34 @@ describe('SchemaBasedAnswerValidator', () => {
           orphans: [],
         },
         submittedAnswer: { questionId: 'q1', marks: [{ start: 3, end: 9 }] },
+        checkSettings: {},
+        targetLanguage: 'nb',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value).toMatchObject({
+        score: 100,
+        passed: true,
+        inProgress: false,
+        requiresReview: false,
+        correct: true,
+      });
+    });
+
+    it('delegates dictation to its own validator, past AJV, never to a teacher (AC-X4)', async () => {
+      const validator = makeValidator();
+      expect(validator.supports('dictation')).toBe(true);
+      const doc = {
+        ...dcEmptyContent('nb'),
+        segments: [{ id: 's1', text: 'Vi bor i Bergen.', audio: null, why: 'x', focus: [] }],
+      };
+      const result = await validator.validate({
+        templateCode: 'dictation',
+        // The key's schema, which one segment's text could never satisfy — proof that AJV is
+        // not run over the submission.
+        answerSchema: { type: 'object', required: ['segments'] },
+        content: dcToContent(doc),
+        expectedAnswers: dcToExpectedAnswers(doc),
+        submittedAnswer: { segmentId: 's1', text: 'vi bor i Bergen' },
         checkSettings: {},
         targetLanguage: 'nb',
       });

@@ -16,6 +16,7 @@ import { TEMPLATE_CODE as MULTIPLE_CHOICE_TEMPLATE } from '@ssz/shared-kernel/mu
 import { TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP_TEMPLATE } from '@ssz/shared-kernel/multiple-choice-group';
 import { TEMPLATE_CODE as SORT_INTO_BUCKETS_TEMPLATE } from '@ssz/shared-kernel/sort-into-buckets';
 import { TEMPLATE_CODE as HIGHLIGHT_IN_TEXT_TEMPLATE } from '@ssz/shared-kernel/highlight-in-text';
+import { TEMPLATE_CODE as DICTATION_TEMPLATE } from '@ssz/shared-kernel/dictation';
 import { gapFillViolations } from './gap-fill-preflight.js';
 import { matchPairsViolations } from './match-pairs-preflight.js';
 import { writingTaskViolations } from './writing-task-preflight.js';
@@ -25,6 +26,7 @@ import { multipleChoiceViolations } from './multiple-choice-preflight.js';
 import { multipleChoiceGroupViolations } from './multiple-choice-group-preflight.js';
 import { sortIntoBucketsViolations } from './sort-into-buckets-preflight.js';
 import { highlightInTextViolations } from './highlight-in-text-preflight.js';
+import { dictationViolations } from './dictation-preflight.js';
 import { audioViolations } from './audio-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
@@ -525,6 +527,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
                 MULTIPLE_CHOICE_GROUP_TEMPLATE,
                 SORT_INTO_BUCKETS_TEMPLATE,
                 HIGHLIGHT_IN_TEXT_TEMPLATE,
+                DICTATION_TEMPLATE,
               ],
             },
           },
@@ -613,6 +616,10 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
  * `highlight_in_text` (plan 67) too: a question with nothing marked is dropped. It also
  * carries the one check the server makes that the builder never needs to — that every
  * span still sits on token edges of the text (decision Q3-A, `HT_SPAN_OFF_TOKENS`).
+ *
+ * `dictation` (plan 68) fails loudly rather than silently — an unfinished sentence is a
+ * blocker, not a drop — but it earns its place here for the same structural reason as the
+ * rest: its rules read the key column, which only this query loads.
  */
 function violationsFor(
   templateCode: string,
@@ -628,6 +635,7 @@ function violationsFor(
   }
   if (templateCode === SORT_INTO_BUCKETS_TEMPLATE) return sortIntoBucketsViolations(document);
   if (templateCode === HIGHLIGHT_IN_TEXT_TEMPLATE) return highlightInTextViolations(document);
+  if (templateCode === DICTATION_TEMPLATE) return dictationViolations(document);
   return gapFillViolations(document);
 }
 

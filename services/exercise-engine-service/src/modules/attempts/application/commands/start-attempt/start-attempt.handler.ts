@@ -53,12 +53,18 @@ import {
   toStudentProjection as sbToStudentProjection,
 } from '@ssz/shared-kernel/sort-into-buckets';
 import {
-  readQuestionStates,
   TEMPLATE_CODE as HIGHLIGHT_IN_TEXT,
   toStudentProjection as htToStudentProjection,
   withGradedSettings as htWithGradedSettings,
 } from '@ssz/shared-kernel/highlight-in-text';
 import type { QuestionState } from '@ssz/shared-kernel/highlight-in-text';
+import {
+  TEMPLATE_CODE as DICTATION,
+  toStudentProjection as dcToStudentProjection,
+  withGradedSettings as dcWithGradedSettings,
+} from '@ssz/shared-kernel/dictation';
+import type { SegmentState } from '@ssz/shared-kernel/dictation';
+import { itemStatesOf, questionStatesOf, segmentStatesOf } from '../../services/item-states.js';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -159,19 +165,16 @@ export interface StartAttemptResult {
    * evidence, and a reload that started every question over would hand out a fresh first try.
    */
   questionStates: QuestionState[];
-}
-
-/**
- * The question states a `highlight_in_text` attempt carries in its details; none for the rest.
- *
- * Exported for the attempt read-back as well: a client that resumes from the list of open
- * attempts rather than from a start (VoxOrd, plan 67 phase 8) needs the same states.
- */
-export function questionStatesOf(attempt: { templateCode: string; validationDetails: unknown }): QuestionState[] {
-  if (attempt.templateCode !== HIGHLIGHT_IN_TEXT) return [];
-  const details = attempt.validationDetails;
-  if (typeof details !== 'object' || details === null) return [];
-  return readQuestionStates((details as { questions?: unknown }).questions);
+  /**
+   * The segments already worked on in this attempt, for `dictation` and nothing else (plan
+   * 68 §3.4, the same reasoning as `questionStates`).
+   *
+   * Per segment: checks spent, the first check (the record — its score, its verdict, and
+   * the corrected line it showed), passed / revealed / closed, and the last checked text,
+   * which a retry keeps and a reload puts back in the field. Nothing in it is a part of the
+   * key the student was not already shown by a check.
+   */
+  segmentStates: SegmentState[];
 }
 
 /**
@@ -304,8 +307,13 @@ function withheldWhereNeeded(
     // question, no hint, no reveal (plan 67, Q8-A) — and the runner draws its buttons from
     // the projection, so the projection has to say so. content-service projected it without
     // knowing the mode.
+    // `dictation` the same way, per segment.
     const exerciseContent =
-      templateCode === HIGHLIGHT_IN_TEXT ? htWithGradedSettings(withAudio.exerciseContent) : withAudio.exerciseContent;
+      templateCode === HIGHLIGHT_IN_TEXT
+        ? htWithGradedSettings(withAudio.exerciseContent)
+        : templateCode === DICTATION
+          ? dcWithGradedSettings(withAudio.exerciseContent)
+          : withAudio.exerciseContent;
     return { ...withAudio, exerciseContent, expectedAnswers: null };
   }
   return withAudio;
@@ -513,6 +521,23 @@ function projectByTemplate(
     };
   }
 
+  if (templateCode === DICTATION) {
+    // A `graded` envelope content-service has already projected — handed on as it stands,
+    // for `highlight_in_text`'s reason: only the key column can say which segments are ready.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      // Both columns, nothing dealt: the sentences keep the clip's order. The key column is
+      // asked whether each segment has a sentence and — only under `showWordCount` — how
+      // many words (AC-R3). No sentence, reason, focus word, marking, language or pass mark
+      // (AC-X2). The timecodes go on with the audio layer below.
+      exerciseContent: dcToStudentProjection(exercise.content, exercise.expectedAnswers),
+      expectedAnswers: null,
+    };
+  }
+
   if (templateCode === WRITING_TASK) {
     // In `graded` mode content-service has already projected this document and answered
     // with no key at all. Projecting a projection would then drop the one thing §5 is
@@ -593,6 +618,9 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
      * and the attempt stays open until the last is closed; what they left behind is in the
      * attempt's own details.
      *
+     * `dictation` is the fifth, on exactly those terms with a sentence for a question (plan
+     * 68 §3.4) — plus the last checked text, which a retry keeps and a reload puts back.
+     *
      * Only an attempt with work on it takes this path. An empty one is still a conflict,
      * so the ten other templates keep the behaviour they were built on — unless the
      * caller names it in `joinAttemptId`, which is how a caller that has already been
@@ -605,7 +633,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       (existing.answeredQuestions.length > 0 ||
         existing.checkedRows.length > 0 ||
         existing.pickedOptions.length > 0 ||
-        questionStatesOf(existing).length > 0 ||
+        itemStatesOf(existing).length > 0 ||
         existing.id === command.joinAttemptId)
     ) {
       const resumedDef = await this.contentClient.getExerciseForAttempt(
@@ -666,6 +694,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
           }),
         ),
         questionStates: questionStatesOf(existing),
+        segmentStates: segmentStatesOf(existing),
       });
     }
 
@@ -770,6 +799,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       checkedRows: [],
       pickedOptions: [],
       questionStates: [],
+      segmentStates: [],
     });
   }
 

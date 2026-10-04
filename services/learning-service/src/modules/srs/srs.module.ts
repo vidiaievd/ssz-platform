@@ -18,6 +18,7 @@ import { IntroduceCardHandler } from './application/commands/introduce-card.hand
 import { ReviewCardHandler } from './application/commands/review-card.handler.js';
 import { SuspendCardHandler } from './application/commands/suspend-card.handler.js';
 import { UnsuspendCardHandler } from './application/commands/unsuspend-card.handler.js';
+import { PruneGapCardsHandler } from './application/commands/prune-gap-cards.handler.js';
 import { BulkIntroduceFromVocabularyListHandler } from './application/commands/bulk-introduce-from-vocabulary-list.handler.js';
 import { ApplyPlacementHandler } from './application/commands/apply-placement/apply-placement.handler.js';
 
@@ -42,6 +43,7 @@ const CommandHandlers = [
   ReviewCardHandler,
   SuspendCardHandler,
   UnsuspendCardHandler,
+  PruneGapCardsHandler,
   BulkIntroduceFromVocabularyListHandler,
   ApplyPlacementHandler,
 ];

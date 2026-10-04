@@ -124,7 +124,9 @@ function segmentIssues(audio: ExerciseAudio, items: readonly AudioItem[]): Audio
     }
     // Only when a duration is known. It is a client-side hint (§3.7), and warning against
     // an unknown length would fire on every exercise whose file has not been opened yet.
-    if (audio.duration > 0 && seg.end > audio.duration) {
+    // The stored length is rounded to whole seconds, so a clip of 14.4 s is stored as 14 and an
+    // end at 14.3 is on the clip — half a second of slack is the rounding, not a mistake.
+    if (audio.duration > 0 && seg.end > audio.duration + 0.5) {
       out.push({ code: 'AUD_SEG_BEYOND', level: 'warning', part: 'segments', itemId: item.id });
     }
   }

@@ -138,4 +138,24 @@ describe('audioViolations', () => {
     );
     expect(codes(violations)).toEqual(['AUDIO_AUD_NO_CLIP']);
   });
+
+  it('keeps quiet about the two rules a dictation silences, and keeps the rest (plan 68, Q3-A)', () => {
+    // Transcript policy `after` with an empty transcript, one play over five sentences:
+    // both rules fire on any other template, and neither may on a dictation.
+    const content = {
+      audio: audio({ settings: { plays: 1, transcriptWhen: 'after' }, title: '' }),
+      segments: [{ id: 's1' }, { id: 's2' }, { id: 's3' }, { id: 's4' }, { id: 's5' }],
+      questions: [{ id: 's1' }, { id: 's2' }, { id: 's3' }, { id: 's4' }, { id: 's5' }],
+    };
+
+    const other = codes(audioViolations(exercise(content)));
+    expect(other).toEqual(
+      expect.arrayContaining(['AUDIO_AUD_NO_TRANSCRIPT', 'AUDIO_AUD_ONE_PLAY_MANY_ITEMS']),
+    );
+
+    const dictation = codes(audioViolations(exercise(content, 'dictation')));
+    expect(dictation).not.toContain('AUDIO_AUD_NO_TRANSCRIPT');
+    expect(dictation).not.toContain('AUDIO_AUD_ONE_PLAY_MANY_ITEMS');
+    expect(dictation).toContain('AUDIO_AUD_NO_TITLE');
+  });
 });

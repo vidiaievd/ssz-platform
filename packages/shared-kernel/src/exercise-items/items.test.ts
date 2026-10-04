@@ -65,6 +65,41 @@ describe('itemsOf', () => {
     expect(isAddressableTemplate('highlight_in_text')).toBe(true);
   });
 
+  it('keys a dictation sentence by its segment id, focus words first (plan 68)', () => {
+    const content = {
+      mode: 'segments',
+      language: 'nb',
+      segments: [{ id: 's1' }, { id: 's2' }, { id: 's3' }],
+    };
+    const expected = {
+      segments: {
+        s1: {
+          text: 'På kjøkkenet står det en skje ved siden av tallerkenen.',
+          why: '',
+          focus: [
+            { id: 'f2', wordIndex: 5, why: '' },
+            { id: 'f1', wordIndex: 1, why: '' },
+          ],
+        },
+        s2: { text: '   ', why: '', focus: [] },
+        s3: { text: 'Hun går  til butikken.', why: '', focus: [] },
+      },
+      orphans: [],
+    };
+    const items = itemsOf('dictation', content, expected);
+    expect(items?.map((item) => item.key)).toEqual(['s1', 's3']);
+    expect(items?.[0]).toMatchObject({
+      label: 'S1 — På kjøkkenet står det en skje ved siden…',
+      value: 'På kjøkkenet står det en skje ved siden av tallerkenen.',
+    });
+    expect(items?.[0]?.matchValues.slice(0, 3)).toEqual(['kjøkkenet', 'skje', 'På']);
+    expect(items?.[1]).toMatchObject({
+      label: 'S2 — Hun går til butikken.',
+      matchValues: ['Hun', 'går', 'til', 'butikken'],
+    });
+    expect(isAddressableTemplate('dictation')).toBe(true);
+  });
+
   it('keys a gap exactly as gapResults spells it', () => {
     // The whole point: a target keyed differently from the evidence could never be joined
     // to it. `sentenceId#tokenIndex` is not a choice made here, it is what already travels.

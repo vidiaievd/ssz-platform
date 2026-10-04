@@ -94,6 +94,11 @@ describe('elements, not exercises', () => {
     ]);
   });
 
+  it('keeps a structural subject on every element beside its atoms (plan 68)', () => {
+    const set = ex('dictation', { atoms: keyed(['s1', 'vocabulary_word'], ['s2', 'phrase']) });
+    expect(elementsOf(set).map((e) => e.focus)).toEqual([['vocabulary', 'orthography'], ['orthography']]);
+  });
+
   it('keeps an element whose atom names no subject', () => {
     const set = ex('multiple_choice', { atoms: keyed(['q1', 'grammar_rule'], ['q2', 'phrase']) });
     expect(elementsOf(set).map((e) => e.focus)).toEqual([['grammar'], []]);

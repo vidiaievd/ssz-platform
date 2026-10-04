@@ -42,6 +42,10 @@ import {
   TEMPLATE_CODE as HIGHLIGHT_IN_TEXT,
   toStudentProjection as highlightInTextProjection,
 } from '@ssz/shared-kernel/highlight-in-text';
+import {
+  TEMPLATE_CODE as DICTATION,
+  toStudentProjection as dictationProjection,
+} from '@ssz/shared-kernel/dictation';
 import { withStudentAudio } from '@ssz/shared-kernel/audio';
 
 /**
@@ -121,6 +125,15 @@ import { withStudentAudio } from '@ssz/shared-kernel/audio';
  * finished statement from a half-written one, which is why this projection is the one
  * that takes both columns and could not be written to take one (plan 54 §1, fact 2). The
  * rows are shuffled here too, columns never.
+ *
+ * `dictation` is the eighth, and the one with the most to hide: not a flag, a position or
+ * a mapping, but the sentences themselves. Its content names only which sentences exist
+ * (an id and, under `mode: 'segments'`, a timecode) — the words, the reasons and the focus
+ * words are all in `expected_answers`. The projection asks that column one question per
+ * sentence — «is anything written?» — and ships a ready sentence's id and, only under
+ * `settings.showWordCount`, how many words it has (plan 68 §3.2, AC-R3). No text, no
+ * reason, no focus word, no orphan, no marking rule, no language, no pass mark: the
+ * verdict is the engine's alone, exactly as `highlight_in_text`'s is.
  *
  * There are exactly two places content leaves this service towards a learner, and both
  * call this: the exercise response DTO and the internal attempt envelope in `graded`
@@ -254,6 +267,16 @@ function projectByTemplate(
 
   if (templateCode === WRITING_TASK) {
     const projection = writingTaskProjection(content, expectedAnswers);
+    return projection as unknown as Record<string, unknown>;
+  }
+
+  if (templateCode === DICTATION) {
+    // Both columns, for the same reason `highlight_in_text` needs them: a sentence is
+    // ready only if its text has been written, and the text is the key, in
+    // `expected_answers`. The projection asks that column one question per sentence —
+    // «is anything written?» — and ships no sentence, no reason, no focus word, no
+    // orphan, no marking rule, no language and no pass mark (plan 68 §3.2).
+    const projection = dictationProjection(content, expectedAnswers);
     return projection as unknown as Record<string, unknown>;
   }
 

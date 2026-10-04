@@ -354,6 +354,44 @@ describe('StartAttemptHandler', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
+  /*
+    Plan 68 §3.4: `dictation` on the same terms, and its states carry the last checked text
+    a reload puts back in the field.
+  */
+  it('resumes a dictation attempt with a segment checked, and its states', async () => {
+    const states = [
+      {
+        segmentId: 'a',
+        checks: 1,
+        firstScore: 0.5,
+        firstPassed: false,
+        passed: false,
+        revealed: false,
+        closed: false,
+        lastText: 'paa sjøkkenet',
+        lastCheckAt: 1000,
+        first: null,
+        last: null,
+        key: null,
+        transcriptSlice: null,
+      },
+    ];
+    const repo = makeRepo();
+    repo.findInProgress.mockResolvedValue(inProgress([], 'dictation', [], { segmentId: 'a', ops: [], segments: states }));
+    const contentClient = makeContentClient();
+    contentClient.getExerciseForAttempt.mockResolvedValue(
+      Result.ok(makeExerciseDef({ templateCode: 'dictation', content: {}, expectedAnswers: {} })),
+    );
+
+    const handler = makeHandler(repo, contentClient, makeOrganizationClient(), makePublisher());
+    const result = await handler.execute(cmd);
+
+    expect(result.value.attemptId).toBe('attempt-open');
+    expect(result.value.segmentStates).toEqual(states);
+    expect(result.value.questionStates).toEqual([]);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
   it('still reports a conflict for a highlight_in_text attempt nobody has checked anything in', async () => {
     const repo = makeRepo();
     repo.findInProgress.mockResolvedValue(inProgress([], 'highlight_in_text'));

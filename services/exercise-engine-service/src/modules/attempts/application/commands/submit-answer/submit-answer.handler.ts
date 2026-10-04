@@ -25,10 +25,13 @@ import {
 import {
   ceilingCause as htCeilingCause,
   fromPersisted as htFromPersisted,
-  readQuestionStates,
   TEMPLATE_CODE as HIGHLIGHT_IN_TEXT,
 } from '@ssz/shared-kernel/highlight-in-text';
-import type { QuestionState } from '@ssz/shared-kernel/highlight-in-text';
+import {
+  ceilingCause as dcCeilingCause,
+  fromPersisted as dcFromPersisted,
+  TEMPLATE_CODE as DICTATION,
+} from '@ssz/shared-kernel/dictation';
 import {
   fromPersisted as writingTaskFromPersisted,
   snapshotRubric,
@@ -36,7 +39,7 @@ import {
 } from '@ssz/shared-kernel/writing-task';
 import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Inject, Optional } from '@nestjs/common';
 import { SubmitAnswerCommand } from './submit-answer.command.js';
 import { ATTEMPT_REPOSITORY, type IAttemptRepository } from '../../../domain/repositories/attempt.repository.js';
 import { CONTENT_CLIENT, type IContentClient, ContentClientError } from '../../../../../shared/application/ports/content-client.port.js';
@@ -49,6 +52,8 @@ import { InvalidAttemptTransitionError } from '../../../domain/exceptions/attemp
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
 import { audioTranscriptFor, type AudioTranscript } from '../../services/audio-transcript.js';
+import { firstVerdictsIn, isItemByItem, withRecordedItems } from '../../services/item-states.js';
+import { CLOCK, SystemClock, type IClock } from '../../../../../shared/application/ports/clock.port.js';
 
 export type SubmitAnswerError =
   | { code: 'ATTEMPT_NOT_FOUND' }
@@ -139,6 +144,12 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
   // are (AC-S5), the hints only under `settings.hints` and only for the failure that
   // happened. The spans with their reasons come back only on a reveal of that question.
   if (templateCode === HIGHLIGHT_IN_TEXT) return details;
+  // `dictation` the same way (plan 68 §3.5): the corrected line of this check, the focus
+  // words that came back wrong with their reasons, the segment's reason only after a failed
+  // check under `hints`, the sentence only on a reveal and a transcript slice only for a
+  // closed segment — all decided in the kernel's `check`. The segment states it carries hold
+  // nothing a check has not already shown: the first check's line was that check's verdict.
+  if (templateCode === DICTATION) return details;
   return undefined;
 }
 
@@ -167,10 +178,10 @@ const WHOLE_BOARD_CHECKS: ReadonlySet<string> = new Set([MULTIPLE_CHOICE_GROUP, 
  *
  * Everything else in the submission is the learner's own work and is taken as sent.
  */
-function withRecordedReveals(attempt: Attempt, submitted: unknown): unknown {
+function withRecordedReveals(attempt: Attempt, submitted: unknown, now: Date): unknown {
   if (attempt.templateCode === MULTIPLE_CHOICE) return withRecordedPicks(attempt, submitted);
   if (WHOLE_BOARD_CHECKS.has(attempt.templateCode)) return withRecordedChecks(attempt, submitted);
-  if (attempt.templateCode === HIGHLIGHT_IN_TEXT) return withRecordedQuestions(attempt, submitted);
+  if (isItemByItem(attempt.templateCode)) return withRecordedItems(attempt, submitted, now);
   if (attempt.templateCode !== SENTENCE_SCHEMA) return submitted;
 
   const revealed = new Set(
@@ -347,7 +358,9 @@ function describeGapResults(
   details: unknown,
 ): Array<{ gapKey: string; correct: boolean }> | undefined {
   if (templateCode === SORT_INTO_BUCKETS) return sortItemResults(details);
-  if (templateCode === HIGHLIGHT_IN_TEXT) return questionResults(details);
+  // Item by item (plans 67 and 68): a question or a segment is the item, keyed by its id as
+  // the kernel's `itemsOf` spells it for addressing, with its *first* check's verdict.
+  if (isItemByItem(templateCode)) return firstVerdictsIn(templateCode, details);
   if (templateCode !== WORD_BANK_GAP_FILL) return undefined;
   if (typeof details !== 'object' || details === null) return undefined;
 
@@ -380,6 +393,12 @@ function evidenceLowered(templateCode: string, content: unknown, expectedAnswers
   if (templateCode === HIGHLIGHT_IN_TEXT) {
     return htCeilingCause(htFromPersisted(content, expectedAnswers)) !== null;
   }
+  // `dictation` (plan 68 §3.7): a word counter above the field gives the length of the
+  // answer away, and a transcript shown other than after the check gives the answer itself.
+  // Same rule as the builder's evidence-ceiling line in step 4.
+  if (templateCode === DICTATION) {
+    return dcCeilingCause(dcFromPersisted(content, expectedAnswers)) !== null;
+  }
   if (templateCode !== SORT_INTO_BUCKETS) return false;
   return sbCeilingCause(sbFromPersisted(content, expectedAnswers)) !== null;
 }
@@ -408,7 +427,8 @@ function sortItemResults(details: unknown): Array<{ gapKey: string; correct: boo
 }
 
 /**
- * The line a closed-by-reveal `highlight_in_text` question carries (plan 67, phase 9).
+ * The line a closed-by-reveal item carries — a `highlight_in_text` question (plan 67,
+ * phase 9) or a `dictation` segment.
  *
  * The generator knows only right and wrong, and a revealed question is neither: nothing was
  * checked, the key was shown. Left alone it said «Incorrect. Please try again.» about a
@@ -418,28 +438,11 @@ function revealedFeedback(
   templateCode: string,
   details: unknown,
 ): { summary: string } | null {
-  if (templateCode !== HIGHLIGHT_IN_TEXT) return null;
+  if (!isItemByItem(templateCode)) return null;
   if (typeof details !== 'object' || details === null) return null;
   return (details as { revealed?: unknown }).revealed === true
     ? { summary: 'The answer has been shown.' }
     : null;
-}
-
-/**
- * The per-question verdicts of a `highlight_in_text` attempt, keyed by question id (plan 67,
- * the precedent of plan 66 Q3-A).
- *
- * A question is the item here — `itemsOf` in the kernel addresses it by `question.id`, and
- * the spans and the passage are not targets (SPEC_data_model §7). The verdict is the
- * question's *first* check, carried forward in the attempt's details (`firstPassed`): the
- * event is published once, on the submit that closed the last question, and by then every
- * question has had one.
- */
-function questionResults(details: unknown): Array<{ gapKey: string; correct: boolean }> | undefined {
-  if (typeof details !== 'object' || details === null) return undefined;
-  const states = readQuestionStates((details as { questions?: unknown }).questions);
-  if (states.length === 0) return undefined;
-  return states.map((st) => ({ gapKey: st.questionId, correct: st.firstPassed === true }));
 }
 
 /**
@@ -532,44 +535,6 @@ function withRecordedChecks(attempt: Attempt, submitted: unknown): unknown {
 }
 
 /**
- * A `highlight_in_text` submission with the attempt's record of every question written over
- * it (plan 67, Q1-A).
- *
- * The same move as `withRecordedChecks`, one granule finer. The work is handed in one
- * question at a time, so what the server must remember between requests is per question:
- * how many checks it has spent (the budget is per question), what its first check scored
- * and whether it passed (the evidence), and whether it is closed. All of it is in the
- * previous submit's details — the validator writes every question's state there and each
- * submit carries it forward — so, like `multiple_choice_group`, the type needs no column of
- * its own. None of it is the client's to state: a client that could send its own
- * `checks: 0` would buy a question another first try.
- *
- * The mode is the attempt's too: a graded attempt gives each question one check, no hint and
- * no reveal (decision Q8-A), and a client that could leave `graded` off would buy itself
- * the practice budget.
- *
- * What stays the client's is the question it is answering, its marks, and «Vis fasit».
- */
-function withRecordedQuestions(attempt: Attempt, submitted: unknown): unknown {
-  const base =
-    typeof submitted === 'object' && submitted !== null && !Array.isArray(submitted)
-      ? (submitted as Record<string, unknown>)
-      : {};
-  return {
-    ...base,
-    questions: recordedQuestions(attempt),
-    graded: attempt.checkMode === 'GRADED',
-  };
-}
-
-/** The question states the last submit left on the attempt; none before the first. */
-function recordedQuestions(attempt: Attempt): QuestionState[] {
-  const details = attempt.validationDetails;
-  if (typeof details !== 'object' || details === null) return [];
-  return readQuestionStates((details as { questions?: unknown }).questions);
-}
-
-/**
  * The number of checks this attempt is allowed, or `undefined` for unlimited.
  *
  * `word_bank_gap_fill` is unlimited by its own spec and is why `reopenForRecheck` exists
@@ -584,7 +549,7 @@ function recheckBudget(templateCode: string, content: unknown): number | undefin
   // `highlight_in_text` has a budget too, but per question rather than per attempt (plan 67,
   // Q1-A), and the kernel spends it. The attempt is not reopened between questions at all —
   // it stays in progress until the last one closes; a reopen comes only after that, for
-  // «Vis fasit» on a question that ran out of checks.
+  // «Vis fasit» on a question that ran out of checks. `dictation` the same, per segment.
   return undefined;
 }
 
@@ -617,6 +582,9 @@ function refuseClosedTable(attempt: Attempt): InvalidAttemptTransitionError | nu
 const ATTEMPT_STATE_REFUSALS: ReadonlySet<string> = new Set([
   'HT_QUESTION_CLOSED',
   'HT_REVEAL_NOT_ALLOWED',
+  // `dictation` the same, per segment (AC-R9).
+  'DICT_SEGMENT_CLOSED',
+  'DICT_REVEAL_NOT_ALLOWED',
 ]);
 
 function asAttemptRefusal(error: ValidationError): ValidationError | InvalidAttemptTransitionError {
@@ -683,6 +651,9 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     @Inject(FEEDBACK_GENERATOR) private readonly feedbackGenerator: IFeedbackGenerator,
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
     private readonly reviewContext: ReviewContextResolver,
+    // The time a `dictation` check is throttled against (plan 68, Q4-A) — the server's,
+    // never the client's. Optional so the module needs no binding for the system clock.
+    @Optional() @Inject(CLOCK) private readonly clock: IClock = new SystemClock(),
   ) {}
 
   async execute(
@@ -733,7 +704,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
 
     // After the reopen, deliberately: the facts written over the submission include
     // which check this is, and `recheckCount` is only current once it has happened.
-    const submittedAnswer = withRecordedReveals(attempt, command.submittedAnswer);
+    const submittedAnswer = withRecordedReveals(attempt, command.submittedAnswer, this.clock.now());
 
     const answerHash = createHash('sha256')
       .update(JSON.stringify(submittedAnswer))
@@ -824,7 +795,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       : { summary: outcome.correct ? 'Correct!' : 'Incorrect. Please try again.' };
     const feedback = revealedFeedback(attempt.templateCode, outcome.details) ?? generated;
 
-    // A question is still open (plan 67, Q1-A): the check is recorded and the attempt goes on
+    // A question (plan 67, Q1-A) or a segment (plan 68 §3.4) is still open: the check is recorded and the attempt goes on
     // being worked on — not scored, so nothing is published, and a reload finds it open. It
     // is scored once, by the submit that closes the last question.
     if (outcome.inProgress === true) {

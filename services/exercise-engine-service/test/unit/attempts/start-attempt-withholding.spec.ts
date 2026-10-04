@@ -15,6 +15,12 @@ import {
   toStudentProjection as sbToStudentProjection,
 } from '@ssz/shared-kernel/sort-into-buckets';
 import { toStudentProjection as htToStudentProjection } from '@ssz/shared-kernel/highlight-in-text';
+import {
+  emptyContent as dcEmptyContent,
+  toContent as dcToContent,
+  toExpectedAnswers as dcToExpectedAnswers,
+  toStudentProjection as dcToStudentProjection,
+} from '@ssz/shared-kernel/dictation';
 
 // `checkMode: PRACTICE` means "ship the answers so the client can check locally", and
 // that is safe for eleven templates whose answers are a separate key. It is not safe
@@ -1118,6 +1124,89 @@ describe('StartAttemptHandler — highlight_in_text', () => {
       ...alreadyProjected,
       // One check per question, no hint, no reveal — what the server will allow.
       settings: { attempts: 1, hints: false, revealKey: false },
+    });
+    expect(result.expectedAnswers).toBeNull();
+  });
+});
+
+describe('StartAttemptHandler — dictation', () => {
+  // Plan 68, AC-R3 and AC-X2 on the server: per ready segment its id — and its word count
+  // only under `showWordCount` — the instruction, the shape and the settings the runner draws
+  // buttons from; the audio layer adds the clip and the segments' timecodes. Asserted by key
+  // sets and by searching for every secret the key column holds.
+  const doc = (showWordCount: boolean) => {
+    const base = dcEmptyContent('nb', 'Hør og skriv.');
+    return {
+      ...base,
+      title: 'Diktat',
+      audio: { ...base.audio, assetId: 'asset-1', title: 'Klipp', duration: 20, transcript: 'Hele klippet.' },
+      segments: [
+        {
+          id: 'a',
+          text: 'På kjøkkenet står det en skje.',
+          audio: { start: 0, end: 7 },
+          why: 'Stum k foran j.',
+          focus: [{ id: 'f1', wordIndex: 1, why: 'kj- foran ø.' }],
+        },
+        // Not written yet — it must not reach the student.
+        { id: 'b', text: '', audio: { start: 7, end: 14 }, why: '', focus: [] },
+      ],
+      orphans: [{ id: 'o1', segmentId: 'a', surface: 'skjeen', why: 'Bestemt form.' }],
+      settings: { ...base.settings, showWordCount },
+    };
+  };
+  const SECRETS = ['kjøkkenet', 'Stum k', 'kj- foran', 'skjeen', 'Bestemt form', 'Hele klippet'];
+
+  type Projection = Record<string, unknown> & {
+    segments: Array<Record<string, unknown>>;
+    settings: Record<string, unknown>;
+    audio: Record<string, unknown>;
+  };
+
+  it('ships ready segments as their id, with the timecodes on the audio block — nothing of the key', async () => {
+    const d = doc(false);
+    const handler = makeHandler('dictation', dcToContent(d), dcToExpectedAnswers(d));
+    const result = (await handler.execute(practice)).value;
+
+    expect(result.expectedAnswers).toBeNull();
+    const projection = result.exerciseContent as Projection;
+    expect(Object.keys(projection).sort()).toEqual(['audio', 'instruction', 'mode', 'segments', 'settings']);
+    expect(projection.segments).toEqual([{ id: 'a' }]);
+    expect(Object.keys(projection.settings).sort()).toEqual(['attempts', 'hints', 'revealKey', 'showWordCount']);
+    expect(projection.audio['transcript']).toBe('');
+
+    const serialised = JSON.stringify(result.exerciseContent);
+    for (const field of ['text', 'why', 'focus', 'orphans', 'marking', 'threshold', 'language', 'wordCount']) {
+      expect(serialised).not.toContain(`"${field}"`);
+    }
+    for (const secret of SECRETS) expect(serialised).not.toContain(secret);
+  });
+
+  it('carries the word count only under showWordCount (AC-R3)', async () => {
+    const d = doc(true);
+    const handler = makeHandler('dictation', dcToContent(d), dcToExpectedAnswers(d));
+    const projection = (await handler.execute(practice)).value.exerciseContent as Projection;
+
+    expect(projection.segments).toEqual([{ id: 'a', wordCount: 6 }]);
+  });
+
+  it('in GRADED mode hands on the envelope content-service already projected, under graded settings (Q8-A)', async () => {
+    const d = doc(false);
+    const alreadyProjected = dcToStudentProjection(dcToContent(d), dcToExpectedAnswers(d));
+    const { handler, modes } = makeHandlerByMode('dictation', () => ({
+      content: alreadyProjected,
+      expectedAnswers: null,
+    }));
+
+    const result = (await handler.execute(graded)).value;
+
+    expect(modes).toEqual(['GRADED']);
+    expect((result.exerciseContent as Projection).segments).toEqual([{ id: 'a' }]);
+    expect((result.exerciseContent as Projection).settings).toEqual({
+      attempts: 1,
+      hints: false,
+      revealKey: false,
+      showWordCount: false,
     });
     expect(result.expectedAnswers).toBeNull();
   });

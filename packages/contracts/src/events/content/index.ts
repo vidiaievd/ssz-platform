@@ -33,6 +33,7 @@ export const CONTENT_EVENT_TYPES = {
   EXERCISE_CREATED: 'content.exercise.created',
   EXERCISE_UPDATED: 'content.exercise.updated',
   EXERCISE_DELETED: 'content.exercise.deleted',
+  EXERCISE_RELEASED: 'content.exercise.released',
   // Tags
   TAG_CREATED: 'content.tag.created',
   TAG_UPDATED: 'content.tag.updated',
@@ -181,6 +182,21 @@ export interface ExerciseDeletedPayload {
   ownerUserId: string;
 }
 
+/**
+ * An exercise's edit reached students: its draft was promoted by a container publish.
+ *
+ * `itemKeys` are the pieces the released document has, spelled as the per-item verdicts
+ * spell them (`itemsOf` in `@ssz/shared-kernel/exercise-items`); `null` for a template that
+ * grades as a whole. A consumer holding state per item — the scheduler's `EXERCISE_GAP`
+ * cards — drops what the list no longer names: the piece was deleted, and nothing will ever
+ * rate it again (plan 68, SPEC_data_model §5).
+ */
+export interface ExerciseReleasedPayload {
+  exerciseId: string;
+  templateCode: string;
+  itemKeys: string[] | null;
+}
+
 export interface TagPayload {
   tagId: string;
   name: string;
@@ -261,6 +277,7 @@ export type GrammarRuleExercisePoolChangedEvent = BaseEvent<GrammarRuleExerciseP
 export type ExerciseCreatedEvent = BaseEvent<ExercisePayload>;
 export type ExerciseUpdatedEvent = BaseEvent<ExerciseUpdatedPayload>;
 export type ExerciseDeletedEvent = BaseEvent<ExerciseDeletedPayload>;
+export type ExerciseReleasedEvent = BaseEvent<ExerciseReleasedPayload>;
 
 export type TagCreatedEvent = BaseEvent<TagPayload>;
 export type TagUpdatedEvent = BaseEvent<TagUpdatedPayload>;

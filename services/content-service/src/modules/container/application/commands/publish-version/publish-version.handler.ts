@@ -21,6 +21,7 @@ import type { IAuditLog } from '../../../../../shared/application/ports/audit-lo
 import { EXERCISE_DRAFT_PROMOTER } from '../../ports/exercise-draft-promoter.port.js';
 import type { IExerciseDraftPromoter } from '../../ports/exercise-draft-promoter.port.js';
 import { generateSlug, resolveUniqueSlug } from '../../../../../shared/utils/slug.util.js';
+import { releasedExerciseEvents } from './released-exercise-events.js';
 
 const DEFAULT_SUNSET_DAYS = 90;
 
@@ -106,7 +107,7 @@ export class PublishVersionHandler implements ICommandHandler<
     // Before the version goes live, not after: the moment `publishVersion` returns,
     // students are being served this version, and an exercise whose draft had not
     // been promoted yet would show them the old document until the next publish.
-    await this.draftPromoter.promoteForVersion(command.versionId);
+    const promoted = await this.draftPromoter.promoteForVersion(command.versionId);
 
     const { sunsetAt } = await this.versionRepo.publishVersion({
       versionId: command.versionId,
@@ -128,6 +129,12 @@ export class PublishVersionHandler implements ICommandHandler<
         versionNumber: version.versionNumber,
       }),
     );
+
+    // After the version is live: a consumer pruning per-item state must not see a piece
+    // gone before students stop being served it.
+    for (const event of releasedExerciseEvents(promoted.released)) {
+      await this.eventPublisher.publish('content.exercise.released', event);
+    }
 
     if (previousVersionId && sunsetAt) {
       await this.eventPublisher.publish(

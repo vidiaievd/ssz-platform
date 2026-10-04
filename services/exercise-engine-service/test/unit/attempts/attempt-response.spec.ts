@@ -180,3 +180,40 @@ describe('toAttemptDto — the questions of a highlight_in_text attempt (plan 67
     expect(dto.questionStates).toEqual([]);
   });
 });
+
+describe('toAttemptDto — the segments of a dictation attempt (plan 68 §3.4)', () => {
+  const STATE = {
+    segmentId: 'a',
+    checks: 1,
+    firstScore: 1,
+    firstPassed: true,
+    passed: true,
+    revealed: false,
+    closed: true,
+    lastText: 'På kjøkkenet.',
+    lastCheckAt: 1000,
+    first: null,
+    last: { pct: 100, words: { total: 2, exact: 2, near: 0, wrong: 0, missing: 0, extra: 0 }, ops: [] },
+    key: null,
+    transcriptSlice: 'På kjøkkenet.',
+  };
+
+  it('reads the segment states back, under GRADED too', () => {
+    const dto = toAttemptDto(
+      attempt({
+        templateCode: 'dictation',
+        checkMode: 'GRADED',
+        status: 'IN_PROGRESS' as AttemptStatus,
+        validationDetails: { segmentId: 'a', segments: [STATE] },
+      }),
+    );
+    expect(dto.validationDetails).toBeNull();
+    expect(dto.segmentStates).toEqual([STATE]);
+    expect(dto.questionStates).toEqual([]);
+  });
+
+  it('is empty for every other template', () => {
+    const dto = toAttemptDto(attempt({ validationDetails: { segments: [STATE] } }));
+    expect(dto.segmentStates).toEqual([]);
+  });
+});

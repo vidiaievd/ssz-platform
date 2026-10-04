@@ -8,6 +8,7 @@ import {
 } from '../../domain/entities/review-card.entity.js';
 import type { SrsTrack } from '../../domain/value-objects/srs-track.js';
 import { SrsCardMapper, toPrismaTrack } from './srs-card.mapper.js';
+import { gapCardContentId } from '../../domain/gap-card-id.js';
 
 @Injectable()
 export class PrismaSrsRepository implements ISrsRepository {
@@ -172,6 +173,25 @@ export class PrismaSrsRepository implements ISrsRepository {
       cursor.setUTCDate(cursor.getUTCDate() - 1);
     }
     return streak;
+  }
+
+  async deleteGapCardsExcept(exerciseId: string, keepKeys: readonly string[]): Promise<string[]> {
+    // The prefix is the card id with an empty key: `<exerciseId>#`. Prisma escapes it for LIKE.
+    const where = {
+      contentType: 'EXERCISE_GAP' as any,
+      contentId: {
+        startsWith: gapCardContentId(exerciseId, ''),
+        notIn: keepKeys.map((key) => gapCardContentId(exerciseId, key)),
+      },
+    };
+    const doomed = await this.prisma.srsReviewCard.findMany({
+      where,
+      select: { id: true, userId: true },
+    });
+    if (doomed.length === 0) return [];
+
+    await this.prisma.srsReviewCard.deleteMany({ where: { id: { in: doomed.map((c) => c.id) } } });
+    return [...new Set(doomed.map((c) => c.userId))];
   }
 }
 

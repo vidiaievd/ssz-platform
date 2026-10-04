@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { SegmentState } from '@ssz/shared-kernel/dictation';
 
 export class AttemptResponseDto {
   @ApiProperty()
@@ -188,6 +189,52 @@ export class AttemptResponseDto {
     revealed: boolean;
     closed: boolean;
   }>;
+
+  @ApiProperty({
+    description:
+      'Segments already worked on in this attempt — `dictation` only, and empty for any ' +
+      'other template or a fresh attempt. A resumed dictation reads it to put the rail back, ' +
+      'to reopen the first segment still open on the check after its last with the last ' +
+      'checked text in the field, and to draw the summary (last line, first-check score), the ' +
+      'revealed sentences and the transcript drawer again. The first ' +
+      'check of each segment is the record, so a reload must not hand out a fresh one.',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        segmentId: { type: 'string' },
+        checks: { type: 'integer' },
+        firstScore: { type: 'number', nullable: true, description: '0..1' },
+        firstPassed: { type: 'boolean', nullable: true },
+        passed: { type: 'boolean' },
+        revealed: { type: 'boolean' },
+        closed: { type: 'boolean' },
+        lastText: { type: 'string', description: 'The last checked text' },
+        lastCheckAt: { type: 'number', nullable: true, description: 'Epoch ms' },
+        first: {
+          type: 'object',
+          nullable: true,
+          description: 'The first check: word counters, error classes, wrong focus ids, ops',
+        },
+        last: {
+          type: 'object',
+          nullable: true,
+          description: 'The last check as shown — pct, word counters, ops — for the summary line',
+        },
+        key: {
+          type: 'object',
+          nullable: true,
+          description: 'The sentence with its reason and focus words, once revealed',
+        },
+        transcriptSlice: {
+          type: 'string',
+          nullable: true,
+          description: 'The sentence for the transcript drawer, once the segment closed',
+        },
+      },
+    },
+  })
+  segmentStates!: SegmentState[];
 
   @ApiPropertyOptional({
     nullable: true,

@@ -4,6 +4,7 @@ import { PrismaService } from '../../../../infrastructure/database/prisma.servic
 import type {
   IExerciseDraftPromoter,
   PromotedDrafts,
+  ReleasedExercise,
 } from '../../application/ports/exercise-draft-promoter.port.js';
 
 /**
@@ -20,25 +21,39 @@ export class PrismaExerciseDraftPromoter implements IExerciseDraftPromoter {
 
   async promoteForVersion(versionId: string): Promise<PromotedDrafts> {
     const exerciseIds = await this.reachableExerciseIds(versionId);
-    if (exerciseIds.length === 0) return { exercises: 0, instructions: 0 };
+    if (exerciseIds.length === 0) return { exercises: 0, instructions: 0, released: [] };
 
     const ids = Prisma.join(exerciseIds.map((id) => Prisma.sql`${id}::uuid`));
 
     // `draft_updated_at IS NOT NULL` is the guard everywhere: it is what says the
     // sibling columns hold a complete document. Rows without one are left alone,
     // so a second publish is a no-op rather than a rewrite with nulls.
-    const exercises = await this.prisma.$executeRaw`
-      UPDATE "exercises"
-      SET "content" = "draft_content",
-          "expected_answers" = "draft_expected_answers",
-          "answer_check_settings" = "draft_answer_check_settings",
+    // RETURNING the rows as they now read, so the publish can tell the rest of the platform
+    // what each released exercise holds (plan 68) without a second round-trip.
+    const rows = await this.prisma.$queryRaw<
+      Array<{ id: string; code: string; content: unknown; expected_answers: unknown }>
+    >`
+      UPDATE "exercises" AS e
+      SET "content" = e."draft_content",
+          "expected_answers" = e."draft_expected_answers",
+          "answer_check_settings" = e."draft_answer_check_settings",
           "draft_content" = NULL,
           "draft_expected_answers" = NULL,
           "draft_answer_check_settings" = NULL,
           "draft_updated_at" = NULL,
           "updated_at" = NOW()
-      WHERE "id" IN (${ids}) AND "draft_updated_at" IS NOT NULL
+      FROM "exercise_templates" AS t
+      WHERE e."id" IN (${ids})
+        AND e."draft_updated_at" IS NOT NULL
+        AND t."id" = e."exercise_template_id"
+      RETURNING e."id", t."code", e."content", e."expected_answers"
     `;
+    const released: ReleasedExercise[] = rows.map((row) => ({
+      exerciseId: row.id,
+      templateCode: row.code,
+      content: row.content,
+      expectedAnswers: row.expected_answers,
+    }));
 
     const instructions = await this.prisma.$executeRaw`
       UPDATE "exercise_instructions"
@@ -53,7 +68,7 @@ export class PrismaExerciseDraftPromoter implements IExerciseDraftPromoter {
       WHERE "exercise_id" IN (${ids}) AND "draft_updated_at" IS NOT NULL
     `;
 
-    return { exercises, instructions };
+    return { exercises: released.length, instructions, released };
   }
 
   /**

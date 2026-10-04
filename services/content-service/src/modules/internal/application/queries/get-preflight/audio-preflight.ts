@@ -1,5 +1,6 @@
 import { audioIssues, itemsOf, type AudioIssue } from '@ssz/shared-kernel/audio';
 import { transcriptGivesAway } from '@ssz/shared-kernel/error-correction';
+import { keepsAudioIssue, TEMPLATE_CODE as DICTATION_TEMPLATE } from '@ssz/shared-kernel/dictation';
 
 export interface AudioPreflightViolation {
   ruleCode: string;
@@ -41,6 +42,10 @@ export function audioViolations(exercise: {
 
   for (const issue of audioIssues(exercise.content, itemsOf(exercise.templateCode, exercise.content))) {
     if (issue.level === 'info') continue;
+    // A dictation's audio is always on, its transcript is the key and lives in the answers,
+    // and a sentence at a time is the point of it — so two of the layer's rules say nothing
+    // true about it (plan 68, decision Q3-A). Which two is the kernel's call, not this file's.
+    if (exercise.templateCode === DICTATION_TEMPLATE && !keepsAudioIssue(issue)) continue;
     const seen = counted.get(issue.code);
     if (seen) seen.count += 1;
     else counted.set(issue.code, { level: issue.level, count: 1, first: issue });

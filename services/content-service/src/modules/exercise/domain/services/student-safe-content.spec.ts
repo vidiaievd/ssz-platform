@@ -1211,3 +1211,112 @@ describe('highlight_in_text', () => {
     expect(project(content, {}).questions).toEqual([]);
   });
 });
+
+describe('dictation', () => {
+  // Plan 68 §3.2, AC-R3: the student payload carries the instruction, the mode and per
+  // ready segment its id — plus, only under `showWordCount`, how many words it has. No
+  // sentence, no reason, no focus word, no orphan, no marking rule, no language and no
+  // pass mark. Asserted structurally, by key sets: a dictation's answer is the sentence
+  // itself, so a search for its text could not tell a leak from the instruction.
+  const content = {
+    title: 'Frokost',
+    instruction: 'Hør og skriv det du hører.',
+    mode: 'segments',
+    language: 'nb',
+    audio: {
+      enabled: true,
+      source: 'asset',
+      assetId: 'a1',
+      fileName: 'frokost.mp3',
+      title: 'Frokost',
+      duration: 12,
+      transcript: '',
+      translation: '',
+      useSegments: true,
+      settings: {
+        layout: 'top',
+        plays: 3,
+        seek: true,
+        speed: true,
+        gate: 'none',
+        transcriptWhen: 'after',
+      },
+    },
+    segments: [
+      { id: 's1', audio: { start: 0, end: 4 } },
+      { id: 's2', audio: { start: 4, end: 8 } },
+      // Written but never given a sentence — dropped.
+      { id: 's3' },
+    ],
+    marking: { caseSensitive: false, punctuation: false, near: 'flag', extraCost: 1 },
+    settings: { attempts: 2, threshold: 80, showWordCount: false, revealKey: true, hints: true },
+  };
+  const key = {
+    segments: {
+      s1: {
+        text: 'Jeg liker kaffe om morgenen',
+        why: 'Preposisjonen «om» brukes med tid på dagen.',
+        focus: [{ id: 'f1', wordIndex: 3, why: '«om» styrer dativ-lignende uttrykk.' }],
+      },
+      s2: { text: 'Hun spiser brød med ost', why: 'Substantiv i bestemt form.', focus: [] },
+      s3: { text: '', why: '', focus: [] },
+    },
+    orphans: [{ id: 'o1', segmentId: 's1', surface: 'teen', why: 'Gammel skrivemåte.' }],
+  };
+
+  type Projection = Record<string, unknown> & {
+    segments: Array<Record<string, unknown>>;
+    settings: Record<string, unknown>;
+    audio: Record<string, unknown>;
+  };
+  const project = (c: Record<string, unknown> = content, k: Record<string, unknown> = key) =>
+    studentSafeContent('dictation', c, k) as unknown as Projection;
+
+  it('ships the instruction, the mode and ready segment ids, nothing more', () => {
+    const p = project();
+    expect(Object.keys(p).sort()).toEqual(['audio', 'instruction', 'mode', 'segments', 'settings']);
+    expect(p.segments).toEqual([{ id: 's1' }, { id: 's2' }]);
+    expect(Object.keys(p.settings).sort()).toEqual([
+      'attempts',
+      'hints',
+      'revealKey',
+      'showWordCount',
+    ]);
+    // Neither the marking rules nor the language: the verdict is the engine's alone.
+    expect(p['marking']).toBeUndefined();
+    expect(p['language']).toBeUndefined();
+    expect(p['title']).toBeUndefined();
+  });
+
+  it("gathers each ready segment's timecode onto audio.segments, transcript blanked", () => {
+    const p = project();
+    expect(p.audio['segments']).toEqual({
+      s1: { start: 0, end: 4 },
+      s2: { start: 4, end: 8 },
+    });
+    expect(p.audio['transcript']).toBe('');
+  });
+
+  it('carries none of the key fields or texts anywhere in the payload', () => {
+    const json = JSON.stringify(project());
+    for (const field of ['text', 'why', 'focus', 'orphans', 'threshold', 'marking', 'language']) {
+      expect(json).not.toContain(`"${field}"`);
+    }
+    const secrets = ['Jeg liker kaffe', 'Hun spiser brød', 'dativ-lignende', 'Gammel skrivemåte'];
+    for (const secret of secrets) {
+      expect(json).not.toContain(secret);
+    }
+  });
+
+  it("states each ready segment's word count only under showWordCount", () => {
+    const counted = project({ ...content, settings: { ...content.settings, showWordCount: true } });
+    expect(counted.segments).toEqual([
+      { id: 's1', wordCount: 5 },
+      { id: 's2', wordCount: 5 },
+    ]);
+  });
+
+  it('shows no segments without the key column, rather than guessing', () => {
+    expect(project(content, {}).segments).toEqual([]);
+  });
+});

@@ -41,4 +41,10 @@ export interface ISrsRepository {
   // Returns the count of consecutive days (ending today) on which the user
   // reviewed at least one card. Uses lastReviewedAt to walk backwards.
   getStreakDays(userId: string, now: Date): Promise<number>;
+  /**
+   * Deletes every learner's `EXERCISE_GAP` card on this exercise whose piece is not among
+   * `keepKeys` — the piece was deleted and nothing will rate it again (plan 68). Returns the
+   * learners who lost a card, so their cached due queues can be dropped.
+   */
+  deleteGapCardsExcept(exerciseId: string, keepKeys: readonly string[]): Promise<string[]>;
 }
