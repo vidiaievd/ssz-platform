@@ -52,6 +52,10 @@ import {
   TEMPLATE_CODE as SORT_INTO_BUCKETS,
   toStudentProjection as sbToStudentProjection,
 } from '@ssz/shared-kernel/sort-into-buckets';
+import {
+  TEMPLATE_CODE as HIGHLIGHT_IN_TEXT,
+  toStudentProjection as htToStudentProjection,
+} from '@ssz/shared-kernel/highlight-in-text';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
 import type { DifficultyLevel } from '../../../domain/entities/attempt.entity.js';
@@ -455,6 +459,24 @@ function projectByTemplate(
         exercise.expectedAnswers,
         <T,>(items: readonly T[]): T[] => sbShuffled(items, seedFrom(attemptId)),
       ),
+      expectedAnswers: null,
+    };
+  }
+
+  if (templateCode === HIGHLIGHT_IN_TEXT) {
+    // A `graded` envelope content-service has already projected. Handed on as it stands:
+    // the projection needs the key column to know which questions have marks, and a second
+    // pass over a projection would hand back no questions rather than the same ones.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      // Both columns, and nothing dealt: the passage is one text and the questions keep the
+      // author's order. The key column is asked one thing per question — how many spans —
+      // and the count travels only under `showCount` (AC-S10). No spans, no reasons, no
+      // hints, no pass mark, no penalty (AC-S11).
+      exerciseContent: htToStudentProjection(exercise.content, exercise.expectedAnswers),
       expectedAnswers: null,
     };
   }

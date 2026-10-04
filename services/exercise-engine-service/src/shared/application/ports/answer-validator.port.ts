@@ -33,6 +33,18 @@ export interface ValidationOutcome {
    * on the author's screen and with the one in the student's summary.
    */
   passed?: boolean;
+  /**
+   * Whether this submit is the one the evidence is published for, when the validator is the
+   * one that knows.
+   *
+   * Omitted by every template whose first check is the evidence — the attempt publishes on
+   * its first check and stays silent on re-checks, which is right for anything checked whole.
+   *
+   * `highlight_in_text` is answered one question per submit (plan 67, Q1-A): its first
+   * submit is the first check of question one, and the evidence is the first check of
+   * *every* question. It publishes once, on the submit that closes the last question.
+   */
+  evidenceNow?: boolean;
 }
 
 export class ValidationError extends Error {

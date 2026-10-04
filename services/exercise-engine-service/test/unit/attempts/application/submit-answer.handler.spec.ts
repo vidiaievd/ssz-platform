@@ -19,6 +19,14 @@ import {
 import type { WritingTask } from '@ssz/shared-kernel/writing-task';
 import { MultipleChoiceGroupValidator } from '../../../../src/infrastructure/validation/validators/multiple-choice-group.validator.js';
 import { SortIntoBucketsValidator } from '../../../../src/infrastructure/validation/validators/sort-into-buckets.validator.js';
+import { HighlightInTextValidator } from '../../../../src/infrastructure/validation/validators/highlight-in-text.validator.js';
+import { InvalidAttemptTransitionError } from '../../../../src/modules/attempts/domain/exceptions/attempt.errors.js';
+import {
+  tokenize as htTokenize,
+  toContent as htToContent,
+  toExpectedAnswers as htToExpectedAnswers,
+} from '@ssz/shared-kernel/highlight-in-text';
+import type { HighlightInTextContent, Settings as HtSettings } from '@ssz/shared-kernel/highlight-in-text';
 
 const makeInProgressAttempt = (templateCode = 'multiple_choice') =>
   Attempt.reconstitute({
@@ -1428,5 +1436,288 @@ describe('SubmitAnswerHandler — sort_into_buckets lowers its evidence (plan 66
     };
     const { publisher } = await runSb(makeSbAttempt(), RIGHT_PLACEMENTS, {}, skewed);
     expect(completedPayload(publisher).evidenceLowered).toBe(true);
+  });
+});
+
+// ── highlight_in_text ───────────────────────────────────────────────────────
+//
+// Plan 67, Q1-A. One attempt, one question per submit. The states of the questions live in
+// the attempt's own details and are carried from submit to submit; the evidence is
+// published once, on the submit that closes the last question. The real validator runs
+// behind the port and one attempt object goes through every submit of a test, so what is
+// under test is the seam as it really turns: reopen, overwrite, grade, score, publish.
+
+const HT_TEXT = 'I fjor sommer reiste vi til Bodø. Der bodde vi hos tante Kari og spiste fisk.';
+
+/** The character range of the first token spelling `word`. */
+const htAt = (word: string) => {
+  const token = htTokenize(HT_TEXT).find((t) => t.w === word);
+  if (!token) throw new Error(`fixture: no «${word}»`);
+  return { start: token.s, end: token.e };
+};
+
+const HT_SETTINGS: HtSettings = {
+  attempts: 2,
+  threshold: 70,
+  penalty: 'half',
+  showCount: false,
+  hints: true,
+  revealKey: true,
+};
+
+const htDocument = (settings: Partial<HtSettings> = {}): HighlightInTextContent => ({
+  title: 'Preteritum',
+  instruction: 'Les teksten og marker det oppgaven spør om.',
+  text: HT_TEXT,
+  questions: [
+    {
+      id: 'q1',
+      prompt: 'Marker verbene i preteritum.',
+      unit: 'word',
+      spans: ['reiste', 'bodde', 'spiste'].map((w, i) => ({ id: `s${i}`, ...htAt(w), why: `${w} — why` })),
+      missHint: 'Se etter verb.',
+      fpHint: 'Steder er ikke verb.',
+    },
+    {
+      id: 'q2',
+      prompt: 'Marker stedet.',
+      unit: 'word',
+      spans: [{ id: 's9', ...htAt('Bodø'), why: '' }],
+      missHint: 'Hvor reiste de?',
+      fpHint: '',
+    },
+  ],
+  orphans: [],
+  settings: { ...HT_SETTINGS, ...settings },
+});
+
+const makeHtDef = (settings: Partial<HtSettings> = {}): ExerciseDefinition => {
+  const doc = htDocument(settings);
+  return {
+    exercise: {
+      id: 'ex-1',
+      templateCode: 'highlight_in_text',
+      targetLanguage: 'nb',
+      difficultyLevel: 'B1',
+      content: htToContent(doc) as unknown as Record<string, unknown>,
+      expectedAnswers: htToExpectedAnswers(doc) as unknown as Record<string, unknown>,
+      answerCheckSettings: null,
+    },
+    template: {
+      code: 'highlight_in_text',
+      contentSchema: {},
+      answerSchema: { type: 'object' },
+      defaultCheckSettings: {},
+      supportedLanguages: null,
+    },
+    instruction: null,
+  };
+};
+
+const makeHtAttempt = () =>
+  Attempt.reconstitute({
+    id: 'attempt-1',
+    userId: 'user-1',
+    exerciseId: 'ex-1',
+    assignmentId: null,
+    enrollmentId: null,
+    templateCode: 'highlight_in_text',
+    targetLanguage: 'nb',
+    difficultyLevel: 'B1',
+    checkMode: 'PRACTICE',
+    practicedAtoms: [],
+    status: 'IN_PROGRESS',
+    score: null,
+    passed: null,
+    timeSpentSeconds: 0,
+    submittedAnswer: null,
+    validationDetails: null,
+    feedback: null,
+    answerHash: null,
+    revisionCount: 0,
+    recheckCount: 0,
+    startedAt: new Date(),
+    submittedAt: null,
+    scoredAt: null,
+  });
+
+/** One attempt, one publisher, as many submits as the test makes. */
+const htSession = (def: ExerciseDefinition = makeHtDef()) => {
+  const attempt = makeHtAttempt();
+  const repo = makeRepo(attempt);
+  const publisher = makePublisher();
+  const inner = new HighlightInTextValidator();
+  const validator: IAnswerValidator = {
+    validate: jest
+      .fn<IAnswerValidator['validate']>()
+      .mockImplementation(async (input) => inner.validate(input as never)),
+    supports: () => true,
+  } as IAnswerValidator;
+  const handler = makeHandler(repo, makeContentClient(Result.ok(def)), validator, makeFeedback(), publisher);
+  const submit = (answer: Record<string, unknown>) =>
+    handler.execute(new SubmitAnswerCommand('attempt-1', 'user-1', answer, 10, 'nb'));
+  const completed = () =>
+    publisher.publish.mock.calls.filter(([type]) => type === 'exercise.attempt.completed');
+  return { attempt, repo, submit, completed };
+};
+
+interface HtDetails {
+  questionId: string;
+  pct: number;
+  passed: boolean;
+  attempt: number;
+  checksLeft: number | null;
+  closed: boolean;
+  revealed: boolean;
+  miss: number;
+  cells: Array<Record<string, unknown>>;
+  key?: Array<Record<string, unknown>>;
+  questions: Array<{ questionId: string; checks: number; firstPassed: boolean | null; closed: boolean }>;
+}
+
+describe('SubmitAnswerHandler — highlight_in_text', () => {
+  it('answers one question and publishes nothing while another is open', async () => {
+    const s = htSession();
+    const result = await s.submit({ questionId: 'q1', marks: [htAt('reiste'), htAt('bodde'), htAt('spiste')] });
+
+    expect(result.isOk).toBe(true);
+    const details = result.value.details as HtDetails;
+    expect(details).toMatchObject({ questionId: 'q1', pct: 100, passed: true, closed: true });
+    // The attempt: q1's first check 100, q2 not yet checked.
+    expect(result.value.score).toBe(50);
+    expect(s.attempt.status).toBe('SCORED');
+    expect(s.completed()).toHaveLength(0);
+  });
+
+  it('publishes once, on the submit that closes the last question, with the first checks (AC-S12)', async () => {
+    const s = htSession();
+    // q1: first check finds one of three — fails; second finds all — passes.
+    await s.submit({ questionId: 'q1', marks: [htAt('reiste')] });
+    await s.submit({ questionId: 'q1', marks: [htAt('reiste'), htAt('bodde'), htAt('spiste')] });
+    expect(s.completed()).toHaveLength(0);
+
+    const last = await s.submit({ questionId: 'q2', marks: [htAt('Bodø')] });
+
+    expect(last.isOk).toBe(true);
+    expect(s.completed()).toHaveLength(1);
+    const payload = s.completed()[0]![1] as {
+      score: number;
+      passed: boolean;
+      gapResults?: Array<{ gapKey: string; correct: boolean }>;
+    };
+    // Mean of the first checks: q1 1/3 → 33%, q2 100% → 67%; a later pass does not raise it.
+    expect(payload.score).toBe(67);
+    expect(payload.passed).toBe(false);
+    expect(payload.gapResults?.map(({ gapKey, correct }) => ({ gapKey, correct }))).toEqual([
+      { gapKey: 'q1', correct: false },
+      { gapKey: 'q2', correct: true },
+    ]);
+  });
+
+  it('counts the checks itself — a forged state from the client changes nothing', async () => {
+    const s = htSession();
+    await s.submit({ questionId: 'q1', marks: [htAt('Kari')] });
+
+    const forged = [{ questionId: 'q1', checks: 0, firstScore: 1, firstPassed: true, passed: false, revealed: false, closed: false }];
+    const second = await s.submit({ questionId: 'q1', marks: [htAt('Kari')], questions: forged });
+
+    const details = second.value.details as HtDetails;
+    expect(details).toMatchObject({ attempt: 2, checksLeft: 0, closed: true });
+    expect(details.questions.find((q) => q.questionId === 'q1')).toMatchObject({ checks: 2, firstPassed: false });
+  });
+
+  it('refuses a question past its budget as a closed attempt state, and saves nothing (AC-S7)', async () => {
+    const s = htSession();
+    await s.submit({ questionId: 'q1', marks: [htAt('Kari')] });
+    await s.submit({ questionId: 'q1', marks: [htAt('Kari')] });
+    s.repo.save.mockClear();
+
+    const third = await s.submit({ questionId: 'q1', marks: [htAt('reiste')] });
+
+    expect(third.isFail).toBe(true);
+    expect(third.error).toBeInstanceOf(InvalidAttemptTransitionError);
+    expect(s.repo.save).not.toHaveBeenCalled();
+  });
+
+  it('a reveal returns the key, closes the question, and refuses every submit after it (AC-S9)', async () => {
+    const s = htSession();
+    await s.submit({ questionId: 'q1', marks: [htAt('Kari')] });
+
+    const reveal = await s.submit({ questionId: 'q1', reveal: true });
+    const details = reveal.value.details as HtDetails;
+    expect(details).toMatchObject({ revealed: true, closed: true });
+    expect(details.key?.map((k) => k['why'])).toEqual(['reiste — why', 'bodde — why', 'spiste — why']);
+
+    const after = await s.submit({ questionId: 'q1', marks: [htAt('reiste'), htAt('bodde'), htAt('spiste')] });
+    expect(after.error).toBeInstanceOf(InvalidAttemptTransitionError);
+  });
+
+  it('still allows the key on a question out of checks, and does not publish twice', async () => {
+    const s = htSession(makeHtDef({ attempts: 1 }));
+    await s.submit({ questionId: 'q1', marks: [htAt('Kari')] });
+    await s.submit({ questionId: 'q2', marks: [htAt('Kari')] });
+    expect(s.completed()).toHaveLength(1);
+
+    const reveal = await s.submit({ questionId: 'q1', reveal: true });
+
+    expect(reveal.isOk).toBe(true);
+    expect(s.completed()).toHaveLength(1);
+  });
+
+  it('writes a failed attempt and publishes it as failed, as plan 66 AC-X3 asks of sort', async () => {
+    const s = htSession(makeHtDef({ attempts: 1 }));
+    await s.submit({ questionId: 'q1', marks: [htAt('Kari')] });
+    await s.submit({ questionId: 'q2', marks: [htAt('Kari')] });
+
+    expect(s.attempt.status).toBe('SCORED');
+    expect(s.attempt.scoreValue).toBe(0);
+    expect(s.attempt.passed).toBe(false);
+    const payload = s.completed()[0]![1] as { passed: boolean; score: number };
+    expect(payload).toMatchObject({ passed: false, score: 0 });
+  });
+
+  it('withholds where the missed marks are on a failed check (AC-S5)', async () => {
+    const s = htSession();
+    const result = await s.submit({ questionId: 'q1', marks: [htAt('reiste')] });
+
+    const details = result.value.details as HtDetails;
+    expect(details).toMatchObject({ miss: 2 });
+    expect(details).not.toHaveProperty('key');
+    const json = JSON.stringify(details);
+    for (const missed of ['bodde', 'spiste']) {
+      expect(json).not.toContain(`"start":${htAt(missed).start}`);
+      expect(json).not.toContain(`${missed} — why`);
+    }
+  });
+
+  it('refuses a mark over no word as a validation error, not a state', async () => {
+    const s = htSession();
+    const dot = HT_TEXT.indexOf('.');
+    const result = await s.submit({ questionId: 'q1', marks: [{ start: dot, end: dot + 1 }] });
+
+    expect(result.isFail).toBe(true);
+    expect(result.error).toBeInstanceOf(ValidationError);
+    expect((result.error as ValidationError).code).toBe('HT_MARK_UNSNAPPABLE');
+  });
+});
+
+describe('SubmitAnswerHandler — highlight_in_text lowers its evidence (plan 67 §3.6)', () => {
+  const finish = async (settings: Partial<HtSettings>) => {
+    const s = htSession(makeHtDef(settings));
+    await s.submit({ questionId: 'q1', marks: [htAt('reiste'), htAt('bodde'), htAt('spiste')] });
+    await s.submit({ questionId: 'q2', marks: [htAt('Bodø')] });
+    return s.completed()[0]![1] as { evidenceLowered?: boolean };
+  };
+
+  it('says nothing on an ordinary exercise', async () => {
+    expect(await finish({})).not.toHaveProperty('evidenceLowered');
+  });
+
+  it('lowers it while the count is shown (AC-G3’s twin)', async () => {
+    expect((await finish({ showCount: true })).evidenceLowered).toBe(true);
+  });
+
+  it('lowers it with no penalty for an extra mark (AC-G3)', async () => {
+    expect((await finish({ penalty: 'off' })).evidenceLowered).toBe(true);
   });
 });

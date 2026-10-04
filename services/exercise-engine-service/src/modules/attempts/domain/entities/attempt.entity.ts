@@ -554,6 +554,11 @@ export class Attempt extends AggregateRoot {
     gapResults?: Array<{ gapKey: string; correct: boolean }>,
     /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
     evidenceLowered?: boolean,
+    /**
+     * Whether this check is the one the evidence is published for, when the template says.
+     * Omitted means the first check — see below.
+     */
+    evidenceNow?: boolean,
   ): Result<void, InvalidScoreError | InvalidAttemptTransitionError> {
     if (this._status !== 'SUBMITTED') {
       return Result.fail(
@@ -579,7 +584,14 @@ export class Attempt extends AggregateRoot {
     // themselves with the wrong gaps still on screen, and counting it would tell
     // progress and the SRS that the word was known when it had just been shown to
     // be the one they got wrong.
-    if (this._recheckCount === 0) {
+    //
+    // Unless the template says otherwise. `highlight_in_text` is answered one question
+    // per submit (plan 67, Q1-A), so its first check is the first check of question one
+    // only; the evidence is every question's first check, and it is complete on the
+    // submit that closes the last of them. That submit says so, and is the only one that
+    // publishes — the score it carries is already the mean of the first checks, so a later
+    // check still cannot raise it. An attempt abandoned half-way publishes nothing.
+    if (evidenceNow ?? this._recheckCount === 0) {
       this.addDomainEvent(
         new AttemptScoredEvent(this.id, {
           userId: this._userId,

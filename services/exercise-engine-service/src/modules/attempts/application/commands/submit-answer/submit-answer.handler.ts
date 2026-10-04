@@ -23,6 +23,13 @@ import {
   TEMPLATE_CODE as SORT_INTO_BUCKETS,
 } from '@ssz/shared-kernel/sort-into-buckets';
 import {
+  ceilingCause as htCeilingCause,
+  fromPersisted as htFromPersisted,
+  readQuestionStates,
+  TEMPLATE_CODE as HIGHLIGHT_IN_TEXT,
+} from '@ssz/shared-kernel/highlight-in-text';
+import type { QuestionState } from '@ssz/shared-kernel/highlight-in-text';
+import {
   fromPersisted as writingTaskFromPersisted,
   snapshotRubric,
   TEMPLATE_CODE as WRITING_TASK,
@@ -126,6 +133,12 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
   // board is closed under `revealKey`. The explanation for a wrong bucket is resolved there
   // too; the feedback map itself never leaves the server.
   if (templateCode === SORT_INTO_BUCKETS) return details;
+  // `highlight_in_text` travels whole for the same reason (plan 67 §3.5): the kernel's `check`
+  // decided how much of the key an answer carries — the student's own marks with a state
+  // each, the key boundary on a near miss, a *count* of missed spans and never where they
+  // are (AC-S5), the hints only under `settings.hints` and only for the failure that
+  // happened. The spans with their reasons come back only on a reveal of that question.
+  if (templateCode === HIGHLIGHT_IN_TEXT) return details;
   return undefined;
 }
 
@@ -157,6 +170,7 @@ const WHOLE_BOARD_CHECKS: ReadonlySet<string> = new Set([MULTIPLE_CHOICE_GROUP, 
 function withRecordedReveals(attempt: Attempt, submitted: unknown): unknown {
   if (attempt.templateCode === MULTIPLE_CHOICE) return withRecordedPicks(attempt, submitted);
   if (WHOLE_BOARD_CHECKS.has(attempt.templateCode)) return withRecordedChecks(attempt, submitted);
+  if (attempt.templateCode === HIGHLIGHT_IN_TEXT) return withRecordedQuestions(attempt, submitted);
   if (attempt.templateCode !== SENTENCE_SCHEMA) return submitted;
 
   const revealed = new Set(
@@ -333,6 +347,7 @@ function describeGapResults(
   details: unknown,
 ): Array<{ gapKey: string; correct: boolean }> | undefined {
   if (templateCode === SORT_INTO_BUCKETS) return sortItemResults(details);
+  if (templateCode === HIGHLIGHT_IN_TEXT) return questionResults(details);
   if (templateCode !== WORD_BANK_GAP_FILL) return undefined;
   if (typeof details !== 'object' || details === null) return undefined;
 
@@ -358,6 +373,13 @@ function describeGapResults(
  * `evidenceStrength` then drops the success ceiling one step for every consumer.
  */
 function evidenceLowered(templateCode: string, content: unknown, expectedAnswers: unknown): boolean {
+  // `highlight_in_text` (plan 67 §3.6) by the same road: «Det er N å finne» turns the tail
+  // into counting, and with no penalty for an extra mark, marking everything passes. Its
+  // kernel's `ceilingCause` is the rule the builder warns with (`HT_COUNT_SHOWN`,
+  // `HT_PENALTY_OFF`).
+  if (templateCode === HIGHLIGHT_IN_TEXT) {
+    return htCeilingCause(htFromPersisted(content, expectedAnswers)) !== null;
+  }
   if (templateCode !== SORT_INTO_BUCKETS) return false;
   return sbCeilingCause(sbFromPersisted(content, expectedAnswers)) !== null;
 }
@@ -383,6 +405,23 @@ function sortItemResults(details: unknown): Array<{ gapKey: string; correct: boo
     const { itemId, firstCorrect } = (raw ?? {}) as { itemId?: unknown; firstCorrect?: unknown };
     return typeof itemId === 'string' ? [{ gapKey: itemId, correct: firstCorrect === true }] : [];
   });
+}
+
+/**
+ * The per-question verdicts of a `highlight_in_text` attempt, keyed by question id (plan 67,
+ * the precedent of plan 66 Q3-A).
+ *
+ * A question is the item here — `itemsOf` in the kernel addresses it by `question.id`, and
+ * the spans and the passage are not targets (SPEC_data_model §7). The verdict is the
+ * question's *first* check, carried forward in the attempt's details (`firstPassed`): the
+ * event is published once, on the submit that closed the last question, and by then every
+ * question has had one.
+ */
+function questionResults(details: unknown): Array<{ gapKey: string; correct: boolean }> | undefined {
+  if (typeof details !== 'object' || details === null) return undefined;
+  const states = readQuestionStates((details as { questions?: unknown }).questions);
+  if (states.length === 0) return undefined;
+  return states.map((st) => ({ gapKey: st.questionId, correct: st.firstPassed === true }));
 }
 
 /**
@@ -475,6 +514,36 @@ function withRecordedChecks(attempt: Attempt, submitted: unknown): unknown {
 }
 
 /**
+ * A `highlight_in_text` submission with the attempt's record of every question written over
+ * it (plan 67, Q1-A).
+ *
+ * The same move as `withRecordedChecks`, one granule finer. The work is handed in one
+ * question at a time, so what the server must remember between requests is per question:
+ * how many checks it has spent (the budget is per question), what its first check scored
+ * and whether it passed (the evidence), and whether it is closed. All of it is in the
+ * previous submit's details — the validator writes every question's state there and each
+ * submit carries it forward — so, like `multiple_choice_group`, the type needs no column of
+ * its own. None of it is the client's to state: a client that could send its own
+ * `checks: 0` would buy a question another first try.
+ *
+ * What stays the client's is the question it is answering, its marks, and «Vis fasit».
+ */
+function withRecordedQuestions(attempt: Attempt, submitted: unknown): unknown {
+  const base =
+    typeof submitted === 'object' && submitted !== null && !Array.isArray(submitted)
+      ? (submitted as Record<string, unknown>)
+      : {};
+  return { ...base, questions: recordedQuestions(attempt) };
+}
+
+/** The question states the last submit left on the attempt; none before the first. */
+function recordedQuestions(attempt: Attempt): QuestionState[] {
+  const details = attempt.validationDetails;
+  if (typeof details !== 'object' || details === null) return [];
+  return readQuestionStates((details as { questions?: unknown }).questions);
+}
+
+/**
  * The number of checks this attempt is allowed, or `undefined` for unlimited.
  *
  * `word_bank_gap_fill` is unlimited by its own spec and is why `reopenForRecheck` exists
@@ -486,6 +555,9 @@ function recheckBudget(templateCode: string, content: unknown): number | undefin
   if (templateCode === MULTIPLE_CHOICE_GROUP) return mcgMaxAttempts(mcgReadContent(content).settings);
   // `settings.attempts`: 1, 2 or 3 checks of the board, or 0 for unlimited (plan 66).
   if (templateCode === SORT_INTO_BUCKETS) return sbMaxChecks(sbReadContent(content).settings) ?? undefined;
+  // `highlight_in_text` has a budget too, but per question rather than per attempt (plan 67,
+  // Q1-A): the attempt is reopened for every submit, and the kernel refuses a question whose
+  // checks are spent.
   return undefined;
 }
 
@@ -501,6 +573,29 @@ function refuseClosedTable(attempt: Attempt): InvalidAttemptTransitionError | nu
   if (!WHOLE_BOARD_CHECKS.has(attempt.templateCode)) return null;
   if (!previousCheck(attempt).closed) return null;
   return new InvalidAttemptTransitionError('This table is closed and cannot be checked again');
+}
+
+/**
+ * A grader's refusal that is really about the attempt's state, as the refusal of a state
+ * transition.
+ *
+ * `highlight_in_text` decides in its kernel whether a question may still be submitted — a
+ * passed or revealed one never, one out of checks only for «Vis fasit», the key only after
+ * a check and only under `revealKey` (AC-S9, SPEC_api_contract §4). The kernel is the one
+ * place that knows, so the handler does not second-guess it ahead of time the way
+ * `refuseClosedTable` does for a whole board; it relabels the verdict instead, so the caller
+ * sees the same refusal a closed table gets. A mark that covers no word stays a validation
+ * error: that one is about the answer.
+ */
+const ATTEMPT_STATE_REFUSALS: ReadonlySet<string> = new Set([
+  'HT_QUESTION_CLOSED',
+  'HT_REVEAL_NOT_ALLOWED',
+]);
+
+function asAttemptRefusal(error: ValidationError): ValidationError | InvalidAttemptTransitionError {
+  return ATTEMPT_STATE_REFUSALS.has(error.code)
+    ? new InvalidAttemptTransitionError(error.message)
+    : error;
 }
 
 /**
@@ -638,7 +733,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     });
 
     if (validationResult.isFail) {
-      return Result.fail(validationResult.error);
+      return Result.fail(asAttemptRefusal(validationResult.error));
     }
 
     const outcome = validationResult.value;
@@ -711,6 +806,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       answerForm,
       gapResults,
       evidenceLowered(attempt.templateCode, def.exercise.content, def.exercise.expectedAnswers),
+      outcome.evidenceNow,
     );
     if (scoreResult.isFail) {
       return Result.fail(scoreResult.error as AttemptDomainError);

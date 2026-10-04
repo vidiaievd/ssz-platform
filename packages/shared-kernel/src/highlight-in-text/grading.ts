@@ -129,6 +129,12 @@ export interface QuestionState {
   checks: number;
   /** 0..1 — the score of the first check; `null` until there was one. */
   firstScore: number | null;
+  /**
+   * Whether the first check passed; `null` until there was one. The verdict the evidence
+   * records per question (plan 67 §3.4) — carried rather than recomputed from `firstScore`,
+   * because the pass is decided in whole numbers and the float can land a hair under it.
+   */
+  firstPassed: boolean | null;
   /** Passed on some check. */
   passed: boolean;
   revealed: boolean;
@@ -261,6 +267,7 @@ export function check(input: CheckInput): CheckOutcome {
       questionId,
       checks,
       firstScore: prev.firstScore ?? g.score,
+      firstPassed: prev.firstPassed ?? passed,
       passed: prev.passed || passed,
       revealed: false,
       closed,
@@ -301,8 +308,32 @@ export function check(input: CheckInput): CheckOutcome {
   };
 }
 
+/**
+ * The carried question states, read back from wherever the server stored them — `unknown`,
+ * so it must not throw. A malformed entry is dropped and its question starts fresh.
+ */
+export function readQuestionStates(value: unknown): QuestionState[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw): QuestionState[] => {
+    if (typeof raw !== 'object' || raw === null) return [];
+    const st = raw as Record<string, unknown>;
+    if (typeof st['questionId'] !== 'string') return [];
+    return [
+      {
+        questionId: st['questionId'],
+        checks: typeof st['checks'] === 'number' && st['checks'] >= 0 ? Math.trunc(st['checks']) : 0,
+        firstScore: typeof st['firstScore'] === 'number' ? st['firstScore'] : null,
+        firstPassed: typeof st['firstPassed'] === 'boolean' ? st['firstPassed'] : null,
+        passed: st['passed'] === true,
+        revealed: st['revealed'] === true,
+        closed: st['closed'] === true,
+      },
+    ];
+  });
+}
+
 function fresh(questionId: string): QuestionState {
-  return { questionId, checks: 0, firstScore: null, passed: false, revealed: false, closed: false };
+  return { questionId, checks: 0, firstScore: null, firstPassed: null, passed: false, revealed: false, closed: false };
 }
 
 function pctOf(score: number): number {

@@ -92,7 +92,7 @@ export type {
   KeySpan,
   QuestionState,
 } from './grading.js';
-export { check, grade } from './grading.js';
+export { check, grade, readQuestionStates } from './grading.js';
 
 export type {
   PersistedAnswers,

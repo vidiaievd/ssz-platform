@@ -7,7 +7,7 @@ import type { CharRange } from './coordinates.js';
 import { ceilingCause } from './derive.js';
 import { counted, exercise, markAt, PRETERITE, TIME } from './fixtures.test-support.js';
 import type { CheckInput, CheckResult, QuestionState } from './grading.js';
-import { check } from './grading.js';
+import { check, readQuestionStates } from './grading.js';
 import type { HighlightInTextContent, Settings } from './model.js';
 
 const words = (ex: HighlightInTextContent, ...ws: string[]): CharRange[] => ws.map((w) => markAt(ex.text, w));
@@ -154,7 +154,12 @@ describe('the attempt, question by question', () => {
     const a = run();
     a.submit('q1', words(a.ex, 'reiste', 'tok'));
     const second = a.submit('q1', allVerbs(a.ex));
-    expect(second.ok && second.result.questions[0]).toMatchObject({ checks: 2, firstScore: 0.25, passed: true });
+    expect(second.ok && second.result.questions[0]).toMatchObject({
+      checks: 2,
+      firstScore: 0.25,
+      firstPassed: false,
+      passed: true,
+    });
   });
 
   it('the budget is per question; out of checks closes it but still allows the key', () => {
@@ -213,5 +218,23 @@ describe('the attempt, question by question', () => {
     expect(last.ok && last.result.completedNow).toBe(true);
     const key = a.submit('q1', [], true);
     expect(key.ok && key.result).toMatchObject({ complete: true, completedNow: false });
+  });
+});
+
+describe('readQuestionStates', () => {
+  it('reads carried state back without throwing, dropping what is malformed', () => {
+    expect(readQuestionStates(null)).toEqual([]);
+    expect(readQuestionStates({ questionId: 'q1' })).toEqual([]);
+    expect(
+      readQuestionStates([
+        { questionId: 'q1', checks: 2, firstScore: 0.5, firstPassed: false, passed: true, revealed: false, closed: true },
+        { checks: 1 },
+        'q2',
+        { questionId: 'q3', checks: -1, firstScore: 'x' },
+      ]),
+    ).toEqual([
+      { questionId: 'q1', checks: 2, firstScore: 0.5, firstPassed: false, passed: true, revealed: false, closed: true },
+      { questionId: 'q3', checks: 0, firstScore: null, firstPassed: null, passed: false, revealed: false, closed: false },
+    ]);
   });
 });
