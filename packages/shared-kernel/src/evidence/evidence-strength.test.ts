@@ -41,6 +41,23 @@ describe('evidenceStrength', () => {
       expect(typed.successCap).toBe('EASY');
       expect(chosen.successCap).toBe('GOOD');
     });
+
+    it('rates an inflection table from a bank by its form, not its row (plan 69, IT-X3)', () => {
+      // The row is the typing half; the engine sends the bank's form, which wins. Forms are
+      // reusable, so the last cell faces the whole bank.
+      const bank = (bankSize: number) =>
+        ({ mode: 'bank', bankSize, wordsConsumed: false }) as const;
+      expect(evidenceStrength({ templateCode: 'inflection_table', answerForm: bank(7), gapPosition: 7 }))
+        .toEqual({ successCap: 'GOOD', failureFloor: 'AGAIN' });
+      expect(evidenceStrength({ templateCode: 'inflection_table', answerForm: bank(3) }).successCap)
+        .toBe('HARD');
+      expect(
+        evidenceStrength({
+          templateCode: 'inflection_table',
+          answerForm: { mode: 'free', bankSize: null, wordsConsumed: false },
+        }),
+      ).toEqual({ successCap: 'EASY', failureFloor: 'HARD' });
+    });
   });
 
   describe('the bank decaying across a block (plan 36 §B.3)', () => {
@@ -96,6 +113,7 @@ describe('evidenceStrength', () => {
       ['sort_into_buckets', 'GOOD', 'AGAIN'],
       ['highlight_in_text', 'GOOD', 'AGAIN'],
       ['dictation', 'EASY', 'AGAIN'],
+      ['inflection_table', 'EASY', 'HARD'],
       ['match_pairs', 'HARD', 'AGAIN'],
       ['text_order', 'HARD', 'AGAIN'],
     ])('rates %s up to %s and down to %s', (templateCode, successCap, failureFloor) => {
@@ -140,6 +158,11 @@ describe('evidenceStrength', () => {
     it('drops the ceiling of dictation from strong to medium and leaves the floor (plan 68)', () => {
       expect(evidenceStrength({ templateCode: 'dictation', lowered: true }))
         .toEqual({ successCap: 'GOOD', failureFloor: 'AGAIN' });
+    });
+
+    it('drops the ceiling of a typed inflection_table to medium when the first letter is shown (plan 69, Q3-A)', () => {
+      expect(evidenceStrength({ templateCode: 'inflection_table', lowered: true }))
+        .toEqual({ successCap: 'GOOD', failureFloor: 'HARD' });
     });
 
     it('never drops a ceiling below HARD', () => {

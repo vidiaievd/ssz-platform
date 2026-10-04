@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { isAddressableTemplate, itemsOf } from './items.js';
+import { sampleContent, toContent, toExpectedAnswers } from '../inflection-table/index.js';
+import type { InflectionTableContent } from '../inflection-table/index.js';
+import { derivedTargetsOf, isAddressableTemplate, itemsOf } from './items.js';
+
+/** The kernel's sample table, persisted the way content-service stores it. */
+function persistedTable(overrides: Partial<InflectionTableContent> = {}) {
+  const doc = sampleContent(overrides);
+  return { doc, content: toContent(doc), expected: toExpectedAnswers(doc) };
+}
 
 // A minimal gap-fill as it is persisted: one sentence, two gaps on token indices 2 and 4.
 const GAP_FILL_CONTENT = {
@@ -100,6 +108,51 @@ describe('itemsOf', () => {
     expect(isAddressableTemplate('dictation')).toBe(true);
   });
 
+  it('keys an inflection cell as rowId:slotId, asked cells only (plan 69)', () => {
+    const { content, expected } = persistedTable();
+    const items = itemsOf('inflection_table', content, expected);
+    // Four rows, the first column given: twelve asked cells, row by row in slot order.
+    expect(items).toHaveLength(12);
+    expect(items?.slice(0, 3).map((item) => item.key)).toEqual(['r1:defSg', 'r1:indefPl', 'r1:defPl']);
+    expect(items?.find((item) => item.key === 'r2:defSg')).toEqual({
+      key: 'r2:defSg',
+      label: 'bok · best. ent. — boka',
+      value: 'boka',
+      matchValues: ['boka', 'bok'],
+    });
+    expect(isAddressableTemplate('inflection_table')).toBe(true);
+  });
+
+  it('leaves out what a learner is not graded on: switched-off slots, keyless cells, lemma-less rows', () => {
+    const { doc } = persistedTable();
+    const [r1, r2, r3, r4] = doc.rows;
+    const edited: InflectionTableContent = {
+      ...doc,
+      slots: ['indefSg', 'defSg', 'indefPl'],
+      rows: [
+        { ...r1!, cells: { ...r1!.cells, defSg: { ...r1!.cells['defSg']!, value: '' } } },
+        { ...r2!, lemma: '  ' },
+        r3!,
+        r4!,
+      ],
+    };
+    const items = itemsOf('inflection_table', toContent(edited), toExpectedAnswers(edited));
+    expect(items?.map((item) => item.key)).toEqual([
+      'r1:indefPl',
+      'r3:defSg',
+      'r3:indefPl',
+      'r4:defSg',
+      'r4:indefPl',
+    ]);
+  });
+
+  it('keeps a removed row out of the keys, so a release prunes its cards (plan 69 §8 item 8)', () => {
+    const { doc } = persistedTable();
+    const without = { ...doc, rows: doc.rows.filter((r) => r.id !== 'r2') };
+    const keys = itemsOf('inflection_table', toContent(without), toExpectedAnswers(without))?.map((i) => i.key);
+    expect(keys?.some((key) => key.startsWith('r2:'))).toBe(false);
+  });
+
   it('keys a gap exactly as gapResults spells it', () => {
     // The whole point: a target keyed differently from the evidence could never be joined
     // to it. `sentenceId#tokenIndex` is not a choice made here, it is what already travels.
@@ -164,5 +217,40 @@ describe('isAddressableTemplate', () => {
     expect(isAddressableTemplate('word_bank_gap_fill')).toBe(true);
     expect(isAddressableTemplate('match_pairs')).toBe(true);
     expect(isAddressableTemplate('writing_task')).toBe(false);
+  });
+});
+
+describe('derivedTargetsOf (plan 69, Q1-B)', () => {
+  it('names the dictionary word of a linked row on each of its asked cells, as context', () => {
+    const { content, expected } = persistedTable();
+    const targets = derivedTargetsOf('inflection_table', content, expected);
+    expect(targets).toHaveLength(12);
+    expect(targets.filter((t) => t.itemKey.startsWith('r2:'))).toEqual([
+      { itemKey: 'r2:defSg', atomType: 'vocabulary_item', atomId: 'dict-r2', role: 'context' },
+      { itemKey: 'r2:indefPl', atomType: 'vocabulary_item', atomId: 'dict-r2', role: 'context' },
+      { itemKey: 'r2:defPl', atomType: 'vocabulary_item', atomId: 'dict-r2', role: 'context' },
+    ]);
+  });
+
+  it('derives nothing for a row typed by hand — it feeds the grammar atom only', () => {
+    const { doc } = persistedTable();
+    const typed = { ...doc, rows: doc.rows.map((r) => (r.id === 'r1' ? { ...r, dictId: null } : r)) };
+    const targets = derivedTargetsOf('inflection_table', toContent(typed), toExpectedAnswers(typed));
+    expect(targets.some((t) => t.itemKey.startsWith('r1:'))).toBe(false);
+    expect(targets).toHaveLength(9);
+  });
+
+  it('addresses only cells itemsOf knows', () => {
+    const { content, expected } = persistedTable();
+    const keys = new Set(itemsOf('inflection_table', content, expected)?.map((i) => i.key));
+    for (const target of derivedTargetsOf('inflection_table', content, expected)) {
+      expect(keys.has(target.itemKey), target.itemKey).toBe(true);
+    }
+  });
+
+  it('derives nothing for any other template, or a malformed document', () => {
+    expect(derivedTargetsOf('sort_into_buckets', {}, {})).toEqual([]);
+    expect(derivedTargetsOf('inflection_table', null, null)).toEqual([]);
+    expect(derivedTargetsOf('inflection_table', { rows: 'not an array' }, {})).toEqual([]);
   });
 });

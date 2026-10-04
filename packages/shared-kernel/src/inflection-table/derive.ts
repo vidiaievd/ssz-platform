@@ -4,6 +4,7 @@
 // Nothing here is stored (plan 69 §3.1): counts, the row's origin, readiness — each is read off
 // the document when it is needed, so there is no second copy to fall out of step.
 
+import type { DerivedTarget } from '../exercise-items/model.js';
 import type { Slot } from './packs.js';
 import type { Cell, InflectionTableContent, Row } from './model.js';
 import { cellKey, newCell, slotsInPlay } from './model.js';
@@ -94,4 +95,23 @@ export function ceilingCause(ex: InflectionTableContent): CeilingCause | null {
 /** The first letter of the key, as the hint shows it. Empty for an empty key. */
 export function firstLetter(value: string): string {
   return [...value.trim()][0] ?? '';
+}
+
+/**
+ * The vocabulary half of every graded cell's address (decision Q1-B, DECISIONS §2).
+ *
+ * A row from the course dictionary feeds its word on each cell it asks, as `context`: the learner
+ * has to know `bok` to write `bøkene`, but the cell examines the column's rule. A row typed by hand
+ * contributes nothing here — «rows typed by hand contribute only to the grammar atom», and the
+ * grammar atom is the author's, set in the shared targets panel like every other type's.
+ */
+export function derivedTargets(ex: InflectionTableContent): DerivedTarget[] {
+  return gradedCells(ex)
+    .filter((c) => c.row.dictId !== null)
+    .map((c) => ({
+      itemKey: c.key,
+      atomType: 'vocabulary_item' as const,
+      atomId: c.row.dictId as string,
+      role: 'context' as const,
+    }));
 }

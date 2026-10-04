@@ -44,6 +44,7 @@ export {
   askedCells,
   ceilingCause,
   cellOf,
+  derivedTargets,
   firstLetter,
   formsCoverage,
   gradedCells,

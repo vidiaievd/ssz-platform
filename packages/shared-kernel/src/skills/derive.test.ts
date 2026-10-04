@@ -14,6 +14,7 @@ describe('the table', () => {
         'error_correction',
         'fill_in_blank',
         'highlight_in_text',
+        'inflection_table',
         'match_pairs',
         'multiple_choice',
         'multiple_choice_group',
@@ -60,6 +61,7 @@ describe('the table', () => {
       sort_into_buckets: ['reading'],
       highlight_in_text: ['reading'],
       dictation: ['listening', 'written'],
+      inflection_table: ['reading', 'written'],
     };
     for (const [code, skills] of Object.entries(before))
       expect(deriveSkills({ templateCode: code }).skills, code).toEqual(skills);
@@ -144,6 +146,62 @@ describe('dictation (plan 68)', () => {
   it('leaves a non-structural hint to yield to the atoms, as before', () => {
     const atoms = [{ atomType: 'grammar_rule', itemKey: 'p1' }];
     expect(deriveSkills({ templateCode: 'match_pairs', atoms }).focus).toEqual(['grammar']);
+  });
+});
+
+describe('inflection_table (plan 69)', () => {
+  it('is read and written from memory when typed', () => {
+    const typed = deriveSkills({ templateCode: 'inflection_table', content: { input: { mode: 'type' } } });
+    expect(typed).toMatchObject({
+      input: 'text',
+      output: 'written_target',
+      skills: ['reading', 'written'],
+      form: 'free',
+      modality: 'recall',
+      modalitySource: 'template',
+    });
+    // A document that says nothing about the input reads as typing, the template's half.
+    expect(deriveSkills({ templateCode: 'inflection_table' })).toMatchObject({ form: 'free', modality: 'recall' });
+  });
+
+  it('is recognised from a bank, and still written (deviation 1)', () => {
+    const bank = deriveSkills({ templateCode: 'inflection_table', content: { input: { mode: 'bank' } } });
+    expect(bank).toMatchObject({
+      input: 'text',
+      output: 'written_target',
+      skills: ['reading', 'written'],
+      form: 'bank',
+      modality: 'recognition',
+      modalitySource: 'document',
+      // The mode moves how it is answered, not what it is counted as.
+      skillSource: 'template',
+    });
+  });
+
+  it('becomes listening with the layer on, in both modes', () => {
+    const audio = { enabled: true };
+    const typed = deriveSkills({ templateCode: 'inflection_table', content: { audio, input: { mode: 'type' } } });
+    expect(typed).toMatchObject({ input: 'audio', skills: ['listening', 'written'], form: 'free', modality: 'recall' });
+    // Unlike the frozen gap-fill reading, the bank still reads as a bank with sound.
+    const bank = deriveSkills({ templateCode: 'inflection_table', content: { audio, input: { mode: 'bank' } } });
+    expect(bank).toMatchObject({ input: 'audio', skills: ['listening', 'written'], form: 'bank', modality: 'recognition' });
+  });
+
+  it('takes grammar from the template, and keeps it when a row addresses its word', () => {
+    expect(deriveSkills({ templateCode: 'inflection_table' })).toMatchObject({
+      focus: ['grammar'],
+      focusSource: 'template',
+    });
+    const atoms = [
+      { atomType: 'vocabulary_item', itemKey: 'r1:defSg' },
+      { atomType: 'vocabulary_item', itemKey: 'r1:indefPl' },
+    ];
+    expect(deriveSkills({ templateCode: 'inflection_table', atoms })).toMatchObject({
+      focus: ['vocabulary', 'grammar'],
+      focusSource: 'atoms',
+      // The column is the atom: every cell is about its rule, whatever word it inflects.
+      focusWeights: { vocabulary: 1, grammar: 1 },
+    });
   });
 });
 
