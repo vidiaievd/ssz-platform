@@ -56,6 +56,10 @@
       "import": "./dist/highlight-in-text/index.js",
       "types": "./dist/highlight-in-text/index.d.ts"
     },
+    "./dictation": {
+      "import": "./dist/dictation/index.js",
+      "types": "./dist/dictation/index.d.ts"
+    },
     "./text": {
       "import": "./dist/text/index.js",
       "types": "./dist/text/index.d.ts"
