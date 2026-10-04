@@ -8,6 +8,7 @@ import {
   putBack,
   removeSegment,
   setMode,
+  setSegmentAudio,
   setSegmentText,
   toggleFocus,
 } from './edits.js';
@@ -41,6 +42,18 @@ describe('edits', () => {
     let ex = emptyContent('nb');
     for (let k = 0; k < 20; k++) ex = addSegment(ex);
     expect(ex.segments).toHaveLength(DC_MAX_SEG);
+  });
+
+  it('starts a new segment where the last timed one ends (plan 68 §4.1)', () => {
+    const timed = setSegmentAudio(sample(), 'b', { start: 12, end: 26 });
+    const added = addSegment(timed);
+    expect(added.segments.at(-1)!.audio).toEqual({ start: 26, end: 26 });
+  });
+
+  it('gives a segment no timecode after an untimed or inverted one', () => {
+    expect(addSegment(setSegmentAudio(sample(), 'b', null)).segments.at(-1)!.audio).toBeNull();
+    const inverted = setSegmentAudio(sample(), 'b', { start: 9, end: 4 });
+    expect(addSegment(inverted).segments.at(-1)!.audio).toBeNull();
   });
 
   it('removes a segment with its orphans, never the last one', () => {

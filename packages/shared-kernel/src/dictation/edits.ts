@@ -60,9 +60,21 @@ export function canAddSegment(ex: DictationContent): boolean {
   return ex.mode === 'segments' && ex.segments.length < DC_MAX_SEG;
 }
 
+/**
+ * Append an empty sentence. Sentences follow one another in the clip, so when the last one is
+ * timed the new one starts where it ends (plan 68 §4.1, the prototype's `add`): the author
+ * only has to set an end. The pair is empty until they do, which the audio layer says in
+ * words (`AUD_SEG_INVERTED`) — a warning, never a blocker. After an untimed sentence there is
+ * nothing to follow, and the new one has no timecode.
+ */
 export function addSegment(ex: DictationContent): DictationContent {
   if (!canAddSegment(ex)) return ex;
-  return { ...ex, segments: [...ex.segments, newSegment()] };
+  const last = ex.segments.at(-1);
+  const next = newSegment();
+  if (last?.audio != null && last.audio.end > last.audio.start) {
+    next.audio = { start: last.audio.end, end: last.audio.end };
+  }
+  return { ...ex, segments: [...ex.segments, next] };
 }
 
 /** Delete a sentence with its focus words, its reason and its orphans. Never the last one. */
