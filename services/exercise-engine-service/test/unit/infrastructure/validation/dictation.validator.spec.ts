@@ -74,6 +74,7 @@ interface Details {
   passed: boolean;
   words: WordCounts;
   ops: Array<DiffOp & { why?: string }>;
+  nearCredit: boolean;
   focus: Array<{ focusId: string; word: string; why: string }>;
   why?: string;
   key?: { text: string; why: string; focus: unknown[] };
@@ -153,6 +154,13 @@ describe('DictationValidator — what an answer may carry (AC-X2, AC-R7, AC-R9)'
     // Nothing of the other sentence, which nobody has written yet.
     const json = JSON.stringify(d);
     for (const word of ['hadde', 'hørt', 'b — why']) expect(json).not.toContain(word);
+  });
+
+  it('says whether near misses earned half credit, so the runner need not guess the rule', () => {
+    const nearly = 'På kjøkkenet står det en skjo.';
+    const half = sample({}, { marking: { ...sample().marking, near: 'half' } });
+    expect(details(run(half, { segmentId: 'a', text: nearly })).nearCredit).toBe(true);
+    expect(details(run(sample(), { segmentId: 'a', text: nearly })).nearCredit).toBe(false);
   });
 
   it('no reason without hints', () => {

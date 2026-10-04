@@ -85,6 +85,8 @@ export class DictationValidator implements IPerTypeValidator {
         words: r.words,
         /** The corrected line; empty on a reveal. */
         ops: r.ops,
+        /** Near misses earned half credit on this check — the verdict says so. */
+        nearCredit: r.nearCredit,
         /** The wrong focus words by name with their reasons (AC-M7). */
         focus: r.focus,
         ...(r.why === undefined ? {} : { why: r.why }),

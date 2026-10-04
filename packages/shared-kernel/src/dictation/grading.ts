@@ -119,6 +119,11 @@ export interface LastCheck {
   pct: number;
   words: WordCounts;
   ops: VerdictOp[];
+  /**
+   * `segment.why`, when this check failed under `settings.hints` — the summary repeats it
+   * after a reload (AC-R10). Only ever what the check's own answer already showed.
+   */
+  why?: string;
 }
 
 /** The sentence as a reveal showed it. */
@@ -185,6 +190,12 @@ export interface CheckResult {
   words: WordCounts;
   /** The corrected line. Empty on a reveal. */
   ops: VerdictOp[];
+  /**
+   * Near misses earned half a word each on this check — the `half` rule, with at least one
+   * near miss. The verdict says «half credit» from this; the rule itself never reaches a
+   * student before a check (plan 68, deviation 15). False on a reveal.
+   */
+  nearCredit: boolean;
   /** The wrong focus words, by name. Empty on a reveal and in a graded attempt. */
   focus: FocusMiss[];
   /** `segment.why` — after a failed check, under `settings.hints`. */
@@ -268,6 +279,7 @@ export function check(input: CheckInput): CheckOutcome {
       passed: false,
       words: prev.first?.words ?? emptyCounts(words.length),
       ops: [],
+      nearCredit: false,
       focus: [],
       key,
       ...(slice === null ? {} : { transcriptSlice: slice }),
@@ -295,6 +307,7 @@ export function check(input: CheckInput): CheckOutcome {
     const misses = focusMisses(seg, d.ops);
     const ops = withReasons(seg, d.ops, !graded);
     const slice = closed && sliceOnClose ? seg.text.trim() : null;
+    const why = !passed && s.hints && seg.why.trim() !== '' ? seg.why.trim() : null;
 
     next = {
       segmentId,
@@ -312,7 +325,7 @@ export function check(input: CheckInput): CheckOutcome {
         wrongFocus: misses.map((m) => m.focusId),
         ops: d.ops,
       },
-      last: { pct: pctOf(d.score), words: d.words, ops },
+      last: { pct: pctOf(d.score), words: d.words, ops, ...(why === null ? {} : { why }) },
       key: null,
       transcriptSlice: slice,
     };
@@ -322,8 +335,9 @@ export function check(input: CheckInput): CheckOutcome {
       passed,
       words: d.words,
       ops,
+      nearCredit: ex.marking.near === 'half' && d.words.near > 0,
       focus: graded ? [] : misses,
-      ...(!passed && s.hints && seg.why.trim() !== '' ? { why: seg.why.trim() } : {}),
+      ...(why === null ? {} : { why }),
       ...(slice === null ? {} : { transcriptSlice: slice }),
       attempt: checks,
       checksLeft,
@@ -425,6 +439,7 @@ function readLast(value: unknown): LastCheck | null {
     pct: typeof l['pct'] === 'number' ? l['pct'] : 0,
     words: readCounts(l['words']),
     ops: Array.isArray(l['ops']) ? (l['ops'] as VerdictOp[]) : [],
+    ...(typeof l['why'] === 'string' && l['why'] !== '' ? { why: l['why'] } : {}),
   };
 }
 

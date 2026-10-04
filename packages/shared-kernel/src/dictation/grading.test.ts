@@ -49,6 +49,19 @@ describe('check — one segment', () => {
     expect(r.why).toBeUndefined();
   });
 
+  it('says when near misses earned half credit — only under `half`, only with one', () => {
+    const nearly = 'På kjøkkenet står det en skjo.';
+    const ex = sample();
+    const half = { ...ex, marking: { ...ex.marking, near: 'half' as const } };
+    expect(ok({ ex: half, segmentId: 'a', text: nearly }).nearCredit).toBe(true);
+    expect(ok({ ex: half, segmentId: 'a', text: 'helt feil' }).nearCredit).toBe(false);
+    expect(ok({ ex, segmentId: 'a', text: nearly }).nearCredit).toBe(false);
+    const first = ok({ ex: half, segmentId: 'a', text: 'helt feil' });
+    expect(
+      ok({ ex: half, segmentId: 'a', reveal: true, segments: first.segments }).nearCredit,
+    ).toBe(false);
+  });
+
   it('no slice when the policy is never', () => {
     const ex = sample();
     const never = {
@@ -215,7 +228,11 @@ describe('check — what a reload needs is in the state', () => {
     const second = ok({ ex: sample(), segmentId: 'a', text: 'På sjøkkenet står det en skje.', segments: first.segments });
     const st = second.segments.find((x) => x.segmentId === 'a');
     expect(st?.firstScore).toBe(0);
-    expect(st?.last).toEqual({ pct: second.pct, words: second.words, ops: second.ops });
+    expect(st?.last).toEqual({
+      pct: second.pct,
+      words: second.words,
+      ops: second.ops,
+    });
     // The focus reason travels with the stored line, as it did in the answer.
     expect(st?.last?.ops.find((o) => o.k === 'sub' && o.focus)).toMatchObject({ why: 'kj- foran ø.' });
     expect(st?.key).toBeNull();
@@ -241,6 +258,24 @@ describe('check — what a reload needs is in the state', () => {
     expect(st?.transcriptSlice).toBe(A);
     // A reveal is not a check: the last line stays the one the student wrote.
     expect(st?.last).toEqual(first.segments.find((x) => x.segmentId === 'a')?.last);
+  });
+
+  it('the reason of a failed check under hints — what the summary repeats (AC-R10)', () => {
+    const failed = ok({ ex: sample(), segmentId: 'a', text: 'helt feil' });
+    expect(failed.segments.find((x) => x.segmentId === 'a')?.last?.why).toBe(
+      'A rule the ear missed.',
+    );
+    // Passed: no reason was shown, none is kept.
+    const passed = ok({ ex: sample(), segmentId: 'a', text: A });
+    expect(passed.segments.find((x) => x.segmentId === 'a')?.last).not.toHaveProperty('why');
+    // No hints: none was shown either.
+    const ex = sample();
+    const quiet = ok({
+      ex: { ...ex, settings: { ...ex.settings, hints: false } },
+      segmentId: 'a',
+      text: 'helt feil',
+    });
+    expect(quiet.segments.find((x) => x.segmentId === 'a')?.last).not.toHaveProperty('why');
   });
 
   it('a graded check stores no reasons, as it showed none', () => {
