@@ -31,6 +31,16 @@ export interface TemplateProfile {
   output: Output;
   /** Empty where the template cannot honestly say. See rule 2 above. */
   focus: readonly Focus[];
+  /**
+   * The hint is the type itself, not a guess about how it is usually used — so the atoms an
+   * author attaches add to it rather than replace it (plan 68). A dictation addressed to the
+   * word `sjøkken` is about that word *and* about spelling it; dropping `orthography` the
+   * moment a word is attached would empty the one axis only this type closes.
+   *
+   * Absent everywhere else, and deliberately: `match_pairs` names vocabulary as the dominant
+   * use, which atoms saying grammar should overrule, not join.
+   */
+  focusStructural?: true;
   /** `mixed` means the document decides — `derive.ts` reads it. */
   form: Form;
   /**
@@ -234,10 +244,13 @@ export const BY_TEMPLATE: Readonly<Record<string, TemplateProfile>> = {
   // `written_target` and `free`: the words are typed into an empty field. `recall`, not
   // `production`: the sentence is given by ear, and the work is putting the heard form on
   // paper, not composing one — the same line `error_correction` draws.
+  // The hint holds when atoms are attached (`focusStructural`): they say which words, the
+  // type says what about them.
   dictation: {
     input: 'audio',
     output: 'written_target',
     focus: ['orthography'],
+    focusStructural: true,
     form: 'free',
     modality: 'recall',
   },

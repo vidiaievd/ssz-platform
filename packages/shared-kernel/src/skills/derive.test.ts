@@ -127,6 +127,24 @@ describe('dictation (plan 68)', () => {
       focusSource: 'template',
     });
   });
+
+  it('keeps orthography when atoms are attached — they add to the type, not replace it', () => {
+    const atoms = [
+      { atomType: 'vocabulary_word', itemKey: 's1' },
+      { atomType: 'vocabulary_word', itemKey: 's2' },
+    ];
+    expect(deriveSkills({ templateCode: 'dictation', atoms })).toMatchObject({
+      focus: ['vocabulary', 'orthography'],
+      focusSource: 'atoms',
+      // Every sentence is about its word and about spelling it.
+      focusWeights: { vocabulary: 1, orthography: 1 },
+    });
+  });
+
+  it('leaves a non-structural hint to yield to the atoms, as before', () => {
+    const atoms = [{ atomType: 'grammar_rule', itemKey: 'p1' }];
+    expect(deriveSkills({ templateCode: 'match_pairs', atoms }).focus).toEqual(['grammar']);
+  });
 });
 
 describe('the chain', () => {

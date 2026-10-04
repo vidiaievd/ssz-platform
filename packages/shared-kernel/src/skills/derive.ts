@@ -240,7 +240,10 @@ function fromAtoms(atoms: readonly AtomRef[] | undefined): Focus[] | null {
  * shape says "this exercise is about grammar", which is exactly one element's worth of
  * evidence and should not read as eight.
  */
-function weighAtoms(atoms: readonly AtomRef[] | undefined): FocusWeights {
+function weighAtoms(
+  atoms: readonly AtomRef[] | undefined,
+  structural: readonly Focus[] = [],
+): FocusWeights {
   if (!atoms || atoms.length === 0) return {};
 
   const byItem = new Map<string, Set<Focus>>();
@@ -254,6 +257,8 @@ function weighAtoms(atoms: readonly AtomRef[] | undefined): FocusWeights {
   }
 
   if (byItem.size === 0) return {};
+  // A structural subject is true of every element, so every element carries it.
+  for (const bucket of byItem.values()) for (const focus of structural) bucket.add(focus);
 
   const weights: FocusWeights = {};
   for (const foci of byItem.values()) {
@@ -305,9 +310,11 @@ export function deriveSkills(input: DeriveInput): DerivedProfile {
   } else {
     const fromGraph = fromAtoms(input.atoms);
     if (fromGraph) {
-      focus = fromGraph;
+      // A structural hint joins the graph instead of yielding to it (`focusStructural`).
+      const structural = profile?.focusStructural ? profile.focus : [];
+      focus = orderFocuses([...fromGraph, ...structural]);
       focusSource = 'atoms';
-      focusWeights = weighAtoms(input.atoms);
+      focusWeights = weighAtoms(input.atoms, structural);
     } else if (profile && profile.focus.length > 0) {
       focus = orderFocuses(profile.focus);
       focusSource = 'template';
