@@ -29,6 +29,7 @@ function makeHandler(
   const saved: Attempt[] = [];
   const attempts = {
     findInProgress: jest.fn(() => Promise.resolve(null)),
+    findOpenBoard: jest.fn(() => Promise.resolve(null)),
     findLatestReturned: jest.fn(() => Promise.resolve(null)),
     save: jest.fn((attempt: Attempt) => {
       saved.push(attempt);

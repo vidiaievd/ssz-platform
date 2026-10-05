@@ -225,6 +225,17 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   // before the check, and a transcript that is not held back until after it — and the engine
   // reads both off the document (`ceilingCause`) and sends `lowered`: strong to medium.
   dictation: NOTHING_OFFERED,
+
+  // Plan 69. The handoff asks for "typing: ceiling high, floor medium": the form is spelled into
+  // an empty cell with nothing on offer, so a success may reach the top, and a failure is held
+  // off AGAIN because a wrong ending can be a slip of the keyboard — near-misses are named, not
+  // forgiven, so unlike `dictation` the slips are still inside the verdict. The verdict this rates
+  // is the first check of each cell; later checks change the screen, not the record.
+  // The bank half ("ceiling medium, floor low") is not a second row: the engine sends
+  // `answerForm` for this type, and the form wins over the row — CLOSED_SET, or NEAR_CERTAIN for
+  // a bank of three or fewer. The forms may be reused, so the bank does not shrink as it is spent.
+  // The first-letter hint hands part of the answer over and is sent as `lowered` (decision Q3-A).
+  inflection_table: FREE_PRODUCTION,
 };
 
 /**
@@ -251,7 +262,8 @@ export interface EvidenceInput {
    * Set by the engine from the document, never from the client's word: by
    * `sort_into_buckets` when the «N igjen» counter was on or the board was skewed, and by
    * `highlight_in_text` when the expected count was shown or extra marks cost nothing, and by
-   * `dictation` when the word counter was on or the transcript was not held back. Lowers
+   * `dictation` when the word counter was on or the transcript was not held back, and by
+   * `inflection_table` when the key's first letter was shown in the empty cells. Lowers
    * the success ceiling only — a failure says what it said — and never below HARD, the
    * weakest success FSRS has a word for: a ceiling of AGAIN would turn a recalled item
    * into a lapse. Absent on every event before plan 66, which therefore rates unchanged.

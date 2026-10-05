@@ -84,6 +84,7 @@ describe('AttemptsController (integration)', () => {
   const mockRepo = {
     findById: jest.fn(),
     findInProgress: jest.fn(),
+    findOpenBoard: jest.fn().mockResolvedValue(null),
     findLatestReturned: jest.fn().mockResolvedValue(null),
     findAllByUser: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),

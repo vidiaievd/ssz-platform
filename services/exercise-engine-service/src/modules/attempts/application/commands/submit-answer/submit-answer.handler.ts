@@ -33,6 +33,14 @@ import {
   TEMPLATE_CODE as DICTATION,
 } from '@ssz/shared-kernel/dictation';
 import {
+  bankForms as itBankForms,
+  ceilingCause as itCeilingCause,
+  fromPersisted as itFromPersisted,
+  maxChecks as itMaxChecks,
+  readContent as itReadContent,
+  TEMPLATE_CODE as INFLECTION_TABLE,
+} from '@ssz/shared-kernel/inflection-table';
+import {
   fromPersisted as writingTaskFromPersisted,
   snapshotRubric,
   TEMPLATE_CODE as WRITING_TASK,
@@ -150,6 +158,12 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
   // closed segment — all decided in the kernel's `check`. The segment states it carries hold
   // nothing a check has not already shown: the first check's line was that check's verdict.
   if (templateCode === DICTATION) return details;
+  // `inflection_table` the same way (plan 69 §3.5): every cell's verdict, its near miss and
+  // the author's reason for a wrong one on every check — DECISIONS §3 wants the student told
+  // it was the definite, not that they were close — and the correct form only under
+  // `revealKey`, all decided in the kernel's `check`. The rows are counts; the first answers
+  // are the student's own.
+  if (templateCode === INFLECTION_TABLE) return details;
   return undefined;
 }
 
@@ -158,9 +172,14 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
  * one check to the next in the attempt's own details (plan 54 §3.3). `sort_into_buckets`
  * joined with plan 66: the mechanics are the same, and so are the field names its validator
  * writes — `closed`, `locked`, `items[].itemId`, `items[].firstAnswer` — so the helpers
- * below read both without knowing which they hold.
+ * below read both without knowing which they hold. `inflection_table` joined with plan 69 on
+ * the same terms, a cell for an item.
  */
-const WHOLE_BOARD_CHECKS: ReadonlySet<string> = new Set([MULTIPLE_CHOICE_GROUP, SORT_INTO_BUCKETS]);
+const WHOLE_BOARD_CHECKS: ReadonlySet<string> = new Set([
+  MULTIPLE_CHOICE_GROUP,
+  SORT_INTO_BUCKETS,
+  INFLECTION_TABLE,
+]);
 
 /**
  * The submission, with what the attempt knows about it written over what the client says.
@@ -329,8 +348,26 @@ function translateRouting(details: unknown): unknown {
  *
  * Only this template can say. The other twelve report nothing and the field is absent,
  * which is what keeps events published before it existed valid.
+ *
+ * `inflection_table` (plan 69) is the second template that can: the author picks typing or a
+ * bank of forms, and the two are «high/medium» and «medium/low» evidence in the handoff's own
+ * words. Its bank is never consumed — a form may be placed in more than one cell (§3.6) — and
+ * its size needs the key column, because the bank is the keys plus the distractors.
  */
-function describeAnswerForm(templateCode: string, content: unknown): AnswerForm | undefined {
+function describeAnswerForm(
+  templateCode: string,
+  content: unknown,
+  expectedAnswers: unknown,
+): AnswerForm | undefined {
+  if (templateCode === INFLECTION_TABLE) {
+    const table = itFromPersisted(content, expectedAnswers);
+    const typed = table.input.mode !== 'bank';
+    return {
+      mode: typed ? 'free' : 'bank',
+      bankSize: typed ? null : itBankForms(table).length,
+      wordsConsumed: false,
+    };
+  }
   if (templateCode !== WORD_BANK_GAP_FILL) return undefined;
 
   const task = readContent(content);
@@ -357,7 +394,12 @@ function describeGapResults(
   templateCode: string,
   details: unknown,
 ): Array<{ gapKey: string; correct: boolean }> | undefined {
-  if (templateCode === SORT_INTO_BUCKETS) return sortItemResults(details);
+  // `inflection_table` reads the same: a cell is the item, keyed `rowId:slotId` (plan 69 §3.9).
+  // The row verdict stays in the details — a second entry per row would turn one wrong cell
+  // into two review cards.
+  if (templateCode === SORT_INTO_BUCKETS || templateCode === INFLECTION_TABLE) {
+    return sortItemResults(details);
+  }
   // Item by item (plans 67 and 68): a question or a segment is the item, keyed by its id as
   // the kernel's `itemsOf` spells it for addressing, with its *first* check's verdict.
   if (isItemByItem(templateCode)) return firstVerdictsIn(templateCode, details);
@@ -385,7 +427,19 @@ function describeGapResults(
  * exercise whose evidence is lowered here. The kernel's
  * `evidenceStrength` then drops the success ceiling one step for every consumer.
  */
-function evidenceLowered(templateCode: string, content: unknown, expectedAnswers: unknown): boolean {
+function evidenceLowered(
+  templateCode: string,
+  content: unknown,
+  expectedAnswers: unknown,
+  checkMode: string,
+): boolean {
+  // `inflection_table` (plan 69, Q3-A): the key's first letter in an empty cell. A graded
+  // delivery never shows it (`withGradedSettings`), so only a practice one is lowered.
+  if (templateCode === INFLECTION_TABLE) {
+    return (
+      checkMode !== 'GRADED' && itCeilingCause(itFromPersisted(content, expectedAnswers)) !== null
+    );
+  }
   // `highlight_in_text` (plan 67 §3.6) by the same road: «Det er N å finne» turns the tail
   // into counting, and with no penalty for an extra mark, marking everything passes. Its
   // kernel's `ceilingCause` is the rule the builder warns with (`HT_COUNT_SHOWN`,
@@ -404,7 +458,8 @@ function evidenceLowered(templateCode: string, content: unknown, expectedAnswers
 }
 
 /**
- * The per-item verdicts of a `sort_into_buckets` board, keyed by item id (plan 66, Q3-A).
+ * The per-item verdicts of a `sort_into_buckets` board, keyed by item id (plan 66, Q3-A) — and
+ * of an `inflection_table`, whose items are its cells.
  *
  * Carried in `gapResults` because that is the one road per-item evidence has to the
  * scheduler: each verdict is joined to the addresses of its item, so review can bring back
@@ -531,6 +586,12 @@ function withRecordedChecks(attempt: Attempt, submitted: unknown): unknown {
     attempt: attempt.recheckCount + 1,
     locked: previous.locked,
     firstAnswers: previous.firstAnswers,
+    // `inflection_table` grades a graded delivery under its own rules — the first check
+    // closes the table and the key stays back (Q8-A of plan 67) — and the mode is the
+    // attempt's, never the client's. The other two have no such rule and are left as sent.
+    ...(attempt.templateCode === INFLECTION_TABLE
+      ? { graded: attempt.checkMode === 'GRADED' }
+      : {}),
   };
 }
 
@@ -546,6 +607,8 @@ function recheckBudget(templateCode: string, content: unknown): number | undefin
   if (templateCode === MULTIPLE_CHOICE_GROUP) return mcgMaxAttempts(mcgReadContent(content).settings);
   // `settings.attempts`: 1, 2 or 3 checks of the board, or 0 for unlimited (plan 66).
   if (templateCode === SORT_INTO_BUCKETS) return sbMaxChecks(sbReadContent(content).settings) ?? undefined;
+  // `settings.attempts`: 1–4 checks of the table, never unlimited (plan 69 §3.4).
+  if (templateCode === INFLECTION_TABLE) return itMaxChecks(itReadContent(content).settings);
   // `highlight_in_text` has a budget too, but per question rather than per attempt (plan 67,
   // Q1-A), and the kernel spends it. The attempt is not reopened between questions at all —
   // it stays in progress until the last one closes; a reopen comes only after that, for
@@ -816,7 +879,11 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       });
     }
 
-    const answerForm = describeAnswerForm(attempt.templateCode, def.exercise.content);
+    const answerForm = describeAnswerForm(
+      attempt.templateCode,
+      def.exercise.content,
+      def.exercise.expectedAnswers,
+    );
     const gapResults = describeGapResults(attempt.templateCode, outcome.details);
     const scoreResult = attempt.score(
       outcome.score,
@@ -825,7 +892,12 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       feedback,
       answerForm,
       gapResults,
-      evidenceLowered(attempt.templateCode, def.exercise.content, def.exercise.expectedAnswers),
+      evidenceLowered(
+        attempt.templateCode,
+        def.exercise.content,
+        def.exercise.expectedAnswers,
+        attempt.checkMode,
+      ),
     );
     if (scoreResult.isFail) {
       return Result.fail(scoreResult.error as AttemptDomainError);

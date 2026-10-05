@@ -17,6 +17,7 @@ import { TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP_TEMPLATE } from '@ssz/shared-ker
 import { TEMPLATE_CODE as SORT_INTO_BUCKETS_TEMPLATE } from '@ssz/shared-kernel/sort-into-buckets';
 import { TEMPLATE_CODE as HIGHLIGHT_IN_TEXT_TEMPLATE } from '@ssz/shared-kernel/highlight-in-text';
 import { TEMPLATE_CODE as DICTATION_TEMPLATE } from '@ssz/shared-kernel/dictation';
+import { TEMPLATE_CODE as INFLECTION_TABLE_TEMPLATE } from '@ssz/shared-kernel/inflection-table';
 import { gapFillViolations } from './gap-fill-preflight.js';
 import { matchPairsViolations } from './match-pairs-preflight.js';
 import { writingTaskViolations } from './writing-task-preflight.js';
@@ -27,6 +28,7 @@ import { multipleChoiceGroupViolations } from './multiple-choice-group-preflight
 import { sortIntoBucketsViolations } from './sort-into-buckets-preflight.js';
 import { highlightInTextViolations } from './highlight-in-text-preflight.js';
 import { dictationViolations } from './dictation-preflight.js';
+import { inflectionTableViolations } from './inflection-table-preflight.js';
 import { audioViolations } from './audio-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
@@ -528,6 +530,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
                 SORT_INTO_BUCKETS_TEMPLATE,
                 HIGHLIGHT_IN_TEXT_TEMPLATE,
                 DICTATION_TEMPLATE,
+                INFLECTION_TABLE_TEMPLATE,
               ],
             },
           },
@@ -620,6 +623,9 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
  * `dictation` (plan 68) fails loudly rather than silently — an unfinished sentence is a
  * blocker, not a drop — but it earns its place here for the same structural reason as the
  * rest: its rules read the key column, which only this query loads.
+ *
+ * `inflection_table` (plan 69) drops an asked cell without a key, as `sort_into_buckets` drops
+ * an item without a bucket: the key is in the other column.
  */
 function violationsFor(
   templateCode: string,
@@ -636,6 +642,7 @@ function violationsFor(
   if (templateCode === SORT_INTO_BUCKETS_TEMPLATE) return sortIntoBucketsViolations(document);
   if (templateCode === HIGHLIGHT_IN_TEXT_TEMPLATE) return highlightInTextViolations(document);
   if (templateCode === DICTATION_TEMPLATE) return dictationViolations(document);
+  if (templateCode === INFLECTION_TABLE_TEMPLATE) return inflectionTableViolations(document);
   return gapFillViolations(document);
 }
 

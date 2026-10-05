@@ -3,6 +3,7 @@ import { ReviewContextResolver } from '../../../src/modules/attempts/application
 import { StartAttemptHandler } from '../../../src/modules/attempts/application/commands/start-attempt/start-attempt.handler.js';
 import { StartAttemptCommand } from '../../../src/modules/attempts/application/commands/start-attempt/start-attempt.command.js';
 import { Result } from '../../../src/shared/kernel/result.js';
+import { Attempt } from '../../../src/modules/attempts/domain/entities/attempt.entity.js';
 import { attemptShuffle } from '../../../src/shared/application/services/multiple-choice-attempt.js';
 import { toStudentProjection as mcToStudentProjection } from '@ssz/shared-kernel/multiple-choice';
 import {
@@ -21,6 +22,15 @@ import {
   toExpectedAnswers as dcToExpectedAnswers,
   toStudentProjection as dcToStudentProjection,
 } from '@ssz/shared-kernel/dictation';
+import {
+  sampleContent as itSampleContent,
+  toContent as itToContent,
+  toExpectedAnswers as itToExpectedAnswers,
+  toStudentProjection as itToStudentProjection,
+  updateInput as itUpdateInput,
+  updateSettings as itUpdateSettings,
+} from '@ssz/shared-kernel/inflection-table';
+import type { InflectionTableContent } from '@ssz/shared-kernel/inflection-table';
 
 // `checkMode: PRACTICE` means "ship the answers so the client can check locally", and
 // that is safe for eleven templates whose answers are a separate key. It is not safe
@@ -120,6 +130,7 @@ function makeHandlerByMode(templateCode: string, byMode: DefinitionByMode) {
   const modes: string[] = [];
   const attempts = {
     findInProgress: jest.fn(() => Promise.resolve(null)),
+    findOpenBoard: jest.fn(() => Promise.resolve(null)),
     findLatestReturned: jest.fn(() => Promise.resolve(null)),
     save: jest.fn(),
   };
@@ -167,7 +178,7 @@ function makeHandlerByMode(templateCode: string, byMode: DefinitionByMode) {
     publisher as any,
   );
 
-  return { handler, modes };
+  return { handler, modes, attempts };
 }
 
 const practice = new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE');
@@ -1209,5 +1220,175 @@ describe('StartAttemptHandler — dictation', () => {
       showWordCount: false,
     });
     expect(result.expectedAnswers).toBeNull();
+  });
+});
+
+describe('StartAttemptHandler — inflection_table', () => {
+  // Plan 69, IT-X2 on the server: per row its id, lemma and gloss, per cell the given form or
+  // the fact that it is asked — nothing that decides a cell. Asserted by key sets as well as by
+  // search: a key form may legitimately appear as a given form in another row, or in the bank.
+  const withBank = (table: InflectionTableContent) =>
+    itUpdateInput(itUpdateSettings(table, { hintFirstLetter: true, revealKey: 'afterFirst', attempts: 3 }), {
+      mode: 'bank',
+      shuffleRows: true,
+    });
+  const columns = (table: InflectionTableContent) => ({
+    content: itToContent(table),
+    expectedAnswers: itToExpectedAnswers(table),
+  });
+
+  type Projection = {
+    rows: Array<{ id: string; cells: Record<string, Record<string, unknown>> } & Record<string, unknown>>;
+    bank?: string[];
+    settings: Record<string, unknown>;
+  } & Record<string, unknown>;
+
+  it('ships rows and cells with nothing that decides them, and no pass mark (IT-X2)', async () => {
+    const { content, expectedAnswers } = columns(itSampleContent());
+    const result = (await makeHandler('inflection_table', content, expectedAnswers).execute(practice)).value;
+
+    expect(result.expectedAnswers).toBeNull();
+    const projection = result.exerciseContent as Projection;
+    expect(Object.keys(projection).sort()).toEqual(['instruction', 'language', 'paradigm', 'rows', 'settings', 'slots']);
+    for (const row of projection.rows) {
+      expect(Object.keys(row).sort()).toEqual(['cells', 'gloss', 'id', 'lemma']);
+      for (const cell of Object.values(row.cells)) {
+        expect(cell.mode === 'ask' ? Object.keys(cell) : Object.keys(cell).sort()).toEqual(
+          cell.mode === 'ask' ? ['mode'] : ['mode', 'value'],
+        );
+      }
+    }
+    expect(Object.keys(projection.settings).sort()).toEqual(['attempts', 'input', 'revealKey', 'rowVerdict']);
+    const serialised = JSON.stringify(projection);
+    for (const field of ['accept', 'why', 'dictId', 'packVersion', 'threshold', 'hintFirstLetter']) {
+      expect(serialised).not.toContain(`"${field}"`);
+    }
+    // A variant accepted in one cell, and a reason, are nowhere.
+    expect(serialised).not.toContain('boken');
+    expect(serialised).not.toContain('Omlyd');
+  });
+
+  it('deals the rows and the bank from the attempt, and never moves the columns (§3.3)', async () => {
+    const { content, expectedAnswers } = columns(withBank(itSampleContent()));
+    const result = (await makeHandler('inflection_table', content, expectedAnswers).execute(practice)).value;
+    const projection = result.exerciseContent as Projection;
+
+    const expected = itToStudentProjection(content, expectedAnswers, (items) => sbShuffled(items, seedFrom(result.attemptId)));
+    expect(projection.rows.map((r) => r.id)).toEqual(expected.rows.map((r) => r.id));
+    expect(projection.bank).toEqual(expected.bank);
+    expect((projection.slots as Array<{ id: string }>).map((s) => s.id)).toEqual(['indefSg', 'defSg', 'indefPl', 'defPl']);
+    // The hint is the key's first letter, and travels only because the author turned it on.
+    expect(projection.rows.find((r) => r.id === 'r2')!.cells['defSg']).toEqual({ mode: 'ask', hint: 'b' });
+  });
+
+  it('in GRADED mode deals from the unprojected document, under graded settings — no hint, one check, no key', async () => {
+    const table = withBank(itSampleContent());
+    const { content, expectedAnswers } = columns(table);
+    const alreadyProjected = itToStudentProjection(content, expectedAnswers);
+    const { handler, modes } = makeHandlerByMode('inflection_table', (mode) =>
+      mode === 'PRACTICE' ? { content, expectedAnswers } : { content: alreadyProjected, expectedAnswers: null },
+    );
+
+    const result = (await handler.execute(graded)).value;
+
+    expect(modes).toEqual(['GRADED', 'PRACTICE']);
+    expect(result.expectedAnswers).toBeNull();
+    const projection = result.exerciseContent as Projection;
+    const expected = itToStudentProjection(content, expectedAnswers, (items) => sbShuffled(items, seedFrom(result.attemptId)));
+    expect(projection.rows.map((r) => r.id)).toEqual(expected.rows.map((r) => r.id));
+    expect(projection.settings).toMatchObject({ attempts: 1, revealKey: 'never', input: 'bank' });
+    expect(JSON.stringify(projection.rows)).not.toContain('"hint"');
+  });
+
+  it('in GRADED mode hands on an envelope it cannot re-fetch as it stands, still under graded settings', async () => {
+    const table = withBank(itSampleContent());
+    const { content, expectedAnswers } = columns(table);
+    const alreadyProjected = itToStudentProjection(content, expectedAnswers);
+    const { handler } = makeHandlerByMode('inflection_table', (mode) =>
+      mode === 'PRACTICE' ? null : { content: alreadyProjected, expectedAnswers: null },
+    );
+
+    const result = (await handler.execute(graded)).value;
+
+    const projection = result.exerciseContent as Projection;
+    expect(projection.rows).toHaveLength(4);
+    expect(projection.settings).toMatchObject({ attempts: 1, revealKey: 'never' });
+    expect(JSON.stringify(projection.rows)).not.toContain('"hint"');
+  });
+
+  // Plan 69, phase 9: a whole board is scored by its first check, so it is never IN_PROGRESS
+  // between checks. An open one is handed back as it stands — same attempt, same dealt board,
+  // and the check the learner already saw — rather than starting over with a fresh budget.
+  describe('an open board', () => {
+    const scored = (details: unknown) =>
+      Attempt.reconstitute({
+        id: 'attempt-board',
+        userId: 'user-1',
+        exerciseId: 'ex-1',
+        assignmentId: null,
+        enrollmentId: null,
+        templateCode: 'inflection_table',
+        targetLanguage: 'no',
+        difficultyLevel: 'B1',
+        checkMode: 'PRACTICE',
+        practicedAtoms: [],
+        status: 'SCORED',
+        score: 83,
+        passed: true,
+        timeSpentSeconds: 12,
+        submittedAnswer: null,
+        validationDetails: details,
+        feedback: null,
+        answerHash: null,
+        revisionCount: 0,
+        answersRevealed: false,
+        selfChecksUsed: 0,
+        startedAt: new Date(),
+        submittedAt: null,
+        scoredAt: new Date(),
+        reviewedByUserId: null,
+        reviewedAt: null,
+        reviewComment: null,
+        reviewDecisions: null,
+        schoolId: null,
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        reviewClaimedBy: null,
+        reviewClaimedAt: null,
+        previousAttemptId: null,
+        autoPassedItems: null,
+        totalItems: 12,
+        answeredQuestions: [],
+        checkedRows: [],
+      } as any);
+
+    const check = { attempt: 1, checksLeft: 1, closed: false, locked: ['r1:defSg'], items: [], rows: [] };
+
+    it('resumes the scored attempt with the check it ended on', async () => {
+      const { content, expectedAnswers } = columns(itSampleContent());
+      const { handler, attempts } = makeHandlerByMode('inflection_table', () => ({ content, expectedAnswers }));
+      attempts.findOpenBoard.mockResolvedValue(scored(check) as never);
+
+      const result = (await handler.execute(practice)).value;
+
+      expect(result.attemptId).toBe('attempt-board');
+      expect(result.boardCheck).toEqual(check);
+      expect(attempts.save).not.toHaveBeenCalled();
+      // The same board: dealt from the attempt's own id, like the first time.
+      const expected = itToStudentProjection(content, expectedAnswers, (items) => sbShuffled(items, seedFrom('attempt-board')));
+      expect((result.exerciseContent as Projection).rows.map((r) => r.id)).toEqual(expected.rows.map((r) => r.id));
+    });
+
+    it('starts afresh, with no check to show, when nothing is open', async () => {
+      const { content, expectedAnswers } = columns(itSampleContent());
+      const { handler, attempts } = makeHandlerByMode('inflection_table', () => ({ content, expectedAnswers }));
+
+      const result = (await handler.execute(practice)).value;
+
+      expect(attempts.findOpenBoard).toHaveBeenCalledWith('user-1', 'ex-1');
+      expect(result.boardCheck).toBeNull();
+      expect(attempts.save).toHaveBeenCalled();
+    });
   });
 });

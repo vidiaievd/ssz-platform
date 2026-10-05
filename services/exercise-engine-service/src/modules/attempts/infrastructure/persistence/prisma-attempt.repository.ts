@@ -12,9 +12,17 @@ import type {
   ReviewQueueSummary,
   ReviewedLoadRow,
 } from '../../domain/repositories/attempt.repository.js';
+import { TEMPLATE_CODE as INFLECTION_TABLE } from '@ssz/shared-kernel/inflection-table';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
 import { AttemptMapper } from './attempt.mapper.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+
+/** A scored whole-board attempt whose last check left the table open. */
+function isOpenBoard(attempt: Attempt): boolean {
+  if (attempt.templateCode !== INFLECTION_TABLE) return false;
+  const details = attempt.validationDetails as { closed?: unknown } | null | undefined;
+  return details?.closed === false;
+}
 
 @Injectable()
 export class PrismaAttemptRepository implements IAttemptRepository {
@@ -31,6 +39,16 @@ export class PrismaAttemptRepository implements IAttemptRepository {
       orderBy: { startedAt: 'desc' },
     });
     return row ? AttemptMapper.toDomain(row) : null;
+  }
+
+  async findOpenBoard(userId: string, exerciseId: string): Promise<Attempt | null> {
+    const row = await this.prisma.attempt.findFirst({
+      where: { userId, exerciseId, status: { not: 'IN_PROGRESS' } },
+      orderBy: { startedAt: 'desc' },
+    });
+    if (!row || row.status !== 'SCORED') return null;
+    const attempt = AttemptMapper.toDomain(row);
+    return isOpenBoard(attempt) ? attempt : null;
   }
 
   async findLatestReturned(userId: string, exerciseId: string): Promise<Attempt | null> {

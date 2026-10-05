@@ -8,11 +8,13 @@ import type { IExerciseRepository } from './domain/repositories/exercise.reposit
 import { PrismaExerciseRepository } from './infrastructure/persistence/prisma-exercise.repository.js';
 import { PrismaExerciseItemTargetRepository } from './infrastructure/persistence/prisma-exercise-item-target.repository.js';
 import { PrismaExerciseInstructionRepository } from './infrastructure/persistence/prisma-exercise-instruction.repository.js';
+import { PrismaCourseDictionaryReader } from './infrastructure/persistence/prisma-course-dictionary.reader.js';
 
 // DI tokens
 import { EXERCISE_REPOSITORY } from './domain/repositories/exercise.repository.interface.js';
 import { EXERCISE_ITEM_TARGET_REPOSITORY } from './domain/repositories/exercise-item-target.repository.interface.js';
 import { EXERCISE_INSTRUCTION_REPOSITORY } from './domain/repositories/exercise-instruction.repository.interface.js';
+import { COURSE_DICTIONARY_READER } from './domain/repositories/course-dictionary.reader.interface.js';
 import { EXERCISE_TEMPLATE_REPOSITORY } from '../exercise-template/domain/repositories/exercise-template.repository.interface.js';
 import { PrismaExerciseTemplateRepository } from '../exercise-template/infrastructure/persistence/prisma-exercise-template.repository.js';
 
@@ -40,6 +42,7 @@ import { SetItemTargetsHandler } from './application/commands/set-item-targets/s
 import { GetItemTargetsHandler } from './application/queries/get-item-targets/get-item-targets.handler.js';
 import { DescribeAtomsHandler } from './application/queries/describe-atoms/describe-atoms.handler.js';
 import { GetTargetSuggestionsHandler } from './application/queries/get-target-suggestions/get-target-suggestions.handler.js';
+import { GetCourseDictionaryHandler } from './application/queries/get-course-dictionary/get-course-dictionary.handler.js';
 
 const CommandHandlers = [
   CreateExerciseHandler,
@@ -62,6 +65,7 @@ const QueryHandlers = [
   GetItemTargetsHandler,
   DescribeAtomsHandler,
   GetTargetSuggestionsHandler,
+  GetCourseDictionaryHandler,
 ];
 
 @Module({
@@ -75,6 +79,7 @@ const QueryHandlers = [
       useClass: PrismaExerciseItemTargetRepository,
     },
     { provide: EXERCISE_INSTRUCTION_REPOSITORY, useClass: PrismaExerciseInstructionRepository },
+    { provide: COURSE_DICTIONARY_READER, useClass: PrismaCourseDictionaryReader },
     { provide: EXERCISE_TEMPLATE_REPOSITORY, useClass: PrismaExerciseTemplateRepository },
 
     // CQRS handlers

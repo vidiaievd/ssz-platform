@@ -1,3 +1,4 @@
+import { sampleContent, toContent, toExpectedAnswers } from '@ssz/shared-kernel/inflection-table';
 import { studentSafeContent } from './student-safe-content.js';
 
 // The one thing this service exists to guarantee: two templates store their answers
@@ -1318,5 +1319,95 @@ describe('dictation', () => {
 
   it('shows no segments without the key column, rather than guessing', () => {
     expect(project(content, {}).segments).toEqual([]);
+  });
+});
+
+describe('inflection_table', () => {
+  // Plan 69 §3.2, IT-X2: per asked cell exactly `{mode}` — or `{mode, hint}` under
+  // `hintFirstLetter` — and at the root no pass mark, variant, reason, dictionary link or pack
+  // version. Asserted structurally, by key sets, as for `dictation`: the forms of the given
+  // column are legitimately in the payload, so a search for a word could not tell a leak from
+  // the task.
+  const doc = sampleContent();
+  const content = toContent(doc) as unknown as Record<string, unknown>;
+  const key = toExpectedAnswers(doc) as unknown as Record<string, unknown>;
+
+  type Cell = Record<string, unknown>;
+  type Projection = Record<string, unknown> & {
+    rows: Array<{ id: string; cells: Record<string, Cell> }>;
+    slots: Array<Record<string, unknown>>;
+    settings: Record<string, unknown>;
+    bank?: string[];
+  };
+  const project = (c: Record<string, unknown> = content, k: Record<string, unknown> = key) =>
+    studentSafeContent('inflection_table', c, k) as unknown as Projection;
+
+  it('ships the table shape and nothing of the key', () => {
+    const p = project();
+    expect(Object.keys(p).sort()).toEqual([
+      'instruction',
+      'language',
+      'paradigm',
+      'rows',
+      'settings',
+      'slots',
+    ]);
+    expect(Object.keys(p.settings).sort()).toEqual([
+      'attempts',
+      'input',
+      'revealKey',
+      'rowVerdict',
+    ]);
+    // Headings come from the pack, resolved on the server for a client without the kernel.
+    expect(p.slots[1]).toEqual({ id: 'defSg', label: 'Bestemt entall', short: 'best. ent.' });
+    for (const row of p.rows) {
+      expect(Object.keys(row).sort()).toEqual(['cells', 'gloss', 'id', 'lemma']);
+      for (const cell of Object.values(row.cells)) {
+        expect(Object.keys(cell)).toEqual(cell['mode'] === 'ask' ? ['mode'] : ['mode', 'value']);
+      }
+    }
+  });
+
+  it('carries no variant, reason, link, version or pass mark anywhere', () => {
+    const json = JSON.stringify(project());
+    for (const field of [
+      'accept',
+      'why',
+      'dictId',
+      'packVersion',
+      'threshold',
+      'hintFirstLetter',
+    ]) {
+      expect(json).not.toContain(`"${field}"`);
+    }
+    // An asked form and a reason, from the fixture.
+    expect(json).not.toContain('bøkene');
+    expect(json).not.toContain('Omlyd');
+  });
+
+  it('gives the first letter only when the author turned the hint on', () => {
+    const hinted = project({
+      ...content,
+      settings: { ...(content['settings'] as object), hintFirstLetter: true },
+    });
+    const bok = hinted.rows.find((r) => r.id === 'r2');
+    expect(bok?.cells['defPl']).toEqual({ mode: 'ask', hint: 'b' });
+  });
+
+  it('ships a bank only in bank mode — every key once plus the distractors', () => {
+    expect(project().bank).toBeUndefined();
+    const bank = project({
+      ...content,
+      input: { mode: 'bank', bankExtra: 3, shuffleRows: false },
+    }).bank;
+    expect(bank).toHaveLength(12 + 3);
+    expect(bank).toContain('bøkene');
+  });
+
+  it('shows no asked cell without the key column, rather than an empty one', () => {
+    const p = project(content, {});
+    for (const row of p.rows) {
+      expect(Object.values(row.cells).every((c) => c['mode'] === 'prefill')).toBe(true);
+    }
   });
 });

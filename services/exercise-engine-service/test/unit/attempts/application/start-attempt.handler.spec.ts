@@ -91,6 +91,7 @@ const returnedAttempt = (revisionCount: number) =>
 const makeRepo = (): jest.Mocked<IAttemptRepository> => ({
   findById: jest.fn<IAttemptRepository['findById']>(),
   findInProgress: jest.fn<IAttemptRepository['findInProgress']>().mockResolvedValue(null),
+  findOpenBoard: jest.fn<IAttemptRepository['findOpenBoard']>().mockResolvedValue(null),
   findLatestReturned: jest
     .fn<IAttemptRepository['findLatestReturned']>()
     .mockResolvedValue(null),

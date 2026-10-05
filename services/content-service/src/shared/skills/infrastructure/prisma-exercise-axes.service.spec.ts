@@ -4,6 +4,7 @@ jest.mock('../../../infrastructure/database/prisma.service.js', () => ({
 
 import { PrismaExerciseAxesService } from './prisma-exercise-axes.service.js';
 import type { PrismaService } from '../../../infrastructure/database/prisma.service.js';
+import { sampleContent, toContent, toExpectedAnswers } from '@ssz/shared-kernel/inflection-table';
 
 interface Rows {
   exercises?: unknown[];
@@ -262,5 +263,38 @@ describe('PrismaExerciseAxesService', () => {
 
     expect(axes?.focus).toEqual(['vocabulary']);
     expect(axes?.focusWeights).toEqual({ vocabulary: 1 });
+  });
+
+  it("takes the words an inflection table's dictionary rows address without a target row (plan 69, Q1-B)", async () => {
+    const doc = sampleContent();
+    // Two of the four rows come from the dictionary.
+    const table = {
+      ...doc,
+      rows: doc.rows.map((r) => ({
+        ...r,
+        dictId: ['r1', 'r2'].includes(r.id) ? `w-${r.id}` : null,
+      })),
+    };
+    const service = new PrismaExerciseAxesService(
+      prismaWith({
+        exercises: [
+          exerciseRow({
+            content: toContent(table),
+            expectedAnswers: toExpectedAnswers(table),
+            draftExpectedAnswers: null,
+            template: { code: 'inflection_table' },
+          }),
+        ],
+      }),
+    );
+
+    const axes = await service.forExercise('ex-1');
+
+    // The structural grammar hint joins the words. Shares are over the addressed cells only (the
+    // kernel's rule), and every one of those is about its word and its rule.
+    expect(axes?.focusSource).toBe('atoms');
+    expect(axes?.focus).toEqual(['vocabulary', 'grammar']);
+    expect(axes?.focusWeights.vocabulary).toBeCloseTo(1);
+    expect(axes?.focusWeights.grammar).toBeCloseTo(1);
   });
 });

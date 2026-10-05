@@ -163,6 +163,8 @@ function record(value: unknown): Record<string, unknown> | null {
  * - `settings.input` on `word_bank_gap_fill` — `free` means typed from nothing (written
  *   production), `bank` means chosen from a strip (recognition). The template merged two
  *   old types, so the document is the only thing that can tell them apart.
+ * - `input.mode` on `inflection_table` — `bank` offers the forms, so the same table is
+ *   recognised rather than recalled (plan 69).
  */
 interface DocumentReading {
   input?: Input;
@@ -196,6 +198,15 @@ function fromDocument(templateCode: string, content: unknown): DocumentReading |
     // same with or without sound — and it is frozen: `modality` rates plan 63's shadow
     // atom cards, and fixing it here would change their rating mid-comparison. It is
     // fixed together with the vocabulary of `modality` (plan 64, decision G2).
+  }
+
+  if (templateCode === 'inflection_table') {
+    // Forms on offer are picked, not spelled (plan 69, deviation 1). Unlike the gap-fill above,
+    // the output stays `written_target` — the result is a written paradigm in both modes — and
+    // the reading holds with the recording on: a new type has no frozen ratings to protect.
+    if (record(doc['input'])?.['mode'] === 'bank') {
+      Object.assign(reading, { form: 'bank', modality: 'recognition' });
+    }
   }
 
   if (heard) reading.input = 'audio';

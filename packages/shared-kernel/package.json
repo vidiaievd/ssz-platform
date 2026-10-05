@@ -60,6 +60,10 @@
       "import": "./dist/dictation/index.js",
       "types": "./dist/dictation/index.d.ts"
     },
+    "./inflection-table": {
+      "import": "./dist/inflection-table/index.js",
+      "types": "./dist/inflection-table/index.d.ts"
+    },
     "./text": {
       "import": "./dist/text/index.js",
       "types": "./dist/text/index.d.ts"

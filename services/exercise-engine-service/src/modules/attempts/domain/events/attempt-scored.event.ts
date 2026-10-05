@@ -56,9 +56,10 @@ export interface AttemptScoredPayload {
    */
   ephemeral: boolean;
   /**
-   * The delivery handed part of the answer over (plan 66, Q2-B) — today a
-   * `sort_into_buckets` board with its counter on or most items in one bucket. Read off the
-   * document by the engine. Absent everywhere else, which consumers read as «not lowered».
+   * The delivery handed part of the answer over (plan 66, Q2-B) — a `sort_into_buckets`
+   * board with its counter on or most items in one bucket, and its like in later types: the
+   * highlight count, the dictation word count, the first letter of an `inflection_table` key
+   * (plan 69, Q3-A). Read off the document by the engine. Absent everywhere else, which consumers read as «not lowered».
    */
   evidenceLowered?: boolean;
 }

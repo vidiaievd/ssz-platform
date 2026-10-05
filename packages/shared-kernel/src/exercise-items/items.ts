@@ -3,7 +3,14 @@ import { fromPersisted as matchPairsFromPersisted } from '../match-pairs/index.j
 import { fromPersisted as sortFromPersisted } from '../sort-into-buckets/index.js';
 import { fromPersisted as highlightFromPersisted } from '../highlight-in-text/index.js';
 import { fromPersisted as dictationFromPersisted, readySegments, tokens } from '../dictation/index.js';
-import type { ExerciseItem, ExerciseItems } from './model.js';
+import {
+  bare,
+  derivedTargets as inflectionTargets,
+  fromPersisted as inflectionFromPersisted,
+  gradedCells,
+  packOf,
+} from '../inflection-table/index.js';
+import type { DerivedTarget, ExerciseItem, ExerciseItems } from './model.js';
 
 // A stand-in envelope for the fields no reader here cares about. The kernel's `fromPersisted`
 // wants a whole document; what is being read is the body of it.
@@ -17,7 +24,7 @@ const ENVELOPE = { id: '', moduleId: '', title: '', instructions: '', updatedAt:
  * be joined to evidence about it. `sort_into_buckets` joined with plan 66: its verdict is per
  * item by design, and the engine sends it (decision Q3-A). `highlight_in_text` joined with
  * plan 67: its verdict is per question, sent the same way. `dictation` joined with plan 68:
- * its verdict is per sentence. A
+ * its verdict is per sentence. `inflection_table` joined with plan 69: its verdict is per cell. A
  * template that grades as a whole gains nothing from per-piece targets — the evidence would
  * all carry the same verdict anyway — so it addresses the exercise and no more.
  *
@@ -29,6 +36,7 @@ export const ADDRESSABLE_TEMPLATES: readonly string[] = [
   'sort_into_buckets',
   'highlight_in_text',
   'dictation',
+  'inflection_table',
 ];
 
 export function isAddressableTemplate(templateCode: string): boolean {
@@ -58,8 +66,29 @@ export function itemsOf(
       return highlightItems(content, expectedAnswers);
     case 'dictation':
       return dictationItems(content, expectedAnswers);
+    case 'inflection_table':
+      return inflectionItems(content, expectedAnswers);
     default:
       return null;
+  }
+}
+
+/**
+ * The addresses a document makes on its own, beside the author's rows (plan 69, Q1-B).
+ *
+ * Empty for every template but `inflection_table`, and for a malformed document — the same
+ * leniency as `itemsOf`. Every key returned is one `itemsOf` returns for the same document.
+ */
+export function derivedTargetsOf(
+  templateCode: string,
+  content: unknown,
+  expectedAnswers: unknown,
+): DerivedTarget[] {
+  if (templateCode !== 'inflection_table') return [];
+  try {
+    return inflectionTargets(inflectionFromPersisted(content, expectedAnswers));
+  } catch {
+    return [];
   }
 }
 
@@ -186,6 +215,35 @@ function dictationItems(content: unknown, expectedAnswers: unknown): ExerciseIte
         label: `S${index + 1} — ${clip(sentence, DICTATION_LABEL_LENGTH)}`,
         value: sentence,
         matchValues: [...new Set([...focused, ...words.map((t) => t.w)])],
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The cell key `rowId:slotId` — the key every per-cell verdict of `inflection_table` carries
+ * (plan 69 §3.9).
+ *
+ * Exactly the cells a learner is graded on: asked, in a slot in play, in a row with a lemma, with
+ * a key. A given cell is part of the task, not of the answer, and a row is not a target — its
+ * verdict is reported beside the cells, never instead of them. Labelled `bok · best. ent. — boka`:
+ * the word, the column and the form tell the author which cell it is. What a suggester matches is
+ * the form first, then the lemma — `boka` and `bok` both find the dictionary's `bok`.
+ */
+function inflectionItems(content: unknown, expectedAnswers: unknown): ExerciseItem[] {
+  try {
+    const document = inflectionFromPersisted(content, expectedAnswers);
+    const pack = packOf(document);
+    return gradedCells(document).map((c) => {
+      const lemma = pack ? bare(c.row.lemma, pack) : c.row.lemma.trim();
+      const form = c.cell.value.trim();
+      return {
+        key: c.key,
+        label: `${lemma} · ${c.slot.short} — ${form}`,
+        value: form,
+        matchValues: [...new Set([form, lemma])],
       };
     });
   } catch {

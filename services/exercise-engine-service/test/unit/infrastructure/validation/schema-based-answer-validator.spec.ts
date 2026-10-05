@@ -15,6 +15,13 @@ import { SentenceSchemaValidator } from '../../../../src/infrastructure/validati
 import { SortIntoBucketsValidator } from '../../../../src/infrastructure/validation/validators/sort-into-buckets.validator.js';
 import { HighlightInTextValidator } from '../../../../src/infrastructure/validation/validators/highlight-in-text.validator.js';
 import { DictationValidator } from '../../../../src/infrastructure/validation/validators/dictation.validator.js';
+import { InflectionTableValidator } from '../../../../src/infrastructure/validation/validators/inflection-table.validator.js';
+import {
+  ALL_RIGHT as IT_ALL_RIGHT,
+  sampleContent as itSampleContent,
+  toContent as itToContent,
+  toExpectedAnswers as itToExpectedAnswers,
+} from '@ssz/shared-kernel/inflection-table';
 import { emptyContent as dcEmptyContent, toContent as dcToContent, toExpectedAnswers as dcToExpectedAnswers } from '@ssz/shared-kernel/dictation';
 import { ValidationError } from '../../../../src/shared/application/ports/answer-validator.port.js';
 import { Result } from '../../../../src/shared/kernel/result.js';
@@ -44,6 +51,7 @@ const makeValidator = () =>
     new SortIntoBucketsValidator(),
     new HighlightInTextValidator(),
     new DictationValidator(),
+    new InflectionTableValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {
@@ -398,6 +406,25 @@ describe('SchemaBasedAnswerValidator', () => {
         requiresReview: false,
         correct: true,
       });
+    });
+
+    it('delegates inflection_table to its own validator, past AJV, never to a teacher (IT-X6)', async () => {
+      const validator = makeValidator();
+      expect(validator.supports('inflection_table')).toBe(true);
+      const sample = itSampleContent();
+      const result = await validator.validate({
+        templateCode: 'inflection_table',
+        // The key's schema, which a form per cell could never satisfy — proof that AJV is
+        // not run over the submission.
+        answerSchema: { type: 'object', required: ['cells'], properties: { cells: { type: 'number' } } },
+        content: itToContent(sample),
+        expectedAnswers: itToExpectedAnswers(sample),
+        submittedAnswer: { cells: IT_ALL_RIGHT },
+        checkSettings: {},
+        targetLanguage: 'nb',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value).toMatchObject({ score: 100, passed: true, requiresReview: false, correct: true });
     });
   });
 });

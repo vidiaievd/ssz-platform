@@ -43,3 +43,20 @@ export interface ExerciseItem {
  * type cannot be addressed".
  */
 export type ExerciseItems = ExerciseItem[] | null;
+
+/**
+ * An address the document makes by itself, without a row in `exercise_item_targets` — plan 69,
+ * decision Q1-B.
+ *
+ * Shaped like the targets the content envelope hands the engine, so the two lists join without a
+ * mapping. Only `inflection_table` makes any today: a row pulled from the course dictionary names
+ * its word on every cell it asks. Never written to the table — read off the document each time,
+ * so it cannot go stale when the row is edited or removed.
+ */
+export interface DerivedTarget {
+  itemKey: string;
+  atomType: 'vocabulary_item';
+  atomId: string;
+  /** The word is needed to inflect it, not examined — the column's rule is what is asked. */
+  role: 'context';
+}

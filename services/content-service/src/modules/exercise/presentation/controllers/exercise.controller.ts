@@ -18,7 +18,9 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
@@ -37,6 +39,11 @@ import { ExerciseTargetsResponseDto } from '../dto/responses/exercise-targets.re
 import { GetTargetSuggestionsQuery } from '../../application/queries/get-target-suggestions/get-target-suggestions.query.js';
 import type { TargetSuggestionsView } from '../../application/queries/get-target-suggestions/get-target-suggestions.handler.js';
 import { TargetSuggestionsResponseDto } from '../dto/responses/target-suggestions.response.dto.js';
+// Course dictionary (plan 69, phase 3)
+import { GetCourseDictionaryQuery } from '../../application/queries/get-course-dictionary/get-course-dictionary.query.js';
+import type { CourseDictionaryEntry } from '../../domain/repositories/course-dictionary.reader.interface.js';
+import { CourseDictionaryRequestDto } from '../dto/requests/course-dictionary.request.dto.js';
+import { CourseDictionaryEntryResponseDto } from '../dto/responses/course-dictionary.response.dto.js';
 import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
@@ -551,5 +558,34 @@ export class ExerciseController {
 
     if (result.isFail) throwHttpException(result.error);
     return TargetSuggestionsResponseDto.from(result.value);
+  }
+
+  @Get(':id/dictionary')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
+  @ApiOperation({
+    summary: "The course dictionary of this exercise's course",
+    description:
+      'Every word of every vocabulary list the course carries — in its modules and directly — ' +
+      'read from the draft of each container, or its published version where it has none, ' +
+      'in course order, with the module it is introduced in. For the inflection-table ' +
+      "builder's picker (plan 69 §3.8). Entries are returned as stored: the forms are spelt " +
+      'into slots by the kernel, and they are suggestions, never keys. An exercise in no ' +
+      'course gets an empty list.',
+  })
+  @ApiOkResponse({ type: [CourseDictionaryEntryResponseDto] })
+  @ApiNotFoundResponse({ description: 'No such exercise, or it was deleted.' })
+  @ApiForbiddenResponse({ description: 'The caller may not edit this exercise.' })
+  async getCourseDictionary(
+    @Param('id') exerciseId: string,
+    @Query() query: CourseDictionaryRequestDto,
+  ): Promise<CourseDictionaryEntryResponseDto[]> {
+    const result = await this.queryBus.execute<
+      GetCourseDictionaryQuery,
+      Result<CourseDictionaryEntry[], ExerciseDomainError>
+    >(new GetCourseDictionaryQuery(exerciseId, query.pos, query.lang));
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value.map((entry) => CourseDictionaryEntryResponseDto.from(entry));
   }
 }

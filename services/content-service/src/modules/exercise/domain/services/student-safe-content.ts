@@ -46,6 +46,10 @@ import {
   TEMPLATE_CODE as DICTATION,
   toStudentProjection as dictationProjection,
 } from '@ssz/shared-kernel/dictation';
+import {
+  TEMPLATE_CODE as INFLECTION_TABLE,
+  toStudentProjection as inflectionTableProjection,
+} from '@ssz/shared-kernel/inflection-table';
 import { withStudentAudio } from '@ssz/shared-kernel/audio';
 
 /**
@@ -134,6 +138,15 @@ import { withStudentAudio } from '@ssz/shared-kernel/audio';
  * `settings.showWordCount`, how many words it has (plan 68 §3.2, AC-R3). No text, no
  * reason, no focus word, no orphan, no marking rule, no language, no pass mark: the
  * verdict is the engine's alone, exactly as `highlight_in_text`'s is.
+ *
+ * `inflection_table` is the ninth. Its content carries the table's shape and the *given*
+ * forms; the form of every asked cell, its variants and its reason are in `expected_answers`.
+ * The projection asks that column whether an asked cell has a key at all (a cell without one
+ * is left out), and ships `{mode: 'ask'}` — plus the key's first letter only under
+ * `settings.hintFirstLetter`. Slot headings are resolved from the language pack here, because
+ * VoxOrd has no kernel. In bank mode it ships the bank: every key once and the generated
+ * distractors, shuffled — the one place keys reach the browser, as forms among others to pick
+ * from. No variant, no reason, no dictionary link, no pack version, no pass mark (plan 69 §3.2).
  *
  * There are exactly two places content leaves this service towards a learner, and both
  * call this: the exercise response DTO and the internal attempt envelope in `graded`
@@ -277,6 +290,14 @@ function projectByTemplate(
     // «is anything written?» — and ships no sentence, no reason, no focus word, no
     // orphan, no marking rule, no language and no pass mark (plan 68 §3.2).
     const projection = dictationProjection(content, expectedAnswers);
+    return projection as unknown as Record<string, unknown>;
+  }
+
+  if (templateCode === INFLECTION_TABLE) {
+    // Both columns: an asked cell is ready only if it has a key, and the key is in
+    // `expected_answers`. Rows are dealt in a fresh order under `input.shuffleRows`, the bank
+    // always — the engine deals its own per attempt and keeps it for the retry.
+    const projection = inflectionTableProjection(content, expectedAnswers, shuffled);
     return projection as unknown as Record<string, unknown>;
   }
 

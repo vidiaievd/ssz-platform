@@ -254,6 +254,29 @@ export const BY_TEMPLATE: Readonly<Record<string, TemplateProfile>> = {
     form: 'free',
     modality: 'recall',
   },
+
+  // A paradigm filled in, lemma by lemma (plan 69). The second structural grammar hint after
+  // `error_correction` (rule 2): the columns come from the language pack and each one *is* a
+  // rule — `bestemt entall`, `preteritum` — so the type cannot be about anything but inflection,
+  // whichever lemmas the author picked. The hint holds when atoms are attached
+  // (`focusStructural`): a row pulled from the course dictionary addresses its word, and that
+  // word joins the subject instead of replacing it — the handoff's «the column is the atom».
+  // The input is `text`: the lemma and the given cells have to be read to inflect anything.
+  // Typed into empty cells, so `written_target` and `free`. `recall`, not `production`: the form
+  // comes from memory, but the lemma and its place in the paradigm are on screen — the learner
+  // is not composing, they are inflecting, the line `error_correction` draws.
+  // The bank half is read off the document in `derive.ts`: forms on offer turn it into
+  // `recognition` (the handoff's `recombine`, which plan 64 decision G folded into it, as for
+  // `sort_into_buckets`), while the output stays `written_target` — the result is still a
+  // written paradigm in the target language, as the handoff states for both modes.
+  inflection_table: {
+    input: 'text',
+    output: 'written_target',
+    focus: ['grammar'],
+    focusStructural: true,
+    form: 'free',
+    modality: 'recall',
+  },
 };
 
 /** `undefined` for a code the table does not know — a new template, or a typo. */
