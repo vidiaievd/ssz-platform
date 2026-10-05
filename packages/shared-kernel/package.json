@@ -91,6 +91,10 @@
     "./audio": {
       "import": "./dist/audio/index.js",
       "types": "./dist/audio/index.d.ts"
+    },
+    "./read-aloud": {
+      "import": "./dist/read-aloud/index.js",
+      "types": "./dist/read-aloud/index.d.ts"
     }
   },
   "files": [
