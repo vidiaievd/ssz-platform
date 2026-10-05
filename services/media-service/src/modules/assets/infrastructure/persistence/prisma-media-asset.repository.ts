@@ -23,6 +23,12 @@ export class PrismaMediaAssetRepository implements IMediaAssetRepository {
     return raw ? MediaAssetMapper.toDomain(raw) : null;
   }
 
+  async findByIds(ids: readonly string[]): Promise<MediaAssetEntity[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.prisma.mediaAsset.findMany({ where: { id: { in: [...ids] } } });
+    return rows.map((row) => MediaAssetMapper.toDomain(row));
+  }
+
   async findMany(options: FindAssetsOptions): Promise<MediaAssetEntity[]> {
     const rows = await this.prisma.mediaAsset.findMany({
       where: {

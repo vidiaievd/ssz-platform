@@ -33,6 +33,7 @@ async function bootstrap() {
     .addTag('health', 'Service health check')
     .addTag('uploads', 'Pre-signed upload flow')
     .addTag('assets', 'Asset management and retrieval')
+    .addTag('internal', 'Service-to-service routes (x-internal-token)')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);

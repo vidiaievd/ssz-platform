@@ -8,8 +8,11 @@ import { FinalizeUploadHandler } from './application/commands/finalize-upload/fi
 import { DeleteAssetHandler } from './application/commands/delete-asset/delete-asset.handler.js';
 import { GetAssetHandler } from './application/queries/get-asset/get-asset.handler.js';
 import { ListUserAssetsHandler } from './application/queries/list-user-assets/list-user-assets.handler.js';
+import { DescribeAssetsHandler } from './application/queries/describe-assets/describe-assets.handler.js';
+import { GetPlaybackHandler } from './application/queries/get-playback/get-playback.handler.js';
 import { UploadsController } from './presentation/controllers/uploads.controller.js';
 import { AssetsController } from './presentation/controllers/assets.controller.js';
+import { InternalAssetsController } from './presentation/controllers/internal-assets.controller.js';
 import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from '../../infrastructure/queues/queue-names.js';
 
 @Module({
@@ -20,13 +23,15 @@ import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from '../../infrastruc
       { name: QUEUE_AUDIO_PROCESSING },
     ),
   ],
-  controllers: [UploadsController, AssetsController],
+  controllers: [UploadsController, AssetsController, InternalAssetsController],
   providers: [
     RequestUploadHandler,
     FinalizeUploadHandler,
     DeleteAssetHandler,
     GetAssetHandler,
     ListUserAssetsHandler,
+    DescribeAssetsHandler,
+    GetPlaybackHandler,
     {
       provide: MEDIA_ASSET_REPOSITORY,
       useClass: PrismaMediaAssetRepository,

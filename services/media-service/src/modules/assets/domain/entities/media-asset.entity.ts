@@ -5,6 +5,7 @@ import { MimeType } from '../value-objects/mime-type.vo.js';
 import { SizeBytes, type SizeLimits } from '../value-objects/size-bytes.vo.js';
 import { StorageKey } from '../value-objects/storage-key.vo.js';
 import { MediaAssetDomainError } from '../exceptions/media-asset.exceptions.js';
+import { checkRecordingRequest, isRecordingEntityType } from '../policies/recording-policy.js';
 import { MediaAssetCreatedEvent } from '../events/media-asset-created.event.js';
 import { MediaAssetUploadedEvent } from '../events/media-asset-uploaded.event.js';
 import { MediaAssetDeletedEvent } from '../events/media-asset-deleted.event.js';
@@ -31,6 +32,10 @@ interface MediaAssetProps {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  /** Audio only: measured on finalize (recordings) or on processing (everything else). */
+  durationMs: number | null;
+  /** Audio only: normalised waveform, computed by the processing worker. */
+  peaks: number[] | null;
 }
 
 export interface CreateMediaAssetProps {
@@ -65,6 +70,9 @@ export class MediaAssetEntity extends AggregateRoot {
   get createdAt(): Date { return this.props.createdAt; }
   get updatedAt(): Date { return this.props.updatedAt; }
   get deletedAt(): Date | null { return this.props.deletedAt; }
+  get durationMs(): number | null { return this.props.durationMs; }
+  get peaks(): number[] | null { return this.props.peaks; }
+  get isRecording(): boolean { return isRecordingEntityType(this.props.entityType); }
 
   get isPendingUpload(): boolean { return this.props.status === 'PENDING_UPLOAD'; }
   get isUploaded(): boolean { return this.props.status === 'UPLOADED'; }
@@ -81,6 +89,15 @@ export class MediaAssetEntity extends AggregateRoot {
     if (mimeTypeResult.isFail) return Result.fail(mimeTypeResult.error);
 
     const mimeType = mimeTypeResult.value;
+
+    if (isRecordingEntityType(p.entityType)) {
+      const recording = checkRecordingRequest({
+        mimeType: mimeType.value,
+        sizeBytes: typeof p.sizeBytes === 'bigint' ? p.sizeBytes : BigInt(p.sizeBytes),
+        entityId: p.entityId,
+      });
+      if (recording.isFail) return Result.fail(recording.error);
+    }
 
     const sizeBytesResult = SizeBytes.create(p.sizeBytes, mimeType.category, p.sizeLimits);
     if (sizeBytesResult.isFail) return Result.fail(sizeBytesResult.error);
@@ -102,6 +119,8 @@ export class MediaAssetEntity extends AggregateRoot {
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
+      durationMs: null,
+      peaks: null,
     });
 
     entity.addDomainEvent(
@@ -194,6 +213,24 @@ export class MediaAssetEntity extends AggregateRoot {
     this.props.status = 'READY';
     this.props.updatedAt = new Date();
     return Result.ok();
+  }
+
+  /** The length the container actually holds, in whole milliseconds. */
+  recordDuration(durationMs: number): void {
+    this.props.durationMs = Math.max(0, Math.round(durationMs));
+    this.props.updatedAt = new Date();
+  }
+
+  /**
+   * The waveform the review queue draws. A duration measured on finalize wins over the
+   * decoded one — it is the number the engine already checked the submission against.
+   */
+  attachWaveform(peaks: number[], decodedDurationMs: number): void {
+    this.props.peaks = peaks;
+    if (this.props.durationMs === null) {
+      this.props.durationMs = Math.max(0, Math.round(decodedDurationMs));
+    }
+    this.props.updatedAt = new Date();
   }
 
   softDelete(): Result<void, MediaAssetDomainError> {

@@ -11,6 +11,7 @@ import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { RabbitmqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { RedisModule } from './infrastructure/cache/redis.module.js';
 import { StorageModule } from './infrastructure/storage/storage.module.js';
+import { AudioModule } from './infrastructure/audio/audio.module.js';
 import { QueuesModule } from './infrastructure/queues/queues.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AssetsModule } from './modules/assets/assets.module.js';
@@ -41,6 +42,7 @@ import { PronunciationModule } from './modules/pronunciation/pronunciation.modul
     RabbitmqModule,
     RedisModule,
     StorageModule,
+    AudioModule,
     QueuesModule,
     CqrsModule,
     HealthModule,

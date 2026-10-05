@@ -16,6 +16,7 @@ function makeHandler() {
   const repo: jest.Mocked<IMediaAssetRepository> = {
     findById: jest.fn(),
     findByIdAndOwner: jest.fn(),
+    findByIds: jest.fn(),
     findMany: jest.fn(),
     countMany: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
@@ -102,5 +103,56 @@ describe('RequestUploadHandler', () => {
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(MediaAssetDomainError.FILE_TOO_LARGE);
+  });
+
+  describe('submission_recording (plan 70)', () => {
+    it('accepts a webm recording with codec parameters, in the private bucket', async () => {
+      const { handler, storage } = makeHandler();
+
+      const result = await handler.execute(
+        new RequestUploadCommand('student-1', 'audio/webm;codecs=opus', 150_000n, null, 'submission_recording', 'attempt-1'),
+      );
+
+      expect(result.isOk).toBe(true);
+      expect(storage.generatePresignedUploadUrl).toHaveBeenCalledWith(
+        expect.any(String),
+        'audio/webm;codecs=opus',
+        false,
+        UPLOAD_CONFIG.presignedUploadTtlSeconds,
+      );
+    });
+
+    it('refuses a declared size over 8 MB before handing out a URL', async () => {
+      const { handler, storage, repo } = makeHandler();
+
+      const result = await handler.execute(
+        new RequestUploadCommand('student-1', 'audio/mp4', BigInt(8 * 1024 * 1024 + 1), null, 'submission_recording', 'attempt-1'),
+      );
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBe(MediaAssetDomainError.RECORDING_TOO_LARGE);
+      expect(storage.generatePresignedUploadUrl).not.toHaveBeenCalled();
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('requires the attempt the recording belongs to', async () => {
+      const { handler } = makeHandler();
+
+      const result = await handler.execute(
+        new RequestUploadCommand('student-1', 'audio/webm', 1024n, null, 'submission_recording', null),
+      );
+
+      expect(result.error).toBe(MediaAssetDomainError.RECORDING_ATTEMPT_REQUIRED);
+    });
+
+    it('refuses a type a recorder does not produce', async () => {
+      const { handler } = makeHandler();
+
+      const result = await handler.execute(
+        new RequestUploadCommand('student-1', 'audio/mpeg', 1024n, null, 'submission_recording', 'attempt-1'),
+      );
+
+      expect(result.error).toBe(MediaAssetDomainError.MIME_TYPE_NOT_ALLOWED);
+    });
   });
 });

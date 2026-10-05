@@ -21,6 +21,9 @@ export const envSchema = z.object({
   JWT_ISSUER: z.string().default('https://auth.ssz-platform.internal'),
   JWT_AUDIENCE: z.string().default('ssz-services'),
 
+  // Service-to-service routes under /internal/* (engine, web BFF) — 'x-internal-token'.
+  INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
+
   // MinIO / S3
   MINIO_ENDPOINT: z.string().default('localhost'),
   MINIO_PORT: z.coerce.number().int().positive().default(9000),
@@ -96,6 +99,7 @@ export interface AppConfig {
     issuer: string;
     audience: string;
   };
+  internalServiceToken: string;
   minio: {
     endpoint: string;
     port: number;
@@ -151,6 +155,7 @@ export default (): AppConfig => {
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,
     },
+    internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
     minio: {
       endpoint: env.MINIO_ENDPOINT,
       port: env.MINIO_PORT,

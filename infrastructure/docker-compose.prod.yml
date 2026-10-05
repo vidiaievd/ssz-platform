@@ -175,6 +175,7 @@ services:
       DATABASE_URL: postgresql://media_service:${MEDIA_SERVICE_DB_PASSWORD}@postgres:5432/media_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_USE_SSL: "false"

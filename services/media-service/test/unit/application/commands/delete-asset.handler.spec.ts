@@ -26,6 +26,7 @@ function makeHandler(asset: MediaAssetEntity | null = makeLiveAsset()) {
   const repo: jest.Mocked<IMediaAssetRepository> = {
     findById: jest.fn(),
     findByIdAndOwner: jest.fn().mockResolvedValue(asset),
+    findByIds: jest.fn(),
     findMany: jest.fn(),
     countMany: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),

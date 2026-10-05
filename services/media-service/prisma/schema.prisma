@@ -49,6 +49,9 @@ model MediaAsset {
   createdAt        DateTime    @default(now()) @map("created_at")
   updatedAt        DateTime    @updatedAt @map("updated_at")
   deletedAt        DateTime?   @map("deleted_at")
+  // Audio only (plan 70): measured length and the normalised waveform.
+  durationMs       Int?        @map("duration_ms")
+  peaks            Json?
 
   variants AssetVariant[]
   jobs     ProcessingJob[]

@@ -45,6 +45,8 @@ export class ListUserAssetsHandler implements IQueryHandler<ListUserAssetsQuery,
           uploadedAt: asset.uploadedAt?.toISOString() ?? null,
           createdAt: asset.createdAt.toISOString(),
           variants: [],
+          durationMs: asset.durationMs,
+          peaks: asset.peaks,
         };
       }),
     );

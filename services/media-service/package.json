@@ -35,6 +35,7 @@
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "@ssz/contracts": "file:../../packages/contracts",
+    "@ssz/shared-kernel": "file:../../packages/shared-kernel",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^1.0.3",
     "bullmq": "^5.76.1",
@@ -117,7 +118,9 @@
       "generated/prisma/client\\.js$": "<rootDir>/test/unit/__mocks__/prisma-client.mock.ts",
       "^(\\.{1,2}/.+)\\.js$": "$1",
       "^@ssz/contracts$": "<rootDir>/../../packages/contracts/src/index.ts",
-      "^@ssz/contracts/(.*)$": "<rootDir>/../../packages/contracts/src/$1"
+      "^@ssz/contracts/(.*)$": "<rootDir>/../../packages/contracts/src/$1",
+      "^@ssz/shared-kernel/(.*)$": "<rootDir>/../../packages/shared-kernel/src/$1/index.ts",
+      "^@ssz/shared-kernel$": "<rootDir>/../../packages/shared-kernel/src/index.ts"
     },
     "collectCoverageFrom": [
       "src/**/*.(t|j)s"

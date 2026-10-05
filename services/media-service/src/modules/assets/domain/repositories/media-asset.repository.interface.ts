@@ -14,6 +14,8 @@ export interface FindAssetsOptions {
 export interface IMediaAssetRepository {
   findById(id: string): Promise<MediaAssetEntity | null>;
   findByIdAndOwner(id: string, ownerId: string): Promise<MediaAssetEntity | null>;
+  /** Unknown ids are left out; order is not guaranteed. */
+  findByIds(ids: readonly string[]): Promise<MediaAssetEntity[]>;
   findMany(options: FindAssetsOptions): Promise<MediaAssetEntity[]>;
   countMany(options: FindAssetsOptions): Promise<number>;
   save(asset: MediaAssetEntity): Promise<void>;
