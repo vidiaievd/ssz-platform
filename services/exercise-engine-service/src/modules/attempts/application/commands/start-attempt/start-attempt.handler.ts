@@ -64,6 +64,11 @@ import {
   withGradedSettings as dcWithGradedSettings,
 } from '@ssz/shared-kernel/dictation';
 import type { SegmentState } from '@ssz/shared-kernel/dictation';
+import {
+  TEMPLATE_CODE as INFLECTION_TABLE,
+  toStudentProjection as itToStudentProjection,
+  withGradedSettings as itWithGradedSettings,
+} from '@ssz/shared-kernel/inflection-table';
 import { itemStatesOf, questionStatesOf, segmentStatesOf } from '../../services/item-states.js';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
@@ -251,6 +256,10 @@ export interface StartAttemptResult {
  * so only the key column can say which items are ready, and the pool is dealt from the
  * attempt while the buckets stay where the author put them.
  *
+ * `inflection_table` (plan 69) once more: the form of an asked cell is the key, so only the
+ * key column can say which cells are asked and what the bank holds; the rows and the bank are
+ * dealt from the attempt while the columns keep the pack's order.
+ *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
  */
@@ -307,13 +316,16 @@ function withheldWhereNeeded(
     // question, no hint, no reveal (plan 67, Q8-A) — and the runner draws its buttons from
     // the projection, so the projection has to say so. content-service projected it without
     // knowing the mode.
-    // `dictation` the same way, per segment.
+    // `dictation` the same way, per segment. `inflection_table` for the whole table: one
+    // check, no first-letter hint, no key in the verdict (plan 69).
     const exerciseContent =
       templateCode === HIGHLIGHT_IN_TEXT
         ? htWithGradedSettings(withAudio.exerciseContent)
         : templateCode === DICTATION
           ? dcWithGradedSettings(withAudio.exerciseContent)
-          : withAudio.exerciseContent;
+          : templateCode === INFLECTION_TABLE
+            ? itWithGradedSettings(withAudio.exerciseContent)
+            : withAudio.exerciseContent;
     return { ...withAudio, exerciseContent, expectedAnswers: null };
   }
   return withAudio;
@@ -495,6 +507,34 @@ function projectByTemplate(
       // attempt. The buckets never move — the same zone in the same place is what lets a
       // student apply a rule rather than hunt for it.
       exerciseContent: sbToStudentProjection(
+        exercise.content,
+        exercise.expectedAnswers,
+        <T,>(items: readonly T[]): T[] => sbShuffled(items, seedFrom(attemptId)),
+      ),
+      expectedAnswers: null,
+    };
+  }
+
+  if (templateCode === INFLECTION_TABLE) {
+    // A `graded` envelope content-service has already projected, reaching here only because
+    // `documentToDealFrom` could not fetch the unprojected document. Handed on as it stands:
+    // the projection needs the key column to know which asked cells have a key, and a second
+    // pass over a projection would hand back a table with nothing asked.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      // Both columns: the form of an asked cell is the key, and only the key column can say
+      // whether a cell is gradable — the projection asks it that, the first letter under
+      // `hintFirstLetter`, and the forms of the bank (plan 69 §3.2). No variant, no reason, no
+      // dictionary link, no pass mark (IT-X2).
+      //
+      // The rows (under `shuffleRows`) and the bank are dealt here and seeded by the attempt,
+      // as `sort_into_buckets` deals its pool (§3.3): a re-check never re-deals, and in
+      // `graded` mode the deal belongs to the attempt rather than to a cached envelope. The
+      // columns never move — they are the pack's order.
+      exerciseContent: itToStudentProjection(
         exercise.content,
         exercise.expectedAnswers,
         <T,>(items: readonly T[]): T[] => sbShuffled(items, seedFrom(attemptId)),
@@ -825,6 +865,8 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
    * `multiple_choice_group` joins on exactly the same argument one template later: it
    * deals the *row* order rather than the option order, and a cached deal would give a
    * cohort the same shuffled table and re-deal it under an attempt that outlived the TTL.
+   * `sort_into_buckets` and `inflection_table` join for the same reason, dealing a pool, and
+   * rows and a bank.
    *
    * So for these templates, and only where the envelope has already been projected, the
    * document is fetched a second time as `PRACTICE` and dealt here, seeded by the attempt.
@@ -848,7 +890,8 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
     if (
       exercise.templateCode !== MULTIPLE_CHOICE &&
       exercise.templateCode !== MULTIPLE_CHOICE_GROUP &&
-      exercise.templateCode !== SORT_INTO_BUCKETS
+      exercise.templateCode !== SORT_INTO_BUCKETS &&
+      exercise.templateCode !== INFLECTION_TABLE
     ) {
       return exercise;
     }

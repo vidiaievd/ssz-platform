@@ -21,6 +21,15 @@ import {
   toExpectedAnswers as dcToExpectedAnswers,
   toStudentProjection as dcToStudentProjection,
 } from '@ssz/shared-kernel/dictation';
+import {
+  sampleContent as itSampleContent,
+  toContent as itToContent,
+  toExpectedAnswers as itToExpectedAnswers,
+  toStudentProjection as itToStudentProjection,
+  updateInput as itUpdateInput,
+  updateSettings as itUpdateSettings,
+} from '@ssz/shared-kernel/inflection-table';
+import type { InflectionTableContent } from '@ssz/shared-kernel/inflection-table';
 
 // `checkMode: PRACTICE` means "ship the answers so the client can check locally", and
 // that is safe for eleven templates whose answers are a separate key. It is not safe
@@ -1209,5 +1218,99 @@ describe('StartAttemptHandler — dictation', () => {
       showWordCount: false,
     });
     expect(result.expectedAnswers).toBeNull();
+  });
+});
+
+describe('StartAttemptHandler — inflection_table', () => {
+  // Plan 69, IT-X2 on the server: per row its id, lemma and gloss, per cell the given form or
+  // the fact that it is asked — nothing that decides a cell. Asserted by key sets as well as by
+  // search: a key form may legitimately appear as a given form in another row, or in the bank.
+  const withBank = (table: InflectionTableContent) =>
+    itUpdateInput(itUpdateSettings(table, { hintFirstLetter: true, revealKey: 'afterFirst', attempts: 3 }), {
+      mode: 'bank',
+      shuffleRows: true,
+    });
+  const columns = (table: InflectionTableContent) => ({
+    content: itToContent(table),
+    expectedAnswers: itToExpectedAnswers(table),
+  });
+
+  type Projection = {
+    rows: Array<{ id: string; cells: Record<string, Record<string, unknown>> } & Record<string, unknown>>;
+    bank?: string[];
+    settings: Record<string, unknown>;
+  } & Record<string, unknown>;
+
+  it('ships rows and cells with nothing that decides them, and no pass mark (IT-X2)', async () => {
+    const { content, expectedAnswers } = columns(itSampleContent());
+    const result = (await makeHandler('inflection_table', content, expectedAnswers).execute(practice)).value;
+
+    expect(result.expectedAnswers).toBeNull();
+    const projection = result.exerciseContent as Projection;
+    expect(Object.keys(projection).sort()).toEqual(['instruction', 'language', 'paradigm', 'rows', 'settings', 'slots']);
+    for (const row of projection.rows) {
+      expect(Object.keys(row).sort()).toEqual(['cells', 'gloss', 'id', 'lemma']);
+      for (const cell of Object.values(row.cells)) {
+        expect(cell.mode === 'ask' ? Object.keys(cell) : Object.keys(cell).sort()).toEqual(
+          cell.mode === 'ask' ? ['mode'] : ['mode', 'value'],
+        );
+      }
+    }
+    expect(Object.keys(projection.settings).sort()).toEqual(['attempts', 'input', 'revealKey', 'rowVerdict']);
+    const serialised = JSON.stringify(projection);
+    for (const field of ['accept', 'why', 'dictId', 'packVersion', 'threshold', 'hintFirstLetter']) {
+      expect(serialised).not.toContain(`"${field}"`);
+    }
+    // A variant accepted in one cell, and a reason, are nowhere.
+    expect(serialised).not.toContain('boken');
+    expect(serialised).not.toContain('Omlyd');
+  });
+
+  it('deals the rows and the bank from the attempt, and never moves the columns (§3.3)', async () => {
+    const { content, expectedAnswers } = columns(withBank(itSampleContent()));
+    const result = (await makeHandler('inflection_table', content, expectedAnswers).execute(practice)).value;
+    const projection = result.exerciseContent as Projection;
+
+    const expected = itToStudentProjection(content, expectedAnswers, (items) => sbShuffled(items, seedFrom(result.attemptId)));
+    expect(projection.rows.map((r) => r.id)).toEqual(expected.rows.map((r) => r.id));
+    expect(projection.bank).toEqual(expected.bank);
+    expect((projection.slots as Array<{ id: string }>).map((s) => s.id)).toEqual(['indefSg', 'defSg', 'indefPl', 'defPl']);
+    // The hint is the key's first letter, and travels only because the author turned it on.
+    expect(projection.rows.find((r) => r.id === 'r2')!.cells['defSg']).toEqual({ mode: 'ask', hint: 'b' });
+  });
+
+  it('in GRADED mode deals from the unprojected document, under graded settings — no hint, one check, no key', async () => {
+    const table = withBank(itSampleContent());
+    const { content, expectedAnswers } = columns(table);
+    const alreadyProjected = itToStudentProjection(content, expectedAnswers);
+    const { handler, modes } = makeHandlerByMode('inflection_table', (mode) =>
+      mode === 'PRACTICE' ? { content, expectedAnswers } : { content: alreadyProjected, expectedAnswers: null },
+    );
+
+    const result = (await handler.execute(graded)).value;
+
+    expect(modes).toEqual(['GRADED', 'PRACTICE']);
+    expect(result.expectedAnswers).toBeNull();
+    const projection = result.exerciseContent as Projection;
+    const expected = itToStudentProjection(content, expectedAnswers, (items) => sbShuffled(items, seedFrom(result.attemptId)));
+    expect(projection.rows.map((r) => r.id)).toEqual(expected.rows.map((r) => r.id));
+    expect(projection.settings).toMatchObject({ attempts: 1, revealKey: 'never', input: 'bank' });
+    expect(JSON.stringify(projection.rows)).not.toContain('"hint"');
+  });
+
+  it('in GRADED mode hands on an envelope it cannot re-fetch as it stands, still under graded settings', async () => {
+    const table = withBank(itSampleContent());
+    const { content, expectedAnswers } = columns(table);
+    const alreadyProjected = itToStudentProjection(content, expectedAnswers);
+    const { handler } = makeHandlerByMode('inflection_table', (mode) =>
+      mode === 'PRACTICE' ? null : { content: alreadyProjected, expectedAnswers: null },
+    );
+
+    const result = (await handler.execute(graded)).value;
+
+    const projection = result.exerciseContent as Projection;
+    expect(projection.rows).toHaveLength(4);
+    expect(projection.settings).toMatchObject({ attempts: 1, revealKey: 'never' });
+    expect(JSON.stringify(projection.rows)).not.toContain('"hint"');
   });
 });

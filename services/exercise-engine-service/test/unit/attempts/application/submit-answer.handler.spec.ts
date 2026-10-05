@@ -34,6 +34,17 @@ import {
   toExpectedAnswers as dcToExpectedAnswers,
 } from '@ssz/shared-kernel/dictation';
 import type { DictationContent, SegmentState, Settings as DcSettings } from '@ssz/shared-kernel/dictation';
+import { InflectionTableValidator } from '../../../../src/infrastructure/validation/validators/inflection-table.validator.js';
+import {
+  ALL_RIGHT as IT_ALL_RIGHT,
+  bankForms as itBankForms,
+  sampleContent as itSampleContent,
+  toContent as itToContent,
+  toExpectedAnswers as itToExpectedAnswers,
+  updateInput as itUpdateInput,
+  updateSettings as itUpdateSettings,
+} from '@ssz/shared-kernel/inflection-table';
+import type { InflectionTableContent } from '@ssz/shared-kernel/inflection-table';
 
 const makeInProgressAttempt = (templateCode = 'multiple_choice') =>
   Attempt.reconstitute({
@@ -2141,5 +2152,296 @@ describe('SubmitAnswerHandler — dictation in a graded attempt (Q8-A)', () => {
     const reveal = await s.submit({ segmentId: 'a', reveal: true, graded: false });
 
     expect(reveal.error).toBeInstanceOf(InvalidAttemptTransitionError);
+  });
+});
+
+// ── inflection_table ────────────────────────────────────────────────────────
+//
+// Plan 69. The table is checked whole with `sort_into_buckets`' machinery — a budget of checks,
+// the cells found right locked, the first form of each cell carried forward — and the real
+// validator runs behind the port, over the kernel's sample table: what is under test is the seam.
+
+const makeItDef = (table: InflectionTableContent = itSampleContent()): ExerciseDefinition => ({
+  exercise: {
+    id: 'ex-1',
+    templateCode: 'inflection_table',
+    targetLanguage: 'nb',
+    difficultyLevel: 'A2',
+    content: itToContent(table) as unknown as Record<string, unknown>,
+    expectedAnswers: itToExpectedAnswers(table) as unknown as Record<string, unknown>,
+    answerCheckSettings: null,
+  },
+  template: {
+    code: 'inflection_table',
+    contentSchema: {},
+    answerSchema: { type: 'object' },
+    defaultCheckSettings: {},
+    supportedLanguages: null,
+  },
+  instruction: null,
+});
+
+/** One attempt, saved and reloaded between submits, one publisher, as many checks as the test makes. */
+const itSession = (
+  table: InflectionTableContent = itSampleContent(),
+  checkMode: 'PRACTICE' | 'GRADED' = 'PRACTICE',
+) => {
+  const def = makeItDef(table);
+  let saved = makeHtAttempt(checkMode, 'inflection_table');
+  const repo = makeRepo(saved);
+  repo.findById.mockImplementation(async () => asLoaded(saved));
+  repo.save.mockImplementation(async (a) => {
+    saved = asLoaded(a);
+  });
+  const publisher = makePublisher();
+  const inner = new InflectionTableValidator();
+  const validator: IAnswerValidator = {
+    validate: jest
+      .fn<IAnswerValidator['validate']>()
+      .mockImplementation(async (input) => inner.validate(input as never)),
+    supports: () => true,
+  } as IAnswerValidator;
+  const handler = makeHandler(repo, makeContentClient(Result.ok(def)), validator as never, makeFeedback(), publisher);
+  const submit = (cells: Record<string, string>, extra: Record<string, unknown> = {}) =>
+    handler.execute(new SubmitAnswerCommand('attempt-1', 'user-1', { cells, ...extra }, 20, 'nb'));
+  const completed = () =>
+    publisher.publish.mock.calls
+      .filter(([type]) => type === 'exercise.attempt.completed')
+      .map(([, payload]) => payload as ItCompleted);
+  return {
+    get attempt() {
+      return saved;
+    },
+    repo,
+    submit,
+    completed,
+  };
+};
+
+interface ItCompleted {
+  score: number;
+  passed: boolean;
+  answerForm?: { mode: string; bankSize: number | null; wordsConsumed: boolean };
+  gapResults?: Array<{ gapKey: string; correct: boolean }>;
+  evidenceLowered?: boolean;
+}
+
+interface ItDetails {
+  attempt: number;
+  checksLeft: number;
+  closed: boolean;
+  locked: string[];
+  passedItems: number;
+  correctNow: number;
+  rows: Array<{ rowId: string; asked: number; ok: number; firstOk: number }>;
+  items: Array<{
+    itemId: string;
+    value: string;
+    correct: boolean;
+    firstCorrect: boolean;
+    firstAnswer: string;
+    near?: string;
+    why?: string;
+    correctForm?: string;
+  }>;
+}
+
+const itCell = (details: unknown, key: string) =>
+  (details as ItDetails).items.find((c) => c.itemId === key)!;
+
+/** Two cells wrong on the first check: one empty, one with a diacritic folded. */
+const IT_FIRST = { ...IT_ALL_RIGHT, 'r1:defSg': '', 'r2:indefPl': 'boker' };
+
+describe('SubmitAnswerHandler — inflection_table', () => {
+  it('scores the first check over every asked cell, an empty one as wrong (IT-R3, IT-R5)', async () => {
+    const s = itSession();
+    const result = await s.submit(IT_FIRST);
+
+    expect(result.isOk).toBe(true);
+    // 10 of 12 → 83, over the sample's 75 % mark.
+    expect(result.value.score).toBe(83);
+    expect(s.attempt.passed).toBe(true);
+    expect(s.attempt.status).toBe('SCORED');
+    expect(result.value.details as ItDetails).toMatchObject({ attempt: 1, checksLeft: 1, closed: false, passedItems: 10 });
+    expect((result.value.details as ItDetails).locked).toHaveLength(10);
+  });
+
+  it('carries the near miss and the reason of a wrong cell to the learner, never a variant (IT-R7)', async () => {
+    const s = itSession();
+    const result = await s.submit(IT_FIRST);
+
+    expect(itCell(result.value.details, 'r2:indefPl')).toMatchObject({
+      correct: false,
+      near: 'diacritic',
+      why: 'Omlyd i flertall: o → ø.',
+    });
+    // `afterLast` with a check left: no correct form yet.
+    expect(itCell(result.value.details, 'r2:indefPl')).not.toHaveProperty('correctForm');
+    expect(JSON.stringify(result.value.details)).not.toContain('boken');
+  });
+
+  it('re-checks under the attempt\'s own facts, not the client\'s, and the first check stays the score (IT-R4)', async () => {
+    const s = itSession();
+    await s.submit(IT_FIRST);
+
+    // A forged second check: claims to be the first, with everything locked and a clean first pass.
+    const second = await s.submit(
+      { ...IT_ALL_RIGHT, 'r3:defSg': 'feil' },
+      { attempt: 1, locked: Object.keys(IT_ALL_RIGHT), firstAnswers: IT_ALL_RIGHT, graded: true },
+    );
+
+    const details = second.value.details as ItDetails;
+    expect(details).toMatchObject({ attempt: 2, checksLeft: 0, closed: true, correctNow: 12, passedItems: 10 });
+    // r3:defSg was right on the first check and is locked — the resent «feil» does not stand.
+    expect(itCell(details, 'r3:defSg')).toMatchObject({ value: 'huset', correct: true });
+    expect(itCell(details, 'r2:indefPl')).toMatchObject({ correct: true, firstCorrect: false, firstAnswer: 'boker' });
+    expect(second.value.score).toBe(83);
+  });
+
+  it('publishes once, for the first check — a re-check is not evidence', async () => {
+    const s = itSession();
+    await s.submit(IT_FIRST);
+    await s.submit(IT_ALL_RIGHT);
+
+    expect(s.completed()).toHaveLength(1);
+    expect(s.completed()[0]).toMatchObject({ score: 83, passed: true });
+  });
+
+  it('shows the correct form once the budget is spent under afterLast (IT-R6)', async () => {
+    const s = itSession();
+    await s.submit(IT_FIRST);
+    const second = await s.submit({ ...IT_ALL_RIGHT, 'r1:defSg': 'jobba' });
+
+    expect(itCell(second.value.details, 'r1:defSg')).toMatchObject({ correct: false, near: 'ending', correctForm: 'jobben' });
+  });
+
+  it('refuses a check beyond the budget, and spends nothing', async () => {
+    const s = itSession(itUpdateSettings(itSampleContent(), { attempts: 1 }));
+    await s.submit(IT_FIRST);
+
+    const again = await s.submit(IT_ALL_RIGHT);
+
+    expect(again.error).toBeInstanceOf(InvalidAttemptTransitionError);
+    expect(s.attempt.recheckCount).toBe(0);
+  });
+
+  it('refuses a check on a table the last one closed with checks left', async () => {
+    const s = itSession(itUpdateSettings(itSampleContent(), { attempts: 4 }));
+    await s.submit(IT_ALL_RIGHT);
+
+    const again = await s.submit(IT_ALL_RIGHT);
+
+    expect(again.error).toBeInstanceOf(InvalidAttemptTransitionError);
+  });
+
+  it('writes a failed table as scored, so progress and memory hear of it (IT-X5)', async () => {
+    const s = itSession();
+    await s.submit({});
+
+    expect(s.attempt.status).toBe('SCORED');
+    expect(s.attempt.scoreValue).toBe(0);
+    expect(s.attempt.passed).toBe(false);
+    expect(s.completed()).toHaveLength(1);
+  });
+
+  it('sends the scheduler the first check\'s verdict per cell, keyed rowId:slotId — no row entries (IT-X5)', async () => {
+    const s = itSession();
+    await s.submit(IT_FIRST);
+
+    const gaps = s.completed()[0]!.gapResults!.map(({ gapKey, correct }) => ({ gapKey, correct }));
+    expect(gaps).toHaveLength(12);
+    expect(gaps.filter((g) => !g.correct)).toEqual([
+      { gapKey: 'r1:defSg', correct: false },
+      { gapKey: 'r2:indefPl', correct: false },
+    ]);
+    expect(gaps.every((g) => /^r\d:[A-Za-z]+$/.test(g.gapKey))).toBe(true);
+  });
+
+  it('keeps the row grain in the details, recorded on every check (IT-M7)', async () => {
+    const s = itSession(itUpdateSettings(itSampleContent(), { rowVerdict: false }));
+    const result = await s.submit(IT_FIRST);
+
+    expect((result.value.details as ItDetails).rows.find((r) => r.rowId === 'r1')).toEqual({
+      rowId: 'r1',
+      asked: 3,
+      ok: 2,
+      firstOk: 2,
+    });
+  });
+
+  it('says how the forms were produced: typed (X3)', async () => {
+    const s = itSession();
+    await s.submit(IT_ALL_RIGHT);
+    expect(s.completed()[0]!.answerForm).toEqual({ mode: 'free', bankSize: null, wordsConsumed: false });
+  });
+
+  it('says how the forms were produced: a bank never consumed, sized by the keys and distractors (X3)', async () => {
+    const table = itUpdateInput(itSampleContent(), { mode: 'bank' });
+    const s = itSession(table);
+    await s.submit(IT_ALL_RIGHT);
+
+    const form = s.completed()[0]!.answerForm!;
+    expect(form).toEqual({ mode: 'bank', bankSize: itBankForms(table).length, wordsConsumed: false });
+    expect(form.bankSize).toBeGreaterThanOrEqual(12);
+  });
+
+  it('penalises a bank form in the wrong cell in the recorded score (IT-M6)', async () => {
+    const s = itSession(itUpdateInput(itSampleContent(), { mode: 'bank' }));
+    const result = await s.submit({ ...IT_ALL_RIGHT, 'r1:defSg': '', 'r2:defSg': 'bøkene' });
+
+    // 10 right, one false positive → 9 of 12 → 75.
+    expect(result.value.score).toBe(75);
+    expect(s.completed()[0]!.score).toBe(75);
+  });
+
+  describe('evidence lowered by the first-letter hint (Q3-A)', () => {
+    it('says nothing without the hint', async () => {
+      const s = itSession();
+      await s.submit(IT_ALL_RIGHT);
+      expect(s.completed()[0]).not.toHaveProperty('evidenceLowered');
+    });
+
+    it('lowers it while the hint is on — read from the document', async () => {
+      const s = itSession(itUpdateSettings(itSampleContent(), { hintFirstLetter: true }));
+      await s.submit(IT_ALL_RIGHT);
+      expect(s.completed()[0]!.evidenceLowered).toBe(true);
+    });
+
+    it('does not lower a graded delivery, which never shows the hint', async () => {
+      const s = itSession(itUpdateSettings(itSampleContent(), { hintFirstLetter: true }), 'GRADED');
+      await s.submit(IT_ALL_RIGHT);
+      expect(s.completed()[0]).not.toHaveProperty('evidenceLowered');
+    });
+  });
+
+  describe('in a graded attempt (Q8-A of plan 67)', () => {
+    const graded = () =>
+      itSession(itUpdateSettings(itSampleContent(), { attempts: 3, revealKey: 'afterFirst' }), 'GRADED');
+
+    it('one check closes the table and keeps the key back, whatever the client says', async () => {
+      const s = graded();
+      const result = await s.submit(IT_FIRST, { graded: false });
+
+      expect(result.value.details as ItDetails).toMatchObject({ closed: true, checksLeft: 0 });
+      expect(itCell(result.value.details, 'r1:defSg')).not.toHaveProperty('correctForm');
+    });
+
+    it('refuses a second check', async () => {
+      const s = graded();
+      await s.submit(IT_FIRST);
+      const again = await s.submit(IT_ALL_RIGHT);
+      expect(again.error).toBeInstanceOf(InvalidAttemptTransitionError);
+    });
+  });
+
+  it('keeps on the attempt what a reload needs to put the table back — the forms, the locks, the first pass', async () => {
+    const s = itSession();
+    await s.submit(IT_FIRST);
+
+    const details = s.attempt.validationDetails as ItDetails;
+    expect(details.closed).toBe(false);
+    expect(details.locked).not.toContain('r1:defSg');
+    expect(details.items.find((c) => c.itemId === 'r2:indefPl')).toMatchObject({ value: 'boker', firstAnswer: 'boker' });
+    expect(s.attempt.submittedAnswer).toMatchObject({ cells: IT_FIRST });
   });
 });
