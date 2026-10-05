@@ -96,7 +96,13 @@ describe('the snapshot', () => {
     const read = readSpeakingSnapshot(JSON.parse(JSON.stringify(snapshotOf(doc))));
     expect(read?.criteria.map((c) => c.studentVisible)).toEqual([true, false, true]);
     expect(read?.passScore).toBe(9);
+    expect(read?.mode).toBe('read');
     expect(read?.criteria[0]!.levels[3]).toBe('Tydelig og trygg uttale; trykk og tonefall stemmer.');
+  });
+
+  it('reads a snapshot without a mode as one with no mode, not as a reading task', () => {
+    const { mode: _mode, ...old } = snapshotOf(sampleDocument());
+    expect(readSpeakingSnapshot(JSON.parse(JSON.stringify(old)))?.mode).toBeNull();
   });
 
   it('reads garbage as no rubric', () => {

@@ -272,6 +272,7 @@ services:
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       CONTENT_SERVICE_BASE_URL: http://content-service:3003
       ORGANIZATION_SERVICE_BASE_URL: http://organization-service:3002
+      MEDIA_SERVICE_BASE_URL: http://media-service:3004
       LEARNING_SERVICE_BASE_URL: http://learning-service:3007
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       EXERCISE_DEFINITION_CACHE_TTL_SECONDS: 300

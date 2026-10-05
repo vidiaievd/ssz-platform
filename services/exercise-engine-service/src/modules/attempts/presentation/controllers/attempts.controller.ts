@@ -13,6 +13,7 @@ import {
   Post,
   Put,
   Query,
+  ServiceUnavailableException,
   UnprocessableEntityException,
   ForbiddenException,
   BadRequestException,
@@ -36,6 +37,7 @@ import type {
   StartAttemptError,
 } from '../../application/commands/start-attempt/start-attempt.handler.js';
 import { questionStatesOf, segmentStatesOf } from '../../application/services/item-states.js';
+import { isRecordingRefusal } from '../../application/services/read-aloud-recordings.js';
 import { SubmitAnswerCommand } from '../../application/commands/submit-answer/submit-answer.command.js';
 import type { SubmitAnswerResult, SubmitAnswerError } from '../../application/commands/submit-answer/submit-answer.handler.js';
 import { AbandonAttemptCommand } from '../../application/commands/abandon-attempt/abandon-attempt.command.js';
@@ -252,8 +254,20 @@ export class AttemptsController {
   @ApiResponse({ status: 200, type: SubmitAnswerResponseDto })
   @ApiResponse({ status: 404, description: 'Attempt not found' })
   @ApiResponse({ status: 403, description: 'Not your attempt' })
-  @ApiResponse({ status: 422, description: 'Validation error or invalid state transition' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'Validation error or invalid state transition. read_aloud: { code: RA_RECORDING_MISSING | ' +
+      'RA_RECORDING_UNKNOWN_PROMPT | RA_RECORDING_DUPLICATE | RA_RECORDING_NOT_FOUND | ' +
+      'RA_RECORDING_NOT_READY | RA_RECORDING_FAILED | RA_RECORDING_LENGTH, itemIds }',
+  })
   @ApiResponse({ status: 429, description: 'A dictation segment checked again too soon' })
+  @ApiResponse({
+    status: 503,
+    description:
+      'read_aloud: media-service did not answer, so the recordings could not be checked. ' +
+      'Nothing was written — the draft is intact; submit again.',
+  })
   async submitAnswer(
     @Param('exerciseId') _exerciseId: string,
     @Param('attemptId', ParseUUIDPipe) attemptId: string,
@@ -283,6 +297,21 @@ export class AttemptsController {
         // runner holds «Sjekk» for that long, so only a script ever sees this.
         if (err.code === 'DICT_TOO_FAST') {
           throw new HttpException((err as ValidationError).message, HttpStatus.TOO_MANY_REQUESTS);
+        }
+        // A `read_aloud` whose recordings do not stand up (plan 70 §3.5, RA-U9): the code and
+        // the prompts it is about, so the runner can point at the take to record again.
+        if (isRecordingRefusal(err)) {
+          throw new UnprocessableEntityException({
+            code: err.code,
+            message: err.message,
+            itemIds: err.itemIds,
+          });
+        }
+        if (err.code === 'MEDIA_UNAVAILABLE') {
+          throw new ServiceUnavailableException({
+            code: 'MEDIA_UNAVAILABLE',
+            message: 'The recordings could not be checked right now — try again',
+          });
         }
       }
       if (err instanceof ContentClientError) {

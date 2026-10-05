@@ -24,7 +24,8 @@ import {
   type RubricOutcome,
   type SnapshotCriterion,
 } from '../writing-task/verdict.js';
-import type { ReadAloudContent } from './model.js';
+import type { Mode, ReadAloudContent } from './model.js';
+import { isMode } from './model.js';
 
 /** One criterion as it stood when the submission was queued, with who may see it. */
 export interface SpeakingCriterion extends SnapshotCriterion {
@@ -36,6 +37,13 @@ export interface SpeakingSnapshot {
   criteria: SpeakingCriterion[];
   /** In rubric points, out of `Σ 3 × weight` — for one recording. */
   passScore: number;
+  /**
+   * The task the recordings answer, as it stood when they were queued. The verdict reads it to
+   * decide how strong the evidence is (Q6-A: reading a given text aloud is one step weaker), and
+   * it is frozen with the rubric so that an author switching the mode later cannot restate it.
+   * Null for a snapshot that predates the field.
+   */
+  mode: Mode | null;
 }
 
 export function markKey(itemId: string, criterionId: string): string {
@@ -49,7 +57,7 @@ export function parseMarkKey(key: string): { itemId: string; criterionId: string
 }
 
 /** The snapshot to store when a submission is queued. Descriptors included — the queue draws them. */
-export function snapshotOf(ex: Pick<ReadAloudContent, 'rubric' | 'settings'>): SpeakingSnapshot {
+export function snapshotOf(ex: Pick<ReadAloudContent, 'mode' | 'rubric' | 'settings'>): SpeakingSnapshot {
   return {
     criteria: ex.rubric.map((c) => ({
       id: c.id,
@@ -60,6 +68,7 @@ export function snapshotOf(ex: Pick<ReadAloudContent, 'rubric' | 'settings'>): S
       studentVisible: c.studentVisible,
     })),
     passScore: ex.settings.passScore,
+    mode: ex.mode,
   };
 }
 
@@ -75,9 +84,11 @@ export function readSpeakingSnapshot(value: unknown): SpeakingSnapshot | null {
       if (typeof id === 'string') visible.set(id, studentVisible !== false);
     }
   }
+  const mode = (value as { mode?: unknown }).mode;
   return {
     criteria: base.criteria.map((c) => ({ ...c, studentVisible: visible.get(c.id) ?? true })),
     passScore: base.passScore,
+    mode: isMode(mode) ? mode : null,
   };
 }
 

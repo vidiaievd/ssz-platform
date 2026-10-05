@@ -31,6 +31,12 @@ import {
   updateSettings as itUpdateSettings,
 } from '@ssz/shared-kernel/inflection-table';
 import type { InflectionTableContent } from '@ssz/shared-kernel/inflection-table';
+import {
+  sampleDocument as raSampleDocument,
+  toContent as raToContent,
+  toExpectedAnswers as raToExpectedAnswers,
+  toStudentProjection as raToStudentProjection,
+} from '@ssz/shared-kernel/read-aloud';
 
 // `checkMode: PRACTICE` means "ship the answers so the client can check locally", and
 // that is safe for eleven templates whose answers are a separate key. It is not safe
@@ -1390,5 +1396,49 @@ describe('StartAttemptHandler — inflection_table', () => {
       expect(result.boardCheck).toBeNull();
       expect(attempts.save).toHaveBeenCalled();
     });
+  });
+});
+
+describe('StartAttemptHandler — read_aloud (plan 70 §3.2)', () => {
+  const doc = raSampleDocument();
+  const content = raToContent(doc);
+  const key = raToExpectedAnswers(doc);
+
+  it('ships the prompts with no listening note, no focus word, no pass mark and no descriptor', async () => {
+    const handler = makeHandler('read_aloud', content, key);
+    const result = await handler.execute(practice);
+
+    const shipped = result.value.exerciseContent as {
+      prompts: Array<Record<string, unknown>>;
+      settings: Record<string, unknown>;
+    };
+    expect(shipped.prompts.map((p) => p['id'])).toEqual(doc.prompts.map((p) => p.id));
+    expect(shipped.prompts[0]).not.toHaveProperty('note');
+    expect(shipped.prompts[0]).not.toHaveProperty('focus');
+    expect(shipped.settings).not.toHaveProperty('passScore');
+    expect(shipped).not.toHaveProperty('review');
+    expect(shipped).not.toHaveProperty('rubric');
+    const text = JSON.stringify(shipped);
+    expect(text).not.toContain(doc.prompts[0]!.note);
+    expect(text).not.toContain(doc.rubric[0]!.levels[3]);
+    expect(result.value.expectedAnswers).toBeNull();
+  });
+
+  it('is exactly the kernel projection', async () => {
+    const handler = makeHandler('read_aloud', content, key);
+    const result = await handler.execute(practice);
+    expect(result.value.exerciseContent).toEqual(raToStudentProjection(content, key));
+  });
+
+  it('does not re-project an envelope content-service already projected', async () => {
+    const alreadyProjected = raToStudentProjection(
+      { ...content, settings: { ...content.settings, showRubric: 'always' } },
+      key,
+    );
+    const handler = makeHandler('read_aloud', alreadyProjected, null);
+
+    const result = await handler.execute(practice);
+
+    expect(result.value.exerciseContent).toEqual(alreadyProjected);
   });
 });

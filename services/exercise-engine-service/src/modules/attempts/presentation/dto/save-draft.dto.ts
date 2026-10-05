@@ -5,7 +5,8 @@ export class SaveDraftRequestDto {
   @ApiProperty({
     description:
       'The work so far, in the same shape a submission carries. writing_task: ' +
-      '{ text, ticked, elapsedSeconds }. Stored exactly as it arrives and never ' +
+      '{ text, ticked, elapsedSeconds }; read_aloud: { takes: { [itemId]: [{ n, assetId, seconds }] }, ' +
+      'chosen: { [itemId]: index } }. Stored exactly as it arrives and never ' +
       'validated — a save refused because half a sentence does not parse is the ' +
       'failure this endpoint exists to prevent.',
   })

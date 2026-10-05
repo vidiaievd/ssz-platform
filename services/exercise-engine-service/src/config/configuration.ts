@@ -29,6 +29,10 @@ export const envSchema = z.object({
   ORGANIZATION_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
   ORGANIZATION_SERVICE_RETRIES: z.coerce.number().int().min(0).default(2),
 
+  // Plan 70: the submit of a `read_aloud` asks media-service what the recordings are.
+  MEDIA_SERVICE_BASE_URL: z.string().min(1, 'MEDIA_SERVICE_BASE_URL is required'),
+  MEDIA_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
+
 
   INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
 
@@ -97,6 +101,10 @@ export interface AppConfig {
     timeoutMs: number;
     retries: number;
   };
+  media: {
+    baseUrl: string;
+    timeoutMs: number;
+  };
   cache: {
     exerciseDefinitionTtlSeconds: number;
     exercisePlacementTtlSeconds: number;
@@ -147,6 +155,10 @@ export default (): AppConfig => {
       baseUrl: env.ORGANIZATION_SERVICE_BASE_URL,
       timeoutMs: env.ORGANIZATION_SERVICE_TIMEOUT_MS,
       retries: env.ORGANIZATION_SERVICE_RETRIES,
+    },
+    media: {
+      baseUrl: env.MEDIA_SERVICE_BASE_URL,
+      timeoutMs: env.MEDIA_SERVICE_TIMEOUT_MS,
     },
     cache: {
       exerciseDefinitionTtlSeconds: env.EXERCISE_DEFINITION_CACHE_TTL_SECONDS,

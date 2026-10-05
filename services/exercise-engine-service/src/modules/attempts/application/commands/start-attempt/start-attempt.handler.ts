@@ -69,6 +69,10 @@ import {
   toStudentProjection as itToStudentProjection,
   withGradedSettings as itWithGradedSettings,
 } from '@ssz/shared-kernel/inflection-table';
+import {
+  toStudentProjection as raToStudentProjection,
+  TEMPLATE_CODE as READ_ALOUD,
+} from '@ssz/shared-kernel/read-aloud';
 import { itemStatesOf, questionStatesOf, segmentStatesOf } from '../../services/item-states.js';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
@@ -268,6 +272,11 @@ export interface StartAttemptResult {
  * `inflection_table` (plan 69) once more: the form of an asked cell is the key, so only the
  * key column can say which cells are asked and what the bank holds; the rows and the bank are
  * dealt from the attempt while the columns keep the pack's order.
+ *
+ * `read_aloud` (plan 70 §3.2) is `writing_task`'s case again: its key is for the teacher —
+ * the listening note and the focus words per prompt, which the student meets only in the
+ * feedback — and the projection reaches into it for one thing, the level descriptors, under
+ * `showRubric: 'always'`. Without this branch both columns went to the browser as they were.
  *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
@@ -583,6 +592,20 @@ function projectByTemplate(
       // many words (AC-R3). No sentence, reason, focus word, marking, language or pass mark
       // (AC-X2). The timecodes go on with the audio layer below.
       exerciseContent: dcToStudentProjection(exercise.content, exercise.expectedAnswers),
+      expectedAnswers: null,
+    };
+  }
+
+  if (templateCode === READ_ALOUD) {
+    // A `graded` envelope arrives already projected by content-service and with no key —
+    // projecting it again would lose the descriptors `showRubric: 'always'` needs, for
+    // `writing_task`'s reason below.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      exerciseContent: raToStudentProjection(exercise.content, exercise.expectedAnswers),
       expectedAnswers: null,
     };
   }

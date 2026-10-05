@@ -46,6 +46,11 @@ import {
   TEMPLATE_CODE as WRITING_TASK,
 } from '@ssz/shared-kernel/writing-task';
 import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
+import {
+  fromPersisted as raFromPersisted,
+  snapshotOf as raSnapshotOf,
+  TEMPLATE_CODE as READ_ALOUD,
+} from '@ssz/shared-kernel/read-aloud';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject, Optional } from '@nestjs/common';
 import { SubmitAnswerCommand } from './submit-answer.command.js';
@@ -62,10 +67,22 @@ import { ReviewContextResolver } from '../../services/review-context-resolver.js
 import { audioTranscriptFor, type AudioTranscript } from '../../services/audio-transcript.js';
 import { firstVerdictsIn, isItemByItem, withRecordedItems } from '../../services/item-states.js';
 import { CLOCK, SystemClock, type IClock } from '../../../../../shared/application/ports/clock.port.js';
+import { MEDIA_ASSETS, type IMediaAssets } from '../../../../../shared/application/ports/media-assets.port.js';
+import {
+  assetIdsOf,
+  checkAssets,
+  checkPrompts,
+  readRecordings,
+} from '../../services/read-aloud-recordings.js';
 
 export type SubmitAnswerError =
   | { code: 'ATTEMPT_NOT_FOUND' }
   | { code: 'FORBIDDEN' }
+  /**
+   * The recordings of a `read_aloud` could not be checked because media-service did not
+   * answer (plan 70 §3.5, RA-U10). Nothing was written: the draft is where it was.
+   */
+  | { code: 'MEDIA_UNAVAILABLE' }
   | ValidationError
   | ContentClientError
   | AttemptDomainError;
@@ -684,9 +701,11 @@ function machineTally(details: unknown): { autoPassedItems: number; totalItems: 
 /**
  * The rubric a submission will be graded against, frozen as it reaches the queue.
  *
- * `writing_task` only: it is the one template a person grades out of criteria rather
- * than out of items (plan 50 §3.2). Every other template routes with `null` and is
- * scored exactly as before.
+ * `writing_task` and `read_aloud`: the two templates a person grades out of criteria
+ * rather than out of items (plan 50 §3.2, plan 70 §3.6). Every other template routes with
+ * `null` and is scored exactly as before. A `read_aloud` snapshot also carries who may see
+ * each criterion and the mode — the verdict reads the mode to decide how strong the
+ * evidence is (Q6-A), and a mode switched after the work was handed in must not restate it.
  *
  * Assembled from both columns because the level descriptors live in `expected_answers`
  * (the kernel's persistence.ts) and the queue draws them beside each mark. A malformed
@@ -694,6 +713,10 @@ function machineTally(details: unknown): { autoPassedItems: number; totalItems: 
  * written, and refusing it here to report the author's bug would throw the work away.
  */
 function rubricFor(templateCode: string, content: unknown, expectedAnswers: unknown): RubricSnapshot | null {
+  if (templateCode === READ_ALOUD) {
+    const document = raFromPersisted(content, expectedAnswers);
+    return document.rubric.length === 0 ? null : raSnapshotOf(document);
+  }
   if (templateCode !== WRITING_TASK) return null;
 
   const document = writingTaskFromPersisted(
@@ -717,6 +740,10 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     // The time a `dictation` check is throttled against (plan 68, Q4-A) — the server's,
     // never the client's. Optional so the module needs no binding for the system clock.
     @Optional() @Inject(CLOCK) private readonly clock: IClock = new SystemClock(),
+    // Asked only by a `read_aloud` submit (plan 70 §3.5). Optional so that a module — or a
+    // test — with no binding still runs every other template; a recording submitted there is
+    // answered as if media-service were away, which is the truth of it.
+    @Optional() @Inject(MEDIA_ASSETS) private readonly media: IMediaAssets | null = null,
   ) {}
 
   async execute(
@@ -763,6 +790,22 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       if (reopened.isFail) {
         return Result.fail(reopened.error as AttemptDomainError);
       }
+    }
+
+    // A `read_aloud` hands in files, not text, and whether they exist, are this student's,
+    // were made for this attempt and are long enough is media-service's to say (plan 70
+    // §3.5, RA-U9). Asked here, before the submission is written onto the attempt, because
+    // the per-type validator is synchronous — and because a refusal returned now leaves the
+    // attempt exactly as it was: nothing below has been saved, so the draft and its takes
+    // survive both a refusal and media-service being away (RA-U10).
+    if (attempt.templateCode === READ_ALOUD) {
+      const refused = await this.refuseRecordings(
+        attempt,
+        command.submittedAnswer,
+        def.exercise.content,
+        def.exercise.expectedAnswers,
+      );
+      if (refused) return Result.fail(refused);
     }
 
     // After the reopen, deliberately: the facts written over the submission include
@@ -914,6 +957,36 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       feedback,
       details: learnerFacingDetails(attempt.templateCode, outcome.details),
       audioTranscript: audioTranscriptFor(def.exercise.content, true),
+    });
+  }
+
+  /**
+   * Why the recordings of a `read_aloud` cannot be handed in, or null when they can.
+   *
+   * Cheapest first: a submission that does not name every prompt is refused without a call.
+   */
+  private async refuseRecordings(
+    attempt: Attempt,
+    submitted: unknown,
+    content: unknown,
+    expectedAnswers: unknown,
+  ): Promise<SubmitAnswerError | null> {
+    const submission = readRecordings(submitted);
+    if (submission instanceof ValidationError) return submission;
+
+    const prompts = checkPrompts(submission, content, expectedAnswers);
+    if (prompts) return prompts;
+
+    if (this.media === null) return { code: 'MEDIA_UNAVAILABLE' };
+    const described = await this.media.describe(assetIdsOf(submission));
+    // Any failure, not only a timeout: the engine cannot tell "your recording is not there"
+    // from "media-service is not answering properly", and only the second is never the
+    // student's fault. A 4xx here would be the engine's own malformed request.
+    if (described.isFail) return { code: 'MEDIA_UNAVAILABLE' };
+
+    return checkAssets(submission, content, expectedAnswers, described.value, {
+      id: attempt.id,
+      userId: attempt.userId,
     });
   }
 

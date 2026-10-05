@@ -2,6 +2,14 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { readRubricMarks } from '@ssz/shared-kernel/writing-task';
 import { ReviewAttemptCommand } from './review-attempt.command.js';
 import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
+import {
+  readMarks as raReadMarks,
+  readSpeakingSnapshot,
+  readSubmission as raReadSubmission,
+  scorePrompts,
+  TEMPLATE_CODE as READ_ALOUD,
+} from '@ssz/shared-kernel/read-aloud';
+import type { SpeakingSnapshot } from '@ssz/shared-kernel/read-aloud';
 import type { Attempt, ReviewDecision } from '../../../domain/entities/attempt.entity.js';
 import {
   ATTEMPT_REPOSITORY,
@@ -28,8 +36,13 @@ export type ReviewAttemptError =
   | { code: 'ALREADY_REVIEWED'; by: string; verdict: 'approved' | 'returned'; at: Date }
   /** Sent back with nothing said about why. */
   | { code: 'RETURN_REQUIRES_COMMENT' }
-  /** A rubric-graded submission arrived with criteria left unmarked (plan 50 §4). */
+  /**
+   * A rubric-graded submission arrived with criteria left unmarked (plan 50 §4). For a
+   * `read_aloud` the entries are `itemId:criterionId` — the mark's own key.
+   */
   | { code: 'RUBRIC_INCOMPLETE'; missing: string[] }
+  /** A `read_aloud` prompt with no word to the student about it (plan 70 §3.6, README idea 2). */
+  | { code: 'READ_ALOUD_COMMENT_REQUIRED'; missing: string[] }
   | ContentClientError
   | AttemptDomainError;
 
@@ -45,6 +58,12 @@ export interface ReviewAttemptResult {
    * queue prints under the button. Null for the templates graded per item.
    */
   rubricScore: { points: number; max: number; passScore: number } | null;
+  /**
+   * `read_aloud` only: each prompt's points and verdict (plan 70, Q1-A). `rubricScore` then
+   * carries the sums over prompts and the threshold of one recording — the attempt passes
+   * when every prompt here does, not when the sum clears anything.
+   */
+  promptScores?: Array<{ itemId: string; points: number; max: number; passed: boolean }>;
 }
 
 /**
@@ -90,6 +109,10 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     // the threshold they are measured against, both frozen on the attempt when it was
     // queued (plan 50 §3.2).
     const snapshot = attempt.rubricSnapshot;
+    if (snapshot && attempt.templateCode === READ_ALOUD) {
+      const speaking = readSpeakingSnapshot(snapshot);
+      if (speaking) return this.reviewByPrompt(attempt, command, speaking);
+    }
     if (snapshot) {
       return this.reviewByRubric(attempt, command, snapshot);
     }
@@ -237,6 +260,93 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       approvedItems: scored.approvedItems,
       totalItems: scored.totalItems,
       rubricScore,
+    });
+  }
+
+  /**
+   * The verdict on a `read_aloud`: the rubric once per recording (plan 70 §3.6, Q1-A).
+   *
+   * What `reviewByRubric` does for an essay, a prompt at a time, plus one rule of its own:
+   *
+   * - **Marks are keyed `itemId:criterionId`**, the address the handoff gives a criterion
+   *   of a prompt, and every criterion of every prompt must carry one.
+   * - **Every prompt needs a comment** (README idea 2: «the queue refuses to return a
+   *   verdict with no comment») — on an approval as much as on a return. The comment rides
+   *   in as the note on the prompt (`sentenceComments`) and is stored as its decision.
+   * - **The verdict is derived per prompt.** A prompt passes when its own points reach the
+   *   threshold the author set for one recording; the attempt is approved when every prompt
+   *   passes and returned otherwise. Its score is the percentage of the points summed over
+   *   prompts — for progress and the SRS, never shown as «the mark».
+   * - **Each prompt's verdict reaches the memory** (RA-Q6): `gapResults` keyed by prompt,
+   *   with the prompt's addresses, on both outcomes — and one step weaker when the student
+   *   read a given text aloud (`read`, Q6-A).
+   *
+   * The prompts are the ones the student handed in, read off the submission: that is what
+   * was recorded and what the teacher heard, whatever the exercise holds today.
+   */
+  private async reviewByPrompt(
+    attempt: Attempt,
+    command: ReviewAttemptCommand,
+    snapshot: SpeakingSnapshot,
+  ): Promise<Result<ReviewAttemptResult, ReviewAttemptError>> {
+    const itemIds = (raReadSubmission(attempt.submittedAnswer)?.recordings ?? []).map(
+      (recording) => recording.itemId,
+    );
+    const marks = raReadMarks(command.rubricMarks);
+    const scored = scorePrompts(snapshot, marks, itemIds);
+    if (!scored.complete) {
+      return Result.fail({ code: 'RUBRIC_INCOMPLETE', missing: scored.missing });
+    }
+
+    const comments = foldSentenceComments(command.decisions, command.sentenceComments, 'approved');
+    const commentOf = new Map(comments.map((decision) => [decision.itemId, decision.comment]));
+    const missing = itemIds.filter((itemId) => (commentOf.get(itemId) ?? '').trim() === '');
+    if (missing.length > 0) {
+      return Result.fail({ code: 'READ_ALOUD_COMMENT_REQUIRED', missing });
+    }
+
+    // One decision per prompt, carrying the teacher's comment and the prompt's own verdict —
+    // the learner's card reads both from here (`reviewDecisions`).
+    const decisions: ReviewDecision[] = scored.prompts.map((prompt) => ({
+      itemId: prompt.itemId,
+      approved: prompt.outcome.passed,
+      comment: (commentOf.get(prompt.itemId) ?? '').trim(),
+    }));
+
+    const reviewed = attempt.review({
+      reviewerId: command.reviewerId,
+      outcome: scored.passed ? 'approved' : 'returned',
+      decisions,
+      comment: command.comment,
+      score: scored.percent,
+      passed: scored.passed,
+      approvedItems: scored.points,
+      totalItems: scored.max,
+      rubricMarks: marks,
+      gapResults: scored.prompts.map((prompt) => ({
+        gapKey: prompt.itemId,
+        correct: prompt.outcome.passed,
+      })),
+      evidenceLowered: snapshot.mode === 'read',
+    });
+    if (reviewed.isFail) return Result.fail(toError(reviewed.error));
+
+    await this.attempts.save(attempt);
+    await publishAttemptEvents(this.publisher, attempt);
+
+    return Result.ok({
+      attemptId: attempt.id,
+      status: scored.passed ? 'SCORED' : 'RETURNED',
+      score: scored.passed ? scored.percent : null,
+      approvedItems: scored.points,
+      totalItems: scored.max,
+      rubricScore: { points: scored.points, max: scored.max, passScore: snapshot.passScore },
+      promptScores: scored.prompts.map((prompt) => ({
+        itemId: prompt.itemId,
+        points: prompt.outcome.points,
+        max: prompt.outcome.max,
+        passed: prompt.outcome.passed,
+      })),
     });
   }
 }
