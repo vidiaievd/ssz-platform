@@ -277,6 +277,27 @@ export const BY_TEMPLATE: Readonly<Record<string, TemplateProfile>> = {
     form: 'free',
     modality: 'recall',
   },
+
+  // Speech, recorded and graded by a person (plan 70) — the first row with `output: spoken`, the
+  // channel the table has called unreachable since plan 64. One type, three tasks, and the
+  // document decides between them in `derive.ts`; this row is the `read` task, the type's default.
+  // Reading a known passage aloud: the passage is on screen (`input: text`), and what is retrieved
+  // is how its words sound — `recall`, not `production`, because the learner does not choose a
+  // single word (DECISIONS §5; the handoff's `retrieval`, folded into `modality` by plan 64
+  // decision G). Nothing is offered to pick from: `free`. The subject is structural, and new:
+  // `pronunciation` (plan 70, Q5-A) — a reading graded for kj/sj is about those sounds whichever
+  // passage the author chose, and the words a prompt addresses join that subject rather than
+  // replace it. For a monologue or a dialogue the document clears the hint — «—» in the handoff,
+  // rule 2 above: describing a picture can be about anything — and turns the modality to
+  // `production`, since there the learner chooses the words.
+  read_aloud: {
+    input: 'text',
+    output: 'spoken',
+    focus: ['pronunciation'],
+    focusStructural: true,
+    form: 'free',
+    modality: 'recall',
+  },
 };
 
 /** `undefined` for a code the table does not know — a new template, or a typo. */

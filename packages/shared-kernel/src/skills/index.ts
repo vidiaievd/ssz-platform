@@ -26,7 +26,7 @@ export type { TemplateProfile } from './by-template.js';
 export { BY_TEMPLATE, templateProfile } from './by-template.js';
 
 export type { AtomRef, DeriveInput, DerivedProfile, Placement, SkillOverride } from './derive.js';
-export { deriveSkills } from './derive.js';
+export { deriveSkills, structuralFocus } from './derive.js';
 
 export type {
   Coverage,

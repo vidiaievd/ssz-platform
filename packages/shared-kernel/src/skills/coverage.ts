@@ -76,7 +76,7 @@ function emptySkillTally(): SkillTally {
 }
 
 function emptyFocusTally(): FocusTally {
-  return { vocabulary: 0, grammar: 0, orthography: 0, pragmatics: 0, unknown: 0 };
+  return { vocabulary: 0, grammar: 0, orthography: 0, pronunciation: 0, pragmatics: 0, unknown: 0 };
 }
 
 function emptyFormTally(): FormTally {

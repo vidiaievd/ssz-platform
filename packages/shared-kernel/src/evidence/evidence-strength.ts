@@ -236,6 +236,18 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   // a bank of three or fewer. The forms may be reused, so the bank does not shrink as it is spent.
   // The first-letter hint hands part of the answer over and is sent as `lowered` (decision Q3-A).
   inflection_table: FREE_PRODUCTION,
+
+  // Plan 70. Speech, which nothing machine-grades: every verdict is a teacher's. The handoff asks
+  // for two scales — a monologue or a dialogue "ceiling high, floor medium" (unscripted speech is
+  // the strongest evidence the platform collects, and a weak recording can be nerves), a reading
+  // aloud "ceiling medium, floor low" (a clean reading proves decoding, not production). The row
+  // is the first; the engine sends `lowered` on a reading, which brings the ceiling to medium as
+  // asked and leaves the floor at medium rather than low — the one place this falls short of the
+  // handoff, since a row cannot depend on the document (decision Q6-A).
+  // Read this row knowing how little it does here: learning-service does not clamp a person's
+  // verdict at all (`reviewOutcome`, plan 63 §4 — a teacher has already removed the doubt the
+  // ceilings exist for), so for this type it rates only atoms in the `context` role.
+  read_aloud: FREE_PRODUCTION,
 };
 
 /**

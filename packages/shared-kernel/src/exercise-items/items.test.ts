@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { sampleContent, toContent, toExpectedAnswers } from '../inflection-table/index.js';
 import type { InflectionTableContent } from '../inflection-table/index.js';
+import {
+  sampleDocument as readAloudSample,
+  setMode as setReadAloudMode,
+  setPrompt as setReadAloudPrompt,
+  toContent as readAloudContent,
+  toExpectedAnswers as readAloudAnswers,
+  type ReadAloudContent,
+} from '../read-aloud/index.js';
 import { derivedTargetsOf, isAddressableTemplate, itemsOf } from './items.js';
 
 /** The kernel's sample table, persisted the way content-service stores it. */
@@ -252,5 +260,29 @@ describe('derivedTargetsOf (plan 69, Q1-B)', () => {
     expect(derivedTargetsOf('sort_into_buckets', {}, {})).toEqual([]);
     expect(derivedTargetsOf('inflection_table', null, null)).toEqual([]);
     expect(derivedTargetsOf('inflection_table', { rows: 'not an array' }, {})).toEqual([]);
+  });
+});
+
+describe('read_aloud (plan 70)', () => {
+  const items = (ex: ReadAloudContent) => itemsOf('read_aloud', readAloudContent(ex), readAloudAnswers(ex));
+
+  it('addresses each prompt by its id, focus words first among the words to match', () => {
+    expect(isAddressableTemplate('read_aloud')).toBe(true);
+    const [first, second] = items(readAloudSample())!;
+    expect(first!.key).toBe('p1aaaa');
+    expect(first!.label.startsWith('Avsnitt 1 — Jeg søkte på jobben')).toBe(true);
+    expect(first!.matchValues.slice(0, 3)).toEqual(['søkte', 'Kjetil', 'Kirkegata']);
+    expect(second!.key).toBe('p2bbbb');
+  });
+
+  it('leaves out a prompt with nothing to record and reads the material of the mode', () => {
+    const dialogue = setReadAloudPrompt(setReadAloudMode(readAloudSample(), 'dialogue'), 'p1aaaa', {
+      label: '',
+      turn: { situation: '', partner: 'Hva kan jeg hjelpe deg med?' },
+    });
+    const out = items(dialogue)!;
+    expect(out.map((i) => i.key)).toEqual(['p1aaaa']);
+    expect(out[0]!.label).toBe('P1 — Hva kan jeg hjelpe deg med?');
+    expect(out[0]!.matchValues).not.toContain('søkte');
   });
 });

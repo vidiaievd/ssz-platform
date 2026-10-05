@@ -10,6 +10,12 @@ import {
   gradedCells,
   packOf,
 } from '../inflection-table/index.js';
+import {
+  fromPersisted as readAloudFromPersisted,
+  hasMaterial,
+  planOf,
+} from '../read-aloud/index.js';
+import { tokenize } from '../text/words.js';
 import type { DerivedTarget, ExerciseItem, ExerciseItems } from './model.js';
 
 // A stand-in envelope for the fields no reader here cares about. The kernel's `fromPersisted`
@@ -24,7 +30,8 @@ const ENVELOPE = { id: '', moduleId: '', title: '', instructions: '', updatedAt:
  * be joined to evidence about it. `sort_into_buckets` joined with plan 66: its verdict is per
  * item by design, and the engine sends it (decision Q3-A). `highlight_in_text` joined with
  * plan 67: its verdict is per question, sent the same way. `dictation` joined with plan 68:
- * its verdict is per sentence. `inflection_table` joined with plan 69: its verdict is per cell. A
+ * its verdict is per sentence. `inflection_table` joined with plan 69: its verdict is per cell.
+ * `read_aloud` joined with plan 70: one prompt, one recording, one verdict from the teacher. A
  * template that grades as a whole gains nothing from per-piece targets — the evidence would
  * all carry the same verdict anyway — so it addresses the exercise and no more.
  *
@@ -37,6 +44,7 @@ export const ADDRESSABLE_TEMPLATES: readonly string[] = [
   'highlight_in_text',
   'dictation',
   'inflection_table',
+  'read_aloud',
 ];
 
 export function isAddressableTemplate(templateCode: string): boolean {
@@ -68,6 +76,8 @@ export function itemsOf(
       return dictationItems(content, expectedAnswers);
     case 'inflection_table':
       return inflectionItems(content, expectedAnswers);
+    case 'read_aloud':
+      return readAloudItems(content, expectedAnswers);
     default:
       return null;
   }
@@ -257,4 +267,40 @@ function clip(text: string, max: number): string {
   const cut = text.slice(0, max);
   const space = cut.lastIndexOf(' ');
   return `${(space > 0 ? cut.slice(0, space) : cut).replace(/[\s,;:]+$/, '')}…`;
+}
+
+/**
+ * A prompt — `itemKey = itemId` of the handoff (README «Addressing»): one prompt, one recording,
+ * one verdict. Labelled by the author's label, or `P2`, and the start of its material. What a
+ * suggester matches are the words of the material of the current mode — the passage, the plan,
+ * the partner's line — focus words first, since they are what the teacher listens for. A prompt
+ * with no material yet is not a target (it cannot be recorded). The rubric criteria are not
+ * addressed: they are not atoms of the platform (plan 70, Q4-A).
+ */
+function readAloudItems(content: unknown, expectedAnswers: unknown): ExerciseItem[] {
+  try {
+    const document = readAloudFromPersisted(content, expectedAnswers);
+    return document.prompts.flatMap((prompt, index) => {
+      if (!hasMaterial(prompt, document.mode)) return [];
+      const material =
+        document.mode === 'read'
+          ? prompt.text
+          : document.mode === 'monologue'
+            ? planOf(prompt).map((p) => p.text).join(' · ') || prompt.image.caption
+            : prompt.turn.partner;
+      const value = material.trim().replace(/\s+/g, ' ');
+      const name = prompt.label.trim() || `P${index + 1}`;
+      const focused = document.mode === 'read' ? prompt.focus.map((f) => f.word) : [];
+      return [
+        {
+          key: prompt.id,
+          label: value === '' ? name : `${name} — ${clip(value, DICTATION_LABEL_LENGTH)}`,
+          value,
+          matchValues: [...new Set([...focused, ...tokenize(material).map((t) => t.w)])],
+        },
+      ];
+    });
+  } catch {
+    return [];
+  }
 }

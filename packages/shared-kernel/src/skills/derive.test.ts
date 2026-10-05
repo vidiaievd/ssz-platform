@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { BY_TEMPLATE } from './by-template.js';
-import { deriveSkills } from './derive.js';
+import { deriveSkills, structuralFocus } from './derive.js';
 import { channelsOf, FOCUSES } from './model.js';
 
 describe('the table', () => {
@@ -18,6 +18,7 @@ describe('the table', () => {
         'match_pairs',
         'multiple_choice',
         'multiple_choice_group',
+        'read_aloud',
         'sentence_schema',
         'short_answer',
         'sort_into_buckets',
@@ -36,9 +37,11 @@ describe('the table', () => {
       expect(profile.focus, code).toEqual(FOCUSES.filter((f) => profile.focus.includes(f)));
   });
 
-  it('never claims spoken: nothing on the platform records speech', () => {
-    for (const [code, profile] of Object.entries(BY_TEMPLATE))
-      expect(channelsOf(profile.input, profile.output), code).not.toContain('spoken');
+  it('claims spoken only for read_aloud — the one type that records speech (plan 70)', () => {
+    for (const [code, profile] of Object.entries(BY_TEMPLATE)) {
+      const spoken = channelsOf(profile.input, profile.output).includes('spoken');
+      expect(spoken, code).toBe(code === 'read_aloud');
+    }
   });
 
   it('counts the same channels per template as before the split (plan 64, phase 6)', () => {
@@ -621,5 +624,60 @@ describe('what the split must not move', () => {
         const r = deriveSkills({ templateCode: 'word_bank_gap_fill', content, placement });
         expect([r.form, r.modality], `word_bank_gap_fill ${doc}`).toEqual(gapFill[doc]);
       }
+  });
+});
+
+describe('read_aloud, three tasks in one type (plan 70 §3.9)', () => {
+  const doc = (mode: string, extra: Record<string, unknown> = {}) => ({
+    mode,
+    prompts: [{ id: 'p1', image: { assetId: '' } }],
+    ...extra,
+  });
+
+  it('reads aloud: text in, spoken out, recall, pronunciation', () => {
+    const p = deriveSkills({ templateCode: 'read_aloud', content: doc('read') });
+    expect([p.input, p.output, p.modality, p.form]).toEqual(['text', 'spoken', 'recall', 'free']);
+    expect(p.skills).toEqual(['reading', 'spoken']);
+    expect(p.focus).toEqual(['pronunciation']);
+    expect(p.focusSource).toBe('template');
+  });
+
+  it('turns a monologue and a dialogue into production with no subject of their own', () => {
+    for (const mode of ['monologue', 'dialogue']) {
+      const p = deriveSkills({ templateCode: 'read_aloud', content: doc(mode) });
+      expect(p.modality, mode).toBe('production');
+      expect(p.modalitySource, mode).toBe('document');
+      expect(p.focus, mode).toEqual([]);
+      expect(structuralFocus('read_aloud', doc(mode)), mode).toEqual([]);
+    }
+    expect(structuralFocus('read_aloud', doc('read'))).toEqual(['pronunciation']);
+  });
+
+  it('hears a model reading or a partner line as audio', () => {
+    const heard = { audio: { enabled: true } };
+    expect(deriveSkills({ templateCode: 'read_aloud', content: doc('read', heard) }).input).toBe('audio');
+    expect(deriveSkills({ templateCode: 'read_aloud', content: doc('dialogue', heard) }).skills).toEqual([
+      'listening',
+      'spoken',
+    ]);
+  });
+
+  it('takes in a picture for a picture monologue, even with a clip on', () => {
+    const pictured = doc('monologue', {
+      prompts: [{ id: 'p1', image: { assetId: 'img' } }],
+      audio: { enabled: true },
+    });
+    expect(deriveSkills({ templateCode: 'read_aloud', content: pictured }).input).toBe('image');
+  });
+
+  it('keeps pronunciation beside the words a reading addresses, and drops it for a monologue', () => {
+    const atoms = [{ atomType: 'vocabulary_item', itemKey: 'p1' }];
+    expect(deriveSkills({ templateCode: 'read_aloud', content: doc('read'), atoms }).focus).toEqual([
+      'vocabulary',
+      'pronunciation',
+    ]);
+    expect(deriveSkills({ templateCode: 'read_aloud', content: doc('monologue'), atoms }).focus).toEqual([
+      'vocabulary',
+    ]);
   });
 });
