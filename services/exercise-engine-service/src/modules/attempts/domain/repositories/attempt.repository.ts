@@ -95,6 +95,16 @@ export interface PendingSchoolRow {
 export interface IAttemptRepository {
   findById(id: string): Promise<Attempt | null>;
   findInProgress(userId: string, exerciseId: string): Promise<Attempt | null>;
+  /**
+   * The learner's newest attempt at this exercise when it is a whole-board check that has been
+   * scored but not closed — checks left, nothing finished (plan 69, phase 9).
+   *
+   * A whole board is scored by its first check, so unlike a question-by-question template it
+   * never sits `IN_PROGRESS` between checks; without this a reload starts a fresh attempt and
+   * with it a fresh budget and a fresh first try. `null` when the newest attempt is anything
+   * else, closed included.
+   */
+  findOpenBoard(userId: string, exerciseId: string): Promise<Attempt | null>;
   /** The most recent RETURNED attempt for this exercise — feeds attemptNo/previousAttemptId on the next try. */
   findLatestReturned(userId: string, exerciseId: string): Promise<Attempt | null>;
   findAllInProgressByExercise(exerciseId: string): Promise<Attempt[]>;

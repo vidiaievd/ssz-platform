@@ -3,6 +3,7 @@ import { ReviewContextResolver } from '../../../src/modules/attempts/application
 import { StartAttemptHandler } from '../../../src/modules/attempts/application/commands/start-attempt/start-attempt.handler.js';
 import { StartAttemptCommand } from '../../../src/modules/attempts/application/commands/start-attempt/start-attempt.command.js';
 import { Result } from '../../../src/shared/kernel/result.js';
+import { Attempt } from '../../../src/modules/attempts/domain/entities/attempt.entity.js';
 import { attemptShuffle } from '../../../src/shared/application/services/multiple-choice-attempt.js';
 import { toStudentProjection as mcToStudentProjection } from '@ssz/shared-kernel/multiple-choice';
 import {
@@ -129,6 +130,7 @@ function makeHandlerByMode(templateCode: string, byMode: DefinitionByMode) {
   const modes: string[] = [];
   const attempts = {
     findInProgress: jest.fn(() => Promise.resolve(null)),
+    findOpenBoard: jest.fn(() => Promise.resolve(null)),
     findLatestReturned: jest.fn(() => Promise.resolve(null)),
     save: jest.fn(),
   };
@@ -176,7 +178,7 @@ function makeHandlerByMode(templateCode: string, byMode: DefinitionByMode) {
     publisher as any,
   );
 
-  return { handler, modes };
+  return { handler, modes, attempts };
 }
 
 const practice = new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE');
@@ -1312,5 +1314,81 @@ describe('StartAttemptHandler — inflection_table', () => {
     expect(projection.rows).toHaveLength(4);
     expect(projection.settings).toMatchObject({ attempts: 1, revealKey: 'never' });
     expect(JSON.stringify(projection.rows)).not.toContain('"hint"');
+  });
+
+  // Plan 69, phase 9: a whole board is scored by its first check, so it is never IN_PROGRESS
+  // between checks. An open one is handed back as it stands — same attempt, same dealt board,
+  // and the check the learner already saw — rather than starting over with a fresh budget.
+  describe('an open board', () => {
+    const scored = (details: unknown) =>
+      Attempt.reconstitute({
+        id: 'attempt-board',
+        userId: 'user-1',
+        exerciseId: 'ex-1',
+        assignmentId: null,
+        enrollmentId: null,
+        templateCode: 'inflection_table',
+        targetLanguage: 'no',
+        difficultyLevel: 'B1',
+        checkMode: 'PRACTICE',
+        practicedAtoms: [],
+        status: 'SCORED',
+        score: 83,
+        passed: true,
+        timeSpentSeconds: 12,
+        submittedAnswer: null,
+        validationDetails: details,
+        feedback: null,
+        answerHash: null,
+        revisionCount: 0,
+        answersRevealed: false,
+        selfChecksUsed: 0,
+        startedAt: new Date(),
+        submittedAt: null,
+        scoredAt: new Date(),
+        reviewedByUserId: null,
+        reviewedAt: null,
+        reviewComment: null,
+        reviewDecisions: null,
+        schoolId: null,
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        reviewClaimedBy: null,
+        reviewClaimedAt: null,
+        previousAttemptId: null,
+        autoPassedItems: null,
+        totalItems: 12,
+        answeredQuestions: [],
+        checkedRows: [],
+      } as any);
+
+    const check = { attempt: 1, checksLeft: 1, closed: false, locked: ['r1:defSg'], items: [], rows: [] };
+
+    it('resumes the scored attempt with the check it ended on', async () => {
+      const { content, expectedAnswers } = columns(itSampleContent());
+      const { handler, attempts } = makeHandlerByMode('inflection_table', () => ({ content, expectedAnswers }));
+      attempts.findOpenBoard.mockResolvedValue(scored(check) as never);
+
+      const result = (await handler.execute(practice)).value;
+
+      expect(result.attemptId).toBe('attempt-board');
+      expect(result.boardCheck).toEqual(check);
+      expect(attempts.save).not.toHaveBeenCalled();
+      // The same board: dealt from the attempt's own id, like the first time.
+      const expected = itToStudentProjection(content, expectedAnswers, (items) => sbShuffled(items, seedFrom('attempt-board')));
+      expect((result.exerciseContent as Projection).rows.map((r) => r.id)).toEqual(expected.rows.map((r) => r.id));
+    });
+
+    it('starts afresh, with no check to show, when nothing is open', async () => {
+      const { content, expectedAnswers } = columns(itSampleContent());
+      const { handler, attempts } = makeHandlerByMode('inflection_table', () => ({ content, expectedAnswers }));
+
+      const result = (await handler.execute(practice)).value;
+
+      expect(attempts.findOpenBoard).toHaveBeenCalledWith('user-1', 'ex-1');
+      expect(result.boardCheck).toBeNull();
+      expect(attempts.save).toHaveBeenCalled();
+    });
   });
 });

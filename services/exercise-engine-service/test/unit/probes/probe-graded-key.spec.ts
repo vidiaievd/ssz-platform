@@ -41,6 +41,7 @@ function makeHandler() {
   const saved: Array<{ ephemeral: boolean; itemTargets: unknown[]; modality: string }> = [];
   const attempts = {
     findInProgress: jest.fn(async () => null),
+    findOpenBoard: jest.fn(async () => null),
     findLatestReturned: jest.fn(async () => null),
     save: jest.fn(
       async (attempt: { ephemeral: boolean; itemTargets: unknown[]; modality: string }) => {

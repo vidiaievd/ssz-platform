@@ -180,6 +180,15 @@ export interface StartAttemptResult {
    * key the student was not already shown by a check.
    */
   segmentStates: SegmentState[];
+  /**
+   * The last check of a whole board that was scored but left open, for `inflection_table` and
+   * nothing else yet (plan 69, phase 9): what each cell was, whether it was right, which are
+   * frozen, how many checks are left. It is the details the check itself returned, so it holds
+   * nothing the student was not already shown. `null` for a fresh attempt and every other
+   * template. A runner that gets it puts the cells and the verdict back instead of an empty
+   * table.
+   */
+  boardCheck: unknown | null;
 }
 
 /**
@@ -626,7 +635,11 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
   async execute(
     command: StartAttemptCommand,
   ): Promise<Result<StartAttemptResult, StartAttemptError>> {
-    const existing = await this.attempts.findInProgress(command.userId, command.exerciseId);
+    // A whole board is scored by its first check and so is never `IN_PROGRESS` between checks;
+    // an open one is looked for first, or a reload would start over with a fresh budget.
+    const board = await this.attempts.findOpenBoard(command.userId, command.exerciseId);
+    const existing =
+      board ?? (await this.attempts.findInProgress(command.userId, command.exerciseId));
 
     /*
      * An open attempt that already holds answers is resumed rather than reported as a
@@ -674,6 +687,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         existing.checkedRows.length > 0 ||
         existing.pickedOptions.length > 0 ||
         itemStatesOf(existing).length > 0 ||
+        board !== null ||
         existing.id === command.joinAttemptId)
     ) {
       const resumedDef = await this.contentClient.getExerciseForAttempt(
@@ -735,6 +749,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         ),
         questionStates: questionStatesOf(existing),
         segmentStates: segmentStatesOf(existing),
+        boardCheck: board === null ? null : board.validationDetails,
       });
     }
 
@@ -840,6 +855,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       pickedOptions: [],
       questionStates: [],
       segmentStates: [],
+      boardCheck: null,
     });
   }
 
