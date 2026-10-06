@@ -13,6 +13,7 @@ import {
   left,
   micOk,
   micSilent,
+  nextTakeNumber,
   reduce,
   sentTakes,
   shortOnes,
@@ -154,6 +155,39 @@ describe('takes', () => {
     expect(left(s, cfg, 'p1')).toBe(3);
     // The next start clears the notice.
     expect(run(cfg, [{ type: 'begin' }], s).notice).toBeNull();
+  });
+
+  it('a take the server refused goes, and gives its slot back (decided 06.10)', () => {
+    const cfg = config({ micCheck: false });
+    let s = run(cfg, [...record(6, 'a'), ...record(7, 'b'), ...record(8, 'c')]);
+    expect(left(s, cfg, 'p1')).toBe(0);
+    s = run(cfg, [{ type: 'choose', index: 1 }, { type: 'refused', itemId: 'p1', n: 2 }], s);
+    expect(takesOf(s, 'p1').map((t) => t.ref)).toEqual(['a', 'c']);
+    expect(left(s, cfg, 'p1')).toBe(1);
+    // The refused one was the pick: back to the default, the last take.
+    expect(chosenTake(s, cfg, 'p1')?.ref).toBe('c');
+    // A new take never reuses the gap — numbers are identities, not places.
+    s = run(cfg, record(9, 'd'), s);
+    expect(takesOf(s, 'p1').map((t) => t.n)).toEqual([1, 3, 4]);
+  });
+
+  it('a refusal keeps a pick on another take pointing at the same take', () => {
+    const cfg = config({ micCheck: false });
+    let s = run(cfg, [...record(6, 'a'), ...record(7, 'b'), ...record(8, 'c')]);
+    s = run(cfg, [{ type: 'choose', index: 2 }, { type: 'refused', itemId: 'p1', n: 1 }], s);
+    expect(chosenTake(s, cfg, 'p1')?.ref).toBe('c');
+    s = run(cfg, [{ type: 'refused', itemId: 'p1', n: 2 }, { type: 'refused', itemId: 'p1', n: 3 }], s);
+    expect(takesOf(s, 'p1')).toHaveLength(0);
+    expect(s.chosen['p1']).toBeUndefined();
+  });
+
+  it('ignores a refusal while the microphone is open, and for a take it does not hold', () => {
+    const cfg = config({ micCheck: false });
+    const s = run(cfg, record(6, 'a'));
+    expect(run(cfg, [{ type: 'refused', itemId: 'p1', n: 9 }], s)).toBe(s);
+    const recording = run(cfg, [{ type: 'begin' }, { type: 'startNow' }], s);
+    expect(run(cfg, [{ type: 'refused', itemId: 'p1', n: 1 }], recording)).toBe(recording);
+    expect(nextTakeNumber([])).toBe(1);
   });
 
   it('a refused or missing microphone is a state, and retry asks again', () => {

@@ -112,6 +112,7 @@ export {
   MIC_OK_MS,
   MIC_SILENT_MS,
   micOk,
+  nextTakeNumber,
   micSilent,
   recordedCount,
   recordedShare,

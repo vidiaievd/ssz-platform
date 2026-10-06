@@ -22,6 +22,11 @@
 // An interruption — the track ended, the device changed, a call came in, the page went to the
 // background — returns to `idle` with a notice and **no take**: it was not the student's attempt,
 // and it does not spend one (plan 70 §8 item 4).
+//
+// A take the server refused at hand-in — its file gone, broken, or of a length the server measured
+// outside the prompt's range — is taken back the same way (`refused`): the student did record, but
+// what reached the teacher would be nothing, and a budget spent on nothing locks the prompt with
+// no way out (decided 06.10, phase 6 follow-up).
 
 import { recordLimit } from './limits.js';
 import type { Recording } from './model.js';
@@ -40,7 +45,10 @@ export type Phase =
 export type UploadState = 'pending' | 'done' | 'failed';
 
 export interface Take {
-  /** 1-based, in the order recorded. */
+  /**
+   * 1-based, in the order recorded, unique within its prompt — an identity, not a position: a
+   * refused take leaves a gap. Screens number takes by their place in the list.
+   */
   n: number;
   seconds: number;
   /** The adapter's handle on the bytes (`blob:` URL, file path); null once restored from a draft. */
@@ -98,6 +106,8 @@ export type RecorderEvent =
   | { type: 'uploaded'; itemId: string; n: number; assetId: string }
   | { type: 'uploadFailed'; itemId: string; n: number }
   | { type: 'uploadRetry'; itemId: string; n: number }
+  /** The server would not take this take at hand-in; it goes, and its slot is given back. */
+  | { type: 'refused'; itemId: string; n: number }
   | {
       type: 'restore';
       takes: Record<string, { n: number; seconds: number; assetId: string }[]>;
@@ -184,7 +194,13 @@ export function reduce(
       if (!prompt || (state.phase !== 'rec' && state.phase !== 'stopping')) return state;
       const own = state.takes[prompt.id] ?? [];
       const seconds = clampSeconds(event.seconds ?? state.t, prompt.maxSeconds);
-      const take: Take = { n: own.length + 1, seconds, ref: event.ref, assetId: null, upload: 'pending' };
+      const take: Take = {
+        n: nextTakeNumber(own),
+        seconds,
+        ref: event.ref,
+        assetId: null,
+        upload: 'pending',
+      };
       return {
         ...state,
         phase: 'review',
@@ -233,6 +249,23 @@ export function reduce(
     case 'uploadRetry':
       return patchTake(state, event.itemId, event.n, { upload: 'pending' });
 
+    case 'refused': {
+      if (COUNTING.includes(state.phase)) return state;
+      const own = state.takes[event.itemId] ?? [];
+      const at = own.findIndex((t) => t.n === event.n);
+      if (at < 0) return state;
+      const rest = own.filter((_, i) => i !== at);
+      const takes = { ...state.takes };
+      if (rest.length > 0) takes[event.itemId] = rest;
+      else delete takes[event.itemId];
+      const chosen = { ...state.chosen };
+      const picked = chosen[event.itemId];
+      // The pick follows its take; a refused pick falls back to the default — the last one.
+      if (picked === undefined || picked === at || rest.length === 0) delete chosen[event.itemId];
+      else if (picked > at) chosen[event.itemId] = picked - 1;
+      return { ...state, takes, chosen };
+    }
+
     case 'restore': {
       const takes: Record<string, Take[]> = {};
       for (const p of config.prompts) {
@@ -265,6 +298,11 @@ export function reduce(
     case 'reset':
       return initialState(config);
   }
+}
+
+/** The number the next take at a prompt gets — past the highest, so a gap is never reused. */
+export function nextTakeNumber(own: readonly Take[]): number {
+  return own.reduce((n, t) => Math.max(n, t.n), 0) + 1;
 }
 
 function afterIdle(prompt: RecorderPrompt, config: RecorderConfig): Phase {
