@@ -19,6 +19,8 @@ export class MediaAssetMapper {
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt,
+      durationMs: raw.durationMs,
+      peaks: readPeaks(raw.peaks),
     });
   }
 
@@ -37,6 +39,8 @@ export class MediaAssetMapper {
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,
+      durationMs: entity.durationMs,
+      peaks: entity.peaks ?? undefined,
     };
   }
 
@@ -48,6 +52,14 @@ export class MediaAssetMapper {
       uploadedAt: entity.uploadedAt,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,
+      durationMs: entity.durationMs,
+      peaks: entity.peaks ?? undefined,
     };
   }
+}
+
+// `peaks` is JSON in the database; anything that is not a list of numbers is treated as absent.
+function readPeaks(value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.every((v) => typeof v === 'number') ? (value as number[]) : null;
 }

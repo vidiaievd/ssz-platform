@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { SUBMISSION_RECORDING } from '../../domain/policies/recording-policy.js';
 import type {
   FindAssetsOptions,
   IMediaAssetRepository,
+  RecordingSweepCursor,
 } from '../../domain/repositories/media-asset.repository.interface.js';
 import { MediaAssetEntity } from '../../domain/entities/media-asset.entity.js';
 import { MediaAssetMapper } from './mappers/media-asset.mapper.js';
@@ -21,6 +23,12 @@ export class PrismaMediaAssetRepository implements IMediaAssetRepository {
       where: { id, ownerId },
     });
     return raw ? MediaAssetMapper.toDomain(raw) : null;
+  }
+
+  async findByIds(ids: readonly string[]): Promise<MediaAssetEntity[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.prisma.mediaAsset.findMany({ where: { id: { in: [...ids] } } });
+    return rows.map((row) => MediaAssetMapper.toDomain(row));
   }
 
   async findMany(options: FindAssetsOptions): Promise<MediaAssetEntity[]> {
@@ -47,6 +55,31 @@ export class PrismaMediaAssetRepository implements IMediaAssetRepository {
         ...(!options.includeDeleted ? { deletedAt: null } : {}),
       },
     });
+  }
+
+  async findRecordingsOlderThan(
+    olderThan: Date,
+    after: RecordingSweepCursor | null,
+    limit: number,
+  ): Promise<MediaAssetEntity[]> {
+    const rows = await this.prisma.mediaAsset.findMany({
+      where: {
+        entityType: SUBMISSION_RECORDING,
+        status: { not: 'DELETED' },
+        createdAt: { lt: olderThan },
+        ...(after === null
+          ? {}
+          : {
+              OR: [
+                { createdAt: { gt: after.createdAt } },
+                { createdAt: after.createdAt, id: { gt: after.id } },
+              ],
+            }),
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: limit,
+    });
+    return rows.map((row) => MediaAssetMapper.toDomain(row));
   }
 
   async save(entity: MediaAssetEntity): Promise<void> {

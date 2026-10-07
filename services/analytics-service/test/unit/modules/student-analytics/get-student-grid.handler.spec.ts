@@ -81,10 +81,10 @@ describe('a learner with nothing measured', () => {
   it('still returns the whole grid — the shape of the emptiness is the screen', async () => {
     const result = await handlerFor().execute(query);
 
-    // Four channels by five subjects, and every pair present.
-    expect(result.cells).toHaveLength(20);
+    // Four channels by six subjects (`pronunciation` since plan 70), and every pair present.
+    expect(result.cells).toHaveLength(24);
     expect(new Set(result.cells.map((cell) => cell.skill)).size).toBe(4);
-    expect(new Set(result.cells.map((cell) => cell.focus)).size).toBe(5);
+    expect(new Set(result.cells.map((cell) => cell.focus)).size).toBe(6);
   });
 });
 
@@ -156,6 +156,6 @@ describe('the measured cells', () => {
     }).execute(query);
 
     expect(result.unclassifiedAttempts).toBe(40);
-    expect(result.cells).toHaveLength(20);
+    expect(result.cells).toHaveLength(24);
   });
 });

@@ -42,6 +42,14 @@ export interface AttemptReturnedPayload {
   templateCode: string;
   /** The whole exercise's addresses — a free-form template grades as one (plan 63 §2 D). */
   targets?: AttemptTarget[];
+  /**
+   * The verdict per item, for a template a person rules on item by item — a `read_aloud`
+   * returns with each prompt passed or not (plan 70 §3.6). The consumer reads it on a return
+   * exactly as on an approval: the memory moves per prompt, the progress not at all.
+   */
+  gapResults?: Array<{ gapKey: string; correct: boolean; targets?: AttemptTarget[] }>;
+  /** See `AttemptScoredPayload.evidenceLowered` — the same reading of the same document. */
+  evidenceLowered?: boolean;
   modality: Modality;
   /**
    * The task was a disposable probe (plan 63 phase 9).

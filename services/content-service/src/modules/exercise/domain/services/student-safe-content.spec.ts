@@ -1,3 +1,8 @@
+import {
+  sampleDocument as readAloudSample,
+  toContent as readAloudContent,
+  toExpectedAnswers as readAloudKey,
+} from '@ssz/shared-kernel/read-aloud';
 import { sampleContent, toContent, toExpectedAnswers } from '@ssz/shared-kernel/inflection-table';
 import { studentSafeContent } from './student-safe-content.js';
 
@@ -1409,5 +1414,90 @@ describe('inflection_table', () => {
     for (const row of p.rows) {
       expect(Object.values(row.cells).every((c) => c['mode'] === 'prefill')).toBe(true);
     }
+  });
+});
+
+describe('read_aloud', () => {
+  // Plan 70 §3.2, RA-M5/M6: the student payload carries the material of the current mode, the three
+  // numbers per prompt and the recorder's dials. No listening note, no focus word, no pass mark,
+  // no AI stage; the rubric only under `showRubric: 'always'`, and then only the visible criteria.
+  const doc = readAloudSample();
+  const content = readAloudContent(doc) as unknown as Record<string, unknown>;
+  const key = readAloudKey(doc) as unknown as Record<string, unknown>;
+
+  type Projection = Record<string, unknown> & {
+    prompts: Array<Record<string, unknown>>;
+    settings: Record<string, unknown>;
+    rubric?: Array<Record<string, unknown>>;
+  };
+  const project = (c: Record<string, unknown> = content, k: Record<string, unknown> = key) =>
+    studentSafeContent('read_aloud', c, k) as unknown as Projection;
+  const withSettings = (patch: Record<string, unknown>) => ({
+    ...content,
+    settings: { ...(content['settings'] as object), ...patch },
+  });
+
+  it('ships the passage and the numbers of a prompt, and the three settings the runner reads', () => {
+    const p = project();
+    expect(Object.keys(p.prompts[0]).sort()).toEqual([
+      'id',
+      'label',
+      'maxSeconds',
+      'minSeconds',
+      'prepSeconds',
+      'text',
+    ]);
+    expect(Object.keys(p.settings).sort()).toEqual(['revision', 'showModel', 'showRubric']);
+    expect(p.rubric).toBeUndefined();
+  });
+
+  it('never ships the pass mark, the AI stage, a note, a focus word or a level descriptor', () => {
+    const p = project();
+    expect(p['review']).toBeUndefined();
+    expect(p.settings['passScore']).toBeUndefined();
+    const json = JSON.stringify(p);
+    for (const prompt of doc.prompts) {
+      expect(json).not.toContain(prompt.note);
+      for (const f of prompt.focus) expect(json).not.toContain(f.note);
+    }
+    for (const c of doc.rubric) {
+      for (const level of c.levels) if (level !== '') expect(json).not.toContain(level);
+    }
+  });
+
+  it('ships the visible criteria with their descriptors only under showRubric always', () => {
+    const hidden = {
+      ...content,
+      rubric: (content['rubric'] as object[]).map((c, i) => ({ ...c, studentVisible: i === 0 })),
+    };
+    expect(project(withSettings({ showRubric: 'afterGraded' })).rubric).toBeUndefined();
+    expect(project(withSettings({ showRubric: 'never' })).rubric).toBeUndefined();
+    const always = project({
+      ...hidden,
+      settings: { ...(content['settings'] as object), showRubric: 'always' },
+    });
+    expect(always.rubric).toHaveLength(1);
+    expect(Object.keys(always.rubric![0]).sort()).toEqual(['desc', 'id', 'levels', 'name']);
+  });
+
+  it('ships the material of the current mode alone', () => {
+    const dialogue = project({
+      ...content,
+      mode: 'dialogue',
+      prompts: (content['prompts'] as Array<Record<string, unknown>>).map((p) => ({
+        ...p,
+        turn: { situation: 'På kafé', partner: 'Hva vil du ha?' },
+      })),
+    });
+    expect(dialogue.prompts[0]['text']).toBeUndefined();
+    expect(dialogue.prompts[0]['turn']).toEqual({
+      situation: 'På kafé',
+      partner: 'Hva vil du ha?',
+    });
+  });
+
+  it('keeps the audio block beside the projection', () => {
+    const p = project({ ...content, audio: { enabled: false } });
+    expect(p['audio']).toBeDefined();
   });
 });

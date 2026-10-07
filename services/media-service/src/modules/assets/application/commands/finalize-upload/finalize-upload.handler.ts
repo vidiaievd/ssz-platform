@@ -10,6 +10,10 @@ import { STORAGE_SERVICE, isPublicEntityType } from '../../../../../shared/appli
 import type { IStorageService } from '../../../../../shared/application/ports/storage.port.js';
 import { EVENT_PUBLISHER } from '../../../../../shared/application/ports/event-publisher.port.js';
 import type { IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
+import { AUDIO_INSPECTOR } from '../../../../../shared/application/ports/audio-inspector.port.js';
+import type { IAudioInspector } from '../../../../../shared/application/ports/audio-inspector.port.js';
+import type { MediaAssetEntity } from '../../../domain/entities/media-asset.entity.js';
+import { checkRecordingDuration, checkRecordingSize } from '../../../domain/policies/recording-policy.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import { QUEUE_IMAGE_PROCESSING, QUEUE_AUDIO_PROCESSING } from '../../../../../infrastructure/queues/queue-names.js';
 import { Result } from '../../../../../shared/kernel/result.js';
@@ -32,6 +36,8 @@ export class FinalizeUploadHandler implements ICommandHandler<FinalizeUploadComm
     @InjectQueue(QUEUE_AUDIO_PROCESSING)
     private readonly audioQueue: Queue,
     private readonly prisma: PrismaService,
+    @Inject(AUDIO_INSPECTOR)
+    private readonly audio: IAudioInspector,
   ) {}
 
   async execute(command: FinalizeUploadCommand): Promise<FinalizeUploadResult> {
@@ -47,6 +53,11 @@ export class FinalizeUploadHandler implements ICommandHandler<FinalizeUploadComm
 
     if (!metadata) {
       return Result.fail('FILE_NOT_FOUND_IN_STORAGE');
+    }
+
+    if (asset.isRecording) {
+      const accepted = await this.acceptRecording(asset, metadata.sizeBytes, isPublic);
+      if (accepted.isFail) return Result.fail(accepted.error);
     }
 
     const markResult = asset.markUploaded();
@@ -68,6 +79,43 @@ export class FinalizeUploadHandler implements ICommandHandler<FinalizeUploadComm
 
     await this.enqueueProcessingIfNeeded(command.assetId, asset.mimeType.isImage, asset.mimeType.isAudio);
 
+    return Result.ok();
+  }
+
+  /**
+   * A signed PUT does not bound the size, and a declared size proves nothing: the stored
+   * object is measured here, synchronously — it is at most 8 MB. A refused recording is
+   * removed from storage before anyone can read it (README «Limits»: «a 40-minute upload
+   * must be refused before it is stored»), and the asset stays FAILED.
+   */
+  private async acceptRecording(
+    asset: MediaAssetEntity,
+    storedBytes: bigint,
+    isPublic: boolean,
+  ): Promise<Result<void, MediaAssetDomainError>> {
+    let durationMs: number | null = null;
+    let verdict = checkRecordingSize(storedBytes);
+    if (verdict.isOk) {
+      const data = await this.storage.getObject(asset.storageKey.value, isPublic);
+      durationMs = await this.audio.durationMs(data, extensionOf(asset.mimeType.value));
+      verdict = checkRecordingDuration(durationMs);
+    }
+
+    if (verdict.isFail) {
+      this.logger.warn(
+        `Refused recording ${asset.id}: ${verdict.error} (${storedBytes} bytes, ${durationMs ?? '?'} ms)`,
+      );
+      await this.storage.deleteObject(asset.storageKey.value, isPublic).catch((err: unknown) =>
+        this.logger.error(
+          `Could not remove refused recording ${asset.id}: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+      );
+      asset.markFailed();
+      await this.assetRepo.save(asset);
+      return Result.fail(verdict.error);
+    }
+
+    asset.recordDuration(durationMs!);
     return Result.ok();
   }
 
@@ -111,4 +159,9 @@ export class FinalizeUploadHandler implements ICommandHandler<FinalizeUploadComm
       );
     }
   }
+}
+
+// `audio/webm` → `webm`: ffprobe sniffs the container, the extension only helps it.
+function extensionOf(mimeType: string): string {
+  return mimeType.split('/')[1] ?? 'bin';
 }

@@ -22,6 +22,10 @@ export interface AssetView {
   uploadedAt: string | null;
   createdAt: string;
   variants: AssetVariantView[];
+  /** Audio only; null until measured. */
+  durationMs: number | null;
+  /** Audio only; normalised 0..1 waveform, null until processing has drawn it. */
+  peaks: number[] | null;
 }
 
 export type GetAssetResult = Result<AssetView, 'ASSET_NOT_FOUND'>;

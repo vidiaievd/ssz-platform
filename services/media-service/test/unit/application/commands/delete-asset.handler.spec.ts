@@ -1,3 +1,4 @@
+import { AssetPurger } from '../../../../src/modules/assets/application/services/asset-purger.js';
 import { DeleteAssetHandler } from '../../../../src/modules/assets/application/commands/delete-asset/delete-asset.handler.js';
 import { DeleteAssetCommand } from '../../../../src/modules/assets/application/commands/delete-asset/delete-asset.command.js';
 import { MediaAssetEntity } from '../../../../src/modules/assets/domain/entities/media-asset.entity.js';
@@ -26,8 +27,10 @@ function makeHandler(asset: MediaAssetEntity | null = makeLiveAsset()) {
   const repo: jest.Mocked<IMediaAssetRepository> = {
     findById: jest.fn(),
     findByIdAndOwner: jest.fn().mockResolvedValue(asset),
+    findByIds: jest.fn(),
     findMany: jest.fn(),
     countMany: jest.fn(),
+    findRecordingsOlderThan: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
     delete: jest.fn(),
   };
@@ -56,7 +59,8 @@ function makeHandler(asset: MediaAssetEntity | null = makeLiveAsset()) {
     },
   };
 
-  const handler = new DeleteAssetHandler(repo as any, storage as any, events as any, prisma as any);
+  const purger = new AssetPurger(repo as any, storage as any, events as any, prisma as any);
+  const handler = new DeleteAssetHandler(repo as any, purger);
   return { handler, repo, storage, events, prisma };
 }
 

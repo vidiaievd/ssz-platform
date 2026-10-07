@@ -24,6 +24,7 @@ import { SortIntoBucketsValidator } from './validators/sort-into-buckets.validat
 import { HighlightInTextValidator } from './validators/highlight-in-text.validator.js';
 import { DictationValidator } from './validators/dictation.validator.js';
 import { InflectionTableValidator } from './validators/inflection-table.validator.js';
+import { ReadAloudValidator } from './validators/read-aloud.validator.js';
 import type { IPerTypeValidator } from './validators/per-type-validator.interface.js';
 
 /**
@@ -98,6 +99,10 @@ const OWN_SUBMISSION_SHAPE = new Set([
   // author's reason; its submission is the form typed or placed in each asked cell. One form
   // only, so its shape is checked in the validator and nowhere else.
   'inflection_table',
+  // And `read_aloud` (plan 70): its key is a listening note and focus words per prompt and four
+  // descriptors per criterion; its submission is a recording per prompt. One form only, so its
+  // shape is checked in the validator and nowhere else.
+  'read_aloud',
 ]);
 
 @Injectable()
@@ -125,6 +130,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     htValidator: HighlightInTextValidator,
     dcValidator: DictationValidator,
     itValidator: InflectionTableValidator,
+    raValidator: ReadAloudValidator,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     this.ajv = new (Ajv as any)({ allErrors: true, strict: false });
@@ -149,6 +155,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       ['highlight_in_text', htValidator],
       ['dictation', dcValidator],
       ['inflection_table', itValidator],
+      ['read_aloud', raValidator],
     ]);
   }
 

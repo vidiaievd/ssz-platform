@@ -326,6 +326,39 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     return { pending, oldestSubmittedAt: oldest?.submittedAt ?? null };
   }
 
+  async findRecordingsInUse(assetIds: readonly string[], liveDraftSince: Date): Promise<string[]> {
+    if (assetIds.length === 0) return [];
+
+    // jsonpath over the two shapes `read_aloud` writes (kernel `submission.ts`):
+    //   submitted_answer { recordings: [{ assetId, discarded?: [{ assetId }] }] }
+    //   draft_answer     { takes: { [itemId]: [{ assetId }] } }
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT a.id
+      FROM unnest(${[...assetIds]}::text[]) AS a(id)
+      WHERE EXISTS (
+        SELECT 1
+        FROM attempts t
+        WHERE t.template_code = 'read_aloud'
+          AND (
+            jsonb_path_exists(
+              t.submitted_answer,
+              '$.recordings[*] ? (@.assetId == $id || @.discarded[*].assetId == $id)',
+              jsonb_build_object('id', a.id)
+            )
+            OR (
+              t.status = 'in_progress'
+              AND t.draft_saved_at >= ${liveDraftSince}
+              AND jsonb_path_exists(
+                t.draft_answer,
+                '$.takes.*[*] ? (@.assetId == $id)',
+                jsonb_build_object('id', a.id)
+              )
+            )
+          )
+      )`;
+    return rows.map((row) => row.id);
+  }
+
   async save(attempt: Attempt): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = AttemptMapper.toPersistence(attempt) as any;

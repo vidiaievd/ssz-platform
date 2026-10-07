@@ -26,8 +26,10 @@ function makeHandler(asset: MediaAssetEntity | null = makeAsset()) {
   const repo: jest.Mocked<IMediaAssetRepository> = {
     findById: jest.fn().mockResolvedValue(asset),
     findByIdAndOwner: jest.fn().mockResolvedValue(asset),
+    findByIds: jest.fn(),
     findMany: jest.fn(),
     countMany: jest.fn(),
+    findRecordingsOlderThan: jest.fn(),
     save: jest.fn(),
     delete: jest.fn(),
   };
@@ -143,5 +145,45 @@ describe('GetAssetHandler', () => {
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe('ASSET_NOT_FOUND');
+  });
+
+  describe('submission_recording (plan 70)', () => {
+    function makeReadyRecording() {
+      const asset = MediaAssetEntity.create({
+        ownerId: 'student-1',
+        mimeType: 'audio/webm',
+        sizeBytes: 150_000,
+        entityType: 'submission_recording',
+        entityId: 'attempt-1',
+        sizeLimits: SIZE_LIMITS,
+      }).value;
+      asset.recordDuration(12_400);
+      asset.markUploaded();
+      asset.startProcessing();
+      asset.attachWaveform([0.5, 1], 12_350);
+      asset.markReady([]);
+      return asset;
+    }
+
+    it('gives the owner duration and peaks', async () => {
+      const asset = makeReadyRecording();
+      const { handler } = makeHandler(asset);
+
+      const result = await handler.execute(new GetAssetQuery(asset.id, 'student-1'));
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.durationMs).toBe(12_400);
+      expect(result.value.peaks).toEqual([0.5, 1]);
+    });
+
+    it('hides a READY recording from anyone but its owner', async () => {
+      const asset = makeReadyRecording();
+      const { handler } = makeHandler(asset);
+
+      const result = await handler.execute(new GetAssetQuery(asset.id, 'someone-else'));
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBe('ASSET_NOT_FOUND');
+    });
   });
 });

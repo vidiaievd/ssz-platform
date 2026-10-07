@@ -5,6 +5,8 @@ import { Attempt } from '../../../src/modules/attempts/domain/entities/attempt.e
 import { ReviewScoring } from '../../../src/modules/attempts/application/services/review-scoring.js';
 import { Result } from '../../../src/shared/kernel/result.js';
 import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
+import { sampleDocument, SAMPLE_PROMPT_IDS, setMode, snapshotOf } from '@ssz/shared-kernel/read-aloud';
+import type { ReadAloudContent } from '@ssz/shared-kernel/read-aloud';
 
 /**
  * Three sentences: the first hit the key and was closed by the machine, the other two are
@@ -603,5 +605,298 @@ describe('ReviewAttemptHandler', () => {
 
     expect(result.isFail).toBe(true);
     expect(result.error).toEqual({ code: 'ATTEMPT_NOT_FOUND' });
+  });
+
+  describe('read_aloud — a rubric per recording (plan 70 §3.6, Q1-A)', () => {
+    const [P1, P2] = SAMPLE_PROMPT_IDS;
+
+    /** Two recordings, rubric pron×2 / flow×1 / content×2 — 15 a recording, a pass at 9. */
+    function recordingAttempt(doc: ReadAloudContent = sampleDocument()): Attempt {
+      const attempt = Attempt.create({
+        userId: 'user-1',
+        exerciseId: 'ex-1',
+        templateCode: 'read_aloud',
+        targetLanguage: 'nb',
+        difficultyLevel: 'A2',
+        checkMode: 'PRACTICE',
+        practicedAtoms: [],
+        axes: { skills: [], focus: [] },
+        itemTargets: [
+          { itemKey: P1, atomType: 'VOCABULARY_ITEM', atomId: 'v-sokte', role: 'focus' },
+          { itemKey: null, atomType: 'GRAMMAR_RULE_ATOM', atomId: 'g-preteritum', role: 'context' },
+        ],
+      });
+      attempt.submit(
+        {
+          recordings: [
+            { itemId: P1, assetId: 'a1', seconds: 22, takes: 2 },
+            { itemId: P2, assetId: 'a2', seconds: 31, takes: 1 },
+          ],
+        },
+        'hash',
+      );
+      attempt.routeForReview({ autoPassedItems: 0, totalItems: 2 }, snapshotOf(doc));
+      attempt.clearDomainEvents();
+      return attempt;
+    }
+
+    const marksFor = (p1: [number, number, number], p2: [number, number, number]) => ({
+      [`${P1}:pron`]: p1[0],
+      [`${P1}:flow`]: p1[1],
+      [`${P1}:content`]: p1[2],
+      [`${P2}:pron`]: p2[0],
+      [`${P2}:flow`]: p2[1],
+      [`${P2}:content`]: p2[2],
+    });
+
+    const comments = { [P1]: 'Fin kj-lyd i «Kjetil».', [P2]: 'Pass på trykket i «allerede».' };
+
+    const verdict = (
+      marks: Record<string, number>,
+      notes: Record<string, string> = comments,
+      comment: string | null = null,
+    ) => new ReviewAttemptCommand('att-1', 'teacher-1', 'approved', [], comment, notes, marks);
+
+    const completed = (publisher: { publish: { mock: { calls: unknown[][] } } }) =>
+      publisher.publish.mock.calls.find(([type]) => type === 'exercise.attempt.completed')?.[1] as Record<
+        string,
+        unknown
+      >;
+
+    it('approves when every prompt reaches the threshold, scoring the percentage of the sum', async () => {
+      const attempt = recordingAttempt();
+      const { handler } = makeHandler(attempt);
+
+      // 2·2 + 2 + 2·2 = 10 and 3·2 + 3 + 3·2 = 15 — both ≥ 9; 25 of 30 is 83%.
+      const result = await handler.execute(verdict(marksFor([2, 2, 2], [3, 3, 3])));
+
+      expect(result.isOk).toBe(true);
+      expect(result.value).toEqual({
+        attemptId: attempt.id,
+        status: 'SCORED',
+        score: 83,
+        approvedItems: 25,
+        totalItems: 30,
+        rubricScore: { points: 25, max: 30, passScore: 9 },
+        promptScores: [
+          { itemId: P1, points: 10, max: 15, passed: true },
+          { itemId: P2, points: 15, max: 15, passed: true },
+        ],
+      });
+      expect(attempt.passed).toBe(true);
+      expect(attempt.rubricMarks).toEqual(marksFor([2, 2, 2], [3, 3, 3]));
+    });
+
+    it('returns the work when one prompt falls short, however high the sum (Q1-A)', async () => {
+      const attempt = recordingAttempt();
+      const { handler } = makeHandler(attempt);
+
+      // 3·2 + 3 + 3·2 = 15 and 2·2 + 0 + 2·2 = 8 — 23 of 30 is 77%, and P2 is under 9.
+      const result = await handler.execute(verdict(marksFor([3, 3, 3], [2, 0, 2])));
+
+      expect(result.value.status).toBe('RETURNED');
+      expect(result.value.score).toBeNull();
+      expect(attempt.status).toBe('RETURNED');
+      expect(attempt.reviewDecisions).toEqual([
+        { itemId: P1, approved: true, comment: comments[P1] },
+        { itemId: P2, approved: false, comment: comments[P2] },
+      ]);
+    });
+
+    it('accepts a return with a comment on every prompt and none on the whole (README idea 2)', async () => {
+      const { handler } = makeHandler(recordingAttempt());
+      const result = await handler.execute(verdict(marksFor([1, 1, 1], [1, 1, 1]), comments, null));
+      expect(result.isOk).toBe(true);
+      expect(result.value.status).toBe('RETURNED');
+    });
+
+    it('refuses a verdict with a prompt nobody commented on — on an approval too (RA-Q4)', async () => {
+      const attempt = recordingAttempt();
+      const { handler, attempts } = makeHandler(attempt);
+
+      const result = await handler.execute(
+        verdict(marksFor([3, 3, 3], [3, 3, 3]), { [P1]: 'Bra.', [P2]: '   ' }, 'Godt jobbet!'),
+      );
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toEqual({ code: 'READ_ALOUD_COMMENT_REQUIRED', missing: [P2] });
+      expect(attempts.save).not.toHaveBeenCalled();
+      expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
+    });
+
+    it('refuses a rubric with a hole, naming the mark by prompt and criterion (RA-Q3)', async () => {
+      const { handler } = makeHandler(recordingAttempt());
+      const marks: Record<string, number> = marksFor([2, 2, 2], [2, 2, 2]);
+      delete marks[`${P2}:flow`];
+      // A mark under a bare criterion id is not a mark on any prompt.
+      marks['flow'] = 3;
+
+      const result = await handler.execute(verdict(marks));
+
+      expect(result.error).toEqual({ code: 'RUBRIC_INCOMPLETE', missing: [`${P2}:flow`] });
+    });
+
+    it('sends each prompt’s verdict to memory with its addresses, on an approval (RA-Q6)', async () => {
+      const { handler, publisher } = makeHandler(recordingAttempt());
+      await handler.execute(verdict(marksFor([2, 2, 2], [3, 3, 3])));
+
+      const payload = completed(publisher);
+      expect(payload['score']).toBe(83);
+      expect(payload['gapResults']).toEqual([
+        {
+          gapKey: P1,
+          correct: true,
+          targets: [{ atomType: 'VOCABULARY_ITEM', atomId: 'v-sokte', role: 'focus' }],
+        },
+        { gapKey: P2, correct: true },
+      ]);
+      // Reading a given text aloud is one step weaker evidence (Q6-A).
+      expect(payload['evidenceLowered']).toBe(true);
+      expect(payload['targets']).toEqual([
+        { atomType: 'GRAMMAR_RULE_ATOM', atomId: 'g-preteritum', role: 'context' },
+      ]);
+    });
+
+    it('and on a return, which moves memory and not progress (RA-Q7)', async () => {
+      const { handler, publisher } = makeHandler(recordingAttempt());
+      await handler.execute(verdict(marksFor([3, 3, 3], [1, 1, 1])));
+
+      const payload = completed(publisher);
+      expect(payload['reviewOutcome']).toBe('returned');
+      expect(payload['completed']).toBe(false);
+      // 15 + 5 of 30.
+      expect(payload['score']).toBe(67);
+      expect((payload['gapResults'] as { gapKey: string; correct: boolean }[]).map((g) => [g.gapKey, g.correct])).toEqual([
+        [P1, true],
+        [P2, false],
+      ]);
+    });
+
+    it('does not lower the evidence of a monologue', async () => {
+      const { handler, publisher } = makeHandler(recordingAttempt(setMode(sampleDocument(), 'monologue')));
+      await handler.execute(verdict(marksFor([3, 3, 3], [3, 3, 3])));
+      expect(completed(publisher)['evidenceLowered']).toBeUndefined();
+    });
+
+    it('grades the prompts handed in, not the ones the exercise holds today', async () => {
+      // A snapshot from a rubric of one criterion — the marks of the live rubric's others mean nothing.
+      const doc = sampleDocument();
+      doc.rubric = doc.rubric.slice(0, 1);
+      const { handler } = makeHandler(recordingAttempt(doc));
+
+      const result = await handler.execute(verdict({ [`${P1}:pron`]: 3, [`${P2}:pron`]: 2 }));
+
+      // pron ×2: 6 of 6 and 4 of 6, threshold 9 out of reach — both prompts fail.
+      expect(result.value.promptScores).toEqual([
+        { itemId: P1, points: 6, max: 6, passed: false },
+        { itemId: P2, points: 4, max: 6, passed: false },
+      ]);
+    });
+
+    describe('a prompt carried from a returned try (phase 11b)', () => {
+      const carried = {
+        attemptId: 'try-1',
+        attempt: 1,
+        marks: { pron: 3, flow: 1, content: 3 },
+        points: 13,
+        max: 15,
+        comment: 'Bra flyt.',
+      };
+
+      /** P1 carried as passed in try 1, P2 recorded again. */
+      function secondTry(): Attempt {
+        const attempt = Attempt.create({
+          userId: 'user-1',
+          exerciseId: 'ex-1',
+          templateCode: 'read_aloud',
+          targetLanguage: 'nb',
+          difficultyLevel: 'A2',
+          checkMode: 'PRACTICE',
+          practicedAtoms: [],
+          axes: { skills: [], focus: [] },
+          itemTargets: [{ itemKey: P1, atomType: 'VOCABULARY_ITEM', atomId: 'v-sokte', role: 'focus' }],
+        });
+        attempt.submit(
+          {
+            recordings: [
+              { itemId: P1, assetId: 'a1', seconds: 22, takes: 2, carried },
+              { itemId: P2, assetId: 'b2', seconds: 30, takes: 1 },
+            ],
+          },
+          'hash',
+        );
+        attempt.routeForReview({ autoPassedItems: 0, totalItems: 2 }, snapshotOf(sampleDocument()));
+        attempt.clearDomainEvents();
+        return attempt;
+      }
+
+      const p2 = (levels: [number, number, number]) => ({
+        [`${P2}:pron`]: levels[0],
+        [`${P2}:flow`]: levels[1],
+        [`${P2}:content`]: levels[2],
+      });
+
+      it('asks for marks and a comment on the new prompt only', async () => {
+        const { handler } = makeHandler(secondTry());
+
+        expect((await handler.execute(verdict({}, {}))).error).toEqual({
+          code: 'RUBRIC_INCOMPLETE',
+          missing: [`${P2}:pron`, `${P2}:flow`, `${P2}:content`],
+        });
+        expect((await handler.execute(verdict(p2([3, 3, 3]), {}))).error).toEqual({
+          code: 'READ_ALOUD_COMMENT_REQUIRED',
+          missing: [P2],
+        });
+      });
+
+      it('approves on the new prompt, the carried one standing as it was passed', async () => {
+        const attempt = secondTry();
+        const { handler } = makeHandler(attempt);
+
+        // Whatever a client says about P1 is not the teacher's to change.
+        const result = await handler.execute(
+          verdict({ ...p2([2, 2, 2]), [`${P1}:pron`]: 0 }, { [P1]: 'Endret', [P2]: 'Mye bedre.' }),
+        );
+
+        // 13 carried + 10 new of 30 is 77%.
+        expect(result.value).toMatchObject({
+          status: 'SCORED',
+          score: 77,
+          promptScores: [
+            { itemId: P1, points: 13, max: 15, passed: true, carried: true },
+            { itemId: P2, points: 10, max: 15, passed: true },
+          ],
+        });
+        expect(attempt.reviewDecisions).toEqual([
+          { itemId: P1, approved: true, comment: 'Bra flyt.' },
+          { itemId: P2, approved: true, comment: 'Mye bedre.' },
+        ]);
+        expect(attempt.rubricMarks).toEqual({
+          [`${P1}:pron`]: 3,
+          [`${P1}:flow`]: 1,
+          [`${P1}:content`]: 3,
+          ...p2([2, 2, 2]),
+        });
+      });
+
+      it('tells the memory about the new prompt only — the carried pass was reported on the return', async () => {
+        const { handler, publisher } = makeHandler(secondTry());
+        await handler.execute(verdict(p2([2, 2, 2]), { [P2]: 'Mye bedre.' }));
+
+        const payload = completed(publisher);
+        expect(payload['score']).toBe(77);
+        expect(payload['gapResults']).toEqual([{ gapKey: P2, correct: true }]);
+      });
+
+      it('returns again when the new prompt fails, keeping the carried pass', async () => {
+        const attempt = secondTry();
+        const { handler, publisher } = makeHandler(attempt);
+        const result = await handler.execute(verdict(p2([1, 1, 1]), { [P2]: 'Fortsatt for fort.' }));
+
+        expect(result.value.status).toBe('RETURNED');
+        expect(attempt.reviewDecisions?.[0]).toEqual({ itemId: P1, approved: true, comment: 'Bra flyt.' });
+        expect(completed(publisher)['gapResults']).toEqual([{ gapKey: P2, correct: false }]);
+      });
+    });
   });
 });

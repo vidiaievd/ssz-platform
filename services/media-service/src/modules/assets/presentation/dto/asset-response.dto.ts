@@ -53,6 +53,22 @@ export class AssetResponseDto {
 
   @ApiProperty({ type: [AssetVariantResponseDto] })
   variants!: AssetVariantResponseDto[];
+
+  @ApiPropertyOptional({
+    example: 12400,
+    nullable: true,
+    type: Number,
+    description: 'Audio only: measured length in milliseconds. Recordings have it from finalize on.',
+  })
+  durationMs!: number | null;
+
+  @ApiPropertyOptional({
+    example: [0.12, 0.48, 1, 0.73],
+    nullable: true,
+    type: [Number],
+    description: 'Audio only: 100 maxima normalised to 0..1, computed after processing; null until then.',
+  })
+  peaks!: number[] | null;
 }
 
 export class PagedAssetsResponseDto {

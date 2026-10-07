@@ -30,13 +30,13 @@ class CoverageTalliesDto {
   bySkill!: Record<string, number>;
 
   @ApiProperty({
-    example: { vocabulary: 0, grammar: 0, orthography: 0, pragmatics: 0, unknown: 452 },
+    example: { vocabulary: 0, grammar: 0, orthography: 0, pronunciation: 0, pragmatics: 0, unknown: 452 },
     description: `One key per subject (${FOCUSES.join(', ')}) plus \`unknown\`, zeroes included.`,
   })
   byFocus!: Record<string, number>;
 
   @ApiProperty({
-    example: { vocabulary: 0.375, grammar: 0.625, orthography: 0, pragmatics: 0, unknown: 0 },
+    example: { vocabulary: 0.375, grammar: 0.625, orthography: 0, pronunciation: 0, pragmatics: 0, unknown: 0 },
     description:
       'The same axis counted in elements rather than exercises: a set of eight questions, ' +
       'three about words and five about a rule, adds 0.375 to vocabulary and 0.625 to ' +
@@ -65,7 +65,7 @@ class CoverageTalliesDto {
 
   @ApiProperty({
     example: {
-      listening: { vocabulary: 0, grammar: 0, orthography: 0, pragmatics: 0, unknown: 0 },
+      listening: { vocabulary: 0, grammar: 0, orthography: 0, pronunciation: 0, pragmatics: 0, unknown: 0 },
     },
     description:
       'The skill × focus table the two tallies above are the margins of. A pair can be ' +

@@ -172,6 +172,13 @@ export interface IAttemptRepository {
   ): Promise<Attempt[]>;
   /** How much is waiting in a scope, and since when — without reading the submissions. */
   summariseReviewQueue(scope: ReviewQueueScope): Promise<ReviewQueueSummary>;
+  /**
+   * Which of these recording assets does some `read_aloud` attempt stand on (plan 71): handed in
+   * (`submitted_answer`, chosen take or discarded one — a prompt carried into a retry points at
+   * the earlier attempt's file), or a take on the draft of an attempt still in progress whose
+   * draft was saved at or after `liveDraftSince`.
+   */
+  findRecordingsInUse(assetIds: readonly string[], liveDraftSince: Date): Promise<string[]>;
   save(attempt: Attempt): Promise<void>;
   saveAll(attempts: Attempt[]): Promise<void>;
 }

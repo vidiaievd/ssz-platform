@@ -4,6 +4,7 @@ import { MediaAssetEntity } from '../../../../src/modules/assets/domain/entities
 import type { IMediaAssetRepository } from '../../../../src/modules/assets/domain/repositories/media-asset.repository.interface.js';
 import type { IStorageService } from '../../../../src/shared/application/ports/storage.port.js';
 import type { IEventPublisher } from '../../../../src/shared/application/ports/event-publisher.port.js';
+import type { IAudioInspector } from '../../../../src/shared/application/ports/audio-inspector.port.js';
 
 const SIZE_LIMITS = {
   maxImageSizeBytes: 20 * 1024 * 1024,
@@ -11,24 +12,35 @@ const SIZE_LIMITS = {
   maxVideoSizeBytes: 500 * 1024 * 1024,
 };
 
-function makePendingAsset(overrides?: { mimeType?: string; entityType?: string | null }) {
+function makePendingAsset(overrides?: { mimeType?: string; entityType?: string | null; entityId?: string }) {
   const result = MediaAssetEntity.create({
     ownerId: 'owner-1',
     mimeType: overrides?.mimeType ?? 'image/jpeg',
     sizeBytes: 1024,
     originalFilename: 'photo.jpg',
     entityType: overrides?.entityType !== undefined ? (overrides.entityType ?? undefined) : undefined,
+    entityId: overrides?.entityId,
     sizeLimits: SIZE_LIMITS,
   });
   return result.value;
+}
+
+function makeRecording() {
+  return makePendingAsset({
+    mimeType: 'audio/webm;codecs=opus',
+    entityType: 'submission_recording',
+    entityId: 'attempt-1',
+  });
 }
 
 function makeHandler(asset: MediaAssetEntity | null = makePendingAsset()) {
   const repo: jest.Mocked<IMediaAssetRepository> = {
     findById: jest.fn(),
     findByIdAndOwner: jest.fn().mockResolvedValue(asset),
+    findByIds: jest.fn(),
     findMany: jest.fn(),
     countMany: jest.fn(),
+    findRecordingsOlderThan: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
     delete: jest.fn(),
   };
@@ -61,6 +73,14 @@ function makeHandler(asset: MediaAssetEntity | null = makePendingAsset()) {
   const imageQueue = { add: jest.fn().mockResolvedValue(undefined) };
   const audioQueue = { add: jest.fn().mockResolvedValue(undefined) };
 
+  const audio: jest.Mocked<IAudioInspector> = {
+    durationMs: jest.fn().mockResolvedValue(5_000),
+    waveform: jest.fn(),
+  };
+
+  storage.getObject.mockResolvedValue(Buffer.from('recording'));
+  storage.deleteObject.mockResolvedValue(undefined);
+
   const handler = new FinalizeUploadHandler(
     repo as any,
     storage as any,
@@ -68,9 +88,10 @@ function makeHandler(asset: MediaAssetEntity | null = makePendingAsset()) {
     imageQueue as any,
     audioQueue as any,
     prisma as any,
+    audio as any,
   );
 
-  return { handler, repo, storage, events, prisma, imageQueue, audioQueue };
+  return { handler, repo, storage, events, prisma, imageQueue, audioQueue, audio };
 }
 
 describe('FinalizeUploadHandler', () => {
@@ -136,5 +157,99 @@ describe('FinalizeUploadHandler', () => {
     const result = await handler.execute(new FinalizeUploadCommand(asset.id, 'owner-1'));
 
     expect(result.isOk).toBe(true);
+  });
+
+  describe('submission_recording (plan 70)', () => {
+    it('measures the stored recording and keeps its duration', async () => {
+      const asset = makeRecording();
+      const { handler, audio, audioQueue, storage } = makeHandler(asset);
+
+      const result = await handler.execute(new FinalizeUploadCommand(asset.id, 'owner-1'));
+
+      expect(result.isOk).toBe(true);
+      expect(audio.durationMs).toHaveBeenCalledWith(expect.any(Buffer), 'webm');
+      expect(asset.durationMs).toBe(5_000);
+      expect(asset.status).toBe('UPLOADED');
+      expect(storage.deleteObject).not.toHaveBeenCalled();
+      expect(audioQueue.add).toHaveBeenCalledWith('AUDIO_CONVERT', expect.anything(), expect.anything());
+    });
+
+    it('accepts the hard ceiling plus the half-second tolerance', async () => {
+      const asset = makeRecording();
+      const { handler, audio } = makeHandler(asset);
+      audio.durationMs.mockResolvedValue(180_500);
+
+      const result = await handler.execute(new FinalizeUploadCommand(asset.id, 'owner-1'));
+
+      expect(result.isOk).toBe(true);
+    });
+
+    it('refuses a stored object over 8 MB without downloading it, removes it, marks FAILED', async () => {
+      const asset = makeRecording();
+      const { handler, storage, audio, repo, events, audioQueue } = makeHandler(asset);
+      storage.getObjectMetadata.mockResolvedValue({
+        sizeBytes: BigInt(8 * 1024 * 1024 + 1),
+        mimeType: 'audio/webm',
+        lastModified: new Date(),
+      });
+
+      const result = await handler.execute(new FinalizeUploadCommand(asset.id, 'owner-1'));
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBe('RECORDING_TOO_LARGE');
+      expect(storage.getObject).not.toHaveBeenCalled();
+      expect(audio.durationMs).not.toHaveBeenCalled();
+      expect(storage.deleteObject).toHaveBeenCalledWith(asset.storageKey.value, false);
+      expect(asset.status).toBe('FAILED');
+      expect(repo.save).toHaveBeenCalledWith(asset);
+      expect(events.publish).not.toHaveBeenCalled();
+      expect(audioQueue.add).not.toHaveBeenCalled();
+    });
+
+    it('refuses a recording longer than 180.5 s and removes it', async () => {
+      const asset = makeRecording();
+      const { handler, storage, audio } = makeHandler(asset);
+      audio.durationMs.mockResolvedValue(200_000);
+
+      const result = await handler.execute(new FinalizeUploadCommand(asset.id, 'owner-1'));
+
+      expect(result.error).toBe('RECORDING_TOO_LONG');
+      expect(storage.deleteObject).toHaveBeenCalled();
+      expect(asset.status).toBe('FAILED');
+      expect(asset.durationMs).toBeNull();
+    });
+
+    it('refuses a file ffprobe cannot read as audio', async () => {
+      const asset = makeRecording();
+      const { handler, audio } = makeHandler(asset);
+      audio.durationMs.mockResolvedValue(null);
+
+      const result = await handler.execute(new FinalizeUploadCommand(asset.id, 'owner-1'));
+
+      expect(result.error).toBe('RECORDING_UNREADABLE');
+      expect(asset.status).toBe('FAILED');
+    });
+
+    it('still refuses when removing the object fails', async () => {
+      const asset = makeRecording();
+      const { handler, storage, audio } = makeHandler(asset);
+      audio.durationMs.mockResolvedValue(600_000);
+      storage.deleteObject.mockRejectedValue(new Error('minio down'));
+
+      const result = await handler.execute(new FinalizeUploadCommand(asset.id, 'owner-1'));
+
+      expect(result.error).toBe('RECORDING_TOO_LONG');
+      expect(asset.status).toBe('FAILED');
+    });
+
+    it('does not measure ordinary audio on finalize', async () => {
+      const asset = makePendingAsset({ mimeType: 'audio/mpeg', entityType: 'exercise_asset' });
+      const { handler, audio, storage } = makeHandler(asset);
+
+      await handler.execute(new FinalizeUploadCommand(asset.id, 'owner-1'));
+
+      expect(audio.durationMs).not.toHaveBeenCalled();
+      expect(storage.getObject).not.toHaveBeenCalled();
+    });
   });
 });

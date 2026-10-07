@@ -68,6 +68,8 @@ export class GetAssetHandler implements IQueryHandler<GetAssetQuery, GetAssetRes
       uploadedAt: asset.uploadedAt?.toISOString() ?? null,
       createdAt: asset.createdAt.toISOString(),
       variants,
+      durationMs: asset.durationMs,
+      peaks: asset.peaks,
     });
   }
 }

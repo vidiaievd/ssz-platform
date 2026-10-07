@@ -17,6 +17,7 @@ import { TextOrderValidator } from './validators/text-order.validator.js';
 import { ErrorCorrectionValidator } from './validators/error-correction.validator.js';
 import { TranslateValidator } from './validators/translate.validator.js';
 import { WritingTaskValidator } from './validators/writing-task.validator.js';
+import { ReadAloudValidator } from './validators/read-aloud.validator.js';
 
 @Global()
 @Module({
@@ -37,6 +38,7 @@ import { WritingTaskValidator } from './validators/writing-task.validator.js';
     ErrorCorrectionValidator,
     TranslateValidator,
     WritingTaskValidator,
+    ReadAloudValidator,
     SchemaBasedAnswerValidator,
     { provide: ANSWER_VALIDATOR, useExisting: SchemaBasedAnswerValidator },
   ],

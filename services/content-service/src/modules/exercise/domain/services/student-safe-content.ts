@@ -50,6 +50,10 @@ import {
   TEMPLATE_CODE as INFLECTION_TABLE,
   toStudentProjection as inflectionTableProjection,
 } from '@ssz/shared-kernel/inflection-table';
+import {
+  TEMPLATE_CODE as READ_ALOUD,
+  toStudentProjection as readAloudProjection,
+} from '@ssz/shared-kernel/read-aloud';
 import { withStudentAudio } from '@ssz/shared-kernel/audio';
 
 /**
@@ -147,6 +151,12 @@ import { withStudentAudio } from '@ssz/shared-kernel/audio';
  * VoxOrd has no kernel. In bank mode it ships the bank: every key once and the generated
  * distractors, shuffled — the one place keys reach the browser, as forms among others to pick
  * from. No variant, no reason, no dictionary link, no pack version, no pass mark (plan 69 §3.2).
+ *
+ * `read_aloud` is the tenth. Its key is for a person listening, not for a comparison: the note per
+ * prompt, the focus words and the four level descriptors of each criterion, all in
+ * `expected_answers`. The projection ships the material of the current mode, the three numbers per
+ * prompt and the recorder's dials; the rubric only under `showRubric: 'always'`, and then only the
+ * criteria marked visible (plan 70 §3.2).
  *
  * There are exactly two places content leaves this service towards a learner, and both
  * call this: the exercise response DTO and the internal attempt envelope in `graded`
@@ -298,6 +308,14 @@ function projectByTemplate(
     // `expected_answers`. Rows are dealt in a fresh order under `input.shuffleRows`, the bank
     // always — the engine deals its own per attempt and keeps it for the retry.
     const projection = inflectionTableProjection(content, expectedAnswers, shuffled);
+    return projection as unknown as Record<string, unknown>;
+  }
+
+  if (templateCode === READ_ALOUD) {
+    // Both columns: the rubric's level descriptors are in `expected_answers`, and they reach
+    // the student before the verdict only under `showRubric: 'always'` (plan 70 §3.2). The
+    // listening note, the focus words, the pass mark and the AI stage never leave.
+    const projection = readAloudProjection(content, expectedAnswers);
     return projection as unknown as Record<string, unknown>;
   }
 

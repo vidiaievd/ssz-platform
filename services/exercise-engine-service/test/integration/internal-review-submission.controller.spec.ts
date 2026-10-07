@@ -236,6 +236,7 @@ describe('InternalReviewController — one submission (integration)', () => {
       at: '2026-08-16T12:00:00.000Z',
       reviewerId: 'teacher-9',
       comment: 'Skriv litt mer om familien din.',
+      decisions: null,
     });
   });
 });

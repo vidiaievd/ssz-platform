@@ -28,8 +28,7 @@
 // and a recipe in a vocabulary the report does not show would be unverifiable.
 
 import type { AtomRef, DeriveInput, DerivedProfile } from './derive.js';
-import { templateProfile } from './by-template.js';
-import { atomFocus, deriveSkills } from './derive.js';
+import { atomFocus, deriveSkills, structuralFocus } from './derive.js';
 import type { Focus, Input, Modality, Output, Skill } from './model.js';
 import { FOCUSES, INPUTS, MODALITIES, OUTPUTS, SKILLS, orderFocuses } from './model.js';
 
@@ -130,8 +129,7 @@ export function elementsOf(
     .map(atomFocus)
     .filter((focus): focus is Focus => focus !== null);
   // A structural hint is true of every element, as in `deriveSkills` (plan 68).
-  const template = templateProfile(input.templateCode);
-  if (template?.focusStructural) whole.push(...template.focus);
+  whole.push(...structuralFocus(input.templateCode, input.content));
 
   return [...keyed.values()].map((foci) => ({ ...base, focus: orderFocuses([...foci, ...whole]) }));
 }

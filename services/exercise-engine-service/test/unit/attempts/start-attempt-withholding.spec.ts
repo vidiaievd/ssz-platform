@@ -31,6 +31,14 @@ import {
   updateSettings as itUpdateSettings,
 } from '@ssz/shared-kernel/inflection-table';
 import type { InflectionTableContent } from '@ssz/shared-kernel/inflection-table';
+import {
+  SAMPLE_PROMPT_IDS as RA_PROMPT_IDS,
+  sampleDocument as raSampleDocument,
+  snapshotOf as raSnapshotOf,
+  toContent as raToContent,
+  toExpectedAnswers as raToExpectedAnswers,
+  toStudentProjection as raToStudentProjection,
+} from '@ssz/shared-kernel/read-aloud';
 
 // `checkMode: PRACTICE` means "ship the answers so the client can check locally", and
 // that is safe for eleven templates whose answers are a separate key. It is not safe
@@ -1389,6 +1397,120 @@ describe('StartAttemptHandler — inflection_table', () => {
       expect(attempts.findOpenBoard).toHaveBeenCalledWith('user-1', 'ex-1');
       expect(result.boardCheck).toBeNull();
       expect(attempts.save).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('StartAttemptHandler — read_aloud (plan 70 §3.2)', () => {
+  const doc = raSampleDocument();
+  const content = raToContent(doc);
+  const key = raToExpectedAnswers(doc);
+
+  it('ships the prompts with no listening note, no focus word, no pass mark and no descriptor', async () => {
+    const handler = makeHandler('read_aloud', content, key);
+    const result = await handler.execute(practice);
+
+    const shipped = result.value.exerciseContent as {
+      prompts: Array<Record<string, unknown>>;
+      settings: Record<string, unknown>;
+    };
+    expect(shipped.prompts.map((p) => p['id'])).toEqual(doc.prompts.map((p) => p.id));
+    expect(shipped.prompts[0]).not.toHaveProperty('note');
+    expect(shipped.prompts[0]).not.toHaveProperty('focus');
+    expect(shipped.settings).not.toHaveProperty('passScore');
+    expect(shipped).not.toHaveProperty('review');
+    expect(shipped).not.toHaveProperty('rubric');
+    const text = JSON.stringify(shipped);
+    expect(text).not.toContain(doc.prompts[0]!.note);
+    expect(text).not.toContain(doc.rubric[0]!.levels[3]);
+    expect(result.value.expectedAnswers).toBeNull();
+  });
+
+  it('is exactly the kernel projection', async () => {
+    const handler = makeHandler('read_aloud', content, key);
+    const result = await handler.execute(practice);
+    expect(result.value.exerciseContent).toEqual(raToStudentProjection(content, key));
+  });
+
+  it('does not re-project an envelope content-service already projected', async () => {
+    const alreadyProjected = raToStudentProjection(
+      { ...content, settings: { ...content.settings, showRubric: 'always' } },
+      key,
+    );
+    const handler = makeHandler('read_aloud', alreadyProjected, null);
+
+    const result = await handler.execute(practice);
+
+    expect(result.value.exerciseContent).toEqual(alreadyProjected);
+  });
+
+  describe('a try after a return (phase 11b)', () => {
+    const [P1, P2] = RA_PROMPT_IDS;
+
+    /** Returned with P1 failed and P2 passed. */
+    function returnedTry(): Attempt {
+      const attempt = Attempt.create({
+        userId: 'user-1',
+        exerciseId: 'ex-1',
+        templateCode: 'read_aloud',
+        targetLanguage: 'no',
+        difficultyLevel: 'B1',
+        checkMode: 'PRACTICE',
+        practicedAtoms: [],
+        axes: { skills: [], focus: [] },
+      });
+      attempt.submit(
+        {
+          recordings: [
+            { itemId: P1, assetId: 'a1', seconds: 20, takes: 1 },
+            { itemId: P2, assetId: 'a2', seconds: 25, takes: 1 },
+          ],
+        },
+        'hash',
+      );
+      attempt.routeForReview({ autoPassedItems: 0, totalItems: 2 }, raSnapshotOf(doc));
+      attempt.review({
+        reviewerId: 'teacher-1',
+        outcome: 'returned',
+        decisions: [
+          { itemId: P1, approved: false, comment: 'For fort.' },
+          { itemId: P2, approved: true, comment: 'Bra.' },
+        ],
+        comment: null,
+        rubricMarks: { [`${P2}:pron`]: 3, [`${P2}:flow`]: 3, [`${P2}:content`]: 3 },
+      });
+      return attempt;
+    }
+
+    function afterReturn(envelope: unknown, envelopeKey: unknown) {
+      const previous = returnedTry();
+      const made = makeHandlerByMode('read_aloud', () => ({ content: envelope, expectedAnswers: envelopeKey }));
+      const attempts = made.attempts as typeof made.attempts & { findById: jest.Mock };
+      attempts.findLatestReturned.mockImplementation(() => Promise.resolve(previous as never));
+      attempts.findById = jest.fn(() => Promise.resolve(previous));
+      return made.handler;
+    }
+
+    it('names the passed prompt and the try it was passed in — and nothing of its marks', async () => {
+      const result = await afterReturn(content, key).execute(practice);
+
+      const shipped = result.value.exerciseContent as Record<string, unknown>;
+      expect(shipped['carried']).toEqual([{ itemId: P2, attempt: 1 }]);
+      const text = JSON.stringify(shipped);
+      expect(text).not.toContain('Bra.');
+      expect(text).not.toContain('pron');
+    });
+
+    it('on an envelope content-service already projected too', async () => {
+      const result = await afterReturn(raToStudentProjection(content, key), null).execute(graded);
+      expect((result.value.exerciseContent as Record<string, unknown>)['carried']).toEqual([
+        { itemId: P2, attempt: 1 },
+      ]);
+    });
+
+    it('carries nothing on a first try', async () => {
+      const result = await makeHandler('read_aloud', content, key).execute(practice);
+      expect(result.value.exerciseContent).not.toHaveProperty('carried');
     });
   });
 });

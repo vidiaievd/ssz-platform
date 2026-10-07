@@ -165,12 +165,20 @@ function record(value: unknown): Record<string, unknown> | null {
  *   old types, so the document is the only thing that can tell them apart.
  * - `input.mode` on `inflection_table` — `bank` offers the forms, so the same table is
  *   recognised rather than recalled (plan 69).
+ * - `mode` on `read_aloud` — a monologue or a dialogue is production with no subject of its own,
+ *   and a picture monologue takes in a picture (plan 70).
  */
 interface DocumentReading {
   input?: Input;
   output?: Output;
   form?: Form;
   modality?: Modality;
+  /**
+   * The template's structural subject as the document narrows it — set only by a type whose
+   * hint holds for some of its tasks and not others (`read_aloud`, plan 70). Replaces the row's
+   * `focus` wherever the row's would be read; an empty list withdraws the hint.
+   */
+  focus?: readonly Focus[];
 }
 
 function fromDocument(templateCode: string, content: unknown): DocumentReading | null {
@@ -210,6 +218,26 @@ function fromDocument(templateCode: string, content: unknown): DocumentReading |
   }
 
   if (heard) reading.input = 'audio';
+
+  if (templateCode === 'read_aloud') {
+    // One type, three tasks (plan 70 §3.9). Reading aloud keeps the row; a monologue and a
+    // dialogue choose their own words — `production` — and carry no subject of their own.
+    // A picture monologue takes in a picture, and the picture decides even with a recording on:
+    // the prototype's `raAxes` puts the image first, since the clip is at most a prompt beside it.
+    const mode = doc['mode'];
+    if (mode === 'monologue' || mode === 'dialogue') {
+      reading.modality = 'production';
+      reading.focus = [];
+    }
+    if (mode === 'monologue') {
+      const prompts = Array.isArray(doc['prompts']) ? doc['prompts'] : [];
+      const pictured = prompts.some((p) => {
+        const asset = record(record(p)?.['image'])?.['assetId'];
+        return typeof asset === 'string' && asset.trim() !== '';
+      });
+      if (pictured) reading.input = 'image';
+    }
+  }
 
   return Object.keys(reading).length > 0 ? reading : null;
 }
@@ -278,6 +306,17 @@ function weighAtoms(
   return weights;
 }
 
+/**
+ * The subject a template asserts of every element, as its document narrows it — empty unless
+ * the row is `focusStructural`. One reading for `deriveSkills` and `recipe.ts`, so a monologue
+ * does not lose `pronunciation` in one and keep it in the other.
+ */
+export function structuralFocus(templateCode: string, content?: unknown): Focus[] {
+  const profile = templateProfile(templateCode);
+  if (!profile?.focusStructural) return [];
+  return [...(fromDocument(templateCode, content)?.focus ?? profile.focus)];
+}
+
 export function deriveSkills(input: DeriveInput): DerivedProfile {
   const profile = templateProfile(input.templateCode);
   const document = fromDocument(input.templateCode, input.content);
@@ -314,6 +353,8 @@ export function deriveSkills(input: DeriveInput): DerivedProfile {
   let focus: Focus[];
   let focusSource: FocusSource;
   let focusWeights: FocusWeights = {};
+  // The template's hint, as the document narrows it (`DocumentReading.focus`).
+  const hint: readonly Focus[] = document?.focus ?? profile?.focus ?? [];
 
   if (hasSpoken(input.override)) {
     focus = parseFocuses(input.override?.focus);
@@ -322,12 +363,12 @@ export function deriveSkills(input: DeriveInput): DerivedProfile {
     const fromGraph = fromAtoms(input.atoms);
     if (fromGraph) {
       // A structural hint joins the graph instead of yielding to it (`focusStructural`).
-      const structural = profile?.focusStructural ? profile.focus : [];
+      const structural = structuralFocus(input.templateCode, input.content);
       focus = orderFocuses([...fromGraph, ...structural]);
       focusSource = 'atoms';
       focusWeights = weighAtoms(input.atoms, structural);
-    } else if (profile && profile.focus.length > 0) {
-      focus = orderFocuses(profile.focus);
+    } else if (profile && hint.length > 0) {
+      focus = orderFocuses(hint);
       focusSource = 'template';
     } else {
       focus = [];

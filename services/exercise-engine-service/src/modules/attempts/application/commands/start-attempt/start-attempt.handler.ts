@@ -69,6 +69,12 @@ import {
   toStudentProjection as itToStudentProjection,
   withGradedSettings as itWithGradedSettings,
 } from '@ssz/shared-kernel/inflection-table';
+import {
+  carriedPrompts as raCarriedPrompts,
+  toStudentProjection as raToStudentProjection,
+  TEMPLATE_CODE as READ_ALOUD,
+} from '@ssz/shared-kernel/read-aloud';
+import { carriedInto } from '../../services/read-aloud-recordings.js';
 import { itemStatesOf, questionStatesOf, segmentStatesOf } from '../../services/item-states.js';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
@@ -268,6 +274,11 @@ export interface StartAttemptResult {
  * `inflection_table` (plan 69) once more: the form of an asked cell is the key, so only the
  * key column can say which cells are asked and what the bank holds; the rows and the bank are
  * dealt from the attempt while the columns keep the pack's order.
+ *
+ * `read_aloud` (plan 70 §3.2) is `writing_task`'s case again: its key is for the teacher —
+ * the listening note and the focus words per prompt, which the student meets only in the
+ * feedback — and the projection reaches into it for one thing, the level descriptors, under
+ * `showRubric: 'always'`. Without this branch both columns went to the browser as they were.
  *
  * The masking rules are the kernel's, shared with content-service and the builders;
  * only the shuffle is local, because a shuffle cannot live in a module that must be pure.
@@ -587,6 +598,20 @@ function projectByTemplate(
     };
   }
 
+  if (templateCode === READ_ALOUD) {
+    // A `graded` envelope arrives already projected by content-service and with no key —
+    // projecting it again would lose the descriptors `showRubric: 'always'` needs, for
+    // `writing_task`'s reason below.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      exerciseContent: raToStudentProjection(exercise.content, exercise.expectedAnswers),
+      expectedAnswers: null,
+    };
+  }
+
   if (templateCode === WRITING_TASK) {
     // In `graded` mode content-service has already projected this document and answered
     // with no key at all. Projecting a projection would then drop the one thing §5 is
@@ -712,12 +737,10 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         targetLanguage: existing.targetLanguage,
         difficultyLevel: existing.difficultyLevel,
         checkMode: existing.checkMode,
-        ...withheldWhereNeeded(
-          existing.templateCode,
-          resumedSource,
-          existing.id,
-          existing.checkMode,
-        ),
+        ...(await this.withCarriedPrompts(
+          existing,
+          withheldWhereNeeded(existing.templateCode, resumedSource, existing.id, existing.checkMode),
+        )),
         answerSchema: resumedDef.value.template.answerSchema,
         checkSettings: {
           ...(resumedDef.value.template.defaultCheckSettings ?? {}),
@@ -847,7 +870,10 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       targetLanguage: def.exercise.targetLanguage,
       difficultyLevel: def.exercise.difficultyLevel,
       checkMode: attempt.checkMode,
-      ...withheldWhereNeeded(def.exercise.templateCode, source, attempt.id, attempt.checkMode),
+      ...(await this.withCarriedPrompts(
+        attempt,
+        withheldWhereNeeded(def.exercise.templateCode, source, attempt.id, attempt.checkMode),
+      )),
       answerSchema: def.template.answerSchema,
       checkSettings,
       answeredQuestions: [],
@@ -934,6 +960,30 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       'PRACTICE',
     );
     return practice.isOk ? practice.value.exercise : exercise;
+  }
+
+  /**
+   * A `read_aloud` try after a return, told which prompts it does not record again (plan 70,
+   * phase 11b): `carried: [{ itemId, attempt }]` beside the projection, and nothing more —
+   * the marks and the comment each was passed on, the student read on the return already.
+   *
+   * Worked out from the returned attempt the same way the submit works it out, so the runner
+   * and the server agree on what is left to record. Every other template, and a first try,
+   * is handed on untouched.
+   */
+  private async withCarriedPrompts(
+    attempt: Attempt,
+    projected: { exerciseContent: unknown; expectedAnswers: unknown },
+  ): Promise<{ exerciseContent: unknown; expectedAnswers: unknown }> {
+    if (attempt.templateCode !== READ_ALOUD || attempt.previousAttemptId === null) return projected;
+    if (typeof projected.exerciseContent !== 'object' || projected.exerciseContent === null) {
+      return projected;
+    }
+
+    const previous = await this.attempts.findById(attempt.previousAttemptId);
+    const carried = raCarriedPrompts(carriedInto(previous, projected.exerciseContent));
+    if (carried.length === 0) return projected;
+    return { ...projected, exerciseContent: { ...projected.exerciseContent, carried } };
   }
 
   /**

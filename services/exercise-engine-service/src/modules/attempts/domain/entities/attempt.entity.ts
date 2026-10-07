@@ -1012,6 +1012,15 @@ export class Attempt extends AggregateRoot {
      * the learner's next draft is answering those marks.
      */
     rubricMarks?: RubricMarks | null;
+    /**
+     * The verdict per item, for the templates a person rules on item by item rather than
+     * as one — a `read_aloud` prompt passes on its own marks (plan 70, Q1-A). Carried on
+     * both outcomes, with the addresses of each item, so that the memory hears about each
+     * prompt and not only about the attempt.
+     */
+    gapResults?: Array<{ gapKey: string; correct: boolean }>;
+    /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
+    evidenceLowered?: boolean;
   }): Result<
     void,
     InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
@@ -1027,7 +1036,18 @@ export class Attempt extends AggregateRoot {
     // A return is an instruction to try again, and one without a word on it is not an
     // instruction. Checked here rather than at the edge so that no caller — the queue,
     // a batch, a future one — can send work back silently.
-    if (props.outcome === 'returned' && (props.comment ?? '').trim() === '') {
+    //
+    // A note on every item ruled on is a word too: a `read_aloud` requires one per prompt
+    // and has no field for the submission as a whole (plan 70 §3.6). A note on *some* items
+    // still is not — the rest of the work would go back with nothing said about it.
+    const everyItemExplained =
+      props.decisions.length > 0 &&
+      props.decisions.every((decision) => (decision.comment ?? '').trim() !== '');
+    if (
+      props.outcome === 'returned' &&
+      (props.comment ?? '').trim() === '' &&
+      !everyItemExplained
+    ) {
       return Result.fail(new ReviewCommentRequiredError());
     }
 
@@ -1074,6 +1094,10 @@ export class Attempt extends AggregateRoot {
           ...(this.wholeExerciseTargets().length === 0
             ? {}
             : { targets: this.wholeExerciseTargets() }),
+          ...(props.gapResults === undefined
+            ? {}
+            : { gapResults: this.addressed(props.gapResults) }),
+          ...(props.evidenceLowered === true ? { evidenceLowered: true } : {}),
         }),
       );
 
@@ -1116,6 +1140,12 @@ export class Attempt extends AggregateRoot {
         ...(this.wholeExerciseTargets().length === 0
           ? {}
           : { targets: this.wholeExerciseTargets() }),
+        // …unless a person ruled on it item by item (a `read_aloud` prompt), in which case
+        // each item's verdict travels with its own addresses, as a machine-graded gap does.
+        ...(props.gapResults === undefined
+          ? {}
+          : { gapResults: this.addressed(props.gapResults) }),
+        ...(props.evidenceLowered === true ? { evidenceLowered: true } : {}),
       }),
     );
 

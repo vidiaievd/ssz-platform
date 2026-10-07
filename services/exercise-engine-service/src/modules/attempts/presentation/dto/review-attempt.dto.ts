@@ -84,6 +84,10 @@ export class ReviewAttemptRequestDto {
    * follows from `Σ mark × weight` against the rubric frozen on the attempt (plan 50
    * §3.2). Every criterion must carry a mark; a rubric with a hole in it is refused
    * rather than scored as a zero.
+   *
+   * `read_aloud` keys a mark by prompt and criterion, `"<itemId>:<criterionId>"`, and grades
+   * each prompt on its own (plan 70 §3.6); its per-prompt comment is mandatory and arrives
+   * in `sentenceComments`, keyed by the prompt's id.
    */
   @ApiPropertyOptional({
     type: 'object',

@@ -17,6 +17,7 @@ import { TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP_TEMPLATE } from '@ssz/shared-ker
 import { TEMPLATE_CODE as SORT_INTO_BUCKETS_TEMPLATE } from '@ssz/shared-kernel/sort-into-buckets';
 import { TEMPLATE_CODE as HIGHLIGHT_IN_TEXT_TEMPLATE } from '@ssz/shared-kernel/highlight-in-text';
 import { TEMPLATE_CODE as DICTATION_TEMPLATE } from '@ssz/shared-kernel/dictation';
+import { TEMPLATE_CODE as READ_ALOUD_TEMPLATE } from '@ssz/shared-kernel/read-aloud';
 import { TEMPLATE_CODE as INFLECTION_TABLE_TEMPLATE } from '@ssz/shared-kernel/inflection-table';
 import { gapFillViolations } from './gap-fill-preflight.js';
 import { matchPairsViolations } from './match-pairs-preflight.js';
@@ -29,6 +30,7 @@ import { sortIntoBucketsViolations } from './sort-into-buckets-preflight.js';
 import { highlightInTextViolations } from './highlight-in-text-preflight.js';
 import { dictationViolations } from './dictation-preflight.js';
 import { inflectionTableViolations } from './inflection-table-preflight.js';
+import { readAloudViolations } from './read-aloud-preflight.js';
 import { audioViolations } from './audio-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
@@ -531,6 +533,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
                 HIGHLIGHT_IN_TEXT_TEMPLATE,
                 DICTATION_TEMPLATE,
                 INFLECTION_TABLE_TEMPLATE,
+                READ_ALOUD_TEMPLATE,
               ],
             },
           },
@@ -626,6 +629,9 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
  *
  * `inflection_table` (plan 69) drops an asked cell without a key, as `sort_into_buckets` drops
  * an item without a bucket: the key is in the other column.
+ *
+ * `read_aloud` (plan 70) fails loudly: a prompt with no listening note is a blocker. Its notes
+ * and focus words are in the key column, which only this query loads.
  */
 function violationsFor(
   templateCode: string,
@@ -643,6 +649,7 @@ function violationsFor(
   if (templateCode === HIGHLIGHT_IN_TEXT_TEMPLATE) return highlightInTextViolations(document);
   if (templateCode === DICTATION_TEMPLATE) return dictationViolations(document);
   if (templateCode === INFLECTION_TABLE_TEMPLATE) return inflectionTableViolations(document);
+  if (templateCode === READ_ALOUD_TEMPLATE) return readAloudViolations(document);
   return gapFillViolations(document);
 }
 

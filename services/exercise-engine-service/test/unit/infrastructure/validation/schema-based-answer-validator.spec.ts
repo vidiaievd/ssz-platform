@@ -16,12 +16,19 @@ import { SortIntoBucketsValidator } from '../../../../src/infrastructure/validat
 import { HighlightInTextValidator } from '../../../../src/infrastructure/validation/validators/highlight-in-text.validator.js';
 import { DictationValidator } from '../../../../src/infrastructure/validation/validators/dictation.validator.js';
 import { InflectionTableValidator } from '../../../../src/infrastructure/validation/validators/inflection-table.validator.js';
+import { ReadAloudValidator } from '../../../../src/infrastructure/validation/validators/read-aloud.validator.js';
 import {
   ALL_RIGHT as IT_ALL_RIGHT,
   sampleContent as itSampleContent,
   toContent as itToContent,
   toExpectedAnswers as itToExpectedAnswers,
 } from '@ssz/shared-kernel/inflection-table';
+import {
+  sampleDocument as raSampleDocument,
+  SAMPLE_PROMPT_IDS as RA_PROMPT_IDS,
+  toContent as raToContent,
+  toExpectedAnswers as raToExpectedAnswers,
+} from '@ssz/shared-kernel/read-aloud';
 import { emptyContent as dcEmptyContent, toContent as dcToContent, toExpectedAnswers as dcToExpectedAnswers } from '@ssz/shared-kernel/dictation';
 import { ValidationError } from '../../../../src/shared/application/ports/answer-validator.port.js';
 import { Result } from '../../../../src/shared/kernel/result.js';
@@ -52,6 +59,7 @@ const makeValidator = () =>
     new HighlightInTextValidator(),
     new DictationValidator(),
     new InflectionTableValidator(),
+    new ReadAloudValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {
@@ -425,6 +433,26 @@ describe('SchemaBasedAnswerValidator', () => {
       });
       expect(result.isOk).toBe(true);
       expect(result.value).toMatchObject({ score: 100, passed: true, requiresReview: false, correct: true });
+    });
+
+    it('delegates read_aloud to its own validator, past AJV, and always to a teacher (RA-U11)', async () => {
+      const validator = makeValidator();
+      expect(validator.supports('read_aloud')).toBe(true);
+      const sample = raSampleDocument();
+      const result = await validator.validate({
+        templateCode: 'read_aloud',
+        // The key's schema, which a list of recordings could never satisfy.
+        answerSchema: { type: 'object', required: ['prompts'], properties: { prompts: { type: 'number' } } },
+        content: raToContent(sample),
+        expectedAnswers: raToExpectedAnswers(sample),
+        submittedAnswer: {
+          recordings: RA_PROMPT_IDS.map((itemId, i) => ({ itemId, assetId: `a${i}`, seconds: 20, takes: 1 })),
+        },
+        checkSettings: {},
+        targetLanguage: 'nb',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value).toMatchObject({ score: 0, requiresReview: true, correct: false });
     });
   });
 });

@@ -65,4 +65,23 @@ describe('MimeType', () => {
       expect(result.value.isVideo).toBe(false);
     });
   });
+
+  describe('recorder types (plan 70)', () => {
+    it('accepts audio/webm as audio', () => {
+      const result = MimeType.create('audio/webm');
+      expect(result.isOk).toBe(true);
+      expect(result.value.isAudio).toBe(true);
+    });
+
+    it.each([
+      ['audio/webm;codecs=opus', 'audio/webm'],
+      ['Audio/MP4; codecs="mp4a.40.2"', 'audio/mp4'],
+      ['audio/ogg ; codecs=opus', 'audio/ogg'],
+    ])('drops parameters: %s → %s', (raw, expected) => {
+      const result = MimeType.create(raw);
+      expect(result.isOk).toBe(true);
+      expect(result.value.value).toBe(expected);
+      expect(MimeType.isAllowed(raw)).toBe(true);
+    });
+  });
 });

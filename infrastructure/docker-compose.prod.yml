@@ -175,6 +175,11 @@ services:
       DATABASE_URL: postgresql://media_service:${MEDIA_SERVICE_DB_PASSWORD}@postgres:5432/media_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      # Orphan recordings (plan 71): a dry run unless asked otherwise; the engine is asked before anything goes.
+      EXERCISE_ENGINE_URL: http://exercise-engine-service:3006
+      MEDIA_ORPHAN_SWEEP_MODE: ${MEDIA_ORPHAN_SWEEP_MODE:-dry-run}
+      MEDIA_ORPHAN_MIN_AGE_DAYS: ${MEDIA_ORPHAN_MIN_AGE_DAYS:-30}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_USE_SSL: "false"
@@ -271,6 +276,7 @@ services:
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       CONTENT_SERVICE_BASE_URL: http://content-service:3003
       ORGANIZATION_SERVICE_BASE_URL: http://organization-service:3002
+      MEDIA_SERVICE_BASE_URL: http://media-service:3004
       LEARNING_SERVICE_BASE_URL: http://learning-service:3007
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       EXERCISE_DEFINITION_CACHE_TTL_SECONDS: 300

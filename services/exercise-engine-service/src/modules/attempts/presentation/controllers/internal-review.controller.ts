@@ -469,6 +469,13 @@ export class InternalReviewController {
               code: 'RUBRIC_INCOMPLETE',
               missing: error.missing,
             });
+          // A `read_aloud` prompt with nothing said about it — which prompts, so the screen can
+          // mark the empty comment fields (plan 70 §3.6).
+          case 'READ_ALOUD_COMMENT_REQUIRED':
+            throw new UnprocessableEntityException({
+              code: 'READ_ALOUD_COMMENT_REQUIRED',
+              missing: error.missing,
+            });
         }
       }
       // A submission that was never routed to a person at all, or an exercise this

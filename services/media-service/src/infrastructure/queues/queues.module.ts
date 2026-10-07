@@ -2,7 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/configuration.js';
-import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from './queue-names.js';
+import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING, QUEUE_MAINTENANCE } from './queue-names.js';
 
 @Global()
 @Module({
@@ -23,6 +23,7 @@ import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from './queue-names.js
     BullModule.registerQueue(
       { name: QUEUE_IMAGE_PROCESSING },
       { name: QUEUE_AUDIO_PROCESSING },
+      { name: QUEUE_MAINTENANCE },
     ),
   ],
   exports: [BullModule],

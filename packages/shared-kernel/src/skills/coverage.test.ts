@@ -17,7 +17,7 @@ describe('tallies', () => {
     // report can produce, and it is indistinguishable from a missing key if dropped.
     const result = coverage([]);
     expect(result.bySkill).toEqual({ listening: 0, reading: 0, spoken: 0, written: 0 });
-    expect(result.byFocus).toEqual({ vocabulary: 0, grammar: 0, orthography: 0, pragmatics: 0, unknown: 0 });
+    expect(result.byFocus).toEqual({ vocabulary: 0, grammar: 0, orthography: 0, pronunciation: 0, pragmatics: 0, unknown: 0 });
     expect(result.byForm).toEqual({ bank: 0, free: 0, mixed: 0, unknown: 0 });
     expect(result.byModality).toEqual({ recognition: 0, recall: 0, production: 0, unknown: 0 });
     expect(result.emptySkills).toEqual(['listening', 'reading', 'spoken', 'written']);
@@ -59,6 +59,7 @@ describe('tallies', () => {
       vocabulary: 0,
       grammar: 0,
       orthography: 0,
+      pronunciation: 0,
       pragmatics: 0,
       unknown: 0,
     });

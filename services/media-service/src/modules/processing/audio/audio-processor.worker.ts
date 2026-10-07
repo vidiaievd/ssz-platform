@@ -12,12 +12,18 @@ import { STORAGE_SERVICE } from '../../../shared/application/ports/storage.port.
 import type { IStorageService } from '../../../shared/application/ports/storage.port.js';
 import { MEDIA_ASSET_REPOSITORY } from '../../assets/domain/repositories/media-asset.repository.interface.js';
 import type { IMediaAssetRepository } from '../../assets/domain/repositories/media-asset.repository.interface.js';
+import type { MediaAssetEntity } from '../../assets/domain/entities/media-asset.entity.js';
 import { EVENT_PUBLISHER } from '../../../shared/application/ports/event-publisher.port.js';
 import type { IEventPublisher } from '../../../shared/application/ports/event-publisher.port.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import { MEDIA_EVENT_TYPES } from '@ssz/contracts';
 import type { MediaProcessedPayload, MediaProcessingFailedPayload } from '@ssz/contracts';
 import { isPublicEntityType } from '../../../shared/application/ports/storage.port.js';
+import { AUDIO_INSPECTOR } from '../../../shared/application/ports/audio-inspector.port.js';
+import type { IAudioInspector } from '../../../shared/application/ports/audio-inspector.port.js';
+
+// Bins in the waveform the review queue draws under a recording (README «Playback in the queue»).
+const WAVEFORM_BINS = 100;
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 ffmpeg.setFfprobePath(ffprobeInstaller.path);
@@ -36,6 +42,8 @@ interface AudioVariantSpec {
   audioFilters: string[];
 }
 
+// Recordings (`submission_recording`) get loudnorm too: a reviewer listening to a queue
+// of students needs an even level more than the take's original dynamics.
 const AUDIO_VARIANTS: AudioVariantSpec[] = [
   {
     type: 'opus',
@@ -64,6 +72,7 @@ export class AudioProcessorWorker extends WorkerHost {
     @Inject(MEDIA_ASSET_REPOSITORY) private readonly assetRepo: IMediaAssetRepository,
     @Inject(EVENT_PUBLISHER) private readonly events: IEventPublisher,
     private readonly prisma: PrismaService,
+    @Inject(AUDIO_INSPECTOR) private readonly audio: IAudioInspector,
   ) {
     super();
   }
@@ -127,6 +136,8 @@ export class AudioProcessorWorker extends WorkerHost {
         this.logger.debug(`Created audio variant ${spec.type} (${outputBuffer.length} bytes) for asset ${assetId}`);
       }
 
+      await this.attachWaveform(asset, originalBuffer, ext);
+
       const readyResult = asset.markReady(variantInfos);
       if (readyResult.isFail) throw new Error(`Cannot mark ready: ${readyResult.error}`);
       await this.assetRepo.save(asset);
@@ -174,6 +185,23 @@ export class AudioProcessorWorker extends WorkerHost {
       throw err;
     } finally {
       await this.cleanupTmpDir(tmpDir);
+    }
+  }
+
+  // Peaks are a drawing aid, not the asset: a waveform that fails to decode leaves the
+  // queue drawing a flat bar, it does not fail variants that are already stored.
+  private async attachWaveform(
+    asset: MediaAssetEntity,
+    data: Buffer,
+    ext: string,
+  ): Promise<void> {
+    try {
+      const { peaks, durationMs } = await this.audio.waveform(data, ext, WAVEFORM_BINS);
+      asset.attachWaveform(peaks, durationMs);
+    } catch (err) {
+      this.logger.warn(
+        `Waveform failed for asset ${asset.id}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
