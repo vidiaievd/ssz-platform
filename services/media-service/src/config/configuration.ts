@@ -56,6 +56,15 @@ export const envSchema = z.object({
   // of the endpoint, not a vocabulary item.
   TTS_MAX_TEXT_LENGTH: z.coerce.number().int().positive().default(120),
 
+  // Orphan recordings (plan 71): a recording no attempt stands on, older than the minimum age.
+  // 'dry-run' only logs what it would delete; 'delete' purges (soft-delete + storage objects).
+  MEDIA_ORPHAN_SWEEP_MODE: z.enum(['dry-run', 'delete']).default('dry-run'),
+  MEDIA_ORPHAN_MIN_AGE_DAYS: z.coerce.number().int().min(1).default(30),
+  MEDIA_ORPHAN_MAX_PER_RUN: z.coerce.number().int().positive().default(2000),
+  // Asked before anything is deleted; no answer means nothing is.
+  EXERCISE_ENGINE_URL: z.string().default('http://exercise-engine-service:3006'),
+  EXERCISE_ENGINE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+
   // BullMQ
   QUEUE_IMAGE_PROCESSING: z.string().default('image-processing'),
   QUEUE_AUDIO_PROCESSING: z.string().default('audio-processing'),
@@ -121,6 +130,15 @@ export interface AppConfig {
     imageProcessing: string;
     audioProcessing: string;
   };
+  orphanSweep: {
+    mode: 'dry-run' | 'delete';
+    minAgeDays: number;
+    maxPerRun: number;
+  };
+  exerciseEngine: {
+    baseUrl: string;
+    timeoutMs: number;
+  };
   tts: {
     piperUrl: string;
     piperVoice: string;
@@ -176,6 +194,15 @@ export default (): AppConfig => {
     queues: {
       imageProcessing: env.QUEUE_IMAGE_PROCESSING,
       audioProcessing: env.QUEUE_AUDIO_PROCESSING,
+    },
+    orphanSweep: {
+      mode: env.MEDIA_ORPHAN_SWEEP_MODE,
+      minAgeDays: env.MEDIA_ORPHAN_MIN_AGE_DAYS,
+      maxPerRun: env.MEDIA_ORPHAN_MAX_PER_RUN,
+    },
+    exerciseEngine: {
+      baseUrl: env.EXERCISE_ENGINE_URL,
+      timeoutMs: env.EXERCISE_ENGINE_TIMEOUT_MS,
     },
     tts: {
       piperUrl: env.PIPER_URL,

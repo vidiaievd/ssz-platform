@@ -40,6 +40,7 @@ function makeHandler(asset: MediaAssetEntity | null = makePendingAsset()) {
     findByIds: jest.fn(),
     findMany: jest.fn(),
     countMany: jest.fn(),
+    findRecordingsOlderThan: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
     delete: jest.fn(),
   };
