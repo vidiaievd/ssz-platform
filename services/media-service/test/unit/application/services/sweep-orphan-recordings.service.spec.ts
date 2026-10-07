@@ -130,6 +130,23 @@ describe('SweepOrphanRecordingsService (plan 71)', () => {
     expect(report.mode).toBe('dry-run');
   });
 
+  it('does nothing when another run is still going on this node', async () => {
+    const m = make({ mode: 'delete' });
+    m.pages([[asset(1)]]);
+    let release!: (v: unknown) => void;
+    m.usage.inUse.mockImplementation(() => new Promise((resolve) => (release = resolve)));
+
+    const first = m.service.run({ now: NOW });
+    await Promise.resolve();
+    await Promise.resolve();
+    const second = await m.service.run({ now: NOW });
+    release(Result.ok(new Set<string>()));
+    await first;
+
+    expect(second).toMatchObject({ skipped: true, scanned: 0, deleted: 0 });
+    expect(m.purger.purge).toHaveBeenCalledTimes(1);
+  });
+
   it('has nothing to say when there is nothing old enough', async () => {
     const m = make({ mode: 'delete' });
 

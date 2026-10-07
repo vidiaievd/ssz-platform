@@ -1,10 +1,14 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Query, UseGuards } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { DescribeAssetsQuery, type AssetDescription } from '../../application/queries/describe-assets/describe-assets.query.js';
 import { GetPlaybackQuery, type AssetPlayback } from '../../application/queries/get-playback/get-playback.query.js';
+import {
+  SweepOrphanRecordingsService,
+  type SweepReport,
+} from '../../application/services/sweep-orphan-recordings.service.js';
 import { AssetDescriptionDto, AssetIdsDto, AssetPlaybackDto } from '../dto/internal-assets.dto.js';
 
 // Service-to-service routes only — @Public() exempts them from the global JWT guard,
@@ -17,7 +21,10 @@ import { AssetDescriptionDto, AssetIdsDto, AssetPlaybackDto } from '../dto/inter
 @UseGuards(InternalAuthGuard)
 @Controller('internal/media/assets')
 export class InternalAssetsController {
-  constructor(private readonly queryBus: QueryBus) {}
+  constructor(
+    private readonly queryBus: QueryBus,
+    private readonly sweepOrphans: SweepOrphanRecordingsService,
+  ) {}
 
   @Post('describe')
   @HttpCode(HttpStatus.OK)
@@ -46,5 +53,19 @@ export class InternalAssetsController {
   @ApiResponse({ status: 400, description: 'ids missing, empty, too many or not UUIDs' })
   async playback(@Body() dto: AssetIdsDto): Promise<AssetPlayback[]> {
     return this.queryBus.execute(new GetPlaybackQuery(dto.ids));
+  }
+
+  @Post('sweep-orphans')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Run the orphan-recording sweep now (operator)',
+    description:
+      'Recordings no attempt stands on, older than MEDIA_ORPHAN_MIN_AGE_DAYS. A DRY RUN unless ' +
+      '`dryRun=false` is passed explicitly — the configured mode applies only to the nightly run. ' +
+      'Answers with what was scanned, held, found and deleted.',
+  })
+  @ApiResponse({ status: 200, description: 'SweepReport' })
+  async sweepOrphansNow(@Query('dryRun') dryRun?: string): Promise<SweepReport> {
+    return this.sweepOrphans.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
   }
 }

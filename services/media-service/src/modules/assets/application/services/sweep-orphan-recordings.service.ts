@@ -24,6 +24,8 @@ export interface SweepReport {
   deleted: number;
   /** The engine could not answer, so the run stopped and nothing further was touched. */
   aborted: boolean;
+  /** Another run was still going on this node; this call did nothing. */
+  skipped: boolean;
 }
 
 const BATCH = 200;
@@ -44,6 +46,7 @@ const DAY_MS = 86_400_000;
 @Injectable()
 export class SweepOrphanRecordingsService {
   private readonly logger = new Logger(SweepOrphanRecordingsService.name);
+  private running = false;
 
   constructor(
     @Inject(MEDIA_ASSET_REPOSITORY) private readonly assets: IMediaAssetRepository,
@@ -61,7 +64,27 @@ export class SweepOrphanRecordingsService {
     // draft saved since this is still being recorded into.
     const cutOff = new Date(now.getTime() - cfg.minAgeDays * DAY_MS);
 
-    const report: SweepReport = { mode, scanned: 0, inUse: 0, orphans: 0, deleted: 0, aborted: false };
+    const report: SweepReport = { mode, scanned: 0, inUse: 0, orphans: 0, deleted: 0, aborted: false, skipped: false };
+
+    // A scheduled run and a manual one must not walk the same files at once.
+    if (this.running) {
+      this.logger.warn('orphan sweep skipped: another run is still going');
+      return { ...report, skipped: true };
+    }
+    this.running = true;
+    try {
+      return await this.sweep(report, cfg, cutOff);
+    } finally {
+      this.running = false;
+    }
+  }
+
+  private async sweep(
+    report: SweepReport,
+    cfg: AppConfig['orphanSweep'],
+    cutOff: Date,
+  ): Promise<SweepReport> {
+    const mode = report.mode;
     let cursor: RecordingSweepCursor | null = null;
 
     while (report.scanned < cfg.maxPerRun) {
