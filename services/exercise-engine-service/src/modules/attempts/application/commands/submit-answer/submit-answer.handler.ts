@@ -47,10 +47,13 @@ import {
 } from '@ssz/shared-kernel/writing-task';
 import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import {
+  freshPart as raFreshPart,
   fromPersisted as raFromPersisted,
   snapshotOf as raSnapshotOf,
   TEMPLATE_CODE as READ_ALOUD,
+  withCarried as raWithCarried,
 } from '@ssz/shared-kernel/read-aloud';
+import type { Submission as RaSubmission } from '@ssz/shared-kernel/read-aloud';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject, Optional } from '@nestjs/common';
 import { SubmitAnswerCommand } from './submit-answer.command.js';
@@ -70,6 +73,7 @@ import { CLOCK, SystemClock, type IClock } from '../../../../../shared/applicati
 import { MEDIA_ASSETS, type IMediaAssets } from '../../../../../shared/application/ports/media-assets.port.js';
 import {
   assetIdsOf,
+  carriedInto,
   checkAssets,
   checkPrompts,
   readRecordings,
@@ -798,19 +802,25 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     // the per-type validator is synchronous — and because a refusal returned now leaves the
     // attempt exactly as it was: nothing below has been saved, so the draft and its takes
     // survive both a refusal and media-service being away (RA-U10).
+    //
+    // What is written is not quite what was sent: on a try after a return, the prompts the
+    // teacher passed are carried in by the server (phase 11b), and only the rest is the
+    // student's to have recorded.
+    let answer = command.submittedAnswer;
     if (attempt.templateCode === READ_ALOUD) {
-      const refused = await this.refuseRecordings(
+      const recordings = await this.acceptRecordings(
         attempt,
         command.submittedAnswer,
         def.exercise.content,
         def.exercise.expectedAnswers,
       );
-      if (refused) return Result.fail(refused);
+      if (!('recordings' in recordings)) return Result.fail(recordings);
+      answer = recordings;
     }
 
     // After the reopen, deliberately: the facts written over the submission include
     // which check this is, and `recheckCount` is only current once it has happened.
-    const submittedAnswer = withRecordedReveals(attempt, command.submittedAnswer, this.clock.now());
+    const submittedAnswer = withRecordedReveals(attempt, answer, this.clock.now());
 
     const answerHash = createHash('sha256')
       .update(JSON.stringify(submittedAnswer))
@@ -961,33 +971,59 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
   }
 
   /**
-   * Why the recordings of a `read_aloud` cannot be handed in, or null when they can.
+   * The recordings of a `read_aloud` as they are to be written onto the attempt, or why they
+   * cannot be handed in.
+   *
+   * On a try after a return the prompts the teacher passed are carried (phase 11b): the
+   * student's recordings for them, if a client sent any, are dropped, and the carried ones —
+   * checked when they were handed in, and made for the attempt they were passed in — are put
+   * back beside the new ones without asking media-service about them again.
    *
    * Cheapest first: a submission that does not name every prompt is refused without a call.
    */
-  private async refuseRecordings(
+  private async acceptRecordings(
     attempt: Attempt,
     submitted: unknown,
     content: unknown,
     expectedAnswers: unknown,
-  ): Promise<SubmitAnswerError | null> {
+  ): Promise<RaSubmission | SubmitAnswerError> {
     const submission = readRecordings(submitted);
     if (submission instanceof ValidationError) return submission;
 
-    const prompts = checkPrompts(submission, content, expectedAnswers);
+    const previous =
+      attempt.previousAttemptId === null
+        ? null
+        : await this.attempts.findById(attempt.previousAttemptId);
+    const carried = carriedInto(previous, content);
+    const fresh = raFreshPart(submission, carried);
+
+    const prompts = checkPrompts(
+      fresh,
+      content,
+      expectedAnswers,
+      new Set(carried.map((r) => r.itemId)),
+    );
     if (prompts) return prompts;
 
+    const whole = raWithCarried(
+      fresh,
+      carried,
+      raFromPersisted(content, expectedAnswers).prompts.map((p) => p.id),
+    );
+    if (fresh.recordings.length === 0) return whole;
+
     if (this.media === null) return { code: 'MEDIA_UNAVAILABLE' };
-    const described = await this.media.describe(assetIdsOf(submission));
+    const described = await this.media.describe(assetIdsOf(fresh));
     // Any failure, not only a timeout: the engine cannot tell "your recording is not there"
     // from "media-service is not answering properly", and only the second is never the
     // student's fault. A 4xx here would be the engine's own malformed request.
     if (described.isFail) return { code: 'MEDIA_UNAVAILABLE' };
 
-    return checkAssets(submission, content, expectedAnswers, described.value, {
+    const refused = checkAssets(fresh, content, expectedAnswers, described.value, {
       id: attempt.id,
       userId: attempt.userId,
     });
+    return refused ?? whole;
   }
 
   private async publishEvents(attempt: import('../../../domain/entities/attempt.entity.js').Attempt): Promise<void> {

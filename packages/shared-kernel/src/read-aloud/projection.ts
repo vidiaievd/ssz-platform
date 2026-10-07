@@ -12,6 +12,7 @@
 //
 // The audio block is not here: the content service adds the layer's own projection beside it.
 
+import type { CarriedPrompt } from './carry.js';
 import { planOf } from './derive.js';
 import type { Mode, Recording, RevisionPolicy, ShowModelPolicy, ShowRubricPolicy } from './model.js';
 import { fromPersisted } from './persistence.js';
@@ -50,6 +51,12 @@ export interface StudentProjection {
   settings: { showRubric: ShowRubricPolicy; showModel: ShowModelPolicy; revision: RevisionPolicy };
   /** Only under `showRubric: 'always'`, and only the criteria the student may see. */
   rubric?: ProjectedCriterion[];
+  /**
+   * The prompts passed in an earlier try, which this one does not record again (phase 11b).
+   * Set by the engine on a try that follows a return — the attempt knows it, the document does
+   * not. Absent on a first try.
+   */
+  carried?: CarriedPrompt[];
 }
 
 export function toStudentProjection(content: unknown, expectedAnswers: unknown): StudentProjection {

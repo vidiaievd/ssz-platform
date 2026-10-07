@@ -3,10 +3,11 @@ import { readRubricMarks } from '@ssz/shared-kernel/writing-task';
 import { ReviewAttemptCommand } from './review-attempt.command.js';
 import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import {
+  marksWithCarried,
   readMarks as raReadMarks,
   readSpeakingSnapshot,
   readSubmission as raReadSubmission,
-  scorePrompts,
+  scoreSubmission,
   TEMPLATE_CODE as READ_ALOUD,
 } from '@ssz/shared-kernel/read-aloud';
 import type { SpeakingSnapshot } from '@ssz/shared-kernel/read-aloud';
@@ -61,9 +62,16 @@ export interface ReviewAttemptResult {
   /**
    * `read_aloud` only: each prompt's points and verdict (plan 70, Q1-A). `rubricScore` then
    * carries the sums over prompts and the threshold of one recording — the attempt passes
-   * when every prompt here does, not when the sum clears anything.
+   * when every prompt here does, not when the sum clears anything. A prompt carried from an
+   * earlier try (phase 11b) is listed with the points it passed on and `carried: true`.
    */
-  promptScores?: Array<{ itemId: string; points: number; max: number; passed: boolean }>;
+  promptScores?: Array<{
+    itemId: string;
+    points: number;
+    max: number;
+    passed: boolean;
+    carried?: true;
+  }>;
 }
 
 /**
@@ -283,35 +291,45 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
    *
    * The prompts are the ones the student handed in, read off the submission: that is what
    * was recorded and what the teacher heard, whatever the exercise holds today.
+   *
+   * A prompt carried from a returned try (phase 11b) is not the teacher's to grade again: it
+   * needs no marks and no comment, whatever the request says about it is ignored, and its
+   * frozen ruling is written into the decisions and the marks so the learner's card and the
+   * next try read every prompt off this attempt. It counts towards the verdict and the score
+   * but not towards the memory — its success was reported on the return, and a second one
+   * minutes later would read as a review at no interval.
    */
   private async reviewByPrompt(
     attempt: Attempt,
     command: ReviewAttemptCommand,
     snapshot: SpeakingSnapshot,
   ): Promise<Result<ReviewAttemptResult, ReviewAttemptError>> {
-    const itemIds = (raReadSubmission(attempt.submittedAnswer)?.recordings ?? []).map(
-      (recording) => recording.itemId,
-    );
-    const marks = raReadMarks(command.rubricMarks);
-    const scored = scorePrompts(snapshot, marks, itemIds);
+    const recordings = raReadSubmission(attempt.submittedAnswer)?.recordings ?? [];
+    const freshIds = recordings.filter((r) => !r.carried).map((r) => r.itemId);
+    const requested = raReadMarks(command.rubricMarks);
+    const scored = scoreSubmission(snapshot, requested, recordings);
     if (!scored.complete) {
       return Result.fail({ code: 'RUBRIC_INCOMPLETE', missing: scored.missing });
     }
 
     const comments = foldSentenceComments(command.decisions, command.sentenceComments, 'approved');
     const commentOf = new Map(comments.map((decision) => [decision.itemId, decision.comment]));
-    const missing = itemIds.filter((itemId) => (commentOf.get(itemId) ?? '').trim() === '');
+    const missing = freshIds.filter((itemId) => (commentOf.get(itemId) ?? '').trim() === '');
     if (missing.length > 0) {
       return Result.fail({ code: 'READ_ALOUD_COMMENT_REQUIRED', missing });
     }
 
     // One decision per prompt, carrying the teacher's comment and the prompt's own verdict —
-    // the learner's card reads both from here (`reviewDecisions`).
+    // the learner's card reads both from here (`reviewDecisions`). A carried prompt keeps the
+    // comment it was passed with.
     const decisions: ReviewDecision[] = scored.prompts.map((prompt) => ({
       itemId: prompt.itemId,
       approved: prompt.outcome.passed,
-      comment: (commentOf.get(prompt.itemId) ?? '').trim(),
+      comment: prompt.carried
+        ? prompt.carried.comment
+        : (commentOf.get(prompt.itemId) ?? '').trim(),
     }));
+    const marks = marksWithCarried(requested, recordings);
 
     const reviewed = attempt.review({
       reviewerId: command.reviewerId,
@@ -323,10 +341,12 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       approvedItems: scored.points,
       totalItems: scored.max,
       rubricMarks: marks,
-      gapResults: scored.prompts.map((prompt) => ({
-        gapKey: prompt.itemId,
-        correct: prompt.outcome.passed,
-      })),
+      gapResults: scored.prompts
+        .filter((prompt) => !prompt.carried)
+        .map((prompt) => ({
+          gapKey: prompt.itemId,
+          correct: prompt.outcome.passed,
+        })),
       evidenceLowered: snapshot.mode === 'read',
     });
     if (reviewed.isFail) return Result.fail(toError(reviewed.error));
@@ -346,6 +366,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
         points: prompt.outcome.points,
         max: prompt.outcome.max,
         passed: prompt.outcome.passed,
+        ...(prompt.carried ? { carried: true as const } : {}),
       })),
     });
   }

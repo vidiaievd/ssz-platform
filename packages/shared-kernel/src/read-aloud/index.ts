@@ -145,4 +145,14 @@ export { toStudentProjection } from './projection.js';
 export type { Draft, DraftTake, Submission, SubmittedRecording, SubmittedTake } from './submission.js';
 export { readDraft, readSubmission, toDraft, toSubmission, unsentAssets } from './submission.js';
 
+export type { CarriedPrompt, CarriedRuling, ReturnedTry } from './carry.js';
+export {
+  carriedFrom,
+  carriedPrompts,
+  freshPart,
+  marksWithCarried,
+  scoreSubmission,
+  withCarried,
+} from './carry.js';
+
 export { SAMPLE_PROMPT_IDS, sampleDocument } from './fixture.js';

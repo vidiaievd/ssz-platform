@@ -1,8 +1,10 @@
 import { jest } from '@jest/globals';
 import {
   readSpeakingSnapshot,
+  readSubmission,
   sampleDocument,
   SAMPLE_PROMPT_IDS,
+  snapshotOf,
   toContent,
   toExpectedAnswers,
 } from '@ssz/shared-kernel/read-aloud';
@@ -27,7 +29,7 @@ import { Attempt } from '../../../../src/modules/attempts/domain/entities/attemp
 
 const [P1, P2] = SAMPLE_PROMPT_IDS;
 
-const makeAttempt = () =>
+const makeAttempt = (previousAttemptId: string | null = null) =>
   Attempt.reconstitute({
     id: 'attempt-1',
     userId: 'user-1',
@@ -55,7 +57,69 @@ const makeAttempt = () =>
     containerId: 'course-1',
     groupId: 'group-1',
     draftAnswer: { takes: { [P1]: [{ n: 1, assetId: 'a1', seconds: 20 }] }, chosen: {} },
+    previousAttemptId,
   });
+
+/**
+ * The first try, returned with P1 failed and P2 passed — what the second try carries from.
+ * Taken through the entity's own transitions, so it holds what a real return leaves behind.
+ */
+function returnedTry(): Attempt {
+  const attempt = Attempt.reconstitute({
+    ...({} as Parameters<typeof Attempt.reconstitute>[0]),
+    id: 'attempt-0',
+    userId: 'user-1',
+    exerciseId: 'ex-1',
+    assignmentId: null,
+    enrollmentId: null,
+    templateCode: 'read_aloud',
+    targetLanguage: 'nb',
+    difficultyLevel: 'A2',
+    checkMode: 'PRACTICE',
+    practicedAtoms: [],
+    status: 'IN_PROGRESS',
+    score: null,
+    passed: null,
+    timeSpentSeconds: 0,
+    submittedAnswer: null,
+    validationDetails: null,
+    feedback: null,
+    answerHash: null,
+    revisionCount: 0,
+    startedAt: new Date(),
+    submittedAt: null,
+    scoredAt: null,
+  });
+  attempt.submit(
+    {
+      recordings: [
+        { itemId: P1, assetId: 'old1', seconds: 20, takes: 1 },
+        { itemId: P2, assetId: 'old2', seconds: 25, takes: 1 },
+      ],
+    },
+    'hash',
+  );
+  attempt.routeForReview({ autoPassedItems: 0, totalItems: 2 }, snapshotOf(sampleDocument()));
+  attempt.review({
+    reviewerId: 'teacher-1',
+    outcome: 'returned',
+    decisions: [
+      { itemId: P1, approved: false, comment: 'For fort.' },
+      { itemId: P2, approved: true, comment: 'Bra.' },
+    ],
+    comment: null,
+    rubricMarks: {
+      [`${P1}:pron`]: 1,
+      [`${P1}:flow`]: 1,
+      [`${P1}:content`]: 1,
+      [`${P2}:pron`]: 3,
+      [`${P2}:flow`]: 1,
+      [`${P2}:content`]: 3,
+    },
+  });
+  attempt.clearDomainEvents();
+  return attempt;
+}
 
 const defOf = (doc: ReadAloudContent): ExerciseDefinition => ({
   exercise: {
@@ -101,10 +165,13 @@ function setup(opts: {
   doc?: ReadAloudContent;
   assets?: MediaAssetDescription[];
   media?: IMediaAssets | null;
+  previous?: Attempt;
 } = {}) {
-  const attempt = makeAttempt();
+  const attempt = makeAttempt(opts.previous?.id ?? null);
   const repo: jest.Mocked<IAttemptRepository> = {
-    findById: jest.fn<IAttemptRepository['findById']>().mockResolvedValue(attempt),
+    findById: jest
+      .fn<IAttemptRepository['findById']>()
+      .mockImplementation(async (id) => (id === opts.previous?.id ? opts.previous : attempt)),
     findInProgress: jest.fn<IAttemptRepository['findInProgress']>(),
     findAllByUser: jest.fn<IAttemptRepository['findAllByUser']>(),
     save: jest.fn<IAttemptRepository['save']>().mockResolvedValue(undefined),
@@ -206,6 +273,75 @@ describe('SubmitAnswerHandler — read_aloud (plan 70 §3.5)', () => {
     expect(media.describe).toHaveBeenCalledWith(['a1', 'a0', 'a2']);
     // A discarded take is checked for ownership only — its length is nobody's business.
     expect(result.isOk).toBe(true);
+  });
+
+  describe('a try after a return carries the passed prompts (phase 11b)', () => {
+    it('takes a recording of the failed prompt only, and writes the passed one in from the return', async () => {
+      const { attempt, media, validator, submit } = setup({ previous: returnedTry(), assets: [asset('a1', 20)] });
+
+      const result = await submit({ recordings: [recordings().recordings[0]] });
+
+      expect(result.isOk).toBe(true);
+      // The carried recording was checked when it was handed in, for the attempt it was made for.
+      expect(media.describe).toHaveBeenCalledWith(['a1']);
+      expect(readSubmission(attempt.submittedAnswer)?.recordings).toEqual([
+        { itemId: P1, assetId: 'a1', seconds: 20, takes: 2 },
+        {
+          itemId: P2,
+          assetId: 'old2',
+          seconds: 25,
+          takes: 1,
+          carried: {
+            attemptId: 'attempt-0',
+            attempt: 1,
+            marks: { pron: 3, flow: 1, content: 3 },
+            points: 13,
+            max: 15,
+            comment: 'Bra.',
+          },
+        },
+      ]);
+      // The queue draws it folded from the details.
+      const validated = (await validator.validate.mock.results[0]!.value) as { value: { details: unknown } };
+      const details = validated.value.details as { prompts: Array<{ itemId: string; carried: unknown }> };
+      expect(details.prompts.map((p) => [p.itemId, p.carried !== null])).toEqual([
+        [P1, false],
+        [P2, true],
+      ]);
+    });
+
+    it('drops a recording a client still sent for the carried prompt, and a carried flag it forged', async () => {
+      const { attempt, media, submit } = setup({ previous: returnedTry(), assets: [asset('a1', 20)] });
+
+      const result = await submit({
+        recordings: [
+          { ...recordings().recordings[0], carried: { attemptId: 'x', attempt: 1, points: 15, max: 15 } },
+          recordings().recordings[1],
+        ],
+      });
+
+      expect(result.isOk).toBe(true);
+      expect(media.describe).toHaveBeenCalledWith(['a1']);
+      const written = readSubmission(attempt.submittedAnswer)!.recordings;
+      expect(written[0]).not.toHaveProperty('carried');
+      expect(written[1]).toMatchObject({ itemId: P2, assetId: 'old2', carried: { attemptId: 'attempt-0' } });
+    });
+
+    it('still wants the failed prompt', async () => {
+      const { submit } = setup({ previous: returnedTry() });
+      const result = await submit({ recordings: [] });
+      expect(result.error).toMatchObject({ code: 'RA_RECORDING_MISSING', itemIds: [P1] });
+    });
+
+    it('carries nothing under `revision: once` — a later try records everything', async () => {
+      const doc = sampleDocument();
+      doc.settings = { ...doc.settings, revision: 'once' };
+      const { submit } = setup({ doc, previous: returnedTry(), assets: [asset('a1', 20)] });
+
+      const result = await submit({ recordings: [recordings().recordings[0]] });
+
+      expect(result.error).toMatchObject({ code: 'RA_RECORDING_MISSING', itemIds: [P2] });
+    });
   });
 
   describe('refusals leave the attempt as it was (RA-U9)', () => {

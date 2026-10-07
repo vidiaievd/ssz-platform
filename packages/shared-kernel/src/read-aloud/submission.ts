@@ -2,13 +2,14 @@
 // submission when they are handed in (plan 70 §3.4–3.5).
 //
 //   draft      { takes: { [itemId]: [{ n, assetId, seconds }] }, chosen: { [itemId]: index } }
-//   submission { recordings: [{ itemId, assetId, seconds, takes, discarded? }] }
+//   submission { recordings: [{ itemId, assetId, seconds, takes, discarded?, carried? }] }
 //
 // The draft holds only uploaded takes — a take still on the device has no id the server could
 // ever resolve. The submission holds the take the student chose for each prompt (the last one
 // without `chooseBest`), and the others only under `keepAllTakes` (DECISIONS §1: «Only the chosen
 // take is sent by default»). Readers coerce and drop; a malformed entry is not a recording.
 
+import type { CarriedRuling } from './carry.js';
 import type { RecorderConfig, RecorderState } from './recorder.js';
 import { chosenIndex, takesOf } from './recorder.js';
 
@@ -25,6 +26,11 @@ export interface SubmittedRecording {
   takes: number;
   /** The takes not chosen — only under `keepAllTakes`. */
   discarded?: SubmittedTake[];
+  /**
+   * Passed in an earlier try and carried into this one (phase 11b) — written by the server when
+   * the work is handed in, never taken from a client (`carry.ts`).
+   */
+  carried?: CarriedRuling;
 }
 
 export interface Submission {
@@ -130,9 +136,27 @@ export function readSubmission(value: unknown): Submission | null {
       if (discarded.some((d) => d === null)) return null;
       if (discarded.length > 0) recording.discarded = discarded as SubmittedTake[];
     }
+    const carried = carriedRuling(r['carried']);
+    if (carried) recording.carried = carried;
     recordings.push(recording);
   }
   return { recordings };
+}
+
+/** A carried ruling off a column; anything malformed is not one, and the prompt reads as new. */
+function carriedRuling(value: unknown): CarriedRuling | null {
+  const c = rec(value);
+  if (!c) return null;
+  const { attemptId, attempt, points, max, comment } = c;
+  if (typeof attemptId !== 'string' || attemptId === '') return null;
+  if (typeof attempt !== 'number' || !Number.isInteger(attempt) || attempt < 1) return null;
+  if (typeof points !== 'number' || !Number.isFinite(points)) return null;
+  if (typeof max !== 'number' || !Number.isFinite(max)) return null;
+  const marks: Record<string, number> = {};
+  for (const [criterionId, mark] of Object.entries(rec(c['marks']) ?? {})) {
+    if (typeof mark === 'number' && Number.isFinite(mark)) marks[criterionId] = mark;
+  }
+  return { attemptId, attempt, marks, points, max, comment: typeof comment === 'string' ? comment : '' };
 }
 
 /** A draft off a column; anything unreadable is left out, never thrown. */

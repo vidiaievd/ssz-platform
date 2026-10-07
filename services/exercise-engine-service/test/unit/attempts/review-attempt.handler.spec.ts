@@ -792,5 +792,111 @@ describe('ReviewAttemptHandler', () => {
         { itemId: P2, points: 4, max: 6, passed: false },
       ]);
     });
+
+    describe('a prompt carried from a returned try (phase 11b)', () => {
+      const carried = {
+        attemptId: 'try-1',
+        attempt: 1,
+        marks: { pron: 3, flow: 1, content: 3 },
+        points: 13,
+        max: 15,
+        comment: 'Bra flyt.',
+      };
+
+      /** P1 carried as passed in try 1, P2 recorded again. */
+      function secondTry(): Attempt {
+        const attempt = Attempt.create({
+          userId: 'user-1',
+          exerciseId: 'ex-1',
+          templateCode: 'read_aloud',
+          targetLanguage: 'nb',
+          difficultyLevel: 'A2',
+          checkMode: 'PRACTICE',
+          practicedAtoms: [],
+          axes: { skills: [], focus: [] },
+          itemTargets: [{ itemKey: P1, atomType: 'VOCABULARY_ITEM', atomId: 'v-sokte', role: 'focus' }],
+        });
+        attempt.submit(
+          {
+            recordings: [
+              { itemId: P1, assetId: 'a1', seconds: 22, takes: 2, carried },
+              { itemId: P2, assetId: 'b2', seconds: 30, takes: 1 },
+            ],
+          },
+          'hash',
+        );
+        attempt.routeForReview({ autoPassedItems: 0, totalItems: 2 }, snapshotOf(sampleDocument()));
+        attempt.clearDomainEvents();
+        return attempt;
+      }
+
+      const p2 = (levels: [number, number, number]) => ({
+        [`${P2}:pron`]: levels[0],
+        [`${P2}:flow`]: levels[1],
+        [`${P2}:content`]: levels[2],
+      });
+
+      it('asks for marks and a comment on the new prompt only', async () => {
+        const { handler } = makeHandler(secondTry());
+
+        expect((await handler.execute(verdict({}, {}))).error).toEqual({
+          code: 'RUBRIC_INCOMPLETE',
+          missing: [`${P2}:pron`, `${P2}:flow`, `${P2}:content`],
+        });
+        expect((await handler.execute(verdict(p2([3, 3, 3]), {}))).error).toEqual({
+          code: 'READ_ALOUD_COMMENT_REQUIRED',
+          missing: [P2],
+        });
+      });
+
+      it('approves on the new prompt, the carried one standing as it was passed', async () => {
+        const attempt = secondTry();
+        const { handler } = makeHandler(attempt);
+
+        // Whatever a client says about P1 is not the teacher's to change.
+        const result = await handler.execute(
+          verdict({ ...p2([2, 2, 2]), [`${P1}:pron`]: 0 }, { [P1]: 'Endret', [P2]: 'Mye bedre.' }),
+        );
+
+        // 13 carried + 10 new of 30 is 77%.
+        expect(result.value).toMatchObject({
+          status: 'SCORED',
+          score: 77,
+          promptScores: [
+            { itemId: P1, points: 13, max: 15, passed: true, carried: true },
+            { itemId: P2, points: 10, max: 15, passed: true },
+          ],
+        });
+        expect(attempt.reviewDecisions).toEqual([
+          { itemId: P1, approved: true, comment: 'Bra flyt.' },
+          { itemId: P2, approved: true, comment: 'Mye bedre.' },
+        ]);
+        expect(attempt.rubricMarks).toEqual({
+          [`${P1}:pron`]: 3,
+          [`${P1}:flow`]: 1,
+          [`${P1}:content`]: 3,
+          ...p2([2, 2, 2]),
+        });
+      });
+
+      it('tells the memory about the new prompt only — the carried pass was reported on the return', async () => {
+        const { handler, publisher } = makeHandler(secondTry());
+        await handler.execute(verdict(p2([2, 2, 2]), { [P2]: 'Mye bedre.' }));
+
+        const payload = completed(publisher);
+        expect(payload['score']).toBe(77);
+        expect(payload['gapResults']).toEqual([{ gapKey: P2, correct: true }]);
+      });
+
+      it('returns again when the new prompt fails, keeping the carried pass', async () => {
+        const attempt = secondTry();
+        const { handler, publisher } = makeHandler(attempt);
+        const result = await handler.execute(verdict(p2([1, 1, 1]), { [P2]: 'Fortsatt for fort.' }));
+
+        expect(result.value.status).toBe('RETURNED');
+        expect(attempt.reviewDecisions?.[0]).toEqual({ itemId: P1, approved: true, comment: 'Bra flyt.' });
+        expect(completed(publisher)['gapResults']).toEqual([{ gapKey: P2, correct: false }]);
+      });
+    });
   });
 });

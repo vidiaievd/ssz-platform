@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { fromPersisted, planOf, readSubmission } from '@ssz/shared-kernel/read-aloud';
-import type { FocusWord, Mode, Prompt, RevisionPolicy } from '@ssz/shared-kernel/read-aloud';
+import type { CarriedRuling, FocusWord, Mode, Prompt, RevisionPolicy } from '@ssz/shared-kernel/read-aloud';
 import { Result } from '../../../shared/kernel/result.js';
 import { ValidationError } from '../../../shared/application/ports/answer-validator.port.js';
 import type { ValidationOutcome } from '../../../shared/application/ports/answer-validator.port.js';
@@ -38,6 +38,12 @@ export interface ReadAloudPromptDetails {
     /** The takes not chosen, under `keepAllTakes` only. */
     discarded: Array<{ assetId: string; seconds: number }>;
   };
+  /**
+   * Passed in an earlier try and carried into this one (plan 70, phase 11b): the queue shows
+   * it folded and read-only — «passed in attempt N» with the marks and the comment it passed
+   * on — and nobody grades it again. Null for a prompt recorded in this try.
+   */
+  carried: CarriedRuling | null;
 }
 
 export interface ReadAloudDetails {
@@ -112,6 +118,7 @@ export class ReadAloudValidator implements IPerTypeValidator {
             // them anyway has not made them the teacher's business.
             discarded: document.recording.keepAllTakes ? (r.discarded ?? []) : [],
           },
+          carried: r.carried ?? null,
         };
       }),
     };

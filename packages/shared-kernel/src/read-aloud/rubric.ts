@@ -24,6 +24,7 @@ import {
   type RubricOutcome,
   type SnapshotCriterion,
 } from '../writing-task/verdict.js';
+import type { CarriedRuling } from './carry.js';
 import type { Mode, ReadAloudContent } from './model.js';
 import { isMode } from './model.js';
 
@@ -112,6 +113,8 @@ export function marksOf(marks: RubricMarks, itemId: string): RubricMarks {
 export interface PromptOutcome {
   itemId: string;
   outcome: RubricOutcome;
+  /** Passed in an earlier try and carried into this one — not the teacher's to mark again. */
+  carried?: CarriedRuling;
 }
 
 export interface SpeakingOutcome {

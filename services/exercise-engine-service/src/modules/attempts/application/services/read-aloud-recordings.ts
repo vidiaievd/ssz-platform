@@ -1,5 +1,6 @@
-import { fromPersisted, readSubmission } from '@ssz/shared-kernel/read-aloud';
-import type { Submission } from '@ssz/shared-kernel/read-aloud';
+import { carriedFrom, fromPersisted, readContent, readSubmission } from '@ssz/shared-kernel/read-aloud';
+import type { Submission, SubmittedRecording } from '@ssz/shared-kernel/read-aloud';
+import type { Attempt } from '../../domain/entities/attempt.entity.js';
 import { ValidationError } from '../../../../shared/application/ports/answer-validator.port.js';
 import type { MediaAssetDescription } from '../../../../shared/application/ports/media-assets.port.js';
 
@@ -73,13 +74,42 @@ export function readRecordings(submitted: unknown): Submission | ValidationError
 }
 
 /**
+ * The prompts a try inherits from the returned one it follows (plan 70, phase 11b): the ones
+ * the teacher passed, frozen with their recording, marks and comment — so the student records
+ * only what failed.
+ *
+ * Only after a return under `revision: 'return'`. Under `once` a failing verdict closes the
+ * work, and a later try is a new start that records everything. `content` is either the
+ * document or the student's projection of it — both carry the prompt ids and the policy in the
+ * same places, and nothing else is read.
+ */
+export function carriedInto(previous: Attempt | null, content: unknown): SubmittedRecording[] {
+  if (previous === null || previous.status !== 'RETURNED') return [];
+  const document = readContent(content);
+  if (document.settings.revision !== 'return') return [];
+  return carriedFrom(
+    {
+      id: previous.id,
+      revisionCount: previous.revisionCount,
+      submittedAnswer: previous.submittedAnswer,
+      reviewDecisions: previous.reviewDecisions,
+      rubricMarks: previous.rubricMarks,
+      rubricSnapshot: previous.rubricSnapshot,
+    },
+    document.prompts.map((p) => p.id),
+  );
+}
+
+/**
  * The part of the check that needs no media-service: does the submission answer exactly the
- * prompts the exercise has, each once, each with a file of its own.
+ * prompts the exercise has, each once, each with a file of its own — the carried prompts
+ * excepted, which the student does not record again.
  */
 export function checkPrompts(
   submission: Submission,
   content: unknown,
   expectedAnswers: unknown,
+  carried: ReadonlySet<string> = new Set(),
 ): RecordingRefusal | null {
   const promptIds = fromPersisted(content, expectedAnswers).prompts.map((p) => p.id);
   const known = new Set(promptIds);
@@ -98,7 +128,7 @@ export function checkPrompts(
     );
   }
 
-  const missing = promptIds.filter((id) => !seen.has(id));
+  const missing = promptIds.filter((id) => !seen.has(id) && !carried.has(id));
   if (missing.length > 0) {
     return new RecordingRefusal(
       'RA_RECORDING_MISSING',

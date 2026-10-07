@@ -70,9 +70,11 @@ import {
   withGradedSettings as itWithGradedSettings,
 } from '@ssz/shared-kernel/inflection-table';
 import {
+  carriedPrompts as raCarriedPrompts,
   toStudentProjection as raToStudentProjection,
   TEMPLATE_CODE as READ_ALOUD,
 } from '@ssz/shared-kernel/read-aloud';
+import { carriedInto } from '../../services/read-aloud-recordings.js';
 import { itemStatesOf, questionStatesOf, segmentStatesOf } from '../../services/item-states.js';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
@@ -735,12 +737,10 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         targetLanguage: existing.targetLanguage,
         difficultyLevel: existing.difficultyLevel,
         checkMode: existing.checkMode,
-        ...withheldWhereNeeded(
-          existing.templateCode,
-          resumedSource,
-          existing.id,
-          existing.checkMode,
-        ),
+        ...(await this.withCarriedPrompts(
+          existing,
+          withheldWhereNeeded(existing.templateCode, resumedSource, existing.id, existing.checkMode),
+        )),
         answerSchema: resumedDef.value.template.answerSchema,
         checkSettings: {
           ...(resumedDef.value.template.defaultCheckSettings ?? {}),
@@ -870,7 +870,10 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       targetLanguage: def.exercise.targetLanguage,
       difficultyLevel: def.exercise.difficultyLevel,
       checkMode: attempt.checkMode,
-      ...withheldWhereNeeded(def.exercise.templateCode, source, attempt.id, attempt.checkMode),
+      ...(await this.withCarriedPrompts(
+        attempt,
+        withheldWhereNeeded(def.exercise.templateCode, source, attempt.id, attempt.checkMode),
+      )),
       answerSchema: def.template.answerSchema,
       checkSettings,
       answeredQuestions: [],
@@ -957,6 +960,30 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       'PRACTICE',
     );
     return practice.isOk ? practice.value.exercise : exercise;
+  }
+
+  /**
+   * A `read_aloud` try after a return, told which prompts it does not record again (plan 70,
+   * phase 11b): `carried: [{ itemId, attempt }]` beside the projection, and nothing more —
+   * the marks and the comment each was passed on, the student read on the return already.
+   *
+   * Worked out from the returned attempt the same way the submit works it out, so the runner
+   * and the server agree on what is left to record. Every other template, and a first try,
+   * is handed on untouched.
+   */
+  private async withCarriedPrompts(
+    attempt: Attempt,
+    projected: { exerciseContent: unknown; expectedAnswers: unknown },
+  ): Promise<{ exerciseContent: unknown; expectedAnswers: unknown }> {
+    if (attempt.templateCode !== READ_ALOUD || attempt.previousAttemptId === null) return projected;
+    if (typeof projected.exerciseContent !== 'object' || projected.exerciseContent === null) {
+      return projected;
+    }
+
+    const previous = await this.attempts.findById(attempt.previousAttemptId);
+    const carried = raCarriedPrompts(carriedInto(previous, projected.exerciseContent));
+    if (carried.length === 0) return projected;
+    return { ...projected, exerciseContent: { ...projected.exerciseContent, carried } };
   }
 
   /**
