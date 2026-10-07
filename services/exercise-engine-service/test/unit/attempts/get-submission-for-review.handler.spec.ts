@@ -363,6 +363,25 @@ describe('GetSubmissionForReviewHandler', () => {
     expect((await run(handler, 'a2')).value.rubricMarks).toEqual({ c1: 3, c2: 1 });
   });
 
+  it('carries the per-item rulings of a verdict already delivered, and none before', async () => {
+    const waiting = attempt({ id: 'a1', templateCode: 'read_aloud' });
+    const decided = attempt({
+      id: 'a2',
+      templateCode: 'read_aloud',
+      reviewDecisions: [
+        { itemId: 'p1', approved: true, comment: 'Fin flyt.' },
+        { itemId: 'p2', approved: false, comment: 'Hør på trykket i «arbeidsgiver».' },
+      ],
+    });
+    const { handler } = makeHandler([waiting, decided]);
+
+    expect((await run(handler, 'a1')).value.reviewDecisions).toBeNull();
+    expect((await run(handler, 'a2')).value.reviewDecisions).toEqual([
+      { itemId: 'p1', approved: true, comment: 'Fin flyt.' },
+      { itemId: 'p2', approved: false, comment: 'Hør på trykket i «arbeidsgiver».' },
+    ]);
+  });
+
   it('reports no rubric for a submission graded out of items', async () => {
     const { handler } = makeHandler([attempt({ id: 'a1' })]);
 

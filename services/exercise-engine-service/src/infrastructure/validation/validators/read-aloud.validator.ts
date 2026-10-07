@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { fromPersisted, planOf, readSubmission } from '@ssz/shared-kernel/read-aloud';
-import type { FocusWord, Mode, Prompt } from '@ssz/shared-kernel/read-aloud';
+import type { FocusWord, Mode, Prompt, RevisionPolicy } from '@ssz/shared-kernel/read-aloud';
 import { Result } from '../../../shared/kernel/result.js';
 import { ValidationError } from '../../../shared/application/ports/answer-validator.port.js';
 import type { ValidationOutcome } from '../../../shared/application/ports/answer-validator.port.js';
@@ -45,6 +45,13 @@ export interface ReadAloudDetails {
   totalItems: number;
   passedItems: 0;
   mode: Mode;
+  /**
+   * What a failing verdict does to the student, as the exercise reads today: `return` opens a
+   * new attempt, `once` closes the work as not passed. The queue's button is named by it
+   * («Send tilbake for nytt opptak» / «Fullfør som ikke bestått»); the verdict itself does not
+   * read it.
+   */
+  revision: RevisionPolicy;
   prompts: ReadAloudPromptDetails[];
 }
 
@@ -86,6 +93,7 @@ export class ReadAloudValidator implements IPerTypeValidator {
       totalItems: submission.recordings.length,
       passedItems: 0,
       mode: document.mode,
+      revision: document.settings.revision,
       prompts: submission.recordings.map((r, index): ReadAloudPromptDetails => {
         const prompt = prompts.get(r.itemId);
         return {

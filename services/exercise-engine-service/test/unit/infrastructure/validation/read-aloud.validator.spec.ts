@@ -44,6 +44,7 @@ describe('ReadAloudValidator (plan 70 §3.5)', () => {
     expect(details.totalItems).toBe(2);
     expect(details.passedItems).toBe(0);
     expect(details.mode).toBe('read');
+    expect(details.revision).toBe(doc.settings.revision);
     expect(details.prompts.map((p) => p.itemId)).toEqual([P1, P2]);
 
     const first = details.prompts[0]!;
@@ -54,6 +55,12 @@ describe('ReadAloudValidator (plan 70 §3.5)', () => {
     expect(first.minSeconds).toBe(15);
     expect(first.maxSeconds).toBe(60);
     expect(first.recording).toEqual({ assetId: 'a1', seconds: 22.4, takes: 3, discarded: [] });
+  });
+
+  it('names what a failing verdict does, so the queue can label its button', () => {
+    const doc = sampleDocument();
+    const once = { ...doc, settings: { ...doc.settings, revision: 'once' as const } };
+    expect((validate(once, submission).value.details as ReadAloudDetails).revision).toBe('once');
   });
 
   it('lists the discarded takes only when the author kept every take (DECISIONS §1)', () => {

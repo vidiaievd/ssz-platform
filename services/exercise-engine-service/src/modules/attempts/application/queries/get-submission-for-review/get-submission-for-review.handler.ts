@@ -21,6 +21,7 @@ import type {
   AttemptStatus,
   DeliveredVerdict,
   ExercisePathSnapshot,
+  ReviewDecision,
 } from '../../../domain/entities/attempt.entity.js';
 
 export type GetSubmissionForReviewError = { code: 'ATTEMPT_NOT_FOUND' };
@@ -90,6 +91,12 @@ export interface GetSubmissionForReviewResult {
    * start unset and are never pre-filled (plan 50 §4).
    */
   rubricMarks: RubricMarks | null;
+  /**
+   * The per-item rulings behind a verdict already delivered — for `read_aloud`, each prompt's
+   * comment and whether it passed (plan 70 §3.6). The read-only screen has nothing else to
+   * show them from once the reviewer's own draft is gone. Null while the work is waiting.
+   */
+  reviewDecisions: ReviewDecision[] | null;
   submittedAnswer: unknown;
   timeSpentSeconds: number;
   selfChecksUsed: number;
@@ -153,6 +160,7 @@ export class GetSubmissionForReviewHandler implements IQueryHandler<GetSubmissio
       text: essayOf(attempt),
       rubricSnapshot: attempt.rubricSnapshot,
       rubricMarks: attempt.rubricMarks,
+      reviewDecisions: attempt.reviewDecisions,
       submittedAnswer: attempt.submittedAnswer,
       timeSpentSeconds: attempt.timeSpentSeconds,
       selfChecksUsed: attempt.selfChecksUsed,
