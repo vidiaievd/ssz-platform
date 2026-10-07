@@ -29,6 +29,12 @@ export type GetSubmissionForReviewError = { code: 'ATTEMPT_NOT_FOUND' };
 /** A verdict already delivered on some attempt — this one, or the try before it. */
 export interface SubmissionVerdict extends DeliveredVerdict {
   attemptId: string;
+  /**
+   * What the reviewer ruled on each item — carried on the previous try only. A free-form
+   * template with no overall comment (`read_aloud`) says everything it has to say here, and
+   * the banner above the new try would otherwise claim nothing was said.
+   */
+  decisions?: ReviewDecision[] | null;
 }
 
 export interface SubmissionLock {
@@ -220,7 +226,9 @@ export class GetSubmissionForReviewHandler implements IQueryHandler<GetSubmissio
     if (attempt.previousAttemptId === null) return null;
 
     const previous = await this.attempts.findById(attempt.previousAttemptId);
-    return previous === null ? null : verdictOf(previous);
+    const verdict = previous === null ? null : verdictOf(previous);
+    if (previous === null || verdict === null) return verdict;
+    return { ...verdict, decisions: previous.reviewDecisions };
   }
 }
 

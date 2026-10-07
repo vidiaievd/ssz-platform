@@ -223,7 +223,30 @@ describe('GetSubmissionForReviewHandler', () => {
       at: new Date('2026-08-14T09:00:00Z'),
       reviewerId: 'teacher-9',
       comment: 'Se på perfektum i setning 2.',
+      decisions: null,
     });
+  });
+
+  it('carries the per-item rulings of the previous try, which a free form leaves in place of a comment', async () => {
+    const decisions = [
+      { itemId: 'p1', approved: false, comment: 'Uttalen er ikke tydelig.' },
+      { itemId: 'p2', approved: true, comment: 'Bra lesing.' },
+    ];
+    const first = attempt({
+      id: 'a0',
+      status: 'RETURNED',
+      reviewedByUserId: 'teacher-9',
+      reviewedAt: new Date('2026-08-14T09:00:00Z'),
+      reviewComment: null,
+      reviewDecisions: decisions,
+    });
+    const second = attempt({ id: 'a1', previousAttemptId: 'a0', revisionCount: 1 });
+    const { handler } = makeHandler([first, second]);
+
+    const result = await run(handler, 'a1');
+
+    expect(result.value.previous?.comment).toBeNull();
+    expect(result.value.previous?.decisions).toEqual(decisions);
   });
 
   it('leaves previous null when the try it points at was never decided', async () => {
@@ -332,9 +355,7 @@ describe('GetSubmissionForReviewHandler', () => {
       templateCode: 'writing_task',
       submittedAnswer: { text: 'Hei Kari, ...' },
       rubricSnapshot: {
-        criteria: [
-          { id: 'c1', name: 'Innhold', desc: '', weight: 1, levels: ['', '', '', ''] },
-        ],
+        criteria: [{ id: 'c1', name: 'Innhold', desc: '', weight: 1, levels: ['', '', '', ''] }],
         passScore: 2,
       },
     });
