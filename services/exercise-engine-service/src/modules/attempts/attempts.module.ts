@@ -17,6 +17,8 @@ import { ReleaseReviewHandler } from './application/commands/release-review/rele
 import { GetAttemptByIdHandler } from './application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
 import { ListUserAttemptsHandler } from './application/queries/list-user-attempts/list-user-attempts.handler.js';
 import { ListReviewQueueV2Handler } from './application/queries/list-review-queue-v2/list-review-queue-v2.handler.js';
+import { FindRecordingsInUseHandler } from './application/queries/find-recordings-in-use/find-recordings-in-use.handler.js';
+import { InternalRecordingsController } from './presentation/controllers/internal-recordings.controller.js';
 import { CountReviewQueueHandler } from './application/queries/count-review-queue/count-review-queue.handler.js';
 import { AggregateReviewLoadHandler } from './application/queries/aggregate-review-load/aggregate-review-load.handler.js';
 import { ListPendingReviewSchoolsHandler } from './application/queries/list-pending-review-schools/list-pending-review-schools.handler.js';
@@ -47,6 +49,7 @@ const QueryHandlers = [
   ListUserAttemptsHandler,
   ListReviewQueueV2Handler,
   CountReviewQueueHandler,
+  FindRecordingsInUseHandler,
   GetSubmissionForReviewHandler,
   AggregateReviewLoadHandler,
   ListPendingReviewSchoolsHandler,
@@ -56,7 +59,7 @@ const QueryHandlers = [
 
 @Module({
   imports: [CqrsModule],
-  controllers: [AttemptsController, InternalReviewController],
+  controllers: [AttemptsController, InternalReviewController, InternalRecordingsController],
   providers: [
     PrismaAttemptRepository,
     { provide: ATTEMPT_REPOSITORY, useExisting: PrismaAttemptRepository },
