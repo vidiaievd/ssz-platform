@@ -95,6 +95,10 @@
     "./read-aloud": {
       "import": "./dist/read-aloud/index.js",
       "types": "./dist/read-aloud/index.d.ts"
+    },
+    "./minimal-pairs": {
+      "import": "./dist/minimal-pairs/index.js",
+      "types": "./dist/minimal-pairs/index.d.ts"
     }
   },
   "files": [
