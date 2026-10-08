@@ -116,6 +116,7 @@ describe('evidenceStrength', () => {
       ['inflection_table', 'EASY', 'HARD'],
       ['match_pairs', 'HARD', 'AGAIN'],
       ['text_order', 'HARD', 'AGAIN'],
+      ['minimal_pairs', 'HARD', 'AGAIN'],
     ])('rates %s up to %s and down to %s', (templateCode, successCap, failureFloor) => {
       expect(evidenceStrength({ templateCode })).toEqual({ successCap, failureFloor });
     });

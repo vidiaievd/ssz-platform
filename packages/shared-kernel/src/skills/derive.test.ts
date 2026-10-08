@@ -16,6 +16,7 @@ describe('the table', () => {
         'highlight_in_text',
         'inflection_table',
         'match_pairs',
+        'minimal_pairs',
         'multiple_choice',
         'multiple_choice_group',
         'read_aloud',
@@ -149,6 +150,26 @@ describe('dictation (plan 68)', () => {
   it('leaves a non-structural hint to yield to the atoms, as before', () => {
     const atoms = [{ atomType: 'grammar_rule', itemKey: 'p1' }];
     expect(deriveSkills({ templateCode: 'match_pairs', atoms }).focus).toEqual(['grammar']);
+  });
+});
+
+describe('minimal_pairs (plan 72)', () => {
+  it('is heard and answered by picking, nothing produced', () => {
+    expect(deriveSkills({ templateCode: 'minimal_pairs' })).toMatchObject({
+      input: 'audio',
+      output: 'none',
+      skills: ['listening'],
+      form: 'bank',
+      modality: 'recognition',
+      focus: ['phonology'],
+      focusSource: 'template',
+    });
+  });
+
+  it('keeps phonology when words are addressed — they say which words, the type says what about them', () => {
+    const atoms = [{ atomType: 'vocabulary_word', itemKey: null }];
+    expect(deriveSkills({ templateCode: 'minimal_pairs', atoms }).focus).toEqual(['vocabulary', 'phonology']);
+    expect(structuralFocus('minimal_pairs')).toEqual(['phonology']);
   });
 });
 

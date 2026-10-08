@@ -5,7 +5,8 @@
 //
 //   skill — the channel: listening / reading / spoken / written, read off the pair
 //           input × output since plan 64 (decision F) — see `channelsOf`
-//   focus — the subject: vocabulary / grammar / orthography / pronunciation / pragmatics
+//   focus — the subject: vocabulary / grammar / orthography / pronunciation / phonology /
+//           pragmatics
 //   form  — how the answer was produced (bank / free), which already lives in
 //           `AnswerForm` and `evidence-strength.ts` and is only *counted* here
 //
@@ -79,10 +80,19 @@ export function isOutput(value: unknown): value is Output {
  * The subject being trained. Canonical order, as above.
  *
  * `pronunciation` arrived with `read_aloud` (plan 70, Q5-A): the sound of a known word said
- * aloud, the speaking twin of `orthography`. Hearing a distinction is a different subject —
- * the `minimal_pairs` handoff names it `phonology` and brings it with that type.
+ * aloud, the speaking twin of `orthography`. `phonology` arrived with `minimal_pairs` (plan 72):
+ * hearing a distinction the language makes — kj against sj, a long vowel against a short one.
+ * Two values, not one: a learner can say «kjære» cleanly and still not hear it from «skjære»,
+ * and the cure for each is different practice.
  */
-export const FOCUSES = ['vocabulary', 'grammar', 'orthography', 'pronunciation', 'pragmatics'] as const;
+export const FOCUSES = [
+  'vocabulary',
+  'grammar',
+  'orthography',
+  'pronunciation',
+  'phonology',
+  'pragmatics',
+] as const;
 export type Focus = (typeof FOCUSES)[number];
 
 /**

@@ -298,6 +298,22 @@ export const BY_TEMPLATE: Readonly<Record<string, TemplateProfile>> = {
     form: 'free',
     modality: 'recall',
   },
+
+  // Listening discrimination (plan 72): one word of a minimal pair is played, the learner taps the
+  // word they heard. The recording is the material, not a layer — one clip per word, and the
+  // document cannot switch it off — so `audio` on the bare row, as for `dictation`. Nothing is
+  // produced; the answer is a button among two or three, hence `none`, `bank` and `recognition`
+  // (the handoff's `retrieval: select`, folded into `modality` by plan 64 decision G). The subject
+  // is structural and new: `phonology` — a set built on kj/sj is about hearing kj/sj whichever words
+  // carry it, and words an author addresses join that subject rather than replace it.
+  minimal_pairs: {
+    input: 'audio',
+    output: 'none',
+    focus: ['phonology'],
+    focusStructural: true,
+    form: 'bank',
+    modality: 'recognition',
+  },
 };
 
 /** `undefined` for a code the table does not know — a new template, or a typo. */
