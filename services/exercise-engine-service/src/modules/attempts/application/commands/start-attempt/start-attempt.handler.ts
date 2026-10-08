@@ -74,7 +74,19 @@ import {
   toStudentProjection as raToStudentProjection,
   TEMPLATE_CODE as READ_ALOUD,
 } from '@ssz/shared-kernel/read-aloud';
+import {
+  atomsForMemory as mpAtomsForMemory,
+  CONTRAST_ATOM_TYPE,
+  contrastAtoms as mpContrastAtoms,
+  deal as mpDeal,
+  fromPersisted as mpFromPersisted,
+  TEMPLATE_CODE as MINIMAL_PAIRS,
+  toStudentProjection as mpsToStudentProjection,
+  withGradedSettings as mpsWithGradedSettings,
+} from '@ssz/shared-kernel/minimal-pairs';
+import type { DealtProbe, MinimalPairsContent } from '@ssz/shared-kernel/minimal-pairs';
 import { carriedInto } from '../../services/read-aloud-recordings.js';
+import { cspRand, drawOf, historyFor } from '../../services/minimal-pairs-sitting.js';
 import { itemStatesOf, questionStatesOf, segmentStatesOf } from '../../services/item-states.js';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
@@ -96,7 +108,14 @@ import type { ExercisePathSnapshot } from '../../../domain/entities/attempt.enti
 
 export type StartAttemptError =
   | ContentClientError
-  | { code: 'ALREADY_IN_PROGRESS'; attemptId: string };
+  | { code: 'ALREADY_IN_PROGRESS'; attemptId: string }
+  /**
+   * `minimal_pairs`: the author allows this many sittings and the learner has handed in that
+   * many already (plan 72, Q4-A). `0` sittings is unlimited and never refuses.
+   */
+  | { code: 'MP_SITTINGS_SPENT'; allowed: number }
+  /** `minimal_pairs`: no pair has two words with audio, so there is nothing to play. */
+  | { code: 'MP_EMPTY_SET' };
 
 /** One sentence of a `sentence_schema` set already worked on in this attempt. */
 export interface ResumedRow {
@@ -345,7 +364,10 @@ function withheldWhereNeeded(
           ? dcWithGradedSettings(withAudio.exerciseContent)
           : templateCode === INFLECTION_TABLE
             ? itWithGradedSettings(withAudio.exerciseContent)
-            : withAudio.exerciseContent;
+            : // `minimal_pairs` (plan 72, Q6-A): one try per probe; the verdict stays.
+              templateCode === MINIMAL_PAIRS
+              ? mpsWithGradedSettings(withAudio.exerciseContent)
+              : withAudio.exerciseContent;
     return { ...withAudio, exerciseContent, expectedAnswers: null };
   }
   return withAudio;
@@ -598,6 +620,23 @@ function projectByTemplate(
     };
   }
 
+  if (templateCode === MINIMAL_PAIRS) {
+    // A `graded` envelope content-service has already projected. Handed on as it stands: the
+    // projection is read off the content alone, and a second pass over a projection would
+    // find no contrast id and lose the label the student is shown.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      // The content column *is* the key here — which clip is which word — so nothing of the
+      // pairs leaves: no word, no clip, no asset id, no note, no pass mark (plan 72 §3.2). The
+      // probes are handed out one at a time by `/items`, from the draw stored at the start.
+      exerciseContent: mpsToStudentProjection(exercise.content),
+      expectedAnswers: null,
+    };
+  }
+
   if (templateCode === READ_ALOUD) {
     // A `graded` envelope arrives already projected by content-service and with no key —
     // projecting it again would lose the descriptors `showRubric: 'always'` needs, for
@@ -711,6 +750,9 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       (existing.answeredQuestions.length > 0 ||
         existing.checkedRows.length > 0 ||
         existing.pickedOptions.length > 0 ||
+        // A `minimal_pairs` sitting is under way from the moment its probes are drawn (plan 72
+        // §3.6): a reload is handed the same draw rather than conflicted into a new one.
+        existing.probeDraw !== null ||
         itemStatesOf(existing).length > 0 ||
         board !== null ||
         existing.id === command.joinAttemptId)
@@ -737,10 +779,13 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         targetLanguage: existing.targetLanguage,
         difficultyLevel: existing.difficultyLevel,
         checkMode: existing.checkMode,
-        ...(await this.withCarriedPrompts(
+        ...withDrawnTotal(
           existing,
-          withheldWhereNeeded(existing.templateCode, resumedSource, existing.id, existing.checkMode),
-        )),
+          await this.withCarriedPrompts(
+            existing,
+            withheldWhereNeeded(existing.templateCode, resumedSource, existing.id, existing.checkMode),
+          ),
+        ),
         answerSchema: resumedDef.value.template.answerSchema,
         checkSettings: {
           ...(resumedDef.value.template.defaultCheckSettings ?? {}),
@@ -805,7 +850,44 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
     // the catalogue: dropping the relation graph here would quietly empty the fan-out
     // that plan 21 has been feeding for months, for every exercise nobody has addressed
     // yet. The old model is retired in phase 7, deliberately and after comparison.
-    const practicedAtoms = mergeAtoms(relationAtoms, itemTargets);
+    const merged = mergeAtoms(relationAtoms, itemTargets);
+
+    // Moved ahead of the attempt's creation for `minimal_pairs`, which deals from it before
+    // anything is saved; for every other template it is the same call it always was.
+    const source = await this.documentToDealFrom(
+      def,
+      command.exerciseId,
+      command.language,
+      command.checkMode,
+    );
+
+    const sitting =
+      def.exercise.templateCode === MINIMAL_PAIRS
+        ? await this.prepareSitting(command.userId, command.exerciseId, def.exercise.targetLanguage, source)
+        : null;
+    if (sitting !== null && 'code' in sitting) {
+      return Result.fail<StartAttemptResult, StartAttemptError>(sitting);
+    }
+
+    // What the answers of a `minimal_pairs` sitting may move is the author's memory setting,
+    // snapshotted here with everything else (plan 72 §3.10, Q1-A): the words leave the
+    // fan-out unless the author chose `contrast+word`, and the contrasts arrive as targets of
+    // the whole exercise — learning skips a kind of atom it does not know, analytics records
+    // its evidence, and the set returns to review as one exercise card.
+    const practicedAtoms = sitting === null ? merged : mpAtomsForMemory(sitting.document, merged);
+    const exerciseTargets =
+      sitting === null
+        ? itemTargets
+        : [
+            ...mpAtomsForMemory(sitting.document, itemTargets),
+            ...mpContrastAtoms(sitting.document).map((atomId) => ({
+              itemKey: null,
+              atomType: CONTRAST_ATOM_TYPE,
+              atomId,
+              role: 'focus',
+            })),
+          ];
+
     const attempt = Attempt.create({
       userId: command.userId,
       exerciseId: command.exerciseId,
@@ -829,7 +911,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       // Snapshotted at the same instant as the atoms and the axes, and for the same
       // reason: an author re-anchoring this gap next month must not rewrite what this
       // attempt proved (plan 63 §2 D).
-      itemTargets: itemTargets.map((target) => ({
+      itemTargets: exerciseTargets.map((target) => ({
         itemKey: target.itemKey,
         atomType: target.atomType,
         atomId: target.atomId,
@@ -845,6 +927,11 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       await this.resolveReviewContext(command.userId, command.exerciseId),
     );
 
+    if (sitting !== null) {
+      const drawn = attempt.drawProbes(sitting.draw);
+      if (drawn.isFail) throw drawn.error;
+    }
+
     await this.attempts.save(attempt);
 
     for (const event of attempt.getDomainEvents()) {
@@ -857,23 +944,19 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       ...(def.exercise.answerCheckSettings ?? {}),
     };
 
-    const source = await this.documentToDealFrom(
-      def,
-      command.exerciseId,
-      command.language,
-      attempt.checkMode,
-    );
-
     return Result.ok<StartAttemptResult, StartAttemptError>({
       attemptId: attempt.id,
       templateCode: def.exercise.templateCode,
       targetLanguage: def.exercise.targetLanguage,
       difficultyLevel: def.exercise.difficultyLevel,
       checkMode: attempt.checkMode,
-      ...(await this.withCarriedPrompts(
+      ...withDrawnTotal(
         attempt,
-        withheldWhereNeeded(def.exercise.templateCode, source, attempt.id, attempt.checkMode),
-      )),
+        await this.withCarriedPrompts(
+          attempt,
+          withheldWhereNeeded(def.exercise.templateCode, source, attempt.id, attempt.checkMode),
+        ),
+      ),
       answerSchema: def.template.answerSchema,
       checkSettings,
       answeredQuestions: [],
@@ -910,6 +993,9 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
    * `sort_into_buckets` and `inflection_table` join for the same reason, dealing a pool, and
    * rows and a bank.
    *
+   * `minimal_pairs` (plan 72) joins for a stronger one: its probes are drawn from the pairs and
+   * the clips, which *are* its content, and a projected envelope has none of them.
+   *
    * So for these templates, and only where the envelope has already been projected, the
    * document is fetched a second time as `PRACTICE` and dealt here, seeded by the attempt.
    * The key that arrives with it is read by the projection and does not leave: the
@@ -933,7 +1019,8 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       exercise.templateCode !== MULTIPLE_CHOICE &&
       exercise.templateCode !== MULTIPLE_CHOICE_GROUP &&
       exercise.templateCode !== SORT_INTO_BUCKETS &&
-      exercise.templateCode !== INFLECTION_TABLE
+      exercise.templateCode !== INFLECTION_TABLE &&
+      exercise.templateCode !== MINIMAL_PAIRS
     ) {
       return exercise;
     }
@@ -960,6 +1047,45 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       'PRACTICE',
     );
     return practice.isOk ? practice.value.exercise : exercise;
+  }
+
+  /**
+   * The draw of a new `minimal_pairs` sitting, or why there is none (plan 72 §3.6, Q4-A).
+   *
+   * Read off the document as it stands now — the unprojected one, which `documentToDealFrom`
+   * fetched for exactly this. The limit on sittings counts handed-in attempts at this exercise
+   * in any mode. `weakest` reads the learner's own scored sittings of any `minimal_pairs`
+   * exercise in this language and nothing else (§3.11); the other two samplings read nothing.
+   * The draw is made with the CSPRNG and stored on the attempt: it is never recomputed.
+   */
+  private async prepareSitting(
+    userId: string,
+    exerciseId: string,
+    targetLanguage: string,
+    source: ExerciseDefinition['exercise'],
+  ): Promise<
+    | { document: MinimalPairsContent; draw: DealtProbe[] }
+    | { code: 'MP_SITTINGS_SPENT'; allowed: number }
+    | { code: 'MP_EMPTY_SET' }
+  > {
+    const document = mpFromPersisted(source.content, source.expectedAnswers);
+
+    const allowed = document.scoring.attempts;
+    if (allowed > 0 && (await this.attempts.countSubmitted(userId, exerciseId)) >= allowed) {
+      return { code: 'MP_SITTINGS_SPENT', allowed };
+    }
+
+    const history =
+      document.set.sampling === 'weakest'
+        ? historyFor(
+            document,
+            await this.attempts.findScoredDetails(userId, MINIMAL_PAIRS, targetLanguage, HISTORY_SITTINGS),
+          )
+        : undefined;
+
+    const draw = mpDeal(document, cspRand(), history);
+    if (draw.length === 0) return { code: 'MP_EMPTY_SET' };
+    return { document, draw };
   }
 
   /**
@@ -1011,6 +1137,31 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       revisionCount: previous ? previous.revisionCount + 1 : 0,
     };
   }
+}
+
+/** How many of the learner's latest sittings `weakest` reads — enough to see a pattern, bounded. */
+const HISTORY_SITTINGS = 50;
+
+/**
+ * The number of probes this sitting actually plays, over the author's number in the projection.
+ *
+ * They differ when repeats are off and the set has fewer words than the author asked for: the
+ * draw stops at the pool (plan 72 §4.1). The reader card and the runner's «i/N» have to say
+ * what will happen, and the draw is what will. Every other template is handed back untouched.
+ */
+function withDrawnTotal(
+  attempt: Attempt,
+  projected: { exerciseContent: unknown; expectedAnswers: unknown },
+): { exerciseContent: unknown; expectedAnswers: unknown } {
+  if (attempt.templateCode !== MINIMAL_PAIRS) return projected;
+  const content = projected.exerciseContent;
+  if (typeof content !== 'object' || content === null || Array.isArray(content)) return projected;
+  const set = (content as { set?: unknown }).set;
+  if (typeof set !== 'object' || set === null) return projected;
+  return {
+    ...projected,
+    exerciseContent: { ...content, set: { ...set, probes: drawOf(attempt).length } },
+  };
 }
 
 /**

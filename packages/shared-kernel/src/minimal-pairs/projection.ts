@@ -32,3 +32,18 @@ export function toStudentProjection(content: unknown): StudentProjection {
     feedback: { ...c.feedback },
   };
 }
+
+/**
+ * The projection of an assignment (plan 72 Q6-A): one try per probe, as every dosed type gets
+ * one check per item in `GRADED`. The verdict, the A/B comparison and the reveal stay as the
+ * author set them — they are the exercise, and the key of one probe says nothing about the
+ * next. The engine judges by `maxTries(feedback, graded)` either way; this is so the runner
+ * draws what the judge will do. Anything that is not a projection is handed back untouched.
+ */
+export function withGradedSettings(projection: unknown): unknown {
+  if (typeof projection !== 'object' || projection === null || Array.isArray(projection)) return projection;
+  const p = projection as Record<string, unknown>;
+  const feedback = p['feedback'];
+  if (typeof feedback !== 'object' || feedback === null) return projection;
+  return { ...p, feedback: { ...(feedback as Record<string, unknown>), secondChance: false } };
+}

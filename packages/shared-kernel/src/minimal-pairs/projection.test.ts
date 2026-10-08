@@ -7,7 +7,8 @@ import { setFeedback } from './edits.js';
 import { sampleDocument, SAMPLE_PAIR_IDS } from './fixture.js';
 import { fromPersisted, isMinimalPairsDocument, toContent, toExpectedAnswers } from './persistence.js';
 import { revealOf, toProbeView } from './probe.js';
-import { toStudentProjection } from './projection.js';
+import type { StudentProjection } from './projection.js';
+import { toStudentProjection, withGradedSettings } from './projection.js';
 import type { DealtProbe } from './sampler.js';
 
 const P1 = SAMPLE_PAIR_IDS[0];
@@ -98,5 +99,20 @@ describe('a probe as revealed', () => {
     const r = revealOf(off, probe, 'w1kjar');
     expect(r.compare).toBeUndefined();
     expect(r.options[0]).toEqual({ id: 'w2skja', text: 'skjære' });
+  });
+});
+
+describe('withGradedSettings', () => {
+  it('turns the second chance off and leaves the rest of the feedback alone', () => {
+    const ex = setFeedback(sampleDocument(), { secondChance: true, abCompare: true });
+    const graded = withGradedSettings(toStudentProjection(toContent(ex))) as StudentProjection;
+    expect(graded.feedback.secondChance).toBe(false);
+    expect(graded.feedback.abCompare).toBe(true);
+    expect(graded.feedback.immediate).toBe(true);
+  });
+
+  it('hands back anything that is not a projection', () => {
+    expect(withGradedSettings(null)).toBeNull();
+    expect(withGradedSettings({ title: 'x' })).toEqual({ title: 'x' });
   });
 });

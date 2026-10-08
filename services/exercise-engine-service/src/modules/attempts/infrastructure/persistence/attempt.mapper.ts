@@ -173,6 +173,9 @@ export class AttemptMapper {
       answeredQuestions: readAnsweredQuestions(row.answeredQuestions),
       checkedRows: readCheckedRows(row.checkedRows),
       pickedOptions: readPickedOptions(row.pickedOptions),
+      // Left as it is: the kernel's `readDraw` reads it where it is used, and drops what it
+      // cannot read rather than refusing to load the attempt.
+      probeDraw: row.probeDraw,
       // Read rather than cast, unlike the columns above. These two decide how the
       // submission is graded at all: a snapshot cast out of a JSON column that turned
       // out not to hold criteria would still be truthy, and the review handler would
@@ -237,6 +240,7 @@ export class AttemptMapper {
         attempt.answeredQuestions as unknown as AttemptModel['answeredQuestions'],
       checkedRows: attempt.checkedRows as unknown as AttemptModel['checkedRows'],
       pickedOptions: attempt.pickedOptions as unknown as AttemptModel['pickedOptions'],
+      probeDraw: (attempt.probeDraw ?? null) as AttemptModel['probeDraw'],
       rubricMarks: attempt.rubricMarks as unknown as AttemptModel['rubricMarks'],
       rubricSnapshot: attempt.rubricSnapshot as unknown as AttemptModel['rubricSnapshot'],
     };

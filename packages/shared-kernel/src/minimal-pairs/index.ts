@@ -83,7 +83,7 @@ export {
 } from './derive.js';
 
 export type { DealtProbe, DrawnProbe, History, Rand, WordHistory } from './sampler.js';
-export { deal, historyKey, lcg, sample } from './sampler.js';
+export { deal, historyKey, lcg, readDraw, sample } from './sampler.js';
 
 export type { PairResult, PickRefusal, PickVerdict, ProbeRecord, ProbeState, Summary } from './judge.js';
 export {
@@ -95,6 +95,8 @@ export {
   readProbeRecords,
   summarize,
 } from './judge.js';
+
+export { atomsForMemory, CONTRAST_ATOM_TYPE, contrastAtomId, contrastAtoms, ratesWords } from './memory.js';
 
 export type { ProbeOption, ProbeReveal, ProbeView, RevealedOption } from './probe.js';
 export { revealOf, toProbeView } from './probe.js';
@@ -116,6 +118,6 @@ export {
 } from './persistence.js';
 
 export type { StudentProjection } from './projection.js';
-export { toStudentProjection } from './projection.js';
+export { toStudentProjection, withGradedSettings } from './projection.js';
 
 export { SAMPLE_PAIR_IDS, sampleDocument } from './fixture.js';

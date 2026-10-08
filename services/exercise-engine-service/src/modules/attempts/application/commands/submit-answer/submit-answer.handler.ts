@@ -54,6 +54,12 @@ import {
   withCarried as raWithCarried,
 } from '@ssz/shared-kernel/read-aloud';
 import type { Submission as RaSubmission } from '@ssz/shared-kernel/read-aloud';
+import {
+  filledWords as mpFilledWords,
+  fromPersisted as mpFromPersisted,
+  TEMPLATE_CODE as MINIMAL_PAIRS,
+} from '@ssz/shared-kernel/minimal-pairs';
+import { playbackOf, probeStatesOf } from '../../services/minimal-pairs-sitting.js';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject, Optional } from '@nestjs/common';
 import { SubmitAnswerCommand } from './submit-answer.command.js';
@@ -185,7 +191,48 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
   // `revealKey`, all decided in the kernel's `check`. The rows are counts; the first answers
   // are the student's own.
   if (templateCode === INFLECTION_TABLE) return details;
+  if (templateCode === MINIMAL_PAIRS) return minimalPairsSummary(details);
   return undefined;
+}
+
+/**
+ * The result of a `minimal_pairs` sitting as the student sees it (plan 72 §3.7): the tally, the
+ * verdict against the author's pass mark, and one line per pair that came up. An allowlist, for
+ * the reason `shortAnswerVerdicts` gives: the details also hold every probe's record — which
+ * word was played where, and the provenance of each clip — and those are the teacher's.
+ *
+ * Every word was shown to the student by then (each probe's reveal spells its buttons), so the
+ * spellings of a pair are not news. The links to «Hør paret» are added by the handler, which can
+ * ask media-service; this function cannot.
+ */
+function minimalPairsSummary(details: unknown): unknown {
+  if (typeof details !== 'object' || details === null) return undefined;
+  const { right, total, score, passed, passPct, pairs } = details as {
+    right?: unknown;
+    total?: unknown;
+    score?: unknown;
+    passed?: unknown;
+    passPct?: unknown;
+    pairs?: unknown;
+  };
+  return {
+    right,
+    total,
+    score,
+    passed,
+    passPct,
+    pairs: Array.isArray(pairs)
+      ? pairs.map((pair) => {
+          const { pairId, words, played, correct } = pair as {
+            pairId: string;
+            words: string[];
+            played: number;
+            correct: number;
+          };
+          return { pairId, words, played, correct };
+        })
+      : [],
+  };
 }
 
 /**
@@ -220,6 +267,7 @@ const WHOLE_BOARD_CHECKS: ReadonlySet<string> = new Set([
  */
 function withRecordedReveals(attempt: Attempt, submitted: unknown, now: Date): unknown {
   if (attempt.templateCode === MULTIPLE_CHOICE) return withRecordedPicks(attempt, submitted);
+  if (attempt.templateCode === MINIMAL_PAIRS) return recordedSitting(attempt);
   if (WHOLE_BOARD_CHECKS.has(attempt.templateCode)) return withRecordedChecks(attempt, submitted);
   if (isItemByItem(attempt.templateCode)) return withRecordedItems(attempt, submitted, now);
   if (attempt.templateCode !== SENTENCE_SCHEMA) return submitted;
@@ -274,6 +322,17 @@ function withRecordedPicks(attempt: Attempt, submitted: unknown): unknown {
       attempt: Math.max(1, q.picks.length),
     })),
   };
+}
+
+/**
+ * A `minimal_pairs` sitting as the attempt recorded it — the draw made at the start and every
+ * answer `/answers` judged — with nothing taken from the body (plan 72 §3.6). The same reasoning
+ * as `withRecordedPicks`, one step further: here even the questions are the server's, since the
+ * client never learns which word a probe was. A probe never answered is simply absent from
+ * `states`, and the kernel counts it wrong.
+ */
+function recordedSitting(attempt: Attempt): unknown {
+  return { draw: attempt.probeDraw ?? [], states: probeStatesOf(attempt) };
 }
 
 /**
@@ -630,6 +689,10 @@ function recheckBudget(templateCode: string, content: unknown): number | undefin
   if (templateCode === SORT_INTO_BUCKETS) return sbMaxChecks(sbReadContent(content).settings) ?? undefined;
   // `settings.attempts`: 1–4 checks of the table, never unlimited (plan 69 §3.4).
   if (templateCode === INFLECTION_TABLE) return itMaxChecks(itReadContent(content).settings);
+  // `minimal_pairs` is checked once (plan 72 §3.7). Its probes were answered one by one and the
+  // submit only sums them; a reopened sitting would let the open probes be answered after the
+  // result was shown. «Ny runde» is a new attempt with a new draw.
+  if (templateCode === MINIMAL_PAIRS) return 1;
   // `highlight_in_text` has a budget too, but per question rather than per attempt (plan 67,
   // Q1-A), and the kernel spends it. The attempt is not reopened between questions at all —
   // it stays in progress until the last one closes; a reopen comes only after that, for
@@ -965,9 +1028,50 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       score: outcome.score,
       requiresReview: false,
       feedback,
-      details: learnerFacingDetails(attempt.templateCode, outcome.details),
+      details: await this.withPairClips(
+        attempt.templateCode,
+        learnerFacingDetails(attempt.templateCode, outcome.details),
+        def.exercise.content,
+        def.exercise.expectedAnswers,
+      ),
       audioTranscript: audioTranscriptFor(def.exercise.content, true),
     });
+  }
+
+  /**
+   * «Hør paret» under each pair of a `minimal_pairs` result (plan 72 §3.7): a signed link per
+   * word, in the pair's own order, beside the spellings. Made now and never stored. A clip that
+   * cannot be signed is an empty string in its place, so the order still matches the words and
+   * the runner disables the button rather than playing the wrong word. Every other template, and
+   * media-service being away, leaves the details as they were.
+   */
+  private async withPairClips(
+    templateCode: string,
+    details: unknown,
+    content: unknown,
+    expectedAnswers: unknown,
+  ): Promise<unknown> {
+    if (templateCode !== MINIMAL_PAIRS || typeof details !== 'object' || details === null) {
+      return details;
+    }
+    const summary = details as { pairs?: Array<{ pairId: string }> };
+    if (!Array.isArray(summary.pairs)) return details;
+
+    const document = mpFromPersisted(content, expectedAnswers);
+    const assetsOf = new Map(
+      document.pairs.map((p) => [p.id, mpFilledWords(p).map((w) => w.clip.assetId)]),
+    );
+    const links = await playbackOf(
+      this.media,
+      summary.pairs.flatMap((p) => assetsOf.get(p.pairId) ?? []),
+    );
+    return {
+      ...summary,
+      pairs: summary.pairs.map((p) => ({
+        ...p,
+        clips: (assetsOf.get(p.pairId) ?? []).map((id) => links.get(id)?.url ?? ''),
+      })),
+    };
   }
 
   /**

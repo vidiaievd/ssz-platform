@@ -222,6 +222,16 @@ model Attempt {
   // migration.
   pickedOptions Json? @map("picked_options")
 
+  // ── Probes drawn for a sitting ──────────────────────────────────────────
+  // `minimal_pairs` plays one word of one pair per probe, and which word comes in which
+  // place is decided once, when the attempt starts (plan 72 §3.6) —
+  // `[{ n, pairId, wordId, side, optionIds }]`. Stored rather than recomputed: `weakest`
+  // reads the student's history as it stood at the start, and an author editing the set
+  // mid-attempt must not reshuffle the probes under the student. It is the key — which
+  // clip is which word — so it never leaves the server; probes are handed out one at a
+  // time by `POST /attempts/:id/items`, and the picks go into `picked_options` above.
+  probeDraw Json? @map("probe_draw")
+
   // ── Teacher review ──────────────────────────────────────────────────────
   // Free-form attempts stop at ROUTED_FOR_REVIEW, where the only verdict left is a
   // person's. What that person decided lives here.

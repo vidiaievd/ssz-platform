@@ -17,6 +17,7 @@ import { HighlightInTextValidator } from '../../../../src/infrastructure/validat
 import { DictationValidator } from '../../../../src/infrastructure/validation/validators/dictation.validator.js';
 import { InflectionTableValidator } from '../../../../src/infrastructure/validation/validators/inflection-table.validator.js';
 import { ReadAloudValidator } from '../../../../src/infrastructure/validation/validators/read-aloud.validator.js';
+import { MinimalPairsValidator } from '../../../../src/infrastructure/validation/validators/minimal-pairs.validator.js';
 import {
   ALL_RIGHT as IT_ALL_RIGHT,
   sampleContent as itSampleContent,
@@ -60,6 +61,7 @@ const makeValidator = () =>
     new DictationValidator(),
     new InflectionTableValidator(),
     new ReadAloudValidator(),
+    new MinimalPairsValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {

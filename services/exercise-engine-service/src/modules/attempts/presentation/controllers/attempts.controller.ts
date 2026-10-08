@@ -47,6 +47,12 @@ import type { SaveDraftError, SaveDraftResult } from '../../application/commands
 import { SaveDraftRequestDto, SaveDraftResponseDto } from '../dto/save-draft.dto.js';
 import { SelfCheckCommand } from '../../application/commands/self-check/self-check.command.js';
 import { AnswerQuestionCommand } from '../../application/commands/answer-question/answer-question.command.js';
+import { HandOutProbeCommand } from '../../application/commands/hand-out-probe/hand-out-probe.command.js';
+import type {
+  HandedOutProbe,
+  HandOutProbeError,
+} from '../../application/commands/hand-out-probe/hand-out-probe.handler.js';
+import { HandOutProbeResponseDto } from '../dto/hand-out-probe.dto.js';
 import type { AnswerPayload } from '../../application/commands/answer-question/answer-question.command.js';
 import { CheckRowCommand } from '../../application/commands/check-row/check-row.command.js';
 import type {
@@ -81,6 +87,7 @@ import {
 import {
   AnswerQuestionChoiceResultDto,
   AnswerQuestionElementDto,
+  AnswerQuestionProbeResultDto,
   AnswerQuestionRequestDto,
   AnswerQuestionResponseDto,
   AnswerQuestionResultDto,
@@ -208,6 +215,12 @@ export class AttemptsController {
   @ApiResponse({ status: 201, type: StartAttemptResponseDto })
   @ApiResponse({ status: 404, description: 'Exercise not found' })
   @ApiResponse({ status: 409, description: 'Attempt already in progress' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'minimal_pairs: `MP_SITTINGS_SPENT` — the sittings the author allows are used; ' +
+      '`MP_EMPTY_SET` — no pair has audio to play',
+  })
   async startAttempt(
     @Param('exerciseId') exerciseId: string,
     @Body() dto: StartAttemptRequestDto,
@@ -240,6 +253,21 @@ export class AttemptsController {
         throw new ConflictException({
           message: 'Attempt already in progress',
           attemptId: err.attemptId,
+        });
+      }
+      // A code beside the sentence, as above: the runner turns this one into «Du har brukt alle
+      // N rundene» and switches «Ny runde» off (plan 72, Q4-A).
+      if ('code' in err && err.code === 'MP_SITTINGS_SPENT') {
+        throw new UnprocessableEntityException({
+          message: 'All the sittings this exercise allows are used',
+          code: 'MP_SITTINGS_SPENT',
+          allowed: err.allowed,
+        });
+      }
+      if ('code' in err && err.code === 'MP_EMPTY_SET') {
+        throw new UnprocessableEntityException({
+          message: 'This exercise has no pair with audio to play',
+          code: 'MP_EMPTY_SET',
         });
       }
       throw new UnprocessableEntityException('Failed to start attempt');
@@ -417,7 +445,12 @@ export class AttemptsController {
 
   @Post(':attemptId/answers')
   @HttpCode(HttpStatus.OK)
-  @ApiExtraModels(AnswerQuestionElementDto, AnswerQuestionResultDto, AnswerQuestionChoiceResultDto)
+  @ApiExtraModels(
+    AnswerQuestionElementDto,
+    AnswerQuestionResultDto,
+    AnswerQuestionChoiceResultDto,
+    AnswerQuestionProbeResultDto,
+  )
   @ApiOperation({
     summary: 'Hand in one question of a set',
     description:
@@ -427,18 +460,24 @@ export class AttemptsController {
       'same question cannot be answered again. Send `optionId` for a multiple-choice set — ' +
       'a question has an attempt budget, and the key comes back only once it closes ' +
       '(right, revealed, or out of tries); send `reveal` instead of an option to close it ' +
-      'and be shown the answer. The attempt stays in progress; POST /submit closes it with ' +
-      'every answer in one aggregate and regrades all of them.',
+      'and be shown the answer. Send `optionId` for a minimal-pairs probe too, naming the ' +
+      'probe handed out by POST /items (`p<n>`): one try, or two with a second chance, and ' +
+      'the key, the spelling and the A/B links come back only once it closes. The attempt ' +
+      'stays in progress; POST /submit closes it with every answer in one aggregate and ' +
+      'regrades all of them.',
   })
   @ApiResponse({ status: 200, type: AnswerQuestionResponseDto })
-  @ApiResponse({ status: 400, description: 'Empty answer, or no such question in the set' })
+  @ApiResponse({
+    status: 400,
+    description: 'Empty answer, no such question in the set, or not one of the probe’s options',
+  })
   @ApiResponse({ status: 404, description: 'Attempt not found' })
   @ApiResponse({ status: 403, description: 'Not your attempt' })
   @ApiResponse({
     status: 422,
     description:
-      'Question already answered or closed, attempt no longer in progress, or a template ' +
-      'that is not answered a question at a time',
+      'Question already answered or closed, a probe that is not the current one, attempt no ' +
+      'longer in progress, or a template that is not answered a question at a time',
   })
   async answerQuestion(
     @Param('exerciseId') _exerciseId: string,
@@ -467,6 +506,14 @@ export class AttemptsController {
         if (err.code === 'QUESTION_NOT_FOUND') {
           throw new BadRequestException('This exercise has no such answerable question');
         }
+        if (err.code === 'OPTION_NOT_FOUND') {
+          throw new BadRequestException('That is not one of this probe’s options');
+        }
+        if (err.code === 'QUESTION_NOT_CURRENT') {
+          throw new UnprocessableEntityException(
+            'This is not the probe the sitting is on — ask POST /items for it',
+          );
+        }
         if (err.code === 'UNSUPPORTED_TEMPLATE') {
           throw new UnprocessableEntityException(
             'This exercise is not answered a question at a time',
@@ -480,6 +527,72 @@ export class AttemptsController {
       throw new UnprocessableEntityException(
         err instanceof Error ? err.message : 'Cannot answer this question',
       );
+    }
+
+    return result.value;
+  }
+
+  @Post(':attemptId/items')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Hand out the current probe of a minimal-pairs sitting',
+    description:
+      'minimal_pairs only (plan 72 §3.6). The probes are drawn when the attempt starts and ' +
+      'stay on the server; this hands out the first one not yet closed — a signed link to ' +
+      'its clip and its buttons, never which button the clip is. Changes nothing, so a ' +
+      'reload asks again and gets the same probe with the tries already spent. Answer it ' +
+      'with POST /answers `{questionId, optionId}`; once every probe is closed, POST /submit.',
+  })
+  @ApiResponse({ status: 200, type: HandOutProbeResponseDto })
+  @ApiResponse({ status: 404, description: 'Attempt not found' })
+  @ApiResponse({ status: 403, description: 'Not your attempt' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'Not a probe set, attempt not in progress, or all probes closed (`ALL_PROBES_CLOSED` — submit)',
+  })
+  @ApiResponse({ status: 503, description: 'The clip cannot be played right now; nothing was recorded' })
+  async handOutProbe(
+    @Param('exerciseId') _exerciseId: string,
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<HandedOutProbe> {
+    const result: Result<HandedOutProbe, HandOutProbeError> = await this.commandBus.execute(
+      new HandOutProbeCommand(attemptId, user.userId),
+    );
+
+    if (result.isFail) {
+      const err = result.error;
+      if (err instanceof ContentClientError) {
+        if (err.statusCode === 404) throw new NotFoundException(err.message);
+        throw new UnprocessableEntityException(err.message);
+      }
+      switch (err.code) {
+        case 'ATTEMPT_NOT_FOUND':
+          throw new NotFoundException('Attempt not found');
+        case 'FORBIDDEN':
+          throw new ForbiddenException('Not your attempt');
+        case 'NOT_A_PROBE_SET':
+          throw new UnprocessableEntityException({
+            message: 'This attempt has no probes to hand out',
+            code: 'NOT_A_PROBE_SET',
+          });
+        case 'NOT_IN_PROGRESS':
+          throw new UnprocessableEntityException({
+            message: 'This attempt is no longer in progress',
+            code: 'NOT_IN_PROGRESS',
+          });
+        case 'ALL_PROBES_CLOSED':
+          throw new UnprocessableEntityException({
+            message: 'Every probe is answered — submit the attempt',
+            code: 'ALL_PROBES_CLOSED',
+          });
+        case 'MEDIA_UNAVAILABLE':
+          throw new ServiceUnavailableException({
+            message: 'The clip cannot be played right now',
+            code: 'MEDIA_UNAVAILABLE',
+          });
+      }
     }
 
     return result.value;

@@ -125,3 +125,30 @@ export function deal(ex: MinimalPairsContent, rand: Rand, history?: History): De
     return { ...probe, optionIds: ids };
   });
 }
+
+/** Read a stored draw out of an untrusted column; a malformed probe is dropped, never thrown on. */
+export function readDraw(value: unknown): DealtProbe[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw): DealtProbe[] => {
+    if (typeof raw !== 'object' || raw === null) return [];
+    const r = raw as Record<string, unknown>;
+    const ids = r['optionIds'];
+    if (
+      typeof r['n'] !== 'number' ||
+      typeof r['pairId'] !== 'string' ||
+      typeof r['wordId'] !== 'string' ||
+      !Array.isArray(ids)
+    ) {
+      return [];
+    }
+    return [
+      {
+        n: r['n'],
+        pairId: r['pairId'],
+        wordId: r['wordId'],
+        side: typeof r['side'] === 'number' ? r['side'] : 0,
+        optionIds: ids.filter((id): id is string => typeof id === 'string'),
+      },
+    ];
+  });
+}

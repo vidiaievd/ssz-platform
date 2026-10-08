@@ -108,6 +108,23 @@ export interface IAttemptRepository {
   /** The most recent RETURNED attempt for this exercise — feeds attemptNo/previousAttemptId on the next try. */
   findLatestReturned(userId: string, exerciseId: string): Promise<Attempt | null>;
   findAllInProgressByExercise(exerciseId: string): Promise<Attempt[]>;
+  /**
+   * How many attempts at this exercise the learner has handed in, in any mode — what a
+   * `minimal_pairs` limit on sittings is counted against (plan 72, Q4-A). An attempt left open
+   * or abandoned is not a sitting.
+   */
+  countSubmitted(userId: string, exerciseId: string): Promise<number>;
+  /**
+   * The validator's details of the learner's own scored attempts on any exercise of one
+   * template in one language, newest first — the history `minimal_pairs` draws `weakest` from
+   * (plan 72 §3.11). Only the learner's own: nothing is read from anyone else's work.
+   */
+  findScoredDetails(
+    userId: string,
+    templateCode: string,
+    targetLanguage: string,
+    limit: number,
+  ): Promise<unknown[]>;
   findAllByUser(userId: string, filter: FindUserAttemptsFilter): Promise<{ items: Attempt[]; total: number }>;
   /**
    * One page of the queue over a scope, oldest submission first.

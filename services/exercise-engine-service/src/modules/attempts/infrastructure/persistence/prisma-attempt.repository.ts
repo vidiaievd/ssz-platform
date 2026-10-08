@@ -66,6 +66,27 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     return rows.map(AttemptMapper.toDomain);
   }
 
+  async countSubmitted(userId: string, exerciseId: string): Promise<number> {
+    return this.prisma.attempt.count({
+      where: { userId, exerciseId, submittedAt: { not: null } },
+    });
+  }
+
+  async findScoredDetails(
+    userId: string,
+    templateCode: string,
+    targetLanguage: string,
+    limit: number,
+  ): Promise<unknown[]> {
+    const rows = await this.prisma.attempt.findMany({
+      where: { userId, templateCode, targetLanguage, status: 'SCORED' },
+      orderBy: { scoredAt: 'desc' },
+      take: limit,
+      select: { validationDetails: true },
+    });
+    return rows.map((row) => row.validationDetails);
+  }
+
   async findAllByUser(
     userId: string,
     filter: FindUserAttemptsFilter,

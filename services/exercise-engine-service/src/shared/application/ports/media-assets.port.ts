@@ -20,6 +20,19 @@ export interface MediaAssetDescription {
   durationMs: number | null;
 }
 
+/**
+ * A link a browser can play, from media-service's internal `POST /internal/media/assets/playback`
+ * — the mp3 variant once processed, the original until then. Signed for a while and then dead:
+ * a link is made when it is handed out, never stored (plan 56 §3.1).
+ */
+export interface MediaAssetPlayback {
+  id: string;
+  url: string;
+  mimeType: string;
+  expiresAt: string;
+  durationMs: number | null;
+}
+
 export class MediaAssetsError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -31,7 +44,7 @@ export class MediaAssetsError extends Error {
 }
 
 /**
- * The engine's one question to media-service: what are these files.
+ * The engine's two questions to media-service: what are these files, and how are they played.
  *
  * Asked by the submit of a `read_aloud` before anything else is decided (plan 70 §3.5),
  * because the per-type validator is synchronous and cannot make the call itself. Unknown
@@ -40,4 +53,10 @@ export class MediaAssetsError extends Error {
  */
 export interface IMediaAssets {
   describe(ids: string[]): Promise<Result<MediaAssetDescription[], MediaAssetsError>>;
+  /**
+   * Playable links for stored files — a `minimal_pairs` probe's clip, the two clips of an A/B
+   * comparison, the clips of a pair in the summary (plan 72 §3.6). An id with nothing playable
+   * behind it is absent from the answer, not an error.
+   */
+  playback(ids: string[]): Promise<Result<MediaAssetPlayback[], MediaAssetsError>>;
 }
