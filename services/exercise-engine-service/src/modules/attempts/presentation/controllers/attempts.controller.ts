@@ -99,6 +99,7 @@ import {
 } from '../dto/check-row.dto.js';
 import { AttemptResponseDto, ListAttemptsResponseDto } from '../dto/attempt-response.dto.js';
 import { Result } from '../../../../shared/kernel/result.js';
+import { DomainError } from '../../../../shared/domain/domain.error.js';
 import { ContentClientError } from '../../../../shared/application/ports/content-client.port.js';
 import { ValidationError } from '../../../../shared/application/ports/answer-validator.port.js';
 import type { Attempt, AttemptStatus } from '../../domain/entities/attempt.entity.js';
@@ -343,6 +344,12 @@ export class AttemptsController {
         }
       }
       if (err instanceof ContentClientError) {
+        throw new UnprocessableEntityException(err.message);
+      }
+      // The domain's own words — «No checks left on this attempt (1 allowed)», «already
+      // submitted» — as `/answers` already gives them. They name the attempt's state, never
+      // the key, and a client told only «Failed» cannot tell a spent budget from a bug.
+      if (err instanceof DomainError) {
         throw new UnprocessableEntityException(err.message);
       }
       throw new UnprocessableEntityException('Failed to submit answer');

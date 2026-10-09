@@ -26,6 +26,20 @@ const STRONG = 0.8;
 /** Below this it counts as failing. Between the two is neither, and says nothing. */
 const FAILING = 0.6;
 
+/**
+ * The kinds of atom a learner can know more than one way, and so the only ones this screen
+ * judges.
+ *
+ * A word and a grammar rule can be picked off a list, recalled and produced, and a gap
+ * between those is the finding. A phonological contrast (plan 72, `minimal_pairs`) is heard
+ * — telling «kjære» from «skjære» *is* the skill, and no exercise asks for it any other
+ * way — so every contrast with enough evidence would come out `recognition_only` and push
+ * «practise it another way» at the teacher for something there is no other way to practise.
+ * Such atoms are still counted as addressed and in `byModality`; they get no verdict. A new
+ * kind of atom stays out until someone decides that its modalities compare.
+ */
+const COMPARABLE_ATOM_TYPES: ReadonlySet<string> = new Set(['vocabulary_item', 'grammar_rule_atom']);
+
 export type GapVerdict =
   /** Known by recognition and never once asked for from memory. */
   | 'recognition_only'
@@ -175,6 +189,7 @@ export class GetModalityGapHandler
       productionFailing: 0,
       recallFailing: 0,
       even: 0,
+      notCompared: 0,
       observations: examined,
       contextObservations,
       cardReviews: cardObservations,
@@ -188,6 +203,11 @@ export class GetModalityGapHandler
       rollup.cardReviews = cardReviews.get(key) ?? 0;
       for (const modality of MODALITIES) {
         summary.byModality[modality] += rollup.buckets[modality].attempts;
+      }
+
+      if (!COMPARABLE_ATOM_TYPES.has(rollup.atomType)) {
+        summary.notCompared += 1;
+        continue;
       }
 
       const decided = verdictOf(rollup);

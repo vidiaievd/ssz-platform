@@ -124,6 +124,25 @@ describe('GetModalityGapHandler (plan 63 §4.1)', () => {
     expect(result.summary.recognitionOnly).toBe(1);
   });
 
+  it('does not judge a phonological contrast, which is only ever heard (plan 72)', async () => {
+    const handler = handlerFor([
+      ...runOf('nb:kjsj', 'recognition', 6, true, { atomType: 'phonological_contrast' }),
+      ...runOf('w-1', 'recognition', 4, true),
+    ]);
+
+    const result = (await handler.execute(query())) as never as {
+      gaps: Array<{ atomId: string }>;
+      summary: { addressedAtoms: number; notCompared: number; recognitionOnly: number; byModality: Record<string, number> };
+    };
+
+    expect(result.gaps.map((g) => g.atomId)).toEqual(['w-1']);
+    expect(result.summary.notCompared).toBe(1);
+    expect(result.summary.recognitionOnly).toBe(1);
+    // Still evidence about the learner: counted, just not judged.
+    expect(result.summary.addressedAtoms).toBe(2);
+    expect(result.summary.byModality.recognition).toBe(10);
+  });
+
   it('measures the gap where production was attempted and went badly', async () => {
     const handler = handlerFor([
       ...runOf('w-1', 'recognition', 5, true),
