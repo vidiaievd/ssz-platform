@@ -64,6 +64,10 @@
       "import": "./dist/inflection-table/index.js",
       "types": "./dist/inflection-table/index.d.ts"
     },
+    "./information-transfer": {
+      "import": "./dist/information-transfer/index.js",
+      "types": "./dist/information-transfer/index.d.ts"
+    },
     "./text": {
       "import": "./dist/text/index.js",
       "types": "./dist/text/index.d.ts"
