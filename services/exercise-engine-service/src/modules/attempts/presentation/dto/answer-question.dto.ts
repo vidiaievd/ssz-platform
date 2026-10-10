@@ -26,7 +26,7 @@ export class AnswerQuestionRequestDto {
   text?: string;
 
   @ApiPropertyOptional({
-    description: 'multiple_choice: the option the student picked',
+    description: 'multiple_choice: the option the student picked. minimal_pairs: the word they heard',
   })
   @IsOptional()
   @IsString()
@@ -146,6 +146,73 @@ export class AnswerQuestionChoiceResultDto {
   eliminated?: string[];
 }
 
+export class RevealedProbeOptionDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty({ description: 'Every button is spelled once the probe closes' })
+  text!: string;
+
+  @ApiPropertyOptional({ description: 'Unless meaning is «never» shown' })
+  gloss?: string;
+
+  @ApiPropertyOptional({ description: 'When IPA is on' })
+  ipa?: string;
+}
+
+export class ProbeCompareDto {
+  @ApiProperty({ description: 'A signed link to the clip of the word the student chose' })
+  chosen!: string;
+
+  @ApiProperty({ description: 'A signed link to the clip that was played' })
+  target!: string;
+}
+
+/**
+ * What one answer to a `minimal_pairs` probe comes back with — plan 72 §3.6.
+ *
+ * The key, the spelling of every button and the A/B links arrive only once the probe closes —
+ * right, or out of tries. On a miss with a second chance left the student hears the same clip
+ * again and is told only that it was not right.
+ */
+export class AnswerQuestionProbeResultDto {
+  @ApiProperty({ example: 'p3' })
+  questionId!: string;
+
+  @ApiProperty()
+  n!: number;
+
+  @ApiProperty({ description: 'The option that was judged' })
+  optionId!: string;
+
+  @ApiProperty()
+  correct!: boolean;
+
+  @ApiProperty({ description: 'Right, or no tries left' })
+  closed!: boolean;
+
+  @ApiProperty({ description: 'Answers given to this probe, this one included' })
+  tries!: number;
+
+  @ApiProperty({ description: 'Tries left on this probe after this one' })
+  triesLeft!: number;
+
+  @ApiProperty({ description: 'Whether the first answer was right — the only one that scores' })
+  firstCorrect!: boolean;
+
+  @ApiPropertyOptional({ description: 'The word that was played. Only once the probe closes' })
+  keyOptionId?: string;
+
+  @ApiPropertyOptional({ type: [RevealedProbeOptionDto], description: 'Only once the probe closes' })
+  options?: RevealedProbeOptionDto[];
+
+  @ApiPropertyOptional({
+    type: ProbeCompareDto,
+    description: 'On a closed miss with A/B comparison on: the two clips to play back to back',
+  })
+  compare?: ProbeCompareDto;
+}
+
 export class AnswerQuestionResponseDto {
   @ApiProperty()
   attemptId!: string;
@@ -167,10 +234,11 @@ export class AnswerQuestionResponseDto {
     oneOf: [
       { $ref: '#/components/schemas/AnswerQuestionResultDto' },
       { $ref: '#/components/schemas/AnswerQuestionChoiceResultDto' },
+      { $ref: '#/components/schemas/AnswerQuestionProbeResultDto' },
     ],
     description: 'Read according to `templateCode`',
   })
-  result!: AnswerQuestionResultDto | AnswerQuestionChoiceResultDto;
+  result!: AnswerQuestionResultDto | AnswerQuestionChoiceResultDto | AnswerQuestionProbeResultDto;
 
   @ApiPropertyOptional({
     type: AudioTranscriptDto,

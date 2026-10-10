@@ -205,6 +205,18 @@ describe('AttemptsController (integration)', () => {
 
       expect(res.status).toBe(HttpStatus.NOT_FOUND);
     });
+
+    it('422 — a refused re-check says why rather than «Failed»', async () => {
+      mockRepo.findById.mockResolvedValue(makeAttempt({ id: attemptId, checkMode: 'GRADED' }));
+      mockContentClient.getExerciseForAttempt.mockResolvedValue(Result.ok(makeDef()));
+
+      const res = await request(app.getHttpServer())
+        .post(`/exercises/ex-1/attempts/${attemptId}/submit`)
+        .send({ submittedAnswer: {}, timeSpentSeconds: 0 });
+
+      expect(res.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+      expect(res.body.message).toBe('Only a practice attempt can be checked again');
+    });
   });
 
   describe('DELETE /exercises/:exerciseId/attempts/:attemptId', () => {

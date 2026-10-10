@@ -54,6 +54,10 @@ import {
   TEMPLATE_CODE as READ_ALOUD,
   toStudentProjection as readAloudProjection,
 } from '@ssz/shared-kernel/read-aloud';
+import {
+  TEMPLATE_CODE as MINIMAL_PAIRS,
+  toStudentProjection as minimalPairsProjection,
+} from '@ssz/shared-kernel/minimal-pairs';
 import { withStudentAudio } from '@ssz/shared-kernel/audio';
 
 /**
@@ -157,6 +161,11 @@ import { withStudentAudio } from '@ssz/shared-kernel/audio';
  * `expected_answers`. The projection ships the material of the current mode, the three numbers per
  * prompt and the recorder's dials; the rubric only under `showRubric: 'always'`, and then only the
  * criteria marked visible (plan 70 §3.2).
+ *
+ * `minimal_pairs` is the eleventh, and its key is the document itself: which clip is which word. The
+ * projection ships the title, the instruction, the contrast's label, the probe count, the listening
+ * budget and the feedback switches — no pair, no word, no clip, no asset id, no pass mark. Probes
+ * are handed out one at a time by the exercise engine (plan 72 §3.2).
  *
  * There are exactly two places content leaves this service towards a learner, and both
  * call this: the exercise response DTO and the internal attempt envelope in `graded`
@@ -316,6 +325,12 @@ function projectByTemplate(
     // the student before the verdict only under `showRubric: 'always'` (plan 70 §3.2). The
     // listening note, the focus words, the pass mark and the AI stage never leave.
     const projection = readAloudProjection(content, expectedAnswers);
+    return projection as unknown as Record<string, unknown>;
+  }
+
+  if (templateCode === MINIMAL_PAIRS) {
+    // Content alone: the teacher's note is in `expected_answers` and is not even looked at.
+    const projection = minimalPairsProjection(content);
     return projection as unknown as Record<string, unknown>;
   }
 

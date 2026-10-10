@@ -1,5 +1,5 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Inject, Optional } from '@nestjs/common';
 import {
   fromPersisted,
   grade,
@@ -17,6 +17,15 @@ import {
   TEMPLATE_CODE as MULTIPLE_CHOICE,
 } from '@ssz/shared-kernel/multiple-choice';
 import type { AnswerVerdict } from '@ssz/shared-kernel/multiple-choice';
+import {
+  fromPersisted as mpFromPersisted,
+  judgePick,
+  maxTries,
+  probeNumber,
+  revealOf,
+  TEMPLATE_CODE as MINIMAL_PAIRS,
+} from '@ssz/shared-kernel/minimal-pairs';
+import type { RevealedOption } from '@ssz/shared-kernel/minimal-pairs';
 import { AnswerQuestionCommand } from './answer-question.command.js';
 import {
   ATTEMPT_REPOSITORY,
@@ -32,6 +41,16 @@ import { seedFrom } from '../../../../../shared/application/services/multiple-ch
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
 import { audioTranscriptFor, type AudioTranscript } from '../../services/audio-transcript.js';
+import {
+  MEDIA_ASSETS,
+  type IMediaAssets,
+} from '../../../../../shared/application/ports/media-assets.port.js';
+import {
+  currentProbe,
+  drawOf,
+  playbackOf,
+  probeStatesOf,
+} from '../../services/minimal-pairs-sitting.js';
 
 export type AnswerQuestionError =
   | { code: 'ATTEMPT_NOT_FOUND' }
@@ -41,6 +60,10 @@ export type AnswerQuestionError =
   /** `multiple_choice`: this question is right, revealed, or out of attempts. */
   | { code: 'QUESTION_CLOSED' }
   | { code: 'EMPTY_ANSWER' }
+  /** `minimal_pairs`: a probe that exists but is not the one the sitting is on. */
+  | { code: 'QUESTION_NOT_CURRENT' }
+  /** `minimal_pairs`: the option is not one of this probe's buttons. */
+  | { code: 'OPTION_NOT_FOUND' }
   | ContentClientError
   | AttemptDomainError;
 
@@ -57,7 +80,7 @@ export interface AnswerQuestionResult {
   /** How many there are to answer. */
   total: number;
   /** The verdict and everything the student is allowed to see behind it. */
-  result: StudentResult | AnswerVerdict;
+  result: StudentResult | AnswerVerdict | ProbeVerdict;
   /** Whether this answer is on its way to a teacher, for the routing line. */
   routedForReview: boolean;
   /**
@@ -68,6 +91,29 @@ export interface AnswerQuestionResult {
    * handing it over after the first of five questions would answer the other four.
    */
   audioTranscript?: AudioTranscript;
+}
+
+/**
+ * One answer to a `minimal_pairs` probe, as the student may see it (plan 72 §3.6).
+ *
+ * Until the probe closes this says right or wrong and how many tries are left, and nothing
+ * else: on a second chance the student is to listen again, not to read the key. Once it closes
+ * the key, every button spelled (meaning unless it is never shown, IPA when it is on) and, on a
+ * miss with A/B on, the two clips to play back to back.
+ */
+export interface ProbeVerdict {
+  questionId: string;
+  n: number;
+  optionId: string;
+  correct: boolean;
+  closed: boolean;
+  tries: number;
+  triesLeft: number;
+  /** The first answer is the one that scores (DECISIONS §5). */
+  firstCorrect: boolean;
+  keyOptionId?: string;
+  options?: RevealedOption[];
+  compare?: { chosen: string; target: string };
 }
 
 /**
@@ -108,6 +154,9 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
   constructor(
     @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
     @Inject(CONTENT_CLIENT) private readonly contentClient: IContentClient,
+    // Asked only for the A/B links of a closed `minimal_pairs` miss. Optional, as in the submit
+    // handler: without it the verdict still comes back, only without the comparison.
+    @Optional() @Inject(MEDIA_ASSETS) private readonly media: IMediaAssets | null = null,
   ) {}
 
   async execute(
@@ -143,6 +192,17 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
       // `judge` — a second call would compute a verdict, and the key rides on it.
       const state = attempt.pickedOptions.find((q) => q.questionId === command.questionId);
       if (state?.closed === true) return Result.fail({ code: 'QUESTION_CLOSED' });
+    } else if (attempt.templateCode === MINIMAL_PAIRS) {
+      // A pick and nothing else: there is no «show me» on a probe — the reveal comes with the
+      // answer, and asking for it without one would be a free look at the key.
+      if (command.payload.kind !== 'option' || command.payload.reveal) {
+        return Result.fail({ code: 'UNSUPPORTED_TEMPLATE' });
+      }
+      if (command.payload.optionId === null || command.payload.optionId === '') {
+        return Result.fail({ code: 'EMPTY_ANSWER' });
+      }
+      const refused = this.refuseProbe(attempt, command.questionId);
+      if (refused) return Result.fail(refused);
     } else {
       return Result.fail({ code: 'UNSUPPORTED_TEMPLATE' });
     }
@@ -159,6 +219,13 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
     }
 
     const { content, expectedAnswers } = defResult.value.exercise;
+
+    if (attempt.templateCode === MINIMAL_PAIRS && command.payload.kind === 'option') {
+      return this.answerProbe(attempt, command.questionId, command.payload.optionId ?? '', {
+        content,
+        expectedAnswers,
+      });
+    }
 
     return command.payload.kind === 'text'
       ? this.answerShortAnswer(attempt, command.questionId, command.payload.text, {
@@ -246,6 +313,102 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
         exercise.content,
         attempt.answeredQuestions.length >= total,
       ),
+    });
+  }
+
+  /**
+   * Whether this probe may be answered at all, decided from the attempt alone — before the
+   * round-trip to content-service, and before the judge, which would compute a verdict a
+   * replayed request could read the key off.
+   *
+   * Only the probe the sitting is on: `/items` hands out the first one still open, and an
+   * answer to a later one is an answer to a clip that was never played.
+   */
+  private refuseProbe(attempt: Attempt, questionId: string): AnswerQuestionError | null {
+    const n = probeNumber(questionId);
+    const draw = drawOf(attempt);
+    if (n === null || !draw.some((p) => p.n === n)) return { code: 'QUESTION_NOT_FOUND' };
+    const states = probeStatesOf(attempt);
+    if (states.some((s) => s.n === n && s.closed)) return { code: 'QUESTION_CLOSED' };
+    if (currentProbe(draw, states)?.n !== n) return { code: 'QUESTION_NOT_CURRENT' };
+    return null;
+  }
+
+  /**
+   * `minimal_pairs`: one answer to one probe, judged by the kernel against the draw.
+   *
+   * Which word the probe played comes from the draw stored at the start, never from the
+   * request, and so does which try this is. The budget is one try, or two with a second
+   * chance — and always one in an assignment (Q6-A). The first answer is what scores; a second
+   * one can only close the probe as right (DECISIONS §5).
+   */
+  private async answerProbe(
+    attempt: Attempt,
+    questionId: string,
+    optionId: string,
+    exercise: { content: unknown; expectedAnswers: unknown },
+  ): Promise<Result<AnswerQuestionResult, AnswerQuestionError>> {
+    const document = mpFromPersisted(exercise.content, exercise.expectedAnswers);
+    const draw = drawOf(attempt);
+    const n = probeNumber(questionId)!;
+    const probe = draw.find((p) => p.n === n)!;
+    const state = probeStatesOf(attempt).find((s) => s.n === n);
+    const tries = maxTries(document.feedback, attempt.checkMode === 'GRADED');
+
+    const judged = judgePick(probe, state, optionId, tries);
+    if ('refused' in judged) {
+      return Result.fail(
+        judged.refused === 'closed' ? { code: 'QUESTION_CLOSED' } : { code: 'OPTION_NOT_FOUND' },
+      );
+    }
+    const { verdict, next } = judged;
+
+    const recorded = attempt.pickOption({
+      questionId,
+      optionId,
+      correct: verdict.correct,
+      closed: verdict.closed,
+      revealed: false,
+    });
+    if (recorded.isFail) {
+      return Result.fail(recorded.error as AttemptDomainError);
+    }
+
+    await this.attempts.save(attempt);
+
+    const result: ProbeVerdict = {
+      questionId,
+      n,
+      optionId,
+      correct: verdict.correct,
+      closed: verdict.closed,
+      tries: next.picks.length,
+      triesLeft: Math.max(0, tries - next.picks.length),
+      firstCorrect: next.picks[0] === probe.wordId,
+    };
+    if (verdict.closed) {
+      const reveal = revealOf(document, probe, optionId);
+      result.keyOptionId = reveal.keyOptionId;
+      result.options = reveal.options;
+      if (reveal.compare) {
+        const { chosenAssetId, targetAssetId } = reveal.compare;
+        const links = await playbackOf(this.media, [chosenAssetId, targetAssetId]);
+        const chosen = links.get(chosenAssetId);
+        const target = links.get(targetAssetId);
+        // Both or neither: half a comparison is not one.
+        if (chosen && target) result.compare = { chosen: chosen.url, target: target.url };
+      }
+    }
+
+    const closed = probeStatesOf(attempt).filter((s) => s.closed).length;
+    return Result.ok<AnswerQuestionResult, AnswerQuestionError>({
+      attemptId: attempt.id,
+      templateCode: MINIMAL_PAIRS,
+      answered: closed,
+      total: draw.length,
+      result,
+      // Never: the verdict is an id comparison.
+      routedForReview: false,
     });
   }
 

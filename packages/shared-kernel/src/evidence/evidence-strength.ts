@@ -248,6 +248,14 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   // verdict at all (`reviewOutcome`, plan 63 §4 — a teacher has already removed the doubt the
   // ceilings exist for), so for this type it rates only atoms in the `context` role.
   read_aloud: FREE_PRODUCTION,
+
+  // Plan 72. The handoff asks for "success ceiling low, failure floor high" (DECISIONS §7): picking
+  // the word heard out of two or three proves the ear separates the sounds and nothing about
+  // production or meaning — a coin flip gets half of them — while a miss is direct evidence the
+  // distinction is not heard. That is NEAR_CERTAIN exactly. The engine sends no `answerForm` for
+  // this type on purpose: a form would win over the row and, with «all words» as buttons, lift the
+  // ceiling to CLOSED_SET — the handoff holds it low whatever the number of buttons.
+  minimal_pairs: NEAR_CERTAIN,
 };
 
 /**

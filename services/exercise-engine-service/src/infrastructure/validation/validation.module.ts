@@ -18,6 +18,7 @@ import { ErrorCorrectionValidator } from './validators/error-correction.validato
 import { TranslateValidator } from './validators/translate.validator.js';
 import { WritingTaskValidator } from './validators/writing-task.validator.js';
 import { ReadAloudValidator } from './validators/read-aloud.validator.js';
+import { MinimalPairsValidator } from './validators/minimal-pairs.validator.js';
 
 @Global()
 @Module({
@@ -39,6 +40,7 @@ import { ReadAloudValidator } from './validators/read-aloud.validator.js';
     TranslateValidator,
     WritingTaskValidator,
     ReadAloudValidator,
+    MinimalPairsValidator,
     SchemaBasedAnswerValidator,
     { provide: ANSWER_VALIDATOR, useExisting: SchemaBasedAnswerValidator },
   ],

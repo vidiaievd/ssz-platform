@@ -216,6 +216,8 @@ export interface AttemptPersistenceProps {
   answeredQuestions: AnsweredQuestion[] | null;
   checkedRows: CheckedRow[] | null;
   pickedOptions: PickedOption[] | null;
+  /** `minimal_pairs`: the probes this sitting drew at its start (plan 72 §3.6). */
+  probeDraw?: unknown;
   rubricMarks: RubricMarks | null;
   rubricSnapshot: RubricSnapshot | null;
 }
@@ -323,6 +325,7 @@ export class Attempt extends AggregateRoot {
     private _itemTargets: AttemptItemTarget[] = [],
     private _modality: Modality = 'unknown',
     private _ephemeral: boolean = false,
+    private _probeDraw: unknown = null,
   ) {
     super(id);
   }
@@ -438,6 +441,7 @@ export class Attempt extends AggregateRoot {
       props.itemTargets ?? [],
       props.modality ?? 'unknown',
       props.ephemeral ?? false,
+      props.probeDraw ?? null,
     );
   }
 
@@ -1389,6 +1393,30 @@ export class Attempt extends AggregateRoot {
   get modality(): Modality { return this._modality; }
   /** This attempt was on a disposable probe — see `ephemeral` on the create props. */
   get ephemeral(): boolean { return this._ephemeral; }
+  /**
+   * The probes a `minimal_pairs` sitting plays, in order — `null` for every other template.
+   * Untyped here as the column is: the kernel's `readDraw` is the one reader of it.
+   */
+  get probeDraw(): unknown { return this._probeDraw; }
+
+  /**
+   * Write the draw of a `minimal_pairs` sitting, once, before anything is answered (plan 72
+   * §3.6). Which word is played in which place is decided when the attempt starts and never
+   * again: the picks are recorded against probe numbers, so a second draw would move the
+   * words under answers already given.
+   */
+  drawProbes(draw: unknown): Result<void, InvalidAttemptTransitionError> {
+    if (this._probeDraw !== null) {
+      return Result.fail(new InvalidAttemptTransitionError('The probes of this attempt are already drawn'));
+    }
+    if (this._status !== 'IN_PROGRESS' || this._pickedOptions.length > 0) {
+      return Result.fail(
+        new InvalidAttemptTransitionError('Probes are drawn before the first answer, on an open attempt'),
+      );
+    }
+    this._probeDraw = draw;
+    return Result.ok();
+  }
   get skills(): Skill[] { return this._skills; }
   get focus(): Focus[] { return this._focus; }
   get status(): AttemptStatus { return this._status; }

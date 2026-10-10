@@ -18,6 +18,7 @@ import { TEMPLATE_CODE as SORT_INTO_BUCKETS_TEMPLATE } from '@ssz/shared-kernel/
 import { TEMPLATE_CODE as HIGHLIGHT_IN_TEXT_TEMPLATE } from '@ssz/shared-kernel/highlight-in-text';
 import { TEMPLATE_CODE as DICTATION_TEMPLATE } from '@ssz/shared-kernel/dictation';
 import { TEMPLATE_CODE as READ_ALOUD_TEMPLATE } from '@ssz/shared-kernel/read-aloud';
+import { TEMPLATE_CODE as MINIMAL_PAIRS_TEMPLATE } from '@ssz/shared-kernel/minimal-pairs';
 import { TEMPLATE_CODE as INFLECTION_TABLE_TEMPLATE } from '@ssz/shared-kernel/inflection-table';
 import { gapFillViolations } from './gap-fill-preflight.js';
 import { matchPairsViolations } from './match-pairs-preflight.js';
@@ -31,6 +32,7 @@ import { highlightInTextViolations } from './highlight-in-text-preflight.js';
 import { dictationViolations } from './dictation-preflight.js';
 import { inflectionTableViolations } from './inflection-table-preflight.js';
 import { readAloudViolations } from './read-aloud-preflight.js';
+import { minimalPairsViolations } from './minimal-pairs-preflight.js';
 import { audioViolations } from './audio-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
@@ -534,6 +536,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
                 DICTATION_TEMPLATE,
                 INFLECTION_TABLE_TEMPLATE,
                 READ_ALOUD_TEMPLATE,
+                MINIMAL_PAIRS_TEMPLATE,
               ],
             },
           },
@@ -632,6 +635,9 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
  *
  * `read_aloud` (plan 70) fails loudly: a prompt with no listening note is a blocker. Its notes
  * and focus words are in the key column, which only this query loads.
+ *
+ * `minimal_pairs` (plan 72) is the kernel's `issues` too: the note per pair is in the key column,
+ * and the duration of a clip is in the document, so no media lookup is needed here.
  */
 function violationsFor(
   templateCode: string,
@@ -650,6 +656,7 @@ function violationsFor(
   if (templateCode === DICTATION_TEMPLATE) return dictationViolations(document);
   if (templateCode === INFLECTION_TABLE_TEMPLATE) return inflectionTableViolations(document);
   if (templateCode === READ_ALOUD_TEMPLATE) return readAloudViolations(document);
+  if (templateCode === MINIMAL_PAIRS_TEMPLATE) return minimalPairsViolations(document);
   return gapFillViolations(document);
 }
 

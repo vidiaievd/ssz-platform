@@ -116,4 +116,26 @@ describe('PronunciationService', () => {
     expect(result.error).toBe('SYNTHESIS_FAILED');
     expect(storage.uploadObject).not.toHaveBeenCalled();
   });
+
+  it('reads the clip back as bytes after synthesizing it', async () => {
+    const { service, storage } = makeService();
+    storage.getObject.mockResolvedValue(Buffer.from('mp3-bytes'));
+    mockPiper();
+
+    const result = await service.getOrCreateBytes(' sykepleier ', 'nb');
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.toString()).toBe('mp3-bytes');
+    // The bytes come from the very key the clip was stored under, trimmed text included.
+    expect(storage.getObject).toHaveBeenCalledWith(storage.uploadObject.mock.calls[0]![0], true);
+    expect(service.voiceName).toBe('no_NO-talesyntese-medium');
+  });
+
+  it('passes validation failures through getOrCreateBytes', async () => {
+    const { service, storage } = makeService();
+    mockPiper();
+
+    expect((await service.getOrCreateBytes('hello', 'en')).error).toBe('LANGUAGE_NOT_SUPPORTED');
+    expect(storage.getObject).not.toHaveBeenCalled();
+  });
 });

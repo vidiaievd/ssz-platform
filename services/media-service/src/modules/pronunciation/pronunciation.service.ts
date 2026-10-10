@@ -80,6 +80,32 @@ export class PronunciationService {
     return work;
   }
 
+  /** Name of the piper voice that synthesizes clips — what an exercise clip reports as its voice. */
+  get voiceName(): string {
+    return this.tts.piperVoice;
+  }
+
+  /**
+   * The mp3 bytes of a clip, synthesizing it first when needed. An exercise clip is a copy
+   * of this object, not a pointer to it: the shared cache entry sits in the public bucket
+   * and can be regenerated at any time, while an exercise asset must stay put.
+   */
+  async getOrCreateBytes(
+    rawText: string,
+    lang: string,
+  ): Promise<Result<Buffer, PronunciationError>> {
+    const clip = await this.getOrCreate(rawText, lang);
+    if (clip.isFail) return Result.fail(clip.error);
+
+    const voiceKey = LANGUAGE_TO_VOICE_KEY[lang.toLowerCase().split(/[-_]/)[0] ?? '']!;
+    try {
+      return Result.ok(await this.storage.getObject(this.storageKey(rawText.trim(), voiceKey), true));
+    } catch (e) {
+      this.logger.error(`Could not read back pronunciation for "${rawText}": ${String(e)}`);
+      return Result.fail('SYNTHESIS_FAILED');
+    }
+  }
+
   private storageKey(text: string, voiceKey: string): string {
     // The voice is part of the hash input, so swapping the model in config
     // produces new keys instead of serving the old voice from the old ones.

@@ -205,6 +205,13 @@ export class ModalityGapSummaryDto {
   @ApiProperty({ description: 'Judged and not lopsided' })
   even!: number;
 
+  @ApiProperty({
+    description:
+      'Atoms of a kind known only one way by nature — a phonological contrast is heard, never ' +
+      'recalled or produced — so never judged. Counted in addressedAtoms and byModality',
+  })
+  notCompared!: number;
+
   @ApiProperty({ description: 'Observations behind all of it — items that tested an atom' })
   observations!: number;
 

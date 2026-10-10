@@ -228,7 +228,13 @@ export type WorkContext = 'classwork' | 'homework' | 'self_study';
  * report and can-do progress could never be compared.
  */
 export type Skill = 'listening' | 'reading' | 'spoken' | 'written';
-export type Focus = 'vocabulary' | 'grammar' | 'orthography' | 'pronunciation' | 'pragmatics';
+export type Focus =
+  | 'vocabulary'
+  | 'grammar'
+  | 'orthography'
+  | 'pronunciation'
+  | 'phonology'
+  | 'pragmatics';
 
 /**
  * How the learner produced the answer, as opposed to whether it was right.

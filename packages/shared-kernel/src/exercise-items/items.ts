@@ -31,7 +31,9 @@ const ENVELOPE = { id: '', moduleId: '', title: '', instructions: '', updatedAt:
  * item by design, and the engine sends it (decision Q3-A). `highlight_in_text` joined with
  * plan 67: its verdict is per question, sent the same way. `dictation` joined with plan 68:
  * its verdict is per sentence. `inflection_table` joined with plan 69: its verdict is per cell.
- * `read_aloud` joined with plan 70: one prompt, one recording, one verdict from the teacher. A
+ * `read_aloud` joined with plan 70: one prompt, one recording, one verdict from the teacher.
+ * `minimal_pairs` (plan 72) stays out: its probes are drawn per attempt and it is scored as one set,
+ * so its words are addressed at the exercise level by the targets panel, like `writing_task`. A
  * template that grades as a whole gains nothing from per-piece targets — the evidence would
  * all carry the same verdict anyway — so it addresses the exercise and no more.
  *

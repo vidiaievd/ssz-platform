@@ -7,6 +7,7 @@ import type { AppConfig } from '../../config/configuration.js';
 import type {
   IMediaAssets,
   MediaAssetDescription,
+  MediaAssetPlayback,
 } from '../../shared/application/ports/media-assets.port.js';
 import { MediaAssetsError } from '../../shared/application/ports/media-assets.port.js';
 import { Result } from '../../shared/kernel/result.js';
@@ -52,6 +53,26 @@ export class HttpMediaAssetsClient implements IMediaAssets {
       return Result.ok(Array.isArray(data) ? data : []);
     } catch (err) {
       return this.mapError(err, `describe(${ids.length} ids)`);
+    }
+  }
+
+  async playback(ids: string[]): Promise<Result<MediaAssetPlayback[], MediaAssetsError>> {
+    if (ids.length === 0) return Result.ok([]);
+
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.post<MediaAssetPlayback[]>(
+          `${this.baseUrl}/api/v1/internal/media/assets/playback`,
+          { ids: [...new Set(ids)] },
+          {
+            headers: { 'x-internal-token': this.token },
+            timeout: this.timeout,
+          },
+        ),
+      );
+      return Result.ok(Array.isArray(data) ? data : []);
+    } catch (err) {
+      return this.mapError(err, `playback(${ids.length} ids)`);
     }
   }
 

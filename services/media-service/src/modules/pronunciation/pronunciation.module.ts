@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { CqrsModule } from '@nestjs/cqrs';
 
+import { PronunciationClipService } from './pronunciation-clip.service.js';
 import { PronunciationController } from './pronunciation.controller.js';
 import { PronunciationService } from './pronunciation.service.js';
 
@@ -9,7 +11,8 @@ import { PronunciationService } from './pronunciation.service.js';
  * clip is a derived artifact keyed by its text, not an entity with a lifecycle.
  */
 @Module({
+  imports: [CqrsModule],
   controllers: [PronunciationController],
-  providers: [PronunciationService],
+  providers: [PronunciationService, PronunciationClipService],
 })
 export class PronunciationModule {}

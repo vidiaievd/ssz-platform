@@ -25,6 +25,7 @@ import { HighlightInTextValidator } from './validators/highlight-in-text.validat
 import { DictationValidator } from './validators/dictation.validator.js';
 import { InflectionTableValidator } from './validators/inflection-table.validator.js';
 import { ReadAloudValidator } from './validators/read-aloud.validator.js';
+import { MinimalPairsValidator } from './validators/minimal-pairs.validator.js';
 import type { IPerTypeValidator } from './validators/per-type-validator.interface.js';
 
 /**
@@ -103,6 +104,10 @@ const OWN_SUBMISSION_SHAPE = new Set([
   // descriptors per criterion; its submission is a recording per prompt. One form only, so its
   // shape is checked in the validator and nowhere else.
   'read_aloud',
+  // And `minimal_pairs` (plan 72): there is no key column to speak of — the words and their
+  // clips are the content — and the submission is not the student's at all but the draw and
+  // the picks the engine recorded. Its shape is checked in the validator.
+  'minimal_pairs',
 ]);
 
 @Injectable()
@@ -131,6 +136,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     dcValidator: DictationValidator,
     itValidator: InflectionTableValidator,
     raValidator: ReadAloudValidator,
+    mpsValidator: MinimalPairsValidator,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     this.ajv = new (Ajv as any)({ allErrors: true, strict: false });
@@ -156,6 +162,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       ['dictation', dcValidator],
       ['inflection_table', itValidator],
       ['read_aloud', raValidator],
+      ['minimal_pairs', mpsValidator],
     ]);
   }
 
