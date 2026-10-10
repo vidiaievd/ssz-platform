@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { fromPersisted, probeRecords, readDraw, summarize } from '@ssz/shared-kernel/minimal-pairs';
-import type { PairResult, ProbeRecord, ProbeState } from '@ssz/shared-kernel/minimal-pairs';
+import type { MemoryPolicy, PairResult, ProbeRecord, ProbeState } from '@ssz/shared-kernel/minimal-pairs';
 import { Result } from '../../../shared/kernel/result.js';
 import { ValidationError } from '../../../shared/application/ports/answer-validator.port.js';
 import type { ValidationOutcome } from '../../../shared/application/ports/answer-validator.port.js';
@@ -20,6 +20,7 @@ export interface MinimalPairsDetails {
   score: number;
   passed: boolean;
   passPct: number;
+  memory: MemoryPolicy;
   pairs: PairResult[];
   probes: ProbeRecord[];
 }

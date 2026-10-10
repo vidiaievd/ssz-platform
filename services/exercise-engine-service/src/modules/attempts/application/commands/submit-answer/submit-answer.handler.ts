@@ -207,12 +207,13 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
  */
 function minimalPairsSummary(details: unknown): unknown {
   if (typeof details !== 'object' || details === null) return undefined;
-  const { right, total, score, passed, passPct, pairs } = details as {
+  const { right, total, score, passed, passPct, memory, pairs } = details as {
     right?: unknown;
     total?: unknown;
     score?: unknown;
     passed?: unknown;
     passPct?: unknown;
+    memory?: unknown;
     pairs?: unknown;
   };
   return {
@@ -221,6 +222,9 @@ function minimalPairsSummary(details: unknown): unknown {
     score,
     passed,
     passPct,
+    // What the result moves — the closing line of the summary is worded by it (plan 72 §4.2,
+    // point 6). Absent from attempts scored before it was recorded.
+    ...(typeof memory === 'string' ? { memory } : {}),
     pairs: Array.isArray(pairs)
       ? pairs.map((pair) => {
           const { pairId, words, played, correct } = pair as {

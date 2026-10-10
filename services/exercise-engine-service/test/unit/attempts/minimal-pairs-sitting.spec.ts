@@ -422,7 +422,7 @@ describe('submit — summed from what the server recorded (MP-S6 … MP-S11)', (
       passPct: number;
       pairs: Array<{ words: string[]; clips: string[]; played: number }>;
     };
-    expect(details).toMatchObject({ right: 6, total: 12, passed: false, passPct: 75 });
+    expect(details).toMatchObject({ right: 6, total: 12, passed: false, passPct: 75, memory: 'contrast' });
     expect(details).not.toHaveProperty('probes');
     for (const pair of details.pairs) {
       expect(pair.clips).toHaveLength(pair.words.length);

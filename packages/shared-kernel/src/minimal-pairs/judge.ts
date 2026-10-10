@@ -10,7 +10,7 @@
 // probe as right; it never makes the score.
 
 import { filledWords, findWord } from './derive.js';
-import type { Feedback, MinimalPairsContent, Provenance } from './model.js';
+import type { Feedback, MemoryPolicy, MinimalPairsContent, Provenance } from './model.js';
 import { pairContrastId } from './packs/index.js';
 import type { DealtProbe, History } from './sampler.js';
 import { historyKey } from './sampler.js';
@@ -78,6 +78,13 @@ export interface Summary {
   score: number;
   passed: boolean;
   passPct: number;
+  /**
+   * What the result moves (DECISIONS §4). The student's closing line depends on it — «the words
+   * you missed come back» is true only under `contrast+word`, and `none` says the contrast is not
+   * scheduled by this exercise (plan 72 §4.2, point 6). Not a secret, and not in the projection:
+   * it is the result's sentence, so it travels with the result.
+   */
+  memory: MemoryPolicy;
   /** Only the pairs that came up (`MPSummary`: `filter((x) => x.n)`). */
   pairs: PairResult[];
 }
@@ -99,7 +106,15 @@ export function summarize(ex: MinimalPairsContent, draw: DealtProbe[], states: P
       correct: mine.filter((p) => firstCorrect(p, byN.get(p.n))).length,
     });
   }
-  return { right, total, score, passed: score >= ex.scoring.passPct, passPct: ex.scoring.passPct, pairs };
+  return {
+    right,
+    total,
+    score,
+    passed: score >= ex.scoring.passPct,
+    passPct: ex.scoring.passPct,
+    memory: ex.scoring.memory,
+    pairs,
+  };
 }
 
 /**

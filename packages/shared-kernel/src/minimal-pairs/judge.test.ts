@@ -64,13 +64,18 @@ describe('summarize', () => {
       { n: 3, picks: ['w1kjar'], closed: true },
     ];
     const s = summarize(ex, draw, states);
-    expect(s).toMatchObject({ right: 2, total: 4, score: 50, passed: false, passPct: 75 });
+    expect(s).toMatchObject({ right: 2, total: 4, score: 50, passed: false, passPct: 75, memory: 'contrast' });
     expect(s.pairs).toEqual([{ pairId: P1, words: ['kjære', 'skjære'], played: 4, correct: 2 }]);
   });
 
   it('passes at the mark exactly', () => {
     const states = draw.slice(0, 3).map((p) => ({ n: p.n, picks: [p.wordId], closed: true }));
     expect(summarize(ex, draw, states).passed).toBe(true); // 75 >= 75
+  });
+
+  it("carries the author's memory policy for the closing line", () => {
+    const none = { ...ex, scoring: { ...ex.scoring, memory: 'none' as const } };
+    expect(summarize(none, draw, []).memory).toBe('none');
   });
 });
 
