@@ -10,6 +10,12 @@ import {
   toExpectedAnswers as readAloudAnswers,
   type ReadAloudContent,
 } from '../read-aloud/index.js';
+import {
+  sampleContent as sampleForm,
+  setField,
+  toContent as formContent,
+  toExpectedAnswers as formKey,
+} from '../information-transfer/index.js';
 import { derivedTargetsOf, isAddressableTemplate, itemsOf } from './items.js';
 
 /** The kernel's sample table, persisted the way content-service stores it. */
@@ -284,5 +290,30 @@ describe('read_aloud (plan 70)', () => {
     expect(out.map((i) => i.key)).toEqual(['p1aaaa']);
     expect(out[0]!.label).toBe('P1 — Hva kan jeg hjelpe deg med?');
     expect(out[0]!.matchValues).not.toContain('søkte');
+  });
+});
+
+describe('information_transfer (plan 73)', () => {
+  it('keys a cell by its field id, ready cells only', () => {
+    const doc = setField(sampleForm(), 'f3rom0', { why: '' });
+    const items = itemsOf('information_transfer', formContent(doc), formKey(doc));
+    expect(items?.map((item) => item.key)).toEqual(['f1dato', 'f2klok', 'f4pris', 'f5tlf0', 'f6navn']);
+    expect(isAddressableTemplate('information_transfer')).toBe(true);
+  });
+
+  it('offers only name and word cells to the suggester — a price is not vocabulary', () => {
+    const doc = sampleForm();
+    const items = itemsOf('information_transfer', formContent(doc), formKey(doc));
+    expect(items?.find((item) => item.key === 'f4pris')).toEqual({
+      key: 'f4pris',
+      label: 'Pris — 450',
+      value: '450',
+      matchValues: [],
+    });
+    expect(items?.find((item) => item.key === 'f6navn')?.matchValues).toEqual(['Anne Lise Berg', 'Anne Lise']);
+  });
+
+  it('reads a broken document as nothing to address', () => {
+    expect(itemsOf('information_transfer', null, null)).toEqual([]);
   });
 });

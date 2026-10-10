@@ -314,6 +314,25 @@ export const BY_TEMPLATE: Readonly<Record<string, TemplateProfile>> = {
     form: 'bank',
     modality: 'recognition',
   },
+
+  // A blank filled in from a notice or an announcement (plan 73) — the Norskprøve form: four to six
+  // facts lifted out of a source that says more. Nothing is offered to choose from, so the form is
+  // `free` and the modality `recall` (the handoff's `retrieval: recall`, which plan 64 decision G
+  // folded into `modality`); the cells are typed in the target language, `written_target`. The
+  // input is `text` on the bare row and follows the source switch through the document: a recording
+  // turns the audio block on, and `derive.ts` reads `audio: 'audio'` off it like for any type.
+  // The subject is authored, not guessed (rule 2 does not apply): step 1 asks `pragmatics` — the
+  // genre and the situation, what a notice is for — or `vocabulary`, and `derive.ts` reads the
+  // choice. Structural, so the words an author addresses on a name cell join the subject instead
+  // of replacing it.
+  information_transfer: {
+    input: 'text',
+    output: 'written_target',
+    focus: ['pragmatics'],
+    focusStructural: true,
+    form: 'free',
+    modality: 'recall',
+  },
 };
 
 /** `undefined` for a code the table does not know — a new template, or a typo. */

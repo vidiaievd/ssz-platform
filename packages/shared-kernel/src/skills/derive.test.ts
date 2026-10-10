@@ -15,6 +15,7 @@ describe('the table', () => {
         'fill_in_blank',
         'highlight_in_text',
         'inflection_table',
+        'information_transfer',
         'match_pairs',
         'minimal_pairs',
         'multiple_choice',
@@ -170,6 +171,46 @@ describe('minimal_pairs (plan 72)', () => {
     const atoms = [{ atomType: 'vocabulary_word', itemKey: null }];
     expect(deriveSkills({ templateCode: 'minimal_pairs', atoms }).focus).toEqual(['vocabulary', 'phonology']);
     expect(structuralFocus('minimal_pairs')).toEqual(['phonology']);
+  });
+});
+
+describe('information_transfer (plan 73)', () => {
+  it('is read and written from memory, pragmatics by default', () => {
+    expect(deriveSkills({ templateCode: 'information_transfer' })).toMatchObject({
+      input: 'text',
+      output: 'written_target',
+      skills: ['reading', 'written'],
+      form: 'free',
+      modality: 'recall',
+      focus: ['pragmatics'],
+      focusSource: 'template',
+    });
+  });
+
+  it('follows the source switch into the input', () => {
+    const heard = deriveSkills({
+      templateCode: 'information_transfer',
+      content: { sourceKind: 'audio', audio: { enabled: true } },
+    });
+    expect(heard.input).toBe('audio');
+    expect(heard.skills).toEqual(['listening', 'written']);
+  });
+
+  it('takes the subject the author chose', () => {
+    const content = { focus: 'vocabulary' };
+    expect(deriveSkills({ templateCode: 'information_transfer', content }).focus).toEqual(['vocabulary']);
+    expect(structuralFocus('information_transfer', content)).toEqual(['vocabulary']);
+    expect(deriveSkills({ templateCode: 'information_transfer', content: { focus: 'grammar' } }).focus).toEqual([
+      'pragmatics',
+    ]);
+  });
+
+  it('keeps the subject when words are addressed on a name cell', () => {
+    const atoms = [{ atomType: 'vocabulary_word', itemKey: 'f6navn' }];
+    expect(deriveSkills({ templateCode: 'information_transfer', atoms }).focus).toEqual([
+      'vocabulary',
+      'pragmatics',
+    ]);
   });
 });
 

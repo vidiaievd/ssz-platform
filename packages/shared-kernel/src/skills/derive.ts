@@ -167,6 +167,8 @@ function record(value: unknown): Record<string, unknown> | null {
  *   recognised rather than recalled (plan 69).
  * - `mode` on `read_aloud` — a monologue or a dialogue is production with no subject of its own,
  *   and a picture monologue takes in a picture (plan 70).
+ * - `focus` on `information_transfer` — the author picks the subject in step 1, `pragmatics` or
+ *   `vocabulary` (plan 73); the source switch reaches the input through `audio.enabled`.
  */
 interface DocumentReading {
   input?: Input;
@@ -218,6 +220,12 @@ function fromDocument(templateCode: string, content: unknown): DocumentReading |
   }
 
   if (heard) reading.input = 'audio';
+
+  if (templateCode === 'information_transfer') {
+    // The subject the author chose (step 1). Anything else reads as the row's own.
+    const focus = doc['focus'];
+    if (focus === 'pragmatics' || focus === 'vocabulary') reading.focus = [focus];
+  }
 
   if (templateCode === 'read_aloud') {
     // One type, three tasks (plan 70 §3.9). Reading aloud keeps the row; a monologue and a
