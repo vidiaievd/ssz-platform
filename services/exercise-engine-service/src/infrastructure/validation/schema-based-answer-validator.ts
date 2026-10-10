@@ -26,6 +26,7 @@ import { DictationValidator } from './validators/dictation.validator.js';
 import { InflectionTableValidator } from './validators/inflection-table.validator.js';
 import { ReadAloudValidator } from './validators/read-aloud.validator.js';
 import { MinimalPairsValidator } from './validators/minimal-pairs.validator.js';
+import { InformationTransferValidator } from './validators/information-transfer.validator.js';
 import type { IPerTypeValidator } from './validators/per-type-validator.interface.js';
 
 /**
@@ -108,6 +109,10 @@ const OWN_SUBMISSION_SHAPE = new Set([
   // clips are the content — and the submission is not the student's at all but the draw and
   // the picks the engine recorded. Its shape is checked in the validator.
   'minimal_pairs',
+  // And `information_transfer` (plan 73): its key is the accepted wordings and the author's
+  // reason per field; its submission is the value typed in each cell. One form only, so its
+  // shape is checked in the validator and nowhere else.
+  'information_transfer',
 ]);
 
 @Injectable()
@@ -137,6 +142,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     itValidator: InflectionTableValidator,
     raValidator: ReadAloudValidator,
     mpsValidator: MinimalPairsValidator,
+    infValidator: InformationTransferValidator,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     this.ajv = new (Ajv as any)({ allErrors: true, strict: false });
@@ -163,6 +169,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       ['inflection_table', itValidator],
       ['read_aloud', raValidator],
       ['minimal_pairs', mpsValidator],
+      ['information_transfer', infValidator],
     ]);
   }
 

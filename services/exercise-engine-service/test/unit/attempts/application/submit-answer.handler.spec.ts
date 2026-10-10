@@ -45,6 +45,16 @@ import {
   updateSettings as itUpdateSettings,
 } from '@ssz/shared-kernel/inflection-table';
 import type { InflectionTableContent } from '@ssz/shared-kernel/inflection-table';
+import { InformationTransferValidator } from '../../../../src/infrastructure/validation/validators/information-transfer.validator.js';
+import {
+  SAMPLE_ANSWERS as INF_SAMPLE_ANSWERS,
+  SAMPLE_FIELD_IDS as INF_IDS,
+  SAMPLE_TRANSCRIPT as INF_TRANSCRIPT,
+  sampleContent as infSampleContent,
+  toContent as infToContent,
+  toExpectedAnswers as infToExpectedAnswers,
+} from '@ssz/shared-kernel/information-transfer';
+import type { Answering as InfAnswering, InformationTransferContent } from '@ssz/shared-kernel/information-transfer';
 
 const makeInProgressAttempt = (templateCode = 'multiple_choice') =>
   Attempt.reconstitute({
@@ -2443,5 +2453,249 @@ describe('SubmitAnswerHandler — inflection_table', () => {
     expect(details.locked).not.toContain('r1:defSg');
     expect(details.items.find((c) => c.itemId === 'r2:indefPl')).toMatchObject({ value: 'boker', firstAnswer: 'boker' });
     expect(s.attempt.submittedAnswer).toMatchObject({ cells: IT_FIRST });
+  });
+});
+
+// ── information_transfer ────────────────────────────────────────────────────
+//
+// Plan 73. The blank is checked whole with `inflection_table`'s machinery, and the real
+// validator runs behind the port over the kernel's sample blank: what is under test is the seam
+// — the facts carried between checks, what reaches the student, the transcript on closing, and
+// the event.
+
+const [INF_DATO, INF_KLOKKE, INF_ROM, INF_PRIS] = INF_IDS;
+
+/** Three of six on the first go — the blank stays open with one check left. */
+const INF_FIRST: Record<string, string> = {
+  ...INF_SAMPLE_ANSWERS,
+  [INF_KLOKKE]: '18:30',
+  [INF_ROM]: '2',
+  [INF_PRIS]: 'billig',
+};
+
+const infBlank = (answering: Partial<InfAnswering> = {}): InformationTransferContent => {
+  const blank = infSampleContent();
+  return { ...blank, answering: { ...blank.answering, ...answering } };
+};
+
+const makeInfDef = (blank: InformationTransferContent): ExerciseDefinition => ({
+  exercise: {
+    id: 'ex-1',
+    templateCode: 'information_transfer',
+    targetLanguage: 'nb',
+    difficultyLevel: 'A2',
+    content: infToContent(blank) as unknown as Record<string, unknown>,
+    expectedAnswers: infToExpectedAnswers(blank) as unknown as Record<string, unknown>,
+    answerCheckSettings: null,
+  },
+  template: {
+    code: 'information_transfer',
+    contentSchema: {},
+    answerSchema: { type: 'object' },
+    defaultCheckSettings: {},
+    supportedLanguages: null,
+  },
+  instruction: null,
+});
+
+const infSession = (
+  blank: InformationTransferContent = infBlank(),
+  checkMode: 'PRACTICE' | 'GRADED' = 'PRACTICE',
+) => {
+  let saved = makeHtAttempt(checkMode, 'information_transfer');
+  const repo = makeRepo(saved);
+  repo.findById.mockImplementation(async () => asLoaded(saved));
+  repo.save.mockImplementation(async (a) => {
+    saved = asLoaded(a);
+  });
+  const publisher = makePublisher();
+  const inner = new InformationTransferValidator();
+  const validator: IAnswerValidator = {
+    validate: jest
+      .fn<IAnswerValidator['validate']>()
+      .mockImplementation(async (input) => inner.validate(input as never)),
+    supports: () => true,
+  } as IAnswerValidator;
+  const handler = makeHandler(repo, makeContentClient(Result.ok(makeInfDef(blank))), validator as never, makeFeedback(), publisher);
+  const submit = (cells: Record<string, string>, extra: Record<string, unknown> = {}) =>
+    handler.execute(new SubmitAnswerCommand('attempt-1', 'user-1', { cells, ...extra }, 20, 'nb'));
+  const completed = () =>
+    publisher.publish.mock.calls
+      .filter(([type]) => type === 'exercise.attempt.completed')
+      .map(([, payload]) => payload as ItCompleted);
+  return {
+    get attempt() {
+      return saved;
+    },
+    submit,
+    completed,
+  };
+};
+
+interface InfCell {
+  itemId: string;
+  value: string;
+  verdict: string;
+  correct: boolean;
+  canonical?: string;
+  why?: string;
+  hint?: string;
+}
+
+interface InfDetails {
+  totalItems: number;
+  passedItems: number;
+  correctNow: number;
+  pct: number;
+  passed: boolean;
+  passPct: number;
+  missedRequired: number;
+  attempt: number;
+  checksLeft: number | null;
+  closed: boolean;
+  locked: string[];
+  items: InfCell[];
+}
+
+const infCell = (details: unknown, id: string) =>
+  (details as InfDetails).items.find((c) => c.itemId === id)!;
+
+describe('SubmitAnswerHandler — information_transfer', () => {
+  it('scores the first check over every ready cell and leaves the blank open (INF-S2, INF-S9)', async () => {
+    const s = infSession();
+    const result = await s.submit(INF_FIRST);
+
+    expect(result.isOk).toBe(true);
+    expect(result.value).toMatchObject({ score: 50, correct: false, requiresReview: false });
+    expect(s.attempt.status).toBe('SCORED');
+    expect(s.attempt.passed).toBe(false);
+    expect(result.value.details as InfDetails).toMatchObject({
+      attempt: 1,
+      checksLeft: 1,
+      closed: false,
+      passedItems: 3,
+      pct: 50,
+      passed: false,
+      passPct: 75,
+      missedRequired: 3,
+    });
+  });
+
+  it('hands the student an allowlist: no first answers, no report counters (INF-S10)', async () => {
+    const s = infSession();
+    const result = await s.submit(INF_FIRST);
+    const details = result.value.details as Record<string, unknown>;
+
+    expect(details).not.toHaveProperty('unread');
+    for (const item of (details as unknown as InfDetails).items) {
+      expect(Object.keys(item).sort()).toEqual(
+        expect.arrayContaining(['itemId', 'value', 'verdict', 'correct']),
+      );
+      expect(item).not.toHaveProperty('firstAnswer');
+      expect(item).not.toHaveProperty('firstVerdict');
+    }
+    // …while the attempt keeps the full record for the report and the next check.
+    const recorded = s.attempt.validationDetails as { unread: number; items: Array<{ firstVerdict: string }> };
+    expect(recorded.unread).toBe(1);
+    expect(recorded.items.every((c) => typeof c.firstVerdict === 'string')).toBe(true);
+  });
+
+  it('keeps the key back on an open blank, with the reasons and the hints (INF-S5, INF-S6, INF-S7)', async () => {
+    const s = infSession();
+    const result = await s.submit(INF_FIRST);
+
+    expect(infCell(result.value.details, INF_ROM)).not.toHaveProperty('canonical');
+    expect(infCell(result.value.details, INF_ROM).why).toBeDefined();
+    expect(infCell(result.value.details, INF_KLOKKE).hint).toBe('kl.');
+    expect(JSON.stringify(result.value.details)).not.toContain('204');
+  });
+
+  it('holds the transcript back until the blank closes (INF-S8)', async () => {
+    const s = infSession();
+    const first = await s.submit(INF_FIRST);
+    expect(first.value.audioTranscript).toBeUndefined();
+
+    const second = await s.submit({ ...INF_FIRST, [INF_ROM]: '204' });
+    expect((second.value.details as InfDetails).closed).toBe(true);
+    expect(second.value.audioTranscript?.transcript).toBe(INF_TRANSCRIPT);
+    // Closed on the budget under afterLastAttempt: the key of the still-wrong cells now shows.
+    expect(infCell(second.value.details, INF_PRIS).canonical).toBe('450');
+  });
+
+  it('re-checks under the attempt\'s own facts, and the first check stays the score (INF-S3)', async () => {
+    const s = infSession();
+    await s.submit(INF_FIRST);
+
+    const second = await s.submit(
+      { ...INF_SAMPLE_ANSWERS, [INF_ROM]: '204', [INF_DATO]: 'feil' },
+      { attempt: 1, locked: [], firstAnswers: INF_SAMPLE_ANSWERS, graded: true },
+    );
+
+    const details = second.value.details as InfDetails;
+    expect(details).toMatchObject({ attempt: 2, checksLeft: 0, closed: true, correctNow: 6, passedItems: 3 });
+    // Locked on the first check — the resent «feil» does not stand.
+    expect(infCell(details, INF_DATO)).toMatchObject({ correct: true, value: '3. mars' });
+    expect(second.value.score).toBe(50);
+  });
+
+  it('refuses a check on a blank closed by the budget, or by a pass with checks left (INF-S3, INF-S4)', async () => {
+    const spent = infSession(infBlank({ attempts: 1 }));
+    await spent.submit(INF_FIRST);
+    expect((await spent.submit(INF_SAMPLE_ANSWERS)).error).toBeInstanceOf(InvalidAttemptTransitionError);
+
+    const passed = infSession(infBlank({ attempts: 3 }));
+    await passed.submit(INF_SAMPLE_ANSWERS);
+    expect((await passed.submit(INF_SAMPLE_ANSWERS)).error).toBeInstanceOf(InvalidAttemptTransitionError);
+  });
+
+  it('allows check after check under attempts: 0 (INF-S4)', async () => {
+    const s = infSession(infBlank({ attempts: 0 }));
+    await s.submit(INF_FIRST);
+    await s.submit(INF_FIRST);
+    const third = await s.submit(INF_FIRST);
+    expect(third.value.details as InfDetails).toMatchObject({ attempt: 3, checksLeft: null, closed: false });
+  });
+
+  it('publishes once, for the first check, a verdict per field keyed by its id (INF-S11)', async () => {
+    const s = infSession();
+    await s.submit(INF_FIRST);
+    await s.submit({ ...INF_FIRST, [INF_ROM]: '204' });
+
+    expect(s.completed()).toHaveLength(1);
+    const event = s.completed()[0]!;
+    expect(event).toMatchObject({ score: 50, passed: false });
+    expect(event.gapResults!.map(({ gapKey, correct }) => ({ gapKey, correct }))).toEqual(
+      INF_IDS.map((id) => ({ gapKey: id, correct: ![INF_KLOKKE, INF_ROM, INF_PRIS].includes(id) })),
+    );
+    // Neither the answer form nor a lowered ceiling: the type reports neither (plan 73 §3.8).
+    expect(event).not.toHaveProperty('answerForm');
+    expect(event).not.toHaveProperty('evidenceLowered');
+  });
+
+  it('writes a failed blank as scored, so progress and memory hear of it', async () => {
+    const s = infSession();
+    await s.submit({});
+
+    expect(s.attempt.status).toBe('SCORED');
+    expect(s.attempt.scoreValue).toBe(0);
+    expect(s.completed()).toHaveLength(1);
+  });
+
+  describe('in a graded attempt (INF-S13)', () => {
+    it('one check closes the blank and keeps the key back, whatever the client says — the transcript comes', async () => {
+      const s = infSession(infBlank({ attempts: 3, revealKey: 'immediately' }), 'GRADED');
+      const result = await s.submit(INF_FIRST, { graded: false });
+
+      expect(result.value.details as InfDetails).toMatchObject({ closed: true, checksLeft: 0 });
+      expect(infCell(result.value.details, INF_ROM)).not.toHaveProperty('canonical');
+      expect(infCell(result.value.details, INF_KLOKKE)).not.toHaveProperty('hint');
+      expect(result.value.audioTranscript?.transcript).toBe(INF_TRANSCRIPT);
+    });
+
+    it('refuses a second check', async () => {
+      const s = infSession(infBlank({ attempts: 3 }), 'GRADED');
+      await s.submit(INF_FIRST);
+      expect((await s.submit(INF_SAMPLE_ANSWERS)).error).toBeInstanceOf(InvalidAttemptTransitionError);
+    });
   });
 });

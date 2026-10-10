@@ -18,6 +18,13 @@ import { DictationValidator } from '../../../../src/infrastructure/validation/va
 import { InflectionTableValidator } from '../../../../src/infrastructure/validation/validators/inflection-table.validator.js';
 import { ReadAloudValidator } from '../../../../src/infrastructure/validation/validators/read-aloud.validator.js';
 import { MinimalPairsValidator } from '../../../../src/infrastructure/validation/validators/minimal-pairs.validator.js';
+import { InformationTransferValidator } from '../../../../src/infrastructure/validation/validators/information-transfer.validator.js';
+import {
+  sampleContent as infSampleContent,
+  SAMPLE_ANSWERS as INF_SAMPLE_ANSWERS,
+  toContent as infToContent,
+  toExpectedAnswers as infToExpectedAnswers,
+} from '@ssz/shared-kernel/information-transfer';
 import {
   ALL_RIGHT as IT_ALL_RIGHT,
   sampleContent as itSampleContent,
@@ -62,6 +69,7 @@ const makeValidator = () =>
     new InflectionTableValidator(),
     new ReadAloudValidator(),
     new MinimalPairsValidator(),
+    new InformationTransferValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {
@@ -435,6 +443,24 @@ describe('SchemaBasedAnswerValidator', () => {
       });
       expect(result.isOk).toBe(true);
       expect(result.value).toMatchObject({ score: 100, passed: true, requiresReview: false, correct: true });
+    });
+
+    it('delegates information_transfer to its own validator, past AJV, never to a teacher (INF-S1)', async () => {
+      const validator = makeValidator();
+      expect(validator.supports('information_transfer')).toBe(true);
+      const sample = infSampleContent();
+      const result = await validator.validate({
+        templateCode: 'information_transfer',
+        // The key's schema, which a value per cell could never satisfy.
+        answerSchema: { type: 'object', required: ['cells'], properties: { cells: { type: 'number' } } },
+        content: infToContent(sample),
+        expectedAnswers: infToExpectedAnswers(sample),
+        submittedAnswer: { cells: INF_SAMPLE_ANSWERS },
+        checkSettings: {},
+        targetLanguage: 'nb',
+      });
+      expect(result.isOk).toBe(true);
+      expect(result.value).toMatchObject({ requiresReview: false });
     });
 
     it('delegates read_aloud to its own validator, past AJV, and always to a teacher (RA-U11)', async () => {

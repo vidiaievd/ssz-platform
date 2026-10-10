@@ -85,6 +85,17 @@ import {
   withGradedSettings as mpsWithGradedSettings,
 } from '@ssz/shared-kernel/minimal-pairs';
 import type { DealtProbe, MinimalPairsContent } from '@ssz/shared-kernel/minimal-pairs';
+import {
+  cellAtomsForMemory as infCellAtomsForMemory,
+  fromPersisted as infFromPersisted,
+  practicedAtomsForMemory as infPracticedAtomsForMemory,
+  skillAtoms as infSkillAtoms,
+  TEMPLATE_CODE as INFORMATION_TRANSFER,
+  toStudentProjection as infToStudentProjection,
+  withGradedSettings as infWithGradedSettings,
+} from '@ssz/shared-kernel/information-transfer';
+import type { InformationTransferContent } from '@ssz/shared-kernel/information-transfer';
+import { informationTransferLearnerDetails } from '../../services/information-transfer-details.js';
 import { carriedInto } from '../../services/read-aloud-recordings.js';
 import { cspRand, drawOf, historyFor } from '../../services/minimal-pairs-sitting.js';
 import { itemStatesOf, questionStatesOf, segmentStatesOf } from '../../services/item-states.js';
@@ -367,7 +378,11 @@ function withheldWhereNeeded(
             : // `minimal_pairs` (plan 72, Q6-A): one try per probe; the verdict stays.
               templateCode === MINIMAL_PAIRS
               ? mpsWithGradedSettings(withAudio.exerciseContent)
-              : withAudio.exerciseContent;
+              : // `information_transfer` (plan 73 §3.7): one check of the blank, no key, and the
+                // hints only if they are printed on the form from the start.
+                templateCode === INFORMATION_TRANSFER
+                ? infWithGradedSettings(withAudio.exerciseContent)
+                : withAudio.exerciseContent;
     return { ...withAudio, exerciseContent, expectedAnswers: null };
   }
   return withAudio;
@@ -637,6 +652,25 @@ function projectByTemplate(
     };
   }
 
+  if (templateCode === INFORMATION_TRANSFER) {
+    // A `graded` envelope content-service has already projected, reaching here only because
+    // `documentToDealFrom` could not fetch the unprojected document. Handed on as it stands:
+    // only the key column can say which fields are ready, and a second pass over a projection
+    // would hand back a blank with no field on it.
+    if (exercise.expectedAnswers === null || exercise.expectedAnswers === undefined) {
+      return { exerciseContent: exercise.content, expectedAnswers: null };
+    }
+
+    return {
+      // Both columns, nothing dealt: the fields keep the author's order. The key column is asked
+      // which fields are ready and nothing else. No wording, no reason, no pass mark, no
+      // grading or memory setting, no `required`; a hint only when it is printed from the start
+      // (plan 73 §3.2). The cells' timecodes go on with the audio layer below.
+      exerciseContent: infToStudentProjection(exercise.content, exercise.expectedAnswers),
+      expectedAnswers: null,
+    };
+  }
+
   if (templateCode === READ_ALOUD) {
     // A `graded` envelope arrives already projected by content-service and with no key —
     // projecting it again would lose the descriptors `showRubric: 'always'` needs, for
@@ -817,7 +851,7 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         ),
         questionStates: questionStatesOf(existing),
         segmentStates: segmentStatesOf(existing),
-        boardCheck: board === null ? null : board.validationDetails,
+        boardCheck: board === null ? null : boardCheckOf(board),
       });
     }
 
@@ -874,19 +908,35 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
     // fan-out unless the author chose `contrast+word`, and the contrasts arrive as targets of
     // the whole exercise — learning skips a kind of atom it does not know, analytics records
     // its evidence, and the set returns to review as one exercise card.
-    const practicedAtoms = sitting === null ? merged : mpAtomsForMemory(sitting.document, merged);
+    //
+    // `information_transfer` the same way (plan 73 §3.9, Q1-A of plan 72): the blank rates a
+    // skill atom, sent as a target of the whole exercise; the words of the cells survive only
+    // under `skill+words` and only on `word`/`name` cells.
+    const blank =
+      def.exercise.templateCode === INFORMATION_TRANSFER
+        ? infFromPersisted(source.content, source.expectedAnswers)
+        : null;
+    const blankAtoms = blank === null ? null : informationTransferAtoms(blank, merged, itemTargets);
+    const practicedAtoms =
+      blankAtoms !== null
+        ? blankAtoms.practicedAtoms
+        : sitting === null
+          ? merged
+          : mpAtomsForMemory(sitting.document, merged);
     const exerciseTargets =
-      sitting === null
-        ? itemTargets
-        : [
-            ...mpAtomsForMemory(sitting.document, itemTargets),
-            ...mpContrastAtoms(sitting.document).map((atomId) => ({
-              itemKey: null,
-              atomType: CONTRAST_ATOM_TYPE,
-              atomId,
-              role: 'focus',
-            })),
-          ];
+      blankAtoms !== null
+        ? blankAtoms.targets
+        : sitting === null
+          ? itemTargets
+          : [
+              ...mpAtomsForMemory(sitting.document, itemTargets),
+              ...mpContrastAtoms(sitting.document).map((atomId) => ({
+                itemKey: null,
+                atomType: CONTRAST_ATOM_TYPE,
+                atomId,
+                role: 'focus',
+              })),
+            ];
 
     const attempt = Attempt.create({
       userId: command.userId,
@@ -996,6 +1046,10 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
    * `minimal_pairs` (plan 72) joins for a stronger one: its probes are drawn from the pairs and
    * the clips, which *are* its content, and a projected envelope has none of them.
    *
+   * `information_transfer` (plan 73 §3.9) deals nothing, and joins because the attempt has to
+   * snapshot what its answers may move — the author's memory setting and the type of each
+   * field — and a projected envelope carries neither.
+   *
    * So for these templates, and only where the envelope has already been projected, the
    * document is fetched a second time as `PRACTICE` and dealt here, seeded by the attempt.
    * The key that arrives with it is read by the projection and does not leave: the
@@ -1020,7 +1074,8 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       exercise.templateCode !== MULTIPLE_CHOICE_GROUP &&
       exercise.templateCode !== SORT_INTO_BUCKETS &&
       exercise.templateCode !== INFLECTION_TABLE &&
-      exercise.templateCode !== MINIMAL_PAIRS
+      exercise.templateCode !== MINIMAL_PAIRS &&
+      exercise.templateCode !== INFORMATION_TRANSFER
     ) {
       return exercise;
     }
@@ -1137,6 +1192,57 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       revisionCount: previous ? previous.revisionCount + 1 : 0,
     };
   }
+}
+
+/**
+ * The last check of an open board as a reload hands it back. `inflection_table`'s details are
+ * the student's already; an `information_transfer` blank's are also the report's record, so they
+ * go through the same allowlist a check's reply does.
+ */
+function boardCheckOf(board: Attempt): unknown {
+  return board.templateCode === INFORMATION_TRANSFER
+    ? informationTransferLearnerDetails(board.validationDetails)
+    : board.validationDetails;
+}
+
+type Target = NonNullable<ExerciseDefinition['targets']>[number];
+
+/**
+ * What an `information_transfer` attempt may move, by the author's memory setting (plan 73 §3.9).
+ *
+ *   * A field's own addresses: a vocabulary atom stays only under `skill+words` and only on a
+ *     `word`/`name` field — a time, a price, a phone number are not words (DECISIONS §4).
+ *     Anything else the author addressed, a grammar atom, is left alone.
+ *   * The exercise's own addresses and the relation graph: a word stays only if a lexical field
+ *     that kept it addresses it.
+ *   * The skill atom — `skill:<language>:selective_listening|reading` (Q3-A) — as a target of
+ *     the whole exercise, unless the setting is `none`. Until plan 63 phase 7 learning skips a
+ *     kind of atom it does not know; analytics records the evidence.
+ */
+function informationTransferAtoms(
+  blank: InformationTransferContent,
+  merged: PracticedAtomRef[],
+  itemTargets: Target[],
+): { practicedAtoms: PracticedAtomRef[]; targets: Target[] } {
+  const cellTargets = itemTargets.filter(
+    (t) => t.itemKey !== null && infCellAtomsForMemory(blank, t.itemKey, [t]).length > 0,
+  );
+  const lexicalWords = new Set(
+    cellTargets.filter((t) => t.atomType === 'vocabulary_item').map((t) => t.atomId),
+  );
+  const exerciseTargets = infPracticedAtomsForMemory(
+    blank,
+    itemTargets.filter((t) => t.itemKey === null),
+    lexicalWords,
+  );
+  return {
+    practicedAtoms: infPracticedAtomsForMemory(blank, merged, lexicalWords),
+    targets: [
+      ...cellTargets,
+      ...exerciseTargets,
+      ...infSkillAtoms(blank).map((atom) => ({ itemKey: null, ...atom, role: 'focus' })),
+    ],
+  };
 }
 
 /** How many of the learner's latest sittings `weakest` reads — enough to see a pattern, bounded. */

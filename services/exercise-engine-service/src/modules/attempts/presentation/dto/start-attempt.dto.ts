@@ -236,7 +236,8 @@ export class StartAttemptResponseDto {
     description:
       'inflection_table: the last check of a table scored but not closed — every cell with its ' +
       'value and verdict, the frozen cells, the checks left. The details that check returned, ' +
-      'so nothing the student was not shown; null for a fresh attempt and other templates.',
+      'so nothing the student was not shown. information_transfer: the same for a blank, through ' +
+      'the allowlist a check reply goes through. Null for a fresh attempt and other templates.',
   })
   boardCheck!: Record<string, unknown> | null;
 }

@@ -60,6 +60,15 @@ import {
   TEMPLATE_CODE as MINIMAL_PAIRS,
 } from '@ssz/shared-kernel/minimal-pairs';
 import { playbackOf, probeStatesOf } from '../../services/minimal-pairs-sitting.js';
+import {
+  maxChecks as infMaxChecks,
+  readContent as infReadContent,
+  TEMPLATE_CODE as INFORMATION_TRANSFER,
+} from '@ssz/shared-kernel/information-transfer';
+import {
+  informationTransferClosed,
+  informationTransferLearnerDetails,
+} from '../../services/information-transfer-details.js';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject, Optional } from '@nestjs/common';
 import { SubmitAnswerCommand } from './submit-answer.command.js';
@@ -192,6 +201,11 @@ function learnerFacingDetails(templateCode: string, details: unknown): unknown {
   // are the student's own.
   if (templateCode === INFLECTION_TABLE) return details;
   if (templateCode === MINIMAL_PAIRS) return minimalPairsSummary(details);
+  // `information_transfer` (plan 73 §3.6): the kernel's `check` decided how much of the key a
+  // check carries — the verdict of every cell, the reason for a cell not counted, the standard
+  // form beside a right one, the key only under `revealKey`, the hints only under
+  // `hintsAfter: 1`. An allowlist on top, because the details are also the report's record.
+  if (templateCode === INFORMATION_TRANSFER) return informationTransferLearnerDetails(details);
   return undefined;
 }
 
@@ -245,12 +259,13 @@ function minimalPairsSummary(details: unknown): unknown {
  * joined with plan 66: the mechanics are the same, and so are the field names its validator
  * writes — `closed`, `locked`, `items[].itemId`, `items[].firstAnswer` — so the helpers
  * below read both without knowing which they hold. `inflection_table` joined with plan 69 on
- * the same terms, a cell for an item.
+ * the same terms, a cell for an item, and `information_transfer` with plan 73, a field for one.
  */
 const WHOLE_BOARD_CHECKS: ReadonlySet<string> = new Set([
   MULTIPLE_CHOICE_GROUP,
   SORT_INTO_BUCKETS,
   INFLECTION_TABLE,
+  INFORMATION_TRANSFER,
 ]);
 
 /**
@@ -481,7 +496,12 @@ function describeGapResults(
   // `inflection_table` reads the same: a cell is the item, keyed `rowId:slotId` (plan 69 §3.9).
   // The row verdict stays in the details — a second entry per row would turn one wrong cell
   // into two review cards.
-  if (templateCode === SORT_INTO_BUCKETS || templateCode === INFLECTION_TABLE) {
+  // `information_transfer` the same, a field for a cell, keyed by its id (plan 73 §3.9).
+  if (
+    templateCode === SORT_INTO_BUCKETS ||
+    templateCode === INFLECTION_TABLE ||
+    templateCode === INFORMATION_TRANSFER
+  ) {
     return sortItemResults(details);
   }
   // Item by item (plans 67 and 68): a question or a segment is the item, keyed by its id as
@@ -672,8 +692,9 @@ function withRecordedChecks(attempt: Attempt, submitted: unknown): unknown {
     firstAnswers: previous.firstAnswers,
     // `inflection_table` grades a graded delivery under its own rules — the first check
     // closes the table and the key stays back (Q8-A of plan 67) — and the mode is the
-    // attempt's, never the client's. The other two have no such rule and are left as sent.
-    ...(attempt.templateCode === INFLECTION_TABLE
+    // attempt's, never the client's. `information_transfer` the same (plan 73 §3.7). The
+    // other two have no such rule and are left as sent.
+    ...(attempt.templateCode === INFLECTION_TABLE || attempt.templateCode === INFORMATION_TRANSFER
       ? { graded: attempt.checkMode === 'GRADED' }
       : {}),
   };
@@ -693,6 +714,10 @@ function recheckBudget(templateCode: string, content: unknown): number | undefin
   if (templateCode === SORT_INTO_BUCKETS) return sbMaxChecks(sbReadContent(content).settings) ?? undefined;
   // `settings.attempts`: 1–4 checks of the table, never unlimited (plan 69 §3.4).
   if (templateCode === INFLECTION_TABLE) return itMaxChecks(itReadContent(content).settings);
+  // `answering.attempts`: 1, 2 or 3 checks of the blank, or 0 for unlimited (plan 73 §3.1).
+  if (templateCode === INFORMATION_TRANSFER) {
+    return infMaxChecks(infReadContent(content).answering) ?? undefined;
+  }
   // `minimal_pairs` is checked once (plan 72 §3.7). Its probes were answered one by one and the
   // submit only sums them; a reopened sitting would let the open probes be answered after the
   // result was shown. «Ny runde» is a new attempt with a new draw.
@@ -702,6 +727,19 @@ function recheckBudget(templateCode: string, content: unknown): number | undefin
   // it stays in progress until the last one closes; a reopen comes only after that, for
   // «Vis fasit» on a question that ran out of checks. `dictation` the same, per segment.
   return undefined;
+}
+
+/**
+ * Whether a scored check has finished the exercise as far as the transcript is concerned.
+ *
+ * Every template but one: scored is finished. `information_transfer` is scored by its first
+ * check and stays open for the corrections (plan 73 §3.6), and the one clip holds the answer to
+ * every cell still wrong — so the transcript waits for the blank to close (deviation 16, the
+ * precedent of plan 68 §3.6). A graded blank closes on its one check.
+ */
+function transcriptOwed(templateCode: string, details: unknown): boolean {
+  if (templateCode === INFORMATION_TRANSFER) return informationTransferClosed(details);
+  return true;
 }
 
 /**
@@ -1038,7 +1076,10 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
         def.exercise.content,
         def.exercise.expectedAnswers,
       ),
-      audioTranscript: audioTranscriptFor(def.exercise.content, true),
+      audioTranscript: audioTranscriptFor(
+        def.exercise.content,
+        transcriptOwed(attempt.templateCode, outcome.details),
+      ),
     });
   }
 
