@@ -83,6 +83,35 @@ describe('scanSource (INF-M14)', () => {
     ]);
   });
 
+  it('lifts a day and an amount that are only said in words', () => {
+    const ex = {
+      ...sampleContent('audio'),
+      language: 'nb',
+      passage: '',
+      audio: {
+        ...sampleContent('audio').audio,
+        transcript:
+          'Kurset starter tirsdag femte mai klokken halv seks. Det koster fire hundre og femti kroner. Vi har to timer og en pause.',
+      },
+    };
+    const hits = scanSource(ex).map((h) => [h.type, h.value]);
+    expect(hits).toEqual([
+      ['time', 'halv seks'],
+      ['date', 'femte mai'],
+      ['money', 'fire hundre og femti kroner'],
+    ]);
+  });
+
+  it('a spelled hit is readable as its own type', () => {
+    for (const [type, value] of [
+      ['date', 'femte mai'],
+      ['money', 'fire hundre og femti kroner'],
+    ] as const) {
+      const f = { ...newField('x', type), expected: [value] };
+      expect(gradeCell(f, value, DEFAULT_GRADING, nb).verdict, value).toBe('ok');
+    }
+  });
+
   it('every hit is readable as its own type', () => {
     for (const h of scanSource(sampleContent('text'))) {
       const f = { ...newField('x', h.type), expected: [h.value] };

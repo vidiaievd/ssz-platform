@@ -70,10 +70,23 @@ export function scanSource(
   }
   const months = alternation(pack.months);
   if (months !== '') run(`\\b\\d{1,2}${pack.dayDot ? '\\.' : ''}\\s?(?:${months})${NOT_LETTER}`, 'date');
+  // A day said as an ordinal — «tirsdag femte mai» in a recording is written «5. mai» nowhere.
+  const ordinals = alternation(Object.keys(pack.ordinals));
+  if (months !== '' && ordinals !== '') {
+    run(`(?<!\\p{L})(?:${ordinals})\\s(?:${months})${NOT_LETTER}`, 'date');
+  }
   const groups = pack.phone.groups.map((n) => `\\d{${n}}`).join('\\s');
   if (groups !== '') run(`\\b${groups}\\b`, 'phone');
   const currency = alternation(pack.currency.filter((c) => /^\p{L}+$/u.test(c)));
   if (currency !== '') run(`\\b\\d+\\s?(?:${currency})${NOT_LETTER}`, 'money');
+  // An amount said in words — «fire hundre og femti kroner». Only a run of numerals (with the
+  // pack's joiners) that ends at a currency word counts, so «en» and «to» elsewhere stay prose.
+  const numerals = alternation(Object.keys(pack.numbers));
+  const joiners = alternation(pack.and);
+  if (currency !== '' && numerals !== '') {
+    const word = joiners === '' ? `(?:${numerals})` : `(?:${numerals}|${joiners})`;
+    run(`(?<!\\p{L})(?:${numerals})(?:\\s${word})*\\s(?:${currency})${NOT_LETTER}`, 'money');
+  }
   const cues = alternation(pack.scanNumberCues);
   if (cues !== '') run(`\\b(?:${cues})\\s(\\d{1,4})\\b`, 'number', 1);
   return hits;
