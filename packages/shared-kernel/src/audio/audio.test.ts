@@ -430,6 +430,18 @@ describe('audioIssues', () => {
       expect(segmentsOf('dictation', content)).toEqual({ s1: { start: 0, end: 3.5 } });
       expect(hasItemClips('dictation')).toBe(false);
     });
+
+    it('finds the cells of a form and carries their fragments to the student', () => {
+      // plan 73 phase 2: `information_transfer` keeps `fields`, a fragment of the one clip each.
+      const content = {
+        audio: { enabled: true, useSegments: true, source: 'asset', assetId: 'a-1' },
+        fields: [{ id: 'f1', audio: { start: 12, end: 22 } }, { id: 'f2' }],
+      };
+
+      expect(itemsOf('information_transfer', content).map((item) => item.id)).toEqual(['f1', 'f2']);
+      expect(segmentsOf('information_transfer', content)).toEqual({ f1: { start: 12, end: 22 } });
+      expect(hasItemClips('information_transfer')).toBe(false);
+    });
   });
 
   it('clears the blocker for each of the three sources', () => {

@@ -58,6 +58,10 @@ import {
   TEMPLATE_CODE as MINIMAL_PAIRS,
   toStudentProjection as minimalPairsProjection,
 } from '@ssz/shared-kernel/minimal-pairs';
+import {
+  TEMPLATE_CODE as INFORMATION_TRANSFER,
+  toStudentProjection as informationTransferProjection,
+} from '@ssz/shared-kernel/information-transfer';
 import { withStudentAudio } from '@ssz/shared-kernel/audio';
 
 /**
@@ -331,6 +335,14 @@ function projectByTemplate(
   if (templateCode === MINIMAL_PAIRS) {
     // Content alone: the teacher's note is in `expected_answers` and is not even looked at.
     const projection = minimalPairsProjection(content);
+    return projection as unknown as Record<string, unknown>;
+  }
+
+  if (templateCode === INFORMATION_TRANSFER) {
+    // Both columns: a field is ready only if it has a key and an explanation, and both are in
+    // `expected_answers`. Ships the blank and the delivery dials — no expected wording, no
+    // explanation, no grading rule, no pass mark, no memory setting (plan 73 §3.2).
+    const projection = informationTransferProjection(content, expectedAnswers);
     return projection as unknown as Record<string, unknown>;
   }
 

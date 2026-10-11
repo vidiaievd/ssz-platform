@@ -18,6 +18,7 @@ import { TEMPLATE_CODE as SORT_INTO_BUCKETS_TEMPLATE } from '@ssz/shared-kernel/
 import { TEMPLATE_CODE as HIGHLIGHT_IN_TEXT_TEMPLATE } from '@ssz/shared-kernel/highlight-in-text';
 import { TEMPLATE_CODE as DICTATION_TEMPLATE } from '@ssz/shared-kernel/dictation';
 import { TEMPLATE_CODE as READ_ALOUD_TEMPLATE } from '@ssz/shared-kernel/read-aloud';
+import { TEMPLATE_CODE as INFORMATION_TRANSFER_TEMPLATE } from '@ssz/shared-kernel/information-transfer';
 import { TEMPLATE_CODE as MINIMAL_PAIRS_TEMPLATE } from '@ssz/shared-kernel/minimal-pairs';
 import { TEMPLATE_CODE as INFLECTION_TABLE_TEMPLATE } from '@ssz/shared-kernel/inflection-table';
 import { gapFillViolations } from './gap-fill-preflight.js';
@@ -32,6 +33,7 @@ import { highlightInTextViolations } from './highlight-in-text-preflight.js';
 import { dictationViolations } from './dictation-preflight.js';
 import { inflectionTableViolations } from './inflection-table-preflight.js';
 import { readAloudViolations } from './read-aloud-preflight.js';
+import { informationTransferViolations } from './information-transfer-preflight.js';
 import { minimalPairsViolations } from './minimal-pairs-preflight.js';
 import { audioViolations } from './audio-preflight.js';
 
@@ -537,6 +539,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
                 INFLECTION_TABLE_TEMPLATE,
                 READ_ALOUD_TEMPLATE,
                 MINIMAL_PAIRS_TEMPLATE,
+                INFORMATION_TRANSFER_TEMPLATE,
               ],
             },
           },
@@ -638,6 +641,9 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
  *
  * `minimal_pairs` (plan 72) is the kernel's `issues` too: the note per pair is in the key column,
  * and the duration of a clip is in the document, so no media lookup is needed here.
+ *
+ * `information_transfer` (plan 73) is the kernel's `issues` too: the key and its explanation are in
+ * the key column. The clip's own rules are the audio layer's (`audio-preflight.ts`).
  */
 function violationsFor(
   templateCode: string,
@@ -657,6 +663,7 @@ function violationsFor(
   if (templateCode === INFLECTION_TABLE_TEMPLATE) return inflectionTableViolations(document);
   if (templateCode === READ_ALOUD_TEMPLATE) return readAloudViolations(document);
   if (templateCode === MINIMAL_PAIRS_TEMPLATE) return minimalPairsViolations(document);
+  if (templateCode === INFORMATION_TRANSFER_TEMPLATE) return informationTransferViolations(document);
   return gapFillViolations(document);
 }
 

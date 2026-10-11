@@ -256,6 +256,15 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   // this type on purpose: a form would win over the row and, with «all words» as buttons, lift the
   // ceiling to CLOSED_SET — the handoff holds it low whatever the number of buttons.
   minimal_pairs: NEAR_CERTAIN,
+  // Plan 73. The handoff asks for "success ceiling medium, failure floor low" (DECISIONS §6): a
+  // filled form proves the learner can sift a notice of this genre for facts — enough to carry a
+  // listening unit, not comprehension — so success caps at GOOD; and one missed cell can be one
+  // digit heard wrong under time pressure, so a failure is held off AGAIN. «Low» on this scale would
+  // be GOOD, a floor equal to the ceiling: every rated attempt GOOD, and since the verdicts arrive
+  // per cell (`gapResults`), no cell would ever come back sooner for being wrong. HARD is the
+  // nearest reading that still tells the two apart (decision Q1-A) — the pair `translate_from_target`
+  // already holds. No `answerForm` and no `lowered`: nothing about the delivery hands an answer over.
+  information_transfer: { successCap: 'GOOD', failureFloor: 'HARD' },
 };
 
 /**

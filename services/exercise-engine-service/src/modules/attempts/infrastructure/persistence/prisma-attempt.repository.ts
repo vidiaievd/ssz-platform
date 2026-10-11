@@ -13,13 +13,19 @@ import type {
   ReviewedLoadRow,
 } from '../../domain/repositories/attempt.repository.js';
 import { TEMPLATE_CODE as INFLECTION_TABLE } from '@ssz/shared-kernel/inflection-table';
+import { TEMPLATE_CODE as INFORMATION_TRANSFER } from '@ssz/shared-kernel/information-transfer';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
 import { AttemptMapper } from './attempt.mapper.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 
-/** A scored whole-board attempt whose last check left the table open. */
+/**
+ * A scored whole-board attempt whose last check left the table open — an `inflection_table`
+ * (plan 69, phase 9) or an `information_transfer` blank (plan 73 §3.6).
+ */
 function isOpenBoard(attempt: Attempt): boolean {
-  if (attempt.templateCode !== INFLECTION_TABLE) return false;
+  if (attempt.templateCode !== INFLECTION_TABLE && attempt.templateCode !== INFORMATION_TRANSFER) {
+    return false;
+  }
   const details = attempt.validationDetails as { closed?: unknown } | null | undefined;
   return details?.closed === false;
 }

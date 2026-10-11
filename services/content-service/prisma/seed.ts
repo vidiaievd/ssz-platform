@@ -4,6 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { dictationTemplate } from './templates/dictation.js';
 import { inflectionTableTemplate } from './templates/inflection-table.js';
 import { readAloudTemplate } from './templates/read-aloud.js';
+import { informationTransferTemplate } from './templates/information-transfer.js';
 import { minimalPairsTemplate } from './templates/minimal-pairs.js';
 
 const prisma = new PrismaClient({
@@ -2168,6 +2169,11 @@ const templates = [
   {
     // Schema in templates/minimal-pairs.ts, for the reason above (plan 72 phase 4). No audio layer.
     ...minimalPairsTemplate(),
+    supportedLanguages: Prisma.DbNull,
+  },
+  {
+    // Schema in templates/information-transfer.ts, for the reason above (plan 73 phase 3).
+    ...informationTransferTemplate(audioSchema, itemAudioSchema),
     supportedLanguages: Prisma.DbNull,
   },
 ];
