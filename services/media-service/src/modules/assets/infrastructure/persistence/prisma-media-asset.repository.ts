@@ -5,6 +5,7 @@ import type {
   FindAssetsOptions,
   IMediaAssetRepository,
   RecordingSweepCursor,
+  SupersededSweepCursor,
 } from '../../domain/repositories/media-asset.repository.interface.js';
 import { MediaAssetEntity } from '../../domain/entities/media-asset.entity.js';
 import { MediaAssetMapper } from './mappers/media-asset.mapper.js';
@@ -77,6 +78,31 @@ export class PrismaMediaAssetRepository implements IMediaAssetRepository {
             }),
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: limit,
+    });
+    return rows.map((row) => MediaAssetMapper.toDomain(row));
+  }
+
+  async findSupersededBefore(
+    supersededBefore: Date,
+    after: SupersededSweepCursor | null,
+    limit: number,
+  ): Promise<MediaAssetEntity[]> {
+    const rows = await this.prisma.mediaAsset.findMany({
+      where: {
+        entityType: 'lesson_asset',
+        status: { not: 'DELETED' },
+        supersededAt: { lt: supersededBefore },
+        ...(after === null
+          ? {}
+          : {
+              OR: [
+                { supersededAt: { gt: after.supersededAt } },
+                { supersededAt: after.supersededAt, id: { gt: after.id } },
+              ],
+            }),
+      },
+      orderBy: [{ supersededAt: 'asc' }, { id: 'asc' }],
       take: limit,
     });
     return rows.map((row) => MediaAssetMapper.toDomain(row));

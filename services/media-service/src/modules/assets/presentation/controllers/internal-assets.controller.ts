@@ -9,6 +9,10 @@ import {
   SweepOrphanRecordingsService,
   type SweepReport,
 } from '../../application/services/sweep-orphan-recordings.service.js';
+import {
+  SweepSupersededNarrationsService,
+  type SupersededSweepReport,
+} from '../../application/services/sweep-superseded-narrations.service.js';
 import { AssetDescriptionDto, AssetIdsDto, AssetPlaybackDto } from '../dto/internal-assets.dto.js';
 
 // Service-to-service routes only — @Public() exempts them from the global JWT guard,
@@ -24,6 +28,7 @@ export class InternalAssetsController {
   constructor(
     private readonly queryBus: QueryBus,
     private readonly sweepOrphans: SweepOrphanRecordingsService,
+    private readonly sweepSuperseded: SweepSupersededNarrationsService,
   ) {}
 
   @Post('describe')
@@ -67,5 +72,18 @@ export class InternalAssetsController {
   @ApiResponse({ status: 200, description: 'SweepReport' })
   async sweepOrphansNow(@Query('dryRun') dryRun?: string): Promise<SweepReport> {
     return this.sweepOrphans.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
+  }
+
+  @Post('sweep-superseded')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Run the replaced-narration sweep now (operator)',
+    description:
+      'Lesson assets replaced more than NARRATION_RETENTION_DAYS ago that no lesson body names ' +
+      '(content-service is asked). A DRY RUN unless `dryRun=false` is passed explicitly.',
+  })
+  @ApiResponse({ status: 200, description: 'SupersededSweepReport' })
+  async sweepSupersededNow(@Query('dryRun') dryRun?: string): Promise<SupersededSweepReport> {
+    return this.sweepSuperseded.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
   }
 }

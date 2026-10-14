@@ -102,6 +102,7 @@ export class MediaAssetEntity extends AggregateRoot {
   get synthesis(): AssetSynthesis | null { return this.props.synthesis; }
   get supersededAt(): Date | null { return this.props.supersededAt; }
   get supersededBy(): string | null { return this.props.supersededBy; }
+  get isSuperseded(): boolean { return this.props.supersededAt !== null; }
   get isRecording(): boolean { return isRecordingEntityType(this.props.entityType); }
 
   get isPendingUpload(): boolean { return this.props.status === 'PENDING_UPLOAD'; }
@@ -280,6 +281,30 @@ export class MediaAssetEntity extends AggregateRoot {
     this.props.sizeBytes = SizeBytes.reconstitute(storedBytes);
     this.props.updatedAt = new Date();
     return Result.ok();
+  }
+
+  /**
+   * A lesson body now points at `byAssetId` instead of this asset (D5). Nothing is deleted:
+   * the asset stays READY and playable, so the author can go back to it, until the retention
+   * period ends and the sweep asks content-service whether any body still names it.
+   */
+  supersede(byAssetId: string, at: Date = new Date()): Result<void, MediaAssetDomainError> {
+    if (this.props.status === 'DELETED') return Result.fail(MediaAssetDomainError.ASSET_ALREADY_DELETED);
+    if (this.props.entityType !== 'lesson_asset' || byAssetId === this.id) {
+      return Result.fail(MediaAssetDomainError.SUPERSEDE_NOT_ALLOWED);
+    }
+    this.props.supersededAt = at;
+    this.props.supersededBy = byAssetId;
+    this.props.updatedAt = at;
+    return Result.ok();
+  }
+
+  /** In use again — the author went back to it. */
+  restore(): void {
+    if (this.props.supersededAt === null) return;
+    this.props.supersededAt = null;
+    this.props.supersededBy = null;
+    this.props.updatedAt = new Date();
   }
 
   softDelete(): Result<void, MediaAssetDomainError> {

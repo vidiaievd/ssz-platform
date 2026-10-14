@@ -30,6 +30,7 @@ function makeHandler(asset: MediaAssetEntity | null = makeAsset()) {
     findMany: jest.fn(),
     countMany: jest.fn(),
     findRecordingsOlderThan: jest.fn(),
+    findSupersededBefore: jest.fn(),
     save: jest.fn(),
     delete: jest.fn(),
   };
@@ -51,7 +52,8 @@ function makeHandler(asset: MediaAssetEntity | null = makeAsset()) {
     },
   };
 
-  const handler = new GetAssetHandler(repo as any, storage as any, prisma as any);
+  const config = { get: jest.fn().mockReturnValue({ narrationRetentionDays: 30 }) };
+  const handler = new GetAssetHandler(repo as any, storage as any, prisma as any, config as any);
   return { handler, repo, storage, prisma };
 }
 
@@ -76,6 +78,21 @@ describe('GetAssetHandler', () => {
 
     expect(result.value.origin).toBe('UPLOAD');
     expect(result.value.synthesis).toBeNull();
+    expect(result.value).toMatchObject({ supersededAt: null, supersededBy: null, restorableUntil: null });
+  });
+
+  it('reports a replaced lesson asset with the date it stays restorable until (D5)', async () => {
+    const asset = makeAsset({ entityType: 'lesson_asset' });
+    asset.supersede('asset-2', new Date('2026-10-14T10:00:00.000Z'));
+    const { handler } = makeHandler(asset);
+
+    const result = await handler.execute(new GetAssetQuery(asset.id, 'owner-1'));
+
+    expect(result.value).toMatchObject({
+      supersededAt: '2026-10-14T10:00:00.000Z',
+      supersededBy: 'asset-2',
+      restorableUntil: '2026-11-13T10:00:00.000Z',
+    });
   });
 
   it('returns direct public URL for profile_avatar entity type', async () => {

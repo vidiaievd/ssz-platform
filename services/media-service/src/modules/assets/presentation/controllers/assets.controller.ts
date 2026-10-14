@@ -1,11 +1,14 @@
 import {
+  Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
   NotFoundException,
   Param,
+  Post,
   Query,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -16,7 +19,17 @@ import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-veri
 import { GetAssetQuery, type GetAssetResult } from '../../application/queries/get-asset/get-asset.query.js';
 import { ListUserAssetsQuery, type ListUserAssetsResult } from '../../application/queries/list-user-assets/list-user-assets.query.js';
 import { DeleteAssetCommand, type DeleteAssetResult } from '../../application/commands/delete-asset/delete-asset.command.js';
-import { AssetResponseDto, PagedAssetsResponseDto } from '../dto/asset-response.dto.js';
+import {
+  SupersedeAssetCommand,
+  type SupersedeAssetResult,
+} from '../../application/commands/supersede-asset/supersede-asset.command.js';
+import { isAuthor } from '../../../../common/authoring-roles.js';
+import {
+  AssetResponseDto,
+  PagedAssetsResponseDto,
+  SupersedeAssetDto,
+  SupersedeAssetResponseDto,
+} from '../dto/asset-response.dto.js';
 import { ListAssetsQueryDto } from '../dto/list-assets-query.dto.js';
 
 @ApiTags('assets')
@@ -70,6 +83,37 @@ export class AssetsController {
     }
 
     return result.value as AssetResponseDto;
+  }
+
+  @Post(':assetId/supersede')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Mark a lesson asset as replaced by another',
+    description:
+      'Called when a lesson body names a new narration instead of this one (plan 74, D5). Nothing ' +
+      'is deleted: the asset stays READY and restorable until `restorableUntil`; afterwards the ' +
+      'sweep removes it only if no lesson body still names it. Superseding the replacement by the ' +
+      'old asset is how the author goes back: the old one is in use again.',
+  })
+  @ApiResponse({ status: 200, type: SupersedeAssetResponseDto })
+  @ApiResponse({ status: 403, description: 'The caller does not author lessons' })
+  @ApiResponse({ status: 404, description: 'Asset or replacement not found' })
+  @ApiResponse({ status: 422, description: 'Not a lesson asset, or replaced by itself' })
+  async supersede(
+    @Param('assetId') assetId: string,
+    @Body() dto: SupersedeAssetDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<SupersedeAssetResponseDto> {
+    if (!isAuthor(user.roles)) throw new ForbiddenException('Only lesson authors can replace lesson media');
+
+    const result: SupersedeAssetResult = await this.commandBus.execute(new SupersedeAssetCommand(assetId, dto.by));
+    if (result.isFail) {
+      if (result.error === 'ASSET_NOT_FOUND' || result.error === 'REPLACEMENT_NOT_FOUND') {
+        throw new NotFoundException(result.error);
+      }
+      throw new UnprocessableEntityException(result.error);
+    }
+    return result.value;
   }
 
   @Delete(':assetId')

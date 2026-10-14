@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsUUID } from 'class-validator';
 
 export class AssetVariantResponseDto {
   @ApiProperty({ example: 'thumb_256' })
@@ -111,6 +112,50 @@ export class AssetResponseDto {
     description: 'How a synthesized asset was made; null for an upload',
   })
   synthesis!: AssetSynthesisResponseDto | null;
+
+  @ApiPropertyOptional({
+    example: '2026-10-14T10:00:00.000Z',
+    nullable: true,
+    type: String,
+    description: 'Set when a lesson body names another asset in this one’s place (replaced narration)',
+  })
+  supersededAt!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String, description: 'The asset that replaced this one' })
+  supersededBy!: string | null;
+
+  @ApiPropertyOptional({
+    example: '2026-11-13T10:00:00.000Z',
+    nullable: true,
+    type: String,
+    description:
+      'A replaced asset stays playable and can be restored until then (NARRATION_RETENTION_DAYS); ' +
+      'afterwards the sweep may remove it if no lesson body names it. Null while in use.',
+  })
+  restorableUntil!: string | null;
+}
+
+export class SupersedeAssetDto {
+  @ApiProperty({ description: 'The asset the lesson body names instead', example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
+  @IsUUID('all')
+  by!: string;
+}
+
+export class SupersedeAssetResponseDto {
+  @ApiProperty()
+  assetId!: string;
+
+  @ApiProperty({ example: '2026-10-14T10:00:00.000Z' })
+  supersededAt!: string;
+
+  @ApiProperty()
+  supersededBy!: string;
+
+  @ApiProperty({ example: '2026-11-13T10:00:00.000Z' })
+  restorableUntil!: string;
+
+  @ApiProperty({ description: 'True when the replacement had been superseded itself and is in use again' })
+  restoredReplacement!: boolean;
 }
 
 export class PagedAssetsResponseDto {

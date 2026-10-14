@@ -10,14 +10,12 @@ import {
 import { CommandBus } from '@nestjs/cqrs';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+import { isAuthor } from '../../../common/authoring-roles.js';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
 import { RequestNarrationCommand } from '../application/commands/request-narration/request-narration.command.js';
 import type { RequestNarrationOutcome } from '../application/commands/request-narration/request-narration.command.js';
 import { RequestNarrationDto, RequestNarrationResponseDto } from './dto/narration.dto.js';
-
-/** Roles that write lessons. Synthesis costs CPU time a student has no reason to spend. */
-const AUTHOR_ROLES = ['tutor', 'teacher', 'school_admin', 'platform_admin'];
 
 @ApiTags('narration')
 @ApiBearerAuth()
@@ -41,7 +39,7 @@ export class NarrationController {
     @Body() dto: RequestNarrationDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<RequestNarrationResponseDto> {
-    if (!user.roles.some((role) => AUTHOR_ROLES.includes(role))) {
+    if (!isAuthor(user.roles)) {
       throw new ForbiddenException('Only lesson authors can request a narration');
     }
 

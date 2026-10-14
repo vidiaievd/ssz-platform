@@ -6,6 +6,8 @@ export enum MediaAssetDomainError {
   ASSET_ALREADY_DELETED = 'ASSET_ALREADY_DELETED',
   NOT_OWNED_BY_USER = 'NOT_OWNED_BY_USER',
   UPLOAD_NOT_CONFIRMED = 'UPLOAD_NOT_CONFIRMED',
+  // Replaced narrations (plan 74, D5): only lesson media is replaced by a lesson body.
+  SUPERSEDE_NOT_ALLOWED = 'SUPERSEDE_NOT_ALLOWED',
   // Recordings (`submission_recording`, plan 70)
   RECORDING_ATTEMPT_REQUIRED = 'RECORDING_ATTEMPT_REQUIRED',
   RECORDING_TOO_LARGE = 'RECORDING_TOO_LARGE',

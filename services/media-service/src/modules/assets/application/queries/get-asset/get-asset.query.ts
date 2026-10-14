@@ -31,6 +31,11 @@ export interface AssetView {
   origin: AssetOrigin;
   /** Provider, voice, language and text hash of a synthesized asset; null for an upload. */
   synthesis: AssetSynthesis | null;
+  /** D5: set while a lesson body names another asset in this one's place. */
+  supersededAt: string | null;
+  supersededBy: string | null;
+  /** Until when the author can go back to this asset; null when it is in use. */
+  restorableUntil: string | null;
 }
 
 export type GetAssetResult = Result<AssetView, 'ASSET_NOT_FOUND'>;

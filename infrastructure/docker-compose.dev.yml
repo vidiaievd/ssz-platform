@@ -175,6 +175,9 @@ services:
       # Orphan recordings (plan 71): a dry run unless asked otherwise; the engine is asked before anything goes.
       EXERCISE_ENGINE_URL: http://exercise-engine-service:3006
       MEDIA_ORPHAN_SWEEP_MODE: ${MEDIA_ORPHAN_SWEEP_MODE:-dry-run}
+      # Replaced lesson narrations (plan 74): content-service is asked whether a lesson body still names them.
+      CONTENT_SERVICE_URL: http://content-service:3003
+      NARRATION_RETENTION_DAYS: ${NARRATION_RETENTION_DAYS:-30}
       MEDIA_ORPHAN_MIN_AGE_DAYS: ${MEDIA_ORPHAN_MIN_AGE_DAYS:-30}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000

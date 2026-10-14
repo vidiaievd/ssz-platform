@@ -7,6 +7,7 @@ import { GetGlossarySuggestionsHandler } from './application/queries/get-glossar
 import { GetPreflightHandler } from './application/queries/get-preflight/get-preflight.handler.js';
 import { GetLeafItemsHandler } from '../container/application/queries/get-leaf-items/get-leaf-items.handler.js';
 import { GetModuleReaderStructureHandler } from './application/queries/get-module-reader-structure/get-module-reader-structure.handler.js';
+import { GetMediaInUseHandler } from './application/queries/get-media-in-use/get-media-in-use.handler.js';
 import { GetExercisePlacementHandler } from './application/queries/get-exercise-placement/get-exercise-placement.handler.js';
 import { LESSON_CONTENT_VARIANT_REPOSITORY } from '../lesson/domain/repositories/lesson-content-variant.repository.interface.js';
 import { PrismaLessonContentVariantRepository } from '../lesson/infrastructure/persistence/prisma-lesson-content-variant.repository.js';
@@ -25,6 +26,7 @@ import { PrismaLessonContentVariantRepository } from '../lesson/infrastructure/p
     GetLeafItemsHandler,
     GetModuleReaderStructureHandler,
     GetExercisePlacementHandler,
+    GetMediaInUseHandler,
     { provide: LESSON_CONTENT_VARIANT_REPOSITORY, useClass: PrismaLessonContentVariantRepository },
   ],
 })

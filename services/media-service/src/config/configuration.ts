@@ -57,6 +57,11 @@ export const envSchema = z.object({
   TTS_MAX_TEXT_LENGTH: z.coerce.number().int().positive().default(120),
   // A lesson narration (plan 74): the spoken characters of the script, not the markdown.
   NARRATION_MAX_CHARS: z.coerce.number().int().positive().default(12_000),
+  // A replaced lesson narration stays playable and restorable this long (D5), then the sweep may remove it.
+  NARRATION_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
+  // Asked before a replaced narration is removed: does any lesson body still name it?
+  CONTENT_SERVICE_URL: z.string().default('http://content-service:3003'),
+  CONTENT_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
 
   // Orphan recordings (plan 71): a recording no attempt stands on, older than the minimum age.
   // 'dry-run' only logs what it would delete; 'delete' purges (soft-delete + storage objects).
@@ -147,6 +152,11 @@ export interface AppConfig {
     piperTimeoutMs: number;
     maxTextLength: number;
     narrationMaxChars: number;
+    narrationRetentionDays: number;
+  };
+  contentService: {
+    baseUrl: string;
+    timeoutMs: number;
   };
 }
 
@@ -213,6 +223,11 @@ export default (): AppConfig => {
       piperTimeoutMs: env.PIPER_TIMEOUT_MS,
       maxTextLength: env.TTS_MAX_TEXT_LENGTH,
       narrationMaxChars: env.NARRATION_MAX_CHARS,
+      narrationRetentionDays: env.NARRATION_RETENTION_DAYS,
+    },
+    contentService: {
+      baseUrl: env.CONTENT_SERVICE_URL,
+      timeoutMs: env.CONTENT_SERVICE_TIMEOUT_MS,
     },
   };
 };

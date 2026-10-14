@@ -1,5 +1,8 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../../../../../config/configuration.js';
+import { supersessionOf } from '../../../domain/policies/narration-retention.js';
 import { GetAssetQuery, type GetAssetResult, type AssetVariantView } from './get-asset.query.js';
 import { MEDIA_ASSET_REPOSITORY } from '../../../domain/repositories/media-asset.repository.interface.js';
 import type { IMediaAssetRepository } from '../../../domain/repositories/media-asset.repository.interface.js';
@@ -20,6 +23,7 @@ export class GetAssetHandler implements IQueryHandler<GetAssetQuery, GetAssetRes
     @Inject(MEDIA_ASSET_REPOSITORY) private readonly assetRepo: IMediaAssetRepository,
     @Inject(STORAGE_SERVICE) private readonly storage: IStorageService,
     private readonly prisma: PrismaService,
+    private readonly config: ConfigService<AppConfig>,
   ) {}
 
   async execute(query: GetAssetQuery): Promise<GetAssetResult> {
@@ -72,6 +76,7 @@ export class GetAssetHandler implements IQueryHandler<GetAssetQuery, GetAssetRes
       peaks: asset.peaks,
       origin: asset.origin,
       synthesis: asset.synthesis,
+      ...supersessionOf(asset, this.config.get<AppConfig['tts']>('tts')!.narrationRetentionDays),
     });
   }
 }

@@ -17,6 +17,12 @@ export interface RecordingSweepCursor {
   id: string;
 }
 
+/** Where the last batch of replaced lesson assets ended (plan 74). */
+export interface SupersededSweepCursor {
+  supersededAt: Date;
+  id: string;
+}
+
 export interface IMediaAssetRepository {
   findById(id: string): Promise<MediaAssetEntity | null>;
   findByIdAndOwner(id: string, ownerId: string): Promise<MediaAssetEntity | null>;
@@ -32,6 +38,15 @@ export interface IMediaAssetRepository {
   findRecordingsOlderThan(
     olderThan: Date,
     after: RecordingSweepCursor | null,
+    limit: number,
+  ): Promise<MediaAssetEntity[]>;
+  /**
+   * Lesson assets replaced before `supersededBefore` and not yet deleted, in the stable order
+   * (`supersededAt`, `id`) the cursor walks (plan 74, D5).
+   */
+  findSupersededBefore(
+    supersededBefore: Date,
+    after: SupersededSweepCursor | null,
     limit: number,
   ): Promise<MediaAssetEntity[]>;
   save(asset: MediaAssetEntity): Promise<void>;
