@@ -9,6 +9,9 @@ export interface NarrationAssetInfo {
   origin: string;
   /** `narrationTextHash` of the text a synthesized asset spoke. */
   textHash: string | null;
+  /** The pace and pause multiplier it was spoken with; null for an upload or an older synthesis. */
+  lengthScale?: number | null;
+  pauseScale?: number | null;
 }
 
 export type NarrationSkipReason =

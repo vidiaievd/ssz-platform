@@ -15,6 +15,9 @@ export interface AssetDescription {
   origin: string;
   /** `narrationTextHash` of the text a synthesized asset spoke; null for uploads. */
   textHash: string | null;
+  /** The pace and pause multiplier a synthesized narration was spoken with, when recorded. */
+  lengthScale: number | null;
+  pauseScale: number | null;
 }
 
 export class DescribeAssetsQuery implements IQuery {

@@ -41,6 +41,15 @@ export class AssetSynthesisResponseDto {
 
   @ApiProperty({ example: 21, description: 'Number of script segments spoken' })
   segments!: number;
+
+  @ApiPropertyOptional({ example: 1.7, description: 'Phoneme length multiplier it was spoken with; above 1 is slower' })
+  lengthScale?: number;
+
+  @ApiPropertyOptional({ example: 1, description: 'Multiplier on the pauses between paragraphs and turns' })
+  pauseScale?: number;
+
+  @ApiPropertyOptional({ example: 'B1', description: 'The course level the pace default came from' })
+  level?: string;
 }
 
 export class AssetResponseDto {

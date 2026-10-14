@@ -38,7 +38,7 @@ export class NarrationSynthesisWorker extends WorkerHost {
   }
 
   async process(job: Job<NarrationJobData>): Promise<void> {
-    const { assetId, jobId, ownerId, lang, segments, textHash } = job.data;
+    const { assetId, jobId, ownerId, lang, segments, textHash, lengthScale, pauseScale, level } = job.data;
     const started = Date.now();
 
     await this.prisma.processingJob.update({
@@ -47,7 +47,7 @@ export class NarrationSynthesisWorker extends WorkerHost {
     });
 
     try {
-      const rendered = await this.renderer.render(lang, segments);
+      const rendered = await this.renderer.render(lang, segments, { lengthScale, pauseScale });
       const mp3 = await encodeMp3(rendered.wav, ORIGINAL_BITRATE);
 
       const stored: StoreSynthesizedAudioResult = await this.commandBus.execute(
@@ -58,6 +58,9 @@ export class NarrationSynthesisWorker extends WorkerHost {
           lang,
           textHash,
           segments: segments.length,
+          lengthScale,
+          pauseScale,
+          ...(level ? { level } : {}),
         }),
       );
       if (stored.isFail) throw new Error(`could not store the narration: ${stored.error}`);

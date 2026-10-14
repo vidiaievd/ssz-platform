@@ -31,8 +31,21 @@ export class HttpMediaNarrationClient implements IMediaNarrationClient {
     for (let i = 0; i < unique.length; i += DESCRIBE_CHUNK) {
       const response = await this.post('/internal/media/assets/describe', { ids: unique.slice(i, i + DESCRIBE_CHUNK) });
       if (!response.ok) throw new ServiceUnavailableException(`media-service refused describe: HTTP ${response.status}`);
-      const rows = (await response.json()) as Array<{ id: string; status: string; origin: string; textHash: string | null }>;
-      for (const row of rows) found.set(row.id, { status: row.status, origin: row.origin, textHash: row.textHash });
+      const rows = (await response.json()) as Array<{
+        id: string;
+        status: string;
+        origin: string;
+        textHash: string | null;
+        lengthScale: number | null;
+        pauseScale: number | null;
+      }>;
+      for (const row of rows) found.set(row.id, {
+          status: row.status,
+          origin: row.origin,
+          textHash: row.textHash,
+          lengthScale: row.lengthScale,
+          pauseScale: row.pauseScale,
+        });
     }
     return found;
   }

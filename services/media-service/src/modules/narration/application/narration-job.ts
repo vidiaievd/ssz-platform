@@ -9,4 +9,8 @@ export interface NarrationJobData {
   lang: string;
   segments: NarrationSegment[];
   textHash: string;
+  lengthScale: number;
+  pauseScale: number;
+  /** Recorded with the narration so "regenerate" can offer the same pace again. */
+  level: string | null;
 }

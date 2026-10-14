@@ -18,6 +18,9 @@ const DATA = {
     { kind: 'turn' as const, speaker: 'Taras', text: 'Hei!' },
   ],
   textHash: 'h'.repeat(64),
+  lengthScale: 1.85,
+  pauseScale: 1.5,
+  level: 'A2',
 };
 
 function makeWorker(opts: { render?: () => Promise<any>; store?: Result<void, any> } = {}) {
@@ -40,12 +43,17 @@ describe('NarrationSynthesisWorker', () => {
 
     await worker.process({ data: DATA } as any);
 
-    expect(renderer.render).toHaveBeenCalledWith('nb', DATA.segments);
+    expect(renderer.render).toHaveBeenCalledWith('nb', DATA.segments, { lengthScale: 1.85, pauseScale: 1.5 });
     const store = commandBus.execute.mock.calls[0]![0] as StoreSynthesizedAudioCommand;
     expect(store).toBeInstanceOf(StoreSynthesizedAudioCommand);
     expect(store).toMatchObject({ assetId: 'asset-1', ownerId: 'teacher-1', mimeType: 'audio/mpeg' });
     expect(store.audio.toString()).toBe('mp3-bytes');
-    expect(store.synthesis).toEqual({ provider: 'piper', voice: 'nb-voice', lang: 'nb', textHash: DATA.textHash, segments: 2 });
+    expect(store.synthesis).toEqual({ provider: 'piper', voice: 'nb-voice', lang: 'nb', textHash: DATA.textHash,
+      segments: 2,
+      lengthScale: 1.85,
+      pauseScale: 1.5,
+      level: 'A2',
+    });
     expect(prisma.processingJob.update).toHaveBeenLastCalledWith({
       where: { id: 'job-1' },
       data: { status: 'COMPLETED', completedAt: expect.any(Date) },

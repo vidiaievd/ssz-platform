@@ -32,7 +32,12 @@ export class InternalNarrationController {
   @ApiResponse({ status: 422, description: 'Nothing to read, text too long, or unsupported language' })
   async narrate(@Body() dto: InternalRequestNarrationDto): Promise<RequestNarrationResponseDto> {
     const result: RequestNarrationOutcome = await this.commandBus.execute(
-      new RequestNarrationCommand(dto.ownerId, dto.bodyMarkdown, dto.lang ?? 'nb', dto.label ?? null, dto.lessonId ?? null),
+      new RequestNarrationCommand(dto.ownerId, dto.bodyMarkdown, dto.lang ?? 'nb', dto.label ?? null,
+        dto.lessonId ?? null,
+        dto.level ?? null,
+        dto.lengthScale ?? null,
+        dto.pauseScale ?? null,
+      ),
     );
     if (result.isFail) throw new UnprocessableEntityException(result.error);
     return result.value;

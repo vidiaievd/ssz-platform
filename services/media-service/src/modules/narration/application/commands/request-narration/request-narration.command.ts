@@ -10,6 +10,11 @@ export class RequestNarrationCommand {
     public readonly label: string | null,
     /** The lesson the narration is for, stored as the asset's entity id. */
     public readonly lessonId: string | null,
+    /** The course's CEFR level: picks the default pace. */
+    public readonly level: string | null = null,
+    /** The author's own pace and pauses; each falls back to the level's default. */
+    public readonly lengthScale: number | null = null,
+    public readonly pauseScale: number | null = null,
   ) {}
 }
 
@@ -19,6 +24,9 @@ export interface RequestNarrationResult {
   status: string;
   voice: string;
   textHash: string;
+  /** The pace and pauses the narration is spoken with — chosen or the level's default. */
+  lengthScale: number;
+  pauseScale: number;
   segments: number;
   characters: number;
 }

@@ -11,6 +11,7 @@ import { QUEUE_SPEECH_SYNTHESIS } from '../../../../../infrastructure/queues/que
 import { VOICE_RESOLVER } from '../../../../../shared/application/ports/speech-synthesizer.port.js';
 import type { IVoiceResolver } from '../../../../../shared/application/ports/speech-synthesizer.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
+import { defaultNarrationStyle, resolveNarrationStyle } from '../../../domain/narration-style.js';
 import { MediaAssetEntity } from '../../../../assets/domain/entities/media-asset.entity.js';
 import { MEDIA_ASSET_REPOSITORY } from '../../../../assets/domain/repositories/media-asset.repository.interface.js';
 import type { IMediaAssetRepository } from '../../../../assets/domain/repositories/media-asset.repository.interface.js';
@@ -53,6 +54,12 @@ export class RequestNarrationHandler implements ICommandHandler<RequestNarration
     const narrator = this.voices.resolve(command.lang, null);
     if (!narrator) return Result.fail('LANGUAGE_NOT_SUPPORTED');
 
+    const tts = this.config.get<AppConfig['tts']>('tts')!;
+    const style = resolveNarrationStyle(
+      { lengthScale: command.lengthScale, pauseScale: command.pauseScale },
+      defaultNarrationStyle(command.level, tts.narrationLengthScale),
+    );
+
     const upload = this.config.get<AppConfig['upload']>('upload')!;
     const created = MediaAssetEntity.create({
       ownerId: command.ownerId,
@@ -83,6 +90,9 @@ export class RequestNarrationHandler implements ICommandHandler<RequestNarration
       lang: command.lang,
       segments: script.segments,
       textHash: script.textHash,
+      lengthScale: style.lengthScale,
+      pauseScale: style.pauseScale,
+      level: command.level,
     };
     // One attempt: a failed narration turns FAILED and the author asks again, rather than
     // the queue retrying a minute of speech against a synthesizer that is down.
@@ -102,6 +112,8 @@ export class RequestNarrationHandler implements ICommandHandler<RequestNarration
       status: asset.status,
       voice: narrator.voice,
       textHash: script.textHash,
+      lengthScale: style.lengthScale,
+      pauseScale: style.pauseScale,
       segments: script.segments.length,
       characters,
     });

@@ -56,6 +56,12 @@ export class AssetDescriptionDto {
     description: 'For a synthesized asset: narrationTextHash of the text it spoke',
   })
   textHash!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: Number, description: 'Pace a synthesized narration was spoken with' })
+  lengthScale!: number | null;
+
+  @ApiPropertyOptional({ nullable: true, type: Number, description: 'Pause multiplier it was spoken with' })
+  pauseScale!: number | null;
 }
 
 export class AssetPlaybackDto {

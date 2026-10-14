@@ -9,7 +9,7 @@ import { NarrateCourseCommand } from './narrate-course.command.js';
 import { MEDIA_NARRATION_CLIENT } from './media-narration.port.js';
 import type { IMediaNarrationClient } from './media-narration.port.js';
 import { planVariantNarration } from './narration-plan.js';
-import type { NarrationSkipReason, NarrationVariantPlan } from './narration-plan.js';
+import type { NarrationAssetInfo, NarrationSkipReason, NarrationVariantPlan } from './narration-plan.js';
 
 /** How long one narration may take from queued to READY. Piper speaks a text in seconds. */
 const READY_TIMEOUT_MS = 180_000;
@@ -64,7 +64,7 @@ export class CourseNarrationService implements ICommandHandler<NarrateCourseComm
   private async runOnce(courseId: string, options: CourseNarrationOptions): Promise<CourseNarrationReport> {
     const course = await this.prisma.container.findFirst({
       where: { id: courseId, deletedAt: null, containerType: 'COURSE' },
-      select: { id: true, targetLanguage: true },
+      select: { id: true, targetLanguage: true, difficultyLevel: true },
     });
     if (!course) throw new NotFoundException(`No course ${courseId}`);
 
@@ -98,7 +98,7 @@ export class CourseNarrationService implements ICommandHandler<NarrateCourseComm
         continue;
       }
       attempted += 1;
-      await this.narrateVariant(variant, course.targetLanguage, plan, item);
+      await this.narrateVariant(variant, course.targetLanguage, course.difficultyLevel, plan, assets, item);
     }
     report.counts = { ...report.counts, ...outcomesOf(items) };
     return report;
@@ -152,7 +152,9 @@ export class CourseNarrationService implements ICommandHandler<NarrateCourseComm
   private async narrateVariant(
     variant: VariantRow,
     lang: string,
+    level: string,
     plan: Exclude<NarrationVariantPlan, { kind: 'skip' }>,
+    assets: Map<string, NarrationAssetInfo>,
     item: NarrationItemReport,
   ): Promise<void> {
     const fail = (error: string) => {
@@ -177,6 +179,8 @@ export class CourseNarrationService implements ICommandHandler<NarrateCourseComm
       lang,
       label: variant.displayTitle,
       lessonId: variant.lessonId,
+      level,
+      ...keptSettings(plan, assets),
     });
     if ('reason' in requested) return fail(requested.reason);
 
@@ -222,6 +226,22 @@ export class CourseNarrationService implements ICommandHandler<NarrateCourseComm
     }
     return 'TIMEOUT';
   }
+}
+
+/**
+ * A narration refreshed because its text changed or it failed keeps the pace and pauses the
+ * author gave it; a forced one starts from the level's defaults again — that is what force is for.
+ */
+function keptSettings(
+  plan: Exclude<NarrationVariantPlan, { kind: 'skip' }>,
+  assets: Map<string, NarrationAssetInfo>,
+): { lengthScale?: number; pauseScale?: number } {
+  if (plan.kind !== 'refresh' || plan.why === 'forced') return {};
+  const previous = assets.get(plan.replaces);
+  return {
+    ...(previous?.lengthScale != null && { lengthScale: previous.lengthScale }),
+    ...(previous?.pauseScale != null && { pauseScale: previous.pauseScale }),
+  };
 }
 
 const SKIP_DETAIL: Record<NarrationSkipReason, string> = {

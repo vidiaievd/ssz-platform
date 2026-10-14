@@ -6,6 +6,7 @@ import type { AppConfig } from '../../../config/configuration.js';
 import { buildWav, parseWav, pcmDurationMs, sameFormat, silence } from '../../../infrastructure/audio/wav.js';
 import type { Pcm, PcmFormat } from '../../../infrastructure/audio/wav.js';
 import { SPEECH_SYNTHESIZER, VOICE_RESOLVER } from '../../../shared/application/ports/speech-synthesizer.port.js';
+import type { NarrationStyle } from '../domain/narration-style.js';
 import type { ISpeechSynthesizer, IVoiceResolver } from '../../../shared/application/ports/speech-synthesizer.port.js';
 
 export interface RenderedNarration {
@@ -34,13 +35,18 @@ export class NarrationRenderer {
     private readonly config: ConfigService<AppConfig>,
   ) {}
 
-  async render(lang: string, segments: readonly NarrationSegment[]): Promise<RenderedNarration> {
+  async render(
+    lang: string,
+    segments: readonly NarrationSegment[],
+    delivery: NarrationStyle,
+  ): Promise<RenderedNarration> {
     const narrator = this.voices.resolve(lang, null);
     if (!narrator) throw new Error(`no voice speaks ${lang}`);
     if (segments.length === 0) throw new Error('nothing to narrate');
 
     const tts = this.config.get<AppConfig['tts']>('tts')!;
-    const style = { lengthScale: tts.narrationLengthScale, noiseWScale: tts.narrationNoiseWScale };
+    // The rhythm's randomness is the same for everyone; pace and pauses are the author's to set.
+    const style = { lengthScale: delivery.lengthScale, noiseWScale: tts.narrationNoiseWScale };
     const speakerVoices: Record<string, string> = {};
     const parts: Buffer[] = [];
     let format: PcmFormat | null = null;
@@ -56,7 +62,7 @@ export class NarrationRenderer {
         throw new Error(`segment ${index} came back in a different PCM format`);
       }
 
-      if (index > 0) parts.push(silence(narrationPauseMs(segments[index - 1]!, segment), format));
+      if (index > 0) parts.push(silence(Math.round(narrationPauseMs(segments[index - 1]!, segment) * delivery.pauseScale), format));
       parts.push(pcm.data);
     }
 

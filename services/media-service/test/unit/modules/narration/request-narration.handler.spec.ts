@@ -12,7 +12,7 @@ function makeHandler(maxChars = 12_000) {
   const config = {
     get: jest.fn((key: string) =>
       key === 'tts'
-        ? { narrationMaxChars: maxChars }
+        ? { narrationMaxChars: maxChars, narrationLengthScale: 1.7 }
         : { maxImageSizeBytes: 1e7, maxAudioSizeBytes: 1e8, maxVideoSizeBytes: 1e9 },
     ),
   };
@@ -20,8 +20,22 @@ function makeHandler(maxChars = 12_000) {
   return { handler, repo, queue, prisma };
 }
 
-const command = (body = BODY, lang = 'nb', label: string | null = 'Les teksten — 2D') =>
-  new RequestNarrationCommand('teacher-1', body, lang, label, 'lesson-1');
+const command = (
+  body = BODY,
+  lang = 'nb',
+  label: string | null = 'Les teksten — 2D',
+  style: { level?: string | null; lengthScale?: number | null; pauseScale?: number | null } = {},
+) =>
+  new RequestNarrationCommand(
+    'teacher-1',
+    body,
+    lang,
+    label,
+    'lesson-1',
+    style.level ?? null,
+    style.lengthScale ?? null,
+    style.pauseScale ?? null,
+  );
 
 describe('RequestNarrationHandler', () => {
   it('creates a SYNTHESIZED lesson asset and queues the script', async () => {
@@ -54,9 +68,24 @@ describe('RequestNarrationHandler', () => {
       status: 'PENDING_UPLOAD',
       voice: 'nb-voice',
       textHash: data.textHash,
+      lengthScale: 1.7,
+      pauseScale: 1,
       segments: 3,
       characters: 'Prøvetiden'.length + 'Hvordan synes du de første ukene har vært?'.length + 'Bra!'.length,
     });
+  });
+
+  it("speaks at the course level's pace unless the author chose another", async () => {
+    const { handler, queue } = makeHandler();
+
+    await handler.execute(command(BODY, 'nb', null, { level: 'A1' }));
+    await handler.execute(command(BODY, 'nb', null, { level: 'A1', lengthScale: 2.2, pauseScale: 1.5 }));
+    await handler.execute(command(BODY, 'nb', null, { level: 'C1', lengthScale: 9 }));
+
+    const jobs = queue.add.mock.calls.map(([, data]) => data);
+    expect(jobs[0]).toMatchObject({ lengthScale: 2.0, pauseScale: 1, level: 'A1' });
+    expect(jobs[1]).toMatchObject({ lengthScale: 2.2, pauseScale: 1.5, level: 'A1' });
+    expect(jobs[2]).toMatchObject({ lengthScale: 2.5, level: 'C1' });
   });
 
   it('refuses a body with nothing to read, before creating anything', async () => {

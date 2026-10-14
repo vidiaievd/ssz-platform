@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+
+import {
+  LENGTH_SCALE_RANGE,
+  NARRATION_LEVELS,
+  PAUSE_SCALE_RANGE,
+} from '../../domain/narration-style.js';
 
 export class RequestNarrationDto {
   @ApiProperty({
@@ -32,6 +38,66 @@ export class RequestNarrationDto {
   @IsOptional()
   @IsUUID()
   lessonId?: string;
+
+  @ApiPropertyOptional({
+    example: 'B1',
+    enum: NARRATION_LEVELS,
+    description: "The course's CEFR level; picks the default pace (a beginner is read to more slowly)",
+  })
+  @IsOptional()
+  @IsIn(NARRATION_LEVELS)
+  level?: string;
+
+  @ApiPropertyOptional({
+    example: 1.7,
+    minimum: LENGTH_SCALE_RANGE.min,
+    maximum: LENGTH_SCALE_RANGE.max,
+    description: "Phoneme length multiplier; above 1 is slower. Omitted: the level's default",
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(LENGTH_SCALE_RANGE.min)
+  @Max(LENGTH_SCALE_RANGE.max)
+  lengthScale?: number;
+
+  @ApiPropertyOptional({
+    example: 1,
+    minimum: PAUSE_SCALE_RANGE.min,
+    maximum: PAUSE_SCALE_RANGE.max,
+    description: 'Multiplier on the pauses between paragraphs and turns. Omitted: 1',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(PAUSE_SCALE_RANGE.min)
+  @Max(PAUSE_SCALE_RANGE.max)
+  pauseScale?: number;
+}
+
+export class NarrationStyleDto {
+  @ApiProperty({ example: 1.7 })
+  lengthScale!: number;
+
+  @ApiProperty({ example: 1 })
+  pauseScale!: number;
+}
+
+export class NarrationDefaultsResponseDto {
+  @ApiProperty({ type: NarrationStyleDto, description: 'For a course whose level is not a CEFR one' })
+  fallback!: NarrationStyleDto;
+
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { $ref: '#/components/schemas/NarrationStyleDto' },
+    example: { A1: { lengthScale: 2, pauseScale: 1 }, B1: { lengthScale: 1.7, pauseScale: 1 } },
+    description: 'The default pace and pauses of each CEFR level',
+  })
+  byLevel!: Record<string, NarrationStyleDto>;
+
+  @ApiProperty({ example: { lengthScale: 1, pauseScale: 0.5 }, description: 'The lowest value of each setting' })
+  min!: NarrationStyleDto;
+
+  @ApiProperty({ example: { lengthScale: 2.5, pauseScale: 2 }, description: 'The highest value of each setting' })
+  max!: NarrationStyleDto;
 }
 
 export class RequestNarrationResponseDto {
@@ -49,6 +115,12 @@ export class RequestNarrationResponseDto {
 
   @ApiProperty({ description: 'narrationTextHash of the spoken script; stored as synthesis.textHash' })
   textHash!: string;
+
+  @ApiProperty({ example: 1.7, description: 'The pace it is spoken with: chosen, or the level default' })
+  lengthScale!: number;
+
+  @ApiProperty({ example: 1, description: 'The pause multiplier it is spoken with' })
+  pauseScale!: number;
 
   @ApiProperty({ example: 21, description: 'Script segments: headings, paragraphs and dialogue turns' })
   segments!: number;

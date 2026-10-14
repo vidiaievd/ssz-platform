@@ -34,6 +34,12 @@ export interface AssetSynthesis {
   textHash: string;
   /** How many script segments were spoken. */
   segments: number;
+  /** Phoneme length multiplier the narration was spoken with (plan 74, phase 6); absent on older ones. */
+  lengthScale?: number;
+  /** Multiplier on the pauses between segments. */
+  pauseScale?: number;
+  /** The course level the pace default came from, when the request named one. */
+  level?: string;
 }
 
 interface MediaAssetProps {

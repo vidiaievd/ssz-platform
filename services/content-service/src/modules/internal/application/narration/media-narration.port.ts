@@ -8,6 +8,11 @@ export interface NarrationRequest {
   lang: string;
   label: string | null;
   lessonId: string;
+  /** The course's CEFR level: media-service picks the pace for it. */
+  level: string;
+  /** Set to keep what an author chose for the narration being replaced. */
+  lengthScale?: number;
+  pauseScale?: number;
 }
 
 /** media-service's internal narration routes, as the batch uses them. */

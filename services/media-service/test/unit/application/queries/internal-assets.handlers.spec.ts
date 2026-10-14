@@ -62,6 +62,8 @@ describe('DescribeAssetsHandler', () => {
         durationMs: 12_400,
         origin: 'UPLOAD',
         textHash: null,
+        lengthScale: null,
+        pauseScale: null,
       },
       expect.objectContaining({ id: failed.id, status: 'FAILED', durationMs: null }),
     ]);
