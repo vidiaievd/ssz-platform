@@ -10,6 +10,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { GetVocabularyItemForDisplayRequestDto } from '../../../../vocabulary/presentation/dto/requests/get-vocabulary-item-for-display.request.dto.js';
 import type { PersonalWordStatus } from '../../../application/queries/list-my-words/list-my-words.query.js';
 
 class TranslationLanguageDto {
@@ -130,4 +131,12 @@ export class ListMyWordsRequestDto extends TranslationLanguageDto {
   @IsOptional()
   @IsIn(['pending', 'resolved'])
   status?: PersonalWordStatus;
+}
+
+export class MyWordsReaderRequestDto extends GetVocabularyItemForDisplayRequestDto {
+  @ApiProperty({ example: 'nb', description: 'Language of the words — one deck per language' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(10)
+  targetLanguage: string;
 }

@@ -134,4 +134,24 @@ export class PrismaPersonalVocabularyReader implements IPersonalVocabularyReader
       createdAt: r.created_at,
     }));
   }
+
+  async listItemIdsForModuleList(userId: string, vocabularyListId: string): Promise<string[]> {
+    // A module may hold several lists (Leksjon 17 has four); only the first takes the
+    // student's words, or one word would turn up in every deck of the module.
+    const rows = await this.prisma.$queryRaw<{ vocabulary_item_id: string }[]>`
+      SELECT e.vocabulary_item_id
+        FROM personal_vocabulary_entries e
+        JOIN lesson_content_variants v ON v.id = e.source_variant_id
+        JOIN container_items li ON li.item_type = 'lesson' AND li.item_id = v.lesson_id
+        JOIN container_versions cv ON cv.id = li.container_version_id AND cv.status <> 'archived'
+       WHERE e.user_id = ${userId}::uuid
+         AND (SELECT ci.item_id
+                FROM container_items ci
+               WHERE ci.container_version_id = cv.id AND ci.item_type = 'vocabulary_list'
+               ORDER BY ci.position
+               LIMIT 1) = ${vocabularyListId}::uuid
+       GROUP BY e.vocabulary_item_id
+       ORDER BY min(e.created_at), e.vocabulary_item_id`;
+    return rows.map((r) => r.vocabulary_item_id);
+  }
 }

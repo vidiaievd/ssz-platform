@@ -10,6 +10,8 @@ import { UpdateMyWordHandler } from './application/commands/update-my-word/updat
 import { DeleteMyWordHandler } from './application/commands/delete-my-word/delete-my-word.handler.js';
 import { LookupWordHandler } from './application/queries/lookup-word/lookup-word.handler.js';
 import { ListMyWordsHandler } from './application/queries/list-my-words/list-my-words.handler.js';
+import { GetPersonalWordsForListHandler } from './application/queries/get-personal-words-for-list/get-personal-words-for-list.handler.js';
+import { GetMyWordsReaderHandler } from './application/queries/get-my-words-reader/get-my-words-reader.handler.js';
 import { PersonalVocabularyController } from './presentation/controllers/personal-vocabulary.controller.js';
 
 /**
@@ -28,6 +30,8 @@ import { PersonalVocabularyController } from './presentation/controllers/persona
     DeleteMyWordHandler,
     LookupWordHandler,
     ListMyWordsHandler,
+    GetPersonalWordsForListHandler,
+    GetMyWordsReaderHandler,
   ],
 })
 export class PersonalVocabularyModule {}

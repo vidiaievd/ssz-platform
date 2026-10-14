@@ -53,4 +53,11 @@ export interface IPersonalVocabularyReader {
   findListItemId(vocabularyListId: string, word: string): Promise<string | null>;
 
   listWords(userId: string, filter: ListWordsFilter): Promise<PersonalWordView[]>;
+
+  /**
+   * Items of the student's words met in a lesson of a module whose deck this list is —
+   * the module's first vocabulary list, in any version that is not archived. Oldest
+   * first, so a deck grows at its end.
+   */
+  listItemIdsForModuleList(userId: string, vocabularyListId: string): Promise<string[]>;
 }

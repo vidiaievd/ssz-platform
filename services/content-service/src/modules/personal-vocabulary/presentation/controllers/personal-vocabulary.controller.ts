@@ -40,8 +40,13 @@ import { DeleteMyWordCommand } from '../../application/commands/delete-my-word/d
 import { LookupWordQuery } from '../../application/queries/lookup-word/lookup-word.query.js';
 import type { LookupWordResult } from '../../application/queries/lookup-word/lookup-word.handler.js';
 import { ListMyWordsQuery } from '../../application/queries/list-my-words/list-my-words.query.js';
+import { VocabularyListReaderContentResponseDto } from '../../../vocabulary/presentation/dto/responses/vocabulary-list-reader-content.response.dto.js';
+import type { VocabularyListReaderContent } from '../../../vocabulary/application/queries/get-vocabulary-list-reader-content/get-vocabulary-list-reader-content.handler.js';
+import type { VocabularyDomainError } from '../../../vocabulary/domain/exceptions/vocabulary-domain.exceptions.js';
+import { GetMyWordsReaderQuery } from '../../application/queries/get-my-words-reader/get-my-words-reader.query.js';
 import {
   CaptureWordRequestDto,
+  MyWordsReaderRequestDto,
   ListMyWordsRequestDto,
   LookupWordRequestDto,
   UpdateMyWordRequestDto,
@@ -79,6 +84,35 @@ export class PersonalVocabularyController {
       new ListMyWordsQuery(user.userId, dto.translationLanguage, dto.targetLanguage, dto.status),
     );
     return words.map((w) => PersonalWordResponseDto.from(w));
+  }
+
+  @Get('reader')
+  @ApiOperation({
+    summary:
+      'My words in the shape of a vocabulary list reader (id `personal:<language>`), ' +
+      'for a client that imports lists into local decks',
+  })
+  @ApiOkResponse({ type: VocabularyListReaderContentResponseDto })
+  async reader(
+    @Query() dto: MyWordsReaderRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<VocabularyListReaderContentResponseDto> {
+    const result = await this.queryBus.execute<
+      GetMyWordsReaderQuery,
+      Result<VocabularyListReaderContent, VocabularyDomainError>
+    >(
+      new GetMyWordsReaderQuery(
+        user.userId,
+        dto.targetLanguage,
+        dto.translationLanguage,
+        dto.includeExamples ?? false,
+        dto.examplesLimit ?? 3,
+        dto.examplesRandom ?? false,
+        dto.studentKnownLanguages ?? [],
+      ),
+    );
+    if (result.isFail) throwHttpException(result.error);
+    return VocabularyListReaderContentResponseDto.from(result.value);
   }
 
   @Get('lookup')
