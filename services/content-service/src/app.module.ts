@@ -29,6 +29,7 @@ import { GroupEntitlementModule } from './infrastructure/messaging/group-entitle
 import { CanDoModule } from './modules/can-do/can-do.module.js';
 import { SkillsModule } from './shared/skills/skills.module.js';
 import { CoverageRecipeModule } from './modules/coverage-recipe/coverage-recipe.module.js';
+import { PersonalVocabularyModule } from './modules/personal-vocabulary/personal-vocabulary.module.js';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { CoverageRecipeModule } from './modules/coverage-recipe/coverage-recipe.
     DiscoveryModule,
     SkillsModule,
     CoverageRecipeModule,
+    PersonalVocabularyModule,
     TagModule,
     ContentRelationModule,
     InternalModule,

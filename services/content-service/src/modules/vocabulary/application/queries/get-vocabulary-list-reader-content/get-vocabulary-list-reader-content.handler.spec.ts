@@ -9,6 +9,7 @@ import { Result } from '../../../../../shared/kernel/result.js';
 import type { IVocabularyListRepository } from '../../../domain/repositories/vocabulary-list.repository.interface.js';
 import type { IVocabularyItemRepository } from '../../../domain/repositories/vocabulary-item.repository.interface.js';
 import type { VocabularyItemDisplayResult } from '../../dto/vocabulary-item-display-result.js';
+import { GetPersonalWordsForListQuery } from '../../../../personal-vocabulary/application/queries/get-personal-words-for-list/get-personal-words-for-list.query.js';
 
 const OWNER_ID = 'owner-1';
 const LIST_ID = 'list-1';
@@ -138,5 +139,76 @@ describe('GetVocabularyListReaderContentHandler', () => {
 
     expect(result.isFail).toBe(true);
     expect(result.error).toBe(VocabularyDomainError.BATCH_SIZE_EXCEEDED);
+  });
+
+  describe('with a reader (plan 75, D7)', () => {
+    /** A bus that answers the personal query and the display query by their class. */
+    function personalBus(personalIds: string[]) {
+      return {
+        execute: jest.fn((q: unknown) => {
+          if (q instanceof GetPersonalWordsForListQuery) return Promise.resolve(personalIds);
+          const batch = q as BatchGetVocabularyItemsForDisplayQuery;
+          return Promise.resolve(Result.ok(batch.vocabularyItemIds.map(makeDisplayResult)));
+        }),
+      };
+    }
+
+    function handlerWith(itemIds: string[], personalIds: string[]) {
+      const { listRepo, itemRepo } = makeDeps({ list: makeList(), itemIds });
+      const queryBus = personalBus(personalIds);
+      const handler = new GetVocabularyListReaderContentHandler(
+        listRepo,
+        itemRepo,
+        queryBus as never,
+      );
+      return { handler, queryBus };
+    }
+
+    const withReader = () =>
+      new GetVocabularyListReaderContentQuery(LIST_ID, 'en', true, 3, false, [], 'student-1');
+
+    it('appends the student’s own words after the list’s, marked personal', async () => {
+      const { handler, queryBus } = handlerWith(['item-1'], ['mine-1', 'mine-2']);
+
+      const result = await handler.execute(withReader());
+
+      expect(result.value.items.map((i) => [i.itemId, i.personal ?? false])).toEqual([
+        ['item-1', false],
+        ['mine-1', true],
+        ['mine-2', true],
+      ]);
+      const asked = queryBus.execute.mock.calls
+        .map(([q]) => q)
+        .find((q) => q instanceof GetPersonalWordsForListQuery) as GetPersonalWordsForListQuery;
+      expect(asked.userId).toBe('student-1');
+      expect(asked.vocabularyListId).toBe(LIST_ID);
+    });
+
+    it('does not repeat a catalogue word that is already in the list', async () => {
+      const { handler } = handlerWith(['item-1'], ['item-1', 'mine-1']);
+
+      const result = await handler.execute(withReader());
+
+      expect(result.value.items.map((i) => i.itemId)).toEqual(['item-1', 'mine-1']);
+    });
+
+    it('serves an empty list with the student’s words alone', async () => {
+      const { handler } = handlerWith([], ['mine-1']);
+
+      const result = await handler.execute(withReader());
+
+      expect(result.value.items.map((i) => i.itemId)).toEqual(['mine-1']);
+    });
+
+    it('asks nothing about personal words without a reader', async () => {
+      const { handler, queryBus } = handlerWith(['item-1'], ['mine-1']);
+
+      const result = await handler.execute(makeQuery());
+
+      expect(result.value.items).toHaveLength(1);
+      expect(
+        queryBus.execute.mock.calls.some(([q]) => q instanceof GetPersonalWordsForListQuery),
+      ).toBe(false);
+    });
   });
 });

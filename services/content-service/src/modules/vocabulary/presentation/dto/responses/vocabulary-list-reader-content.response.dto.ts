@@ -16,7 +16,11 @@ export class VocabularyListReaderContentResponseDto {
     const dto = new VocabularyListReaderContentResponseDto();
     dto.id = content.id;
     dto.title = content.title;
-    dto.items = content.items.map((i) => VocabularyItemDisplayResponseDto.from(i));
+    dto.items = content.items.map((i) => {
+      const item = VocabularyItemDisplayResponseDto.from(i);
+      if (i.personal) item.personal = true;
+      return item;
+    });
     return dto;
   }
 }

@@ -158,12 +158,14 @@ export class VocabularyListController {
   @ApiOperation({
     summary:
       'List metadata plus every item resolved for student display (translations, examples) — ' +
-      'single round trip for the reader page',
+      'single round trip for the reader page. Appends the caller’s own words met in a ' +
+      'lesson of the module, marked `personal`',
   })
   @ApiOkResponse({ type: VocabularyListReaderContentResponseDto })
   async getReaderContent(
     @Param('listId') listId: string,
     @Query() dto: GetVocabularyItemForDisplayRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<VocabularyListReaderContentResponseDto> {
     const result = await this.queryBus.execute<
       GetVocabularyListReaderContentQuery,
@@ -176,6 +178,7 @@ export class VocabularyListController {
         dto.examplesLimit ?? 3,
         dto.examplesRandom ?? false,
         dto.studentKnownLanguages ?? [],
+        user.userId,
       ),
     );
 

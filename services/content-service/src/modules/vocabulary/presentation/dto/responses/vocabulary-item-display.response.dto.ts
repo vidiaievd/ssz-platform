@@ -144,12 +144,21 @@ export class VocabularyItemDisplayResponseDto {
 
   @ApiProperty({
     example: false,
-    description: 'True when no usable translation is available — display word in target language only',
+    description:
+      'True when no usable translation is available — display word in target language only',
   })
   immersionMode!: boolean;
 
   @ApiProperty({ type: [ExampleDisplayResponseDto] })
   examples!: ExampleDisplayResponseDto[];
+
+  @ApiPropertyOptional({
+    example: true,
+    description:
+      "Only in a list's reader: a word the student added from a lesson of this list's module " +
+      'rather than one of the list (plan 75)',
+  })
+  personal?: boolean;
 
   static from(result: VocabularyItemDisplayResult): VocabularyItemDisplayResponseDto {
     const dto = new VocabularyItemDisplayResponseDto();
