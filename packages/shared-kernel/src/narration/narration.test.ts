@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  narrationSpeakers,
   NARRATION_PARAGRAPH_PAUSE_MS,
   NARRATION_TURN_PAUSE_MS,
   narrationPauseMs,
@@ -170,24 +171,33 @@ describe('toNarrationScript — block quotes as documents', () => {
 });
 
 describe('toNarrationScript — tables and lists', () => {
-  it('reads table rows as sentences and drops letters the voice cannot read (norsk_it 10C)', () => {
+  it('skips a table: the reader shows it, a listener would hear a grid (norsk_it 10C)', () => {
     const body = [
+      'Tallene i teksten:',
+      '',
       '| Norsk skrivemåte | Betydning |',
       '|---|---|',
       '| 15 000 | femten tusen |',
       '| ca. / cirka / omtrent | ca., приблизительно |',
-      '| i snitt / gjennomsnittlig | в среднем |',
+      '',
+      'Så går vi videre.',
     ].join('\n');
-    expect(texts(body)).toEqual([
-      'Norsk skrivemåte — Betydning. 15 000 — femten tusen. ca. / cirka / omtrent — ca. i snitt / gjennomsnittlig.',
-    ]);
+    expect(texts(body)).toEqual(['Tallene i teksten:', 'Så går vi videre.']);
   });
 
   it('strips emoji (norsk_it 9B)', () => {
-    expect(texts('| 👍 (som eneste svar) | «mottatt, greit» |\n\n**Mohammed:** 👍 Takk!')).toEqual([
-      '(som eneste svar) — «mottatt, greit».',
+    expect(texts('Han svarer bare 👍 i chatten.\n\n**Mohammed:** 👍 Takk!')).toEqual([
+      'Han svarer bare i chatten.',
       'Takk!',
     ]);
+  });
+
+  it('lists the speakers in the order they first speak', () => {
+    const { segments } = toNarrationScript(
+      'Taras åpner dokumentet.\n\n**Erik:** Én side.\n\n**Taras:** Alt?\n\n**Erik:** Nei.',
+      'nb',
+    );
+    expect(narrationSpeakers(segments)).toEqual(['Erik', 'Taras']);
   });
 
   it('ends list items as sentences and keeps ordered items readable', () => {

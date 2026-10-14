@@ -17,7 +17,7 @@ import { sha256Hex } from './sha256.js';
  * new rule marks the narrations made under the old one as stale — which they are: the audio
  * no longer matches what the script would produce.
  */
-export const NARRATION_SCRIPT_VERSION = 1;
+export const NARRATION_SCRIPT_VERSION = 2;
 
 export type NarrationSegmentKind = 'paragraph' | 'turn' | 'heading';
 
@@ -164,7 +164,9 @@ interface Line {
  * (`**Profil:**`) is content and is read — unless the label names someone who speaks
  * outside the quote in the same body (`> **Ingrid (kommentar):**` in a pull request whose
  * author talks with Ingrid elsewhere): that line is a turn and the name is dropped. Lists
- * and table rows are read as consecutive sentences of one paragraph. Fenced code is skipped.
+ * are read as consecutive sentences of one paragraph. Tables are skipped, as images are: a
+ * grid read row by row is noise to a listener, and the reader shows it (version 2; version 1
+ * read the rows). Fenced code is skipped.
  */
 export function toNarrationScript(bodyMarkdown: string, lang: string): NarrationScript {
   const foreign = foreignLetter(lang);
@@ -240,17 +242,7 @@ export function toNarrationScript(bodyMarkdown: string, lang: string): Narration
     }
     endItem();
 
-    if (TABLE_ROW.test(line)) {
-      if (TABLE_DIVIDER.test(line)) continue;
-      const cells = line
-        .trim()
-        .replace(/^\||\|$/g, '')
-        .split('|')
-        .map((cell) => cleanInline(cell, foreign))
-        .filter((cell) => cell.length > 0);
-      if (cells.length > 0) buffer.push(asSentence(cells.join(' — ')));
-      continue;
-    }
+    if (TABLE_ROW.test(line) || TABLE_DIVIDER.test(line)) continue;
 
     const listItem = LIST_ITEM.exec(line);
     if (listItem) {
@@ -286,4 +278,18 @@ export function narrationTextHash(lang: string, segments: readonly NarrationSegm
     ...segments.map((s) => `${s.kind}\t${s.speaker ?? ''}\t${s.text}`),
   ].join('\n');
   return sha256Hex(canonical);
+}
+
+/**
+ * Who speaks in a script, in the order they first speak — the people a narration can give a
+ * voice of their own (plan 74, phase 8). The narrator is not among them.
+ */
+export function narrationSpeakers(segments: readonly NarrationSegment[]): string[] {
+  const seen: string[] = [];
+  for (const segment of segments) {
+    if (segment.kind === 'turn' && segment.speaker && !seen.includes(segment.speaker)) {
+      seen.push(segment.speaker);
+    }
+  }
+  return seen;
 }

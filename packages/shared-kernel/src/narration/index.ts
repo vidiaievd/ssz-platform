@@ -4,6 +4,7 @@ export {
   NARRATION_SCRIPT_VERSION,
   NARRATION_TURN_PAUSE_MS,
   narrationPauseMs,
+  narrationSpeakers,
   narrationTextHash,
   toNarrationScript,
 } from './script.js';
