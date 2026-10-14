@@ -66,6 +66,8 @@ export interface ReaderLiveInfo {
 
 export interface LessonReaderContent {
   lessonId: string;
+  /** The variant chosen for the reader; null for a LIVE lesson, which has none. */
+  variantId: string | null;
   kind: LessonKind;
   title: string;
   displayTitle: string | null;
@@ -114,6 +116,7 @@ export class GetLessonReaderContentHandler implements IQueryHandler<
     if (lesson.kind === LessonKind.LIVE) {
       return Result.ok({
         lessonId: lesson.id,
+        variantId: null,
         kind: lesson.kind,
         title: lesson.title,
         displayTitle: null,
@@ -170,6 +173,7 @@ export class GetLessonReaderContentHandler implements IQueryHandler<
 
     return Result.ok({
       lessonId: lesson.id,
+      variantId: variant.id,
       kind: lesson.kind,
       title: lesson.title,
       displayTitle: variant.displayTitle,

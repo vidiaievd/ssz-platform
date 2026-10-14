@@ -13,6 +13,15 @@ export class LessonReaderContentResponseDto {
   @ApiProperty({ example: 'uuid-of-lesson' })
   lessonId: string;
 
+  @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+    description:
+      'The variant chosen for this reader — what a word added from the text names as its ' +
+      'source (plan 75). Null for LIVE lessons.',
+  })
+  variantId: string | null;
+
   @ApiProperty({ enum: LessonKind })
   kind: LessonKind;
 
@@ -55,6 +64,7 @@ export class LessonReaderContentResponseDto {
   static from(content: LessonReaderContent): LessonReaderContentResponseDto {
     const dto = new LessonReaderContentResponseDto();
     dto.lessonId = content.lessonId;
+    dto.variantId = content.variantId;
     dto.kind = content.kind;
     dto.title = content.title;
     dto.displayTitle = content.displayTitle;
