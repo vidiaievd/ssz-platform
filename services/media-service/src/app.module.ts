@@ -19,6 +19,7 @@ import { AssetsModule } from './modules/assets/assets.module.js';
 import { ProcessingModule } from './modules/processing/processing.module.js';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module.js';
 import { PronunciationModule } from './modules/pronunciation/pronunciation.module.js';
+import { NarrationModule } from './modules/narration/narration.module.js';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { PronunciationModule } from './modules/pronunciation/pronunciation.modul
     ProcessingModule,
     MaintenanceModule,
     PronunciationModule,
+    NarrationModule,
   ],
   providers: [
     {

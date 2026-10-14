@@ -56,6 +56,8 @@ export class MediaAssetMapper {
 
   static toUpdateData(entity: MediaAssetEntity) {
     return {
+      // Changes only for synthesized audio, whose size is known once it has been spoken.
+      sizeBytes: entity.sizeBytes.value,
       entityType: entity.entityType,
       entityId: entity.entityId,
       status: entity.status,

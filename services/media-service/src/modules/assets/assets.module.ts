@@ -5,6 +5,7 @@ import { MEDIA_ASSET_REPOSITORY } from './domain/repositories/media-asset.reposi
 import { PrismaMediaAssetRepository } from './infrastructure/persistence/prisma-media-asset.repository.js';
 import { RequestUploadHandler } from './application/commands/request-upload/request-upload.handler.js';
 import { FinalizeUploadHandler } from './application/commands/finalize-upload/finalize-upload.handler.js';
+import { StoreSynthesizedAudioHandler } from './application/commands/store-synthesized-audio/store-synthesized-audio.handler.js';
 import { DeleteAssetHandler } from './application/commands/delete-asset/delete-asset.handler.js';
 import { GetAssetHandler } from './application/queries/get-asset/get-asset.handler.js';
 import { ListUserAssetsHandler } from './application/queries/list-user-assets/list-user-assets.handler.js';
@@ -31,6 +32,7 @@ import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from '../../infrastruc
   providers: [
     RequestUploadHandler,
     FinalizeUploadHandler,
+    StoreSynthesizedAudioHandler,
     AssetPurger,
     SweepOrphanRecordingsService,
     { provide: RECORDING_USAGE, useClass: HttpRecordingUsageClient },

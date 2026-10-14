@@ -1,13 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
-import { tmpdir } from 'os';
-import { join } from 'path';
-import ffmpeg = require('fluent-ffmpeg');
-import ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 
 import type { AppConfig } from '../../config/configuration.js';
+import { encodeMp3 } from '../../infrastructure/audio/mp3-encoder.js';
 import { SPEECH_SYNTHESIZER, VOICE_RESOLVER } from '../../shared/application/ports/speech-synthesizer.port.js';
 import type {
   ISpeechSynthesizer,
@@ -17,8 +13,6 @@ import type {
 import { STORAGE_SERVICE } from '../../shared/application/ports/storage.port.js';
 import type { IStorageService } from '../../shared/application/ports/storage.port.js';
 import { Result } from '../../shared/kernel/result.js';
-
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 export type PronunciationError = 'TEXT_TOO_LONG' | 'EMPTY_TEXT' | 'LANGUAGE_NOT_SUPPORTED' | 'SYNTHESIS_FAILED';
 
@@ -77,6 +71,11 @@ export class PronunciationService {
     return work;
   }
 
+  /** The synthesis provider, recorded on a clip asset's metadata. */
+  get provider(): string {
+    return this.synthesizer.provider;
+  }
+
   /** The voice that speaks `lang`'s clips — what an exercise clip reports as its voice. */
   voiceName(lang: string): string | null {
     return this.voices.resolve(lang, null)?.voice ?? null;
@@ -129,29 +128,10 @@ export class PronunciationService {
   }
 
   /**
-   * Piper emits 22 kHz mono PCM, which is ~40 KB for a single word. As mp3 the
-   * same clip is under 10 KB and every browser plays it without a decoder
-   * question, which matters for a button tapped dozens of times per lesson.
+   * Piper emits 22 kHz mono PCM, which is ~40 KB for a single word; as mp3 it is under
+   * 10 KB, which matters for a button tapped dozens of times per lesson.
    */
-  private async toMp3(wav: Buffer): Promise<Buffer> {
-    const dir = await mkdtemp(join(tmpdir(), 'tts-'));
-    const wavPath = join(dir, 'in.wav');
-    const mp3Path = join(dir, 'out.mp3');
-
-    try {
-      await writeFile(wavPath, wav);
-      await new Promise<void>((resolve, reject) => {
-        ffmpeg(wavPath)
-          .audioCodec('libmp3lame')
-          .audioBitrate('64k')
-          .audioChannels(1)
-          .on('end', () => resolve())
-          .on('error', reject)
-          .save(mp3Path);
-      });
-      return await readFile(mp3Path);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+  private toMp3(wav: Buffer): Promise<Buffer> {
+    return encodeMp3(wav, '64k');
   }
 }

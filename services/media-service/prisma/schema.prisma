@@ -31,6 +31,7 @@ enum ProcessingJobType {
   IMAGE_RESIZE
   AUDIO_CONVERT
   VIDEO_TRANSCODE
+  SPEECH_SYNTHESIS
 
   @@map("processing_job_type")
 }

@@ -55,6 +55,8 @@ export const envSchema = z.object({
   // A pronunciation is a word or a short phrase; anything longer is a misuse
   // of the endpoint, not a vocabulary item.
   TTS_MAX_TEXT_LENGTH: z.coerce.number().int().positive().default(120),
+  // A lesson narration (plan 74): the spoken characters of the script, not the markdown.
+  NARRATION_MAX_CHARS: z.coerce.number().int().positive().default(12_000),
 
   // Orphan recordings (plan 71): a recording no attempt stands on, older than the minimum age.
   // 'dry-run' only logs what it would delete; 'delete' purges (soft-delete + storage objects).
@@ -144,6 +146,7 @@ export interface AppConfig {
     piperVoice: string;
     piperTimeoutMs: number;
     maxTextLength: number;
+    narrationMaxChars: number;
   };
 }
 
@@ -209,6 +212,7 @@ export default (): AppConfig => {
       piperVoice: env.PIPER_VOICE,
       piperTimeoutMs: env.PIPER_TIMEOUT_MS,
       maxTextLength: env.TTS_MAX_TEXT_LENGTH,
+      narrationMaxChars: env.NARRATION_MAX_CHARS,
     },
   };
 };

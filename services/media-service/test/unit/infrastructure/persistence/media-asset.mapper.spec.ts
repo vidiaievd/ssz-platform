@@ -65,6 +65,13 @@ describe('MediaAssetMapper — origin and synthesis (plan 74)', () => {
     }
   });
 
+  it('writes the size back, which synthesis replaces after speaking', () => {
+    const asset = MediaAssetMapper.toDomain(row({ status: 'PENDING_UPLOAD', origin: 'SYNTHESIZED', sizeBytes: 1n }));
+    asset.attachSynthesis(SYNTHESIS, 52_000n);
+
+    expect(MediaAssetMapper.toUpdateData(asset).sizeBytes).toBe(52_000n);
+  });
+
   it('never writes JSON null for an absent synthesis', () => {
     expect(MediaAssetMapper.toCreateData(MediaAssetMapper.toDomain(row())).synthesis).toBeUndefined();
   });

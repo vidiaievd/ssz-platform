@@ -70,6 +70,8 @@ export interface CreateMediaAssetProps {
   entityType?: string;
   entityId?: string;
   sizeLimits: SizeLimits;
+  /** SYNTHESIZED for speech the service makes itself; the bytes arrive via `attachSynthesis`. */
+  origin?: AssetOrigin;
 }
 
 export class MediaAssetEntity extends AggregateRoot {
@@ -149,7 +151,7 @@ export class MediaAssetEntity extends AggregateRoot {
       deletedAt: null,
       durationMs: null,
       peaks: null,
-      origin: 'UPLOAD',
+      origin: p.origin ?? 'UPLOAD',
       synthesis: null,
       supersededAt: null,
       supersededBy: null,
@@ -263,6 +265,21 @@ export class MediaAssetEntity extends AggregateRoot {
       this.props.durationMs = Math.max(0, Math.round(decodedDurationMs));
     }
     this.props.updatedAt = new Date();
+  }
+
+  /**
+   * Record how synthesized audio was made, once its bytes are in storage and before the
+   * upload is finalized. The size requested up front is a guess — a synthesizer only knows
+   * the length after speaking — so the stored size replaces it here.
+   */
+  attachSynthesis(synthesis: AssetSynthesis, storedBytes: bigint): Result<void, MediaAssetDomainError> {
+    if (this.props.origin !== 'SYNTHESIZED' || this.props.status !== 'PENDING_UPLOAD') {
+      return Result.fail(MediaAssetDomainError.INVALID_STATUS_TRANSITION);
+    }
+    this.props.synthesis = synthesis;
+    this.props.sizeBytes = SizeBytes.reconstitute(storedBytes);
+    this.props.updatedAt = new Date();
+    return Result.ok();
   }
 
   softDelete(): Result<void, MediaAssetDomainError> {
