@@ -824,9 +824,17 @@ describe('SubmitAnswerHandler', () => {
       routedItems: 1,
       // Counted from the verdicts here, not taken from `passedItems`: that field counts
       // what the check closed, which is a different question from how the student did.
-      verdicts: { pass: 1, partial: 1, fail: 0 },
+      verdicts: { pass: 1, partial: 1, fail: 0, skipped: 0 },
       items: [
-        { itemId: 'q1', verdict: 'pass', covered: 1, total: 1, tooShort: false, routing: 'pass' },
+        {
+          itemId: 'q1',
+          verdict: 'pass',
+          covered: 1,
+          total: 1,
+          tooShort: false,
+          routing: 'pass',
+          skipped: false,
+        },
         {
           itemId: 'q2',
           verdict: 'partial',
@@ -834,6 +842,7 @@ describe('SubmitAnswerHandler', () => {
           total: 2,
           tooShort: true,
           routing: 'teacher',
+          skipped: false,
         },
       ],
     });
@@ -842,6 +851,49 @@ describe('SubmitAnswerHandler', () => {
     const wire = JSON.stringify(result.value.details);
     expect(wire).not.toContain('lys foran');
     expect(wire).not.toContain('glatt');
+  });
+
+  it('short_answer: counts a skipped question as «no answer», not as a failed one', async () => {
+    const [answered] = SHORT_ANSWER_DETAILS.items;
+    const handler = makeHandler(
+      makeRepo(makeInProgressAttempt('short_answer')),
+      makeContentClient(),
+      makeValidator({
+        correct: false,
+        score: 0,
+        details: {
+          ...SHORT_ANSWER_DETAILS,
+          items: [
+            { ...answered, skipped: false },
+            {
+              itemId: 'q2',
+              prompt: 'Er det lurt å sykle om vinteren?',
+              submitted: '',
+              skipped: true,
+              verdict: 'fail',
+              covered: 0,
+              total: 2,
+              tooShort: false,
+              words: 0,
+              elements: [],
+              model: 'Nei, det er glatt.',
+              routing: 'teacher',
+            },
+          ],
+        },
+        requiresReview: true,
+      }),
+      makeFeedback(), makePublisher(),
+    );
+
+    const result = await handler.execute(cmd);
+
+    const details = result.value.details as {
+      verdicts: Record<string, number>;
+      items: Array<{ itemId: string; skipped: boolean }>;
+    };
+    expect(details.verdicts).toEqual({ pass: 1, partial: 0, fail: 0, skipped: 1 });
+    expect(details.items[1]).toMatchObject({ itemId: 'q2', skipped: true });
   });
 });
 

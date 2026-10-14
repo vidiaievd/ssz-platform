@@ -142,6 +142,8 @@ function toTeacherDetail(answer: GradedAnswer, routing: Routing) {
     /** The question the student was given. Null only if the set changed under them. */
     prompt: answer.question?.prompt ?? null,
     submitted: answer.text,
+    /** Sent without an answer — `submitted` is empty and every element is missed. */
+    skipped: answer.skipped,
     /** Null when the question is gone — the one case nothing can be said about. */
     verdict: result?.verdict ?? null,
     covered: result?.covered ?? 0,

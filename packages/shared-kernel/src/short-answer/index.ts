@@ -27,6 +27,7 @@ export {
   coverage,
   grade,
   gradeAttempt,
+  answerableQuestions,
   gradeableQuestions,
   modelPasses,
   usableElements,
