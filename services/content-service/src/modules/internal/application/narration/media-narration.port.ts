@@ -15,6 +15,7 @@ export interface NarrationRequest {
   pauseScale?: number;
   /** Keep the narrator of the narration being replaced. */
   voiceId?: string;
+  speakerVoices?: Record<string, string>;
 }
 
 /** media-service's internal narration routes, as the batch uses them. */

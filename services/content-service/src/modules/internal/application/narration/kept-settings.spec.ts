@@ -2,21 +2,34 @@ import { keptSettings } from './narration-plan.js';
 import type { NarrationAssetInfo } from './narration-plan.js';
 
 const assets = new Map<string, NarrationAssetInfo>([
-  ['tuned', { status: 'READY', origin: 'SYNTHESIZED', textHash: 'h', lengthScale: 2.2, pauseScale: 1.5, voiceId: 'nvcc-kon' }],
+  [
+    'tuned',
+    {
+      status: 'READY',
+      origin: 'SYNTHESIZED',
+      textHash: 'h',
+      lengthScale: 2.2,
+      pauseScale: 1.5,
+      voiceId: 'nvcc-kon',
+      speakerVoices: { Erik: 'nvcc-mmn', Silje: 'nvcc-kmn' },
+    },
+  ],
   ['older', { status: 'READY', origin: 'SYNTHESIZED', textHash: 'h', lengthScale: null, pauseScale: null }],
 ]);
 
 describe('keptSettings', () => {
-  it("keeps the author's voice, pace and pauses when the text changed or the synthesis failed", () => {
+  it("keeps the author's voices, pace and pauses when the text changed or the synthesis failed", () => {
     expect(keptSettings({ kind: 'refresh', replaces: 'tuned', why: 'stale' }, assets)).toEqual({
       lengthScale: 2.2,
       pauseScale: 1.5,
       voiceId: 'nvcc-kon',
+      speakerVoices: { Erik: 'nvcc-mmn', Silje: 'nvcc-kmn' },
     });
     expect(keptSettings({ kind: 'refresh', replaces: 'tuned', why: 'failed' }, assets)).toEqual({
       lengthScale: 2.2,
       pauseScale: 1.5,
       voiceId: 'nvcc-kon',
+      speakerVoices: { Erik: 'nvcc-mmn', Silje: 'nvcc-kmn' },
     });
   });
 
