@@ -103,6 +103,10 @@
     "./minimal-pairs": {
       "import": "./dist/minimal-pairs/index.js",
       "types": "./dist/minimal-pairs/index.d.ts"
+    },
+    "./narration": {
+      "import": "./dist/narration/index.js",
+      "types": "./dist/narration/index.d.ts"
     }
   },
   "files": [
