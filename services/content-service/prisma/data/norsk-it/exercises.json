@@ -1,0 +1,3816 @@
+{
+  "1A": [
+    {
+      "key": "it-1a-sa",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопросы по тексту 1A своими словами (1–2 предложения).",
+      "content": {
+        "title": "Husker du teksten? — 1A",
+        "instruction": "Svar med egne ord, én til to setninger.",
+        "questions": [
+          {
+            "id": "sa1",
+            "kind": "reading",
+            "prompt": "Hvor mange år har Taras jobbet som backend-utvikler?",
+            "passage": "Taras har jobbet som backend-utvikler i fem år, de siste to årene på hjemmekontor for et utenlandsk firma. Nå bor han i Norge og vil gjerne jobbe lokalt — både for å bli bedre i norsk, og for å bli en del av et ordentlig team igjen. En kveld sitter han og scroller gjennom stillingsannonser på Finn.no. Plutselig stopper han opp."
+          },
+          {
+            "id": "sa2",
+            "kind": "reading",
+            "prompt": "Hvorfor vil Taras jobbe lokalt i stedet for på hjemmekontor for et utenlandsk firma?",
+            "passage": "Taras har jobbet som backend-utvikler i fem år, de siste to årene på hjemmekontor for et utenlandsk firma. Nå bor han i Norge og vil gjerne jobbe lokalt — både for å bli bedre i norsk, og for å bli en del av et ordentlig team igjen. En kveld sitter han og scroller gjennom stillingsannonser på Finn.no. Plutselig stopper han opp."
+          },
+          {
+            "id": "sa3",
+            "kind": "reading",
+            "prompt": "Hva slags firma er Nordly Tech AS?",
+            "passage": "Backend-utvikler søkes til Nordly Tech AS Nordly Tech AS lager netthandelsløsninger for norske og nordiske bedrifter. Vi er et team på femten utviklere, fordelt på tre team, og jobber smidig med Scrum. Nå søker vi en backend-utvikler til teamet vårt i Oslo. Vi ønsker at du: - har erfaring med C# og .NET (eller tilsvarende bakgrunn fra Java) - kan grunnleggende SQL og har jobbet med relasjonsdatabaser - har brukt Git og forstår vanlig arbeidsflyt med pull requests - har kjennskap til skytjenester (vi kjører i Azure) — det er fint om du har vært borti det, men vi lærer deg gjerne opp underveis - snakker og skriver norsk på minst B1-nivå — vi jobber på norsk i det daglige, men engelsk går også fint i starten - trives med å samarbeide tett med resten av teamet Vi tilbyr: - konkurransedyktig lønn etter erfaring - fleksibel arbeidstid og mulighet for hjemmekontor to dager i uka - gode pensjons- og forsikringsordninger - et uformelt arbeidsmiljø med flat struktur Søknad med CV sendes via Finn.no innen 20. august. Har du spørsmål? Ta kontakt med teamleder Silje Berg på silje.berg@nordlytech.no."
+          },
+          {
+            "id": "sa4",
+            "kind": "reading",
+            "prompt": "Nevn to krav i annonsen.",
+            "passage": "Backend-utvikler søkes til Nordly Tech AS Nordly Tech AS lager netthandelsløsninger for norske og nordiske bedrifter. Vi er et team på femten utviklere, fordelt på tre team, og jobber smidig med Scrum. Nå søker vi en backend-utvikler til teamet vårt i Oslo. Vi ønsker at du: - har erfaring med C# og .NET (eller tilsvarende bakgrunn fra Java) - kan grunnleggende SQL og har jobbet med relasjonsdatabaser - har brukt Git og forstår vanlig arbeidsflyt med pull requests - har kjennskap til skytjenester (vi kjører i Azure) — det er fint om du har vært borti det, men vi lærer deg gjerne opp underveis - snakker og skriver norsk på minst B1-nivå — vi jobber på norsk i det daglige, men engelsk går også fint i starten - trives med å samarbeide tett med resten av teamet Vi tilbyr: - konkurransedyktig lønn etter erfaring - fleksibel arbeidstid og mulighet for hjemmekontor to dager i uka - gode pensjons- og forsikringsordninger - et uformelt arbeidsmiljø med flat struktur Søknad med CV sendes via Finn.no innen 20. august. Har du spørsmål? Ta kontakt med teamleder Silje Berg på silje.berg@nordlytech.no."
+          },
+          {
+            "id": "sa5",
+            "kind": "reading",
+            "prompt": "Hva er Taras usikker på etter å ha lest annonsen?",
+            "passage": "Taras leser annonsen tre ganger. Han har akkurat den erfaringen de ber om, og han liker at firmaet nevner flat struktur og fleksibel arbeidstid. Det eneste han er litt usikker på, er kravet om norsk på B1-nivå — er norsken hans god nok til en jobbsøknad?"
+          },
+          {
+            "id": "sa6",
+            "kind": "reading",
+            "prompt": "Hva sier Erik om B1-nivået?",
+            "passage": "Erik: Søk uansett! B1 betyr at du skal klare deg i vanlige samtaler — det gjør du. Og husk: det er lov å spørre om noe hvis du ikke forstår."
+          }
+        ],
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 2,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Fem år",
+                "anchors": [
+                  "fem år",
+                  "5 år"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han har jobbet som backend-utvikler i fem år.",
+            "why": "Det står i første setning: «Taras har jobbet som backend-utvikler i fem år»."
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Bli bedre i norsk",
+                "anchors": [
+                  "bedre i norsk",
+                  "lære norsk",
+                  "norsken"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Være del av et team",
+                "anchors": [
+                  "team"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han vil bli bedre i norsk og bli en del av et ordentlig team igjen.",
+            "why": "Teksten gir to grunner: norsken og ønsket om et team."
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Netthandelsløsninger",
+                "anchors": [
+                  "netthandelsløsninger",
+                  "netthandel",
+                  "nettbutikker"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Femten utviklere",
+                "anchors": [
+                  "femten",
+                  "15"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Et firma som lager netthandelsløsninger, med femten utviklere fordelt på tre team.",
+            "why": "Annonsen begynner med å beskrive firmaet."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Ett krav",
+                "anchors": [
+                  "c#",
+                  ".net",
+                  "sql",
+                  "git",
+                  "b1",
+                  "norsk",
+                  "relasjonsdatabase"
+                ],
+                "required": true
+              }
+            ],
+            "model": "De krever erfaring med C# og .NET og grunnleggende SQL.",
+            "why": "Kravene står under «Vi ønsker at du»: C#/.NET, SQL, Git, norsk på B1-nivå."
+          },
+          "sa5": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Norsken / B1-kravet",
+                "anchors": [
+                  "norsk",
+                  "b1"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han er usikker på om norsken hans er god nok, fordi de krever B1-nivå.",
+            "why": "«Det eneste han er litt usikker på, er kravet om norsk på B1-nivå»."
+          },
+          "sa6": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Klarer seg i vanlige samtaler",
+                "anchors": [
+                  "vanlige samtaler",
+                  "klare deg",
+                  "klarer seg",
+                  "klarer meg"
+                ],
+                "required": true
+              }
+            ],
+            "model": "At B1 betyr at man klarer seg i vanlige samtaler, og at det er lov å spørre hvis man ikke forstår.",
+            "why": "Erik forklarer hva B1 betyr i praksis."
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1a-rg",
+      "template": "multiple_choice_group",
+      "instruction": "Верно или неверно? Отвечайте по тексту 1A.",
+      "content": {
+        "title": "Riktig eller galt — tekst 1A",
+        "instruction": "Er påstandene riktige eller gale? Svar ut fra teksten.",
+        "source": {
+          "mode": "inline",
+          "label": "Tekst 1A — Stillingsannonsen",
+          "text": "Taras har jobbet som backend-utvikler i fem år, de siste to årene på\nhjemmekontor for et utenlandsk firma. Nå bor han i Norge og vil gjerne jobbe\nlokalt — både for å bli bedre i norsk, og for å bli en del av et ordentlig\nteam igjen. En kveld sitter han og scroller gjennom stillingsannonser på\nFinn.no. Plutselig stopper han opp.\n\n> **Backend-utvikler søkes til Nordly Tech AS**\n>\n> Nordly Tech AS lager netthandelsløsninger for norske og nordiske bedrifter.\n> Vi er et team på femten utviklere, fordelt på tre team, og jobber smidig\n> med Scrum. Nå søker vi en backend-utvikler til teamet vårt i Oslo.\n>\n> **Vi ønsker at du:**\n> - har erfaring med C# og .NET (eller tilsvarende bakgrunn fra Java)\n> - kan grunnleggende SQL og har jobbet med relasjonsdatabaser\n> - har brukt Git og forstår vanlig arbeidsflyt med pull requests\n> - har kjennskap til skytjenester (vi kjører i Azure) — det er fint om du\n>   har vært borti det, men vi lærer deg gjerne opp underveis\n> - snakker og skriver norsk på minst B1-nivå — vi jobber på norsk i det\n>   daglige, men engelsk går også fint i starten\n> - trives med å samarbeide tett med resten av teamet\n>\n> **Vi tilbyr:**\n> - konkurransedyktig lønn etter erfaring\n> - fleksibel arbeidstid og mulighet for hjemmekontor to dager i uka\n> - gode pensjons- og forsikringsordninger\n> - et uformelt arbeidsmiljø med flat struktur\n>\n> Søknad med CV sendes via Finn.no innen 20. august. Har du spørsmål? Ta\n> kontakt med teamleder Silje Berg på silje.berg@nordlytech.no.\n\nTaras leser annonsen tre ganger. Han har akkurat den erfaringen de ber om, og\nhan liker at firmaet nevner flat struktur og fleksibel arbeidstid. Det eneste\nhan er litt usikker på, er kravet om norsk på B1-nivå — er norsken hans god\nnok til en jobbsøknad?\n\nHan ringer vennen Erik, som allerede jobber i en norsk IT-bedrift.\n\n**Erik:** Søk uansett! B1 betyr at du skal klare deg i vanlige samtaler — det\ngjør du. Og husk: det er lov å spørre om noe hvis du ikke forstår.\n\n**Taras:** Men søknaden min må jo være skrevet på ordentlig norsk?\n\n**Erik:** Ja, men den trenger ikke være perfekt. Det viktigste er at den er\ntydelig og at du viser hvem du er. Jeg kan lese gjennom den for deg etterpå.\n\nTaras takker ja til hjelpen og bestemmer seg for å begynne på søknaden samme\nkveld.\n"
+        },
+        "columns": [
+          {
+            "id": "c-riktig",
+            "label": "Riktig",
+            "short": "R"
+          },
+          {
+            "id": "c-galt",
+            "label": "Galt",
+            "short": "G"
+          }
+        ],
+        "rows": [
+          {
+            "id": "1",
+            "text": "Taras har jobbet på hjemmekontor de siste to årene."
+          },
+          {
+            "id": "2",
+            "text": "Nordly Tech AS har femti utviklere."
+          },
+          {
+            "id": "3",
+            "text": "Firmaet jobber smidig med Scrum."
+          },
+          {
+            "id": "4",
+            "text": "Annonsen krever at man snakker norsk perfekt."
+          },
+          {
+            "id": "5",
+            "text": "Firmaet tilbyr hjemmekontor to dager i uka."
+          },
+          {
+            "id": "6",
+            "text": "Erik synes Taras ikke bør søke på jobben."
+          },
+          {
+            "id": "7",
+            "text": "Annonsen krever lang, profesjonell erfaring med skytjenester."
+          }
+        ],
+        "settings": {
+          "numbering": true,
+          "shuffleRows": false,
+          "layout": "auto",
+          "showText": true,
+          "retry": "one",
+          "lockCorrect": true,
+          "showWhy": "wrong",
+          "revealKey": true,
+          "passThreshold": 70,
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "rows": {
+          "1": {
+            "answer": "c-riktig",
+            "why": "Han har jobbet hjemmefra for et utenlandsk firma de siste to årene.",
+            "quote": "de siste to årene på\nhjemmekontor"
+          },
+          "2": {
+            "answer": "c-galt",
+            "why": "Firmaet har femten utviklere, ikke femti.",
+            "quote": "Vi er et team på femten utviklere"
+          },
+          "3": {
+            "answer": "c-riktig",
+            "why": "Det står i annonsen.",
+            "quote": "jobber smidig"
+          },
+          "4": {
+            "answer": "c-galt",
+            "why": "Kravet er minst B1-nivå, og engelsk går fint i starten.",
+            "quote": "på minst B1-nivå"
+          },
+          "5": {
+            "answer": "c-riktig",
+            "why": "Det står under «Vi tilbyr».",
+            "quote": "hjemmekontor to dager i uka"
+          },
+          "6": {
+            "answer": "c-galt",
+            "why": "Erik sier tvert imot: «Søk uansett!»",
+            "quote": "Søk uansett!"
+          },
+          "7": {
+            "answer": "c-galt",
+            "why": "Kjennskap er fint, men de lærer deg opp underveis.",
+            "quote": "vi lærer deg gjerne opp underveis"
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1a-mc",
+      "template": "multiple_choice",
+      "instruction": "Выберите значение слова из текста 1A.",
+      "content": {
+        "title": "Hva betyr ordet? — 1A",
+        "instruction": "Velg riktig betydning.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "vocab",
+            "context": "Vi jobber smidig med Scrum.",
+            "stem": "smidig",
+            "options": [
+              {
+                "id": "a",
+                "text": "treg og byråkratisk",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "fleksibel, agile",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "dyr",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "vocab",
+            "context": "… trives med å samarbeide tett med resten av teamet.",
+            "stem": "å trives",
+            "options": [
+              {
+                "id": "a",
+                "text": "å ha det bra et sted",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "å slutte",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "å søke jobb",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "vocab",
+            "context": "et uformelt arbeidsmiljø med flat struktur",
+            "stem": "en flat struktur",
+            "options": [
+              {
+                "id": "a",
+                "text": "liten avstand mellom ledelse og ansatte",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "et flatt kontorbygg",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "lav lønn",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q4",
+            "kind": "vocab",
+            "context": "kan grunnleggende SQL",
+            "stem": "grunnleggende",
+            "options": [
+              {
+                "id": "a",
+                "text": "avansert",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "basis-, elementær",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "valgfri",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q5",
+            "kind": "vocab",
+            "context": "B1 betyr at du skal klare deg i vanlige samtaler",
+            "stem": "å klare seg",
+            "options": [
+              {
+                "id": "a",
+                "text": "å mislykkes",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "å greie/mestre noe",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "å gi opp",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "b",
+            "why": "«Smidig» om utvikling betyr fleksibelt, i korte runder — agile.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "Å trives = å ha det bra, å like seg.",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "Flat struktur: få nivåer, lite hierarki.",
+            "options": {}
+          },
+          "q4": {
+            "correctOptionId": "b",
+            "why": "Grunnleggende = det man må kunne først, basis.",
+            "options": {}
+          },
+          "q5": {
+            "correctOptionId": "b",
+            "why": "Å klare seg = å greie seg, mestre situasjonen.",
+            "options": {}
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1a-gap",
+      "template": "word_bank_gap_fill",
+      "instruction": "Вставьте подходящее слово из банка.",
+      "content": {
+        "sentences": [
+          {
+            "id": "s1",
+            "text": "Taras leser en stillingsannonse på Finn.no.",
+            "gaps": [
+              3
+            ]
+          },
+          {
+            "id": "s2",
+            "text": "Teamet jobber smidig med Scrum.",
+            "gaps": [
+              2
+            ]
+          },
+          {
+            "id": "s3",
+            "text": "Firmaet tilbyr to dager hjemmekontor i uka.",
+            "gaps": [
+              4
+            ]
+          },
+          {
+            "id": "s4",
+            "text": "Han har erfaring med SQL og relasjonsdatabaser.",
+            "gaps": [
+              6
+            ]
+          },
+          {
+            "id": "s5",
+            "text": "Mange liker at firmaet har en flat struktur.",
+            "gaps": [
+              7
+            ]
+          },
+          {
+            "id": "s6",
+            "text": "Søkeren må forstå vanlig arbeidsflyt med Git.",
+            "gaps": [
+              4
+            ]
+          },
+          {
+            "id": "s7",
+            "text": "Firmaet kjører i Azure, så det er fint med kjennskap til skytjenester.",
+            "gaps": [
+              11
+            ]
+          }
+        ],
+        "distractors": [
+          "pensjon",
+          "kontor"
+        ],
+        "settings": {
+          "shuffle": true,
+          "allowReuse": false,
+          "showBankCount": false,
+          "caseSensitive": false,
+          "input": "bank"
+        }
+      },
+      "expectedAnswers": {
+        "feedback": {
+          "s1#3": {
+            "fallback": "Нужно слово со значением «объявление о вакансии»."
+          },
+          "s2#2": {
+            "fallback": "Нужно слово со значением «гибкий, agile»."
+          },
+          "s3#4": {
+            "fallback": "Нужно слово со значением «домашний офис, удалённая работа»."
+          },
+          "s4#6": {
+            "fallback": "Нужно слово со значением «реляционные базы данных»."
+          },
+          "s5#7": {
+            "fallback": "Устойчивое сочетание: «flat …» — плоская структура."
+          },
+          "s6#4": {
+            "fallback": "Нужно слово со значением «рабочий процесс»."
+          },
+          "s7#11": {
+            "fallback": "Нужно слово со значением «облачные сервисы»."
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1a-speak",
+      "template": "read_aloud",
+      "instruction": "Ответьте устно на вопросы Эрика по объявлению (1–2 предложения).",
+      "content": {
+        "title": "Erik spør om annonsen",
+        "instruction": "Erik ringer deg. Svar muntlig på spørsmålene hans ut fra annonsen.",
+        "language": "nb",
+        "mode": "dialogue",
+        "prompts": [
+          {
+            "id": "p1",
+            "label": "Spørsmål 1",
+            "text": "",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "Erik ringer deg etter at du har lest annonsen fra Nordly Tech.",
+              "partner": "Hvor mange utviklere har Nordly Tech?"
+            },
+            "minSeconds": 3,
+            "maxSeconds": 25,
+            "prepSeconds": 10
+          },
+          {
+            "id": "p2",
+            "label": "Spørsmål 2",
+            "text": "",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "Erik ringer deg etter at du har lest annonsen fra Nordly Tech.",
+              "partner": "Kan man jobbe hjemmefra?"
+            },
+            "minSeconds": 3,
+            "maxSeconds": 25,
+            "prepSeconds": 10
+          },
+          {
+            "id": "p3",
+            "label": "Spørsmål 3",
+            "text": "",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "Erik ringer deg etter at du har lest annonsen fra Nordly Tech.",
+              "partner": "Hvor godt må du kunne norsk?"
+            },
+            "minSeconds": 3,
+            "maxSeconds": 25,
+            "prepSeconds": 10
+          },
+          {
+            "id": "p4",
+            "label": "Spørsmål 4",
+            "text": "",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "Erik ringer deg etter at du har lest annonsen fra Nordly Tech.",
+              "partner": "Må du kunne Azure fra før?"
+            },
+            "minSeconds": 3,
+            "maxSeconds": 25,
+            "prepSeconds": 10
+          }
+        ],
+        "rubric": [
+          {
+            "id": "content",
+            "name": "Innhold",
+            "desc": "Svarer riktig på spørsmålet, ut fra teksten.",
+            "weight": 2,
+            "studentVisible": true
+          },
+          {
+            "id": "pron",
+            "name": "Uttale",
+            "desc": "Lyder, trykk og tonefall. Blir ordene forstått?",
+            "weight": 2,
+            "studentVisible": true
+          },
+          {
+            "id": "flow",
+            "name": "Flyt",
+            "desc": "Tempo, pauser, nøling og selvretting.",
+            "weight": 1,
+            "studentVisible": true
+          }
+        ],
+        "recording": {
+          "takes": 3,
+          "chooseBest": true,
+          "listenBack": true,
+          "countdown": true,
+          "micCheck": true,
+          "keepAllTakes": false
+        },
+        "settings": {
+          "passScore": 9,
+          "showRubric": "afterGraded",
+          "showModel": "afterGraded",
+          "revision": "return"
+        },
+        "review": {
+          "aiStage": false,
+          "ai": {
+            "transcript": true,
+            "pronunciation": true,
+            "fluency": false,
+            "draft": false
+          },
+          "aiVisibility": "teacher"
+        }
+      },
+      "expectedAnswers": {
+        "prompts": {
+          "p1": {
+            "note": "Modellsvar: «De har femten utviklere, fordelt på tre team.» Godta også: «femten», «15 utviklere», «tre team». Lytt etter «femten» (ikke «femti»).",
+            "focus": []
+          },
+          "p2": {
+            "note": "Modellsvar: «Ja, de tilbyr hjemmekontor to dager i uka.» Godta også: «to dager i uka», «to dager hjemmefra».",
+            "focus": []
+          },
+          "p3": {
+            "note": "Modellsvar: «Jeg må snakke og skrive norsk på minst B1-nivå, men engelsk går fint i starten.» Godta også: «B1», «minst B1-nivå».",
+            "focus": []
+          },
+          "p4": {
+            "note": "Modellsvar: «Nei, det er fint med kjennskap til skytjenester, men de lærer meg opp underveis.» Godta også: «nei, de lærer meg opp», «kjennskap er nok».",
+            "focus": []
+          }
+        },
+        "rubric": {
+          "content": {
+            "levels": [
+              "Svarer ikke, eller svaret stemmer ikke med teksten.",
+              "Svaret er delvis riktig; viktig informasjon mangler.",
+              "Riktig svar, men uklart eller med en liten feil i fakta.",
+              "Riktig og fullstendig svar i en hel setning."
+            ]
+          },
+          "pron": {
+            "levels": [
+              "Vanskelig å forstå.",
+              "Forstås med anstrengelse; gjennomgående feil i kjente lyder.",
+              "Forstås lett; enkelte lyder eller trykk sitter ikke.",
+              "Tydelig og trygg uttale; trykk og tonefall stemmer."
+            ]
+          },
+          "flow": {
+            "levels": [
+              "Stopper opp så ofte at innholdet forsvinner.",
+              "Mange pauser midt i setninger.",
+              "Jevnt tempo med noen nølinger.",
+              "Naturlig tempo og pauser på riktig sted."
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "1B": [
+    {
+      "key": "it-1b-sa",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопросы по тексту 1B своими словами.",
+      "content": {
+        "title": "Husker du teksten? — 1B",
+        "instruction": "Svar med egne ord, én til to setninger.",
+        "questions": [
+          {
+            "id": "sa1",
+            "kind": "reading",
+            "prompt": "Hvor lang bør en norsk CV vanligvis være, ifølge Erik?",
+            "passage": "Erik: Her holder det med én side, maks to. Ingen forventer bilde på CV-en — det er faktisk mer vanlig å la være, for å unngå at noen diskriminerer ubevisst på utseende. Det viktigste er: navn, kontaktinfo, kort profiltekst, arbeidserfaring, utdanning og relevante ferdigheter."
+          },
+          {
+            "id": "sa2",
+            "kind": "reading",
+            "prompt": "Hvorfor er det vanlig å ikke ha bilde på CV-en i Norge?",
+            "passage": "Erik: Her holder det med én side, maks to. Ingen forventer bilde på CV-en — det er faktisk mer vanlig å la være, for å unngå at noen diskriminerer ubevisst på utseende. Det viktigste er: navn, kontaktinfo, kort profiltekst, arbeidserfaring, utdanning og relevante ferdigheter."
+          },
+          {
+            "id": "sa3",
+            "kind": "reading",
+            "prompt": "Hvilke deler bør en norsk CV inneholde?",
+            "passage": "Erik: Her holder det med én side, maks to. Ingen forventer bilde på CV-en — det er faktisk mer vanlig å la være, for å unngå at noen diskriminerer ubevisst på utseende. Det viktigste er: navn, kontaktinfo, kort profiltekst, arbeidserfaring, utdanning og relevante ferdigheter."
+          },
+          {
+            "id": "sa4",
+            "kind": "reading",
+            "prompt": "Hva slags tone anbefaler Erik i søknadsbrevet?",
+            "passage": "Deretter skriver han søknadsbrevet. Han forteller kort hvorfor han søker, hvorfor akkurat Nordly Tech AS, og hva han kan bidra med. Han unngår å skrive for mye om seg selv i overdrevne vendinger — Erik forklarer at nordmenn ofte foretrekker en nøktern og direkte tone framfor mye skryt."
+          },
+          {
+            "id": "sa5",
+            "kind": "reading",
+            "prompt": "Hva gjør Erik med søknaden før Taras sender den?",
+            "passage": "Erik leser gjennom både CV-en og søknadsbrevet. Han retter noen få skrivefeil og foreslår å korte ned profilteksten litt. «Nå er den god,» sier han. «Send den i kveld, så venter du ikke unødvendig.»"
+          }
+        ],
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 2,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Én–to sider",
+                "anchors": [
+                  "én side",
+                  "en side",
+                  "1 side",
+                  "to sider",
+                  "maks to"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Én side, maks to sider.",
+            "why": "Erik: «Her holder det med én side, maks to.»"
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Diskriminering",
+                "anchors": [
+                  "diskriminering",
+                  "diskriminere",
+                  "diskriminerer"
+                ],
+                "required": true
+              }
+            ],
+            "model": "For å unngå ubevisst diskriminering basert på utseende.",
+            "why": "Erik forklarer at bilde kan føre til diskriminering."
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Erfaring",
+                "anchors": [
+                  "arbeidserfaring",
+                  "erfaring"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Utdanning eller ferdigheter",
+                "anchors": [
+                  "utdanning",
+                  "ferdigheter",
+                  "ferdighet"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Navn, kontaktinfo, kort profiltekst, arbeidserfaring, utdanning og relevante ferdigheter.",
+            "why": "Erik lister opp delene i første replikk."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Nøktern / direkte",
+                "anchors": [
+                  "nøktern",
+                  "direkte"
+                ],
+                "required": true
+              }
+            ],
+            "model": "En nøktern og direkte tone, uten mye skryt.",
+            "why": "Nordmenn foretrekker en nøktern og direkte tone framfor skryt."
+          },
+          "sa5": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Retter skrivefeil",
+                "anchors": [
+                  "retter",
+                  "skrivefeil",
+                  "feil"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han leser gjennom den, retter skrivefeil og foreslår å korte ned profilteksten.",
+            "why": "Se avsnittet der Erik leser gjennom CV-en og søknadsbrevet."
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1b-match",
+      "template": "match_pairs",
+      "instruction": "Соедините начало и конец предложения по тексту 1B.",
+      "content": {
+        "pairs": [
+          {
+            "id": "p1",
+            "left": "En norsk CV bør",
+            "right": "være kort og konkret.",
+            "rightId": "r1"
+          },
+          {
+            "id": "p2",
+            "left": "Man unngår ofte bilde på CV-en",
+            "right": "for å unngå ubevisst diskriminering.",
+            "rightId": "r2"
+          },
+          {
+            "id": "p3",
+            "left": "Erik anbefaler",
+            "right": "en nøktern og direkte tone.",
+            "rightId": "r3"
+          },
+          {
+            "id": "p4",
+            "left": "Taras bruker kulepunkter",
+            "right": "i stedet for lange avsnitt.",
+            "rightId": "r4"
+          },
+          {
+            "id": "p5",
+            "left": "Erik retter",
+            "right": "noen få skrivefeil i søknaden.",
+            "rightId": "r5"
+          }
+        ],
+        "variant": "halves",
+        "distractors": [],
+        "settings": {
+          "distractors": false,
+          "shuffle": true,
+          "showRemaining": true
+        }
+      },
+      "expectedAnswers": {
+        "feedback": {
+          "p1": {
+            "def": "Erik: én side, maks to, og vær konkret."
+          },
+          "p2": {
+            "def": "Bilde kan føre til at noen diskriminerer ubevisst."
+          },
+          "p3": {
+            "def": "Nordmenn liker lite skryt."
+          },
+          "p4": {
+            "def": "Erik: «Bruk kulepunkter, ikke lange avsnitt.»"
+          },
+          "p5": {
+            "def": "Han leser gjennom og retter skrivefeil."
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1b-mc",
+      "template": "multiple_choice",
+      "instruction": "Выберите значение слова из текста 1B.",
+      "content": {
+        "title": "Hva betyr ordet? — 1B",
+        "instruction": "Velg riktig betydning.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "vocab",
+            "context": "Og vær konkret",
+            "stem": "konkret",
+            "options": [
+              {
+                "id": "a",
+                "text": "vag og generell",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "tydelig og spesifikk",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "veldig lang",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "vocab",
+            "context": "overdrevne vendinger",
+            "stem": "å overdrive",
+            "options": [
+              {
+                "id": "a",
+                "text": "å si nøyaktig sannheten",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "å gjøre noe større enn det er",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "å glemme noe",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "vocab",
+            "context": "en nøktern og direkte tone",
+            "stem": "nøktern",
+            "options": [
+              {
+                "id": "a",
+                "text": "overdrevet entusiastisk",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "sindig, overdriver ikke",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "usikker",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q4",
+            "kind": "vocab",
+            "context": "Bruk kulepunkter",
+            "stem": "et kulepunkt",
+            "options": [
+              {
+                "id": "a",
+                "text": "et helt avsnitt",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "et kort listepunkt",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "en overskrift",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q5",
+            "kind": "vocab",
+            "context": "engelsk (flytende)",
+            "stem": "flytende (om språk)",
+            "options": [
+              {
+                "id": "a",
+                "text": "snakker litt",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "snakker svært godt og uanstrengt",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "forstår skriftlig",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "b",
+            "why": "Konkret = med tall og eksempler, ikke generelt.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "b",
+            "why": "Å overdrive = å få noe til å virke større enn det er.",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "b",
+            "why": "Nøktern = rolig og saklig, uten skryt.",
+            "options": {}
+          },
+          "q4": {
+            "correctOptionId": "b",
+            "why": "Et kulepunkt er et kort punkt i en liste.",
+            "options": {}
+          },
+          "q5": {
+            "correctOptionId": "b",
+            "why": "Flytende = snakker lett og godt, uten å lete etter ord.",
+            "options": {}
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1b-gap",
+      "template": "word_bank_gap_fill",
+      "instruction": "Вставьте подходящее слово из банка.",
+      "content": {
+        "sentences": [
+          {
+            "id": "s1",
+            "text": "CV-en bør ha en kort profiltekst øverst.",
+            "gaps": [
+              5
+            ]
+          },
+          {
+            "id": "s2",
+            "text": "Bruk kulepunkter i stedet for lange avsnitt.",
+            "gaps": [
+              1
+            ]
+          },
+          {
+            "id": "s3",
+            "text": "I tillegg til CV-en sender man ofte et søknadsbrev.",
+            "gaps": [
+              8
+            ]
+          },
+          {
+            "id": "s4",
+            "text": "Husk å liste opp relevante ferdigheter.",
+            "gaps": [
+              5
+            ]
+          },
+          {
+            "id": "s5",
+            "text": "Erik foreslår en nøktern tone i søknaden.",
+            "gaps": [
+              3
+            ]
+          },
+          {
+            "id": "s6",
+            "text": "Taras strukturerer CV-en sin med tydelige overskrifter.",
+            "gaps": [
+              1
+            ]
+          },
+          {
+            "id": "s7",
+            "text": "Systemet håndterer 10 000 forespørsler i timen.",
+            "gaps": [
+              1,
+              4
+            ]
+          },
+          {
+            "id": "s8",
+            "text": "I CV-en står det at han har utviklet og vedlikeholdt API-er.",
+            "gaps": [
+              9
+            ]
+          }
+        ],
+        "distractors": [
+          "bilde",
+          "vending"
+        ],
+        "settings": {
+          "shuffle": true,
+          "allowReuse": false,
+          "showBankCount": false,
+          "caseSensitive": false,
+          "input": "bank"
+        }
+      },
+      "expectedAnswers": {
+        "feedback": {
+          "s1#5": {
+            "fallback": "Нужно слово со значением «профильный текст (краткое описание в резюме)»."
+          },
+          "s2#1": {
+            "fallback": "Нужно слово со значением «пункты списка»."
+          },
+          "s3#8": {
+            "fallback": "Нужно слово со значением «сопроводительное письмо»."
+          },
+          "s4#5": {
+            "fallback": "Нужно слово со значением «навыки»."
+          },
+          "s5#3": {
+            "fallback": "Нужно слово со значением «сдержанный, скромный»."
+          },
+          "s6#1": {
+            "fallback": "Нужен глагол «структурировать» в настоящем времени."
+          },
+          "s7#1": {
+            "fallback": "Нужен глагол «обрабатывать» в настоящем времени."
+          },
+          "s7#4": {
+            "fallback": "Нужно слово со значением «запросы» (мн. ч.)."
+          },
+          "s8#9": {
+            "fallback": "Нужен глагол «поддерживать, сопровождать» в форме перфекта."
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1b-read",
+      "template": "read_aloud",
+      "instruction": "Прочитайте вслух отрывки из текста 1B. Можно записать до трёх дублей.",
+      "content": {
+        "title": "Les høyt — CV og råd",
+        "instruction": "Les teksten høyt og tydelig. Du kan ta opp inntil tre ganger.",
+        "language": "nb",
+        "mode": "read",
+        "prompts": [
+          {
+            "id": "p1",
+            "label": "Profilen til Taras",
+            "text": "Backend-utvikler med fem års erfaring med C#/.NET og relasjonsdatabaser. Liker å jobbe i team og løse tekniske problemer sammen med andre.",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "",
+              "partner": ""
+            },
+            "minSeconds": 8,
+            "maxSeconds": 40,
+            "prepSeconds": 20
+          },
+          {
+            "id": "p2",
+            "label": "Eriks råd",
+            "text": "Nei, fokuser på det som er relevant for denne jobben. Bruk kulepunkter, ikke lange avsnitt. Og vær konkret: skriv «utviklet et API som håndterer 10 000 forespørsler i timen» i stedet for bare «jobbet med backend-utvikling».",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "",
+              "partner": ""
+            },
+            "minSeconds": 10,
+            "maxSeconds": 50,
+            "prepSeconds": 20
+          }
+        ],
+        "rubric": [
+          {
+            "id": "pron",
+            "name": "Uttale",
+            "desc": "Lyder, trykk og tonefall i fokusordene og i hele teksten.",
+            "weight": 2,
+            "studentVisible": true
+          },
+          {
+            "id": "flow",
+            "name": "Flyt",
+            "desc": "Tempo, pauser ved komma og punktum, ingen stopp midt i ord.",
+            "weight": 1,
+            "studentVisible": true
+          },
+          {
+            "id": "acc",
+            "name": "Nøyaktighet",
+            "desc": "Leser det som står: ingen ord hoppet over, lagt til eller byttet.",
+            "weight": 1,
+            "studentVisible": true
+          }
+        ],
+        "recording": {
+          "takes": 3,
+          "chooseBest": true,
+          "listenBack": true,
+          "countdown": true,
+          "micCheck": true,
+          "keepAllTakes": false
+        },
+        "settings": {
+          "passScore": 7,
+          "showRubric": "afterGraded",
+          "showModel": "afterGraded",
+          "revision": "return"
+        },
+        "review": {
+          "aiStage": false,
+          "ai": {
+            "transcript": true,
+            "pronunciation": true,
+            "fluency": false,
+            "draft": false
+          },
+          "aiVisibility": "teacher"
+        }
+      },
+      "expectedAnswers": {
+        "prompts": {
+          "p1": {
+            "note": "Teksten er modellsvaret. Lytt etter trykk i fagordene og at «C#/.NET» leses «C-sharp og dott-nett».",
+            "focus": [
+              {
+                "id": "p1-f1",
+                "word": "erfaring",
+                "note": "Trykk på andre staving: er-FA-ring."
+              },
+              {
+                "id": "p1-f2",
+                "word": "relasjonsdatabaser",
+                "note": "«sj»-lyd i -sjon-, ikke «s-j»."
+              },
+              {
+                "id": "p1-f3",
+                "word": "tekniske",
+                "note": "Kort i og tydelig k: TEK-nis-ke."
+              }
+            ]
+          },
+          "p2": {
+            "note": "Teksten er modellsvaret. Lytt etter pause ved kolon og at sitatet leses som én enhet.",
+            "focus": [
+              {
+                "id": "p2-f1",
+                "word": "håndterer",
+                "note": "Stum d: «hånterer»."
+              },
+              {
+                "id": "p2-f2",
+                "word": "forespørsler",
+                "note": "rs uttales som én lyd [ʂ] på østnorsk."
+              },
+              {
+                "id": "p2-f3",
+                "word": "10 000",
+                "note": "Leses «ti tusen»."
+              },
+              {
+                "id": "p2-f4",
+                "word": "relevant",
+                "note": "Trykk på siste staving: rele-VANT."
+              }
+            ]
+          }
+        },
+        "rubric": {
+          "pron": {
+            "levels": [
+              "Vanskelig å forstå.",
+              "Forstås med anstrengelse; gjennomgående feil i kjente lyder.",
+              "Forstås lett; enkelte lyder eller trykk sitter ikke.",
+              "Tydelig og trygg uttale; trykk og tonefall stemmer."
+            ]
+          },
+          "flow": {
+            "levels": [
+              "Stopper opp så ofte at innholdet forsvinner.",
+              "Mange pauser midt i setninger.",
+              "Jevnt tempo med noen nølinger.",
+              "Naturlig tempo og pauser på riktig sted."
+            ]
+          },
+          "acc": {
+            "levels": [
+              "Mange ord mangler eller er byttet ut.",
+              "Flere feil som endrer meningen.",
+              "Én-to små feil som ikke endrer meningen.",
+              "Leser teksten nøyaktig som den står."
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1b-write",
+      "template": "writing_task",
+      "instruction": "Напишите короткий профиль для резюме (40–60 слов).",
+      "content": {
+        "mode": "free",
+        "instruction": "Skriv en kort profiltekst til CV-en (40–60 ord).",
+        "prompt": "Skriv en kort profiltekst til en CV for en IT-jobb du kunne tenke deg å søke på. Bruk en nøktern og konkret tone — ikke overdriv.",
+        "source": "",
+        "image": {
+          "caption": "",
+          "alt": ""
+        },
+        "letter": {
+          "register": "formal",
+          "recipient": ""
+        },
+        "points": [
+          {
+            "id": "p1",
+            "text": "Hvem du er faglig: rolle og antall års erfaring",
+            "required": true
+          },
+          {
+            "id": "p2",
+            "text": "To–tre konkrete ferdigheter eller teknologier",
+            "required": true
+          },
+          {
+            "id": "p3",
+            "text": "Hvordan du liker å jobbe",
+            "required": true
+          }
+        ],
+        "phrases": [
+          "… med … års erfaring med …",
+          "Liker å …",
+          "Trives med …",
+          "Har erfaring med …"
+        ],
+        "rubric": [
+          {
+            "id": "c1",
+            "name": "Oppgaveløsning",
+            "desc": "Er rolle, erfaring, ferdigheter og arbeidsmåte med?",
+            "weight": 2,
+            "metric": "points"
+          },
+          {
+            "id": "c2",
+            "name": "Struktur og sammenheng",
+            "desc": "Kort og ryddig: hele setninger eller fraser i fast rekkefølge.",
+            "weight": 1,
+            "metric": "paragraphs"
+          },
+          {
+            "id": "c3",
+            "name": "Språklig korrekthet",
+            "desc": "Riktig form på substantiv og verb; nøktern tone uten overdrivelser.",
+            "weight": 1,
+            "metric": "language"
+          },
+          {
+            "id": "c4",
+            "name": "Ordforråd og rettskriving",
+            "desc": "Fagord fra leksjonen (ferdighet, vedlikeholde, håndtere …), riktig stavet.",
+            "weight": 1,
+            "metric": "lexis"
+          }
+        ],
+        "settings": {
+          "minWords": 40,
+          "maxWords": 60,
+          "timer": 0,
+          "blockPaste": true,
+          "autosave": true,
+          "showWordCount": true,
+          "showPlan": true,
+          "showPhrases": true,
+          "showRubric": "afterGraded",
+          "showModel": "afterGraded",
+          "passScore": 9,
+          "aiStage": false,
+          "ai": {
+            "grammar": true,
+            "task": true,
+            "structure": true,
+            "lexis": true,
+            "draft": false
+          },
+          "aiVisibility": "teacher",
+          "aiSelfLimit": 0,
+          "revision": "return"
+        }
+      },
+      "expectedAnswers": {
+        "points": {
+          "p1": {
+            "keywords": [
+              "års erfaring",
+              "utvikler",
+              "jobbet som"
+            ]
+          },
+          "p2": {
+            "keywords": [
+              "SQL",
+              "Git",
+              "C#",
+              "Python",
+              "erfaring med"
+            ]
+          },
+          "p3": {
+            "keywords": [
+              "liker å",
+              "team",
+              "trives"
+            ]
+          }
+        },
+        "rubric": {
+          "c1": {
+            "levels": [
+              "Ikke en profiltekst.",
+              "Ett av punktene er med.",
+              "To av punktene er med.",
+              "Alle tre punktene, konkret og kort."
+            ]
+          },
+          "c2": {
+            "levels": [
+              "Ingen struktur.",
+              "Løse setninger uten sammenheng.",
+              "Forståelig rekkefølge, få bindeord.",
+              "Tydelig struktur og gode bindeord."
+            ]
+          },
+          "c3": {
+            "levels": [
+              "Mange feil og skrytende tone.",
+              "Flere feil eller overdrevne vendinger.",
+              "Enkelte feil; stort sett nøktern tone.",
+              "Nesten feilfri, nøktern og konkret."
+            ]
+          },
+          "c4": {
+            "levels": [
+              "Svært begrenset ordforråd, mange skrivefeil.",
+              "Enkelt ordforråd, flere skrivefeil.",
+              "Passende ordforråd, enkelte skrivefeil.",
+              "Presist ordforråd fra leksjonen, nesten ingen skrivefeil."
+            ]
+          }
+        },
+        "model": "Backend-utvikler med fire års erfaring med Python og PostgreSQL. Har utviklet og vedlikeholdt API-er for en betalingstjeneste og optimalisert trege spørringer. Kjenner Git og vanlig arbeidsflyt med pull requests. Trives i smidige team og liker å løse tekniske problemer sammen med andre."
+      }
+    }
+  ],
+  "1C": [
+    {
+      "key": "it-1c-sa",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопросы по тексту 1C своими словами.",
+      "content": {
+        "title": "Husker du teksten? — 1C",
+        "instruction": "Svar med egne ord, én til to setninger.",
+        "questions": [
+          {
+            "id": "sa1",
+            "kind": "reading",
+            "prompt": "Hvordan tar Silje imot Taras?",
+            "passage": "Han kommer fem minutter før avtalt tid. Silje tar imot ham i resepsjonen med et fast håndtrykk og et smil."
+          },
+          {
+            "id": "sa2",
+            "kind": "reading",
+            "prompt": "Hvorfor søkte Taras på stillingen?",
+            "passage": "Taras: Ja, gjerne. Jeg har jobbet som backend-utvikler i fem år, mest med C# og .NET. De siste to årene har jeg jobbet på hjemmekontor for et utenlandsk firma, men jeg savner å være en del av et team fysisk. Annonsen deres passet godt med det jeg kan, og jeg liker at dere jobber smidig med Scrum."
+          },
+          {
+            "id": "sa3",
+            "kind": "reading",
+            "prompt": "Hva har Taras gjort med databaser tidligere?",
+            "passage": "Taras: Jeg har designet databasestrukturen for netthandelsplattformen vi brukte hos forrige arbeidsgiver, og jeg har optimalisert flere spørringer som var trege. Jeg liker den typen problemløsning."
+          },
+          {
+            "id": "sa4",
+            "kind": "reading",
+            "prompt": "Hvordan forholder Taras seg til tilbakemelding?",
+            "passage": "Taras: Jeg setter pris på tilbakemelding, selv når den er kritisk — det er sånn man blir bedre. Jeg liker code review og synes det er nyttig å diskutere løsninger med kollegaer før man går videre."
+          },
+          {
+            "id": "sa5",
+            "kind": "reading",
+            "prompt": "Hva spør Taras Silje om til slutt?",
+            "passage": "Taras: Ja. Hvordan ser en vanlig uke ut for teamet, og hvor mye kontakt har utviklerne med kundene direkte?"
+          },
+          {
+            "id": "sa6",
+            "kind": "reading",
+            "prompt": "Hva sier Silje om veien videre?",
+            "passage": "Silje forteller om arbeidsrutinene, standup-møtene og hvordan teamet samarbeider med produkteieren. Til slutt sier hun at de skal snakke med to kandidater til, og at de gir beskjed i løpet av uka."
+          },
+          {
+            "id": "sa7",
+            "kind": "reading",
+            "prompt": "Hvordan svarer Taras på spørsmålet om sky-erfaring?",
+            "passage": "Taras: Jeg har brukt noen skytjenester på hobbyprosjekter, men ikke i stor skala profesjonelt. Det er faktisk noe jeg gjerne vil lære mer om, så det ser jeg mest som en mulighet."
+          }
+        ],
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 2,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Håndtrykk / smil",
+                "anchors": [
+                  "håndtrykk",
+                  "smil"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Med et fast håndtrykk og et smil, i resepsjonen.",
+            "why": "Se avsnittet før dialogen."
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Annonsen passet",
+                "anchors": [
+                  "passet",
+                  "passer"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Smidig / Scrum",
+                "anchors": [
+                  "smidig",
+                  "scrum"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Annonsen passet med det han kunne, og han liker at de jobber smidig med Scrum.",
+            "why": "Taras svarer på det i første svar til Silje."
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Designet struktur",
+                "anchors": [
+                  "designet",
+                  "databasestruktur"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Optimalisert spørringer",
+                "anchors": [
+                  "optimalisert",
+                  "spørringer",
+                  "spørring"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han har designet databasestrukturen for en netthandelsplattform og optimalisert trege spørringer.",
+            "why": "Silje spør om databaser, og Taras nevner to ting."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Setter pris på",
+                "anchors": [
+                  "setter pris",
+                  "liker",
+                  "nyttig"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han setter pris på tilbakemelding, selv kritisk, og liker code review.",
+            "why": "«Jeg setter pris på tilbakemelding, selv når den er kritisk»."
+          },
+          "sa5": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Vanlig uke",
+                "anchors": [
+                  "uke"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Kontakt med kundene",
+                "anchors": [
+                  "kundene",
+                  "kunder",
+                  "kunden"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Hvordan en vanlig uke ser ut, og hvor mye kontakt utviklerne har med kundene.",
+            "why": "Taras har to spørsmål på slutten av intervjuet."
+          },
+          "sa6": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "To kandidater til",
+                "anchors": [
+                  "kandidater",
+                  "kandidat"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Beskjed i løpet av uka",
+                "anchors": [
+                  "uka",
+                  "uken",
+                  "beskjed"
+                ],
+                "required": true
+              }
+            ],
+            "model": "De skal snakke med to kandidater til og gir beskjed i løpet av uka.",
+            "why": "Se avsnittet etter dialogen."
+          },
+          "sa7": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Hobbyprosjekter",
+                "anchors": [
+                  "hobbyprosjekter",
+                  "hobbyprosjekt",
+                  "fritiden"
+                ],
+                "required": true
+              },
+              {
+                "id": "e2",
+                "label": "Mulighet til å lære",
+                "anchors": [
+                  "mulighet",
+                  "lære"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Han er ærlig om at han bare har brukt sky på hobbyprosjekter, og ser det som en mulighet til å lære.",
+            "why": "Taras snur en svakhet til en mulighet."
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1c-rg",
+      "template": "multiple_choice_group",
+      "instruction": "Верно или неверно? Отвечайте по тексту 1C.",
+      "content": {
+        "title": "Riktig eller galt — tekst 1C",
+        "instruction": "Er påstandene riktige eller gale? Svar ut fra teksten.",
+        "source": {
+          "mode": "inline",
+          "label": "Tekst 1C — Jobbintervjuet",
+          "text": "Tre dager senere ringer telefonen. Det er Silje Berg fra Nordly Tech AS. Hun\nsier at de har lest søknaden hans og gjerne vil invitere ham til et intervju\n— enten fysisk på kontoret eller digitalt på Teams. Taras velger å møte opp\npersonlig.\n\nHan kommer fem minutter før avtalt tid. Silje tar imot ham i resepsjonen med\net fast håndtrykk og et smil.\n\n**Silje:** Hyggelig å møte deg, Taras. Velkommen til Nordly Tech. Skal vi gå\ninn på møterommet?\n\n**Taras:** Ja, gjerne. Takk for at dere ville møte meg.\n\n**Silje:** Kan du fortelle litt om bakgrunnen din og hvorfor du søkte på\ndenne stillingen?\n\n**Taras:** Ja, gjerne. Jeg har jobbet som backend-utvikler i fem år, mest\nmed C# og .NET. De siste to årene har jeg jobbet på hjemmekontor for et\nutenlandsk firma, men jeg savner å være en del av et team fysisk. Annonsen\nderes passet godt med det jeg kan, og jeg liker at dere jobber smidig med\nScrum.\n\n**Silje:** Bra. Jeg så at du ikke har så mye erfaring med sky fra før —\nhvordan stiller du deg til å lære det?\n\n**Taras:** Jeg har brukt noen skytjenester på hobbyprosjekter, men ikke i\nstor skala profesjonelt. Det er faktisk noe jeg gjerne vil lære mer om, så\ndet ser jeg mest som en mulighet.\n\n**Silje:** Bra holdning — vi forventer ikke at man kan alt fra dag én. Kan du\nsi litt om hvordan du har jobbet med databaser tidligere?\n\n**Taras:** Jeg har designet databasestrukturen for netthandelsplattformen vi\nbrukte hos forrige arbeidsgiver, og jeg har optimalisert flere spørringer\nsom var trege. Jeg liker den typen problemløsning.\n\n**Silje:** Det høres relevant ut. Hvordan trives du med å jobbe i team og ta\nimot tilbakemelding?\n\n**Taras:** Jeg setter pris på tilbakemelding, selv når den er kritisk — det\ner sånn man blir bedre. Jeg liker code review og synes det er nyttig å\ndiskutere løsninger med kollegaer før man går videre.\n\n**Silje:** Det er akkurat den holdningen vi ønsker oss her. Har du noen\nspørsmål til oss?\n\n**Taras:** Ja. Hvordan ser en vanlig uke ut for teamet, og hvor mye kontakt\nhar utviklerne med kundene direkte?\n\nSilje forteller om arbeidsrutinene, standup-møtene og hvordan teamet\nsamarbeider med produkteieren. Til slutt sier hun at de skal snakke med to\nkandidater til, og at de gir beskjed i løpet av uka.\n\nTaras går ut av møterommet og kjenner at intervjuet gikk bra. Han er\nforsiktig optimist, men prøver å ikke håpe for mye ennå.\n"
+        },
+        "columns": [
+          {
+            "id": "c-riktig",
+            "label": "Riktig",
+            "short": "R"
+          },
+          {
+            "id": "c-galt",
+            "label": "Galt",
+            "short": "G"
+          }
+        ],
+        "rows": [
+          {
+            "id": "1",
+            "text": "Taras velger å ha intervjuet digitalt på Teams."
+          },
+          {
+            "id": "2",
+            "text": "Taras kommer fem minutter for sent."
+          },
+          {
+            "id": "3",
+            "text": "Taras har designet databasestruktur tidligere."
+          },
+          {
+            "id": "4",
+            "text": "Taras liker ikke code review."
+          },
+          {
+            "id": "5",
+            "text": "Silje forteller om standup-møtene til teamet."
+          },
+          {
+            "id": "6",
+            "text": "Taras får svar med en gang, samme dag."
+          }
+        ],
+        "settings": {
+          "numbering": true,
+          "shuffleRows": false,
+          "layout": "auto",
+          "showText": true,
+          "retry": "one",
+          "lockCorrect": true,
+          "showWhy": "wrong",
+          "revealKey": true,
+          "passThreshold": 70,
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "rows": {
+          "1": {
+            "answer": "c-galt",
+            "why": "Han velger å møte opp personlig.",
+            "quote": "Taras velger å møte opp\npersonlig."
+          },
+          "2": {
+            "answer": "c-galt",
+            "why": "Han kommer fem minutter før avtalt tid.",
+            "quote": "Han kommer fem minutter før avtalt tid."
+          },
+          "3": {
+            "answer": "c-riktig",
+            "why": "Han designet databasestrukturen hos forrige arbeidsgiver.",
+            "quote": "Jeg har designet databasestrukturen"
+          },
+          "4": {
+            "answer": "c-galt",
+            "why": "Han synes code review er nyttig.",
+            "quote": "Jeg liker code review"
+          },
+          "5": {
+            "answer": "c-riktig",
+            "why": "Hun forteller om arbeidsrutinene og standup-møtene.",
+            "quote": "standup-møtene"
+          },
+          "6": {
+            "answer": "c-galt",
+            "why": "De gir beskjed i løpet av uka.",
+            "quote": "de gir beskjed i løpet av uka"
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1c-ind",
+      "template": "short_answer",
+      "instruction": "Перескажите косвенной речью. Начните с «Taras sa at …» или «Silje spurte om/hvordan …».",
+      "content": {
+        "title": "Fra intervju til referat",
+        "instruction": "Skriv om til indirekte tale.",
+        "questions": [
+          {
+            "id": "sa1",
+            "kind": "opinion",
+            "prompt": "«Jeg har jobbet som backend-utvikler i fem år.»"
+          },
+          {
+            "id": "sa2",
+            "kind": "opinion",
+            "prompt": "«Jeg setter pris på tilbakemelding.»"
+          },
+          {
+            "id": "sa3",
+            "kind": "opinion",
+            "prompt": "«Hvordan trives du med å jobbe i team?»"
+          },
+          {
+            "id": "sa4",
+            "kind": "opinion",
+            "prompt": "«Har du noen spørsmål til oss?»"
+          }
+        ],
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 2,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "sa at han hadde jobbet",
+                "anchors": [
+                  "hadde jobbet"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Taras sa at han hadde jobbet som backend-utvikler i fem år.",
+            "why": "После «sa» перфект сдвигается в плюсквамперфект: har jobbet → hadde jobbet."
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "satte pris",
+                "anchors": [
+                  "satte pris"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Taras sa at han satte pris på tilbakemelding.",
+            "why": "Презенс после «sa» сдвигается в претерит: setter → satte."
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "hvordan han trivdes",
+                "anchors": [
+                  "hvordan han trivdes"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Silje spurte hvordan han trivdes med å jobbe i team.",
+            "why": "Вопросительное слово остаётся, порядок слов прямой: hvordan han trivdes."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "om han hadde",
+                "anchors": [
+                  "om han hadde"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Silje spurte om han hadde noen spørsmål til dem.",
+            "why": "Вопрос без вопросительного слова → om; du → han, oss → dem."
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1c-gap",
+      "template": "word_bank_gap_fill",
+      "instruction": "Вставьте подходящее слово из банка.",
+      "content": {
+        "sentences": [
+          {
+            "id": "s1",
+            "text": "Silje tar imot Taras med et fast håndtrykk.",
+            "gaps": [
+              7
+            ]
+          },
+          {
+            "id": "s2",
+            "text": "Taras setter pris på tilbakemelding, selv når den er kritisk.",
+            "gaps": [
+              4
+            ]
+          },
+          {
+            "id": "s3",
+            "text": "Han har optimalisert en treg spørring mot databasen.",
+            "gaps": [
+              5
+            ]
+          },
+          {
+            "id": "s4",
+            "text": "Han liker å diskutere løsninger i code review.",
+            "gaps": [
+              7
+            ]
+          },
+          {
+            "id": "s5",
+            "text": "Silje liker Taras' holdning til tilbakemelding.",
+            "gaps": [
+              3
+            ]
+          },
+          {
+            "id": "s6",
+            "text": "Teamet samarbeider tett med produkteieren, som snakker med kundene.",
+            "gaps": [
+              4
+            ]
+          }
+        ],
+        "distractors": [
+          "resepsjon",
+          "spørsmål"
+        ],
+        "settings": {
+          "shuffle": true,
+          "allowReuse": false,
+          "showBankCount": false,
+          "caseSensitive": false,
+          "input": "bank"
+        }
+      },
+      "expectedAnswers": {
+        "feedback": {
+          "s1#7": {
+            "fallback": "Нужно слово со значением «рукопожатие»."
+          },
+          "s2#4": {
+            "fallback": "Нужно слово со значением «обратная связь»."
+          },
+          "s3#5": {
+            "fallback": "Нужно слово со значением «запрос к базе данных»."
+          },
+          "s4#7": {
+            "fallback": "Устойчивое сочетание: «code …» — код-ревью."
+          },
+          "s5#3": {
+            "fallback": "Нужно слово со значением «отношение, позиция»."
+          },
+          "s6#4": {
+            "fallback": "Нужно слово со значением «владелец продукта» (определённая форма)."
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1c-interview",
+      "template": "read_aloud",
+      "instruction": "Собеседование: ответьте устно на вопросы Силье о себе (говорите о своём опыте).",
+      "content": {
+        "title": "Jobbintervjuet — svar Silje",
+        "instruction": "Du er på jobbintervju hos Nordly Tech. Svar muntlig på spørsmålene om deg selv.",
+        "language": "nb",
+        "mode": "dialogue",
+        "prompts": [
+          {
+            "id": "p1",
+            "label": "Bakgrunn",
+            "text": "",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "Jobbintervju hos Nordly Tech. Silje Berg er teamleder.",
+              "partner": "Kan du fortelle litt om bakgrunnen din og hvorfor du søkte på denne stillingen?"
+            },
+            "minSeconds": 20,
+            "maxSeconds": 60,
+            "prepSeconds": 20
+          },
+          {
+            "id": "p2",
+            "label": "Ny teknologi",
+            "text": "",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "Jobbintervju hos Nordly Tech. Silje Berg er teamleder.",
+              "partner": "Hvordan stiller du deg til å lære nye ting, for eksempel skytjenester?"
+            },
+            "minSeconds": 15,
+            "maxSeconds": 50,
+            "prepSeconds": 20
+          },
+          {
+            "id": "p3",
+            "label": "Team og tilbakemelding",
+            "text": "",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "Jobbintervju hos Nordly Tech. Silje Berg er teamleder.",
+              "partner": "Hvordan trives du med å jobbe i team og ta imot tilbakemelding?"
+            },
+            "minSeconds": 15,
+            "maxSeconds": 50,
+            "prepSeconds": 20
+          },
+          {
+            "id": "p4",
+            "label": "Spørsmål til Silje",
+            "text": "",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "Jobbintervju hos Nordly Tech. Silje Berg er teamleder.",
+              "partner": "Har du noen spørsmål til oss?"
+            },
+            "minSeconds": 8,
+            "maxSeconds": 40,
+            "prepSeconds": 15
+          }
+        ],
+        "rubric": [
+          {
+            "id": "content",
+            "name": "Innhold",
+            "desc": "Svarer på spørsmålet med konkrete eksempler fra egen erfaring.",
+            "weight": 2,
+            "studentVisible": true
+          },
+          {
+            "id": "lang",
+            "name": "Språk og register",
+            "desc": "Riktig verbtid (har jobbet / jobbet), ordstilling, høflige former.",
+            "weight": 1,
+            "studentVisible": true
+          },
+          {
+            "id": "pron",
+            "name": "Uttale",
+            "desc": "Lyder, trykk og tonefall. Blir ordene forstått?",
+            "weight": 2,
+            "studentVisible": true
+          },
+          {
+            "id": "flow",
+            "name": "Flyt",
+            "desc": "Tempo, pauser, nøling og selvretting.",
+            "weight": 1,
+            "studentVisible": true
+          }
+        ],
+        "recording": {
+          "takes": 3,
+          "chooseBest": true,
+          "listenBack": true,
+          "countdown": true,
+          "micCheck": true,
+          "keepAllTakes": false
+        },
+        "settings": {
+          "passScore": 11,
+          "showRubric": "afterGraded",
+          "showModel": "afterGraded",
+          "revision": "return"
+        },
+        "review": {
+          "aiStage": false,
+          "ai": {
+            "transcript": true,
+            "pronunciation": true,
+            "fluency": false,
+            "draft": false
+          },
+          "aiVisibility": "teacher"
+        }
+      },
+      "expectedAnswers": {
+        "prompts": {
+          "p1": {
+            "note": "Modell: «Jeg har jobbet som … i … år, mest med … . Jeg søkte fordi annonsen passet godt med det jeg kan, og jeg liker at dere jobber smidig.» Lytt etter: har jobbet (perfektum) om erfaring, søkte (preteritum), «fordi» + leddsetning.",
+            "focus": []
+          },
+          "p2": {
+            "note": "Modell: «Jeg har litt kjennskap til … fra hobbyprosjekter, men det er noe jeg gjerne vil lære mer om. Jeg ser det som en mulighet.» Lytt etter: ærlig om svakhet + positiv vending; «gjerne vil» (ikke «vil gjerne» etter inversjon er også riktig).",
+            "focus": []
+          },
+          "p3": {
+            "note": "Modell: «Jeg trives godt i team. Jeg setter pris på tilbakemelding, selv når den er kritisk, og jeg synes code review er nyttig.» Lytt etter: trives (s-verb), setter pris på.",
+            "focus": []
+          },
+          "p4": {
+            "note": "Modell: «Ja, jeg lurte på hvordan en vanlig uke ser ut for teamet. Og kan du si litt om hvor mye kontakt utviklerne har med kundene?» Lytt etter: indirekte, høflig spørsmål (jeg lurte på …, kan du si litt om …) med leddsetningsordstilling.",
+            "focus": []
+          }
+        },
+        "rubric": {
+          "content": {
+            "levels": [
+              "Svarer ikke på spørsmålet.",
+              "Svarer kort, uten eksempler.",
+              "Svarer på spørsmålet med ett konkret eksempel.",
+              "Svarer fullt, med konkrete eksempler og en naturlig avslutning."
+            ]
+          },
+          "lang": {
+            "levels": [
+              "Mange feil som gjør svaret vanskelig å forstå.",
+              "Gjennomgående feil i verbtid eller ordstilling.",
+              "Noen feil, men de forstyrrer ikke forståelsen.",
+              "Få feil; bruker høflige former naturlig (gjerne, jeg lurte på …)."
+            ]
+          },
+          "pron": {
+            "levels": [
+              "Vanskelig å forstå.",
+              "Forstås med anstrengelse; gjennomgående feil i kjente lyder.",
+              "Forstås lett; enkelte lyder eller trykk sitter ikke.",
+              "Tydelig og trygg uttale; trykk og tonefall stemmer."
+            ]
+          },
+          "flow": {
+            "levels": [
+              "Stopper opp så ofte at innholdet forsvinner.",
+              "Mange pauser midt i setninger.",
+              "Jevnt tempo med noen nølinger.",
+              "Naturlig tempo og pauser på riktig sted."
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "1D": [
+    {
+      "key": "it-1d-sa",
+      "template": "short_answer",
+      "instruction": "Ответьте на вопросы по тексту 1D.",
+      "content": {
+        "title": "Husker du teksten? — 1D",
+        "instruction": "Svar med egne ord, én til to setninger.",
+        "questions": [
+          {
+            "id": "sa1",
+            "kind": "reading",
+            "prompt": "Hvilken startlønn foreslår Silje først?",
+            "passage": "Hei Taras, Tusen takk for at du kom til intervju hos oss. Vi har bestemt oss, og vi vil gjerne tilby deg stillingen som backend-utvikler hos Nordly Tech AS! Vi foreslår en startlønn på 620 000 kroner i året, med mulighet for lønnsvurdering etter seks måneder. I tillegg får du fem uker ferie, innskuddspensjon og mulighet for hjemmekontor to dager i uka. Gi beskjed innen fredag om du ønsker å takke ja, eller om du har spørsmål til tilbudet. Mvh Silje Berg"
+          },
+          {
+            "id": "sa2",
+            "kind": "reading",
+            "prompt": "Hva ber Taras om i telefonsamtalen?",
+            "passage": "Taras: Hei Silje, tusen takk for tilbudet! Jeg er veldig interessert i stillingen. Jeg lurte på om det ville være mulig å se på lønnen en gang til — med min erfaring håpet jeg på noe nærmere 660 000."
+          },
+          {
+            "id": "sa3",
+            "kind": "reading",
+            "prompt": "Hva blir den endelige lønnen?",
+            "passage": "Silje: Det forstår jeg godt at du spør om. La meg sjekke med budsjettet vårt … Vi kan strekke oss til 645 000, med en avtalt lønnsvurdering etter fire måneder i stedet for seks. Er det greit for deg?"
+          },
+          {
+            "id": "sa4",
+            "kind": "reading",
+            "prompt": "Hva endres i tillegg til lønnen?",
+            "passage": "Silje: Det forstår jeg godt at du spør om. La meg sjekke med budsjettet vårt … Vi kan strekke oss til 645 000, med en avtalt lønnsvurdering etter fire måneder i stedet for seks. Er det greit for deg?"
+          },
+          {
+            "id": "sa5",
+            "kind": "reading",
+            "prompt": "Hva sier Erik om å forhandle om lønn i Norge?",
+            "passage": "Etterpå forteller Taras det til Erik, som ler og sier: «Ser du? Det var ikke så skummelt å spørre. I Norge er det helt normalt å forhandle — den som ikke spør, får sjelden mer.»"
+          }
+        ],
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 2,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "620 000",
+                "anchors": [
+                  "620 000",
+                  "620000",
+                  "620 000",
+                  "seks hundre og tjue tusen"
+                ],
+                "required": true
+              }
+            ],
+            "model": "620 000 kroner i året.",
+            "why": "Det står i e-posten fra Silje."
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Se på lønnen igjen",
+                "anchors": [
+                  "lønnen",
+                  "lønn",
+                  "660 000"
+                ],
+                "required": true
+              }
+            ],
+            "model": "At de ser på lønnen en gang til, nærmere 660 000.",
+            "why": "Taras: «Jeg lurte på om det ville være mulig …»"
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "645 000",
+                "anchors": [
+                  "645 000",
+                  "645000",
+                  "645 000"
+                ],
+                "required": true
+              }
+            ],
+            "model": "645 000 kroner.",
+            "why": "Silje: «Vi kan strekke oss til 645 000»."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Fire måneder",
+                "anchors": [
+                  "fire måneder",
+                  "4 måneder"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Lønnsvurderingen kommer etter fire måneder i stedet for seks.",
+            "why": "Silje flytter lønnsvurderingen."
+          },
+          "sa5": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "Normalt",
+                "anchors": [
+                  "normalt",
+                  "vanlig"
+                ],
+                "required": true
+              }
+            ],
+            "model": "At det er helt normalt, og at den som ikke spør, sjelden får mer.",
+            "why": "Se Eriks replikk på slutten."
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1d-rg",
+      "template": "multiple_choice_group",
+      "instruction": "Верно или неверно? Отвечайте по тексту 1D.",
+      "content": {
+        "title": "Riktig eller galt — tekst 1D",
+        "instruction": "Er påstandene riktige eller gale? Svar ut fra teksten.",
+        "source": {
+          "mode": "inline",
+          "label": "Tekst 1D — Tilbudet og lønnsforhandlingen",
+          "text": "Fire dager senere kommer det en e-post fra Silje.\n\n> Hei Taras,\n>\n> Tusen takk for at du kom til intervju hos oss. Vi har bestemt oss, og vi\n> vil gjerne tilby deg stillingen som backend-utvikler hos Nordly Tech AS!\n>\n> Vi foreslår en startlønn på 620 000 kroner i året, med mulighet for\n> lønnsvurdering etter seks måneder. I tillegg får du fem uker ferie,\n> innskuddspensjon og mulighet for hjemmekontor to dager i uka.\n>\n> Gi beskjed innen fredag om du ønsker å takke ja, eller om du har spørsmål\n> til tilbudet.\n>\n> Mvh Silje Berg\n\nTaras blir glad, men han har lest at det er helt vanlig i Norge å forhandle\nlitt om lønn — selv om mange er nervøse for å gjøre det. Han ringer Silje.\n\n**Taras:** Hei Silje, tusen takk for tilbudet! Jeg er veldig interessert i\nstillingen. Jeg lurte på om det ville være mulig å se på lønnen en gang til\n— med min erfaring håpet jeg på noe nærmere 660 000.\n\n**Silje:** Det forstår jeg godt at du spør om. La meg sjekke med budsjettet\nvårt … Vi kan strekke oss til 645 000, med en avtalt lønnsvurdering etter\nfire måneder i stedet for seks. Er det greit for deg?\n\n**Taras:** Ja, det høres bra ut. Da takker jeg ja til tilbudet.\n\n**Silje:** Så fint! Da sender jeg kontrakten i dag, og vi gleder oss til å ha\ndeg med på teamet. Velkommen til Nordly Tech, Taras!\n\nEtterpå forteller Taras det til Erik, som ler og sier: «Ser du? Det var ikke\nså skummelt å spørre. I Norge er det helt normalt å forhandle — den som ikke\nspør, får sjelden mer.»\n"
+        },
+        "columns": [
+          {
+            "id": "c-riktig",
+            "label": "Riktig",
+            "short": "R"
+          },
+          {
+            "id": "c-galt",
+            "label": "Galt",
+            "short": "G"
+          }
+        ],
+        "rows": [
+          {
+            "id": "1",
+            "text": "Taras takker ja til tilbudet med en gang, uten å forhandle."
+          },
+          {
+            "id": "2",
+            "text": "Firmaet tilbyr fem uker ferie."
+          },
+          {
+            "id": "3",
+            "text": "Taras får innskuddspensjon."
+          },
+          {
+            "id": "4",
+            "text": "Silje blir irritert over at Taras spør om mer lønn."
+          },
+          {
+            "id": "5",
+            "text": "Den endelige lønnen blir lavere enn det første tilbudet."
+          }
+        ],
+        "settings": {
+          "numbering": true,
+          "shuffleRows": false,
+          "layout": "auto",
+          "showText": true,
+          "retry": "one",
+          "lockCorrect": true,
+          "showWhy": "wrong",
+          "revealKey": true,
+          "passThreshold": 70,
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "rows": {
+          "1": {
+            "answer": "c-galt",
+            "why": "Han ringer Silje og spør om lønnen først.",
+            "quote": "Han ringer Silje."
+          },
+          "2": {
+            "answer": "c-riktig",
+            "why": "Det står i e-posten.",
+            "quote": "fem uker ferie"
+          },
+          "3": {
+            "answer": "c-riktig",
+            "why": "Det står i e-posten.",
+            "quote": "innskuddspensjon"
+          },
+          "4": {
+            "answer": "c-galt",
+            "why": "Hun sier at hun forstår at han spør.",
+            "quote": "Det forstår jeg godt at du spør om."
+          },
+          "5": {
+            "answer": "c-galt",
+            "why": "Den blir høyere: 645 000 mot 620 000.",
+            "quote": "Vi kan strekke oss til 645 000"
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1d-mc",
+      "template": "multiple_choice",
+      "instruction": "Выберите значение слова из текста 1D.",
+      "content": {
+        "title": "Hva betyr ordet? — 1D",
+        "instruction": "Velg riktig betydning.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "vocab",
+            "context": "Vi kan strekke oss til 645 000",
+            "stem": "å strekke seg (til)",
+            "options": [
+              {
+                "id": "a",
+                "text": "å nekte",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "å gå litt lenger enn planlagt for å møte noen",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "å bli sint",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "vocab",
+            "context": "lønnsvurdering etter seks måneder",
+            "stem": "en lønnsvurdering",
+            "options": [
+              {
+                "id": "a",
+                "text": "en irettesettelse",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "en gjennomgang av lønnen",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "en oppsigelse",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "vocab",
+            "context": "Da takker jeg ja til tilbudet.",
+            "stem": "å takke ja",
+            "options": [
+              {
+                "id": "a",
+                "text": "å si nei",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "å akseptere",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "å be om betenkningstid",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q4",
+            "kind": "vocab",
+            "context": "Det var ikke så skummelt å spørre.",
+            "stem": "skummel",
+            "options": [
+              {
+                "id": "a",
+                "text": "morsom",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "skremmende",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "kjedelig",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "b",
+            "why": "Å strekke seg = å gi litt mer enn man hadde tenkt.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "b",
+            "why": "Lønnsvurdering = man ser på lønnen på nytt.",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "b",
+            "why": "Å takke ja = å si ja, akseptere.",
+            "options": {}
+          },
+          "q4": {
+            "correctOptionId": "b",
+            "why": "Skummel = noe man er redd for.",
+            "options": {}
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1d-gap",
+      "template": "word_bank_gap_fill",
+      "instruction": "Вставьте подходящее слово из банка.",
+      "content": {
+        "sentences": [
+          {
+            "id": "s1",
+            "text": "Silje sender Taras et tilbud om jobben.",
+            "gaps": [
+              4
+            ]
+          },
+          {
+            "id": "s2",
+            "text": "Det er vanlig i Norge å forhandle litt om lønn.",
+            "gaps": [
+              6
+            ]
+          },
+          {
+            "id": "s3",
+            "text": "Silje sier at de kan strekke seg til 645 000.",
+            "gaps": [
+              5
+            ]
+          },
+          {
+            "id": "s4",
+            "text": "Etter samtalen sender Silje en kontrakt.",
+            "gaps": [
+              5
+            ]
+          },
+          {
+            "id": "s5",
+            "text": "Hun sier at de gleder seg til å ha Taras med på teamet.",
+            "gaps": [
+              4
+            ]
+          }
+        ],
+        "distractors": [
+          "lønn",
+          "takke"
+        ],
+        "settings": {
+          "shuffle": true,
+          "allowReuse": false,
+          "showBankCount": false,
+          "caseSensitive": false,
+          "input": "bank"
+        }
+      },
+      "expectedAnswers": {
+        "feedback": {
+          "s1#4": {
+            "fallback": "Нужно слово со значением «предложение (о работе)»."
+          },
+          "s2#6": {
+            "fallback": "Нужен глагол «вести переговоры, торговаться»."
+          },
+          "s3#5": {
+            "fallback": "Устойчивое выражение «… seg til» — пойти навстречу до суммы."
+          },
+          "s4#5": {
+            "fallback": "Нужно слово со значением «контракт»."
+          },
+          "s5#4": {
+            "fallback": "Устойчивое выражение «… seg til» — радоваться заранее."
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1d-call",
+      "template": "read_aloud",
+      "instruction": "Телефонный разговор о зарплате: ответьте Силье устно и вежливо.",
+      "content": {
+        "title": "Lønnsforhandling på telefon",
+        "instruction": "Du ringer Silje om jobbtilbudet. Svar høflig på replikkene hennes.",
+        "language": "nb",
+        "mode": "dialogue",
+        "prompts": [
+          {
+            "id": "p1",
+            "label": "Om tilbudet",
+            "text": "",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "Du har fått tilbud: 620 000 kroner i året. Du håper på mer.",
+              "partner": "Hei! Så hyggelig at du ringer. Hva tenker du om tilbudet?"
+            },
+            "minSeconds": 10,
+            "maxSeconds": 40,
+            "prepSeconds": 20
+          },
+          {
+            "id": "p2",
+            "label": "Nytt tilbud",
+            "text": "",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "Silje har sjekket budsjettet.",
+              "partner": "Vi kan strekke oss til 645 000, med lønnsvurdering etter fire måneder. Er det greit for deg?"
+            },
+            "minSeconds": 3,
+            "maxSeconds": 20,
+            "prepSeconds": 10
+          },
+          {
+            "id": "p3",
+            "label": "Oppstart",
+            "text": "",
+            "image": {
+              "assetId": "",
+              "caption": "",
+              "alt": ""
+            },
+            "plan": [],
+            "turn": {
+              "situation": "Du kan først begynne i september.",
+              "partner": "Kunne du tenke deg å begynne allerede i august?"
+            },
+            "minSeconds": 8,
+            "maxSeconds": 30,
+            "prepSeconds": 20
+          }
+        ],
+        "rubric": [
+          {
+            "id": "content",
+            "name": "Innhold",
+            "desc": "Gjør det situasjonen krever: takker, ber om noe, svarer på tilbudet.",
+            "weight": 2,
+            "studentVisible": true
+          },
+          {
+            "id": "polite",
+            "name": "Høflighet",
+            "desc": "Høflige konstruksjoner fra grammatikken: kunne/ville, «jeg lurte på om», «jeg håpet på».",
+            "weight": 2,
+            "studentVisible": true
+          },
+          {
+            "id": "pron",
+            "name": "Uttale",
+            "desc": "Lyder, trykk og tonefall. Blir ordene forstått?",
+            "weight": 1,
+            "studentVisible": true
+          },
+          {
+            "id": "flow",
+            "name": "Flyt",
+            "desc": "Tempo, pauser, nøling og selvretting.",
+            "weight": 1,
+            "studentVisible": true
+          }
+        ],
+        "recording": {
+          "takes": 3,
+          "chooseBest": true,
+          "listenBack": true,
+          "countdown": true,
+          "micCheck": true,
+          "keepAllTakes": false
+        },
+        "settings": {
+          "passScore": 11,
+          "showRubric": "afterGraded",
+          "showModel": "afterGraded",
+          "revision": "return"
+        },
+        "review": {
+          "aiStage": false,
+          "ai": {
+            "transcript": true,
+            "pronunciation": true,
+            "fluency": false,
+            "draft": false
+          },
+          "aiVisibility": "teacher"
+        }
+      },
+      "expectedAnswers": {
+        "prompts": {
+          "p1": {
+            "note": "Modell: «Tusen takk for tilbudet, jeg er veldig interessert. Jeg lurte på om det ville være mulig å se på lønnen en gang til — jeg håpet på noe nærmere 660 000.» Lytt etter: takk, «jeg lurte på om» + leddsetning, «ville det være mulig», «håpet på».",
+            "focus": []
+          },
+          "p2": {
+            "note": "Modell: «Ja, det høres bra ut. Da takker jeg ja til tilbudet.» Godta også andre høflige måter å akseptere på («Det er greit for meg, tusen takk»).",
+            "focus": []
+          },
+          "p3": {
+            "note": "Modell: «Det er dessverre litt vanskelig, fordi jeg har oppsigelsestid. Ville det være mulig å begynne 1. september?» Lytt etter: myk avvisning («dessverre litt vanskelig, men …») + høflig motforslag med «ville/kunne».",
+            "focus": []
+          }
+        },
+        "rubric": {
+          "content": {
+            "levels": [
+              "Svarer ikke på replikken.",
+              "Svarer, men gjør ikke det situasjonen krever (f.eks. ber ikke om noe).",
+              "Gjør det situasjonen krever, men kort eller uklart.",
+              "Tydelig, vennlig og fullstendig svar på replikken."
+            ]
+          },
+          "polite": {
+            "levels": [
+              "Direkte krav eller avvisning («Jeg vil ha …», «Nei.»).",
+              "Høflig tone, men ingen av konstruksjonene fra leksjonen.",
+              "Én høflig konstruksjon brukt riktig.",
+              "To eller flere høflige konstruksjoner, brukt riktig og naturlig."
+            ]
+          },
+          "pron": {
+            "levels": [
+              "Vanskelig å forstå.",
+              "Forstås med anstrengelse; gjennomgående feil i kjente lyder.",
+              "Forstås lett; enkelte lyder eller trykk sitter ikke.",
+              "Tydelig og trygg uttale; trykk og tonefall stemmer."
+            ]
+          },
+          "flow": {
+            "levels": [
+              "Stopper opp så ofte at innholdet forsvinner.",
+              "Mange pauser midt i setninger.",
+              "Jevnt tempo med noen nølinger.",
+              "Naturlig tempo og pauser på riktig sted."
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1d-write",
+      "template": "writing_task",
+      "instruction": "Напишите e-mail: примите предложение и попросите письменно подтвердить дату начала (50–80 слов).",
+      "content": {
+        "mode": "letter",
+        "instruction": "Skriv en kort e-post (50–80 ord).",
+        "prompt": "Du har fått et jobbtilbud fra Silje Berg i Nordly Tech AS. Skriv en kort e-post der du takker ja til tilbudet og ber om å få bekreftet oppstartsdatoen skriftlig. Bruk en høflig, men ikke overdrevet formell tone.",
+        "source": "",
+        "image": {
+          "caption": "",
+          "alt": ""
+        },
+        "letter": {
+          "register": "formal",
+          "recipient": "Silje Berg, Nordly Tech AS"
+        },
+        "points": [
+          {
+            "id": "p1",
+            "text": "Takk for tilbudet",
+            "required": true
+          },
+          {
+            "id": "p2",
+            "text": "Tydelig ja til stillingen",
+            "required": true
+          },
+          {
+            "id": "p3",
+            "text": "Høflig forespørsel om skriftlig bekreftelse av oppstartsdato",
+            "required": true
+          }
+        ],
+        "phrases": [
+          "Hei Silje,",
+          "Tusen takk for tilbudet …",
+          "Jeg takker gjerne ja til …",
+          "Kunne du bekrefte …",
+          "Mvh"
+        ],
+        "rubric": [
+          {
+            "id": "c1",
+            "name": "Oppgaveløsning",
+            "desc": "Takk, tydelig ja og forespørsel om skriftlig bekreftelse.",
+            "weight": 2,
+            "metric": "points"
+          },
+          {
+            "id": "c2",
+            "name": "Struktur og sammenheng",
+            "desc": "Hilsen, kort hoveddel og avslutning som i en e-post.",
+            "weight": 1,
+            "metric": "paragraphs"
+          },
+          {
+            "id": "c3",
+            "name": "Språklig korrekthet",
+            "desc": "Høflige former (kunne/ville, gjerne) og riktig ordstilling.",
+            "weight": 1,
+            "metric": "language"
+          },
+          {
+            "id": "c4",
+            "name": "Ordforråd og rettskriving",
+            "desc": "Ord fra leksjonen (tilbud, oppstart, bekrefte, kontrakt), riktig stavet.",
+            "weight": 1,
+            "metric": "lexis"
+          }
+        ],
+        "settings": {
+          "minWords": 50,
+          "maxWords": 80,
+          "timer": 0,
+          "blockPaste": true,
+          "autosave": true,
+          "showWordCount": true,
+          "showPlan": true,
+          "showPhrases": true,
+          "showRubric": "afterGraded",
+          "showModel": "afterGraded",
+          "passScore": 9,
+          "aiStage": false,
+          "ai": {
+            "grammar": true,
+            "task": true,
+            "structure": true,
+            "lexis": true,
+            "draft": false
+          },
+          "aiVisibility": "teacher",
+          "aiSelfLimit": 0,
+          "revision": "return"
+        }
+      },
+      "expectedAnswers": {
+        "points": {
+          "p1": {
+            "keywords": [
+              "takk for tilbudet",
+              "tusen takk"
+            ]
+          },
+          "p2": {
+            "keywords": [
+              "takker ja",
+              "aksepterer",
+              "tar imot tilbudet"
+            ]
+          },
+          "p3": {
+            "keywords": [
+              "bekrefte",
+              "skriftlig",
+              "oppstart"
+            ]
+          }
+        },
+        "rubric": {
+          "c1": {
+            "levels": [
+              "Ikke en e-post om tilbudet.",
+              "Ett punkt er med.",
+              "To punkter er med.",
+              "Alle tre punktene, tydelig og kort."
+            ]
+          },
+          "c2": {
+            "levels": [
+              "Ingen struktur.",
+              "Løse setninger uten sammenheng.",
+              "Forståelig rekkefølge, få bindeord.",
+              "Tydelig struktur og gode bindeord."
+            ]
+          },
+          "c3": {
+            "levels": [
+              "Mange feil; for direkte eller for stiv.",
+              "Flere feil i form eller ordstilling.",
+              "Enkelte feil; høflig tone.",
+              "Nesten feilfri; naturlig høflig."
+            ]
+          },
+          "c4": {
+            "levels": [
+              "Svært begrenset ordforråd, mange skrivefeil.",
+              "Enkelt ordforråd, flere skrivefeil.",
+              "Passende ordforråd, enkelte skrivefeil.",
+              "Presist ordforråd fra leksjonen, nesten ingen skrivefeil."
+            ]
+          }
+        },
+        "model": "Hei Silje,\n\nTusen takk for tilbudet og for en hyggelig samtale i går. Jeg takker gjerne ja til stillingen som backend-utvikler hos Nordly Tech AS. Kunne du bekrefte oppstartsdatoen skriftlig, for eksempel i kontrakten? Da kan jeg si opp i min nåværende jobb i god tid.\n\nJeg gleder meg til å bli en del av teamet.\n\nMvh\nTaras Kovalenko"
+      }
+    }
+  ],
+  "1": [
+    {
+      "key": "it-g1-mc",
+      "template": "multiple_choice",
+      "instruction": "Выберите вариант, который делает фразу вежливее.",
+      "content": {
+        "title": "Gjør setningen høfligere",
+        "instruction": "Velg formen som passer best i en høflig forespørsel.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "grammar",
+            "context": "",
+            "stem": "___ du sende meg tilbudet skriftlig?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Kan",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Kunne",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "grammar",
+            "context": "",
+            "stem": "Jeg ___ gjerne vite mer om teamet.",
+            "options": [
+              {
+                "id": "a",
+                "text": "vil",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "ville",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "grammar",
+            "context": "",
+            "stem": "___ det være mulig å jobbe hjemmefra to dager?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Er",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Ville",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q4",
+            "kind": "grammar",
+            "context": "",
+            "stem": "Jeg ___ på om det var mulig å se på lønnen igjen.",
+            "options": [
+              {
+                "id": "a",
+                "text": "lurte",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "lurer",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q5",
+            "kind": "grammar",
+            "context": "",
+            "stem": "___ du tenke deg å begynne allerede i august?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Kan",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Kunne",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": false,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "b",
+            "why": "Претерит модального глагола смягчает просьбу — стандартный вежливый регистр.",
+            "options": {
+              "a": "Грамматически верно, но звучит прямее, по-деловому."
+            }
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "«Jeg vil gjerne» — устойчивая вежливая конструкция именно в настоящем времени.",
+            "options": {
+              "b": "«Jeg ville gjerne» звучит как незаконченное условное предложение."
+            }
+          },
+          "q3": {
+            "correctOptionId": "b",
+            "why": "«Ville det være mulig …» — стандартная вежливая формула запроса.",
+            "options": {
+              "a": "Понятно и верно, но звучит прямее, менее мягко."
+            }
+          },
+          "q4": {
+            "correctOptionId": "a",
+            "why": "«Jeg lurte på om …» — типичная вежливая формула деликатной просьбы (не о прошлом).",
+            "options": {
+              "b": "Тоже вежливо, но «lurte» звучит мягче и осторожнее."
+            }
+          },
+          "q5": {
+            "correctOptionId": "b",
+            "why": "«Kunne du tenke deg …» — устойчивая вежливая формула предложения.",
+            "options": {
+              "a": "«Kan du tenke deg» звучит менее естественно в этой формуле."
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "it-g1-sa",
+      "template": "short_answer",
+      "instruction": "Перепишите фразу вежливее, используя конструкции из урока.",
+      "content": {
+        "title": "Gjør om til høflig variant",
+        "instruction": "Skriv om til en mer høflig, forsiktig variant.",
+        "questions": [
+          {
+            "id": "sa1",
+            "kind": "opinion",
+            "prompt": "«Kan du sende CV-en?»"
+          },
+          {
+            "id": "sa2",
+            "kind": "opinion",
+            "prompt": "«Er det mulig å få hjemmekontor?»"
+          },
+          {
+            "id": "sa3",
+            "kind": "opinion",
+            "prompt": "«Jeg vil ha høyere lønn.»"
+          },
+          {
+            "id": "sa4",
+            "kind": "opinion",
+            "prompt": "«Det er for lite ferie.»"
+          },
+          {
+            "id": "sa5",
+            "kind": "opinion",
+            "prompt": "«Nei, det går ikke.»"
+          }
+        ],
+        "settings": {
+          "passRule": "all",
+          "passN": 2,
+          "typos": true,
+          "caseless": true,
+          "minWords": 2,
+          "showBreakdown": true,
+          "showModel": "onClose",
+          "aiStage": false,
+          "aiGrammar": true,
+          "teacherReview": "flagged",
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "sa1": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "kunne",
+                "anchors": [
+                  "kunne du"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Kunne du sende CV-en?",
+            "why": "Kan → kunne смягчает просьбу."
+          },
+          "sa2": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "ville det",
+                "anchors": [
+                  "ville det"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Ville det være mulig å få hjemmekontor?",
+            "why": "«Ville det være/vært mulig …» — вежливая формула."
+          },
+          "sa3": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "håpet / lurte / ville gjerne",
+                "anchors": [
+                  "håpet",
+                  "lurte på",
+                  "ville gjerne"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Jeg håpet på noe høyere lønn.",
+            "why": "«Jeg håpet på …» или «Jeg lurte på om …» вместо требования."
+          },
+          "sa4": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "håpet / kanskje / litt",
+                "anchors": [
+                  "håpet",
+                  "kanskje",
+                  "litt"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Jeg håpet på litt mer ferie.",
+            "why": "Смягчаем: håpet, kanskje, litt."
+          },
+          "sa5": {
+            "elements": [
+              {
+                "id": "e1",
+                "label": "dessverre / litt vanskelig",
+                "anchors": [
+                  "dessverre",
+                  "litt vanskelig"
+                ],
+                "required": true
+              }
+            ],
+            "model": "Det er dessverre litt vanskelig, men …",
+            "why": "Мягкий отказ: dessverre, litt vanskelig, men …"
+          }
+        }
+      }
+    },
+    {
+      "key": "it-g1-mc2",
+      "template": "multiple_choice",
+      "instruction": "Выберите вариант, который подходит к ситуации.",
+      "content": {
+        "title": "Velg riktig alternativ",
+        "instruction": "Hvilken setning passer best i situasjonen?",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "grammar",
+            "context": "Formell forespørsel til sjefen",
+            "stem": "Hva sier du?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Send meg tilbudet.",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Kunne du sende meg tilbudet?",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Send tilbud nå.",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "grammar",
+            "context": "Høflig, men tydelig uenighet",
+            "stem": "Hva sier du?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Jeg er helt uenig.",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Jeg ser det litt annerledes, men …",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Du tar feil.",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "grammar",
+            "context": "Spørsmål om ferie i et jobbintervju",
+            "stem": "Hva sier du?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Hvor mye ferie får jeg?",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Kan du si litt om hvor mye ferie stillingen gir?",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Jeg vil ha mye ferie.",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "b",
+            "why": "«Kunne du …» — høflig forespørsel.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "b",
+            "why": "«Jeg ser det litt annerledes» myker opp uenigheten.",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "b",
+            "why": "Indirekte spørsmål er mer høflig i et intervju.",
+            "options": {}
+          }
+        }
+      }
+    },
+    {
+      "key": "it-g1-match",
+      "template": "match_pairs",
+      "instruction": "Соедините прямую фразу с её вежливым вариантом.",
+      "content": {
+        "pairs": [
+          {
+            "id": "p1",
+            "left": "Kan du sende CV-en?",
+            "right": "Kunne du sende CV-en?",
+            "rightId": "r1"
+          },
+          {
+            "id": "p2",
+            "left": "Jeg vil ha mer lønn.",
+            "right": "Jeg håpet på noe høyere lønn.",
+            "rightId": "r2"
+          },
+          {
+            "id": "p3",
+            "left": "Er det mulig med hjemmekontor?",
+            "right": "Ville det være mulig med hjemmekontor?",
+            "rightId": "r3"
+          },
+          {
+            "id": "p4",
+            "left": "Nei, det går ikke.",
+            "right": "Det er dessverre litt vanskelig, men …",
+            "rightId": "r4"
+          },
+          {
+            "id": "p5",
+            "left": "Hvor mye ferie får jeg?",
+            "right": "Kan du si litt om hvor mye ferie stillingen gir?",
+            "rightId": "r5"
+          }
+        ],
+        "variant": "pairs",
+        "distractors": [],
+        "settings": {
+          "distractors": false,
+          "shuffle": true,
+          "showRemaining": true
+        }
+      },
+      "expectedAnswers": {
+        "feedback": {
+          "p1": {
+            "def": "Kan → kunne."
+          },
+          "p2": {
+            "def": "Krav → «jeg håpet på»."
+          },
+          "p3": {
+            "def": "Er det → ville det være."
+          },
+          "p4": {
+            "def": "Myk avvisning."
+          },
+          "p5": {
+            "def": "Indirekte spørsmål."
+          }
+        }
+      }
+    },
+    {
+      "key": "it-g1-write",
+      "template": "writing_task",
+      "instruction": "Напишите вежливый e-mail: попросите пересмотреть и зарплату, и дату начала (50–80 слов).",
+      "content": {
+        "mode": "letter",
+        "instruction": "Skriv en kort, høflig e-post (50–80 ord).",
+        "prompt": "Du har fått et jobbtilbud, men du ønsker å forhandle om både lønn og oppstartsdato. Skriv en kort, høflig e-post der du takker for tilbudet og ber om begge deler på en diplomatisk måte. Bruk minst to av konstruksjonene fra grammatikken: kunne/ville, «jeg lurte på om», «jeg håpet på».",
+        "source": "",
+        "image": {
+          "caption": "",
+          "alt": ""
+        },
+        "letter": {
+          "register": "formal",
+          "recipient": "Silje Berg, Nordly Tech AS"
+        },
+        "points": [
+          {
+            "id": "p1",
+            "text": "Takk for tilbudet",
+            "required": true
+          },
+          {
+            "id": "p2",
+            "text": "Høflig forespørsel om lønn",
+            "required": true
+          },
+          {
+            "id": "p3",
+            "text": "Høflig forespørsel om oppstartsdato",
+            "required": true
+          },
+          {
+            "id": "p4",
+            "text": "Minst to høflige konstruksjoner",
+            "required": true
+          }
+        ],
+        "phrases": [
+          "Jeg lurte på om …",
+          "Jeg håpet på …",
+          "Ville det være mulig å …",
+          "Kunne vi …"
+        ],
+        "rubric": [
+          {
+            "id": "c1",
+            "name": "Oppgaveløsning",
+            "desc": "Takk og to forespørsler (lønn, oppstart), diplomatisk formulert.",
+            "weight": 2,
+            "metric": "points"
+          },
+          {
+            "id": "c2",
+            "name": "Struktur og sammenheng",
+            "desc": "Hilsen, hoveddel, avslutning.",
+            "weight": 1,
+            "metric": "paragraphs"
+          },
+          {
+            "id": "c3",
+            "name": "Språklig korrekthet",
+            "desc": "Konstruksjonene fra leksjonen brukt riktig; ordstilling etter «om» (leddsetning).",
+            "weight": 1,
+            "metric": "language"
+          },
+          {
+            "id": "c4",
+            "name": "Ordforråd og rettskriving",
+            "desc": "Ord fra leksjonen, riktig stavet.",
+            "weight": 1,
+            "metric": "lexis"
+          }
+        ],
+        "settings": {
+          "minWords": 50,
+          "maxWords": 80,
+          "timer": 0,
+          "blockPaste": true,
+          "autosave": true,
+          "showWordCount": true,
+          "showPlan": true,
+          "showPhrases": true,
+          "showRubric": "afterGraded",
+          "showModel": "afterGraded",
+          "passScore": 9,
+          "aiStage": false,
+          "ai": {
+            "grammar": true,
+            "task": true,
+            "structure": true,
+            "lexis": true,
+            "draft": false
+          },
+          "aiVisibility": "teacher",
+          "aiSelfLimit": 0,
+          "revision": "return"
+        }
+      },
+      "expectedAnswers": {
+        "points": {
+          "p1": {
+            "keywords": [
+              "takk for tilbudet",
+              "tusen takk"
+            ]
+          },
+          "p2": {
+            "keywords": [
+              "lønn"
+            ]
+          },
+          "p3": {
+            "keywords": [
+              "oppstart",
+              "begynne",
+              "dato"
+            ]
+          },
+          "p4": {
+            "keywords": [
+              "lurte på om",
+              "håpet på",
+              "kunne",
+              "ville det"
+            ]
+          }
+        },
+        "rubric": {
+          "c1": {
+            "levels": [
+              "Ingen forespørsel.",
+              "Én forespørsel, ingen takk.",
+              "Begge forespørslene, men lite diplomatisk.",
+              "Takk og begge forespørslene, diplomatisk."
+            ]
+          },
+          "c2": {
+            "levels": [
+              "Ingen struktur.",
+              "Løse setninger uten sammenheng.",
+              "Forståelig rekkefølge, få bindeord.",
+              "Tydelig struktur og gode bindeord."
+            ]
+          },
+          "c3": {
+            "levels": [
+              "Ingen høflige konstruksjoner, mange feil.",
+              "Én konstruksjon, med feil.",
+              "To konstruksjoner, enkelte feil.",
+              "To eller flere konstruksjoner, riktig brukt."
+            ]
+          },
+          "c4": {
+            "levels": [
+              "Svært begrenset ordforråd, mange skrivefeil.",
+              "Enkelt ordforråd, flere skrivefeil.",
+              "Passende ordforråd, enkelte skrivefeil.",
+              "Presist ordforråd fra leksjonen, nesten ingen skrivefeil."
+            ]
+          }
+        },
+        "model": "Hei Silje,\n\nTusen takk for tilbudet, jeg er veldig glad for det. Før jeg takker ja, lurte jeg på om det ville være mulig å se på lønnen en gang til — med min erfaring håpet jeg på noe nærmere 660 000. I tillegg har jeg tre måneders oppsigelsestid. Kunne vi avtale oppstart 1. oktober i stedet for 1. september?\n\nMvh\nTaras"
+      }
+    },
+    {
+      "key": "it-g1-essay",
+      "template": "writing_task",
+      "instruction": "Эссе по теме урока (120–180 слов): как искать работу в IT в Норвегии и у вас на родине.",
+      "content": {
+        "mode": "essay",
+        "instruction": "Skriv en kort tekst (120–180 ord) i tre avsnitt.",
+        "prompt": "Hvordan søker man jobb i IT-bransjen i Norge, og hva er annerledes i hjemlandet ditt? Skriv om CV, søknad og intervju, sammenlign med ditt land, og gi et råd til en venn som skal søke jobb i Norge. Bruk minst seks ord fra leksjonen (for eksempel ferdighet, trives, hjemmekontor, smidig, kjennskap, lære opp, strukturere, code review, tilbakemelding) og minst to høflige konstruksjoner (kunne/ville, «jeg lurte på om», «jeg håpet på»).",
+        "source": "",
+        "image": {
+          "caption": "",
+          "alt": ""
+        },
+        "letter": {
+          "register": "formal",
+          "recipient": ""
+        },
+        "points": [
+          {
+            "id": "p1",
+            "text": "Hvordan man søker jobb i Norge: CV, søknad, intervju",
+            "required": true
+          },
+          {
+            "id": "p2",
+            "text": "Hva som er annerledes i hjemlandet ditt",
+            "required": true
+          },
+          {
+            "id": "p3",
+            "text": "Hva du synes er vanskeligst, og hvorfor",
+            "required": true
+          },
+          {
+            "id": "p4",
+            "text": "Et råd: hvordan spør man høflig om lønn eller hjemmekontor? Gi et eksempel.",
+            "required": true
+          }
+        ],
+        "phrases": [
+          "I Norge er det vanlig å …",
+          "I hjemlandet mitt …",
+          "Det vanskeligste for meg er …, fordi …",
+          "Mitt råd er …",
+          "For eksempel kan man si: «Jeg lurte på om …»"
+        ],
+        "rubric": [
+          {
+            "id": "c1",
+            "name": "Oppgaveløsning",
+            "desc": "Alle fire punktene, med egne eksempler og sammenligning.",
+            "weight": 2,
+            "metric": "points"
+          },
+          {
+            "id": "c2",
+            "name": "Struktur og sammenheng",
+            "desc": "Tre avsnitt (innledning/Norge, sammenligning, råd), bindeord (først, derimot, derfor, til slutt).",
+            "weight": 1,
+            "metric": "paragraphs"
+          },
+          {
+            "id": "c3",
+            "name": "Språklig korrekthet",
+            "desc": "Rettskriving, ordstilling (V2, leddsetning), bøyning; høflige konstruksjoner i rådet.",
+            "weight": 1,
+            "metric": "language"
+          },
+          {
+            "id": "c4",
+            "name": "Ordforråd og rettskriving",
+            "desc": "Minst seks ord fra leksjonen brukt riktig; variasjon.",
+            "weight": 1,
+            "metric": "lexis"
+          }
+        ],
+        "settings": {
+          "minWords": 120,
+          "maxWords": 180,
+          "timer": 0,
+          "blockPaste": true,
+          "autosave": true,
+          "showWordCount": true,
+          "showPlan": true,
+          "showPhrases": true,
+          "showRubric": "afterGraded",
+          "showModel": "afterGraded",
+          "passScore": 10,
+          "aiStage": false,
+          "ai": {
+            "grammar": true,
+            "task": true,
+            "structure": true,
+            "lexis": true,
+            "draft": false
+          },
+          "aiVisibility": "teacher",
+          "aiSelfLimit": 0,
+          "revision": "return"
+        }
+      },
+      "expectedAnswers": {
+        "points": {
+          "p1": {
+            "keywords": [
+              "CV",
+              "søknad",
+              "intervju"
+            ]
+          },
+          "p2": {
+            "keywords": [
+              "i hjemlandet",
+              "i mitt land",
+              "annerledes",
+              "hos oss"
+            ]
+          },
+          "p3": {
+            "keywords": [
+              "vanskelig",
+              "fordi"
+            ]
+          },
+          "p4": {
+            "keywords": [
+              "lurte på om",
+              "håpet på",
+              "kunne",
+              "ville det være"
+            ]
+          }
+        },
+        "rubric": {
+          "c1": {
+            "levels": [
+              "Svarer ikke på oppgaven.",
+              "Ett–to punkter, uten egne eksempler.",
+              "Tre punkter, eller fire uten sammenligning.",
+              "Alle fire punktene, konkret og med sammenligning."
+            ]
+          },
+          "c2": {
+            "levels": [
+              "Ingen struktur.",
+              "Løse setninger uten sammenheng.",
+              "Forståelig rekkefølge, få bindeord.",
+              "Tydelig struktur og gode bindeord."
+            ]
+          },
+          "c3": {
+            "levels": [
+              "Mange feil i stavemåte og ordstilling; vanskelig å forstå.",
+              "Gjennomgående feil i V2/leddsetning eller bøyning.",
+              "Enkelte feil som ikke hindrer forståelsen; minst én høflig konstruksjon.",
+              "Få feil; to eller flere høflige konstruksjoner brukt riktig."
+            ]
+          },
+          "c4": {
+            "levels": [
+              "Under tre ord fra leksjonen; mange skrivefeil.",
+              "Tre–fire ord fra leksjonen; flere skrivefeil.",
+              "Fem–seks ord fra leksjonen; enkelte skrivefeil.",
+              "Seks eller flere ord fra leksjonen, presist brukt; nesten ingen skrivefeil."
+            ]
+          }
+        },
+        "model": "I Norge søker man ofte jobb via Finn.no. En norsk CV er kort, gjerne bare én side, og den har vanligvis ikke bilde. I søknaden bør man være konkret og nøktern: arbeidsgivere vil se ferdigheter og resultater, ikke skryt. På intervjuet er tonen uformell, men man bør være godt forberedt.\n\nI hjemlandet mitt er CV-en ofte lengre, og mange legger ved bilde. Intervjuet er mer formelt, og man snakker sjelden om lønn. Det vanskeligste for meg i Norge er derfor å forhandle, fordi jeg er redd for å virke frekk.\n\nMitt råd til en venn er å søke uansett, selv om norsken ikke er perfekt. Mange firmaer lærer deg opp, og de fleste team jobber smidig og trives med code review og tilbakemelding. Hvis du vil ha hjemmekontor, kan du si: «Jeg lurte på om det ville være mulig å jobbe hjemmefra to dager i uka?» Og om lønn: «Jeg håpet på noe nærmere …»"
+      }
+    }
+  ]
+}
