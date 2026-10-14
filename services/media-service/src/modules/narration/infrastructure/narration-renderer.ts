@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { narrationPauseMs, type NarrationSegment } from '@ssz/shared-kernel/narration';
 
+import type { AppConfig } from '../../../config/configuration.js';
 import { buildWav, parseWav, pcmDurationMs, sameFormat, silence } from '../../../infrastructure/audio/wav.js';
 import type { Pcm, PcmFormat } from '../../../infrastructure/audio/wav.js';
 import { SPEECH_SYNTHESIZER, VOICE_RESOLVER } from '../../../shared/application/ports/speech-synthesizer.port.js';
@@ -29,6 +31,7 @@ export class NarrationRenderer {
   constructor(
     @Inject(SPEECH_SYNTHESIZER) private readonly synthesizer: ISpeechSynthesizer,
     @Inject(VOICE_RESOLVER) private readonly voices: IVoiceResolver,
+    private readonly config: ConfigService<AppConfig>,
   ) {}
 
   async render(lang: string, segments: readonly NarrationSegment[]): Promise<RenderedNarration> {
@@ -36,6 +39,8 @@ export class NarrationRenderer {
     if (!narrator) throw new Error(`no voice speaks ${lang}`);
     if (segments.length === 0) throw new Error('nothing to narrate');
 
+    const tts = this.config.get<AppConfig['tts']>('tts')!;
+    const style = { lengthScale: tts.narrationLengthScale, noiseWScale: tts.narrationNoiseWScale };
     const speakerVoices: Record<string, string> = {};
     const parts: Buffer[] = [];
     let format: PcmFormat | null = null;
@@ -44,7 +49,7 @@ export class NarrationRenderer {
       const voice = segment.speaker ? (this.voices.resolve(lang, segment.speaker) ?? narrator) : narrator;
       if (segment.speaker && voice.voice !== narrator.voice) speakerVoices[segment.speaker] = voice.voice;
 
-      const pcm: Pcm = parseWav(await this.synthesizer.synthesize({ text: segment.text, voice: voice.voice, lang }));
+      const pcm: Pcm = parseWav(await this.synthesizer.synthesize({ text: segment.text, voice: voice.voice, lang, style }));
       if (!format) {
         format = pcm;
       } else if (!sameFormat(format, pcm)) {

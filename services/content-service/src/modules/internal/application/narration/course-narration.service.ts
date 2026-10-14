@@ -75,7 +75,7 @@ export class CourseNarrationService implements ICommandHandler<NarrateCourseComm
 
     const plans = variants.map((variant) => ({
       variant,
-      plan: planVariantNarration(variant.bodyMarkdown, course.targetLanguage, (id) => assets.get(id)),
+      plan: planVariantNarration(variant.bodyMarkdown, course.targetLanguage, (id) => assets.get(id), options.force),
     }));
 
     const items = plans.map(({ variant, plan }): NarrationItemReport => describePlan(variant, plan));
@@ -233,6 +233,12 @@ const SKIP_DETAIL: Record<NarrationSkipReason, string> = {
   'in-progress': 'narration is still being produced',
 };
 
+const REFRESH_DETAIL = {
+  stale: 'text changed since it was spoken',
+  failed: 'previous synthesis failed',
+  forced: 're-spoken on request (force)',
+} as const;
+
 function describePlan(variant: VariantRow, plan: NarrationVariantPlan): NarrationItemReport {
   const base = { lessonId: variant.lessonId, variantId: variant.id, title: variant.displayTitle };
   switch (plan.kind) {
@@ -242,7 +248,7 @@ function describePlan(variant: VariantRow, plan: NarrationVariantPlan): Narratio
       return {
         ...base,
         plan: 'refresh',
-        detail: plan.why === 'stale' ? 'text changed since it was spoken' : 'previous synthesis failed',
+        detail: REFRESH_DETAIL[plan.why],
         assetId: plan.replaces,
       };
     case 'skip':

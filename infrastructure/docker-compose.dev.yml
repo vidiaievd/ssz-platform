@@ -179,6 +179,8 @@ services:
       # Replaced lesson narrations (plan 74): content-service is asked whether a lesson body still names them.
       CONTENT_SERVICE_URL: http://content-service:3003
       NARRATION_RETENTION_DAYS: ${NARRATION_RETENTION_DAYS:-30}
+      NARRATION_LENGTH_SCALE: ${NARRATION_LENGTH_SCALE:-1.7}
+      NARRATION_NOISE_W_SCALE: ${NARRATION_NOISE_W_SCALE:-0}
       MEDIA_ORPHAN_MIN_AGE_DAYS: ${MEDIA_ORPHAN_MIN_AGE_DAYS:-30}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000

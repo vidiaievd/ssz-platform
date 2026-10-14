@@ -15,6 +15,10 @@ function fakeSynthesizer(format = FORMAT) {
   };
 }
 
+const config = { get: () => ({ narrationLengthScale: 1.7, narrationNoiseWScale: 0 }) };
+const renderer = (synthesizer: ReturnType<typeof fakeSynthesizer>, voices: IVoiceResolver) =>
+  new NarrationRenderer(synthesizer, voices, config as never);
+
 const oneVoice: IVoiceResolver = {
   resolve: (lang) => (lang === 'nb' ? { voice: 'nb-voice', family: 'no' } : null),
 };
@@ -42,7 +46,7 @@ function runs(wav: Buffer): Array<[string, number]> {
 describe('NarrationRenderer', () => {
   it('speaks each segment and puts the D2 pauses between them', async () => {
     const synthesizer = fakeSynthesizer();
-    const rendered = await new NarrationRenderer(synthesizer, oneVoice).render('nb', segments);
+    const rendered = await renderer(synthesizer, oneVoice).render('nb', segments);
 
     expect(runs(rendered.wav)).toEqual([
       ['speech', 10],
@@ -58,9 +62,18 @@ describe('NarrationRenderer', () => {
     expect(rendered.voices).toBeUndefined();
   });
 
+  it('asks for the configured pace and a steady rhythm, never the voice defaults', async () => {
+    const synthesizer = fakeSynthesizer();
+    await renderer(synthesizer, oneVoice).render('nb', segments);
+
+    for (const [request] of synthesizer.synthesize.mock.calls) {
+      expect(request.style).toEqual({ lengthScale: 1.7, noiseWScale: 0 });
+    }
+  });
+
   it('never sends a speaker name to the synthesizer', async () => {
     const synthesizer = fakeSynthesizer();
-    await new NarrationRenderer(synthesizer, oneVoice).render('nb', segments);
+    await renderer(synthesizer, oneVoice).render('nb', segments);
 
     const texts = synthesizer.synthesize.mock.calls.map(([request]) => request.text);
     expect(texts).toEqual(['Prøvetiden', 'Hvordan går det?', 'Bra, takk.', 'Taras går ut av møtet.']);
@@ -72,18 +85,18 @@ describe('NarrationRenderer', () => {
       resolve: (_lang, speaker) => ({ voice: speaker === 'Silje' ? 'silje-voice' : 'nb-voice', family: 'no' }),
     };
 
-    const rendered = await new NarrationRenderer(synthesizer, perSpeaker).render('nb', segments);
+    const rendered = await renderer(synthesizer, perSpeaker).render('nb', segments);
 
     expect(rendered.voices).toEqual({ Silje: 'silje-voice' });
     expect(synthesizer.synthesize.mock.calls[1]![0]).toMatchObject({ voice: 'silje-voice' });
   });
 
   it('fails on an unsupported language, an empty script or mixed PCM formats', async () => {
-    await expect(new NarrationRenderer(fakeSynthesizer(), oneVoice).render('en', segments)).rejects.toThrow('no voice');
-    await expect(new NarrationRenderer(fakeSynthesizer(), oneVoice).render('nb', [])).rejects.toThrow('nothing');
+    await expect(renderer(fakeSynthesizer(), oneVoice).render('en', segments)).rejects.toThrow('no voice');
+    await expect(renderer(fakeSynthesizer(), oneVoice).render('nb', [])).rejects.toThrow('nothing');
 
     const mixed = fakeSynthesizer();
     mixed.synthesize.mockResolvedValueOnce(buildWav({ ...FORMAT, sampleRate: 2_000, data: Buffer.alloc(4, 7) }));
-    await expect(new NarrationRenderer(mixed, oneVoice).render('nb', segments)).rejects.toThrow('different PCM format');
+    await expect(renderer(mixed, oneVoice).render('nb', segments)).rejects.toThrow('different PCM format');
   });
 });

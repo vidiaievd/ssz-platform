@@ -349,7 +349,8 @@ export class InternalController {
    * Narrate a course's text lessons by speech synthesis (plan 74, phase 4). A DRY RUN unless
    * `dryRun=false` is passed explicitly: a real run writes lesson bodies, and a body is shared
    * by the draft and the published version, so students see the change at once. Recordings
-   * made by people are never touched. `limit` caps how many variants one real run narrates.
+   * made by people are never touched. `limit` caps how many variants one real run narrates; `force=true` also re-speaks synthesized
+   * narrations that are up to date (after the pace or voice changed).
    * The run is synchronous and takes about as long as the speech it asks for.
    */
   @Post('courses/:courseId/narration')
@@ -358,13 +359,14 @@ export class InternalController {
     @Param('courseId') courseId: string,
     @Query('dryRun') dryRun?: string,
     @Query('limit') limit?: string,
+    @Query('force') force?: string,
   ): Promise<CourseNarrationReport> {
     const parsedLimit = limit === undefined ? undefined : Number.parseInt(limit, 10);
     if (parsedLimit !== undefined && (!Number.isInteger(parsedLimit) || parsedLimit < 1)) {
       throw new BadRequestException('limit must be a positive integer');
     }
     return this.commandBus.execute(
-      new NarrateCourseCommand(courseId, { dryRun: dryRun !== 'false', limit: parsedLimit }),
+      new NarrateCourseCommand(courseId, { dryRun: dryRun !== 'false', limit: parsedLimit, force: force === 'true' }),
     );
   }
 

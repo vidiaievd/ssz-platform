@@ -6,6 +6,21 @@ export interface SpeechRequest {
   /** Provider-specific voice name, as returned by `IVoiceResolver.resolve`. */
   voice: string;
   lang: string;
+  /**
+   * Delivery of the voice, for providers that expose it (Piper does; others may ignore it).
+   * Omitted means the voice's own defaults — what a one-word pronunciation clip wants.
+   */
+  style?: SpeechStyle;
+}
+
+export interface SpeechStyle {
+  /** Phoneme length multiplier: above 1 speaks slower. */
+  lengthScale?: number;
+  /**
+   * Randomness of phoneme and pause lengths. Piper's default (0.8) drops pauses of over a second
+   * at random inside a sentence; 0 makes the rhythm the same on every render.
+   */
+  noiseWScale?: number;
 }
 
 /**

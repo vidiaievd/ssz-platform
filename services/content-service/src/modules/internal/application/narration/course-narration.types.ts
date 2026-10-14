@@ -3,6 +3,8 @@ export interface CourseNarrationOptions {
   dryRun: boolean;
   /** Narrate at most this many variants in one run (a real run waits for each). */
   limit?: number;
+  /** Also re-speak synthesized narrations whose text is current — after the pace or voice changed. */
+  force?: boolean;
 }
 
 export interface NarrationItemReport {

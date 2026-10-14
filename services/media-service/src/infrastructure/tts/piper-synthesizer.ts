@@ -14,11 +14,16 @@ export class PiperSynthesizer implements ISpeechSynthesizer {
     this.tts = config.get<AppConfig['tts']>('tts')!;
   }
 
-  async synthesize({ text, voice }: SpeechRequest): Promise<Buffer> {
+  async synthesize({ text, voice, style }: SpeechRequest): Promise<Buffer> {
     const res = await fetch(`${this.tts.piperUrl}/synthesize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice }),
+      body: JSON.stringify({
+        text,
+        voice,
+        ...(style?.lengthScale !== undefined && { length_scale: style.lengthScale }),
+        ...(style?.noiseWScale !== undefined && { noise_w_scale: style.noiseWScale }),
+      }),
       signal: AbortSignal.timeout(this.tts.piperTimeoutMs),
     });
 

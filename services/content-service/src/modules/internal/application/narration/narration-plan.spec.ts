@@ -48,6 +48,21 @@ describe('planVariantNarration', () => {
     expect(plan).toEqual({ kind: 'refresh', replaces: 'syn', why: 'stale' });
   });
 
+  it('re-speaks a current synthesis only when forced, and never a recording', () => {
+    const synth = lookup({ syn: { status: 'READY', origin: 'SYNTHESIZED', textHash: HASH } });
+    expect(planVariantNarration(withToken('syn'), 'nb', synth, true)).toEqual({
+      kind: 'refresh',
+      replaces: 'syn',
+      why: 'forced',
+    });
+    const rec = lookup({ rec: { status: 'READY', origin: 'UPLOAD', textHash: null } });
+    expect(planVariantNarration(withToken('rec'), 'nb', rec, true)).toEqual({
+      kind: 'skip',
+      reason: 'recorded',
+      assetId: 'rec',
+    });
+  });
+
   it('refreshes a failed synthesis and waits for one still being produced', () => {
     expect(
       planVariantNarration(withToken('f'), 'nb', lookup({ f: { status: 'FAILED', origin: 'SYNTHESIZED', textHash: null } })),

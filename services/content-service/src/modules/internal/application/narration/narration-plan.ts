@@ -27,20 +27,23 @@ export type NarrationSkipReason =
 
 export type NarrationVariantPlan =
   | { kind: 'create' }
-  | { kind: 'refresh'; replaces: string; why: 'stale' | 'failed' }
+  | { kind: 'refresh'; replaces: string; why: 'stale' | 'failed' | 'forced' }
   | { kind: 'skip'; reason: NarrationSkipReason; assetId?: string };
 
 const SETTLED_STATUSES = new Set(['READY', 'FAILED']);
 
 /**
  * Decide what the batch does with one lesson body. A person's recording is `recorded` whatever
- * else is true of it; only a synthesized narration whose spoken text differs from the body (the
- * same hash the editor shows as "outdated") or that failed is refreshed.
+ * else is true of it, `force` included; only a synthesized narration whose spoken text differs
+ * from the body (the same hash the editor shows as "outdated"), that failed, or that is forced is
+ * refreshed.
  */
 export function planVariantNarration(
   body: string,
   lang: string,
   assetOf: (assetId: string) => NarrationAssetInfo | undefined,
+  /** Re-speak a synthesized narration even though its text is current (a new pace or voice). */
+  force = false,
 ): NarrationVariantPlan {
   const script = toNarrationScript(body, lang);
   const tokens = findAudioTokens(body);
@@ -59,5 +62,6 @@ export function planVariantNarration(
   if (!SETTLED_STATUSES.has(asset.status)) return { kind: 'skip', reason: 'in-progress', assetId };
   if (asset.status === 'FAILED') return { kind: 'refresh', replaces: assetId, why: 'failed' };
   if (asset.textHash !== script.textHash) return { kind: 'refresh', replaces: assetId, why: 'stale' };
+  if (force) return { kind: 'refresh', replaces: assetId, why: 'forced' };
   return { kind: 'skip', reason: 'current', assetId };
 }
