@@ -68,6 +68,16 @@ describe('GetAssetHandler', () => {
     expect(result.value.variants).toEqual([]);
   });
 
+  it('reports a new asset as an upload with no synthesis (plan 74)', async () => {
+    const asset = makeAsset();
+    const { handler } = makeHandler(asset);
+
+    const result = await handler.execute(new GetAssetQuery(asset.id, 'owner-1'));
+
+    expect(result.value.origin).toBe('UPLOAD');
+    expect(result.value.synthesis).toBeNull();
+  });
+
   it('returns direct public URL for profile_avatar entity type', async () => {
     const asset = makeAsset({ entityType: 'profile_avatar' });
     const { handler, storage } = makeHandler(asset);

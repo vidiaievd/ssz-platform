@@ -8,7 +8,7 @@ const MP3 = Buffer.from('mp3-bytes');
 function makeService(opts?: { bytes?: Result<Buffer, any>; request?: Result<any, any>; finalize?: Result<any, any> }) {
   const pronunciation = {
     getOrCreateBytes: jest.fn().mockResolvedValue(opts?.bytes ?? Result.ok(MP3)),
-    voiceName: 'no_NO-talesyntese-medium',
+    voiceName: jest.fn().mockReturnValue('no_NO-talesyntese-medium'),
   };
   const commandBus = {
     execute: jest.fn().mockImplementation(async (command: unknown) => {

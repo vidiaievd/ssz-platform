@@ -18,6 +18,15 @@ enum AssetStatus {
   @@map("asset_status")
 }
 
+// Where an asset's bytes came from (plan 74): uploaded by a person or produced by speech
+// synthesis. Member names equal the stored values, so no @map sits between them.
+enum AssetOrigin {
+  UPLOAD
+  SYNTHESIZED
+
+  @@map("asset_origin")
+}
+
 enum ProcessingJobType {
   IMAGE_RESIZE
   AUDIO_CONVERT
@@ -52,6 +61,12 @@ model MediaAsset {
   // Audio only (plan 70): measured length and the normalised waveform.
   durationMs       Int?        @map("duration_ms")
   peaks            Json?
+  // Plan 74: how the bytes were made; `synthesis` holds provider, voice, lang, textHash.
+  origin           AssetOrigin @default(UPLOAD)
+  synthesis        Json?
+  // Plan 74 D5: a narration replaced by another stays playable until the retention ends.
+  supersededAt     DateTime?   @map("superseded_at")
+  supersededBy     String?     @map("superseded_by")
 
   variants AssetVariant[]
   jobs     ProcessingJob[]

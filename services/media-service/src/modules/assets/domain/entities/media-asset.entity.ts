@@ -19,6 +19,23 @@ export type AssetStatus =
   | 'FAILED'
   | 'DELETED';
 
+/** Where the bytes came from (plan 74). Values are the Prisma member names. */
+export type AssetOrigin = 'UPLOAD' | 'SYNTHESIZED';
+
+/** How a synthesized asset was made — enough to tell the author what speaks and whether it is stale. */
+export interface AssetSynthesis {
+  provider: string;
+  /** The narrator's voice. */
+  voice: string;
+  /** Speaker → voice, when characters were given voices of their own (D1). */
+  voices?: Record<string, string>;
+  lang: string;
+  /** `narrationTextHash` of the text that was spoken; compared against the current body. */
+  textHash: string;
+  /** How many script segments were spoken. */
+  segments: number;
+}
+
 interface MediaAssetProps {
   ownerId: string;
   entityType: string | null;
@@ -36,6 +53,13 @@ interface MediaAssetProps {
   durationMs: number | null;
   /** Audio only: normalised waveform, computed by the processing worker. */
   peaks: number[] | null;
+  origin: AssetOrigin;
+  /** Set when `origin` is SYNTHESIZED. */
+  synthesis: AssetSynthesis | null;
+  /** D5: a replaced narration stays READY and playable until the retention period ends. */
+  supersededAt: Date | null;
+  /** The asset that replaced this one. */
+  supersededBy: string | null;
 }
 
 export interface CreateMediaAssetProps {
@@ -72,6 +96,10 @@ export class MediaAssetEntity extends AggregateRoot {
   get deletedAt(): Date | null { return this.props.deletedAt; }
   get durationMs(): number | null { return this.props.durationMs; }
   get peaks(): number[] | null { return this.props.peaks; }
+  get origin(): AssetOrigin { return this.props.origin; }
+  get synthesis(): AssetSynthesis | null { return this.props.synthesis; }
+  get supersededAt(): Date | null { return this.props.supersededAt; }
+  get supersededBy(): string | null { return this.props.supersededBy; }
   get isRecording(): boolean { return isRecordingEntityType(this.props.entityType); }
 
   get isPendingUpload(): boolean { return this.props.status === 'PENDING_UPLOAD'; }
@@ -121,6 +149,10 @@ export class MediaAssetEntity extends AggregateRoot {
       deletedAt: null,
       durationMs: null,
       peaks: null,
+      origin: 'UPLOAD',
+      synthesis: null,
+      supersededAt: null,
+      supersededBy: null,
     });
 
     entity.addDomainEvent(

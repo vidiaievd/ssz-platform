@@ -70,6 +70,8 @@ export class GetAssetHandler implements IQueryHandler<GetAssetQuery, GetAssetRes
       variants,
       durationMs: asset.durationMs,
       peaks: asset.peaks,
+      origin: asset.origin,
+      synthesis: asset.synthesis,
     });
   }
 }

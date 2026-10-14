@@ -63,6 +63,7 @@ export class PronunciationClipService {
     );
     if (finalized.isFail) return Result.fail('ASSET_REJECTED');
 
-    return Result.ok({ assetId, voice: this.pronunciation.voiceName });
+    // Synthesis succeeded above, so a voice speaks `lang`.
+    return Result.ok({ assetId, voice: this.pronunciation.voiceName(lang)! });
   }
 }

@@ -1,3 +1,7 @@
+import { createHash } from 'crypto';
+
+import { ConfigVoiceResolver } from '../../../src/infrastructure/tts/config-voice-resolver.js';
+import { PiperSynthesizer } from '../../../src/infrastructure/tts/piper-synthesizer.js';
 import { PronunciationService } from '../../../src/modules/pronunciation/pronunciation.service.js';
 import type { IStorageService } from '../../../src/shared/application/ports/storage.port.js';
 
@@ -22,7 +26,14 @@ function makeService(overrides?: Partial<jest.Mocked<IStorageService>>) {
   } as jest.Mocked<IStorageService>;
 
   const config = { get: jest.fn().mockReturnValue(TTS_CONFIG) };
-  const service = new PronunciationService(storage, config as any);
+  // The real piper adapter and voice resolver over a mocked fetch: the service's behaviour
+  // must not have changed when synthesis moved behind the port (plan 74, phase 1).
+  const service = new PronunciationService(
+    storage,
+    new PiperSynthesizer(config as any),
+    new ConfigVoiceResolver(config as any),
+    config as any,
+  );
 
   // The wav→mp3 step shells out to ffmpeg; the unit under test is the caching
   // and keying logic around it.
@@ -59,6 +70,23 @@ describe('PronunciationService', () => {
       true,
     );
     expect(result.value.url).toContain('/ssz-public/tts/no/');
+  });
+
+  it('keeps the cache key it had before synthesis moved behind the port', async () => {
+    const { service, storage } = makeService();
+    mockPiper();
+
+    await service.getOrCreate('sykepleier', 'nb');
+
+    const digest = createHash('sha256').update('no_NO-talesyntese-medium|sykepleier').digest('hex');
+    expect(storage.uploadObject.mock.calls[0]![0]).toBe(`tts/no/${digest}.mp3`);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://piper-tts:5000/synthesize',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ text: 'sykepleier', voice: 'no_NO-talesyntese-medium' }),
+      }),
+    );
   });
 
   it('serves an existing clip without calling piper', async () => {
@@ -128,7 +156,8 @@ describe('PronunciationService', () => {
     expect(result.value.toString()).toBe('mp3-bytes');
     // The bytes come from the very key the clip was stored under, trimmed text included.
     expect(storage.getObject).toHaveBeenCalledWith(storage.uploadObject.mock.calls[0]![0], true);
-    expect(service.voiceName).toBe('no_NO-talesyntese-medium');
+    expect(service.voiceName('nb')).toBe('no_NO-talesyntese-medium');
+    expect(service.voiceName('en')).toBeNull();
   });
 
   it('passes validation failures through getOrCreateBytes', async () => {

@@ -47,6 +47,8 @@ export class ListUserAssetsHandler implements IQueryHandler<ListUserAssetsQuery,
           variants: [],
           durationMs: asset.durationMs,
           peaks: asset.peaks,
+          origin: asset.origin,
+          synthesis: asset.synthesis,
         };
       }),
     );

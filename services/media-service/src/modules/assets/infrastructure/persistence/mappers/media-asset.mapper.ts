@@ -1,5 +1,7 @@
+import type { Prisma } from '../../../../../../generated/prisma/client.js';
 import type { MediaAssetModel } from '../../../../../../generated/prisma/models/MediaAsset.js';
 import { MediaAssetEntity } from '../../../domain/entities/media-asset.entity.js';
+import type { AssetSynthesis } from '../../../domain/entities/media-asset.entity.js';
 import { MimeType } from '../../../domain/value-objects/mime-type.vo.js';
 import { SizeBytes } from '../../../domain/value-objects/size-bytes.vo.js';
 import { StorageKey } from '../../../domain/value-objects/storage-key.vo.js';
@@ -21,6 +23,10 @@ export class MediaAssetMapper {
       deletedAt: raw.deletedAt,
       durationMs: raw.durationMs,
       peaks: readPeaks(raw.peaks),
+      origin: raw.origin,
+      synthesis: readSynthesis(raw.synthesis),
+      supersededAt: raw.supersededAt,
+      supersededBy: raw.supersededBy,
     });
   }
 
@@ -41,6 +47,10 @@ export class MediaAssetMapper {
       deletedAt: entity.deletedAt,
       durationMs: entity.durationMs,
       peaks: entity.peaks ?? undefined,
+      origin: entity.origin,
+      synthesis: toJson(entity.synthesis),
+      supersededAt: entity.supersededAt,
+      supersededBy: entity.supersededBy,
     };
   }
 
@@ -54,6 +64,10 @@ export class MediaAssetMapper {
       deletedAt: entity.deletedAt,
       durationMs: entity.durationMs,
       peaks: entity.peaks ?? undefined,
+      origin: entity.origin,
+      synthesis: toJson(entity.synthesis),
+      supersededAt: entity.supersededAt,
+      supersededBy: entity.supersededBy,
     };
   }
 }
@@ -62,4 +76,18 @@ export class MediaAssetMapper {
 function readPeaks(value: unknown): number[] | null {
   if (!Array.isArray(value)) return null;
   return value.every((v) => typeof v === 'number') ? (value as number[]) : null;
+}
+
+// `synthesis` is JSON too; a row without the fields the editor relies on reads as absent.
+function readSynthesis(value: unknown): AssetSynthesis | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const v = value as Record<string, unknown>;
+  const strings = ['provider', 'voice', 'lang', 'textHash'] as const;
+  if (!strings.every((key) => typeof v[key] === 'string') || typeof v.segments !== 'number') return null;
+  return value as AssetSynthesis;
+}
+
+// Never written as JSON null: an absent object stays SQL NULL, like `peaks`.
+function toJson(synthesis: AssetSynthesis | null): Prisma.InputJsonObject | undefined {
+  return synthesis ? { ...synthesis } : undefined;
 }
