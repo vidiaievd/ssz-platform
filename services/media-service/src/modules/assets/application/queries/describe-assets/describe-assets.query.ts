@@ -18,6 +18,8 @@ export interface AssetDescription {
   /** The pace and pause multiplier a synthesized narration was spoken with, when recorded. */
   lengthScale: number | null;
   pauseScale: number | null;
+  /** The catalog id of the narrator of a synthesized narration, when recorded. */
+  voiceId: string | null;
 }
 
 export class DescribeAssetsQuery implements IQuery {

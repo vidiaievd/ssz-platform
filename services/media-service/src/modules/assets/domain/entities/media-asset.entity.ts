@@ -40,6 +40,10 @@ export interface AssetSynthesis {
   pauseScale?: number;
   /** The course level the pace default came from, when the request named one. */
   level?: string;
+  /** The catalog id of the narrator (`talesyntese`, `nvcc-kon`, …); older narrations name only `voice`. */
+  voiceId?: string;
+  /** The speaker inside a multi-speaker model the narrator is. */
+  speaker?: string;
 }
 
 interface MediaAssetProps {

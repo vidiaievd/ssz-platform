@@ -71,6 +71,29 @@ export class RequestNarrationDto {
   @Min(PAUSE_SCALE_RANGE.min)
   @Max(PAUSE_SCALE_RANGE.max)
   pauseScale?: number;
+
+  @ApiPropertyOptional({
+    example: 'nvcc-kon',
+    description: "The narrator's catalog id (see GET /media/narration/defaults). Omitted: the language's default voice",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  voiceId?: string;
+}
+
+export class NarrationVoiceDto {
+  @ApiProperty({ example: 'nvcc-kon', description: 'Pass as `voiceId` to narrate with this voice' })
+  id!: string;
+
+  @ApiProperty({ example: 'KON' })
+  name!: string;
+
+  @ApiProperty({ enum: ['female', 'male'], example: 'female' })
+  gender!: string;
+
+  @ApiProperty({ description: 'The voice a narration gets when no voice is chosen' })
+  isDefault!: boolean;
 }
 
 export class NarrationStyleDto {
@@ -92,6 +115,9 @@ export class NarrationDefaultsResponseDto {
     description: 'The default pace and pauses of each CEFR level',
   })
   byLevel!: Record<string, NarrationStyleDto>;
+
+  @ApiProperty({ type: [NarrationVoiceDto], description: 'The voices offered for the language, the default first' })
+  voices!: NarrationVoiceDto[];
 
   @ApiProperty({ example: { lengthScale: 1, pauseScale: 0.5 }, description: 'The lowest value of each setting' })
   min!: NarrationStyleDto;

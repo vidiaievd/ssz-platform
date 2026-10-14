@@ -2,7 +2,11 @@ import type { NarrationSegment } from '@ssz/shared-kernel/narration';
 
 import { buildWav, parseWav } from '../../../../src/infrastructure/audio/wav.js';
 import { NarrationRenderer } from '../../../../src/modules/narration/infrastructure/narration-renderer.js';
-import type { IVoiceResolver, SpeechRequest } from '../../../../src/shared/application/ports/speech-synthesizer.port.js';
+import type {
+  IVoiceResolver,
+  ResolvedVoice,
+  SpeechRequest,
+} from '../../../../src/shared/application/ports/speech-synthesizer.port.js';
 
 const RATE = 1_000; // 1 frame per ms keeps the arithmetic readable
 const FORMAT = { sampleRate: RATE, channels: 1, bitsPerSample: 16 };
@@ -20,8 +24,21 @@ const config = { get: () => ({ narrationLengthScale: 1.7, narrationNoiseWScale: 
 const renderer = (synthesizer: ReturnType<typeof fakeSynthesizer>, voices: IVoiceResolver) =>
   new NarrationRenderer(synthesizer, voices, config as never);
 
+const NARRATOR: ResolvedVoice = { id: 'nb-voice', voice: 'nb-voice', gender: 'male', name: 'N', paceFactor: 1, family: 'no' };
+const KATRINE: ResolvedVoice = {
+  id: 'nvcc-kat',
+  voice: 'multi-model',
+  speaker: 'KAT',
+  gender: 'female',
+  name: 'KAT',
+  paceFactor: 1.2,
+  family: 'no',
+};
+
 const oneVoice: IVoiceResolver = {
-  resolve: (lang) => (lang === 'nb' ? { voice: 'nb-voice', family: 'no' } : null),
+  resolve: (lang) => (lang === 'nb' ? NARRATOR : null),
+  byId: (lang, id) => (lang === 'nb' ? [NARRATOR, KATRINE].find((v) => v.id === id) ?? null : null),
+  list: (lang) => (lang === 'nb' ? [NARRATOR, KATRINE] : []),
 };
 
 const segments: NarrationSegment[] = [
@@ -59,8 +76,8 @@ describe('NarrationRenderer', () => {
       ['speech', 10],
     ]);
     expect(rendered.durationMs).toBe(40 + 900 + 600 + 900);
-    expect(rendered).toMatchObject({ provider: 'piper', voice: 'nb-voice' });
-    expect(rendered.voices).toBeUndefined();
+    expect(rendered).toMatchObject({ provider: 'piper', voice: 'nb-voice', voiceId: 'nb-voice' });
+    expect(rendered.speaker).toBeUndefined();
   });
 
   it('asks for the configured pace and a steady rhythm, never the voice defaults', async () => {
@@ -92,16 +109,23 @@ describe('NarrationRenderer', () => {
     expect(texts).toEqual(['Prøvetiden', 'Hvordan går det?', 'Bra, takk.', 'Taras går ut av møtet.']);
   });
 
-  it('gives a speaker their own voice when the resolver has one (D1)', async () => {
+  it("speaks with the chosen voice and its speaker, evening out the voice's own pace", async () => {
     const synthesizer = fakeSynthesizer();
-    const perSpeaker: IVoiceResolver = {
-      resolve: (_lang, speaker) => ({ voice: speaker === 'Silje' ? 'silje-voice' : 'nb-voice', family: 'no' }),
-    };
+    const rendered = await renderer(synthesizer, oneVoice).render('nb', segments, STYLE, 'nvcc-kat');
 
-    const rendered = await renderer(synthesizer, perSpeaker).render('nb', segments, STYLE);
+    for (const [request] of synthesizer.synthesize.mock.calls) {
+      expect(request).toMatchObject({ voice: 'multi-model', speaker: 'KAT' });
+      expect(request.style).toEqual({ lengthScale: 2.04, noiseWScale: 0 }); // 1.7 × 1.2
+    }
+    expect(rendered).toMatchObject({ voice: 'multi-model', voiceId: 'nvcc-kat', speaker: 'KAT' });
+  });
 
-    expect(rendered.voices).toEqual({ Silje: 'silje-voice' });
-    expect(synthesizer.synthesize.mock.calls[1]![0]).toMatchObject({ voice: 'silje-voice' });
+  it('does not send a speaker for a single-voice model, and refuses an unknown voice', async () => {
+    const synthesizer = fakeSynthesizer();
+    await renderer(synthesizer, oneVoice).render('nb', segments, STYLE);
+    expect(synthesizer.synthesize.mock.calls[0]![0]).not.toHaveProperty('speaker');
+
+    await expect(renderer(fakeSynthesizer(), oneVoice).render('nb', segments, STYLE, 'nope')).rejects.toThrow('no voice');
   });
 
   it('fails on an unsupported language, an empty script or mixed PCM formats', async () => {

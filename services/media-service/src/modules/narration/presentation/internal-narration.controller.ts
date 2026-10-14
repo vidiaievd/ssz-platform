@@ -37,6 +37,7 @@ export class InternalNarrationController {
         dto.level ?? null,
         dto.lengthScale ?? null,
         dto.pauseScale ?? null,
+        dto.voiceId ?? null,
       ),
     );
     if (result.isFail) throw new UnprocessableEntityException(result.error);

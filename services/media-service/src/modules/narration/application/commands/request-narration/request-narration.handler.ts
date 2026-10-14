@@ -51,8 +51,8 @@ export class RequestNarrationHandler implements ICommandHandler<RequestNarration
       return Result.fail('TEXT_TOO_LONG');
     }
 
-    const narrator = this.voices.resolve(command.lang, null);
-    if (!narrator) return Result.fail('LANGUAGE_NOT_SUPPORTED');
+    const narrator = command.voiceId ? this.voices.byId(command.lang, command.voiceId) : this.voices.resolve(command.lang, null);
+    if (!narrator) return Result.fail(command.voiceId && this.voices.resolve(command.lang, null) ? 'VOICE_NOT_AVAILABLE' : 'LANGUAGE_NOT_SUPPORTED');
 
     const tts = this.config.get<AppConfig['tts']>('tts')!;
     const style = resolveNarrationStyle(
@@ -93,6 +93,7 @@ export class RequestNarrationHandler implements ICommandHandler<RequestNarration
       lengthScale: style.lengthScale,
       pauseScale: style.pauseScale,
       level: command.level,
+      voiceId: narrator.id,
     };
     // One attempt: a failed narration turns FAILED and the author asks again, rather than
     // the queue retrying a minute of speech against a synthesizer that is down.
@@ -111,6 +112,7 @@ export class RequestNarrationHandler implements ICommandHandler<RequestNarration
       assetId: asset.id,
       status: asset.status,
       voice: narrator.voice,
+      voiceId: narrator.id,
       textHash: script.textHash,
       lengthScale: style.lengthScale,
       pauseScale: style.pauseScale,

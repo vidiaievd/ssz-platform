@@ -12,6 +12,8 @@ export interface NarrationAssetInfo {
   /** The pace and pause multiplier it was spoken with; null for an upload or an older synthesis. */
   lengthScale?: number | null;
   pauseScale?: number | null;
+  /** The catalog id of the narrator; null for an upload or a narration made before voices were chosen. */
+  voiceId?: string | null;
 }
 
 export type NarrationSkipReason =
@@ -70,17 +72,18 @@ export function planVariantNarration(
 }
 
 /**
- * A narration refreshed because its text changed or it failed keeps the pace and pauses the
- * author gave it; a forced one starts from the level's defaults again — that is what force is for.
+ * A narration refreshed because its text changed or it failed keeps the voice, pace and pauses
+ * the author gave it; a forced one starts from the level's defaults again — that is what force is for.
  */
 export function keptSettings(
   plan: Exclude<NarrationVariantPlan, { kind: 'skip' }>,
   assets: ReadonlyMap<string, NarrationAssetInfo>,
-): { lengthScale?: number; pauseScale?: number } {
+): { lengthScale?: number; pauseScale?: number; voiceId?: string } {
   if (plan.kind !== 'refresh' || plan.why === 'forced') return {};
   const previous = assets.get(plan.replaces);
   return {
     ...(previous?.lengthScale != null && { lengthScale: previous.lengthScale }),
     ...(previous?.pauseScale != null && { pauseScale: previous.pauseScale }),
+    ...(previous?.voiceId != null && { voiceId: previous.voiceId }),
   };
 }

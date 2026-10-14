@@ -13,4 +13,6 @@ export interface NarrationJobData {
   pauseScale: number;
   /** Recorded with the narration so "regenerate" can offer the same pace again. */
   level: string | null;
+  /** The narrator's catalog id, chosen at request time. */
+  voiceId: string;
 }

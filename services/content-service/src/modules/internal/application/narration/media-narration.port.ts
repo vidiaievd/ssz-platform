@@ -13,6 +13,8 @@ export interface NarrationRequest {
   /** Set to keep what an author chose for the narration being replaced. */
   lengthScale?: number;
   pauseScale?: number;
+  /** Keep the narrator of the narration being replaced. */
+  voiceId?: string;
 }
 
 /** media-service's internal narration routes, as the batch uses them. */

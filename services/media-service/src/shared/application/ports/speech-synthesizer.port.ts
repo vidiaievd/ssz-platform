@@ -5,6 +5,8 @@ export interface SpeechRequest {
   text: string;
   /** Provider-specific voice name, as returned by `IVoiceResolver.resolve`. */
   voice: string;
+  /** The speaker inside a multi-speaker model (`ResolvedVoice.speaker`). */
+  speaker?: string;
   lang: string;
   /**
    * Delivery of the voice, for providers that expose it (Piper does; others may ignore it).
@@ -36,7 +38,16 @@ export interface ISpeechSynthesizer {
 }
 
 export interface ResolvedVoice {
+  /** The catalog id an author's choice is stored under (`talesyntese`, `nvcc-kon`, …). */
+  id: string;
   voice: string;
+  /** The speaker inside a multi-speaker model, passed to the provider as is. */
+  speaker?: string;
+  gender: 'female' | 'male';
+  /** Shown next to the gender in the editor. */
+  name: string;
+  /** Multiplier on the length scale so one pace sounds alike on every voice. */
+  paceFactor: number;
   /**
    * The language family the voice speaks — `no` for `nb`, `nn` and `no`. Callers key their
    * caches by it, so the same word tagged `nb` or `no-NO` is synthesized once.
@@ -50,4 +61,10 @@ export interface IVoiceResolver {
    * voice where the provider offers several (D1); null means the narrator.
    */
   resolve(lang: string, speaker: string | null): ResolvedVoice | null;
+
+  /** A voice the author picked, or null when it does not exist, is hidden or does not speak `lang`. */
+  byId(lang: string, voiceId: string): ResolvedVoice | null;
+
+  /** Every voice offered for `lang`, the default first. */
+  list(lang: string): ResolvedVoice[];
 }

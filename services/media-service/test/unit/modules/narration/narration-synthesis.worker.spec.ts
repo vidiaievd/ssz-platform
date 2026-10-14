@@ -21,12 +21,13 @@ const DATA = {
   lengthScale: 1.85,
   pauseScale: 1.5,
   level: 'A2',
+  voiceId: 'nvcc-kon',
 };
 
 function makeWorker(opts: { render?: () => Promise<any>; store?: Result<void, any> } = {}) {
   const renderer = {
     render: jest.fn(
-      opts.render ?? (async () => ({ wav: Buffer.from('wav'), durationMs: 1_600, provider: 'piper', voice: 'nb-voice' })),
+      opts.render ?? (async () => ({ wav: Buffer.from('wav'), durationMs: 1_600, provider: 'piper', voice: 'nb-voice', voiceId: 'nvcc-kon', speaker: 'KON' })),
     ),
   };
   const commandBus = { execute: jest.fn().mockResolvedValue(opts.store ?? Result.ok()) };
@@ -43,12 +44,18 @@ describe('NarrationSynthesisWorker', () => {
 
     await worker.process({ data: DATA } as any);
 
-    expect(renderer.render).toHaveBeenCalledWith('nb', DATA.segments, { lengthScale: 1.85, pauseScale: 1.5 });
+    expect(renderer.render).toHaveBeenCalledWith('nb', DATA.segments, { lengthScale: 1.85, pauseScale: 1.5 }, 'nvcc-kon');
     const store = commandBus.execute.mock.calls[0]![0] as StoreSynthesizedAudioCommand;
     expect(store).toBeInstanceOf(StoreSynthesizedAudioCommand);
     expect(store).toMatchObject({ assetId: 'asset-1', ownerId: 'teacher-1', mimeType: 'audio/mpeg' });
     expect(store.audio.toString()).toBe('mp3-bytes');
-    expect(store.synthesis).toEqual({ provider: 'piper', voice: 'nb-voice', lang: 'nb', textHash: DATA.textHash,
+    expect(store.synthesis).toEqual({
+      provider: 'piper',
+      voice: 'nb-voice',
+      voiceId: 'nvcc-kon',
+      speaker: 'KON',
+      lang: 'nb',
+      textHash: DATA.textHash,
       segments: 2,
       lengthScale: 1.85,
       pauseScale: 1.5,

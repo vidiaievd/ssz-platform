@@ -6,7 +6,12 @@ const BODY = '## 2D — Prøvetiden\n\n**Silje:** Hvordan synes du de første uk
 
 function makeHandler(maxChars = 12_000) {
   const repo = { save: jest.fn().mockResolvedValue(undefined) };
-  const voices = { resolve: jest.fn((lang: string) => (lang === 'nb' ? { voice: 'nb-voice', family: 'no' } : null)) };
+  const NARRATOR = { id: 'talesyntese', voice: 'nb-voice', gender: 'male', name: 'T', paceFactor: 1, family: 'no' };
+  const CHOSEN = { id: 'nvcc-kon', voice: 'multi', speaker: 'KON', gender: 'female', name: 'KON', paceFactor: 1.14, family: 'no' };
+  const voices = {
+    resolve: jest.fn((lang: string) => (lang === 'nb' ? NARRATOR : null)),
+    byId: jest.fn((lang: string, id: string) => (lang === 'nb' && id === 'nvcc-kon' ? CHOSEN : null)),
+  };
   const queue = { add: jest.fn().mockResolvedValue(undefined) };
   const prisma = { processingJob: { create: jest.fn().mockResolvedValue({ id: 'job-1' }) } };
   const config = {
@@ -24,7 +29,7 @@ const command = (
   body = BODY,
   lang = 'nb',
   label: string | null = 'Les teksten — 2D',
-  style: { level?: string | null; lengthScale?: number | null; pauseScale?: number | null } = {},
+  style: { level?: string | null; lengthScale?: number | null; pauseScale?: number | null; voiceId?: string | null } = {},
 ) =>
   new RequestNarrationCommand(
     'teacher-1',
@@ -35,6 +40,7 @@ const command = (
     style.level ?? null,
     style.lengthScale ?? null,
     style.pauseScale ?? null,
+    style.voiceId ?? null,
   );
 
 describe('RequestNarrationHandler', () => {
@@ -67,6 +73,7 @@ describe('RequestNarrationHandler', () => {
       assetId: asset.id,
       status: 'PENDING_UPLOAD',
       voice: 'nb-voice',
+      voiceId: 'talesyntese',
       textHash: data.textHash,
       lengthScale: 1.7,
       pauseScale: 1,
@@ -86,6 +93,18 @@ describe('RequestNarrationHandler', () => {
     expect(jobs[0]).toMatchObject({ lengthScale: 2.0, pauseScale: 1, level: 'A1' });
     expect(jobs[1]).toMatchObject({ lengthScale: 2.2, pauseScale: 1.5, level: 'A1' });
     expect(jobs[2]).toMatchObject({ lengthScale: 2.5, level: 'C1' });
+  });
+
+  it('narrates with the voice the author chose, and refuses one that does not exist', async () => {
+    const { handler, queue } = makeHandler();
+
+    const chosen = await handler.execute(command(BODY, 'nb', null, { voiceId: 'nvcc-kon' }));
+    expect(chosen.value).toMatchObject({ voice: 'multi', voiceId: 'nvcc-kon' });
+    expect(queue.add.mock.calls[0]![1]).toMatchObject({ voiceId: 'nvcc-kon' });
+
+    const unknown = await handler.execute(command(BODY, 'nb', null, { voiceId: 'nope' }));
+    expect(unknown.error).toBe('VOICE_NOT_AVAILABLE');
+    expect(queue.add).toHaveBeenCalledTimes(1);
   });
 
   it('refuses a body with nothing to read, before creating anything', async () => {

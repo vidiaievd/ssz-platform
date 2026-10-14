@@ -62,6 +62,9 @@ export class AssetDescriptionDto {
 
   @ApiPropertyOptional({ nullable: true, type: Number, description: 'Pause multiplier it was spoken with' })
   pauseScale!: number | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String, description: 'Catalog id of the narrator of a synthesized narration' })
+  voiceId!: string | null;
 }
 
 export class AssetPlaybackDto {

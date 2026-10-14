@@ -3,16 +3,20 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Query,
   HttpCode,
   HttpStatus,
   Post,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Inject } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import type { AppConfig } from '../../../config/configuration.js';
+import { VOICE_RESOLVER } from '../../../shared/application/ports/speech-synthesizer.port.js';
+import type { IVoiceResolver } from '../../../shared/application/ports/speech-synthesizer.port.js';
 import { isAuthor } from '../../../common/authoring-roles.js';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
@@ -33,6 +37,7 @@ export class NarrationController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly config: ConfigService<AppConfig>,
+    @Inject(VOICE_RESOLVER) private readonly voices: IVoiceResolver,
   ) {}
 
   @Get('defaults')
@@ -44,7 +49,7 @@ export class NarrationController {
       'range each setting accepts.',
   })
   @ApiResponse({ status: 200, type: NarrationDefaultsResponseDto })
-  defaults(): NarrationDefaultsResponseDto {
+  defaults(@Query('lang') lang = 'nb'): NarrationDefaultsResponseDto {
     const tts = this.config.get<AppConfig['tts']>('tts')!;
     return {
       fallback: { lengthScale: tts.narrationLengthScale, pauseScale: DEFAULT_PAUSE_SCALE },
@@ -54,6 +59,12 @@ export class NarrationController {
           { lengthScale, pauseScale: DEFAULT_PAUSE_SCALE },
         ]),
       ),
+      voices: this.voices.list(lang).map((voice, index) => ({
+        id: voice.id,
+        name: voice.name,
+        gender: voice.gender,
+        isDefault: index === 0,
+      })),
       min: { lengthScale: LENGTH_SCALE_RANGE.min, pauseScale: PAUSE_SCALE_RANGE.min },
       max: { lengthScale: LENGTH_SCALE_RANGE.max, pauseScale: PAUSE_SCALE_RANGE.max },
     };
@@ -85,6 +96,7 @@ export class NarrationController {
         dto.level ?? null,
         dto.lengthScale ?? null,
         dto.pauseScale ?? null,
+        dto.voiceId ?? null,
       ),
     );
     if (result.isFail) throw new UnprocessableEntityException(result.error);

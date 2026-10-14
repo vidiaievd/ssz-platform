@@ -15,6 +15,8 @@ export class RequestNarrationCommand {
     /** The author's own pace and pauses; each falls back to the level's default. */
     public readonly lengthScale: number | null = null,
     public readonly pauseScale: number | null = null,
+    /** The narrator's catalog id; null is the default voice of the language. */
+    public readonly voiceId: string | null = null,
   ) {}
 }
 
@@ -23,6 +25,8 @@ export interface RequestNarrationResult {
   /** PENDING_UPLOAD while speaking; then the usual UPLOADED → PROCESSING → READY. */
   status: string;
   voice: string;
+  /** The catalog id of the narrator. */
+  voiceId: string;
   textHash: string;
   /** The pace and pauses the narration is spoken with — chosen or the level's default. */
   lengthScale: number;
@@ -35,6 +39,7 @@ export type RequestNarrationError =
   | 'EMPTY_TEXT'
   | 'TEXT_TOO_LONG'
   | 'LANGUAGE_NOT_SUPPORTED'
+  | 'VOICE_NOT_AVAILABLE'
   | MediaAssetDomainError;
 
 export type RequestNarrationOutcome = Result<RequestNarrationResult, RequestNarrationError>;

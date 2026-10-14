@@ -14,10 +14,12 @@ export interface RenderedNarration {
   wav: Buffer;
   durationMs: number;
   provider: string;
-  /** The narrator's voice. */
+  /** The narrator's voice model. */
   voice: string;
-  /** Speakers that were given a voice other than the narrator's; absent while there is one voice. */
-  voices?: Record<string, string>;
+  /** The narrator's catalog id. */
+  voiceId: string;
+  /** The speaker inside a multi-speaker model, when the narrator is one. */
+  speaker?: string;
 }
 
 /**
@@ -39,23 +41,33 @@ export class NarrationRenderer {
     lang: string,
     segments: readonly NarrationSegment[],
     delivery: NarrationStyle,
+    voiceId?: string,
   ): Promise<RenderedNarration> {
-    const narrator = this.voices.resolve(lang, null);
+    const narrator = voiceId ? this.voices.byId(lang, voiceId) : this.voices.resolve(lang, null);
     if (!narrator) throw new Error(`no voice speaks ${lang}`);
     if (segments.length === 0) throw new Error('nothing to narrate');
 
     const tts = this.config.get<AppConfig['tts']>('tts')!;
     // The rhythm's randomness is the same for everyone; pace and pauses are the author's to set.
-    const style = { lengthScale: delivery.lengthScale, noiseWScale: tts.narrationNoiseWScale };
-    const speakerVoices: Record<string, string> = {};
+    // `lengthScale` is relative to the voice's natural pace; the voice's factor evens the voices out.
+    const style = {
+      lengthScale: Math.round(delivery.lengthScale * narrator.paceFactor * 1000) / 1000,
+      noiseWScale: tts.narrationNoiseWScale,
+    };
     const parts: Buffer[] = [];
     let format: PcmFormat | null = null;
 
     for (const [index, segment] of segments.entries()) {
-      const voice = segment.speaker ? (this.voices.resolve(lang, segment.speaker) ?? narrator) : narrator;
-      if (segment.speaker && voice.voice !== narrator.voice) speakerVoices[segment.speaker] = voice.voice;
-
-      const pcm: Pcm = parseWav(await this.synthesizer.synthesize({ text: segment.text, voice: voice.voice, lang, style }));
+      // A character speaks with the narrator's voice until a per-character map exists (D1).
+      const pcm: Pcm = parseWav(
+        await this.synthesizer.synthesize({
+          text: segment.text,
+          voice: narrator.voice,
+          ...(narrator.speaker ? { speaker: narrator.speaker } : {}),
+          lang,
+          style,
+        }),
+      );
       if (!format) {
         format = pcm;
       } else if (!sameFormat(format, pcm)) {
@@ -72,7 +84,8 @@ export class NarrationRenderer {
       durationMs: pcmDurationMs(joined),
       provider: this.synthesizer.provider,
       voice: narrator.voice,
-      ...(Object.keys(speakerVoices).length > 0 ? { voices: speakerVoices } : {}),
+      voiceId: narrator.id,
+      ...(narrator.speaker ? { speaker: narrator.speaker } : {}),
     };
   }
 }

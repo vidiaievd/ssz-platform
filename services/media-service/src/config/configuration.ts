@@ -51,6 +51,11 @@ export const envSchema = z.object({
   // Piper TTS (pronunciation synthesis)
   PIPER_URL: z.string().default('http://piper-tts:5000'),
   PIPER_VOICE: z.string().default('no_NO-talesyntese-medium'),
+  // Catalog ids (`nvcc-kon`, …) not offered to authors — a voice that sounds regional or poor.
+  TTS_HIDDEN_VOICES: z
+    .string()
+    .default('')
+    .transform((value) => value.split(',').map((id) => id.trim()).filter(Boolean)),
   PIPER_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
   // A pronunciation is a word or a short phrase; anything longer is a misuse
   // of the endpoint, not a vocabulary item.
@@ -156,6 +161,7 @@ export interface AppConfig {
   tts: {
     piperUrl: string;
     piperVoice: string;
+    hiddenVoices: string[];
     piperTimeoutMs: number;
     maxTextLength: number;
     narrationMaxChars: number;
@@ -229,6 +235,7 @@ export default (): AppConfig => {
     tts: {
       piperUrl: env.PIPER_URL,
       piperVoice: env.PIPER_VOICE,
+      hiddenVoices: env.TTS_HIDDEN_VOICES,
       piperTimeoutMs: env.PIPER_TIMEOUT_MS,
       maxTextLength: env.TTS_MAX_TEXT_LENGTH,
       narrationMaxChars: env.NARRATION_MAX_CHARS,

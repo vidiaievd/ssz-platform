@@ -50,6 +50,12 @@ export class AssetSynthesisResponseDto {
 
   @ApiPropertyOptional({ example: 'B1', description: 'The course level the pace default came from' })
   level?: string;
+
+  @ApiPropertyOptional({ example: 'nvcc-kon', description: 'The catalog id of the narrator' })
+  voiceId?: string;
+
+  @ApiPropertyOptional({ example: 'KON', description: 'The speaker inside a multi-speaker voice model' })
+  speaker?: string;
 }
 
 export class AssetResponseDto {

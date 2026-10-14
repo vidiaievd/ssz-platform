@@ -38,6 +38,7 @@ export class HttpMediaNarrationClient implements IMediaNarrationClient {
         textHash: string | null;
         lengthScale: number | null;
         pauseScale: number | null;
+        voiceId: string | null;
       }>;
       for (const row of rows) found.set(row.id, {
           status: row.status,
@@ -45,6 +46,7 @@ export class HttpMediaNarrationClient implements IMediaNarrationClient {
           textHash: row.textHash,
           lengthScale: row.lengthScale,
           pauseScale: row.pauseScale,
+          voiceId: row.voiceId,
         });
     }
     return found;

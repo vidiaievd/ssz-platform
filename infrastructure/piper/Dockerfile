@@ -10,6 +10,10 @@ ARG PIPER_VERSION=1.6.0
 # Norwegian is published as `no_NO`, not `nb_NO` — the voice covers Bokmål.
 ARG VOICE=no_NO-talesyntese-medium
 ARG VOICE_PATH=no/no_NO/talesyntese/medium
+# Ten more Norwegian speakers (five female, five male) in one multi-speaker model. CC0 data
+# (Språkbanken's NVCC), trained from scratch. Chosen per request: `voice` + `speaker`.
+ARG EXTRA_VOICE=no_NO-nvcc-medium
+ARG EXTRA_VOICE_PATH=no/no_NO/nvcc/medium
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -29,6 +33,11 @@ RUN mkdir -p ${PIPER_DATA_DIR} \
        "https://huggingface.co/rhasspy/piper-voices/resolve/main/${VOICE_PATH}/${VOICE}.onnx" \
     && curl -fsSL -o ${PIPER_DATA_DIR}/${VOICE}.onnx.json \
        "https://huggingface.co/rhasspy/piper-voices/resolve/main/${VOICE_PATH}/${VOICE}.onnx.json"
+
+RUN curl -fsSL -o ${PIPER_DATA_DIR}/${EXTRA_VOICE}.onnx \
+       "https://huggingface.co/rhasspy/piper-voices/resolve/main/${EXTRA_VOICE_PATH}/${EXTRA_VOICE}.onnx" \
+    && curl -fsSL -o ${PIPER_DATA_DIR}/${EXTRA_VOICE}.onnx.json \
+       "https://huggingface.co/rhasspy/piper-voices/resolve/main/${EXTRA_VOICE_PATH}/${EXTRA_VOICE}.onnx.json"
 
 EXPOSE 5000
 

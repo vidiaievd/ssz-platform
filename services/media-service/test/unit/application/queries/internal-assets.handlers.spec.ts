@@ -64,6 +64,7 @@ describe('DescribeAssetsHandler', () => {
         textHash: null,
         lengthScale: null,
         pauseScale: null,
+        voiceId: null,
       },
       expect.objectContaining({ id: failed.id, status: 'FAILED', durationMs: null }),
     ]);
