@@ -17,6 +17,10 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { GetAssetQuery, type GetAssetResult } from '../../application/queries/get-asset/get-asset.query.js';
+import {
+  GetPreviousAssetQuery,
+  type GetPreviousAssetResult,
+} from '../../application/queries/get-previous-asset/get-previous-asset.query.js';
 import { ListUserAssetsQuery, type ListUserAssetsResult } from '../../application/queries/list-user-assets/list-user-assets.query.js';
 import { DeleteAssetCommand, type DeleteAssetResult } from '../../application/commands/delete-asset/delete-asset.command.js';
 import {
@@ -82,6 +86,24 @@ export class AssetsController {
       throw new NotFoundException('Asset not found');
     }
 
+    return result.value as AssetResponseDto;
+  }
+
+  @Get(':assetId/previous')
+  @ApiOperation({
+    summary: 'The lesson asset this one replaced',
+    description:
+      'The most recently replaced asset whose `supersededBy` is this one and that is not deleted yet — ' +
+      'what "restore the previous narration" goes back to. 404 when there is none or it is gone.',
+  })
+  @ApiResponse({ status: 200, type: AssetResponseDto })
+  @ApiResponse({ status: 404, description: 'Nothing to go back to' })
+  async getPrevious(
+    @Param('assetId') assetId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<AssetResponseDto> {
+    const result: GetPreviousAssetResult = await this.queryBus.execute(new GetPreviousAssetQuery(assetId, user.userId));
+    if (result.isFail) throw new NotFoundException('No previous asset');
     return result.value as AssetResponseDto;
   }
 

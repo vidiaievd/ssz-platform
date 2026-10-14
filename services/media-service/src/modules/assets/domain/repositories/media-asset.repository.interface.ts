@@ -49,6 +49,8 @@ export interface IMediaAssetRepository {
     after: SupersededSweepCursor | null,
     limit: number,
   ): Promise<MediaAssetEntity[]>;
+  /** The not-deleted asset most recently replaced by `assetId` — what "go back" returns to. */
+  findReplacedBy(assetId: string): Promise<MediaAssetEntity | null>;
   save(asset: MediaAssetEntity): Promise<void>;
   delete(id: string): Promise<void>;
 }

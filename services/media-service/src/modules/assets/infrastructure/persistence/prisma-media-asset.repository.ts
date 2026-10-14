@@ -108,6 +108,14 @@ export class PrismaMediaAssetRepository implements IMediaAssetRepository {
     return rows.map((row) => MediaAssetMapper.toDomain(row));
   }
 
+  async findReplacedBy(assetId: string): Promise<MediaAssetEntity | null> {
+    const row = await this.prisma.mediaAsset.findFirst({
+      where: { supersededBy: assetId, status: { not: 'DELETED' } },
+      orderBy: { supersededAt: 'desc' },
+    });
+    return row ? MediaAssetMapper.toDomain(row) : null;
+  }
+
   async save(entity: MediaAssetEntity): Promise<void> {
     const exists = await this.prisma.mediaAsset.findUnique({
       where: { id: entity.id },

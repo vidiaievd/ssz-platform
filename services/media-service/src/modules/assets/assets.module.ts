@@ -11,6 +11,7 @@ import { DeleteAssetHandler } from './application/commands/delete-asset/delete-a
 import { GetAssetHandler } from './application/queries/get-asset/get-asset.handler.js';
 import { ListUserAssetsHandler } from './application/queries/list-user-assets/list-user-assets.handler.js';
 import { DescribeAssetsHandler } from './application/queries/describe-assets/describe-assets.handler.js';
+import { GetPreviousAssetHandler } from './application/queries/get-previous-asset/get-previous-asset.handler.js';
 import { GetPlaybackHandler } from './application/queries/get-playback/get-playback.handler.js';
 import { AssetPurger } from './application/services/asset-purger.js';
 import { SweepOrphanRecordingsService } from './application/services/sweep-orphan-recordings.service.js';
@@ -48,6 +49,7 @@ import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from '../../infrastruc
     ListUserAssetsHandler,
     DescribeAssetsHandler,
     GetPlaybackHandler,
+    GetPreviousAssetHandler,
     {
       provide: MEDIA_ASSET_REPOSITORY,
       useClass: PrismaMediaAssetRepository,
