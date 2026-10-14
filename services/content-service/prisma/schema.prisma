@@ -600,7 +600,8 @@ model VocabularyList {
   updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz
 
-  items VocabularyItem[]
+  items         VocabularyItem[]
+  personalOwner PersonalVocabularyList?
 
   @@index([ownerUserId])
   @@index([ownerSchoolId])
@@ -630,10 +631,11 @@ model VocabularyItem {
   updatedAt                 DateTime      @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt                 DateTime?     @map("deleted_at") @db.Timestamptz
 
-  vocabularyList VocabularyList              @relation(fields: [vocabularyListId], references: [id], onDelete: Cascade)
-  translations   VocabularyItemTranslation[]
-  usageExamples  VocabularyUsageExample[]
-  glossaryMarks  LessonVariantGlossaryMark[]
+  vocabularyList  VocabularyList              @relation(fields: [vocabularyListId], references: [id], onDelete: Cascade)
+  translations    VocabularyItemTranslation[]
+  usageExamples   VocabularyUsageExample[]
+  glossaryMarks   LessonVariantGlossaryMark[]
+  personalEntries PersonalVocabularyEntry[]
 
   @@unique([vocabularyListId, position])
   @@unique([vocabularyListId, word])
@@ -700,6 +702,51 @@ model VocabularyExampleTranslation {
   @@unique([vocabularyUsageExampleId, translationLanguage])
   @@index([vocabularyUsageExampleId])
   @@map("vocabulary_example_translations")
+}
+
+// ─── Personal vocabulary (plan 75) ────────────────────────────────────────────
+
+// The private list that holds the words a student added themselves, one per user and
+// language, created on the first word that matches nothing in the catalogue. A mapping
+// row rather than a column on VocabularyList, so the vocabulary module's entity, mapper
+// and authoring screens stay unaware of it — to them it is just a private list.
+model PersonalVocabularyList {
+  userId           String   @map("user_id") @db.Uuid
+  targetLanguage   String   @map("target_language") @db.VarChar(10)
+  vocabularyListId String   @unique @map("vocabulary_list_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  vocabularyList VocabularyList @relation(fields: [vocabularyListId], references: [id], onDelete: Cascade)
+
+  @@id([userId, targetLanguage])
+  @@map("personal_vocabulary_lists")
+}
+
+// One word a student put into their own dictionary from a text. It points at a
+// vocabulary item: a catalogue item when the selected form matched one that carries a
+// translation, otherwise an item of the student's PersonalVocabularyList. Whether it is
+// still waiting for a translation is computed on read, never stored.
+//
+// source_variant_id has no FK: the lesson may be deleted and the word must stay.
+model PersonalVocabularyEntry {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  targetLanguage   String   @map("target_language") @db.VarChar(10)
+  vocabularyItemId String   @map("vocabulary_item_id") @db.Uuid
+  surfaceForm      String   @map("surface_form") @db.VarChar(200)
+  contextSentence  String?  @map("context_sentence") @db.Text
+  sourceVariantId  String?  @map("source_variant_id") @db.Uuid
+  sourceParagraph  Int?     @map("source_paragraph")
+  sourceCharStart  Int?     @map("source_char_start")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  vocabularyItem VocabularyItem @relation(fields: [vocabularyItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, vocabularyItemId])
+  @@index([userId, targetLanguage, createdAt])
+  @@index([sourceVariantId])
+  @@map("personal_vocabulary_entries")
 }
 
 // ─── Block 4 Enums ─────────────────────────────────────────────────────────────
