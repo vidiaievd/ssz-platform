@@ -14,6 +14,8 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import type { PrismaService } from '../src/infrastructure/database/prisma.service.js';
 import { GetContainerCoverageHandler } from '../src/modules/container/application/queries/get-container-coverage/get-container-coverage.handler.js';
 import { PrismaExerciseAxesService } from '../src/shared/skills/infrastructure/prisma-exercise-axes.service.js';
+import { CoverageRecipeResolver } from '../src/modules/container/application/services/coverage-recipe-resolver.service.js';
+import { PrismaWorkspaceCoverageRecipeRepository } from '../src/modules/coverage-recipe/infrastructure/persistence/prisma-workspace-coverage-recipe.repository.js';
 
 /** Only the four CEFR skills exist as an axis and as a descriptor dimension alike. */
 type CanDoSkill = 'LISTENING' | 'READING' | 'SPOKEN' | 'WRITTEN';
@@ -74,6 +76,7 @@ export async function linkModulesToCanDo(
   const coverage = new GetContainerCoverageHandler(
     prisma as PrismaService,
     new PrismaExerciseAxesService(prisma as PrismaService),
+    new CoverageRecipeResolver(new PrismaWorkspaceCoverageRecipeRepository(prisma as PrismaService)),
   );
 
   let targets = 0;

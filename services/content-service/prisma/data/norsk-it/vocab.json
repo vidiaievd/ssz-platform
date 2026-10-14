@@ -1,0 +1,528 @@
+{
+  "1A": {
+    "title": "1A — Stillingsannonsen",
+    "words": [
+      {
+        "word": "backend-utvikler",
+        "partOfSpeech": "NOUN",
+        "translation": "backend-разработчик",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "backend-utvikleren",
+          "plural_form": "backend-utviklere",
+          "definite_plural": "backend-utviklerne"
+        }
+      },
+      {
+        "word": "netthandelsløsning",
+        "partOfSpeech": "NOUN",
+        "translation": "решение для интернет-торговли",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "netthandelsløsningen",
+          "plural_form": "netthandelsløsninger",
+          "definite_plural": "netthandelsløsningene"
+        }
+      },
+      {
+        "word": "fordelt (på)",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "распределённый (по)"
+      },
+      {
+        "word": "smidig",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "гибкий, agile",
+        "grammaticalProperties": {
+          "neuter_form": "smidig",
+          "plural_form": "smidige"
+        }
+      },
+      {
+        "word": "grunnleggende",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "базовый, основополагающий"
+      },
+      {
+        "word": "relasjonsdatabase",
+        "partOfSpeech": "NOUN",
+        "translation": "реляционная база данных",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "relasjonsdatabasen",
+          "plural_form": "relasjonsdatabaser",
+          "definite_plural": "relasjonsdatabasene"
+        }
+      },
+      {
+        "word": "arbeidsflyt",
+        "partOfSpeech": "NOUN",
+        "translation": "рабочий процесс",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "arbeidsflyten",
+          "plural_form": "arbeidsflyter",
+          "definite_plural": "arbeidsflytene"
+        }
+      },
+      {
+        "word": "pull request",
+        "partOfSpeech": "NOUN",
+        "translation": "пул-реквест (запрос на слияние кода)",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "pull requesten",
+          "plural_form": "pull requests",
+          "definite_plural": "pull requestene"
+        }
+      },
+      {
+        "word": "trives (med)",
+        "partOfSpeech": "VERB",
+        "translation": "чувствовать себя комфортно (с чем-то)",
+        "grammaticalProperties": {
+          "present_tense": "trives",
+          "past_tense": "trivdes",
+          "perfect_tense": "trivdes"
+        }
+      },
+      {
+        "word": "hjemmekontor",
+        "partOfSpeech": "NOUN",
+        "translation": "домашний офис, удалённая работа",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "hjemmekontoret",
+          "plural_form": "hjemmekontorer",
+          "definite_plural": "hjemmekontorene"
+        }
+      },
+      {
+        "word": "pensjonsordning",
+        "partOfSpeech": "NOUN",
+        "translation": "пенсионная программа",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "pensjonsordningen",
+          "plural_form": "pensjonsordninger",
+          "definite_plural": "pensjonsordningene"
+        }
+      },
+      {
+        "word": "forsikringsordning",
+        "partOfSpeech": "NOUN",
+        "translation": "программа страхования",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "forsikringsordningen",
+          "plural_form": "forsikringsordninger",
+          "definite_plural": "forsikringsordningene"
+        }
+      },
+      {
+        "word": "flat struktur",
+        "partOfSpeech": "PHRASE",
+        "translation": "плоская структура (управления)"
+      },
+      {
+        "word": "stoppe opp",
+        "partOfSpeech": "VERB",
+        "translation": "остановиться (на чём-то)",
+        "grammaticalProperties": {
+          "present_tense": "stopper opp",
+          "past_tense": "stoppet opp",
+          "perfect_tense": "stoppet opp"
+        }
+      },
+      {
+        "word": "tilsvarende",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "соответствующий, аналогичный"
+      },
+      {
+        "word": "søke uansett",
+        "partOfSpeech": "PHRASE",
+        "translation": "подавать заявку в любом случае"
+      },
+      {
+        "word": "skytjeneste",
+        "partOfSpeech": "NOUN",
+        "translation": "облачный сервис",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "skytjenesten",
+          "plural_form": "skytjenester",
+          "definite_plural": "skytjenestene"
+        }
+      },
+      {
+        "word": "kjennskap (til)",
+        "partOfSpeech": "NOUN",
+        "translation": "знакомство (с чем-то), общее представление",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kjennskapen"
+        }
+      },
+      {
+        "word": "lære opp",
+        "partOfSpeech": "VERB",
+        "translation": "обучать, вводить в курс дела",
+        "grammaticalProperties": {
+          "present_tense": "lærer opp",
+          "past_tense": "lærte opp",
+          "perfect_tense": "lært opp"
+        }
+      }
+    ]
+  },
+  "1B": {
+    "title": "1B — CV og søknad på norsk",
+    "words": [
+      {
+        "word": "profiltekst",
+        "partOfSpeech": "NOUN",
+        "translation": "профильный текст (краткое описание в резюме)",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "profilteksten",
+          "plural_form": "profiltekster",
+          "definite_plural": "profiltekstene"
+        }
+      },
+      {
+        "word": "kulepunkt",
+        "partOfSpeech": "NOUN",
+        "translation": "пункт списка (буллет)",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "kulepunktet",
+          "plural_form": "kulepunkter",
+          "definite_plural": "kulepunktene"
+        }
+      },
+      {
+        "word": "forespørsel",
+        "partOfSpeech": "NOUN",
+        "translation": "запрос",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "forespørselen",
+          "plural_form": "forespørsler",
+          "definite_plural": "forespørslene"
+        }
+      },
+      {
+        "word": "håndtere",
+        "partOfSpeech": "VERB",
+        "translation": "обрабатывать, справляться с (задачей)",
+        "grammaticalProperties": {
+          "present_tense": "håndterer",
+          "past_tense": "håndterte",
+          "perfect_tense": "håndtert"
+        }
+      },
+      {
+        "word": "strukturere",
+        "partOfSpeech": "VERB",
+        "translation": "структурировать",
+        "grammaticalProperties": {
+          "present_tense": "strukturerer",
+          "past_tense": "strukturerte",
+          "perfect_tense": "strukturert"
+        }
+      },
+      {
+        "word": "søknadsbrev",
+        "partOfSpeech": "NOUN",
+        "translation": "сопроводительное письмо",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "søknadsbrevet",
+          "plural_form": "søknadsbrev",
+          "definite_plural": "søknadsbrevene"
+        }
+      },
+      {
+        "word": "overdrive",
+        "partOfSpeech": "VERB",
+        "translation": "преувеличивать",
+        "grammaticalProperties": {
+          "present_tense": "overdriver",
+          "past_tense": "overdrev",
+          "perfect_tense": "overdrevet"
+        }
+      },
+      {
+        "word": "vending",
+        "partOfSpeech": "NOUN",
+        "translation": "оборот речи",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "vendingen",
+          "plural_form": "vendinger",
+          "definite_plural": "vendingene"
+        }
+      },
+      {
+        "word": "nøktern",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "сдержанный, скромный",
+        "grammaticalProperties": {
+          "neuter_form": "nøkternt",
+          "plural_form": "nøkterne"
+        }
+      },
+      {
+        "word": "skryte",
+        "partOfSpeech": "VERB",
+        "translation": "хвастаться",
+        "grammaticalProperties": {
+          "present_tense": "skryter",
+          "past_tense": "skrøt",
+          "perfect_tense": "skrytt"
+        }
+      },
+      {
+        "word": "korte ned",
+        "partOfSpeech": "VERB",
+        "translation": "сократить",
+        "grammaticalProperties": {
+          "present_tense": "korter ned",
+          "past_tense": "kortet ned",
+          "perfect_tense": "kortet ned"
+        }
+      },
+      {
+        "word": "ferdighet",
+        "partOfSpeech": "NOUN",
+        "translation": "навык",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "ferdigheten",
+          "plural_form": "ferdigheter",
+          "definite_plural": "ferdighetene"
+        }
+      },
+      {
+        "word": "flytende (om språk)",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "свободный (о владении языком)"
+      },
+      {
+        "word": "ubevisst",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "неосознанный"
+      },
+      {
+        "word": "utseende",
+        "partOfSpeech": "NOUN",
+        "translation": "внешность",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "utseendet"
+        }
+      },
+      {
+        "word": "vedlikeholde",
+        "partOfSpeech": "VERB",
+        "translation": "обслуживать, поддерживать в порядке",
+        "grammaticalProperties": {
+          "present_tense": "vedlikeholder",
+          "past_tense": "vedlikeholdt",
+          "perfect_tense": "vedlikeholdt"
+        }
+      }
+    ]
+  },
+  "1C": {
+    "title": "1C — Jobbintervjuet",
+    "words": [
+      {
+        "word": "resepsjon",
+        "partOfSpeech": "NOUN",
+        "translation": "ресепшн, стойка регистрации",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "resepsjonen",
+          "plural_form": "resepsjoner",
+          "definite_plural": "resepsjonene"
+        }
+      },
+      {
+        "word": "designe",
+        "partOfSpeech": "VERB",
+        "translation": "проектировать",
+        "grammaticalProperties": {
+          "present_tense": "designer",
+          "past_tense": "designet",
+          "perfect_tense": "designet"
+        }
+      },
+      {
+        "word": "databasestruktur",
+        "partOfSpeech": "NOUN",
+        "translation": "структура базы данных",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "databasestrukturen",
+          "plural_form": "databasestrukturer",
+          "definite_plural": "databasestrukturene"
+        }
+      },
+      {
+        "word": "optimalisere",
+        "partOfSpeech": "VERB",
+        "translation": "оптимизировать",
+        "grammaticalProperties": {
+          "present_tense": "optimaliserer",
+          "past_tense": "optimaliserte",
+          "perfect_tense": "optimalisert"
+        }
+      },
+      {
+        "word": "spørring",
+        "partOfSpeech": "NOUN",
+        "translation": "запрос (к базе данных)",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "spørringen",
+          "plural_form": "spørringer",
+          "definite_plural": "spørringene"
+        }
+      },
+      {
+        "word": "problemløsning",
+        "partOfSpeech": "NOUN",
+        "translation": "решение проблем",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "problemløsningen",
+          "plural_form": "problemløsninger",
+          "definite_plural": "problemløsningene"
+        }
+      },
+      {
+        "word": "code review",
+        "partOfSpeech": "NOUN",
+        "translation": "код-ревью",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "code reviewen",
+          "plural_form": "code reviewer",
+          "definite_plural": "code reviewene"
+        }
+      },
+      {
+        "word": "holdning",
+        "partOfSpeech": "NOUN",
+        "translation": "отношение, позиция",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "holdningen",
+          "plural_form": "holdninger",
+          "definite_plural": "holdningene"
+        }
+      },
+      {
+        "word": "i stor skala",
+        "partOfSpeech": "PHRASE",
+        "translation": "в большом масштабе"
+      },
+      {
+        "word": "stille seg (til noe)",
+        "partOfSpeech": "VERB",
+        "translation": "относиться (к чему-то)",
+        "grammaticalProperties": {
+          "present_tense": "stiller seg",
+          "past_tense": "stilte seg",
+          "perfect_tense": "stilt seg"
+        }
+      },
+      {
+        "word": "arbeidsrutine",
+        "partOfSpeech": "NOUN",
+        "translation": "рабочая рутина",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "arbeidsrutinen",
+          "plural_form": "arbeidsrutiner",
+          "definite_plural": "arbeidsrutinene"
+        }
+      },
+      {
+        "word": "standup-møte",
+        "partOfSpeech": "NOUN",
+        "translation": "стендап-встреча",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "standup-møtet",
+          "plural_form": "standup-møter",
+          "definite_plural": "standup-møtene"
+        }
+      },
+      {
+        "word": "produkteier",
+        "partOfSpeech": "NOUN",
+        "translation": "владелец продукта (product owner)",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "produkteieren",
+          "plural_form": "produkteiere",
+          "definite_plural": "produkteierne"
+        }
+      },
+      {
+        "word": "forsiktig optimist",
+        "partOfSpeech": "PHRASE",
+        "translation": "осторожный оптимист"
+      }
+    ]
+  },
+  "1D": {
+    "title": "1D — Tilbudet og lønnsforhandlingen",
+    "words": [
+      {
+        "word": "startlønn",
+        "partOfSpeech": "NOUN",
+        "translation": "стартовая зарплата",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "startlønnen",
+          "plural_form": "startlønner",
+          "definite_plural": "startlønnene"
+        }
+      },
+      {
+        "word": "lønnsvurdering",
+        "partOfSpeech": "NOUN",
+        "translation": "пересмотр зарплаты",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "lønnsvurderingen",
+          "plural_form": "lønnsvurderinger",
+          "definite_plural": "lønnsvurderingene"
+        }
+      },
+      {
+        "word": "innskuddspensjon",
+        "partOfSpeech": "NOUN",
+        "translation": "накопительная пенсия",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "innskuddspensjonen"
+        }
+      },
+      {
+        "word": "strekke seg (til)",
+        "partOfSpeech": "VERB",
+        "translation": "пойти навстречу (до какого-то предела)",
+        "grammaticalProperties": {
+          "present_tense": "strekker seg",
+          "past_tense": "strakk seg",
+          "perfect_tense": "strukket seg"
+        }
+      }
+    ]
+  }
+}

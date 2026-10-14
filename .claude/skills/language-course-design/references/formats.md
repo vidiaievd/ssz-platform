@@ -1,0 +1,127 @@
+# Course file formats
+
+All paths are relative to the course directory (e.g. `docs/courses/norsk_it/`).
+The scripts read these formats; if a course deviates, add a `course.json`
+rather than renaming files.
+
+## Contents
+1. Layout and `course.json`
+2. Word list with status column
+3. Known-words file
+4. Grammar spine
+5. Audit reports
+
+---
+
+## 1. Layout and `course.json`
+
+```
+<course>/
+├── <kursplan>.md            # plan: units, level, decisions (free form)
+├── course.json              # optional, only if layout/language differ from defaults
+├── kjente_ord.md            # known words (lower level), see §3
+├── grammatikk_ryggrad.md    # grammar spine, see §4
+├── AUDIT_recycling.md       # generated + hand-written "what was done" header
+├── AUDIT_grammatikk.md      # grammar audit snapshot
+└── leksjon_01/ … leksjon_NN/
+    ├── 01_tekster.md        # texts: '## 1A — Title' per sub-lesson
+    ├── 02_ordliste.md       # word lists: '## 1A — Title' + table per sub-lesson
+    ├── 03_grammatikk.md     # one grammar/register topic per unit
+    └── 04_oppgaver.md       # exercises with keys: '## ØVELSER TIL 1A — …'
+```
+
+Sub-lesson keys are `<unit number><A-D>` (`1A`, `12C`). Every file that is
+split per sub-lesson uses a level-2 header that starts with that key.
+
+Defaults (Norwegian, norsk_it layout) and an English override:
+
+```json
+{"lang": "en", "unit_glob": "unit_*", "texts": "01_texts.md",
+ "words": "02_wordlist.md", "tasks": "04_exercises.md",
+ "task_header": "EXERCISES FOR", "known": "known_words.md",
+ "spine": "grammar_spine.md", "near": 4, "far": 8}
+```
+
+`lang` selects the word-form heuristics in `scripts/course_lib.py`
+(`nb`, `en`; add a profile there for a new language). `near`/`far` are the
+recycling windows in sub-lessons (see norms.md).
+
+## 2. Word list with status column
+
+```markdown
+## 3A — Smidig eller foss?
+
+| Norsk | Русский | Статус |
+|---|---|:-:|
+| en kravspesifikasjon | техническое задание | A |
+| en fossefallsmetode | waterfall-метод | R |
+| en kjede (butikkjede) | сеть (магазинов) | G |
+```
+
+- **A — active.** The learner must produce it. Gets the full recycling
+  schedule and must appear in an exercise of its own sub-lesson.
+- **R — receptive.** Recognising is enough: ≥ 3 encounters, one of them
+  after its own sub-lesson.
+- **G — gloss.** Needed for this one text only; not tracked.
+
+Rules the audit enforces:
+- a word is declared new **once** per course (first sub-lesson where it is
+  used in a text);
+- it must occur in its own sub-lesson's text;
+- lower-level words do not belong here — they go to the known-words file.
+
+Headword conventions the matcher understands: articles/infinitive markers
+(`en/ei/et/å`, `a/an/the/to`) are stripped; text in parentheses is a hint and
+ignored (`å logge (en feil)`); `seg` / `oneself` match any reflexive; a
+multi-word item may have up to two words inserted between its parts
+(`lære … opp`).
+
+## 3. Known-words file (`kjente_ord.md`)
+
+Words that occur in the texts but are assumed known from lower levels. One
+table for the whole course:
+
+```markdown
+| Norsk | Русский | Встречается с | Статус | Источник |
+|---|---|:-:|:-:|---|
+| en frist | срок, дедлайн | 2C | A | оценка: общая лексика ≤ B1 |
+| et budsjett | бюджет | 1D | A | курс Norsk B1, 3C |
+```
+
+- *Встречается с* — first sub-lesson where the word appears in a text; the
+  audit tracks its recycling from there.
+- *Статус* keeps the importance: a known **A** word (frist, beslutning) is
+  still a recycling target, it just isn't taught as new.
+- *Источник* — a base course (objective) or "оценка" (expert judgement, to be
+  confirmed by the author).
+- **Exception — new meaning stays new.** If the course uses a known word in a
+  new sense (nettverk: social circle → computer network; behandle: treat a
+  person → process data), it stays in the sub-lesson's word list.
+
+## 4. Grammar spine (`grammatikk_ryggrad.md`)
+
+One section per topic; regex markers are in backticks. A literal space in a
+marker matches any whitespace (texts wrap lines).
+
+```markdown
+### G6 — Indirekte tale i møtereferat
+- Введена: 6
+- Опирается на: V2 / leddsetning (B1), G2
+- Маркеры: `\b(?:sa|mente|spurte|forklarte|foreslo)\s+(?:\w+\s+){0,3}?(?:at|om)\b`
+```
+
+- Markers catch the typical surface form, not the whole topic — a count is a
+  signal. Topics without a reliable surface form (word formation) get
+  `Маркеры: —` and are checked by reading.
+- Before trusting the numbers run `grammar_audit.py <course> --hits G6` and
+  look at the matches. Typical marker bugs found in the pilot: inversion
+  (`vil jeg gjerne` vs `vil gjerne`), inserted words (`slappe helt av`),
+  inflected objects (`kose dere`), a word inserted inside a fixed phrase
+  (`har også rett til`).
+
+## 5. Audit reports
+
+`AUDIT_recycling.md`: a hand-written header (what was decided and done, per
+step, with dates) followed by `## Сводка` — everything from `## Сводка` down
+is regenerated by `make_report.py`. Keep known false positives explained in
+the header so the next run does not "fix" them again.
