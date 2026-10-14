@@ -32,6 +32,8 @@ interface WordRow {
   source_variant_id: string | null;
   source_paragraph: number | null;
   source_char_start: number | null;
+  deck_list_id: string | null;
+  deck_title: string | null;
   created_at: Date;
 }
 
@@ -108,6 +110,7 @@ export class PrismaPersonalVocabularyReader implements IPersonalVocabularyReader
              i.part_of_speech::text AS part_of_speech, t.primary_translation AS translation,
              (p.user_id IS NOT NULL) AS own_word,
              e.context_sentence, e.source_variant_id, e.source_paragraph, e.source_char_start,
+             deck.list_id AS deck_list_id, deck.title AS deck_title,
              e.created_at
         FROM personal_vocabulary_entries e
         JOIN vocabulary_items i ON i.id = e.vocabulary_item_id
@@ -115,6 +118,27 @@ export class PrismaPersonalVocabularyReader implements IPersonalVocabularyReader
                ON t.vocabulary_item_id = i.id AND t.translation_language = ${filter.translationLanguage}
         LEFT JOIN personal_vocabulary_lists p
                ON p.vocabulary_list_id = i.vocabulary_list_id AND p.user_id = e.user_id
+        -- The deck the word joins (D7): the first vocabulary list of the module its source
+        -- lesson sits in, by the same rule as listItemIdsForModuleList. The published
+        -- version names it when there is one, the newest draft otherwise.
+        LEFT JOIN LATERAL (
+          SELECT l.id AS list_id, l.title
+            FROM lesson_content_variants v
+            JOIN container_items li ON li.item_type = 'lesson' AND li.item_id = v.lesson_id
+            JOIN container_versions cv
+              ON cv.id = li.container_version_id AND cv.status <> 'archived'
+            JOIN LATERAL (
+                   SELECT ci.item_id
+                     FROM container_items ci
+                    WHERE ci.container_version_id = cv.id AND ci.item_type = 'vocabulary_list'
+                    ORDER BY ci.position
+                    LIMIT 1
+                 ) first_list ON true
+            JOIN vocabulary_lists l ON l.id = first_list.item_id AND l.deleted_at IS NULL
+           WHERE v.id = e.source_variant_id
+           ORDER BY (cv.status = 'published') DESC, cv.version_number DESC
+           LIMIT 1
+        ) deck ON true
        WHERE ${Prisma.join(conditions, ' AND ')}
        ORDER BY e.created_at DESC, e.id`;
 
@@ -131,6 +155,7 @@ export class PrismaPersonalVocabularyReader implements IPersonalVocabularyReader
       sourceVariantId: r.source_variant_id,
       sourceParagraph: r.source_paragraph,
       sourceCharStart: r.source_char_start,
+      deck: r.deck_list_id ? { vocabularyListId: r.deck_list_id, title: r.deck_title ?? '' } : null,
       createdAt: r.created_at,
     }));
   }

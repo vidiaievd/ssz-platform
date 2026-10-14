@@ -13,6 +13,13 @@ export class PersonalWordSourceDto {
   charStart: number | null;
 }
 
+export class PersonalWordDeckDto {
+  @ApiProperty({ format: 'uuid' })
+  vocabularyListId: string;
+  @ApiProperty({ example: '1A — Stillingsannonsen' })
+  title: string;
+}
+
 export class PersonalWordResponseDto {
   @ApiProperty({ format: 'uuid' })
   entryId: string;
@@ -47,6 +54,13 @@ export class PersonalWordResponseDto {
   @ApiPropertyOptional({ type: PersonalWordSourceDto, nullable: true })
   source: PersonalWordSourceDto | null;
 
+  @ApiPropertyOptional({
+    type: PersonalWordDeckDto,
+    nullable: true,
+    description: 'The unit deck the word joins; null when it lives in «My words» alone',
+  })
+  deck: PersonalWordDeckDto | null;
+
   @ApiProperty()
   createdAt: string;
 
@@ -72,6 +86,7 @@ export class PersonalWordResponseDto {
             paragraphIndex: view.sourceParagraph,
             charStart: view.sourceCharStart,
           };
+    dto.deck = view.deck;
     dto.createdAt = view.createdAt.toISOString();
     return dto;
   }

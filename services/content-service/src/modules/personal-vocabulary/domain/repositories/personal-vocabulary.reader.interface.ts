@@ -27,6 +27,11 @@ export interface PersonalWordView {
   sourceVariantId: string | null;
   sourceParagraph: number | null;
   sourceCharStart: number | null;
+  /**
+   * The unit deck the word joins (plan 75, D7) — null for a word met outside a course, or
+   * in a lesson whose module has no vocabulary list. It then lives in «My words» alone.
+   */
+  deck: { vocabularyListId: string; title: string } | null;
   createdAt: Date;
 }
 
