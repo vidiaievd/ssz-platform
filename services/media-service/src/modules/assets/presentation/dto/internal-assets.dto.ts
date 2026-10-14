@@ -46,6 +46,32 @@ export class AssetDescriptionDto {
 
   @ApiPropertyOptional({ example: 24300, nullable: true, type: Number, description: 'Measured length, ms' })
   durationMs!: number | null;
+
+  @ApiProperty({ example: 'SYNTHESIZED', enum: ['UPLOAD', 'SYNTHESIZED'] })
+  origin!: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'For a synthesized asset: narrationTextHash of the text it spoke',
+  })
+  textHash!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: Number, description: 'Pace a synthesized narration was spoken with' })
+  lengthScale!: number | null;
+
+  @ApiPropertyOptional({ nullable: true, type: Number, description: 'Pause multiplier it was spoken with' })
+  pauseScale!: number | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String, description: 'Catalog id of the narrator of a synthesized narration' })
+  voiceId!: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    example: { Erik: 'nvcc-mmn', Taras: 'nvcc-kon' },
+    description: 'Speaker → catalog voice id of a synthesized narration\'s dialogue',
+  })
+  speakerVoices!: Record<string, string> | null;
 }
 
 export class AssetPlaybackDto {

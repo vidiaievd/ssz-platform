@@ -1,18 +1,18 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
-import { tmpdir } from 'os';
-import { join } from 'path';
-import ffmpeg = require('fluent-ffmpeg');
-import ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 
 import type { AppConfig } from '../../config/configuration.js';
+import { encodeMp3 } from '../../infrastructure/audio/mp3-encoder.js';
+import { SPEECH_SYNTHESIZER, VOICE_RESOLVER } from '../../shared/application/ports/speech-synthesizer.port.js';
+import type {
+  ISpeechSynthesizer,
+  IVoiceResolver,
+  ResolvedVoice,
+} from '../../shared/application/ports/speech-synthesizer.port.js';
 import { STORAGE_SERVICE } from '../../shared/application/ports/storage.port.js';
 import type { IStorageService } from '../../shared/application/ports/storage.port.js';
 import { Result } from '../../shared/kernel/result.js';
-
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 export type PronunciationError = 'TEXT_TOO_LONG' | 'EMPTY_TEXT' | 'LANGUAGE_NOT_SUPPORTED' | 'SYNTHESIS_FAILED';
 
@@ -21,17 +21,6 @@ export interface PronunciationResult {
   /** False when this request is what produced the audio. */
   cached: boolean;
 }
-
-/**
- * Piper publishes Norwegian under `no_NO`, which covers Bokmål; the reader and
- * the vocabulary lists tag their words `nb`. Mapping happens here rather than
- * at the call site so every caller can keep using the tag its content carries.
- */
-const LANGUAGE_TO_VOICE_KEY: Record<string, string> = {
-  nb: 'no',
-  nn: 'no',
-  no: 'no',
-};
 
 @Injectable()
 export class PronunciationService {
@@ -47,6 +36,8 @@ export class PronunciationService {
 
   constructor(
     @Inject(STORAGE_SERVICE) private readonly storage: IStorageService,
+    @Inject(SPEECH_SYNTHESIZER) private readonly synthesizer: ISpeechSynthesizer,
+    @Inject(VOICE_RESOLVER) private readonly voices: IVoiceResolver,
     config: ConfigService<AppConfig>,
   ) {
     this.tts = config.get<AppConfig['tts']>('tts')!;
@@ -60,10 +51,10 @@ export class PronunciationService {
     if (text.length === 0) return Result.fail('EMPTY_TEXT');
     if (text.length > this.tts.maxTextLength) return Result.fail('TEXT_TOO_LONG');
 
-    const voiceKey = LANGUAGE_TO_VOICE_KEY[lang.toLowerCase().split(/[-_]/)[0] ?? ''];
-    if (!voiceKey) return Result.fail('LANGUAGE_NOT_SUPPORTED');
+    const voice = this.voices.resolve(lang, null);
+    if (!voice) return Result.fail('LANGUAGE_NOT_SUPPORTED');
 
-    const key = this.storageKey(text, voiceKey);
+    const key = this.storageKey(text, voice);
 
     // The stored object is the cache: an identical word is synthesized once for
     // the whole platform, and nothing has to be written to the database for a
@@ -75,14 +66,19 @@ export class PronunciationService {
     const pending = this.inFlight.get(key);
     if (pending) return pending;
 
-    const work = this.synthesizeAndStore(text, key).finally(() => this.inFlight.delete(key));
+    const work = this.synthesizeAndStore(text, lang, voice, key).finally(() => this.inFlight.delete(key));
     this.inFlight.set(key, work);
     return work;
   }
 
-  /** Name of the piper voice that synthesizes clips — what an exercise clip reports as its voice. */
-  get voiceName(): string {
-    return this.tts.piperVoice;
+  /** The synthesis provider, recorded on a clip asset's metadata. */
+  get provider(): string {
+    return this.synthesizer.provider;
+  }
+
+  /** The voice that speaks `lang`'s clips — what an exercise clip reports as its voice. */
+  voiceName(lang: string): string | null {
+    return this.voices.resolve(lang, null)?.voice ?? null;
   }
 
   /**
@@ -97,28 +93,30 @@ export class PronunciationService {
     const clip = await this.getOrCreate(rawText, lang);
     if (clip.isFail) return Result.fail(clip.error);
 
-    const voiceKey = LANGUAGE_TO_VOICE_KEY[lang.toLowerCase().split(/[-_]/)[0] ?? '']!;
+    const voice = this.voices.resolve(lang, null)!;
     try {
-      return Result.ok(await this.storage.getObject(this.storageKey(rawText.trim(), voiceKey), true));
+      return Result.ok(await this.storage.getObject(this.storageKey(rawText.trim(), voice), true));
     } catch (e) {
       this.logger.error(`Could not read back pronunciation for "${rawText}": ${String(e)}`);
       return Result.fail('SYNTHESIS_FAILED');
     }
   }
 
-  private storageKey(text: string, voiceKey: string): string {
+  private storageKey(text: string, { voice, family }: ResolvedVoice): string {
     // The voice is part of the hash input, so swapping the model in config
     // produces new keys instead of serving the old voice from the old ones.
-    const digest = createHash('sha256').update(`${this.tts.piperVoice}|${text}`).digest('hex');
-    return `tts/${voiceKey}/${digest}.mp3`;
+    const digest = createHash('sha256').update(`${voice}|${text}`).digest('hex');
+    return `tts/${family}/${digest}.mp3`;
   }
 
   private async synthesizeAndStore(
     text: string,
+    lang: string,
+    { voice }: ResolvedVoice,
     key: string,
   ): Promise<Result<PronunciationResult, PronunciationError>> {
     try {
-      const wav = await this.synthesize(text);
+      const wav = await this.synthesizer.synthesize({ text, voice, lang });
       const mp3 = await this.toMp3(wav);
       await this.storage.uploadObject(key, mp3, 'audio/mpeg', true);
       this.logger.debug(`Synthesized pronunciation for "${text}" (${mp3.length} bytes)`);
@@ -129,42 +127,11 @@ export class PronunciationService {
     }
   }
 
-  private async synthesize(text: string): Promise<Buffer> {
-    const res = await fetch(`${this.tts.piperUrl}/synthesize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice: this.tts.piperVoice }),
-      signal: AbortSignal.timeout(this.tts.piperTimeoutMs),
-    });
-
-    if (!res.ok) throw new Error(`piper responded ${res.status}`);
-    return Buffer.from(await res.arrayBuffer());
-  }
-
   /**
-   * Piper emits 22 kHz mono PCM, which is ~40 KB for a single word. As mp3 the
-   * same clip is under 10 KB and every browser plays it without a decoder
-   * question, which matters for a button tapped dozens of times per lesson.
+   * Piper emits 22 kHz mono PCM, which is ~40 KB for a single word; as mp3 it is under
+   * 10 KB, which matters for a button tapped dozens of times per lesson.
    */
-  private async toMp3(wav: Buffer): Promise<Buffer> {
-    const dir = await mkdtemp(join(tmpdir(), 'tts-'));
-    const wavPath = join(dir, 'in.wav');
-    const mp3Path = join(dir, 'out.mp3');
-
-    try {
-      await writeFile(wavPath, wav);
-      await new Promise<void>((resolve, reject) => {
-        ffmpeg(wavPath)
-          .audioCodec('libmp3lame')
-          .audioBitrate('64k')
-          .audioChannels(1)
-          .on('end', () => resolve())
-          .on('error', reject)
-          .save(mp3Path);
-      });
-      return await readFile(mp3Path);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+  private toMp3(wav: Buffer): Promise<Buffer> {
+    return encodeMp3(wav, '64k');
   }
 }

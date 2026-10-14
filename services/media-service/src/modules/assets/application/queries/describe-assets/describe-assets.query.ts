@@ -11,6 +11,17 @@ export interface AssetDescription {
   mimeType: string;
   sizeBytes: number;
   durationMs: number | null;
+  /** UPLOAD (a person's recording) or SYNTHESIZED (plan 74) — the batch narration never touches the first. */
+  origin: string;
+  /** `narrationTextHash` of the text a synthesized asset spoke; null for uploads. */
+  textHash: string | null;
+  /** The pace and pause multiplier a synthesized narration was spoken with, when recorded. */
+  lengthScale: number | null;
+  pauseScale: number | null;
+  /** The catalog id of the narrator of a synthesized narration, when recorded. */
+  voiceId: string | null;
+  /** Speaker → voice of a synthesized narration's dialogue. */
+  speakerVoices: Record<string, string> | null;
 }
 
 export class DescribeAssetsQuery implements IQuery {

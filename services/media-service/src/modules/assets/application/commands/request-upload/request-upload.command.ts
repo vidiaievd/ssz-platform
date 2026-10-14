@@ -1,3 +1,5 @@
+import type { AssetOrigin } from '../../../domain/entities/media-asset.entity.js';
+
 export class RequestUploadCommand {
   constructor(
     public readonly ownerId: string,
@@ -6,6 +8,8 @@ export class RequestUploadCommand {
     public readonly originalFilename: string | null,
     public readonly entityType: string | null,
     public readonly entityId: string | null,
+    /** SYNTHESIZED when the service writes the bytes itself (`StoreSynthesizedAudioCommand`). */
+    public readonly origin: AssetOrigin = 'UPLOAD',
   ) {}
 }
 

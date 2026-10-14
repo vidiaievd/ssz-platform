@@ -35,6 +35,7 @@ export class RequestUploadHandler
       originalFilename: command.originalFilename ?? undefined,
       entityType: command.entityType ?? undefined,
       entityId: command.entityId ?? undefined,
+      origin: command.origin,
       sizeLimits: {
         maxImageSizeBytes: uploadConfig.maxImageSizeBytes,
         maxAudioSizeBytes: uploadConfig.maxAudioSizeBytes,

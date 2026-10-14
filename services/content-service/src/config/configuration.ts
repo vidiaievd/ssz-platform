@@ -36,6 +36,10 @@ export const envSchema = z.object({
   ORGANIZATION_SERVICE_RETRIES: z.coerce.number().int().min(0).default(2),
   INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
 
+  // Batch lesson narration (plan 74, phase 4) asks media-service to speak and to mark replaced narrations.
+  MEDIA_SERVICE_URL: z.string().default('http://media-service:3004'),
+  MEDIA_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+
   // Discovery / catalog pagination
   DISCOVERY_DEFAULT_LIMIT: z.coerce.number().int().min(1).max(100).default(20),
   DISCOVERY_MAX_LIMIT: z.coerce.number().int().min(1).max(500).default(100),
@@ -94,6 +98,10 @@ export interface AppConfig {
     retries: number;
     internalAuthToken: string;
   };
+  media: {
+    baseUrl: string;
+    timeoutMs: number;
+  };
   discovery: {
     pagination: {
       defaultLimit: number;
@@ -138,6 +146,10 @@ export default (): AppConfig => {
       timeoutMs: env.ORGANIZATION_SERVICE_TIMEOUT_MS,
       retries: env.ORGANIZATION_SERVICE_RETRIES,
       internalAuthToken: env.INTERNAL_SERVICE_TOKEN,
+    },
+    media: {
+      baseUrl: env.MEDIA_SERVICE_URL,
+      timeoutMs: env.MEDIA_SERVICE_TIMEOUT_MS,
     },
     discovery: {
       pagination: {

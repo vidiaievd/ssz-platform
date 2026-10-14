@@ -12,12 +12,14 @@ import { RabbitmqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { RedisModule } from './infrastructure/cache/redis.module.js';
 import { StorageModule } from './infrastructure/storage/storage.module.js';
 import { AudioModule } from './infrastructure/audio/audio.module.js';
+import { TtsModule } from './infrastructure/tts/tts.module.js';
 import { QueuesModule } from './infrastructure/queues/queues.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AssetsModule } from './modules/assets/assets.module.js';
 import { ProcessingModule } from './modules/processing/processing.module.js';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module.js';
 import { PronunciationModule } from './modules/pronunciation/pronunciation.module.js';
+import { NarrationModule } from './modules/narration/narration.module.js';
 
 @Module({
   imports: [
@@ -44,6 +46,7 @@ import { PronunciationModule } from './modules/pronunciation/pronunciation.modul
     RedisModule,
     StorageModule,
     AudioModule,
+    TtsModule,
     QueuesModule,
     CqrsModule,
     HealthModule,
@@ -51,6 +54,7 @@ import { PronunciationModule } from './modules/pronunciation/pronunciation.modul
     ProcessingModule,
     MaintenanceModule,
     PronunciationModule,
+    NarrationModule,
   ],
   providers: [
     {

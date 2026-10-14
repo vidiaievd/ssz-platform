@@ -1,5 +1,8 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../../../../../config/configuration.js';
+import { supersessionOf } from '../../../domain/policies/narration-retention.js';
 import { ListUserAssetsQuery, type ListUserAssetsResult } from './list-user-assets.query.js';
 import { MEDIA_ASSET_REPOSITORY } from '../../../domain/repositories/media-asset.repository.interface.js';
 import type { IMediaAssetRepository } from '../../../domain/repositories/media-asset.repository.interface.js';
@@ -14,6 +17,7 @@ export class ListUserAssetsHandler implements IQueryHandler<ListUserAssetsQuery,
   constructor(
     @Inject(MEDIA_ASSET_REPOSITORY) private readonly assetRepo: IMediaAssetRepository,
     @Inject(STORAGE_SERVICE) private readonly storage: IStorageService,
+    private readonly config: ConfigService<AppConfig>,
   ) {}
 
   async execute(query: ListUserAssetsQuery): Promise<ListUserAssetsResult> {
@@ -47,6 +51,9 @@ export class ListUserAssetsHandler implements IQueryHandler<ListUserAssetsQuery,
           variants: [],
           durationMs: asset.durationMs,
           peaks: asset.peaks,
+          origin: asset.origin,
+          synthesis: asset.synthesis,
+          ...supersessionOf(asset, this.config.get<AppConfig['tts']>('tts')!.narrationRetentionDays),
         };
       }),
     );

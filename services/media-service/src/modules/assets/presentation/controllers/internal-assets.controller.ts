@@ -1,5 +1,16 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Query, UseGuards } from '@nestjs/common';
-import { QueryBus } from '@nestjs/cqrs';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  UnprocessableEntityException,
+  UseGuards,
+} from '@nestjs/common';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
@@ -9,6 +20,15 @@ import {
   SweepOrphanRecordingsService,
   type SweepReport,
 } from '../../application/services/sweep-orphan-recordings.service.js';
+import {
+  SweepSupersededNarrationsService,
+  type SupersededSweepReport,
+} from '../../application/services/sweep-superseded-narrations.service.js';
+import {
+  SupersedeAssetCommand,
+  type SupersedeAssetResult,
+} from '../../application/commands/supersede-asset/supersede-asset.command.js';
+import { SupersedeAssetDto, SupersedeAssetResponseDto } from '../dto/asset-response.dto.js';
 import { AssetDescriptionDto, AssetIdsDto, AssetPlaybackDto } from '../dto/internal-assets.dto.js';
 
 // Service-to-service routes only — @Public() exempts them from the global JWT guard,
@@ -23,7 +43,9 @@ import { AssetDescriptionDto, AssetIdsDto, AssetPlaybackDto } from '../dto/inter
 export class InternalAssetsController {
   constructor(
     private readonly queryBus: QueryBus,
+    private readonly commandBus: CommandBus,
     private readonly sweepOrphans: SweepOrphanRecordingsService,
+    private readonly sweepSuperseded: SweepSupersededNarrationsService,
   ) {}
 
   @Post('describe')
@@ -55,6 +77,32 @@ export class InternalAssetsController {
     return this.queryBus.execute(new GetPlaybackQuery(dto.ids));
   }
 
+  @Post(':assetId/supersede')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Mark a lesson asset as replaced by another (content-service)',
+    description:
+      'The batch narration (plan 74, phase 4) calls this after it has pointed a lesson body at a ' +
+      'new narration. Same effect as the author-facing route: nothing is deleted, the old asset ' +
+      'stays restorable until `restorableUntil`.',
+  })
+  @ApiResponse({ status: 200, type: SupersedeAssetResponseDto })
+  @ApiResponse({ status: 404, description: 'Asset or replacement not found' })
+  @ApiResponse({ status: 422, description: 'Not a lesson asset, or replaced by itself' })
+  async supersede(
+    @Param('assetId') assetId: string,
+    @Body() dto: SupersedeAssetDto,
+  ): Promise<SupersedeAssetResponseDto> {
+    const result: SupersedeAssetResult = await this.commandBus.execute(new SupersedeAssetCommand(assetId, dto.by));
+    if (result.isFail) {
+      if (result.error === 'ASSET_NOT_FOUND' || result.error === 'REPLACEMENT_NOT_FOUND') {
+        throw new NotFoundException(result.error);
+      }
+      throw new UnprocessableEntityException(result.error);
+    }
+    return result.value;
+  }
+
   @Post('sweep-orphans')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -67,5 +115,18 @@ export class InternalAssetsController {
   @ApiResponse({ status: 200, description: 'SweepReport' })
   async sweepOrphansNow(@Query('dryRun') dryRun?: string): Promise<SweepReport> {
     return this.sweepOrphans.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
+  }
+
+  @Post('sweep-superseded')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Run the replaced-narration sweep now (operator)',
+    description:
+      'Lesson assets replaced more than NARRATION_RETENTION_DAYS ago that no lesson body names ' +
+      '(content-service is asked). A DRY RUN unless `dryRun=false` is passed explicitly.',
+  })
+  @ApiResponse({ status: 200, description: 'SupersededSweepReport' })
+  async sweepSupersededNow(@Query('dryRun') dryRun?: string): Promise<SupersededSweepReport> {
+    return this.sweepSuperseded.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
   }
 }

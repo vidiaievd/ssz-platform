@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsUUID } from 'class-validator';
 
 export class AssetVariantResponseDto {
   @ApiProperty({ example: 'thumb_256' })
@@ -12,6 +13,49 @@ export class AssetVariantResponseDto {
 
   @ApiProperty({ description: 'Direct or pre-signed URL (1 hour TTL for private assets)' })
   url!: string;
+}
+
+export class AssetSynthesisResponseDto {
+  @ApiProperty({ example: 'piper' })
+  provider!: string;
+
+  @ApiProperty({ example: 'no_NO-talesyntese-medium', description: "The narrator's voice" })
+  voice!: string;
+
+  @ApiPropertyOptional({
+    example: { Silje: 'nb-NO-PernilleNeural' },
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    description: 'Speaker → voice, when characters have voices of their own',
+  })
+  voices?: Record<string, string>;
+
+  @ApiProperty({ example: 'nb' })
+  lang!: string;
+
+  @ApiProperty({
+    example: '231f1f4fa95f13951d77500f23a5591c2d8e145cfd60a8cb2438f8ff06f9caa1',
+    description: 'narrationTextHash of the spoken text; differs from the current body once the text is edited',
+  })
+  textHash!: string;
+
+  @ApiProperty({ example: 21, description: 'Number of script segments spoken' })
+  segments!: number;
+
+  @ApiPropertyOptional({ example: 1.7, description: 'Phoneme length multiplier it was spoken with; above 1 is slower' })
+  lengthScale?: number;
+
+  @ApiPropertyOptional({ example: 1, description: 'Multiplier on the pauses between paragraphs and turns' })
+  pauseScale?: number;
+
+  @ApiPropertyOptional({ example: 'B1', description: 'The course level the pace default came from' })
+  level?: string;
+
+  @ApiPropertyOptional({ example: 'nvcc-kon', description: 'The catalog id of the narrator' })
+  voiceId?: string;
+
+  @ApiPropertyOptional({ example: 'KON', description: 'The speaker inside a multi-speaker voice model' })
+  speaker?: string;
 }
 
 export class AssetResponseDto {
@@ -69,6 +113,64 @@ export class AssetResponseDto {
     description: 'Audio only: 100 maxima normalised to 0..1, computed after processing; null until then.',
   })
   peaks!: number[] | null;
+
+  @ApiProperty({
+    example: 'UPLOAD',
+    enum: ['UPLOAD', 'SYNTHESIZED'],
+    description: 'Where the bytes came from: a person’s upload or speech synthesis',
+  })
+  origin!: 'UPLOAD' | 'SYNTHESIZED';
+
+  @ApiPropertyOptional({
+    type: AssetSynthesisResponseDto,
+    nullable: true,
+    description: 'How a synthesized asset was made; null for an upload',
+  })
+  synthesis!: AssetSynthesisResponseDto | null;
+
+  @ApiPropertyOptional({
+    example: '2026-10-14T10:00:00.000Z',
+    nullable: true,
+    type: String,
+    description: 'Set when a lesson body names another asset in this one’s place (replaced narration)',
+  })
+  supersededAt!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String, description: 'The asset that replaced this one' })
+  supersededBy!: string | null;
+
+  @ApiPropertyOptional({
+    example: '2026-11-13T10:00:00.000Z',
+    nullable: true,
+    type: String,
+    description:
+      'A replaced asset stays playable and can be restored until then (NARRATION_RETENTION_DAYS); ' +
+      'afterwards the sweep may remove it if no lesson body names it. Null while in use.',
+  })
+  restorableUntil!: string | null;
+}
+
+export class SupersedeAssetDto {
+  @ApiProperty({ description: 'The asset the lesson body names instead', example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
+  @IsUUID('all')
+  by!: string;
+}
+
+export class SupersedeAssetResponseDto {
+  @ApiProperty()
+  assetId!: string;
+
+  @ApiProperty({ example: '2026-10-14T10:00:00.000Z' })
+  supersededAt!: string;
+
+  @ApiProperty()
+  supersededBy!: string;
+
+  @ApiProperty({ example: '2026-11-13T10:00:00.000Z' })
+  restorableUntil!: string;
+
+  @ApiProperty({ description: 'True when the replacement had been superseded itself and is in use again' })
+  restoredReplacement!: boolean;
 }
 
 export class PagedAssetsResponseDto {

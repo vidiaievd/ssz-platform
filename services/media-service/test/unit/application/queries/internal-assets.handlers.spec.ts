@@ -60,6 +60,12 @@ describe('DescribeAssetsHandler', () => {
         mimeType: 'audio/webm',
         sizeBytes: 150_000,
         durationMs: 12_400,
+        origin: 'UPLOAD',
+        textHash: null,
+        lengthScale: null,
+        pauseScale: null,
+        voiceId: null,
+        speakerVoices: null,
       },
       expect.objectContaining({ id: failed.id, status: 'FAILED', durationMs: null }),
     ]);

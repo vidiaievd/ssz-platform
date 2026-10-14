@@ -5,6 +5,7 @@ import type {
   FindAssetsOptions,
   IMediaAssetRepository,
   RecordingSweepCursor,
+  SupersededSweepCursor,
 } from '../../domain/repositories/media-asset.repository.interface.js';
 import { MediaAssetEntity } from '../../domain/entities/media-asset.entity.js';
 import { MediaAssetMapper } from './mappers/media-asset.mapper.js';
@@ -80,6 +81,39 @@ export class PrismaMediaAssetRepository implements IMediaAssetRepository {
       take: limit,
     });
     return rows.map((row) => MediaAssetMapper.toDomain(row));
+  }
+
+  async findSupersededBefore(
+    supersededBefore: Date,
+    after: SupersededSweepCursor | null,
+    limit: number,
+  ): Promise<MediaAssetEntity[]> {
+    const rows = await this.prisma.mediaAsset.findMany({
+      where: {
+        entityType: 'lesson_asset',
+        status: { not: 'DELETED' },
+        supersededAt: { lt: supersededBefore },
+        ...(after === null
+          ? {}
+          : {
+              OR: [
+                { supersededAt: { gt: after.supersededAt } },
+                { supersededAt: after.supersededAt, id: { gt: after.id } },
+              ],
+            }),
+      },
+      orderBy: [{ supersededAt: 'asc' }, { id: 'asc' }],
+      take: limit,
+    });
+    return rows.map((row) => MediaAssetMapper.toDomain(row));
+  }
+
+  async findReplacedBy(assetId: string): Promise<MediaAssetEntity | null> {
+    const row = await this.prisma.mediaAsset.findFirst({
+      where: { supersededBy: assetId, status: { not: 'DELETED' } },
+      orderBy: { supersededAt: 'desc' },
+    });
+    return row ? MediaAssetMapper.toDomain(row) : null;
   }
 
   async save(entity: MediaAssetEntity): Promise<void> {

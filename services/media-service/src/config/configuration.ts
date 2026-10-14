@@ -51,10 +51,29 @@ export const envSchema = z.object({
   // Piper TTS (pronunciation synthesis)
   PIPER_URL: z.string().default('http://piper-tts:5000'),
   PIPER_VOICE: z.string().default('no_NO-talesyntese-medium'),
+  // Catalog ids (`nvcc-kon`, …) not offered to authors — a voice that sounds regional or poor.
+  TTS_HIDDEN_VOICES: z
+    .string()
+    .default('')
+    .transform((value) => value.split(',').map((id) => id.trim()).filter(Boolean)),
   PIPER_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
   // A pronunciation is a word or a short phrase; anything longer is a misuse
   // of the endpoint, not a vocabulary item.
   TTS_MAX_TEXT_LENGTH: z.coerce.number().int().positive().default(120),
+  // A lesson narration (plan 74): the spoken characters of the script, not the markdown.
+  NARRATION_MAX_CHARS: z.coerce.number().int().positive().default(12_000),
+  // How a lesson narration is spoken (not a word's pronunciation clip). Above 1 is slower. The
+  // voice's default pace reads quickly for a learner, and noise-w 0 (below) shortens phonemes by
+  // itself: measured on a paragraph, 1.4 only matches the defaults, 1.7 is ~17% slower.
+  // noise-w 0 removes the random pauses Piper adds inside sentences at its default of 0.8
+  // (measured: up to 1.7 s).
+  NARRATION_LENGTH_SCALE: z.coerce.number().min(0.5).max(2.5).default(1.7),
+  NARRATION_NOISE_W_SCALE: z.coerce.number().min(0).max(1).default(0),
+  // A replaced lesson narration stays playable and restorable this long (D5), then the sweep may remove it.
+  NARRATION_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
+  // Asked before a replaced narration is removed: does any lesson body still name it?
+  CONTENT_SERVICE_URL: z.string().default('http://content-service:3003'),
+  CONTENT_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
 
   // Orphan recordings (plan 71): a recording no attempt stands on, older than the minimum age.
   // 'dry-run' only logs what it would delete; 'delete' purges (soft-delete + storage objects).
@@ -142,8 +161,17 @@ export interface AppConfig {
   tts: {
     piperUrl: string;
     piperVoice: string;
+    hiddenVoices: string[];
     piperTimeoutMs: number;
     maxTextLength: number;
+    narrationMaxChars: number;
+    narrationLengthScale: number;
+    narrationNoiseWScale: number;
+    narrationRetentionDays: number;
+  };
+  contentService: {
+    baseUrl: string;
+    timeoutMs: number;
   };
 }
 
@@ -207,8 +235,17 @@ export default (): AppConfig => {
     tts: {
       piperUrl: env.PIPER_URL,
       piperVoice: env.PIPER_VOICE,
+      hiddenVoices: env.TTS_HIDDEN_VOICES,
       piperTimeoutMs: env.PIPER_TIMEOUT_MS,
       maxTextLength: env.TTS_MAX_TEXT_LENGTH,
+      narrationMaxChars: env.NARRATION_MAX_CHARS,
+      narrationLengthScale: env.NARRATION_LENGTH_SCALE,
+      narrationNoiseWScale: env.NARRATION_NOISE_W_SCALE,
+      narrationRetentionDays: env.NARRATION_RETENTION_DAYS,
+    },
+    contentService: {
+      baseUrl: env.CONTENT_SERVICE_URL,
+      timeoutMs: env.CONTENT_SERVICE_TIMEOUT_MS,
     },
   };
 };

@@ -19,6 +19,33 @@ export type AssetStatus =
   | 'FAILED'
   | 'DELETED';
 
+/** Where the bytes came from (plan 74). Values are the Prisma member names. */
+export type AssetOrigin = 'UPLOAD' | 'SYNTHESIZED';
+
+/** How a synthesized asset was made — enough to tell the author what speaks and whether it is stale. */
+export interface AssetSynthesis {
+  provider: string;
+  /** The narrator's voice. */
+  voice: string;
+  /** Speaker → catalog voice id, when characters speak with voices of their own (D1, phase 8). */
+  voices?: Record<string, string>;
+  lang: string;
+  /** `narrationTextHash` of the text that was spoken; compared against the current body. */
+  textHash: string;
+  /** How many script segments were spoken. */
+  segments: number;
+  /** Phoneme length multiplier the narration was spoken with (plan 74, phase 6); absent on older ones. */
+  lengthScale?: number;
+  /** Multiplier on the pauses between segments. */
+  pauseScale?: number;
+  /** The course level the pace default came from, when the request named one. */
+  level?: string;
+  /** The catalog id of the narrator (`talesyntese`, `nvcc-kon`, …); older narrations name only `voice`. */
+  voiceId?: string;
+  /** The speaker inside a multi-speaker model the narrator is. */
+  speaker?: string;
+}
+
 interface MediaAssetProps {
   ownerId: string;
   entityType: string | null;
@@ -36,6 +63,13 @@ interface MediaAssetProps {
   durationMs: number | null;
   /** Audio only: normalised waveform, computed by the processing worker. */
   peaks: number[] | null;
+  origin: AssetOrigin;
+  /** Set when `origin` is SYNTHESIZED. */
+  synthesis: AssetSynthesis | null;
+  /** D5: a replaced narration stays READY and playable until the retention period ends. */
+  supersededAt: Date | null;
+  /** The asset that replaced this one. */
+  supersededBy: string | null;
 }
 
 export interface CreateMediaAssetProps {
@@ -46,6 +80,8 @@ export interface CreateMediaAssetProps {
   entityType?: string;
   entityId?: string;
   sizeLimits: SizeLimits;
+  /** SYNTHESIZED for speech the service makes itself; the bytes arrive via `attachSynthesis`. */
+  origin?: AssetOrigin;
 }
 
 export class MediaAssetEntity extends AggregateRoot {
@@ -72,6 +108,11 @@ export class MediaAssetEntity extends AggregateRoot {
   get deletedAt(): Date | null { return this.props.deletedAt; }
   get durationMs(): number | null { return this.props.durationMs; }
   get peaks(): number[] | null { return this.props.peaks; }
+  get origin(): AssetOrigin { return this.props.origin; }
+  get synthesis(): AssetSynthesis | null { return this.props.synthesis; }
+  get supersededAt(): Date | null { return this.props.supersededAt; }
+  get supersededBy(): string | null { return this.props.supersededBy; }
+  get isSuperseded(): boolean { return this.props.supersededAt !== null; }
   get isRecording(): boolean { return isRecordingEntityType(this.props.entityType); }
 
   get isPendingUpload(): boolean { return this.props.status === 'PENDING_UPLOAD'; }
@@ -121,6 +162,10 @@ export class MediaAssetEntity extends AggregateRoot {
       deletedAt: null,
       durationMs: null,
       peaks: null,
+      origin: p.origin ?? 'UPLOAD',
+      synthesis: null,
+      supersededAt: null,
+      supersededBy: null,
     });
 
     entity.addDomainEvent(
@@ -230,6 +275,45 @@ export class MediaAssetEntity extends AggregateRoot {
     if (this.props.durationMs === null) {
       this.props.durationMs = Math.max(0, Math.round(decodedDurationMs));
     }
+    this.props.updatedAt = new Date();
+  }
+
+  /**
+   * Record how synthesized audio was made, once its bytes are in storage and before the
+   * upload is finalized. The size requested up front is a guess — a synthesizer only knows
+   * the length after speaking — so the stored size replaces it here.
+   */
+  attachSynthesis(synthesis: AssetSynthesis, storedBytes: bigint): Result<void, MediaAssetDomainError> {
+    if (this.props.origin !== 'SYNTHESIZED' || this.props.status !== 'PENDING_UPLOAD') {
+      return Result.fail(MediaAssetDomainError.INVALID_STATUS_TRANSITION);
+    }
+    this.props.synthesis = synthesis;
+    this.props.sizeBytes = SizeBytes.reconstitute(storedBytes);
+    this.props.updatedAt = new Date();
+    return Result.ok();
+  }
+
+  /**
+   * A lesson body now points at `byAssetId` instead of this asset (D5). Nothing is deleted:
+   * the asset stays READY and playable, so the author can go back to it, until the retention
+   * period ends and the sweep asks content-service whether any body still names it.
+   */
+  supersede(byAssetId: string, at: Date = new Date()): Result<void, MediaAssetDomainError> {
+    if (this.props.status === 'DELETED') return Result.fail(MediaAssetDomainError.ASSET_ALREADY_DELETED);
+    if (this.props.entityType !== 'lesson_asset' || byAssetId === this.id) {
+      return Result.fail(MediaAssetDomainError.SUPERSEDE_NOT_ALLOWED);
+    }
+    this.props.supersededAt = at;
+    this.props.supersededBy = byAssetId;
+    this.props.updatedAt = at;
+    return Result.ok();
+  }
+
+  /** In use again — the author went back to it. */
+  restore(): void {
+    if (this.props.supersededAt === null) return;
+    this.props.supersededAt = null;
+    this.props.supersededBy = null;
     this.props.updatedAt = new Date();
   }
 

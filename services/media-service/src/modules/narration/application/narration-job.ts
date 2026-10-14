@@ -1,0 +1,20 @@
+import type { NarrationSegment } from '@ssz/shared-kernel/narration';
+
+/** A queued narration: everything the worker needs, so it never re-reads the lesson. */
+export interface NarrationJobData {
+  assetId: string;
+  /** Row in `processing_jobs`; also the BullMQ job id. */
+  jobId: string;
+  ownerId: string;
+  lang: string;
+  segments: NarrationSegment[];
+  textHash: string;
+  lengthScale: number;
+  pauseScale: number;
+  /** Recorded with the narration so "regenerate" can offer the same pace again. */
+  level: string | null;
+  /** The narrator's catalog id, chosen at request time. */
+  voiceId: string;
+  /** The voice each speaker speaks with, by catalog id; absent speakers use the narrator's. */
+  speakerVoices?: Record<string, string>;
+}
