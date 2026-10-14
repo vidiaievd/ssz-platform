@@ -168,6 +168,7 @@ type Details = {
     itemId: string;
     prompt: string | null;
     submitted: string;
+    skipped: boolean;
     verdict: string | null;
     covered: number;
     total: number;
@@ -303,6 +304,32 @@ describe('ShortAnswerValidator — the form of the design handoff', () => {
       });
       expect(result.value.requiresReview).toBe(false);
       expect((result.value.details as Details).routedItems).toBe(0);
+    });
+  });
+
+  it('counts a question left unanswered as one that said nothing, and routes it', () => {
+    // One perfect answer out of two is not a perfect set: without the skipped question in
+    // the sum the score would be 100 and a 'flagged' set would never reach a teacher.
+    const result = gradeSet([
+      { questionId: 'q1', text: 'Alle må ha lys foran og bak når det er mørkt.' },
+    ]);
+
+    const details = result.value.details as Details;
+    expect(result.value.correct).toBe(false);
+    expect(result.value.requiresReview).toBe(true);
+    expect(details.totalItems).toBe(2);
+    expect(details.coveredElements).toBe(2);
+    expect(details.totalElements).toBe(3);
+    expect(details.items[0]).toMatchObject({ itemId: 'q1', skipped: false, verdict: 'pass' });
+    expect(details.items[1]).toMatchObject({
+      itemId: 'q2',
+      prompt: 'Ville du syklet om vinteren?',
+      submitted: '',
+      skipped: true,
+      verdict: 'fail',
+      covered: 0,
+      total: 1,
+      routing: 'teacher',
     });
   });
 

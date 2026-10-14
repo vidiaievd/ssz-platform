@@ -137,6 +137,11 @@ export interface GradedAnswer extends SubmittedAnswer {
   /** Absent when the attempt names a question the document no longer has. */
   question: Question | null;
   result: QuestionResult | null;
+  /**
+   * The student left this question without an answer and sent the set anyway. `text` is
+   * empty and `result` is the key run over nothing — every required element missed.
+   */
+  skipped: boolean;
 }
 
 /**
@@ -149,13 +154,13 @@ export interface GradedAnswer extends SubmittedAnswer {
  */
 export interface AttemptOutcome {
   answers: GradedAnswer[];
-  /** Required elements covered across every answered question. */
+  /** Required elements covered across the set. */
   covered: number;
-  /** Required elements across every answered question. */
+  /** Required elements across every answered and every skipped question. */
   total: number;
   /** `round(covered / total × 100)`; 100 when there is nothing to cover. */
   score: number;
-  /** Every answered question passed. */
+  /** Every question passed — a skipped one never does. */
   correct: boolean;
   /** Derived from `settings.teacherReview` — plan 51 §3.4. */
   requiresReview: boolean;
@@ -169,8 +174,24 @@ export function gradeAttempt(ex: ShortAnswerContent, answers: readonly Submitted
       text: a.text,
       question,
       result: question ? grade(question, a.text, ex.settings) : null,
+      skipped: false,
     };
   });
+
+  // A set may be sent with questions left unanswered — the runner lets a student skip a
+  // question and come back, and send without coming back. Those questions count, as
+  // answers that said nothing: leaving them out would score one good answer out of five
+  // as 100% and `correct`, and the routing would never show the set to a teacher.
+  for (const question of answerableQuestions(ex)) {
+    if (answers.some((a) => a.questionId === question.id)) continue;
+    graded.push({
+      questionId: question.id,
+      text: '',
+      question,
+      result: grade(question, '', ex.settings),
+      skipped: true,
+    });
+  }
 
   let covered = 0;
   let total = 0;
@@ -191,6 +212,15 @@ export function gradeAttempt(ex: ShortAnswerContent, answers: readonly Submitted
     correct,
     requiresReview: needsTeacher(ex.settings, graded),
   };
+}
+
+/**
+ * The questions a student can hand an answer in to: the runner shows the ones with a prompt
+ * (projection.ts), and the engine takes an answer only to one whose key can grade it. A
+ * question outside both was never put to the student, so leaving it is not a skip.
+ */
+export function answerableQuestions(ex: ShortAnswerContent): Question[] {
+  return ex.questions.filter((q) => q.prompt.trim() !== '' && usableElements(q).length > 0);
 }
 
 function needsTeacher(settings: Settings, graded: readonly GradedAnswer[]): boolean {

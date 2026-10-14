@@ -386,6 +386,7 @@ function shortAnswerVerdicts(details: unknown): unknown {
   if (!Array.isArray(items)) return undefined;
 
   const verdictOf = (item: unknown): unknown => (item as { verdict?: unknown }).verdict;
+  const skippedOf = (item: unknown): boolean => (item as { skipped?: unknown }).skipped === true;
 
   return {
     totalItems,
@@ -394,7 +395,10 @@ function shortAnswerVerdicts(details: unknown): unknown {
     verdicts: {
       pass: items.filter((item) => verdictOf(item) === 'pass').length,
       partial: items.filter((item) => verdictOf(item) === 'partial').length,
-      fail: items.filter((item) => verdictOf(item) === 'fail').length,
+      // A skipped question is graded as a fail, and counted on its own here rather than
+      // twice: «not approved» is what an answer earned, «no answer» is what was left.
+      fail: items.filter((item) => verdictOf(item) === 'fail' && !skippedOf(item)).length,
+      skipped: items.filter(skippedOf).length,
     },
     items: items.map((item) => {
       const { itemId, verdict, covered, total, tooShort, routing } = item as {
@@ -405,7 +409,7 @@ function shortAnswerVerdicts(details: unknown): unknown {
         tooShort: boolean;
         routing: string;
       };
-      return { itemId, verdict, covered, total, tooShort, routing };
+      return { itemId, verdict, covered, total, tooShort, routing, skipped: skippedOf(item) };
     }),
   };
 }

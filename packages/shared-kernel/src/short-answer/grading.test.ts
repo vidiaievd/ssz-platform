@@ -241,12 +241,52 @@ describe('gradeAttempt', () => {
   });
 
   it('grades nothing for a question the document no longer holds', () => {
-    const out = gradeAttempt(ex, [{ questionId: 'gone', text: 'Et helt fornuftig svar.' }]);
-    expect(out.answers[0]).toMatchObject({ question: null, result: null });
+    const out = gradeAttempt(ex, [
+      { questionId: 'q1', text: 'Alle må ha lys foran og bak når det er mørkt.' },
+      { questionId: 'q2', text: 'Kommunen vil ha færre ulykker om vinteren.' },
+      { questionId: 'gone', text: 'Et helt fornuftig svar.' },
+    ]);
+    expect(out.answers[2]).toMatchObject({ question: null, result: null, skipped: false });
     // Plan 51 §6.5: no zeroes invented for an answer nothing could grade.
-    expect(out.total).toBe(0);
+    expect(out.total).toBe(3);
     expect(out.score).toBe(100);
-    expect(out.correct).toBe(false);
+    expect(out.correct).toBe(true);
+  });
+
+  describe('a question left unanswered', () => {
+    const one = [{ questionId: 'q1', text: 'Alle må ha lys foran og bak når det er mørkt.' }];
+
+    it('is graded as an answer that covered nothing', () => {
+      const out = gradeAttempt(ex, one);
+      expect(out.answers).toHaveLength(2);
+      expect(out.answers[1]).toMatchObject({ questionId: 'q2', text: '', skipped: true });
+      expect(out.answers[1]!.result).toMatchObject({ covered: 0, total: 1, verdict: 'fail' });
+    });
+
+    it('counts against the score, so one good answer is not a perfect set', () => {
+      const out = gradeAttempt(ex, one);
+      expect(out.covered).toBe(2);
+      expect(out.total).toBe(3);
+      expect(out.score).toBe(67);
+      expect(out.correct).toBe(false);
+    });
+
+    it("sends a 'flagged' set to the teacher", () => {
+      expect(gradeAttempt(ex, one).requiresReview).toBe(true);
+    });
+
+    it('is a question the student was shown and could answer', () => {
+      const withDrafts = document({
+        ...ex,
+        questions: [
+          ...ex.questions,
+          question({ id: 'no-prompt', prompt: '  ' }),
+          question({ id: 'no-key', elements: [] }),
+        ],
+      });
+      const out = gradeAttempt(withDrafts, one);
+      expect(out.answers.filter((a) => a.skipped).map((a) => a.questionId)).toEqual(['q2']);
+    });
   });
 
   describe('requiresReview', () => {
