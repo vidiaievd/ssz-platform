@@ -128,6 +128,7 @@ services:
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      MEDIA_SERVICE_URL: http://media-service:3004
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
       REDIS_HOST: redis
       REDIS_PORT: 6379

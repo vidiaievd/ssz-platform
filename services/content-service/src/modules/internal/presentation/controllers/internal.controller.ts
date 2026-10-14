@@ -38,6 +38,8 @@ import { DifficultyLevel } from '../../../container/domain/value-objects/difficu
 import { Visibility } from '../../../container/domain/value-objects/visibility.vo.js';
 import { InternalCreateExerciseRequestDto } from '../dto/internal-create-exercise.request.dto.js';
 import { MediaInUseRequestDto } from '../dto/media-in-use.request.dto.js';
+import { NarrateCourseCommand } from '../../application/narration/narrate-course.command.js';
+import type { CourseNarrationReport } from '../../application/narration/course-narration.types.js';
 import { GetMediaInUseQuery } from '../../application/queries/get-media-in-use/get-media-in-use.query.js';
 import type { ExerciseTemplateEntity } from '../../../exercise-template/domain/entities/exercise-template.entity.js';
 import type { ExerciseTemplateDomainError } from '../../../exercise-template/domain/exceptions/exercise-template-domain.exceptions.js';
@@ -341,6 +343,29 @@ export class InternalController {
   async getMediaInUse(@Body() dto: MediaInUseRequestDto): Promise<{ inUse: string[] }> {
     const inUse = await this.queryBus.execute<GetMediaInUseQuery, string[]>(new GetMediaInUseQuery(dto.assetIds));
     return { inUse };
+  }
+
+  /**
+   * Narrate a course's text lessons by speech synthesis (plan 74, phase 4). A DRY RUN unless
+   * `dryRun=false` is passed explicitly: a real run writes lesson bodies, and a body is shared
+   * by the draft and the published version, so students see the change at once. Recordings
+   * made by people are never touched. `limit` caps how many variants one real run narrates.
+   * The run is synchronous and takes about as long as the speech it asks for.
+   */
+  @Post('courses/:courseId/narration')
+  @HttpCode(HttpStatus.OK)
+  async narrateCourse(
+    @Param('courseId') courseId: string,
+    @Query('dryRun') dryRun?: string,
+    @Query('limit') limit?: string,
+  ): Promise<CourseNarrationReport> {
+    const parsedLimit = limit === undefined ? undefined : Number.parseInt(limit, 10);
+    if (parsedLimit !== undefined && (!Number.isInteger(parsedLimit) || parsedLimit < 1)) {
+      throw new BadRequestException('limit must be a positive integer');
+    }
+    return this.commandBus.execute(
+      new NarrateCourseCommand(courseId, { dryRun: dryRun !== 'false', limit: parsedLimit }),
+    );
   }
 
   @Get('lessons/:id/glossary-suggestions')

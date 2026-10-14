@@ -11,6 +11,10 @@ export interface AssetDescription {
   mimeType: string;
   sizeBytes: number;
   durationMs: number | null;
+  /** UPLOAD (a person's recording) or SYNTHESIZED (plan 74) — the batch narration never touches the first. */
+  origin: string;
+  /** `narrationTextHash` of the text a synthesized asset spoke; null for uploads. */
+  textHash: string | null;
 }
 
 export class DescribeAssetsQuery implements IQuery {

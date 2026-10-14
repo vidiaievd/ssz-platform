@@ -21,6 +21,8 @@ export class DescribeAssetsHandler implements IQueryHandler<DescribeAssetsQuery,
       mimeType: a.mimeType.value,
       sizeBytes: a.sizeBytes.asNumber,
       durationMs: a.durationMs,
+      origin: a.origin,
+      textHash: a.synthesis?.textHash ?? null,
     }));
   }
 }

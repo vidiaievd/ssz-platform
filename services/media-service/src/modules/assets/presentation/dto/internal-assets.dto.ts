@@ -46,6 +46,16 @@ export class AssetDescriptionDto {
 
   @ApiPropertyOptional({ example: 24300, nullable: true, type: Number, description: 'Measured length, ms' })
   durationMs!: number | null;
+
+  @ApiProperty({ example: 'SYNTHESIZED', enum: ['UPLOAD', 'SYNTHESIZED'] })
+  origin!: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'For a synthesized asset: narrationTextHash of the text it spoke',
+  })
+  textHash!: string | null;
 }
 
 export class AssetPlaybackDto {

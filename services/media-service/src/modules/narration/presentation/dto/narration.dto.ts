@@ -56,3 +56,13 @@ export class RequestNarrationResponseDto {
   @ApiProperty({ example: 2137, description: 'Spoken characters, the number NARRATION_MAX_CHARS limits' })
   characters!: number;
 }
+
+/** The same request, made on an author's behalf by content-service (the batch narration). */
+export class InternalRequestNarrationDto extends RequestNarrationDto {
+  @ApiProperty({
+    example: '0f8fad5b-d9cb-469f-a165-70867728950e',
+    description: 'Who owns the narration asset — the lesson\'s owner, as if they had asked themselves',
+  })
+  @IsUUID('all')
+  ownerId!: string;
+}

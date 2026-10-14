@@ -9,6 +9,9 @@ import { GetLeafItemsHandler } from '../container/application/queries/get-leaf-i
 import { GetModuleReaderStructureHandler } from './application/queries/get-module-reader-structure/get-module-reader-structure.handler.js';
 import { GetMediaInUseHandler } from './application/queries/get-media-in-use/get-media-in-use.handler.js';
 import { GetExercisePlacementHandler } from './application/queries/get-exercise-placement/get-exercise-placement.handler.js';
+import { CourseNarrationService } from './application/narration/course-narration.service.js';
+import { MEDIA_NARRATION_CLIENT } from './application/narration/media-narration.port.js';
+import { HttpMediaNarrationClient } from './infrastructure/http-media-narration.client.js';
 import { LESSON_CONTENT_VARIANT_REPOSITORY } from '../lesson/domain/repositories/lesson-content-variant.repository.interface.js';
 import { PrismaLessonContentVariantRepository } from '../lesson/infrastructure/persistence/prisma-lesson-content-variant.repository.js';
 
@@ -27,6 +30,8 @@ import { PrismaLessonContentVariantRepository } from '../lesson/infrastructure/p
     GetModuleReaderStructureHandler,
     GetExercisePlacementHandler,
     GetMediaInUseHandler,
+    CourseNarrationService,
+    { provide: MEDIA_NARRATION_CLIENT, useClass: HttpMediaNarrationClient },
     { provide: LESSON_CONTENT_VARIANT_REPOSITORY, useClass: PrismaLessonContentVariantRepository },
   ],
 })

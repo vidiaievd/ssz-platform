@@ -8,6 +8,7 @@ import { PrismaMediaAssetRepository } from '../assets/infrastructure/persistence
 import { RequestNarrationHandler } from './application/commands/request-narration/request-narration.handler.js';
 import { NarrationRenderer } from './infrastructure/narration-renderer.js';
 import { NarrationSynthesisWorker } from './infrastructure/narration-synthesis.worker.js';
+import { InternalNarrationController } from './presentation/internal-narration.controller.js';
 import { NarrationController } from './presentation/narration.controller.js';
 
 /**
@@ -16,7 +17,7 @@ import { NarrationController } from './presentation/narration.controller.js';
  */
 @Module({
   imports: [CqrsModule, BullModule.registerQueue({ name: QUEUE_SPEECH_SYNTHESIS })],
-  controllers: [NarrationController],
+  controllers: [NarrationController, InternalNarrationController],
   providers: [
     RequestNarrationHandler,
     NarrationRenderer,
