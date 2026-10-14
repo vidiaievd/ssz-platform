@@ -4,6 +4,7 @@ import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Public } from '../../../common/decorators/public.decorator.js';
 import { InternalAuthGuard } from '../../../common/guards/internal-auth.guard.js';
+import { speakerVoicesOf } from '../domain/speaker-voices.js';
 import { RequestNarrationCommand } from '../application/commands/request-narration/request-narration.command.js';
 import type { RequestNarrationOutcome } from '../application/commands/request-narration/request-narration.command.js';
 import { InternalRequestNarrationDto, RequestNarrationResponseDto } from './dto/narration.dto.js';
@@ -38,6 +39,7 @@ export class InternalNarrationController {
         dto.lengthScale ?? null,
         dto.pauseScale ?? null,
         dto.voiceId ?? null,
+        speakerVoicesOf(dto.speakerVoices),
       ),
     );
     if (result.isFail) throw new UnprocessableEntityException(result.error);

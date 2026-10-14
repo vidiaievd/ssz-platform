@@ -1,5 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 import {
   LENGTH_SCALE_RANGE,
@@ -80,6 +91,16 @@ export class RequestNarrationDto {
   @IsString()
   @MaxLength(40)
   voiceId?: string;
+
+  @ApiPropertyOptional({
+    example: { Erik: 'nvcc-mmn', Taras: 'nvcc-mnn' },
+    description:
+      'Voice per speaker of the dialogue, by catalog id. Speakers left out are given voices of ' +
+      'their own (never the narrator\'s); an id the language has no voice for is ignored.',
+  })
+  @IsOptional()
+  @IsObject()
+  speakerVoices?: Record<string, string>;
 }
 
 export class NarrationVoiceDto {
@@ -153,6 +174,12 @@ export class RequestNarrationResponseDto {
 
   @ApiProperty({ example: 2137, description: 'Spoken characters, the number NARRATION_MAX_CHARS limits' })
   characters!: number;
+
+  @ApiProperty({
+    example: { Erik: 'nvcc-mmn', Taras: 'nvcc-kon' },
+    description: 'The voice each speaker speaks with — the author\'s choice, the rest assigned',
+  })
+  speakerVoices!: Record<string, string>;
 }
 
 /** The same request, made on an author's behalf by content-service (the batch narration). */

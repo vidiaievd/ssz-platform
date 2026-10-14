@@ -17,6 +17,8 @@ export class RequestNarrationCommand {
     public readonly pauseScale: number | null = null,
     /** The narrator's catalog id; null is the default voice of the language. */
     public readonly voiceId: string | null = null,
+    /** The author's voice per speaker; the rest are assigned (`assignSpeakerVoices`). */
+    public readonly speakerVoices: Record<string, string> | null = null,
   ) {}
 }
 
@@ -33,6 +35,8 @@ export interface RequestNarrationResult {
   pauseScale: number;
   segments: number;
   characters: number;
+  /** The voice each speaker speaks with. */
+  speakerVoices: Record<string, string>;
 }
 
 export type RequestNarrationError =

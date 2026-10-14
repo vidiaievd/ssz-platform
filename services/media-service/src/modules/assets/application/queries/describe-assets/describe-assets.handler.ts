@@ -26,6 +26,7 @@ export class DescribeAssetsHandler implements IQueryHandler<DescribeAssetsQuery,
       lengthScale: a.synthesis?.lengthScale ?? null,
       pauseScale: a.synthesis?.pauseScale ?? null,
       voiceId: a.synthesis?.voiceId ?? null,
+      speakerVoices: a.synthesis?.voices ?? null,
     }));
   }
 }

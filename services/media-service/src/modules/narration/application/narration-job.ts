@@ -15,4 +15,6 @@ export interface NarrationJobData {
   level: string | null;
   /** The narrator's catalog id, chosen at request time. */
   voiceId: string;
+  /** The voice each speaker speaks with, by catalog id; absent speakers use the narrator's. */
+  speakerVoices?: Record<string, string>;
 }

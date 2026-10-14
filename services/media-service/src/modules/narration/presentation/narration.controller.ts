@@ -20,6 +20,7 @@ import type { IVoiceResolver } from '../../../shared/application/ports/speech-sy
 import { isAuthor } from '../../../common/authoring-roles.js';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
+import { speakerVoicesOf } from '../domain/speaker-voices.js';
 import { RequestNarrationCommand } from '../application/commands/request-narration/request-narration.command.js';
 import type { RequestNarrationOutcome } from '../application/commands/request-narration/request-narration.command.js';
 import {
@@ -97,6 +98,7 @@ export class NarrationController {
         dto.lengthScale ?? null,
         dto.pauseScale ?? null,
         dto.voiceId ?? null,
+        speakerVoicesOf(dto.speakerVoices),
       ),
     );
     if (result.isFail) throw new UnprocessableEntityException(result.error);

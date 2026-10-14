@@ -38,7 +38,8 @@ export class NarrationSynthesisWorker extends WorkerHost {
   }
 
   async process(job: Job<NarrationJobData>): Promise<void> {
-    const { assetId, jobId, ownerId, lang, segments, textHash, lengthScale, pauseScale, level, voiceId } = job.data;
+    const { assetId, jobId, ownerId, lang, segments, textHash, lengthScale, pauseScale, level, voiceId, speakerVoices } =
+      job.data;
     const started = Date.now();
 
     await this.prisma.processingJob.update({
@@ -47,7 +48,7 @@ export class NarrationSynthesisWorker extends WorkerHost {
     });
 
     try {
-      const rendered = await this.renderer.render(lang, segments, { lengthScale, pauseScale }, voiceId);
+      const rendered = await this.renderer.render(lang, segments, { lengthScale, pauseScale }, voiceId, speakerVoices);
       const mp3 = await encodeMp3(rendered.wav, ORIGINAL_BITRATE);
 
       const stored: StoreSynthesizedAudioResult = await this.commandBus.execute(
@@ -56,6 +57,7 @@ export class NarrationSynthesisWorker extends WorkerHost {
           voice: rendered.voice,
           voiceId: rendered.voiceId,
           ...(rendered.speaker ? { speaker: rendered.speaker } : {}),
+          ...(speakerVoices && Object.keys(speakerVoices).length > 0 ? { voices: speakerVoices } : {}),
           lang,
           textHash,
           segments: segments.length,

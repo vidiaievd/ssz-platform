@@ -8,9 +8,11 @@ function makeHandler(maxChars = 12_000) {
   const repo = { save: jest.fn().mockResolvedValue(undefined) };
   const NARRATOR = { id: 'talesyntese', voice: 'nb-voice', gender: 'male', name: 'T', paceFactor: 1, family: 'no' };
   const CHOSEN = { id: 'nvcc-kon', voice: 'multi', speaker: 'KON', gender: 'female', name: 'KON', paceFactor: 1.14, family: 'no' };
+  const MALE = { id: 'nvcc-mmn', voice: 'multi', speaker: 'MMN', gender: 'male', name: 'MMN', paceFactor: 1.06, family: 'no' };
   const voices = {
     resolve: jest.fn((lang: string) => (lang === 'nb' ? NARRATOR : null)),
     byId: jest.fn((lang: string, id: string) => (lang === 'nb' && id === 'nvcc-kon' ? CHOSEN : null)),
+    list: jest.fn((lang: string) => (lang === 'nb' ? [NARRATOR, CHOSEN, MALE] : [])),
   };
   const queue = { add: jest.fn().mockResolvedValue(undefined) };
   const prisma = { processingJob: { create: jest.fn().mockResolvedValue({ id: 'job-1' }) } };
@@ -29,7 +31,13 @@ const command = (
   body = BODY,
   lang = 'nb',
   label: string | null = 'Les teksten — 2D',
-  style: { level?: string | null; lengthScale?: number | null; pauseScale?: number | null; voiceId?: string | null } = {},
+  style: {
+    level?: string | null;
+    lengthScale?: number | null;
+    pauseScale?: number | null;
+    voiceId?: string | null;
+    speakerVoices?: Record<string, string> | null;
+  } = {},
 ) =>
   new RequestNarrationCommand(
     'teacher-1',
@@ -41,6 +49,7 @@ const command = (
     style.lengthScale ?? null,
     style.pauseScale ?? null,
     style.voiceId ?? null,
+    style.speakerVoices ?? null,
   );
 
 describe('RequestNarrationHandler', () => {
@@ -79,7 +88,21 @@ describe('RequestNarrationHandler', () => {
       pauseScale: 1,
       segments: 3,
       characters: 'Prøvetiden'.length + 'Hvordan synes du de første ukene har vært?'.length + 'Bra!'.length,
+      // Neither is the narrator; a name says nothing about who carries it, so they alternate.
+      speakerVoices: { Silje: 'nvcc-mmn', Taras: 'nvcc-kon' },
     });
+    expect(data.speakerVoices).toEqual({ Silje: 'nvcc-mmn', Taras: 'nvcc-kon' });
+  });
+
+  it("gives a speaker the voice the author chose, and the others voices around it", async () => {
+    const { handler, queue } = makeHandler();
+
+    const result = await handler.execute(
+      command(BODY, 'nb', null, { speakerVoices: { Silje: 'nvcc-kon', Nobody: 'nvcc-mmn' } }),
+    );
+
+    expect(result.value.speakerVoices).toEqual({ Silje: 'nvcc-kon', Taras: 'nvcc-mmn' });
+    expect(queue.add.mock.calls[0]![1].speakerVoices).toEqual({ Silje: 'nvcc-kon', Taras: 'nvcc-mmn' });
   });
 
   it("speaks at the course level's pace unless the author chose another", async () => {

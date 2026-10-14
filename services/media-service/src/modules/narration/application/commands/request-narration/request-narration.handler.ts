@@ -2,7 +2,8 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { toNarrationScript } from '@ssz/shared-kernel/narration';
+import { toNarrationScript, narrationSpeakers } from '@ssz/shared-kernel/narration';
+import { assignSpeakerVoices } from '../../../domain/speaker-voices.js';
 import { Queue } from 'bullmq';
 
 import type { AppConfig } from '../../../../../config/configuration.js';
@@ -54,6 +55,13 @@ export class RequestNarrationHandler implements ICommandHandler<RequestNarration
     const narrator = command.voiceId ? this.voices.byId(command.lang, command.voiceId) : this.voices.resolve(command.lang, null);
     if (!narrator) return Result.fail(command.voiceId && this.voices.resolve(command.lang, null) ? 'VOICE_NOT_AVAILABLE' : 'LANGUAGE_NOT_SUPPORTED');
 
+    const speakerVoices = assignSpeakerVoices(
+      narrationSpeakers(script.segments),
+      narrator.id,
+      this.voices.list(command.lang),
+      command.speakerVoices,
+    );
+
     const tts = this.config.get<AppConfig['tts']>('tts')!;
     const style = resolveNarrationStyle(
       { lengthScale: command.lengthScale, pauseScale: command.pauseScale },
@@ -94,6 +102,7 @@ export class RequestNarrationHandler implements ICommandHandler<RequestNarration
       pauseScale: style.pauseScale,
       level: command.level,
       voiceId: narrator.id,
+      speakerVoices,
     };
     // One attempt: a failed narration turns FAILED and the author asks again, rather than
     // the queue retrying a minute of speech against a synthesizer that is down.
@@ -118,6 +127,7 @@ export class RequestNarrationHandler implements ICommandHandler<RequestNarration
       pauseScale: style.pauseScale,
       segments: script.segments.length,
       characters,
+      speakerVoices,
     });
   }
 }

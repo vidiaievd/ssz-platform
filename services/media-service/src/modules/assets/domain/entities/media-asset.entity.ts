@@ -27,7 +27,7 @@ export interface AssetSynthesis {
   provider: string;
   /** The narrator's voice. */
   voice: string;
-  /** Speaker → voice, when characters were given voices of their own (D1). */
+  /** Speaker → catalog voice id, when characters speak with voices of their own (D1, phase 8). */
   voices?: Record<string, string>;
   lang: string;
   /** `narrationTextHash` of the text that was spoken; compared against the current body. */

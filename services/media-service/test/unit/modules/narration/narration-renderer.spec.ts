@@ -136,4 +136,23 @@ describe('NarrationRenderer', () => {
     mixed.synthesize.mockResolvedValueOnce(buildWav({ ...FORMAT, sampleRate: 2_000, data: Buffer.alloc(4, 7) }));
     await expect(renderer(mixed, oneVoice).render('nb', segments, STYLE)).rejects.toThrow('different PCM format');
   });
+
+  it('speaks each turn with its speaker\'s voice and pace, everything else with the narrator\'s', async () => {
+    const synthesizer = fakeSynthesizer();
+
+    await renderer(synthesizer, oneVoice).render('nb', segments, STYLE, undefined, { Silje: 'nvcc-kat' });
+
+    const calls = synthesizer.synthesize.mock.calls.map(([request]) => [
+      request.voice,
+      request.speaker ?? null,
+      request.style?.lengthScale,
+    ]);
+    expect(calls).toEqual([
+      ['nb-voice', null, 1.7],
+      ['multi-model', 'KAT', 2.04],
+      // Taras has no voice in the map, and a map naming no voice of the language is no voice.
+      ['nb-voice', null, 1.7],
+      ['nb-voice', null, 1.7],
+    ]);
+  });
 });

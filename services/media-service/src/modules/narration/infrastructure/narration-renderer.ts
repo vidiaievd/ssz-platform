@@ -7,7 +7,7 @@ import { buildWav, parseWav, pcmDurationMs, sameFormat, silence } from '../../..
 import type { Pcm, PcmFormat } from '../../../infrastructure/audio/wav.js';
 import { SPEECH_SYNTHESIZER, VOICE_RESOLVER } from '../../../shared/application/ports/speech-synthesizer.port.js';
 import type { NarrationStyle } from '../domain/narration-style.js';
-import type { ISpeechSynthesizer, IVoiceResolver } from '../../../shared/application/ports/speech-synthesizer.port.js';
+import type { ISpeechSynthesizer, IVoiceResolver, ResolvedVoice } from '../../../shared/application/ports/speech-synthesizer.port.js';
 
 export interface RenderedNarration {
   /** One WAV: every segment in order, with the D2 pauses between them. */
@@ -42,6 +42,7 @@ export class NarrationRenderer {
     segments: readonly NarrationSegment[],
     delivery: NarrationStyle,
     voiceId?: string,
+    speakerVoices?: Readonly<Record<string, string>>,
   ): Promise<RenderedNarration> {
     const narrator = voiceId ? this.voices.byId(lang, voiceId) : this.voices.resolve(lang, null);
     if (!narrator) throw new Error(`no voice speaks ${lang}`);
@@ -50,22 +51,28 @@ export class NarrationRenderer {
     const tts = this.config.get<AppConfig['tts']>('tts')!;
     // The rhythm's randomness is the same for everyone; pace and pauses are the author's to set.
     // `lengthScale` is relative to the voice's natural pace; the voice's factor evens the voices out.
-    const style = {
-      lengthScale: Math.round(delivery.lengthScale * narrator.paceFactor * 1000) / 1000,
+    // Each voice keeps the author's pace through its own factor, so voices sound evenly paced.
+    const styleOf = (voice: ResolvedVoice) => ({
+      lengthScale: Math.round(delivery.lengthScale * voice.paceFactor * 1000) / 1000,
       noiseWScale: tts.narrationNoiseWScale,
+    });
+    /** A turn's speaker speaks with their own voice (plan 74, phase 8); everything else is the narrator's. */
+    const voiceOf = (segment: NarrationSegment): ResolvedVoice => {
+      const id = segment.kind === 'turn' && segment.speaker ? speakerVoices?.[segment.speaker] : undefined;
+      return (id ? this.voices.byId(lang, id) : null) ?? narrator;
     };
     const parts: Buffer[] = [];
     let format: PcmFormat | null = null;
 
     for (const [index, segment] of segments.entries()) {
-      // A character speaks with the narrator's voice until a per-character map exists (D1).
+      const voice = voiceOf(segment);
       const pcm: Pcm = parseWav(
         await this.synthesizer.synthesize({
           text: segment.text,
-          voice: narrator.voice,
-          ...(narrator.speaker ? { speaker: narrator.speaker } : {}),
+          voice: voice.voice,
+          ...(voice.speaker ? { speaker: voice.speaker } : {}),
           lang,
-          style,
+          style: styleOf(voice),
         }),
       );
       if (!format) {

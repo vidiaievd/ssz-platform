@@ -20,6 +20,8 @@ export interface AssetDescription {
   pauseScale: number | null;
   /** The catalog id of the narrator of a synthesized narration, when recorded. */
   voiceId: string | null;
+  /** Speaker → voice of a synthesized narration's dialogue. */
+  speakerVoices: Record<string, string> | null;
 }
 
 export class DescribeAssetsQuery implements IQuery {
