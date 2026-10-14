@@ -68,3 +68,19 @@ export function planVariantNarration(
   if (force) return { kind: 'refresh', replaces: assetId, why: 'forced' };
   return { kind: 'skip', reason: 'current', assetId };
 }
+
+/**
+ * A narration refreshed because its text changed or it failed keeps the pace and pauses the
+ * author gave it; a forced one starts from the level's defaults again — that is what force is for.
+ */
+export function keptSettings(
+  plan: Exclude<NarrationVariantPlan, { kind: 'skip' }>,
+  assets: ReadonlyMap<string, NarrationAssetInfo>,
+): { lengthScale?: number; pauseScale?: number } {
+  if (plan.kind !== 'refresh' || plan.why === 'forced') return {};
+  const previous = assets.get(plan.replaces);
+  return {
+    ...(previous?.lengthScale != null && { lengthScale: previous.lengthScale }),
+    ...(previous?.pauseScale != null && { pauseScale: previous.pauseScale }),
+  };
+}

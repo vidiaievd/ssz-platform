@@ -8,7 +8,7 @@ import type { CourseNarrationOptions, CourseNarrationReport, NarrationItemReport
 import { NarrateCourseCommand } from './narrate-course.command.js';
 import { MEDIA_NARRATION_CLIENT } from './media-narration.port.js';
 import type { IMediaNarrationClient } from './media-narration.port.js';
-import { planVariantNarration } from './narration-plan.js';
+import { keptSettings, planVariantNarration } from './narration-plan.js';
 import type { NarrationAssetInfo, NarrationSkipReason, NarrationVariantPlan } from './narration-plan.js';
 
 /** How long one narration may take from queued to READY. Piper speaks a text in seconds. */
@@ -226,22 +226,6 @@ export class CourseNarrationService implements ICommandHandler<NarrateCourseComm
     }
     return 'TIMEOUT';
   }
-}
-
-/**
- * A narration refreshed because its text changed or it failed keeps the pace and pauses the
- * author gave it; a forced one starts from the level's defaults again — that is what force is for.
- */
-function keptSettings(
-  plan: Exclude<NarrationVariantPlan, { kind: 'skip' }>,
-  assets: Map<string, NarrationAssetInfo>,
-): { lengthScale?: number; pauseScale?: number } {
-  if (plan.kind !== 'refresh' || plan.why === 'forced') return {};
-  const previous = assets.get(plan.replaces);
-  return {
-    ...(previous?.lengthScale != null && { lengthScale: previous.lengthScale }),
-    ...(previous?.pauseScale != null && { pauseScale: previous.pauseScale }),
-  };
 }
 
 const SKIP_DETAIL: Record<NarrationSkipReason, string> = {
