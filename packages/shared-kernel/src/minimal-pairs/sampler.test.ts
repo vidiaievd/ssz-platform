@@ -8,7 +8,7 @@ import { filledWords } from './derive.js';
 import { setSet } from './edits.js';
 import { sampleDocument } from './fixture.js';
 import type { MinimalPairsContent } from './model.js';
-import { deal, lcg, readDraw, sample } from './sampler.js';
+import { checkDraw, deal, lcg, readDraw, sample } from './sampler.js';
 
 function textOf(ex: MinimalPairsContent, wordId: string): string {
   return ex.pairs.flatMap((p) => p.words).find((w) => w.id === wordId)?.text ?? '?';
@@ -134,5 +134,71 @@ describe('readDraw', () => {
     expect(readDraw([{ n: 1 }, 'x', { n: 2, pairId: 'p', wordId: 'w', optionIds: ['w', 3] }])).toEqual([
       { n: 2, pairId: 'p', wordId: 'w', side: 0, optionIds: ['w'] },
     ]);
+  });
+});
+
+describe('checkDraw', () => {
+  const plain = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+  it('takes any draw deal could have made, from every sampling and option mode', () => {
+    for (const set of [{}, { sampling: 'random' as const }, { options: 'all' as const }, { shuffleOptions: false }]) {
+      const ex = setSet(sampleDocument(), set);
+      for (let seed = 1; seed < 20; seed++) {
+        const dealt = deal(ex, lcg(seed));
+        expect(checkDraw(ex, plain(dealt))).toEqual({ draw: dealt });
+      }
+    }
+  });
+
+  it('refuses nothing, a non-array and more probes than the set has', () => {
+    const ex = sampleDocument();
+    expect(checkDraw(ex, [])).toEqual({ fault: 'empty' });
+    expect(checkDraw(ex, null)).toEqual({ fault: 'empty' });
+    const long = deal(setSet(ex, { probes: 20 }), lcg(3));
+    expect(checkDraw(ex, plain(long))).toEqual({ fault: 'tooMany' });
+  });
+
+  it('refuses a probe readDraw would have dropped', () => {
+    const dealt = plain(deal(sampleDocument(), lcg(7)));
+    expect(checkDraw(sampleDocument(), [...dealt.slice(0, 2), { n: 3 }])).toEqual({ fault: 'malformed' });
+  });
+
+  it('refuses probes out of order', () => {
+    const dealt = plain(deal(sampleDocument(), lcg(7)));
+    [dealt[0]!.n, dealt[1]!.n] = [2, 1];
+    expect(checkDraw(sampleDocument(), dealt)).toEqual({ fault: 'outOfOrder' });
+  });
+
+  it('refuses a pair, a word or a side the document does not have', () => {
+    const ex = sampleDocument();
+    const at = (patch: Record<string, unknown>) => {
+      const dealt = plain(deal(ex, lcg(7)));
+      Object.assign(dealt[0]!, patch);
+      return checkDraw(ex, dealt);
+    };
+    expect(at({ pairId: 'nope' })).toEqual({ fault: 'unknownPair' });
+    expect(at({ wordId: 'nope' })).toEqual({ fault: 'unknownWord' });
+    const first = deal(ex, lcg(7))[0]!;
+    expect(at({ side: first.side + 1 })).toEqual({ fault: 'wrongSide' });
+  });
+
+  it('refuses buttons that are not exactly the pair’s', () => {
+    const ex = sampleDocument();
+    const at = (optionIds: (ids: string[]) => string[]) => {
+      const dealt = plain(deal(ex, lcg(7)));
+      dealt[0]!.optionIds = optionIds(dealt[0]!.optionIds);
+      return checkDraw(ex, dealt);
+    };
+    expect(at((ids) => ids.slice(1))).toEqual({ fault: 'wrongOptions' });
+    expect(at((ids) => [...ids.slice(1), ids[1]!])).toEqual({ fault: 'wrongOptions' });
+    expect(at((ids) => [...ids.slice(1), 'stranger'])).toEqual({ fault: 'wrongOptions' });
+  });
+
+  it('refuses a probe from a pair that has lost a clip since', () => {
+    const ex = sampleDocument();
+    const dealt = plain(deal(ex, lcg(7)));
+    const pair = ex.pairs.find((p) => p.id === dealt[0]!.pairId)!;
+    pair.words[0]!.clip = { ...pair.words[0]!.clip, assetId: '' };
+    expect(checkDraw(ex, dealt)).toEqual({ fault: 'unknownPair' });
   });
 });
