@@ -140,6 +140,16 @@ export function toSrsCardStateDto(card: ReviewCard): SrsCardStateDto {
   };
 }
 
+export interface VocabularyReplicaEnvelope {
+  /** When the copy was taken — the client measures its own clock against it. */
+  serverTime: string;
+  /** Vocabulary reviews counted today, and the cap they are measured against. */
+  reviewedToday: number;
+  dailyLimit: number;
+  /** Every vocabulary card, suspended included; `predicted` is always empty. */
+  cards: ReviewCardDto[];
+}
+
 export interface DueCardsEnvelope {
   cards: ReviewCardDto[];
   /**

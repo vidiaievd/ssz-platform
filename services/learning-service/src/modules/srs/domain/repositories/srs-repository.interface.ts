@@ -27,6 +27,11 @@ export interface ISrsRepository {
     contentType: SrsContentType,
     contentIds: string[],
   ): Promise<ReviewCard[]>;
+  /**
+   * Every card of one content type the user has, due or not, suspended included — the copy
+   * a client keeps to schedule offline (VoxOrd offline plan, B1). Never shadow cards.
+   */
+  findByUserAndType(userId: string, contentType: SrsContentType): Promise<ReviewCard[]>;
   /** Due cards, narrowed to one memory when the caller names a track (plan 63 phase 6). */
   findDueCards(
     userId: string,

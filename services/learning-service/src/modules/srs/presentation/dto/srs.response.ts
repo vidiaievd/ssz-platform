@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { ReviewCardDto, SrsStatsDto } from '../../application/dto/srs.dto.js';
+import type {
+  ReviewCardDto,
+  SrsStatsDto,
+  VocabularyReplicaEnvelope,
+} from '../../application/dto/srs.dto.js';
 import type { PredictedInterval } from '../../application/ports/srs-scheduler.port.js';
 
 export class ReviewCardResponse implements ReviewCardDto {
@@ -67,6 +71,29 @@ export class ReviewCardResponse implements ReviewCardDto {
     ],
   })
   predicted!: PredictedInterval[];
+}
+
+export class VocabularyReplicaResponse implements VocabularyReplicaEnvelope {
+  @ApiProperty({
+    format: 'date-time',
+    description: 'When the copy was taken; the client measures its own clock against it',
+    example: '2026-10-15T08:00:00.000Z',
+  })
+  serverTime!: string;
+
+  @ApiProperty({ description: 'Vocabulary reviews counted today', example: 12 })
+  reviewedToday!: number;
+
+  @ApiProperty({ description: 'Daily cap on vocabulary reviews', example: 200 })
+  dailyLimit!: number;
+
+  @ApiProperty({
+    type: [ReviewCardResponse],
+    description:
+      'Every VOCABULARY_WORD card of the user, suspended included, ordered by dueAt. ' +
+      '`predicted` is always empty and no word content is attached.',
+  })
+  cards!: ReviewCardResponse[];
 }
 
 export class SrsStatsResponse implements SrsStatsDto {
