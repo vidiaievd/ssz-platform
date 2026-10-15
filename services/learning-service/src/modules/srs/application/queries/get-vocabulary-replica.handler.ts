@@ -6,7 +6,7 @@ import {
 } from '../../domain/repositories/srs-repository.interface.js';
 import { SRS_LIMITS_POLICY, type ISrsLimitsPolicy } from '../ports/srs-limits-policy.port.js';
 import { CLOCK, type IClock } from '../../../../shared/application/ports/clock.port.js';
-import { toReviewCardDto, type VocabularyReplicaEnvelope } from '../dto/srs.dto.js';
+import { toReplicaCardDto, type VocabularyReplicaEnvelope } from '../dto/srs.dto.js';
 import { GetVocabularyReplicaQuery } from './get-vocabulary-replica.query.js';
 
 /**
@@ -40,7 +40,7 @@ export class GetVocabularyReplicaHandler implements IQueryHandler<
       serverTime: now.toISOString(),
       reviewedToday,
       dailyLimit: this.limitsPolicy.getDailyReviewLimit('lexis'),
-      cards: cards.map((card) => toReviewCardDto(card)),
+      cards: cards.map(toReplicaCardDto),
     };
   }
 }

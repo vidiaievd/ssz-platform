@@ -140,6 +140,24 @@ export function toSrsCardStateDto(card: ReviewCard): SrsCardStateDto {
   };
 }
 
+/**
+ * A card as the client's scheduler needs it: the review DTO plus the two FSRS fields the
+ * scheduler reads that the review DTO leaves out. Without `learningSteps` a card in its
+ * learning steps would be rescheduled differently on the phone than here.
+ */
+export interface ReplicaCardDto extends ReviewCardDto {
+  elapsedDays: number;
+  learningSteps: number;
+}
+
+export function toReplicaCardDto(card: ReviewCard): ReplicaCardDto {
+  return {
+    ...toReviewCardDto(card),
+    elapsedDays: card.elapsedDays,
+    learningSteps: card.learningSteps,
+  };
+}
+
 export interface VocabularyReplicaEnvelope {
   /** When the copy was taken — the client measures its own clock against it. */
   serverTime: string;
@@ -147,7 +165,7 @@ export interface VocabularyReplicaEnvelope {
   reviewedToday: number;
   dailyLimit: number;
   /** Every vocabulary card, suspended included; `predicted` is always empty. */
-  cards: ReviewCardDto[];
+  cards: ReplicaCardDto[];
 }
 
 export interface DueCardsEnvelope {

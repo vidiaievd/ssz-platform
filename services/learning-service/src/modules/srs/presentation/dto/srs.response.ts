@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type {
   ReviewCardDto,
   SrsStatsDto,
+  ReplicaCardDto,
   VocabularyReplicaEnvelope,
 } from '../../application/dto/srs.dto.js';
 import type { PredictedInterval } from '../../application/ports/srs-scheduler.port.js';
@@ -73,6 +74,17 @@ export class ReviewCardResponse implements ReviewCardDto {
   predicted!: PredictedInterval[];
 }
 
+export class ReplicaCardResponse extends ReviewCardResponse implements ReplicaCardDto {
+  @ApiProperty({ description: 'FSRS elapsed days at the last review', example: 3 })
+  elapsedDays!: number;
+
+  @ApiProperty({
+    description: 'FSRS learning step the card is on (0 outside learning)',
+    example: 1,
+  })
+  learningSteps!: number;
+}
+
 export class VocabularyReplicaResponse implements VocabularyReplicaEnvelope {
   @ApiProperty({
     format: 'date-time',
@@ -88,12 +100,12 @@ export class VocabularyReplicaResponse implements VocabularyReplicaEnvelope {
   dailyLimit!: number;
 
   @ApiProperty({
-    type: [ReviewCardResponse],
+    type: [ReplicaCardResponse],
     description:
       'Every VOCABULARY_WORD card of the user, suspended included, ordered by dueAt. ' +
       '`predicted` is always empty and no word content is attached.',
   })
-  cards!: ReviewCardResponse[];
+  cards!: ReplicaCardResponse[];
 }
 
 export class SrsStatsResponse implements SrsStatsDto {

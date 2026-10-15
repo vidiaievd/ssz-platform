@@ -52,6 +52,8 @@ describe('GetVocabularyReplicaHandler', () => {
       stability: 60,
       reps: expect.any(Number),
       lapses: expect.any(Number),
+      elapsedDays: expect.any(Number),
+      learningSteps: expect.any(Number),
       predicted: [],
     });
     expect(result.cards[1]).not.toHaveProperty('front');
