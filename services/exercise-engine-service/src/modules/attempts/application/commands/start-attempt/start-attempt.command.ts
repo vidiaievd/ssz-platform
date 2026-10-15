@@ -29,5 +29,12 @@ export class StartAttemptCommand {
      * passes joinAttemptId last.
      */
     public readonly lessonId: string | null = null,
+    /**
+     * `minimal_pairs` only: a sitting the phone dealt and played with no network, handed over
+     * when its journal is replayed (VoxOrd offline plan, B6). Taken instead of a fresh draw if
+     * the kernel's `checkDraw` says this document could have dealt it. Untrusted, hence
+     * `unknown` until checked.
+     */
+    public readonly probeDraw: unknown = null,
   ) {}
 }

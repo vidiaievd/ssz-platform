@@ -64,6 +64,12 @@ export function closedResults(
 export { probeQuestionId };
 
 /**
+ * How many of the learner's latest sittings `weakest` reads — enough to see a pattern, bounded.
+ * The phone that deals offline keeps to the same number (VoxOrd offline plan, B6).
+ */
+export const HISTORY_SITTINGS = 50;
+
+/**
  * The student's history of the contrasts this set trains, from their own scored sittings of
  * any `minimal_pairs` exercise (plan 72 §3.11). `undefined` with no history at all, which the
  * sampler reads as `balanced` — DECISIONS §3: «on a first sitting it falls back to balanced».

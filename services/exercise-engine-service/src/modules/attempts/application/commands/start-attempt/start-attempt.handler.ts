@@ -77,14 +77,16 @@ import {
 import {
   atomsForMemory as mpAtomsForMemory,
   CONTRAST_ATOM_TYPE,
+  checkDraw as mpCheckDraw,
   contrastAtoms as mpContrastAtoms,
   deal as mpDeal,
   fromPersisted as mpFromPersisted,
+  readDraw as mpReadDraw,
   TEMPLATE_CODE as MINIMAL_PAIRS,
   toStudentProjection as mpsToStudentProjection,
   withGradedSettings as mpsWithGradedSettings,
 } from '@ssz/shared-kernel/minimal-pairs';
-import type { DealtProbe, MinimalPairsContent } from '@ssz/shared-kernel/minimal-pairs';
+import type { DealtProbe, DrawFault, MinimalPairsContent } from '@ssz/shared-kernel/minimal-pairs';
 import {
   cellAtomsForMemory as infCellAtomsForMemory,
   fromPersisted as infFromPersisted,
@@ -97,7 +99,7 @@ import {
 import type { InformationTransferContent } from '@ssz/shared-kernel/information-transfer';
 import { informationTransferLearnerDetails } from '../../services/information-transfer-details.js';
 import { carriedInto } from '../../services/read-aloud-recordings.js';
-import { cspRand, drawOf, historyFor } from '../../services/minimal-pairs-sitting.js';
+import { cspRand, drawOf, historyFor, HISTORY_SITTINGS } from '../../services/minimal-pairs-sitting.js';
 import { itemStatesOf, questionStatesOf, segmentStatesOf } from '../../services/item-states.js';
 import { StartAttemptCommand } from './start-attempt.command.js';
 import { Attempt } from '../../../domain/entities/attempt.entity.js';
@@ -126,7 +128,19 @@ export type StartAttemptError =
    */
   | { code: 'MP_SITTINGS_SPENT'; allowed: number }
   /** `minimal_pairs`: no pair has two words with audio, so there is nothing to play. */
-  | { code: 'MP_EMPTY_SET' };
+  | { code: 'MP_EMPTY_SET' }
+  /**
+   * A dealt draw sent where none is taken: not `minimal_pairs`, or not PRACTICE — a graded
+   * sitting is never played offline (VoxOrd offline plan, B6).
+   */
+  | { code: 'MP_DRAW_NOT_ACCEPTED' }
+  /** A dealt draw this document could not have made (the kernel's `checkDraw`). */
+  | { code: 'MP_DRAW_INVALID'; fault: DrawFault }
+  /**
+   * A dealt draw sent while another sitting of the exercise is open on the server — one left
+   * unfinished on the web. Nothing is changed: the caller abandons that one by its id, or not.
+   */
+  | { code: 'MP_DRAW_CONFLICT'; attemptId: string };
 
 /** One sentence of a `sentence_schema` set already worked on in this attempt. */
 export interface ResumedRow {
@@ -739,6 +753,23 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
     const existing =
       board ?? (await this.attempts.findInProgress(command.userId, command.exerciseId));
 
+    // A sitting dealt on the phone (VoxOrd offline plan, B6). Only a PRACTICE `minimal_pairs`
+    // takes one. An open sitting with the same draw is this replay's own start, which reached
+    // the server before the reply was lost: it is resumed below like any open sitting. Any
+    // other open attempt is a different sitting, and the start never abandons one by itself.
+    if (command.probeDraw !== null) {
+      if (command.checkMode !== 'PRACTICE') {
+        return Result.fail<StartAttemptResult, StartAttemptError>({ code: 'MP_DRAW_NOT_ACCEPTED' });
+      }
+      if (existing && !sameDraw(existing.probeDraw, command.probeDraw)) {
+        return Result.fail<StartAttemptResult, StartAttemptError>(
+          existing.templateCode === MINIMAL_PAIRS
+            ? { code: 'MP_DRAW_CONFLICT', attemptId: existing.id }
+            : { code: 'MP_DRAW_NOT_ACCEPTED' },
+        );
+      }
+    }
+
     /*
      * An open attempt that already holds answers is resumed rather than reported as a
      * conflict — the caller would otherwise abandon it and start again, which is right
@@ -895,9 +926,18 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       command.checkMode,
     );
 
+    if (command.probeDraw !== null && def.exercise.templateCode !== MINIMAL_PAIRS) {
+      return Result.fail<StartAttemptResult, StartAttemptError>({ code: 'MP_DRAW_NOT_ACCEPTED' });
+    }
     const sitting =
       def.exercise.templateCode === MINIMAL_PAIRS
-        ? await this.prepareSitting(command.userId, command.exerciseId, def.exercise.targetLanguage, source)
+        ? await this.prepareSitting(
+            command.userId,
+            command.exerciseId,
+            def.exercise.targetLanguage,
+            source,
+            command.probeDraw,
+          )
         : null;
     if (sitting !== null && 'code' in sitting) {
       return Result.fail<StartAttemptResult, StartAttemptError>(sitting);
@@ -1112,22 +1152,35 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
    * in any mode. `weakest` reads the learner's own scored sittings of any `minimal_pairs`
    * exercise in this language and nothing else (§3.11); the other two samplings read nothing.
    * The draw is made with the CSPRNG and stored on the attempt: it is never recomputed.
+   *
+   * A draw the phone dealt offline (`clientDraw`) is taken instead once the kernel has checked
+   * it against the document; the limit on sittings is counted all the same, and the history is
+   * not read — the phone sampled from its own copy of it.
    */
   private async prepareSitting(
     userId: string,
     exerciseId: string,
     targetLanguage: string,
     source: ExerciseDefinition['exercise'],
+    clientDraw: unknown,
   ): Promise<
     | { document: MinimalPairsContent; draw: DealtProbe[] }
     | { code: 'MP_SITTINGS_SPENT'; allowed: number }
     | { code: 'MP_EMPTY_SET' }
+    | { code: 'MP_DRAW_INVALID'; fault: DrawFault }
   > {
     const document = mpFromPersisted(source.content, source.expectedAnswers);
 
     const allowed = document.scoring.attempts;
     if (allowed > 0 && (await this.attempts.countSubmitted(userId, exerciseId)) >= allowed) {
       return { code: 'MP_SITTINGS_SPENT', allowed };
+    }
+
+    if (clientDraw !== null) {
+      const checked = mpCheckDraw(document, clientDraw);
+      return 'fault' in checked
+        ? { code: 'MP_DRAW_INVALID', fault: checked.fault }
+        : { document, draw: checked.draw };
     }
 
     const history =
@@ -1194,6 +1247,12 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
   }
 }
 
+/** Whether an open attempt holds the very draw a replayed start brings (both read leniently). */
+function sameDraw(stored: unknown, sent: unknown): boolean {
+  const a = mpReadDraw(stored);
+  return a.length > 0 && JSON.stringify(a) === JSON.stringify(mpReadDraw(sent));
+}
+
 /**
  * The last check of an open board as a reload hands it back. `inflection_table`'s details are
  * the student's already; an `information_transfer` blank's are also the report's record, so they
@@ -1244,9 +1303,6 @@ function informationTransferAtoms(
     ],
   };
 }
-
-/** How many of the learner's latest sittings `weakest` reads — enough to see a pattern, bounded. */
-const HISTORY_SITTINGS = 50;
 
 /**
  * The number of probes this sitting actually plays, over the author's number in the projection.

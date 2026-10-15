@@ -19,6 +19,7 @@ export {
   currentProbe,
   drawOf,
   historyFor,
+  HISTORY_SITTINGS,
   probeQuestionId,
   probeStatesOf,
 } from './minimal-pairs-attempt.js';
