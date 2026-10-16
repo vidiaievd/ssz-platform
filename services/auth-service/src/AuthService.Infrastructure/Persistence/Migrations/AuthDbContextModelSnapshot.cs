@@ -71,6 +71,14 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("ClientType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("web")
+                        .HasColumnName("client_type");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -223,6 +231,135 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                             Description = "Premium subscriber",
                             Name = "premium",
                             NormalizedName = "PREMIUM"
+                        });
+                });
+
+            modelBuilder.Entity("AuthService.Domain.Entities.TokenLifetimePolicy", b =>
+                {
+                    b.Property<string>("Role")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("role");
+
+                    b.Property<string>("ClientType")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("client_type");
+
+                    b.Property<int>("RefreshLifetimeHours")
+                        .HasColumnType("integer")
+                        .HasColumnName("refresh_lifetime_hours");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Role", "ClientType");
+
+                    b.ToTable("token_lifetime_policies", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Role = "platform_admin",
+                            ClientType = "web",
+                            RefreshLifetimeHours = 12,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "platform_admin",
+                            ClientType = "mobile",
+                            RefreshLifetimeHours = 12,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "manager_platform",
+                            ClientType = "web",
+                            RefreshLifetimeHours = 24,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "manager_platform",
+                            ClientType = "mobile",
+                            RefreshLifetimeHours = 24,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "school_admin",
+                            ClientType = "web",
+                            RefreshLifetimeHours = 72,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "school_admin",
+                            ClientType = "mobile",
+                            RefreshLifetimeHours = 168,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "teacher",
+                            ClientType = "web",
+                            RefreshLifetimeHours = 168,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "teacher",
+                            ClientType = "mobile",
+                            RefreshLifetimeHours = 336,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "tutor",
+                            ClientType = "web",
+                            RefreshLifetimeHours = 168,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "tutor",
+                            ClientType = "mobile",
+                            RefreshLifetimeHours = 336,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "student",
+                            ClientType = "web",
+                            RefreshLifetimeHours = 168,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "student",
+                            ClientType = "mobile",
+                            RefreshLifetimeHours = 720,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "premium",
+                            ClientType = "web",
+                            RefreshLifetimeHours = 168,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Role = "premium",
+                            ClientType = "mobile",
+                            RefreshLifetimeHours = 720,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         });
                 });
 

@@ -1407,3 +1407,78 @@ describe('ExerciseAttemptedConsumer — work done on a disposable probe', () => 
     ).toBe(true);
   });
 });
+
+describe('ExerciseAttemptedConsumer — an attempt worked offline (VoxOrd offline plan, B4)', () => {
+  const VOCAB_ATOM = '7d1e2f3a-0000-4000-8000-000000000002';
+  const ATTEMPTED_AT = '2026-10-14T08:15:00.000Z';
+
+  function offlineEvent(overrides: Record<string, unknown> = {}) {
+    return envelope({
+      userId: USER_ID,
+      exerciseId: EXERCISE_ID,
+      score: 90,
+      timeSpentSeconds: 40,
+      completed: true,
+      templateCode: 'fill_in_blank',
+      practicedAtoms: [{ atomType: 'vocabulary_item', atomId: VOCAB_ATOM }],
+      attemptedAt: ATTEMPTED_AT,
+      recordedOffline: true,
+      ...overrides,
+    });
+  }
+
+  function commands(commandBus: { execute: { mock: { calls: unknown[][] } } }) {
+    return commandBus.execute.mock.calls.map((c) => c[0]);
+  }
+
+  it('dates every review it makes by the attempt, not by the sync', async () => {
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(offlineEvent()));
+
+    const reviews = commands(commandBus).filter(
+      (c): c is ReviewCardCommand => c instanceof ReviewCardCommand,
+    );
+    // The exercise card and the word the fan-out rates.
+    expect(reviews).toHaveLength(2);
+    for (const review of reviews) expect(review.reviewedAt).toEqual(new Date(ATTEMPTED_AT));
+  });
+
+  it('dates the progress row by the attempt', async () => {
+    const { consumer, commandBus } = makeConsumer();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(offlineEvent()));
+
+    const progress = commands(commandBus).find(
+      (c): c is UpsertProgressCommand => c instanceof UpsertProgressCommand,
+    );
+    expect(progress!.occurredAt).toEqual(new Date(ATTEMPTED_AT));
+  });
+
+  it('forwards the time and the flag on the rating record, for analytics', async () => {
+    const { consumer, publisher } = makeConsumer();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(offlineEvent()));
+
+    expect(ratedPayload(publisher)).toMatchObject({
+      attemptedAt: ATTEMPTED_AT,
+      recordedOffline: true,
+    });
+  });
+
+  it('an event from before the field existed is dated now, as it always was', async () => {
+    const { consumer, commandBus, publisher } = makeConsumer();
+
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(offlineEvent({ attemptedAt: undefined, recordedOffline: undefined })),
+    );
+
+    const review = commands(commandBus).find(
+      (c): c is ReviewCardCommand => c instanceof ReviewCardCommand,
+    );
+    expect(review!.reviewedAt).toBeUndefined();
+    expect(ratedPayload(publisher)).not.toHaveProperty('attemptedAt');
+    expect(ratedPayload(publisher)).not.toHaveProperty('recordedOffline');
+  });
+});

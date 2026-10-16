@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using AuthService.Application.Commands;
 using AuthService.Application.Interfaces;
 using AuthService.Domain.Entities;
@@ -17,10 +18,10 @@ public sealed class RegisterUserCommandHandlerTests
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
     private readonly IDomainEventPublisher _publisher = Substitute.For<IDomainEventPublisher>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
-    private readonly ISender _mediator = Substitute.For<ISender>();
+    private readonly IServiceScopeFactory _scopeFactory = Substitute.For<IServiceScopeFactory>();
 
     private RegisterUserCommandHandler CreateHandler() => new(
-        _userRepo, _roleRepo, _hasher, _publisher, _unitOfWork, _mediator);
+        _userRepo, _roleRepo, _hasher, _publisher, _unitOfWork, _scopeFactory);
 
     [Fact]
     public async Task Handle_NewUser_ShouldHashPasswordAndPersist()

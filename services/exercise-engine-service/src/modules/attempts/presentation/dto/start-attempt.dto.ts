@@ -1,7 +1,25 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { SegmentState } from '@ssz/shared-kernel/dictation';
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import type { CheckMode } from '../../domain/entities/attempt.entity.js';
+
+/** One probe of a `minimal_pairs` draw, as the kernel's `deal` makes it. Documentation only. */
+export class DealtProbeDto {
+  @ApiProperty({ example: 1, description: '1-based place of the probe in the sitting' })
+  n!: number;
+
+  @ApiProperty({ example: 'p-kj-sj-1' })
+  pairId!: string;
+
+  @ApiProperty({ example: 'w-kjekk', description: 'The word whose clip the probe plays' })
+  wordId!: string;
+
+  @ApiProperty({ example: 0, description: "The word's index among its pair's filled words" })
+  side!: number;
+
+  @ApiProperty({ type: [String], description: 'The buttons, in the order the student saw them' })
+  optionIds!: string[];
+}
 
 export class StartAttemptRequestDto {
   @ApiProperty({ description: 'Target language code for instructions (e.g. "no", "en")' })
@@ -50,6 +68,20 @@ export class StartAttemptRequestDto {
   @IsUUID()
   @IsOptional()
   joinAttemptId?: string;
+
+  @ApiPropertyOptional({
+    type: [DealtProbeDto],
+    description:
+      'minimal_pairs in PRACTICE only: a sitting the phone dealt and played offline, handed ' +
+      'over when its journal is replayed. Taken instead of a fresh draw if the document could ' +
+      'have dealt it (422 `MP_DRAW_INVALID` otherwise); 400 `MP_DRAW_NOT_ACCEPTED` anywhere ' +
+      'else; 409 `MP_DRAW_CONFLICT` with `attemptId` while another sitting of the exercise is ' +
+      'open. A start repeated with the same draw resumes the sitting it opened.',
+  })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsOptional()
+  probeDraw?: DealtProbeDto[];
 }
 
 export class StartAttemptResponseDto {

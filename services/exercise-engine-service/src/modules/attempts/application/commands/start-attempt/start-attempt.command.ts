@@ -1,3 +1,4 @@
+import type { ClientTimeClaim } from '../../../../../shared/application/services/client-time.js';
 import type { CheckMode } from '../../../domain/entities/attempt.entity.js';
 
 export class StartAttemptCommand {
@@ -29,5 +30,18 @@ export class StartAttemptCommand {
      * passes joinAttemptId last.
      */
     public readonly lessonId: string | null = null,
+    /**
+     * `minimal_pairs` only: a sitting the phone dealt and played with no network, handed over
+     * when its journal is replayed (VoxOrd offline plan, B6). Taken instead of a fresh draw if
+     * the kernel's `checkDraw` says this document could have dealt it. Untrusted, hence
+     * `unknown` until checked.
+     */
+    public readonly probeDraw: unknown = null,
+    /**
+     * The phone's account of when this call was made, for a call replayed from its offline
+     * journal (VoxOrd offline plan, B4); null for an online call. Bounded by
+     * `resolveClientTime` before anything is dated by it.
+     */
+    public readonly clientTime: ClientTimeClaim | null = null,
   ) {}
 }

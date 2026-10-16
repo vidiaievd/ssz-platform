@@ -35,6 +35,13 @@ public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refresh
             .HasColumnName("device_info")
             .HasMaxLength(512);
 
+        // ADR-012: which kind of client opened the session. Every row before it was a web one.
+        builder.Property(rt => rt.ClientType)
+            .HasColumnName("client_type")
+            .HasMaxLength(16)
+            .HasDefaultValue(ClientTypes.Web)
+            .IsRequired();
+
         builder.Property(rt => rt.CreatedAt).HasColumnName("created_at");
 
         builder.HasIndex(rt => rt.TokenHash)

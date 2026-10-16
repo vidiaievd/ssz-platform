@@ -85,11 +85,15 @@ export class UserProgress extends AggregateRoot {
 
   recordAttempt(props: RecordAttemptProps): void {
     this._attemptsCount += 1;
-    this._lastAttemptAt = props.now;
     this._timeSpentSeconds += props.timeSpentSeconds;
 
-    if (props.score !== null) {
-      this._score = props.score;
+    // The score is the latest attempt's, by when it was made rather than when it arrived: an
+    // attempt worked offline on Monday and synced on Wednesday must not overwrite the one
+    // made online on Tuesday (VoxOrd offline plan, B4).
+    const latest = this._lastAttemptAt === null || props.now >= this._lastAttemptAt;
+    if (latest) {
+      this._lastAttemptAt = props.now;
+      if (props.score !== null) this._score = props.score;
     }
 
     const isFirstCompletion = props.completed && !this._completedAt;

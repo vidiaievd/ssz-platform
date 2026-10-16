@@ -94,12 +94,16 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
       }
 
       const payload = envelope.payload as AttemptRatedPayload;
-      await this.record(eventId, payload, envelope.occurredAt);
-      await this.recordAtoms(eventId, payload, envelope.occurredAt);
+      // The day the work was done, not the day it arrived: an attempt worked on a phone
+      // offline reaches this queue when the phone syncs (VoxOrd offline plan, B4). Already
+      // bounded by the engine, which dated it; the envelope stands in for older events.
+      const occurredAt = payload.attemptedAt ?? envelope.occurredAt;
+      await this.record(eventId, payload, occurredAt);
+      await this.recordAtoms(eventId, payload, occurredAt);
       // Inside the same idempotency guard as the record above, and that is the point: the
       // record is append-only and survives a double delivery, while the profile is a
       // running average that a replayed attempt would quietly move (plan 55 §5.1).
-      await this.mastery.apply(payload, envelope.occurredAt);
+      await this.mastery.apply(payload, occurredAt);
 
       await this.prisma.processedEvent.create({
         data: { eventId, processorId: PROCESSOR_ID, eventType },
@@ -161,6 +165,7 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
           evidenceLowered: p.evidenceLowered ?? null,
           occurredAt: new Date(occurredAt),
           modality: p.modality ?? null,
+          recordedOffline: p.recordedOffline === true,
         },
       ],
       skipDuplicates: true,

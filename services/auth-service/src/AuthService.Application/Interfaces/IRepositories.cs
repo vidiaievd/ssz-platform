@@ -35,6 +35,20 @@ public interface IRefreshTokenRepository
         CancellationToken ct = default);
 }
 
+/// <summary>Refresh-token lifetimes per role and client (ADR-012).</summary>
+public interface ITokenLifetimePolicyRepository
+{
+    Task<List<TokenLifetimePolicy>> ListAsync(CancellationToken ct = default);
+
+    /// <summary>The policies of these roles on this client — tracked, so a change is saved.</summary>
+    Task<List<TokenLifetimePolicy>> ListForAsync(
+        IReadOnlyCollection<string> roles,
+        string clientType,
+        CancellationToken ct = default);
+
+    void Add(TokenLifetimePolicy policy);
+}
+
 public interface IUnitOfWork
 {
     Task<int> SaveChangesAsync(CancellationToken ct = default);

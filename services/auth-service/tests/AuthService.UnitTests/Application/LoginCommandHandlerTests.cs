@@ -2,6 +2,7 @@ using AuthService.Application.Commands;
 using AuthService.Application.DTOs;
 using AuthService.Application.Interfaces;
 using AuthService.Application.Options;
+using AuthService.Application.Services;
 using AuthService.Domain.Entities;
 using AuthService.Domain.Exceptions;
 using FluentAssertions;
@@ -20,6 +21,7 @@ public sealed class LoginCommandHandlerTests
     private readonly IDomainEventPublisher _publisher = Substitute.For<IDomainEventPublisher>();
     private readonly IRateLimitStore _rateLimitStore = Substitute.For<IRateLimitStore>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly IRefreshTokenLifetimeResolver _lifetimes = Substitute.For<IRefreshTokenLifetimeResolver>();
 
     private readonly IOptions<AuthOptions> _opts = Options.Create(new AuthOptions
     {
@@ -33,11 +35,13 @@ public sealed class LoginCommandHandlerTests
 
     private LoginCommandHandler CreateHandler() => new(
         _userRepo, _roleRepo, _hasher, _tokenService,
-        _publisher, _rateLimitStore, _unitOfWork, _opts);
+        _publisher, _rateLimitStore, _unitOfWork, _opts, _lifetimes);
 
     private User CreateUser(string email = "test@example.com", string hash = "hash")
     {
         var user = User.Create(email, hash, ["student"]);
+        // Sign-in refuses an unverified address; these tests are about what comes after.
+        user.VerifyEmail();
         user.ClearDomainEvents();
         return user;
     }
@@ -62,6 +66,32 @@ public sealed class LoginCommandHandlerTests
         var success = (LoginSuccessResult)result;
         success.Tokens.AccessToken.Should().Be("access-token");
         success.Tokens.RefreshToken.Should().Be("raw-token");
+    }
+
+    [Fact]
+    public async Task Handle_MobileLogin_IssuesTokenForTheMobileLifetime()
+    {
+        // ADR-012: the session remembers its client, and lives as long as the roles allow there.
+        var user = CreateUser();
+        _userRepo.FindByEmailAsync("test@example.com", default).Returns(user);
+        _hasher.Verify("Password1!", "hash").Returns(true);
+        _roleRepo.GetRoleNamesForUserAsync(user.Id, default).Returns([RoleNames.Student]);
+        _tokenService.GenerateAccessToken(user.Id, user.Email, Arg.Any<IEnumerable<string>>())
+            .Returns("access-token");
+        _tokenService.GenerateRefreshToken().Returns(("raw-token", "token-hash", "family-id"));
+        _lifetimes.ResolveAsync(
+                Arg.Any<IReadOnlyCollection<string>>(), ClientTypes.Mobile, Arg.Any<CancellationToken>())
+            .Returns(TimeSpan.FromDays(30));
+        RefreshToken? issued = null;
+        _userRepo.AddRefreshToken(Arg.Do<RefreshToken>(t => issued = t));
+
+        var before = DateTimeOffset.UtcNow;
+        var result = (LoginSuccessResult)await CreateHandler().Handle(
+            new LoginCommand("test@example.com", "Password1!", ClientType: "mobile"), default);
+
+        issued!.ClientType.Should().Be(ClientTypes.Mobile);
+        issued.ExpiresAt.Should().BeOnOrAfter(before.AddDays(30));
+        result.Tokens.RefreshTokenExpiresAt.Should().Be(issued.ExpiresAt);
     }
 
     [Fact]

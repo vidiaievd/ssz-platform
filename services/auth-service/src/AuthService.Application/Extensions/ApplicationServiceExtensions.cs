@@ -1,5 +1,6 @@
 using AuthService.Application.Behaviors;
 using AuthService.Application.Commands;
+using AuthService.Application.Services;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +27,9 @@ public static class ApplicationServiceExtensions
         // Register all validators from Application assembly
         services.AddValidatorsFromAssembly(
             typeof(RegisterUserCommand).Assembly);
+
+        // Refresh-token lifetime by role and client (ADR-012)
+        services.AddScoped<IRefreshTokenLifetimeResolver, RefreshTokenLifetimeResolver>();
 
         return services;
     }

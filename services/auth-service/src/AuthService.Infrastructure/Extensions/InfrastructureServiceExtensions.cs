@@ -86,6 +86,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<ITokenLifetimePolicyRepository, TokenLifetimePolicyRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

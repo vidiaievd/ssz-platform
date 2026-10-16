@@ -30,6 +30,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
+import { ApiClientTimeHeaders, ClientTime } from '../../../../common/decorators/client-time.decorator.js';
+import type { ClientTimeClaim } from '../../../../shared/application/services/client-time.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { StartAttemptCommand } from '../../application/commands/start-attempt/start-attempt.command.js';
 import type {
@@ -74,6 +76,12 @@ import type {
 import type { AbandonAttemptError } from '../../application/commands/abandon-attempt/abandon-attempt.handler.js';
 import { GetAttemptByIdQuery } from '../../application/queries/get-attempt-by-id/get-attempt-by-id.query.js';
 import type { GetAttemptByIdError } from '../../application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
+import { GetProbeHistoryQuery } from '../../application/queries/get-probe-history/get-probe-history.query.js';
+import type {
+  GetProbeHistoryError,
+  ProbeHistory,
+} from '../../application/queries/get-probe-history/get-probe-history.handler.js';
+import { ProbeHistoryResponseDto } from '../dto/probe-history.dto.js';
 import { ListUserAttemptsQuery } from '../../application/queries/list-user-attempts/list-user-attempts.query.js';
 import type { ListUserAttemptsResult } from '../../application/queries/list-user-attempts/list-user-attempts.handler.js';
 import { StartAttemptRequestDto, StartAttemptResponseDto } from '../dto/start-attempt.dto.js';
@@ -220,12 +228,15 @@ export class AttemptsController {
     status: 422,
     description:
       'minimal_pairs: `MP_SITTINGS_SPENT` — the sittings the author allows are used; ' +
-      '`MP_EMPTY_SET` — no pair has audio to play',
+      '`MP_EMPTY_SET` — no pair has audio to play; `MP_DRAW_INVALID` — a dealt draw the ' +
+      'document could not have made',
   })
+  @ApiClientTimeHeaders()
   async startAttempt(
     @Param('exerciseId') exerciseId: string,
     @Body() dto: StartAttemptRequestDto,
     @CurrentUser() user: AuthenticatedUser,
+    @ClientTime() clientTime: ClientTimeClaim | null,
   ): Promise<StartAttemptResponseDto> {
     const result: Result<StartAttemptResult, StartAttemptError> =
       await this.commandBus.execute(
@@ -238,6 +249,8 @@ export class AttemptsController {
           dto.mode ?? (dto.assignmentId ? 'GRADED' : 'PRACTICE'),
           dto.joinAttemptId ?? null,
           dto.lessonId ?? null,
+          dto.probeDraw ?? null,
+          clientTime,
         ),
       );
 
@@ -271,6 +284,29 @@ export class AttemptsController {
           code: 'MP_EMPTY_SET',
         });
       }
+      // A draw dealt on the phone (VoxOrd offline plan, B6). The conflict carries the open
+      // sitting's id under a code of its own, so a client that joins on any 409 with an
+      // `attemptId` does not join a sitting whose probes are not the ones it answered.
+      if ('code' in err && err.code === 'MP_DRAW_NOT_ACCEPTED') {
+        throw new BadRequestException({
+          message: 'A dealt draw is taken only by a minimal_pairs sitting in PRACTICE',
+          code: 'MP_DRAW_NOT_ACCEPTED',
+        });
+      }
+      if ('code' in err && err.code === 'MP_DRAW_INVALID') {
+        throw new UnprocessableEntityException({
+          message: 'This exercise could not have dealt that draw',
+          code: 'MP_DRAW_INVALID',
+          fault: err.fault,
+        });
+      }
+      if ('code' in err && err.code === 'MP_DRAW_CONFLICT') {
+        throw new ConflictException({
+          message: 'Another sitting of this exercise is open',
+          code: 'MP_DRAW_CONFLICT',
+          openAttemptId: err.attemptId,
+        });
+      }
       throw new UnprocessableEntityException('Failed to start attempt');
     }
 
@@ -297,11 +333,13 @@ export class AttemptsController {
       'read_aloud: media-service did not answer, so the recordings could not be checked. ' +
       'Nothing was written — the draft is intact; submit again.',
   })
+  @ApiClientTimeHeaders()
   async submitAnswer(
     @Param('exerciseId') _exerciseId: string,
     @Param('attemptId', ParseUUIDPipe) attemptId: string,
     @Body() dto: SubmitAnswerRequestDto,
     @CurrentUser() user: AuthenticatedUser,
+    @ClientTime() clientTime: ClientTimeClaim | null,
   ): Promise<SubmitAnswerResponseDto> {
     const result: Result<SubmitAnswerResult, SubmitAnswerError> =
       await this.commandBus.execute(
@@ -311,6 +349,7 @@ export class AttemptsController {
           dto.submittedAnswer,
           dto.timeSpentSeconds,
           dto.locale ?? 'en',
+          clientTime,
         ),
       );
 
@@ -486,15 +525,23 @@ export class AttemptsController {
       'Question already answered or closed, a probe that is not the current one, attempt no ' +
       'longer in progress, or a template that is not answered a question at a time',
   })
+  @ApiClientTimeHeaders()
   async answerQuestion(
     @Param('exerciseId') _exerciseId: string,
     @Param('attemptId', ParseUUIDPipe) attemptId: string,
     @Body() dto: AnswerQuestionRequestDto,
     @CurrentUser() user: AuthenticatedUser,
+    @ClientTime() clientTime: ClientTimeClaim | null,
   ): Promise<AnswerQuestionResult> {
     const result: Result<AnswerQuestionResult, AnswerQuestionError> =
       await this.commandBus.execute(
-        new AnswerQuestionCommand(attemptId, user.userId, dto.questionId, readPayload(dto)),
+        new AnswerQuestionCommand(
+          attemptId,
+          user.userId,
+          dto.questionId,
+          readPayload(dto),
+          clientTime,
+        ),
       );
 
     if (result.isFail) {
@@ -627,14 +674,23 @@ export class AttemptsController {
     description:
       'Sentence already closed, attempt no longer in progress, or not a sentence-schema set',
   })
+  @ApiClientTimeHeaders()
   async checkRow(
     @Param('exerciseId') _exerciseId: string,
     @Param('attemptId', ParseUUIDPipe) attemptId: string,
     @Body() dto: CheckRowRequestDto,
     @CurrentUser() user: AuthenticatedUser,
+    @ClientTime() clientTime: ClientTimeClaim | null,
   ): Promise<CheckRowResult> {
     const result: Result<CheckRowResult, CheckRowError> = await this.commandBus.execute(
-      new CheckRowCommand(attemptId, user.userId, dto.rowId, dto.placement, dto.reveal === true),
+      new CheckRowCommand(
+        attemptId,
+        user.userId,
+        dto.rowId,
+        dto.placement,
+        dto.reveal === true,
+        clientTime,
+      ),
     );
 
     if (result.isFail) {
@@ -680,14 +736,16 @@ export class AttemptsController {
   @ApiResponse({ status: 404, description: 'Attempt not found' })
   @ApiResponse({ status: 403, description: 'Not your attempt' })
   @ApiResponse({ status: 422, description: 'Attempt is no longer in progress' })
+  @ApiClientTimeHeaders()
   async saveDraft(
     @Param('exerciseId') _exerciseId: string,
     @Param('attemptId', ParseUUIDPipe) attemptId: string,
     @Body() dto: SaveDraftRequestDto,
     @CurrentUser() user: AuthenticatedUser,
+    @ClientTime() clientTime: ClientTimeClaim | null,
   ): Promise<SaveDraftResponseDto> {
     const result: Result<SaveDraftResult, SaveDraftError> = await this.commandBus.execute(
-      new SaveDraftCommand(attemptId, user.userId, dto.draftAnswer),
+      new SaveDraftCommand(attemptId, user.userId, dto.draftAnswer, clientTime),
     );
 
     if (result.isFail) {
@@ -729,6 +787,41 @@ export class AttemptsController {
       }
       throw new UnprocessableEntityException('Cannot abandon attempt in current state');
     }
+  }
+
+  // Declared before `:attemptId`, whose UUID pipe would otherwise refuse this path.
+  @Get('probe-history')
+  @ApiOperation({
+    summary: "The learner's own minimal-pairs record in this exercise's language",
+    description:
+      'minimal_pairs only (VoxOrd offline plan, B6). The probe records of the learner\'s latest ' +
+      'scored sittings of any minimal_pairs exercise in the same language — what the engine ' +
+      'reads to deal a `weakest` sitting — so a phone can deal one with no network.',
+  })
+  @ApiQuery({ name: 'language', required: false, description: "The learner's language (default `en`)" })
+  @ApiResponse({ status: 200, type: ProbeHistoryResponseDto })
+  @ApiResponse({ status: 404, description: 'Exercise not found' })
+  @ApiResponse({ status: 422, description: '`NOT_A_PROBE_SET` — not a minimal_pairs exercise' })
+  async getProbeHistory(
+    @Param('exerciseId') exerciseId: string,
+    @Query('language') language: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ProbeHistoryResponseDto> {
+    const result: Result<ProbeHistory, GetProbeHistoryError> = await this.queryBus.execute(
+      new GetProbeHistoryQuery(user.userId, exerciseId, language ?? 'en'),
+    );
+    if (result.isFail) {
+      const err = result.error;
+      if (err instanceof ContentClientError) {
+        if (err.statusCode === 404) throw new NotFoundException(err.message);
+        throw new UnprocessableEntityException(err.message);
+      }
+      throw new UnprocessableEntityException({
+        message: 'Not a minimal_pairs exercise',
+        code: 'NOT_A_PROBE_SET',
+      });
+    }
+    return result.value;
   }
 
   @Get(':attemptId')

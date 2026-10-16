@@ -189,6 +189,19 @@ export interface ExerciseAttemptCompletedPayload {
   groupId?: string | null;
   /** The scheduled lesson the work was done in, when the caller named one. */
   lessonId?: string | null;
+  /**
+   * Additive (VoxOrd offline plan, B4) — when the verdict was reached, ISO 8601: the
+   * scoring, a teacher's review, or for work handed to a teacher the submission.
+   *
+   * Differs from the envelope's `occurredAt` for an attempt worked on a phone with no
+   * network and replayed later: the envelope is the day of the sync, this is the day of the
+   * practice, as far as the engine believed the phone's clock (never in the future, never
+   * older than thirty days). Absent on events published before it existed — a consumer
+   * falls back to the envelope.
+   */
+  attemptedAt?: string;
+  /** Additive (VoxOrd offline plan, B4) — worked offline and replayed. Absent means not. */
+  recordedOffline?: boolean;
 }
 
 /**

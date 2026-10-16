@@ -152,3 +152,51 @@ export function readDraw(value: unknown): DealtProbe[] {
     ];
   });
 }
+
+/** Why a draw made somewhere else is not one this document could have dealt. */
+export type DrawFault =
+  | 'empty'
+  | 'tooMany'
+  | 'malformed'
+  | 'outOfOrder'
+  | 'unknownPair'
+  | 'unknownWord'
+  | 'wrongSide'
+  | 'wrongOptions';
+
+/**
+ * A draw dealt by a client — the phone deals a sitting with no network and hands the draw over
+ * when its journal is replayed (VoxOrd offline plan, B6). Accepted only if `deal` could have
+ * made it from this document with some random source: numbered 1..N, no more than the set's
+ * probes, every probe a filled word of a ready pair on its own side, with exactly the buttons
+ * that pair offers in some order. How the words are spread — the streak guard, the weakest
+ * over-sampling — is not checked: no single draw can be told apart from an unlucky one.
+ *
+ * Strict where `readDraw` is lenient: a probe `readDraw` would drop fails the whole draw.
+ */
+export function checkDraw(
+  ex: MinimalPairsContent,
+  value: unknown,
+): { draw: DealtProbe[] } | { fault: DrawFault } {
+  if (!Array.isArray(value) || value.length === 0) return { fault: 'empty' };
+  if (value.length > ex.set.probes) return { fault: 'tooMany' };
+  const draw = readDraw(value);
+  if (draw.length !== value.length) return { fault: 'malformed' };
+
+  const ready = new Map(readyPairs(ex).map((p) => [p.id, p]));
+  for (const [i, probe] of draw.entries()) {
+    if (probe.n !== i + 1) return { fault: 'outOfOrder' };
+    const pair = ready.get(probe.pairId);
+    if (!pair) return { fault: 'unknownPair' };
+    const side = filledWords(pair).findIndex((w) => w.id === probe.wordId);
+    if (side < 0) return { fault: 'unknownWord' };
+    if (probe.side !== side) return { fault: 'wrongSide' };
+    const offered = optionWords(ex, probe.pairId).map((w) => w.id);
+    const given = probe.optionIds;
+    if (given.length !== offered.length || new Set(given).size !== given.length) {
+      return { fault: 'wrongOptions' };
+    }
+    if (!given.every((id) => offered.includes(id))) return { fault: 'wrongOptions' };
+  }
+  return { draw };
+}

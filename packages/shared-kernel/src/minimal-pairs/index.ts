@@ -82,8 +82,8 @@ export {
   wordCount,
 } from './derive.js';
 
-export type { DealtProbe, DrawnProbe, History, Rand, WordHistory } from './sampler.js';
-export { deal, historyKey, lcg, readDraw, sample } from './sampler.js';
+export type { DealtProbe, DrawFault, DrawnProbe, History, Rand, WordHistory } from './sampler.js';
+export { checkDraw, deal, historyKey, lcg, readDraw, sample } from './sampler.js';
 
 export type { PairResult, PickRefusal, PickVerdict, ProbeRecord, ProbeState, Summary } from './judge.js';
 export {

@@ -387,3 +387,56 @@ describe('ReviewCardHandler — shadow reviews', () => {
     expect(limitsPolicy.canReview).not.toHaveBeenCalled();
   });
 });
+
+describe('ReviewCardHandler — a review dated by the phone (VoxOrd offline plan, B4)', () => {
+  // The card was last reviewed on 2026-04-24; the server's now is 2026-04-29.
+  const reviewAt = (at: Date) => new ReviewCardCommand(USER_ID, 'card-1', 'GOOD', at);
+
+  it('schedules from the time the review was made', async () => {
+    const { handler, scheduler } = makeHandler();
+    const at = new Date('2026-04-27T08:00:00Z');
+
+    await handler.execute(reviewAt(at));
+
+    expect(scheduler.schedule).toHaveBeenCalledWith(expect.anything(), expect.anything(), at);
+  });
+
+  it('a time before the last review is taken as that review', async () => {
+    const { handler, scheduler } = makeHandler();
+
+    await handler.execute(reviewAt(new Date('2026-04-23T08:00:00Z')));
+
+    expect(scheduler.schedule).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      new Date('2026-04-24T10:00:00Z'),
+    );
+  });
+
+  it('a time in the future is taken as now', async () => {
+    const { handler, scheduler } = makeHandler();
+
+    await handler.execute(reviewAt(new Date('2026-05-01T00:00:00Z')));
+
+    expect(scheduler.schedule).toHaveBeenCalledWith(expect.anything(), expect.anything(), NOW);
+  });
+
+  it('a time older than thirty days is taken as now', async () => {
+    // A card never reviewed, so no floor stands in the way of the age check.
+    const { handler, scheduler } = makeHandler({ card: makeCard('NEW') });
+
+    await handler.execute(reviewAt(new Date('2026-03-29T09:00:00Z')));
+
+    expect(scheduler.schedule).toHaveBeenCalledWith(expect.anything(), expect.anything(), NOW);
+  });
+
+  it('counts the review against the day it was made', async () => {
+    const { handler, limitsPolicy } = makeHandler();
+    const at = new Date('2026-04-27T08:00:00Z');
+
+    await handler.execute(reviewAt(at));
+
+    expect(limitsPolicy.canReview).toHaveBeenCalledWith(USER_ID, 'lexis', at);
+    expect(limitsPolicy.incrementReviewCount).toHaveBeenCalledWith(USER_ID, 'lexis', at);
+  });
+});

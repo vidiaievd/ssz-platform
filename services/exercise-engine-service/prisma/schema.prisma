@@ -232,6 +232,11 @@ model Attempt {
   // time by `POST /attempts/:id/items`, and the picks go into `picked_options` above.
   probeDraw Json? @map("probe_draw")
 
+  // Worked on a phone with no network and replayed from its offline journal (VoxOrd offline
+  // plan, B4): at least one call arrived dated by the phone. Kept to measure how much offline
+  // practice there is, and to explain an attempt whose times precede its arrival.
+  recordedOffline Boolean @default(false) @map("recorded_offline")
+
   // ── Teacher review ──────────────────────────────────────────────────────
   // Free-form attempts stop at ROUTED_FOR_REVIEW, where the only verdict left is a
   // person's. What that person decided lives here.

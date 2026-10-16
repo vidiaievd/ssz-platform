@@ -1,5 +1,7 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Inject, Optional } from '@nestjs/common';
+import { CLOCK, SystemClock, type IClock } from '../../../../../shared/application/ports/clock.port.js';
+import { stampReplayedCall } from '../../../../../shared/application/services/client-time.js';
 import { SaveDraftCommand } from './save-draft.command.js';
 import { ATTEMPT_REPOSITORY, type IAttemptRepository } from '../../../domain/repositories/attempt.repository.js';
 import { Result } from '../../../../../shared/kernel/result.js';
@@ -25,7 +27,11 @@ export interface SaveDraftResult {
  */
 @CommandHandler(SaveDraftCommand)
 export class SaveDraftHandler implements ICommandHandler<SaveDraftCommand> {
-  constructor(@Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository) {}
+  constructor(
+    @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
+    // The server's time for an online call; a replayed one is dated by `stampReplayedCall`.
+    @Optional() @Inject(CLOCK) private readonly clock: IClock = new SystemClock(),
+  ) {}
 
   async execute(command: SaveDraftCommand): Promise<Result<SaveDraftResult, SaveDraftError>> {
     const attempt = await this.attempts.findById(command.attemptId);
@@ -36,7 +42,10 @@ export class SaveDraftHandler implements ICommandHandler<SaveDraftCommand> {
       return Result.fail({ code: 'FORBIDDEN' });
     }
 
-    const saved = attempt.saveDraft(command.draftAnswer);
+    const saved = attempt.saveDraft(
+      command.draftAnswer,
+      stampReplayedCall(attempt, command.clientTime, this.clock.now()),
+    );
     if (saved.isFail) {
       return Result.fail(saved.error as AttemptDomainError);
     }

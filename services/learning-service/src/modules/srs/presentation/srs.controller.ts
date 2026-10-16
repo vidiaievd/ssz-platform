@@ -36,11 +36,13 @@ import { GetDueCardsQuery } from '../application/queries/get-due-cards.query.js'
 import { GetCardByIdQuery } from '../application/queries/get-card-by-id.query.js';
 import { GetUserSrsStatsQuery } from '../application/queries/get-user-srs-stats.query.js';
 import { GetCardStatesQuery } from '../application/queries/get-card-states.query.js';
+import { GetVocabularyReplicaQuery } from '../application/queries/get-vocabulary-replica.query.js';
 import type {
   ReviewCardDto,
   SrsStatsDto,
   DueCardsEnvelope,
   CardStatesEnvelope,
+  VocabularyReplicaEnvelope,
 } from '../application/dto/srs.dto.js';
 import {
   SrsCardNotFoundError,
@@ -56,7 +58,12 @@ import {
   IntroduceCardRequest,
   BulkIntroduceRequest,
 } from './dto/review-card.request.js';
-import { ReviewCardResponse, SrsStatsResponse, BulkIntroduceResponse } from './dto/srs.response.js';
+import {
+  ReviewCardResponse,
+  SrsStatsResponse,
+  BulkIntroduceResponse,
+  VocabularyReplicaResponse,
+} from './dto/srs.response.js';
 import {
   CARD_STATES_MAX_IDS,
   CardStatesResponse,
@@ -140,6 +147,26 @@ export class SrsController {
     return this.queryBus.execute(
       new GetCardStatesQuery(user.userId, body.contentType, body.contentIds),
     );
+  }
+
+  // ─── Vocabulary replica ───────────────────────────────────────────────────────
+
+  // Declared before `cards/:id`, which would otherwise take `vocabulary` for a card id.
+  @Get('cards/vocabulary')
+  @ApiOperation({
+    summary: "All of the current user's vocabulary cards, for reviewing offline",
+    description:
+      'Every VOCABULARY_WORD card with its full FSRS state, suspended included, plus ' +
+      "today's vocabulary review count and cap. A client keeps this copy to go on reviewing " +
+      'words without a connection; its reviews come back through `POST cards/:id/review` ' +
+      'with their original `reviewedAt`, and the next copy replaces whatever it computed. ' +
+      'No word content and no predicted intervals.',
+  })
+  @ApiResponse({ status: 200, type: VocabularyReplicaResponse })
+  async getVocabularyReplica(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<VocabularyReplicaEnvelope> {
+    return this.queryBus.execute(new GetVocabularyReplicaQuery(user.userId));
   }
 
   // ─── Card actions ─────────────────────────────────────────────────────────────

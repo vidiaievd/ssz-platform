@@ -1,6 +1,8 @@
 using AuthService.Application.DTOs;
 using AuthService.Application.Interfaces;
 using AuthService.Application.Options;
+using AuthService.Application.Services;
+using AuthService.Domain.Entities;
 using AuthService.Domain.Events;
 using AuthService.Domain.Exceptions;
 using MediatR;
@@ -14,7 +16,9 @@ public sealed record LoginCommand(
     string Email,
     string Password,
     string? DeviceInfo = null,
-    string? ClientIp = null
+    string? ClientIp = null,
+    /// <summary>`web` or `mobile` (ADR-012); anything else is `web`.</summary>
+    string? ClientType = null
 ) : IRequest<LoginResult>;
 
 // Discriminated union — either full tokens or MFA challenge
@@ -30,7 +34,8 @@ public sealed class LoginCommandHandler(
     IDomainEventPublisher eventPublisher,
     IRateLimitStore rateLimitStore,
     IUnitOfWork unitOfWork,
-    IOptions<AuthOptions> authOptions)
+    IOptions<AuthOptions> authOptions,
+    IRefreshTokenLifetimeResolver lifetimes)
     : IRequestHandler<LoginCommand, LoginResult>
 {
     public async Task<LoginResult> Handle(LoginCommand command, CancellationToken ct)
@@ -80,16 +85,20 @@ public sealed class LoginCommandHandler(
                 DateTimeOffset.UtcNow.AddMinutes(5)));
         }
 
-        return await IssueTokensAsync(user, command.DeviceInfo, ct);
+        return await IssueTokensAsync(
+            user, command.DeviceInfo, ClientTypes.Normalize(command.ClientType), ct);
     }
 
     private async Task<LoginSuccessResult> IssueTokensAsync(
         Domain.Entities.User user,
         string? deviceInfo,
+        string clientType,
         CancellationToken ct)
     {
         var roles = await roleRepository.GetRoleNamesForUserAsync(user.Id, ct);
         var opts = authOptions.Value;
+        var refreshExpiresAt = DateTimeOffset.UtcNow.Add(
+            await lifetimes.ResolveAsync(roles, clientType, ct));
 
         var accessToken = tokenService.GenerateAccessToken(user.Id, user.Email, roles);
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
@@ -98,8 +107,9 @@ public sealed class LoginCommandHandler(
         var refreshToken = user.AddRefreshToken(
             tokenHash,
             familyId,
-            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime),
-            deviceInfo);
+            refreshExpiresAt,
+            deviceInfo,
+            clientType);
 
         userRepository.AddRefreshToken(refreshToken);
         await unitOfWork.SaveChangesAsync(ct);
@@ -112,7 +122,7 @@ public sealed class LoginCommandHandler(
             accessToken,
             rawRefreshToken,
             DateTimeOffset.UtcNow.Add(opts.AccessTokenLifetime),
-            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime)));
+            refreshExpiresAt));
     }
 }
 
@@ -121,7 +131,9 @@ public sealed class LoginCommandHandler(
 public sealed record CompleteMfaLoginCommand(
     string MfaChallengeToken,
     string Code,
-    string? DeviceInfo = null
+    string? DeviceInfo = null,
+    /// <summary>`web` or `mobile` (ADR-012); anything else is `web`.</summary>
+    string? ClientType = null
 ) : IRequest<AuthTokensResponse>;
 
 public sealed class CompleteMfaLoginCommandHandler(
@@ -133,7 +145,8 @@ public sealed class CompleteMfaLoginCommandHandler(
     IDomainEventPublisher eventPublisher,
     IOtpReplayGuard replayGuard,
     IUnitOfWork unitOfWork,
-    IOptions<AuthOptions> authOptions)
+    IOptions<AuthOptions> authOptions,
+    IRefreshTokenLifetimeResolver lifetimes)
     : IRequestHandler<CompleteMfaLoginCommand, AuthTokensResponse>
 {
     public async Task<AuthTokensResponse> Handle(
@@ -162,6 +175,9 @@ public sealed class CompleteMfaLoginCommandHandler(
 
         var roles = await roleRepository.GetRoleNamesForUserAsync(userId, ct);
         var opts = authOptions.Value;
+        var clientType = ClientTypes.Normalize(command.ClientType);
+        var refreshExpiresAt = DateTimeOffset.UtcNow.Add(
+            await lifetimes.ResolveAsync(roles, clientType, ct));
 
         var accessToken = tokenService.GenerateAccessToken(userId, user.Email, roles);
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
@@ -170,8 +186,9 @@ public sealed class CompleteMfaLoginCommandHandler(
         var refreshToken = user.AddRefreshToken(
             tokenHash,
             familyId,
-            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime),
-            command.DeviceInfo);
+            refreshExpiresAt,
+            command.DeviceInfo,
+            clientType);
 
         userRepository.AddRefreshToken(refreshToken);
         await unitOfWork.SaveChangesAsync(ct);
@@ -184,7 +201,7 @@ public sealed class CompleteMfaLoginCommandHandler(
             accessToken,
             rawRefreshToken,
             DateTimeOffset.UtcNow.Add(opts.AccessTokenLifetime),
-            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime));
+            refreshExpiresAt);
     }
 }
 
@@ -193,7 +210,9 @@ public sealed class CompleteMfaLoginCommandHandler(
 public sealed record LoginWithBackupCodeCommand(
     string MfaChallengeToken,
     string BackupCode,
-    string? DeviceInfo = null
+    string? DeviceInfo = null,
+    /// <summary>`web` or `mobile` (ADR-012); anything else is `web`.</summary>
+    string? ClientType = null
 ) : IRequest<AuthTokensResponse>;
 
 public sealed class LoginWithBackupCodeCommandHandler(
@@ -203,7 +222,8 @@ public sealed class LoginWithBackupCodeCommandHandler(
     IBackupCodeService backupCodeService,
     IDomainEventPublisher eventPublisher,
     IUnitOfWork unitOfWork,
-    IOptions<AuthOptions> authOptions)
+    IOptions<AuthOptions> authOptions,
+    IRefreshTokenLifetimeResolver lifetimes)
     : IRequestHandler<LoginWithBackupCodeCommand, AuthTokensResponse>
 {
     public async Task<AuthTokensResponse> Handle(
@@ -226,6 +246,9 @@ public sealed class LoginWithBackupCodeCommandHandler(
 
         var roles = await roleRepository.GetRoleNamesForUserAsync(userId, ct);
         var opts = authOptions.Value;
+        var clientType = ClientTypes.Normalize(command.ClientType);
+        var refreshExpiresAt = DateTimeOffset.UtcNow.Add(
+            await lifetimes.ResolveAsync(roles, clientType, ct));
 
         var accessToken = tokenService.GenerateAccessToken(userId, user.Email, roles);
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
@@ -234,8 +257,9 @@ public sealed class LoginWithBackupCodeCommandHandler(
         var refreshToken = user.AddRefreshToken(
             tokenHash,
             familyId,
-            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime),
-            command.DeviceInfo);
+            refreshExpiresAt,
+            command.DeviceInfo,
+            clientType);
 
         userRepository.AddRefreshToken(refreshToken);
         await unitOfWork.SaveChangesAsync(ct);
@@ -248,7 +272,7 @@ public sealed class LoginWithBackupCodeCommandHandler(
             accessToken,
             rawRefreshToken,
             DateTimeOffset.UtcNow.Add(opts.AccessTokenLifetime),
-            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime));
+            refreshExpiresAt);
     }
 }
 
@@ -264,7 +288,8 @@ public sealed class RefreshTokenCommandHandler(
     IRefreshTokenRepository refreshTokenRepository,
     ITokenService tokenService,
     IUnitOfWork unitOfWork,
-    IOptions<AuthOptions> authOptions)
+    IOptions<AuthOptions> authOptions,
+    IRefreshTokenLifetimeResolver lifetimes)
     : IRequestHandler<RefreshTokenCommand, AuthTokensResponse>
 {
     public async Task<AuthTokensResponse> Handle(
@@ -297,6 +322,11 @@ public sealed class RefreshTokenCommandHandler(
 
         var roles = await roleRepository.GetRoleNamesForUserAsync(user.Id, ct);
         var opts = authOptions.Value;
+        // Recomputed on every rotation, from the roles as they are now and the client the
+        // session was opened from (ADR-012): a withdrawn role or a changed policy applies at
+        // the next refresh, not at the next sign-in.
+        var refreshExpiresAt = DateTimeOffset.UtcNow.Add(
+            await lifetimes.ResolveAsync(roles, existingToken.ClientType, ct));
 
         // Rotate — revoke old, issue new in same family
         existingToken.Revoke();
@@ -304,7 +334,9 @@ public sealed class RefreshTokenCommandHandler(
         var refreshToken = user.AddRefreshToken(
             newTokenHash,
             existingToken.FamilyId,
-            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime));
+            refreshExpiresAt,
+            existingToken.DeviceInfo,
+            existingToken.ClientType);
 
         userRepository.AddRefreshToken(refreshToken);
         var accessToken = tokenService.GenerateAccessToken(user.Id, user.Email, roles);
@@ -315,7 +347,7 @@ public sealed class RefreshTokenCommandHandler(
             accessToken,
             rawRefreshToken,
             DateTimeOffset.UtcNow.Add(opts.AccessTokenLifetime),
-            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime));
+            refreshExpiresAt);
     }
 }
 
@@ -453,7 +485,8 @@ public sealed class VerifyEmailCommandHandler(
     ITokenService tokenService,
     IDomainEventPublisher eventPublisher,
     IUnitOfWork unitOfWork,
-    IOptions<AuthOptions> authOptions)
+    IOptions<AuthOptions> authOptions,
+    IRefreshTokenLifetimeResolver lifetimes)
     : IRequestHandler<VerifyEmailCommand, AuthTokensResponse>
 {
     public async Task<AuthTokensResponse> Handle(VerifyEmailCommand command, CancellationToken ct)
@@ -472,6 +505,9 @@ public sealed class VerifyEmailCommandHandler(
 
         var roles = await roleRepository.GetRoleNamesForUserAsync(user.Id, ct);
         var opts = authOptions.Value;
+        // The verification link is opened in a browser, so the session it starts is a web one.
+        var refreshExpiresAt = DateTimeOffset.UtcNow.Add(
+            await lifetimes.ResolveAsync(roles, ClientTypes.Web, ct));
 
         var accessToken = tokenService.GenerateAccessToken(user.Id, user.Email, roles);
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
@@ -480,7 +516,7 @@ public sealed class VerifyEmailCommandHandler(
         var refreshToken = user.AddRefreshToken(
             tokenHash,
             familyId,
-            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime));
+            refreshExpiresAt);
 
         userRepository.AddRefreshToken(refreshToken);
         await unitOfWork.SaveChangesAsync(ct);
@@ -493,6 +529,6 @@ public sealed class VerifyEmailCommandHandler(
             accessToken,
             rawRefreshToken,
             DateTimeOffset.UtcNow.Add(opts.AccessTokenLifetime),
-            DateTimeOffset.UtcNow.Add(opts.RefreshTokenLifetime));
+            refreshExpiresAt);
     }
 }

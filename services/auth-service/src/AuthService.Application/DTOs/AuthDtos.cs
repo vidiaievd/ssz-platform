@@ -7,15 +7,21 @@ public sealed record RegisterRequest(
 
 public sealed record LoginRequest(
     string Email,
-    string Password);
+    string Password,
+    /// <summary>`web` (default) or `mobile` — decides the refresh-token lifetime (ADR-012).</summary>
+    string? ClientType = null);
 
 public sealed record MfaChallengeRequest(
     string MfaChallengeToken,
-    string Code);
+    string Code,
+    /// <summary>`web` (default) or `mobile` — decides the refresh-token lifetime (ADR-012).</summary>
+    string? ClientType = null);
 
 public sealed record BackupCodeLoginRequest(
     string MfaChallengeToken,
-    string BackupCode);
+    string BackupCode,
+    /// <summary>`web` (default) or `mobile` — decides the refresh-token lifetime (ADR-012).</summary>
+    string? ClientType = null);
 
 public sealed record RefreshTokenRequest(
     string RefreshToken);
@@ -66,3 +72,26 @@ public sealed record ResetPasswordRequest(
 
 public sealed record VerifyEmailRequest(
     string Token);
+// ── Refresh-token lifetimes by role and client (ADR-012) ──────────────────────
+
+public sealed record TokenLifetimeDto(
+    string Role,
+    string ClientType,
+    int RefreshLifetimeHours,
+    DateTimeOffset UpdatedAt,
+    Guid? UpdatedBy);
+
+public sealed record TokenLifetimesResponse(
+    IReadOnlyList<TokenLifetimeDto> Policies,
+    /// <summary>The lifetime of a user none of whose roles has a policy.</summary>
+    int FallbackHours,
+    int MinHours,
+    int MaxHours);
+
+public sealed record TokenLifetimeChange(
+    string Role,
+    string ClientType,
+    int RefreshLifetimeHours);
+
+public sealed record UpdateTokenLifetimesRequest(
+    IReadOnlyList<TokenLifetimeChange> Policies);

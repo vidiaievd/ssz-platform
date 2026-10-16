@@ -21,6 +21,7 @@ import { RedisDueQueueService } from '../../infrastructure/cache/redis-due-queue
 import { RedisReviewIdempotencyService } from '../../infrastructure/cache/redis-review-idempotency.service.js';
 import type { SrsTrack } from '../../domain/value-objects/srs-track.js';
 import { ReviewCardCommand } from './review-card.command.js';
+import { boundReplayedTime } from '../../../../shared/domain/replayed-time.js';
 
 @CommandHandler(ReviewCardCommand)
 export class ReviewCardHandler
@@ -59,7 +60,9 @@ export class ReviewCardHandler
       }
     }
 
-    const reviewedAt = cmd.reviewedAt ?? this.clock.now();
+    // Bounded rather than taken as sent: a review replayed from a phone, or rated from an
+    // attempt worked offline, carries the phone's time (VoxOrd offline plan, B4).
+    const reviewedAt = boundReplayedTime(cmd.reviewedAt, this.clock.now(), card.lastReviewedAt);
 
     // The review cap's whole cost — fatigue — lands today, on the same person who is
     // deciding right now, and nobody else can judge it for them. Material that came

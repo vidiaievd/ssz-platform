@@ -16,6 +16,7 @@ import { BatchApproveHandler } from './application/commands/batch-approve/batch-
 import { ClaimReviewHandler } from './application/commands/claim-review/claim-review.handler.js';
 import { ReleaseReviewHandler } from './application/commands/release-review/release-review.handler.js';
 import { GetAttemptByIdHandler } from './application/queries/get-attempt-by-id/get-attempt-by-id.handler.js';
+import { GetProbeHistoryHandler } from './application/queries/get-probe-history/get-probe-history.handler.js';
 import { ListUserAttemptsHandler } from './application/queries/list-user-attempts/list-user-attempts.handler.js';
 import { ListReviewQueueV2Handler } from './application/queries/list-review-queue-v2/list-review-queue-v2.handler.js';
 import { FindRecordingsInUseHandler } from './application/queries/find-recordings-in-use/find-recordings-in-use.handler.js';
@@ -48,6 +49,7 @@ const CommandHandlers = [
 ];
 const QueryHandlers = [
   GetAttemptByIdHandler,
+  GetProbeHistoryHandler,
   ListUserAttemptsHandler,
   ListReviewQueueV2Handler,
   CountReviewQueueHandler,

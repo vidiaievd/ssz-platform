@@ -11,6 +11,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<BackupCode> BackupCodes => Set<BackupCode>();
+    public DbSet<TokenLifetimePolicy> TokenLifetimePolicies => Set<TokenLifetimePolicy>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

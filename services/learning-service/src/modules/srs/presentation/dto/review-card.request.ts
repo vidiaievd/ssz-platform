@@ -27,7 +27,10 @@ export class ReviewCardRequest {
 
   @ApiPropertyOptional({
     format: 'date-time',
-    description: 'Timestamp of the review. Defaults to server time if omitted.',
+    description:
+      'Timestamp of the review, for one replayed from an offline queue. Defaults to server ' +
+      'time. A time in the future is taken as now, one older than 30 days is ignored, and one ' +
+      "before the card's last review is taken as that review's time.",
     example: '2026-04-29T10:00:00.000Z',
   })
   @IsOptional()

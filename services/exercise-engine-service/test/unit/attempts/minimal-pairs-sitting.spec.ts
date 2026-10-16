@@ -1,5 +1,7 @@
 import { jest } from '@jest/globals';
 import {
+  deal,
+  lcg,
   sampleDocument,
   setFeedback,
   setScoring,
@@ -23,6 +25,8 @@ import { SubmitAnswerCommand } from '../../../src/modules/attempts/application/c
 import { ReviewContextResolver } from '../../../src/modules/attempts/application/services/review-context-resolver.js';
 import { historyFor } from '../../../src/modules/attempts/application/services/minimal-pairs-sitting.js';
 import { MinimalPairsValidator } from '../../../src/infrastructure/validation/validators/minimal-pairs.validator.js';
+import { GetProbeHistoryHandler } from '../../../src/modules/attempts/application/queries/get-probe-history/get-probe-history.handler.js';
+import { GetProbeHistoryQuery } from '../../../src/modules/attempts/application/queries/get-probe-history/get-probe-history.query.js';
 import type { Attempt } from '../../../src/modules/attempts/domain/entities/attempt.entity.js';
 import type { ExerciseDefinition } from '../../../src/shared/application/ports/content-client.port.js';
 import type { IMediaAssets } from '../../../src/shared/application/ports/media-assets.port.js';
@@ -156,8 +160,8 @@ function setup(opts: {
     setDoc: (next: MinimalPairsContent) => {
       doc = next;
     },
-    start: async (mode: 'PRACTICE' | 'GRADED' = 'PRACTICE') =>
-      start.execute(new StartAttemptCommand(USER, EXERCISE, 'nb', null, null, mode)),
+    start: async (mode: 'PRACTICE' | 'GRADED' = 'PRACTICE', probeDraw: unknown = null) =>
+      start.execute(new StartAttemptCommand(USER, EXERCISE, 'nb', null, null, mode, null, null, probeDraw)),
     items: async (attemptId: string, userId = USER) =>
       items.execute(new HandOutProbeCommand(attemptId, userId)),
     answer: async (attemptId: string, questionId: string, optionId: string) =>
@@ -167,6 +171,8 @@ function setup(opts: {
     submit: async (attemptId: string) =>
       submit.execute(new SubmitAnswerCommand(attemptId, USER, { answers: [] }, 30)),
     attempt: (id: string) => repo.findById(id) as Promise<Attempt>,
+    history: async () =>
+      new GetProbeHistoryHandler(repo as never, content as never).execute(new GetProbeHistoryQuery(USER, EXERCISE, 'en')),
   };
 }
 
@@ -244,6 +250,67 @@ describe('start — the draw is made once, kept on the attempt, and never sent (
     const weakest = setup({ doc: setSet(sampleDocument(), { sampling: 'weakest' }) });
     await started(weakest);
     expect(weakest.repo.findScoredDetails).toHaveBeenCalledWith(USER, 'minimal_pairs', 'nb', 50);
+  });
+});
+
+describe('start — a draw dealt on the phone and replayed (VoxOrd offline plan, B6)', () => {
+  const phoneDraw = (doc = sampleDocument(), seed = 7) => JSON.parse(JSON.stringify(deal(doc, lcg(seed)))) as DealtProbe[];
+
+  it('keeps the draw the phone dealt instead of drawing one, and reads no history', async () => {
+    const h = setup({ doc: setSet(sampleDocument(), { sampling: 'weakest' }) });
+    const draw = phoneDraw(setSet(sampleDocument(), { sampling: 'weakest' }));
+    const res = await h.start('PRACTICE', draw);
+    expect(res.isOk).toBe(true);
+    const { attemptId } = res.value as StartAttemptResult;
+    expect(drawOf(await h.attempt(attemptId))).toEqual(draw);
+    expect(h.repo.findScoredDetails).not.toHaveBeenCalled();
+  });
+
+  it('replays answers and a submit onto that draw as the phone recorded them', async () => {
+    const h = setup();
+    const draw = phoneDraw();
+    const { attemptId } = (await h.start('PRACTICE', draw)).value as StartAttemptResult;
+    for (const p of draw.slice(0, 9)) await h.answer(attemptId, `p${p.n}`, p.wordId);
+    for (const p of draw.slice(9)) await h.answer(attemptId, `p${p.n}`, wrongFor(p));
+    const res = await h.submit(attemptId);
+    expect((res as { value: { score: number } }).value.score).toBe(75);
+  });
+
+  it('resumes its own sitting when the same start is replayed again', async () => {
+    const h = setup();
+    const draw = phoneDraw();
+    const first = (await h.start('PRACTICE', draw)).value as StartAttemptResult;
+    await h.answer(first.attemptId, 'p1', draw[0]!.wordId);
+    const again = await h.start('PRACTICE', draw);
+    expect(again.isOk && (again.value as StartAttemptResult).attemptId).toBe(first.attemptId);
+  });
+
+  it('names another open sitting instead of joining or abandoning it', async () => {
+    const h = setup();
+    const web = await started(h);
+    const res = await h.start('PRACTICE', phoneDraw());
+    expect(res.isFail && res.error).toEqual({ code: 'MP_DRAW_CONFLICT', attemptId: web.attemptId });
+    expect((await h.attempt(web.attemptId)).status).toBe('IN_PROGRESS');
+  });
+
+  it('refuses a draw this document could not have dealt, and saves nothing', async () => {
+    const h = setup();
+    const draw = phoneDraw();
+    draw[0]!.wordId = 'not-a-word';
+    const res = await h.start('PRACTICE', draw);
+    expect(res.isFail && res.error).toEqual({ code: 'MP_DRAW_INVALID', fault: 'unknownWord' });
+    expect(h.repo.save).not.toHaveBeenCalled();
+  });
+
+  it('takes no draw in GRADED, and still counts the author’s limit', async () => {
+    const graded = await setup().start('GRADED', phoneDraw());
+    expect(graded.isFail && graded.error).toEqual({ code: 'MP_DRAW_NOT_ACCEPTED' });
+
+    const h = setup({ doc: setScoring(sampleDocument(), { attempts: 1 }) });
+    const first = await started(h);
+    await h.submit(first.attemptId);
+    const res = await h.start('PRACTICE', phoneDraw());
+    expect(res.isFail && res.error).toEqual({ code: 'MP_SITTINGS_SPENT', allowed: 1 });
   });
 });
 
@@ -477,5 +544,26 @@ describe('submit — summed from what the server recorded (MP-S6 … MP-S11)', (
     expect(missed).toBe(12);
     expect(Object.values(history).every((w) => w.played === w.missed)).toBe(true);
     expect(historyFor(sampleDocument(), [])).toBeUndefined();
+  });
+});
+
+// ── History for a phone dealing offline ────────────────────────────────────
+
+describe('probe-history — what weakest reads, for the phone (VoxOrd offline plan, B6)', () => {
+  it('hands back the records the engine itself would read, folded the same way', async () => {
+    const h = setup();
+    const { attemptId } = await started(h);
+    const draw = drawOf(await h.attempt(attemptId));
+    for (const p of draw) await h.answer(attemptId, `p${p.n}`, wrongFor(p));
+    await h.submit(attemptId);
+    const stored = (await h.attempt(attemptId)).validationDetails;
+
+    const res = await setup({ scoredDetails: [stored, { score: 1 }, null] }).history();
+    expect(res.isOk).toBe(true);
+    const value = (res as { value: { targetLanguage: string; sittings: Array<{ probes: unknown[] }> } }).value;
+    expect(value.targetLanguage).toBe('nb');
+    expect(value.sittings).toHaveLength(1);
+    expect(value.sittings[0]!.probes).toHaveLength(12);
+    expect(historyFor(sampleDocument(), value.sittings)).toEqual(historyFor(sampleDocument(), [stored]));
   });
 });

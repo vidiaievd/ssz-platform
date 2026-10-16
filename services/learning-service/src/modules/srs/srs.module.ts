@@ -27,6 +27,7 @@ import { GetDueCardsHandler } from './application/queries/get-due-cards.handler.
 import { GetCardByIdHandler } from './application/queries/get-card-by-id.handler.js';
 import { GetUserSrsStatsHandler } from './application/queries/get-user-srs-stats.handler.js';
 import { GetCardStatesHandler } from './application/queries/get-card-states.handler.js';
+import { GetVocabularyReplicaHandler } from './application/queries/get-vocabulary-replica.handler.js';
 import { GetGrammarRuleMasteryHandler } from './application/queries/get-grammar-rule-mastery.handler.js';
 import { GetContentMasteryHandler } from './application/queries/get-content-mastery.handler.js';
 
@@ -53,6 +54,7 @@ const QueryHandlers = [
   GetCardByIdHandler,
   GetUserSrsStatsHandler,
   GetCardStatesHandler,
+  GetVocabularyReplicaHandler,
   GetGrammarRuleMasteryHandler,
   GetContentMasteryHandler,
 ];
