@@ -22,11 +22,12 @@ export interface ClientTimeClaim {
 }
 
 /**
- * How far back a replayed call may be dated — the lifetime of the phone's refresh token. A
- * journal older than that could not have been sent without signing in again, so a time
- * beyond it says the clock is wrong, not that the work is old.
+ * How far back a replayed call may be dated: 30 days, the longest refresh-token lifetime a
+ * phone gets (ADR-012, a student on mobile). A journal can wait longer, behind a sign-in once
+ * the session has lapsed, and is then kept but dated by the server. A time beyond the bound
+ * is more likely a wrong clock than a month of work nobody sent.
  */
-export const CLIENT_TIME_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+export const CLIENT_TIME_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * The time to record a call at.

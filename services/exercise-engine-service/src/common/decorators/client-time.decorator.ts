@@ -31,7 +31,7 @@ export function ApiClientTimeHeaders(): MethodDecorator {
       description:
         'ISO 8601. When the call was made, by the phone clock — sent only when a call is ' +
         'replayed from the offline journal. Bounded by the server: never in the future, never ' +
-        'before the last moment on the attempt, ignored when older than 7 days.',
+        'before the last moment on the attempt, ignored when older than 30 days.',
       example: '2026-10-14T08:15:00.000Z',
     }),
     ApiHeader({

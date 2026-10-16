@@ -33,7 +33,7 @@ export class UpsertProgressRequest {
     format: 'date-time',
     description:
       'When the work was done, for a record replayed from an offline queue. Defaults to ' +
-      'server time; a time in the future is taken as now, one older than 7 days is ignored.',
+      'server time; a time in the future is taken as now, one older than 30 days is ignored.',
     example: '2026-10-14T08:15:00.000Z',
   })
   @IsOptional()

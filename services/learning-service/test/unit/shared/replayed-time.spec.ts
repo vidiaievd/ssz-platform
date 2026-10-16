@@ -23,11 +23,11 @@ describe('boundReplayedTime', () => {
     expect(boundReplayedTime(new Date(now.getTime() + HOUR), now)).toEqual(now);
   });
 
-  it('a time older than seven days is now', () => {
+  it('a time older than the age bound is now', () => {
     expect(boundReplayedTime(before(REPLAYED_TIME_MAX_AGE_MS + 1), now)).toEqual(now);
   });
 
-  it('a time exactly seven days back is still believed', () => {
+  it('a time exactly at the age bound is still believed', () => {
     expect(boundReplayedTime(before(REPLAYED_TIME_MAX_AGE_MS), now)).toEqual(
       before(REPLAYED_TIME_MAX_AGE_MS),
     );

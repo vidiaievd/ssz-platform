@@ -196,7 +196,7 @@ export interface ExerciseAttemptCompletedPayload {
    * Differs from the envelope's `occurredAt` for an attempt worked on a phone with no
    * network and replayed later: the envelope is the day of the sync, this is the day of the
    * practice, as far as the engine believed the phone's clock (never in the future, never
-   * older than seven days). Absent on events published before it existed — a consumer
+   * older than thirty days). Absent on events published before it existed — a consumer
    * falls back to the envelope.
    */
   attemptedAt?: string;

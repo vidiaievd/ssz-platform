@@ -421,11 +421,11 @@ describe('ReviewCardHandler — a review dated by the phone (VoxOrd offline plan
     expect(scheduler.schedule).toHaveBeenCalledWith(expect.anything(), expect.anything(), NOW);
   });
 
-  it('a time older than seven days is taken as now', async () => {
+  it('a time older than thirty days is taken as now', async () => {
     // A card never reviewed, so no floor stands in the way of the age check.
     const { handler, scheduler } = makeHandler({ card: makeCard('NEW') });
 
-    await handler.execute(reviewAt(new Date('2026-04-21T09:00:00Z')));
+    await handler.execute(reviewAt(new Date('2026-03-29T09:00:00Z')));
 
     expect(scheduler.schedule).toHaveBeenCalledWith(expect.anything(), expect.anything(), NOW);
   });

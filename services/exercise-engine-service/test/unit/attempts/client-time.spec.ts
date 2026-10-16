@@ -44,7 +44,7 @@ describe('resolveClientTime', () => {
     expect(resolveClientTime({ at, sentAt: serverNow }, serverNow, floor)).toEqual(floor);
   });
 
-  it('a claim older than the refresh token can live is the server time', () => {
+  it('a claim older than the age bound is the server time', () => {
     const at = before(CLIENT_TIME_MAX_AGE_MS + minutes(1));
     expect(resolveClientTime({ at, sentAt: serverNow }, serverNow, null)).toEqual(serverNow);
   });
