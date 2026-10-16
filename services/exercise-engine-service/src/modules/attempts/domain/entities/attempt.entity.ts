@@ -11,6 +11,7 @@ import {
 import { AttemptStartedEvent } from '../events/attempt-started.event.js';
 import type { AnswerForm, AttemptTarget, Focus, Modality, Skill } from '@ssz/contracts';
 import type { RubricMarks, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
+import type { AttemptTiming } from '../events/attempt-timing.js';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
 import { AttemptCompletedUnscoredEvent } from '../events/attempt-completed-unscored.event.js';
 import { AttemptRoutedForReviewEvent } from '../events/attempt-routed-for-review.event.js';
@@ -163,6 +164,13 @@ export interface CreateAttemptProps {
    * outlives it.
    */
   ephemeral?: boolean;
+  /**
+   * When the attempt began, if not now: a start replayed from a phone's offline journal is
+   * dated by the phone (VoxOrd offline plan, B4), already bounded by `resolveClientTime`.
+   */
+  startedAt?: Date;
+  /** The start was replayed from a phone's offline journal — see `recordedOffline`. */
+  recordedOffline?: boolean;
 }
 
 export interface AttemptPersistenceProps {
@@ -218,6 +226,7 @@ export interface AttemptPersistenceProps {
   pickedOptions: PickedOption[] | null;
   /** `minimal_pairs`: the probes this sitting drew at its start (plan 72 §3.6). */
   probeDraw?: unknown;
+  recordedOffline?: boolean;
   rubricMarks: RubricMarks | null;
   rubricSnapshot: RubricSnapshot | null;
 }
@@ -326,6 +335,7 @@ export class Attempt extends AggregateRoot {
     private _modality: Modality = 'unknown',
     private _ephemeral: boolean = false,
     private _probeDraw: unknown = null,
+    private _recordedOffline: boolean = false,
   ) {
     super(id);
   }
@@ -353,7 +363,7 @@ export class Attempt extends AggregateRoot {
       0,
       false,
       0,
-      new Date(),
+      props.startedAt ?? new Date(),
       null,
       null,
     );
@@ -363,6 +373,7 @@ export class Attempt extends AggregateRoot {
     attempt._modality = props.axes.modality ?? 'unknown';
     attempt._itemTargets = props.itemTargets ?? [];
     attempt._ephemeral = props.ephemeral ?? false;
+    attempt._recordedOffline = props.recordedOffline ?? false;
     attempt._lessonId = props.lessonId ?? null;
     // Derived once, here: a lesson names classwork, an assignment names homework, and
     // everything else is the learner's own time.
@@ -442,6 +453,7 @@ export class Attempt extends AggregateRoot {
       props.modality ?? 'unknown',
       props.ephemeral ?? false,
       props.probeDraw ?? null,
+      props.recordedOffline ?? false,
     );
   }
 
@@ -456,7 +468,7 @@ export class Attempt extends AggregateRoot {
    * read back is a bug in the runner; a save refused because the half-written text does
    * not parse is the failure this column exists to prevent.
    */
-  saveDraft(answer: unknown): Result<void, InvalidAttemptTransitionError> {
+  saveDraft(answer: unknown, now: Date = new Date()): Result<void, InvalidAttemptTransitionError> {
     if (this._status !== 'IN_PROGRESS') {
       return Result.fail(
         new InvalidAttemptTransitionError(
@@ -466,13 +478,14 @@ export class Attempt extends AggregateRoot {
     }
 
     this._draftAnswer = answer;
-    this._draftSavedAt = new Date();
+    this._draftSavedAt = now;
     return Result.ok();
   }
 
   submit(
     answer: unknown,
     answerHash: string,
+    now: Date = new Date(),
   ): Result<void, AttemptAlreadySubmittedError | InvalidAttemptTransitionError> {
     if (this._status === 'SUBMITTED') {
       return Result.fail(new AttemptAlreadySubmittedError());
@@ -487,7 +500,7 @@ export class Attempt extends AggregateRoot {
 
     this._submittedAnswer = answer;
     this._answerHash = answerHash;
-    this._submittedAt = new Date();
+    this._submittedAt = now;
     this._status = 'SUBMITTED';
 
     return Result.ok();
@@ -583,6 +596,8 @@ export class Attempt extends AggregateRoot {
     gapResults?: Array<{ gapKey: string; correct: boolean }>,
     /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
     evidenceLowered?: boolean,
+    /** When the verdict was reached — the server's time, or a replayed call's. */
+    now: Date = new Date(),
   ): Result<void, InvalidScoreError | InvalidAttemptTransitionError> {
     if (this._status !== 'SUBMITTED') {
       return Result.fail(
@@ -601,7 +616,7 @@ export class Attempt extends AggregateRoot {
     this._passed = passed;
     this._validationDetails = validationDetails;
     this._feedback = feedback;
-    this._scoredAt = new Date();
+    this._scoredAt = now;
     this._status = 'SCORED';
 
     // Only the first check is evidence. A re-check is the learner correcting
@@ -611,6 +626,7 @@ export class Attempt extends AggregateRoot {
     if (this._recheckCount === 0) {
       this.addDomainEvent(
         new AttemptScoredEvent(this.id, {
+          ...this.timing(this._scoredAt),
           userId: this._userId,
           exerciseId: this._exerciseId,
           score: this._score,
@@ -686,6 +702,7 @@ export class Attempt extends AggregateRoot {
 
     this.addDomainEvent(
       new AttemptCompletedUnscoredEvent(this.id, {
+        ...this.timing(this._submittedAt),
         userId: this._userId,
         exerciseId: this._exerciseId,
         score: null,
@@ -828,6 +845,8 @@ export class Attempt extends AggregateRoot {
     questionId: string;
     text: string;
     verdict: 'pass' | 'partial' | 'fail';
+    /** When it was answered, if not now — a call replayed from the offline journal. */
+    at?: Date;
   }): Result<void, InvalidAttemptTransitionError> {
     if (this._status !== 'IN_PROGRESS') {
       return Result.fail(
@@ -848,7 +867,7 @@ export class Attempt extends AggregateRoot {
       questionId: props.questionId,
       text: props.text,
       verdict: props.verdict,
-      answeredAt: new Date(),
+      answeredAt: props.at ?? new Date(),
     });
     return Result.ok();
   }
@@ -877,6 +896,8 @@ export class Attempt extends AggregateRoot {
     placement: Record<string, string[]>;
     solved: boolean;
     revealed: boolean;
+    /** When it was checked, if not now — a call replayed from the offline journal. */
+    at?: Date;
   }): Result<CheckedRow, InvalidAttemptTransitionError> {
     if (this._status !== 'IN_PROGRESS') {
       return Result.fail(
@@ -903,7 +924,7 @@ export class Attempt extends AggregateRoot {
       placement: props.placement,
       solved: props.solved,
       revealed: props.revealed,
-      checkedAt: new Date(),
+      checkedAt: props.at ?? new Date(),
     };
 
     if (existing) this._checkedRows[this._checkedRows.indexOf(existing)] = checked;
@@ -948,6 +969,8 @@ export class Attempt extends AggregateRoot {
     revealed: boolean;
     /** The cumulative dimmed set from the kernel, or undefined to leave it as it stands. */
     eliminated?: readonly string[];
+    /** When it was picked, if not now — a call replayed from the offline journal. */
+    at?: Date;
   }): Result<PickedOption, InvalidAttemptTransitionError> {
     if (this._status !== 'IN_PROGRESS') {
       return Result.fail(
@@ -978,7 +1001,7 @@ export class Attempt extends AggregateRoot {
       correct: props.correct,
       closed: props.closed,
       revealed: props.revealed,
-      pickedAt: new Date(),
+      pickedAt: props.at ?? new Date(),
     };
 
     if (existing) this._pickedOptions[this._pickedOptions.indexOf(existing)] = picked;
@@ -1076,6 +1099,7 @@ export class Attempt extends AggregateRoot {
       // collected about recall and production was evidence of success.
       this.addDomainEvent(
         new AttemptReturnedEvent(this.id, {
+          ...this.timing(this._reviewedAt),
           userId: this._userId,
           exerciseId: this._exerciseId,
           // What the verdict credited, on an approval's scale. Zero when nobody said —
@@ -1122,6 +1146,7 @@ export class Attempt extends AggregateRoot {
     // teacher's judgement of a translation is the strongest evidence this template has.
     this.addDomainEvent(
       new AttemptScoredEvent(this.id, {
+        ...this.timing(this._scoredAt),
         userId: this._userId,
         exerciseId: this._exerciseId,
         score: this._score,
@@ -1398,6 +1423,46 @@ export class Attempt extends AggregateRoot {
    * Untyped here as the column is: the kernel's `readDraw` is the one reader of it.
    */
   get probeDraw(): unknown { return this._probeDraw; }
+
+  /**
+   * The attempt was worked on a phone with no network, and at least one of its calls reached
+   * the server replayed from the offline journal (VoxOrd offline plan, B4).
+   */
+  get recordedOffline(): boolean { return this._recordedOffline; }
+
+  markRecordedOffline(): void {
+    this._recordedOffline = true;
+  }
+
+  /**
+   * The latest moment recorded on the attempt. A call replayed from the offline journal is
+   * never dated before it, so the attempt's own history stays in order whatever the phone's
+   * clock did between two calls.
+   */
+  get lastActivityAt(): Date {
+    const moments = [
+      this._startedAt,
+      this._draftSavedAt,
+      this._submittedAt,
+      this._scoredAt,
+      ...this._answeredQuestions.map((a) => a.answeredAt),
+      ...this._checkedRows.map((r) => r.checkedAt),
+      ...this._pickedOptions.map((p) => p.pickedAt),
+    ];
+    let latest = this._startedAt;
+    for (const moment of moments) {
+      if (moment instanceof Date && moment.getTime() > latest.getTime()) latest = moment;
+    }
+    return latest;
+  }
+
+  /** `attemptedAt` and `recordedOffline` for an `exercise.attempt.completed` payload. */
+  private timing(at: Date | null): AttemptTiming {
+    return {
+      ...(at === null ? {} : { attemptedAt: at.toISOString() }),
+      ...(this._recordedOffline ? { recordedOffline: true } : {}),
+    };
+  }
 
   /**
    * Write the draw of a `minimal_pairs` sitting, once, before anything is answered (plan 72

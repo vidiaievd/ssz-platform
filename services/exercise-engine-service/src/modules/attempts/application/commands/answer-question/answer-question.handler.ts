@@ -1,5 +1,7 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject, Optional } from '@nestjs/common';
+import { CLOCK, SystemClock, type IClock } from '../../../../../shared/application/ports/clock.port.js';
+import { stampReplayedCall } from '../../../../../shared/application/services/client-time.js';
 import {
   fromPersisted,
   grade,
@@ -157,6 +159,8 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
     // Asked only for the A/B links of a closed `minimal_pairs` miss. Optional, as in the submit
     // handler: without it the verdict still comes back, only without the comparison.
     @Optional() @Inject(MEDIA_ASSETS) private readonly media: IMediaAssets | null = null,
+    // The server's time for an online call; a replayed one is dated by `stampReplayedCall`.
+    @Optional() @Inject(CLOCK) private readonly clock: IClock = new SystemClock(),
   ) {}
 
   async execute(
@@ -219,25 +223,27 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
     }
 
     const { content, expectedAnswers } = defResult.value.exercise;
+    const at = stampReplayedCall(attempt, command.clientTime, this.clock.now());
 
     if (attempt.templateCode === MINIMAL_PAIRS && command.payload.kind === 'option') {
       return this.answerProbe(attempt, command.questionId, command.payload.optionId ?? '', {
         content,
         expectedAnswers,
-      });
+      }, at);
     }
 
     return command.payload.kind === 'text'
       ? this.answerShortAnswer(attempt, command.questionId, command.payload.text, {
           content,
           expectedAnswers,
-        })
+        }, at)
       : this.pickOption(
           attempt,
           command.questionId,
           command.payload.optionId,
           command.payload.reveal,
           { content, expectedAnswers },
+          at,
         );
   }
 
@@ -254,6 +260,7 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
     questionId: string,
     text: string,
     exercise: { content: unknown; expectedAnswers: unknown },
+    at: Date,
   ): Promise<Result<AnswerQuestionResult, AnswerQuestionError>> {
     // A document of the old form has one question and no ids to hand in against; it is
     // answered by submitting, as it always was (plan 51 §8 Q1).
@@ -276,6 +283,7 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
       questionId,
       text,
       verdict: result.verdict,
+      at,
     });
     if (answered.isFail) {
       return Result.fail(answered.error as AttemptDomainError);
@@ -347,6 +355,7 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
     questionId: string,
     optionId: string,
     exercise: { content: unknown; expectedAnswers: unknown },
+    at: Date,
   ): Promise<Result<AnswerQuestionResult, AnswerQuestionError>> {
     const document = mpFromPersisted(exercise.content, exercise.expectedAnswers);
     const draw = drawOf(attempt);
@@ -369,6 +378,7 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
       correct: verdict.correct,
       closed: verdict.closed,
       revealed: false,
+      at,
     });
     if (recorded.isFail) {
       return Result.fail(recorded.error as AttemptDomainError);
@@ -430,6 +440,7 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
     optionId: string | null,
     reveal: boolean,
     exercise: { content: unknown; expectedAnswers: unknown },
+    at: Date,
   ): Promise<Result<AnswerQuestionResult, AnswerQuestionError>> {
     // A document of the old form is one question with no ids to hand in against; it is
     // answered by submitting, as it always was (plan 53 §8 Q2).
@@ -475,6 +486,7 @@ export class AnswerQuestionHandler implements ICommandHandler<AnswerQuestionComm
       closed: verdict.closed,
       revealed: reveal,
       eliminated: verdict.eliminated,
+      at,
     });
     if (recorded.isFail) {
       return Result.fail(recorded.error as AttemptDomainError);

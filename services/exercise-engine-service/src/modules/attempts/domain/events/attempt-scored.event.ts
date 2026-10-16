@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { AnswerForm, AttemptTarget, Focus, Modality, Skill, WorkContext } from '@ssz/contracts';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
+import type { AttemptTiming } from './attempt-timing.js';
 
 // Payload matches Learning Service ExerciseAttemptedConsumer contract exactly.
 // Published as routing key: exercise.attempt.completed
-export interface AttemptScoredPayload {
+export interface AttemptScoredPayload extends AttemptTiming {
   userId: string;
   exerciseId: string;
   score: number;

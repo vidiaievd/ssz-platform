@@ -1,3 +1,4 @@
+import type { ClientTimeClaim } from '../../../../../shared/application/services/client-time.js';
 import type { Placement } from '@ssz/shared-kernel/sentence-schema';
 
 export class CheckRowCommand {
@@ -15,5 +16,11 @@ export class CheckRowCommand {
      * closes, the solution comes back, and it scores nothing.
      */
     public readonly reveal: boolean,
+    /**
+     * The phone's account of when this call was made, for a call replayed from its offline
+     * journal (VoxOrd offline plan, B4); null for an online call. Bounded by
+     * `resolveClientTime` before anything is dated by it.
+     */
+    public readonly clientTime: ClientTimeClaim | null = null,
   ) {}
 }

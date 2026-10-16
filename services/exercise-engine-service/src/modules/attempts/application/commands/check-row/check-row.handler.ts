@@ -1,5 +1,7 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Inject, Optional } from '@nestjs/common';
+import { CLOCK, SystemClock, type IClock } from '../../../../../shared/application/ports/clock.port.js';
+import { stampReplayedCall } from '../../../../../shared/application/services/client-time.js';
 import {
   deliverableRows,
   fieldsFor,
@@ -78,6 +80,8 @@ export class CheckRowHandler implements ICommandHandler<CheckRowCommand> {
   constructor(
     @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
     @Inject(CONTENT_CLIENT) private readonly contentClient: IContentClient,
+    // The server's time for an online call; a replayed one is dated by `stampReplayedCall`.
+    @Optional() @Inject(CLOCK) private readonly clock: IClock = new SystemClock(),
   ) {}
 
   async execute(command: CheckRowCommand): Promise<Result<CheckRowResult, CheckRowError>> {
@@ -150,6 +154,7 @@ export class CheckRowHandler implements ICommandHandler<CheckRowCommand> {
       placement,
       solved: result.solved,
       revealed: command.reveal,
+      at: stampReplayedCall(attempt, command.clientTime, this.clock.now()),
     });
     if (checked.isFail) {
       return Result.fail(checked.error as AttemptDomainError);

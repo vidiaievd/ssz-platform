@@ -142,6 +142,7 @@ describe('AnswerQuestionHandler', () => {
       questionId: 'q1',
       text: 'Alle må ha lys foran og bak når det er mørkt.',
       verdict: 'pass',
+      at: expect.any(Date),
     });
     expect(attempts.save).toHaveBeenCalled();
   });

@@ -30,6 +30,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
+import { ApiClientTimeHeaders, ClientTime } from '../../../../common/decorators/client-time.decorator.js';
+import type { ClientTimeClaim } from '../../../../shared/application/services/client-time.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { StartAttemptCommand } from '../../application/commands/start-attempt/start-attempt.command.js';
 import type {
@@ -229,10 +231,12 @@ export class AttemptsController {
       '`MP_EMPTY_SET` — no pair has audio to play; `MP_DRAW_INVALID` — a dealt draw the ' +
       'document could not have made',
   })
+  @ApiClientTimeHeaders()
   async startAttempt(
     @Param('exerciseId') exerciseId: string,
     @Body() dto: StartAttemptRequestDto,
     @CurrentUser() user: AuthenticatedUser,
+    @ClientTime() clientTime: ClientTimeClaim | null,
   ): Promise<StartAttemptResponseDto> {
     const result: Result<StartAttemptResult, StartAttemptError> =
       await this.commandBus.execute(
@@ -246,6 +250,7 @@ export class AttemptsController {
           dto.joinAttemptId ?? null,
           dto.lessonId ?? null,
           dto.probeDraw ?? null,
+          clientTime,
         ),
       );
 
@@ -328,11 +333,13 @@ export class AttemptsController {
       'read_aloud: media-service did not answer, so the recordings could not be checked. ' +
       'Nothing was written — the draft is intact; submit again.',
   })
+  @ApiClientTimeHeaders()
   async submitAnswer(
     @Param('exerciseId') _exerciseId: string,
     @Param('attemptId', ParseUUIDPipe) attemptId: string,
     @Body() dto: SubmitAnswerRequestDto,
     @CurrentUser() user: AuthenticatedUser,
+    @ClientTime() clientTime: ClientTimeClaim | null,
   ): Promise<SubmitAnswerResponseDto> {
     const result: Result<SubmitAnswerResult, SubmitAnswerError> =
       await this.commandBus.execute(
@@ -342,6 +349,7 @@ export class AttemptsController {
           dto.submittedAnswer,
           dto.timeSpentSeconds,
           dto.locale ?? 'en',
+          clientTime,
         ),
       );
 
@@ -517,15 +525,23 @@ export class AttemptsController {
       'Question already answered or closed, a probe that is not the current one, attempt no ' +
       'longer in progress, or a template that is not answered a question at a time',
   })
+  @ApiClientTimeHeaders()
   async answerQuestion(
     @Param('exerciseId') _exerciseId: string,
     @Param('attemptId', ParseUUIDPipe) attemptId: string,
     @Body() dto: AnswerQuestionRequestDto,
     @CurrentUser() user: AuthenticatedUser,
+    @ClientTime() clientTime: ClientTimeClaim | null,
   ): Promise<AnswerQuestionResult> {
     const result: Result<AnswerQuestionResult, AnswerQuestionError> =
       await this.commandBus.execute(
-        new AnswerQuestionCommand(attemptId, user.userId, dto.questionId, readPayload(dto)),
+        new AnswerQuestionCommand(
+          attemptId,
+          user.userId,
+          dto.questionId,
+          readPayload(dto),
+          clientTime,
+        ),
       );
 
     if (result.isFail) {
@@ -658,14 +674,23 @@ export class AttemptsController {
     description:
       'Sentence already closed, attempt no longer in progress, or not a sentence-schema set',
   })
+  @ApiClientTimeHeaders()
   async checkRow(
     @Param('exerciseId') _exerciseId: string,
     @Param('attemptId', ParseUUIDPipe) attemptId: string,
     @Body() dto: CheckRowRequestDto,
     @CurrentUser() user: AuthenticatedUser,
+    @ClientTime() clientTime: ClientTimeClaim | null,
   ): Promise<CheckRowResult> {
     const result: Result<CheckRowResult, CheckRowError> = await this.commandBus.execute(
-      new CheckRowCommand(attemptId, user.userId, dto.rowId, dto.placement, dto.reveal === true),
+      new CheckRowCommand(
+        attemptId,
+        user.userId,
+        dto.rowId,
+        dto.placement,
+        dto.reveal === true,
+        clientTime,
+      ),
     );
 
     if (result.isFail) {
@@ -711,14 +736,16 @@ export class AttemptsController {
   @ApiResponse({ status: 404, description: 'Attempt not found' })
   @ApiResponse({ status: 403, description: 'Not your attempt' })
   @ApiResponse({ status: 422, description: 'Attempt is no longer in progress' })
+  @ApiClientTimeHeaders()
   async saveDraft(
     @Param('exerciseId') _exerciseId: string,
     @Param('attemptId', ParseUUIDPipe) attemptId: string,
     @Body() dto: SaveDraftRequestDto,
     @CurrentUser() user: AuthenticatedUser,
+    @ClientTime() clientTime: ClientTimeClaim | null,
   ): Promise<SaveDraftResponseDto> {
     const result: Result<SaveDraftResult, SaveDraftError> = await this.commandBus.execute(
-      new SaveDraftCommand(attemptId, user.userId, dto.draftAnswer),
+      new SaveDraftCommand(attemptId, user.userId, dto.draftAnswer, clientTime),
     );
 
     if (result.isFail) {

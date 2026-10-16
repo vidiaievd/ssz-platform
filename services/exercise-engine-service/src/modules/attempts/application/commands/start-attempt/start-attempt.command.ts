@@ -1,3 +1,4 @@
+import type { ClientTimeClaim } from '../../../../../shared/application/services/client-time.js';
 import type { CheckMode } from '../../../domain/entities/attempt.entity.js';
 
 export class StartAttemptCommand {
@@ -36,5 +37,11 @@ export class StartAttemptCommand {
      * `unknown` until checked.
      */
     public readonly probeDraw: unknown = null,
+    /**
+     * The phone's account of when this call was made, for a call replayed from its offline
+     * journal (VoxOrd offline plan, B4); null for an online call. Bounded by
+     * `resolveClientTime` before anything is dated by it.
+     */
+    public readonly clientTime: ClientTimeClaim | null = null,
   ) {}
 }

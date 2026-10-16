@@ -1,5 +1,7 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Inject, Optional } from '@nestjs/common';
+import { CLOCK, SystemClock, type IClock } from '../../../../../shared/application/ports/clock.port.js';
+import { resolveClientTime } from '../../../../../shared/application/services/client-time.js';
 import { randomInt } from 'node:crypto';
 import {
   readContent,
@@ -742,6 +744,8 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
     @Inject(CONTENT_CLIENT) private readonly contentClient: IContentClient,
     private readonly reviewContext: ReviewContextResolver,
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
+    // The server's time for an online start; a replayed one is dated by `resolveClientTime`.
+    @Optional() @Inject(CLOCK) private readonly clock: IClock = new SystemClock(),
   ) {}
 
   async execute(
@@ -1011,6 +1015,10 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
       // above it and one more: the probe it came from is meant to be gone by tomorrow
       // (plan 63 phase 9).
       ephemeral: def.ephemeral === true,
+      // A start replayed from the phone's offline journal is dated when the phone began it
+      // (VoxOrd offline plan, B4); nothing is on the attempt yet to floor it at.
+      startedAt: resolveClientTime(command.clientTime, this.clock.now(), null),
+      recordedOffline: command.clientTime !== null,
     });
 
     attempt.snapshotReviewContext(

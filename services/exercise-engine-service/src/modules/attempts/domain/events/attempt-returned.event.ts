@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { AttemptTarget, Focus, Modality, Skill, WorkContext } from '@ssz/contracts';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
+import type { AttemptTiming } from './attempt-timing.js';
 
 /**
  * A person read the work and sent it back — plan 63 §4.
@@ -17,7 +18,7 @@ import type { IDomainEvent } from '../../../../shared/domain/domain-event.interf
  * an answer wrong — recorded failure too. Nothing said the two were sampled by opposite
  * rules; the numbers simply disagreed for a reason nobody could see.
  */
-export interface AttemptReturnedPayload {
+export interface AttemptReturnedPayload extends AttemptTiming {
   userId: string;
   exerciseId: string;
   /**

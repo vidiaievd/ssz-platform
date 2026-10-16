@@ -65,6 +65,7 @@ import { ReviewContextResolver } from '../../services/review-context-resolver.js
 import { audioTranscriptFor, type AudioTranscript } from '../../services/audio-transcript.js';
 import { firstVerdictsIn, isItemByItem } from '../../services/item-states.js';
 import { CLOCK, SystemClock, type IClock } from '../../../../../shared/application/ports/clock.port.js';
+import { stampReplayedCall } from '../../../../../shared/application/services/client-time.js';
 import { MEDIA_ASSETS, type IMediaAssets } from '../../../../../shared/application/ports/media-assets.port.js';
 import {
   assetIdsOf,
@@ -330,8 +331,11 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     @Inject(FEEDBACK_GENERATOR) private readonly feedbackGenerator: IFeedbackGenerator,
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
     private readonly reviewContext: ReviewContextResolver,
-    // The time a `dictation` check is throttled against (plan 68, Q4-A) — the server's,
-    // never the client's. Optional so the module needs no binding for the system clock.
+    // The time a `dictation` check is throttled against (plan 68, Q4-A) — the server's, or for
+    // a call replayed from the phone's offline journal the phone's as `stampReplayedCall`
+    // bounds it: a replay arrives in a burst, and the server's clock would refuse the second
+    // check of a segment the student made minutes after the first. Optional so the module
+    // needs no binding for the system clock.
     @Optional() @Inject(CLOCK) private readonly clock: IClock = new SystemClock(),
     // Asked only by a `read_aloud` submit (plan 70 §3.5). Optional so that a module — or a
     // test — with no binding still runs every other template; a recording submitted there is
@@ -351,6 +355,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     }
 
     attempt.addTimeSpent(command.timeSpentSeconds);
+    const now = stampReplayedCall(attempt, command.clientTime, this.clock.now());
 
     // Fetched before anything is decided, rather than after the submission is written
     // onto the attempt. Always requested as PRACTICE — the server needs the real
@@ -412,13 +417,13 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
 
     // After the reopen, deliberately: the facts written over the submission include
     // which check this is, and `recheckCount` is only current once it has happened.
-    const submittedAnswer = withRecordedReveals(attempt, answer, this.clock.now());
+    const submittedAnswer = withRecordedReveals(attempt, answer, now);
 
     const answerHash = createHash('sha256')
       .update(JSON.stringify(submittedAnswer))
       .digest('hex');
 
-    const submitResult = attempt.submit(submittedAnswer, answerHash);
+    const submitResult = attempt.submit(submittedAnswer, answerHash, now);
     if (submitResult.isFail) {
       return Result.fail(submitResult.error as AttemptDomainError);
     }
@@ -543,6 +548,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
         def.exercise.expectedAnswers,
         attempt.checkMode,
       ),
+      now,
     );
     if (scoreResult.isFail) {
       return Result.fail(scoreResult.error as AttemptDomainError);

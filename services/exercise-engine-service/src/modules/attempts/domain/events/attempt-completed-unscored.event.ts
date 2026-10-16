@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Focus, Skill } from '@ssz/contracts';
 import type { IDomainEvent } from '../../../../shared/domain/domain-event.interface.js';
+import type { AttemptTiming } from './attempt-timing.js';
 
 // Payload matches Learning Service ExerciseAttemptedConsumer contract exactly.
 // Published as routing key: exercise.attempt.completed with score=null, completed=false.
@@ -8,7 +9,7 @@ import type { IDomainEvent } from '../../../../shared/domain/domain-event.interf
 // Named for what it is rather than what raises it: an attempt that finished
 // without a score. The review side of the same moment is announced separately by
 // AttemptRoutedForReviewEvent, whose payload is free to change; this one's is frozen.
-export interface AttemptCompletedUnscoredPayload {
+export interface AttemptCompletedUnscoredPayload extends AttemptTiming {
   userId: string;
   exerciseId: string;
   score: null;
