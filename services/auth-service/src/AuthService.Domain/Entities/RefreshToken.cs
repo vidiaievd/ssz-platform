@@ -14,6 +14,8 @@ public sealed class RefreshToken : Entity
     public DateTimeOffset ExpiresAt { get; private set; }
     public DateTimeOffset? RevokedAt { get; private set; }
     public string? DeviceInfo { get; private set; }
+    /// <summary>The kind of client the session was opened from (<see cref="ClientTypes"/>).</summary>
+    public string ClientType { get; private set; } = ClientTypes.Web;
 
     public bool IsExpired => DateTimeOffset.UtcNow >= ExpiresAt;
     public bool IsActive => !IsRevoked && !IsExpired;
@@ -23,13 +25,15 @@ public sealed class RefreshToken : Entity
         string tokenHash,
         string familyId,
         DateTimeOffset expiresAt,
-        string? deviceInfo = null) => new()
+        string? deviceInfo = null,
+        string clientType = ClientTypes.Web) => new()
     {
         UserId = userId,
         TokenHash = tokenHash,
         FamilyId = familyId,
         ExpiresAt = expiresAt,
         DeviceInfo = deviceInfo,
+        ClientType = ClientTypes.Normalize(clientType),
     };
 
     public void Revoke()

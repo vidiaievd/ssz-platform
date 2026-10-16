@@ -48,7 +48,8 @@ public sealed class AuthController(
         var deviceInfo = Request.Headers.UserAgent.ToString();
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var result = await mediator.Send(
-            new LoginCommand(request.Email, request.Password, deviceInfo, clientIp), ct);
+            new LoginCommand(
+                request.Email, request.Password, deviceInfo, clientIp, request.ClientType), ct);
 
         return result switch
         {
@@ -75,7 +76,8 @@ public sealed class AuthController(
             new CompleteMfaLoginCommand(
                 request.MfaChallengeToken,
                 request.Code,
-                deviceInfo), ct);
+                deviceInfo,
+                request.ClientType), ct);
 
         return Ok(tokens);
     }
@@ -93,7 +95,8 @@ public sealed class AuthController(
             new LoginWithBackupCodeCommand(
                 request.MfaChallengeToken,
                 request.BackupCode,
-                deviceInfo), ct);
+                deviceInfo,
+                request.ClientType), ct);
 
         return Ok(tokens);
     }

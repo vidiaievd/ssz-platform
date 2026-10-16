@@ -134,9 +134,10 @@ public sealed class User : AggregateRoot
         string tokenHash,
         string familyId,
         DateTimeOffset expiresAt,
-        string? deviceInfo = null)
+        string? deviceInfo = null,
+        string clientType = ClientTypes.Web)
     {
-        var token = RefreshToken.Create(Id, tokenHash, familyId, expiresAt, deviceInfo);
+        var token = RefreshToken.Create(Id, tokenHash, familyId, expiresAt, deviceInfo, clientType);
         _refreshTokens.Add(token);
         return token;
     }
