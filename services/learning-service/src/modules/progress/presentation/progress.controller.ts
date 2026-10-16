@@ -65,6 +65,7 @@ export class ProgressController {
         body.timeSpentSeconds,
         body.score ?? null,
         body.completed,
+        body.occurredAt ? new Date(body.occurredAt) : undefined,
       ),
     );
     return this.unwrap(result);

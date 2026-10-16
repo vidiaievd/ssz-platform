@@ -31,6 +31,19 @@ describe('UserProgress', () => {
   });
 
   describe('recordAttempt', () => {
+    it('an attempt made earlier and arriving later keeps neither its score nor its time', () => {
+      // Worked offline at NOW and synced after an online attempt at LATER (VoxOrd offline
+      // plan, B4): it counts, and the record still reads as the later attempt left it.
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 30, score: 90, completed: false, now: LATER });
+      p.recordAttempt({ timeSpentSeconds: 40, score: 40, completed: false, now: NOW });
+
+      expect(p.attemptsCount).toBe(2);
+      expect(p.timeSpentSeconds).toBe(70);
+      expect(p.score).toBe(90);
+      expect(p.lastAttemptAt).toEqual(LATER);
+    });
+
     it('transitions NOT_STARTED → IN_PROGRESS on incomplete attempt', () => {
       const p = freshProgress();
       p.recordAttempt({ timeSpentSeconds: 60, score: null, completed: false, now: NOW });

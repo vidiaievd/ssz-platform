@@ -254,6 +254,15 @@ export interface AttemptRatedPayload {
    * they carry different weight, which is what `role` is for.
    */
   targets: RatedTarget[] | null;
+  /**
+   * When the rated work was done, ISO 8601 (VoxOrd offline plan, B4) — the attempt's
+   * `attemptedAt`, which for an attempt replayed from a phone's offline journal is days
+   * before this event was published. Absent on records published before it existed; a
+   * consumer falls back to the envelope's `occurredAt`.
+   */
+  attemptedAt?: string;
+  /** The attempt was worked offline and replayed. Absent means not. */
+  recordedOffline?: boolean;
 }
 
 /**

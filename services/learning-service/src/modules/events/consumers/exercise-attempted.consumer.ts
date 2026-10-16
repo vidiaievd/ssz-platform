@@ -216,6 +216,18 @@ function stabilityOf(card: unknown): number | null {
  * card untouched, so `lastReviewedAt` here is still the previous review, not this
  * one. Null on the first review, where there is no previous one to measure from.
  */
+/**
+ * When the attempt was made, as the engine dated it (VoxOrd offline plan, B4) — days before
+ * this event for one worked on a phone offline. Undefined on events published before the
+ * field existed, and on one that cannot be read: the review is then dated now, as it always
+ * was. The review and progress handlers bound it whatever it says.
+ */
+function attemptedAtOf(p: ExerciseAttemptCompletedPayload): Date | undefined {
+  if (p.attemptedAt === undefined) return undefined;
+  const at = new Date(p.attemptedAt);
+  return Number.isNaN(at.getTime()) ? undefined : at;
+}
+
 function daysSince(lastReviewedAt: string | null | undefined, now: Date): number | null {
   if (!lastReviewedAt) return null;
   const elapsed = now.getTime() - new Date(lastReviewedAt).getTime();
@@ -337,6 +349,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
             p.timeSpentSeconds ?? 0,
             p.score ?? null,
             p.completed ?? false,
+            attemptedAtOf(p),
           ),
         );
         if (progressResult.isFail) {
@@ -420,7 +433,12 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
           }
 
           const atomReviewResult = await this.commandBus.execute(
-            new ReviewCardCommand(p.userId, atomIntroduceResult.value.id, atomRating),
+            new ReviewCardCommand(
+              p.userId,
+              atomIntroduceResult.value.id,
+              atomRating,
+              attemptedAtOf(p),
+            ),
           );
           if (atomReviewResult.isFail) {
             this.logger.debug(
@@ -495,7 +513,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
   ): Promise<void> {
     const rating = ratingForAttempt(p, p.score as number);
     const reviewResult = await this.commandBus.execute(
-      new ReviewCardCommand(p.userId, card.id, rating),
+      new ReviewCardCommand(p.userId, card.id, rating, attemptedAtOf(p)),
     );
     if (reviewResult.isFail) {
       // Non-fatal: daily limit hit or card suspended. Log and continue.
@@ -558,7 +576,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
           p.userId,
           card.id,
           observation.rating,
-          undefined,
+          attemptedAtOf(p),
           undefined,
           undefined,
           true,
@@ -636,7 +654,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       const rating = ratingForAttempt(p, gap.correct ? 100 : 0, position);
 
       const reviewResult = await this.commandBus.execute(
-        new ReviewCardCommand(p.userId, card.id, rating),
+        new ReviewCardCommand(p.userId, card.id, rating, attemptedAtOf(p)),
       );
       if (reviewResult.isFail) {
         this.logger.debug(
@@ -687,7 +705,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       score: p.score as number,
       passed: p.passed ?? null,
       attemptOrdinal: (cardBeforeReview.reps ?? 0) + 1,
-      daysSinceLastReview: daysSince(cardBeforeReview.lastReviewedAt, new Date()),
+      daysSinceLastReview: daysSince(cardBeforeReview.lastReviewedAt, attemptedAtOf(p) ?? new Date()),
       // Null for a card standing for the whole exercise — there is no position within
       // a block to report. Set for gap cards, which is what §B.3 will decay against.
       gapPosition,
@@ -714,6 +732,10 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       // Absent rather than empty when nobody addressed it: an empty list would read as
       // "this rating is about nothing", and the truth is that nobody has said yet.
       targets: address.targets && address.targets.length > 0 ? address.targets : null,
+      // Forwarded so analytics files the rating under the day the work was done, not the day
+      // a phone that had been offline synced it (VoxOrd offline plan, B4).
+      ...(p.attemptedAt === undefined ? {} : { attemptedAt: p.attemptedAt }),
+      ...(p.recordedOffline === true ? { recordedOffline: true } : {}),
     };
 
     try {

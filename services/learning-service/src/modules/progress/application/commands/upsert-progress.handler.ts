@@ -12,6 +12,7 @@ import {
 } from '../errors/progress-application.errors.js';
 import { toProgressDto, type ProgressDto } from '../dto/progress.dto.js';
 import { UpsertProgressCommand } from './upsert-progress.command.js';
+import { boundReplayedTime } from '../../../../shared/domain/replayed-time.js';
 
 @CommandHandler(UpsertProgressCommand)
 export class UpsertProgressHandler
@@ -41,7 +42,7 @@ export class UpsertProgressHandler
       timeSpentSeconds: cmd.timeSpentSeconds,
       score: cmd.score,
       completed: cmd.completed,
-      now: this.clock.now(),
+      now: boundReplayedTime(cmd.occurredAt, this.clock.now()),
     });
 
     await this.repo.save(progress);

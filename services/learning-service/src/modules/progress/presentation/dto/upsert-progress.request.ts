@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsISO8601, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { VALID_CONTENT_TYPES } from '../../../../shared/domain/value-objects/content-ref.js';
 
 export class UpsertProgressRequest {
@@ -28,6 +28,17 @@ export class UpsertProgressRequest {
   @ApiProperty()
   @IsBoolean()
   completed!: boolean;
+
+  @ApiPropertyOptional({
+    format: 'date-time',
+    description:
+      'When the work was done, for a record replayed from an offline queue. Defaults to ' +
+      'server time; a time in the future is taken as now, one older than 7 days is ignored.',
+    example: '2026-10-14T08:15:00.000Z',
+  })
+  @IsOptional()
+  @IsISO8601()
+  occurredAt?: string;
 }
 
 export class FlagProgressRequest {
