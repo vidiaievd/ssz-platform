@@ -176,3 +176,37 @@ describe("AttemptEvidenceConsumer — evidence about a fact", () => {
     expect(fake.atoms[0]).toMatchObject({ role: "focus" });
   });
 });
+
+describe("AttemptEvidenceConsumer — an attempt worked offline (VoxOrd offline plan, B4)", () => {
+  it("files the rows under the day the work was done, and marks the attempt offline", async () => {
+    const fake = fakePrisma();
+    const applied: string[] = [];
+    const consumer = new (AttemptEvidenceConsumer as any)({ get: () => undefined }, fake.prisma, {
+      apply: async (_p: unknown, at: string) => {
+        applied.push(at);
+      },
+    });
+
+    await consumer.handleMessage(
+      channel,
+      message(rated({ attemptedAt: "2026-09-11T07:30:00.000Z", recordedOffline: true })),
+    );
+
+    expect(fake.attempts[0]).toMatchObject({
+      occurredAt: new Date("2026-09-11T07:30:00.000Z"),
+      recordedOffline: true,
+    });
+    expect(fake.atoms[0]).toMatchObject({ occurredAt: new Date("2026-09-11T07:30:00.000Z") });
+    expect(applied).toEqual(["2026-09-11T07:30:00.000Z"]);
+  });
+
+  it("an event from before the field existed keeps the envelope's time and is online", async () => {
+    const fake = fakePrisma();
+    await (consumerOn(fake.prisma) as any).handleMessage(channel, message(rated()));
+
+    expect(fake.attempts[0]).toMatchObject({
+      occurredAt: new Date("2026-09-13T10:00:00.000Z"),
+      recordedOffline: false,
+    });
+  });
+});

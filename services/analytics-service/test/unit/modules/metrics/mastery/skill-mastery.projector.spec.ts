@@ -204,14 +204,27 @@ describe('SkillMasteryProjector', () => {
 
       await Promise.all([
         projector.apply(attempt(), '2026-09-02T10:00:00.000Z'),
-        projector.apply(attempt(), '2026-09-02T10:00:00.900Z'),
         projector.apply(attempt(), '2026-09-02T10:00:00.500Z'),
+        projector.apply(attempt(), '2026-09-02T10:00:00.900Z'),
       ]);
 
       expect(prisma.rows[0]?.attempts).toBe(3);
       // Stale by four events is how the bug showed itself in the database, so the tail of
       // the burst is asserted, not just the count.
-      expect(prisma.rows[0]?.lastAttemptAt.toISOString()).toBe('2026-09-02T10:00:00.500Z');
+      expect(prisma.rows[0]?.lastAttemptAt.toISOString()).toBe('2026-09-02T10:00:00.900Z');
+    });
+
+    it('an attempt worked offline, arriving after a later one, counts without dating the cell back', async () => {
+      // VoxOrd offline plan, B4: worked on the phone on the 1st, synced after an online
+      // attempt on the 2nd.
+      const prisma = fakePrisma();
+      const projector = projectorOver(prisma);
+
+      await projector.apply(attempt(), '2026-09-02T10:00:00.000Z');
+      await projector.apply(attempt(), '2026-09-01T08:00:00.000Z');
+
+      expect(prisma.rows[0]?.attempts).toBe(2);
+      expect(prisma.rows[0]?.lastAttemptAt.toISOString()).toBe('2026-09-02T10:00:00.000Z');
     });
 
     it('keeps separate cells apart while they are written at once', async () => {

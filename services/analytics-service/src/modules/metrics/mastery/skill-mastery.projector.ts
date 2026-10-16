@@ -117,6 +117,14 @@ export class SkillMasteryProjector {
         { alpha: this.alpha },
       );
 
+      // Folded in the order the attempts arrive, which an attempt worked offline breaks: it
+      // arrives days late and weighs as the newest, a small distortion of a running average
+      // and one not worth reordering the stream for (VoxOrd offline plan, B4). What must not
+      // go back in time is the date of the last attempt, which readers show as such.
+      if (existing?.lastAttemptAt && next.lastAttemptAt < existing.lastAttemptAt) {
+        next.lastAttemptAt = existing.lastAttemptAt;
+      }
+
       if (existing === null) {
         // The one case the lock cannot cover: there is no row to lock yet, so two
         // instances creating the same cell at once collide on the unique index instead.

@@ -227,6 +227,9 @@ model AttemptEvidence {
   gapCount    Int? @map("gap_count")
 
   ratingApplied String   @map("rating_applied") // AGAIN | HARD | GOOD | EASY
+  // When the work was done: the attempt's `attemptedAt`, which for one worked on a phone
+  // offline is days before the event arrived (VoxOrd offline plan, B4); the envelope's
+  // time for events published before that field existed.
   occurredAt    DateTime @map("occurred_at")
 
   // What the attempt exercised (plan 55 §3.6), flattened for the same reason the answer
@@ -263,6 +266,11 @@ model AttemptEvidence {
   // the same kernel rule that clamped the rating. Null for every row before it: «not said»,
   // read as «not lowered».
   evidenceLowered Boolean? @map("evidence_lowered")
+
+  // Worked on a phone with no network and replayed later (VoxOrd offline plan, B4). Kept
+  // to measure how much practice happens offline. False for every row before it: offline
+  // attempts did not reach the server dated until the field existed.
+  recordedOffline Boolean @default(false) @map("recorded_offline")
 
   @@index([templateCode, answerMode, occurredAt])
   @@index([userId, occurredAt])
