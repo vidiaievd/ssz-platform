@@ -10,12 +10,23 @@ import {
 import { ProgressUpdatedEvent } from '../events/progress-updated.event.js';
 import { ProgressCompletedEvent } from '../events/progress-completed.event.js';
 
-export type ProgressStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'NEEDS_REVIEW';
+/**
+ * `SUBMITTED` (plan 76, 2.6): handed to a teacher and not judged yet. Not `COMPLETED` — a
+ * returned piece of work was showing «Done» until it was approved — and not `IN_PROGRESS`
+ * either: the learner has done their part, and the course does not hold them back for it.
+ */
+export type ProgressStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED' | 'COMPLETED' | 'NEEDS_REVIEW';
 
 export interface RecordAttemptProps {
   timeSpentSeconds: number;
   score: number | null;
+  /**
+   * Done, for this content: read, for a lesson; passed or approved, for an exercise. An
+   * exercise failed by the machine is an attempt and not a completion (plan 76, Q2-A).
+   */
   completed: boolean;
+  /** Handed to a teacher and waiting for their verdict. Ignored together with `completed`. */
+  awaitingReview?: boolean;
   now: Date;
 }
 
@@ -98,9 +109,16 @@ export class UserProgress extends AggregateRoot {
 
     const isFirstCompletion = props.completed && !this._completedAt;
 
+    // Once passed, always passed: a later failure is practice on something already done,
+    // and it moves the score, not the status (plan 76, Q2-A).
     if (props.completed && this._status !== 'NEEDS_REVIEW') {
       this._completedAt = this._completedAt ?? props.now;
       this._status = 'COMPLETED';
+    } else if (
+      props.awaitingReview === true &&
+      (this._status === 'NOT_STARTED' || this._status === 'IN_PROGRESS')
+    ) {
+      this._status = 'SUBMITTED';
     } else if (this._status === 'NOT_STARTED') {
       this._status = 'IN_PROGRESS';
     }
@@ -123,6 +141,25 @@ export class UserProgress extends AggregateRoot {
         score: this._score,
       }));
     }
+  }
+
+  /**
+   * A teacher sent the submission back (plan 76, 2.6). Not an attempt — the submission was
+   * counted when it was handed in — so neither the counters nor the score move: the
+   * teacher's partial credit is not a mark the learner earned. Only a submission waiting
+   * for a verdict goes back to work; something already passed stays passed.
+   */
+  recordReturn(): void {
+    if (this._status !== 'SUBMITTED') return;
+    this._status = 'IN_PROGRESS';
+    this.addDomainEvent(new ProgressUpdatedEvent(this.id, {
+      userId: this._userId,
+      contentType: this._contentRef.type,
+      contentId: this._contentRef.id,
+      status: this._status,
+      attemptsCount: this._attemptsCount,
+      score: this._score,
+    }));
   }
 
   markNeedsReview(now: Date): Result<void, ProgressDomainError> {

@@ -10,7 +10,7 @@ export class ProgressResponse implements ProgressDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) userId!: string;
   @ApiProperty({ type: ContentRefResponse }) contentRef!: { type: string; id: string };
-  @ApiProperty({ enum: ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'NEEDS_REVIEW'] }) status!: string;
+  @ApiProperty({ enum: ['NOT_STARTED', 'IN_PROGRESS', 'SUBMITTED', 'COMPLETED', 'NEEDS_REVIEW'] }) status!: string;
   @ApiProperty() attemptsCount!: number;
   @ApiPropertyOptional({ format: 'date-time' }) lastAttemptAt!: string | null;
   @ApiProperty() timeSpentSeconds!: number;

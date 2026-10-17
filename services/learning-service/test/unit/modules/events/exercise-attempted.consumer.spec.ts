@@ -131,14 +131,15 @@ describe('ExerciseAttemptedConsumer', () => {
 
     /**
      * A teacher read the work and sent it back (plan 63 §4). Two things follow, and they
-     * pull in opposite directions: the memory hears the verdict, and progress does not —
+     * pull in opposite directions: the memory hears the verdict, and the mark does not —
      * the learner has been asked to do it again, and a draft's score must not overwrite a
-     * mark they may already hold on this exercise.
+     * mark they may already hold on this exercise. Progress hears only that the work is
+     * no longer waiting (plan 76, 2.6): the command carries `returned`, not a score.
      *
      * Until this arrived, only approvals were rated, so everything the platform knew
      * about recall and production was evidence of success.
      */
-    it('rates work a teacher sent back, and records no progress for it', async () => {
+    it('rates work a teacher sent back, and reports it to progress only as returned', async () => {
       const { consumer, commandBus } = makeConsumer();
       const channel = makeChannel();
 
@@ -160,7 +161,8 @@ describe('ExerciseAttemptedConsumer', () => {
 
       const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
       expect(calls.some((c) => c instanceof ReviewCardCommand)).toBe(true);
-      expect(calls.some((c) => c instanceof UpsertProgressCommand)).toBe(false);
+      const progress = calls.find((c) => c instanceof UpsertProgressCommand) as UpsertProgressCommand;
+      expect(progress.outcome).toBe('returned');
       expect(channel.ack).toHaveBeenCalledTimes(1);
     });
 
@@ -221,7 +223,37 @@ describe('ExerciseAttemptedConsumer', () => {
 
       const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
       expect(calls.some((c) => c instanceof ReviewCardCommand)).toBe(false);
-      expect(calls.some((c) => c instanceof UpsertProgressCommand)).toBe(true);
+      const progress = calls.find((c) => c instanceof UpsertProgressCommand) as UpsertProgressCommand;
+      expect(progress.outcome).toBe('submitted');
+    });
+
+    /** Plan 76, Q2-A: the engine scores every closed-form attempt; `passed` says how it went. */
+    it.each([
+      [{ passed: true }, 'passed'],
+      [{ passed: false }, 'failed'],
+      [{}, 'passed'], // published before `passed` existed — read as it was then
+    ])('a scored attempt with %j reaches progress as %s', async (extra, outcome) => {
+      const { consumer, commandBus } = makeConsumer();
+
+      await (consumer as any).handleMessage(
+        makeChannel(),
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 40,
+            timeSpentSeconds: 30,
+            completed: true,
+            templateCode: 'multiple_choice',
+            ...extra,
+          }),
+        ),
+      );
+
+      const progress = commandBus.execute.mock.calls
+        .map((c: unknown[]) => c[0])
+        .find((c: unknown) => c instanceof UpsertProgressCommand) as UpsertProgressCommand;
+      expect(progress.outcome).toBe(outcome);
     });
 
     it('marks the event as processed and acks on success', async () => {

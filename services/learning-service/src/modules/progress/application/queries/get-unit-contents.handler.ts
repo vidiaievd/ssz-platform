@@ -10,7 +10,7 @@ import {
 } from '../../../../shared/application/ports/content-client.port.js';
 import type { UserProgress } from '../../domain/entities/user-progress.entity.js';
 
-export type UnitItemStatus = 'locked' | 'available' | 'in_progress' | 'completed';
+export type UnitItemStatus = 'locked' | 'available' | 'in_progress' | 'submitted' | 'completed';
 
 export interface UnitContentsItem {
   id: string;
@@ -93,6 +93,7 @@ export class GetUnitContentsHandler
 
   private resolveStatus(progress: UserProgress | undefined): UnitItemStatus {
     if (progress?.status === 'COMPLETED') return 'completed';
+    if (progress?.status === 'SUBMITTED') return 'submitted';
     if (progress?.status === 'IN_PROGRESS' || progress?.status === 'NEEDS_REVIEW') return 'in_progress';
     return 'available';
   }

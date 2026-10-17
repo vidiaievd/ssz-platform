@@ -43,6 +43,7 @@ enum EnrollmentStatus {
 enum ProgressStatus {
   NOT_STARTED  @map("not_started")
   IN_PROGRESS  @map("in_progress")
+  SUBMITTED    @map("submitted")
   COMPLETED    @map("completed")
   NEEDS_REVIEW @map("needs_review")
 

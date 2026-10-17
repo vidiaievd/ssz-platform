@@ -99,6 +99,58 @@ describe('UserProgress', () => {
 
       expect(p.score).toBe(0.8);
     });
+
+    it('once passed, a later failure moves the score and not the status (plan 76, Q2-A)', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 60, score: 90, completed: true, now: NOW });
+      p.recordAttempt({ timeSpentSeconds: 60, score: 30, completed: false, now: LATER });
+
+      expect(p.status).toBe('COMPLETED');
+      expect(p.score).toBe(30);
+    });
+
+    it('work handed to a teacher is SUBMITTED, and an approval completes it', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 60, score: null, completed: false, awaitingReview: true, now: NOW });
+      expect(p.status).toBe('SUBMITTED');
+      expect(p.completedAt).toBeNull();
+
+      p.recordAttempt({ timeSpentSeconds: 0, score: 80, completed: true, now: LATER });
+      expect(p.status).toBe('COMPLETED');
+    });
+
+    it('a resubmission of something already passed leaves it passed', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 60, score: 90, completed: true, now: NOW });
+      p.recordAttempt({ timeSpentSeconds: 60, score: null, completed: false, awaitingReview: true, now: LATER });
+
+      expect(p.status).toBe('COMPLETED');
+    });
+  });
+
+  describe('recordReturn', () => {
+    it('sends a submission back to IN_PROGRESS without counting an attempt', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 60, score: null, completed: false, awaitingReview: true, now: NOW });
+      p.clearDomainEvents();
+
+      p.recordReturn();
+
+      expect(p.status).toBe('IN_PROGRESS');
+      expect(p.attemptsCount).toBe(1);
+      expect(p.getDomainEvents().map((e) => e.eventType)).toEqual(['learning.progress.updated']);
+    });
+
+    it('leaves anything that is not waiting for a verdict alone', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 60, score: 90, completed: true, now: NOW });
+      p.clearDomainEvents();
+
+      p.recordReturn();
+
+      expect(p.status).toBe('COMPLETED');
+      expect(p.getDomainEvents()).toHaveLength(0);
+    });
   });
 
   describe('markNeedsReview', () => {
