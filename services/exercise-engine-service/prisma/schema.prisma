@@ -322,6 +322,9 @@ model Attempt {
   @@index([containerId, status])
   // Decision journal and median-response-time aggregate.
   @@index([schoolId, reviewedAt])
+  // At most one IN_PROGRESS attempt per (userId, exerciseId): partial unique index
+  // "attempts_one_open_per_user_exercise" WHERE status = 'in_progress', in raw SQL
+  // (migration 20261017120000) — Prisma cannot express a partial index (plan 76, 2.5).
   @@map("attempts")
 }
 
