@@ -71,7 +71,10 @@ function makeDuplicator(opts?: { row?: unknown; source?: unknown }) {
     },
     exercise: {
       findFirst: jest.fn().mockResolvedValue(opts && 'source' in opts ? opts.source : SOURCE),
-      create: jest.fn(() => calls.push('exercise')),
+      create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
+        calls.push('exercise');
+        return data;
+      }),
     },
     exerciseInstruction: { createMany: jest.fn() },
     exerciseItemTarget: { createMany: jest.fn() },

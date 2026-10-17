@@ -24,6 +24,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
+import { ContainerScopeGuard } from '../guards/container-scope.guard.js';
 import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
 import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
 import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
@@ -51,7 +52,7 @@ import { throwHttpException } from '../utils/domain-error.mapper.js';
 @ApiTags('Container Items')
 @ApiBearerAuth()
 @ApiParam({ name: 'containerId', type: String, description: 'Container ID' })
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ContainerScopeGuard)
 @Controller('containers/:containerId/versions/:versionId/items')
 export class ContainerItemController {
   constructor(
