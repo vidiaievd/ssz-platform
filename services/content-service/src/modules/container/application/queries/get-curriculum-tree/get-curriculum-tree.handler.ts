@@ -70,6 +70,14 @@ export interface CurriculumTreeItemNode {
    * pictogram per type and cannot key a picture off a translated name.
    */
   templateCode: string | null;
+  /**
+   * The exercise's own title (plan 39, B8) — the column alone, without the fallbacks
+   * `title` above resolves through. Null for every other item type and for an exercise
+   * the author has not named. The editor needs the difference: its title field shows
+   * the fallback as a placeholder, and undoing a first rename must clear the title
+   * rather than pin the template name as one.
+   */
+  ownTitle: string | null;
   // Best-effort from any PUBLISHED variant/explanation (LESSON/GRAMMAR_RULE) or
   // the item's own estimate (EXERCISE); null for VOCABULARY_LIST.
   durationMinutes: number | null;
@@ -78,6 +86,7 @@ export interface CurriculumTreeItemNode {
 
 interface LeafItemMeta {
   title: string | null;
+  ownTitle?: string | null;
   lessonKind: LessonKind | null;
   state: 'draft' | 'published' | null;
   templateCode: string | null;
@@ -371,6 +380,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       lessonKind: meta?.lessonKind ?? null,
       state: meta?.state ?? null,
       templateCode: meta?.templateCode ?? null,
+      ownTitle: meta?.ownTitle ?? null,
       isLive: liveItemIds === null ? null : liveItemIds.has(item.itemId),
       pendingChange: changeByItemId?.get(item.itemId) ?? null,
       durationMinutes: meta?.durationMinutes ?? null,
@@ -542,7 +552,8 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       ]);
       rows.forEach((r) =>
         meta.set(r.id, {
-          title: ownTitles.get(r.id) ?? r.template.name ?? null,
+          title: ownTitles.get(r.id)?.label ?? r.template.name ?? null,
+          ownTitle: ownTitles.get(r.id)?.own ?? null,
           lessonKind: null,
           state: null,
           templateCode: r.template.code ?? null,
@@ -560,18 +571,19 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
    * `content.title` of the document the author is editing — the draft when there is one,
    * since this is the authoring tree. Without it every exercise row read as its template
    * name, and a module of ten exercises was ten identical rows. Only the one field is
-   * read, not the documents.
+   * read, not the documents. `own` is the column alone, for the editor's title field.
    */
-  private async exerciseTitles(exerciseIds: string[]): Promise<Map<string, string>> {
-    const rows = await this.prisma.$queryRaw<{ id: string; title: string | null }[]>`
+  private async exerciseTitles(
+    exerciseIds: string[],
+  ): Promise<Map<string, { label: string | null; own: string | null }>> {
+    const rows = await this.prisma.$queryRaw<
+      { id: string; title: string | null; own_title: string | null }[]
+    >`
       SELECT id::text AS id,
+             title AS own_title,
              COALESCE(title, btrim(COALESCE(draft_content, content)->>'title')) AS title
         FROM exercises
        WHERE id = ANY (${exerciseIds}::uuid[])`;
-    return new Map(
-      rows
-        .filter((r): r is { id: string; title: string } => r.title !== null && r.title !== '')
-        .map((r) => [r.id, r.title]),
-    );
+    return new Map(rows.map((r) => [r.id, { label: r.title || null, own: r.own_title || null }]));
   }
 }

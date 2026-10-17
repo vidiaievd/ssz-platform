@@ -161,8 +161,10 @@ interface Fixture {
     estimatedDurationSeconds: number | null;
     template: { code: string; name: string };
   }[];
-  /** What the raw title query answers, by exercise id. */
+  /** The exercise's own title column, by exercise id. */
   exerciseTitles?: Record<string, string | null>;
+  /** content.title of its document, by exercise id. */
+  exerciseContentTitles?: Record<string, string | null>;
 }
 
 function makeHandler(fixture: Fixture = {}) {
@@ -266,12 +268,18 @@ function makeHandler(fixture: Fixture = {}) {
     grammarRule: { findMany: jest.fn().mockResolvedValue([]) },
     grammarRuleExplanation: { findMany: jest.fn().mockResolvedValue([]) },
     exercise: { findMany: jest.fn().mockResolvedValue(fixture.exerciseRows ?? []) },
-    // The one raw query: an exercise's own title, already resolved column → document.
-    $queryRaw: jest
-      .fn()
-      .mockResolvedValue(
-        Object.entries(fixture.exerciseTitles ?? {}).map(([id, title]) => ({ id, title })),
-      ),
+    // The one raw query: an exercise's own title, and the label resolved column → document.
+    $queryRaw: jest.fn().mockResolvedValue(
+      [
+        ...new Set([
+          ...Object.keys(fixture.exerciseTitles ?? {}),
+          ...Object.keys(fixture.exerciseContentTitles ?? {}),
+        ]),
+      ].map((id) => {
+        const own = fixture.exerciseTitles?.[id] ?? null;
+        return { id, own_title: own, title: own ?? fixture.exerciseContentTitles?.[id] ?? null };
+      }),
+    ),
   } as any;
 
   const states = Object.entries(
@@ -381,6 +389,34 @@ describe('GetCurriculumTreeHandler', () => {
     if (result.isFail) return;
     const exercise = result.value.ungroupedItems.find((i) => i.refId === EXERCISE_ID);
     expect(exercise?.title).toBe(expected);
+  });
+
+  // The editor's title field shows the fallback as a placeholder, so it must be told
+  // which part of the label the author actually wrote.
+  it.each([
+    ['its own title', 'Kjønn på substantiv', null, 'Kjønn på substantiv'],
+    ['nothing when the label comes from the document', null, 'Velg riktig form', null],
+    ['nothing when the label is the template name', null, null, null],
+  ])('reports as ownTitle %s', async (_, ownTitle, contentTitle, expected) => {
+    const handler = makeHandler({
+      ownItem: makeOwnExerciseItem(),
+      exerciseRows: [
+        {
+          id: EXERCISE_ID,
+          estimatedDurationSeconds: 120,
+          template: { code: 'word_bank_gap_fill', name: 'Word Bank Gap-Fill' },
+        },
+      ],
+      exerciseTitles: { [EXERCISE_ID]: ownTitle },
+      exerciseContentTitles: { [EXERCISE_ID]: contentTitle },
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    const exercise = result.value.ungroupedItems.find((i) => i.refId === EXERCISE_ID);
+    expect(exercise?.ownTitle).toBe(expected);
   });
 
   it('builds a level → module → section → item tree', async () => {

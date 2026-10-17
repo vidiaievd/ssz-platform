@@ -62,6 +62,15 @@ export class CurriculumTreeItemResponseDto {
   })
   templateCode!: string | null;
 
+  @ApiPropertyOptional({
+    example: 'Kjønn på substantiv',
+    description:
+      "The exercise's own title, without the fallbacks `title` resolves through " +
+      '(content.title, then the template name). Null for every other item type and for ' +
+      'an exercise the author has not named.',
+  })
+  ownTitle!: string | null;
+
   @ApiPropertyOptional({ example: 6 })
   durationMinutes!: number | null;
 
@@ -81,6 +90,7 @@ export class CurriculumTreeItemResponseDto {
     dto.isLive = node.isLive;
     dto.pendingChange = node.pendingChange;
     dto.templateCode = node.templateCode;
+    dto.ownTitle = node.ownTitle;
     dto.durationMinutes = node.durationMinutes;
     dto.xpReward = node.xpReward;
     return dto;
