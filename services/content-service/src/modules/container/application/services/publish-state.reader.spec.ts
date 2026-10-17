@@ -14,6 +14,7 @@ interface PrismaFixture {
   currentPublishedVersionId?: string | null;
   drafts?: { id: string; containerId: string; versionNumber: number }[];
   items?: {
+    id: string;
     containerVersionId: string;
     position: number;
     itemType: string;
@@ -58,8 +59,13 @@ function makeReader(fixture: PrismaFixture = {}) {
   return new PublishStateReader(prisma);
 }
 
+/**
+ * A row of either version. A draft row's id defaults to the material it places, so
+ * a test reads `changes.get('lesson-2')` as "the row placing lesson-2"; a test that
+ * places one material twice names its rows itself.
+ */
 function item(versionId: string, overrides: Partial<Record<string, unknown>> = {}) {
-  return {
+  const row = {
     containerVersionId: versionId,
     position: 0,
     itemType: 'LESSON',
@@ -68,6 +74,8 @@ function item(versionId: string, overrides: Partial<Record<string, unknown>> = {
     sectionId: null,
     ...overrides,
   };
+  const id = versionId === DRAFT_VERSION_ID ? row.itemId : `live:${row.itemId}`;
+  return { id, ...row } as PrismaFixture['items'] extends (infer R)[] | undefined ? R : never;
 }
 
 describe('PublishStateReader', () => {
@@ -162,7 +170,7 @@ describe('PublishStateReader', () => {
 describe('PublishStateReader.resolveDetailed', () => {
   async function changesOf(fixture: PrismaFixture) {
     const detail = (await makeReader(fixture).resolveDetailed([COURSE_ID])).get(COURSE_ID);
-    return detail?.changeByItemId ?? new Map();
+    return detail?.changeByRowId ?? new Map();
   }
 
   it('reports nothing per item while the composition matches', async () => {
@@ -255,7 +263,7 @@ describe('PublishStateReader.resolveDetailed', () => {
     const detail = (await reader.resolveDetailed([COURSE_ID])).get(COURSE_ID);
 
     expect(detail?.state).toBe('pending_changes');
-    expect(detail?.changeByItemId.get('exercise-1')).toBe('content_changed');
+    expect(detail?.changeByRowId.get('exercise-1')).toBe('content_changed');
   });
 
   it('leaves an untouched exercise unmarked', async () => {
@@ -269,7 +277,7 @@ describe('PublishStateReader.resolveDetailed', () => {
     const detail = (await reader.resolveDetailed([COURSE_ID])).get(COURSE_ID);
 
     expect(detail?.state).toBe('published');
-    expect(detail?.changeByItemId.size).toBe(0);
+    expect(detail?.changeByRowId.size).toBe(0);
   });
 
   it('finds an edited exercise in a container that has no draft version at all', async () => {
@@ -277,14 +285,72 @@ describe('PublishStateReader.resolveDetailed', () => {
     // version is the only place its placement can be found.
     const reader = makeReader({
       drafts: [],
-      items: [item(PUBLISHED_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' })],
+      items: [
+        item(PUBLISHED_VERSION_ID, { id: 'row-live', itemType: 'EXERCISE', itemId: 'exercise-1' }),
+      ],
       exercisesWithDrafts: ['exercise-1'],
     });
 
     const detail = (await reader.resolveDetailed([COURSE_ID])).get(COURSE_ID);
 
     expect(detail?.state).toBe('pending_changes');
-    expect(detail?.changeByItemId.get('exercise-1')).toBe('content_changed');
+    expect(detail?.changeByRowId.get('row-live')).toBe('content_changed');
+  });
+
+  it('calls a second placement of a live item added, and leaves the original alone', async () => {
+    // «Place again» (plan 76, B1): the same lesson twice in the draft, once live.
+    const changes = await changesOf({
+      items: [
+        item(PUBLISHED_VERSION_ID, { position: 0 }),
+        item(DRAFT_VERSION_ID, { id: 'row-original', position: 0 }),
+        item(DRAFT_VERSION_ID, { id: 'row-repeat', position: 1 }),
+      ],
+    });
+
+    expect(changes.get('row-repeat')).toBe('added');
+    expect(changes.has('row-original')).toBe(false);
+  });
+
+  it('judges each placement of a twice-placed item on its own', async () => {
+    // Both placements live; the draft moves only the second into another section.
+    const changes = await changesOf({
+      items: [
+        item(PUBLISHED_VERSION_ID, { id: 'live-a', position: 0, sectionId: 'pub-read' }),
+        item(PUBLISHED_VERSION_ID, { id: 'live-b', position: 1, sectionId: 'pub-read' }),
+        item(DRAFT_VERSION_ID, { id: 'row-a', position: 0, sectionId: 'draft-read' }),
+        item(DRAFT_VERSION_ID, { id: 'row-b', position: 1, sectionId: 'draft-practise' }),
+      ],
+      sections: [
+        { id: 'pub-read', title: 'Read' },
+        { id: 'draft-read', title: 'Read' },
+        { id: 'draft-practise', title: 'Practise' },
+      ],
+    });
+
+    expect(changes.get('row-b')).toBe('moved');
+    expect(changes.has('row-a')).toBe(false);
+  });
+
+  it('marks every placement of an edited exercise', async () => {
+    const reader = makeReader({
+      items: [
+        item(PUBLISHED_VERSION_ID, { itemType: 'EXERCISE', itemId: 'exercise-1' }),
+        item(DRAFT_VERSION_ID, { id: 'row-a', itemType: 'EXERCISE', itemId: 'exercise-1' }),
+        item(DRAFT_VERSION_ID, {
+          id: 'row-b',
+          position: 1,
+          itemType: 'EXERCISE',
+          itemId: 'exercise-1',
+        }),
+      ],
+      exercisesWithDrafts: ['exercise-1'],
+    });
+
+    const changes = (await reader.resolveDetailed([COURSE_ID])).get(COURSE_ID)?.changeByRowId;
+
+    // The repeat is new, which says more than "edited"; the original carries the edit.
+    expect(changes?.get('row-b')).toBe('added');
+    expect(changes?.get('row-a')).toBe('content_changed');
   });
 
   it('carries no breakdown for a container that was never published', async () => {

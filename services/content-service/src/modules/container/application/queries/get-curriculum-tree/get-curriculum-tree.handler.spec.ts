@@ -143,16 +143,18 @@ interface Fixture {
   lessonItem?: ContainerItemEntity | null;
   lessonVariantStatus?: 'DRAFT' | 'PUBLISHED' | null;
   publishStates?: Record<string, ContainerPublishState>;
-  /** containerId → (content id → how its placement differs from the live version). */
+  /** containerId → (row id → how its placement differs from the live version). */
   itemChanges?: Record<string, Record<string, ItemPendingChange>>;
   /** A leaf item attached straight to the requested version — a module's own material. */
   ownItem?: ContainerItemEntity | null;
   /** containerId → its currentPublishedVersionId. Absent means never published. */
   publishedVersionByContainerId?: Record<string, string>;
-  /** Content ids the published versions place, keyed by published version id. */
+  /** Content ids the published versions place, in order, keyed by published version id. */
   liveItemIdsByVersionId?: Record<string, string[]>;
   /** Version rows the module containers have, when the default single draft is not the point. */
   moduleVersionRows?: { id: string; containerId: string; status: string; versionNumber: number }[];
+  /** Rows the module's draft holds after the default lesson row. */
+  extraModuleItems?: ContainerItemEntity[];
   /** Items of versions other than the course's and the module's default draft. */
   extraItemsByVersionId?: Record<string, ContainerItemEntity[]>;
   /** Exercise rows the tree's exercise items resolve against. */
@@ -200,7 +202,11 @@ function makeHandler(fixture: Fixture = {}) {
         return Promise.resolve(
           [moduleItem, fixture.ownItem ?? null].filter((i): i is ContainerItemEntity => i !== null),
         );
-      if (versionId === MODULE_VERSION_ID) return Promise.resolve(lessonItem ? [lessonItem] : []);
+      if (versionId === MODULE_VERSION_ID)
+        return Promise.resolve([
+          ...(lessonItem ? [lessonItem] : []),
+          ...(fixture.extraModuleItems ?? []),
+        ]);
       return Promise.resolve(fixture.extraItemsByVersionId?.[versionId] ?? []);
     }),
   } as unknown as IContainerItemRepository;
@@ -224,13 +230,16 @@ function makeHandler(fixture: Fixture = {}) {
       ]),
     },
     containerItem: {
-      findMany: jest
-        .fn()
-        .mockResolvedValue(
-          Object.entries(liveItemIds).flatMap(([containerVersionId, itemIds]) =>
-            itemIds.map((itemId) => ({ containerVersionId, itemId })),
-          ),
+      findMany: jest.fn().mockResolvedValue(
+        Object.entries(liveItemIds).flatMap(([containerVersionId, itemIds]) =>
+          itemIds.map((itemId, position) => ({
+            id: `${containerVersionId}:${position}`,
+            containerVersionId,
+            itemId,
+            position,
+          })),
         ),
+      ),
     },
     containerLocalization: {
       findMany: jest
@@ -293,7 +302,7 @@ function makeHandler(fixture: Fixture = {}) {
           containerId,
           {
             state,
-            changeByItemId: new Map(Object.entries(fixture.itemChanges?.[containerId] ?? {})),
+            changeByRowId: new Map(Object.entries(fixture.itemChanges?.[containerId] ?? {})),
           },
         ]),
       ),
@@ -470,7 +479,7 @@ describe('GetCurriculumTreeHandler', () => {
   it("marks the item whose placement the module's draft changed", async () => {
     const handler = makeHandler({
       publishStates: { [COURSE_ID]: 'published', [MODULE_ID]: 'pending_changes' },
-      itemChanges: { [MODULE_ID]: { [LESSON_ID]: 'moved' } },
+      itemChanges: { [MODULE_ID]: { [LESSON_ITEM_ID]: 'moved' } },
     });
 
     const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
@@ -584,6 +593,36 @@ describe('GetCurriculumTreeHandler', () => {
     const item = result.value.levels[0].modules[0].sections[0].items[0];
     expect(item.isLive).toBe(false);
     expect(item.state).toBe('published'); // the variant is published; the item is not live
+  });
+
+  it('reports only as many placements live as the published version holds', async () => {
+    // «Place again» (plan 76, B1): the lesson is live once and placed a second time
+    // in the draft. The repeat is the new row, not a second live one.
+    const handler = makeHandler({
+      extraModuleItems: [
+        ContainerItemEntity.create(
+          {
+            containerVersionId: MODULE_VERSION_ID,
+            position: 1,
+            itemType: ContainerItemType.LESSON,
+            itemId: LESSON_ID,
+            sectionId: LESSON_SECTION_ID,
+          },
+          'lesson-item-repeat',
+        ),
+      ],
+      publishedVersionByContainerId: { [MODULE_ID]: MODULE_PUBLISHED_VERSION_ID },
+      liveItemIdsByVersionId: { [MODULE_PUBLISHED_VERSION_ID]: [LESSON_ID] },
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    const [original, repeat] = result.value.levels[0].modules[0].sections[0].items;
+    expect(original.id).toBe(LESSON_ITEM_ID);
+    expect(original.isLive).toBe(true);
+    expect(repeat.isLive).toBe(false);
   });
 
   it('leaves liveness unknown while the owning module has never been published', async () => {

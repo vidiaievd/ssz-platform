@@ -37,14 +37,17 @@ export type ItemPendingChange = 'added' | 'moved' | 'flags_changed' | 'content_c
 export interface ContainerPublishStateDetail {
   state: ContainerPublishState;
   /**
-   * Keyed by the referenced content id (`container_items.item_id`), because that
-   * is what survives across versions — the row id does not. Empty unless the
+   * Keyed by the draft row's id (`container_items.id`). The comparison itself pairs
+   * rows by `placementKeys`, because a row id does not survive into the next
+   * version; the result is keyed by row because one material can be placed twice
+   * (plan 76, B1 «Place again») and the two rows can differ. Empty unless the
    * container is in `pending_changes`.
    */
-  changeByItemId: Map<string, ItemPendingChange>;
+  changeByRowId: Map<string, ItemPendingChange>;
 }
 
 interface ItemRow {
+  id: string;
   containerVersionId: string;
   position: number;
   itemType: string;
@@ -59,8 +62,30 @@ function sectionKeyOf(item: ItemRow, sectionTitleById: Map<string, string>): str
   return sectionTitleById.get(item.sectionId) ?? item.sectionId;
 }
 
-function itemKeyOf(item: ItemRow): string {
-  return `${item.itemType}:${item.itemId}`;
+/**
+ * A key per row that survives from one version into the next: the referenced
+ * content id plus which placement of it this is, counted in version order.
+ *
+ * The content id alone is not enough once one material is placed twice in a
+ * version — both rows would share every verdict, and a second placement of a
+ * live item would read as live itself. Versions do not remember which row was
+ * copied from which (a draft's rows are minted afresh), so the k-th placement is
+ * paired with the k-th placement on the other side. When the author puts the
+ * repeat *before* the original the pairing swaps, and the original is the one
+ * marked; that is the price of having no lineage, and it marks the right number
+ * of rows.
+ */
+export function placementKeys(
+  rows: readonly { id: string; itemId: string; position: number }[],
+): Map<string, string> {
+  const keys = new Map<string, string>();
+  const seen = new Map<string, number>();
+  for (const row of [...rows].sort((a, b) => a.position - b.position)) {
+    const occurrence = seen.get(row.itemId) ?? 0;
+    seen.set(row.itemId, occurrence + 1);
+    keys.set(row.id, `${row.itemId}#${occurrence}`);
+  }
+  return keys;
 }
 
 /**
@@ -178,7 +203,7 @@ export class PublishStateReader {
 
     for (const c of containers) {
       if (c.currentPublishedVersionId === null) {
-        details.set(c.id, { state: 'draft', changeByItemId: new Map() });
+        details.set(c.id, { state: 'draft', changeByRowId: new Map() });
         continue;
       }
 
@@ -190,7 +215,7 @@ export class PublishStateReader {
         pair !== undefined &&
         signatureOf(pair.publishedVersionId) !== signatureOf(pair.draftVersionId);
 
-      const changeByItemId =
+      const changeByRowId =
         pair && compositionDiffers
           ? this.diffItems(
               itemsByVersionId.get(pair.publishedVersionId) ?? [],
@@ -204,14 +229,14 @@ export class PublishStateReader {
       // Reported per row so the author reviews that exercise instead of all of them.
       const versionId = authoringVersionId.get(c.id);
       for (const item of itemsByVersionId.get(versionId ?? '') ?? []) {
-        if (!changeByItemId.has(item.itemId) && editedExerciseIds.has(item.itemId)) {
-          changeByItemId.set(item.itemId, 'content_changed');
+        if (!changeByRowId.has(item.id) && editedExerciseIds.has(item.itemId)) {
+          changeByRowId.set(item.id, 'content_changed');
         }
       }
 
       details.set(c.id, {
-        state: compositionDiffers || changeByItemId.size > 0 ? 'pending_changes' : 'published',
-        changeByItemId,
+        state: compositionDiffers || changeByRowId.size > 0 ? 'pending_changes' : 'published',
+        changeByRowId,
       });
     }
 
@@ -232,11 +257,12 @@ export class PublishStateReader {
   }
 
   /**
-   * What changed about each item the draft still places, against the live version.
+   * What changed about each row the draft still places, against the live version.
    *
-   * A ref placed twice in one version is compared against the first live
-   * placement of the same ref — the schema allows the repeat, nothing in the
-   * authoring UI produces it, and guessing a pairing would be worse than this.
+   * Rows are paired across the two versions by `placementKeys` — the k-th
+   * placement of a material in the draft against its k-th placement live — so a
+   * material placed twice gets a verdict per row, and a fresh repeat of a live
+   * item reads as `added`.
    */
   private diffItems(
     publishedItems: ItemRow[],
@@ -245,11 +271,13 @@ export class PublishStateReader {
   ): Map<string, ItemPendingChange> {
     const changes = new Map<string, ItemPendingChange>();
 
-    const publishedByKey = new Map<string, ItemRow>();
-    for (const item of [...publishedItems].sort((a, b) => a.position - b.position)) {
-      const key = itemKeyOf(item);
-      if (!publishedByKey.has(key)) publishedByKey.set(key, item);
-    }
+    const publishedKeys = placementKeys(publishedItems);
+    const draftKeys = placementKeys(draftItems);
+    const keyOf = (item: ItemRow, keys: Map<string, string>) => keys.get(item.id) as string;
+
+    const publishedByKey = new Map<string, ItemRow>(
+      publishedItems.map((item) => [keyOf(item, publishedKeys), item]),
+    );
 
     const draftOrdered = [...draftItems].sort((a, b) => a.position - b.position);
 
@@ -257,35 +285,37 @@ export class PublishStateReader {
     // section, with the same flags. Anything else already has a verdict.
     const stayed: ItemRow[] = [];
     for (const item of draftOrdered) {
-      const live = publishedByKey.get(itemKeyOf(item));
+      const live = publishedByKey.get(keyOf(item, draftKeys));
       if (!live) {
-        changes.set(item.itemId, 'added');
+        changes.set(item.id, 'added');
       } else if (sectionKeyOf(live, sectionTitleById) !== sectionKeyOf(item, sectionTitleById)) {
-        changes.set(item.itemId, 'moved');
+        changes.set(item.id, 'moved');
       } else if (live.isRequired !== item.isRequired) {
-        changes.set(item.itemId, 'flags_changed');
+        changes.set(item.id, 'flags_changed');
       } else {
         stayed.push(item);
       }
     }
 
-    const stayedKeys = new Set(stayed.map(itemKeyOf));
+    const stayedKeys = new Set(stayed.map((i) => keyOf(i, draftKeys)));
     const sectionKeys = new Set(stayed.map((i) => sectionKeyOf(i, sectionTitleById)));
 
     for (const sectionKey of sectionKeys) {
       const draftSequence = stayed
         .filter((i) => sectionKeyOf(i, sectionTitleById) === sectionKey)
-        .map(itemKeyOf);
+        .map((i) => keyOf(i, draftKeys));
       const publishedSequence = [...publishedItems]
         .sort((a, b) => a.position - b.position)
         .filter(
-          (i) => sectionKeyOf(i, sectionTitleById) === sectionKey && stayedKeys.has(itemKeyOf(i)),
+          (i) =>
+            sectionKeyOf(i, sectionTitleById) === sectionKey &&
+            stayedKeys.has(keyOf(i, publishedKeys)),
         )
-        .map(itemKeyOf);
+        .map((i) => keyOf(i, publishedKeys));
 
       const moved = reorderedKeys(publishedSequence, draftSequence);
       for (const item of stayed) {
-        if (moved.has(itemKeyOf(item))) changes.set(item.itemId, 'moved');
+        if (moved.has(keyOf(item, draftKeys))) changes.set(item.id, 'moved');
       }
     }
 
@@ -305,6 +335,7 @@ export class PublishStateReader {
       this.prisma.containerItem.findMany({
         where: { containerVersionId: { in: versionIds } },
         select: {
+          id: true,
           containerVersionId: true,
           position: true,
           itemType: true,
