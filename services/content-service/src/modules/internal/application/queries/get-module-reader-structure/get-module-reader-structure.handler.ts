@@ -206,13 +206,20 @@ export class GetModuleReaderStructureHandler implements IQueryHandler<
 
     const exerciseIds = idsByType.get(ContainerItemType.EXERCISE) ?? [];
     if (exerciseIds.length > 0) {
-      const rows = await this.prisma.exercise.findMany({
-        where: { id: { in: exerciseIds } },
-        select: { id: true, estimatedDurationSeconds: true, template: { select: { name: true } } },
-      });
+      const [rows, ownTitles] = await Promise.all([
+        this.prisma.exercise.findMany({
+          where: { id: { in: exerciseIds } },
+          select: {
+            id: true,
+            estimatedDurationSeconds: true,
+            template: { select: { name: true } },
+          },
+        }),
+        this.exerciseTitles(exerciseIds),
+      ]);
       rows.forEach((r) =>
         meta.set(r.id, {
-          title: r.template.name ?? null,
+          title: ownTitles.get(r.id) ?? r.template.name ?? null,
           lessonKind: null,
           durationMinutes:
             r.estimatedDurationSeconds != null ? Math.ceil(r.estimatedDurationSeconds / 60) : null,
@@ -221,5 +228,26 @@ export class GetModuleReaderStructureHandler implements IQueryHandler<
     }
 
     return meta;
+  }
+
+  /**
+   * The title the author gave the exercise, where its document has one.
+   *
+   * An exercise row has no title column; the builders of the newer templates keep it as
+   * `content.title`. Without this the learner's navigation named every exercise after its
+   * template — a unit read «Multiple Choice, Multiple Choice, Sort Into Buckets» (plan 76,
+   * 2.4). The published document only (`content`, not `draft_content`): the reader serves
+   * what is released. Only the one field is read, not the documents.
+   */
+  private async exerciseTitles(exerciseIds: string[]): Promise<Map<string, string>> {
+    const rows = await this.prisma.$queryRaw<{ id: string; title: string | null }[]>`
+      SELECT id::text AS id, btrim(content->>'title') AS title
+        FROM exercises
+       WHERE id = ANY (${exerciseIds}::uuid[])`;
+    return new Map(
+      rows
+        .filter((r): r is { id: string; title: string } => r.title !== null && r.title !== '')
+        .map((r) => [r.id, r.title]),
+    );
   }
 }
