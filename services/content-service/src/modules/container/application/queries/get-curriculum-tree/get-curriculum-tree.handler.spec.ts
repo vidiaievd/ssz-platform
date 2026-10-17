@@ -161,6 +161,8 @@ interface Fixture {
     estimatedDurationSeconds: number | null;
     template: { code: string; name: string };
   }[];
+  /** What the raw title query answers, by exercise id. */
+  exerciseTitles?: Record<string, string | null>;
 }
 
 function makeHandler(fixture: Fixture = {}) {
@@ -264,6 +266,12 @@ function makeHandler(fixture: Fixture = {}) {
     grammarRule: { findMany: jest.fn().mockResolvedValue([]) },
     grammarRuleExplanation: { findMany: jest.fn().mockResolvedValue([]) },
     exercise: { findMany: jest.fn().mockResolvedValue(fixture.exerciseRows ?? []) },
+    // The one raw query: an exercise's own title, already resolved column → document.
+    $queryRaw: jest
+      .fn()
+      .mockResolvedValue(
+        Object.entries(fixture.exerciseTitles ?? {}).map(([id, title]) => ({ id, title })),
+      ),
   } as any;
 
   const states = Object.entries(
@@ -346,6 +354,33 @@ describe('GetCurriculumTreeHandler', () => {
     // picture on a lesson.
     const lesson = result.value.levels[0].modules[0].sections[0].items[0];
     expect(lesson.templateCode).toBeNull();
+  });
+
+  // Plan 39, B8: ten exercises in a module used to be ten rows reading the same template
+  // name. The author's title wins; a blank one is no title at all.
+  it.each([
+    ['the title the author gave it', 'Kjønn på substantiv', 'Kjønn på substantiv'],
+    ['the template name when it has none', null, 'Word Bank Gap-Fill'],
+    ['the template name when the title is blank', '', 'Word Bank Gap-Fill'],
+  ])('labels an exercise row with %s', async (_, ownTitle, expected) => {
+    const handler = makeHandler({
+      ownItem: makeOwnExerciseItem(),
+      exerciseRows: [
+        {
+          id: EXERCISE_ID,
+          estimatedDurationSeconds: 120,
+          template: { code: 'word_bank_gap_fill', name: 'Word Bank Gap-Fill' },
+        },
+      ],
+      exerciseTitles: { [EXERCISE_ID]: ownTitle },
+    });
+
+    const result = await handler.execute(new GetCurriculumTreeQuery(COURSE_VERSION_ID));
+
+    expect(result.isOk).toBe(true);
+    if (result.isFail) return;
+    const exercise = result.value.ungroupedItems.find((i) => i.refId === EXERCISE_ID);
+    expect(exercise?.title).toBe(expected);
   });
 
   it('builds a level → module → section → item tree', async () => {

@@ -19,6 +19,7 @@ export type ExerciseWithTemplate = Exercise & {
 export interface ExerciseCreateData {
   id: string;
   exerciseTemplateId: string;
+  title: string | null;
   targetLanguage: string;
   difficultyLevel: $Enums.DifficultyLevel;
   content: Prisma.InputJsonValue;
@@ -56,6 +57,7 @@ export class ExerciseMapper {
     return ExerciseEntity.reconstitute(raw.id, {
       exerciseTemplateId: raw.exerciseTemplateId,
       templateCode: raw.template.code,
+      title: raw.title,
       targetLanguage: raw.targetLanguage,
       difficultyLevel: prismaDifficultyToDomain(raw.difficultyLevel),
       content: raw.content as Record<string, unknown>,
@@ -98,6 +100,7 @@ export class ExerciseMapper {
     return {
       id: entity.id,
       exerciseTemplateId: entity.exerciseTemplateId,
+      title: entity.title,
       targetLanguage: entity.targetLanguage,
       difficultyLevel: domainDifficultyToPrisma(entity.difficultyLevel),
       content: entity.content as Prisma.InputJsonValue,
@@ -130,6 +133,7 @@ export class ExerciseMapper {
 
   static toUpdateData(entity: ExerciseEntity): ExerciseUpdateData {
     return {
+      title: entity.title,
       difficultyLevel: domainDifficultyToPrisma(entity.difficultyLevel),
       content: entity.content as Prisma.InputJsonValue,
       expectedAnswers: entity.expectedAnswers as Prisma.InputJsonValue,

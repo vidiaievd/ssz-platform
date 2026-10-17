@@ -13,6 +13,13 @@ export class ExerciseResponseDto {
   @ApiProperty({ example: 'multiple_choice' })
   templateCode!: string;
 
+  @ApiPropertyOptional({
+    example: 'Kjønn på substantiv',
+    nullable: true,
+    description: "The author's own title; null when the exercise has none.",
+  })
+  title!: string | null;
+
   @ApiProperty({ example: 'no' })
   targetLanguage!: string;
 
@@ -83,6 +90,7 @@ export class ExerciseResponseDto {
     dto.id = entity.id;
     dto.exerciseTemplateId = entity.exerciseTemplateId;
     dto.templateCode = entity.templateCode;
+    dto.title = entity.title;
     dto.targetLanguage = entity.targetLanguage;
     dto.difficultyLevel = entity.difficultyLevel;
     // Not `entity.content`. For word_bank_gap_fill the answers are inside the

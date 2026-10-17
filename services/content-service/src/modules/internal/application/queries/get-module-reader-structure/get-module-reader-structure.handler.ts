@@ -231,17 +231,18 @@ export class GetModuleReaderStructureHandler implements IQueryHandler<
   }
 
   /**
-   * The title the author gave the exercise, where its document has one.
+   * The title the author gave the exercise: its own `title` column (plan 39, B8), else
+   * `content.title` of the document, which the builders of the newer templates write.
    *
-   * An exercise row has no title column; the builders of the newer templates keep it as
-   * `content.title`. Without this the learner's navigation named every exercise after its
-   * template — a unit read «Multiple Choice, Multiple Choice, Sort Into Buckets» (plan 76,
-   * 2.4). The published document only (`content`, not `draft_content`): the reader serves
-   * what is released. Only the one field is read, not the documents.
+   * Without this the learner's navigation named every exercise after its template — a
+   * unit read «Multiple Choice, Multiple Choice, Sort Into Buckets» (plan 76, 2.4). The
+   * column is live on save, like a lesson's title; from the document only the published
+   * one (`content`, not `draft_content`): the reader serves what is released. Only the
+   * one field is read, not the documents.
    */
   private async exerciseTitles(exerciseIds: string[]): Promise<Map<string, string>> {
     const rows = await this.prisma.$queryRaw<{ id: string; title: string | null }[]>`
-      SELECT id::text AS id, btrim(content->>'title') AS title
+      SELECT id::text AS id, COALESCE(title, btrim(content->>'title')) AS title
         FROM exercises
        WHERE id = ANY (${exerciseIds}::uuid[])`;
     return new Map(

@@ -802,6 +802,11 @@ model ExerciseTemplate {
 model Exercise {
   id                       String          @id @default(uuid()) @db.Uuid
   exerciseTemplateId       String          @map("exercise_template_id") @db.Uuid
+  // What the author calls this exercise in the structure tree and the learner's
+  // navigation. Live on save, like a lesson's title — not part of the document, so
+  // it never waits for a publish. Null means "fall back to content.title, then to
+  // the template name" (plan 39, B8).
+  title                    String?         @db.VarChar(200)
   targetLanguage           String          @map("target_language") @db.VarChar(10)
   difficultyLevel          DifficultyLevel @map("difficulty_level")
   content                  Json

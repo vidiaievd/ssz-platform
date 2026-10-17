@@ -296,6 +296,7 @@ export class ExerciseController {
         dto.visibility,
         dto.estimatedDurationSeconds,
         dto.expectedUpdatedAt,
+        dto.title,
       ),
     );
 

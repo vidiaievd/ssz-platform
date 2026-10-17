@@ -80,6 +80,7 @@ export class UpdateExerciseHandler implements ICommandHandler<
 
     const updateResult = exercise.update(
       {
+        ...(command.title !== undefined && { title: command.title }),
         difficultyLevel: command.difficultyLevel,
         content: command.content,
         expectedAnswers: command.expectedAnswers,
@@ -117,6 +118,7 @@ export class UpdateExerciseHandler implements ICommandHandler<
  */
 function changedExerciseFields(command: UpdateExerciseCommand): string[] {
   const fields: Array<keyof UpdateExerciseCommand> = [
+    'title',
     'difficultyLevel',
     'content',
     'expectedAnswers',
