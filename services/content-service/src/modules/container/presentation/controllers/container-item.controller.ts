@@ -16,10 +16,12 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
 import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
@@ -31,11 +33,16 @@ import { AddContainerItemCommand } from '../../application/commands/add-containe
 import { UpdateContainerItemCommand } from '../../application/commands/update-container-item/update-container-item.command.js';
 import { RemoveContainerItemCommand } from '../../application/commands/remove-container-item/remove-container-item.command.js';
 import { ReorderContainerItemsCommand } from '../../application/commands/reorder-container-items/reorder-container-items.command.js';
+import { DuplicateContainerItemCommand } from '../../application/commands/duplicate-container-item/duplicate-container-item.command.js';
+import type { DuplicateContainerItemResult } from '../../application/commands/duplicate-container-item/duplicate-container-item.handler.js';
 import { GetVersionItemsQuery } from '../../application/queries/get-version-items/get-version-items.query.js';
 import type { VersionItemsResult } from '../../application/queries/get-version-items/get-version-items.handler.js';
 import type { Result } from '../../../../shared/kernel/result.js';
 import type { ContainerDomainError } from '../../domain/exceptions/container-domain.exceptions.js';
-import { ContainerItemResponseDto } from '../dto/responses/container-item.response.dto.js';
+import {
+  ContainerItemResponseDto,
+  DuplicatedContainerItemResponseDto,
+} from '../dto/responses/container-item.response.dto.js';
 import { AddContainerItemRequestDto } from '../dto/requests/add-container-item.request.dto.js';
 import { UpdateContainerItemRequestDto } from '../dto/requests/update-container-item.request.dto.js';
 import { ReorderItemsRequestDto } from '../dto/requests/reorder-items.request.dto.js';
@@ -94,6 +101,38 @@ export class ContainerItemController {
         dto.sectionLabel,
       ),
     );
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value;
+  }
+
+  @Post(':itemId/duplicate')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
+  @ApiOperation({
+    summary: 'Duplicate a row together with the material it places',
+    description:
+      'Deep-copies the exercise the row places (both documents, title, instructions, atom ' +
+      'targets, practised-by relations) and places the copy by a new row right after the ' +
+      'original, in the same section. Only exercise rows can be duplicated so far; to place ' +
+      'the same material a second time, add it again instead.',
+  })
+  @ApiParam({ name: 'itemId', type: String, description: 'Row (container item) ID' })
+  @ApiCreatedResponse({ type: DuplicatedContainerItemResponseDto })
+  @ApiNotFoundResponse({ description: 'VERSION_NOT_FOUND / ITEM_NOT_FOUND' })
+  @ApiUnprocessableEntityResponse({
+    description: 'CANNOT_MODIFY_NON_DRAFT_VERSION / ITEM_TYPE_NOT_DUPLICABLE',
+  })
+  async duplicateItem(
+    @Param('containerId') containerId: string,
+    @Param('versionId') versionId: string,
+    @Param('itemId') itemId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<DuplicatedContainerItemResponseDto> {
+    const result = await this.commandBus.execute<
+      DuplicateContainerItemCommand,
+      Result<DuplicateContainerItemResult, ContainerDomainError>
+    >(new DuplicateContainerItemCommand(user.userId, containerId, versionId, itemId));
 
     if (result.isFail) throwHttpException(result.error);
     return result.value;

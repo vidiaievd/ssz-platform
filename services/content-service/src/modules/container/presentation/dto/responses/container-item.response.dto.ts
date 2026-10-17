@@ -60,3 +60,17 @@ export class ContainerItemResponseDto {
     return dto;
   }
 }
+
+export class DuplicatedContainerItemResponseDto {
+  @ApiProperty({ example: 'a1b2c3d4-...', description: 'The new row (container item).' })
+  itemId: string;
+
+  @ApiProperty({ example: 4, description: 'Its position — right after the original row.' })
+  position: number;
+
+  @ApiProperty({
+    example: 'uuid-of-the-copy',
+    description: 'The copied material the new row places.',
+  })
+  materialId: string;
+}
