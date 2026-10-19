@@ -16,6 +16,7 @@ import { GetPlaybackHandler } from './application/queries/get-playback/get-playb
 import { AssetPurger } from './application/services/asset-purger.js';
 import { SweepOrphanRecordingsService } from './application/services/sweep-orphan-recordings.service.js';
 import { SweepAbandonedUploadsService } from './application/services/sweep-abandoned-uploads.service.js';
+import { SweepOrphanContentAssetsService } from './application/services/sweep-orphan-content-assets.service.js';
 import { SweepSupersededNarrationsService } from './application/services/sweep-superseded-narrations.service.js';
 import { HttpLessonMediaUsageClient } from '../../infrastructure/http-lesson-media-usage.client.js';
 import { LESSON_MEDIA_USAGE } from '../../shared/application/ports/lesson-media-usage.port.js';
@@ -44,6 +45,7 @@ import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from '../../infrastruc
     SweepOrphanRecordingsService,
     SweepSupersededNarrationsService,
     SweepAbandonedUploadsService,
+    SweepOrphanContentAssetsService,
     { provide: RECORDING_USAGE, useClass: HttpRecordingUsageClient },
     { provide: LESSON_MEDIA_USAGE, useClass: HttpLessonMediaUsageClient },
     DeleteAssetHandler,
@@ -62,6 +64,7 @@ import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from '../../infrastruc
     SweepOrphanRecordingsService,
     SweepSupersededNarrationsService,
     SweepAbandonedUploadsService,
+    SweepOrphanContentAssetsService,
   ],
 })
 export class AssetsModule {}

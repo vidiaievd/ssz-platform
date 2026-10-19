@@ -29,6 +29,10 @@ import {
   type AbandonedUploadSweepReport,
 } from '../../application/services/sweep-abandoned-uploads.service.js';
 import {
+  SweepOrphanContentAssetsService,
+  type ContentSweepReport,
+} from '../../application/services/sweep-orphan-content-assets.service.js';
+import {
   SupersedeAssetCommand,
   type SupersedeAssetResult,
 } from '../../application/commands/supersede-asset/supersede-asset.command.js';
@@ -51,6 +55,7 @@ export class InternalAssetsController {
     private readonly sweepOrphans: SweepOrphanRecordingsService,
     private readonly sweepSuperseded: SweepSupersededNarrationsService,
     private readonly sweepAbandoned: SweepAbandonedUploadsService,
+    private readonly sweepContent: SweepOrphanContentAssetsService,
   ) {}
 
   @Post('describe')
@@ -146,5 +151,19 @@ export class InternalAssetsController {
   @ApiResponse({ status: 200, description: 'AbandonedUploadSweepReport' })
   async sweepAbandonedNow(@Query('dryRun') dryRun?: string): Promise<AbandonedUploadSweepReport> {
     return this.sweepAbandoned.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
+  }
+
+  @Post('sweep-orphan-content')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Run the orphan content-asset sweep now (operator)',
+    description:
+      'Uploaded lesson assets older than MEDIA_ORPHAN_MIN_AGE_DAYS that nothing in content names ' +
+      '(content-service is asked; replaced narrations are left to their own sweep). A DRY RUN unless ' +
+      '`dryRun=false` is passed explicitly.',
+  })
+  @ApiResponse({ status: 200, description: 'ContentSweepReport' })
+  async sweepOrphanContentNow(@Query('dryRun') dryRun?: string): Promise<ContentSweepReport> {
+    return this.sweepContent.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
   }
 }

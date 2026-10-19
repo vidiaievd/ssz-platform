@@ -335,8 +335,9 @@ export class InternalController {
   }
 
   /**
-   * Which of these assets a lesson body still names — media-service asks before removing a
-   * replaced narration (plan 74). POST because the list does not fit a query string.
+   * Which of these assets content still names (a lesson body, a cover, vocabulary audio) —
+   * media-service asks before removing a replaced narration (plan 74) or an orphaned upload
+   * (plan 76). POST because the list does not fit a query string.
    */
   @Post('media/in-use')
   @HttpCode(HttpStatus.OK)

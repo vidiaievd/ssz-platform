@@ -50,6 +50,17 @@ export interface IMediaAssetRepository {
     limit: number,
   ): Promise<MediaAssetEntity[]>;
   /**
+   * Uploaded content assets of the given kinds created before `olderThan`, for the orphan
+   * sweep (plan 76, phase 5): not deleted, not pending (5.1 takes those), and not replaced —
+   * a replaced narration is the retention sweep's, whose undo window this must not cut short.
+   */
+  findContentAssetsOlderThan(
+    entityTypes: readonly string[],
+    olderThan: Date,
+    after: RecordingSweepCursor | null,
+    limit: number,
+  ): Promise<MediaAssetEntity[]>;
+  /**
    * Lesson assets replaced before `supersededBefore` and not yet deleted, in the stable order
    * (`supersededAt`, `id`) the cursor walks (plan 74, D5).
    */
