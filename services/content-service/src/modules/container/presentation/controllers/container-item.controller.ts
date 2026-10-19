@@ -113,10 +113,12 @@ export class ContainerItemController {
   @ApiOperation({
     summary: 'Duplicate a row together with the material it places',
     description:
-      'Deep-copies the exercise the row places (both documents, title, instructions, atom ' +
-      'targets, practised-by relations) and places the copy by a new row right after the ' +
-      'original, in the same section. Only exercise rows can be duplicated so far; to place ' +
-      'the same material a second time, add it again instead.',
+      'Deep-copies the material the row places and places the copy by a new row right after ' +
+      'the original, in the same section. An exercise is copied with both documents, title, ' +
+      'instructions, atom targets and practised-by relations; a lesson with every variant, ' +
+      'its media refs, cues, translations, glossary marks, text spans, and copies of the ' +
+      'exercises its stages use. Vocabulary lists and grammar rules cannot be duplicated; to ' +
+      'place the same material a second time, add it again instead.',
   })
   @ApiParam({ name: 'itemId', type: String, description: 'Row (container item) ID' })
   @ApiCreatedResponse({ type: DuplicatedContainerItemResponseDto })

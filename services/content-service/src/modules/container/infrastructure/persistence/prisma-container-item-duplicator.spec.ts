@@ -59,7 +59,71 @@ const SOURCE = {
   itemTargets: [{ itemKey: 'q1', atomType: 'VOCABULARY_ITEM', atomId: 'word-1', role: 'PRIMARY' }],
 };
 
-function makeDuplicator(opts?: { row?: unknown; source?: unknown }) {
+const LESSON_ROW = { ...ROW, itemType: 'LESSON', itemId: 'lesson-1' };
+
+const LESSON = {
+  id: 'lesson-1',
+  targetLanguage: 'nb',
+  difficultyLevel: 'A2',
+  slug: 'leksjon-17-pa-butikken',
+  title: 'På butikken',
+  description: null,
+  coverImageMediaId: 'cover-1',
+  ownerUserId: 'original-author',
+  ownerSchoolId: null,
+  visibility: 'PUBLIC',
+  kind: 'TEXT',
+  liveStartsAt: null,
+  liveDurationMinutes: null,
+  liveJoinUrl: null,
+  liveCapacity: null,
+  variants: [
+    {
+      id: 'variant-1',
+      explanationLanguage: 'en',
+      minLevel: 'A2',
+      maxLevel: 'A2',
+      displayTitle: 'At the shop',
+      displayDescription: null,
+      bodyMarkdown: 'Kari går i butikken.',
+      estimatedReadingMinutes: 3,
+      transcript: null,
+      status: 'PUBLISHED',
+      publishedAt: new Date('2026-10-01T10:00:00Z'),
+      mediaRefs: [
+        {
+          mediaId: 'audio-1',
+          mediaType: 'AUDIO',
+          positionInText: 0,
+          extractedAt: new Date('2026-10-01T10:00:00Z'),
+        },
+      ],
+      videoCues: [],
+      videoQuestion: null,
+      // Two stages share exercise-1; the third points at an exercise deleted since.
+      listeningStages: [
+        { exerciseId: 'exercise-1', position: 0, stageType: 'GAP_FILL' },
+        { exerciseId: 'exercise-1', position: 1, stageType: 'COMPREHENSION' },
+        { exerciseId: 'exercise-gone', position: 2, stageType: 'COMPREHENSION' },
+      ],
+      paragraphTranslations: [{ paragraphIndex: 0, translation: 'Kari goes to the shop.' }],
+      glossaryMarks: [{ vocabularyItemId: 'word-1', occurrenceCount: 2 }],
+      textSpans: [
+        {
+          paragraphIndex: 0,
+          charStart: 0,
+          charEnd: 4,
+          kind: 'VOCAB',
+          refId: 'word-1',
+          textSnapshot: 'Kari',
+          note: null,
+        },
+      ],
+    },
+  ],
+};
+
+function makeDuplicator(opts?: { row?: unknown; source?: unknown; lesson?: unknown }) {
   const calls: string[] = [];
   const tx = {
     containerItem: {
@@ -70,12 +134,35 @@ function makeDuplicator(opts?: { row?: unknown; source?: unknown }) {
       }),
     },
     exercise: {
-      findFirst: jest.fn().mockResolvedValue(opts && 'source' in opts ? opts.source : SOURCE),
+      findFirst: jest.fn(({ where }: { where: { id: string } }) => {
+        if (where.id !== 'exercise-1') return null;
+        return opts && 'source' in opts ? opts.source : SOURCE;
+      }),
       create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
         calls.push('exercise');
         return data;
       }),
     },
+    lesson: {
+      findFirst: jest.fn().mockResolvedValue(opts && 'lesson' in opts ? opts.lesson : LESSON),
+      create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
+        calls.push('lesson');
+        return data;
+      }),
+    },
+    lessonContentVariant: {
+      create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
+        calls.push('variant');
+        return data;
+      }),
+    },
+    lessonVariantMediaRef: { createMany: jest.fn() },
+    lessonVideoCue: { createMany: jest.fn() },
+    lessonParagraphTranslation: { createMany: jest.fn() },
+    lessonVariantGlossaryMark: { createMany: jest.fn() },
+    lessonTextSpan: { createMany: jest.fn() },
+    lessonListeningStage: { createMany: jest.fn() },
+    lessonVideoQuestion: { create: jest.fn() },
     exerciseInstruction: { createMany: jest.fn() },
     exerciseItemTarget: { createMany: jest.fn() },
     contentRelation: {
@@ -183,5 +270,101 @@ describe('PrismaContainerItemDuplicator', () => {
 
     expect(await duplicator.duplicateExerciseRow(INPUT)).toBeNull();
     expect(tx.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  describe('lesson rows', () => {
+    it('copies the lesson without its slug, under the new owner pair', async () => {
+      const { duplicator, tx } = makeDuplicator({ row: LESSON_ROW });
+
+      const copy = await duplicator.duplicateLessonRow(INPUT);
+
+      const data = tx.lesson.create.mock.calls[0][0].data;
+      expect(data.id).toBe(copy?.lessonId);
+      expect(data).toMatchObject({
+        slug: null,
+        title: 'På butikken',
+        coverImageMediaId: 'cover-1',
+        kind: 'TEXT',
+        ownerUserId: 'duplicating-teacher',
+        ownerSchoolId: 'school-1',
+        visibility: 'SCHOOL_PRIVATE',
+      });
+    });
+
+    it('copies every variant with its status and its child rows', async () => {
+      const { duplicator, tx } = makeDuplicator({ row: LESSON_ROW });
+
+      const copy = await duplicator.duplicateLessonRow(INPUT);
+      const variantId = copy?.variants[0].variantId;
+
+      expect(copy?.variants).toEqual([
+        { variantId, explanationLanguage: 'en', minLevel: 'A2', maxLevel: 'A2' },
+      ]);
+      expect(tx.lessonContentVariant.create.mock.calls[0][0].data).toMatchObject({
+        id: variantId,
+        lessonId: copy?.lessonId,
+        bodyMarkdown: 'Kari går i butikken.',
+        status: 'PUBLISHED',
+        publishedAt: LESSON.variants[0].publishedAt,
+        createdByUserId: 'duplicating-teacher',
+      });
+      expect(tx.lessonVariantMediaRef.createMany.mock.calls[0][0].data).toEqual([
+        expect.objectContaining({ lessonContentVariantId: variantId, mediaId: 'audio-1' }),
+      ]);
+      expect(tx.lessonParagraphTranslation.createMany.mock.calls[0][0].data).toEqual([
+        expect.objectContaining({ lessonContentVariantId: variantId, paragraphIndex: 0 }),
+      ]);
+      expect(tx.lessonVariantGlossaryMark.createMany.mock.calls[0][0].data).toEqual([
+        { lessonContentVariantId: variantId, vocabularyItemId: 'word-1', occurrenceCount: 2 },
+      ]);
+      expect(tx.lessonTextSpan.createMany.mock.calls[0][0].data).toEqual([
+        expect.objectContaining({
+          lessonContentVariantId: variantId,
+          refId: 'word-1',
+          textSnapshot: 'Kari',
+          createdByUserId: 'duplicating-teacher',
+        }),
+      ]);
+      expect(tx.lessonVideoCue.createMany).not.toHaveBeenCalled();
+      expect(tx.lessonVideoQuestion.create).not.toHaveBeenCalled();
+    });
+
+    it('copies a stage exercise once, and drops the stage of a deleted one', async () => {
+      const { duplicator, tx } = makeDuplicator({ row: LESSON_ROW });
+
+      const copy = await duplicator.duplicateLessonRow(INPUT);
+
+      expect(tx.exercise.create).toHaveBeenCalledTimes(1);
+      const stageCopy = copy?.exercises[0].exerciseId;
+      expect(copy?.exercises).toEqual([
+        { exerciseId: stageCopy, templateCode: 'multiple_choice', targetLanguage: 'nb' },
+      ]);
+      expect(tx.lessonListeningStage.createMany.mock.calls[0][0].data).toEqual([
+        expect.objectContaining({ exerciseId: stageCopy, position: 0, stageType: 'GAP_FILL' }),
+        expect.objectContaining({ exerciseId: stageCopy, position: 1, stageType: 'COMPREHENSION' }),
+      ]);
+    });
+
+    it('places the copy right after the row as a lesson row', async () => {
+      const { duplicator, tx, calls } = makeDuplicator({ row: LESSON_ROW });
+
+      const copy = await duplicator.duplicateLessonRow(INPUT);
+
+      expect(calls).toEqual(['lesson', 'variant', 'exercise', 'park', 'flip', 'row']);
+      expect(tx.containerItem.create.mock.calls[0][0].data).toMatchObject({
+        position: 4,
+        itemType: 'LESSON',
+        itemId: copy?.lessonId,
+        sectionId: 'section-1',
+      });
+    });
+
+    it('copies nothing when the lesson is deleted', async () => {
+      const { duplicator, tx } = makeDuplicator({ row: LESSON_ROW, lesson: null });
+
+      expect(await duplicator.duplicateLessonRow(INPUT)).toBeNull();
+      expect(tx.lesson.create).not.toHaveBeenCalled();
+      expect(tx.$executeRaw).not.toHaveBeenCalled();
+    });
   });
 });

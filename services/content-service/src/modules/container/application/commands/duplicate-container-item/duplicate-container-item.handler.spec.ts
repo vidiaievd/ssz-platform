@@ -14,6 +14,7 @@ import type { IContainerVersionRepository } from '../../../domain/repositories/c
 import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
 import type {
   DuplicatedExercise,
+  DuplicatedLesson,
   IContainerItemDuplicator,
 } from '../../ports/container-item-duplicator.port.js';
 import type { IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
@@ -68,10 +69,22 @@ const COPY: DuplicatedExercise = {
   targetLanguage: 'nb',
 };
 
+const LESSON_COPY: DuplicatedLesson = {
+  rowId: 'row-copy',
+  position: 4,
+  lessonId: 'lesson-copy',
+  targetLanguage: 'nb',
+  variants: [
+    { variantId: 'variant-copy', explanationLanguage: 'en', minLevel: 'A2', maxLevel: 'A2' },
+  ],
+  exercises: [{ exerciseId: 'stage-copy', templateCode: 'gap_fill', targetLanguage: 'nb' }],
+};
+
 function makeHandler(overrides?: {
   version?: ContainerVersionEntity | null;
   row?: ContainerItemEntity | null;
   copy?: DuplicatedExercise | null;
+  lessonCopy?: DuplicatedLesson | null;
 }) {
   const containerRepo = {
     findById: jest.fn().mockResolvedValue(makeContainer()),
@@ -82,6 +95,9 @@ function makeHandler(overrides?: {
   const duplicateExerciseRow = jest
     .fn()
     .mockResolvedValue(overrides && 'copy' in overrides ? overrides.copy : COPY);
+  const duplicateLessonRow = jest
+    .fn()
+    .mockResolvedValue(overrides && 'lessonCopy' in overrides ? overrides.lessonCopy : LESSON_COPY);
   const publish = jest.fn().mockResolvedValue(undefined);
   const versionRepo = {
     findById: jest
@@ -94,7 +110,10 @@ function makeHandler(overrides?: {
       .fn()
       .mockResolvedValue(overrides && 'row' in overrides ? overrides.row : makeRow()),
   } as unknown as IContainerItemRepository;
-  const duplicator = { duplicateExerciseRow } as unknown as IContainerItemDuplicator;
+  const duplicator = {
+    duplicateExerciseRow,
+    duplicateLessonRow,
+  } as unknown as IContainerItemDuplicator;
   const eventPublisher = { publish } as unknown as IEventPublisher;
 
   const handler = new DuplicateContainerItemHandler(
@@ -104,7 +123,7 @@ function makeHandler(overrides?: {
     duplicator,
     eventPublisher,
   );
-  return { handler, saveVersion, duplicateExerciseRow, publish };
+  return { handler, saveVersion, duplicateExerciseRow, duplicateLessonRow, publish };
 }
 
 const command = new DuplicateContainerItemCommand(USER_ID, CONTAINER_ID, VERSION_ID, ROW_ID);
@@ -162,7 +181,44 @@ describe('DuplicateContainerItemHandler', () => {
     expect(result.error).toBe(ContainerDomainError.ITEM_NOT_FOUND);
   });
 
-  it('refuses rows placing anything but an exercise', async () => {
+  it('copies a lesson and announces it, its variants and its stage exercises', async () => {
+    const { handler, saveVersion, duplicateExerciseRow, duplicateLessonRow, publish } = makeHandler(
+      { row: makeRow(ContainerItemType.LESSON) },
+    );
+
+    const result = await handler.execute(command);
+
+    expect(result.value).toEqual({ itemId: 'row-copy', position: 4, materialId: 'lesson-copy' });
+    expect(duplicateLessonRow).toHaveBeenCalledWith(
+      expect.objectContaining({ rowId: ROW_ID, userId: USER_ID, ownerSchoolId: SCHOOL_ID }),
+    );
+    expect(duplicateExerciseRow).not.toHaveBeenCalled();
+    expect(saveVersion).toHaveBeenCalledTimes(1);
+    expect(publish.mock.calls.map(([type]) => type)).toEqual([
+      'content.lesson.created',
+      'content.lesson.variant.created',
+      'content.exercise.created',
+    ]);
+    expect(publish.mock.calls[0][1]).toMatchObject({
+      payload: { lessonId: 'lesson-copy', ownerUserId: USER_ID, visibility: 'school_private' },
+    });
+    expect(publish.mock.calls[2][1]).toMatchObject({ payload: { exerciseId: 'stage-copy' } });
+  });
+
+  it('reports a lesson that vanished before the copy, and touches nothing', async () => {
+    const { handler, saveVersion, publish } = makeHandler({
+      row: makeRow(ContainerItemType.LESSON),
+      lessonCopy: null,
+    });
+
+    const result = await handler.execute(command);
+
+    expect(result.error).toBe(ContainerDomainError.ITEM_NOT_FOUND);
+    expect(saveVersion).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('refuses rows placing a vocabulary list or a grammar rule', async () => {
     const { handler, duplicateExerciseRow } = makeHandler({
       row: makeRow(ContainerItemType.VOCABULARY_LIST),
     });
@@ -171,6 +227,12 @@ describe('DuplicateContainerItemHandler', () => {
 
     expect(result.error).toBe(ContainerDomainError.ITEM_TYPE_NOT_DUPLICABLE);
     expect(duplicateExerciseRow).not.toHaveBeenCalled();
+
+    const rule = makeHandler({ row: makeRow(ContainerItemType.GRAMMAR_RULE) });
+    expect((await rule.handler.execute(command)).error).toBe(
+      ContainerDomainError.ITEM_TYPE_NOT_DUPLICABLE,
+    );
+    expect(rule.duplicateLessonRow).not.toHaveBeenCalled();
   });
 
   it('reports a source that vanished before the copy, and touches nothing', async () => {

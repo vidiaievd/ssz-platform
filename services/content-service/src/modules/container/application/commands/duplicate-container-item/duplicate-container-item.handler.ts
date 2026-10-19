@@ -12,10 +12,17 @@ import type { IContainerVersionRepository } from '../../../domain/repositories/c
 import { CONTAINER_ITEM_REPOSITORY } from '../../../domain/repositories/container-item.repository.interface.js';
 import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
 import { CONTAINER_ITEM_DUPLICATOR } from '../../ports/container-item-duplicator.port.js';
-import type { IContainerItemDuplicator } from '../../ports/container-item-duplicator.port.js';
+import type {
+  CopiedExercise,
+  DuplicateRowInput,
+  IContainerItemDuplicator,
+} from '../../ports/container-item-duplicator.port.js';
 import { CONTENT_EVENT_PUBLISHER } from '../../../../../shared/application/ports/event-publisher.port.js';
 import type { IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { ExerciseCreatedEvent } from '../../../../exercise/domain/events/exercise-created.event.js';
+import { LessonCreatedEvent } from '../../../../lesson/domain/events/lesson-created.event.js';
+import { LessonVariantCreatedEvent } from '../../../../lesson/domain/events/lesson-variant-created.event.js';
+import type { IDomainEvent } from '../../../../../shared/domain/domain-event.interface.js';
 
 export interface DuplicateContainerItemResult {
   /** The new row. */
@@ -27,8 +34,8 @@ export interface DuplicateContainerItemResult {
 
 /**
  * Duplicates a row of a draft version together with the material it places (plan 39,
- * B1). Exercises only for now; lessons follow (plan 76, B1.4), and vocabulary lists and
- * grammar rules are refused — the editor offers "Place again" for those.
+ * B1): exercises (plan 76, B1.3) and lessons (B1.4). Vocabulary lists and grammar rules
+ * are refused — the editor offers "Place again" for those.
  */
 @CommandHandler(DuplicateContainerItemCommand)
 export class DuplicateContainerItemHandler implements ICommandHandler<
@@ -72,35 +79,70 @@ export class DuplicateContainerItemHandler implements ICommandHandler<
       return Result.fail(ContainerDomainError.ITEM_NOT_FOUND);
     }
 
-    if (row.itemType !== ContainerItemType.EXERCISE) {
-      return Result.fail(ContainerDomainError.ITEM_TYPE_NOT_DUPLICABLE);
-    }
-
-    const copy = await this.duplicator.duplicateExerciseRow({
+    const input: DuplicateRowInput = {
       versionId: command.versionId,
       rowId: command.rowId,
       userId: command.userId,
       ownerSchoolId: container.ownerSchoolId,
       visibility: container.visibility,
-    });
-    // The row or its exercise went away between the reads above and the transaction.
-    if (!copy) {
-      return Result.fail(ContainerDomainError.ITEM_NOT_FOUND);
+    };
+
+    let duplicated: DuplicateContainerItemResult;
+    const events: IDomainEvent[] = [];
+    switch (row.itemType) {
+      case ContainerItemType.EXERCISE: {
+        const copy = await this.duplicator.duplicateExerciseRow(input);
+        // The row or its exercise went away between the reads above and the transaction.
+        if (!copy) {
+          return Result.fail(ContainerDomainError.ITEM_NOT_FOUND);
+        }
+        events.push(this.exerciseCreated(copy, input));
+        duplicated = { itemId: copy.rowId, position: copy.position, materialId: copy.exerciseId };
+        break;
+      }
+      case ContainerItemType.LESSON: {
+        const copy = await this.duplicator.duplicateLessonRow(input);
+        if (!copy) {
+          return Result.fail(ContainerDomainError.ITEM_NOT_FOUND);
+        }
+        events.push(
+          new LessonCreatedEvent({
+            lessonId: copy.lessonId,
+            ownerUserId: input.userId,
+            ownerSchoolId: input.ownerSchoolId,
+            targetLanguage: copy.targetLanguage,
+            visibility: input.visibility,
+          }),
+          ...copy.variants.map(
+            (variant) => new LessonVariantCreatedEvent({ lessonId: copy.lessonId, ...variant }),
+          ),
+          ...copy.exercises.map((exercise) => this.exerciseCreated(exercise, input)),
+        );
+        duplicated = { itemId: copy.rowId, position: copy.position, materialId: copy.lessonId };
+        break;
+      }
+      default:
+        return Result.fail(ContainerDomainError.ITEM_TYPE_NOT_DUPLICABLE);
     }
 
     version.incrementRevision();
     await this.versionRepo.save(version);
 
-    const event = new ExerciseCreatedEvent({
+    for (const event of events) {
+      await this.eventPublisher.publish(event.eventType, event);
+    }
+
+    return Result.ok(duplicated);
+  }
+
+  private exerciseCreated(copy: CopiedExercise, input: DuplicateRowInput): ExerciseCreatedEvent {
+    return new ExerciseCreatedEvent({
       exerciseId: copy.exerciseId,
       templateCode: copy.templateCode,
-      ownerUserId: command.userId,
-      ownerSchoolId: container.ownerSchoolId,
+      ownerUserId: input.userId,
+      ownerSchoolId: input.ownerSchoolId,
       targetLanguage: copy.targetLanguage,
-      visibility: container.visibility,
+      visibility: input.visibility,
     });
-    await this.eventPublisher.publish(event.eventType, event);
-
-    return Result.ok({ itemId: copy.rowId, position: copy.position, materialId: copy.exerciseId });
   }
 }

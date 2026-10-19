@@ -13,13 +13,34 @@ export interface DuplicateRowInput {
   visibility: Visibility;
 }
 
-export interface DuplicatedExercise {
-  /** The new `container_items` row. */
+/** The new `container_items` row placing the copy. */
+export interface DuplicatedRow {
   rowId: string;
   position: number;
+}
+
+/** One exercise the copy brought into existence — what `content.exercise.created` needs. */
+export interface CopiedExercise {
   exerciseId: string;
   templateCode: string;
   targetLanguage: string;
+}
+
+export interface DuplicatedExercise extends DuplicatedRow, CopiedExercise {}
+
+export interface CopiedLessonVariant {
+  variantId: string;
+  explanationLanguage: string;
+  minLevel: string;
+  maxLevel: string;
+}
+
+export interface DuplicatedLesson extends DuplicatedRow {
+  lessonId: string;
+  targetLanguage: string;
+  variants: CopiedLessonVariant[];
+  /** Copies of the exercises the lesson's listening stages and video question point at. */
+  exercises: CopiedExercise[];
 }
 
 /**
@@ -45,4 +66,22 @@ export interface IContainerItemDuplicator {
    * Returns null when the row or the exercise it places is gone.
    */
   duplicateExerciseRow(input: DuplicateRowInput): Promise<DuplicatedExercise | null>;
+
+  /**
+   * Copies the lesson a row places — its metadata (without the slug, which is unique
+   * and handed out on publish) and every live variant with its status, media refs,
+   * video cues, paragraph translations, glossary marks and text spans — and places the
+   * copy right after the row.
+   *
+   * The exercises behind listening stages and the video question are copied as well,
+   * the way an exercise row would be: a stage is part of the lesson, and a copy whose
+   * stages still pointed at the original's exercises would edit the original from
+   * inside the copy. Media assets are shared, not copied — they are files, and the
+   * narration/in-use bookkeeping already counts every variant that references one.
+   *
+   * Not copied: tags and content shares, as for an exercise.
+   *
+   * Returns null when the row or the lesson it places is gone.
+   */
+  duplicateLessonRow(input: DuplicateRowInput): Promise<DuplicatedLesson | null>;
 }
