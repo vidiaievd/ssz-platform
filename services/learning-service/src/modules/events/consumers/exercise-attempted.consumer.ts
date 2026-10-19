@@ -639,10 +639,10 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
    * one, not the six. The exercise-level card is not touched at all — keeping both
    * would leave the coarse card dragging every gap along behind it.
    *
-   * A gap whose card cannot be introduced is skipped rather than fatal. The most
-   * likely reason is the daily new-card limit, and a six-gap block now asks for six
-   * new cards where it used to ask for one: the limit doing its job on the tail of a
-   * block is not an error, and the remaining gaps still deserve their reviews.
+   * A gap whose card cannot be introduced is skipped rather than fatal: the remaining
+   * gaps still deserve their reviews. The daily new-card limit is no longer a reason —
+   * a six-gap block on a spent budget gets its six cards, held back to a later day
+   * (plan 37 §C.1).
    */
   private async reviewGapCards(
     p: ExerciseAttemptCompletedPayload,

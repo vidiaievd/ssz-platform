@@ -111,6 +111,9 @@ export class ReviewCard extends AggregateRoot {
     contentId: string,
     track: SrsTrack,
     now: Date,
+    // When the first review happens. Introduction by default; a later day when the
+    // day's new-card budget is spent (plan 37 §C.1).
+    dueAt: Date = now,
   ): ReviewCard {
     const card = new ReviewCard(
       randomUUID(),
@@ -119,7 +122,7 @@ export class ReviewCard extends AggregateRoot {
       contentId,
       track,
       'NEW',
-      now,   // due immediately — first review happens on introduction
+      dueAt,
       0,
       0,
       0,
@@ -136,7 +139,7 @@ export class ReviewCard extends AggregateRoot {
       contentType,
       contentId,
       track,
-      dueAt: now.toISOString(),
+      dueAt: dueAt.toISOString(),
     }));
     return card;
   }
@@ -218,9 +221,19 @@ export class ReviewCard extends AggregateRoot {
     }
 
     const previousState = this._state;
+    // A new card the day's budget pushed to a later day (plan 37 §C.1) is still rated by
+    // the attempt that introduced it, there and then — that is real evidence. But its
+    // first return stays on the day the budget gave it: a fresh card's learning step is
+    // minutes, and letting the rating pull it back to today would spend the very budget
+    // that was already spent. A longer interval from the rating wins as usual.
+    const heldUntil =
+      previousState === 'NEW' && this._dueAt.getTime() > reviewedAt.getTime()
+        ? this._dueAt
+        : null;
 
     this._state = result.state;
-    this._dueAt = result.dueAt;
+    this._dueAt =
+      heldUntil && heldUntil.getTime() > result.dueAt.getTime() ? heldUntil : result.dueAt;
     this._stability = result.stability;
     this._difficulty = result.difficulty;
     this._elapsedDays = result.elapsedDays;

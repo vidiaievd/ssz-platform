@@ -82,9 +82,8 @@ function makeHandler(overrides: {
   } as any;
 
   const limitsPolicy: ISrsLimitsPolicy = {
-    canIntroduceNewCard: jest.fn(),
+    claimNewCardDay: jest.fn(),
     canReview: jest.fn<() => Promise<boolean>>().mockResolvedValue(overrides.canReview ?? true),
-    incrementNewCardCount: jest.fn(),
     incrementReviewCount: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     recordRefusal: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   } as any;
@@ -244,8 +243,7 @@ describe('ReviewCardHandler', () => {
 
       await handler.execute(carryOn(card.id));
 
-      expect(limitsPolicy.canIntroduceNewCard).not.toHaveBeenCalled();
-      expect(limitsPolicy.incrementNewCardCount).not.toHaveBeenCalled();
+      expect(limitsPolicy.claimNewCardDay).not.toHaveBeenCalled();
     });
 
     it('still refuses when the flag is absent', async () => {

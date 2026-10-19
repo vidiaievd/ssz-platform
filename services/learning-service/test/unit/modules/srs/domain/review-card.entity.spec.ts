@@ -129,6 +129,55 @@ describe('ReviewCard', () => {
     });
   });
 
+  // Plan 37 §C.1 — a card introduced on a spent budget is held to a later day, and the
+  // attempt that introduced it rates it straight away.
+  describe('a new card held to a later day', () => {
+    const TOMORROW = new Date('2026-04-30T00:00:00Z');
+    const held = () => ReviewCard.create(USER_ID, 'EXERCISE', CONTENT_ID, 'lexis', NOW, TOMORROW);
+
+    it('is created due on that day', () => {
+      expect(held().dueAt).toEqual(TOMORROW);
+    });
+
+    it('keeps that day when the rating would bring it back sooner', () => {
+      const card = held();
+      const inTenMinutes = new Date(NOW.getTime() + 10 * 60 * 1000);
+
+      card.review(ReviewRating.fromString('GOOD'), schedulingResult({ dueAt: inTenMinutes }), NOW);
+
+      expect(card.dueAt).toEqual(TOMORROW);
+      expect(card.state).toBe('LEARNING');
+      expect(card.reps).toBe(1);
+    });
+
+    it('takes the rating’s interval when it is the longer one', () => {
+      const card = held();
+
+      card.review(ReviewRating.fromString('EASY'), schedulingResult({ dueAt: LATER }), NOW);
+
+      expect(card.dueAt).toEqual(LATER);
+    });
+
+    it('holds only the first return — later reviews follow the schedule', () => {
+      const card = held();
+      card.review(ReviewRating.fromString('GOOD'), schedulingResult({ dueAt: NOW }), NOW);
+      const soon = new Date(NOW.getTime() + 60 * 1000);
+
+      card.review(ReviewRating.fromString('AGAIN'), schedulingResult({ dueAt: soon }), NOW);
+
+      expect(card.dueAt).toEqual(soon);
+    });
+
+    it('leaves a card that was due on introduction alone', () => {
+      const card = freshCard();
+      const inTenMinutes = new Date(NOW.getTime() + 10 * 60 * 1000);
+
+      card.review(ReviewRating.fromString('GOOD'), schedulingResult({ dueAt: inTenMinutes }), NOW);
+
+      expect(card.dueAt).toEqual(inTenMinutes);
+    });
+  });
+
   describe('suspend', () => {
     it('transitions state to SUSPENDED and emits event with suspended=true', () => {
       const card = freshCard();

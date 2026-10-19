@@ -48,7 +48,6 @@ import {
   SrsCardNotFoundError,
   SrsCardUnauthorizedError,
   SrsCardSuspendedError,
-  SrsNewCardLimitError,
   SrsReviewLimitError,
   type SrsApplicationError,
 } from '../application/errors/srs-application.errors.js';
@@ -269,10 +268,11 @@ export class SrsController {
     description:
       'Idempotent: returns the existing card if one already exists for this content. ' +
       'Pass `seedKind` to seed the card directly in REVIEW (skip-known) instead of NEW — ' +
-      'used by the per-vocabulary-list know/new tap-through and placement-test outcomes.',
+      'used by the per-vocabulary-list know/new tap-through and placement-test outcomes. ' +
+      'Never refused by the daily new-card budget: once today’s is spent, a non-seeded ' +
+      'card is still created, with its first review (`dueAt`) on the next day that has room.',
   })
   @ApiResponse({ status: 200, type: ReviewCardResponse })
-  @ApiResponse({ status: 429, description: 'Daily new-card limit reached (non-seeded only)' })
   async introduceCard(
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: IntroduceCardRequest,
@@ -336,7 +336,7 @@ export class SrsController {
     if (err instanceof SrsCardNotFoundError) throw new NotFoundException(err.message);
     if (err instanceof SrsCardUnauthorizedError) throw new ForbiddenException(err.message);
     if (err instanceof SrsCardSuspendedError) throw new UnprocessableEntityException(err.message);
-    if (err instanceof SrsNewCardLimitError || err instanceof SrsReviewLimitError) {
+    if (err instanceof SrsReviewLimitError) {
       throw new HttpException(err.message, HttpStatus.TOO_MANY_REQUESTS);
     }
     throw new UnprocessableEntityException((err as Error).message);

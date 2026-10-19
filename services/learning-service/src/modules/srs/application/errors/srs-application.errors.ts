@@ -12,13 +12,6 @@ export class SrsCardUnauthorizedError extends Error {
   }
 }
 
-export class SrsNewCardLimitError extends Error {
-  constructor() {
-    super('Daily new-card limit reached — come back tomorrow');
-    this.name = 'SrsNewCardLimitError';
-  }
-}
-
 export class SrsReviewLimitError extends Error {
   constructor() {
     super('Daily review limit reached — come back tomorrow');
@@ -36,6 +29,5 @@ export class SrsCardSuspendedError extends Error {
 export type SrsApplicationError =
   | SrsCardNotFoundError
   | SrsCardUnauthorizedError
-  | SrsNewCardLimitError
   | SrsReviewLimitError
   | SrsCardSuspendedError;

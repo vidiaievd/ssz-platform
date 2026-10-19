@@ -46,15 +46,10 @@ export class BulkIntroduceFromVocabularyListHandler
       if (result.isOk) {
         introduced += 1;
       } else {
-        // SrsNewCardLimitError or already-exists — count as skipped.
+        // Failed outright. The new-card budget no longer turns a card away
+        // (plan 37 §C.1) — past it, a card is pushed to a later day — so there is no
+        // limit to stop early on.
         skipped += 1;
-        // Stop early on limit-hit to avoid hammering subsequent introduces.
-        if (result.error?.constructor?.name === 'SrsNewCardLimitError') {
-          this.logger.log(
-            `BulkIntroduce: daily limit hit after introducing ${introduced} cards for user ${cmd.userId}`,
-          );
-          break;
-        }
       }
     }
 
