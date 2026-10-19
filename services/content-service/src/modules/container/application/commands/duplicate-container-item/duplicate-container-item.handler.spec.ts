@@ -15,6 +15,7 @@ import type { IContainerItemRepository } from '../../../domain/repositories/cont
 import type {
   DuplicatedExercise,
   DuplicatedLesson,
+  DuplicatedModule,
   IContainerItemDuplicator,
 } from '../../ports/container-item-duplicator.port.js';
 import type { IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
@@ -25,9 +26,9 @@ const CONTAINER_ID = 'container-1';
 const VERSION_ID = 'version-1';
 const ROW_ID = 'row-1';
 
-function makeContainer(): ContainerEntity {
+function makeContainer(containerType = ContainerType.MODULE): ContainerEntity {
   const result = ContainerEntity.create({
-    containerType: ContainerType.MODULE,
+    containerType,
     targetLanguage: 'nb',
     difficultyLevel: DifficultyLevel.A2,
     title: 'Leksjon 17',
@@ -80,14 +81,39 @@ const LESSON_COPY: DuplicatedLesson = {
   exercises: [{ exerciseId: 'stage-copy', templateCode: 'gap_fill', targetLanguage: 'nb' }],
 };
 
+const MODULE_COPY: DuplicatedModule = {
+  rowId: 'row-copy',
+  position: 4,
+  containerId: 'module-copy',
+  versionId: 'module-copy-v1',
+  title: 'Leksjon 17',
+  targetLanguage: 'nb',
+  lessons: [
+    {
+      lessonId: 'lesson-copy',
+      targetLanguage: 'nb',
+      variants: [
+        { variantId: 'variant-copy', explanationLanguage: 'en', minLevel: 'A2', maxLevel: 'A2' },
+      ],
+    },
+  ],
+  exercises: [{ exerciseId: 'exercise-copy', templateCode: 'gap_fill', targetLanguage: 'nb' }],
+};
+
 function makeHandler(overrides?: {
   version?: ContainerVersionEntity | null;
   row?: ContainerItemEntity | null;
   copy?: DuplicatedExercise | null;
   lessonCopy?: DuplicatedLesson | null;
+  moduleCopy?: DuplicatedModule | null;
+  /** The container a course row places; the route's container is always found. */
+  placed?: ContainerEntity | null;
 }) {
+  const placed = overrides && 'placed' in overrides ? overrides.placed : makeContainer();
   const containerRepo = {
-    findById: jest.fn().mockResolvedValue(makeContainer()),
+    findById: jest.fn((id: string) =>
+      Promise.resolve(id === CONTAINER_ID ? makeContainer(ContainerType.COURSE) : placed),
+    ),
   } as unknown as IContainerRepository;
   // The mocks the tests assert on are kept as plain functions: asserting on a method
   // read off the cast repository trips `unbound-method`.
@@ -98,6 +124,9 @@ function makeHandler(overrides?: {
   const duplicateLessonRow = jest
     .fn()
     .mockResolvedValue(overrides && 'lessonCopy' in overrides ? overrides.lessonCopy : LESSON_COPY);
+  const duplicateModuleRow = jest
+    .fn()
+    .mockResolvedValue(overrides && 'moduleCopy' in overrides ? overrides.moduleCopy : MODULE_COPY);
   const publish = jest.fn().mockResolvedValue(undefined);
   const versionRepo = {
     findById: jest
@@ -113,6 +142,7 @@ function makeHandler(overrides?: {
   const duplicator = {
     duplicateExerciseRow,
     duplicateLessonRow,
+    duplicateModuleRow,
   } as unknown as IContainerItemDuplicator;
   const eventPublisher = { publish } as unknown as IEventPublisher;
 
@@ -123,7 +153,14 @@ function makeHandler(overrides?: {
     duplicator,
     eventPublisher,
   );
-  return { handler, saveVersion, duplicateExerciseRow, duplicateLessonRow, publish };
+  return {
+    handler,
+    saveVersion,
+    duplicateExerciseRow,
+    duplicateLessonRow,
+    duplicateModuleRow,
+    publish,
+  };
 }
 
 const command = new DuplicateContainerItemCommand(USER_ID, CONTAINER_ID, VERSION_ID, ROW_ID);
@@ -243,5 +280,61 @@ describe('DuplicateContainerItemHandler', () => {
     expect(result.error).toBe(ContainerDomainError.ITEM_NOT_FOUND);
     expect(saveVersion).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('copies a module and announces it, its lessons and its exercises', async () => {
+    const { handler, saveVersion, duplicateModuleRow, publish } = makeHandler({
+      row: makeRow(ContainerItemType.CONTAINER),
+    });
+
+    const result = await handler.execute(command);
+
+    expect(result.value).toEqual({ itemId: 'row-copy', position: 4, materialId: 'module-copy' });
+    expect(duplicateModuleRow).toHaveBeenCalledWith(
+      expect.objectContaining({ rowId: ROW_ID, userId: USER_ID, ownerSchoolId: SCHOOL_ID }),
+    );
+    expect(saveVersion).toHaveBeenCalledTimes(1);
+    expect(publish.mock.calls.map(([type]) => type)).toEqual([
+      'content.container.created',
+      'content.lesson.created',
+      'content.lesson.variant.created',
+      'content.exercise.created',
+    ]);
+    expect(publish.mock.calls[0][1]).toMatchObject({
+      payload: {
+        containerId: 'module-copy',
+        containerType: 'module',
+        title: 'Leksjon 17',
+        ownerUserId: USER_ID,
+        ownerSchoolId: SCHOOL_ID,
+      },
+    });
+  });
+
+  it('refuses a container row that places something other than a module', async () => {
+    const { handler, duplicateModuleRow } = makeHandler({
+      row: makeRow(ContainerItemType.CONTAINER),
+      placed: makeContainer(ContainerType.COURSE),
+    });
+
+    expect((await handler.execute(command)).error).toBe(
+      ContainerDomainError.ITEM_TYPE_NOT_DUPLICABLE,
+    );
+    expect(duplicateModuleRow).not.toHaveBeenCalled();
+  });
+
+  it('reports a module that is gone, before or during the copy, and touches nothing', async () => {
+    const missing = makeHandler({ row: makeRow(ContainerItemType.CONTAINER), placed: null });
+    expect((await missing.handler.execute(command)).error).toBe(
+      ContainerDomainError.ITEM_NOT_FOUND,
+    );
+    expect(missing.duplicateModuleRow).not.toHaveBeenCalled();
+
+    const vanished = makeHandler({ row: makeRow(ContainerItemType.CONTAINER), moduleCopy: null });
+    expect((await vanished.handler.execute(command)).error).toBe(
+      ContainerDomainError.ITEM_NOT_FOUND,
+    );
+    expect(vanished.saveVersion).not.toHaveBeenCalled();
+    expect(vanished.publish).not.toHaveBeenCalled();
   });
 });

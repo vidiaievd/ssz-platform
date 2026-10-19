@@ -123,7 +123,66 @@ const LESSON = {
   ],
 };
 
-function makeDuplicator(opts?: { row?: unknown; source?: unknown; lesson?: unknown }) {
+const MODULE_ROW = { ...ROW, itemType: 'CONTAINER', itemId: 'module-1', sectionId: 'level-a2' };
+
+const MODULE = {
+  id: 'module-1',
+  slug: 'leksjon-17',
+  containerType: 'MODULE',
+  targetLanguage: 'nb',
+  difficultyLevel: 'A2',
+  title: 'Leksjon 17',
+  description: 'Handel',
+  coverImageMediaId: null,
+  ownerUserId: 'original-author',
+  ownerSchoolId: 'school-1',
+  visibility: 'SCHOOL_PRIVATE',
+  accessTier: 'FREE_WITHIN_SCHOOL',
+  levelSystem: 'CEFR',
+  gatingMode: 'OPEN',
+  reviewRespondWithinHours: null,
+  coverageRecipe: null,
+  localizations: [{ languageCode: 'ru', title: 'Урок 17', description: null }],
+};
+
+const moduleRow = (
+  position: number,
+  itemType: string,
+  itemId: string,
+  sectionId: string | null,
+) => ({
+  id: `module-row-${position}`,
+  containerVersionId: 'module-version-1',
+  position,
+  itemType,
+  itemId,
+  isRequired: position !== 2,
+  sectionId,
+  sectionLabel: null,
+  xpReward: null,
+});
+
+const MODULE_VERSION = {
+  id: 'module-version-1',
+  status: 'DRAFT',
+  sections: [{ id: 'section-text', title: 'Tekst', position: 0 }],
+  // The lesson's stages use exercise-1 too; exercise-gone is deleted since.
+  items: [
+    moduleRow(0, 'LESSON', 'lesson-1', 'section-text'),
+    moduleRow(1, 'VOCABULARY_LIST', 'list-1', 'section-text'),
+    moduleRow(2, 'EXERCISE', 'exercise-1', null),
+    moduleRow(3, 'EXERCISE', 'exercise-gone', null),
+    moduleRow(4, 'EXERCISE', 'exercise-1', 'section-text'),
+  ],
+};
+
+function makeDuplicator(opts?: {
+  row?: unknown;
+  source?: unknown;
+  lesson?: unknown;
+  module?: unknown;
+  moduleVersion?: unknown;
+}) {
   const calls: string[] = [];
   const tx = {
     containerItem: {
@@ -132,7 +191,29 @@ function makeDuplicator(opts?: { row?: unknown; source?: unknown; lesson?: unkno
         calls.push('row');
         return { id: 'row-copy', ...data };
       }),
+      createMany: jest.fn(({ data }: { data: Record<string, any> }) => {
+        calls.push('module rows');
+        return data;
+      }),
     },
+    container: {
+      findFirst: jest.fn().mockResolvedValue(opts && 'module' in opts ? opts.module : MODULE),
+      create: jest.fn(({ data }: { data: Record<string, any> }) => {
+        calls.push('container');
+        return data;
+      }),
+    },
+    containerLocalization: { createMany: jest.fn() },
+    containerVersion: {
+      findFirst: jest
+        .fn()
+        .mockResolvedValue(opts && 'moduleVersion' in opts ? opts.moduleVersion : MODULE_VERSION),
+      create: jest.fn(({ data }: { data: Record<string, any> }) => {
+        calls.push('version');
+        return data;
+      }),
+    },
+    containerSection: { create: jest.fn() },
     exercise: {
       findFirst: jest.fn(({ where }: { where: { id: string } }) => {
         if (where.id !== 'exercise-1') return null;
@@ -364,6 +445,152 @@ describe('PrismaContainerItemDuplicator', () => {
 
       expect(await duplicator.duplicateLessonRow(INPUT)).toBeNull();
       expect(tx.lesson.create).not.toHaveBeenCalled();
+      expect(tx.$executeRaw).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('module rows', () => {
+    it('copies the module without its slug, under the new owner pair, with a draft v1', async () => {
+      const { duplicator, tx } = makeDuplicator({ row: MODULE_ROW });
+
+      const copy = await duplicator.duplicateModuleRow(INPUT);
+
+      const data = tx.container.create.mock.calls[0][0].data;
+      expect(data.id).toBe(copy?.containerId);
+      expect(data).toMatchObject({
+        slug: null,
+        containerType: 'MODULE',
+        title: 'Leksjon 17',
+        description: 'Handel',
+        ownerUserId: 'duplicating-teacher',
+        ownerSchoolId: 'school-1',
+        visibility: 'SCHOOL_PRIVATE',
+        accessTier: 'FREE_WITHIN_SCHOOL',
+      });
+      expect(tx.containerVersion.create.mock.calls[0][0].data).toEqual({
+        id: copy?.versionId,
+        containerId: copy?.containerId,
+        versionNumber: 1,
+        status: 'DRAFT',
+        createdByUserId: 'duplicating-teacher',
+      });
+      expect(tx.containerLocalization.createMany.mock.calls[0][0].data).toEqual([
+        expect.objectContaining({ containerId: copy?.containerId, languageCode: 'ru' }),
+      ]);
+    });
+
+    it('reads the draft first, else the published version', async () => {
+      const { duplicator, tx } = makeDuplicator({ row: MODULE_ROW });
+
+      await duplicator.duplicateModuleRow(INPUT);
+
+      expect(tx.containerVersion.findFirst.mock.calls[0][0]).toMatchObject({
+        where: { containerId: 'module-1', status: { in: ['DRAFT', 'PUBLISHED'] } },
+        orderBy: [{ status: 'asc' }, { versionNumber: 'desc' }],
+      });
+    });
+
+    it('takes the default access tier when the course has another visibility', async () => {
+      const { duplicator, tx } = makeDuplicator({ row: MODULE_ROW });
+
+      await duplicator.duplicateModuleRow({ ...INPUT, visibility: Visibility.PUBLIC });
+
+      expect(tx.container.create.mock.calls[0][0].data).toMatchObject({
+        visibility: 'PUBLIC',
+        accessTier: 'PUBLIC_FREE',
+      });
+    });
+
+    it('copies sections and rows: one copy per material, lists placed again', async () => {
+      const { duplicator, tx } = makeDuplicator({ row: MODULE_ROW });
+
+      const copy = await duplicator.duplicateModuleRow(INPUT);
+
+      const sectionId = tx.containerSection.create.mock.calls[0][0].data.id;
+      expect(tx.containerSection.create.mock.calls[0][0].data).toEqual({
+        id: sectionId,
+        containerVersionId: copy?.versionId,
+        title: 'Tekst',
+        position: 0,
+      });
+
+      // exercise-1 is both a stage of the lesson and two rows: one copy for all three.
+      expect(tx.exercise.create).toHaveBeenCalledTimes(1);
+      expect(tx.lesson.create).toHaveBeenCalledTimes(1);
+      const exerciseCopy = copy?.exercises[0].exerciseId;
+      const lessonCopy = copy?.lessons[0].lessonId;
+      expect(copy?.exercises).toHaveLength(1);
+      expect(copy?.lessons).toHaveLength(1);
+
+      const rows = tx.containerItem.createMany.mock.calls[0][0].data;
+      expect(rows).toEqual([
+        expect.objectContaining({ position: 0, itemType: 'LESSON', itemId: lessonCopy, sectionId }),
+        expect.objectContaining({ position: 1, itemType: 'VOCABULARY_LIST', itemId: 'list-1' }),
+        expect.objectContaining({
+          position: 2,
+          itemId: exerciseCopy,
+          sectionId: null,
+          isRequired: false,
+        }),
+        // The row of the deleted exercise (position 3) is dropped.
+        expect.objectContaining({ position: 4, itemId: exerciseCopy, sectionId }),
+      ]);
+      expect(
+        rows.every((r: { containerVersionId: string }) => r.containerVersionId === copy?.versionId),
+      ).toBe(true);
+    });
+
+    it('re-points the module relations at the copy', async () => {
+      const { duplicator, tx } = makeDuplicator({ row: MODULE_ROW });
+
+      await duplicator.duplicateModuleRow(INPUT);
+
+      expect(tx.contentRelation.findMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { sourceType: 'CONTAINER', sourceId: 'module-1' },
+            { targetType: 'CONTAINER', targetId: 'module-1' },
+          ],
+        },
+      });
+    });
+
+    it('places the copy right after the row in the course, as a container row', async () => {
+      const { duplicator, tx, calls } = makeDuplicator({ row: MODULE_ROW });
+
+      const copy = await duplicator.duplicateModuleRow(INPUT);
+
+      expect(calls.slice(0, 2)).toEqual(['container', 'version']);
+      expect(calls.slice(-4)).toEqual(['module rows', 'park', 'flip', 'row']);
+      expect(tx.containerItem.create.mock.calls[0][0].data).toMatchObject({
+        containerVersionId: VERSION_ID,
+        position: 4,
+        itemType: 'CONTAINER',
+        itemId: copy?.containerId,
+        sectionId: 'level-a2',
+      });
+      expect(copy).toMatchObject({ rowId: 'row-copy', position: 4, title: 'Leksjon 17' });
+    });
+
+    it('copies an empty draft when the module has no version to read', async () => {
+      const { duplicator, tx } = makeDuplicator({ row: MODULE_ROW, moduleVersion: null });
+
+      const copy = await duplicator.duplicateModuleRow(INPUT);
+
+      expect(tx.containerVersion.create).toHaveBeenCalledTimes(1);
+      expect(tx.containerItem.createMany).not.toHaveBeenCalled();
+      expect(copy?.exercises).toEqual([]);
+    });
+
+    it('copies nothing when the module is deleted or not a module', async () => {
+      const { duplicator, tx } = makeDuplicator({ row: MODULE_ROW, module: null });
+
+      expect(await duplicator.duplicateModuleRow(INPUT)).toBeNull();
+      expect(tx.container.findFirst.mock.calls[0][0].where).toMatchObject({
+        containerType: 'MODULE',
+        deletedAt: null,
+      });
+      expect(tx.container.create).not.toHaveBeenCalled();
       expect(tx.$executeRaw).not.toHaveBeenCalled();
     });
   });

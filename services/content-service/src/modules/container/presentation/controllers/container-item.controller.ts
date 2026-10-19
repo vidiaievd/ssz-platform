@@ -117,8 +117,11 @@ export class ContainerItemController {
       'the original, in the same section. An exercise is copied with both documents, title, ' +
       'instructions, atom targets and practised-by relations; a lesson with every variant, ' +
       'its media refs, cues, translations, glossary marks, text spans, and copies of the ' +
-      'exercises its stages use. Vocabulary lists and grammar rules cannot be duplicated; to ' +
-      'place the same material a second time, add it again instead.',
+      'exercises its stages use; a module of a course with its localizations, relations and ' +
+      'a draft version holding its sections and deep copies of its exercises and lessons ' +
+      '(vocabulary lists and grammar rules inside it are placed again, not copied). ' +
+      'Vocabulary lists and grammar rules cannot be duplicated on their own; to place the ' +
+      'same material a second time, add it again instead.',
   })
   @ApiParam({ name: 'itemId', type: String, description: 'Row (container item) ID' })
   @ApiCreatedResponse({ type: DuplicatedContainerItemResponseDto })

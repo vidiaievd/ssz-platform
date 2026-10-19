@@ -4,6 +4,8 @@ import { DuplicateContainerItemCommand } from './duplicate-container-item.comman
 import { Result } from '../../../../../shared/kernel/result.js';
 import { ContainerDomainError } from '../../../domain/exceptions/container-domain.exceptions.js';
 import { VersionStatus } from '../../../domain/value-objects/version-status.vo.js';
+import { ContainerType } from '../../../domain/value-objects/container-type.vo.js';
+import { ContainerCreatedEvent } from '../../../domain/events/container-created.event.js';
 import { ContainerItemType } from '../../../domain/value-objects/item-type.vo.js';
 import { CONTAINER_REPOSITORY } from '../../../domain/repositories/container.repository.interface.js';
 import type { IContainerRepository } from '../../../domain/repositories/container.repository.interface.js';
@@ -14,6 +16,7 @@ import type { IContainerItemRepository } from '../../../domain/repositories/cont
 import { CONTAINER_ITEM_DUPLICATOR } from '../../ports/container-item-duplicator.port.js';
 import type {
   CopiedExercise,
+  CopiedLesson,
   DuplicateRowInput,
   IContainerItemDuplicator,
 } from '../../ports/container-item-duplicator.port.js';
@@ -34,8 +37,9 @@ export interface DuplicateContainerItemResult {
 
 /**
  * Duplicates a row of a draft version together with the material it places (plan 39,
- * B1): exercises (plan 76, B1.3) and lessons (B1.4). Vocabulary lists and grammar rules
- * are refused — the editor offers "Place again" for those.
+ * B1): exercises (plan 76, B1.3), lessons (B1.4) and the modules of a course (B1.5).
+ * Vocabulary lists and grammar rules are refused — the editor offers "Place again" for
+ * those; inside a duplicated module they are placed again rather than copied.
  */
 @CommandHandler(DuplicateContainerItemCommand)
 export class DuplicateContainerItemHandler implements ICommandHandler<
@@ -106,19 +110,39 @@ export class DuplicateContainerItemHandler implements ICommandHandler<
           return Result.fail(ContainerDomainError.ITEM_NOT_FOUND);
         }
         events.push(
-          new LessonCreatedEvent({
-            lessonId: copy.lessonId,
-            ownerUserId: input.userId,
-            ownerSchoolId: input.ownerSchoolId,
-            targetLanguage: copy.targetLanguage,
-            visibility: input.visibility,
-          }),
-          ...copy.variants.map(
-            (variant) => new LessonVariantCreatedEvent({ lessonId: copy.lessonId, ...variant }),
-          ),
+          ...this.lessonCreated(copy, input),
           ...copy.exercises.map((exercise) => this.exerciseCreated(exercise, input)),
         );
         duplicated = { itemId: copy.rowId, position: copy.position, materialId: copy.lessonId };
+        break;
+      }
+      case ContainerItemType.CONTAINER: {
+        // Only a module is copied: a course row inside a collection would copy a course.
+        const placed = await this.containerRepo.findById(row.itemId);
+        if (!placed || placed.deletedAt !== null) {
+          return Result.fail(ContainerDomainError.ITEM_NOT_FOUND);
+        }
+        if (placed.containerType !== ContainerType.MODULE) {
+          return Result.fail(ContainerDomainError.ITEM_TYPE_NOT_DUPLICABLE);
+        }
+        const copy = await this.duplicator.duplicateModuleRow(input);
+        if (!copy) {
+          return Result.fail(ContainerDomainError.ITEM_NOT_FOUND);
+        }
+        events.push(
+          new ContainerCreatedEvent({
+            containerId: copy.containerId,
+            containerType: ContainerType.MODULE,
+            title: copy.title,
+            ownerUserId: input.userId,
+            ownerSchoolId: input.ownerSchoolId,
+            visibility: input.visibility,
+            targetLanguage: copy.targetLanguage,
+          }),
+          ...copy.lessons.flatMap((lesson) => this.lessonCreated(lesson, input)),
+          ...copy.exercises.map((exercise) => this.exerciseCreated(exercise, input)),
+        );
+        duplicated = { itemId: copy.rowId, position: copy.position, materialId: copy.containerId };
         break;
       }
       default:
@@ -133,6 +157,21 @@ export class DuplicateContainerItemHandler implements ICommandHandler<
     }
 
     return Result.ok(duplicated);
+  }
+
+  private lessonCreated(copy: CopiedLesson, input: DuplicateRowInput): IDomainEvent[] {
+    return [
+      new LessonCreatedEvent({
+        lessonId: copy.lessonId,
+        ownerUserId: input.userId,
+        ownerSchoolId: input.ownerSchoolId,
+        targetLanguage: copy.targetLanguage,
+        visibility: input.visibility,
+      }),
+      ...copy.variants.map(
+        (variant) => new LessonVariantCreatedEvent({ lessonId: copy.lessonId, ...variant }),
+      ),
+    ];
   }
 
   private exerciseCreated(copy: CopiedExercise, input: DuplicateRowInput): ExerciseCreatedEvent {

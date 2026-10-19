@@ -35,11 +35,26 @@ export interface CopiedLessonVariant {
   maxLevel: string;
 }
 
-export interface DuplicatedLesson extends DuplicatedRow {
+/** One lesson the copy brought into existence — what `content.lesson.created` needs. */
+export interface CopiedLesson {
   lessonId: string;
   targetLanguage: string;
   variants: CopiedLessonVariant[];
+}
+
+export interface DuplicatedLesson extends DuplicatedRow, CopiedLesson {
   /** Copies of the exercises the lesson's listening stages and video question point at. */
+  exercises: CopiedExercise[];
+}
+
+export interface DuplicatedModule extends DuplicatedRow {
+  containerId: string;
+  /** The copy's draft version — its only version until it is published. */
+  versionId: string;
+  title: string;
+  targetLanguage: string;
+  lessons: CopiedLesson[];
+  /** Every exercise copied: the module's own rows and the lessons' stage exercises. */
   exercises: CopiedExercise[];
 }
 
@@ -84,4 +99,22 @@ export interface IContainerItemDuplicator {
    * Returns null when the row or the lesson it places is gone.
    */
   duplicateLessonRow(input: DuplicateRowInput): Promise<DuplicatedLesson | null>;
+
+  /**
+   * Copies the module a course row places — the container (without the slug), its
+   * localizations and relations, and a draft version built from the version the editor
+   * shows (the draft, else the published one): its sections, and its rows with the
+   * exercises and lessons deep-copied as their own rows would be. One copy per material:
+   * an exercise placed twice, or used both as a row and as a lesson stage, stays one
+   * exercise in the copy, as it is one in the original.
+   *
+   * Vocabulary lists and grammar rules are placed again, not copied: they cannot be
+   * duplicated on their own either, and refusing them would refuse nearly every module.
+   * A row whose exercise or lesson is deleted is dropped; positions need not be dense.
+   *
+   * Not copied: tags, content shares and entitlements, as for an exercise.
+   *
+   * Returns null when the row or the module it places is gone.
+   */
+  duplicateModuleRow(input: DuplicateRowInput): Promise<DuplicatedModule | null>;
 }

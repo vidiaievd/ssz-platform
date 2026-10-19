@@ -5,23 +5,31 @@ import type { ContainerItem } from '../../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type {
   CopiedExercise,
+  CopiedLesson,
   CopiedLessonVariant,
   DuplicateRowInput,
   DuplicatedExercise,
   DuplicatedLesson,
+  DuplicatedModule,
   DuplicatedRow,
   IContainerItemDuplicator,
 } from '../../application/ports/container-item-duplicator.port.js';
-import { domainVisibilityToPrisma } from './mappers/enum-converters.js';
+import { getDefaultAccessTier } from '../../domain/value-objects/access-tier.vo.js';
+import { domainAccessTierToPrisma, domainVisibilityToPrisma } from './mappers/enum-converters.js';
 
 type Tx = Prisma.TransactionClient;
-type RelatableType = 'EXERCISE' | 'LESSON';
+type RelatableType = 'EXERCISE' | 'LESSON' | 'CONTAINER';
 
 /** A nullable JSON column read back as null is written as JSON null, as the mappers do. */
 function json(
   value: Prisma.JsonValue | null,
 ): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {
   return value === null ? Prisma.JsonNull : (value as Prisma.InputJsonValue);
+}
+
+/** The copies made, without the sources that turned out to be deleted. */
+function copiedOnly<T>(copies: Map<string, T | null>): T[] {
+  return [...copies.values()].filter((copy): copy is T => copy !== null);
 }
 
 /**
@@ -51,186 +59,156 @@ export class PrismaContainerItemDuplicator implements IContainerItemDuplicator {
       const row = await this.findRow(tx, input, 'LESSON');
       if (!row) return null;
 
-      const source = await tx.lesson.findFirst({
-        where: { id: row.itemId, deletedAt: null },
-        include: {
-          variants: {
-            where: { deletedAt: null },
-            include: {
-              mediaRefs: true,
-              videoCues: true,
-              videoQuestion: true,
-              listeningStages: true,
-              paragraphTranslations: true,
-              glossaryMarks: true,
-              textSpans: true,
-            },
-          },
-        },
-      });
-      if (!source) return null;
-
-      const lessonId = randomUUID();
-      await tx.lesson.create({
-        data: {
-          id: lessonId,
-          targetLanguage: source.targetLanguage,
-          difficultyLevel: source.difficultyLevel,
-          // Unique among live lessons and handed out on publish: the copy gets its own
-          // when it is published as a lesson of its own, if ever.
-          slug: null,
-          title: source.title,
-          description: source.description,
-          coverImageMediaId: source.coverImageMediaId,
-          ownerUserId: input.userId,
-          ownerSchoolId: input.ownerSchoolId,
-          visibility: domainVisibilityToPrisma(input.visibility),
-          kind: source.kind,
-          liveStartsAt: source.liveStartsAt,
-          liveDurationMinutes: source.liveDurationMinutes,
-          liveJoinUrl: source.liveJoinUrl,
-          liveCapacity: source.liveCapacity,
-        },
-      });
-
-      // A stage exercise placed by two stages of the lesson stays one exercise in the copy.
       const exerciseCopies = new Map<string, CopiedExercise | null>();
-      const copyStageExercise = async (exerciseId: string): Promise<string | null> => {
-        if (!exerciseCopies.has(exerciseId)) {
-          exerciseCopies.set(exerciseId, await this.copyExercise(tx, exerciseId, input));
-        }
-        return exerciseCopies.get(exerciseId)?.exerciseId ?? null;
-      };
+      const copy = await this.copyLesson(tx, row.itemId, input, exerciseCopies);
+      if (!copy) return null;
 
-      const variants: CopiedLessonVariant[] = [];
-      for (const variant of source.variants) {
-        const variantId = randomUUID();
-        // The status travels with the body: the body is not versioned (a published
-        // variant is the live text), so a copy reset to draft would show the student
-        // nothing once the module is published.
-        await tx.lessonContentVariant.create({
-          data: {
-            id: variantId,
-            lessonId,
-            explanationLanguage: variant.explanationLanguage,
-            minLevel: variant.minLevel,
-            maxLevel: variant.maxLevel,
-            displayTitle: variant.displayTitle,
-            displayDescription: variant.displayDescription,
-            bodyMarkdown: variant.bodyMarkdown,
-            estimatedReadingMinutes: variant.estimatedReadingMinutes,
-            transcript: variant.transcript,
-            status: variant.status,
-            publishedAt: variant.publishedAt,
-            createdByUserId: input.userId,
-            lastEditedByUserId: input.userId,
+      const placed = await this.placeAfter(tx, row, copy.lessonId);
+      return { ...placed, ...copy, exercises: copiedOnly(exerciseCopies) };
+    });
+  }
+
+  async duplicateModuleRow(input: DuplicateRowInput): Promise<DuplicatedModule | null> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const row = await this.findRow(tx, input, 'CONTAINER');
+        if (!row) return null;
+
+        const source = await tx.container.findFirst({
+          where: { id: row.itemId, containerType: 'MODULE', deletedAt: null },
+          include: { localizations: true },
+        });
+        if (!source) return null;
+
+        // The version the structure editor shows: the draft, else the published one —
+        // `version_status` sorts in declaration order, draft first.
+        const sourceVersion = await tx.containerVersion.findFirst({
+          where: { containerId: source.id, status: { in: ['DRAFT', 'PUBLISHED'] } },
+          orderBy: [{ status: 'asc' }, { versionNumber: 'desc' }],
+          include: {
+            sections: { orderBy: { position: 'asc' } },
+            items: { orderBy: { position: 'asc' } },
           },
         });
-        variants.push({
-          variantId,
-          explanationLanguage: variant.explanationLanguage,
-          minLevel: variant.minLevel,
-          maxLevel: variant.maxLevel,
+
+        const visibility = domainVisibilityToPrisma(input.visibility);
+        const containerId = randomUUID();
+        await tx.container.create({
+          data: {
+            id: containerId,
+            // Unique among live containers and handed out on publish.
+            slug: null,
+            containerType: source.containerType,
+            targetLanguage: source.targetLanguage,
+            difficultyLevel: source.difficultyLevel,
+            title: source.title,
+            description: source.description,
+            coverImageMediaId: source.coverImageMediaId,
+            ownerUserId: input.userId,
+            ownerSchoolId: input.ownerSchoolId,
+            visibility,
+            // The source's tier fits its own visibility; under another one it takes the
+            // default a new container of that visibility would.
+            accessTier:
+              source.visibility === visibility
+                ? source.accessTier
+                : domainAccessTierToPrisma(getDefaultAccessTier(input.visibility)),
+            levelSystem: source.levelSystem,
+            gatingMode: source.gatingMode,
+            reviewRespondWithinHours: source.reviewRespondWithinHours,
+            coverageRecipe: json(source.coverageRecipe),
+          },
         });
 
-        if (variant.mediaRefs.length > 0) {
-          await tx.lessonVariantMediaRef.createMany({
-            data: variant.mediaRefs.map((ref) => ({
-              lessonContentVariantId: variantId,
-              mediaId: ref.mediaId,
-              mediaType: ref.mediaType,
-              positionInText: ref.positionInText,
-              extractedAt: ref.extractedAt,
-            })),
-          });
-        }
-
-        if (variant.videoCues.length > 0) {
-          await tx.lessonVideoCue.createMany({
-            data: variant.videoCues.map((cue) => ({
-              lessonContentVariantId: variantId,
-              position: cue.position,
-              startSeconds: cue.startSeconds,
-              targetLine: cue.targetLine,
-              translationLine: cue.translationLine,
-            })),
-          });
-        }
-
-        if (variant.paragraphTranslations.length > 0) {
-          await tx.lessonParagraphTranslation.createMany({
-            data: variant.paragraphTranslations.map((translation) => ({
-              lessonContentVariantId: variantId,
-              paragraphIndex: translation.paragraphIndex,
-              translation: translation.translation,
-            })),
-          });
-        }
-
-        if (variant.glossaryMarks.length > 0) {
-          await tx.lessonVariantGlossaryMark.createMany({
-            data: variant.glossaryMarks.map((mark) => ({
-              lessonContentVariantId: variantId,
-              vocabularyItemId: mark.vocabularyItemId,
-              occurrenceCount: mark.occurrenceCount,
-            })),
-          });
-        }
-
-        if (variant.textSpans.length > 0) {
-          await tx.lessonTextSpan.createMany({
-            data: variant.textSpans.map((span) => ({
-              lessonContentVariantId: variantId,
-              paragraphIndex: span.paragraphIndex,
-              charStart: span.charStart,
-              charEnd: span.charEnd,
-              kind: span.kind,
-              refId: span.refId,
-              textSnapshot: span.textSnapshot,
-              note: span.note,
+        if (source.localizations.length > 0) {
+          await tx.containerLocalization.createMany({
+            data: source.localizations.map((localization) => ({
+              containerId,
+              languageCode: localization.languageCode,
+              title: localization.title,
+              description: localization.description,
               createdByUserId: input.userId,
             })),
           });
         }
 
-        // A stage whose exercise is deleted is dropped rather than pointed at the
-        // original's: the reader already skips it, and positions need not be dense.
-        const stages: Prisma.LessonListeningStageCreateManyInput[] = [];
-        for (const stage of variant.listeningStages) {
-          const exerciseId = await copyStageExercise(stage.exerciseId);
-          if (!exerciseId) continue;
-          stages.push({
-            lessonContentVariantId: variantId,
-            exerciseId,
-            position: stage.position,
-            stageType: stage.stageType,
+        // `module TARGETS can_do_descriptor` and the like.
+        await this.copyRelations(tx, 'CONTAINER', source.id, containerId, input.userId);
+
+        const versionId = randomUUID();
+        await tx.containerVersion.create({
+          data: {
+            id: versionId,
+            containerId,
+            versionNumber: 1,
+            status: 'DRAFT',
+            createdByUserId: input.userId,
+          },
+        });
+
+        const sectionIds = new Map<string, string>();
+        for (const section of sourceVersion?.sections ?? []) {
+          const sectionId = randomUUID();
+          sectionIds.set(section.id, sectionId);
+          await tx.containerSection.create({
+            data: {
+              id: sectionId,
+              containerVersionId: versionId,
+              title: section.title,
+              position: section.position,
+            },
           });
         }
-        if (stages.length > 0) {
-          await tx.lessonListeningStage.createMany({ data: stages });
-        }
 
-        if (variant.videoQuestion) {
-          const exerciseId = await copyStageExercise(variant.videoQuestion.exerciseId);
-          if (exerciseId) {
-            await tx.lessonVideoQuestion.create({
-              data: { lessonContentVariantId: variantId, exerciseId },
-            });
+        const exerciseCopies = new Map<string, CopiedExercise | null>();
+        const lessonCopies = new Map<string, CopiedLesson | null>();
+        const rows: Prisma.ContainerItemCreateManyInput[] = [];
+        for (const item of sourceVersion?.items ?? []) {
+          let itemId: string | null = item.itemId;
+          if (item.itemType === 'EXERCISE') {
+            itemId =
+              (await this.copyExerciseOnce(tx, item.itemId, input, exerciseCopies))?.exerciseId ??
+              null;
+          } else if (item.itemType === 'LESSON') {
+            if (!lessonCopies.has(item.itemId)) {
+              lessonCopies.set(
+                item.itemId,
+                await this.copyLesson(tx, item.itemId, input, exerciseCopies),
+              );
+            }
+            itemId = lessonCopies.get(item.itemId)?.lessonId ?? null;
           }
+          if (!itemId) continue;
+
+          rows.push({
+            containerVersionId: versionId,
+            position: item.position,
+            itemType: item.itemType,
+            itemId,
+            isRequired: item.isRequired,
+            sectionId: item.sectionId ? (sectionIds.get(item.sectionId) ?? null) : null,
+            sectionLabel: item.sectionLabel,
+            xpReward: item.xpReward,
+          });
         }
-      }
+        if (rows.length > 0) {
+          await tx.containerItem.createMany({ data: rows });
+        }
 
-      await this.copyRelations(tx, 'LESSON', source.id, lessonId, input.userId);
-
-      const placed = await this.placeAfter(tx, row, lessonId);
-      return {
-        ...placed,
-        lessonId,
-        targetLanguage: source.targetLanguage,
-        variants,
-        exercises: [...exerciseCopies.values()].filter((copy) => copy !== null),
-      };
-    });
+        const placed = await this.placeAfter(tx, row, containerId);
+        return {
+          ...placed,
+          containerId,
+          versionId,
+          title: source.title,
+          targetLanguage: source.targetLanguage,
+          lessons: copiedOnly(lessonCopies),
+          exercises: copiedOnly(exerciseCopies),
+        };
+      },
+      // A module is a few hundred inserts; the default 5 s is sized for a single entity.
+      { timeout: 60_000 },
+    );
   }
 
   /**
@@ -240,11 +218,203 @@ export class PrismaContainerItemDuplicator implements IContainerItemDuplicator {
   private findRow(
     tx: Tx,
     input: DuplicateRowInput,
-    itemType: 'EXERCISE' | 'LESSON',
+    itemType: 'EXERCISE' | 'LESSON' | 'CONTAINER',
   ): Promise<ContainerItem | null> {
     return tx.containerItem.findFirst({
       where: { id: input.rowId, containerVersionId: input.versionId, itemType },
     });
+  }
+
+  /**
+   * The lesson with every live variant and its children under the new owner, or null
+   * when it is deleted. Stage exercises go through `exerciseCopies`, so one exercise used
+   * by two stages — or by a stage and a module row — stays one exercise in the copy.
+   */
+  private async copyLesson(
+    tx: Tx,
+    sourceId: string,
+    input: DuplicateRowInput,
+    exerciseCopies: Map<string, CopiedExercise | null>,
+  ): Promise<CopiedLesson | null> {
+    const source = await tx.lesson.findFirst({
+      where: { id: sourceId, deletedAt: null },
+      include: {
+        variants: {
+          where: { deletedAt: null },
+          include: {
+            mediaRefs: true,
+            videoCues: true,
+            videoQuestion: true,
+            listeningStages: true,
+            paragraphTranslations: true,
+            glossaryMarks: true,
+            textSpans: true,
+          },
+        },
+      },
+    });
+    if (!source) return null;
+
+    const lessonId = randomUUID();
+    await tx.lesson.create({
+      data: {
+        id: lessonId,
+        targetLanguage: source.targetLanguage,
+        difficultyLevel: source.difficultyLevel,
+        // Unique among live lessons and handed out on publish: the copy gets its own
+        // when it is published as a lesson of its own, if ever.
+        slug: null,
+        title: source.title,
+        description: source.description,
+        coverImageMediaId: source.coverImageMediaId,
+        ownerUserId: input.userId,
+        ownerSchoolId: input.ownerSchoolId,
+        visibility: domainVisibilityToPrisma(input.visibility),
+        kind: source.kind,
+        liveStartsAt: source.liveStartsAt,
+        liveDurationMinutes: source.liveDurationMinutes,
+        liveJoinUrl: source.liveJoinUrl,
+        liveCapacity: source.liveCapacity,
+      },
+    });
+
+    const copyStageExercise = async (exerciseId: string): Promise<string | null> =>
+      (await this.copyExerciseOnce(tx, exerciseId, input, exerciseCopies))?.exerciseId ?? null;
+
+    const variants: CopiedLessonVariant[] = [];
+    for (const variant of source.variants) {
+      const variantId = randomUUID();
+      // The status travels with the body: the body is not versioned (a published
+      // variant is the live text), so a copy reset to draft would show the student
+      // nothing once the module is published.
+      await tx.lessonContentVariant.create({
+        data: {
+          id: variantId,
+          lessonId,
+          explanationLanguage: variant.explanationLanguage,
+          minLevel: variant.minLevel,
+          maxLevel: variant.maxLevel,
+          displayTitle: variant.displayTitle,
+          displayDescription: variant.displayDescription,
+          bodyMarkdown: variant.bodyMarkdown,
+          estimatedReadingMinutes: variant.estimatedReadingMinutes,
+          transcript: variant.transcript,
+          status: variant.status,
+          publishedAt: variant.publishedAt,
+          createdByUserId: input.userId,
+          lastEditedByUserId: input.userId,
+        },
+      });
+      variants.push({
+        variantId,
+        explanationLanguage: variant.explanationLanguage,
+        minLevel: variant.minLevel,
+        maxLevel: variant.maxLevel,
+      });
+
+      if (variant.mediaRefs.length > 0) {
+        await tx.lessonVariantMediaRef.createMany({
+          data: variant.mediaRefs.map((ref) => ({
+            lessonContentVariantId: variantId,
+            mediaId: ref.mediaId,
+            mediaType: ref.mediaType,
+            positionInText: ref.positionInText,
+            extractedAt: ref.extractedAt,
+          })),
+        });
+      }
+
+      if (variant.videoCues.length > 0) {
+        await tx.lessonVideoCue.createMany({
+          data: variant.videoCues.map((cue) => ({
+            lessonContentVariantId: variantId,
+            position: cue.position,
+            startSeconds: cue.startSeconds,
+            targetLine: cue.targetLine,
+            translationLine: cue.translationLine,
+          })),
+        });
+      }
+
+      if (variant.paragraphTranslations.length > 0) {
+        await tx.lessonParagraphTranslation.createMany({
+          data: variant.paragraphTranslations.map((translation) => ({
+            lessonContentVariantId: variantId,
+            paragraphIndex: translation.paragraphIndex,
+            translation: translation.translation,
+          })),
+        });
+      }
+
+      if (variant.glossaryMarks.length > 0) {
+        await tx.lessonVariantGlossaryMark.createMany({
+          data: variant.glossaryMarks.map((mark) => ({
+            lessonContentVariantId: variantId,
+            vocabularyItemId: mark.vocabularyItemId,
+            occurrenceCount: mark.occurrenceCount,
+          })),
+        });
+      }
+
+      if (variant.textSpans.length > 0) {
+        await tx.lessonTextSpan.createMany({
+          data: variant.textSpans.map((span) => ({
+            lessonContentVariantId: variantId,
+            paragraphIndex: span.paragraphIndex,
+            charStart: span.charStart,
+            charEnd: span.charEnd,
+            kind: span.kind,
+            refId: span.refId,
+            textSnapshot: span.textSnapshot,
+            note: span.note,
+            createdByUserId: input.userId,
+          })),
+        });
+      }
+
+      // A stage whose exercise is deleted is dropped rather than pointed at the
+      // original's: the reader already skips it, and positions need not be dense.
+      const stages: Prisma.LessonListeningStageCreateManyInput[] = [];
+      for (const stage of variant.listeningStages) {
+        const exerciseId = await copyStageExercise(stage.exerciseId);
+        if (!exerciseId) continue;
+        stages.push({
+          lessonContentVariantId: variantId,
+          exerciseId,
+          position: stage.position,
+          stageType: stage.stageType,
+        });
+      }
+      if (stages.length > 0) {
+        await tx.lessonListeningStage.createMany({ data: stages });
+      }
+
+      if (variant.videoQuestion) {
+        const exerciseId = await copyStageExercise(variant.videoQuestion.exerciseId);
+        if (exerciseId) {
+          await tx.lessonVideoQuestion.create({
+            data: { lessonContentVariantId: variantId, exerciseId },
+          });
+        }
+      }
+    }
+
+    await this.copyRelations(tx, 'LESSON', source.id, lessonId, input.userId);
+
+    return { lessonId, targetLanguage: source.targetLanguage, variants };
+  }
+
+  /** `copyExercise`, at most once per source exercise across one duplicate. */
+  private async copyExerciseOnce(
+    tx: Tx,
+    sourceId: string,
+    input: DuplicateRowInput,
+    exerciseCopies: Map<string, CopiedExercise | null>,
+  ): Promise<CopiedExercise | null> {
+    if (!exerciseCopies.has(sourceId)) {
+      exerciseCopies.set(sourceId, await this.copyExercise(tx, sourceId, input));
+    }
+    return exerciseCopies.get(sourceId) ?? null;
   }
 
   /** The exercise with its children under the new owner, or null when it is deleted. */
