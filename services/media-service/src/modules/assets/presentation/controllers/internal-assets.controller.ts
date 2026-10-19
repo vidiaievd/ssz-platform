@@ -25,6 +25,10 @@ import {
   type SupersededSweepReport,
 } from '../../application/services/sweep-superseded-narrations.service.js';
 import {
+  SweepAbandonedUploadsService,
+  type AbandonedUploadSweepReport,
+} from '../../application/services/sweep-abandoned-uploads.service.js';
+import {
   SupersedeAssetCommand,
   type SupersedeAssetResult,
 } from '../../application/commands/supersede-asset/supersede-asset.command.js';
@@ -46,6 +50,7 @@ export class InternalAssetsController {
     private readonly commandBus: CommandBus,
     private readonly sweepOrphans: SweepOrphanRecordingsService,
     private readonly sweepSuperseded: SweepSupersededNarrationsService,
+    private readonly sweepAbandoned: SweepAbandonedUploadsService,
   ) {}
 
   @Post('describe')
@@ -128,5 +133,18 @@ export class InternalAssetsController {
   @ApiResponse({ status: 200, description: 'SupersededSweepReport' })
   async sweepSupersededNow(@Query('dryRun') dryRun?: string): Promise<SupersededSweepReport> {
     return this.sweepSuperseded.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
+  }
+
+  @Post('sweep-abandoned-uploads')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Run the abandoned-upload sweep now (operator)',
+    description:
+      'Assets still PENDING_UPLOAD after MEDIA_ORPHAN_MIN_AGE_DAYS — an upload asked for and never ' +
+      'finished. A DRY RUN unless `dryRun=false` is passed explicitly.',
+  })
+  @ApiResponse({ status: 200, description: 'AbandonedUploadSweepReport' })
+  async sweepAbandonedNow(@Query('dryRun') dryRun?: string): Promise<AbandonedUploadSweepReport> {
+    return this.sweepAbandoned.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
   }
 }

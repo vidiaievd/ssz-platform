@@ -20,6 +20,7 @@ function makeHandler() {
     findMany: jest.fn(),
     countMany: jest.fn(),
     findRecordingsOlderThan: jest.fn(),
+    findAbandonedUploadsOlderThan: jest.fn(),
     findSupersededBefore: jest.fn(),
     findReplacedBy: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),

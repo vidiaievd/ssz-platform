@@ -41,6 +41,15 @@ export interface IMediaAssetRepository {
     limit: number,
   ): Promise<MediaAssetEntity[]>;
   /**
+   * Assets of any kind still in `PENDING_UPLOAD` and created before `olderThan` — an upload
+   * that was asked for and never finished (plan 76, 5.1). Same order and cursor as recordings.
+   */
+  findAbandonedUploadsOlderThan(
+    olderThan: Date,
+    after: RecordingSweepCursor | null,
+    limit: number,
+  ): Promise<MediaAssetEntity[]>;
+  /**
    * Lesson assets replaced before `supersededBefore` and not yet deleted, in the stable order
    * (`supersededAt`, `id`) the cursor walks (plan 74, D5).
    */

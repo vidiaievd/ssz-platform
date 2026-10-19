@@ -15,6 +15,7 @@ import { GetPreviousAssetHandler } from './application/queries/get-previous-asse
 import { GetPlaybackHandler } from './application/queries/get-playback/get-playback.handler.js';
 import { AssetPurger } from './application/services/asset-purger.js';
 import { SweepOrphanRecordingsService } from './application/services/sweep-orphan-recordings.service.js';
+import { SweepAbandonedUploadsService } from './application/services/sweep-abandoned-uploads.service.js';
 import { SweepSupersededNarrationsService } from './application/services/sweep-superseded-narrations.service.js';
 import { HttpLessonMediaUsageClient } from '../../infrastructure/http-lesson-media-usage.client.js';
 import { LESSON_MEDIA_USAGE } from '../../shared/application/ports/lesson-media-usage.port.js';
@@ -42,6 +43,7 @@ import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from '../../infrastruc
     AssetPurger,
     SweepOrphanRecordingsService,
     SweepSupersededNarrationsService,
+    SweepAbandonedUploadsService,
     { provide: RECORDING_USAGE, useClass: HttpRecordingUsageClient },
     { provide: LESSON_MEDIA_USAGE, useClass: HttpLessonMediaUsageClient },
     DeleteAssetHandler,
@@ -55,6 +57,11 @@ import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from '../../infrastruc
       useClass: PrismaMediaAssetRepository,
     },
   ],
-  exports: [MEDIA_ASSET_REPOSITORY, SweepOrphanRecordingsService, SweepSupersededNarrationsService],
+  exports: [
+    MEDIA_ASSET_REPOSITORY,
+    SweepOrphanRecordingsService,
+    SweepSupersededNarrationsService,
+    SweepAbandonedUploadsService,
+  ],
 })
 export class AssetsModule {}

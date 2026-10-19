@@ -83,6 +83,30 @@ export class PrismaMediaAssetRepository implements IMediaAssetRepository {
     return rows.map((row) => MediaAssetMapper.toDomain(row));
   }
 
+  async findAbandonedUploadsOlderThan(
+    olderThan: Date,
+    after: RecordingSweepCursor | null,
+    limit: number,
+  ): Promise<MediaAssetEntity[]> {
+    const rows = await this.prisma.mediaAsset.findMany({
+      where: {
+        status: 'PENDING_UPLOAD',
+        createdAt: { lt: olderThan },
+        ...(after === null
+          ? {}
+          : {
+              OR: [
+                { createdAt: { gt: after.createdAt } },
+                { createdAt: after.createdAt, id: { gt: after.id } },
+              ],
+            }),
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: limit,
+    });
+    return rows.map((row) => MediaAssetMapper.toDomain(row));
+  }
+
   async findSupersededBefore(
     supersededBefore: Date,
     after: SupersededSweepCursor | null,
