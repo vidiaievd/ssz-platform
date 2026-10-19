@@ -1,5 +1,24 @@
 services:
 
+  # ── Infrastructure overrides (production) ───────────────────────────────────
+
+  postgres:
+    # init.sql creates every service role with a development password; this script
+    # replaces them with the ones below on the first start against an empty volume.
+    environment:
+      AUTH_SERVICE_DB_PASSWORD: ${AUTH_SERVICE_DB_PASSWORD:?}
+      PROFILE_SERVICE_DB_PASSWORD: ${PROFILE_SERVICE_DB_PASSWORD:?}
+      ORG_SERVICE_DB_PASSWORD: ${ORG_SERVICE_DB_PASSWORD:?}
+      CONTENT_SERVICE_DB_PASSWORD: ${CONTENT_SERVICE_DB_PASSWORD:?}
+      MEDIA_SERVICE_DB_PASSWORD: ${MEDIA_SERVICE_DB_PASSWORD:?}
+      NOTIFICATIONS_SERVICE_DB_PASSWORD: ${NOTIFICATIONS_SERVICE_DB_PASSWORD:?}
+      LEARNING_SERVICE_DB_PASSWORD: ${LEARNING_SERVICE_DB_PASSWORD:?}
+      EXERCISE_ENGINE_SERVICE_DB_PASSWORD: ${EXERCISE_ENGINE_SERVICE_DB_PASSWORD:?}
+      ANALYTICS_SERVICE_DB_PASSWORD: ${ANALYTICS_SERVICE_DB_PASSWORD:?}
+      SCHEDULING_SERVICE_DB_PASSWORD: ${SCHEDULING_SERVICE_DB_PASSWORD:?}
+    volumes:
+      - ./postgres/set-role-passwords.sh:/docker-entrypoint-initdb.d/zz-set-role-passwords.sh:ro
+
   # ── Application services (production) ──────────────────────────────────────
   # All services use pre-built images — build happens in CI/CD, not here.
   # Services use expose (not ports); nginx handles all external traffic.
@@ -18,7 +37,7 @@ services:
       RabbitMq__Port: 5672
       RabbitMq__Username: ssz_admin
       RabbitMq__Password: ${RABBITMQ_PASSWORD}
-      Auth__Issuer: ${AUTH_ISSUER}
+      Auth__Issuer: https://auth.ssz-platform.internal
       Auth__Audience: ssz-services
       Auth__PrivateKeyPath: /app/keys/jwt_private_key.pem
       Auth__PublicKeyPath: /app/keys/jwt_public_key.pem
@@ -60,6 +79,7 @@ services:
       DATABASE_URL: postgresql://profile_service:${PROFILE_SERVICE_DB_PASSWORD}@postgres:5432/profiles_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,6 +110,10 @@ services:
       DATABASE_URL: postgresql://org_service:${ORG_SERVICE_DB_PASSWORD}@postgres:5432/organizations_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INVITATION_JWT_SECRET: ${INVITATION_JWT_SECRET:?}
+      APP_BASE_URL: ${APP_BASE_URL}
+      PROFILE_SERVICE_URL: http://user-profile-service:3001
+      SCHEDULING_SERVICE_URL: http://scheduling-service:3009
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
     depends_on:
       postgres:
@@ -121,6 +145,9 @@ services:
       DATABASE_URL: postgresql://content_service:${CONTENT_SERVICE_DB_PASSWORD}@postgres:5432/content_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      MEDIA_SERVICE_URL: http://media-service:3004
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -134,7 +161,7 @@ services:
     networks:
       - ssz-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3003/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3003/api/v1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -182,6 +209,9 @@ services:
       # Replaced lesson narrations (plan 74): content-service is asked whether a lesson body still names them.
       CONTENT_SERVICE_URL: http://content-service:3003
       NARRATION_RETENTION_DAYS: ${NARRATION_RETENTION_DAYS:-30}
+      NARRATION_LENGTH_SCALE: ${NARRATION_LENGTH_SCALE:-1.7}
+      NARRATION_NOISE_W_SCALE: ${NARRATION_NOISE_W_SCALE:-0}
+      TTS_HIDDEN_VOICES: ${TTS_HIDDEN_VOICES:-}
       MEDIA_ORPHAN_MIN_AGE_DAYS: ${MEDIA_ORPHAN_MIN_AGE_DAYS:-30}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
@@ -191,6 +221,8 @@ services:
       MINIO_BUCKET_PUBLIC: ssz-public
       MINIO_BUCKET_PRIVATE: ssz-private
       PIPER_URL: http://piper-tts:5000
+      # The origin browsers reach MinIO at — presigned links are signed for this host.
+      MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL:?}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -206,7 +238,7 @@ services:
     networks:
       - ssz-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3004/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3004/api/v1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -239,6 +271,16 @@ services:
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS}
       APP_BASE_URL: ${APP_BASE_URL}
+      # Review digest (plan 47.5) and lesson reminders (plan 62): off unless asked for —
+      # a job that writes to people is turned on deliberately, not by being deployed.
+      EXERCISE_SERVICE_URL: http://exercise-engine-service:3006
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      SCHEDULING_SERVICE_URL: http://scheduling-service:3009
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      REVIEW_DIGEST_ENABLED: ${REVIEW_DIGEST_ENABLED:-false}
+      REVIEW_DIGEST_INTERVAL_HOURS: ${REVIEW_DIGEST_INTERVAL_HOURS:-6}
+      LESSON_REMINDER_ENABLED: ${LESSON_REMINDER_ENABLED:-false}
+      LESSON_REMINDER_HOUR: ${LESSON_REMINDER_HOUR:-18}
     depends_on:
       postgres:
         condition: service_healthy
@@ -249,7 +291,7 @@ services:
     networks:
       - ssz-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3005/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3005/api/v1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -270,7 +312,7 @@ services:
       PORT: 3006
       DATABASE_URL: postgresql://exercise_engine_service:${EXERCISE_ENGINE_SERVICE_DB_PASSWORD}@postgres:5432/exercises_db
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
-      RABBITMQ_EXCHANGE: ssz.events
+      RABBITMQ_EXCHANGE: exercise-engine.events
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -280,10 +322,12 @@ services:
       CONTENT_SERVICE_BASE_URL: http://content-service:3003
       ORGANIZATION_SERVICE_BASE_URL: http://organization-service:3002
       MEDIA_SERVICE_BASE_URL: http://media-service:3004
-      LEARNING_SERVICE_BASE_URL: http://learning-service:3007
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       EXERCISE_DEFINITION_CACHE_TTL_SECONDS: 300
       EXERCISE_PLACEMENT_CACHE_TTL_SECONDS: 300
+      PROBE_DEFAULT_TTL_SECONDS: ${PROBE_DEFAULT_TTL_SECONDS:-21600}
+      PROBE_MAX_TTL_SECONDS: ${PROBE_MAX_TTL_SECONDS:-604800}
+      PROBE_SWEEP_BATCH: ${PROBE_SWEEP_BATCH:-500}
     depends_on:
       postgres:
         condition: service_healthy
@@ -319,8 +363,8 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
-      CONTENT_SERVICE_BASE_URL: http://content-service:3003
-      ORGANIZATION_SERVICE_BASE_URL: http://organization-service:3002
+      CONTENT_SERVICE_URL: http://content-service:3003
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
     depends_on:
       postgres:
@@ -333,6 +377,82 @@ services:
       - ssz-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3007/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  analytics-service:
+    image: ssz/analytics-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "3008"
+    environment:
+      NODE_ENV: production
+      PORT: 3008
+      DATABASE_URL: postgresql://analytics_service:${ANALYTICS_SERVICE_DB_PASSWORD}@postgres:5432/analytics_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      LEARNING_SERVICE_URL: http://learning-service:3007
+      CONTENT_SERVICE_URL: http://content-service:3003
+      EXERCISE_ENGINE_SERVICE_URL: http://exercise-engine-service:3006
+      SCHEDULING_SERVICE_URL: http://scheduling-service:3009
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      AT_RISK_THRESHOLD_DAYS: 7
+      DROPOFF_COMPLETION_THRESHOLD: 0.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3008/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  scheduling-service:
+    image: ssz/scheduling-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "3009"
+    environment:
+      NODE_ENV: production
+      PORT: 3009
+      DATABASE_URL: postgresql://scheduling_service:${SCHEDULING_SERVICE_DB_PASSWORD}@postgres:5432/scheduling_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      PROFILE_SERVICE_URL: http://user-profile-service:3001
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3009/api/v1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -370,6 +490,10 @@ services:
       learning-service:
         condition: service_healthy
       exercise-engine-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
+      scheduling-service:
         condition: service_healthy
     networks:
       - ssz-network
