@@ -163,6 +163,10 @@ model Container {
   // Null inherits the workspace's recipe; `{ "rules": [] }` is a course that has opted
   // out of the workspace's. Shape: `Recipe` in @ssz/shared-kernel/skills.
   coverageRecipe            Json?           @map("coverage_recipe")
+  // What a student should be able to do after THIS module, in the author's words
+  // (plan 39, B5). Read by people only — nothing in the platform acts on it. Only
+  // meaningful for containerType=MODULE.
+  learningGoals             String[]        @default([]) @map("learning_goals")
   // Raw FK to container_versions.id (DEFERRABLE INITIALLY DEFERRED) added via migration.
   currentPublishedVersionId String?         @map("current_published_version_id") @db.Uuid
   createdAt                 DateTime        @default(now()) @map("created_at") @db.Timestamptz

@@ -220,6 +220,7 @@ function makeHandler(fixture: Fixture = {}) {
         {
           id: MODULE_ID,
           title: 'Samfunn og kultur',
+          learningGoals: ['Fortelle om en norsk tradisjon'],
           currentPublishedVersionId: publishedVersions[MODULE_ID] ?? null,
         },
         {
@@ -447,6 +448,7 @@ describe('GetCurriculumTreeHandler', () => {
     expect(mod.containerId).toBe(MODULE_ID);
     expect(mod.title).toBe('Samfunn og kultur');
     expect(mod.titleEn).toBe('Society and culture');
+    expect(mod.learningGoals).toEqual(['Fortelle om en norsk tradisjon']);
     expect(mod.versionId).toBe(MODULE_VERSION_ID);
     expect(mod.sections).toHaveLength(1);
 

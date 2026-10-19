@@ -416,6 +416,7 @@ export class ContainerController {
         dto.accessTier,
         dto.levelSystem,
         dto.gatingMode,
+        dto.learningGoals,
       ),
     );
 

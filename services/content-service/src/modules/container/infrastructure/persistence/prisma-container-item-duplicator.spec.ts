@@ -142,6 +142,7 @@ const MODULE = {
   gatingMode: 'OPEN',
   reviewRespondWithinHours: null,
   coverageRecipe: null,
+  learningGoals: ['Handle i butikken'],
   localizations: [{ languageCode: 'ru', title: 'Урок 17', description: null }],
 };
 
@@ -499,6 +500,16 @@ describe('PrismaContainerItemDuplicator', () => {
         visibility: 'PUBLIC',
         accessTier: 'PUBLIC_FREE',
       });
+    });
+
+    it("carries the module's learning goals into the copy", async () => {
+      const { duplicator, tx } = makeDuplicator({ row: MODULE_ROW });
+
+      await duplicator.duplicateModuleRow(INPUT);
+
+      expect(tx.container.create.mock.calls[0][0].data.learningGoals).toEqual([
+        'Handle i butikken',
+      ]);
     });
 
     it('copies sections and rows: one copy per material, lists placed again', async () => {

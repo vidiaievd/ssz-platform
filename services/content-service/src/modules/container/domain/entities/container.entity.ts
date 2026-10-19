@@ -33,6 +33,8 @@ interface ContainerProps {
   reviewRespondWithinHours: number | null;
   /** Null: the workspace's recipe stands. An empty recipe opts out of it (plan 64, O). */
   coverageRecipe: Recipe | null;
+  /** Only meaningful on a module. Empty: the author has not written any (plan 39, B5). */
+  learningGoals: string[];
   currentPublishedVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -64,6 +66,7 @@ export interface UpdateContainerProps {
   accessTier?: AccessTier;
   levelSystem?: LevelSystem;
   gatingMode?: GatingMode;
+  learningGoals?: string[];
 }
 
 export class ContainerEntity extends AggregateRoot {
@@ -121,6 +124,9 @@ export class ContainerEntity extends AggregateRoot {
   get coverageRecipe(): Recipe | null {
     return this.props.coverageRecipe;
   }
+  get learningGoals(): string[] {
+    return [...this.props.learningGoals];
+  }
   get currentPublishedVersionId(): string | null {
     return this.props.currentPublishedVersionId;
   }
@@ -166,6 +172,7 @@ export class ContainerEntity extends AggregateRoot {
       // A new course inherits, always: overriding is a decision somebody makes later.
       reviewRespondWithinHours: null,
       coverageRecipe: null,
+      learningGoals: [],
       currentPublishedVersionId: null,
       createdAt: now,
       updatedAt: now,
@@ -246,6 +253,13 @@ export class ContainerEntity extends AggregateRoot {
     if (changes.gatingMode !== undefined && changes.gatingMode !== this.props.gatingMode) {
       this.props.gatingMode = changes.gatingMode;
       updatedFields.push('gatingMode');
+    }
+    if (changes.learningGoals !== undefined) {
+      const goals = normalizeLearningGoals(changes.learningGoals);
+      if (!sameGoals(goals, this.props.learningGoals)) {
+        this.props.learningGoals = goals;
+        updatedFields.push('learningGoals');
+      }
     }
 
     if (updatedFields.length > 0) {
@@ -386,4 +400,16 @@ export class ContainerEntity extends AggregateRoot {
     this.props.currentPublishedVersionId = versionId;
     this.props.updatedAt = new Date();
   }
+}
+
+/**
+ * One goal per entry, as the author would read them back: surrounding spaces and the
+ * blank lines a textarea leaves behind are not goals.
+ */
+function normalizeLearningGoals(goals: string[]): string[] {
+  return goals.map((goal) => goal.trim()).filter((goal) => goal !== '');
+}
+
+function sameGoals(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((goal, i) => goal === b[i]);
 }

@@ -106,6 +106,7 @@ export interface CurriculumTreeModuleNode {
   versionId: string | null;
   title: string | null;
   titleEn: string | null;
+  learningGoals: string[];
   position: number;
   isRequired: boolean;
   // Whether this module is live, and whether its draft is ahead of what
@@ -280,7 +281,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     const [containers, localizations, versionCandidates] = await Promise.all([
       this.prisma.container.findMany({
         where: { id: { in: moduleContainerIds } },
-        select: { id: true, title: true },
+        select: { id: true, title: true, learningGoals: true },
       }),
       this.prisma.containerLocalization.findMany({
         where: { containerId: { in: moduleContainerIds }, languageCode: 'en' },
@@ -374,6 +375,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
         versionId: chosenVersion?.id ?? null,
         title: containerById.get(moduleContainerId)?.title ?? null,
         titleEn: titleEnByContainerId.get(moduleContainerId) ?? null,
+        learningGoals: containerById.get(moduleContainerId)?.learningGoals ?? [],
         position: moduleItem.position,
         isRequired: moduleItem.isRequired,
         publishState: publishStates.get(moduleContainerId)?.state ?? 'draft',

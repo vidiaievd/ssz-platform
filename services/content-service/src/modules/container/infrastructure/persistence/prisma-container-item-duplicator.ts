@@ -117,6 +117,7 @@ export class PrismaContainerItemDuplicator implements IContainerItemDuplicator {
             gatingMode: source.gatingMode,
             reviewRespondWithinHours: source.reviewRespondWithinHours,
             coverageRecipe: json(source.coverageRecipe),
+            learningGoals: source.learningGoals,
           },
         });
 

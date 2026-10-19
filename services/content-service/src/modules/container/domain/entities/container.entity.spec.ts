@@ -85,6 +85,55 @@ describe('ContainerEntity — gatingMode', () => {
   });
 });
 
+describe('ContainerEntity — learningGoals', () => {
+  it('starts with none', () => {
+    expect(createCourse().learningGoals).toEqual([]);
+  });
+
+  it('keeps the goals in order, trimmed, without blank entries', () => {
+    const container = createCourse();
+    container.clearDomainEvents();
+
+    const result = container.update({
+      learningGoals: ['  Bestille mat ', '', '   ', 'Spørre om prisen'],
+    });
+
+    expect(result.isOk).toBe(true);
+    expect(container.learningGoals).toEqual(['Bestille mat', 'Spørre om prisen']);
+    expect(container.getDomainEvents()).toHaveLength(1);
+  });
+
+  it('clears them with an empty list', () => {
+    const container = createCourse();
+    container.update({ learningGoals: ['Bestille mat'] });
+    container.clearDomainEvents();
+
+    container.update({ learningGoals: [] });
+
+    expect(container.learningGoals).toEqual([]);
+    expect(container.getDomainEvents()).toHaveLength(1);
+  });
+
+  it('is a no-op when the list reads the same after trimming', () => {
+    const container = createCourse();
+    container.update({ learningGoals: ['Bestille mat'] });
+    container.clearDomainEvents();
+
+    container.update({ learningGoals: [' Bestille mat', ''] });
+
+    expect(container.getDomainEvents()).toHaveLength(0);
+  });
+
+  it('does not hand out its own array', () => {
+    const container = createCourse();
+    container.update({ learningGoals: ['Bestille mat'] });
+
+    container.learningGoals.push('Smuggled');
+
+    expect(container.learningGoals).toEqual(['Bestille mat']);
+  });
+});
+
 describe('ContainerEntity — archive/restore', () => {
   it('archives a container, setting archivedAt and raising CourseArchivedEvent', () => {
     const container = createCourse();

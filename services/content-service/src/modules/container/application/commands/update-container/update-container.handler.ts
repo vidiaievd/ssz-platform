@@ -35,6 +35,7 @@ export class UpdateContainerHandler implements ICommandHandler<
       accessTier: command.accessTier,
       levelSystem: command.levelSystem,
       gatingMode: command.gatingMode,
+      learningGoals: command.learningGoals,
     });
 
     if (updateResult.isFail) {
@@ -71,6 +72,7 @@ function changedContainerFields(command: UpdateContainerCommand): string[] {
     'accessTier',
     'levelSystem',
     'gatingMode',
+    'learningGoals',
   ];
   return fields.filter((field) => command[field] !== undefined);
 }

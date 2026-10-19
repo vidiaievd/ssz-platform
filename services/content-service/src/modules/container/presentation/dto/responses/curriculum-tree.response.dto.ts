@@ -136,6 +136,13 @@ export class CurriculumTreeModuleResponseDto {
   @ApiPropertyOptional({ example: 'Society and culture' })
   titleEn!: string | null;
 
+  @ApiProperty({
+    example: ['Order food in a café'],
+    type: [String],
+    description: "The module's learning goals, in the author's order. Empty when unset.",
+  })
+  learningGoals!: string[];
+
   @ApiProperty({ example: 0 })
   position!: number;
 
@@ -163,6 +170,7 @@ export class CurriculumTreeModuleResponseDto {
     dto.versionId = node.versionId;
     dto.title = node.title;
     dto.titleEn = node.titleEn;
+    dto.learningGoals = node.learningGoals;
     dto.position = node.position;
     dto.isRequired = node.isRequired;
     dto.publishState = node.publishState;

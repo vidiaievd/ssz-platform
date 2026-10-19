@@ -1,5 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import { DifficultyLevel } from '../../../domain/value-objects/difficulty-level.vo.js';
 import { Visibility } from '../../../domain/value-objects/visibility.vo.js';
 import { AccessTier } from '../../../domain/value-objects/access-tier.vo.js';
@@ -52,4 +60,18 @@ export class UpdateContainerRequestDto {
   @IsOptional()
   @IsEnum(GatingMode)
   gatingMode?: GatingMode;
+
+  @ApiPropertyOptional({
+    example: ['Order food in a café', 'Ask for the price of something'],
+    type: [String],
+    description:
+      'Module-only: what a student should be able to do after it. Replaces the whole list; ' +
+      'blank entries are dropped, an empty array clears it.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(300, { each: true })
+  learningGoals?: string[];
 }

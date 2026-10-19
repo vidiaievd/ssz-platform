@@ -59,6 +59,13 @@ export class ContainerResponseDto {
   })
   gatingMode!: string;
 
+  @ApiProperty({
+    example: ['Order food in a café'],
+    type: [String],
+    description: 'Module-only: what a student should be able to do after it. Empty when unset.',
+  })
+  learningGoals!: string[];
+
   @ApiPropertyOptional({ example: 'uuid-of-current-published-version' })
   currentPublishedVersionId!: string | null;
 
@@ -96,6 +103,7 @@ export class ContainerResponseDto {
     dto.accessTier = entity.accessTier;
     dto.levelSystem = entity.levelSystem;
     dto.gatingMode = entity.gatingMode;
+    dto.learningGoals = entity.learningGoals;
     dto.currentPublishedVersionId = entity.currentPublishedVersionId;
     dto.createdAt = entity.createdAt;
     dto.updatedAt = entity.updatedAt;
