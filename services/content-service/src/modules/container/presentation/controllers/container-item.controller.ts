@@ -15,6 +15,7 @@ import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -36,6 +37,8 @@ import { RemoveContainerItemCommand } from '../../application/commands/remove-co
 import { ReorderContainerItemsCommand } from '../../application/commands/reorder-container-items/reorder-container-items.command.js';
 import { DuplicateContainerItemCommand } from '../../application/commands/duplicate-container-item/duplicate-container-item.command.js';
 import type { DuplicateContainerItemResult } from '../../application/commands/duplicate-container-item/duplicate-container-item.handler.js';
+import { MoveContainerItemCommand } from '../../application/commands/move-container-item/move-container-item.command.js';
+import type { MoveContainerItemResult } from '../../application/commands/move-container-item/move-container-item.handler.js';
 import { GetVersionItemsQuery } from '../../application/queries/get-version-items/get-version-items.query.js';
 import type { VersionItemsResult } from '../../application/queries/get-version-items/get-version-items.handler.js';
 import type { Result } from '../../../../shared/kernel/result.js';
@@ -43,10 +46,12 @@ import type { ContainerDomainError } from '../../domain/exceptions/container-dom
 import {
   ContainerItemResponseDto,
   DuplicatedContainerItemResponseDto,
+  MovedContainerItemResponseDto,
 } from '../dto/responses/container-item.response.dto.js';
 import { AddContainerItemRequestDto } from '../dto/requests/add-container-item.request.dto.js';
 import { UpdateContainerItemRequestDto } from '../dto/requests/update-container-item.request.dto.js';
 import { ReorderItemsRequestDto } from '../dto/requests/reorder-items.request.dto.js';
+import { MoveContainerItemRequestDto } from '../dto/requests/move-container-item.request.dto.js';
 import { throwHttpException } from '../utils/domain-error.mapper.js';
 
 @ApiTags('Container Items')
@@ -139,6 +144,53 @@ export class ContainerItemController {
       DuplicateContainerItemCommand,
       Result<DuplicateContainerItemResult, ContainerDomainError>
     >(new DuplicateContainerItemCommand(user.userId, containerId, versionId, itemId));
+
+    if (result.isFail) throwHttpException(result.error);
+    return result.value;
+  }
+
+  @Post(':itemId/move')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER, idParam: 'containerId' })
+  @ApiOperation({
+    summary: 'Move a row to another container',
+    description:
+      'Moves a block — a lesson, exercise, vocabulary list or grammar rule — to the draft of ' +
+      'another container, last in the chosen section, in one transaction. The material stays ' +
+      'the same; the row in the target draft is a new one. Edit rights are needed on both ' +
+      'containers. Learners see the move once both containers are published.',
+  })
+  @ApiParam({ name: 'itemId', type: String, description: 'Row (container item) ID' })
+  @ApiCreatedResponse({ type: MovedContainerItemResponseDto })
+  @ApiForbiddenResponse({ description: 'INSUFFICIENT_PERMISSIONS on the target container' })
+  @ApiNotFoundResponse({
+    description: 'VERSION_NOT_FOUND / ITEM_NOT_FOUND / CONTAINER_NOT_FOUND / SECTION_NOT_FOUND',
+  })
+  @ApiUnprocessableEntityResponse({
+    description:
+      'CANNOT_MODIFY_NON_DRAFT_VERSION / ITEM_TYPE_NOT_MOVABLE / MOVE_TARGET_IS_SOURCE / ' +
+      'SECTION_BELONGS_TO_DIFFERENT_VERSION',
+  })
+  async moveItem(
+    @Param('containerId') containerId: string,
+    @Param('versionId') versionId: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: MoveContainerItemRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<MovedContainerItemResponseDto> {
+    const result = await this.commandBus.execute<
+      MoveContainerItemCommand,
+      Result<MoveContainerItemResult, ContainerDomainError>
+    >(
+      new MoveContainerItemCommand(
+        user,
+        containerId,
+        versionId,
+        itemId,
+        dto.targetContainerId,
+        dto.targetSectionId ?? null,
+      ),
+    );
 
     if (result.isFail) throwHttpException(result.error);
     return result.value;

@@ -74,3 +74,14 @@ export class DuplicatedContainerItemResponseDto {
   })
   materialId: string;
 }
+
+export class MovedContainerItemResponseDto {
+  @ApiProperty({
+    example: 'a1b2c3d4-...',
+    description: 'The new row in the target draft — a row of another version is another row.',
+  })
+  itemId: string;
+
+  @ApiProperty({ example: 12, description: 'Its position — last in the target draft.' })
+  position: number;
+}

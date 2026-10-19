@@ -38,6 +38,8 @@ const UNPROCESSABLE_ERRORS = new Set<ContainerDomainError>([
   ContainerDomainError.SECTION_BELONGS_TO_DIFFERENT_VERSION,
   ContainerDomainError.INVALID_REVIEW_RESPONSE_TIME,
   ContainerDomainError.ITEM_TYPE_NOT_DUPLICABLE,
+  ContainerDomainError.ITEM_TYPE_NOT_MOVABLE,
+  ContainerDomainError.MOVE_TARGET_IS_SOURCE,
 ]);
 
 export function throwHttpException(error: ContainerDomainError): never {
