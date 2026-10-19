@@ -847,6 +847,7 @@ model Exercise {
   itemTargets     ExerciseItemTarget[]
   listeningStages LessonListeningStage[]
   videoQuestions  LessonVideoQuestion[]
+  mediaRefs       ExerciseMediaRef[]
 
   @@index([exerciseTemplateId])
   @@index([ownerUserId])
@@ -1489,4 +1490,18 @@ model ContentAuditLog {
   @@index([entityType, entityId, occurredAt(sort: Desc)])
   @@index([occurredAt(sort: Desc)])
   @@map("content_audit_log")
+}
+
+// Plan 76, 5.3: every UUID named in an exercise's `content` or `draft_content` — what
+// media-service asks about before it removes an exercise clip. Maintained by the trigger
+// `exercises_rebuild_media_refs` (see the migration), never written by the application.
+model ExerciseMediaRef {
+  exerciseId String @map("exercise_id") @db.Uuid
+  mediaId    String @map("media_id") @db.Uuid
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@id([exerciseId, mediaId])
+  @@index([mediaId])
+  @@map("exercise_media_refs")
 }

@@ -7,6 +7,7 @@ import { GetMediaInUseQuery } from './get-media-in-use.query.js';
 
 type Rows = {
   bodies?: Array<{ mediaId: string }>;
+  exercises?: Array<{ mediaId: string }>;
   containers?: Array<{ coverImageMediaId: string | null }>;
   lessons?: Array<{ coverImageMediaId: string | null }>;
   lists?: Array<{ coverImageMediaId: string | null }>;
@@ -17,6 +18,7 @@ type Rows = {
 function makeHandler(rows: Rows = {}) {
   const prisma = {
     lessonVariantMediaRef: { findMany: jest.fn().mockResolvedValue(rows.bodies ?? []) },
+    exerciseMediaRef: { findMany: jest.fn().mockResolvedValue(rows.exercises ?? []) },
     container: { findMany: jest.fn().mockResolvedValue(rows.containers ?? []) },
     lesson: { findMany: jest.fn().mockResolvedValue(rows.lessons ?? []) },
     vocabularyList: { findMany: jest.fn().mockResolvedValue(rows.lists ?? []) },
@@ -54,6 +56,17 @@ describe('GetMediaInUseHandler', () => {
     expect(prisma.lesson.findMany).toHaveBeenCalledWith({
       where: { coverImageMediaId: { in: ['c', 'l', 'v', 'w', 'e', 'free'] } },
       select: { coverImageMediaId: true },
+    });
+  });
+
+  it('counts a clip an exercise document names (plan 76, 5.3)', async () => {
+    const { handler, prisma } = makeHandler({ exercises: [{ mediaId: 'x' }] });
+
+    expect(await handler.execute(new GetMediaInUseQuery(['x', 'free']))).toEqual(['x']);
+    expect(prisma.exerciseMediaRef.findMany).toHaveBeenCalledWith({
+      where: { mediaId: { in: ['x', 'free'] } },
+      select: { mediaId: true },
+      distinct: ['mediaId'],
     });
   });
 

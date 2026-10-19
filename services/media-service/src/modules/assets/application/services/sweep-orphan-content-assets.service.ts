@@ -11,8 +11,8 @@ import type { ILessonMediaUsage } from '../../../../shared/application/ports/les
 import { AssetPurger } from './asset-purger.js';
 import type { SweepMode } from './sweep-orphan-recordings.service.js';
 
-/** The kinds content-service can answer for. Exercise clips join once exercises are indexed (5.3). */
-export const SWEPT_CONTENT_TYPES: readonly string[] = ['lesson_asset'];
+/** The kinds content-service can answer for: lesson files (5.2) and exercise clips (5.3). */
+export const SWEPT_CONTENT_TYPES: readonly string[] = ['lesson_asset', 'exercise_asset'];
 
 export interface ContentSweepReport {
   mode: SweepMode;
@@ -35,7 +35,7 @@ const DAY_MS = 86_400_000;
 
 /**
  * Removes uploaded content files nothing names (plan 76, phase 5): an image or a clip put into
- * a lesson and taken out again, or uploaded and never placed. content-service owns the
+ * a lesson or an exercise and taken out again, or uploaded and never placed. content-service owns the
  * references, so the rules are the orphan-recording sweep's (plan 71) with it in the engine's
  * place:
  *

@@ -41,8 +41,8 @@ function make(opts: { mode?: 'dry-run' | 'delete'; maxPerRun?: number; minAgeDay
 }
 
 describe('SweepOrphanContentAssetsService (plan 76, 5.2)', () => {
-  it('sweeps lesson assets only, until exercises are indexed', () => {
-    expect(SWEPT_CONTENT_TYPES).toEqual(['lesson_asset']);
+  it('sweeps lesson files and exercise clips, never recordings or avatars', () => {
+    expect(SWEPT_CONTENT_TYPES).toEqual(['lesson_asset', 'exercise_asset']);
   });
 
   it('a dry run deletes nothing, however many orphans it finds', async () => {
@@ -84,7 +84,7 @@ describe('SweepOrphanContentAssetsService (plan 76, 5.2)', () => {
 
     await m.service.run({ now: NOW });
 
-    expect(m.calls[0]!.types).toEqual(['lesson_asset']);
+    expect(m.calls[0]!.types).toEqual(['lesson_asset', 'exercise_asset']);
     expect(m.calls[0]!.olderThan).toEqual(new Date(NOW.getTime() - 30 * DAY));
   });
 

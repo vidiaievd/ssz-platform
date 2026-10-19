@@ -10,7 +10,9 @@ import { GetMediaInUseQuery } from './get-media-in-use.query.js';
  *    one a student may still be reading. `lesson_variant_media_refs` is rebuilt from the body
  *    on every save, so it is the answer for bodies;
  *  - a cover image of a container, a lesson or a vocabulary list;
- *  - a word's pronunciation or a usage example's audio.
+ *  - a word's pronunciation or a usage example's audio;
+ *  - an exercise's live or draft document (`exercise_media_refs`, rebuilt by a trigger on
+ *    every write — every UUID in the document, so it errs towards keeping).
  *
  * Soft-deleted rows count too: they can be restored, and their file with them.
  */
@@ -22,8 +24,13 @@ export class GetMediaInUseHandler implements IQueryHandler<GetMediaInUseQuery, s
     if (query.assetIds.length === 0) return [];
     const ids = [...query.assetIds];
 
-    const [bodies, containers, lessons, lists, words, examples] = await Promise.all([
+    const [bodies, exercises, containers, lessons, lists, words, examples] = await Promise.all([
       this.prisma.lessonVariantMediaRef.findMany({
+        where: { mediaId: { in: ids } },
+        select: { mediaId: true },
+        distinct: ['mediaId'],
+      }),
+      this.prisma.exerciseMediaRef.findMany({
         where: { mediaId: { in: ids } },
         select: { mediaId: true },
         distinct: ['mediaId'],
@@ -51,7 +58,7 @@ export class GetMediaInUseHandler implements IQueryHandler<GetMediaInUseQuery, s
     ]);
 
     const named = new Set<string>();
-    for (const row of bodies) named.add(row.mediaId);
+    for (const row of [...bodies, ...exercises]) named.add(row.mediaId);
     for (const row of [...containers, ...lessons, ...lists])
       if (row.coverImageMediaId) named.add(row.coverImageMediaId);
     for (const row of words)

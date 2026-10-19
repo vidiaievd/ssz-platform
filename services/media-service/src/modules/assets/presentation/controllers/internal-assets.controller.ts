@@ -158,7 +158,7 @@ export class InternalAssetsController {
   @ApiOperation({
     summary: 'Run the orphan content-asset sweep now (operator)',
     description:
-      'Uploaded lesson assets older than MEDIA_ORPHAN_MIN_AGE_DAYS that nothing in content names ' +
+      'Uploaded lesson and exercise assets older than MEDIA_ORPHAN_MIN_AGE_DAYS that nothing in content names ' +
       '(content-service is asked; replaced narrations are left to their own sweep). A DRY RUN unless ' +
       '`dryRun=false` is passed explicitly.',
   })
