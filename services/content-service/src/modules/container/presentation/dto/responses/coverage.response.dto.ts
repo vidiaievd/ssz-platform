@@ -36,16 +36,6 @@ class CoverageTalliesDto {
   byFocus!: Record<string, number>;
 
   @ApiProperty({
-    example: { vocabulary: 0.375, grammar: 0.625, orthography: 0, pronunciation: 0, phonology: 0, pragmatics: 0, unknown: 0 },
-    description:
-      'The same axis counted in elements rather than exercises: a set of eight questions, ' +
-      'three about words and five about a rule, adds 0.375 to vocabulary and 0.625 to ' +
-      'grammar, where `byFocus` counts it once under each. Exercises whose subject nobody ' +
-      'recorded land in `unknown` at their full weight, so this still sums to `total`.',
-  })
-  byFocusWeighted!: Record<string, number>;
-
-  @ApiProperty({
     example: { bank: 380, free: 60, mixed: 12, unknown: 0 },
     description:
       `Whether a bank of answers was on screen (${FORMS.join(', ')}). A raw fact kept for ` +
@@ -94,7 +84,6 @@ class CoverageTalliesDto {
     dto.total = coverage.total;
     dto.bySkill = coverage.bySkill;
     dto.byFocus = coverage.byFocus;
-    dto.byFocusWeighted = coverage.byFocusWeighted;
     dto.byForm = coverage.byForm;
     dto.byModality = coverage.byModality;
     dto.byPair = coverage.byPair;
