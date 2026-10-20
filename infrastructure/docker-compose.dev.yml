@@ -423,6 +423,7 @@ services:
       # Provider keys: the registry names the variable (credentialRef), this passes it in.
       # Empty = provider shows configured: false; nothing else breaks.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     ports:
       - "3010:3010"
     depends_on:
