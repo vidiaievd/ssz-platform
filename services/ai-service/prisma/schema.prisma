@@ -1,0 +1,10 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Models arrive with plan 77: registry (step 3), bindings (step 7), ledger + outbox (step 8).

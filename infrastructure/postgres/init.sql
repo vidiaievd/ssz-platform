@@ -100,3 +100,12 @@ CREATE DATABASE scheduling_db OWNER scheduling_service;
 
 \c scheduling_db
 GRANT ALL ON SCHEMA public TO scheduling_service;
+
+-- ============================================================================
+-- AI Service
+-- ============================================================================
+CREATE USER ai_service WITH PASSWORD 'localdevpassword' CREATEDB;
+CREATE DATABASE ai_db OWNER ai_service;
+
+\c ai_db
+GRANT ALL ON SCHEMA public TO ai_service;
