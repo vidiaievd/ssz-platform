@@ -7,4 +7,99 @@ datasource db {
   provider = "postgresql"
 }
 
-// Models arrive with plan 77: registry (step 3), bindings (step 7), ledger + outbox (step 8).
+// Enum members are written in their wire form (lowercase), so Prisma's generated
+// values and the domain's strings are the same and no mapper has to translate them.
+
+// ─── Registry (plan 77, step 3) ──────────────────────────────────────────────
+
+/// Which adapter speaks to the provider. One adapter per kind; several providers
+/// can share a kind (two OpenAI-compatible servers, two Azure resources).
+enum AiProviderKind {
+  anthropic
+  openai
+  openai_compatible
+  azure_openai
+  google
+  fake
+
+  @@map("ai_provider_kind")
+}
+
+/// Where the provider processes data. The payer's policy (step 9) allows a set of
+/// regions; a model outside it is skipped by the router.
+enum AiRegion {
+  eu
+  us
+  global
+  local
+
+  @@map("ai_region")
+}
+
+enum AiModelStatus {
+  active
+  deprecated
+  disabled
+
+  @@map("ai_model_status")
+}
+
+model AiProvider {
+  id            String         @id @default(uuid())
+  /// Stable handle used by bindings, config and logs: `anthropic`, `openai`, `azure-eu`.
+  code          String         @unique
+  kind          AiProviderKind
+  displayName   String         @map("display_name")
+  baseUrl       String?        @map("base_url")
+  /// Azure only.
+  apiVersion    String?        @map("api_version")
+  /// Name of the environment variable that holds the key. The key itself is never
+  /// stored here. Null for providers that need none (`fake`, a keyless local server).
+  credentialRef String?        @map("credential_ref")
+  region        AiRegion
+  enabled       Boolean        @default(false)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  models AiModel[]
+
+  @@map("ai_providers")
+}
+
+model AiModel {
+  id              String        @id @default(uuid())
+  providerId      String        @map("provider_id")
+  provider        AiProvider    @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  /// The id the provider's API expects; for Azure, the deployment name.
+  providerModelId String        @map("provider_model_id")
+  displayName     String        @map("display_name")
+  /// `ModelFeatures` (src/modules/providers/domain/model-features.ts).
+  features        Json
+  status          AiModelStatus @default(active)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  prices AiModelPrice[]
+
+  @@unique([providerId, providerModelId])
+  @@map("ai_models")
+}
+
+/// Prices are versioned, never edited: a call is costed at the price in effect when
+/// it was made, so a price change adds a row with a later `effectiveFrom`.
+model AiModelPrice {
+  id                String   @id @default(uuid())
+  modelId           String   @map("model_id")
+  model             AiModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  effectiveFrom     DateTime @map("effective_from")
+  /// Per one million tokens, in `currency`.
+  inputPerMtok      Decimal  @map("input_per_mtok") @db.Decimal(12, 6)
+  outputPerMtok     Decimal  @map("output_per_mtok") @db.Decimal(12, 6)
+  cacheReadPerMtok  Decimal  @map("cache_read_per_mtok") @db.Decimal(12, 6)
+  cacheWritePerMtok Decimal  @map("cache_write_per_mtok") @db.Decimal(12, 6)
+  currency          String   @default("USD")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@unique([modelId, effectiveFrom])
+  @@map("ai_model_prices")
+}

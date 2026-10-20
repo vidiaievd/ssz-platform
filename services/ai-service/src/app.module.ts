@@ -8,6 +8,7 @@ import { JwtModule } from './infrastructure/auth/jwt.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { ProvidersModule } from './modules/providers/providers.module.js';
+import { RegistryModule } from './modules/registry/registry.module.js';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ProvidersModule } from './modules/providers/providers.module.js';
     JwtModule,
     HealthModule,
     ProvidersModule,
+    RegistryModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
