@@ -63,7 +63,7 @@
         {
           "providerModelId": "gpt-5.5",
           "displayName": "GPT-5.5",
-          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": false, "batch": true, "promptCache": true, "contextWindow": 272000, "maxOutput": 128000 },
+          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": false, "batch": true, "promptCache": true, "contextWindow": 272000, "maxOutput": 128000, "samplingParams": false },
           "prices": []
         }
       ]

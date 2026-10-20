@@ -1,5 +1,6 @@
 import { FinishReason, type GenerateContentResponse, type Part } from '@google/genai';
 import type { LlmOutput, LlmResult, LlmStopReason, LlmToolCall } from '../../domain/llm-result.js';
+import { unfence } from '../unfence.js';
 import type { GoogleSchemaMode } from './google-request.mapper.js';
 
 /** The fields of a response this mapper reads — a merged stream produces the same shape. */
@@ -80,10 +81,4 @@ export function fromGoogleResponse(response: GoogleResponse, mode: GoogleSchemaM
     providerRequestId: response.responseId ?? null,
     latencyMs,
   };
-}
-
-/** Without a JSON mime type the model tends to wrap its JSON in a markdown fence. */
-function unfence(text: string): string {
-  const match = /^\s*```(?:json)?\s*\n([\s\S]*?)\n?```\s*$/.exec(text);
-  return match ? match[1]! : text;
 }

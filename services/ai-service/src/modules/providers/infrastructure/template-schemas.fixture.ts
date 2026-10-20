@@ -1,7 +1,7 @@
 /**
  * Verbatim copies of real template schemas from `content-service/prisma/seed.ts` (comments
- * dropped), so the Gemini downgrade is tested on what the agents will actually send. If a
- * template's schema changes there, refresh it here.
+ * dropped), so the schema rewrites (Gemini downgrade, OpenAI strict mode) are tested on what
+ * the agents will actually send. If a template's schema changes there, refresh it here.
  */
 
 const audioSchema = {

@@ -7,7 +7,7 @@ import {
   translateContentSchema,
   writingTaskAnswerSchema,
   writingTaskContentSchema,
-} from './template-schemas.fixture.js';
+} from '../template-schemas.fixture.js';
 
 type Json = Record<string, unknown>;
 
