@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ProvidersModule } from '../providers/providers.module.js';
+import { TestModelHandler } from './application/commands/test-model/test-model.handler.js';
 import { CREDENTIAL_PRESENCE } from './application/ports/credential-presence.js';
 import { REGISTRY_READER } from './application/ports/registry.reader.js';
 import { ListModelPricesHandler } from './application/queries/list-model-prices/list-model-prices.handler.js';
@@ -9,11 +11,13 @@ import { PrismaRegistryReader } from './infrastructure/persistence/prisma-regist
 import { AdminRegistryController } from './presentation/controllers/admin-registry.controller.js';
 
 @Module({
+  imports: [ProvidersModule],
   controllers: [AdminRegistryController],
   providers: [
     ListProvidersHandler,
     ListModelsHandler,
     ListModelPricesHandler,
+    TestModelHandler,
     { provide: REGISTRY_READER, useClass: PrismaRegistryReader },
     { provide: CREDENTIAL_PRESENCE, useClass: EnvCredentialPresence },
   ],

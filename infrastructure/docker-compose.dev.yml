@@ -420,6 +420,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-localdevpassword}
+      # Provider keys: the registry names the variable (credentialRef), this passes it in.
+      # Empty = provider shows configured: false; nothing else breaks.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
       - "3010:3010"
     depends_on:

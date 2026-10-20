@@ -41,13 +41,13 @@
         {
           "providerModelId": "claude-sonnet-5-5",
           "displayName": "Claude Sonnet 5.5",
-          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": false, "batch": true, "promptCache": true, "contextWindow": 1000000, "maxOutput": 128000 },
+          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": false, "batch": true, "promptCache": true, "contextWindow": 1000000, "maxOutput": 128000, "samplingParams": false },
           "prices": [{ "effectiveFrom": "2026-10-20", "inputPerMtok": "2.00", "outputPerMtok": "10.00", "cacheReadPerMtok": "0.20", "cacheWritePerMtok": "2.50" }]
         },
         {
           "providerModelId": "claude-opus-5-5",
           "displayName": "Claude Opus 5.5",
-          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": false, "batch": true, "promptCache": true, "contextWindow": 1000000, "maxOutput": 128000 },
+          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": false, "batch": true, "promptCache": true, "contextWindow": 1000000, "maxOutput": 128000, "samplingParams": false },
           "prices": [{ "effectiveFrom": "2026-10-20", "inputPerMtok": "4.00", "outputPerMtok": "20.00", "cacheReadPerMtok": "0.20", "cacheWritePerMtok": "5.00" }]
         }
       ]

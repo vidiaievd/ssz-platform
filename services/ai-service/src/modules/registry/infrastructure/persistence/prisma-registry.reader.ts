@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type {
   IRegistryReader,
+  ModelForCall,
   ModelWithCurrentPrice,
   ProviderWithModelCount,
 } from '../../application/ports/registry.reader.js';
@@ -33,6 +34,22 @@ export class PrismaRegistryReader implements IRegistryReader {
       ...toModel(row),
       currentPrice: row.prices[0] ? toPrice(row.prices[0]) : null,
     }));
+  }
+
+  async getModelForCall(modelId: string, at: Date): Promise<ModelForCall | null> {
+    const row = await this.prisma.aiModel.findUnique({
+      where: { id: modelId },
+      include: {
+        provider: true,
+        prices: { where: { effectiveFrom: { lte: at } }, orderBy: { effectiveFrom: 'desc' }, take: 1 },
+      },
+    });
+    if (!row) return null;
+    return {
+      model: toModel(row),
+      provider: toProvider(row.provider),
+      currentPrice: row.prices[0] ? toPrice(row.prices[0]) : null,
+    };
   }
 
   async listPrices(modelId: string): Promise<AiModelPrice[] | null> {

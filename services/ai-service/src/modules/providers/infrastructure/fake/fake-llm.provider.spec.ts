@@ -17,7 +17,11 @@ const features: ModelFeatures = {
   maxOutput: 4_000,
 };
 
-const model = (providerModelId = 'fake-default'): LlmModelRef => ({ providerModelId, features });
+const model = (providerModelId = 'fake-default'): LlmModelRef => ({
+  providerModelId,
+  features,
+  provider: { code: 'fake', baseUrl: null, apiVersion: null, credentialRef: null },
+});
 
 const answerSchema = {
   type: 'object',

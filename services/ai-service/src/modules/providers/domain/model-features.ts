@@ -16,6 +16,11 @@ export interface ModelFeatures {
   promptCache: boolean;
   contextWindow: number;
   maxOutput: number;
+  /**
+   * Whether the model accepts sampling parameters (`temperature`). Absent means it does.
+   * Some current models reject a non-default value with a 400, so adapters drop it there.
+   */
+  samplingParams?: boolean;
 }
 
 export type ProviderKind =
@@ -26,9 +31,19 @@ export type ProviderKind =
   | 'google'
   | 'fake';
 
+/** Where and how to reach a provider — the registry row, minus anything secret. */
+export interface ProviderConnection {
+  code: string;
+  baseUrl: string | null;
+  apiVersion: string | null;
+  /** Env variable holding the key; the adapter reads it at call time. Null = keyless. */
+  credentialRef: string | null;
+}
+
 /** The model as an adapter needs it: the provider's own id plus what the registry says it can do. */
 export interface LlmModelRef {
   /** For Azure, the deployment name. */
   providerModelId: string;
   features: ModelFeatures;
+  provider: ProviderConnection;
 }

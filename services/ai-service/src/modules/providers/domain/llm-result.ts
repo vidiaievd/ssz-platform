@@ -1,3 +1,7 @@
+/**
+ * Token counts, normalized so each is priced once: `input` is the uncached input only —
+ * an adapter whose provider folds cache reads into the input count subtracts them.
+ */
 export interface LlmUsage {
   input: number;
   output: number;

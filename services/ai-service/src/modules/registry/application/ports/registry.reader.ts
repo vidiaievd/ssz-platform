@@ -9,9 +9,17 @@ export interface ModelWithCurrentPrice extends AiModel {
   currentPrice: AiModelPrice | null;
 }
 
+export interface ModelForCall {
+  model: AiModel;
+  provider: AiProvider;
+  currentPrice: AiModelPrice | null;
+}
+
 export interface IRegistryReader {
   listProviders(): Promise<ProviderWithModelCount[]>;
   listModels(filter: { providerId?: string }, at: Date): Promise<ModelWithCurrentPrice[]>;
+  /** Null when the model does not exist. */
+  getModelForCall(modelId: string, at: Date): Promise<ModelForCall | null>;
   /** Null when the model does not exist; newest first. */
   listPrices(modelId: string): Promise<AiModelPrice[] | null>;
 }

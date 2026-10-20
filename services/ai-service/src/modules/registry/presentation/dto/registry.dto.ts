@@ -117,3 +117,66 @@ export class ModelResponseDto {
   @ApiProperty({ type: ModelPriceResponseDto, nullable: true, description: 'Price in effect now; null if none recorded' })
   currentPrice!: ModelPriceResponseDto | null;
 }
+
+export class UsageDto {
+  @ApiProperty({ example: 41, description: 'Uncached input tokens' })
+  input!: number;
+
+  @ApiProperty({ example: 12 })
+  output!: number;
+
+  @ApiProperty({ example: 0 })
+  cacheRead!: number;
+
+  @ApiProperty({ example: 0 })
+  cacheWrite!: number;
+}
+
+export class CostDto {
+  @ApiProperty({ example: 202, description: 'Micro-units of the currency (1e-6), rounded' })
+  micros!: number;
+
+  @ApiProperty({ example: 'USD' })
+  currency!: string;
+}
+
+export class TestModelResponseDto {
+  @ApiProperty({ enum: ['ok', 'invalid_response', 'error'], example: 'ok' })
+  outcome!: string;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: null,
+    enum: ['rate_limited', 'overloaded', 'timeout', 'auth', 'invalid_request', 'filtered', 'unavailable', 'invalid_response', 'unknown'],
+  })
+  errorCode!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: null })
+  errorMessage!: string | null;
+
+  @ApiProperty({ type: Boolean, nullable: true, example: null, description: 'Whether the router would try the fallback' })
+  retryable!: boolean | null;
+
+  @ApiProperty({
+    nullable: true,
+    description: 'What the model returned: `{ kind: "structured", data }` on success',
+    example: { kind: 'structured', data: { ok: true, echo: 'pong' } },
+  })
+  output!: unknown;
+
+  @ApiProperty({ type: String, nullable: true, enum: ['end', 'length', 'tool', 'refusal', 'filtered'], example: 'end' })
+  stop!: string | null;
+
+  @ApiProperty({ type: UsageDto, nullable: true })
+  usage!: UsageDto | null;
+
+  @ApiProperty({ example: 812 })
+  latencyMs!: number;
+
+  @ApiProperty({ type: String, nullable: true, example: 'req_011CSHoEeqs5C35K2UUqR7Fy' })
+  providerRequestId!: string | null;
+
+  @ApiProperty({ type: CostDto, nullable: true, description: 'Null when the model has no price in effect' })
+  cost!: CostDto | null;
+}

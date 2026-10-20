@@ -33,8 +33,9 @@ export interface LlmRequest {
   maxOutputTokens: number;
   temperature?: number;
   /**
-   * Index of the last message that belongs to the stable prefix (system + those messages).
-   * Adapters with explicit prompt caching put their cache point there; the rest ignore it.
+   * End of the stable prefix: the index of its last message, or -1 when only the system
+   * prompt (and tools) are stable. Adapters with explicit prompt caching put their cache
+   * point there; the rest ignore it. Absent = nothing is cached.
    */
   cacheBoundary?: number;
   timeoutMs: number;

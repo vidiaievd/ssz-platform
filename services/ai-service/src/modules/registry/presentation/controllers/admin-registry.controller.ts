@@ -1,5 +1,5 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
-import { QueryBus } from '@nestjs/cqrs';
+import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -8,8 +8,11 @@ import {
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { PlatformAdminGuard } from '../../../../common/guards/platform-admin.guard.js';
+import { TestModelCommand } from '../../application/commands/test-model/test-model.command.js';
+import type { TestModelResult } from '../../application/commands/test-model/test-model.handler.js';
 import type { ModelWithCurrentPrice } from '../../application/ports/registry.reader.js';
 import { ListModelPricesQuery } from '../../application/queries/list-model-prices/list-model-prices.query.js';
 import { ListModelsQuery } from '../../application/queries/list-models/list-models.query.js';
@@ -21,6 +24,7 @@ import {
   ModelPriceResponseDto,
   ModelResponseDto,
   ProviderResponseDto,
+  TestModelResponseDto,
 } from '../dto/registry.dto.js';
 
 @ApiTags('Admin — model registry')
@@ -30,7 +34,10 @@ import {
 @UseGuards(PlatformAdminGuard)
 @Controller('admin/ai')
 export class AdminRegistryController {
-  constructor(private readonly queryBus: QueryBus) {}
+  constructor(
+    private readonly queryBus: QueryBus,
+    private readonly commandBus: CommandBus,
+  ) {}
 
   @Get('providers')
   @ApiOperation({ summary: 'List providers, with whether each is configured in this environment' })
@@ -52,5 +59,21 @@ export class AdminRegistryController {
   @ApiNotFoundResponse({ description: 'No such model' })
   listPrices(@Param('id', ParseUUIDPipe) id: string): Promise<AiModelPrice[]> {
     return this.queryBus.execute(new ListModelPricesQuery(id));
+  }
+
+  @Post('models/:id/test')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Make one short structured call to the model',
+    description:
+      'Checks the key, the model id and structured output in one go. Runs on a disabled provider ' +
+      '(that is what it is for) but not on an unconfigured one. A failed call is a 200 with ' +
+      '`outcome: "error"` — the test ran, the failure is its answer.',
+  })
+  @ApiOkResponse({ type: TestModelResponseDto })
+  @ApiNotFoundResponse({ description: 'No such model' })
+  @ApiUnprocessableEntityResponse({ description: 'Provider not configured, or no adapter for its kind yet' })
+  testModel(@Param('id', ParseUUIDPipe) id: string): Promise<TestModelResult> {
+    return this.commandBus.execute(new TestModelCommand(id));
   }
 }
