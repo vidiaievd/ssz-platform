@@ -51,7 +51,12 @@ export class ProgressController {
 
   @Post()
   @HttpCode(200)
-  @ApiOperation({ summary: 'Record an exercise attempt and upsert progress' })
+  @ApiOperation({
+    summary: 'Record progress on a lesson, word list or rule',
+    description:
+      "An exercise's progress is written by the exercise engine's attempt events: a request " +
+      'for an `EXERCISE` is accepted and answered with the record as it stands, unchanged.',
+  })
   @ApiResponse({ status: 200, type: ProgressResponse })
   async upsert(
     @CurrentUser() user: AuthenticatedUser,
@@ -106,7 +111,7 @@ export class ProgressController {
 
   @Get('units/:moduleId/contents')
   @ApiOperation({
-    summary: "Get the current user's unit contents — ordered sections/items with locked/available/in_progress/completed status",
+    summary: "Get the current user's unit contents — ordered sections/items with locked/available/in_progress/submitted/completed status",
   })
   @ApiResponse({ status: 200 })
   async getUnitContents(

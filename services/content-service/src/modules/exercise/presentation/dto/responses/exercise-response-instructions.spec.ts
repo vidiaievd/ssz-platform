@@ -24,6 +24,7 @@ function exercise(languages: string[]): ExerciseEntity {
   return ExerciseEntity.reconstitute('exercise-1', {
     exerciseTemplateId: 'template-1',
     templateCode: 'multiple_choice',
+    title: null,
     targetLanguage: 'nb',
     difficultyLevel: DifficultyLevel.B1,
     content: { questions: [] },

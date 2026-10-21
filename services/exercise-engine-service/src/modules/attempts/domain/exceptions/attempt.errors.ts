@@ -6,6 +6,21 @@ export class InvalidAttemptTransitionError extends DomainError {
   }
 }
 
+/**
+ * The store refused a second open attempt on the same exercise for the same learner.
+ *
+ * Not a rule the entity can check: it is about other rows. The partial unique index
+ * `attempts_one_open_per_user_exercise` holds it, because two starts racing each other both
+ * found no open attempt before either was saved (plan 76, 2.5). A start that meets it looks
+ * again and is handed the winner; anything else that meets it answers 409.
+ */
+export class OpenAttemptExistsError extends Error {
+  constructor() {
+    super('Another attempt on this exercise is already open');
+    this.name = 'OpenAttemptExistsError';
+  }
+}
+
 export class AttemptAlreadySubmittedError extends DomainError {
   constructor() {
     super('Attempt has already been submitted');

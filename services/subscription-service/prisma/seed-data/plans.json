@@ -1,0 +1,58 @@
+{
+  "_comment": "Plan map of plan 48 (R1: learners pay for themselves; school learners run on the school's plan). Credit numbers are placeholders — after the first seed they are changed as data, through a new plan version.",
+  "plans": [
+    {
+      "code": "free_individual",
+      "name": "Free",
+      "audience": "individual",
+      "features": [
+        { "featureKey": "ai.student_assist", "enabled": true, "monthlyCredits": "20", "limits": {} },
+        { "featureKey": "ai.practice", "enabled": true, "monthlyCredits": "20", "limits": {} },
+        { "featureKey": "ai.review_direct", "enabled": false, "monthlyCredits": null, "limits": {} }
+      ]
+    },
+    {
+      "code": "student_plus",
+      "name": "Student+",
+      "audience": "individual",
+      "features": [
+        { "featureKey": "ai.student_assist", "enabled": true, "monthlyCredits": "300", "limits": {} },
+        { "featureKey": "ai.practice", "enabled": true, "monthlyCredits": "300", "limits": {} },
+        { "featureKey": "ai.review_direct", "enabled": true, "monthlyCredits": "200", "limits": {} }
+      ]
+    },
+    {
+      "code": "free_workspace",
+      "name": "Free workspace",
+      "audience": "workspace",
+      "features": [
+        { "featureKey": "ai.review_draft", "enabled": true, "monthlyCredits": "50", "limits": {} },
+        { "featureKey": "ai.student_assist", "enabled": false, "monthlyCredits": null, "limits": {} },
+        { "featureKey": "ai.practice", "enabled": false, "monthlyCredits": null, "limits": {} },
+        { "featureKey": "ai.authoring", "enabled": true, "monthlyCredits": "50", "limits": {} }
+      ]
+    },
+    {
+      "code": "tutor_pro",
+      "name": "Tutor Pro",
+      "audience": "workspace",
+      "features": [
+        { "featureKey": "ai.review_draft", "enabled": true, "monthlyCredits": "1000", "limits": {} },
+        { "featureKey": "ai.student_assist", "enabled": true, "monthlyCredits": "1000", "limits": { "perLearnerMonthlyCredits": 100 } },
+        { "featureKey": "ai.practice", "enabled": true, "monthlyCredits": "1000", "limits": { "perLearnerMonthlyCredits": 100 } },
+        { "featureKey": "ai.authoring", "enabled": true, "monthlyCredits": "500", "limits": {} }
+      ]
+    },
+    {
+      "code": "school",
+      "name": "School",
+      "audience": "workspace",
+      "features": [
+        { "featureKey": "ai.review_draft", "enabled": true, "monthlyCredits": "5000", "limits": {} },
+        { "featureKey": "ai.student_assist", "enabled": true, "monthlyCredits": "5000", "limits": { "perLearnerMonthlyCredits": 50 } },
+        { "featureKey": "ai.practice", "enabled": true, "monthlyCredits": "5000", "limits": { "perLearnerMonthlyCredits": 50 } },
+        { "featureKey": "ai.authoring", "enabled": true, "monthlyCredits": "2000", "limits": {} }
+      ]
+    }
+  ]
+}

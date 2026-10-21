@@ -16,7 +16,7 @@ import type { IContainerSectionRepository } from '../../../domain/repositories/c
 import { CONTAINER_ITEM_REPOSITORY } from '../../../domain/repositories/container-item.repository.interface.js';
 import type { IContainerItemRepository } from '../../../domain/repositories/container-item.repository.interface.js';
 import type { ContainerItemEntity } from '../../../domain/entities/container-item.entity.js';
-import { PublishStateReader } from '../../services/publish-state.reader.js';
+import { PublishStateReader, placementKeys } from '../../services/publish-state.reader.js';
 import type {
   ContainerPublishState,
   ContainerPublishStateDetail,
@@ -70,6 +70,14 @@ export interface CurriculumTreeItemNode {
    * pictogram per type and cannot key a picture off a translated name.
    */
   templateCode: string | null;
+  /**
+   * The exercise's own title (plan 39, B8) — the column alone, without the fallbacks
+   * `title` above resolves through. Null for every other item type and for an exercise
+   * the author has not named. The editor needs the difference: its title field shows
+   * the fallback as a placeholder, and undoing a first rename must clear the title
+   * rather than pin the template name as one.
+   */
+  ownTitle: string | null;
   // Best-effort from any PUBLISHED variant/explanation (LESSON/GRAMMAR_RULE) or
   // the item's own estimate (EXERCISE); null for VOCABULARY_LIST.
   durationMinutes: number | null;
@@ -78,6 +86,7 @@ export interface CurriculumTreeItemNode {
 
 interface LeafItemMeta {
   title: string | null;
+  ownTitle?: string | null;
   lessonKind: LessonKind | null;
   state: 'draft' | 'published' | null;
   templateCode: string | null;
@@ -97,6 +106,7 @@ export interface CurriculumTreeModuleNode {
   versionId: string | null;
   title: string | null;
   titleEn: string | null;
+  learningGoals: string[];
   position: number;
   isRequired: boolean;
   // Whether this module is live, and whether its draft is ahead of what
@@ -131,6 +141,20 @@ export interface CurriculumTreeResult {
 }
 
 const UNGROUPED_LEVEL_ID = null;
+
+/**
+ * What one version's rows need to say whether each is live and what publishing
+ * would change about it. Rows are matched against the live version by placement
+ * (`placementKeys`), not by the material they point at — one material can be
+ * placed twice, and only one of the two may be live.
+ */
+interface PlacementContext {
+  /** Row id → placement key, over every row of the version being shown. */
+  keys: Map<string, string>;
+  /** Placement keys of the live version; null when nothing is live. */
+  live: Set<string> | null;
+  changes: Map<string, ItemPendingChange> | null;
+}
 
 @QueryHandler(GetCurriculumTreeQuery)
 export class GetCurriculumTreeHandler implements IQueryHandler<
@@ -179,26 +203,29 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
 
     // One batched pass for the course and every module it holds.
     const containerIds = [container.id, ...moduleItems.map((i) => i.itemId)];
-    const [publishStates, liveItemIdsByContainerId] = await Promise.all([
+    const [publishStates, liveKeysByContainerId] = await Promise.all([
       this.publishStateReader.resolveDetailed(containerIds),
-      this.resolveLiveItemIds(containerIds),
+      this.resolveLivePlacementKeys(containerIds),
     ]);
 
     const moduleNodes = await this.buildModuleNodes(
       moduleItems,
       publishStates,
-      liveItemIdsByContainerId,
+      liveKeysByContainerId,
     );
     const moduleNodeById = new Map(moduleNodes.map((m) => [m.id, m]));
 
     const ownItemMeta = await this.resolveLeafItemMeta(ownItems);
-    const ownLiveItemIds = liveItemIdsByContainerId.get(container.id) ?? null;
-    const ownChanges = publishStates.get(container.id)?.changeByItemId ?? null;
+    const ownPlacement: PlacementContext = {
+      keys: placementKeys(topItems),
+      live: liveKeysByContainerId.get(container.id) ?? null,
+      changes: publishStates.get(container.id)?.changeByRowId ?? null,
+    };
     const ownItemsInSection = (sectionId: string | null) =>
       ownItems
         .filter((i) => i.sectionId === sectionId)
         .sort((a, b) => a.position - b.position)
-        .map((i) => this.toItemNode(i, ownItemMeta, ownLiveItemIds, ownChanges));
+        .map((i) => this.toItemNode(i, ownItemMeta, ownPlacement));
 
     const levels: CurriculumTreeLevelNode[] = levelSections
       .slice()
@@ -245,7 +272,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
   private async buildModuleNodes(
     moduleItems: ContainerItemEntity[],
     publishStates: Map<string, ContainerPublishStateDetail>,
-    liveItemIdsByContainerId: Map<string, Set<string> | null>,
+    liveKeysByContainerId: Map<string, Set<string> | null>,
   ): Promise<CurriculumTreeModuleNode[]> {
     if (moduleItems.length === 0) return [];
 
@@ -254,7 +281,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     const [containers, localizations, versionCandidates] = await Promise.all([
       this.prisma.container.findMany({
         where: { id: { in: moduleContainerIds } },
-        select: { id: true, title: true },
+        select: { id: true, title: true, learningGoals: true },
       }),
       this.prisma.containerLocalization.findMany({
         where: { containerId: { in: moduleContainerIds }, languageCode: 'en' },
@@ -316,10 +343,13 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       const sections = chosenVersion ? (sectionsByVersionId.get(chosenVersion.id) ?? []) : [];
       const leafItems = chosenVersion ? (leafItemsByVersionId.get(chosenVersion.id) ?? []) : [];
 
-      const liveItemIds = liveItemIdsByContainerId.get(moduleContainerId) ?? null;
-      const changes = publishStates.get(moduleContainerId)?.changeByItemId ?? null;
+      const placement: PlacementContext = {
+        keys: placementKeys(leafItems),
+        live: liveKeysByContainerId.get(moduleContainerId) ?? null,
+        changes: publishStates.get(moduleContainerId)?.changeByRowId ?? null,
+      };
       const toNode = (item: ContainerItemEntity): CurriculumTreeItemNode =>
-        this.toItemNode(item, leafMetaByRefId, liveItemIds, changes);
+        this.toItemNode(item, leafMetaByRefId, placement);
 
       const sectionNodes: CurriculumTreeSectionNode[] = sections
         .slice()
@@ -345,6 +375,7 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
         versionId: chosenVersion?.id ?? null,
         title: containerById.get(moduleContainerId)?.title ?? null,
         titleEn: titleEnByContainerId.get(moduleContainerId) ?? null,
+        learningGoals: containerById.get(moduleContainerId)?.learningGoals ?? [],
         position: moduleItem.position,
         isRequired: moduleItem.isRequired,
         publishState: publishStates.get(moduleContainerId)?.state ?? 'draft',
@@ -357,10 +388,10 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
   private toItemNode(
     item: ContainerItemEntity,
     metaByRefId: Map<string, LeafItemMeta>,
-    liveItemIds: Set<string> | null,
-    changeByItemId: Map<string, ItemPendingChange> | null,
+    placement: PlacementContext,
   ): CurriculumTreeItemNode {
     const meta = metaByRefId.get(item.itemId);
+    const key = placement.keys.get(item.id);
     return {
       id: item.id,
       itemType: item.itemType,
@@ -371,19 +402,20 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
       lessonKind: meta?.lessonKind ?? null,
       state: meta?.state ?? null,
       templateCode: meta?.templateCode ?? null,
-      isLive: liveItemIds === null ? null : liveItemIds.has(item.itemId),
-      pendingChange: changeByItemId?.get(item.itemId) ?? null,
+      ownTitle: meta?.ownTitle ?? null,
+      isLive: placement.live === null ? null : key !== undefined && placement.live.has(key),
+      pendingChange: placement.changes?.get(item.id) ?? null,
       durationMinutes: meta?.durationMinutes ?? null,
       xpReward: item.xpReward,
     };
   }
 
   /**
-   * Content ids each container's live version places, keyed by container id.
-   * A container with no published version maps to `null` — "nothing is live",
-   * which is not the same as "the live version is empty".
+   * What each container's live version places, as `placementKeys` — keyed by
+   * container id. A container with no published version maps to `null` —
+   * "nothing is live", which is not the same as "the live version is empty".
    */
-  private async resolveLiveItemIds(
+  private async resolveLivePlacementKeys(
     containerIds: string[],
   ): Promise<Map<string, Set<string> | null>> {
     const byContainerId = new Map<string, Set<string> | null>();
@@ -402,23 +434,24 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     const liveItems = publishedVersionIds.length
       ? await this.prisma.containerItem.findMany({
           where: { containerVersionId: { in: publishedVersionIds } },
-          select: { containerVersionId: true, itemId: true },
+          select: { id: true, containerVersionId: true, itemId: true, position: true },
         })
       : [];
 
-    const itemIdsByVersionId = new Map<string, Set<string>>();
+    const rowsByVersionId = new Map<string, typeof liveItems>();
     for (const row of liveItems) {
-      const bucket = itemIdsByVersionId.get(row.containerVersionId) ?? new Set<string>();
-      bucket.add(row.itemId);
-      itemIdsByVersionId.set(row.containerVersionId, bucket);
+      const bucket = rowsByVersionId.get(row.containerVersionId) ?? [];
+      bucket.push(row);
+      rowsByVersionId.set(row.containerVersionId, bucket);
     }
 
     for (const container of containers) {
+      const versionId = container.currentPublishedVersionId;
       byContainerId.set(
         container.id,
-        container.currentPublishedVersionId === null
+        versionId === null
           ? null
-          : (itemIdsByVersionId.get(container.currentPublishedVersionId) ?? new Set<string>()),
+          : new Set(placementKeys(rowsByVersionId.get(versionId) ?? []).values()),
       );
     }
 
@@ -529,17 +562,21 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
 
     const exerciseIds = idsByType.get(ContainerItemType.EXERCISE) ?? [];
     if (exerciseIds.length > 0) {
-      const rows = await this.prisma.exercise.findMany({
-        where: { id: { in: exerciseIds } },
-        select: {
-          id: true,
-          estimatedDurationSeconds: true,
-          template: { select: { code: true, name: true } },
-        },
-      });
+      const [rows, ownTitles] = await Promise.all([
+        this.prisma.exercise.findMany({
+          where: { id: { in: exerciseIds } },
+          select: {
+            id: true,
+            estimatedDurationSeconds: true,
+            template: { select: { code: true, name: true } },
+          },
+        }),
+        this.exerciseTitles(exerciseIds),
+      ]);
       rows.forEach((r) =>
         meta.set(r.id, {
-          title: r.template.name ?? null,
+          title: ownTitles.get(r.id)?.label ?? r.template.name ?? null,
+          ownTitle: ownTitles.get(r.id)?.own ?? null,
           lessonKind: null,
           state: null,
           templateCode: r.template.code ?? null,
@@ -550,5 +587,26 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     }
 
     return meta;
+  }
+
+  /**
+   * The title the author gave each exercise: its own `title` column (plan 39, B8), else
+   * `content.title` of the document the author is editing — the draft when there is one,
+   * since this is the authoring tree. Without it every exercise row read as its template
+   * name, and a module of ten exercises was ten identical rows. Only the one field is
+   * read, not the documents. `own` is the column alone, for the editor's title field.
+   */
+  private async exerciseTitles(
+    exerciseIds: string[],
+  ): Promise<Map<string, { label: string | null; own: string | null }>> {
+    const rows = await this.prisma.$queryRaw<
+      { id: string; title: string | null; own_title: string | null }[]
+    >`
+      SELECT id::text AS id,
+             title AS own_title,
+             COALESCE(title, btrim(COALESCE(draft_content, content)->>'title')) AS title
+        FROM exercises
+       WHERE id = ANY (${exerciseIds}::uuid[])`;
+    return new Map(rows.map((r) => [r.id, { label: r.title || null, own: r.own_title || null }]));
   }
 }

@@ -255,6 +255,7 @@ describe('GetLessonReaderContentHandler', () => {
     const exercise = ExerciseEntity.reconstitute('exercise-2', {
       exerciseTemplateId: 'template-2',
       templateCode: 'multiple_choice_v1',
+      title: null,
       targetLanguage: 'no',
       difficultyLevel: DifficultyLevel.A1,
       content: { question: 'Hvor bor hun?', options: [] },
@@ -309,6 +310,7 @@ describe('GetLessonReaderContentHandler', () => {
     const exercise = ExerciseEntity.reconstitute('exercise-1', {
       exerciseTemplateId: 'template-1',
       templateCode: 'gap_fill_v1',
+      title: null,
       targetLanguage: 'no',
       difficultyLevel: DifficultyLevel.A1,
       content: { text: 'Jeg ___ i Norge.' },

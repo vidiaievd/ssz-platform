@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import { BulkIntroduceFromVocabularyListHandler } from '../../../../../src/modules/srs/application/commands/bulk-introduce-from-vocabulary-list.handler.js';
 import { BulkIntroduceFromVocabularyListCommand } from '../../../../../src/modules/srs/application/commands/bulk-introduce-from-vocabulary-list.command.js';
 import { Result } from '../../../../../src/shared/kernel/result.js';
-import { SrsNewCardLimitError } from '../../../../../src/modules/srs/application/errors/srs-application.errors.js';
+import { SrsCardSuspendedError } from '../../../../../src/modules/srs/application/errors/srs-application.errors.js';
 import type { IContentClient } from '../../../../../src/shared/application/ports/content-client.port.js';
 import type { IClock } from '../../../../../src/shared/application/ports/clock.port.js';
 import { ContentClientError } from '../../../../../src/shared/application/ports/content-client.port.js';
@@ -87,22 +87,23 @@ describe('BulkIntroduceFromVocabularyListHandler', () => {
     expect(result.value.introduced).toBe(3);
   });
 
-  it('stops early when daily limit is hit and counts remainder as skipped', async () => {
+  // Plan 37 §C.1 — no introduction is refused by the budget any more, so one failure
+  // says nothing about the next item and must not end the list.
+  it('counts a failed item as skipped and carries on with the rest', async () => {
     const { handler, commandBus } = makeHandler({
       commandBusResults: [
         Result.ok({ id: 'card-1', state: 'NEW' }),
-        Result.fail(new SrsNewCardLimitError()),
-        Result.ok({ id: 'card-3', state: 'NEW' }), // should not be called
+        Result.fail(new SrsCardSuspendedError()),
+        Result.ok({ id: 'card-3', state: 'NEW' }),
       ],
     });
 
     const result = await handler.execute(cmd);
 
     expect(result.isOk).toBe(true);
-    expect(result.value.introduced).toBe(1);
+    expect(result.value.introduced).toBe(2);
     expect(result.value.skipped).toBe(1);
-    // Stopped after limit-hit — third item not processed.
-    expect(commandBus.execute).toHaveBeenCalledTimes(2);
+    expect(commandBus.execute).toHaveBeenCalledTimes(3);
   });
 
   it('fails when Content Service returns an error', async () => {

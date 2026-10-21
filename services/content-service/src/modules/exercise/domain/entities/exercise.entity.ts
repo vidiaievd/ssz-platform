@@ -46,6 +46,8 @@ interface ExerciseProps {
   exerciseTemplateId: string;
   // Stored separately for event payloads and display without joining template.
   templateCode: string;
+  // The author's name for it; null falls back to content.title, then the template name.
+  title: string | null;
   targetLanguage: string;
   difficultyLevel: DifficultyLevel;
   content: Record<string, unknown>;
@@ -81,6 +83,8 @@ export interface CreateExerciseProps {
 }
 
 export interface UpdateExerciseProps {
+  /** Blank or null clears it. */
+  title?: string | null;
   difficultyLevel?: DifficultyLevel;
   content?: Record<string, unknown>;
   expectedAnswers?: Record<string, unknown>;
@@ -104,6 +108,9 @@ export class ExerciseEntity extends AggregateRoot {
   }
   get templateCode(): string {
     return this.props.templateCode;
+  }
+  get title(): string | null {
+    return this.props.title;
   }
   get targetLanguage(): string {
     return this.props.targetLanguage;
@@ -215,6 +222,7 @@ export class ExerciseEntity extends AggregateRoot {
     const entity = new ExerciseEntity(id ?? randomUUID(), {
       exerciseTemplateId: p.exerciseTemplateId,
       templateCode: p.templateCode,
+      title: null,
       targetLanguage: p.targetLanguage,
       difficultyLevel: p.difficultyLevel,
       content: p.content,
@@ -296,6 +304,16 @@ export class ExerciseEntity extends AggregateRoot {
     }
 
     const updatedFields: string[] = [];
+
+    // The title is a label, not part of the document: it lands on the live row at
+    // once, as a lesson's does, and never waits in the draft for a publish.
+    if ('title' in changes) {
+      const title = normaliseTitle(changes.title);
+      if (title !== this.props.title) {
+        this.props.title = title;
+        updatedFields.push('title');
+      }
+    }
 
     if (
       changes.difficultyLevel !== undefined &&
@@ -451,4 +469,10 @@ export class ExerciseEntity extends AggregateRoot {
 
     return Result.ok();
   }
+}
+
+/** Trimmed; blank means "no title of its own". */
+function normaliseTitle(title: string | null | undefined): string | null {
+  const trimmed = title?.trim() ?? '';
+  return trimmed === '' ? null : trimmed;
 }

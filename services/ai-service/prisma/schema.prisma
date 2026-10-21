@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enum members are written in their wire form (lowercase), so Prisma's generated
+// values and the domain's strings are the same and no mapper has to translate them.
+
+// ─── Registry (plan 77, step 3) ──────────────────────────────────────────────
+
+/// Which adapter speaks to the provider. One adapter per kind; several providers
+/// can share a kind (two OpenAI-compatible servers, two Azure resources).
+enum AiProviderKind {
+  anthropic
+  openai
+  openai_compatible
+  azure_openai
+  google
+  fake
+
+  @@map("ai_provider_kind")
+}
+
+/// Where the provider processes data. The payer's policy (step 9) allows a set of
+/// regions; a model outside it is skipped by the router.
+enum AiRegion {
+  eu
+  us
+  global
+  local
+
+  @@map("ai_region")
+}
+
+enum AiModelStatus {
+  active
+  deprecated
+  disabled
+
+  @@map("ai_model_status")
+}
+
+model AiProvider {
+  id            String         @id @default(uuid())
+  /// Stable handle used by bindings, config and logs: `anthropic`, `openai`, `azure-eu`.
+  code          String         @unique
+  kind          AiProviderKind
+  displayName   String         @map("display_name")
+  baseUrl       String?        @map("base_url")
+  /// Azure only.
+  apiVersion    String?        @map("api_version")
+  /// Name of the environment variable that holds the key. The key itself is never
+  /// stored here. Null for providers that need none (`fake`, a keyless local server).
+  credentialRef String?        @map("credential_ref")
+  region        AiRegion
+  enabled       Boolean        @default(false)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  models AiModel[]
+
+  @@map("ai_providers")
+}
+
+model AiModel {
+  id              String        @id @default(uuid())
+  providerId      String        @map("provider_id")
+  provider        AiProvider    @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  /// The id the provider's API expects; for Azure, the deployment name.
+  providerModelId String        @map("provider_model_id")
+  displayName     String        @map("display_name")
+  /// `ModelFeatures` (src/modules/providers/domain/model-features.ts).
+  features        Json
+  status          AiModelStatus @default(active)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  prices AiModelPrice[]
+
+  primaryFor  AiBinding[] @relation("BindingPrimary")
+  fallbackFor AiBinding[] @relation("BindingFallback")
+
+  @@unique([providerId, providerModelId])
+  @@map("ai_models")
+}
+
+/// Prices are versioned, never edited: a call is costed at the price in effect when
+/// it was made, so a price change adds a row with a later `effectiveFrom`.
+model AiModelPrice {
+  id                String   @id @default(uuid())
+  modelId           String   @map("model_id")
+  model             AiModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  effectiveFrom     DateTime @map("effective_from")
+  /// Per one million tokens, in `currency`.
+  inputPerMtok      Decimal  @map("input_per_mtok") @db.Decimal(12, 6)
+  outputPerMtok     Decimal  @map("output_per_mtok") @db.Decimal(12, 6)
+  cacheReadPerMtok  Decimal  @map("cache_read_per_mtok") @db.Decimal(12, 6)
+  cacheWritePerMtok Decimal  @map("cache_write_per_mtok") @db.Decimal(12, 6)
+  currency          String   @default("USD")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@unique([modelId, effectiveFrom])
+  @@map("ai_model_prices")
+}
+
+// ─── Bindings (plan 77, step 7) ──────────────────────────────────────────────
+
+/// Which model answers for an agent. One row per capability; the capability codes and
+/// the features each one requires live in code (src/modules/capabilities/catalog.ts),
+/// so a new agent needs no migration.
+model AiBinding {
+  id              String   @id @default(uuid())
+  /// `diagnostic`, `review_draft`, … — checked against the catalog on write.
+  capability      String   @unique
+  primaryModelId  String   @map("primary_model_id")
+  primaryModel    AiModel  @relation("BindingPrimary", fields: [primaryModelId], references: [id], onDelete: Restrict)
+  /// Tried when the primary fails with a retryable error, is switched off, or its breaker is open.
+  fallbackModelId String?  @map("fallback_model_id")
+  fallbackModel   AiModel? @relation("BindingFallback", fields: [fallbackModelId], references: [id], onDelete: Restrict)
+  maxOutputTokens Int      @map("max_output_tokens")
+  /// Null = the provider's default. Dropped by adapters for models without sampling params.
+  temperature     Float?
+  timeoutMs       Int      @map("timeout_ms")
+  promptVersion   String   @map("prompt_version")
+  /// The agent's global switch: off = every call refused before reaching a model.
+  enabled         Boolean  @default(true)
+  /// Bumped on every write; a PUT carrying a stale `expectedVersion` is a 409.
+  version         Int      @default(1)
+  updatedBy       String   @map("updated_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("ai_bindings")
+}
+
+/// Append-only history of binding writes: who, when, what it was, what it became.
+model AiBindingChange {
+  id         String   @id @default(uuid())
+  capability String
+  /// The binding's version after this change.
+  version    Int
+  changedBy  String   @map("changed_by")
+  changedAt  DateTime @default(now()) @map("changed_at")
+  /// Binding snapshot before the change; null when the change created it.
+  before     Json?
+  after      Json
+
+  @@unique([capability, version])
+  @@map("ai_binding_changes")
+}
+
+// ─── Ledger (plan 77, step 8) ────────────────────────────────────────────────
+
+enum AiPayerType {
+  workspace
+  user
+  /// Calls nobody is billed for: admin checks (`diagnostic`, model test).
+  platform
+
+  @@map("ai_payer_type")
+}
+
+enum AiCallOutcome {
+  ok
+  invalid_response
+  error
+  refused_quota
+  refused_policy
+  disabled
+
+  @@map("ai_call_outcome")
+}
+
+/// One row per gateway call, whatever its outcome — including calls the gate refused, at
+/// zero cost. Never holds prompt or answer text. Model and provider ids are plain columns,
+/// not relations: the ledger outlives a model removed from the registry.
+model AiCall {
+  id               String        @id @default(uuid())
+  capability       String
+  payerType        AiPayerType   @map("payer_type")
+  payerId          String        @map("payer_id")
+  actorUserId      String?       @map("actor_user_id")
+  actorRole        String?       @map("actor_role")
+  /// Where the call came from: `admin_diagnostic`, `admin_model_test`, an agent's screen.
+  surface          String
+  /// Null when no model was called (refused, disabled, every model skipped).
+  providerId       String?       @map("provider_id")
+  modelId          String?       @map("model_id")
+  promptVersion    String?       @map("prompt_version")
+  /// Null when no model answered; a refused answer (`invalid_response`, `filtered`) has usage.
+  inputTokens      Int?          @map("input_tokens")
+  outputTokens     Int?          @map("output_tokens")
+  cacheReadTokens  Int?          @map("cache_read_tokens")
+  cacheWriteTokens Int?          @map("cache_write_tokens")
+  /// In 1e-6 of `currency`. Null when the model had no price in effect.
+  costMicros       BigInt?       @map("cost_micros")
+  currency         String?
+  /// cost × the platform credit rate (AI_CREDITS_PER_USD).
+  credits          Decimal?      @db.Decimal(18, 6)
+  latencyMs        Int           @map("latency_ms")
+  outcome          AiCallOutcome
+  errorCode        String?       @map("error_code")
+  fallbackUsed     Boolean       @map("fallback_used")
+  /// The router's route: role, model, outcome, reason per model considered. No text.
+  attempts         Json
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([payerType, payerId, capability, createdAt])
+  @@map("ai_calls")
+}
+
+// ─── Outbox (plan 77, step 8) ────────────────────────────────────────────────
+
+/// Written in the same transaction as the ledger row; @ssz/messaging relays it to `ai.events`.
+model Outbox {
+  id            String    @id @default(uuid())
+  eventId       String    @unique @map("event_id")
+  eventType     String    @map("event_type")
+  exchange      String
+  routingKey    String    @map("routing_key")
+  payload       String    @db.Text
+  correlationId String?   @map("correlation_id")
+  occurredAt    DateTime  @map("occurred_at")
+  publishedAt   DateTime? @map("published_at")
+  attempts      Int       @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox")
+}
+
+// ─── Access (plan 77, step 9) ────────────────────────────────────────────────
+
+/// A payer's own rules for AI: switched off entirely, or only some data regions. Not a
+/// tariff — a school's or a learner's setting. No row = AI on, any region.
+model AiPayerPolicy {
+  payerType      AiPayerType @map("payer_type")
+  payerId        String      @map("payer_id")
+  aiEnabled      Boolean     @map("ai_enabled")
+  /// Empty = any region (Prisma lists cannot be null; the API never stores an empty limit).
+  /// Otherwise a provider's region must be listed for its models to be called.
+  allowedRegions AiRegion[]  @map("allowed_regions")
+  updatedBy      String      @map("updated_by")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  @@id([payerType, payerId])
+  @@map("ai_payer_policies")
+}
+
+/// The payer's entitlements as subscription-service last announced them (plan 78 §6), fed
+/// by `subscription.entitlements.changed` and by read-through on a miss. A row is replaced
+/// only by a higher `version`, or by the same version with a later `validUntil`.
+model AiPayerEntitlements {
+  payerType   AiPayerType @map("payer_type")
+  payerId     String      @map("payer_id")
+  /// The account revision in subscription-service.
+  version     Int
+  /// `{ [featureKey]: { enabled, monthlyCredits, limits } }`; a key absent is not available.
+  features    Json
+  /// The credit period monthly allowances count in (end exclusive).
+  periodStart DateTime    @map("period_start")
+  periodEnd   DateTime    @map("period_end")
+  /// Past this the row is stale and the gate reads through.
+  validUntil  DateTime    @map("valid_until")
+  receivedAt  DateTime    @map("received_at")
+
+  @@id([payerType, payerId])
+  @@map("ai_payer_entitlements")
+}

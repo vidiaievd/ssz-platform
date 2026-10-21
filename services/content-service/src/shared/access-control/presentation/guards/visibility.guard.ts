@@ -10,6 +10,7 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { AccessibleEntity } from '../../domain/types/accessible-entity.js';
+import type { AccessDecision } from '../../domain/types/access-decision.js';
 import { VisibilityCheckerService } from '../../domain/services/visibility-checker.service.js';
 import { EntityResolverRegistry } from '../../infrastructure/registry/entity-resolver-registry.js';
 import { OrganizationServiceUnavailableException } from '../../infrastructure/clients/organization-service-unavailable.exception.js';
@@ -40,9 +41,13 @@ export class VisibilityGuard implements CanActivate {
 
     if (!requirement) return true;
 
-    const request = context
-      .switchToHttp()
-      .getRequest<Request & { user: AuthenticatedUser; accessEntity: AccessibleEntity }>();
+    const request = context.switchToHttp().getRequest<
+      Request & {
+        user: AuthenticatedUser;
+        accessEntity: AccessibleEntity;
+        accessDecision: AccessDecision;
+      }
+    >();
 
     const { action, options } = requirement;
 
@@ -97,8 +102,11 @@ export class VisibilityGuard implements CanActivate {
       throw new AccessDeniedException(decision.reason);
     }
 
-    // Attach entity to request so handlers can consume it via @AccessEntity().
+    // Attach entity and decision to request so handlers can consume them via
+    // @AccessEntity() and @AccessGrant() — a route that serves staff and learners
+    // differently reads who it is serving from here, without asking twice.
     request.accessEntity = entity;
+    request.accessDecision = decision;
     return true;
   }
 }

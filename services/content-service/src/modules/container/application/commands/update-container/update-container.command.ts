@@ -16,5 +16,6 @@ export class UpdateContainerCommand {
     public readonly accessTier?: AccessTier,
     public readonly levelSystem?: LevelSystem,
     public readonly gatingMode?: GatingMode,
+    public readonly learningGoals?: string[],
   ) {}
 }

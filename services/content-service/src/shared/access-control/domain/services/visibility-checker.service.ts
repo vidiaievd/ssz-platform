@@ -16,6 +16,29 @@ import type { IEntitlementLookup } from '../ports/entitlement-lookup.port.js';
 const ALLOW = (reason?: string): AccessDecision => ({ allowed: true, reason });
 const DENY = (reason: string): AccessDecision => ({ allowed: false, reason });
 
+/**
+ * The grants that come from making, teaching or co-authoring the material rather than from
+ * studying it: everything `canAccess` allows except `public` and `school_student_view`.
+ * Shares are collaborator grants (the web calls them «Collaborators»), so they count here.
+ *
+ * Kept next to the algorithm on purpose — a new ALLOW reason added above is a question
+ * this list has to answer, and here it cannot be missed.
+ */
+const STAFF_REASONS: ReadonlySet<string> = new Set([
+  'platform_admin',
+  'owner',
+  'owner_view_deleted',
+  'co_author_edit',
+  'school_member',
+  'school_editor',
+  'active_share',
+]);
+
+/** Whether an allowed decision was granted to staff rather than to a learner. */
+export function isStaffGrant(decision: AccessDecision): boolean {
+  return decision.allowed && STAFF_REASONS.has(decision.reason ?? '');
+}
+
 @Injectable()
 export class VisibilityCheckerService {
   private readonly logger = new Logger(VisibilityCheckerService.name);
@@ -27,6 +50,29 @@ export class VisibilityCheckerService {
   ) {}
 
   async canAccess(
+    user: AuthenticatedUser,
+    entity: AccessibleEntity,
+    action: AccessAction,
+  ): Promise<AccessDecision> {
+    const decision = await this.decide(user, entity, action);
+
+    // Whoever may edit may also look. A co-author outside the owning school passes the edit
+    // check through their share (3b) yet fell through every view rule, so the builder could
+    // write a document it was refused to read. Asked only after a refusal: an extra lookup on
+    // every learner's view would buy nothing.
+    if (action === 'view' && !decision.allowed && entity.deletedAt === null) {
+      const hasEditShare = await this.shareLookup.hasActiveEditShare(
+        entity.entityType,
+        entity.id,
+        user.userId,
+      );
+      if (hasEditShare) return ALLOW('co_author_edit');
+    }
+
+    return decision;
+  }
+
+  private async decide(
     user: AuthenticatedUser,
     entity: AccessibleEntity,
     action: AccessAction,

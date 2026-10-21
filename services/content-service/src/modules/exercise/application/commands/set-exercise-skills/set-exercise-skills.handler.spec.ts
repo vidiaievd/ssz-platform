@@ -14,6 +14,7 @@ function makeExercise(): ExerciseEntity {
   return ExerciseEntity.reconstitute('ex-1', {
     exerciseTemplateId: 'template-1',
     templateCode: 'short_answer',
+    title: null,
     targetLanguage: 'nb',
     difficultyLevel: DifficultyLevel.B1,
     content: {},

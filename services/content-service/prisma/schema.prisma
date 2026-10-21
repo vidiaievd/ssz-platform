@@ -163,6 +163,10 @@ model Container {
   // Null inherits the workspace's recipe; `{ "rules": [] }` is a course that has opted
   // out of the workspace's. Shape: `Recipe` in @ssz/shared-kernel/skills.
   coverageRecipe            Json?           @map("coverage_recipe")
+  // What a student should be able to do after THIS module, in the author's words
+  // (plan 39, B5). Read by people only — nothing in the platform acts on it. Only
+  // meaningful for containerType=MODULE.
+  learningGoals             String[]        @default([]) @map("learning_goals")
   // Raw FK to container_versions.id (DEFERRABLE INITIALLY DEFERRED) added via migration.
   currentPublishedVersionId String?         @map("current_published_version_id") @db.Uuid
   createdAt                 DateTime        @default(now()) @map("created_at") @db.Timestamptz
@@ -802,6 +806,11 @@ model ExerciseTemplate {
 model Exercise {
   id                       String          @id @default(uuid()) @db.Uuid
   exerciseTemplateId       String          @map("exercise_template_id") @db.Uuid
+  // What the author calls this exercise in the structure tree and the learner's
+  // navigation. Live on save, like a lesson's title — not part of the document, so
+  // it never waits for a publish. Null means "fall back to content.title, then to
+  // the template name" (plan 39, B8).
+  title                    String?         @db.VarChar(200)
   targetLanguage           String          @map("target_language") @db.VarChar(10)
   difficultyLevel          DifficultyLevel @map("difficulty_level")
   content                  Json
@@ -838,6 +847,7 @@ model Exercise {
   itemTargets     ExerciseItemTarget[]
   listeningStages LessonListeningStage[]
   videoQuestions  LessonVideoQuestion[]
+  mediaRefs       ExerciseMediaRef[]
 
   @@index([exerciseTemplateId])
   @@index([ownerUserId])
@@ -1480,4 +1490,18 @@ model ContentAuditLog {
   @@index([entityType, entityId, occurredAt(sort: Desc)])
   @@index([occurredAt(sort: Desc)])
   @@map("content_audit_log")
+}
+
+// Plan 76, 5.3: every UUID named in an exercise's `content` or `draft_content` — what
+// media-service asks about before it removes an exercise clip. Maintained by the trigger
+// `exercises_rebuild_media_refs` (see the migration), never written by the application.
+model ExerciseMediaRef {
+  exerciseId String @map("exercise_id") @db.Uuid
+  mediaId    String @map("media_id") @db.Uuid
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@id([exerciseId, mediaId])
+  @@index([mediaId])
+  @@map("exercise_media_refs")
 }

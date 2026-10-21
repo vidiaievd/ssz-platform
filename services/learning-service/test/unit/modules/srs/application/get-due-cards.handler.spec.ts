@@ -77,9 +77,8 @@ function makeHandler(overrides: {
   } as any;
 
   const limitsPolicy: ISrsLimitsPolicy = {
-    canIntroduceNewCard: jest.fn(),
+    claimNewCardDay: jest.fn(),
     canReview: jest.fn(),
-    incrementNewCardCount: jest.fn(),
     incrementReviewCount: jest.fn(),
     getReviewedCount: jest.fn<() => Promise<number>>().mockResolvedValue(REVIEWED_TODAY),
     getDailyReviewLimit: jest.fn().mockReturnValue(DAILY_LIMIT),

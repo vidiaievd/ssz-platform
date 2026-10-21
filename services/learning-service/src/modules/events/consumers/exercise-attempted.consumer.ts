@@ -5,7 +5,10 @@ import amqp from 'amqp-connection-manager';
 import type { ConfirmChannel, ConsumeMessage } from 'amqplib';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
-import { UpsertProgressCommand } from '../../progress/application/commands/upsert-progress.command.js';
+import {
+  UpsertProgressCommand,
+  type ExerciseOutcome,
+} from '../../progress/application/commands/upsert-progress.command.js';
 import { IntroduceCardCommand } from '../../srs/application/commands/introduce-card.command.js';
 import { ReviewCardCommand } from '../../srs/application/commands/review-card.command.js';
 import type { ReviewRatingValue } from '../../srs/domain/value-objects/review-rating.vo.js';
@@ -222,6 +225,19 @@ function stabilityOf(card: unknown): number | null {
  * field existed, and on one that cannot be read: the review is then dated now, as it always
  * was. The review and progress handlers bound it whatever it says.
  */
+/**
+ * What this attempt means for the learner's progress (plan 76, Q2-A): passed, failed, handed
+ * to a teacher, or sent back by one. The engine scores every closed-form attempt as
+ * `completed`, and whether it cleared the template's pass mark travels beside it as
+ * `passed`; an event published before `passed` existed counts as passed, which is how it
+ * was read when it was published.
+ */
+function outcomeOf(p: ExerciseAttemptCompletedPayload): ExerciseOutcome {
+  if (p.reviewOutcome === 'returned') return 'returned';
+  if (p.completed !== true) return 'submitted';
+  return p.passed === false ? 'failed' : 'passed';
+}
+
 function attemptedAtOf(p: ExerciseAttemptCompletedPayload): Date | undefined {
   if (p.attemptedAt === undefined) return undefined;
   const at = new Date(p.attemptedAt);
@@ -311,12 +327,12 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
 
       const p = payload as ExerciseAttemptCompletedPayload;
 
-      // Work a teacher sent back (plan 63 §4). It moves memory and not progress, and the
-      // two clauses below are the whole of that: no progress row, and a rating all the
-      // same. The submission was already recorded as an attempt when it was routed for
-      // review; writing it again now — with the teacher's partial credit, and
-      // `completed: false` — would overwrite a mark the learner may already have earned
-      // on this exercise with the score of a draft they are being asked to redo.
+      // Work a teacher sent back (plan 63 §4). It moves memory and not the mark: the
+      // submission was already recorded as an attempt when it was routed for review, and
+      // writing it again now — with the teacher's partial credit — would overwrite a mark
+      // the learner may already have earned on this exercise with the score of a draft
+      // they are being asked to redo. What it does move is the status: work waiting for a
+      // verdict goes back to being worked on (plan 76, 2.6) — `outcomeOf` and `recordReturn`.
       const sentBack = p.reviewOutcome === 'returned';
 
       /*
@@ -339,8 +355,8 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       */
       const ephemeral = p.ephemeral === true;
 
-      // 1. Progress tracking (existing behaviour — unchanged).
-      if (!sentBack && !ephemeral) {
+      // 1. Progress tracking.
+      if (!ephemeral) {
         const progressResult = await this.commandBus.execute(
           new UpsertProgressCommand(
             p.userId,
@@ -350,6 +366,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
             p.score ?? null,
             p.completed ?? false,
             attemptedAtOf(p),
+            outcomeOf(p),
           ),
         );
         if (progressResult.isFail) {
@@ -622,10 +639,10 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
    * one, not the six. The exercise-level card is not touched at all — keeping both
    * would leave the coarse card dragging every gap along behind it.
    *
-   * A gap whose card cannot be introduced is skipped rather than fatal. The most
-   * likely reason is the daily new-card limit, and a six-gap block now asks for six
-   * new cards where it used to ask for one: the limit doing its job on the tail of a
-   * block is not an error, and the remaining gaps still deserve their reviews.
+   * A gap whose card cannot be introduced is skipped rather than fatal: the remaining
+   * gaps still deserve their reviews. The daily new-card limit is no longer a reason —
+   * a six-gap block on a spent budget gets its six cards, held back to a later day
+   * (plan 37 §C.1).
    */
   private async reviewGapCards(
     p: ExerciseAttemptCompletedPayload,

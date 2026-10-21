@@ -21,6 +21,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
+import { ContainerScopeGuard } from '../guards/container-scope.guard.js';
+import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
 import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
 import { TaggableEntityType } from '../../../../shared/access-control/domain/types/taggable-entity-type.js';
@@ -50,7 +52,7 @@ import { throwHttpException } from '../utils/domain-error.mapper.js';
 @ApiTags('Container Versions')
 @ApiBearerAuth()
 @ApiParam({ name: 'containerId', type: String, description: 'Container ID' })
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ContainerScopeGuard)
 @Controller('containers/:containerId/versions')
 export class ContainerVersionController {
   constructor(
@@ -173,10 +175,11 @@ export class ContainerVersionController {
   }
 
   @Post(':versionId/archive')
+  // Service-to-service only: @Public() skips the user JWT, InternalAuthGuard then demands
+  // x-internal-token. It used to be @Public() alone, so anyone could archive a version.
   @Public()
+  @UseGuards(InternalAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
-  // TODO(block-5-followup): gate with InternalAuthGuard once implemented.
-  // Currently protected only by @Public() — acceptable for dev/staging.
   @ApiOperation({
     summary: 'Archive a deprecated version (internal service-to-service endpoint)',
   })

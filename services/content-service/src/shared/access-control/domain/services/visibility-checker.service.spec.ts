@@ -1,4 +1,4 @@
-import { VisibilityCheckerService } from './visibility-checker.service.js';
+import { isStaffGrant, VisibilityCheckerService } from './visibility-checker.service.js';
 import { Visibility } from '../../../../modules/container/domain/value-objects/visibility.vo.js';
 import { AccessTier } from '../../../../modules/container/domain/value-objects/access-tier.vo.js';
 import { TaggableEntityType } from '../types/taggable-entity-type.js';
@@ -151,6 +151,33 @@ describe('VisibilityCheckerService', () => {
     const entity = makeEntity({ visibility: Visibility.SHARED });
     const user = makeUser();
     const result = await svc.canAccess(user, entity, 'edit');
+    expect(result.allowed).toBe(false);
+  });
+
+  // 6e. Whoever may edit may also look: a co-author outside the owning school
+  it('lets a co-author with an EDIT share view school content they are not a member of', async () => {
+    const getMemberRole = jest.fn().mockResolvedValue(null);
+    const hasActiveEditShare = jest.fn().mockResolvedValue(true);
+    const svc = makeService({ getMemberRole, hasActiveEditShare });
+    const entity = makeEntity({ ownerSchoolId: SCHOOL_ID, visibility: Visibility.SCHOOL_PRIVATE });
+    const result = await svc.canAccess(makeUser(), entity, 'view');
+    expect(result).toEqual({ allowed: true, reason: 'co_author_edit' });
+  });
+
+  // 6f. The edit-share lookup is a fallback, not a toll on every learner's view
+  it('does not look up an edit share when the view is already allowed', async () => {
+    const hasActiveEditShare = jest.fn().mockResolvedValue(true);
+    const svc = makeService({ hasActiveEditShare });
+    const result = await svc.canAccess(makeUser(), makeEntity(), 'view');
+    expect(result.reason).toBe('public');
+    expect(hasActiveEditShare).not.toHaveBeenCalled();
+  });
+
+  // 6g. A refused view stays refused without an edit share
+  it('still refuses a private view when there is no edit share', async () => {
+    const svc = makeService();
+    const entity = makeEntity({ visibility: Visibility.PRIVATE });
+    const result = await svc.canAccess(makeUser(), entity, 'view');
     expect(result.allowed).toBe(false);
   });
 
@@ -344,5 +371,22 @@ describe('VisibilityCheckerService', () => {
     await expect(svc.canAccess(user, entity, 'enroll')).rejects.toThrow(
       "action='enroll' is only valid for CONTAINER",
     );
+  });
+});
+
+describe('isStaffGrant', () => {
+  it.each(['platform_admin', 'owner', 'co_author_edit', 'school_member', 'active_share'])(
+    'counts %s as staff',
+    (reason) => {
+      expect(isStaffGrant({ allowed: true, reason })).toBe(true);
+    },
+  );
+
+  it.each(['public', 'school_student_view'])('counts %s as a learner', (reason) => {
+    expect(isStaffGrant({ allowed: true, reason })).toBe(false);
+  });
+
+  it('never counts a refusal as staff, whatever its reason', () => {
+    expect(isStaffGrant({ allowed: false, reason: 'owner' })).toBe(false);
   });
 });

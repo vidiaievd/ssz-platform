@@ -29,6 +29,11 @@ import {
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
 import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
 import { RequireAccess } from '../../../../shared/access-control/presentation/decorators/require-access.decorator.js';
+import { AccessGrant } from '../../../../shared/access-control/presentation/decorators/access-grant.decorator.js';
+import { AccessDeniedException } from '../../../../shared/access-control/presentation/exceptions/access-denied.exception.js';
+import { isStaffGrant } from '../../../../shared/access-control/domain/services/visibility-checker.service.js';
+import type { AccessDecision } from '../../../../shared/access-control/domain/types/access-decision.js';
+import { learnerAnswerKey } from '../../domain/services/learner-answer-key.js';
 
 // Item targets (plan 63, phase 1)
 import { SetItemTargetsCommand } from '../../application/commands/set-item-targets/set-item-targets.command.js';
@@ -206,12 +211,23 @@ export class ExerciseController {
   }
 
   @Get(':id/answers')
-  // TODO(block-5-followup): gate with InternalAuthGuard once implemented.
-  // Currently protected only by JwtAuthGuard — acceptable for dev/staging.
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.EXERCISE })
   @ApiOperation({
-    summary: 'Get an exercise with instructions and expected answers (owner/engine)',
+    summary: 'Get an exercise with instructions and expected answers',
+    description:
+      'Staff (owner, school staff, collaborators, platform admin) get the key as stored. ' +
+      'A learner gets it for grading on their device: `read_aloud` is refused, and ' +
+      '`writing_task` comes without the model answer, the point keywords and, unless the ' +
+      'rubric is shown up front, the level descriptors. Until 16.10.2026 any logged-in ' +
+      'user could read any key here.',
   })
   @ApiOkResponse({ type: ExerciseWithAnswersResponseDto })
+  @ApiForbiddenResponse({
+    description:
+      'The caller may not view the exercise; or a learner asked for `scope=draft` or a ' +
+      '`read_aloud` key.',
+  })
   @ApiQuery({
     name: 'scope',
     required: false,
@@ -219,22 +235,34 @@ export class ExerciseController {
     description:
       'Which document to return. `live` (default) is what students are being served and ' +
       'what an attempt must be graded against; `draft` is the unreleased edit an editor ' +
-      'has to reopen. They differ only while an author has saved something unpublished.',
+      'has to reopen, staff only. They differ only while an author has saved something ' +
+      'unpublished.',
   })
   async findWithAnswers(
     @Param('id') id: string,
+    @AccessGrant() grant: AccessDecision,
     @Query('scope') scope?: string,
   ): Promise<ExerciseWithAnswersResponseDto> {
+    const staff = isStaffGrant(grant);
+    // An author's unpublished edit is for whoever reopens it in the builder, never a learner.
+    if (scope === 'draft' && !staff) throw new AccessDeniedException('draft_is_staff_only');
+
     const result = await this.queryBus.execute<
       GetExerciseWithAnswersQuery,
       Result<ExerciseEntity, ExerciseDomainError>
     >(new GetExerciseWithAnswersQuery(id));
 
     if (result.isFail) throwHttpException(result.error);
-    return ExerciseWithAnswersResponseDto.fromWithAnswers(
+    const dto = ExerciseWithAnswersResponseDto.fromWithAnswers(
       result.value,
       scope === 'draft' ? 'draft' : 'live',
     );
+    if (staff) return dto;
+
+    const key = learnerAnswerKey(dto.templateCode, dto.content, dto.expectedAnswers);
+    if (key.kind === 'refused') throw new AccessDeniedException('key_not_for_learners');
+    dto.expectedAnswers = key.expectedAnswers as Record<string, unknown>;
+    return dto;
   }
 
   @Patch(':id')
@@ -268,6 +296,7 @@ export class ExerciseController {
         dto.visibility,
         dto.estimatedDurationSeconds,
         dto.expectedUpdatedAt,
+        dto.title,
       ),
     );
 

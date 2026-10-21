@@ -38,12 +38,29 @@ export class UpsertProgressHandler
       progress = UserProgress.create(cmd.userId, contentRef);
     }
 
-    progress.recordAttempt({
-      timeSpentSeconds: cmd.timeSpentSeconds,
-      score: cmd.score,
-      completed: cmd.completed,
-      now: boundReplayedTime(cmd.occurredAt, this.clock.now()),
-    });
+    // An exercise's progress is the engine's to write, through its attempt events (plan 76,
+    // 2.6). The web reader and VoxOrd used to post `completed: true` for every exercise they
+    // checked — failed, or handed to a teacher — and that is where «Done» before a verdict
+    // came from, and every attempt counted twice. Old builds still post; the request is
+    // answered with the record as it stands and changes nothing.
+    if (contentRef.type === 'EXERCISE' && cmd.outcome === undefined) {
+      return Result.ok(toProgressDto(progress));
+    }
+
+    const now = boundReplayedTime(cmd.occurredAt, this.clock.now());
+    if (cmd.outcome === 'returned') {
+      progress.recordReturn();
+      // Nothing was waiting for this verdict — no row to create, none to touch.
+      if (progress.getDomainEvents().length === 0) return Result.ok(toProgressDto(progress));
+    } else {
+      progress.recordAttempt({
+        timeSpentSeconds: cmd.timeSpentSeconds,
+        score: cmd.score,
+        completed: cmd.outcome === undefined ? cmd.completed : cmd.outcome === 'passed',
+        awaitingReview: cmd.outcome === 'submitted',
+        now,
+      });
+    }
 
     await this.repo.save(progress);
     this.logger.log(`Progress upserted for user ${cmd.userId} on ${cmd.contentType}:${cmd.contentId}`);

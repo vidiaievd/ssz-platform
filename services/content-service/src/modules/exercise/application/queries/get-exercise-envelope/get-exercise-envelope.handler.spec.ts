@@ -42,6 +42,7 @@ function build(
   const exercise = ExerciseEntity.reconstitute('ex-1', {
     exerciseTemplateId: 'template-1',
     templateCode: document.templateCode,
+    title: null,
     targetLanguage: 'nb',
     difficultyLevel: DifficultyLevel.B1,
     content: document.content,

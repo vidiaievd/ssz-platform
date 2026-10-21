@@ -16,6 +16,7 @@ function makeExercise(updatedAt = STORED_AT): ExerciseEntity {
   return ExerciseEntity.reconstitute(EXERCISE_ID, {
     exerciseTemplateId: 'template-1',
     templateCode: 'word_bank_gap_fill',
+    title: null,
     targetLanguage: 'nb',
     difficultyLevel: DifficultyLevel.B1,
     content: { sentences: [] },

@@ -17,6 +17,13 @@ import type { AppConfig } from '../../../../config/configuration.js';
 const FALLBACK_NEW: Record<SrsTrack, number> = { lexis: 20, grammar: 5 };
 const FALLBACK_REVIEWS: Record<SrsTrack, number> = { lexis: 200, grammar: 50 };
 
+// How far ahead a new card may be pushed when today's budget is spent (plan 37 §C.1).
+// Ninety days of twenty cards is a backlog no course produces; the bound only keeps one
+// claim to a single MGET instead of an open-ended walk.
+const NEW_CARD_HORIZON_DAYS = 90;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 @Injectable()
 export class RedisSrsLimitsPolicy implements ISrsLimitsPolicy {
   private readonly logger = new Logger(RedisSrsLimitsPolicy.name);
@@ -26,18 +33,48 @@ export class RedisSrsLimitsPolicy implements ISrsLimitsPolicy {
     private readonly config: ConfigService<AppConfig>,
   ) {}
 
-  async canIntroduceNewCard(userId: string, track: SrsTrack, today: Date): Promise<boolean> {
-    const count = await this.getCount(this.newCardKey(userId, track, today));
-    return count < this.newCardLimit(track);
+  async claimNewCardDay(userId: string, track: SrsTrack, now: Date): Promise<Date> {
+    const days = Array.from({ length: NEW_CARD_HORIZON_DAYS }, (_, i) =>
+      new Date(this.startOfUtcDay(now).getTime() + i * DAY_MS),
+    );
+    const client = this.redis.getClient();
+    // Fail open, as everywhere here: without Redis there is no budget, and the card is
+    // simply due today.
+    if (!client) return days[0];
+
+    const limit = this.newCardLimit(track);
+    const keys = days.map((day) => this.newCardKey(userId, track, day));
+    const last = days.length - 1;
+
+    try {
+      // One read for the whole horizon, so a backlog does not cost a round trip per day.
+      const counts = (await client.mget(...keys)).map((raw) => (raw ? parseInt(raw, 10) : 0));
+
+      for (let i = 0; i <= last; i++) {
+        if (counts[i] >= limit && i < last) continue;
+
+        // The slot is taken with INCR rather than on the strength of the read, so two
+        // introductions racing for a day's last slot cannot both get it.
+        const count = await client.incr(keys[i]);
+        if (count === 1) {
+          await client.expire(keys[i], this.secondsUntilEndOfDay(days[i], now));
+        }
+        if (count <= limit || i === last) return days[i];
+
+        // Lost that race: give the slot back and look further on.
+        await client.decr(keys[i]);
+      }
+    } catch (err) {
+      this.logger.error(
+        `claimNewCardDay(${userId}, ${track}): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    return days[0];
   }
 
   async canReview(userId: string, track: SrsTrack, today: Date): Promise<boolean> {
     const count = await this.getCount(this.reviewKey(userId, track, today));
     return count < this.reviewLimit(track);
-  }
-
-  async incrementNewCardCount(userId: string, track: SrsTrack, today: Date): Promise<void> {
-    await this.increment(this.newCardKey(userId, track, today), today);
   }
 
   async incrementReviewCount(userId: string, track: SrsTrack, today: Date): Promise<void> {
@@ -98,10 +135,16 @@ export class RedisSrsLimitsPolicy implements ISrsLimitsPolicy {
     return date.toISOString().slice(0, 10); // YYYY-MM-DD UTC
   }
 
-  private secondsUntilMidnightUtc(date: Date): number {
-    const next = new Date(date);
-    next.setUTCHours(24, 0, 0, 0);
-    return Math.ceil((next.getTime() - date.getTime()) / 1000);
+  private startOfUtcDay(date: Date): Date {
+    const start = new Date(date);
+    start.setUTCHours(0, 0, 0, 0);
+    return start;
+  }
+
+  /** A counter for a later day must live until that day ends, counted from now. */
+  private secondsUntilEndOfDay(day: Date, now: Date): number {
+    const end = this.startOfUtcDay(day).getTime() + DAY_MS;
+    return Math.ceil((end - now.getTime()) / 1000);
   }
 
   private async getCount(key: string): Promise<number> {
@@ -123,7 +166,7 @@ export class RedisSrsLimitsPolicy implements ISrsLimitsPolicy {
     if (!client) return;
 
     try {
-      const ttl = this.secondsUntilMidnightUtc(today);
+      const ttl = this.secondsUntilEndOfDay(today, today);
       // INCR is atomic; EXPIRE only on key creation (NX) to avoid resetting TTL mid-day.
       const count = await client.incr(key);
       if (count === 1) {

@@ -52,7 +52,7 @@ export class AnalyticsSnapshotController {
     const limit = Math.min(parseInt(limitStr ?? '500', 10) || 500, 1000);
     const rows = await this.prisma.userProgress.findMany({
       where: {
-        status: { in: ['IN_PROGRESS', 'COMPLETED', 'NEEDS_REVIEW'] },
+        status: { in: ['IN_PROGRESS', 'SUBMITTED', 'COMPLETED', 'NEEDS_REVIEW'] },
         ...(cursor ? { createdAt: { gt: new Date(cursor) } } : {}),
       },
       orderBy: { createdAt: 'asc' },

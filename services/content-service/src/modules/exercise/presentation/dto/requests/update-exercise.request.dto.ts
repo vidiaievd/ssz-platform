@@ -1,6 +1,17 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsISO8601, IsObject, IsOptional, Max, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsISO8601,
+  IsObject,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 import { DifficultyLevel } from '../../../../container/domain/value-objects/difficulty-level.vo.js';
 import { Visibility } from '../../../../container/domain/value-objects/visibility.vo.js';
 
@@ -13,6 +24,19 @@ export class UpdateExerciseRequestDto {
   @IsOptional()
   @IsISO8601()
   expectedUpdatedAt?: string;
+
+  @ApiPropertyOptional({
+    example: 'Kjønn på substantiv',
+    nullable: true,
+    maxLength: 200,
+    description:
+      "What the structure tree and the learner's navigation call this exercise. Saved live, not into the draft. Blank or null clears it, and the label falls back to `content.title`, then to the template name.",
+  })
+  @ValidateIf((_, value) => value !== null)
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  title?: string | null;
 
   @ApiPropertyOptional({ example: 'A2', enum: DifficultyLevel })
   @IsOptional()

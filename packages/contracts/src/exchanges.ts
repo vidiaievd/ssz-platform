@@ -8,7 +8,9 @@ export type Exchange =
   | 'media.events'
   | 'notification.events'
   | 'analytics.events'
-  | 'scheduling.events';
+  | 'scheduling.events'
+  | 'ai.events'
+  | 'subscription.events';
 
 export const EXCHANGES: Record<string, Exchange> = {
   AUTH: 'auth.events',
@@ -21,4 +23,6 @@ export const EXCHANGES: Record<string, Exchange> = {
   NOTIFICATION: 'notification.events',
   ANALYTICS: 'analytics.events',
   SCHEDULING: 'scheduling.events',
+  AI: 'ai.events',
+  SUBSCRIPTION: 'subscription.events',
 };

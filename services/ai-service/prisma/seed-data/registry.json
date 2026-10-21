@@ -1,0 +1,99 @@
+{
+  "$comment": [
+    "Model registry seed (plan 77, step 3). Edit here, not in seed.ts.",
+    "Prices are USD per 1M tokens, as decimal strings. A price is never changed in place:",
+    "add an entry with a later effectiveFrom. An existing (model, effectiveFrom) is left as it is.",
+    "Seeding never touches `enabled` or `status` of rows that already exist — those belong to the admin.",
+    "Anthropic prices: first-party API list prices as of 2026-10-06; cacheWrite assumed 1.25x input (5-minute cache). Verify before going live.",
+    "OpenAI and Google models carry no price yet: public sources disagreed on 2026-10-20. Add one from the provider's own pricing page before binding them."
+  ],
+  "providers": [
+    {
+      "code": "fake",
+      "kind": "fake",
+      "displayName": "Fake (in-process)",
+      "credentialRef": null,
+      "region": "local",
+      "enabled": true,
+      "models": [
+        {
+          "providerModelId": "fake",
+          "displayName": "Fake — answers",
+          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": false, "audioIn": false, "batch": false, "promptCache": false, "contextWindow": 200000, "maxOutput": 16000 },
+          "prices": [{ "effectiveFrom": "2026-10-20", "inputPerMtok": "0", "outputPerMtok": "0", "cacheReadPerMtok": "0", "cacheWritePerMtok": "0" }]
+        },
+        {
+          "providerModelId": "fake-rate-limited",
+          "displayName": "Fake — always rate limited",
+          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": false, "audioIn": false, "batch": false, "promptCache": false, "contextWindow": 200000, "maxOutput": 16000 },
+          "prices": [{ "effectiveFrom": "2026-10-20", "inputPerMtok": "0", "outputPerMtok": "0", "cacheReadPerMtok": "0", "cacheWritePerMtok": "0" }]
+        }
+      ]
+    },
+    {
+      "code": "anthropic",
+      "kind": "anthropic",
+      "displayName": "Anthropic",
+      "credentialRef": "ANTHROPIC_API_KEY",
+      "region": "us",
+      "enabled": false,
+      "models": [
+        {
+          "providerModelId": "claude-sonnet-5-5",
+          "displayName": "Claude Sonnet 5.5",
+          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": false, "batch": true, "promptCache": true, "contextWindow": 1000000, "maxOutput": 128000, "samplingParams": false },
+          "prices": [{ "effectiveFrom": "2026-10-20", "inputPerMtok": "2.00", "outputPerMtok": "10.00", "cacheReadPerMtok": "0.20", "cacheWritePerMtok": "2.50" }]
+        },
+        {
+          "providerModelId": "claude-opus-5-5",
+          "displayName": "Claude Opus 5.5",
+          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": false, "batch": true, "promptCache": true, "contextWindow": 1000000, "maxOutput": 128000, "samplingParams": false },
+          "prices": [{ "effectiveFrom": "2026-10-20", "inputPerMtok": "4.00", "outputPerMtok": "20.00", "cacheReadPerMtok": "0.20", "cacheWritePerMtok": "5.00" }]
+        }
+      ]
+    },
+    {
+      "code": "openai",
+      "kind": "openai",
+      "displayName": "OpenAI",
+      "credentialRef": "OPENAI_API_KEY",
+      "region": "us",
+      "enabled": false,
+      "models": [
+        {
+          "providerModelId": "gpt-5.5",
+          "displayName": "GPT-5.5",
+          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": false, "batch": true, "promptCache": true, "contextWindow": 272000, "maxOutput": 128000, "samplingParams": false },
+          "prices": []
+        }
+      ]
+    },
+    {
+      "code": "google",
+      "kind": "google",
+      "displayName": "Google Gemini",
+      "credentialRef": "GEMINI_API_KEY",
+      "region": "global",
+      "enabled": false,
+      "models": [
+        {
+          "providerModelId": "gemini-2.5-flash",
+          "displayName": "Gemini 2.5 Flash",
+          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": true, "batch": true, "promptCache": true, "contextWindow": 1048576, "maxOutput": 65536 },
+          "prices": []
+        }
+      ]
+    },
+    {
+      "code": "azure-openai",
+      "kind": "azure_openai",
+      "displayName": "Azure OpenAI",
+      "baseUrl": null,
+      "apiVersion": null,
+      "credentialRef": "AZURE_OPENAI_API_KEY",
+      "region": "eu",
+      "enabled": false,
+      "models": []
+    }
+  ]
+}

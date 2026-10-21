@@ -406,6 +406,70 @@ services:
       retries: 5
       start_period: 20s
 
+  ai-service:
+    build:
+      context: ../
+      dockerfile: services/ai-service/Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3010
+      DATABASE_URL: postgresql://ai_service:${AI_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/ai_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-localdevpassword}
+      # Tariffs (plan 78 §6): projected from subscription.events, read through on a miss.
+      SUBSCRIPTION_SERVICE_URL: http://subscription-service:3011
+      # Provider keys: the registry names the variable (credentialRef), this passes it in.
+      # Empty = provider shows configured: false; nothing else breaks.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+    ports:
+      - "3010:3010"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3010/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  subscription-service:
+    build:
+      context: ../
+      dockerfile: services/subscription-service/Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3011
+      DATABASE_URL: postgresql://subscription_service:${SUBSCRIPTION_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/subscriptions_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
+    ports:
+      - "3011:3011"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3011/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   # ── Gateway ─────────────────────────────────────────────────────────────────
 
   nginx:
@@ -425,6 +489,8 @@ services:
       - exercise-engine-service
       - analytics-service
       - scheduling-service
+      - ai-service
+      - subscription-service
 
   # ── Dev-only tools ──────────────────────────────────────────────────────────
 

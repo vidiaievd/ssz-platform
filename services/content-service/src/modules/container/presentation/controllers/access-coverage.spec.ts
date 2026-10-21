@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import { GUARDS_METADATA } from '@nestjs/common/constants.js';
+import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import {
   ACCESS_REQUIREMENT_KEY,
   type AccessRequirement,
@@ -18,8 +20,8 @@ import { ContainerVersionController } from './container-version.controller.js';
 const EXEMPT: Record<string, string[]> = {
   // Creating a container: there is no entity to authorize against yet.
   ContainerController: ['create'],
-  // Service-to-service call, @Public() with its own TODO to gate it with
-  // InternalAuthGuard. Not reachable with a user token.
+  // Service-to-service call: no user to authorize, InternalAuthGuard checks the
+  // x-internal-token instead (asserted below).
   ContainerVersionController: ['archive'],
 };
 
@@ -44,6 +46,18 @@ describe('container write routes', () => {
     expect(mutatingRoutes(ContainerVersionController)).toEqual(
       expect.arrayContaining(['publish', 'cancelDraft']),
     );
+  });
+
+  /**
+   * The one exempt write route. It was once @Public() and nothing else, so anyone
+   * without a token could archive a version; the internal guard is what closes it.
+   */
+  it('gates archiving a version with the internal token', () => {
+    const handler = Object.getOwnPropertyDescriptor(ContainerVersionController.prototype, 'archive')
+      ?.value as object;
+    const guards = Reflect.getMetadata(GUARDS_METADATA, handler) as unknown[] | undefined;
+
+    expect(guards).toContain(InternalAuthGuard);
   });
 
   /**

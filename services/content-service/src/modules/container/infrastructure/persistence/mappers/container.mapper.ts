@@ -35,6 +35,7 @@ export interface ContainerCreateData {
   gatingMode: $Enums.GatingMode;
   reviewRespondWithinHours: number | null;
   coverageRecipe: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
+  learningGoals: string[];
   currentPublishedVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -72,6 +73,7 @@ export class ContainerMapper {
       reviewRespondWithinHours: raw.reviewRespondWithinHours,
       // Lenient on the way out: a value an axis has since retired costs its rule only.
       coverageRecipe: raw.coverageRecipe === null ? null : parseRecipe(raw.coverageRecipe),
+      learningGoals: raw.learningGoals,
       currentPublishedVersionId: raw.currentPublishedVersionId,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
@@ -98,6 +100,7 @@ export class ContainerMapper {
       gatingMode: domainGatingModeToPrisma(entity.gatingMode),
       reviewRespondWithinHours: entity.reviewRespondWithinHours,
       coverageRecipe: recipeToJson(entity.coverageRecipe),
+      learningGoals: entity.learningGoals,
       currentPublishedVersionId: entity.currentPublishedVersionId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
@@ -121,6 +124,7 @@ export class ContainerMapper {
       gatingMode: domainGatingModeToPrisma(entity.gatingMode),
       reviewRespondWithinHours: entity.reviewRespondWithinHours,
       coverageRecipe: recipeToJson(entity.coverageRecipe),
+      learningGoals: entity.learningGoals,
       currentPublishedVersionId: entity.currentPublishedVersionId,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,

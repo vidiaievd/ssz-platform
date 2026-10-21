@@ -40,6 +40,8 @@ import { AddContainerItemHandler } from './application/commands/add-container-it
 import { UpdateContainerItemHandler } from './application/commands/update-container-item/update-container-item.handler.js';
 import { RemoveContainerItemHandler } from './application/commands/remove-container-item/remove-container-item.handler.js';
 import { ReorderContainerItemsHandler } from './application/commands/reorder-container-items/reorder-container-items.handler.js';
+import { DuplicateContainerItemHandler } from './application/commands/duplicate-container-item/duplicate-container-item.handler.js';
+import { MoveContainerItemHandler } from './application/commands/move-container-item/move-container-item.handler.js';
 import { CreateLocalizationHandler } from './application/commands/create-localization/create-localization.handler.js';
 import { UpdateLocalizationHandler } from './application/commands/update-localization/update-localization.handler.js';
 import { DeleteLocalizationHandler } from './application/commands/delete-localization/delete-localization.handler.js';
@@ -64,7 +66,11 @@ import { GetAtomCoverageHandler } from './application/queries/get-atom-coverage/
 import { GetPublishStatesHandler } from './application/queries/get-publish-states/get-publish-states.handler.js';
 import { PublishStateReader } from './application/services/publish-state.reader.js';
 import { EXERCISE_DRAFT_PROMOTER } from './application/ports/exercise-draft-promoter.port.js';
+import { CONTAINER_ITEM_DUPLICATOR } from './application/ports/container-item-duplicator.port.js';
+import { CONTAINER_ITEM_MOVER } from './application/ports/container-item-mover.port.js';
 import { PrismaExerciseDraftPromoter } from './infrastructure/persistence/prisma-exercise-draft-promoter.js';
+import { PrismaContainerItemDuplicator } from './infrastructure/persistence/prisma-container-item-duplicator.js';
+import { PrismaContainerItemMover } from './infrastructure/persistence/prisma-container-item-mover.js';
 
 // Controllers
 import { ContainerController } from './presentation/controllers/container.controller.js';
@@ -90,6 +96,8 @@ const CommandHandlers = [
   UpdateContainerItemHandler,
   RemoveContainerItemHandler,
   ReorderContainerItemsHandler,
+  DuplicateContainerItemHandler,
+  MoveContainerItemHandler,
   CreateLocalizationHandler,
   UpdateLocalizationHandler,
   DeleteLocalizationHandler,
@@ -133,6 +141,8 @@ const QueryHandlers = [
     { provide: CONTAINER_LOCALIZATION_REPOSITORY, useClass: PrismaContainerLocalizationRepository },
     { provide: CONTAINER_SECTION_REPOSITORY, useClass: PrismaContainerSectionRepository },
     { provide: EXERCISE_DRAFT_PROMOTER, useClass: PrismaExerciseDraftPromoter },
+    { provide: CONTAINER_ITEM_DUPLICATOR, useClass: PrismaContainerItemDuplicator },
+    { provide: CONTAINER_ITEM_MOVER, useClass: PrismaContainerItemMover },
 
     // Read-model services
     PublishStateReader,

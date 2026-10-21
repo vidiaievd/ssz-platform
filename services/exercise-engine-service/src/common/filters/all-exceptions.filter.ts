@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { OpenAttemptExistsError } from '../../modules/attempts/domain/exceptions/attempt.errors.js';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -50,6 +51,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       } else {
         message = exception.message;
       }
+    } else if (exception instanceof OpenAttemptExistsError) {
+      // The open-attempt index refused a save that was not a start (a start retries): a
+      // practice check reopening an attempt while a newer one is open (plan 76, 2.5).
+      statusCode = HttpStatus.CONFLICT;
+      error = this.statusText(statusCode);
+      message = exception.message;
+      extra = { code: 'OPEN_ATTEMPT_EXISTS' };
     } else {
       statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
       error = 'Internal Server Error';

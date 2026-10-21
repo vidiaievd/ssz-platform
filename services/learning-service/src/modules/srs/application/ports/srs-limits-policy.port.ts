@@ -2,7 +2,11 @@ import type { SrsTrack } from '../../domain/value-objects/srs-track.js';
 
 export const SRS_LIMITS_POLICY = Symbol('ISrsLimitsPolicy');
 
-/** Which of the two daily caps a refusal came from. */
+/**
+ * Which of the two daily caps a refusal came from. Only `review` is produced since
+ * plan 37 §C.1 — the new-card cap no longer refuses — and `new` stays so the refusals
+ * already recorded keep reading.
+ */
 export type SrsLimitKind = 'new' | 'review';
 
 /**
@@ -15,20 +19,25 @@ export type SrsLimitKind = 'new' | 'review';
  */
 export interface ISrsLimitsPolicy {
   /**
-   * Returns true if the user has not yet hit the track's daily new-card cap.
-   * Caps are read from SRS_DAILY_NEW_CARDS_LIMIT_<TRACK>.
-   * Expiry: midnight UTC (MVP simplification — documented in RedisSrsLimitsPolicy).
+   * Take one slot of the track's daily new-card budget and say which day it was taken
+   * from (plan 37 §C.1): today when today has room, otherwise the first later day that
+   * does. Returns the start of that UTC day; the caller makes it the card's first due.
+   *
+   * Never refuses. The card is introduced because the learner has already done the
+   * work — refusing it would only drop the material from the schedule. What the budget
+   * still caps is how many new cards come to the learner on any one day.
+   *
+   * Looks ahead a bounded number of days; past that horizon the last day takes the card
+   * over its budget. Caps are read from SRS_DAILY_NEW_CARDS_LIMIT_<TRACK>.
+   * Day boundary: midnight UTC (MVP simplification — documented in RedisSrsLimitsPolicy).
    */
-  canIntroduceNewCard(userId: string, track: SrsTrack, today: Date): Promise<boolean>;
+  claimNewCardDay(userId: string, track: SrsTrack, now: Date): Promise<Date>;
 
   /**
    * Returns true if the user has not yet hit the track's daily review cap.
    * Caps are read from SRS_DAILY_REVIEWS_LIMIT_<TRACK>.
    */
   canReview(userId: string, track: SrsTrack, today: Date): Promise<boolean>;
-
-  /** Atomically increment the track's new-card counter for today. */
-  incrementNewCardCount(userId: string, track: SrsTrack, today: Date): Promise<void>;
 
   /** Atomically increment the track's review counter for today. */
   incrementReviewCount(userId: string, track: SrsTrack, today: Date): Promise<void>;

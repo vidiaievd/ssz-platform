@@ -16,6 +16,7 @@ import { TEMPLATE_CODE as INFLECTION_TABLE } from '@ssz/shared-kernel/inflection
 import { TEMPLATE_CODE as INFORMATION_TRANSFER } from '@ssz/shared-kernel/information-transfer';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
 import { AttemptMapper } from './attempt.mapper.js';
+import { OpenAttemptExistsError } from '../../domain/exceptions/attempt.errors.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 
 /**
@@ -389,11 +390,16 @@ export class PrismaAttemptRepository implements IAttemptRepository {
   async save(attempt: Attempt): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = AttemptMapper.toPersistence(attempt) as any;
-    await this.prisma.attempt.upsert({
-      where: { id: data.id },
-      create: data,
-      update: data,
-    });
+    try {
+      await this.prisma.attempt.upsert({
+        where: { id: data.id },
+        create: data,
+        update: data,
+      });
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new OpenAttemptExistsError();
+      throw err;
+    }
   }
 
   async saveAll(attempts: Attempt[]): Promise<void> {
@@ -409,4 +415,13 @@ export class PrismaAttemptRepository implements IAttemptRepository {
       }),
     );
   }
+}
+
+/**
+ * Prisma's P2002, recognised by its code rather than its class: importing the client as a
+ * value breaks the test suites that import this module. The upsert is keyed by id, so the one
+ * unique rule it can break is the open-attempt index (plan 76, 2.5).
+ */
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'P2002';
 }

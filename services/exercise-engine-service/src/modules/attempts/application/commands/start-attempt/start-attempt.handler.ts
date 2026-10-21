@@ -114,6 +114,7 @@ import {
   type PracticedAtomRef,
   ContentClientError,
 } from '../../../../../shared/application/ports/content-client.port.js';
+import { OpenAttemptExistsError } from '../../../domain/exceptions/attempt.errors.js';
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
 import { attemptShuffle, seedFrom } from '../../../../../shared/application/services/multiple-choice-attempt.js';
@@ -749,6 +750,21 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
   ) {}
 
   async execute(
+    command: StartAttemptCommand,
+  ): Promise<Result<StartAttemptResult, StartAttemptError>> {
+    try {
+      return await this.start(command);
+    } catch (err) {
+      if (!(err instanceof OpenAttemptExistsError)) throw err;
+      // Lost a race with a start for the same exercise (plan 76, 2.5): both found no open
+      // attempt, the other one was saved first, and the index refused this one. Nothing was
+      // published — events go out after the save — so a second pass is clean, and it finds
+      // the winner and answers as for any start that meets an open attempt.
+      return this.start(command);
+    }
+  }
+
+  private async start(
     command: StartAttemptCommand,
   ): Promise<Result<StartAttemptResult, StartAttemptError>> {
     // A whole board is scored by its first check and so is never `IN_PROGRESS` between checks;

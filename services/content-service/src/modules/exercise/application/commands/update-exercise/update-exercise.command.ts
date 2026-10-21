@@ -13,5 +13,7 @@ export class UpdateExerciseCommand {
     public readonly estimatedDurationSeconds?: number | null,
     /** ISO 8601. When given, the update only lands if the row still carries it. */
     public readonly expectedUpdatedAt?: string,
+    /** Blank or null clears the title; undefined leaves it alone. */
+    public readonly title?: string | null,
   ) {}
 }

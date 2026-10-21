@@ -99,6 +99,8 @@ function makePrismaStub(overrides: Partial<Record<string, unknown>> = {}) {
         },
       ]),
     },
+    // `content->>'title'` per exercise; none by default, so the template name stands.
+    $queryRaw: jest.fn().mockResolvedValue([{ id: EXERCISE_ID, title: null }]),
     ...overrides,
   };
 }
@@ -170,5 +172,33 @@ describe('GetModuleReaderStructureHandler', () => {
 
     expect(result.sections).toEqual([]);
     expect(result.ungroupedItems).toEqual([]);
+  });
+
+  it('names an exercise by the title its author gave it, not by its template (plan 76, 2.4)', async () => {
+    const prisma = makePrismaStub({
+      $queryRaw: jest.fn().mockResolvedValue([{ id: EXERCISE_ID, title: 'Hvem bor hvor?' }]),
+    });
+    const handler = new GetModuleReaderStructureHandler(prisma as never);
+
+    const result = await handler.execute(new GetModuleReaderStructureQuery(MODULE_ID));
+    const exercise = [...result.sections.flatMap((s) => s.items), ...result.ungroupedItems].find(
+      (i) => i.refId === EXERCISE_ID,
+    );
+
+    expect(exercise?.title).toBe('Hvem bor hvor?');
+  });
+
+  it('falls back to the template name when the title is empty', async () => {
+    const prisma = makePrismaStub({
+      $queryRaw: jest.fn().mockResolvedValue([{ id: EXERCISE_ID, title: '' }]),
+    });
+    const handler = new GetModuleReaderStructureHandler(prisma as never);
+
+    const result = await handler.execute(new GetModuleReaderStructureQuery(MODULE_ID));
+    const exercise = [...result.sections.flatMap((s) => s.items), ...result.ungroupedItems].find(
+      (i) => i.refId === EXERCISE_ID,
+    );
+
+    expect(exercise?.title).toBe('Gap fill');
   });
 });

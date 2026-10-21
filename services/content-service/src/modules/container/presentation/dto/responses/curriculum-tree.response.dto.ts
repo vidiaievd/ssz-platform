@@ -62,6 +62,15 @@ export class CurriculumTreeItemResponseDto {
   })
   templateCode!: string | null;
 
+  @ApiPropertyOptional({
+    example: 'Kjønn på substantiv',
+    description:
+      "The exercise's own title, without the fallbacks `title` resolves through " +
+      '(content.title, then the template name). Null for every other item type and for ' +
+      'an exercise the author has not named.',
+  })
+  ownTitle!: string | null;
+
   @ApiPropertyOptional({ example: 6 })
   durationMinutes!: number | null;
 
@@ -81,6 +90,7 @@ export class CurriculumTreeItemResponseDto {
     dto.isLive = node.isLive;
     dto.pendingChange = node.pendingChange;
     dto.templateCode = node.templateCode;
+    dto.ownTitle = node.ownTitle;
     dto.durationMinutes = node.durationMinutes;
     dto.xpReward = node.xpReward;
     return dto;
@@ -126,6 +136,13 @@ export class CurriculumTreeModuleResponseDto {
   @ApiPropertyOptional({ example: 'Society and culture' })
   titleEn!: string | null;
 
+  @ApiProperty({
+    example: ['Order food in a café'],
+    type: [String],
+    description: "The module's learning goals, in the author's order. Empty when unset.",
+  })
+  learningGoals!: string[];
+
   @ApiProperty({ example: 0 })
   position!: number;
 
@@ -153,6 +170,7 @@ export class CurriculumTreeModuleResponseDto {
     dto.versionId = node.versionId;
     dto.title = node.title;
     dto.titleEn = node.titleEn;
+    dto.learningGoals = node.learningGoals;
     dto.position = node.position;
     dto.isRequired = node.isRequired;
     dto.publishState = node.publishState;

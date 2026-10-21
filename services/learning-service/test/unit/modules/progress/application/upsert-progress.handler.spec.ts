@@ -1,6 +1,9 @@
 import { jest } from '@jest/globals';
 import { UpsertProgressHandler } from '../../../../../src/modules/progress/application/commands/upsert-progress.handler.js';
-import { UpsertProgressCommand } from '../../../../../src/modules/progress/application/commands/upsert-progress.command.js';
+import {
+  UpsertProgressCommand,
+  type ExerciseOutcome,
+} from '../../../../../src/modules/progress/application/commands/upsert-progress.command.js';
 import { InvalidProgressContentRefError } from '../../../../../src/modules/progress/application/errors/progress-application.errors.js';
 import type { IProgressRepository } from '../../../../../src/modules/progress/domain/repositories/progress.repository.interface.js';
 import type { IEventPublisher } from '../../../../../src/shared/application/ports/event-publisher.port.js';
@@ -121,5 +124,86 @@ describe('UpsertProgressHandler', () => {
       'learning.progress.updated',
       expect.any(Object),
     );
+  });
+
+  /**
+   * An exercise's progress is the engine's to write (plan 76, 2.6). The web reader and
+   * VoxOrd posted `completed: true` for every exercise they checked — failed ones, and
+   * work handed to a teacher — and old builds still do.
+   */
+  describe('exercises', () => {
+    const exerciseCmd = (outcome?: ExerciseOutcome, completed = true) =>
+      new UpsertProgressCommand(USER_ID, 'EXERCISE', CONTENT_ID, 120, 40, completed, undefined, outcome);
+
+    const existing = (status: 'SUBMITTED' | 'COMPLETED' | 'IN_PROGRESS') =>
+      UserProgress.reconstitute({
+        id: 'p-1', userId: USER_ID, contentType: 'EXERCISE', contentId: CONTENT_ID, status,
+        attemptsCount: 1, lastAttemptAt: NOW, timeSpentSeconds: 60, score: 70,
+        completedAt: status === 'COMPLETED' ? NOW : null, needsReviewSince: null, reviewResolvedAt: null,
+      });
+
+    const withRow = (row: UserProgress | null) =>
+      makeHandler({
+        repo: {
+          findByUserAndContent: mockFn().mockResolvedValue(row),
+          save: mockFn().mockResolvedValue(undefined),
+        } as unknown as IProgressRepository,
+      });
+
+    it('a client reporting an exercise changes nothing and saves nothing', async () => {
+      const { handler, repo, publisher } = withRow(existing('IN_PROGRESS'));
+
+      const result = await handler.execute(exerciseCmd(undefined));
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.status).toBe('IN_PROGRESS');
+      expect(result.value.attemptsCount).toBe(1);
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(publisher.publish).not.toHaveBeenCalled();
+    });
+
+    it('a failed attempt is an attempt, not a completion', async () => {
+      const { handler } = withRow(null);
+
+      const result = await handler.execute(exerciseCmd('failed'));
+
+      expect(result.value.status).toBe('IN_PROGRESS');
+      expect(result.value.score).toBe(40);
+    });
+
+    it('a passed attempt completes it, even though the command says completed: false', async () => {
+      const { handler } = withRow(null);
+
+      const result = await handler.execute(exerciseCmd('passed', false));
+
+      expect(result.value.status).toBe('COMPLETED');
+    });
+
+    it('work handed to a teacher is SUBMITTED', async () => {
+      const { handler } = withRow(null);
+
+      const result = await handler.execute(exerciseCmd('submitted', false));
+
+      expect(result.value.status).toBe('SUBMITTED');
+    });
+
+    it('work sent back goes back to IN_PROGRESS, keeping its counters and score', async () => {
+      const { handler, repo } = withRow(existing('SUBMITTED'));
+
+      const result = await handler.execute(exerciseCmd('returned', false));
+
+      expect(result.value.status).toBe('IN_PROGRESS');
+      expect(result.value.attemptsCount).toBe(1);
+      expect(result.value.score).toBe(70);
+      expect(repo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('a return with nothing waiting creates no row', async () => {
+      const { handler, repo } = withRow(null);
+
+      await handler.execute(exerciseCmd('returned', false));
+
+      expect(repo.save).not.toHaveBeenCalled();
+    });
   });
 });

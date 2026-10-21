@@ -8,6 +8,7 @@ function makeExercise(): ExerciseEntity {
   return ExerciseEntity.reconstitute('exercise-1', {
     exerciseTemplateId: 'template-1',
     templateCode: 'word_bank_gap_fill',
+    title: null,
     targetLanguage: 'nb',
     difficultyLevel: DifficultyLevel.B1,
     content: { sentences: ['live'] },
@@ -106,6 +107,40 @@ describe('ExerciseEntity drafts', () => {
     exercise.discardDraft();
 
     expect(exercise.authoringContent).toEqual({ sentences: ['live'] });
+  });
+});
+
+describe('ExerciseEntity title', () => {
+  // Plan 39, B8: a label, like a lesson's title — not part of the document a student
+  // is graded on, so it does not wait for a publish.
+  it('lands on the live row rather than in the draft', () => {
+    const exercise = makeExercise();
+
+    exercise.update({ title: 'Kjønn på substantiv' });
+
+    expect(exercise.title).toBe('Kjønn på substantiv');
+    expect(exercise.hasDraft).toBe(false);
+    expect(exercise.updatedAt.getTime()).toBeGreaterThan(LIVE_AT.getTime());
+  });
+
+  it('trims the title, and a blank one clears it', () => {
+    const exercise = makeExercise();
+
+    exercise.update({ title: '  Kjønn  ' });
+    expect(exercise.title).toBe('Kjønn');
+
+    exercise.update({ title: '   ' });
+    expect(exercise.title).toBeNull();
+  });
+
+  it('reports nothing when the title did not change', () => {
+    const exercise = makeExercise();
+    exercise.update({ title: 'Kjønn' });
+    exercise.clearDomainEvents();
+
+    exercise.update({ title: ' Kjønn ' });
+
+    expect(exercise.getDomainEvents()).toHaveLength(0);
   });
 });
 

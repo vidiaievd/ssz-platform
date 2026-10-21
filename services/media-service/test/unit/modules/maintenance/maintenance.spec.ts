@@ -1,6 +1,10 @@
 import {
+  ABANDONED_SWEEP_CRON,
+  CONTENT_SWEEP_CRON,
   OrphanSweepScheduler,
   SUPERSEDED_SWEEP_CRON,
+  SWEEP_ABANDONED_JOB,
+  SWEEP_CONTENT_JOB,
   SWEEP_CRON,
   SWEEP_ORPHANS_JOB,
   SWEEP_SUPERSEDED_JOB,
@@ -23,6 +27,16 @@ describe('OrphanSweepScheduler (plan 71)', () => {
       { pattern: SUPERSEDED_SWEEP_CRON },
       { name: SWEEP_SUPERSEDED_JOB },
     );
+    expect(queue.upsertJobScheduler).toHaveBeenCalledWith(
+      'abandoned-uploads-daily',
+      { pattern: ABANDONED_SWEEP_CRON },
+      { name: SWEEP_ABANDONED_JOB },
+    );
+    expect(queue.upsertJobScheduler).toHaveBeenCalledWith(
+      'orphan-content-assets-daily',
+      { pattern: CONTENT_SWEEP_CRON },
+      { name: SWEEP_CONTENT_JOB },
+    );
   });
 
   it('does not take the service down when redis refuses the schedule', async () => {
@@ -36,7 +50,7 @@ describe('MaintenanceWorker (plan 71)', () => {
   it('runs the sweep in the configured mode for the sweep job', async () => {
     const sweep = { run: jest.fn().mockResolvedValue({ scanned: 3 }) };
 
-    const out = await new MaintenanceWorker(sweep as never, { run: jest.fn() } as never).process({
+    const out = await new MaintenanceWorker(sweep as never, { run: jest.fn() } as never, { run: jest.fn() } as never, { run: jest.fn() } as never).process({
       name: SWEEP_ORPHANS_JOB,
     } as never);
 
@@ -48,7 +62,7 @@ describe('MaintenanceWorker (plan 71)', () => {
     const orphans = { run: jest.fn() };
     const superseded = { run: jest.fn().mockResolvedValue({ scanned: 2 }) };
 
-    const out = await new MaintenanceWorker(orphans as never, superseded as never).process({
+    const out = await new MaintenanceWorker(orphans as never, superseded as never, { run: jest.fn() } as never, { run: jest.fn() } as never).process({
       name: SWEEP_SUPERSEDED_JOB,
     } as never);
 
@@ -57,11 +71,40 @@ describe('MaintenanceWorker (plan 71)', () => {
     expect(out).toEqual({ scanned: 2 });
   });
 
+  it('runs the abandoned-upload sweep for its own job (plan 76)', async () => {
+    const orphans = { run: jest.fn() };
+    const abandoned = { run: jest.fn().mockResolvedValue({ scanned: 6 }) };
+
+    const out = await new MaintenanceWorker(orphans as never, { run: jest.fn() } as never, abandoned as never, { run: jest.fn() } as never).process({
+      name: SWEEP_ABANDONED_JOB,
+    } as never);
+
+    expect(abandoned.run).toHaveBeenCalledWith();
+    expect(orphans.run).not.toHaveBeenCalled();
+    expect(out).toEqual({ scanned: 6 });
+  });
+
+  it('runs the orphan content sweep for its own job (plan 76, 5.2)', async () => {
+    const orphans = { run: jest.fn() };
+    const content = { run: jest.fn().mockResolvedValue({ scanned: 7 }) };
+
+    const out = await new MaintenanceWorker(
+      orphans as never,
+      { run: jest.fn() } as never,
+      { run: jest.fn() } as never,
+      content as never,
+    ).process({ name: SWEEP_CONTENT_JOB } as never);
+
+    expect(content.run).toHaveBeenCalledWith();
+    expect(orphans.run).not.toHaveBeenCalled();
+    expect(out).toEqual({ scanned: 7 });
+  });
+
   it('ignores a job it does not know', async () => {
     const sweep = { run: jest.fn() };
 
     expect(
-      await new MaintenanceWorker(sweep as never, { run: jest.fn() } as never).process({ name: 'something-else' } as never),
+      await new MaintenanceWorker(sweep as never, { run: jest.fn() } as never, { run: jest.fn() } as never, { run: jest.fn() } as never).process({ name: 'something-else' } as never),
     ).toBeNull();
     expect(sweep.run).not.toHaveBeenCalled();
   });

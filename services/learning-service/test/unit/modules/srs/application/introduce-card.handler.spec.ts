@@ -1,7 +1,6 @@
 import { jest } from '@jest/globals';
 import { IntroduceCardHandler } from '../../../../../src/modules/srs/application/commands/introduce-card.handler.js';
 import { IntroduceCardCommand } from '../../../../../src/modules/srs/application/commands/introduce-card.command.js';
-import { SrsNewCardLimitError } from '../../../../../src/modules/srs/application/errors/srs-application.errors.js';
 import { ReviewCard } from '../../../../../src/modules/srs/domain/entities/review-card.entity.js';
 import type { ISrsRepository } from '../../../../../src/modules/srs/domain/repositories/srs-repository.interface.js';
 import type { ISrsLimitsPolicy } from '../../../../../src/modules/srs/application/ports/srs-limits-policy.port.js';
@@ -9,6 +8,8 @@ import type { IEventPublisher } from '../../../../../src/shared/application/port
 import type { IClock } from '../../../../../src/shared/application/ports/clock.port.js';
 
 const NOW        = new Date('2026-04-29T10:00:00Z');
+const TODAY_START = new Date('2026-04-29T00:00:00Z');
+const TOMORROW   = new Date('2026-04-30T00:00:00Z');
 const USER_ID    = 'c3254eb9-3fb3-4559-9dbf-2cea12f40ed5';
 const CONTENT_ID = 'eb1aa566-c4e0-4ffa-8018-e9ce2abc5d08';
 
@@ -16,7 +17,8 @@ const cmd = new IntroduceCardCommand(USER_ID, 'EXERCISE', CONTENT_ID);
 
 function makeHandler(overrides: {
   existingCard?: ReviewCard | null;
-  canIntroduce?: boolean;
+  /** The day the budget hands the card; today's start when omitted (room today). */
+  claimedDay?: Date;
   /** What the atom says its track is — only grammar atoms ever ask (plan 63 phase 6). */
   track?: 'lexis' | 'grammar';
 } = {}) {
@@ -33,11 +35,10 @@ function makeHandler(overrides: {
   } as any;
 
   const limitsPolicy: ISrsLimitsPolicy = {
-    canIntroduceNewCard: jest.fn<() => Promise<boolean>>().mockResolvedValue(
-      overrides.canIntroduce ?? true,
+    claimNewCardDay: jest.fn<() => Promise<Date>>().mockResolvedValue(
+      overrides.claimedDay ?? TODAY_START,
     ),
     canReview: jest.fn(),
-    incrementNewCardCount: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     incrementReviewCount: jest.fn(),
     recordRefusal: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   } as any;
@@ -74,7 +75,9 @@ describe('IntroduceCardHandler', () => {
     expect(result.value.contentType).toBe('EXERCISE');
     expect(result.value.state).toBe('NEW');
     expect(repo.save).toHaveBeenCalledTimes(1);
-    expect(limitsPolicy.incrementNewCardCount).toHaveBeenCalledTimes(1);
+    expect(limitsPolicy.claimNewCardDay).toHaveBeenCalledWith(USER_ID, 'lexis', NOW);
+    // Room today: due on introduction, as it always was.
+    expect(result.value.dueAt).toEqual(NOW.toISOString());
   });
 
   it('publishes ReviewCardCreatedEvent', async () => {
@@ -97,54 +100,38 @@ describe('IntroduceCardHandler', () => {
     expect(result.isOk).toBe(true);
     expect(result.value.id).toBe(existing.id);
     expect(repo.save).not.toHaveBeenCalled();
-    expect(limitsPolicy.incrementNewCardCount).not.toHaveBeenCalled();
-    expect(limitsPolicy.canIntroduceNewCard).not.toHaveBeenCalled();
+    expect(limitsPolicy.claimNewCardDay).not.toHaveBeenCalled();
   });
 
-  it('fails with SrsNewCardLimitError when daily limit is reached', async () => {
-    const { handler } = makeHandler({ canIntroduce: false });
+  // Plan 37 §C.1 — the work is done by the time a card is introduced, so the budget
+  // may decide when the card comes back, never whether it exists.
+  describe('a spent budget holds the card back instead of refusing it', () => {
+    it('creates the card due on the day the budget gives it', async () => {
+      const { handler, repo } = makeHandler({ claimedDay: TOMORROW });
 
-    const result = await handler.execute(cmd);
+      const result = await handler.execute(cmd);
 
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBeInstanceOf(SrsNewCardLimitError);
-  });
-
-  // The review cap is the learner's to override (plan 37 §B.1); this one is not, and
-  // the first person to edit this handler will be tempted to reuse the same flag for
-  // both. The cost of a new card falls weeks later, on someone who is not being asked.
-  it('has no carry-on escape hatch — the new-card cap ignores the flag entirely', async () => {
-    const { handler } = makeHandler({ canIntroduce: false });
-    const withFlag = Object.assign(new IntroduceCardCommand(USER_ID, 'EXERCISE', CONTENT_ID), {
-      carryOnPastLimit: true,
+      expect(result.isOk).toBe(true);
+      expect(repo.save).toHaveBeenCalledTimes(1);
+      expect(result.value.state).toBe('NEW');
+      expect(result.value.dueAt).toEqual(TOMORROW.toISOString());
     });
 
-    const result = await handler.execute(withFlag);
+    it('creates every card of a six-gap block on a spent budget', async () => {
+      const { handler, repo } = makeHandler({ claimedDay: TOMORROW });
 
-    expect(result.isFail).toBe(true);
-    expect(result.error).toBeInstanceOf(SrsNewCardLimitError);
-  });
+      for (let gap = 0; gap < 6; gap++) {
+        const result = await handler.execute(
+          new IntroduceCardCommand(USER_ID, 'EXERCISE_GAP', `${CONTENT_ID}#${gap}`),
+        );
+        expect(result.isOk).toBe(true);
+      }
 
-  describe('limit refusals are recorded (plan 37 §A.1)', () => {
-    it('counts the refusal and publishes it when the cap turns a card away', async () => {
-      const { handler, limitsPolicy, publisher } = makeHandler({ canIntroduce: false });
-
-      await handler.execute(cmd);
-
-      expect(limitsPolicy.recordRefusal).toHaveBeenCalledWith(USER_ID, 'new', 'lexis', NOW);
-      expect(publisher.publish).toHaveBeenCalledWith('learning.srs.limit_refused', {
-        userId: USER_ID,
-        kind: 'new',
-        contentType: 'EXERCISE',
-        // Which of the two budgets refused (plan 63 phase 6) — a refusal that does not
-        // say cannot be read at all once there are two.
-        track: 'lexis',
-        occurredAt: NOW.toISOString(),
-      });
+      expect(repo.save).toHaveBeenCalledTimes(6);
     });
 
-    it('records nothing when the card is introduced', async () => {
-      const { handler, limitsPolicy, publisher } = makeHandler();
+    it('records no refusal, since nothing was refused', async () => {
+      const { handler, limitsPolicy, publisher } = makeHandler({ claimedDay: TOMORROW });
 
       await handler.execute(cmd);
 
@@ -155,28 +142,23 @@ describe('IntroduceCardHandler', () => {
       );
     });
 
-    it('reports one refusal per gap, since each gap is its own card', async () => {
-      const { handler, limitsPolicy } = makeHandler({ canIntroduce: false });
+    it('charges the track the card belongs to', async () => {
+      const { handler, limitsPolicy } = makeHandler({ track: 'grammar' });
 
-      for (let gap = 0; gap < 6; gap++) {
-        await handler.execute(
-          new IntroduceCardCommand(USER_ID, 'EXERCISE_GAP', `${CONTENT_ID}#${gap}`),
-        );
-      }
+      await handler.execute(cmd);
 
-      expect(limitsPolicy.recordRefusal).toHaveBeenCalledTimes(6);
+      expect(limitsPolicy.claimNewCardDay).toHaveBeenCalledWith(USER_ID, 'grammar', NOW);
     });
 
-    it('still refuses when the telemetry write fails', async () => {
-      const { handler, limitsPolicy } = makeHandler({ canIntroduce: false });
-      (limitsPolicy.recordRefusal as jest.Mock<() => Promise<void>>).mockRejectedValue(
-        new Error('redis down'),
+    it('does not charge a seeded card', async () => {
+      const { handler, limitsPolicy } = makeHandler({ claimedDay: TOMORROW });
+
+      const result = await handler.execute(
+        new IntroduceCardCommand(USER_ID, 'VOCABULARY_WORD', CONTENT_ID, 'CLAIMED_KNOWN'),
       );
 
-      const result = await handler.execute(cmd);
-
-      expect(result.isFail).toBe(true);
-      expect(result.error).toBeInstanceOf(SrsNewCardLimitError);
+      expect(result.isOk).toBe(true);
+      expect(limitsPolicy.claimNewCardDay).not.toHaveBeenCalled();
     });
   });
 });
@@ -192,19 +174,18 @@ describe('IntroduceCardHandler — shadow cards', () => {
 
     expect(result.isOk).toBe(true);
     expect(repo.save).toHaveBeenCalledTimes(1);
-    expect(limitsPolicy.incrementNewCardCount).not.toHaveBeenCalled();
+    expect(limitsPolicy.claimNewCardDay).not.toHaveBeenCalled();
   });
 
-  it('is not refused when the learner has spent the day s budget', async () => {
+  it('is not held back when the learner has spent the day s budget', async () => {
     // The budget caps how much new material a person is asked to carry, and nobody is
-    // being asked to carry this one. Refusing it would stop the shadow model collecting
-    // on exactly the days the learner works hardest.
-    const { handler, limitsPolicy } = makeHandler({ canIntroduce: false });
+    // being asked to carry this one. Holding it back would stop the shadow model
+    // collecting on exactly the days the learner works hardest.
+    const { handler } = makeHandler({ claimedDay: TOMORROW });
 
     const result = await handler.execute(shadowCmd);
 
     expect(result.isOk).toBe(true);
-    expect(limitsPolicy.canIntroduceNewCard).not.toHaveBeenCalled();
-    expect(limitsPolicy.recordRefusal).not.toHaveBeenCalled();
+    expect(result.value.dueAt).toEqual(NOW.toISOString());
   });
 });
