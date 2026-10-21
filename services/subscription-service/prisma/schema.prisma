@@ -10,7 +10,36 @@ datasource db {
 // Enum members are written in their wire form (lowercase), so Prisma's generated
 // values and the domain's strings are the same and no mapper has to translate them.
 
-// Outbox + processed events (step 5) follow.
+// ─── Messaging (plan 78, step 5) ─────────────────────────────────────────────
+
+/// Written in the same transaction that marks an account's snapshot published;
+/// @ssz/messaging relays it to `subscription.events`.
+model Outbox {
+  id            String    @id @default(uuid())
+  eventId       String    @unique @map("event_id")
+  eventType     String    @map("event_type")
+  exchange      String
+  routingKey    String    @map("routing_key")
+  payload       String    @db.Text
+  correlationId String?   @map("correlation_id")
+  occurredAt    DateTime  @map("occurred_at")
+  publishedAt   DateTime? @map("published_at")
+  attempts      Int       @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox")
+}
+
+/// Events from other services already acted on; a redelivery is acknowledged and skipped.
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique @map("event_id")
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("processed_events")
+}
 
 // ─── Plans (plan 78, step 2) ─────────────────────────────────────────────────
 
@@ -104,11 +133,18 @@ model BillingAccount {
   /// Bumped on every subscription and grant change; it is the version of the account's
   /// entitlements. Two admins assigning at once — one gets a 409.
   revision      Int                @default(0)
+  /// The revision last sent as `subscription.entitlements.changed`; behind `revision` =
+  /// a snapshot is due. Starts at -1 so a new account announces itself.
+  publishedRevision Int            @default(-1) @map("published_revision")
+  /// The published snapshot's `validUntil`: from then on time alone has changed the
+  /// entitlements and the refresh job bumps `revision`. Null until first published.
+  nextRefreshAt DateTime?          @map("next_refresh_at")
   createdAt     DateTime           @default(now()) @map("created_at")
   subscriptions Subscription[]
   grants        Grant[]
 
   @@unique([type, externalId])
+  @@index([nextRefreshAt])
   @@map("billing_accounts")
 }
 

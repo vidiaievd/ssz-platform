@@ -17,6 +17,9 @@ export const envSchema = z.object({
   INTERNAL_SERVICE_TOKEN: z.string().default('internal-dev-token'),
 
   ORGANIZATION_SERVICE_URL: z.string().default('http://organization-service:3002'),
+
+  SNAPSHOT_PUBLISH_INTERVAL_MS: z.coerce.number().int().positive().default(1_000),
+  ENTITLEMENT_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -41,6 +44,12 @@ export interface AppConfig {
   internalServiceToken: string;
   /** Asked whether a caller of `/subscriptions/me` belongs to the workspace they name. */
   organization: { baseUrl: string };
+  jobs: {
+    /** How often accounts whose revision moved get their snapshot on the outbox. */
+    snapshotPublishIntervalMs: number;
+    /** How often accounts whose snapshot time has overtaken are refreshed (plan 78 §5). */
+    entitlementRefreshIntervalMs: number;
+  };
 }
 
 export default (): AppConfig => {
@@ -57,5 +66,9 @@ export default (): AppConfig => {
     },
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
     organization: { baseUrl: env.ORGANIZATION_SERVICE_URL },
+    jobs: {
+      snapshotPublishIntervalMs: env.SNAPSHOT_PUBLISH_INTERVAL_MS,
+      entitlementRefreshIntervalMs: env.ENTITLEMENT_REFRESH_INTERVAL_MS,
+    },
   };
 };

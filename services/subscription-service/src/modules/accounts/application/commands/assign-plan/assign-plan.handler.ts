@@ -12,7 +12,7 @@ import { AssignPlanCommand } from './assign-plan.command.js';
 
 /**
  * Puts an account on a plan's current version, closing whatever ran before. Creates the
- * account on first sight (until step 5's consumers create them from events).
+ * account on first sight — a payer whose creation event has not arrived (or predates step 5).
  */
 @CommandHandler(AssignPlanCommand)
 export class AssignPlanHandler implements ICommandHandler<AssignPlanCommand, AccountOverview> {

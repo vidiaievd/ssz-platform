@@ -86,4 +86,21 @@ describe('BillingAccount', () => {
     expect(acc.current(now)).toBeNull();
     expect(acc.cancelSubscription('admin', now).error).toEqual({ code: 'no_current_subscription' });
   });
+
+  it('expireLapsed closes only the rows whose period has run out, as of their end, by the system', () => {
+    const ranOut = later(-2);
+    const acc = account([running({ id: 'lapsed', periodEnd: ranOut }), running({ id: 'fine', periodEnd: later(5) })]);
+    const lapsed = acc.expireLapsed(now);
+    expect(lapsed).toEqual([expect.objectContaining({ id: 'lapsed', status: 'expired', endedAt: ranOut, endedBy: 'system' })]);
+    expect(acc.changedSubscriptions()).toEqual(lapsed);
+    expect(acc.current(now)?.id).toBe('fine');
+    expect(account([running()]).expireLapsed(now)).toEqual([]);
+  });
+
+  it('is untouched only with revision 0 and nothing open', () => {
+    const fresh = BillingAccount.restore({ id: 'a', type: 'user', externalId: 'u', createdAt: now, revision: 0, openSubscriptions: [] });
+    expect(fresh.untouched).toBe(true);
+    expect(account().untouched).toBe(false);
+  });
 });
+

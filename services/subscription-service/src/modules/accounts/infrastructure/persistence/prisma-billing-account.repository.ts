@@ -36,6 +36,15 @@ export class PrismaBillingAccountRepository implements IBillingAccountRepository
     return toAccount(row);
   }
 
+  async dueForRefresh(now: Date, limit: number): Promise<{ type: BillingAccountType; externalId: string }[]> {
+    return this.prisma.billingAccount.findMany({
+      where: { nextRefreshAt: { lte: now }, publishedRevision: { equals: this.prisma.billingAccount.fields.revision } },
+      select: { type: true, externalId: true },
+      orderBy: { nextRefreshAt: 'asc' },
+      take: limit,
+    });
+  }
+
   async save(account: BillingAccount): Promise<Result<void, 'version_conflict'>> {
     const changed = account.changedSubscriptions();
     try {

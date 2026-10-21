@@ -10,7 +10,15 @@ export interface IBillingAccountRepository {
    * when the change that asked for it is then refused.
    */
   ensure(type: BillingAccountType, externalId: string): Promise<BillingAccount>;
-  /** Writes the changed subscriptions if the account's revision is still the loaded one. */
+  /**
+   * Accounts whose last snapshot's `validUntil` has passed — time alone changed what they
+   * may use. Ones with a snapshot still unsent are left out: that snapshot is newer anyway.
+   */
+  dueForRefresh(now: Date, limit: number): Promise<{ type: BillingAccountType; externalId: string }[]>;
+  /**
+   * Writes the changed subscriptions if the account's revision is still the loaded one,
+   * bumping it — also with nothing changed, which is how a refresh announces itself.
+   */
   save(account: BillingAccount): Promise<Result<void, 'version_conflict'>>;
 }
 

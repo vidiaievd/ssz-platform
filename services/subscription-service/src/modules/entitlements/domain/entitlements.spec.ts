@@ -157,4 +157,37 @@ describe('resolveEntitlements', () => {
     resolveEntitlements(inputs({ subscription: onTutorPro(), grants: [grant('ai.student_assist', '1', { limits: { perLearnerMonthlyCredits: 500 } })] }));
     expect(TUTOR_PRO.features[1]!.limits).toEqual({ perLearnerMonthlyCredits: 100 });
   });
+
+  describe('validUntil', () => {
+    it('is the end of the credit period when nothing else changes sooner', () => {
+      expect(resolveEntitlements(inputs()).validUntil).toEqual(new Date('2026-11-01T00:00:00Z'));
+      expect(resolveEntitlements(inputs({ subscription: onTutorPro() })).validUntil).toEqual(new Date('2026-11-10T00:00:00Z'));
+    });
+
+    it('is the start of a scheduled grant or the end of an active one, whichever comes first', () => {
+      const starts = new Date(NOW.getTime() + 3 * DAY);
+      const ends = new Date(NOW.getTime() + 5 * DAY);
+      expect(
+        resolveEntitlements(inputs({ grants: [grant('ai.review_direct', '1', { startsAt: starts, endsAt: new Date(NOW.getTime() + 60 * DAY) }), grant('ai.practice', '1', { endsAt: ends })] }))
+          .validUntil,
+      ).toEqual(starts);
+    });
+
+    it('ignores revoked grants and moments already past', () => {
+      const e = resolveEntitlements(
+        inputs({
+          grants: [
+            grant('ai.review_direct', '1', { endsAt: new Date(NOW.getTime() + DAY), revokedAt: new Date(NOW.getTime() - 1) }),
+            grant('ai.practice', '1', { endsAt: NOW }),
+          ],
+        }),
+      );
+      expect(e.validUntil).toEqual(new Date('2026-11-01T00:00:00Z'));
+    });
+
+    it('is the end of a subscription cut short inside its cycle', () => {
+      const end = new Date('2026-10-25T00:00:00Z');
+      expect(resolveEntitlements(inputs({ subscription: onTutorPro(end) })).validUntil).toEqual(end);
+    });
+  });
 });

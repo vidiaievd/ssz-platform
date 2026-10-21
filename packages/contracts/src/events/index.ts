@@ -9,3 +9,4 @@ export * from './exercise-engine/index.js';
 export * from './analytics/index.js';
 export * from './scheduling/index.js';
 export * from './ai/index.js';
+export * from './subscription/index.js';

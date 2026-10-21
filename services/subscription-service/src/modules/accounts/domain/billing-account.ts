@@ -8,6 +8,9 @@ export type BillingAccountType = 'workspace' | 'user';
 
 export const BILLING_ACCOUNT_TYPES: readonly BillingAccountType[] = ['workspace', 'user'];
 
+/** The author of changes nobody asked for: free plans on sign-up, subscriptions running out. */
+export const SYSTEM_ACTOR = 'system';
+
 /** The plan audience an account type buys from. */
 export function audienceFor(type: BillingAccountType): PlanAudience {
   return type === 'workspace' ? 'workspace' : 'individual';
@@ -52,6 +55,11 @@ export class BillingAccount {
   }
   get revision(): number {
     return this.props.revision;
+  }
+
+  /** Never had a subscription or grant change — only the row exists. */
+  get untouched(): boolean {
+    return this.props.revision === 0 && this.props.openSubscriptions.length === 0;
   }
 
   current(now: Date): Subscription | null {
@@ -101,6 +109,22 @@ export class BillingAccount {
     if (!current) return Result.fail({ code: 'no_current_subscription' });
     this.closeOpen(by, now);
     return Result.ok(this.touched.get(current.id)!);
+  }
+
+  /**
+   * Marks open subscriptions whose period has run out `expired` as of their end. They
+   * stopped counting the moment it passed; this only makes the rows say so.
+   */
+  expireLapsed(now: Date): Subscription[] {
+    const lapsed: Subscription[] = [];
+    this.props.openSubscriptions = this.props.openSubscriptions.filter((s) => {
+      if (isCurrent(s, now)) return true;
+      const closed = closeSubscription(s, SYSTEM_ACTOR, now);
+      this.touched.set(closed.id, closed);
+      lapsed.push(closed);
+      return false;
+    });
+    return lapsed;
   }
 
   /** Subscription rows created or changed since load, for the repository to write. */

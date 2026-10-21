@@ -94,6 +94,11 @@ export class EntitlementsResponseDto {
   @ApiProperty({ description: 'End of that period (exclusive)' })
   periodEnd!: Date;
 
+  @ApiProperty({
+    description: 'When time alone changes this answer (period rollover, a grant starting or ending, the subscription running out)',
+  })
+  validUntil!: Date;
+
   @ApiProperty({ example: 3, description: 'Grows with every change to the account; 0 = no account yet' })
   version!: number;
 }

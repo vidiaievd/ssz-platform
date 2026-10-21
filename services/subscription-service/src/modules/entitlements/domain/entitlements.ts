@@ -38,6 +38,12 @@ export interface Entitlements {
   periodStart: Date;
   periodEnd: Date;
   /**
+   * The first moment time alone changes this answer: the credit period rolls over, a
+   * scheduled grant starts, a grant or the subscription runs out. The refresh job bumps
+   * the account's revision then, so a held snapshot never outlives it silently.
+   */
+  validUntil: Date;
+  /**
    * The account's revision: grows with every assignment, cancellation and grant change, so a
    * consumer holding a snapshot can tell a newer one from a stale one. 0 = no account yet.
    */
@@ -64,7 +70,10 @@ export interface EntitlementInputs {
   } | null;
   /** The current version of the audience's free plan; null when it does not exist. */
   freePlan: ResolvablePlan | null;
-  /** Grants of the account; any state — the resolver keeps only the active ones. */
+  /**
+   * Grants of the account; any state — the resolver keeps only the active ones, and looks
+   * at scheduled ones for when they start.
+   */
   grants: readonly Pick<GrantProps, 'featureKey' | 'monthlyCredits' | 'limits' | 'startsAt' | 'endsAt' | 'revokedAt'>[];
   now: Date;
 }
@@ -120,6 +129,23 @@ export function resolveEntitlements(input: EntitlementInputs): Entitlements {
     features,
     periodStart: period.start,
     periodEnd: period.end,
+    validUntil: nextChange(input, period.end),
     version: input.account.revision,
   };
+}
+
+/** The earliest future moment at which a term in the inputs starts or ends. */
+function nextChange(input: EntitlementInputs, periodEnd: Date): Date {
+  const { now } = input;
+  let next = periodEnd;
+  const consider = (at: Date | null): void => {
+    if (at !== null && at > now && at < next) next = at;
+  };
+  consider(input.subscription?.periodEnd ?? null);
+  for (const g of input.grants) {
+    if (g.revokedAt !== null) continue;
+    consider(g.startsAt);
+    consider(g.endsAt);
+  }
+  return next;
 }
