@@ -90,7 +90,10 @@ describe('AiGateway', () => {
       {
         check: async () => {
           log.push('gate');
-          return opts.gate ?? Result.ok({ allowedRegions: ['eu'], feature: null });
+          return opts.gate ?? Result.ok({ allowedRegions: ['eu'], feature: null, quota: null });
+        },
+        charge: async (_g: GateGrant, credits: string | null) => {
+          log.push(`charge ${credits}`);
         },
       } as unknown as AccessGate,
       {
@@ -102,8 +105,9 @@ describe('AiGateway', () => {
       } as unknown as ModelRouter,
       {
         record: async (call: CallToRecord) => {
+          log.push('record');
           recorded.push(call);
-          return { callId: 'c1', cost: null, credits: null };
+          return { callId: 'c1', cost: null, credits: '0.500000' };
         },
       } as unknown as CallRecorder,
     );
@@ -114,7 +118,7 @@ describe('AiGateway', () => {
     const { gateway, log, recorded } = setup({ binding: { ...binding, enabled: false } });
     const { routed } = await gateway.call('diagnostic', SCHOOL, CALL);
     expect(routed.error.kind).toBe('disabled');
-    expect(log).toEqual([]);
+    expect(log).toEqual(['record']);
     expect(recorded[0]?.outcome).toBe('disabled');
   });
 
@@ -125,14 +129,14 @@ describe('AiGateway', () => {
     });
     const { routed } = await gateway.call('diagnostic', SCHOOL, CALL);
     expect(routed.error).toMatchObject({ kind: 'refused', code: 'not_entitled' });
-    expect(log).toEqual(['gate']);
+    expect(log).toEqual(['gate', 'record']);
     expect(recorded[0]).toMatchObject({ outcome: 'refused_quota', errorCode: 'not_entitled' });
   });
 
-  it('passes the payer’s regions from the gate to the router', async () => {
+  it('passes the payer’s regions to the router, then records, then charges the quota', async () => {
     const { gateway, log, constraints } = setup({ binding: { ...binding, enabled: true } });
     await gateway.call('diagnostic', SCHOOL, CALL);
-    expect(log).toEqual(['gate', 'router']);
+    expect(log).toEqual(['gate', 'router', 'record', 'charge 0.500000']);
     expect(constraints()).toEqual({ allowedRegions: ['eu'] });
   });
 });

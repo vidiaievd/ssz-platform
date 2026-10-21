@@ -7,7 +7,9 @@ import { CallRecorder, CREDIT_RATE } from './application/call-recorder.js';
 import { LedgerSpoolDrainer, SPOOL_DRAIN_INTERVAL_MS } from './application/ledger-spool-drainer.js';
 import { AI_CALL_LEDGER } from './application/ports/ai-call.ledger.js';
 import { LEDGER_SPOOL } from './application/ports/ledger-spool.js';
+import { LEDGER_USAGE_READER } from './application/ports/ledger-usage.reader.js';
 import { PrismaAiCallLedger } from './infrastructure/prisma-ai-call.ledger.js';
+import { PrismaLedgerUsageReader } from './infrastructure/prisma-ledger-usage.reader.js';
 import { PrismaOutboxStore } from './infrastructure/prisma-outbox.store.js';
 import { RedisLedgerSpool } from './infrastructure/redis-ledger-spool.js';
 
@@ -19,6 +21,7 @@ import { RedisLedgerSpool } from './infrastructure/redis-ledger-spool.js';
 @Module({
   providers: [
     { provide: AI_CALL_LEDGER, useClass: PrismaAiCallLedger },
+    { provide: LEDGER_USAGE_READER, useClass: PrismaLedgerUsageReader },
     {
       provide: CREDIT_RATE,
       inject: [ConfigService],
@@ -47,6 +50,6 @@ import { RedisLedgerSpool } from './infrastructure/redis-ledger-spool.js';
     },
     OutboxRelayService,
   ],
-  exports: [CallRecorder],
+  exports: [CallRecorder, LEDGER_USAGE_READER],
 })
 export class LedgerModule {}

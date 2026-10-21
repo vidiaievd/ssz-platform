@@ -45,6 +45,14 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  // With the stub: the same monthly allowance per agent for every payer (a plain decimal of
+  // credits), so the quota can be tried on dev. Unset = no quota.
+  AI_STUB_MONTHLY_CREDITS: z
+    .string()
+    .regex(/^\d+(\.\d{1,6})?$/, 'a plain non-negative decimal, at most six places')
+    .optional(),
+  // How often quota counters are raised to the ledger's sums (step 9b). A day by default.
+  AI_QUOTA_RECONCILE_MS: z.coerce.number().int().positive().default(86_400_000),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -76,6 +84,8 @@ export interface AppConfig {
   creditsPerUsd: string;
   ledgerSpoolDrainMs: number;
   entitlementsStub: boolean;
+  stubMonthlyCredits: string | null;
+  quotaReconcileMs: number;
   /** Shared secret for service-to-service routes (`x-internal-token`). */
   internalServiceToken: string;
 }
@@ -104,6 +114,8 @@ export default (): AppConfig => {
     creditsPerUsd: env.AI_CREDITS_PER_USD,
     ledgerSpoolDrainMs: env.AI_LEDGER_SPOOL_DRAIN_MS,
     entitlementsStub: env.AI_ENTITLEMENTS_STUB,
+    stubMonthlyCredits: env.AI_STUB_MONTHLY_CREDITS ?? null,
+    quotaReconcileMs: env.AI_QUOTA_RECONCILE_MS,
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
 };

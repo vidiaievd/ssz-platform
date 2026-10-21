@@ -1,4 +1,4 @@
-import { creditsFor, parseRate } from './credits.js';
+import { creditsFor, microCredits, parseRate } from './credits.js';
 
 describe('creditsFor', () => {
   it('multiplies cost by the rate per currency unit', () => {
@@ -27,5 +27,18 @@ describe('creditsFor', () => {
     expect(() => parseRate('0.1234567')).toThrow();
     expect(() => creditsFor(-1, '1')).toThrow();
     expect(() => creditsFor(1.5, '1')).toThrow();
+  });
+});
+
+describe('microCredits', () => {
+  it.each([
+    ['0.135000', 135_000n],
+    ['12', 12_000_000n],
+    ['1.5', 1_500_000n],
+  ])('%s → %s', (credits, micro) => expect(microCredits(credits)).toBe(micro));
+
+  it('rejects anything but a plain decimal', () => {
+    expect(() => microCredits('1e-6')).toThrow();
+    expect(() => microCredits('-1')).toThrow();
   });
 });

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AccessGate } from '../../access/application/access-gate.js';
+import { AccessGate, type GateGrant } from '../../access/application/access-gate.js';
 import { REFUSAL_OUTCOME, type RefusalCode } from '../../access/domain/refusal.js';
 import { CallRecorder, type CallToRecord, type RecordedCall } from '../../ledger/application/call-recorder.js';
 import type { CallContext } from '../../ledger/domain/ai-call.js';
@@ -29,6 +29,9 @@ export interface GatewayCall {
  *
  * The switch is checked first and from the binding cache, so a switched-off agent answers
  * "disabled" in about a millisecond without reading any payer's policy.
+ *
+ * The call's credits are charged to the payer's quota after the ledger row is written: the
+ * ledger is the truth the counter is rebuilt from, so it goes first.
  */
 @Injectable()
 export class AiGateway {
@@ -41,9 +44,10 @@ export class AiGateway {
 
   async call(capability: string, context: CallContext, request: GatewayRequest): Promise<GatewayCall> {
     const startedAt = new Date();
-    const routed = await this.route(capability, context, request);
+    const { routed, grant } = await this.route(capability, context, request);
     const latencyMs = Date.now() - startedAt.getTime();
     const recorded = await this.recorder.record(toRecord(capability, context, routed, latencyMs, startedAt));
+    if (grant) await this.gate.charge(grant, recorded.credits);
     return { routed, recorded, latencyMs };
   }
 
@@ -51,20 +55,24 @@ export class AiGateway {
     capability: string,
     context: CallContext,
     request: GatewayRequest,
-  ): Promise<Result<RoutedCall, GatewayFailure>> {
+  ): Promise<{ routed: Result<RoutedCall, GatewayFailure>; grant: GateGrant | null }> {
     const binding = await this.bindings.get(capability);
-    if (!binding || !binding.enabled) return Result.fail({ kind: 'disabled', binding, attempts: [] });
+    if (!binding || !binding.enabled) return { routed: Result.fail({ kind: 'disabled', binding, attempts: [] }), grant: null };
 
     const access = await this.gate.check(capability, context.payer);
     if (access.isFail) {
       const failure = access.error;
-      return Result.fail(
-        failure.kind === 'refused'
-          ? { kind: 'refused', code: failure.code, binding, attempts: [] }
-          : { kind: 'gate_unavailable', binding, attempts: [] },
-      );
+      return {
+        routed: Result.fail(
+          failure.kind === 'refused'
+            ? { kind: 'refused', code: failure.code, binding, attempts: [] }
+            : { kind: 'gate_unavailable', binding, attempts: [] },
+        ),
+        grant: null,
+      };
     }
-    return this.router.call(capability, request, { allowedRegions: access.value.allowedRegions });
+    const grant = access.value;
+    return { routed: await this.router.call(capability, request, { allowedRegions: grant.allowedRegions }), grant };
   }
 }
 

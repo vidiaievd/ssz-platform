@@ -18,7 +18,13 @@ export function creditsFor(costMicros: number, rate: string): string {
 
 /** Throws on anything that is not a plain non-negative decimal with at most six places. */
 export function parseRate(rate: string): bigint {
-  const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(rate);
-  if (!match) throw new Error(`Not a credit rate: "${rate}"`);
+  if (!/^\d+(\.\d{1,6})?$/.test(rate)) throw new Error(`Not a credit rate: "${rate}"`);
+  return microCredits(rate);
+}
+
+/** Credits as an integer count of 1e-6 credits — the unit quotas are summed in. */
+export function microCredits(credits: string): bigint {
+  const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(credits);
+  if (!match) throw new Error(`Not a credit amount: "${credits}"`);
   return BigInt(match[1]!) * SCALE + BigInt((match[2] ?? '').padEnd(6, '0'));
 }
