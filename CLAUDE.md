@@ -179,6 +179,28 @@ Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, fol
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.
 Gateway routes: `/api/v1/ai/*`, `/api/v1/admin/ai/*` (`platform_admin`).
 
+### 13. Subscription Service (NestJS)
+Plans, subscriptions and feature keys for every payer (plan 78, umbrella plan 48). Entitlements are
+data, not code: a plan is a set of versioned rows (`plans` → immutable `plan_versions` →
+`plan_features`), a subscription points at a plan version, so editing a plan never silently changes
+existing subscribers. Payer (`BillingAccount`) is a `workspace` (school, SOLO included) or a `user`
+(self-study student). Feature keys (`ai.review_draft`, `ai.review_direct`, `ai.student_assist`,
+`ai.practice`, `ai.authoring`; later `scheduling`, `payments`) live in a code catalog with their limit
+kind; monthly AI credits per key. Manual grants add a key/credits on top of the plan for a period.
+No payment yet — `platform_admin` assigns plans; billing is a separate future plan.
+Entitlements resolution: open subscription → its plan version; none → free plan of the audience
+(`free_workspace` / `free_individual`); active grants on top. Snapshot `version` = account revision.
+Consumes `school.created` and `auth.user.registered` (students) → account + free subscription.
+Publishes full snapshots `subscription.entitlements.changed` via an outbox; a refresh job (every 60 s)
+expires subscriptions and republishes when time changes rights (`validUntil`). ai-service projects
+the snapshots into `ai_payer_entitlements` and reads through the internal API on a miss.
+UI reads `GET /api/v1/subscriptions/me[?workspaceId=]` and only hides buttons (`useCan()` in web);
+the services enforce.
+Follows Clean Architecture.
+Port: `3011`. Database: `subscriptions_db`. Exchange: `subscription.events`. No Redis.
+Internal: `GET /api/v1/internal/entitlements?type=&id=` (`x-internal-token`, not exposed by gateway).
+Gateway routes: `/api/v1/subscriptions/*`, `/api/v1/admin/subscriptions/*` (`platform_admin`).
+
 ## API Documentation Strategy
 
 Each microservice exposes its own Swagger UI locally for development, plus JSON spec endpoint for aggregation.
