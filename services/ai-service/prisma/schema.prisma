@@ -251,3 +251,24 @@ model AiPayerPolicy {
   @@id([payerType, payerId])
   @@map("ai_payer_policies")
 }
+
+/// The payer's entitlements as subscription-service last announced them (plan 78 §6), fed
+/// by `subscription.entitlements.changed` and by read-through on a miss. A row is replaced
+/// only by a higher `version`, or by the same version with a later `validUntil`.
+model AiPayerEntitlements {
+  payerType   AiPayerType @map("payer_type")
+  payerId     String      @map("payer_id")
+  /// The account revision in subscription-service.
+  version     Int
+  /// `{ [featureKey]: { enabled, monthlyCredits, limits } }`; a key absent is not available.
+  features    Json
+  /// The credit period monthly allowances count in (end exclusive).
+  periodStart DateTime    @map("period_start")
+  periodEnd   DateTime    @map("period_end")
+  /// Past this the row is stale and the gate reads through.
+  validUntil  DateTime    @map("valid_until")
+  receivedAt  DateTime    @map("received_at")
+
+  @@id([payerType, payerId])
+  @@map("ai_payer_entitlements")
+}

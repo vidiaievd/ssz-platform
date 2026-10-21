@@ -1,23 +1,28 @@
-import { Logger, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/configuration.js';
 import { LedgerModule } from '../ledger/ledger.module.js';
 import { AccessGate } from './application/access-gate.js';
 import { PutPayerPolicyHandler } from './application/commands/put-payer-policy/put-payer-policy.handler.js';
+import { ENTITLEMENT_PROJECTION, type IEntitlementProjection } from './application/ports/entitlement-projection.js';
 import { ENTITLEMENT_READER } from './application/ports/entitlement.reader.js';
 import { PAYER_POLICY_REPOSITORY } from './application/ports/payer-policy.repository.js';
 import { QUOTA_COUNTER } from './application/ports/quota-counter.js';
 import { QUOTA_RECONCILE_INTERVAL_MS, QuotaReconciler } from './application/quota-reconciler.js';
 import { GetPayerPolicyHandler } from './application/queries/get-payer-policy/get-payer-policy.handler.js';
+import { SUBSCRIPTION_CLIENT, type ISubscriptionClient } from './application/ports/subscription.client.js';
+import { ProjectedEntitlementReader } from './application/projected-entitlement.reader.js';
+import { HttpSubscriptionClient } from './infrastructure/http-subscription.client.js';
+import { PrismaEntitlementProjection } from './infrastructure/prisma-entitlement-projection.js';
 import { PrismaPayerPolicyRepository } from './infrastructure/prisma-payer-policy.repository.js';
 import { RedisQuotaCounter } from './infrastructure/redis-quota-counter.js';
-import { AllEnabledEntitlementReader, NoEntitlementReader } from './infrastructure/stub-entitlement.readers.js';
 import { AdminPayerPoliciesController } from './presentation/admin-payer-policies.controller.js';
+import { EntitlementsChangedConsumer } from './presentation/events/entitlements-changed.consumer.js';
 
 /**
- * Who may call which agent, and where the data may go: payer policies (here) and the
- * tariff (plan 78; until then a stub picked by AI_ENTITLEMENTS_STUB), and the quota counters
- * in Redis with their reconciler. The gateway asks `AccessGate` before the router and has it
+ * Who may call which agent, and where the data may go: payer policies (here), the tariff
+ * (projected from subscription-service, plan 78 §6), and the quota counters in Redis with
+ * their reconciler. The gateway asks `AccessGate` before the router and has it
  * charge the call's credits after.
  */
 @Module({
@@ -35,20 +40,23 @@ import { AdminPayerPoliciesController } from './presentation/admin-payer-policie
       useFactory: (config: ConfigService<AppConfig>) => config.get<number>('quotaReconcileMs')!,
     },
     QuotaReconciler,
+    { provide: ENTITLEMENT_PROJECTION, useClass: PrismaEntitlementProjection },
+    {
+      provide: SUBSCRIPTION_CLIENT,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpSubscriptionClient(
+          config.get<string>('subscriptionServiceUrl')!,
+          config.get<string>('internalServiceToken')!,
+        ),
+    },
     {
       provide: ENTITLEMENT_READER,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<AppConfig>) => {
-        if (config.get<boolean>('entitlementsStub')) {
-          const credits = config.get<string | null>('stubMonthlyCredits') ?? null;
-          new Logger('AccessModule').warn(
-            `AI_ENTITLEMENTS_STUB is on: every payer is entitled to every agent, ${credits === null ? 'no quotas' : `${credits} credits a month each`}`,
-          );
-          return new AllEnabledEntitlementReader(credits);
-        }
-        return new NoEntitlementReader();
-      },
+      inject: [ENTITLEMENT_PROJECTION, SUBSCRIPTION_CLIENT],
+      useFactory: (projection: IEntitlementProjection, subscriptions: ISubscriptionClient) =>
+        new ProjectedEntitlementReader(projection, subscriptions),
     },
+    EntitlementsChangedConsumer,
   ],
   exports: [AccessGate],
 })

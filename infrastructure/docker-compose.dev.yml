@@ -420,9 +420,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-localdevpassword}
-      # Until plan 78 ships tariffs: every payer is entitled to every agent, no quotas.
-      # The service refuses to start with it under NODE_ENV=production.
-      AI_ENTITLEMENTS_STUB: "true"
+      # Tariffs (plan 78 §6): projected from subscription.events, read through on a miss.
+      SUBSCRIPTION_SERVICE_URL: http://subscription-service:3011
       # Provider keys: the registry names the variable (credentialRef), this passes it in.
       # Empty = provider shows configured: false; nothing else breaks.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

@@ -1,12 +1,11 @@
 import { validate } from './configuration.js';
 
 describe('validate', () => {
-  it('refuses the entitlement stub in production', () => {
-    expect(() => validate({ NODE_ENV: 'production', AI_ENTITLEMENTS_STUB: 'true' })).toThrow(/AI_ENTITLEMENTS_STUB/);
+  it('points at subscription-service on the compose network by default', () => {
+    expect(validate({}).SUBSCRIPTION_SERVICE_URL).toBe('http://subscription-service:3011');
   });
 
-  it('takes the stub outside production and leaves it off by default', () => {
-    expect(validate({ NODE_ENV: 'development', AI_ENTITLEMENTS_STUB: 'true' }).AI_ENTITLEMENTS_STUB).toBe(true);
-    expect(validate({ NODE_ENV: 'production' }).AI_ENTITLEMENTS_STUB).toBe(false);
+  it('refuses a subscription-service address that is not a URL', () => {
+    expect(() => validate({ SUBSCRIPTION_SERVICE_URL: 'subscription-service' })).toThrow(/SUBSCRIPTION_SERVICE_URL/);
   });
 });
