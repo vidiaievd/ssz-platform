@@ -18,7 +18,7 @@ export interface Subscription {
 }
 
 /** Still marked as running — whether or not its period has run out yet. */
-export function isOpen(s: Subscription): boolean {
+export function isOpen(s: Pick<Subscription, 'status'>): boolean {
   return s.status === 'trial' || s.status === 'active';
 }
 
@@ -26,7 +26,7 @@ export function isOpen(s: Subscription): boolean {
  * What the account is entitled to through right now. A row whose period has passed stops
  * counting at once, before the daily job (step 5) gets round to marking it `expired`.
  */
-export function isCurrent(s: Subscription, now: Date): boolean {
+export function isCurrent(s: Pick<Subscription, 'status' | 'periodEnd'>, now: Date): boolean {
   return isOpen(s) && (s.periodEnd === null || s.periodEnd > now);
 }
 

@@ -101,7 +101,8 @@ model BillingAccount {
   type          BillingAccountType
   /// schoolId for `workspace`, userId for `user`; not a foreign key — those live elsewhere.
   externalId    String             @map("external_id")
-  /// Bumped on every subscription change; two admins assigning at once — one gets a 409.
+  /// Bumped on every subscription and grant change; it is the version of the account's
+  /// entitlements. Two admins assigning at once — one gets a 409.
   revision      Int                @default(0)
   createdAt     DateTime           @default(now()) @map("created_at")
   subscriptions Subscription[]

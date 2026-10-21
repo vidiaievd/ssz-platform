@@ -456,6 +456,7 @@ services:
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
     ports:
       - "3011:3011"
     depends_on:

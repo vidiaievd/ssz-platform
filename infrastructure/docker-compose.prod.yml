@@ -519,6 +519,7 @@ services:
       RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD}@rabbitmq:5672
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      ORGANIZATION_SERVICE_URL: http://organization-service:3002
     depends_on:
       postgres:
         condition: service_healthy

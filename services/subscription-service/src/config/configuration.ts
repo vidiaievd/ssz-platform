@@ -15,6 +15,8 @@ export const envSchema = z.object({
   JWT_AUDIENCE: z.string().default('ssz-services'),
 
   INTERNAL_SERVICE_TOKEN: z.string().default('internal-dev-token'),
+
+  ORGANIZATION_SERVICE_URL: z.string().default('http://organization-service:3002'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -37,6 +39,8 @@ export interface AppConfig {
   jwt: { publicKey: string | undefined; publicKeyPath: string | undefined; issuer: string; audience: string };
   /** Shared secret for service-to-service routes (`x-internal-token`). */
   internalServiceToken: string;
+  /** Asked whether a caller of `/subscriptions/me` belongs to the workspace they name. */
+  organization: { baseUrl: string };
 }
 
 export default (): AppConfig => {
@@ -52,5 +56,6 @@ export default (): AppConfig => {
       audience: env.JWT_AUDIENCE,
     },
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
+    organization: { baseUrl: env.ORGANIZATION_SERVICE_URL },
   };
 };

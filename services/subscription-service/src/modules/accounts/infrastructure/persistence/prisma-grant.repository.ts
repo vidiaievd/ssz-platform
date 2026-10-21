@@ -15,30 +15,45 @@ export class PrismaGrantRepository implements IGrantRepository {
     return row ? toGrant(row) : null;
   }
 
+  // Both writes bump the account's revision: it is the version of the account's
+  // entitlements, and a grant changes them as much as a subscription does.
+
   async insert(grant: Grant): Promise<void> {
     const g = grant.snapshot;
-    await this.prisma.grant.create({
-      data: {
-        id: g.id,
-        accountId: g.accountId,
-        featureKey: g.featureKey,
-        monthlyCredits: g.monthlyCredits,
-        limits: g.limits as Prisma.InputJsonValue,
-        startsAt: g.startsAt,
-        endsAt: g.endsAt,
-        reason: g.reason,
-        createdBy: g.createdBy,
-        createdAt: g.createdAt,
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.grant.create({
+        data: {
+          id: g.id,
+          accountId: g.accountId,
+          featureKey: g.featureKey,
+          monthlyCredits: g.monthlyCredits,
+          limits: g.limits as Prisma.InputJsonValue,
+          startsAt: g.startsAt,
+          endsAt: g.endsAt,
+          reason: g.reason,
+          createdBy: g.createdBy,
+          createdAt: g.createdAt,
+        },
+      }),
+      this.bumpRevision(g.accountId),
+    ]);
   }
 
   async saveRevocation(grant: Grant): Promise<Result<void, 'version_conflict'>> {
     const g = grant.snapshot;
-    const updated = await this.prisma.grant.updateMany({
-      where: { id: g.id, revokedAt: null },
-      data: { revokedAt: g.revokedAt, revokedBy: g.revokedBy },
+    const revoked = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.grant.updateMany({
+        where: { id: g.id, revokedAt: null },
+        data: { revokedAt: g.revokedAt, revokedBy: g.revokedBy },
+      });
+      if (updated.count === 0) return false;
+      await tx.billingAccount.update({ where: { id: g.accountId }, data: { revision: { increment: 1 } } });
+      return true;
     });
-    return updated.count === 0 ? Result.fail('version_conflict') : Result.ok();
+    return revoked ? Result.ok() : Result.fail('version_conflict');
+  }
+
+  private bumpRevision(accountId: string) {
+    return this.prisma.billingAccount.update({ where: { id: accountId }, data: { revision: { increment: 1 } } });
   }
 }
