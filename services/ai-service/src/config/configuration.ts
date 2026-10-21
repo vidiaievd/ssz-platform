@@ -36,6 +36,8 @@ export const envSchema = z.object({
     .string()
     .regex(/^\d+(\.\d{1,6})?$/, 'a plain non-negative decimal, at most six places')
     .default('1000'),
+  // How often the spool of ledger rows that missed the database is moved in (step 8a).
+  AI_LEDGER_SPOOL_DRAIN_MS: z.coerce.number().int().positive().default(5_000),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -60,6 +62,7 @@ export interface AppConfig {
   breaker: { failures: number; windowMs: number; openMs: number };
   bindingCacheTtlMs: number;
   creditsPerUsd: string;
+  ledgerSpoolDrainMs: number;
   /** Shared secret for service-to-service routes (`x-internal-token`). */
   internalServiceToken: string;
 }
@@ -86,6 +89,7 @@ export default (): AppConfig => {
     breaker: { failures: env.AI_BREAKER_FAILURES, windowMs: env.AI_BREAKER_WINDOW_MS, openMs: env.AI_BREAKER_OPEN_MS },
     bindingCacheTtlMs: env.AI_BINDING_CACHE_TTL_MS,
     creditsPerUsd: env.AI_CREDITS_PER_USD,
+    ledgerSpoolDrainMs: env.AI_LEDGER_SPOOL_DRAIN_MS,
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
 };

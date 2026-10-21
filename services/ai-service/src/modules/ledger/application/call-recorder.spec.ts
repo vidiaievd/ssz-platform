@@ -1,7 +1,8 @@
 import type { ModelForCall } from '../../registry/application/ports/registry.reader.js';
 import type { AiCallRecord } from '../domain/ai-call.js';
 import { CallRecorder, type CallToRecord } from './call-recorder.js';
-import type { IAiCallLedger } from './ports/ai-call.ledger.js';
+import { LedgerRecordRejected, type IAiCallLedger } from './ports/ai-call.ledger.js';
+import type { ILedgerSpool } from './ports/ledger-spool.js';
 
 function model(price: { input: string; output: string; currency?: string } | null): ModelForCall {
   return {
@@ -55,10 +56,38 @@ function call(over: Partial<CallToRecord> = {}): CallToRecord {
   };
 }
 
-function recorder(rate = '1000', ledger?: IAiCallLedger) {
+function memorySpool(available = true) {
+  const spooled: AiCallRecord[] = [];
+  const spool: ILedgerSpool = {
+    push: async (r) => {
+      if (!available) throw new Error('redis down');
+      spooled.push(r);
+    },
+    drain: async () => null,
+    deadLetter: async () => undefined,
+  };
+  return { spool, spooled };
+}
+
+function recorder(rate = '1000', ledger?: IAiCallLedger, spoolAvailable = true) {
   const written: AiCallRecord[] = [];
   const sink: IAiCallLedger = ledger ?? { record: async (r) => void written.push(r) };
-  return { recorder: new CallRecorder(sink, rate), written };
+  const { spool, spooled } = memorySpool(spoolAvailable);
+  return { recorder: new CallRecorder(sink, rate, spool, [0, 0]), written, spooled };
+}
+
+/** Fails the first `failures` writes, then writes. */
+function flakyLedger(failures: number, error: Error = new Error('connection reset')) {
+  const written: AiCallRecord[] = [];
+  let calls = 0;
+  const ledger: IAiCallLedger = {
+    record: async (r) => {
+      calls++;
+      if (calls <= failures) throw error;
+      written.push(r);
+    },
+  };
+  return { ledger, written, calls: () => calls };
 }
 
 describe('CallRecorder', () => {
@@ -103,8 +132,35 @@ describe('CallRecorder', () => {
     expect(result).toMatchObject({ cost: { micros: 6_000, currency: 'EUR' }, credits: null });
   });
 
-  it('returns the answer even when the ledger write fails', async () => {
-    const { recorder: r } = recorder('1000', { record: async () => Promise.reject(new Error('db down')) });
+  it('retries a failed write and records the row on the next attempt', async () => {
+    const flaky = flakyLedger(1);
+    const { recorder: r, spooled } = recorder('1000', flaky.ledger);
+    const result = await r.record(call());
+    expect(flaky.calls()).toBe(2);
+    expect(flaky.written.map((w) => w.id)).toEqual([result.callId]);
+    expect(spooled).toHaveLength(0);
+  });
+
+  it('spools the row after three failed attempts and still returns the answer', async () => {
+    const flaky = flakyLedger(Infinity);
+    const { recorder: r, spooled } = recorder('1000', flaky.ledger);
+    const result = await r.record(call());
+    expect(result).toMatchObject({ credits: '6.000000' });
+    expect(flaky.calls()).toBe(3);
+    expect(spooled).toHaveLength(1);
+    expect(spooled[0]).toMatchObject({ id: result.callId, credits: '6.000000', createdAt: new Date('2026-10-21T10:00:00Z') });
+  });
+
+  it('returns the answer even when both the ledger and the spool are down', async () => {
+    const { recorder: r } = recorder('1000', flakyLedger(Infinity).ledger, false);
     await expect(r.record(call())).resolves.toMatchObject({ credits: '6.000000' });
+  });
+
+  it('neither retries nor spools a row the database rejects', async () => {
+    const flaky = flakyLedger(Infinity, new LedgerRecordRejected('P2000: value too long'));
+    const { recorder: r, spooled } = recorder('1000', flaky.ledger);
+    await expect(r.record(call())).resolves.toMatchObject({ credits: '6.000000' });
+    expect(flaky.calls()).toBe(1);
+    expect(spooled).toHaveLength(0);
   });
 });

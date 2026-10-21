@@ -136,6 +136,13 @@ describe('FakeLlmProvider', () => {
     expect((err as LlmError).retryable).toBe(retryable);
   });
 
+  it('slow times out when the request allows less than the wait', async () => {
+    const started = Date.now();
+    const err = await fake.complete(request('@fake:slow', { timeoutMs: 20 }), model()).catch((e: unknown) => e);
+    expect((err as LlmError).code).toBe('timeout');
+    expect(Date.now() - started).toBeGreaterThanOrEqual(15);
+  });
+
   it('gives rate_limited a retry-after hint', async () => {
     const err = (await fake.complete(request('@fake:rate_limited'), model()).catch((e) => e)) as LlmError;
     expect(err.retryAfterMs).toBe(1000);

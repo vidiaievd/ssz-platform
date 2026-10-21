@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { Injectable } from '@nestjs/common';
 import { LlmError } from '../../domain/llm-error.js';
 import type { LlmProvider } from '../../domain/llm-provider.port.js';
@@ -20,11 +21,15 @@ export const FAKE_SCENARIOS = [
   'auth',
   'invalid_request',
   'unavailable',
+  'slow',
 ] as const;
 
 export type FakeScenario = (typeof FAKE_SCENARIOS)[number];
 
 const MARKER = /@fake:([a-z_]+)/;
+
+/** How long `slow` takes to answer — room to stop a dependency mid-call (plan 77, step 8a). */
+const SLOW_MS = 8_000;
 
 /**
  * A provider that never leaves the process — for unit tests and for dev without API keys.
@@ -36,7 +41,9 @@ const MARKER = /@fake:([a-z_]+)/;
  * Neither present → `ok`. An unknown marker is a test typo and fails loudly; a model id
  * whose suffix is not a scenario (`fake-small`) simply answers.
  *
- * Errors are thrown at once: `timeout` reports a timeout without waiting for one.
+ * Errors are thrown at once: `timeout` reports a timeout without waiting for one. `slow`
+ * is the one scenario that waits — SLOW_MS, then an ordinary answer (a timeout if the
+ * request allows less).
  */
 @Injectable()
 export class FakeLlmProvider implements LlmProvider {
@@ -46,6 +53,7 @@ export class FakeLlmProvider implements LlmProvider {
     const started = Date.now();
     const scenario = this.scenarioOf(request, model);
     this.throwIfFailure(scenario);
+    if (scenario === 'slow') await this.waitSlowly(request.timeoutMs);
 
     const { output, stop } = this.answer(scenario, request);
     return {
@@ -86,6 +94,11 @@ export class FakeLlmProvider implements LlmProvider {
     // fake model that answers.
     const suffix = model.providerModelId.replace(/^fake-/, '').replace(/-/g, '_');
     return isScenario(suffix) ? suffix : 'ok';
+  }
+
+  private async waitSlowly(timeoutMs: number): Promise<void> {
+    await sleep(Math.min(SLOW_MS, timeoutMs));
+    if (timeoutMs < SLOW_MS) throw new LlmError('timeout', 'fake: request timed out');
   }
 
   private throwIfFailure(scenario: FakeScenario): void {

@@ -57,10 +57,11 @@ function found(over: { kind?: any; providerModelId?: string; credentialRef?: str
 }
 
 const written: AiCallRecord[] = [];
+const noSpool = { push: async () => undefined, drain: async () => null, deadLetter: async () => undefined };
 
 function handler(row: ModelForCall | null, providers: LlmProvider[] = [new FakeLlmProvider()], keySet = false) {
   const registry = { getModelForCall: async () => row } as unknown as IRegistryReader;
-  const recorder = new CallRecorder({ record: async (r) => void written.push(r) }, '1000');
+  const recorder = new CallRecorder({ record: async (r) => void written.push(r) }, '1000', noSpool);
   return new TestModelHandler(registry, { isSet: () => keySet }, providers, new SchemaGuard(), recorder);
 }
 
