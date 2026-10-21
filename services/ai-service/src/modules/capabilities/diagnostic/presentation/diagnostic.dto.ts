@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
-import { UsageDto } from '../../../registry/presentation/dto/registry.dto.js';
+import { CostDto, UsageDto } from '../../../registry/presentation/dto/registry.dto.js';
 
 export class RunDiagnosticDto {
   @ApiPropertyOptional({
@@ -71,4 +71,17 @@ export class DiagnosticResponseDto {
 
   @ApiProperty({ example: 640 })
   latencyMs!: number;
+
+  @ApiProperty({ format: 'uuid', description: 'The ledger row written for this run' })
+  callId!: string;
+
+  @ApiProperty({
+    type: CostDto,
+    nullable: true,
+    description: 'Zero when no model answered; null when the answering model has no price in effect',
+  })
+  cost!: CostDto | null;
+
+  @ApiProperty({ type: String, nullable: true, example: '0.202000', description: 'cost × AI_CREDITS_PER_USD, six decimals' })
+  credits!: string | null;
 }

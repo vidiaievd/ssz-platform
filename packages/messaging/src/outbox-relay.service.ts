@@ -14,6 +14,12 @@ export interface OutboxRelayOptions {
   batchSize?: number;
   /** Max delivery attempts before a row is abandoned. Default: 5. */
   maxAttempts?: number;
+  /**
+   * Topic exchanges the relay declares (durable) whenever its channel opens. Optional: a
+   * service whose exchange some other publisher already declares can leave it out, but a
+   * publish to an exchange nobody declared closes the channel.
+   */
+  exchanges?: string[];
 }
 
 @Injectable()
@@ -47,11 +53,13 @@ export class OutboxRelayService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(`OutboxRelay: RabbitMQ disconnected: ${err?.message ?? 'unknown'}`),
     );
 
+    const exchanges = options?.exchanges ?? [];
     this.channelWrapper = this.connection.createChannel({
       setup: async (channel: ConfirmChannel) => {
-        // Exchanges are asserted by publishers — relay only needs a ready channel.
+        for (const exchange of exchanges) {
+          await channel.assertExchange(exchange, 'topic', { durable: true });
+        }
         this.logger.log('OutboxRelay: channel ready');
-        void channel; // suppress unused warning
       },
     });
   }

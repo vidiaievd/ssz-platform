@@ -8,3 +8,4 @@ export * from './learning/index.js';
 export * from './exercise-engine/index.js';
 export * from './analytics/index.js';
 export * from './scheduling/index.js';
+export * from './ai/index.js';

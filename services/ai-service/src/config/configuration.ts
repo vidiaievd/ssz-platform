@@ -29,6 +29,13 @@ export const envSchema = z.object({
   AI_BREAKER_OPEN_MS: z.coerce.number().int().positive().default(30_000),
   // Safety net for the binding cache; a write invalidates it at once on every instance.
   AI_BINDING_CACHE_TTL_MS: z.coerce.number().int().positive().default(60_000),
+
+  // Ledger (plan 77, step 8): credits charged per one USD of model cost. One rate for every
+  // agent; a plain decimal with at most six places. 1000 → one credit is a tenth of a cent.
+  AI_CREDITS_PER_USD: z
+    .string()
+    .regex(/^\d+(\.\d{1,6})?$/, 'a plain non-negative decimal, at most six places')
+    .default('1000'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -52,6 +59,7 @@ export interface AppConfig {
   redis: { host: string; port: number; password: string | undefined; db: number; keyPrefix: string };
   breaker: { failures: number; windowMs: number; openMs: number };
   bindingCacheTtlMs: number;
+  creditsPerUsd: string;
   /** Shared secret for service-to-service routes (`x-internal-token`). */
   internalServiceToken: string;
 }
@@ -77,6 +85,7 @@ export default (): AppConfig => {
     },
     breaker: { failures: env.AI_BREAKER_FAILURES, windowMs: env.AI_BREAKER_WINDOW_MS, openMs: env.AI_BREAKER_OPEN_MS },
     bindingCacheTtlMs: env.AI_BINDING_CACHE_TTL_MS,
+    creditsPerUsd: env.AI_CREDITS_PER_USD,
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
 };

@@ -10,7 +10,9 @@ import {
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
+import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import { PlatformAdminGuard } from '../../../../common/guards/platform-admin.guard.js';
+import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { TestModelCommand } from '../../application/commands/test-model/test-model.command.js';
 import type { TestModelResult } from '../../application/commands/test-model/test-model.handler.js';
 import type { ModelWithCurrentPrice } from '../../application/ports/registry.reader.js';
@@ -68,12 +70,13 @@ export class AdminRegistryController {
     description:
       'Checks the key, the model id and structured output in one go. Runs on a disabled provider ' +
       '(that is what it is for) but not on an unconfigured one. A failed call is a 200 with ' +
-      '`outcome: "error"` — the test ran, the failure is its answer.',
+      '`outcome: "error"` — the test ran, the failure is its answer. Each test is a ledger row ' +
+      '(capability diagnostic, payer platform).',
   })
   @ApiOkResponse({ type: TestModelResponseDto })
   @ApiNotFoundResponse({ description: 'No such model' })
   @ApiUnprocessableEntityResponse({ description: 'Provider not configured, or no adapter for its kind yet' })
-  testModel(@Param('id', ParseUUIDPipe) id: string): Promise<TestModelResult> {
-    return this.commandBus.execute(new TestModelCommand(id));
+  testModel(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser): Promise<TestModelResult> {
+    return this.commandBus.execute(new TestModelCommand(id, user.userId, 'platform_admin'));
   }
 }

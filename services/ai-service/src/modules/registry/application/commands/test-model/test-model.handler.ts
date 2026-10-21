@@ -5,9 +5,9 @@ import { LlmError, type LlmErrorCode } from '../../../../providers/domain/llm-er
 import { LLM_PROVIDERS, type LlmProvider } from '../../../../providers/domain/llm-provider.port.js';
 import type { LlmRequest } from '../../../../providers/domain/llm-request.js';
 import type { LlmOutput, LlmStopReason, LlmUsage } from '../../../../providers/domain/llm-result.js';
-import { costMicros } from '../../../domain/cost.js';
+import { CallRecorder } from '../../../../ledger/application/call-recorder.js';
 import { CREDENTIAL_PRESENCE, type ICredentialPresence } from '../../ports/credential-presence.js';
-import { REGISTRY_READER, type IRegistryReader } from '../../ports/registry.reader.js';
+import { REGISTRY_READER, type IRegistryReader, type ModelForCall } from '../../ports/registry.reader.js';
 import { providerReadiness } from '../../provider-readiness.js';
 import { TestModelCommand } from './test-model.command.js';
 
@@ -21,8 +21,11 @@ export interface TestModelResult {
   usage: LlmUsage | null;
   latencyMs: number;
   providerRequestId: string | null;
-  /** Null when the model has no price in effect, or the call failed before any usage. */
+  /** Zero when the call failed before any answer; null when the model has no price in effect. */
   cost: { micros: number; currency: string } | null;
+  credits: string | null;
+  /** The ledger row for this test. */
+  callId: string;
 }
 
 const TEST_SCHEMA = {
@@ -41,7 +44,8 @@ const TEST_SCHEMA = {
  * the point — but not when it is unconfigured, which is a 422 naming what is missing.
  *
  * A failed call is still a 200 with `outcome: 'error'`: the test ran, and its answer is the
- * failure. Once the ledger exists (step 8) every test is recorded as capability `diagnostic`.
+ * failure. Every test is a ledger row under capability `diagnostic`, paid by the platform —
+ * a real call to a real model, whose cost has to show up somewhere.
  */
 @CommandHandler(TestModelCommand)
 export class TestModelHandler implements ICommandHandler<TestModelCommand, TestModelResult> {
@@ -50,12 +54,13 @@ export class TestModelHandler implements ICommandHandler<TestModelCommand, TestM
     @Inject(CREDENTIAL_PRESENCE) private readonly credentials: ICredentialPresence,
     @Inject(LLM_PROVIDERS) private readonly providers: LlmProvider[],
     private readonly guard: SchemaGuard,
+    private readonly recorder: CallRecorder,
   ) {}
 
   async execute(command: TestModelCommand): Promise<TestModelResult> {
     const found = await this.registry.getModelForCall(command.modelId, new Date());
     if (!found) throw new NotFoundException(`Model ${command.modelId} not found`);
-    const { model, provider, currentPrice } = found;
+    const { model, provider } = found;
 
     const readiness = providerReadiness(provider, this.credentials);
     if (!readiness.configured) {
@@ -81,7 +86,34 @@ export class TestModelHandler implements ICommandHandler<TestModelCommand, TestM
       timeoutMs: 30_000,
     };
 
-    const started = Date.now();
+    const startedAt = new Date();
+    const answer = await this.call(adapter, request, found);
+    const latencyMs = Date.now() - startedAt.getTime();
+    const recorded = await this.recorder.record({
+      capability: 'diagnostic',
+      context: {
+        payer: { type: 'platform', id: 'platform' },
+        actor: { userId: command.actorUserId, role: command.actorRole },
+        surface: 'admin_model_test',
+      },
+      model: found,
+      promptVersion: null,
+      usage: answer.usage,
+      latencyMs,
+      outcome: answer.outcome,
+      errorCode: answer.errorCode,
+      fallbackUsed: false,
+      attempts: [{ role: 'primary', modelId: model.id, outcome: answer.outcome === 'ok' ? 'ok' : 'error', reason: answer.errorCode }],
+      startedAt,
+    });
+    return { ...answer, latencyMs: answer.latencyMs ?? latencyMs, cost: recorded.cost, credits: recorded.credits, callId: recorded.callId };
+  }
+
+  private async call(
+    adapter: LlmProvider,
+    request: LlmRequest,
+    { model, provider }: ModelForCall,
+  ): Promise<Omit<TestModelResult, 'latencyMs' | 'cost' | 'credits' | 'callId'> & { latencyMs: number | null }> {
     try {
       const raw = await adapter.complete(request, {
         providerModelId: model.providerModelId,
@@ -93,15 +125,8 @@ export class TestModelHandler implements ICommandHandler<TestModelCommand, TestM
           credentialRef: provider.credentialRef,
         },
       });
-      const cost = currentPrice ? { micros: costMicros(raw.usage, currentPrice), currency: currentPrice.currency } : null;
       const checked = this.guard.check(raw, request);
-      const base = {
-        stop: raw.stop,
-        usage: raw.usage,
-        latencyMs: raw.latencyMs,
-        providerRequestId: raw.providerRequestId,
-        cost,
-      };
+      const base = { stop: raw.stop, usage: raw.usage, latencyMs: raw.latencyMs, providerRequestId: raw.providerRequestId };
       if (checked.isOk) {
         return { ...base, outcome: 'ok', errorCode: null, errorMessage: null, retryable: null, output: checked.value.output };
       }
@@ -124,9 +149,8 @@ export class TestModelHandler implements ICommandHandler<TestModelCommand, TestM
         output: null,
         stop: null,
         usage: null,
-        latencyMs: Date.now() - started,
+        latencyMs: null,
         providerRequestId: null,
-        cost: null,
       };
     }
   }

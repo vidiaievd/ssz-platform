@@ -152,3 +152,84 @@ model AiBindingChange {
   @@unique([capability, version])
   @@map("ai_binding_changes")
 }
+
+// ─── Ledger (plan 77, step 8) ────────────────────────────────────────────────
+
+enum AiPayerType {
+  workspace
+  user
+  /// Calls nobody is billed for: admin checks (`diagnostic`, model test).
+  platform
+
+  @@map("ai_payer_type")
+}
+
+enum AiCallOutcome {
+  ok
+  invalid_response
+  error
+  refused_quota
+  refused_policy
+  disabled
+
+  @@map("ai_call_outcome")
+}
+
+/// One row per gateway call, whatever its outcome — including calls the gate refused, at
+/// zero cost. Never holds prompt or answer text. Model and provider ids are plain columns,
+/// not relations: the ledger outlives a model removed from the registry.
+model AiCall {
+  id               String        @id @default(uuid())
+  capability       String
+  payerType        AiPayerType   @map("payer_type")
+  payerId          String        @map("payer_id")
+  actorUserId      String?       @map("actor_user_id")
+  actorRole        String?       @map("actor_role")
+  /// Where the call came from: `admin_diagnostic`, `admin_model_test`, an agent's screen.
+  surface          String
+  /// Null when no model was called (refused, disabled, every model skipped).
+  providerId       String?       @map("provider_id")
+  modelId          String?       @map("model_id")
+  promptVersion    String?       @map("prompt_version")
+  /// Null when no model answered; a refused answer (`invalid_response`, `filtered`) has usage.
+  inputTokens      Int?          @map("input_tokens")
+  outputTokens     Int?          @map("output_tokens")
+  cacheReadTokens  Int?          @map("cache_read_tokens")
+  cacheWriteTokens Int?          @map("cache_write_tokens")
+  /// In 1e-6 of `currency`. Null when the model had no price in effect.
+  costMicros       BigInt?       @map("cost_micros")
+  currency         String?
+  /// cost × the platform credit rate (AI_CREDITS_PER_USD).
+  credits          Decimal?      @db.Decimal(18, 6)
+  latencyMs        Int           @map("latency_ms")
+  outcome          AiCallOutcome
+  errorCode        String?       @map("error_code")
+  fallbackUsed     Boolean       @map("fallback_used")
+  /// The router's route: role, model, outcome, reason per model considered. No text.
+  attempts         Json
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([payerType, payerId, capability, createdAt])
+  @@map("ai_calls")
+}
+
+// ─── Outbox (plan 77, step 8) ────────────────────────────────────────────────
+
+/// Written in the same transaction as the ledger row; @ssz/messaging relays it to `ai.events`.
+model Outbox {
+  id            String    @id @default(uuid())
+  eventId       String    @unique @map("event_id")
+  eventType     String    @map("event_type")
+  exchange      String
+  routingKey    String    @map("routing_key")
+  payload       String    @db.Text
+  correlationId String?   @map("correlation_id")
+  occurredAt    DateTime  @map("occurred_at")
+  publishedAt   DateTime? @map("published_at")
+  attempts      Int       @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox")
+}

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { LedgerModule } from '../ledger/ledger.module.js';
 import { ProvidersModule } from '../providers/providers.module.js';
 import { PutBindingHandler } from './application/commands/put-binding/put-binding.handler.js';
 import { TestModelHandler } from './application/commands/test-model/test-model.handler.js';
@@ -20,7 +21,7 @@ import { AdminBindingsController } from './presentation/controllers/admin-bindin
 import { AdminRegistryController } from './presentation/controllers/admin-registry.controller.js';
 
 @Module({
-  imports: [ProvidersModule],
+  imports: [ProvidersModule, LedgerModule],
   controllers: [AdminRegistryController, AdminBindingsController],
   providers: [
     ListProvidersHandler,

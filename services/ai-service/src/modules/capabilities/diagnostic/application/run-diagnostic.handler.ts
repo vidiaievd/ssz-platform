@@ -1,5 +1,7 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { ModelRouter, type ModelRole, type RouteAttempt } from '../../../gateway/application/model-router.js';
+import { AiGateway } from '../../../gateway/application/ai-gateway.js';
+import type { ModelRole, RouteAttempt } from '../../../gateway/application/model-router.js';
+import type { CallContext } from '../../../ledger/domain/ai-call.js';
 import type { LlmErrorCode } from '../../../providers/domain/llm-error.js';
 import type { LlmOutput, LlmUsage } from '../../../providers/domain/llm-result.js';
 import { DIAGNOSTIC, DIAGNOSTIC_SCHEMA, DIAGNOSTIC_SYSTEM } from '../diagnostic.capability.js';
@@ -17,25 +19,36 @@ export interface DiagnosticResult {
   output: LlmOutput | null;
   usage: LlmUsage | null;
   latencyMs: number;
+  /** The ledger row for this call. */
+  callId: string;
+  /** Null when the model has no price in effect. */
+  cost: { micros: number; currency: string } | null;
+  credits: string | null;
 }
 
 /**
  * Sends the admin's text through the gateway under the `diagnostic` binding and reports
  * the route it took. Like the model test, every outcome is an answer — including
  * "disabled" — so the endpoint is a 200 whatever happened.
+ *
+ * The platform pays: an admin's check is not charged to any workspace.
  */
 @CommandHandler(RunDiagnosticCommand)
 export class RunDiagnosticHandler implements ICommandHandler<RunDiagnosticCommand, DiagnosticResult> {
-  constructor(private readonly router: ModelRouter) {}
+  constructor(private readonly gateway: AiGateway) {}
 
   async execute(command: RunDiagnosticCommand): Promise<DiagnosticResult> {
-    const started = Date.now();
-    const routed = await this.router.call(DIAGNOSTIC.code, {
+    const context: CallContext = {
+      payer: { type: 'platform', id: 'platform' },
+      actor: { userId: command.actorUserId, role: command.actorRole },
+      surface: 'admin_diagnostic',
+    };
+    const { routed, recorded, latencyMs } = await this.gateway.call(DIAGNOSTIC.code, context, {
       system: DIAGNOSTIC_SYSTEM,
       messages: [{ role: 'user', parts: [{ type: 'text', text: command.text }] }],
       responseSchema: { name: 'diagnostic_echo', schema: DIAGNOSTIC_SCHEMA },
     });
-    const latencyMs = Date.now() - started;
+    const ledger = { callId: recorded.callId, cost: recorded.cost, credits: recorded.credits, latencyMs };
 
     if (routed.isOk) {
       const { result, model, role, binding, attempts } = routed.value;
@@ -49,7 +62,7 @@ export class RunDiagnosticHandler implements ICommandHandler<RunDiagnosticComman
         attempts,
         output: result.output,
         usage: result.usage,
-        latencyMs,
+        ...ledger,
       };
     }
 
@@ -70,7 +83,7 @@ export class RunDiagnosticHandler implements ICommandHandler<RunDiagnosticComman
         attempts: failure.attempts,
         output: null,
         usage: null,
-        latencyMs,
+        ...ledger,
       };
     }
 
@@ -85,7 +98,7 @@ export class RunDiagnosticHandler implements ICommandHandler<RunDiagnosticComman
       attempts,
       output: raw?.output ?? null,
       usage: raw?.usage ?? null,
-      latencyMs,
+      ...ledger,
     };
   }
 }

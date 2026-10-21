@@ -177,6 +177,16 @@ export class TestModelResponseDto {
   @ApiProperty({ type: String, nullable: true, example: 'req_011CSHoEeqs5C35K2UUqR7Fy' })
   providerRequestId!: string | null;
 
-  @ApiProperty({ type: CostDto, nullable: true, description: 'Null when the model has no price in effect' })
+  @ApiProperty({
+    type: CostDto,
+    nullable: true,
+    description: 'Zero when the call failed before any answer; null when the model has no price in effect',
+  })
   cost!: CostDto | null;
+
+  @ApiProperty({ type: String, nullable: true, example: '0.202000', description: 'cost × AI_CREDITS_PER_USD, six decimals' })
+  credits!: string | null;
+
+  @ApiProperty({ format: 'uuid', description: 'The ledger row written for this test' })
+  callId!: string;
 }
