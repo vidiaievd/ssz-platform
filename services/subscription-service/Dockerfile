@@ -68,6 +68,8 @@ COPY --from=builder /workspace/services/subscription-service/node_modules  ./nod
 COPY --from=builder /workspace/services/subscription-service/dist          ./dist
 COPY --from=builder /workspace/services/subscription-service/generated     ./generated
 COPY --from=builder /workspace/services/subscription-service/prisma        ./prisma
+# The seed (tsx prisma/seed.ts) runs the plan checks from the domain sources.
+COPY --from=builder /workspace/services/subscription-service/src           ./src
 COPY --from=builder /workspace/services/subscription-service/prisma.config.ts ./
 COPY --from=builder /workspace/services/subscription-service/package.json  ./
 COPY --from=builder /workspace/services/subscription-service/tsconfig.json ./

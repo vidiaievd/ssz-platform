@@ -7,5 +7,70 @@ datasource db {
   provider = "postgresql"
 }
 
-// Models arrive with plan 78: plans + features (step 2), accounts, subscriptions, grants (step 3),
-// outbox + processed events (step 5).
+// Enum members are written in their wire form (lowercase), so Prisma's generated
+// values and the domain's strings are the same and no mapper has to translate them.
+
+// Accounts, subscriptions, grants (step 3) and outbox + processed events (step 5) follow.
+
+// ─── Plans (plan 78, step 2) ─────────────────────────────────────────────────
+
+enum PlanAudience {
+  workspace
+  individual
+
+  @@map("plan_audience")
+}
+
+enum PlanStatus {
+  active
+  archived
+
+  @@map("plan_status")
+}
+
+/// A tariff. What it grants lives in its versions; `currentVersion` is the one offered
+/// to new subscriptions.
+model Plan {
+  id             String        @id @default(uuid())
+  /// Stable handle: `free_individual`, `tutor_pro`, `school`.
+  code           String        @unique
+  name           String
+  audience       PlanAudience
+  status         PlanStatus    @default(active)
+  currentVersion Int           @map("current_version")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  versions       PlanVersion[]
+
+  @@map("plans")
+}
+
+/// An immutable snapshot of a plan's features. Never updated; a change is a new row.
+model PlanVersion {
+  id        String        @id @default(uuid())
+  planId    String        @map("plan_id")
+  version   Int
+  createdBy String        @map("created_by")
+  createdAt DateTime      @default(now()) @map("created_at")
+  plan      Plan          @relation(fields: [planId], references: [id])
+  features  PlanFeature[]
+
+  @@unique([planId, version])
+  @@map("plan_versions")
+}
+
+model PlanFeature {
+  id             String      @id @default(uuid())
+  planVersionId  String      @map("plan_version_id")
+  /// One of the keys in `domain/feature-key.ts`; checked in the domain, not by the DB.
+  featureKey     String      @map("feature_key")
+  enabled        Boolean
+  /// Platform credits per month; null = unmetered.
+  monthlyCredits Decimal?    @map("monthly_credits") @db.Decimal(18, 6)
+  /// Key-specific numeric limits, e.g. `{ "perLearnerMonthlyCredits": 20 }`.
+  limits         Json        @default("{}")
+  planVersion    PlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([planVersionId, featureKey])
+  @@map("plan_features")
+}
