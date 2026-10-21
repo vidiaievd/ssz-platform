@@ -1,6 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsIn, IsOptional, IsString, IsUUID, MaxLength, ValidateNested } from 'class-validator';
+import { BILLED_PAYER_TYPES, type BilledPayerType } from '../../../access/domain/payer.js';
 import { CostDto, UsageDto } from '../../../registry/presentation/dto/registry.dto.js';
+
+export class DiagnosticPayerDto {
+  @ApiProperty({ enum: BILLED_PAYER_TYPES, example: 'workspace' })
+  @IsIn(BILLED_PAYER_TYPES)
+  type!: BilledPayerType;
+
+  @ApiProperty({ format: 'uuid', description: 'schoolId or userId' })
+  @IsUUID()
+  id!: string;
+}
 
 export class RunDiagnosticDto {
   @ApiPropertyOptional({
@@ -11,6 +23,17 @@ export class RunDiagnosticDto {
   @IsString()
   @MaxLength(500)
   text?: string;
+
+  @ApiPropertyOptional({
+    type: DiagnosticPayerDto,
+    description:
+      "Run as this payer: its policy and tariff are applied and the ledger row is its (surface admin_diagnostic). " +
+      'Omitted = the platform pays and the gate lets it through',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DiagnosticPayerDto)
+  asPayer?: DiagnosticPayerDto;
 }
 
 export class AnsweredByDto {
@@ -35,17 +58,25 @@ export class RouteAttemptDto {
     nullable: true,
     example: 'provider_disabled',
     description:
-      'Skip reason (model_missing, model_disabled, provider_disabled, provider_not_configured, no_adapter, ' +
-      'breaker_open) or the error code of a failed call',
+      'Skip reason (model_missing, region_not_allowed, model_disabled, provider_disabled, provider_not_configured, ' +
+      'no_adapter, breaker_open) or the error code of a failed call',
   })
   reason!: string | null;
 }
 
 export class DiagnosticResponseDto {
-  @ApiProperty({ enum: ['ok', 'invalid_response', 'error', 'disabled', 'unavailable'], example: 'ok' })
+  @ApiProperty({
+    enum: ['ok', 'invalid_response', 'error', 'disabled', 'unavailable', 'refused_policy', 'refused_quota'],
+    example: 'ok',
+  })
   outcome!: string;
 
-  @ApiProperty({ type: String, nullable: true, example: null })
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: null,
+    description: 'Provider error code, refusal (ai_disabled, region_not_allowed, not_entitled) or gate_unavailable',
+  })
   errorCode!: string | null;
 
   @ApiProperty({ type: String, nullable: true, example: null })

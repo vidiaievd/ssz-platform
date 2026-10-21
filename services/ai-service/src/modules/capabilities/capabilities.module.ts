@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { GatewayModule } from '../gateway/gateway.module.js';
+import { DiagnosticPayerResolver } from './diagnostic/application/diagnostic-payer.resolver.js';
 import { RunDiagnosticHandler } from './diagnostic/application/run-diagnostic.handler.js';
 import { AdminDiagnosticController } from './diagnostic/presentation/admin-diagnostic.controller.js';
 
@@ -7,6 +8,6 @@ import { AdminDiagnosticController } from './diagnostic/presentation/admin-diagn
 @Module({
   imports: [GatewayModule],
   controllers: [AdminDiagnosticController],
-  providers: [RunDiagnosticHandler],
+  providers: [RunDiagnosticHandler, DiagnosticPayerResolver],
 })
 export class CapabilitiesModule {}

@@ -5,6 +5,7 @@ import type { ModelFeatures, ProviderKind } from '../../providers/domain/model-f
 import { FakeLlmProvider } from '../../providers/infrastructure/fake/fake-llm.provider.js';
 import type { ModelForCall } from '../../registry/application/ports/registry.reader.js';
 import type { AiBinding } from '../../registry/domain/binding.js';
+import type { AiRegion } from '../../registry/domain/registry.types.js';
 import { ModelRouter, type GatewayRequest } from './model-router.js';
 import type { ICircuitBreaker } from './ports/circuit-breaker.port.js';
 
@@ -22,7 +23,14 @@ const features: ModelFeatures = {
 
 function model(
   id: string,
-  over: { providerModelId?: string; enabled?: boolean; status?: 'active' | 'disabled'; kind?: ProviderKind; credentialRef?: string } = {},
+  over: {
+    providerModelId?: string;
+    enabled?: boolean;
+    status?: 'active' | 'disabled';
+    kind?: ProviderKind;
+    credentialRef?: string;
+    region?: AiRegion;
+  } = {},
 ): ModelForCall {
   return {
     model: {
@@ -42,7 +50,7 @@ function model(
       baseUrl: null,
       apiVersion: null,
       credentialRef: over.credentialRef ?? null,
-      region: 'local',
+      region: over.region ?? 'local',
       enabled: over.enabled ?? true,
     },
     currentPrice: null,
@@ -240,5 +248,45 @@ describe('ModelRouter', () => {
     const { router } = setup({ binding: binding({ temperature: 0.3 }), models: [model('primary')], providers: [spy] });
     await router.call('diagnostic', CALL);
     expect(seen[0]).toMatchObject({ maxOutputTokens: 512, timeoutMs: 5_000, temperature: 0.3 });
+  });
+
+  describe('payer regions', () => {
+    const EU_ONLY = { allowedRegions: ['eu' as const] };
+
+    it('steps over a primary outside the payer’s regions to a fallback inside them', async () => {
+      const { router } = setup({
+        binding: binding(),
+        models: [model('primary', { region: 'us' }), model('fallback', { region: 'eu' })],
+      });
+      const routed = await router.call('diagnostic', CALL, EU_ONLY);
+      expect(routed.value.role).toBe('fallback');
+      expect(routed.value.attempts.map((a) => [a.role, a.outcome, a.reason])).toEqual([
+        ['primary', 'skipped', 'region_not_allowed'],
+        ['fallback', 'ok', null],
+      ]);
+    });
+
+    it('refuses by policy when every model is outside the payer’s regions', async () => {
+      const { router } = setup({
+        binding: binding(),
+        models: [model('primary', { region: 'us' }), model('fallback', { region: 'global' })],
+      });
+      const routed = await router.call('diagnostic', CALL, EU_ONLY);
+      expect(routed.error).toMatchObject({ kind: 'refused', code: 'region_not_allowed' });
+    });
+
+    it('reports an outage, not a refusal, when the allowed model is down for another reason', async () => {
+      const { router } = setup({
+        binding: binding(),
+        models: [model('primary', { region: 'us' }), model('fallback', { region: 'eu', enabled: false })],
+      });
+      expect((await router.call('diagnostic', CALL, EU_ONLY)).error.kind).toBe('unavailable');
+    });
+
+    it('matches regions literally: a local model is not allowed by an EU-only list', async () => {
+      const { router } = setup({ binding: binding({ fallbackModelId: null }), models: [model('primary', { region: 'local' })] });
+      expect((await router.call('diagnostic', CALL, EU_ONLY)).error.kind).toBe('refused');
+      expect((await router.call('diagnostic', CALL, { allowedRegions: ['eu', 'local'] })).isOk).toBe(true);
+    });
   });
 });

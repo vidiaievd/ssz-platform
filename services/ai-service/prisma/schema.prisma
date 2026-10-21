@@ -233,3 +233,21 @@ model Outbox {
   @@index([publishedAt, createdAt])
   @@map("outbox")
 }
+
+// ─── Access (plan 77, step 9) ────────────────────────────────────────────────
+
+/// A payer's own rules for AI: switched off entirely, or only some data regions. Not a
+/// tariff — a school's or a learner's setting. No row = AI on, any region.
+model AiPayerPolicy {
+  payerType      AiPayerType @map("payer_type")
+  payerId        String      @map("payer_id")
+  aiEnabled      Boolean     @map("ai_enabled")
+  /// Empty = any region (Prisma lists cannot be null; the API never stores an empty limit).
+  /// Otherwise a provider's region must be listed for its models to be called.
+  allowedRegions AiRegion[]  @map("allowed_regions")
+  updatedBy      String      @map("updated_by")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  @@id([payerType, payerId])
+  @@map("ai_payer_policies")
+}

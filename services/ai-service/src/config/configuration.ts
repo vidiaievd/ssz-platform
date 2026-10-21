@@ -38,12 +38,24 @@ export const envSchema = z.object({
     .default('1000'),
   // How often the spool of ledger rows that missed the database is moved in (step 8a).
   AI_LEDGER_SPOOL_DRAIN_MS: z.coerce.number().int().positive().default(5_000),
+
+  // Access gate (step 9): until plan 78 ships tariffs, "true" entitles every payer to every
+  // agent without quotas. Refused under NODE_ENV=production; off, no payer is entitled.
+  AI_ENTITLEMENTS_STUB: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 export type Env = z.infer<typeof envSchema>;
 
+const refined = envSchema.refine((env) => !(env.NODE_ENV === 'production' && env.AI_ENTITLEMENTS_STUB), {
+  path: ['AI_ENTITLEMENTS_STUB'],
+  message: 'the "everything enabled" entitlement stub is forbidden in production',
+});
+
 export function validate(config: Record<string, unknown>): Env {
-  const result = envSchema.safeParse(config);
+  const result = refined.safeParse(config);
   if (!result.success) {
     const formatted = result.error.issues
       .map((issue) => `  [${issue.path.join('.')}] ${issue.message}`)
@@ -63,6 +75,7 @@ export interface AppConfig {
   bindingCacheTtlMs: number;
   creditsPerUsd: string;
   ledgerSpoolDrainMs: number;
+  entitlementsStub: boolean;
   /** Shared secret for service-to-service routes (`x-internal-token`). */
   internalServiceToken: string;
 }
@@ -90,6 +103,7 @@ export default (): AppConfig => {
     bindingCacheTtlMs: env.AI_BINDING_CACHE_TTL_MS,
     creditsPerUsd: env.AI_CREDITS_PER_USD,
     ledgerSpoolDrainMs: env.AI_LEDGER_SPOOL_DRAIN_MS,
+    entitlementsStub: env.AI_ENTITLEMENTS_STUB,
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
 };

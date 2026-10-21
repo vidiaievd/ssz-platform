@@ -1,15 +1,17 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
+import { REFUSAL_OUTCOME } from '../../../access/domain/refusal.js';
 import { AiGateway } from '../../../gateway/application/ai-gateway.js';
 import type { ModelRole, RouteAttempt } from '../../../gateway/application/model-router.js';
 import type { CallContext } from '../../../ledger/domain/ai-call.js';
-import type { LlmErrorCode } from '../../../providers/domain/llm-error.js';
 import type { LlmOutput, LlmUsage } from '../../../providers/domain/llm-result.js';
 import { DIAGNOSTIC, DIAGNOSTIC_SCHEMA, DIAGNOSTIC_SYSTEM } from '../diagnostic.capability.js';
+import { DiagnosticPayerResolver } from './diagnostic-payer.resolver.js';
 import { RunDiagnosticCommand } from './run-diagnostic.command.js';
 
 export interface DiagnosticResult {
-  outcome: 'ok' | 'invalid_response' | 'error' | 'disabled' | 'unavailable';
-  errorCode: LlmErrorCode | null;
+  outcome: 'ok' | 'invalid_response' | 'error' | 'disabled' | 'unavailable' | 'refused_policy' | 'refused_quota';
+  /** The provider error, the refusal (`ai_disabled`, `region_not_allowed`, `not_entitled`) or `gate_unavailable`. */
+  errorCode: string | null;
   errorMessage: string | null;
   /** The model whose answer (or failure) this is; null when none was called. */
   answeredBy: { modelId: string; providerCode: string; providerModelId: string; role: ModelRole } | null;
@@ -31,15 +33,18 @@ export interface DiagnosticResult {
  * the route it took. Like the model test, every outcome is an answer — including
  * "disabled" — so the endpoint is a 200 whatever happened.
  *
- * The platform pays: an admin's check is not charged to any workspace.
+ * The platform pays, unless the admin names a payer to try that payer's policy and tariff.
  */
 @CommandHandler(RunDiagnosticCommand)
 export class RunDiagnosticHandler implements ICommandHandler<RunDiagnosticCommand, DiagnosticResult> {
-  constructor(private readonly gateway: AiGateway) {}
+  constructor(
+    private readonly gateway: AiGateway,
+    private readonly payers: DiagnosticPayerResolver,
+  ) {}
 
   async execute(command: RunDiagnosticCommand): Promise<DiagnosticResult> {
     const context: CallContext = {
-      payer: { type: 'platform', id: 'platform' },
+      payer: await this.payers.resolve(command),
       actor: { userId: command.actorUserId, role: command.actorRole },
       surface: 'admin_diagnostic',
     };
@@ -68,15 +73,18 @@ export class RunDiagnosticHandler implements ICommandHandler<RunDiagnosticComman
 
     const failure = routed.error;
     if (failure.kind !== 'error') {
+      const [outcome, errorCode, errorMessage]: [DiagnosticResult['outcome'], string | null, string] =
+        failure.kind === 'disabled'
+          ? ['disabled', null, failure.binding ? 'Capability "diagnostic" is switched off' : 'Capability "diagnostic" is not bound']
+          : failure.kind === 'refused'
+            ? [REFUSAL_OUTCOME[failure.code], failure.code, `Refused for payer ${context.payer.type}:${context.payer.id}`]
+            : failure.kind === 'gate_unavailable'
+              ? ['error', 'gate_unavailable', "The payer's policy or tariff could not be read"]
+              : ['unavailable', null, 'No model of the binding could be called'];
       return {
-        outcome: failure.kind,
-        errorCode: null,
-        errorMessage:
-          failure.kind === 'disabled'
-            ? failure.binding
-              ? 'Capability "diagnostic" is switched off'
-              : 'Capability "diagnostic" is not bound'
-            : 'No model of the binding could be called',
+        outcome,
+        errorCode,
+        errorMessage,
         answeredBy: null,
         fallbackUsed: false,
         promptVersion: failure.binding?.promptVersion ?? null,

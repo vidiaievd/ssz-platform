@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { regionAllowed } from '../../access/domain/payer-policy.js';
 import { SchemaGuard } from '../../providers/application/schema-guard.js';
 import { LlmError } from '../../providers/domain/llm-error.js';
 import { LLM_PROVIDERS, type LlmProvider } from '../../providers/domain/llm-provider.port.js';
@@ -9,6 +10,7 @@ import { CREDENTIAL_PRESENCE, type ICredentialPresence } from '../../registry/ap
 import { REGISTRY_READER, type IRegistryReader, type ModelForCall } from '../../registry/application/ports/registry.reader.js';
 import { providerReadiness } from '../../registry/application/provider-readiness.js';
 import type { AiBinding } from '../../registry/domain/binding.js';
+import type { AiRegion } from '../../registry/domain/registry.types.js';
 import { Result } from '../../../shared/kernel/result.js';
 import { CIRCUIT_BREAKER, type ICircuitBreaker } from './ports/circuit-breaker.port.js';
 
@@ -17,9 +19,18 @@ export type GatewayRequest = Omit<LlmRequest, 'maxOutputTokens' | 'temperature' 
 
 export type ModelRole = 'primary' | 'fallback';
 
+/** What the access gate allows this call; null regions = any. */
+export interface RouteConstraints {
+  allowedRegions: AiRegion[] | null;
+}
+
+const NO_CONSTRAINTS: RouteConstraints = { allowedRegions: null };
+
 /** Why a model was stepped over without being called. */
 export type SkipReason =
   | 'model_missing'
+  /** The provider's region is not one the payer allows. */
+  | 'region_not_allowed'
   | 'model_disabled'
   | 'provider_disabled'
   | 'provider_not_configured'
@@ -48,6 +59,8 @@ export type RouteFailure =
   | { kind: 'disabled'; binding: AiBinding | null; attempts: RouteAttempt[] }
   /** Every model was stepped over; none was called. */
   | { kind: 'unavailable'; binding: AiBinding; attempts: RouteAttempt[] }
+  /** Every model sits outside the payer's regions: refused by policy, not an outage. */
+  | { kind: 'refused'; code: 'region_not_allowed'; binding: AiBinding; attempts: RouteAttempt[] }
   /**
    * The last model called failed. `raw` is set when it answered but the answer was refused
    * (`invalid_response`, `filtered`) — it was billed, and the ledger needs its usage.
@@ -70,6 +83,11 @@ export type RouteFailure =
  *
  * Each model gets one attempt with the binding's full timeout; there is no retry on the
  * same model — the fallback is the retry.
+ *
+ * A model outside the payer's regions is stepped over like a switched-off one, so an
+ * EU-only school whose primary is in the US is answered by an EU fallback. When region is
+ * the only reason every model was stepped over, the call is refused by policy rather than
+ * reported as an outage.
  */
 @Injectable()
 export class ModelRouter {
@@ -82,7 +100,11 @@ export class ModelRouter {
     private readonly guard: SchemaGuard,
   ) {}
 
-  async call(capability: string, call: GatewayRequest): Promise<Result<RoutedCall, RouteFailure>> {
+  async call(
+    capability: string,
+    call: GatewayRequest,
+    constraints: RouteConstraints = NO_CONSTRAINTS,
+  ): Promise<Result<RoutedCall, RouteFailure>> {
     const binding = await this.bindings.get(capability);
     if (!binding || !binding.enabled) return Result.fail({ kind: 'disabled', binding, attempts: [] });
 
@@ -101,7 +123,7 @@ export class ModelRouter {
     for (const { role, modelId } of candidates) {
       const model = await this.registry.getModelForCall(modelId, new Date());
       const adapter = model ? this.providers.find((p) => p.kind === model.provider.kind) : undefined;
-      const skip = await this.skipReason(model, adapter);
+      const skip = await this.skipReason(model, adapter, constraints);
       if (skip || !model || !adapter) {
         attempts.push({ role, modelId, outcome: 'skipped', reason: skip });
         continue;
@@ -139,11 +161,19 @@ export class ModelRouter {
     }
 
     if (lastRetryable) return Result.fail({ kind: 'error', ...lastRetryable, binding, raw: null, attempts });
+    if (attempts.every((a) => a.reason === 'region_not_allowed')) {
+      return Result.fail({ kind: 'refused', code: 'region_not_allowed', binding, attempts });
+    }
     return Result.fail({ kind: 'unavailable', binding, attempts });
   }
 
-  private async skipReason(model: ModelForCall | null, adapter: LlmProvider | undefined): Promise<SkipReason | null> {
+  private async skipReason(
+    model: ModelForCall | null,
+    adapter: LlmProvider | undefined,
+    constraints: RouteConstraints,
+  ): Promise<SkipReason | null> {
     if (!model) return 'model_missing';
+    if (!regionAllowed(constraints, model.provider.region)) return 'region_not_allowed';
     if (model.model.status === 'disabled') return 'model_disabled';
     if (!model.provider.enabled) return 'provider_disabled';
     if (!providerReadiness(model.provider, this.credentials).configured) return 'provider_not_configured';

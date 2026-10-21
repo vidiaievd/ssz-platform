@@ -8,6 +8,7 @@ import { RedisModule } from './infrastructure/cache/redis.module.js';
 import { JwtModule } from './infrastructure/auth/jwt.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { AccessModule } from './modules/access/access.module.js';
 import { CapabilitiesModule } from './modules/capabilities/capabilities.module.js';
 import { GatewayModule } from './modules/gateway/gateway.module.js';
 import { ProvidersModule } from './modules/providers/providers.module.js';
@@ -24,6 +25,7 @@ import { RegistryModule } from './modules/registry/registry.module.js';
     HealthModule,
     ProvidersModule,
     RegistryModule,
+    AccessModule,
     GatewayModule,
     CapabilitiesModule,
   ],

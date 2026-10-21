@@ -31,10 +31,12 @@ export class AdminDiagnosticController {
     description:
       'Shows which model answered and every model the router considered — the way to check a binding, ' +
       'its fallback and the breaker. Every outcome, including "disabled", is a 200. Each run is a ledger row ' +
-      '(payer: platform) and an `ai.call.completed` event.',
+      '(payer: platform, or `asPayer` to see that payer\'s policy and tariff applied) and an `ai.call.completed` event.',
   })
   @ApiOkResponse({ type: DiagnosticResponseDto })
   run(@Body() body: RunDiagnosticDto, @CurrentUser() user: AuthenticatedUser): Promise<DiagnosticResult> {
-    return this.commandBus.execute(new RunDiagnosticCommand(body.text ?? 'ping', user.userId, 'platform_admin'));
+    return this.commandBus.execute(
+      new RunDiagnosticCommand(body.text ?? 'ping', user.userId, 'platform_admin', body.asPayer ?? null),
+    );
   }
 }
