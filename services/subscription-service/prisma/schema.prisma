@@ -10,7 +10,7 @@ datasource db {
 // Enum members are written in their wire form (lowercase), so Prisma's generated
 // values and the domain's strings are the same and no mapper has to translate them.
 
-// Accounts, subscriptions, grants (step 3) and outbox + processed events (step 5) follow.
+// Outbox + processed events (step 5) follow.
 
 // ─── Plans (plan 78, step 2) ─────────────────────────────────────────────────
 
@@ -41,19 +41,21 @@ model Plan {
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
   versions       PlanVersion[]
+  subscriptions  Subscription[]
 
   @@map("plans")
 }
 
 /// An immutable snapshot of a plan's features. Never updated; a change is a new row.
 model PlanVersion {
-  id        String        @id @default(uuid())
-  planId    String        @map("plan_id")
-  version   Int
-  createdBy String        @map("created_by")
-  createdAt DateTime      @default(now()) @map("created_at")
-  plan      Plan          @relation(fields: [planId], references: [id])
-  features  PlanFeature[]
+  id            String         @id @default(uuid())
+  planId        String         @map("plan_id")
+  version       Int
+  createdBy     String         @map("created_by")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  plan          Plan           @relation(fields: [planId], references: [id])
+  features      PlanFeature[]
+  subscriptions Subscription[]
 
   @@unique([planId, version])
   @@map("plan_versions")
@@ -73,4 +75,83 @@ model PlanFeature {
 
   @@unique([planVersionId, featureKey])
   @@map("plan_features")
+}
+
+// ─── Accounts, subscriptions, grants (plan 78, step 3) ──────────────────────
+
+enum BillingAccountType {
+  workspace
+  user
+
+  @@map("billing_account_type")
+}
+
+enum SubscriptionStatus {
+  trial
+  active
+  canceled
+  expired
+
+  @@map("subscription_status")
+}
+
+/// Who pays: a workspace (school, SOLO tutor included) or a self-taught learner.
+model BillingAccount {
+  id            String             @id @default(uuid())
+  type          BillingAccountType
+  /// schoolId for `workspace`, userId for `user`; not a foreign key — those live elsewhere.
+  externalId    String             @map("external_id")
+  /// Bumped on every subscription change; two admins assigning at once — one gets a 409.
+  revision      Int                @default(0)
+  createdAt     DateTime           @default(now()) @map("created_at")
+  subscriptions Subscription[]
+  grants        Grant[]
+
+  @@unique([type, externalId])
+  @@map("billing_accounts")
+}
+
+/// A plan version assigned to an account. Rows are never deleted; a change of plan closes
+/// the current row and opens a new one, so the rows are the history.
+model Subscription {
+  id          String             @id @default(uuid())
+  accountId   String             @map("account_id")
+  planId      String             @map("plan_id")
+  planVersion Int                @map("plan_version")
+  status      SubscriptionStatus
+  periodStart DateTime           @map("period_start")
+  /// Null = open-ended (manual assignment without payment).
+  periodEnd   DateTime?          @map("period_end")
+  createdBy   String             @map("created_by")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  /// When and by whom the row stopped being current (replaced, canceled, expired).
+  endedAt     DateTime?          @map("ended_at")
+  endedBy     String?            @map("ended_by")
+  account     BillingAccount     @relation(fields: [accountId], references: [id])
+  plan        Plan               @relation(fields: [planId], references: [id])
+  version     PlanVersion        @relation(fields: [planId, planVersion], references: [planId, version])
+
+  @@index([accountId, createdAt])
+  @@map("subscriptions")
+}
+
+/// A manual key or credit allowance on top of the plan, with a term and an author.
+model Grant {
+  id             String         @id @default(uuid())
+  accountId      String         @map("account_id")
+  featureKey     String         @map("feature_key")
+  /// Credits added to the plan's per month; null = unmetered while the grant runs.
+  monthlyCredits Decimal?       @map("monthly_credits") @db.Decimal(18, 6)
+  limits         Json           @default("{}")
+  startsAt       DateTime       @map("starts_at")
+  endsAt         DateTime       @map("ends_at")
+  reason         String
+  createdBy      String         @map("created_by")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  revokedAt      DateTime?      @map("revoked_at")
+  revokedBy      String?        @map("revoked_by")
+  account        BillingAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, endsAt])
+  @@map("grants")
 }

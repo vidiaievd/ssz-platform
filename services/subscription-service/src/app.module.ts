@@ -7,6 +7,8 @@ import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { JwtModule } from './infrastructure/auth/jwt.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { PlansModule } from './modules/plans/plans.module.js';
+import { AccountsModule } from './modules/accounts/accounts.module.js';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { HealthModule } from './modules/health/health.module.js';
     PrismaModule,
     JwtModule,
     HealthModule,
+    PlansModule,
+    AccountsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
