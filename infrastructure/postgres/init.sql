@@ -109,3 +109,12 @@ CREATE DATABASE ai_db OWNER ai_service;
 
 \c ai_db
 GRANT ALL ON SCHEMA public TO ai_service;
+
+-- ============================================================================
+-- Subscription Service
+-- ============================================================================
+CREATE USER subscription_service WITH PASSWORD 'localdevpassword' CREATEDB;
+CREATE DATABASE subscriptions_db OWNER subscription_service;
+
+\c subscriptions_db
+GRANT ALL ON SCHEMA public TO subscription_service;

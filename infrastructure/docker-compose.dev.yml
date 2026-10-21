@@ -445,6 +445,31 @@ services:
       retries: 5
       start_period: 20s
 
+  subscription-service:
+    build:
+      context: ../
+      dockerfile: services/subscription-service/Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3011
+      DATABASE_URL: postgresql://subscription_service:${SUBSCRIPTION_SERVICE_DB_PASSWORD:-localdevpassword}@postgres:5432/subscriptions_db
+      RABBITMQ_URL: amqp://ssz_admin:${RABBITMQ_PASSWORD:-localdevpassword}@rabbitmq:5672
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
+    ports:
+      - "3011:3011"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3011/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   # ── Gateway ─────────────────────────────────────────────────────────────────
 
   nginx:
@@ -465,6 +490,7 @@ services:
       - analytics-service
       - scheduling-service
       - ai-service
+      - subscription-service
 
   # ── Dev-only tools ──────────────────────────────────────────────────────────
 

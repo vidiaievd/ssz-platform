@@ -1,0 +1,11 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Models arrive with plan 78: plans + features (step 2), accounts, subscriptions, grants (step 3),
+// outbox + processed events (step 5).
