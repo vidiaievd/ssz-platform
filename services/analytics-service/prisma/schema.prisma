@@ -490,3 +490,48 @@ model ItemProgress {
   @@index([userId, status])
   @@map("item_progress")
 }
+
+// ─── Rollup: AiUsageDaily ─────────────────────────────────────────────────────
+// Every ai-service gateway call, folded into one row per day × agent × model × payer ×
+// outcome — plan 77, step 10. Fed by `ai.call.completed`; the ledger in `ai_db` stays the
+// source of truth, this is what the admin reads without touching it.
+//
+// Latency is kept as a histogram over fixed buckets (`ai-usage/domain/latency-histogram.ts`)
+// rather than as stored percentiles: percentiles of two rows cannot be combined, bucket
+// counts can, so p50/p95 come out right for any grouping a reader asks for. Changing the
+// bucket bounds means rebuilding the table from the event archive.
+//
+// `provider_code` / `provider_model_id` are null for calls no model answered (refusals,
+// a disabled agent). The unique index is NULLS NOT DISTINCT in the migration — Prisma has
+// no syntax for it — so those calls still fold into one row instead of one per call.
+
+model AiUsageDaily {
+  id               String   @id @default(uuid())
+  day              DateTime @db.Date
+  capability       String
+  providerCode     String?  @map("provider_code")
+  providerModelId  String?  @map("provider_model_id")
+  payerType        String   @map("payer_type") // workspace | user | platform
+  payerId          String   @map("payer_id")
+  outcome          String
+  calls            Int
+  fallbackCalls    Int      @map("fallback_calls")
+  /// Calls whose credits arrived null — the model had no price in effect. Counted apart so
+  /// that "cost nothing" and "cost unknown" do not add up to the same total.
+  unpricedCalls    Int      @map("unpriced_calls")
+  inputTokens      BigInt   @map("input_tokens")
+  outputTokens     BigInt   @map("output_tokens")
+  cacheReadTokens  BigInt   @map("cache_read_tokens")
+  cacheWriteTokens BigInt   @map("cache_write_tokens")
+  credits          Decimal  @db.Decimal(18, 6)
+  latencySumMs     BigInt   @map("latency_sum_ms")
+  latencyMinMs     Int      @map("latency_min_ms")
+  latencyMaxMs     Int      @map("latency_max_ms")
+  latencyBuckets   Int[]    @map("latency_buckets")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([day, capability, providerCode, providerModelId, payerType, payerId, outcome], map: "ai_usage_daily_dims_key")
+  @@index([day])
+  @@index([payerType, payerId, day])
+  @@map("ai_usage_daily")
+}

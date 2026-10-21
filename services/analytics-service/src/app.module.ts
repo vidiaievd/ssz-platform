@@ -17,6 +17,7 @@ import { GroupAnalyticsModule } from './modules/group-analytics/group-analytics.
 import { StudentAnalyticsModule } from './modules/student-analytics/student-analytics.module.js';
 import { CourseAnalyticsModule } from './modules/course-analytics/course-analytics.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
+import { AiUsageModule } from './modules/ai-usage/ai-usage.module.js';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { AuditModule } from './modules/audit/audit.module.js';
     StudentAnalyticsModule,
     CourseAnalyticsModule,
     AuditModule,
+    AiUsageModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
