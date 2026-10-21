@@ -166,6 +166,19 @@ Request routing, rate limiting, CORS, SSL termination.
 Aggregated Swagger UI for all microservices via multi-spec dropdown.
 Reads OpenAPI JSON from each service and displays them in a unified UI.
 
+### 12. AI Service (NestJS)
+The only path from the platform to an LLM (plan 77, umbrella plan 48). Registry of providers,
+models and prices; adapters `anthropic`, `openai` / `openai_compatible` / `azure_openai`, `google`
+and `fake` (dev/tests); agent → model bindings with a fallback and a per-model circuit breaker;
+access gate (payer policy, regions, entitlements, quotas); call ledger with cost in credits.
+Agents call the gateway, never a provider directly. Provider keys live only here
+(`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `AZURE_OPENAI_API_KEY`; the registry
+names the variable per provider).
+Follows Clean Architecture.
+Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
+analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.
+Gateway routes: `/api/v1/ai/*`, `/api/v1/admin/ai/*` (`platform_admin`).
+
 ## API Documentation Strategy
 
 Each microservice exposes its own Swagger UI locally for development, plus JSON spec endpoint for aggregation.
