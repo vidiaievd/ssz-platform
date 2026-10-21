@@ -19,6 +19,16 @@ export const envSchema = z.object({
   REDIS_HOST: z.string().default('redis'),
   REDIS_PORT: z.coerce.number().int().positive().default(6379),
   REDIS_PASSWORD: z.string().optional(),
+  REDIS_DB: z.coerce.number().int().min(0).default(6),
+  REDIS_KEY_PREFIX: z.string().default('ai:'),
+
+  // Circuit breaker per model (plan 77, step 7): this many retryable failures within the
+  // window open it for AI_BREAKER_OPEN_MS, during which the router goes to the fallback.
+  AI_BREAKER_FAILURES: z.coerce.number().int().positive().default(5),
+  AI_BREAKER_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  AI_BREAKER_OPEN_MS: z.coerce.number().int().positive().default(30_000),
+  // Safety net for the binding cache; a write invalidates it at once on every instance.
+  AI_BINDING_CACHE_TTL_MS: z.coerce.number().int().positive().default(60_000),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -39,7 +49,9 @@ export interface AppConfig {
   database: { url: string | undefined };
   rabbitmq: { url: string | undefined };
   jwt: { publicKey: string | undefined; publicKeyPath: string | undefined; issuer: string; audience: string };
-  redis: { host: string; port: number; password: string | undefined };
+  redis: { host: string; port: number; password: string | undefined; db: number; keyPrefix: string };
+  breaker: { failures: number; windowMs: number; openMs: number };
+  bindingCacheTtlMs: number;
   /** Shared secret for service-to-service routes (`x-internal-token`). */
   internalServiceToken: string;
 }
@@ -56,7 +68,15 @@ export default (): AppConfig => {
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,
     },
-    redis: { host: env.REDIS_HOST, port: env.REDIS_PORT, password: env.REDIS_PASSWORD },
+    redis: {
+      host: env.REDIS_HOST,
+      port: env.REDIS_PORT,
+      password: env.REDIS_PASSWORD,
+      db: env.REDIS_DB,
+      keyPrefix: env.REDIS_KEY_PREFIX,
+    },
+    breaker: { failures: env.AI_BREAKER_FAILURES, windowMs: env.AI_BREAKER_WINDOW_MS, openMs: env.AI_BREAKER_OPEN_MS },
+    bindingCacheTtlMs: env.AI_BINDING_CACHE_TTL_MS,
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
 };

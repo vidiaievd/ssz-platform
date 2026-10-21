@@ -81,6 +81,9 @@ model AiModel {
 
   prices AiModelPrice[]
 
+  primaryFor  AiBinding[] @relation("BindingPrimary")
+  fallbackFor AiBinding[] @relation("BindingFallback")
+
   @@unique([providerId, providerModelId])
   @@map("ai_models")
 }
@@ -102,4 +105,50 @@ model AiModelPrice {
 
   @@unique([modelId, effectiveFrom])
   @@map("ai_model_prices")
+}
+
+// ─── Bindings (plan 77, step 7) ──────────────────────────────────────────────
+
+/// Which model answers for an agent. One row per capability; the capability codes and
+/// the features each one requires live in code (src/modules/capabilities/catalog.ts),
+/// so a new agent needs no migration.
+model AiBinding {
+  id              String   @id @default(uuid())
+  /// `diagnostic`, `review_draft`, … — checked against the catalog on write.
+  capability      String   @unique
+  primaryModelId  String   @map("primary_model_id")
+  primaryModel    AiModel  @relation("BindingPrimary", fields: [primaryModelId], references: [id], onDelete: Restrict)
+  /// Tried when the primary fails with a retryable error, is switched off, or its breaker is open.
+  fallbackModelId String?  @map("fallback_model_id")
+  fallbackModel   AiModel? @relation("BindingFallback", fields: [fallbackModelId], references: [id], onDelete: Restrict)
+  maxOutputTokens Int      @map("max_output_tokens")
+  /// Null = the provider's default. Dropped by adapters for models without sampling params.
+  temperature     Float?
+  timeoutMs       Int      @map("timeout_ms")
+  promptVersion   String   @map("prompt_version")
+  /// The agent's global switch: off = every call refused before reaching a model.
+  enabled         Boolean  @default(true)
+  /// Bumped on every write; a PUT carrying a stale `expectedVersion` is a 409.
+  version         Int      @default(1)
+  updatedBy       String   @map("updated_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("ai_bindings")
+}
+
+/// Append-only history of binding writes: who, when, what it was, what it became.
+model AiBindingChange {
+  id         String   @id @default(uuid())
+  capability String
+  /// The binding's version after this change.
+  version    Int
+  changedBy  String   @map("changed_by")
+  changedAt  DateTime @default(now()) @map("changed_at")
+  /// Binding snapshot before the change; null when the change created it.
+  before     Json?
+  after      Json
+
+  @@unique([capability, version])
+  @@map("ai_binding_changes")
 }
