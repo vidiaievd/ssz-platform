@@ -140,6 +140,20 @@ export class InternalController {
   }
 
   /**
+   * The language the school explains in — a code as the school set it (`ru`, `uk`), or
+   * null when it never did. ai-service writes the remarks of a review draft in it (plan 79,
+   * step 1.3) and falls back to the exercise's own label on null.
+   */
+  @Get(':schoolId/explanation-language')
+  async getExplanationLanguage(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+  ): Promise<{ schoolId: string; language: string | null }> {
+    const school = await this.schoolRepository.findById(schoolId);
+    if (!school) throw new NotFoundException(`School ${schoolId} not found`);
+    return { schoolId, language: school.defaultExplanationLanguage?.trim() || null };
+  }
+
+  /**
    * Returns a group's assigned teachers (primary/co-primary/substitute).
    * Used by Scheduling Service to find the primary teacher for lesson generation.
    */

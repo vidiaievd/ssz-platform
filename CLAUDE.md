@@ -174,6 +174,10 @@ access gate (payer policy, regions, entitlements, quotas); call ledger with cost
 Agents call the gateway, never a provider directly. Provider keys live only here
 (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `AZURE_OPENAI_API_KEY`; the registry
 names the variable per provider).
+Agent `review_draft` (plan 79): consumes `exercise.attempt.routed_for_review`, reads the submission
+beside its key from exercise-engine (`GET /api/v1/internal/attempts/:id/ai-review-subject`) and the
+school's explanation language from organization-service, calls the gateway with the school as payer
+(surface `review_queue`) and writes the draft back (`PUT /api/v1/internal/attempts/:id/ai-draft`).
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.

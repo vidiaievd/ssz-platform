@@ -42,6 +42,10 @@ export const envSchema = z.object({
   // Access gate (plan 78 §6): tariffs are projected from subscription.events; a payer
   // without a fresh row is read through subscription-service's internal API.
   SUBSCRIPTION_SERVICE_URL: z.string().url().default('http://subscription-service:3011'),
+  // Review drafts (plan 79, step 1.3): the submission is read from and the draft written to
+  // exercise-engine; the school's explanation language comes from organization-service.
+  EXERCISE_ENGINE_URL: z.string().url().default('http://exercise-engine-service:3006'),
+  ORGANIZATION_SERVICE_URL: z.string().url().default('http://organization-service:3002'),
   // How often quota counters are raised to the ledger's sums (step 9b). A day by default.
   AI_QUOTA_RECONCILE_MS: z.coerce.number().int().positive().default(86_400_000),
 });
@@ -70,6 +74,8 @@ export interface AppConfig {
   creditsPerUsd: string;
   ledgerSpoolDrainMs: number;
   subscriptionServiceUrl: string;
+  exerciseEngineUrl: string;
+  organizationServiceUrl: string;
   quotaReconcileMs: number;
   /** Shared secret for service-to-service routes (`x-internal-token`). */
   internalServiceToken: string;
@@ -99,6 +105,8 @@ export default (): AppConfig => {
     creditsPerUsd: env.AI_CREDITS_PER_USD,
     ledgerSpoolDrainMs: env.AI_LEDGER_SPOOL_DRAIN_MS,
     subscriptionServiceUrl: env.SUBSCRIPTION_SERVICE_URL,
+    exerciseEngineUrl: env.EXERCISE_ENGINE_URL,
+    organizationServiceUrl: env.ORGANIZATION_SERVICE_URL,
     quotaReconcileMs: env.AI_QUOTA_RECONCILE_MS,
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
