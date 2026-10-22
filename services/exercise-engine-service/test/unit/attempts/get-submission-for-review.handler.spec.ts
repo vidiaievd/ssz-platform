@@ -84,6 +84,7 @@ function makeHandler(
   overrides?: {
     exercise?: Result<unknown, ContentClientError>;
     validation?: Result<{ details: unknown }, Error>;
+    aiDraft?: unknown;
   },
 ) {
   const attempts = {
@@ -100,12 +101,17 @@ function makeHandler(
     ),
   };
 
+  const queryBus = {
+    execute: jest.fn(() => Promise.resolve(overrides?.aiDraft ?? null)),
+  };
+
   const handler = new GetSubmissionForReviewHandler(
     attempts as never,
     validator as never,
     contentClient as never,
+    queryBus as never,
   );
-  return { handler, attempts, contentClient, validator };
+  return { handler, attempts, contentClient, validator, queryBus };
 }
 
 const run = (handler: GetSubmissionForReviewHandler, id: string, school = SCHOOL) =>
@@ -401,6 +407,40 @@ describe('GetSubmissionForReviewHandler', () => {
       { itemId: 'p1', approved: true, comment: 'Fin flyt.' },
       { itemId: 'p2', approved: false, comment: 'Hør på trykket i «arbeidsgiver».' },
     ]);
+  });
+
+  it("carries the model's draft for the teacher, asked for by attempt and capability", async () => {
+    const draft = {
+      status: 'ready',
+      items: [
+        {
+          itemId: 'i1',
+          sentenceIndex: 1,
+          aspect: 'grammar',
+          fragment: 'har bodd',
+          comment: 'Perfektum er riktig her.',
+          suggestion: null,
+        },
+      ],
+      summary: null,
+      modelId: 'fake-model',
+      promptVersion: 'review_draft@1',
+      createdAt: new Date('2026-10-22T10:00:00Z'),
+    };
+    const { handler, queryBus } = makeHandler([attempt({ id: 'a1' })], { aiDraft: draft });
+
+    const result = await run(handler, 'a1');
+
+    expect(result.value.aiDraft).toEqual(draft);
+    expect(queryBus.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ attemptId: 'a1', capability: 'review_draft' }),
+    );
+  });
+
+  it('reports no draft when the model left none', async () => {
+    const { handler } = makeHandler([attempt({ id: 'a1' })]);
+
+    expect((await run(handler, 'a1')).value.aiDraft).toBeNull();
   });
 
   it('reports no rubric for a submission graded out of items', async () => {
