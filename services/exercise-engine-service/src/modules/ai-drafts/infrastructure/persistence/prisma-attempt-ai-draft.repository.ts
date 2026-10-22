@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { AttemptAiDraftModel } from '../../../../../generated/prisma/models/AttemptAiDraft.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { AttemptAiDraft, type AiDraftRemark } from '../../domain/entities/attempt-ai-draft.entity.js';
+import type { SettledOutcomes } from '../../domain/draft-outcomes.js';
 import type { IAttemptAiDraftRepository } from '../../domain/repositories/attempt-ai-draft.repository.js';
 
 @Injectable()
@@ -32,6 +33,11 @@ export class PrismaAttemptAiDraftRepository implements IAttemptAiDraftRepository
       modelId: draft.modelId,
       promptVersion: draft.promptVersion,
       aiCallId: draft.aiCallId,
+      // Never cleared once written, so an absent value leaves the column alone — `Prisma.DbNull`
+      // would mean importing the client as a value, which breaks the test suites.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      outcomes: (draft.outcomes ?? undefined) as any,
+      decidedAt: draft.decidedAt,
       updatedAt: draft.updatedAt,
     };
     try {
@@ -66,6 +72,8 @@ function toDomain(row: AttemptAiDraftModel): AttemptAiDraft {
     modelId: row.modelId,
     promptVersion: row.promptVersion,
     aiCallId: row.aiCallId,
+    outcomes: row.outcomes as unknown as SettledOutcomes | null,
+    decidedAt: row.decidedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });

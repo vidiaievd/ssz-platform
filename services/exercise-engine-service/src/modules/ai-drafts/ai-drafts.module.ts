@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { AttemptsModule } from '../attempts/attempts.module.js';
 import { PutAiDraftHandler } from './application/commands/put-ai-draft/put-ai-draft.handler.js';
+import { SettleAiDraftHandler } from './application/commands/settle-ai-draft/settle-ai-draft.handler.js';
 import { GetDraftForReviewHandler } from './application/queries/get-draft-for-review/get-draft-for-review.handler.js';
 import { GetReviewSubjectHandler } from './application/queries/get-review-subject/get-review-subject.handler.js';
 import { ATTEMPT_AI_DRAFT_REPOSITORY } from './domain/repositories/attempt-ai-draft.repository.js';
@@ -21,6 +22,7 @@ import { InternalReviewSubjectController } from './presentation/controllers/inte
     PrismaAttemptAiDraftRepository,
     { provide: ATTEMPT_AI_DRAFT_REPOSITORY, useExisting: PrismaAttemptAiDraftRepository },
     PutAiDraftHandler,
+    SettleAiDraftHandler,
     GetReviewSubjectHandler,
     GetDraftForReviewHandler,
   ],

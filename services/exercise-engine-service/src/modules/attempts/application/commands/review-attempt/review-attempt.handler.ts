@@ -1,4 +1,5 @@
-import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
+import { CommandBus, CommandHandler, QueryBus, type ICommandHandler } from '@nestjs/cqrs';
+import type { AttemptReviewedAiDraft } from '@ssz/contracts';
 import { readRubricMarks } from '@ssz/shared-kernel/writing-task';
 import { ReviewAttemptCommand } from './review-attempt.command.js';
 import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
@@ -16,7 +17,11 @@ import {
   ATTEMPT_REPOSITORY,
   type IAttemptRepository,
 } from '../../../domain/repositories/attempt.repository.js';
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
+import { GetDraftForReviewQuery } from '../../../../ai-drafts/application/queries/get-draft-for-review/get-draft-for-review.query.js';
+import type { ReviewDraftView } from '../../../../ai-drafts/application/queries/get-draft-for-review/get-draft-for-review.handler.js';
+import { SettleAiDraftCommand } from '../../../../ai-drafts/application/commands/settle-ai-draft/settle-ai-draft.command.js';
+import { settleOutcomes, tallyOutcomes } from '../../../../ai-drafts/domain/draft-outcomes.js';
 import {
   EVENT_PUBLISHER,
   type IEventPublisher,
@@ -83,10 +88,16 @@ export interface ReviewAttemptResult {
  */
 @CommandHandler(ReviewAttemptCommand)
 export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptCommand> {
+  private readonly logger = new Logger(ReviewAttemptHandler.name);
+
   constructor(
     @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
     private readonly scoring: ReviewScoring,
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
+    // The ai-drafts module imports this one; reaching it over the bus keeps the modules
+    // from importing each other (as the review query does, plan 79 1.4).
+    private readonly queryBus: QueryBus,
+    private readonly commandBus: CommandBus,
   ) {}
 
   async execute(
@@ -112,6 +123,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       command.sentenceComments,
       command.outcome,
     );
+    const aiDraft = await this.draftTally(command);
 
     // Graded out of a rubric rather than out of items — the marks decide, and so does
     // the threshold they are measured against, both frozen on the attempt when it was
@@ -119,10 +131,10 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     const snapshot = attempt.rubricSnapshot;
     if (snapshot && attempt.templateCode === READ_ALOUD) {
       const speaking = readSpeakingSnapshot(snapshot);
-      if (speaking) return this.reviewByPrompt(attempt, command, speaking);
+      if (speaking) return this.reviewByPrompt(attempt, command, speaking, aiDraft);
     }
     if (snapshot) {
-      return this.reviewByRubric(attempt, command, snapshot);
+      return this.reviewByRubric(attempt, command, snapshot, aiDraft);
     }
 
     if (command.outcome === 'returned') {
@@ -136,10 +148,12 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
         // the evidence event carries to the SRS (plan 63 §4): sent back with two of three
         // sentences approved is not the same failure as sent back with none.
         score: await this.creditedScore(attempt, command.decisions),
+        aiDraft,
       });
       if (returned.isFail) return Result.fail(toError(returned.error));
 
       await this.attempts.save(attempt);
+      await this.settleDraft(command, aiDraft);
       await publishAttemptEvents(this.publisher, attempt);
       return Result.ok({
         attemptId: attempt.id,
@@ -170,10 +184,12 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       passed: approvedItems > 0,
       approvedItems,
       totalItems,
+      aiDraft,
     });
     if (reviewed.isFail) return Result.fail(toError(reviewed.error));
 
     await this.attempts.save(attempt);
+    await this.settleDraft(command, aiDraft);
     await publishAttemptEvents(this.publisher, attempt);
 
     return Result.ok({
@@ -184,6 +200,48 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       totalItems,
       rubricScore: null,
     });
+  }
+
+  /**
+   * What the reviewer did with the model's draft, counted for the verdict's letter (plan 79,
+   * 1.5). Read before the verdict so the event says it; written to the draft only after the
+   * verdict is stored (`settleDraft`), so a refused verdict leaves the draft as it was.
+   *
+   * `null` when the reviewer was shown no draft, or there is none to act on.
+   */
+  private async draftTally(command: ReviewAttemptCommand): Promise<AttemptReviewedAiDraft | null> {
+    if (command.aiOutcomes === null) return null;
+    const draft: ReviewDraftView | null = await this.queryBus.execute(
+      new GetDraftForReviewQuery(command.attemptId, 'review_draft'),
+    );
+    if (draft === null) return null;
+
+    const settled = settleOutcomes(
+      { remarkCount: draft.items.length, hasSummary: (draft.summary ?? '').trim() !== '' },
+      command.aiOutcomes,
+    );
+    return tallyOutcomes(settled, {
+      capability: 'review_draft',
+      modelId: draft.modelId,
+      promptVersion: draft.promptVersion,
+    });
+  }
+
+  /** Labels the draft once the verdict is stored. Never fails the verdict — see the handler. */
+  private async settleDraft(
+    command: ReviewAttemptCommand,
+    aiDraft: AttemptReviewedAiDraft | null,
+  ): Promise<void> {
+    if (aiDraft === null || command.aiOutcomes === null) return;
+    try {
+      await this.commandBus.execute(
+        new SettleAiDraftCommand(command.attemptId, 'review_draft', command.aiOutcomes),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `AI draft on attempt ${command.attemptId} not settled: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   /**
@@ -229,6 +287,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     attempt: Attempt,
     command: ReviewAttemptCommand,
     snapshot: RubricSnapshot,
+    aiDraft: AttemptReviewedAiDraft | null,
   ): Promise<Result<ReviewAttemptResult, ReviewAttemptError>> {
     const marks = readRubricMarks(command.rubricMarks);
     const scored = this.scoring.scoreOf([], [], { snapshot, marks });
@@ -252,10 +311,12 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       approvedItems: scored.approvedItems,
       totalItems: scored.totalItems,
       rubricMarks: marks,
+      aiDraft,
     });
     if (reviewed.isFail) return Result.fail(toError(reviewed.error));
 
     await this.attempts.save(attempt);
+    await this.settleDraft(command, aiDraft);
     await publishAttemptEvents(this.publisher, attempt);
 
     return Result.ok({
@@ -303,6 +364,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     attempt: Attempt,
     command: ReviewAttemptCommand,
     snapshot: SpeakingSnapshot,
+    aiDraft: AttemptReviewedAiDraft | null,
   ): Promise<Result<ReviewAttemptResult, ReviewAttemptError>> {
     const recordings = raReadSubmission(attempt.submittedAnswer)?.recordings ?? [];
     const freshIds = recordings.filter((r) => !r.carried).map((r) => r.itemId);
@@ -348,10 +410,12 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
           correct: prompt.outcome.passed,
         })),
       evidenceLowered: snapshot.mode === 'read',
+      aiDraft,
     });
     if (reviewed.isFail) return Result.fail(toError(reviewed.error));
 
     await this.attempts.save(attempt);
+    await this.settleDraft(command, aiDraft);
     await publishAttemptEvents(this.publisher, attempt);
 
     return Result.ok({

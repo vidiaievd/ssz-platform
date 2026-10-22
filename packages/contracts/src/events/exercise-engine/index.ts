@@ -357,7 +357,29 @@ export interface ExerciseAttemptReviewedPayload {
   /** How much of the submission counted. Both `0` when there was nothing readable. */
   approvedItems: number;
   totalItems: number;
+  /**
+   * What the teacher did with a model's draft of this review (plan 79, 1.5) — the label a
+   * model and a prompt version are judged by. Counts are over the draft's remarks: taken
+   * as written, reworded, thrown out, or left alone.
+   *
+   * `null` when there was no draft to act on (none, failed, or the verdict came from a
+   * batch approval, which never shows one). Absent on events older than plan 79.
+   */
+  aiDraft?: AttemptReviewedAiDraft | null;
   occurredAt: string;
+}
+
+export interface AttemptReviewedAiDraft {
+  /** ai-service capability that wrote it: `review_draft`. */
+  capability: string;
+  /** ai-service registry ids — the axes the outcomes are folded on. */
+  modelId: string | null;
+  promptVersion: string | null;
+  accepted: number;
+  edited: number;
+  discarded: number;
+  /** Remarks the teacher neither took nor threw out — read as "not worth acting on". */
+  untouched: number;
 }
 
 // ─── Typed event interfaces ───────────────────────────────────────────────────

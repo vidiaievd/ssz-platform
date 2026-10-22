@@ -7,6 +7,8 @@ import { AI_USAGE_DIMENSIONS } from '../domain/usage-aggregate.js';
 import type { AiUsageDimension } from '../domain/usage-aggregate.js';
 import { GetAiUsageQuery } from '../queries/get-ai-usage.query.js';
 import type { GetAiUsageResult } from '../queries/get-ai-usage.handler.js';
+import { GetAiDraftQualityQuery } from '../queries/get-ai-draft-quality.query.js';
+import type { GetAiDraftQualityResult } from '../queries/get-ai-draft-quality.handler.js';
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_RANGE_DAYS = 366;
@@ -35,15 +37,32 @@ export class AiUsageController {
     @Query('to') to?: string,
     @Query('groupBy') groupBy?: string,
   ): Promise<GetAiUsageResult> {
-    const fromDay = parseDay('from', from);
-    const toDay = parseDay('to', to);
-    const span = (toDay.getTime() - fromDay.getTime()) / 86_400_000;
-    if (span < 0) throw new BadRequestException('"from" is after "to"');
-    if (span >= MAX_RANGE_DAYS) {
-      throw new BadRequestException(`Range is longer than ${MAX_RANGE_DAYS} days`);
-    }
-
+    parseRange(from, to);
     return this.queryBus.execute(new GetAiUsageQuery(from!, to!, parseGroupBy(groupBy)));
+  }
+
+  /**
+   * What teachers did with review drafts, per agent × model × prompt version over the range
+   * (plan 79, 1.5): `GET /internal/ai-usage/review-drafts?from=2026-10-01&to=2026-10-22`.
+   */
+  @Get('review-drafts')
+  async reviewDrafts(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<GetAiDraftQualityResult> {
+    parseRange(from, to);
+    return this.queryBus.execute(new GetAiDraftQualityQuery(from!, to!));
+  }
+}
+
+/** Both days valid, in order, and no more than a year apart. */
+function parseRange(from: string | undefined, to: string | undefined): void {
+  const fromDay = parseDay('from', from);
+  const toDay = parseDay('to', to);
+  const span = (toDay.getTime() - fromDay.getTime()) / 86_400_000;
+  if (span < 0) throw new BadRequestException('"from" is after "to"');
+  if (span >= MAX_RANGE_DAYS) {
+    throw new BadRequestException(`Range is longer than ${MAX_RANGE_DAYS} days`);
   }
 }
 

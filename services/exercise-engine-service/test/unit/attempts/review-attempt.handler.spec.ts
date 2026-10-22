@@ -77,7 +77,7 @@ function essayAttempt(rubric: RubricSnapshot | null = RUBRIC): Attempt {
 const mark = (marks: Record<string, number>, comment: string | null = null) =>
   new ReviewAttemptCommand('att-1', 'teacher-1', 'approved', [], comment, {}, marks);
 
-function makeHandler(attempt: Attempt | null, details: unknown = DETAILS) {
+function makeHandler(attempt: Attempt | null, details: unknown = DETAILS, aiDraft: unknown = null) {
   const attempts = {
     findById: jest.fn(() => Promise.resolve(attempt)),
     save: jest.fn(() => Promise.resolve()),
@@ -98,13 +98,17 @@ function makeHandler(attempt: Attempt | null, details: unknown = DETAILS) {
     ),
   };
   const publisher = { publish: jest.fn(() => Promise.resolve()) };
+  const queryBus = { execute: jest.fn(() => Promise.resolve(aiDraft)) };
+  const commandBus = { execute: jest.fn(() => Promise.resolve(null)) };
 
   const handler = new ReviewAttemptHandler(
     attempts as never,
     new ReviewScoring(validator as never, contentClient as never),
     publisher as never,
+    queryBus as never,
+    commandBus as never,
   );
-  return { handler, attempts, publisher, validator };
+  return { handler, attempts, publisher, validator, queryBus, commandBus };
 }
 
 const approve = (decisions: { itemId: string; approved: boolean; comment?: string }[]) =>
@@ -595,6 +599,97 @@ describe('ReviewAttemptHandler', () => {
       expect(result.value.status).toBe('SCORED');
       expect(result.value.score).toBe(100);
       expect(result.value.rubricScore).toBeNull();
+    });
+  });
+
+  describe('the model\'s draft (plan 79, 1.5)', () => {
+    const DRAFT = {
+      status: 'ready',
+      items: [
+        { itemId: 'i2', sentenceIndex: 2, aspect: 'grammar', fragment: 'bodd', comment: 'a', suggestion: null },
+        { itemId: 'i3', sentenceIndex: 3, aspect: 'lexis', fragment: 'tre', comment: 'b', suggestion: null },
+        { itemId: 'i3', sentenceIndex: 3, aspect: 'order', fragment: 'år', comment: 'c', suggestion: null },
+      ],
+      summary: 'Bra jobba.',
+      modelId: 'model-1',
+      promptVersion: 'review_draft@1',
+      createdAt: new Date(),
+    };
+    const withOutcomes = (aiOutcomes: Record<string, 'accepted' | 'edited' | 'discarded'> | null) =>
+      new ReviewAttemptCommand('att-1', 'teacher-1', 'approved', [], null, {}, null, aiOutcomes);
+    const letterOf = (publisher: { publish: jest.Mock }) =>
+      (publisher.publish.mock.calls as unknown as [string, Record<string, unknown>][]).find(
+        ([type]) => type === 'exercise.attempt.reviewed',
+      )![1];
+
+    it('counts what the reviewer did with each remark on the letter, and settles the draft', async () => {
+      const { handler, publisher, commandBus } = makeHandler(routedAttempt(), DETAILS, DRAFT);
+
+      const result = await handler.execute(withOutcomes({ '0': 'accepted', '1': 'edited' }));
+
+      expect(result.isOk).toBe(true);
+      expect(letterOf(publisher).aiDraft).toEqual({
+        capability: 'review_draft',
+        modelId: 'model-1',
+        promptVersion: 'review_draft@1',
+        accepted: 1,
+        edited: 1,
+        discarded: 0,
+        untouched: 1,
+      });
+      expect(commandBus.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ attemptId: 'att-1', outcomes: { '0': 'accepted', '1': 'edited' } }),
+      );
+    });
+
+    it('reads a dropped draft as every open remark thrown out', async () => {
+      const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, DRAFT);
+
+      await handler.execute(withOutcomes({ '0': 'accepted', draft: 'discarded' }));
+
+      expect(letterOf(publisher).aiDraft).toMatchObject({ accepted: 1, discarded: 2, untouched: 0 });
+    });
+
+    it('leaves the draft unlabelled when the reviewer was shown none', async () => {
+      const { handler, publisher, queryBus, commandBus } = makeHandler(routedAttempt(), DETAILS, DRAFT);
+
+      await handler.execute(withOutcomes(null));
+
+      expect(letterOf(publisher).aiDraft).toBeNull();
+      expect(queryBus.execute).not.toHaveBeenCalled();
+      expect(commandBus.execute).not.toHaveBeenCalled();
+    });
+
+    it('says nothing about a draft that is not there', async () => {
+      const { handler, publisher, commandBus } = makeHandler(routedAttempt(), DETAILS, null);
+
+      await handler.execute(withOutcomes({ '0': 'accepted' }));
+
+      expect(letterOf(publisher).aiDraft).toBeNull();
+      expect(commandBus.execute).not.toHaveBeenCalled();
+    });
+
+    it('does not touch the draft when the verdict is refused', async () => {
+      const { handler, commandBus } = makeHandler(routedAttempt(), DETAILS, DRAFT);
+
+      const result = await handler.execute(
+        new ReviewAttemptCommand('att-1', 'teacher-1', 'returned', [], null, {}, null, { '0': 'discarded' }),
+      );
+
+      expect(result.isFail).toBe(true);
+      expect(commandBus.execute).not.toHaveBeenCalled();
+    });
+
+    it('delivers the verdict even when the draft cannot be settled', async () => {
+      const attempt = routedAttempt();
+      const { handler, publisher, commandBus } = makeHandler(attempt, DETAILS, DRAFT);
+      commandBus.execute.mockImplementation(() => Promise.reject(new Error('db down')));
+
+      const result = await handler.execute(withOutcomes({ '0': 'accepted' }));
+
+      expect(result.isOk).toBe(true);
+      expect(attempt.status).toBe('SCORED');
+      expect(letterOf(publisher).aiDraft).toMatchObject({ accepted: 1 });
     });
   });
 

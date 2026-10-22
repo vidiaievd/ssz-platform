@@ -9,7 +9,14 @@ import {
   ReviewCommentRequiredError,
 } from '../exceptions/attempt.errors.js';
 import { AttemptStartedEvent } from '../events/attempt-started.event.js';
-import type { AnswerForm, AttemptTarget, Focus, Modality, Skill } from '@ssz/contracts';
+import type {
+  AnswerForm,
+  AttemptReviewedAiDraft,
+  AttemptTarget,
+  Focus,
+  Modality,
+  Skill,
+} from '@ssz/contracts';
 import type { RubricMarks, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import type { AttemptTiming } from '../events/attempt-timing.js';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
@@ -1048,6 +1055,11 @@ export class Attempt extends AggregateRoot {
     gapResults?: Array<{ gapKey: string; correct: boolean }>;
     /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
     evidenceLowered?: boolean;
+    /**
+     * What the reviewer did with a model's draft (plan 79, 1.5), for the letter's
+     * `aiDraft`. Absent when they were shown none.
+     */
+    aiDraft?: AttemptReviewedAiDraft | null;
   }): Result<
     void,
     InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
@@ -1197,6 +1209,7 @@ export class Attempt extends AggregateRoot {
       comment: string | null;
       approvedItems?: number;
       totalItems?: number;
+      aiDraft?: AttemptReviewedAiDraft | null;
     },
     score: number | null,
   ): void {
@@ -1226,6 +1239,7 @@ export class Attempt extends AggregateRoot {
         hasComment,
         approvedItems: props.approvedItems ?? 0,
         totalItems: props.totalItems ?? 0,
+        aiDraft: props.aiDraft ?? null,
         occurredAt: new Date().toISOString(),
       }),
     );

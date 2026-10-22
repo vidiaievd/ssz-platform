@@ -1,11 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { Entity } from '../../../../shared/domain/entity.base.js';
 import type { AttemptStatus } from '../../../attempts/domain/entities/attempt.entity.js';
+import {
+  settledStatus,
+  settleOutcomes,
+  type ReviewerOutcomes,
+  type SettledOutcomes,
+} from '../draft-outcomes.js';
 
 /** Names as Prisma carries them (`AiDraftStatus`), so the mapper passes them through. */
 export type AiDraftStatus = 'READY' | 'FAILED' | 'SENT' | 'EDITED' | 'DISCARDED';
 
-/** What ai-service may write. The other three are the teacher's, set by the verdict (plan 79, 1.5). */
+/** What ai-service may write. The other three are the teacher's, set by the verdict (`settle`). */
 export type ProposedDraftStatus = Extract<AiDraftStatus, 'READY' | 'FAILED'>;
 
 /**
@@ -63,6 +69,9 @@ export interface AttemptAiDraftProps extends Omit<ProposedDraft, 'status'> {
   attemptId: string;
   capability: string;
   status: AiDraftStatus;
+  /** What the verdict made of it, remark by remark (1.5). Null until decided. */
+  outcomes?: SettledOutcomes | null;
+  decidedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -102,6 +111,28 @@ export class AttemptAiDraft extends Entity<string> {
     return null;
   }
 
+  /**
+   * The verdict's word on the draft (plan 79, 1.5). Only a `READY` draft is settled: a
+   * `FAILED` one had nothing to act on. A decided one is settled again — the verdict that
+   * labelled it did not land (the attempt is still waiting, or the caller would not be here),
+   * and the one that does is the teacher's last word.
+   */
+  settle(outcomes: ReviewerOutcomes, now: Date): SettledOutcomes | null {
+    if (this.props.status === 'FAILED') return null;
+    const settled = settleOutcomes(
+      { remarkCount: this.props.items.length, hasSummary: (this.props.summary ?? '').trim() !== '' },
+      outcomes,
+    );
+    this.props = {
+      ...this.props,
+      status: settledStatus(settled),
+      outcomes: settled,
+      decidedAt: now,
+      updatedAt: now,
+    };
+    return settled;
+  }
+
   get attemptId(): string { return this.props.attemptId; }
   get capability(): string { return this.props.capability; }
   get status(): AiDraftStatus { return this.props.status; }
@@ -112,6 +143,8 @@ export class AttemptAiDraft extends Entity<string> {
   get modelId(): string | null { return this.props.modelId; }
   get promptVersion(): string | null { return this.props.promptVersion; }
   get aiCallId(): string { return this.props.aiCallId; }
+  get outcomes(): SettledOutcomes | null { return this.props.outcomes ?? null; }
+  get decidedAt(): Date | null { return this.props.decidedAt ?? null; }
   get createdAt(): Date { return this.props.createdAt; }
   get updatedAt(): Date { return this.props.updatedAt; }
 }

@@ -535,3 +535,31 @@ model AiUsageDaily {
   @@index([payerType, payerId, day])
   @@map("ai_usage_daily")
 }
+
+// ─── Rollup: AiDraftQualityDaily ──────────────────────────────────────────────
+// What teachers did with the remarks of models' review drafts, per day × agent × model ×
+// prompt version — plan 79, step 1.5. Fed by `exercise.attempt.reviewed` (`aiDraft`); the
+// remarks themselves and the per-remark labels stay in exercise-engine
+// (`attempt_ai_drafts`), this is the quality readout a model is chosen by.
+//
+// `model_id` / `prompt_version` are ai-service registry ids, nullable as the draft carries
+// them; the unique index is NULLS NOT DISTINCT in the migration, as for ai_usage_daily.
+
+model AiDraftQualityDaily {
+  id               String   @id @default(uuid())
+  day              DateTime @db.Date
+  capability       String
+  modelId          String?  @map("model_id")
+  promptVersion    String?  @map("prompt_version")
+  /// Verdicts given with a draft on screen.
+  reviews          Int
+  remarksAccepted  Int      @map("remarks_accepted")
+  remarksEdited    Int      @map("remarks_edited")
+  remarksDiscarded Int      @map("remarks_discarded")
+  remarksUntouched Int      @map("remarks_untouched")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([day, capability, modelId, promptVersion], map: "ai_draft_quality_daily_dims_key")
+  @@index([day])
+  @@map("ai_draft_quality_daily")
+}
