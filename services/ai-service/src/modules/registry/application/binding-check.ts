@@ -8,7 +8,8 @@ import { providerReadiness } from './provider-readiness.js';
  * Everything that stops a binding from being written, in words an admin can act on.
  *
  * Both models must exist, not be `disabled`, sit on a configured provider, have what the
- * capability requires, and allow `maxOutputTokens`. A provider that is merely switched off
+ * capability requires, and allow `maxOutputTokens`; the prompt version must be one the
+ * capability keeps in the repository. A provider that is merely switched off
  * passes: `enabled` is the admin's runtime switch and the router steps over it to the
  * fallback — that is how a provider is taken out of service without rewriting bindings.
  */
@@ -41,6 +42,12 @@ export function bindingProblems(input: {
       );
     }
   };
+
+  if (capability.promptVersions && !capability.promptVersions.includes(settings.promptVersion)) {
+    problems.push(
+      `prompt version "${settings.promptVersion}" is unknown to "${capability.code}" (known: ${capability.promptVersions.join(', ')})`,
+    );
+  }
 
   checkModel('primary', settings.primaryModelId, input.primary);
   if (settings.fallbackModelId) {

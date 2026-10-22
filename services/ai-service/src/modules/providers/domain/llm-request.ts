@@ -23,6 +23,12 @@ export interface LlmResponseSchema {
   name: string;
   /** JSON Schema the answer must satisfy — checked by `SchemaGuard` whatever the provider claims. */
   schema: Record<string, unknown>;
+  /**
+   * What JSON Schema cannot say about the answer — e.g. that a quoted fragment really occurs
+   * in the learner's text. Runs after the schema check, on the parsed answer; a returned
+   * reason makes the answer `invalid_response` like a schema miss. Adapters never read it.
+   */
+  verify?: (data: unknown) => string | null;
 }
 
 export interface LlmRequest {

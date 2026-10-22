@@ -22,6 +22,11 @@ export interface CapabilityDefinition {
   code: string;
   description: string;
   requiredFeatures: RequiredFeatures;
+  /**
+   * Prompt versions kept in the repository; a binding may name only one of these. Absent =
+   * the capability has no versioned prompt and any label is accepted (`diagnostic`).
+   */
+  promptVersions?: readonly string[];
 }
 
 const STRUCTURED_RANK: Record<ModelFeatures['structuredOutput'], number> = { none: 0, json_mode: 1, native: 2 };
