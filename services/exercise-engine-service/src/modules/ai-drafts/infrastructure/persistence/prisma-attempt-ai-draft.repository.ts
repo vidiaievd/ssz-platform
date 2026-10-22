@@ -1,0 +1,77 @@
+import { Injectable } from '@nestjs/common';
+import type { AttemptAiDraftModel } from '../../../../../generated/prisma/models/AttemptAiDraft.js';
+import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { AttemptAiDraft, type AiDraftRemark } from '../../domain/entities/attempt-ai-draft.entity.js';
+import type { IAttemptAiDraftRepository } from '../../domain/repositories/attempt-ai-draft.repository.js';
+
+@Injectable()
+export class PrismaAttemptAiDraftRepository implements IAttemptAiDraftRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findByAiCallId(aiCallId: string): Promise<AttemptAiDraft | null> {
+    const row = await this.prisma.attemptAiDraft.findUnique({ where: { aiCallId } });
+    return row ? toDomain(row) : null;
+  }
+
+  async findByAttempt(attemptId: string, capability: string): Promise<AttemptAiDraft | null> {
+    const row = await this.prisma.attemptAiDraft.findUnique({
+      where: { attemptId_capability: { attemptId, capability } },
+    });
+    return row ? toDomain(row) : null;
+  }
+
+  async save(draft: AttemptAiDraft): Promise<'saved' | 'conflict'> {
+    const data = {
+      status: draft.status,
+      // The remarks are plain JSON; Prisma's write type for Json wants its own spelling of that.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      items: draft.items as any,
+      summary: draft.summary,
+      errorCode: draft.errorCode,
+      providerId: draft.providerId,
+      modelId: draft.modelId,
+      promptVersion: draft.promptVersion,
+      aiCallId: draft.aiCallId,
+      updatedAt: draft.updatedAt,
+    };
+    try {
+      await this.prisma.attemptAiDraft.upsert({
+        where: { id: draft.id },
+        create: {
+          id: draft.id,
+          attemptId: draft.attemptId,
+          capability: draft.capability,
+          createdAt: draft.createdAt,
+          ...data,
+        },
+        update: data,
+      });
+      return 'saved';
+    } catch (err) {
+      if (isUniqueViolation(err)) return 'conflict';
+      throw err;
+    }
+  }
+}
+
+function toDomain(row: AttemptAiDraftModel): AttemptAiDraft {
+  return AttemptAiDraft.restore(row.id, {
+    attemptId: row.attemptId,
+    capability: row.capability,
+    status: row.status,
+    items: row.items as unknown as AiDraftRemark[],
+    summary: row.summary,
+    errorCode: row.errorCode,
+    providerId: row.providerId,
+    modelId: row.modelId,
+    promptVersion: row.promptVersion,
+    aiCallId: row.aiCallId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  });
+}
+
+/** Prisma's P2002 by its code: importing the client as a value breaks the test suites (as in the attempt repository). */
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'P2002';
+}

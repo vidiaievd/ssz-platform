@@ -29,6 +29,18 @@ enum AttemptStatus {
   @@map("attempt_status")
 }
 
+// What became of a model's draft review (plan 79, step 1.2). READY/FAILED are written by
+// ai-service; SENT/EDITED/DISCARDED by the teacher's verdict (step 1.5).
+enum AiDraftStatus {
+  READY     @map("ready")
+  FAILED    @map("failed")
+  SENT      @map("sent")
+  EDITED    @map("edited")
+  DISCARDED @map("discarded")
+
+  @@map("ai_draft_status")
+}
+
 // PRACTICE ships expectedAnswers for instant local checking; GRADED withholds them.
 enum CheckMode {
   PRACTICE @map("practice")
@@ -310,6 +322,9 @@ model Attempt {
   // (IMPLEMENTATION.md, "Persistence").
   rubricSnapshot Json? @map("rubric_snapshot")
 
+  // Model-drafted reviews of this submission (plan 79). Kept after the verdict.
+  aiDrafts AttemptAiDraft[]
+
   @@index([userId, status])
   @@index([exerciseId])
   // The review queue: everything waiting on one exercise.
@@ -326,6 +341,43 @@ model Attempt {
   // "attempts_one_open_per_user_exercise" WHERE status = 'in_progress', in raw SQL
   // (migration 20261017120000) — Prisma cannot express a partial index (plan 76, 2.5).
   @@map("attempts")
+}
+
+// A model's draft review of one submission (plan 79, step 1.2) — a property of the attempt,
+// not of the exercise. Written by ai-service over the internal API, idempotent on
+// `aiCallId`. One per (attempt, capability): a rerun replaces a draft nobody has acted on.
+//
+// What the model proposed is never overwritten once the teacher decides: the verdict
+// records what was sent (review_decisions), and this row keeps what was offered. The pair
+// is the labelled data plan 79 §1.6 compares models on.
+model AttemptAiDraft {
+  id        String @id @default(uuid())
+  attemptId String @map("attempt_id")
+  attempt   Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  // ai-service capability code: `review_draft` (teacher) now, `review_direct` in part 2.
+  capability String
+  status     AiDraftStatus
+
+  // Remarks, as ai-service produced them: [{ itemId, sentenceIndex, aspect, fragment,
+  // comment, suggestion }]. Empty for FAILED.
+  items   Json
+  summary String?
+  // Why there is no draft text (FAILED): invalid_response, unavailable, …
+  errorCode String? @map("error_code")
+
+  // Which model and prompt produced it — the axes outcomes are folded on (step 1.5).
+  providerId    String? @map("provider_id")
+  modelId       String? @map("model_id")
+  promptVersion String? @map("prompt_version")
+  // ai-service ledger row; the idempotency key of the write.
+  aiCallId String @unique @map("ai_call_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([attemptId, capability])
+  @@map("attempt_ai_drafts")
 }
 
 // RabbitMQ consumer idempotency — one row per processed event.
