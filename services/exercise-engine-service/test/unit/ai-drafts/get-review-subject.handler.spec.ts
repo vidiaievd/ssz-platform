@@ -11,6 +11,8 @@ import { Result } from '../../../src/shared/kernel/result.js';
 
 // Plan 79, step 1.3.
 
+const SNAPSHOT_CRITERION = { id: 'c1', name: 'Språk', desc: '', weight: 1, levels: ['a', 'b', 'c', 'd'] };
+
 const ATTEMPT = 'a0000000-0000-4000-8000-000000000001';
 
 const CONTENT = {
@@ -33,7 +35,7 @@ const ANSWERS = {
 };
 
 interface Setup {
-  attempt?: { status: AttemptStatus; schoolId: string | null; templateCode: string } | null;
+  attempt?: { status: AttemptStatus; schoolId: string | null; templateCode: string; rubricSnapshot?: unknown } | null;
   draft?: boolean;
   content?: 'ok' | 404 | 503;
   submitted?: unknown;
@@ -53,6 +55,7 @@ function setup({ attempt, draft = false, content = 'ok', submitted, exercise }: 
           schoolId: 'school-1',
           templateCode: 'translate_to_target',
           submittedAnswer: submitted ?? { answers: [{ itemId: 's1', text: 'Jeg bor her i tre år' }] },
+          rubricSnapshot: null,
           ...attempt,
         };
   const attempts = { findById: async () => row } as unknown as IAttemptRepository;
@@ -163,7 +166,13 @@ describe('GetReviewSubjectHandler', () => {
   // Plan 79, step 1.7b.
   it('reads a writing_task submission beside its task: points as phrased and ticked, the measured length', async () => {
     const { handler } = setup({
-      attempt: { status: 'ROUTED_FOR_REVIEW', schoolId: 'school-1', templateCode: 'writing_task' },
+      attempt: {
+        status: 'ROUTED_FOR_REVIEW',
+        schoolId: 'school-1',
+        templateCode: 'writing_task',
+        // Frozen when it was queued; the exercise's rubric today is empty (step 1.7c).
+        rubricSnapshot: { criteria: [SNAPSHOT_CRITERION], passScore: 2 },
+      },
       submitted: { text: 'Hei Kari!\n\nJeg flytter til Bergen i mai.', ticked: ['p2'] },
       exercise: {
         content: {
@@ -213,7 +222,8 @@ describe('GetReviewSubjectHandler', () => {
       ],
       example: 'Hei Kari! Jeg flytter i mai fordi …',
       length: { words: 8, paragraphs: 2, minWords: 50, maxWords: 120 },
-      ai: { on: true, checks: { grammar: true, task: true, structure: false, lexis: true } },
+      ai: { on: true, checks: { grammar: true, task: true, structure: false, lexis: true, draft: true } },
+      rubric: [SNAPSHOT_CRITERION],
       text: 'Hei Kari!\n\nJeg flytter til Bergen i mai.',
     });
   });

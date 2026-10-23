@@ -118,6 +118,9 @@ function toWritingTaskInput(subject: WritingTaskSubject, aspects: ReviewAspect[]
     example: subject.example,
     length: subject.length,
     aspects,
+    // Marks are asked for only when the author switched them on; an attempt queued before
+    // the rubric was frozen on it (or an engine that does not send one) gets remarks only.
+    rubric: subject.ai.checks.draft === true && subject.rubric && subject.rubric.length > 0 ? subject.rubric : null,
     sentences: [{ itemId: ESSAY_ITEM_ID, answer: subject.text }],
   };
 }

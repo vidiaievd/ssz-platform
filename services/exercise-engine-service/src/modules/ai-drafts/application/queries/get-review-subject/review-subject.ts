@@ -1,6 +1,6 @@
 import { TEMPLATE_CODE as ERROR_CORRECTION } from '@ssz/shared-kernel/error-correction';
 import { isTranslateCode } from '@ssz/shared-kernel/translate';
-import { TEMPLATE_CODE as WRITING_TASK } from '@ssz/shared-kernel/writing-task';
+import { TEMPLATE_CODE as WRITING_TASK, type RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { errorCorrectionSubject, type ErrorCorrectionSubject } from './error-correction-subject.js';
 import { translateSubject, type TranslateSubject } from './translate-subject.js';
 import { writingTaskSubject, type WritingTaskSubject } from './writing-task-subject.js';
@@ -29,7 +29,7 @@ export function decidedPerItem(templateCode: string): boolean {
 export function reviewSubject(
   templateCode: string,
   exercise: { content: unknown; expectedAnswers: unknown },
-  attempt: { submittedAnswer: unknown; targetLanguage: string },
+  attempt: { submittedAnswer: unknown; targetLanguage: string; rubricSnapshot: RubricSnapshot | null },
 ): ReviewSubject | null {
   if (isTranslateCode(templateCode)) {
     return translateSubject(templateCode, exercise.content, exercise.expectedAnswers, attempt.submittedAnswer);
@@ -38,7 +38,13 @@ export function reviewSubject(
     return errorCorrectionSubject(exercise.content, exercise.expectedAnswers, attempt.submittedAnswer, attempt.targetLanguage);
   }
   if (templateCode === WRITING_TASK) {
-    return writingTaskSubject(exercise.content, exercise.expectedAnswers, attempt.submittedAnswer, attempt.targetLanguage);
+    return writingTaskSubject(
+      exercise.content,
+      exercise.expectedAnswers,
+      attempt.submittedAnswer,
+      attempt.targetLanguage,
+      attempt.rubricSnapshot,
+    );
   }
   return null;
 }

@@ -40,7 +40,8 @@ export function errorCorrectionAspects(checks: { explainWhy?: boolean; altFixes?
 
 /**
  * The aspects a `writing_task` AI stage allows (plan 79, 1.7b). Its switches are aspects by
- * name, except `draft`, which asks for rubric marks rather than remarks (step 1.7c).
+ * name, except `draft`, which asks for suggested rubric marks rather than remarks (step 1.7c,
+ * read in `review-input.ts`).
  */
 export function writingTaskAspects(checks: { grammar?: boolean; lexis?: boolean; structure?: boolean; task?: boolean }): ReviewAspect[] {
   return (['grammar', 'lexis', 'structure', 'task'] as const).filter((aspect) => checks[aspect] === true);

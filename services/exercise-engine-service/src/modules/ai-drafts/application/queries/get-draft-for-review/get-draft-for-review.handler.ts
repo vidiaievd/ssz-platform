@@ -1,6 +1,6 @@
 import { Inject } from '@nestjs/common';
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
-import type { AiDraftRemark } from '../../../domain/entities/attempt-ai-draft.entity.js';
+import type { AiDraftMark, AiDraftRemark } from '../../../domain/entities/attempt-ai-draft.entity.js';
 import {
   ATTEMPT_AI_DRAFT_REPOSITORY,
   type IAttemptAiDraftRepository,
@@ -15,6 +15,8 @@ export interface ReviewDraftView {
   status: ReviewDraftStatus;
   items: AiDraftRemark[];
   summary: string | null;
+  /** Suggested rubric marks, by criterion id; null when the model was not asked (1.7c). */
+  marks: AiDraftMark[] | null;
   modelId: string | null;
   promptVersion: string | null;
   createdAt: Date;
@@ -42,6 +44,7 @@ export class GetDraftForReviewHandler implements IQueryHandler<GetDraftForReview
       status: draft.status.toLowerCase() as ReviewDraftStatus,
       items: draft.items,
       summary: draft.summary,
+      marks: draft.marks,
       modelId: draft.modelId,
       promptVersion: draft.promptVersion,
       createdAt: draft.createdAt,

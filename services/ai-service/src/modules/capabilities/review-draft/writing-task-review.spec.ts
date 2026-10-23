@@ -214,6 +214,7 @@ describe('DraftReviewHandler — writing_task', () => {
           { itemId: 'text', sentenceIndex: 1, aspect: 'task', fragment: null, comment: 'Du skriver ikke hvorfor du flytter.', suggestion: null },
         ],
         summary: null,
+        marks: null,
       },
     ]);
   });

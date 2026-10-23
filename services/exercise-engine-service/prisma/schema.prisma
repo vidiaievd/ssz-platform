@@ -363,6 +363,9 @@ model AttemptAiDraft {
   // comment, suggestion }]. Empty for FAILED.
   items   Json
   summary String?
+  // Suggested rubric marks (step 1.7c): [{ criterionId, mark 0-3, reason }], keyed by the
+  // attempt's rubric snapshot. `[]` (or null on rows from before the step) = not asked for.
+  marks   Json?
   // Why there is no draft text (FAILED): invalid_response, unavailable, …
   errorCode String? @map("error_code")
 
@@ -374,7 +377,8 @@ model AttemptAiDraft {
   aiCallId String @unique @map("ai_call_id")
 
   // What the verdict made of it (step 1.5): { remarks: outcome[], summary: outcome | null,
-  // draftDiscarded }, outcome = accepted | edited | discarded | untouched. Null until decided.
+  // draftDiscarded, marks? }, outcome = accepted | edited | discarded | untouched; marks (1.7c)
+  // = [{ criterionId, outcome: same | different, delta }]. Null until decided.
   outcomes  Json?
   decidedAt DateTime? @map("decided_at")
 

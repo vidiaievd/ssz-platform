@@ -28,7 +28,7 @@ export class SettleAiDraftHandler implements ICommandHandler<SettleAiDraftComman
     const draft = await this.drafts.findByAttempt(command.attemptId, command.capability);
     if (draft === null) return null;
 
-    const settled = draft.settle(command.outcomes, new Date());
+    const settled = draft.settle(command.outcomes, command.rubricMarks, new Date());
     if (settled === null) return null;
 
     // A conflict here is a rerun's write racing the verdict; the verdict has been given and

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Entity } from '../../../../shared/domain/entity.base.js';
 import type { AttemptStatus } from '../../../attempts/domain/entities/attempt.entity.js';
+import type { RubricMarks } from '@ssz/shared-kernel/writing-task';
 import {
   settledStatus,
   settleOutcomes,
@@ -34,11 +35,23 @@ export interface AiDraftRemark {
   suggestion: string | null;
 }
 
+/**
+ * A suggested mark on one rubric criterion (plan 79, 1.7c), keyed by the id in the attempt's
+ * rubric snapshot. Shown beside the teacher's control, never set on it.
+ */
+export interface AiDraftMark {
+  criterionId: string;
+  mark: 0 | 1 | 2 | 3;
+  reason: string;
+}
+
 /** One write from ai-service — a draft, or the record that none could be made. */
 export interface ProposedDraft {
   status: ProposedDraftStatus;
   items: AiDraftRemark[];
   summary: string | null;
+  /** One per criterion; null when the model was not asked for marks. */
+  marks: AiDraftMark[] | null;
   errorCode: string | null;
   providerId: string | null;
   modelId: string | null;
@@ -120,11 +133,16 @@ export class AttemptAiDraft extends Entity<string> {
    * labelled it did not land (the attempt is still waiting, or the caller would not be here),
    * and the one that does is the teacher's last word.
    */
-  settle(outcomes: ReviewerOutcomes, now: Date): SettledOutcomes | null {
+  settle(outcomes: ReviewerOutcomes, rubricMarks: RubricMarks | null, now: Date): SettledOutcomes | null {
     if (this.props.status === 'FAILED') return null;
     const settled = settleOutcomes(
-      { remarkCount: this.props.items.length, hasSummary: (this.props.summary ?? '').trim() !== '' },
+      {
+        remarkCount: this.props.items.length,
+        hasSummary: (this.props.summary ?? '').trim() !== '',
+        marks: this.props.marks,
+      },
       outcomes,
+      rubricMarks,
     );
     this.props = {
       ...this.props,
@@ -141,6 +159,7 @@ export class AttemptAiDraft extends Entity<string> {
   get status(): AiDraftStatus { return this.props.status; }
   get items(): AiDraftRemark[] { return this.props.items; }
   get summary(): string | null { return this.props.summary; }
+  get marks(): AiDraftMark[] | null { return this.props.marks ?? null; }
   get errorCode(): string | null { return this.props.errorCode; }
   get providerId(): string | null { return this.props.providerId; }
   get modelId(): string | null { return this.props.modelId; }

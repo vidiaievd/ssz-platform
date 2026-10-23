@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { AttemptAiDraftModel } from '../../../../../generated/prisma/models/AttemptAiDraft.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
-import { AttemptAiDraft, type AiDraftRemark } from '../../domain/entities/attempt-ai-draft.entity.js';
+import { AttemptAiDraft, type AiDraftMark, type AiDraftRemark } from '../../domain/entities/attempt-ai-draft.entity.js';
 import type { SettledOutcomes } from '../../domain/draft-outcomes.js';
 import type { IAttemptAiDraftRepository } from '../../domain/repositories/attempt-ai-draft.repository.js';
 
@@ -37,6 +37,11 @@ export class PrismaAttemptAiDraftRepository implements IAttemptAiDraftRepository
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       items: draft.items as any,
       summary: draft.summary,
+      // "No marks" is written as an empty list rather than a SQL null: a rerun without marks
+      // must clear the old ones, and `Prisma.DbNull` would mean importing the client as a value.
+      // A rubric is never empty, so the empty list cannot mean anything else.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      marks: (draft.marks ?? []) as any,
       errorCode: draft.errorCode,
       providerId: draft.providerId,
       modelId: draft.modelId,
@@ -76,6 +81,7 @@ function toDomain(row: AttemptAiDraftModel): AttemptAiDraft {
     status: row.status,
     items: row.items as unknown as AiDraftRemark[],
     summary: row.summary,
+    marks: Array.isArray(row.marks) && row.marks.length > 0 ? (row.marks as unknown as AiDraftMark[]) : null,
     errorCode: row.errorCode,
     providerId: row.providerId,
     modelId: row.modelId,

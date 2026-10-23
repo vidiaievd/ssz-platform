@@ -6,6 +6,7 @@ import {
   type AiDraftStatus,
 } from '../../../src/modules/ai-drafts/domain/entities/attempt-ai-draft.entity.js';
 import {
+  compareMarks,
   readReviewerOutcomes,
   settledStatus,
   settleOutcomes,
@@ -22,13 +23,23 @@ const remark = (itemId: string, fragment: string) => ({
   suggestion: null,
 });
 
-function draft(status: AiDraftStatus = 'READY', summary: string | null = 'Bra.'): AttemptAiDraft {
+const MARKS = [
+  { criterionId: 'c1', mark: 2 as const, reason: 'r' },
+  { criterionId: 'c2', mark: 1 as const, reason: 'r' },
+];
+
+function draft(
+  status: AiDraftStatus = 'READY',
+  summary: string | null = 'Bra.',
+  marks: typeof MARKS | null = null,
+): AttemptAiDraft {
   return AttemptAiDraft.restore('d1', {
     attemptId: 'a1',
     capability: 'review_draft',
     status,
     items: status === 'FAILED' ? [] : [remark('i1', 'jeg var'), remark('i2', 'bodd')],
     summary: status === 'FAILED' ? null : summary,
+    marks,
     errorCode: null,
     providerId: 'fake',
     modelId: 'fake-model',
@@ -81,6 +92,33 @@ describe('settleOutcomes', () => {
   });
 });
 
+// Plan 79, step 1.7c.
+describe('compareMarks', () => {
+  it('says whether the teacher landed where the model did, and by how much they differ', () => {
+    expect(compareMarks(MARKS, { c1: 2, c2: 3 })).toEqual([
+      { criterionId: 'c1', outcome: 'same', delta: 0 },
+      { criterionId: 'c2', outcome: 'different', delta: 2 },
+    ]);
+  });
+
+  it('reads a criterion the verdict left without a valid mark as different, without a delta', () => {
+    expect(compareMarks(MARKS, { c1: 9 })).toEqual([
+      { criterionId: 'c1', outcome: 'different', delta: null },
+      { criterionId: 'c2', outcome: 'different', delta: null },
+    ]);
+  });
+
+  it('is left out of a draft that suggested no marks, and kept when the draft is dropped', () => {
+    expect(settleOutcomes({ remarkCount: 1, hasSummary: false }, {}, { c1: 2 })).not.toHaveProperty('marks');
+    expect(
+      settleOutcomes({ remarkCount: 0, hasSummary: false, marks: MARKS }, { draft: 'discarded' }, { c1: 1, c2: 1 }).marks,
+    ).toEqual([
+      { criterionId: 'c1', outcome: 'different', delta: -1 },
+      { criterionId: 'c2', outcome: 'same', delta: 0 },
+    ]);
+  });
+});
+
 describe('settledStatus', () => {
   it('is EDITED when anything was reworded, SENT when taken as written, DISCARDED otherwise', () => {
     const of = (remarks: string[], summary: string | null = null) =>
@@ -121,6 +159,20 @@ describe('SettleAiDraftHandler', () => {
     expect(drafts.save).toHaveBeenCalledWith(row);
   });
 
+  it('compares suggested marks with the marks the verdict stored', async () => {
+    const row = draft('READY', null, MARKS);
+    const { handler } = makeHandler(row);
+
+    await handler.execute(new SettleAiDraftCommand('a1', 'review_draft', {}, { c1: 2, c2: 2 }));
+
+    expect(row.outcomes?.marks).toEqual([
+      { criterionId: 'c1', outcome: 'same', delta: 0 },
+      { criterionId: 'c2', outcome: 'different', delta: 1 },
+    ]);
+    // What the model suggested stays as it was.
+    expect(row.marks).toEqual(MARKS);
+  });
+
   it('settles nothing when there is no draft or it failed', async () => {
     for (const row of [null, draft('FAILED')]) {
       const { handler, drafts } = makeHandler(row);
@@ -131,7 +183,7 @@ describe('SettleAiDraftHandler', () => {
 
   it('settles a draft again when the verdict that labelled it did not land', async () => {
     const row = draft();
-    row.settle({ '0': 'accepted' }, new Date());
+    row.settle({ '0': 'accepted' }, null, new Date());
     const { handler } = makeHandler(row);
 
     await handler.execute(settle({ '0': 'edited' }));

@@ -82,7 +82,7 @@ describe('review_draft — translate, prompt v1', () => {
     });
     const checked = guard.check(result, request());
     expect(checked.isOk).toBe(true);
-    expect(toReviewDraft((checked.value.output as { data: unknown }).data, input)).toEqual({ items: [], summary: 'fake' });
+    expect(toReviewDraft((checked.value.output as { data: unknown }).data, input)).toEqual({ items: [], summary: 'fake', marks: null });
   });
 
   it('accepts remarks that quote the answer verbatim', () => {
@@ -134,6 +134,7 @@ describe('review_draft — translate, prompt v1', () => {
         { itemId: 'i1', sentenceIndex: 1, aspect: 'grammar', fragment: 'bor', comment: 'Нужен perfektum.', suggestion: null },
       ],
       summary: null,
+      marks: null,
     });
   });
 

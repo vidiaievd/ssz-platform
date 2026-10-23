@@ -205,6 +205,7 @@ describe('DraftReviewHandler — error_correction', () => {
         status: 'ready',
         items: [{ itemId: 'e2', sentenceIndex: 2, aspect: 'grammar', fragment: 'bo', comment: 'Presens: bor.', suggestion: 'bor' }],
         summary: null,
+        marks: null,
       },
     ]);
   });

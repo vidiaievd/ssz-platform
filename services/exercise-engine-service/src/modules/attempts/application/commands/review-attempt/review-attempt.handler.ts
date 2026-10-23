@@ -2,7 +2,7 @@ import { CommandBus, CommandHandler, QueryBus, type ICommandHandler } from '@nes
 import type { AttemptReviewedAiDraft } from '@ssz/contracts';
 import { readRubricMarks } from '@ssz/shared-kernel/writing-task';
 import { ReviewAttemptCommand } from './review-attempt.command.js';
-import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
+import type { RubricMarks, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import {
   marksWithCarried,
   readMarks as raReadMarks,
@@ -227,15 +227,19 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     });
   }
 
-  /** Labels the draft once the verdict is stored. Never fails the verdict — see the handler. */
+  /**
+   * Labels the draft once the verdict is stored. Never fails the verdict — see the handler.
+   * `rubricMarks` are the marks the verdict stored, for a draft that suggested some (1.7c).
+   */
   private async settleDraft(
     command: ReviewAttemptCommand,
     aiDraft: AttemptReviewedAiDraft | null,
+    rubricMarks: RubricMarks | null = null,
   ): Promise<void> {
     if (aiDraft === null || command.aiOutcomes === null) return;
     try {
       await this.commandBus.execute(
-        new SettleAiDraftCommand(command.attemptId, 'review_draft', command.aiOutcomes),
+        new SettleAiDraftCommand(command.attemptId, 'review_draft', command.aiOutcomes, rubricMarks),
       );
     } catch (err) {
       this.logger.warn(
@@ -316,7 +320,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     if (reviewed.isFail) return Result.fail(toError(reviewed.error));
 
     await this.attempts.save(attempt);
-    await this.settleDraft(command, aiDraft);
+    await this.settleDraft(command, aiDraft, marks);
     await publishAttemptEvents(this.publisher, attempt);
 
     return Result.ok({

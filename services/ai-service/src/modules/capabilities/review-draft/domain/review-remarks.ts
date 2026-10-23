@@ -1,4 +1,5 @@
 import { WHOLE_TEXT_ASPECTS, type ReviewAspect } from './review-aspect.js';
+import { toRubricHints, type RubricCriterion, type RubricHint } from './rubric-marks.js';
 
 /**
  * What every template's review answer is checked against: the aspects the author allowed and
@@ -9,6 +10,11 @@ import { WHOLE_TEXT_ASPECTS, type ReviewAspect } from './review-aspect.js';
 export interface ReviewFrame {
   aspects: ReviewAspect[];
   sentences: Array<{ itemId: string; answer: string }>;
+  /**
+   * The rubric the text is marked by, when the model is asked for marks too (`writing_task`
+   * with its `draft` switch on, plan 79 1.7c). Absent for every other template.
+   */
+  rubric?: RubricCriterion[] | null;
 }
 
 /** The allowed aspects whose remarks may come without a quotation. */
@@ -34,6 +40,8 @@ export interface ReviewRemark {
 export interface ReviewDraft {
   items: ReviewRemark[];
   summary: string | null;
+  /** One suggested mark per criterion; null when no marks were asked for (1.7c). */
+  marks: RubricHint[] | null;
 }
 
 /** The answer as the model returns it; `sentenceIndex` is mapped to an item id afterwards. */
@@ -48,6 +56,8 @@ interface RawRemark {
 interface RawReview {
   items: RawRemark[];
   summary: string | null;
+  /** Only in a schema that asked for marks. */
+  marks?: unknown;
 }
 
 /**
@@ -148,5 +158,8 @@ export function toReviewDraft(data: unknown, input: ReviewFrame): ReviewDraft {
       suggestion: remark.suggestion?.trim() ? remark.suggestion.trim() : null,
     })),
     summary: review.summary?.trim() ? review.summary.trim() : null,
+    // Marks are read only where they were asked for: the prompt version's schema and verify
+    // put them there, and an answer to any other request carries none.
+    marks: input.rubric && review.marks !== undefined ? toRubricHints(input.rubric, review.marks) : null,
   };
 }

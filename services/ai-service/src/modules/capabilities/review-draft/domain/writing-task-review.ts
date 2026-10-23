@@ -1,4 +1,5 @@
 import type { ReviewAspect } from './review-aspect.js';
+import type { RubricCriterion } from './rubric-marks.js';
 
 /** The item id an essay's remarks carry: the text is the one "sentence" of the submission. */
 export const ESSAY_ITEM_ID = 'text';
@@ -39,6 +40,11 @@ export interface WritingTaskReviewInput {
   length: { words: number; paragraphs: number; minWords: number; maxWords: number };
   /** From the exercise's AI stage; never empty — with nothing to check there is no call. */
   aspects: ReviewAspect[];
+  /**
+   * The rubric frozen on the attempt, when the author's `draft` switch asks for suggested
+   * marks (step 1.7c); null otherwise. Only a prompt version that knows marks reads it.
+   */
+  rubric: RubricCriterion[] | null;
   /** The whole text as `ESSAY_ITEM_ID`: what remarks quote. */
   sentences: [{ itemId: typeof ESSAY_ITEM_ID; answer: string }];
 }

@@ -5,6 +5,7 @@ import type { WritingTaskReviewInput } from '../domain/writing-task-review.js';
 import { errorCorrectionRequestV1 } from './error-correction.v1.js';
 import { translateRequestV1 } from './translate.v1.js';
 import { writingTaskRequestV1 } from './writing-task.v1.js';
+import { writingTaskRequestV2 } from './writing-task.v2.js';
 
 /** A submission to review, by template. `short_answer` joins later in step 1.7. */
 export type ReviewSubject =
@@ -21,12 +22,20 @@ type Builders = { [T in ReviewSubject['template']]: (input: Extract<ReviewSubjec
  *
  * `error_correction` and `writing_task` joined v1 rather than starting v2: no draft of either
  * existed before, so nothing produced under v1 changes meaning.
+ *
+ * v2 (step 1.7c) asks a `writing_task` for suggested rubric marks when the author's `draft`
+ * switch is on; every other request is v1's unchanged.
  */
 const VERSIONS: Record<string, Builders> = {
   'review_draft@1': {
     translate: translateRequestV1,
     error_correction: errorCorrectionRequestV1,
     writing_task: writingTaskRequestV1,
+  },
+  'review_draft@2': {
+    translate: translateRequestV1,
+    error_correction: errorCorrectionRequestV1,
+    writing_task: writingTaskRequestV2,
   },
 };
 

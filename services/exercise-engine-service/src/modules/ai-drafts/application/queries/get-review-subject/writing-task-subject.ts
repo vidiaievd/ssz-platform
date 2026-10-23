@@ -1,4 +1,12 @@
-import { analyse, fromPersisted, usablePoints, type LetterRegister, type Mode } from '@ssz/shared-kernel/writing-task';
+import {
+  analyse,
+  fromPersisted,
+  usablePoints,
+  type LetterRegister,
+  type Mode,
+  type RubricSnapshot,
+  type SnapshotCriterion,
+} from '@ssz/shared-kernel/writing-task';
 
 /** One must-cover point of the task, and what the engine and the learner say of it. */
 export interface WritingTaskSubjectPoint {
@@ -32,7 +40,13 @@ export interface WritingTaskSubject {
   example: string;
   length: { words: number; paragraphs: number; minWords: number; maxWords: number };
   /** The author's AI stage as stored: `aiStage` and its switches — ai-service decides what it allows. */
-  ai: { on: boolean; checks: { grammar: boolean; task: boolean; structure: boolean; lexis: boolean } };
+  ai: { on: boolean; checks: { grammar: boolean; task: boolean; structure: boolean; lexis: boolean; draft: boolean } };
+  /**
+   * The rubric frozen on the attempt when it was queued — what the teacher marks by, so what
+   * a suggested mark is keyed by (step 1.7c). Never the exercise's rubric today. Null when
+   * the attempt carries none.
+   */
+  rubric: SnapshotCriterion[] | null;
   /** The learner's text, as submitted. */
   text: string;
 }
@@ -47,6 +61,7 @@ export function writingTaskSubject(
   expectedAnswers: unknown,
   submittedAnswer: unknown,
   targetLanguage: string,
+  rubricSnapshot: RubricSnapshot | null,
 ): WritingTaskSubject {
   const document = fromPersisted(
     // The envelope is the exercise row's business; the review needs none of it.
@@ -89,8 +104,10 @@ export function writingTaskSubject(
         task: settings.ai.task,
         structure: settings.ai.structure,
         lexis: settings.ai.lexis,
+        draft: settings.ai.draft,
       },
     },
+    rubric: rubricSnapshot && rubricSnapshot.criteria.length > 0 ? rubricSnapshot.criteria : null,
     text,
   };
 }

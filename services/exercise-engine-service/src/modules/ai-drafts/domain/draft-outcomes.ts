@@ -1,4 +1,5 @@
 import type { AttemptReviewedAiDraft } from '@ssz/contracts';
+import type { RubricMarks } from '@ssz/shared-kernel/writing-task';
 
 /** What the reviewer did with one remark — or with the draft's overall note. */
 export type RemarkOutcome = 'accepted' | 'edited' | 'discarded' | 'untouched';
@@ -18,6 +19,18 @@ export const SUMMARY_KEY = 'summary';
  */
 export type ReviewerOutcomes = Record<string, ReviewerOutcome>;
 
+/**
+ * A suggested mark beside the one the teacher gave (plan 79, 1.7c). There is no "accepted":
+ * the teacher sets every mark themselves, so the only thing to learn is whether they landed
+ * where the model did. `delta` is theirs minus the model's — its sign says which way a model
+ * leans; `null` when the criterion carries no valid mark from the verdict.
+ */
+export interface MarkOutcome {
+  criterionId: string;
+  outcome: 'same' | 'different';
+  delta: number | null;
+}
+
 /** The settled draft, as stored beside what the model offered. */
 export interface SettledOutcomes {
   /** One per remark, in the draft's order. */
@@ -26,6 +39,8 @@ export interface SettledOutcomes {
   summary: RemarkOutcome | null;
   /** The reviewer dropped the draft as a whole. */
   draftDiscarded: boolean;
+  /** One per suggested mark, in the draft's order; absent when the draft carried none. */
+  marks?: MarkOutcome[];
 }
 
 export type SettledStatus = 'SENT' | 'EDITED' | 'DISCARDED';
@@ -39,8 +54,9 @@ export type SettledStatus = 'SENT' | 'EDITED' | 'DISCARDED';
  * cannot have drawn it.
  */
 export function settleOutcomes(
-  draft: { remarkCount: number; hasSummary: boolean },
+  draft: { remarkCount: number; hasSummary: boolean; marks?: ReadonlyArray<{ criterionId: string; mark: number }> | null },
   outcomes: ReviewerOutcomes,
+  rubricMarks: RubricMarks | null = null,
 ): SettledOutcomes {
   const draftDiscarded = outcomes[DRAFT_KEY] === 'discarded';
   const open: RemarkOutcome = draftDiscarded ? 'discarded' : 'untouched';
@@ -54,7 +70,27 @@ export function settleOutcomes(
     remarks: Array.from({ length: draft.remarkCount }, (_, index) => read(String(index))),
     summary: draft.hasSummary ? read(SUMMARY_KEY) : null,
     draftDiscarded,
+    ...(draft.marks ? { marks: compareMarks(draft.marks, rubricMarks ?? {}) } : {}),
   };
+}
+
+/**
+ * The model's marks against the teacher's. Dropping the draft does not touch them: a mark
+ * is never taken from the draft, so the teacher's own mark is what it is compared with
+ * either way. A criterion the verdict left without a valid mark (a `read_aloud`-style key,
+ * an older card) counts as `different` with no delta — no agreement was shown.
+ */
+export function compareMarks(
+  suggested: ReadonlyArray<{ criterionId: string; mark: number }>,
+  given: RubricMarks,
+): MarkOutcome[] {
+  return suggested.map(({ criterionId, mark }) => {
+    const teacher = given[criterionId];
+    if (typeof teacher !== 'number' || !Number.isInteger(teacher) || teacher < 0 || teacher > 3) {
+      return { criterionId, outcome: 'different', delta: null };
+    }
+    return { criterionId, outcome: teacher === mark ? 'same' : 'different', delta: teacher - mark };
+  });
 }
 
 /**

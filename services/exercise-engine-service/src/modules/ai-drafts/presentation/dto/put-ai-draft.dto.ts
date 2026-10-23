@@ -15,6 +15,22 @@ import {
 } from 'class-validator';
 import { AI_DRAFT_CAPABILITIES, type AiDraftCapability } from '../../domain/entities/attempt-ai-draft.entity.js';
 
+/** A suggested mark on one rubric criterion (step 1.7c), keyed by the attempt's rubric snapshot. */
+export class AiDraftMarkDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  criterionId!: string;
+
+  @IsIn([0, 1, 2, 3])
+  mark!: 0 | 1 | 2 | 3;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
+  reason!: string;
+}
+
 export class AiDraftRemarkDto {
   @IsString()
   @MinLength(1)
@@ -67,6 +83,14 @@ export class PutAiDraftDto {
   @IsString()
   @MaxLength(4000)
   summary?: string | null;
+
+  /** One per rubric criterion; null or absent when the model was not asked for marks. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @ValidateNested({ each: true })
+  @Type(() => AiDraftMarkDto)
+  marks?: AiDraftMarkDto[] | null;
 
   /** Required for `failed`: why there is no draft text. */
   @ValidateIf((o: PutAiDraftDto) => o.status === 'failed' || o.errorCode != null)

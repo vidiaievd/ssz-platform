@@ -1,6 +1,7 @@
 import type { ReviewAspect } from '../../domain/review-aspect.js';
 import type { ReviewCaseSet } from '../../eval/domain/review-case.js';
 import type { ReviewRemark } from '../../domain/review-remarks.js';
+import type { RubricCriterion, RubricHint } from '../../domain/rubric-marks.js';
 
 export const REVIEW_ATTEMPTS_CLIENT = Symbol('IReviewAttemptsClient');
 
@@ -54,7 +55,12 @@ export interface WritingTaskSubject {
   points: Array<{ text: string; required: boolean; keywords: string[]; phrased: boolean; ticked: boolean }>;
   example: string;
   length: { words: number; paragraphs: number; minWords: number; maxWords: number };
-  ai: { on: boolean; checks: { grammar?: boolean; task?: boolean; structure?: boolean; lexis?: boolean } };
+  ai: { on: boolean; checks: { grammar?: boolean; task?: boolean; structure?: boolean; lexis?: boolean; draft?: boolean } };
+  /**
+   * The rubric frozen on the attempt; null when it carries none (step 1.7c). Absent from an
+   * engine that predates the step — read as none.
+   */
+  rubric?: RubricCriterion[] | null;
   text: string;
 }
 
@@ -74,7 +80,7 @@ export interface ReviewSubjectResult {
 
 /** One write of the draft: the remarks, or the record that the model call failed. */
 export type DraftToWrite =
-  | { status: 'ready'; items: ReviewRemark[]; summary: string | null }
+  | { status: 'ready'; items: ReviewRemark[]; summary: string | null; marks: RubricHint[] | null }
   | { status: 'failed'; errorCode: string };
 
 export interface DraftWriteMeta {

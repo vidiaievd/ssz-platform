@@ -50,6 +50,7 @@ const draft = (over: Partial<ProposedDraft> = {}): ProposedDraft => ({
   status: 'READY',
   items: [{ itemId: 's1', sentenceIndex: 1, aspect: 'grammar', fragment: 'bor', comment: 'Perfektum.', suggestion: 'har bodd' }],
   summary: null,
+  marks: null,
   errorCode: null,
   providerId: 'p1',
   modelId: 'm1',
@@ -95,6 +96,14 @@ describe('PutAiDraftHandler', () => {
     await put(handler);
     attempt.status = 'SCORED';
     expect((await put(handler)).isOk).toBe(true);
+  });
+
+  // Plan 79, step 1.7c.
+  it('keeps suggested marks beside the remarks, and a rerun without them clears them', async () => {
+    const { handler } = setup();
+    const marks = [{ criterionId: 'c1', mark: 2 as const, reason: 'Noen feil.' }];
+    expect((await put(handler, { marks })).value.marks).toEqual(marks);
+    expect((await put(handler, { aiCallId: 'call-2', marks: null })).value.marks).toBeNull();
   });
 
   it('replaces a draft nobody acted on with a rerun', async () => {

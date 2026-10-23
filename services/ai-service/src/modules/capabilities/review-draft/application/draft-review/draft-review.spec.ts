@@ -139,6 +139,7 @@ describe('DraftReviewHandler', () => {
           status: 'ready',
           items: [{ itemId: 's1', sentenceIndex: 1, aspect: 'grammar', fragment: 'bor', comment: 'Нужен perfektum.', suggestion: 'har bodd' }],
           summary: null,
+          marks: null,
         },
         meta: { aiCallId: 'call-1', providerId: 'provider-1', modelId: 'model-1', promptVersion: 'review_draft@1' },
       },

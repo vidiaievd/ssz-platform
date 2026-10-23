@@ -36,7 +36,7 @@ export class HttpReviewAttemptsClient implements IReviewAttemptsClient {
   ): Promise<{ written: true } | { written: false; code: string }> {
     const body =
       draft.status === 'ready'
-        ? { capability: 'review_draft', status: 'ready', items: draft.items, summary: draft.summary, ...meta }
+        ? { capability: 'review_draft', status: 'ready', items: draft.items, summary: draft.summary, marks: draft.marks, ...meta }
         : { capability: 'review_draft', status: 'failed', items: [], errorCode: draft.errorCode, ...meta };
     const res = await fetch(new URL(`/api/v1/internal/attempts/${attemptId}/ai-draft`, this.baseUrl), {
       method: 'PUT',
