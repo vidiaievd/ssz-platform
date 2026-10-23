@@ -3,10 +3,8 @@ import { ModelCaller } from '../../../../gateway/application/model-caller.js';
 import type { CallContext } from '../../../../ledger/domain/ai-call.js';
 import type { ModelForCall } from '../../../../registry/application/ports/registry.reader.js';
 import { PLATFORM_PAYER } from '../../../../access/domain/payer.js';
-import { toReviewInput } from '../../application/review-input.js';
-import { commentLanguage } from '../../domain/comment-language.js';
-import { enabledAspects } from '../../domain/review-aspect.js';
-import { toReviewDraft } from '../../domain/translate-review.js';
+import { toReviewSubject } from '../../application/review-input.js';
+import { toReviewDraft } from '../../domain/review-remarks.js';
 import { reviewRequest } from '../../prompts/prompts.js';
 import { REVIEW_DRAFT } from '../../review-draft.capability.js';
 import { totalCost, type EvalRun } from '../domain/eval-run.js';
@@ -80,14 +78,14 @@ export class ReviewEvalRunner implements OnApplicationBootstrap {
   }
 
   private async runCase(evalCase: ReviewCase, promptVersion: string, model: ModelForCall, context: CallContext) {
-    const subject = evalCase.subject;
-    const input = toReviewInput(subject, enabledAspects(subject.ai.checks), commentLanguage(null, subject.langs.explain));
+    // The school's language is not asked for: the set carries no school.
+    const subject = toReviewSubject(evalCase.subject, null);
     const call = await this.caller.call(
       REVIEW_DRAFT.code,
       context,
       model,
       promptVersion,
-      reviewRequest(promptVersion, { template: 'translate', input }),
+      reviewRequest(promptVersion, subject),
     );
     const { outcome, recorded, latencyMs } = call;
 
@@ -104,7 +102,7 @@ export class ReviewEvalRunner implements OnApplicationBootstrap {
     if (outcome.result.output.kind !== 'structured') {
       return { result: { ...base, outcome: 'invalid_response', errorCode: 'invalid_response', score: null } as CaseResult, recorded };
     }
-    const draft = toReviewDraft(outcome.result.output.data, input);
+    const draft = toReviewDraft(outcome.result.output.data, subject.input);
     const score = scoreCase(evalCase, draft.items);
     return { result: { ...base, outcome: 'ok', errorCode: null, score } as CaseResult, recorded };
   }

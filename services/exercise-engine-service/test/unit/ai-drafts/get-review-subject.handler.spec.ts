@@ -37,9 +37,10 @@ interface Setup {
   draft?: boolean;
   content?: 'ok' | 404 | 503;
   submitted?: unknown;
+  exercise?: { content: unknown; expectedAnswers: unknown };
 }
 
-function setup({ attempt, draft = false, content = 'ok', submitted }: Setup = {}) {
+function setup({ attempt, draft = false, content = 'ok', submitted, exercise }: Setup = {}) {
   const row =
     attempt === null
       ? null
@@ -61,7 +62,7 @@ function setup({ attempt, draft = false, content = 'ok', submitted }: Setup = {}
     getExerciseForAttempt: async (id: string, lang: string, mode: string) => {
       reads.push(`${id}:${lang}:${mode}`);
       if (content !== 'ok') return Result.fail(new ContentClientError(content, 'nope'));
-      return Result.ok({ exercise: { content: CONTENT, expectedAnswers: ANSWERS } });
+      return Result.ok({ exercise: exercise ?? { content: CONTENT, expectedAnswers: ANSWERS } });
     },
   } as unknown as IContentClient;
   return { handler: new GetReviewSubjectHandler(attempts, drafts, contentClient), reads };
@@ -100,6 +101,63 @@ describe('GetReviewSubjectHandler', () => {
     const { handler } = setup({ submitted: [{ itemId: 's2', text: 'Она читает книгу' }] });
     const result = await run(handler);
     expect(result.value.subject!.sentences.map((s) => s.answer)).toEqual(['', 'Она читает книгу']);
+  });
+
+  // Plan 79, step 1.7.
+  it('reads an error_correction submission through its engine: the built sentence and each mistake', async () => {
+    const { handler } = setup({
+      attempt: { status: 'ROUTED_FOR_REVIEW', schoolId: 'school-1', templateCode: 'error_correction' },
+      submitted: { items: { e1: { marked: { '1': true }, fix: { '1': 'dro' }, ins: {} } } },
+      exercise: {
+        content: {
+          mode: 'sentences',
+          note: 'Fortid.',
+          items: [
+            { id: 'e1', wrong: 'Jeg går på kino i går' },
+            { id: 'e2', wrong: 'Han bo i Oslo' },
+            { id: 'empty', wrong: ' ' },
+          ],
+          ai: { on: true, checks: { explainWhy: true, altFixes: true, register: false }, visibility: 'teacher' },
+        },
+        expectedAnswers: {
+          items: {
+            e1: { ref: 'Jeg gikk på kino i går', alts: [' '], meta: {}, teacherNote: 'Preteritum.' },
+            e2: { ref: 'Han bor i Oslo', alts: [], meta: { '1:2:bor': { note: 'Presens av «bo».' } } },
+          },
+        },
+      },
+    });
+    const result = await run(handler);
+
+    expect(result.value.skip).toBeNull();
+    expect(result.value.subject).toEqual({
+      template: 'error_correction',
+      targetLanguage: 'nb',
+      note: 'Fortid.',
+      ai: { on: true, checks: { explainWhy: true, altFixes: true, register: false } },
+      sentences: [
+        {
+          itemId: 'e1',
+          given: 'Jeg går på kino i går',
+          refs: ['Jeg gikk på kino i går'],
+          answer: 'Jeg dro på kino i går',
+          matchesKey: false,
+          mistakes: [{ wrong: 'går', fix: 'gikk', type: 'form', state: 'attempted', submitted: 'dro' }],
+          stray: [],
+          teacherNote: 'Preteritum.',
+        },
+        // Untouched: the faulty sentence is the answer, its mistake missed.
+        {
+          itemId: 'e2',
+          given: 'Han bo i Oslo',
+          refs: ['Han bor i Oslo'],
+          answer: 'Han bo i Oslo',
+          matchesKey: false,
+          mistakes: [{ wrong: 'bo', fix: 'bor', type: 'form', state: 'missed', submitted: 'bo', note: 'Presens av «bo».' }],
+          stray: [],
+        },
+      ],
+    });
   });
 
   it.each([

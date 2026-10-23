@@ -3,7 +3,8 @@ import type { LlmRequest } from '../../providers/domain/llm-request.js';
 import type { LlmResult } from '../../providers/domain/llm-result.js';
 import { FakeLlmProvider } from '../../providers/infrastructure/fake/fake-llm.provider.js';
 import { enabledAspects } from './domain/review-aspect.js';
-import { toReviewDraft, type TranslateReviewInput } from './domain/translate-review.js';
+import { toReviewDraft } from './domain/review-remarks.js';
+import type { TranslateReviewInput } from './domain/translate-review.js';
 import { REVIEW_DRAFT_PROMPT_VERSIONS, reviewRequest } from './prompts/prompts.js';
 
 const input: TranslateReviewInput = {

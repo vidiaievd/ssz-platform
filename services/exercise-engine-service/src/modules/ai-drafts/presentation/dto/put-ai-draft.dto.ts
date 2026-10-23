@@ -25,7 +25,8 @@ export class AiDraftRemarkDto {
   @Min(1)
   sentenceIndex!: number;
 
-  @IsIn(['grammar', 'order', 'lexis', 'register'])
+  // `alternative`: a correction the key did not foresee that is also right (error_correction).
+  @IsIn(['grammar', 'order', 'lexis', 'register', 'alternative'])
   aspect!: string;
 
   @IsString()

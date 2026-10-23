@@ -1,6 +1,5 @@
 import { Inject } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
-import { isTranslateCode } from '@ssz/shared-kernel/translate';
 import {
   CONTENT_CLIENT,
   type IContentClient,
@@ -15,7 +14,7 @@ import {
   ATTEMPT_AI_DRAFT_REPOSITORY,
   type IAttemptAiDraftRepository,
 } from '../../../domain/repositories/attempt-ai-draft.repository.js';
-import { translateSubject, type TranslateSubject } from '../get-review-subject/translate-subject.js';
+import { hasReviewPrompt, reviewSubject, type ReviewSubject } from '../get-review-subject/review-subject.js';
 import { ListReviewCasesQuery } from './list-review-cases.query.js';
 
 /** One remark the model offered — where it pointed, not what it said. */
@@ -35,7 +34,7 @@ export interface ReviewCase {
   caseId: string;
   decidedAt: string;
   templateCode: string;
-  subject: TranslateSubject;
+  subject: ReviewSubject;
   offered: { modelId: string | null; promptVersion: string | null; remarks: OfferedRemark[] };
   /** Remark by remark, in `offered.remarks` order. */
   outcomes: SettledOutcomes;
@@ -49,7 +48,7 @@ export type ReviewCaseSkip =
   | 'ATTEMPT_GONE'
   /** The verdict carries no per-sentence decisions: nothing to measure a draft against. */
   | 'NO_DECISIONS'
-  /** No review prompt for this template yet (plan 79, step 1.7). */
+  /** No review prompt for this template yet (translate and error_correction have one). */
   | 'TEMPLATE_NOT_SUPPORTED'
   /** The exercise was deleted: there is no key to review against. */
   | 'EXERCISE_GONE';
@@ -101,7 +100,7 @@ export class ListReviewCasesHandler implements IQueryHandler<ListReviewCasesQuer
         continue;
       }
       const code = attempt.templateCode;
-      if (!isTranslateCode(code)) {
+      if (!hasReviewPrompt(code)) {
         skip('TEMPLATE_NOT_SUPPORTED');
         continue;
       }
@@ -119,12 +118,16 @@ export class ListReviewCasesHandler implements IQueryHandler<ListReviewCasesQuer
         return Result.fail({ code: 'CONTENT_UNAVAILABLE' });
       }
 
-      const { content, expectedAnswers } = exercise.value.exercise;
+      const subject = reviewSubject(code, exercise.value.exercise, attempt);
+      if (subject === null) {
+        skip('TEMPLATE_NOT_SUPPORTED');
+        continue;
+      }
       cases.push({
         caseId: attempt.id,
         decidedAt: draft.decidedAt.toISOString(),
         templateCode: code,
-        subject: translateSubject(code, content, expectedAnswers, attempt.submittedAnswer),
+        subject,
         offered: {
           modelId: draft.modelId,
           promptVersion: draft.promptVersion,

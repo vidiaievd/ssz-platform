@@ -11,7 +11,7 @@ import type { CapabilityBinding } from '../../../../registry/application/queries
 import { GetBindingQuery } from '../../../../registry/application/queries/get-binding/get-binding.query.js';
 import { missingFeatures } from '../../../domain/capability.js';
 import { REVIEW_ATTEMPTS_CLIENT, type IReviewAttemptsClient } from '../../application/ports/review-attempts.client.js';
-import { enabledAspects } from '../../domain/review-aspect.js';
+import { unaskable as unaskableSubject } from '../../application/review-input.js';
 import { REVIEW_DRAFT_PROMPT_VERSIONS } from '../../prompts/prompts.js';
 import { REVIEW_DRAFT } from '../../review-draft.capability.js';
 import type { EvalRun } from '../domain/eval-run.js';
@@ -103,8 +103,10 @@ export class RunReviewEvalHandler implements ICommandHandler<RunReviewEvalComman
   }
 }
 
+/**
+ * The queue's own filter, by the reason's name in `skipped`. A case is already a drafted one,
+ * so `ai_off` means the author switched AI off since — the case is still not asked.
+ */
 function unaskable(c: ReviewCase): string | null {
-  if (enabledAspects(c.subject.ai.checks).length === 0) return 'NO_CHECKS';
-  if (c.subject.sentences.every((s) => s.answer.trim() === '')) return 'EMPTY_ANSWER';
-  return null;
+  return unaskableSubject(c.subject)?.toUpperCase() ?? null;
 }

@@ -3,9 +3,7 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { AiGateway, type GatewayCall } from '../../../../gateway/application/ai-gateway.js';
 import type { CallContext } from '../../../../ledger/domain/ai-call.js';
 import { describeCall } from '../../../application/describe-call.js';
-import { commentLanguage } from '../../domain/comment-language.js';
-import { enabledAspects } from '../../domain/review-aspect.js';
-import { toReviewDraft } from '../../domain/translate-review.js';
+import { toReviewDraft } from '../../domain/review-remarks.js';
 import { reviewRequest } from '../../prompts/prompts.js';
 import { REVIEW_DRAFT } from '../../review-draft.capability.js';
 import {
@@ -14,13 +12,13 @@ import {
   type DraftWriteMeta,
   type IReviewAttemptsClient,
 } from '../ports/review-attempts.client.js';
-import { toReviewInput } from '../review-input.js';
+import { toReviewSubject, unaskable } from '../review-input.js';
 import { SCHOOL_LANGUAGE_READER, type ISchoolLanguageReader } from '../ports/school-language.reader.js';
 import { SchoolPayerResolver } from '../school-payer.resolver.js';
 import { DraftReviewCommand } from './draft-review.command.js';
 
-/** Templates with a review prompt — the first wave; the rest join in step 1.7. */
-const FIRST_WAVE = ['translate_to_target', 'translate_from_target'];
+/** Templates with a review prompt: the first wave, and `error_correction` from step 1.7. */
+const FIRST_WAVE = ['translate_to_target', 'translate_from_target', 'error_correction'];
 
 /** The ledger's surface for drafts written into the teacher's queue. */
 export const REVIEW_QUEUE_SURFACE = 'review_queue';
@@ -72,17 +70,10 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
     // The attempt's own school, not the event's: the engine's row is the truth.
     if (found.schoolId === null) return { kind: 'skipped', reason: 'no_school' };
 
-    const subject = found.subject;
-    if (!subject.ai.on) return { kind: 'skipped', reason: 'ai_off' };
-    const aspects = enabledAspects(subject.ai.checks);
-    if (aspects.length === 0) return { kind: 'skipped', reason: 'no_checks' };
-    if (subject.sentences.every((s) => s.answer.trim() === '')) return { kind: 'skipped', reason: 'empty_answer' };
+    const unasked = unaskable(found.subject);
+    if (unasked) return { kind: 'skipped', reason: unasked };
 
-    const input = toReviewInput(
-      subject,
-      aspects,
-      commentLanguage(await this.schoolLanguage(found.schoolId), subject.langs.explain),
-    );
+    const subject = toReviewSubject(found.subject, await this.schoolLanguage(found.schoolId));
 
     const context: CallContext = {
       payer: await this.payers.resolve({ schoolId: found.schoolId }),
@@ -90,7 +81,7 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
       surface: REVIEW_QUEUE_SURFACE,
     };
     const call = await this.gateway.call(REVIEW_DRAFT.code, context, (promptVersion) =>
-      reviewRequest(promptVersion, { template: 'translate', input }),
+      reviewRequest(promptVersion, subject),
     );
     const report = describeCall(REVIEW_DRAFT.code, context, call);
 
@@ -101,7 +92,7 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
 
     const draft: DraftToWrite =
       report.outcome === 'ok' && report.output?.kind === 'structured'
-        ? { status: 'ready', ...toReviewDraft(report.output.data, input) }
+        ? { status: 'ready', ...toReviewDraft(report.output.data, subject.input) }
         : { status: 'failed', errorCode: report.errorCode ?? 'invalid_response' };
     const meta = {
       aiCallId: report.callId,

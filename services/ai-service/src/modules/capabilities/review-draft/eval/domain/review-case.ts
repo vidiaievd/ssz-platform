@@ -1,4 +1,4 @@
-import type { TranslateSubject } from '../../application/ports/review-attempts.client.js';
+import type { EngineSubject } from '../../application/ports/review-attempts.client.js';
 
 /** What the teacher made of one offered remark (exercise-engine, plan 79 step 1.5). */
 export type RemarkOutcome = 'accepted' | 'edited' | 'discarded' | 'untouched';
@@ -21,7 +21,7 @@ export interface ReviewCase {
   caseId: string;
   decidedAt: string;
   templateCode: string;
-  subject: TranslateSubject;
+  subject: EngineSubject;
   offered: { modelId: string | null; promptVersion: string | null; remarks: OfferedRemark[] };
   outcomes: { remarks: RemarkOutcome[]; summary: RemarkOutcome | null; draftDiscarded: boolean };
   /** The verdict per sentence. */

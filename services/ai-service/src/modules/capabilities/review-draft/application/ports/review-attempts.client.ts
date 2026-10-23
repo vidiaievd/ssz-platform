@@ -1,6 +1,6 @@
 import type { ReviewAspect } from '../../domain/review-aspect.js';
 import type { ReviewCaseSet } from '../../eval/domain/review-case.js';
-import type { ReviewRemark } from '../../domain/translate-review.js';
+import type { ReviewRemark } from '../../domain/review-remarks.js';
 
 export const REVIEW_ATTEMPTS_CLIENT = Symbol('IReviewAttemptsClient');
 
@@ -21,6 +21,28 @@ export interface TranslateSubject {
   }>;
 }
 
+/** An `error_correction` submission as exercise-engine reads it, through the template's engine (step 1.7). */
+export interface ErrorCorrectionSubject {
+  template: 'error_correction';
+  /** The language learnt, as the attempt records it (`nb`). */
+  targetLanguage: string;
+  note: string;
+  ai: { on: boolean; checks: { explainWhy?: boolean; altFixes?: boolean; register?: boolean } };
+  sentences: Array<{
+    itemId: string;
+    given: string;
+    refs: string[];
+    answer: string;
+    matchesKey: boolean;
+    mistakes: Array<{ wrong: string; fix: string; type: string; state: string; submitted: string; note?: string }>;
+    stray: string[];
+    teacherNote?: string;
+  }>;
+}
+
+/** A submission beside its key, in its template's shape. */
+export type EngineSubject = TranslateSubject | ErrorCorrectionSubject;
+
 /** What exercise-engine answers about a submission: something to review, or why not. */
 export interface ReviewSubjectResult {
   attemptId: string;
@@ -29,7 +51,7 @@ export interface ReviewSubjectResult {
   templateCode: string;
   /** `ATTEMPT_NOT_IN_REVIEW`, `NO_TEACHER_REVIEW`, `DRAFT_EXISTS`, `TEMPLATE_NOT_SUPPORTED`, `EXERCISE_GONE`. */
   skip: string | null;
-  subject: TranslateSubject | null;
+  subject: EngineSubject | null;
 }
 
 /** One write of the draft: the remarks, or the record that the model call failed. */

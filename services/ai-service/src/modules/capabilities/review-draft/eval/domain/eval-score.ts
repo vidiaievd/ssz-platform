@@ -1,3 +1,4 @@
+import { ERROR_ASPECTS } from '../../domain/review-aspect.js';
 import type { ReviewCase } from './review-case.js';
 
 /** A candidate's remark, reduced to where it points. */
@@ -32,7 +33,7 @@ export interface CaseScore {
   rejectedRepeated: number;
   /** Sentences the teacher decided on. */
   sentences: number;
-  /** …where "the candidate remarked on it" matches "the teacher did not accept it". */
+  /** …where "the candidate named an error in it" matches "the teacher did not accept it". */
   sentencesAgreed: number;
   /** One per candidate remark, in its order. */
   remarks: Array<{ sentenceIndex: number; aspect: string; verdict: RemarkVerdict }>;
@@ -51,11 +52,13 @@ export interface CaseScore {
  * teacher's "bor" has found the same error.
  *
  * The sentence verdict is a coarser check that also sees errors no model offered: a
- * sentence the teacher did not accept should draw a remark, and one they accepted
- * should draw none.
+ * sentence the teacher did not accept should draw an error remark, and one they accepted
+ * should draw none. An `alternative` remark (error_correction: "differs from the key, and
+ * right") names no error, so it counts as no remark there.
  */
 export function scoreCase(evalCase: ReviewCase, candidate: CandidateRemark[]): CaseScore {
-  const answers = evalCase.subject.sentences.map((s) => s.answer);
+  const sentences: ReadonlyArray<{ itemId: string; answer: string }> = evalCase.subject.sentences;
+  const answers = sentences.map((s) => s.answer);
   const kept = evalCase.offered.remarks.filter((_, i) => isKept(evalCase.outcomes.remarks[i]));
   const thrown = evalCase.offered.remarks.filter((_, i) => evalCase.outcomes.remarks[i] === 'discarded');
   const sameSpot = (a: CandidateRemark, b: { sentenceIndex: number; fragment: string }) =>
@@ -72,9 +75,11 @@ export function scoreCase(evalCase: ReviewCase, candidate: CandidateRemark[]): C
     return { sentenceIndex: remark.sentenceIndex, aspect: remark.aspect, verdict };
   });
 
-  const indexOf = new Map(evalCase.subject.sentences.map((s, i) => [s.itemId, i + 1]));
+  const indexOf = new Map(sentences.map((s, i) => [s.itemId, i + 1]));
   const decided = evalCase.decisions.filter((d) => indexOf.has(d.itemId));
-  const remarked = new Set(candidate.map((r) => r.sentenceIndex));
+  const remarked = new Set(
+    candidate.filter((r) => (ERROR_ASPECTS as readonly string[]).includes(r.aspect)).map((r) => r.sentenceIndex),
+  );
 
   return {
     confirmed: kept.length,

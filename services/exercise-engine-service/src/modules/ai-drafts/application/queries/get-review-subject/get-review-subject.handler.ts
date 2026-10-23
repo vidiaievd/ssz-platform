@@ -1,6 +1,5 @@
 import { Inject } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
-import { isTranslateCode } from '@ssz/shared-kernel/translate';
 import {
   CONTENT_CLIENT,
   type IContentClient,
@@ -16,7 +15,7 @@ import {
   type IAttemptAiDraftRepository,
 } from '../../../domain/repositories/attempt-ai-draft.repository.js';
 import { GetReviewSubjectQuery } from './get-review-subject.query.js';
-import { translateSubject, type TranslateSubject } from './translate-subject.js';
+import { hasReviewPrompt, reviewSubject, type ReviewSubject } from './review-subject.js';
 
 /** Why there is nothing to review — answered as a 200, since none of these is a fault. */
 export type ReviewSubjectSkip =
@@ -26,7 +25,7 @@ export type ReviewSubjectSkip =
   | 'NO_TEACHER_REVIEW'
   /** A draft is already on it — written, failed or acted on. A redelivered event stops here. */
   | 'DRAFT_EXISTS'
-  /** No review prompt for this template yet (plan 79, step 1.7). */
+  /** No review prompt for this template yet (translate and error_correction have one). */
   | 'TEMPLATE_NOT_SUPPORTED'
   /** The exercise was deleted: there is no key to review against. */
   | 'EXERCISE_GONE';
@@ -39,7 +38,7 @@ export interface ReviewSubjectResult {
   templateCode: string;
   skip: ReviewSubjectSkip | null;
   /** Null exactly when `skip` is set. */
-  subject: TranslateSubject | null;
+  subject: ReviewSubject | null;
 }
 
 export type GetReviewSubjectError =
@@ -80,8 +79,7 @@ export class GetReviewSubjectHandler implements IQueryHandler<GetReviewSubjectQu
     if (refusal === 'ATTEMPT_NOT_IN_REVIEW' || refusal === 'NO_TEACHER_REVIEW') return skip(refusal);
     if (await this.drafts.findByAttempt(attempt.id, query.capability)) return skip('DRAFT_EXISTS');
 
-    const code = attempt.templateCode;
-    if (!isTranslateCode(code)) return skip('TEMPLATE_NOT_SUPPORTED');
+    if (!hasReviewPrompt(attempt.templateCode)) return skip('TEMPLATE_NOT_SUPPORTED');
 
     const exercise = await this.content.getExerciseForAttempt(
       attempt.exerciseId,
@@ -93,11 +91,7 @@ export class GetReviewSubjectHandler implements IQueryHandler<GetReviewSubjectQu
       return exercise.error.statusCode === 404 ? skip('EXERCISE_GONE') : Result.fail({ code: 'CONTENT_UNAVAILABLE' });
     }
 
-    const { content, expectedAnswers } = exercise.value.exercise;
-    return Result.ok({
-      ...base,
-      skip: null,
-      subject: translateSubject(code, content, expectedAnswers, attempt.submittedAnswer),
-    });
+    const subject = reviewSubject(attempt.templateCode, exercise.value.exercise, attempt);
+    return subject === null ? skip('TEMPLATE_NOT_SUPPORTED') : Result.ok({ ...base, skip: null, subject });
   }
 }

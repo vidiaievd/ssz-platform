@@ -4,7 +4,7 @@ import { AiGateway } from '../../../gateway/application/ai-gateway.js';
 import type { CallContext } from '../../../ledger/domain/ai-call.js';
 import { AdminPayerResolver } from '../../application/admin-payer.resolver.js';
 import { describeCall, type CallReport } from '../../application/describe-call.js';
-import { toReviewDraft, type ReviewDraft } from '../domain/translate-review.js';
+import { toReviewDraft, type ReviewDraft } from '../domain/review-remarks.js';
 import { reviewRequest } from '../prompts/prompts.js';
 import { REVIEW_DRAFT } from '../review-draft.capability.js';
 import { TryTranslateReviewCommand } from './try-translate-review.command.js';
