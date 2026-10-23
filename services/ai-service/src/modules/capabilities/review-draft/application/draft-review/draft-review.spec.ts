@@ -97,6 +97,7 @@ function setup({ subject = subjectResult(), call = answered({ items: [], summary
       writes.push({ draft, meta });
       return next === 'ok' ? { written: true } : { written: false, code: next.code };
     },
+    listCases: async () => ({ cases: [], skipped: {} }),
   };
   const schools: ISchoolLanguageReader = {
     explanationLanguage: async () => {

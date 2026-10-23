@@ -4,6 +4,10 @@ import type {
   IReviewAttemptsClient,
   ReviewSubjectResult,
 } from '../application/ports/review-attempts.client.js';
+import type { ReviewCaseSet } from '../eval/domain/review-case.js';
+
+/** Reading the set reads an exercise per case from content-service: more than one call's worth of time. */
+const CASES_TIMEOUT_MS = 30_000;
 
 /**
  * exercise-engine's internal routes for drafts (`x-internal-token`). Every path carries the
@@ -46,6 +50,15 @@ export class HttpReviewAttemptsClient implements IReviewAttemptsClient {
       return { written: false, code: typeof answer.code === 'string' ? answer.code : `http_${res.status}` };
     }
     throw new Error(`exercise-engine answered ${res.status} to the draft of ${attemptId}`);
+  }
+
+  async listCases(limit: number): Promise<ReviewCaseSet> {
+    const url = new URL('/api/v1/internal/ai-review-cases', this.baseUrl);
+    url.searchParams.set('capability', 'review_draft');
+    url.searchParams.set('limit', String(limit));
+    const res = await fetch(url, { headers: this.headers(), signal: AbortSignal.timeout(CASES_TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`exercise-engine answered ${res.status} for the review cases`);
+    return (await res.json()) as ReviewCaseSet;
   }
 
   private headers(): Record<string, string> {

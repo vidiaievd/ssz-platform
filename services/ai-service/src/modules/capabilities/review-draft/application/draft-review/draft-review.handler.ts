@@ -5,7 +5,7 @@ import type { CallContext } from '../../../../ledger/domain/ai-call.js';
 import { describeCall } from '../../../application/describe-call.js';
 import { commentLanguage } from '../../domain/comment-language.js';
 import { enabledAspects } from '../../domain/review-aspect.js';
-import { toReviewDraft, type TranslateReviewInput } from '../../domain/translate-review.js';
+import { toReviewDraft } from '../../domain/translate-review.js';
 import { reviewRequest } from '../../prompts/prompts.js';
 import { REVIEW_DRAFT } from '../../review-draft.capability.js';
 import {
@@ -13,8 +13,8 @@ import {
   type DraftToWrite,
   type DraftWriteMeta,
   type IReviewAttemptsClient,
-  type TranslateSubject,
 } from '../ports/review-attempts.client.js';
+import { toReviewInput } from '../review-input.js';
 import { SCHOOL_LANGUAGE_READER, type ISchoolLanguageReader } from '../ports/school-language.reader.js';
 import { SchoolPayerResolver } from '../school-payer.resolver.js';
 import { DraftReviewCommand } from './draft-review.command.js';
@@ -78,12 +78,11 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
     if (aspects.length === 0) return { kind: 'skipped', reason: 'no_checks' };
     if (subject.sentences.every((s) => s.answer.trim() === '')) return { kind: 'skipped', reason: 'empty_answer' };
 
-    const input: TranslateReviewInput = {
-      langs: subject.langs,
-      commentLanguage: commentLanguage(await this.schoolLanguage(found.schoolId), subject.langs.explain),
+    const input = toReviewInput(
+      subject,
       aspects,
-      sentences: toSentences(subject),
-    };
+      commentLanguage(await this.schoolLanguage(found.schoolId), subject.langs.explain),
+    );
 
     const context: CallContext = {
       payer: await this.payers.resolve({ schoolId: found.schoolId }),
@@ -159,16 +158,4 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
 function calledProviderId({ routed }: GatewayCall): string | null {
   if (routed.isOk) return routed.value.model.model.providerId;
   return routed.error.kind === 'error' ? routed.error.model.model.providerId : null;
-}
-
-function toSentences(subject: TranslateSubject): TranslateReviewInput['sentences'] {
-  return subject.sentences.map((s) => ({
-    itemId: s.itemId,
-    direction: s.direction,
-    source: s.source,
-    refs: s.refs,
-    answer: s.answer,
-    ...(s.explanation ? { explanation: s.explanation } : {}),
-    ...(s.teacherNote ? { teacherNote: s.teacherNote } : {}),
-  }));
 }

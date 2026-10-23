@@ -14,11 +14,17 @@ import { HttpReviewAttemptsClient } from './review-draft/infrastructure/http-rev
 import { HttpSchoolLanguageReader } from './review-draft/infrastructure/http-school-language.reader.js';
 import { AdminReviewDraftController } from './review-draft/presentation/admin-review-draft.controller.js';
 import { RoutedForReviewConsumer } from './review-draft/presentation/events/routed-for-review.consumer.js';
+import { EVAL_RUN_REPOSITORY } from './review-draft/eval/application/ports/eval-run.repository.js';
+import { GetReviewEvalRunHandler, ListReviewEvalRunsHandler } from './review-draft/eval/application/review-eval-runs.queries.js';
+import { ReviewEvalRunner } from './review-draft/eval/application/review-eval-runner.js';
+import { RunReviewEvalHandler } from './review-draft/eval/application/run-review-eval.handler.js';
+import { PrismaEvalRunRepository } from './review-draft/eval/infrastructure/prisma-eval-run.repository.js';
+import { AdminReviewEvalsController } from './review-draft/eval/presentation/admin-review-evals.controller.js';
 
 /** Agents: `diagnostic` (plan 77) and `review_draft` (plan 79); each agent plan adds its own folder here. */
 @Module({
   imports: [GatewayModule],
-  controllers: [AdminDiagnosticController, AdminReviewDraftController],
+  controllers: [AdminDiagnosticController, AdminReviewDraftController, AdminReviewEvalsController],
   providers: [
     RunDiagnosticHandler,
     TryTranslateReviewHandler,
@@ -27,6 +33,12 @@ import { RoutedForReviewConsumer } from './review-draft/presentation/events/rout
     DraftReviewHandler,
     SchoolPayerResolver,
     RoutedForReviewConsumer,
+    // candidate models measured on the settled drafts (plan 79, step 1.6)
+    RunReviewEvalHandler,
+    ListReviewEvalRunsHandler,
+    GetReviewEvalRunHandler,
+    ReviewEvalRunner,
+    { provide: EVAL_RUN_REPOSITORY, useClass: PrismaEvalRunRepository },
     {
       provide: REVIEW_ATTEMPTS_CLIENT,
       inject: [ConfigService],

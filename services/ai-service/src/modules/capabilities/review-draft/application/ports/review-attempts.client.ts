@@ -1,4 +1,5 @@
 import type { ReviewAspect } from '../../domain/review-aspect.js';
+import type { ReviewCaseSet } from '../../eval/domain/review-case.js';
 import type { ReviewRemark } from '../../domain/translate-review.js';
 
 export const REVIEW_ATTEMPTS_CLIENT = Symbol('IReviewAttemptsClient');
@@ -43,7 +44,7 @@ export interface DraftWriteMeta {
   promptVersion: string | null;
 }
 
-/** The submission's side of the work, in exercise-engine (plan 79, steps 1.2–1.3). */
+/** The submission's side of the work, in exercise-engine (plan 79, steps 1.2–1.3, 1.6). */
 export interface IReviewAttemptsClient {
   /** Null when the attempt is unknown. Throws when the engine cannot answer now. */
   getSubject(attemptId: string): Promise<ReviewSubjectResult | null>;
@@ -52,4 +53,6 @@ export interface IReviewAttemptsClient {
    * Throws when the engine cannot answer now.
    */
   putDraft(attemptId: string, draft: DraftToWrite, meta: DraftWriteMeta): Promise<{ written: true } | { written: false; code: string }>;
+  /** Teachers' settled drafts, newest first, as labelled data. Throws when the engine cannot answer now. */
+  listCases(limit: number): Promise<ReviewCaseSet>;
 }

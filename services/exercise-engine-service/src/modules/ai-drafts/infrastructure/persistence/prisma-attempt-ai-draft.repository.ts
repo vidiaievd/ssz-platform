@@ -21,6 +21,15 @@ export class PrismaAttemptAiDraftRepository implements IAttemptAiDraftRepository
     return row ? toDomain(row) : null;
   }
 
+  async listDecided(capability: string, limit: number): Promise<AttemptAiDraft[]> {
+    const rows = await this.prisma.attemptAiDraft.findMany({
+      where: { capability, decidedAt: { not: null } },
+      orderBy: [{ decidedAt: 'desc' }, { id: 'asc' }],
+      take: limit,
+    });
+    return rows.map(toDomain);
+  }
+
   async save(draft: AttemptAiDraft): Promise<'saved' | 'conflict'> {
     const data = {
       status: draft.status,

@@ -23,6 +23,9 @@ class MemoryDrafts implements IAttemptAiDraftRepository {
   async findByAttempt(attemptId: string, capability: string) {
     return [...this.rows.values()].find((d) => d.attemptId === attemptId && d.capability === capability) ?? null;
   }
+  async listDecided() {
+    return [];
+  }
   async save(draft: AttemptAiDraft): Promise<'saved' | 'conflict'> {
     if (this.raceWith) {
       this.rows.set(this.raceWith.id, this.raceWith);
