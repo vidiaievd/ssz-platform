@@ -12,7 +12,7 @@ import { ReviewEvalRunner } from './application/review-eval-runner.js';
 import { RunReviewEvalCommand } from './application/run-review-eval.command.js';
 import { RunReviewEvalHandler } from './application/run-review-eval.handler.js';
 import { totalCost, type EvalRun, type EvalRunFinish } from './domain/eval-run.js';
-import { overlaps, scoreCase, summarize, type CaseResult } from './domain/eval-score.js';
+import { overlaps, scoreCase, scoreMarks, summarize, type CaseResult } from './domain/eval-score.js';
 import type { ReviewCase } from './domain/review-case.js';
 
 // Plan 79, step 1.6.
@@ -66,6 +66,11 @@ describe('scoreCase', () => {
       sentences: 3,
       sentencesAgreed: 3,
       remarks: [{ sentenceIndex: 1, aspect: 'grammar', verdict: 'confirmed' }],
+      marksCompared: 0,
+      marksSame: 0,
+      marksDeltaSum: 0,
+      marksAbsDeltaSum: 0,
+      marksMissing: 0,
     });
   });
 
@@ -104,6 +109,32 @@ describe('scoreCase', () => {
   it('ignores decisions on sentences the set no longer has', () => {
     const c = reviewCase({ decisions: [...reviewCase().decisions, { itemId: 'gone', approved: false }] });
     expect(scoreCase(c, []).sentences).toBe(3);
+  });
+});
+
+// Plan 79, step 1.7d.
+describe('scoreMarks', () => {
+  const hint = (criterionId: string, mark: 0 | 1 | 2 | 3) => ({ criterionId, mark, reason: 'r' });
+
+  it('compares each mark the teacher gave with the suggestion on the same criterion', () => {
+    expect(scoreMarks({ task: 3, struct: 2, lang: 1 }, [hint('task', 3), hint('struct', 1), hint('lang', 3)])).toEqual({
+      marksCompared: 3,
+      marksSame: 1,
+      marksDeltaSum: -1,
+      marksAbsDeltaSum: 3,
+      marksMissing: 0,
+    });
+  });
+
+  it('counts a criterion the candidate did not mark as missing, and skips a mark the teacher did not give', () => {
+    expect(scoreMarks({ task: 2, struct: 9 }, null)).toMatchObject({ marksCompared: 0, marksMissing: 1 });
+    expect(scoreMarks(null, [hint('task', 2)])).toMatchObject({ marksCompared: 0, marksMissing: 0 });
+  });
+
+  it('rides along with the remarks of an essay case', () => {
+    const essay = reviewCase({ marks: { task: 2 } });
+    expect(scoreCase(essay, [], [hint('task', 1)])).toMatchObject({ marksCompared: 1, marksSame: 0, marksDeltaSum: 1 });
+    expect(scoreCase(reviewCase(), [])).toMatchObject({ marksCompared: 0, marksMissing: 0 });
   });
 });
 
@@ -154,6 +185,21 @@ describe('summarize', () => {
   it('leaves a rate it has nothing to count for null rather than zero', () => {
     const scores = summarize([{ caseId: 'y', outcome: 'error', errorCode: 'timeout', latencyMs: 50, score: null }]);
     expect(scores).toMatchObject({ confirmedRecall: null, sentenceAgreement: null, remarkPrecision: null, remarksPerCase: null });
+    expect(scores).toMatchObject({ markAgreement: null, markMeanAbsDelta: null, markBias: null });
+  });
+
+  // Plan 79, step 1.7d.
+  it('rates suggested marks over every compared criterion of the run', () => {
+    const hint = (criterionId: string, mark: 0 | 1 | 2 | 3) => ({ criterionId, mark, reason: 'r' });
+    const one = scoreCase(reviewCase({ marks: { a: 2, b: 2 } }), [], [hint('a', 2), hint('b', 3)]);
+    const two = scoreCase(reviewCase({ marks: { a: 3, b: 1 } }), [], [hint('a', 1), hint('b', 1)]);
+
+    expect(summarize([ok(one), ok(two)])).toMatchObject({
+      markAgreement: 0.5,
+      markMeanAbsDelta: 0.75,
+      markBias: 0.25,
+      totals: { marksCompared: 4, marksSame: 2, marksDeltaSum: 1, marksAbsDeltaSum: 3, marksMissing: 0 },
+    });
   });
 });
 

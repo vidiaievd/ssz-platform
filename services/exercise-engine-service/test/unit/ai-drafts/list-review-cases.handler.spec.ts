@@ -58,6 +58,7 @@ interface AttemptRow {
   templateCode: string;
   submittedAnswer: unknown;
   reviewDecisions: Array<{ itemId: string; approved: boolean; comment?: string }> | null;
+  rubricMarks?: Record<string, number> | null;
 }
 
 function attempt(id: string, overrides: Partial<AttemptRow> = {}): AttemptRow {
@@ -129,6 +130,7 @@ describe('ListReviewCasesHandler', () => {
         { itemId: 's1', approved: false },
         { itemId: 's2', approved: true },
       ],
+      marks: null,
     });
     const text = JSON.stringify(one);
     expect(text).not.toContain('learner-1');
@@ -168,7 +170,14 @@ describe('ListReviewCasesHandler', () => {
     ]);
     const { handler } = setup(
       [essay],
-      [attempt('w1', { templateCode: 'writing_task', submittedAnswer: { text: 'Jeg bor her.' }, reviewDecisions: [] })],
+      [
+        attempt('w1', {
+          templateCode: 'writing_task',
+          submittedAnswer: { text: 'Jeg bor her.' },
+          reviewDecisions: [],
+          rubricMarks: { task: 2, lang: 1 },
+        }),
+      ],
     );
     const result = await handler.execute(new ListReviewCasesQuery('review_draft', 50));
 
@@ -185,6 +194,8 @@ describe('ListReviewCasesHandler', () => {
         ],
       },
       decisions: [],
+      // Step 1.7d: the teacher's marks, for a candidate's suggested ones.
+      marks: { task: 2, lang: 1 },
     });
   });
 

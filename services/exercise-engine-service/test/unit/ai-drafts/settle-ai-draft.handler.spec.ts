@@ -10,6 +10,8 @@ import {
   readReviewerOutcomes,
   settledStatus,
   settleOutcomes,
+  tallyMarks,
+  tallyOutcomes,
   type ReviewerOutcomes,
 } from '../../../src/modules/ai-drafts/domain/draft-outcomes.js';
 
@@ -116,6 +118,28 @@ describe('compareMarks', () => {
       { criterionId: 'c1', outcome: 'different', delta: -1 },
       { criterionId: 'c2', outcome: 'same', delta: 0 },
     ]);
+  });
+});
+
+// Plan 79, step 1.7d.
+describe('tallyMarks', () => {
+  it('counts agreement, and sums the deltas only over marks the teacher gave', () => {
+    expect(
+      tallyMarks([
+        { criterionId: 'c1', outcome: 'same', delta: 0 },
+        { criterionId: 'c2', outcome: 'different', delta: 2 },
+        { criterionId: 'c3', outcome: 'different', delta: -1 },
+        { criterionId: 'c4', outcome: 'different', delta: null },
+      ]),
+    ).toEqual({ same: 1, different: 3, compared: 3, deltaSum: 1, absDeltaSum: 3 });
+  });
+
+  it('rides on the letter only when the draft suggested marks', () => {
+    const axes = { capability: 'review_draft', modelId: 'm', promptVersion: 'review_draft@2' };
+    expect(tallyOutcomes(settleOutcomes({ remarkCount: 1, hasSummary: false }, {}), axes).marks).toBeNull();
+    expect(
+      tallyOutcomes(settleOutcomes({ remarkCount: 0, hasSummary: false, marks: MARKS }, {}, { c1: 2, c2: 1 }), axes).marks,
+    ).toEqual({ same: 2, different: 0, compared: 2, deltaSum: 0, absDeltaSum: 0 });
   });
 });
 

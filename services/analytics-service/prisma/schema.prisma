@@ -538,7 +538,7 @@ model AiUsageDaily {
 
 // ─── Rollup: AiDraftQualityDaily ──────────────────────────────────────────────
 // What teachers did with the remarks of models' review drafts, per day × agent × model ×
-// prompt version — plan 79, step 1.5. Fed by `exercise.attempt.reviewed` (`aiDraft`); the
+// prompt version — plan 79, step 1.5; suggested rubric marks beside the teacher's — 1.7d. Fed by `exercise.attempt.reviewed` (`aiDraft`); the
 // remarks themselves and the per-remark labels stay in exercise-engine
 // (`attempt_ai_drafts`), this is the quality readout a model is chosen by.
 //
@@ -557,6 +557,14 @@ model AiDraftQualityDaily {
   remarksEdited    Int      @map("remarks_edited")
   remarksDiscarded Int      @map("remarks_discarded")
   remarksUntouched Int      @map("remarks_untouched")
+  /// Verdicts on drafts that suggested rubric marks (step 1.7d) — and the marks' counts.
+  reviewsWithMarks Int      @default(0) @map("reviews_with_marks")
+  marksSame        Int      @default(0) @map("marks_same")
+  marksDifferent   Int      @default(0) @map("marks_different")
+  /// Marks with a teacher's number beside them; the delta sums are over these (teacher − model).
+  marksCompared    Int      @default(0) @map("marks_compared")
+  marksDeltaSum    Int      @default(0) @map("marks_delta_sum")
+  marksAbsDeltaSum Int      @default(0) @map("marks_abs_delta_sum")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@unique([day, capability, modelId, promptVersion], map: "ai_draft_quality_daily_dims_key")

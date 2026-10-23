@@ -1,5 +1,6 @@
 import { subjectSentences } from '../../application/review-input.js';
 import { ERROR_ASPECTS } from '../../domain/review-aspect.js';
+import type { RubricHint } from '../../domain/rubric-marks.js';
 import type { ReviewCase } from './review-case.js';
 
 /** A candidate's remark, reduced to where it points. */
@@ -39,6 +40,16 @@ export interface CaseScore {
   sentencesAgreed: number;
   /** One per candidate remark, in its order. */
   remarks: Array<{ sentenceIndex: number; aspect: string; verdict: RemarkVerdict }>;
+  /** Criteria the teacher marked and the candidate suggested a mark on (step 1.7d). */
+  marksCompared: number;
+  /** …of them, where the candidate suggested the teacher's mark. */
+  marksSame: number;
+  /** Σ (teacher − candidate) over `marksCompared`: positive = the candidate marks lower. */
+  marksDeltaSum: number;
+  /** Σ |teacher − candidate| over `marksCompared`. */
+  marksAbsDeltaSum: number;
+  /** Criteria the teacher marked and the candidate did not — a prompt version that asks for none. */
+  marksMissing: number;
 }
 
 /**
@@ -61,7 +72,11 @@ export interface CaseScore {
  * right") names no error, so it counts as no remark there. A rubric-marked essay has no
  * sentence verdicts, so it adds nothing to that check.
  */
-export function scoreCase(evalCase: ReviewCase, candidate: CandidateRemark[]): CaseScore {
+export function scoreCase(
+  evalCase: ReviewCase,
+  candidate: CandidateRemark[],
+  candidateMarks: readonly RubricHint[] | null = null,
+): CaseScore {
   const sentences = subjectSentences(evalCase.subject);
   const answers = sentences.map((s) => s.answer);
   const kept = evalCase.offered.remarks.filter((_, i) => isKept(evalCase.outcomes.remarks[i]));
@@ -98,7 +113,35 @@ export function scoreCase(evalCase: ReviewCase, candidate: CandidateRemark[]): C
     sentences: decided.length,
     sentencesAgreed: decided.filter((d) => remarked.has(indexOf.get(d.itemId)!) === !d.approved).length,
     remarks,
+    ...scoreMarks(evalCase.marks ?? null, candidateMarks),
   };
+}
+
+/**
+ * A candidate's suggested marks against the teacher's, criterion by criterion (step 1.7d).
+ * Only criteria the teacher gave a valid mark (0–3) count: there is nothing to compare a
+ * suggestion with otherwise. A criterion the candidate left without one is `missing` —
+ * which is every one, for a prompt version that does not ask for marks.
+ */
+export function scoreMarks(
+  teacher: Record<string, number> | null,
+  candidate: readonly RubricHint[] | null,
+): Pick<CaseScore, 'marksCompared' | 'marksSame' | 'marksDeltaSum' | 'marksAbsDeltaSum' | 'marksMissing'> {
+  const suggested = new Map((candidate ?? []).map((hint) => [hint.criterionId, hint.mark]));
+  const tally = { marksCompared: 0, marksSame: 0, marksDeltaSum: 0, marksAbsDeltaSum: 0, marksMissing: 0 };
+  for (const [criterionId, mark] of Object.entries(teacher ?? {})) {
+    if (!Number.isInteger(mark) || mark < 0 || mark > 3) continue;
+    const hint = suggested.get(criterionId);
+    if (hint === undefined) {
+      tally.marksMissing += 1;
+      continue;
+    }
+    tally.marksCompared += 1;
+    if (hint === mark) tally.marksSame += 1;
+    tally.marksDeltaSum += mark - hint;
+    tally.marksAbsDeltaSum += Math.abs(mark - hint);
+  }
+  return tally;
 }
 
 /** One case of a run: how the call went and, when it answered, its score. */
@@ -128,6 +171,12 @@ export interface RunScores {
   /** Of the candidate's remarks, the share on spots the teacher kept (any aspect). */
   remarkPrecision: number | null;
   remarksPerCase: number | null;
+  /** Share of the teachers' marks the candidate suggested exactly (step 1.7d). */
+  markAgreement: number | null;
+  /** Mean |teacher − candidate| over the compared marks, in rubric levels. */
+  markMeanAbsDelta: number | null;
+  /** Mean (teacher − candidate): above zero the candidate marks lower than teachers, below — higher. */
+  markBias: number | null;
   totals: {
     confirmed: number;
     confirmedFound: number;
@@ -138,6 +187,11 @@ export interface RunScores {
     sentencesAgreed: number;
     remarks: number;
     remarksOnConfirmed: number;
+    marksCompared: number;
+    marksSame: number;
+    marksDeltaSum: number;
+    marksAbsDeltaSum: number;
+    marksMissing: number;
   };
   avgLatencyMs: number | null;
 }
@@ -159,6 +213,11 @@ export function summarize(results: CaseResult[]): RunScores {
     sentencesAgreed: sum((s) => s.sentencesAgreed),
     remarks: sum((s) => s.remarks.length),
     remarksOnConfirmed: sum((s) => s.remarks.filter((r) => r.verdict.startsWith('confirmed')).length),
+    marksCompared: sum((s) => s.marksCompared),
+    marksSame: sum((s) => s.marksSame),
+    marksDeltaSum: sum((s) => s.marksDeltaSum),
+    marksAbsDeltaSum: sum((s) => s.marksAbsDeltaSum),
+    marksMissing: sum((s) => s.marksMissing),
   };
 
   return {
@@ -172,6 +231,9 @@ export function summarize(results: CaseResult[]): RunScores {
     sentenceAgreement: rate(totals.sentencesAgreed, totals.sentences),
     remarkPrecision: rate(totals.remarksOnConfirmed, totals.remarks),
     remarksPerCase: scored.length > 0 ? round(totals.remarks / scored.length) : null,
+    markAgreement: rate(totals.marksSame, totals.marksCompared),
+    markMeanAbsDelta: rate(totals.marksAbsDeltaSum, totals.marksCompared),
+    markBias: rate(totals.marksDeltaSum, totals.marksCompared),
     totals,
     avgLatencyMs:
       results.length > 0 ? Math.round(results.reduce((total, r) => total + r.latencyMs, 0) / results.length) : null,

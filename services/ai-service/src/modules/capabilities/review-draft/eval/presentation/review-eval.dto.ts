@@ -38,6 +38,13 @@ export class RunTotalsDto {
   @ApiProperty({ description: '…where remark / no remark matches the verdict' }) sentencesAgreed!: number;
   @ApiProperty({ description: "The candidate's remarks" }) remarks!: number;
   @ApiProperty({ description: '…on spots the teachers kept' }) remarksOnConfirmed!: number;
+  @ApiProperty({ description: 'Essay criteria the teachers marked and the candidate suggested a mark on' })
+  marksCompared!: number;
+  @ApiProperty({ description: '…where the candidate suggested the teacher’s mark' }) marksSame!: number;
+  @ApiProperty({ description: 'Σ (teacher − candidate) over the compared marks' }) marksDeltaSum!: number;
+  @ApiProperty({ description: 'Σ |teacher − candidate| over the compared marks' }) marksAbsDeltaSum!: number;
+  @ApiProperty({ description: 'Criteria the teachers marked and the candidate did not (a prompt version without marks)' })
+  marksMissing!: number;
 }
 
 export class RunScoresDto {
@@ -55,6 +62,12 @@ export class RunScoresDto {
   @ApiProperty({ type: Number, nullable: true, example: 0.6, description: "Share of the candidate's remarks on kept spots" })
   remarkPrecision!: number | null;
   @ApiProperty({ type: Number, nullable: true }) remarksPerCase!: number | null;
+  @ApiProperty({ type: Number, nullable: true, example: 0.5, description: "Share of the teachers' essay marks suggested exactly" })
+  markAgreement!: number | null;
+  @ApiProperty({ type: Number, nullable: true, example: 0.6, description: 'Mean |teacher − candidate| in rubric levels' })
+  markMeanAbsDelta!: number | null;
+  @ApiProperty({ type: Number, nullable: true, example: 0.2, description: 'Mean (teacher − candidate): > 0 the candidate marks lower' })
+  markBias!: number | null;
   @ApiProperty({ type: RunTotalsDto }) totals!: RunTotalsDto;
   @ApiProperty({ type: Number, nullable: true }) avgLatencyMs!: number | null;
 }
@@ -101,6 +114,11 @@ export class CaseScoreDto {
   @ApiProperty() sentences!: number;
   @ApiProperty() sentencesAgreed!: number;
   @ApiProperty({ type: [CaseRemarkDto] }) remarks!: CaseRemarkDto[];
+  @ApiProperty() marksCompared!: number;
+  @ApiProperty() marksSame!: number;
+  @ApiProperty() marksDeltaSum!: number;
+  @ApiProperty() marksAbsDeltaSum!: number;
+  @ApiProperty() marksMissing!: number;
 }
 
 export class CaseResultDto {

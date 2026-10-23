@@ -123,16 +123,18 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       command.sentenceComments,
       command.outcome,
     );
-    const aiDraft = await this.draftTally(command);
 
     // Graded out of a rubric rather than out of items — the marks decide, and so does
     // the threshold they are measured against, both frozen on the attempt when it was
     // queued (plan 50 §3.2).
     const snapshot = attempt.rubricSnapshot;
-    if (snapshot && attempt.templateCode === READ_ALOUD) {
-      const speaking = readSpeakingSnapshot(snapshot);
-      if (speaking) return this.reviewByPrompt(attempt, command, speaking, aiDraft);
-    }
+    const speaking =
+      snapshot && attempt.templateCode === READ_ALOUD ? readSpeakingSnapshot(snapshot) : null;
+    // An essay's marks are what a draft's suggested ones are compared with (plan 79, 1.7d).
+    const essayMarks = snapshot && !speaking ? readRubricMarks(command.rubricMarks) : null;
+    const aiDraft = await this.draftTally(command, essayMarks);
+
+    if (speaking) return this.reviewByPrompt(attempt, command, speaking, aiDraft);
     if (snapshot) {
       return this.reviewByRubric(attempt, command, snapshot, aiDraft);
     }
@@ -207,9 +209,13 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
    * 1.5). Read before the verdict so the event says it; written to the draft only after the
    * verdict is stored (`settleDraft`), so a refused verdict leaves the draft as it was.
    *
-   * `null` when the reviewer was shown no draft, or there is none to act on.
+   * `null` when the reviewer was shown no draft, or there is none to act on. `rubricMarks`
+   * are an essay's marks from the verdict, for a draft that suggested some (1.7d).
    */
-  private async draftTally(command: ReviewAttemptCommand): Promise<AttemptReviewedAiDraft | null> {
+  private async draftTally(
+    command: ReviewAttemptCommand,
+    rubricMarks: RubricMarks | null,
+  ): Promise<AttemptReviewedAiDraft | null> {
     if (command.aiOutcomes === null) return null;
     const draft: ReviewDraftView | null = await this.queryBus.execute(
       new GetDraftForReviewQuery(command.attemptId, 'review_draft'),
@@ -217,8 +223,13 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     if (draft === null) return null;
 
     const settled = settleOutcomes(
-      { remarkCount: draft.items.length, hasSummary: (draft.summary ?? '').trim() !== '' },
+      {
+        remarkCount: draft.items.length,
+        hasSummary: (draft.summary ?? '').trim() !== '',
+        marks: draft.marks,
+      },
       command.aiOutcomes,
+      rubricMarks,
     );
     return tallyOutcomes(settled, {
       capability: 'review_draft',

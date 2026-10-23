@@ -1,4 +1,4 @@
-import type { AttemptReviewedAiDraft } from '@ssz/contracts';
+import type { AttemptReviewedAiDraft, AttemptReviewedAiDraftMarks } from '@ssz/contracts';
 import type { RubricMarks } from '@ssz/shared-kernel/writing-task';
 
 /** What the reviewer did with one remark — or with the draft's overall note. */
@@ -105,7 +105,10 @@ export function settledStatus(settled: SettledOutcomes): SettledStatus {
   return 'DISCARDED';
 }
 
-/** The counts `exercise.attempt.reviewed` carries — remarks only, the overall note aside. */
+/**
+ * The counts `exercise.attempt.reviewed` carries — remarks only, the overall note aside —
+ * and, when the draft suggested rubric marks, how they compare with the teacher's.
+ */
 export function tallyOutcomes(
   settled: SettledOutcomes,
   draft: { capability: string; modelId: string | null; promptVersion: string | null },
@@ -121,6 +124,19 @@ export function tallyOutcomes(
     edited: count('edited'),
     discarded: count('discarded'),
     untouched: count('untouched'),
+    marks: settled.marks ? tallyMarks(settled.marks) : null,
+  };
+}
+
+/** The suggested marks' counts for the event (1.7d): agreement and which way the model leans. */
+export function tallyMarks(marks: readonly MarkOutcome[]): AttemptReviewedAiDraftMarks {
+  const compared = marks.flatMap((mark) => (mark.delta === null ? [] : [mark.delta]));
+  return {
+    same: marks.filter((mark) => mark.outcome === 'same').length,
+    different: marks.filter((mark) => mark.outcome === 'different').length,
+    compared: compared.length,
+    deltaSum: compared.reduce((sum, delta) => sum + delta, 0),
+    absDeltaSum: compared.reduce((sum, delta) => sum + Math.abs(delta), 0),
   };
 }
 

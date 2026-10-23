@@ -1,4 +1,5 @@
 import { Inject } from '@nestjs/common';
+import type { RubricMarks } from '@ssz/shared-kernel/writing-task';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import {
   CONTENT_CLIENT,
@@ -41,6 +42,12 @@ export interface ReviewCase {
   outcomes: SettledOutcomes;
   /** The verdict per sentence: accepted as it stands or not. Empty for a rubric-marked essay. */
   decisions: Array<{ itemId: string; approved: boolean }>;
+  /**
+   * The marks the teacher gave an essay, by the criterion ids of `subject.rubric` — what a
+   * candidate's suggested marks are measured against (step 1.7d), whether or not the draft
+   * that was settled suggested any. Null for every other template.
+   */
+  marks: RubricMarks | null;
 }
 
 /** Why a decided draft is not in the set. */
@@ -144,6 +151,7 @@ export class ListReviewCasesHandler implements IQueryHandler<ListReviewCasesQuer
         },
         outcomes: draft.outcomes,
         decisions: decisions.map((d) => ({ itemId: d.itemId, approved: d.approved })),
+        marks: subject.template === 'writing_task' ? (attempt.rubricMarks ?? null) : null,
       });
     }
 

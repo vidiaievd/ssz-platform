@@ -636,6 +636,7 @@ describe('ReviewAttemptHandler', () => {
         edited: 1,
         discarded: 0,
         untouched: 1,
+        marks: null,
       });
       expect(commandBus.execute).toHaveBeenCalledWith(
         expect.objectContaining({ attemptId: 'att-1', outcomes: { '0': 'accepted', '1': 'edited' } }),
@@ -690,6 +691,36 @@ describe('ReviewAttemptHandler', () => {
       expect(result.isOk).toBe(true);
       expect(attempt.status).toBe('SCORED');
       expect(letterOf(publisher).aiDraft).toMatchObject({ accepted: 1 });
+    });
+
+    // Plan 79, step 1.7d.
+    it('counts suggested rubric marks against the marks the verdict gives an essay', async () => {
+      const essayDraft = {
+        ...DRAFT,
+        items: [],
+        summary: null,
+        promptVersion: 'review_draft@2',
+        marks: [
+          { criterionId: 'task', mark: 3, reason: 'a' },
+          { criterionId: 'struct', mark: 1, reason: 'b' },
+          { criterionId: 'lang', mark: 3, reason: 'c' },
+          { criterionId: 'lexis', mark: 2, reason: 'd' },
+        ],
+      };
+      const { handler, publisher, commandBus } = makeHandler(essayAttempt(), DETAILS, essayDraft);
+
+      const result = await handler.execute(
+        new ReviewAttemptCommand('att-1', 'teacher-1', 'approved', [], null, {}, { task: 3, struct: 2, lang: 3, lexis: 1 }, {}),
+      );
+
+      expect(result.isOk).toBe(true);
+      expect(letterOf(publisher).aiDraft).toMatchObject({
+        promptVersion: 'review_draft@2',
+        marks: { same: 2, different: 2, compared: 4, deltaSum: 0, absDeltaSum: 2 },
+      });
+      expect(commandBus.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ rubricMarks: { task: 3, struct: 2, lang: 3, lexis: 1 } }),
+      );
     });
   });
 

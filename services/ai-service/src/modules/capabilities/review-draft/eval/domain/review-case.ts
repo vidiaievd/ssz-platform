@@ -27,6 +27,12 @@ export interface ReviewCase {
   outcomes: { remarks: RemarkOutcome[]; summary: RemarkOutcome | null; draftDiscarded: boolean };
   /** The verdict per sentence. Empty for a rubric-marked essay. */
   decisions: Array<{ itemId: string; approved: boolean }>;
+  /**
+   * The marks the teacher gave an essay, by the criterion ids of the subject's rubric — what a
+   * candidate's suggested marks are measured against (step 1.7d). Null for other templates;
+   * absent from an engine older than 1.7d.
+   */
+  marks?: Record<string, number> | null;
 }
 
 export interface ReviewCaseSet {

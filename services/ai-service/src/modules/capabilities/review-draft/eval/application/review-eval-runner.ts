@@ -103,7 +103,7 @@ export class ReviewEvalRunner implements OnApplicationBootstrap {
       return { result: { ...base, outcome: 'invalid_response', errorCode: 'invalid_response', score: null } as CaseResult, recorded };
     }
     const draft = toReviewDraft(outcome.result.output.data, subject.input);
-    const score = scoreCase(evalCase, draft.items);
+    const score = scoreCase(evalCase, draft.items, draft.marks);
     return { result: { ...base, outcome: 'ok', errorCode: null, score } as CaseResult, recorded };
   }
 }

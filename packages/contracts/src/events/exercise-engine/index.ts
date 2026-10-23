@@ -380,6 +380,28 @@ export interface AttemptReviewedAiDraft {
   discarded: number;
   /** Remarks the teacher neither took nor threw out — read as "not worth acting on". */
   untouched: number;
+  /**
+   * The model's suggested rubric marks against the ones the teacher gave (plan 79, 1.7d).
+   * `null` when the draft suggested none; absent on events older than 1.7d.
+   */
+  marks?: AttemptReviewedAiDraftMarks | null;
+}
+
+/**
+ * Suggested marks beside the teacher's, criterion by criterion. A teacher sets every mark
+ * themselves, so there is no "taken" — only where they landed against the model.
+ */
+export interface AttemptReviewedAiDraftMarks {
+  /** The teacher gave the mark the model suggested. */
+  same: number;
+  /** The teacher gave another mark, or none the engine could read. */
+  different: number;
+  /** Marks with a teacher's number to compare with — `same` plus the `different` that have one. */
+  compared: number;
+  /** Σ (teacher − model) over `compared`: its sign says which way the model leans. */
+  deltaSum: number;
+  /** Σ |teacher − model| over `compared`. */
+  absDeltaSum: number;
 }
 
 // ─── Typed event interfaces ───────────────────────────────────────────────────

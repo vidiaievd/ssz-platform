@@ -15,7 +15,7 @@ const BINDING_KEY = EXERCISE_ENGINE_EVENT_TYPES.ATTEMPT_REVIEWED;
 
 /**
  * Folds what teachers did with models' review drafts into `ai_draft_quality_daily` — plan
- * 79, step 1.5.
+ * 79, step 1.5; suggested rubric marks against the teacher's — step 1.7d.
  *
  * Every verdict arrives here; only those given with a draft on screen (`aiDraft` set) are
  * folded, the rest are acked as nothing to count. Marker and increment share a transaction
@@ -107,6 +107,8 @@ export class AttemptReviewedDraftConsumer implements OnModuleInit, OnModuleDestr
     d: AttemptReviewedAiDraft,
   ): Promise<boolean> {
     const day = new Date(occurredAt).toISOString().slice(0, 10);
+    const m = d.marks ?? null;
+    const withMarks = m === null ? 0 : 1;
 
     return this.prisma.$transaction(async (tx) => {
       const marked = await tx.processedEvent.createMany({
@@ -118,10 +120,14 @@ export class AttemptReviewedDraftConsumer implements OnModuleInit, OnModuleDestr
       await tx.$executeRaw`
         INSERT INTO ai_draft_quality_daily (
           id, day, capability, model_id, prompt_version, reviews,
-          remarks_accepted, remarks_edited, remarks_discarded, remarks_untouched, updated_at
+          remarks_accepted, remarks_edited, remarks_discarded, remarks_untouched,
+          reviews_with_marks, marks_same, marks_different, marks_compared,
+          marks_delta_sum, marks_abs_delta_sum, updated_at
         ) VALUES (
           gen_random_uuid()::text, ${day}::date, ${d.capability}, ${d.modelId}, ${d.promptVersion}, 1,
-          ${d.accepted}, ${d.edited}, ${d.discarded}, ${d.untouched}, now()
+          ${d.accepted}, ${d.edited}, ${d.discarded}, ${d.untouched},
+          ${withMarks}, ${m?.same ?? 0}, ${m?.different ?? 0}, ${m?.compared ?? 0},
+          ${m?.deltaSum ?? 0}, ${m?.absDeltaSum ?? 0}, now()
         )
         ON CONFLICT (day, capability, model_id, prompt_version)
         DO UPDATE SET
@@ -130,6 +136,12 @@ export class AttemptReviewedDraftConsumer implements OnModuleInit, OnModuleDestr
           remarks_edited    = ai_draft_quality_daily.remarks_edited + EXCLUDED.remarks_edited,
           remarks_discarded = ai_draft_quality_daily.remarks_discarded + EXCLUDED.remarks_discarded,
           remarks_untouched = ai_draft_quality_daily.remarks_untouched + EXCLUDED.remarks_untouched,
+          reviews_with_marks  = ai_draft_quality_daily.reviews_with_marks + EXCLUDED.reviews_with_marks,
+          marks_same          = ai_draft_quality_daily.marks_same + EXCLUDED.marks_same,
+          marks_different     = ai_draft_quality_daily.marks_different + EXCLUDED.marks_different,
+          marks_compared      = ai_draft_quality_daily.marks_compared + EXCLUDED.marks_compared,
+          marks_delta_sum     = ai_draft_quality_daily.marks_delta_sum + EXCLUDED.marks_delta_sum,
+          marks_abs_delta_sum = ai_draft_quality_daily.marks_abs_delta_sum + EXCLUDED.marks_abs_delta_sum,
           updated_at        = now()
       `;
       return true;
