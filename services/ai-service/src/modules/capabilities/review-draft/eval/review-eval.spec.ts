@@ -5,7 +5,7 @@ import { LlmError } from '../../../providers/domain/llm-error.js';
 import type { ModelFeatures } from '../../../providers/domain/model-features.js';
 import type { ModelForCall } from '../../../registry/application/ports/registry.reader.js';
 import { Result } from '../../../../shared/kernel/result.js';
-import type { IReviewAttemptsClient } from '../application/ports/review-attempts.client.js';
+import type { IReviewAttemptsClient, TranslateSubject, WritingTaskSubject } from '../application/ports/review-attempts.client.js';
 import type { IEvalRunRepository } from './application/ports/eval-run.repository.js';
 import { bindingMatch } from './application/review-eval-runs.queries.js';
 import { ReviewEvalRunner } from './application/review-eval-runner.js';
@@ -52,6 +52,8 @@ function reviewCase(over: Partial<ReviewCase> = {}): ReviewCase {
   };
 }
 
+const translateSubject = () => reviewCase().subject as TranslateSubject;
+
 describe('scoreCase', () => {
   it('finds the kept error, misses nothing it should not repeat', () => {
     const score = scoreCase(reviewCase(), [{ sentenceIndex: 1, aspect: 'grammar', fragment: 'bor her' }]);
@@ -91,8 +93,8 @@ describe('scoreCase', () => {
   it('does not match the same words in another sentence', () => {
     const c = reviewCase({
       subject: {
-        ...reviewCase().subject,
-        sentences: reviewCase().subject.sentences.map((s) => ({ ...s, answer: 'Jeg bor her' })),
+        ...translateSubject(),
+        sentences: translateSubject().sentences.map((s) => ({ ...s, answer: 'Jeg bor her' })),
       },
     });
     const score = scoreCase(c, [{ sentenceIndex: 3, aspect: 'grammar', fragment: 'bor' }]);
@@ -364,7 +366,7 @@ describe('RunReviewEvalHandler + ReviewEvalRunner', () => {
     const silent = reviewCase({ caseId: 'off', subject: { ...reviewCase().subject, ai: { on: true, checks: {} } } });
     const blank = reviewCase({
       caseId: 'blank',
-      subject: { ...reviewCase().subject, sentences: reviewCase().subject.sentences.map((s) => ({ ...s, answer: ' ' })) },
+      subject: { ...translateSubject(), sentences: translateSubject().sentences.map((s) => ({ ...s, answer: ' ' })) },
     });
     const { handler } = setup({ cases: [silent, blank, reviewCase()] });
     const run = await handler.execute(command());
@@ -395,5 +397,66 @@ describe('RunReviewEvalHandler + ReviewEvalRunner', () => {
   it('refuses an empty set, and an unreadable one', async () => {
     await expect(setup({ cases: [] }).handler.execute(command())).rejects.toThrow('No settled drafts');
     await expect(setup({ cases: 'down' }).handler.execute(command())).rejects.toThrow(ServiceUnavailableException);
+  });
+});
+
+// Plan 79, step 1.7b.
+describe('scoreCase on an essay', () => {
+  const essay: WritingTaskSubject = {
+    template: 'writing_task',
+    targetLanguage: 'nb',
+    mode: 'letter',
+    instruction: '',
+    prompt: 'Du flytter.',
+    source: '',
+    letter: { register: 'informal', recipient: 'Kari' },
+    imageCaption: '',
+    points: [{ text: 'Når', required: true, keywords: ['i mai'], phrased: false, ticked: false }],
+    example: '',
+    length: { words: 6, paragraphs: 1, minWords: 0, maxWords: 0 },
+    ai: { on: true, checks: { grammar: true, task: true, structure: true, lexis: true } },
+    text: 'Hei Kari! Jeg flytte til Bergen.',
+  };
+  const essayCase = (): ReviewCase =>
+    reviewCase({
+      templateCode: 'writing_task',
+      subject: essay,
+      offered: {
+        modelId: 'm-prod',
+        promptVersion: 'review_draft@1',
+        remarks: [
+          { sentenceIndex: 1, itemId: 'text', aspect: 'grammar', fragment: 'flytte' },
+          { sentenceIndex: 1, itemId: 'text', aspect: 'task', fragment: null },
+          { sentenceIndex: 1, itemId: 'text', aspect: 'structure', fragment: null },
+        ],
+      },
+      // grammar and task kept, structure thrown out
+      outcomes: { remarks: ['accepted', 'edited', 'discarded'], summary: null, draftDiscarded: false },
+      decisions: [],
+    });
+
+  it('matches quoted remarks by place and whole-text remarks by aspect alone', () => {
+    const score = scoreCase(essayCase(), [
+      { sentenceIndex: 1, aspect: 'grammar', fragment: 'Jeg flytte' },
+      { sentenceIndex: 1, aspect: 'task', fragment: null },
+      { sentenceIndex: 1, aspect: 'structure', fragment: null },
+      // About a place, where the teacher's remark was about the whole: not the same spot.
+      { sentenceIndex: 1, aspect: 'task', fragment: 'Bergen' },
+    ]);
+    expect(score.remarks.map((r) => r.verdict)).toEqual(['confirmed', 'confirmed', 'rejected', 'unjudged']);
+    expect(score).toMatchObject({
+      confirmed: 2,
+      confirmedFound: 2,
+      rejected: 1,
+      rejectedRepeated: 1,
+      // A rubric-marked essay has no sentence verdicts to agree with.
+      sentences: 0,
+      sentencesAgreed: 0,
+    });
+  });
+
+  it('does not take a whole-text remark under another aspect for the kept one', () => {
+    const score = scoreCase(essayCase(), [{ sentenceIndex: 1, aspect: 'structure', fragment: null }]);
+    expect(score).toMatchObject({ confirmedFoundAnyAspect: 0, rejectedRepeated: 1 });
   });
 });

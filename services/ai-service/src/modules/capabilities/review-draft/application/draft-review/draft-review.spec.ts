@@ -8,6 +8,7 @@ import type {
   DraftWriteMeta,
   IReviewAttemptsClient,
   ReviewSubjectResult,
+  TranslateSubject,
 } from '../ports/review-attempts.client.js';
 import type { ISchoolLanguageReader } from '../ports/school-language.reader.js';
 import { SchoolPayerResolver } from '../school-payer.resolver.js';
@@ -145,7 +146,7 @@ describe('DraftReviewHandler', () => {
   });
 
   it.each([
-    [{ templateCode: 'writing_task' }, 'template_not_in_first_wave'],
+    [{ templateCode: 'short_answer' }, 'template_not_in_first_wave'],
     [{ schoolId: null }, 'no_school'],
   ])('skips %o from the event alone, reading nothing', async (over, reason) => {
     const { handler, reads, calls } = setup();
@@ -169,7 +170,8 @@ describe('DraftReviewHandler', () => {
 
   it('skips a submission with every answer blank', async () => {
     const blank = subjectResult();
-    blank.subject!.sentences = blank.subject!.sentences.map((s) => ({ ...s, answer: '  ' }));
+    const subject = blank.subject as TranslateSubject;
+    subject.sentences = subject.sentences.map((s) => ({ ...s, answer: '  ' }));
     const { handler, calls } = setup({ subject: blank });
     expect(await handler.execute(command())).toEqual({ kind: 'skipped', reason: 'empty_answer' });
     expect(calls).toHaveLength(0);

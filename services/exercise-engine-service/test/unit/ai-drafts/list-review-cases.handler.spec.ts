@@ -1,6 +1,6 @@
 import { ListReviewCasesHandler } from '../../../src/modules/ai-drafts/application/queries/list-review-cases/list-review-cases.handler.js';
 import { ListReviewCasesQuery } from '../../../src/modules/ai-drafts/application/queries/list-review-cases/list-review-cases.query.js';
-import { AttemptAiDraft } from '../../../src/modules/ai-drafts/domain/entities/attempt-ai-draft.entity.js';
+import { AttemptAiDraft, type AiDraftRemark } from '../../../src/modules/ai-drafts/domain/entities/attempt-ai-draft.entity.js';
 import type { IAttemptAiDraftRepository } from '../../../src/modules/ai-drafts/domain/repositories/attempt-ai-draft.repository.js';
 import type { IAttemptRepository } from '../../../src/modules/attempts/domain/repositories/attempt.repository.js';
 import {
@@ -25,15 +25,17 @@ const ANSWERS = { items: { s1: { refs: ['Jeg har bodd her i tre år'] }, s2: { r
 
 const NOW = new Date('2026-10-22T10:00:00Z');
 
-function draft(attemptId: string, decided = true): AttemptAiDraft {
+const REMARKS: AiDraftRemark[] = [
+  { itemId: 's1', sentenceIndex: 1, aspect: 'grammar', fragment: 'bor', comment: 'Нужен perfektum.', suggestion: 'har bodd' },
+  { itemId: 's2', sentenceIndex: 2, aspect: 'lexis', fragment: 'boka', comment: 'Неопределённая форма.', suggestion: null },
+];
+
+function draft(attemptId: string, decided = true, items: AiDraftRemark[] = REMARKS): AttemptAiDraft {
   return AttemptAiDraft.restore(`d-${attemptId}`, {
     attemptId,
     capability: 'review_draft',
     status: decided ? 'EDITED' : 'READY',
-    items: [
-      { itemId: 's1', sentenceIndex: 1, aspect: 'grammar', fragment: 'bor', comment: 'Нужен perfektum.', suggestion: 'har bodd' },
-      { itemId: 's2', sentenceIndex: 2, aspect: 'lexis', fragment: 'boka', comment: 'Неопределённая форма.', suggestion: null },
-    ],
+    items,
     summary: 'Хорошо.',
     errorCode: null,
     providerId: 'p1',
@@ -148,7 +150,7 @@ describe('ListReviewCasesHandler', () => {
       [draft('gone'), draft('silent'), draft('other'), draft('ok')],
       [
         attempt('silent', { reviewDecisions: [] }),
-        attempt('other', { templateCode: 'writing_task' }),
+        attempt('other', { templateCode: 'short_answer' }),
         attempt('ok'),
       ],
     );
@@ -156,6 +158,34 @@ describe('ListReviewCasesHandler', () => {
 
     expect(result.value.cases.map((c) => c.caseId)).toEqual(['ok']);
     expect(result.value.skipped).toEqual({ ATTEMPT_GONE: 1, NO_DECISIONS: 1, TEMPLATE_NOT_SUPPORTED: 1 });
+  });
+
+  // Plan 79, step 1.7b: an essay is marked by rubric, so its verdict has no decisions.
+  it('keeps a rubric-marked essay without per-item decisions, remarks on the whole text included', async () => {
+    const essay = draft('w1', true, [
+      { itemId: 'text', sentenceIndex: 1, aspect: 'grammar', fragment: 'bor', comment: '…', suggestion: null },
+      { itemId: 'text', sentenceIndex: 1, aspect: 'task', fragment: null, comment: '…', suggestion: null },
+    ]);
+    const { handler } = setup(
+      [essay],
+      [attempt('w1', { templateCode: 'writing_task', submittedAnswer: { text: 'Jeg bor her.' }, reviewDecisions: [] })],
+    );
+    const result = await handler.execute(new ListReviewCasesQuery('review_draft', 50));
+
+    expect(result.value.skipped).toEqual({});
+    const [one] = result.value.cases;
+    expect(one).toMatchObject({
+      caseId: 'w1',
+      templateCode: 'writing_task',
+      subject: { template: 'writing_task', text: 'Jeg bor her.' },
+      offered: {
+        remarks: [
+          { sentenceIndex: 1, itemId: 'text', aspect: 'grammar', fragment: 'bor' },
+          { sentenceIndex: 1, itemId: 'text', aspect: 'task', fragment: null },
+        ],
+      },
+      decisions: [],
+    });
   });
 
   it('drops a case whose exercise was deleted', async () => {

@@ -26,13 +26,16 @@ export class AiDraftRemarkDto {
   sentenceIndex!: number;
 
   // `alternative`: a correction the key did not foresee that is also right (error_correction).
-  @IsIn(['grammar', 'order', 'lexis', 'register', 'alternative'])
+  // `task`, `structure`: about an essay as a whole (writing_task).
+  @IsIn(['grammar', 'order', 'lexis', 'register', 'alternative', 'task', 'structure'])
   aspect!: string;
 
+  /** Null only for a remark about the text as a whole; ai-service decides which aspects may. */
+  @ValidateIf((o: AiDraftRemarkDto) => o.fragment !== null)
   @IsString()
   @MinLength(1)
   @MaxLength(2000)
-  fragment!: string;
+  fragment!: string | null;
 
   @IsString()
   @MinLength(1)

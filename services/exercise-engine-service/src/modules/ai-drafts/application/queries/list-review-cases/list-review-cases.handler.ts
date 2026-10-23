@@ -14,7 +14,7 @@ import {
   ATTEMPT_AI_DRAFT_REPOSITORY,
   type IAttemptAiDraftRepository,
 } from '../../../domain/repositories/attempt-ai-draft.repository.js';
-import { hasReviewPrompt, reviewSubject, type ReviewSubject } from '../get-review-subject/review-subject.js';
+import { decidedPerItem, hasReviewPrompt, reviewSubject, type ReviewSubject } from '../get-review-subject/review-subject.js';
 import { ListReviewCasesQuery } from './list-review-cases.query.js';
 
 /** One remark the model offered — where it pointed, not what it said. */
@@ -22,7 +22,8 @@ export interface OfferedRemark {
   sentenceIndex: number;
   itemId: string;
   aspect: string;
-  fragment: string;
+  /** Null for a remark about the text as a whole (writing_task `task` / `structure`). */
+  fragment: string | null;
 }
 
 /**
@@ -38,7 +39,7 @@ export interface ReviewCase {
   offered: { modelId: string | null; promptVersion: string | null; remarks: OfferedRemark[] };
   /** Remark by remark, in `offered.remarks` order. */
   outcomes: SettledOutcomes;
-  /** The verdict per sentence: accepted as it stands or not. */
+  /** The verdict per sentence: accepted as it stands or not. Empty for a rubric-marked essay. */
   decisions: Array<{ itemId: string; approved: boolean }>;
 }
 
@@ -46,9 +47,12 @@ export interface ReviewCase {
 export type ReviewCaseSkip =
   /** The attempt row is gone (deleted with its learner). */
   | 'ATTEMPT_GONE'
-  /** The verdict carries no per-sentence decisions: nothing to measure a draft against. */
+  /**
+   * A template decided sentence by sentence whose verdict carries no decisions: nothing to
+   * measure a draft against. A rubric-marked essay has none by design and is not skipped.
+   */
   | 'NO_DECISIONS'
-  /** No review prompt for this template yet (translate and error_correction have one). */
+  /** No review prompt for this template yet (translate, error_correction and writing_task have one). */
   | 'TEMPLATE_NOT_SUPPORTED'
   /** The exercise was deleted: there is no key to review against. */
   | 'EXERCISE_GONE';
@@ -94,14 +98,14 @@ export class ListReviewCasesHandler implements IQueryHandler<ListReviewCasesQuer
         skip('ATTEMPT_GONE');
         continue;
       }
-      const decisions = attempt.reviewDecisions ?? [];
-      if (decisions.length === 0) {
-        skip('NO_DECISIONS');
-        continue;
-      }
       const code = attempt.templateCode;
       if (!hasReviewPrompt(code)) {
         skip('TEMPLATE_NOT_SUPPORTED');
+        continue;
+      }
+      const decisions = attempt.reviewDecisions ?? [];
+      if (decisions.length === 0 && decidedPerItem(code)) {
+        skip('NO_DECISIONS');
         continue;
       }
 

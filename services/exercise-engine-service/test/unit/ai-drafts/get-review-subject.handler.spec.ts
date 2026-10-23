@@ -160,10 +160,68 @@ describe('GetReviewSubjectHandler', () => {
     });
   });
 
+  // Plan 79, step 1.7b.
+  it('reads a writing_task submission beside its task: points as phrased and ticked, the measured length', async () => {
+    const { handler } = setup({
+      attempt: { status: 'ROUTED_FOR_REVIEW', schoolId: 'school-1', templateCode: 'writing_task' },
+      submitted: { text: 'Hei Kari!\n\nJeg flytter til Bergen i mai.', ticked: ['p2'] },
+      exercise: {
+        content: {
+          mode: 'letter',
+          instruction: 'Skriv et brev.',
+          prompt: 'Du flytter.',
+          source: 'not shown outside retell',
+          image: { caption: 'not shown outside picture', alt: '' },
+          letter: { register: 'informal', recipient: 'Kari' },
+          points: [
+            { id: 'p1', text: 'Når du flytter', required: true },
+            { id: 'p2', text: 'Hvorfor', required: false },
+            { id: 'blank', text: ' ', required: true },
+          ],
+          phrases: [],
+          rubric: [],
+          settings: {
+            minWords: 50,
+            maxWords: 120,
+            aiStage: true,
+            ai: { grammar: true, task: true, structure: false, lexis: true, draft: true },
+          },
+        },
+        expectedAnswers: {
+          points: { p1: { keywords: ['i mai', ' '] }, p2: { keywords: ['fordi'] } },
+          rubric: {},
+          model: 'Hei Kari! Jeg flytter i mai fordi …',
+        },
+      },
+    });
+    const result = await run(handler);
+
+    expect(result.value.skip).toBeNull();
+    expect(result.value.subject).toEqual({
+      template: 'writing_task',
+      targetLanguage: 'nb',
+      mode: 'letter',
+      instruction: 'Skriv et brev.',
+      prompt: 'Du flytter.',
+      source: '',
+      letter: { register: 'informal', recipient: 'Kari' },
+      imageCaption: '',
+      points: [
+        { text: 'Når du flytter', required: true, keywords: ['i mai'], phrased: true, ticked: false },
+        // Ticked, never phrased: the learner's claim and the engine's measure disagree.
+        { text: 'Hvorfor', required: false, keywords: ['fordi'], phrased: false, ticked: true },
+      ],
+      example: 'Hei Kari! Jeg flytter i mai fordi …',
+      length: { words: 8, paragraphs: 2, minWords: 50, maxWords: 120 },
+      ai: { on: true, checks: { grammar: true, task: true, structure: false, lexis: true } },
+      text: 'Hei Kari!\n\nJeg flytter til Bergen i mai.',
+    });
+  });
+
   it.each([
     [{ status: 'SCORED' as AttemptStatus, schoolId: 'school-1', templateCode: 'translate_to_target' }, 'ATTEMPT_NOT_IN_REVIEW'],
     [{ status: 'ROUTED_FOR_REVIEW' as AttemptStatus, schoolId: null, templateCode: 'translate_to_target' }, 'NO_TEACHER_REVIEW'],
-    [{ status: 'ROUTED_FOR_REVIEW' as AttemptStatus, schoolId: 'school-1', templateCode: 'writing_task' }, 'TEMPLATE_NOT_SUPPORTED'],
+    [{ status: 'ROUTED_FOR_REVIEW' as AttemptStatus, schoolId: 'school-1', templateCode: 'short_answer' }, 'TEMPLATE_NOT_SUPPORTED'],
   ])('skips %o as %s without reading content', async (attempt, reason) => {
     const { handler, reads } = setup({ attempt });
     const result = await run(handler);

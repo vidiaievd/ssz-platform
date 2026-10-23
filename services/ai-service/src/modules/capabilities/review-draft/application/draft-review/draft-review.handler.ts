@@ -17,8 +17,8 @@ import { SCHOOL_LANGUAGE_READER, type ISchoolLanguageReader } from '../ports/sch
 import { SchoolPayerResolver } from '../school-payer.resolver.js';
 import { DraftReviewCommand } from './draft-review.command.js';
 
-/** Templates with a review prompt: the first wave, and `error_correction` from step 1.7. */
-const FIRST_WAVE = ['translate_to_target', 'translate_from_target', 'error_correction'];
+/** Templates with a review prompt: the first wave, then `error_correction` (1.7a) and `writing_task` (1.7b). */
+const FIRST_WAVE = ['translate_to_target', 'translate_from_target', 'error_correction', 'writing_task'];
 
 /** The ledger's surface for drafts written into the teacher's queue. */
 export const REVIEW_QUEUE_SURFACE = 'review_queue';

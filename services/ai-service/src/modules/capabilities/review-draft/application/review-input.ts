@@ -1,15 +1,33 @@
 import { commentLanguage, languageName } from '../domain/comment-language.js';
-import { enabledAspects, errorCorrectionAspects, type ReviewAspect } from '../domain/review-aspect.js';
+import { enabledAspects, errorCorrectionAspects, writingTaskAspects, type ReviewAspect } from '../domain/review-aspect.js';
+import type { ReviewFrame } from '../domain/review-remarks.js';
 import type { TranslateReviewInput } from '../domain/translate-review.js';
+import { ESSAY_ITEM_ID, type WritingTaskReviewInput } from '../domain/writing-task-review.js';
 import type { ReviewSubject } from '../prompts/prompts.js';
-import type { EngineSubject, TranslateSubject } from './ports/review-attempts.client.js';
+import type { EngineSubject, TranslateSubject, WritingTaskSubject } from './ports/review-attempts.client.js';
 
 /** Why a submission is not asked of a model at all — the same in the queue and in a run over the set. */
 export type UnaskableReason = 'ai_off' | 'no_checks' | 'empty_answer';
 
 /** The aspects the author's AI block allows, read by the template's own switches. */
 export function subjectAspects(subject: EngineSubject): ReviewAspect[] {
-  return subject.template === 'translate' ? enabledAspects(subject.ai.checks) : errorCorrectionAspects(subject.ai.checks);
+  switch (subject.template) {
+    case 'translate':
+      return enabledAspects(subject.ai.checks);
+    case 'error_correction':
+      return errorCorrectionAspects(subject.ai.checks);
+    case 'writing_task':
+      return writingTaskAspects(subject.ai.checks);
+  }
+}
+
+/**
+ * The submission's answers in the order the prompt numbers them — what remarks quote and
+ * point at by index. An essay is one: the whole text.
+ */
+export function subjectSentences(subject: EngineSubject): ReviewFrame['sentences'] {
+  if (subject.template === 'writing_task') return [{ itemId: ESSAY_ITEM_ID, answer: subject.text }];
+  return subject.sentences.map((s) => ({ itemId: s.itemId, answer: s.answer }));
 }
 
 /**
@@ -20,12 +38,14 @@ export function subjectAspects(subject: EngineSubject): ReviewAspect[] {
 export function unaskable(subject: EngineSubject): UnaskableReason | null {
   if (!subject.ai.on) return 'ai_off';
   if (subjectAspects(subject).length === 0) return 'no_checks';
-  if (subject.template === 'translate') {
-    if (subject.sentences.every((s) => s.answer.trim() === '')) return 'empty_answer';
-  } else if (subject.sentences.every((s) => s.answer === s.given)) {
-    return 'empty_answer';
+  switch (subject.template) {
+    case 'translate':
+      return subject.sentences.every((s) => s.answer.trim() === '') ? 'empty_answer' : null;
+    case 'error_correction':
+      return subject.sentences.every((s) => s.answer === s.given) ? 'empty_answer' : null;
+    case 'writing_task':
+      return subject.text.trim() === '' ? 'empty_answer' : null;
   }
-  return null;
 }
 
 /**
@@ -38,6 +58,9 @@ export function toReviewSubject(subject: EngineSubject, schoolLanguage: string |
   const aspects = subjectAspects(subject);
   if (subject.template === 'translate') {
     return { template: 'translate', input: toTranslateInput(subject, aspects, commentLanguage(schoolLanguage, subject.langs.explain)) };
+  }
+  if (subject.template === 'writing_task') {
+    return { template: 'writing_task', input: toWritingTaskInput(subject, aspects, schoolLanguage) };
   }
   const target = languageName(subject.targetLanguage);
   return {
@@ -76,5 +99,25 @@ function toTranslateInput(subject: TranslateSubject, aspects: ReviewAspect[], la
       ...(s.explanation ? { explanation: s.explanation } : {}),
       ...(s.teacherNote ? { teacherNote: s.teacherNote } : {}),
     })),
+  };
+}
+
+function toWritingTaskInput(subject: WritingTaskSubject, aspects: ReviewAspect[], schoolLanguage: string | null): WritingTaskReviewInput {
+  const target = languageName(subject.targetLanguage);
+  return {
+    targetLanguage: target,
+    // The template carries no explanation language: without the school's, the language learnt.
+    commentLanguage: commentLanguage(schoolLanguage, target),
+    mode: subject.mode,
+    instruction: subject.instruction,
+    prompt: subject.prompt,
+    source: subject.source,
+    letter: subject.letter,
+    imageCaption: subject.imageCaption,
+    points: subject.points,
+    example: subject.example,
+    length: subject.length,
+    aspects,
+    sentences: [{ itemId: ESSAY_ITEM_ID, answer: subject.text }],
   };
 }

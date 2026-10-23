@@ -40,8 +40,26 @@ export interface ErrorCorrectionSubject {
   }>;
 }
 
+/** A `writing_task` submission as exercise-engine reads it: the task, the engine's measurements, the text (step 1.7b). */
+export interface WritingTaskSubject {
+  template: 'writing_task';
+  /** The language learnt, as the attempt records it (`nb`). */
+  targetLanguage: string;
+  mode: string;
+  instruction: string;
+  prompt: string;
+  source: string;
+  letter: { register: string; recipient: string } | null;
+  imageCaption: string;
+  points: Array<{ text: string; required: boolean; keywords: string[]; phrased: boolean; ticked: boolean }>;
+  example: string;
+  length: { words: number; paragraphs: number; minWords: number; maxWords: number };
+  ai: { on: boolean; checks: { grammar?: boolean; task?: boolean; structure?: boolean; lexis?: boolean } };
+  text: string;
+}
+
 /** A submission beside its key, in its template's shape. */
-export type EngineSubject = TranslateSubject | ErrorCorrectionSubject;
+export type EngineSubject = TranslateSubject | ErrorCorrectionSubject | WritingTaskSubject;
 
 /** What exercise-engine answers about a submission: something to review, or why not. */
 export interface ReviewSubjectResult {

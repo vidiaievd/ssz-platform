@@ -1,3 +1,4 @@
+import { subjectSentences } from '../../application/review-input.js';
 import { ERROR_ASPECTS } from '../../domain/review-aspect.js';
 import type { ReviewCase } from './review-case.js';
 
@@ -5,7 +6,8 @@ import type { ReviewCase } from './review-case.js';
 export interface CandidateRemark {
   sentenceIndex: number;
   aspect: string;
-  fragment: string;
+  /** Null for a remark about the text as a whole. */
+  fragment: string | null;
 }
 
 /** How a candidate remark relates to the teacher's word on the set. */
@@ -49,20 +51,26 @@ export interface CaseScore {
  *
  * Two remarks are on the same spot when they are about the same sentence and their
  * fragments overlap in the learner's answer: a candidate quoting "bor her" for the
- * teacher's "bor" has found the same error.
+ * teacher's "bor" has found the same error. Two remarks without a quotation (an essay's
+ * `task` or `structure`) are on the same spot when their aspect is the same — there is no
+ * place to compare, and "about the whole text" under two aspects is two different things.
  *
  * The sentence verdict is a coarser check that also sees errors no model offered: a
  * sentence the teacher did not accept should draw an error remark, and one they accepted
  * should draw none. An `alternative` remark (error_correction: "differs from the key, and
- * right") names no error, so it counts as no remark there.
+ * right") names no error, so it counts as no remark there. A rubric-marked essay has no
+ * sentence verdicts, so it adds nothing to that check.
  */
 export function scoreCase(evalCase: ReviewCase, candidate: CandidateRemark[]): CaseScore {
-  const sentences: ReadonlyArray<{ itemId: string; answer: string }> = evalCase.subject.sentences;
+  const sentences = subjectSentences(evalCase.subject);
   const answers = sentences.map((s) => s.answer);
   const kept = evalCase.offered.remarks.filter((_, i) => isKept(evalCase.outcomes.remarks[i]));
   const thrown = evalCase.offered.remarks.filter((_, i) => evalCase.outcomes.remarks[i] === 'discarded');
-  const sameSpot = (a: CandidateRemark, b: { sentenceIndex: number; fragment: string }) =>
-    a.sentenceIndex === b.sentenceIndex && overlaps(answers[a.sentenceIndex - 1] ?? '', a.fragment, b.fragment);
+  const sameSpot = (a: CandidateRemark, b: { sentenceIndex: number; aspect: string; fragment: string | null }) => {
+    if (a.sentenceIndex !== b.sentenceIndex) return false;
+    if (a.fragment === null || b.fragment === null) return a.fragment === b.fragment && a.aspect === b.aspect;
+    return overlaps(answers[a.sentenceIndex - 1] ?? '', a.fragment, b.fragment);
+  };
 
   const remarks = candidate.map((remark) => {
     const verdict: RemarkVerdict = kept.some((k) => sameSpot(remark, k) && k.aspect === remark.aspect)

@@ -1,13 +1,19 @@
-import type { ReviewAspect } from './review-aspect.js';
+import { WHOLE_TEXT_ASPECTS, type ReviewAspect } from './review-aspect.js';
 
 /**
  * What every template's review answer is checked against: the aspects the author allowed and
  * the learner's answer per sentence, in the order the prompt numbers them. Each template's
  * input carries more — this is the part the answer's shape and its quotations depend on.
+ * An essay is one "sentence": the whole text.
  */
 export interface ReviewFrame {
   aspects: ReviewAspect[];
   sentences: Array<{ itemId: string; answer: string }>;
+}
+
+/** The allowed aspects whose remarks may come without a quotation. */
+function unquotedAspects(input: ReviewFrame): ReviewAspect[] {
+  return input.aspects.filter((aspect) => WHOLE_TEXT_ASPECTS.includes(aspect));
 }
 
 /** One remark of the draft, tied to the sentence it is about. */
@@ -16,8 +22,11 @@ export interface ReviewRemark {
   /** 1-based, as numbered in the prompt. */
   sentenceIndex: number;
   aspect: ReviewAspect;
-  /** Occurs verbatim in that sentence's answer — checked before the draft is accepted. */
-  fragment: string;
+  /**
+   * Occurs verbatim in that sentence's answer — checked before the draft is accepted. Null
+   * only for a whole-text aspect (`task`, `structure`) with nothing to quote.
+   */
+  fragment: string | null;
   comment: string;
   suggestion: string | null;
 }
@@ -31,7 +40,7 @@ export interface ReviewDraft {
 interface RawRemark {
   sentenceIndex: number;
   aspect: ReviewAspect;
-  fragment: string;
+  fragment: string | null;
   comment: string;
   suggestion: string | null;
 }
@@ -48,8 +57,25 @@ interface RawReview {
  *
  * Optional values are required-and-nullable rather than absent — the form strict modes
  * (OpenAI `strict`, Anthropic native) accept without rewriting.
+ *
+ * `fragment` is nullable only when a whole-text aspect is enabled; without one the schema is
+ * the one translate and error_correction have always been asked with.
  */
 export function reviewSchema(input: ReviewFrame): Record<string, unknown> {
+  const fragment =
+    unquotedAspects(input).length > 0
+      ? {
+          type: ['string', 'null'],
+          minLength: 1,
+          description:
+            "The erroneous part, copied character for character from the learner's answer; " +
+            `null only for a remark of aspect ${unquotedAspects(input).join(' or ')} about the text as a whole`,
+        }
+      : {
+          type: 'string',
+          minLength: 1,
+          description: "The erroneous part, copied character for character from the learner's answer",
+        };
   return {
     type: 'object',
     additionalProperties: false,
@@ -70,11 +96,7 @@ export function reviewSchema(input: ReviewFrame): Record<string, unknown> {
               description: 'Number of the sentence the remark is about, as numbered in the task',
             },
             aspect: { type: 'string', enum: [...input.aspects] },
-            fragment: {
-              type: 'string',
-              minLength: 1,
-              description: "The erroneous part, copied character for character from the learner's answer",
-            },
+            fragment,
             comment: { type: 'string', minLength: 1, description: 'Explanation of the error, for the learner' },
             suggestion: {
               type: ['string', 'null'],
@@ -92,6 +114,7 @@ export function reviewSchema(input: ReviewFrame): Record<string, unknown> {
  * What the schema cannot check: every remark quotes its own sentence's answer verbatim.
  * A fragment the learner did not write is an invented quotation — the draft would point a
  * teacher at text that is not there — so the whole answer is refused, not just the remark.
+ * A remark without a quotation is allowed only for a whole-text aspect.
  */
 export function verifyReview(input: ReviewFrame): (data: unknown) => string | null {
   return (data) => {
@@ -99,6 +122,10 @@ export function verifyReview(input: ReviewFrame): (data: unknown) => string | nu
     for (const [i, remark] of review.items.entries()) {
       const sentence = input.sentences[remark.sentenceIndex - 1];
       if (!sentence) return `remark ${i + 1}: sentence ${remark.sentenceIndex} does not exist`;
+      if (remark.fragment === null) {
+        if (!WHOLE_TEXT_ASPECTS.includes(remark.aspect)) return `remark ${i + 1}: aspect ${remark.aspect} must quote the answer`;
+        continue;
+      }
       if (remark.fragment.trim() === '') return `remark ${i + 1}: fragment is blank`;
       if (!sentence.answer.includes(remark.fragment)) {
         return `remark ${i + 1}: fragment "${remark.fragment}" does not occur in the answer to sentence ${remark.sentenceIndex}`;

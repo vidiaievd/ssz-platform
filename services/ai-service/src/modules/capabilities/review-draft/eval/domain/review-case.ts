@@ -8,7 +8,8 @@ export interface OfferedRemark {
   sentenceIndex: number;
   itemId: string;
   aspect: string;
-  fragment: string;
+  /** Null for a remark about the text as a whole (writing_task `task` / `structure`). */
+  fragment: string | null;
 }
 
 /**
@@ -24,7 +25,7 @@ export interface ReviewCase {
   subject: EngineSubject;
   offered: { modelId: string | null; promptVersion: string | null; remarks: OfferedRemark[] };
   outcomes: { remarks: RemarkOutcome[]; summary: RemarkOutcome | null; draftDiscarded: boolean };
-  /** The verdict per sentence. */
+  /** The verdict per sentence. Empty for a rubric-marked essay. */
   decisions: Array<{ itemId: string; approved: boolean }>;
 }
 

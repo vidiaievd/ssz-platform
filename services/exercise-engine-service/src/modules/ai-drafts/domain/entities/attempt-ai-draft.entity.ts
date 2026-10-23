@@ -21,12 +21,15 @@ export type ProposedDraftStatus = Extract<AiDraftStatus, 'READY' | 'FAILED'>;
 export const AI_DRAFT_CAPABILITIES = ['review_draft'] as const;
 export type AiDraftCapability = (typeof AI_DRAFT_CAPABILITIES)[number];
 
-/** One remark, as ai-service verified it: `fragment` occurs verbatim in that item's answer. */
+/**
+ * One remark, as ai-service verified it: `fragment` occurs verbatim in that item's answer,
+ * or is null for a remark about a text as a whole (writing_task `task` / `structure`).
+ */
 export interface AiDraftRemark {
   itemId: string;
   sentenceIndex: number;
   aspect: string;
-  fragment: string;
+  fragment: string | null;
   comment: string;
   suggestion: string | null;
 }
