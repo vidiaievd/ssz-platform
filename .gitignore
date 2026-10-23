@@ -20,7 +20,7 @@
 **/.env.production
 
 # Prompts
-prompts/
+/prompts/
 
 #Roadmap
 .roadmap/
