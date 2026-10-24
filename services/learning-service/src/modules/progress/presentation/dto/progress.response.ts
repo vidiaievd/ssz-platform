@@ -18,6 +18,11 @@ export class ProgressResponse implements ProgressDto {
   @ApiPropertyOptional({ format: 'date-time' }) completedAt!: string | null;
   @ApiPropertyOptional({ format: 'date-time' }) needsReviewSince!: string | null;
   @ApiPropertyOptional({ format: 'date-time' }) reviewResolvedAt!: string | null;
+  @ApiProperty({
+    description: 'Completed on an AI verdict, with no teacher or machine check behind it (plan 79 §2.1)',
+    example: false,
+  })
+  completedByAi!: boolean;
 }
 
 export class AssignmentProgressResponse implements AssignmentProgressDto {

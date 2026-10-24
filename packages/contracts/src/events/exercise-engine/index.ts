@@ -110,6 +110,17 @@ export interface ExerciseAttemptCompletedPayload {
    */
   reviewOutcome?: 'approved' | 'returned';
   /**
+   * Additive (plan 79 §2.1, decision Q1) — who gave the verdict in `reviewOutcome`.
+   *
+   * `ai` is a model's verdict on the work of a learner with nobody to review it. It is read
+   * as a person's in every respect but one: memory is rated through the kernel's
+   * `evidenceStrength` with `reviewedBy: 'ai'` (success at most GOOD, failure at least HARD)
+   * instead of being let through unclamped, and progress records that the verdict was a
+   * model's. Absent means a teacher — every publisher before plan 79 — and is never set
+   * without `reviewOutcome`.
+   */
+  reviewedBy?: 'teacher' | 'ai';
+  /**
    * Additive (plan 66, decision Q2-B) — the exercise was delivered in a way that hands part
    * of the answer over, so a success proves one step less than its form says.
    *

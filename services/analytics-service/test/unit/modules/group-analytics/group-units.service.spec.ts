@@ -141,4 +141,14 @@ describe('weighAttempt', () => {
     const failed = { ...sort, passed: false, ratingApplied: 'AGAIN' };
     expect(weighAttempt({ ...failed, evidenceLowered: true }).weight).toBe(weighAttempt(failed).weight);
   });
+
+  it('weighs a model’s verdict as the clamp read it (plan 79 §2.1)', () => {
+    // Success: capped at GOOD (2/3) where a typed answer may reach EASY (1).
+    const typed = { ...base, templateCode: 'translate_to_target', passed: true, ratingApplied: 'GOOD' };
+    expect(weighAttempt({ ...typed, reviewedBy: 'ai' }).weight).toBeCloseTo(2 / 3);
+    expect(weighAttempt(typed).weight).toBe(1);
+    // An essay passed on a model's word is worth HARD (1/3).
+    const essay = { ...base, templateCode: 'writing_task', passed: true, ratingApplied: 'HARD' };
+    expect(weighAttempt({ ...essay, reviewedBy: 'ai' }).weight).toBeCloseTo(1 / 3);
+  });
 });

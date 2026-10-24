@@ -263,6 +263,7 @@ export class GroupUnitsService {
         templateCode: true,
         gapPosition: true,
         evidenceLowered: true,
+        reviewedBy: true,
       },
     });
 
@@ -356,6 +357,8 @@ export interface WeighableAttempt {
   gapPosition: number | null;
   /** Plan 66, Q2-B. Optional so a row read by an older select still weighs as before. */
   evidenceLowered?: boolean | null;
+  /** Plan 79 §2.1 — `ai` when a model gave the verdict. Optional for the same reason. */
+  reviewedBy?: string | null;
 }
 
 /**
@@ -381,6 +384,7 @@ export function weighAttempt(row: WeighableAttempt): { succeeded: boolean; weigh
     templateCode: row.templateCode,
     gapPosition: row.gapPosition,
     lowered: row.evidenceLowered,
+    reviewedBy: row.reviewedBy === 'ai' ? 'ai' : null,
   });
   return { succeeded, weight };
 }

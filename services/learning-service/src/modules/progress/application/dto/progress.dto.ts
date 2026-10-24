@@ -12,6 +12,8 @@ export interface ProgressDto {
   completedAt: string | null;
   needsReviewSince: string | null;
   reviewResolvedAt: string | null;
+  /** Completed on a model's verdict, with no person or machine check behind it (plan 79 §2.1). */
+  completedByAi: boolean;
 }
 
 export function toProgressDto(p: UserProgress): ProgressDto {
@@ -27,6 +29,7 @@ export function toProgressDto(p: UserProgress): ProgressDto {
     completedAt: p.completedAt?.toISOString() ?? null,
     needsReviewSince: p.needsReviewSince?.toISOString() ?? null,
     reviewResolvedAt: p.reviewResolvedAt?.toISOString() ?? null,
+    completedByAi: p.completedByAi,
   };
 }
 

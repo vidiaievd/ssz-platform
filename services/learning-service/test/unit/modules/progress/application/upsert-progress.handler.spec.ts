@@ -139,7 +139,7 @@ describe('UpsertProgressHandler', () => {
       UserProgress.reconstitute({
         id: 'p-1', userId: USER_ID, contentType: 'EXERCISE', contentId: CONTENT_ID, status,
         attemptsCount: 1, lastAttemptAt: NOW, timeSpentSeconds: 60, score: 70,
-        completedAt: status === 'COMPLETED' ? NOW : null, needsReviewSince: null, reviewResolvedAt: null,
+        completedAt: status === 'COMPLETED' ? NOW : null, needsReviewSince: null, reviewResolvedAt: null, completedByAi: false,
       });
 
     const withRow = (row: UserProgress | null) =>

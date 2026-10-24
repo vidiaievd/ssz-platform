@@ -19,5 +19,7 @@ export class UpsertProgressCommand {
      */
     public readonly occurredAt?: Date,
     public readonly outcome?: ExerciseOutcome,
+    /** Who gave the verdict behind `outcome`, when the work was reviewed (plan 79 §2.1). */
+    public readonly reviewedBy?: 'teacher' | 'ai',
   ) {}
 }

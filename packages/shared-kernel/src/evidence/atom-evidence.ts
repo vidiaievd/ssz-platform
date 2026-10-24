@@ -1,5 +1,5 @@
 import type { EvidenceInput, EvidenceStrength, ReviewRatingValue } from './evidence-strength.js';
-import { evidenceStrength, ratingRank } from './evidence-strength.js';
+import { evidenceStrength, ratingRank, weaker } from './evidence-strength.js';
 
 /**
  * What an author said this piece of the exercise was doing with the atom (plan 63 §2 D).
@@ -74,22 +74,6 @@ function byModality(modality: AtomModality | null | undefined): EvidenceStrength
     default:
       return null;
   }
-}
-
-/**
- * The weaker of two claims, read separately in each direction.
- *
- * Nothing here may make evidence stronger than one of its sources says it is: a
- * success is capped by the lowest cap, and a failure lifted to the highest floor.
- * Where the axes agree this changes nothing; where they disagree — a modality of
- * `recall` on a template whose form says a bank was on screen, which is a document
- * describing itself two ways — it believes the cautious half of each.
- */
-function weaker(a: EvidenceStrength, b: EvidenceStrength): EvidenceStrength {
-  return {
-    successCap: ratingRank(b.successCap) < ratingRank(a.successCap) ? b.successCap : a.successCap,
-    failureFloor: ratingRank(b.failureFloor) > ratingRank(a.failureFloor) ? b.failureFloor : a.failureFloor,
-  };
 }
 
 export function atomEvidenceStrength(input: AtomEvidenceInput): EvidenceStrength {

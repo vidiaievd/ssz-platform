@@ -268,6 +268,36 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
 };
 
 /**
+ * A model read the answer and ruled on it, and no person did (plan 79 §2.1, decision Q1).
+ *
+ * A teacher's verdict is not clamped at all — learning-service lets it through, because the
+ * doubt the ceilings exist for is exactly what a person removes. A model's verdict removes
+ * some of that doubt and adds its own: it can be confidently wrong, and it can be wrong the
+ * same way many times over. So it counts, and with both ends held toward the middle:
+ *
+ *   - a success stops at GOOD — recalled, not effortlessly so; the interval grows, but the
+ *     learner does not leap ahead on a judgement nobody checked;
+ *   - a failure stops at HARD — no lapse. Resetting a card is the most expensive thing a
+ *     rating can do, and only a person or a closed machine check may do it.
+ *
+ * Applied on top of the form's or the template's reading (`weaker`), never instead of it.
+ * The worst a mistaken model can do is move a card a little faster or slower than it
+ * should — the cost decision Q2's gate (plan 79) was sized against.
+ */
+const AI_VERDICT: EvidenceStrength = { successCap: 'GOOD', failureFloor: 'HARD' };
+
+/**
+ * Where a model's reading is weaker than the default above, by template.
+ *
+ * An essay is the hardest thing on the platform for a model to judge — content, task and
+ * structure are read, not matched — so a success on its word proves no more than that the
+ * text was written: HARD. Every template not listed here takes `AI_VERDICT`.
+ */
+const AI_VERDICT_BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
+  writing_task: { successCap: 'HARD', failureFloor: 'HARD' },
+};
+
+/**
  * Whether the type has a row of its own, as opposed to falling through to `UNCLAMPED`.
  *
  * Asked by the test that holds every type of the skills table to a row here: a row whose
@@ -298,6 +328,13 @@ export interface EvidenceInput {
    * into a lapse. Absent on every event before plan 66, which therefore rates unchanged.
    */
   lowered?: boolean | null;
+  /**
+   * Who ruled on a reviewed answer (plan 79 §2.1). Only `'ai'` changes anything here: it
+   * narrows the result by `AI_VERDICT`. A teacher's verdict is let through unclamped by the
+   * consumer before it ever reaches this table, and a machine-checked answer has no
+   * reviewer. Absent on every event before plan 79, which therefore rates unchanged.
+   */
+  reviewedBy?: 'teacher' | 'ai' | null;
 }
 
 /**
@@ -328,8 +365,27 @@ function remainingBankSize(form: AnswerForm, gapPosition: number | null | undefi
  * from typing it, and the form is the only thing that does.
  */
 export function evidenceStrength(input: EvidenceInput): EvidenceStrength {
-  const strength = fromFormOrTemplate(input);
-  return input.lowered === true ? lowerCeiling(strength) : strength;
+  const fromForm = fromFormOrTemplate(input);
+  const strength = input.lowered === true ? lowerCeiling(fromForm) : fromForm;
+  if (input.reviewedBy !== 'ai') return strength;
+  const byModel = (input.templateCode && AI_VERDICT_BY_TEMPLATE[input.templateCode]) || AI_VERDICT;
+  return weaker(strength, byModel);
+}
+
+/**
+ * The weaker of two claims, read separately in each direction.
+ *
+ * Nothing here may make evidence stronger than one of its sources says it is: a
+ * success is capped by the lowest cap, and a failure lifted to the highest floor.
+ * Where the axes agree this changes nothing; where they disagree — a modality of
+ * `recall` on a template whose form says a bank was on screen, which is a document
+ * describing itself two ways — it believes the cautious half of each.
+ */
+export function weaker(a: EvidenceStrength, b: EvidenceStrength): EvidenceStrength {
+  return {
+    successCap: ratingRank(b.successCap) < ratingRank(a.successCap) ? b.successCap : a.successCap,
+    failureFloor: ratingRank(b.failureFloor) > ratingRank(a.failureFloor) ? b.failureFloor : a.failureFloor,
+  };
 }
 
 /** One step down the success ceiling, stopping at HARD. The floor is untouched. */

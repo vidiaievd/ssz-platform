@@ -200,6 +200,42 @@ describe('evidenceStrength', () => {
     });
   });
 
+  describe('a verdict a model reached (plan 79 §2.1)', () => {
+    it('holds a typed answer to GOOD and keeps a failure off a lapse', () => {
+      expect(evidenceStrength({ templateCode: 'translate_to_target', reviewedBy: 'ai' }))
+        .toEqual({ successCap: 'GOOD', failureFloor: 'HARD' });
+    });
+
+    it('reads an essay judged by a model as no more than HARD either way', () => {
+      expect(evidenceStrength({ templateCode: 'writing_task', reviewedBy: 'ai' }))
+        .toEqual({ successCap: 'HARD', failureFloor: 'HARD' });
+    });
+
+    it('never loosens what the form already narrowed', () => {
+      // A bank of two caps at HARD and fails to AGAIN; the model lifts the floor only.
+      expect(evidenceStrength({
+        answerForm: { mode: 'bank', bankSize: 2, wordsConsumed: false },
+        reviewedBy: 'ai',
+      })).toEqual({ successCap: 'HARD', failureFloor: 'HARD' });
+    });
+
+    it('applies on top of a lowered delivery', () => {
+      expect(evidenceStrength({ templateCode: 'error_correction', lowered: true, reviewedBy: 'ai' }))
+        .toEqual({ successCap: 'GOOD', failureFloor: 'HARD' });
+    });
+
+    it('clamps even a template with no row of its own', () => {
+      expect(evidenceStrength({ templateCode: 'no_such_template', reviewedBy: 'ai' }))
+        .toEqual({ successCap: 'GOOD', failureFloor: 'HARD' });
+    });
+
+    it('changes nothing for a teacher or for no reviewer', () => {
+      const typed = { templateCode: 'translate_to_target' } as const;
+      expect(evidenceStrength({ ...typed, reviewedBy: 'teacher' })).toEqual(evidenceStrength(typed));
+      expect(evidenceStrength({ ...typed, reviewedBy: null })).toEqual(evidenceStrength(typed));
+    });
+  });
+
   describe('clampByEvidence', () => {
     const bankOfFive = evidenceStrength({
       answerForm: { mode: 'bank', bankSize: 5, wordsConsumed: true },

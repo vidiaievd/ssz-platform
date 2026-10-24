@@ -27,6 +27,11 @@ export interface RecordAttemptProps {
   completed: boolean;
   /** Handed to a teacher and waiting for their verdict. Ignored together with `completed`. */
   awaitingReview?: boolean;
+  /**
+   * The verdict behind `completed` was a model's, not a person's or the machine check's
+   * (plan 79 §2.1). Read only when `completed` is true.
+   */
+  byAi?: boolean;
   now: Date;
 }
 
@@ -43,6 +48,7 @@ export interface ProgressPersistenceProps {
   completedAt: Date | null;
   needsReviewSince: Date | null;
   reviewResolvedAt: Date | null;
+  completedByAi: boolean;
 }
 
 export class UserProgress extends AggregateRoot {
@@ -58,6 +64,7 @@ export class UserProgress extends AggregateRoot {
     private _completedAt: Date | null,
     private _needsReviewSince: Date | null,
     private _reviewResolvedAt: Date | null,
+    private _completedByAi: boolean,
   ) {
     super(id);
   }
@@ -75,6 +82,7 @@ export class UserProgress extends AggregateRoot {
       null,
       null,
       null,
+      false,
     );
   }
 
@@ -91,6 +99,7 @@ export class UserProgress extends AggregateRoot {
       props.completedAt,
       props.needsReviewSince,
       props.reviewResolvedAt,
+      props.completedByAi,
     );
   }
 
@@ -112,6 +121,11 @@ export class UserProgress extends AggregateRoot {
     // Once passed, always passed: a later failure is practice on something already done,
     // and it moves the score, not the status (plan 76, Q2-A).
     if (props.completed && this._status !== 'NEEDS_REVIEW') {
+      // Marked as a model's only while no stronger verdict has said the same (plan 79 §2.1):
+      // the first completion sets it, and a later pass by a person or the machine check
+      // clears it for good. A later model's pass on something already passed changes nothing.
+      if (isFirstCompletion) this._completedByAi = props.byAi === true;
+      else if (props.byAi !== true) this._completedByAi = false;
       this._completedAt = this._completedAt ?? props.now;
       this._status = 'COMPLETED';
     } else if (
@@ -200,4 +214,5 @@ export class UserProgress extends AggregateRoot {
   get completedAt(): Date | null { return this._completedAt; }
   get needsReviewSince(): Date | null { return this._needsReviewSince; }
   get reviewResolvedAt(): Date | null { return this._reviewResolvedAt; }
+  get completedByAi(): boolean { return this._completedByAi; }
 }

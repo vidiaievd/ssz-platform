@@ -48,6 +48,8 @@ export class SkillMasteryProjector {
       gapPosition: p.gapPosition,
       // The rating was clamped by the same rule upstream (plan 66, Q2-B).
       lowered: p.evidenceLowered,
+      // A model's verdict, held between HARD and GOOD upstream (plan 79 §2.1).
+      reviewedBy: p.reviewedBy,
     });
 
     const observation: MasteryObservation = {

@@ -220,6 +220,12 @@ export interface AttemptRatedPayload {
    */
   evidenceLowered?: boolean | null;
   /**
+   * Forwarded from the engine (plan 79 §2.1): `ai` when the rating above came from a model's
+   * verdict and was clamped for it. Analytics weighs the attempt by the same rule. Absent or
+   * null on every event before it, and on a teacher's or the machine's verdict.
+   */
+  reviewedBy?: 'teacher' | 'ai' | null;
+  /**
    * Which kind of card was rated — `EXERCISE`, `EXERCISE_GAP`, `VOCABULARY_WORD`, and
    * from plan 63 phase 5 `GRAMMAR_ATOM`.
    *

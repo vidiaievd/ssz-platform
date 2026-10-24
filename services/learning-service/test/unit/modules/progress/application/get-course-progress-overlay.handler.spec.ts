@@ -70,6 +70,7 @@ describe('GetCourseProgressOverlayHandler', () => {
       completedAt: new Date(),
       needsReviewSince: null,
       reviewResolvedAt: null,
+      completedByAi: false,
     });
 
     const { handler } = makeHandler({ progressRows: [completed] });

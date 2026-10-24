@@ -267,6 +267,11 @@ model AttemptEvidence {
   // read as «not lowered».
   evidenceLowered Boolean? @map("evidence_lowered")
 
+  // `ai` when the verdict rated here was a model's, on the work of a learner nobody reviews
+  // (plan 79 §2.1). Weighed by the kernel's `reviewedBy` rule, as the rating was clamped by
+  // it. Null for a teacher's verdict, the machine check, and every row before it.
+  reviewedBy      String?  @map("reviewed_by")
+
   // Worked on a phone with no network and replayed later (VoxOrd offline plan, B4). Kept
   // to measure how much practice happens offline. False for every row before it: offline
   // attempts did not reach the server dated until the field existed.

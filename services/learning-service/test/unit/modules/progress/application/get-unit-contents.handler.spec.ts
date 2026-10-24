@@ -106,6 +106,7 @@ describe('GetUnitContentsHandler', () => {
       completedAt: new Date(),
       needsReviewSince: null,
       reviewResolvedAt: null,
+      completedByAi: false,
     });
 
     const { handler } = makeHandler({ progressRows: [completedLesson] });
@@ -130,6 +131,7 @@ describe('GetUnitContentsHandler', () => {
       completedAt: null,
       needsReviewSince: null,
       reviewResolvedAt: null,
+      completedByAi: false,
     });
 
     const { handler } = makeHandler({ progressRows: [inProgress] });
