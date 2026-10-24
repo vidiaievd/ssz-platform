@@ -108,6 +108,7 @@ describe('GetLearnerAiReviewHandler', () => {
       summary: 'Se på ordstillingen.',
       marks: null,
       reviewedAt: REVIEWED,
+      disputedAt: null,
     });
     expect(JSON.stringify(result.value)).not.toContain('fake-model');
     expect(drafts.findByAttempt).toHaveBeenCalledWith('a1', 'review_direct');

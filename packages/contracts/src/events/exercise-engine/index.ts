@@ -7,6 +7,8 @@ export const EXERCISE_ENGINE_EVENT_TYPES = {
   ATTEMPT_COMPLETED: 'exercise.attempt.completed',
   ATTEMPT_ROUTED_FOR_REVIEW: 'exercise.attempt.routed_for_review',
   ATTEMPT_REVIEWED: 'exercise.attempt.reviewed',
+  ATTEMPT_AI_REVIEWED: 'exercise.attempt.ai_reviewed',
+  ATTEMPT_AI_REVIEW_DISPUTED: 'exercise.attempt.ai_review_disputed',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -415,10 +417,44 @@ export interface AttemptReviewedAiDraftMarks {
   absDeltaSum: number;
 }
 
+/**
+ * A model's verdict closed the attempt of a learner nobody reviews (plan 79, 2.3b) — what a
+ * dispute rate is read against. Published beside the `completed` that carries
+ * `reviewedBy: 'ai'`: that one is about the learner's progress, this one about the model.
+ */
+export interface ExerciseAttemptAiReviewedPayload {
+  attemptId: string;
+  userId: string;
+  exerciseId: string;
+  templateCode: string;
+  /** ai-service capability that wrote the review: `review_direct`. */
+  capability: string;
+  /** ai-service registry ids — the axes the counts are folded on. */
+  modelId: string | null;
+  promptVersion: string | null;
+  outcome: 'approved' | 'returned';
+  occurredAt: string;
+}
+
+/**
+ * The learner said a model's review of their work is wrong (plan 79, 2.3b) — the learner's
+ * counterpart of a teacher discarding a draft. Once per review. What they wrote, if anything,
+ * stays in exercise-engine; only that they wrote something travels.
+ */
+export interface ExerciseAttemptAiReviewDisputedPayload
+  extends Omit<ExerciseAttemptAiReviewedPayload, 'occurredAt'> {
+  /** When the review was delivered: a dispute is counted on its review's day, so the rate stays per review. */
+  reviewedAt: string;
+  withReason: boolean;
+  occurredAt: string;
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type ExerciseAttemptStartedEvent = BaseEvent<ExerciseAttemptStartedPayload>;
 export type ExerciseAttemptCompletedEvent = BaseEvent<ExerciseAttemptCompletedPayload>;
 export type ExerciseAttemptReviewedEvent = BaseEvent<ExerciseAttemptReviewedPayload>;
+export type ExerciseAttemptAiReviewedEvent = BaseEvent<ExerciseAttemptAiReviewedPayload>;
+export type ExerciseAttemptAiReviewDisputedEvent = BaseEvent<ExerciseAttemptAiReviewDisputedPayload>;
 export type ExerciseAttemptRoutedForReviewEvent =
   BaseEvent<ExerciseAttemptRoutedForReviewPayload>;

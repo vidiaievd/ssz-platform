@@ -14,6 +14,7 @@ import {
   type IAttemptRepository,
 } from '../../../../attempts/domain/repositories/attempt.repository.js';
 import { decisionsUnderMachine, marksOf, type AiVerdict } from '../../../domain/ai-verdict.js';
+import { ATTEMPT_AI_REVIEWED, aiReviewedPayload } from '../../../domain/events/ai-review-events.js';
 import {
   AttemptAiDraft,
   draftRefusal,
@@ -113,6 +114,8 @@ export class PutAiReviewHandler implements ICommandHandler<PutAiReviewCommand> {
     if (draft.status === 'READY') {
       await this.attempts.save(attempt);
       await publishAttemptEvents(this.publisher, attempt);
+      // The count a dispute rate is read against (2.3b), once the verdict has landed.
+      await this.publisher.publish(ATTEMPT_AI_REVIEWED, aiReviewedPayload(attempt, draft, new Date()));
     }
     return Result.ok(view(draft, attempt));
   }

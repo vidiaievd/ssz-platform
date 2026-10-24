@@ -385,6 +385,11 @@ model AttemptAiDraft {
   outcomes  Json?
   decidedAt DateTime? @map("decided_at")
 
+  // The learner said a `review_direct` review is wrong (step 2.3b) — once, with an optional
+  // word on why. The word stays here; the event carries only that there was one.
+  disputedAt    DateTime? @map("disputed_at") @db.Timestamptz
+  disputeReason String?   @map("dispute_reason")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

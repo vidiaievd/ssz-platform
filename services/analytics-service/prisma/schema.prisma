@@ -570,6 +570,10 @@ model AiDraftQualityDaily {
   marksCompared    Int      @default(0) @map("marks_compared")
   marksDeltaSum    Int      @default(0) @map("marks_delta_sum")
   marksAbsDeltaSum Int      @default(0) @map("marks_abs_delta_sum")
+  /// `review_direct` rows (step 2.3b): `reviews` counts the verdicts a model delivered to a
+  /// learner nobody reviews, `disputes` how many of them the learner said were wrong —
+  /// folded on the review's day, so the two stay a rate. Always 0 on `review_draft` rows.
+  disputes         Int      @default(0)
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@unique([day, capability, modelId, promptVersion], map: "ai_draft_quality_daily_dims_key")

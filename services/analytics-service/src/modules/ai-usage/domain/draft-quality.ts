@@ -1,4 +1,8 @@
-import type { AttemptReviewedAiDraft } from '@ssz/contracts';
+import type {
+  AttemptReviewedAiDraft,
+  ExerciseAttemptAiReviewDisputedPayload,
+  ExerciseAttemptAiReviewedPayload,
+} from '@ssz/contracts';
 
 /** One stored row of `ai_draft_quality_daily`, as the reader needs it. */
 export interface DraftQualityRow {
@@ -16,6 +20,7 @@ export interface DraftQualityRow {
   marksCompared: number;
   marksDeltaSum: number;
   marksAbsDeltaSum: number;
+  disputes: number;
 }
 
 /** Suggested rubric marks against the teachers' over the range (plan 79, 1.7d). */
@@ -47,6 +52,13 @@ export interface DraftQualityGroup {
    */
   takenRate: number | null;
   marks: DraftMarksQuality;
+  /** Learners who said a model's review of their work was wrong (2.3b) — `review_direct` only. */
+  disputes: number;
+  /**
+   * Share of a model's reviews its learners disputed; null with none delivered, and on
+   * `review_draft`, where a teacher's discard is the label and learners never see the draft.
+   */
+  disputeRate: number | null;
 }
 
 /**
@@ -69,6 +81,8 @@ export function aggregateDraftQuality(rows: DraftQualityRow[]): DraftQualityGrou
         remarks: { accepted: 0, edited: 0, discarded: 0, untouched: 0, total: 0 },
         takenRate: null,
         marks: { reviews: 0, same: 0, different: 0, compared: 0, agreement: null, meanAbsDelta: null, bias: null },
+        disputes: 0,
+        disputeRate: null,
       };
       groups.set(key, group);
       sums.set(key, { delta: 0, absDelta: 0 });
@@ -84,6 +98,7 @@ export function aggregateDraftQuality(rows: DraftQualityRow[]): DraftQualityGrou
     group.marks.compared += row.marksCompared;
     sums.get(key)!.delta += row.marksDeltaSum;
     sums.get(key)!.absDelta += row.marksAbsDeltaSum;
+    group.disputes += row.disputes;
   }
 
   for (const [key, group] of groups) {
@@ -94,6 +109,7 @@ export function aggregateDraftQuality(rows: DraftQualityRow[]): DraftQualityGrou
     m.agreement = share(m.same, m.same + m.different);
     m.meanAbsDelta = share(sums.get(key)!.absDelta, m.compared);
     m.bias = share(sums.get(key)!.delta, m.compared);
+    if (group.capability === 'review_direct') group.disputeRate = share(group.disputes, group.reviews);
   }
   return [...groups.values()];
 }
@@ -132,4 +148,26 @@ function isFoldableMarks(value: unknown): boolean {
 
 function isCount(value: unknown): boolean {
   return Number.isInteger(value) && (value as number) >= 0;
+}
+
+/** A model's verdict on a learner's work (2.3b): the axes and the day the fold reads. */
+export function isFoldableAiReview(value: unknown): value is ExerciseAttemptAiReviewedPayload {
+  if (typeof value !== 'object' || value === null) return false;
+  const p = value as Record<string, unknown>;
+  const nullableString = (v: unknown) => v === null || typeof v === 'string';
+  return (
+    typeof p.capability === 'string' &&
+    nullableString(p.modelId) &&
+    nullableString(p.promptVersion) &&
+    isDay(p.occurredAt)
+  );
+}
+
+/** A dispute of one: the same axes, counted on `reviewedAt`. */
+export function isFoldableDispute(value: unknown): value is ExerciseAttemptAiReviewDisputedPayload {
+  return isFoldableAiReview(value) && isDay((value as unknown as Record<string, unknown>).reviewedAt);
+}
+
+function isDay(value: unknown): value is string {
+  return typeof value === 'string' && !Number.isNaN(Date.parse(value));
 }

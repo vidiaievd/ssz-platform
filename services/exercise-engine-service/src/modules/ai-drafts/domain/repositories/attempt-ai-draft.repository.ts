@@ -12,4 +12,10 @@ export interface IAttemptAiDraftRepository {
    * (attempt, capability) slot in between — the caller reads again and answers from that.
    */
   save(draft: AttemptAiDraft): Promise<'saved' | 'conflict'>;
+  /**
+   * Marks a review disputed by its learner (plan 79, 2.3b), only if nobody did before —
+   * `false` when the mark was already there. Separate from `save`: the one column a learner
+   * writes should not race the rest of the row.
+   */
+  markDisputed(id: string, at: Date, reason: string | null): Promise<boolean>;
 }

@@ -1,3 +1,4 @@
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LearnerAiRemarkDto {
@@ -59,4 +60,28 @@ export class LearnerAiReviewResponseDto {
 
   @ApiProperty({ example: '2026-10-24T10:00:00.000Z' })
   reviewedAt!: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    example: null,
+    description: 'When I said this review is wrong (`POST …/ai-review/dispute`); null until I do.',
+  })
+  disputedAt!: string | null;
+}
+
+export class DisputeAiReviewRequestDto {
+  @ApiPropertyOptional({
+    maxLength: 1000,
+    example: 'Setning 2 er riktig — «i går var jeg» er det jeg skrev.',
+    description: 'Why the review is wrong, in my words. Optional; stored with the review — analytics only hears that there was one.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
+
+export class DisputeAiReviewResponseDto {
+  @ApiProperty({ example: '2026-10-24T12:00:00.000Z', description: 'When the review was disputed — the first press, on a repeat.' })
+  disputedAt!: string;
 }

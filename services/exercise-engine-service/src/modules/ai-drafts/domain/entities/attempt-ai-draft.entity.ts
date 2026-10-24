@@ -93,6 +93,9 @@ export interface AttemptAiDraftProps extends Omit<ProposedDraft, 'status'> {
   /** What the verdict made of it, remark by remark (1.5). Null until decided. */
   outcomes?: SettledOutcomes | null;
   decidedAt?: Date | null;
+  /** The learner said this `review_direct` review is wrong (2.3b). Null until they do. */
+  disputedAt?: Date | null;
+  disputeReason?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -172,6 +175,8 @@ export class AttemptAiDraft extends Entity<string> {
   get aiCallId(): string { return this.props.aiCallId; }
   get outcomes(): SettledOutcomes | null { return this.props.outcomes ?? null; }
   get decidedAt(): Date | null { return this.props.decidedAt ?? null; }
+  get disputedAt(): Date | null { return this.props.disputedAt ?? null; }
+  get disputeReason(): string | null { return this.props.disputeReason ?? null; }
   get createdAt(): Date { return this.props.createdAt; }
   get updatedAt(): Date { return this.props.updatedAt; }
 }

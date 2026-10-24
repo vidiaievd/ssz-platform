@@ -15,6 +15,7 @@ const row = (over: Partial<Parameters<typeof aggregateDraftQuality>[0][number]> 
   marksCompared: 0,
   marksDeltaSum: 0,
   marksAbsDeltaSum: 0,
+  disputes: 0,
   ...over,
 });
 
@@ -35,7 +36,23 @@ describe('aggregateDraftQuality', () => {
       remarks: { accepted: 1, edited: 1, discarded: 1, untouched: 1, total: 4 },
       takenRate: 0.5,
       marks: { reviews: 0, same: 0, different: 0, compared: 0, agreement: null, meanAbsDelta: null, bias: null },
+      disputes: 0,
+      disputeRate: null,
     });
+  });
+
+  // Plan 79, step 2.3b.
+  it('rates a model’s reviews of learners by how many they disputed', () => {
+    const direct = { capability: 'review_direct', promptVersion: 'review_direct@1' };
+    const [group] = aggregateDraftQuality([
+      row({ ...direct, reviews: 3, disputes: 1 }),
+      row({ ...direct, reviews: 5, disputes: 0 }),
+    ]);
+    expect(group).toMatchObject({ reviews: 8, disputes: 1, disputeRate: 0.125, takenRate: null });
+  });
+
+  it('gives no dispute rate to teachers’ drafts, which learners never see', () => {
+    expect(aggregateDraftQuality([row({ reviews: 4 })])[0]!.disputeRate).toBeNull();
   });
 
   // Plan 79, step 1.7d.

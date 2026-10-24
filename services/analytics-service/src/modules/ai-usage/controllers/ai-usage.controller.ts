@@ -44,6 +44,8 @@ export class AiUsageController {
   /**
    * What teachers did with review drafts, per agent × model × prompt version over the range
    * (plan 79, 1.5): `GET /internal/ai-usage/review-drafts?from=2026-10-01&to=2026-10-22`.
+   * `review_direct` groups carry the reviews models delivered to learners and how many of
+   * them learners disputed (2.3b).
    */
   @Get('review-drafts')
   async reviewDrafts(

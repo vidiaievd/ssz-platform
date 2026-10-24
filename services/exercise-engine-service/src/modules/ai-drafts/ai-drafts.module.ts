@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { AttemptsModule } from '../attempts/attempts.module.js';
+import { DisputeAiReviewHandler } from './application/commands/dispute-ai-review/dispute-ai-review.handler.js';
 import { GiveUpAiReviewHandler } from './application/commands/give-up-ai-review/give-up-ai-review.handler.js';
 import { PutAiDraftHandler } from './application/commands/put-ai-draft/put-ai-draft.handler.js';
 import { PutAiReviewHandler } from './application/commands/put-ai-review/put-ai-review.handler.js';
@@ -25,7 +26,7 @@ import { InternalReviewSubjectController } from './presentation/controllers/inte
  * set candidate models are measured on (step 1.6). For a learner nobody reviews, the model's
  * review comes with a verdict that closes the attempt (step 2.1b) — or, when no model can
  * read it, the attempt closes as `NO_REVIEWER` (step 2.2a). That learner reads the review on
- * their own attempt (step 2.3).
+ * their own attempt and may say it is wrong (steps 2.3a–b).
  */
 @Module({
   imports: [CqrsModule, AttemptsModule],
@@ -43,6 +44,7 @@ import { InternalReviewSubjectController } from './presentation/controllers/inte
     PutAiDraftHandler,
     PutAiReviewHandler,
     GiveUpAiReviewHandler,
+    DisputeAiReviewHandler,
     SettleAiDraftHandler,
     GetReviewSubjectHandler,
     GetDraftForReviewHandler,

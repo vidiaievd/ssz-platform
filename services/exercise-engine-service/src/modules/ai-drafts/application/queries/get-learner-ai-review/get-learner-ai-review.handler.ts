@@ -26,6 +26,8 @@ export interface LearnerAiReview {
   /** The marks behind an essay's grade, with the model's reason for each; null otherwise. */
   marks: AiDraftMark[] | null;
   reviewedAt: Date;
+  /** When the learner said the review is wrong (2.3b); null until they do. */
+  disputedAt: Date | null;
 }
 
 /**
@@ -61,6 +63,7 @@ export class GetLearnerAiReviewHandler implements IQueryHandler<GetLearnerAiRevi
       marks: review.marks,
       // `reviewedBy` is only `ai` with a delivery time on the attempt.
       reviewedAt: attempt.reviewedAt as Date,
+      disputedAt: review.disputedAt,
     });
   }
 }

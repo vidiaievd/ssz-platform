@@ -200,8 +200,15 @@ describe('PutAiReviewHandler', () => {
 
     // No letter from a teacher — none answered.
     const events = published(publisher);
-    expect(events.map((e) => e.type)).toEqual(['exercise.attempt.completed']);
+    expect(events.map((e) => e.type)).toEqual(['exercise.attempt.completed', 'exercise.attempt.ai_reviewed']);
     expect(events[0]!.payload).toMatchObject({ completed: true, score: 67, reviewOutcome: 'approved', reviewedBy: 'ai' });
+    // What a dispute rate is read against (2.3b), on the review's axes.
+    expect(events[1]!.payload).toMatchObject({
+      attemptId: attempt.id,
+      capability: 'review_direct',
+      outcome: 'approved',
+      templateCode: attempt.templateCode,
+    });
   });
 
   it('sends the work back with its summary, marked as a model\'s return', async () => {
@@ -276,7 +283,10 @@ describe('PutAiReviewHandler', () => {
     expect(again.value.attempt.status).toBe('SCORED');
     expect(drafts.saves).toBe(1);
     expect(attempts.save).toHaveBeenCalledTimes(1);
-    expect(publisher.publish).toHaveBeenCalledTimes(1);
+    expect(published(publisher).map((e) => e.type)).toEqual([
+      'exercise.attempt.completed',
+      'exercise.attempt.ai_reviewed',
+    ]);
   });
 
   it('finishes a write cut off after the review was saved', async () => {
@@ -289,7 +299,10 @@ describe('PutAiReviewHandler', () => {
 
     expect(result.value.attempt.status).toBe('SCORED');
     expect(drafts.saves).toBe(0);
-    expect(publisher.publish).toHaveBeenCalledTimes(1);
+    expect(published(publisher).map((e) => e.type)).toEqual([
+      'exercise.attempt.completed',
+      'exercise.attempt.ai_reviewed',
+    ]);
   });
 
   it('refuses a call id that holds a teacher\'s draft', async () => {

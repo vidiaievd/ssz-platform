@@ -72,6 +72,14 @@ export class PrismaAttemptAiDraftRepository implements IAttemptAiDraftRepository
       throw err;
     }
   }
+
+  async markDisputed(id: string, at: Date, reason: string | null): Promise<boolean> {
+    const { count } = await this.prisma.attemptAiDraft.updateMany({
+      where: { id, disputedAt: null },
+      data: { disputedAt: at, disputeReason: reason },
+    });
+    return count === 1;
+  }
 }
 
 function toDomain(row: AttemptAiDraftModel): AttemptAiDraft {
@@ -89,6 +97,8 @@ function toDomain(row: AttemptAiDraftModel): AttemptAiDraft {
     aiCallId: row.aiCallId,
     outcomes: row.outcomes as unknown as SettledOutcomes | null,
     decidedAt: row.decidedAt,
+    disputedAt: row.disputedAt,
+    disputeReason: row.disputeReason,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
