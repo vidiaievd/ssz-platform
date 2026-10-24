@@ -289,6 +289,21 @@ export class PrismaAttemptRepository implements IAttemptRepository {
    * same reading `deliveredVerdict()` and the decisions journal use) — so it always
    * carries `reviewedByUserId: { not: null }` alongside it.
    */
+  async findAiDraftedIds(attemptIds: string[]): Promise<Set<string>> {
+    if (attemptIds.length === 0) return new Set();
+    // Read straight off the drafts table: the drafts module imports this one, so going
+    // through its repository would be a cycle for one boolean per row.
+    const rows = await this.prisma.attemptAiDraft.findMany({
+      where: {
+        attemptId: { in: attemptIds },
+        capability: 'review_draft',
+        status: { in: ['SENT', 'EDITED'] },
+      },
+      select: { attemptId: true },
+    });
+    return new Set(rows.map((row) => row.attemptId));
+  }
+
   private mySubmissionsWhere(userId: string, status: MySubmissionsStatus) {
     const base = { userId, submittedAt: { not: null } };
     // A score somebody delivered: a teacher's signature, or a model's review of the work of

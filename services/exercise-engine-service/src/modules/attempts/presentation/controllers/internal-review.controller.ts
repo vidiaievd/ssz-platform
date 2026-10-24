@@ -49,6 +49,7 @@ import type { ListReviewDecisionsResult } from '../../application/queries/list-r
 import { decodeReviewDecisionsCursor } from '../../application/queries/list-review-decisions/review-decisions-cursor.js';
 import {
   ListMySubmissionsQuery,
+  MY_SUBMISSIONS_STATUSES,
   type MySubmissionsStatus,
 } from '../../application/queries/list-my-submissions/list-my-submissions.query.js';
 import type { ListMySubmissionsResult } from '../../application/queries/list-my-submissions/list-my-submissions.handler.js';
@@ -86,13 +87,6 @@ const DEFAULT_DECISIONS_LIMIT = 50;
 
 /** A learner's own list; a hundred is the ceiling, as everywhere else on this controller. */
 const DEFAULT_MY_SUBMISSIONS_LIMIT = 50;
-
-const MY_SUBMISSIONS_STATUSES: readonly MySubmissionsStatus[] = [
-  'all',
-  'pending',
-  'returned',
-  'approved',
-];
 
 /**
  * The teacher's side of an attempt — service-to-service only.

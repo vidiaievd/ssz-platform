@@ -32,6 +32,7 @@ import { ReviewContextResolver } from './application/services/review-context-res
 import { ReviewerResolver } from './application/services/reviewer-resolver.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
 import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
+import { MySubmissionsController } from './presentation/controllers/my-submissions.controller.js';
 
 const CommandHandlers = [
   StartAttemptHandler,
@@ -64,7 +65,12 @@ const QueryHandlers = [
 
 @Module({
   imports: [CqrsModule],
-  controllers: [AttemptsController, InternalReviewController, InternalRecordingsController],
+  controllers: [
+    AttemptsController,
+    MySubmissionsController,
+    InternalReviewController,
+    InternalRecordingsController,
+  ],
   providers: [
     PrismaAttemptRepository,
     { provide: ATTEMPT_REPOSITORY, useExisting: PrismaAttemptRepository },

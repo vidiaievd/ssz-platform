@@ -3,6 +3,13 @@ import type { MySubmissionsCursor } from '../../../domain/repositories/attempt.r
 /** The three buckets a submission can be in on this screen, or all of them. */
 export type MySubmissionsStatus = 'all' | 'pending' | 'returned' | 'approved';
 
+export const MY_SUBMISSIONS_STATUSES: readonly MySubmissionsStatus[] = [
+  'all',
+  'pending',
+  'returned',
+  'approved',
+];
+
 /** One learner's own submissions — plan 47.1, screen E of the review handoff. */
 export class ListMySubmissionsQuery {
   constructor(

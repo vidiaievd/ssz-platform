@@ -187,6 +187,12 @@ export interface IAttemptRepository {
     status: MySubmissionsStatus,
     page: { limit: number; after: MySubmissionsCursor | null },
   ): Promise<Attempt[]>;
+  /**
+   * Which of these attempts a teacher reviewed from a model's draft they sent or edited
+   * (plan 79, `review_draft`) — the "AI drafted, teacher checked" line a learner reads.
+   * A discarded draft does not count: the teacher wrote that review themselves.
+   */
+  findAiDraftedIds(attemptIds: string[]): Promise<Set<string>>;
   /** How much is waiting in a scope, and since when — without reading the submissions. */
   summariseReviewQueue(scope: ReviewQueueScope): Promise<ReviewQueueSummary>;
   /**
