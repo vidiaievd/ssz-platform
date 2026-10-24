@@ -25,6 +25,9 @@ enum AttemptStatus {
   ROUTED_FOR_REVIEW @map("routed_for_review")
   RETURNED          @map("returned")
   ABANDONED         @map("abandoned")
+  // Free-form work nobody will read: no school's queue, and no model the learner may
+  // ask (plan 79, step 2.1c). Closed at submit instead of waiting in a queue nobody shows.
+  NO_REVIEWER       @map("no_reviewer")
 
   @@map("attempt_status")
 }

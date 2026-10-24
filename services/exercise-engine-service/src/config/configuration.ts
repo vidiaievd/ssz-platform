@@ -33,6 +33,11 @@ export const envSchema = z.object({
   MEDIA_SERVICE_BASE_URL: z.string().min(1, 'MEDIA_SERVICE_BASE_URL is required'),
   MEDIA_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
 
+  // Plan 79, step 2.1c: a free-form submit with no school asks whether the learner may
+  // have a model review it.
+  SUBSCRIPTION_SERVICE_BASE_URL: z.string().min(1, 'SUBSCRIPTION_SERVICE_BASE_URL is required'),
+  SUBSCRIPTION_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
+
 
   INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
 
@@ -105,6 +110,10 @@ export interface AppConfig {
     baseUrl: string;
     timeoutMs: number;
   };
+  subscription: {
+    baseUrl: string;
+    timeoutMs: number;
+  };
   cache: {
     exerciseDefinitionTtlSeconds: number;
     exercisePlacementTtlSeconds: number;
@@ -159,6 +168,10 @@ export default (): AppConfig => {
     media: {
       baseUrl: env.MEDIA_SERVICE_BASE_URL,
       timeoutMs: env.MEDIA_SERVICE_TIMEOUT_MS,
+    },
+    subscription: {
+      baseUrl: env.SUBSCRIPTION_SERVICE_BASE_URL,
+      timeoutMs: env.SUBSCRIPTION_SERVICE_TIMEOUT_MS,
     },
     cache: {
       exerciseDefinitionTtlSeconds: env.EXERCISE_DEFINITION_CACHE_TTL_SECONDS,

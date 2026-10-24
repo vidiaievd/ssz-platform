@@ -434,6 +434,55 @@ describe('Attempt entity', () => {
     });
   });
 
+  // Plan 79, step 2.1c — work with no school and no model the learner may ask.
+  describe('closeWithoutReviewer()', () => {
+    it('transitions SUBMITTED → NO_REVIEWER, with the tally', () => {
+      const attempt = makeAttempt();
+      attempt.submit({}, 'h');
+      const result = attempt.closeWithoutReviewer({ autoPassedItems: 1, totalItems: 3 });
+      expect(result.isOk).toBe(true);
+      expect(attempt.status).toBe('NO_REVIEWER');
+      expect(attempt.autoPassedItems).toBe(1);
+      expect(attempt.totalItems).toBe(3);
+      expect(attempt.scoreValue).toBeNull();
+    });
+
+    it('counts as handed in, and announces nothing to a queue', () => {
+      const attempt = makeAttempt();
+      attempt.submit({}, 'h');
+      attempt.clearDomainEvents();
+      attempt.closeWithoutReviewer();
+
+      const events = attempt.getDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toBeInstanceOf(AttemptCompletedUnscoredEvent);
+      expect((events[0] as AttemptCompletedUnscoredEvent).payload).toMatchObject({
+        completed: false,
+        score: null,
+      });
+    });
+
+    it('fails when not SUBMITTED', () => {
+      const attempt = makeAttempt();
+      const result = attempt.closeWithoutReviewer();
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(InvalidAttemptTransitionError);
+    });
+
+    it('is final: neither a verdict nor an abandon moves it', () => {
+      const attempt = makeAttempt();
+      attempt.submit({}, 'h');
+      attempt.closeWithoutReviewer();
+
+      expect(attempt.abandon().isFail).toBe(true);
+      expect(attempt.routeForReview().isFail).toBe(true);
+      expect(
+        attempt.reviewByAi({ outcome: 'approved', decisions: [], comment: null, score: 100 }).isFail,
+      ).toBe(true);
+      expect(attempt.status).toBe('NO_REVIEWER');
+    });
+  });
+
   describe('abandon()', () => {
     it('transitions IN_PROGRESS → ABANDONED', () => {
       const attempt = makeAttempt();

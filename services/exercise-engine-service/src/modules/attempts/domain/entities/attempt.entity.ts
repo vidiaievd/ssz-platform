@@ -32,7 +32,12 @@ export type AttemptStatus =
   | 'ROUTED_FOR_REVIEW'
   /** A teacher read the submission and sent it back instead of scoring it. */
   | 'RETURNED'
-  | 'ABANDONED';
+  | 'ABANDONED'
+  /**
+   * Free-form work nobody will read (plan 79, step 2.1c): no school's queue, and no model
+   * the learner may ask. Final — the honest answer instead of a wait with no end.
+   */
+  | 'NO_REVIEWER';
 
 export type DifficultyLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
@@ -724,21 +729,67 @@ export class Attempt extends AggregateRoot {
      */
     rubricSnapshot?: RubricSnapshot | null,
   ): Result<void, InvalidAttemptTransitionError> {
+    const closed = this.closeUnscored('ROUTED_FOR_REVIEW', counts);
+    if (closed.isFail) return closed;
+    if (rubricSnapshot) {
+      this._rubricSnapshot = rubricSnapshot;
+    }
+
+    this.addDomainEvent(
+      new AttemptRoutedForReviewEvent(this.id, {
+        attemptId: this.id,
+        userId: this._userId,
+        exerciseId: this._exerciseId,
+        templateCode: this._templateCode,
+        schoolId: this._schoolId,
+        containerId: this._containerId,
+        groupId: this._groupId,
+        submittedAt: (this._submittedAt ?? new Date()).toISOString(),
+      }),
+    );
+
+    return Result.ok();
+  }
+
+  /**
+   * Closes free-form work that nobody will read (plan 79, step 2.1c, decision Q5-A).
+   *
+   * The validator asked for a person, and there is none: the learner has no school, and
+   * no model they may ask. Routing it anyway is what the platform did before this — a
+   * row in a queue no screen shows, and «sent for review» forever. Here the work ends
+   * where it is, honestly: handed in, unscored, and no `routed_for_review` raised, so
+   * nothing downstream waits for a verdict that will never come.
+   *
+   * Counted as handed in, exactly like routed work (`completed_unscored`): the learner did
+   * the exercise, and progress should not pretend they did not. Nothing reaches the memory —
+   * nobody judged the answer, so there is no evidence of recall either way.
+   */
+  closeWithoutReviewer(counts?: {
+    autoPassedItems: number | null;
+    totalItems: number | null;
+  }): Result<void, InvalidAttemptTransitionError> {
+    return this.closeUnscored('NO_REVIEWER', counts);
+  }
+
+  /** Both ways free-form work leaves `SUBMITTED` without a score: to a reviewer, or to nobody. */
+  private closeUnscored(
+    status: 'ROUTED_FOR_REVIEW' | 'NO_REVIEWER',
+    counts?: { autoPassedItems: number | null; totalItems: number | null },
+  ): Result<void, InvalidAttemptTransitionError> {
     if (this._status !== 'SUBMITTED') {
       return Result.fail(
         new InvalidAttemptTransitionError(
-          `Cannot route attempt with status ${this._status} for review`,
+          status === 'ROUTED_FOR_REVIEW'
+            ? `Cannot route attempt with status ${this._status} for review`
+            : `Cannot close attempt with status ${this._status} without a reviewer`,
         ),
       );
     }
 
-    this._status = 'ROUTED_FOR_REVIEW';
+    this._status = status;
     if (counts) {
       this._autoPassedItems = counts.autoPassedItems;
       this._totalItems = counts.totalItems;
-    }
-    if (rubricSnapshot) {
-      this._rubricSnapshot = rubricSnapshot;
     }
 
     this.addDomainEvent(
@@ -753,19 +804,6 @@ export class Attempt extends AggregateRoot {
         focus: this._focus,
         containerId: this._containerId,
         ephemeral: this._ephemeral,
-      }),
-    );
-
-    this.addDomainEvent(
-      new AttemptRoutedForReviewEvent(this.id, {
-        attemptId: this.id,
-        userId: this._userId,
-        exerciseId: this._exerciseId,
-        templateCode: this._templateCode,
-        schoolId: this._schoolId,
-        containerId: this._containerId,
-        groupId: this._groupId,
-        submittedAt: (this._submittedAt ?? new Date()).toISOString(),
       }),
     );
 
@@ -795,7 +833,11 @@ export class Attempt extends AggregateRoot {
     if (this._status === 'ABANDONED') {
       return Result.ok();
     }
-    if (this._status === 'SCORED' || this._status === 'ROUTED_FOR_REVIEW') {
+    if (
+      this._status === 'SCORED' ||
+      this._status === 'ROUTED_FOR_REVIEW' ||
+      this._status === 'NO_REVIEWER'
+    ) {
       return Result.fail(
         new InvalidAttemptTransitionError(
           `Cannot abandon attempt with status ${this._status}`,
