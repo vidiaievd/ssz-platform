@@ -13,7 +13,7 @@ import { reviewSchema, verifyReview } from '../domain/review-remarks.js';
  * Same versioning rule as `translate`: a change of wording is a new version.
  */
 
-const ASPECT_RULES: Partial<Record<ReviewAspect, string>> = {
+export const ASPECT_RULES: Partial<Record<ReviewAspect, string>> = {
   grammar: 'grammar — inflection, agreement, tense, articles and definiteness, prepositions governed by grammar',
   order: 'order — word order: verb-second, placement of adverbs and negation, inversion, clause order',
   lexis: 'lexis — word choice, a word that changes the meaning, spelling of a word',

@@ -11,7 +11,7 @@ import type { TranslateReviewInput } from '../domain/translate-review.js';
  */
 
 // `alternative` belongs to error_correction; translate's checks never enable it.
-const ASPECT_RULES: Partial<Record<ReviewAspect, string>> = {
+export const ASPECT_RULES: Partial<Record<ReviewAspect, string>> = {
   grammar: 'grammar — inflection, agreement, tense, articles and definiteness, prepositions governed by grammar',
   order: 'order — word order: verb-second, placement of adverbs and negation, inversion, clause order',
   lexis: 'lexis — word choice, meaning lost or added, false friends, spelling of a word',

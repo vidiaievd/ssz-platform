@@ -30,7 +30,7 @@ function marksRules(input: WritingTaskReviewInput): string {
   ].join('\n');
 }
 
-function rubricOf(rubric: readonly RubricCriterion[]) {
+export function rubricOf(rubric: readonly RubricCriterion[]) {
   return rubric.map((criterion, index) => ({
     criterion: index + 1,
     name: criterion.name,

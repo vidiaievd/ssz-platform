@@ -14,7 +14,7 @@ import type { ShortAnswerReviewInput } from '../domain/short-answer-review.js';
  * Same versioning rule as `translate`: a change of wording is a new version.
  */
 
-const ASPECT_RULES: Partial<Record<ReviewAspect, string>> = {
+export const ASPECT_RULES: Partial<Record<ReviewAspect, string>> = {
   content:
     'content — the answer leaves out a required key point, gets one wrong, says something the passage ' +
     'contradicts, or does not answer the question asked',

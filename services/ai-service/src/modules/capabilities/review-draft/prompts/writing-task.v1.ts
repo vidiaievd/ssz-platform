@@ -14,7 +14,7 @@ import type { WritingTaskReviewInput } from '../domain/writing-task-review.js';
  * Same versioning rule as `translate`: a change of wording is a new version.
  */
 
-const ASPECT_RULES: Partial<Record<ReviewAspect, string>> = {
+export const ASPECT_RULES: Partial<Record<ReviewAspect, string>> = {
   grammar:
     'grammar — inflection, agreement, tense, articles and definiteness, word order, sentence building, ' +
     'punctuation that changes how a sentence reads',
