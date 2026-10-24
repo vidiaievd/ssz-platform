@@ -427,6 +427,7 @@ services:
       # the school's explanation language in organization-service.
       EXERCISE_ENGINE_URL: http://exercise-engine-service:3006
       ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      PROFILE_SERVICE_URL: http://user-profile-service:3001
       # Provider keys: the registry names the variable (credentialRef), this passes it in.
       # Empty = provider shows configured: false; nothing else breaks.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

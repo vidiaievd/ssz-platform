@@ -16,6 +16,8 @@ export type InternalProfileSummary = {
   firstName?: string;
   lastName?: string;
   avatarUrl?: string;
+  /** The language the user reads the platform in — what ai-service writes a learner's review in (plan 79, step 2.2c). */
+  uiLocale: string;
 };
 
 // Service-to-service profile lookups (e.g. organization-service enriching
@@ -37,6 +39,7 @@ export class InternalProfilesController {
         firstName: profile.firstName,
         lastName: profile.lastName,
         avatarUrl: profile.avatarUrl,
+        uiLocale: profile.uiLocale,
       };
     } catch (err) {
       if (err instanceof ProfileNotFoundException) throw new NotFoundException();

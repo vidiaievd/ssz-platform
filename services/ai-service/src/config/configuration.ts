@@ -46,6 +46,8 @@ export const envSchema = z.object({
   // exercise-engine; the school's explanation language comes from organization-service.
   EXERCISE_ENGINE_URL: z.string().url().default('http://exercise-engine-service:3006'),
   ORGANIZATION_SERVICE_URL: z.string().url().default('http://organization-service:3002'),
+  // A learner's own review (step 2.2c) is written in their interface language, from user-profile-service.
+  PROFILE_SERVICE_URL: z.string().url().default('http://user-profile-service:3001'),
   // How often quota counters are raised to the ledger's sums (step 9b). A day by default.
   AI_QUOTA_RECONCILE_MS: z.coerce.number().int().positive().default(86_400_000),
 });
@@ -76,6 +78,7 @@ export interface AppConfig {
   subscriptionServiceUrl: string;
   exerciseEngineUrl: string;
   organizationServiceUrl: string;
+  profileServiceUrl: string;
   quotaReconcileMs: number;
   /** Shared secret for service-to-service routes (`x-internal-token`). */
   internalServiceToken: string;
@@ -107,6 +110,7 @@ export default (): AppConfig => {
     subscriptionServiceUrl: env.SUBSCRIPTION_SERVICE_URL,
     exerciseEngineUrl: env.EXERCISE_ENGINE_URL,
     organizationServiceUrl: env.ORGANIZATION_SERVICE_URL,
+    profileServiceUrl: env.PROFILE_SERVICE_URL,
     quotaReconcileMs: env.AI_QUOTA_RECONCILE_MS,
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };

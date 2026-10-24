@@ -7,6 +7,8 @@ import { EXCHANGES, EXERCISE_ENGINE_EVENT_TYPES, type ExerciseAttemptRoutedForRe
 import type { AppConfig } from '../../../../../config/configuration.js';
 import { DraftReviewCommand } from '../../application/draft-review/draft-review.command.js';
 import type { DraftReviewOutcome } from '../../application/draft-review/draft-review.handler.js';
+import { DirectReviewCommand } from '../../../review-direct/application/direct-review/direct-review.command.js';
+import type { DirectReviewOutcome } from '../../../review-direct/application/direct-review/direct-review.handler.js';
 
 const QUEUE = 'ai-service.review-draft.routed-for-review';
 // Each message holds a model call of seconds; a few at once keeps the queue moving without
@@ -19,11 +21,14 @@ interface Envelope {
 }
 
 /**
- * Plan 79, step 1.3: every submission routed to a person may get a teacher's draft.
+ * Plan 79: every submission routed for review. With a school behind it, it may get a
+ * teacher's draft (step 1.3); without one, nobody but a model reads it, and it gets the
+ * learner's own review with the verdict — or is closed as having no reviewer (step 2.2c).
  *
- * No processed-events table: a second delivery finds the draft already on the attempt
- * (the engine answers `DRAFT_EXISTS`) and asks no model. A failure before any model call
- * is retried once by redelivery; after the call the handler retries the write itself.
+ * No processed-events table: a second delivery finds the draft already on the attempt, or
+ * the attempt decided (the engine answers `DRAFT_EXISTS` / `ATTEMPT_NOT_IN_REVIEW`), and asks
+ * no model. A failure before any model call is retried once by redelivery; after the call
+ * the handler retries the write itself.
  */
 @Injectable()
 export class RoutedForReviewConsumer implements OnModuleInit, OnModuleDestroy {
@@ -65,14 +70,17 @@ export class RoutedForReviewConsumer implements OnModuleInit, OnModuleDestroy {
     if (!msg) return;
 
     let envelope: Envelope;
-    let command: DraftReviewCommand;
+    let command: DraftReviewCommand | DirectReviewCommand;
     try {
       envelope = JSON.parse(msg.content.toString()) as Envelope;
       const p = envelope.payload;
       if (!p || typeof p.attemptId !== 'string' || typeof p.userId !== 'string' || typeof p.templateCode !== 'string') {
         throw new Error('no attemptId, userId or templateCode');
       }
-      command = new DraftReviewCommand(p.attemptId, p.userId, p.templateCode, typeof p.schoolId === 'string' ? p.schoolId : null);
+      command =
+        typeof p.schoolId === 'string'
+          ? new DraftReviewCommand(p.attemptId, p.userId, p.templateCode, p.schoolId)
+          : new DirectReviewCommand(p.attemptId, p.userId, p.templateCode);
     } catch (err) {
       this.logger.error(`Malformed ${msg.fields.routingKey} — dropped: ${err instanceof Error ? err.message : String(err)}`);
       channel.nack(msg, false, false);
@@ -80,13 +88,16 @@ export class RoutedForReviewConsumer implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      const outcome = await this.commandBus.execute<DraftReviewCommand, DraftReviewOutcome>(command);
-      this.logger.log(`Attempt ${command.attemptId} [${envelope.eventId ?? '?'}]: ${describe(outcome)}`);
+      const said =
+        command instanceof DraftReviewCommand
+          ? describe(await this.commandBus.execute<DraftReviewCommand, DraftReviewOutcome>(command))
+          : describeDirect(await this.commandBus.execute<DirectReviewCommand, DirectReviewOutcome>(command));
+      this.logger.log(`Attempt ${command.attemptId} [${envelope.eventId ?? '?'}]: ${said}`);
       channel.ack(msg);
     } catch (err) {
       // Before any model call (the engine unreachable): one redelivery, then the submission
-      // simply waits for its teacher without a draft.
-      this.logger.error(`Review draft of ${command.attemptId} failed: ${err instanceof Error ? err.message : String(err)}`);
+      // simply waits for its teacher without a draft — or, without a school, stays routed.
+      this.logger.error(`Review of ${command.attemptId} failed: ${err instanceof Error ? err.message : String(err)}`);
       channel.nack(msg, false, !msg.fields.redelivered);
     }
   }
@@ -109,5 +120,19 @@ function describe(outcome: DraftReviewOutcome): string {
       return `draft refused by exercise-engine: ${outcome.code} (call ${outcome.aiCallId})`;
     case 'write_failed':
       return `draft lost, exercise-engine unreachable (call ${outcome.aiCallId})`;
+  }
+}
+
+function describeDirect(outcome: DirectReviewOutcome): string {
+  switch (outcome.kind) {
+    case 'skipped':
+      return `learner's review skipped (${outcome.reason})`;
+    case 'ruled':
+      return `learner's review written, ${outcome.remarks} remark(s), attempt ${outcome.attemptStatus} (call ${outcome.aiCallId})`;
+    case 'gave_up':
+      return (
+        `no reviewer (${outcome.reason}: ${outcome.cause}), engine ${outcome.engine}` +
+        (outcome.aiCallId ? ` (call ${outcome.aiCallId})` : '')
+      );
   }
 }
