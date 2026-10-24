@@ -123,6 +123,7 @@ describe('ListMySubmissionsHandler', () => {
     // one were ever mapped in, and a partial match would not notice it arriving.
     expect(result.items[0]!.decision).toEqual({
       verdict: 'returned',
+      by: 'teacher',
       byUserId: 'teacher-1',
       at: new Date('2026-08-19T10:00:00Z'),
       comment: 'Se på perfektum.',
@@ -145,6 +146,48 @@ describe('ListMySubmissionsHandler', () => {
     expect(result.items[0]).toMatchObject({
       status: 'approved',
       decision: { verdict: 'approved', byUserId: 'teacher-1' },
+    });
+  });
+
+  it('says a model’s verdict is a model’s, with nobody to name (plan 79, 2.3)', async () => {
+    const scored = attempt({
+      schoolId: null,
+      status: 'SCORED',
+      score: 67,
+      passed: true,
+      scoredAt: new Date('2026-10-24T10:00:00Z'),
+      reviewedAt: new Date('2026-10-24T10:00:00Z'),
+      reviewComment: 'Bra! Se på ordstillingen i setning 2.',
+    });
+    const { handler } = makeHandler([scored]);
+
+    const result = await handler.execute(query());
+
+    expect(result.items[0]).toMatchObject({ status: 'approved' });
+    expect(result.items[0]!.decision).toEqual({
+      verdict: 'approved',
+      by: 'ai',
+      byUserId: null,
+      at: new Date('2026-10-24T10:00:00Z'),
+      comment: 'Bra! Se på ordstillingen i setning 2.',
+    });
+  });
+
+  it('says a model’s return is a model’s', async () => {
+    const returned = attempt({
+      schoolId: null,
+      status: 'RETURNED',
+      reviewedAt: new Date('2026-10-24T10:00:00Z'),
+      reviewComment: 'Prøv igjen med perfektum.',
+    });
+    const { handler } = makeHandler([returned], returned);
+
+    const result = await handler.execute(query());
+
+    expect(result.items[0]).toMatchObject({
+      status: 'returned',
+      canResubmit: true,
+      decision: { verdict: 'returned', by: 'ai', byUserId: null },
     });
   });
 

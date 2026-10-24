@@ -271,7 +271,7 @@ export class AttemptResponseDto {
   })
   rubricSnapshot!: unknown;
 
-  @ApiPropertyOptional({ nullable: true, description: 'When a teacher read it.' })
+  @ApiPropertyOptional({ nullable: true, description: 'When the verdict was delivered — by a teacher or a model.' })
   reviewedAt!: string | null;
 
   @ApiPropertyOptional({
@@ -281,6 +281,16 @@ export class AttemptResponseDto {
       'learner is already told who marked their work on their own submissions screen.',
   })
   reviewedByUserId!: string | null;
+
+  @ApiPropertyOptional({
+    enum: ['teacher', 'ai'],
+    nullable: true,
+    description:
+      'Who delivered the verdict (plan 79, 2.3). `ai` — a model reviewed the work of a learner ' +
+      'nobody reviews; the client must say so, and reads the remarks from `GET …/ai-review`. ' +
+      'Null while nothing was delivered.',
+  })
+  reviewedBy!: 'teacher' | 'ai' | null;
 }
 
 export class ListAttemptsResponseDto {

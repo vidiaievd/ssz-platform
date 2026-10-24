@@ -1432,6 +1432,21 @@ export class Attempt extends AggregateRoot {
   }
 
   /**
+   * Who delivered the verdict this attempt carries (plan 79, 2.3): a person, a model for a
+   * learner nobody reviews, or nobody — still waiting, closed as `NO_REVIEWER`, scored by
+   * the machine.
+   *
+   * Only a delivery writes `reviewedAt`; a model's is the one without a signature. Read off
+   * the status as well, because a returned attempt the learner resumes keeps both columns
+   * from the verdict it is answering.
+   */
+  get reviewedBy(): 'teacher' | 'ai' | null {
+    if (this._status !== 'SCORED' && this._status !== 'RETURNED') return null;
+    if (this._reviewedByUserId !== null) return 'teacher';
+    return this._reviewedAt === null ? null : 'ai';
+  }
+
+  /**
    * A reviewer says they are looking at this one (plan 44 §44.8).
    *
    * The marker is advisory and never a mutex: a colleague's live claim is not displaced,

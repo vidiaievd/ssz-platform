@@ -1,0 +1,145 @@
+import { jest } from '@jest/globals';
+import { GetLearnerAiReviewHandler } from '../../../src/modules/ai-drafts/application/queries/get-learner-ai-review/get-learner-ai-review.handler.js';
+import { GetLearnerAiReviewQuery } from '../../../src/modules/ai-drafts/application/queries/get-learner-ai-review/get-learner-ai-review.query.js';
+import {
+  AttemptAiDraft,
+  type AiDraftStatus,
+} from '../../../src/modules/ai-drafts/domain/entities/attempt-ai-draft.entity.js';
+import {
+  Attempt,
+  type AttemptPersistenceProps,
+} from '../../../src/modules/attempts/domain/entities/attempt.entity.js';
+
+const REVIEWED = new Date('2026-10-24T10:00:00Z');
+
+function attempt(props: Partial<AttemptPersistenceProps> = {}): Attempt {
+  return Attempt.reconstitute({
+    id: 'a1',
+    userId: 'student-1',
+    exerciseId: 'ex-1',
+    assignmentId: null,
+    enrollmentId: null,
+    templateCode: 'translate_to_target',
+    targetLanguage: 'nb',
+    difficultyLevel: 'A2',
+    checkMode: 'GRADED',
+    practicedAtoms: [],
+    status: 'RETURNED',
+    score: 50,
+    passed: false,
+    timeSpentSeconds: 300,
+    submittedAnswer: { answers: [{ itemId: 'i1', text: 'i går jeg var hjemme' }] },
+    validationDetails: null,
+    feedback: null,
+    answerHash: 'hash',
+    revisionCount: 0,
+    recheckCount: 0,
+    answersRevealed: false,
+    selfChecksUsed: 0,
+    startedAt: new Date('2026-10-24T09:00:00Z'),
+    submittedAt: new Date('2026-10-24T09:30:00Z'),
+    scoredAt: null,
+    reviewedByUserId: null,
+    reviewedAt: REVIEWED,
+    reviewComment: 'Se på ordstillingen.',
+    reviewDecisions: [{ itemId: 'i1', approved: false }],
+    schoolId: null,
+    containerId: null,
+    groupId: null,
+    exercisePath: null,
+    reviewClaimedBy: null,
+    reviewClaimedAt: null,
+    previousAttemptId: null,
+    autoPassedItems: null,
+    totalItems: null,
+    ...props,
+  });
+}
+
+function review(status: AiDraftStatus = 'READY'): AttemptAiDraft {
+  return AttemptAiDraft.restore('d1', {
+    attemptId: 'a1',
+    capability: 'review_direct',
+    status,
+    items:
+      status === 'FAILED'
+        ? []
+        : [
+            {
+              itemId: 'i1',
+              sentenceIndex: 0,
+              aspect: 'order',
+              fragment: 'i går jeg var',
+              comment: 'V2: verbet står på andre plass.',
+              suggestion: 'i går var jeg',
+            },
+          ],
+    summary: status === 'FAILED' ? null : 'Se på ordstillingen.',
+    marks: null,
+    errorCode: status === 'FAILED' ? 'invalid_response' : null,
+    providerId: 'fake',
+    modelId: 'fake-model',
+    promptVersion: 'review_direct@1',
+    aiCallId: 'call-1',
+    createdAt: REVIEWED,
+    updatedAt: REVIEWED,
+  });
+}
+
+function makeHandler(row: Attempt | null, stored: AttemptAiDraft | null = review()) {
+  const attempts = { findById: jest.fn(() => Promise.resolve(row)) };
+  const drafts = { findByAttempt: jest.fn(() => Promise.resolve(stored)) };
+  return { handler: new GetLearnerAiReviewHandler(attempts as never, drafts as never), drafts };
+}
+
+const run = (handler: GetLearnerAiReviewHandler, userId = 'student-1') =>
+  handler.execute(new GetLearnerAiReviewQuery('a1', userId));
+
+describe('GetLearnerAiReviewHandler', () => {
+  it('hands the learner the remarks and the verdict, not the model behind them', async () => {
+    const { handler, drafts } = makeHandler(attempt());
+
+    const result = await run(handler);
+
+    expect(result.isOk).toBe(true);
+    expect(result.value).toEqual({
+      outcome: 'returned',
+      items: [expect.objectContaining({ itemId: 'i1', suggestion: 'i går var jeg' })],
+      summary: 'Se på ordstillingen.',
+      marks: null,
+      reviewedAt: REVIEWED,
+    });
+    expect(JSON.stringify(result.value)).not.toContain('fake-model');
+    expect(drafts.findByAttempt).toHaveBeenCalledWith('a1', 'review_direct');
+  });
+
+  it('reads an approval as one', async () => {
+    const result = await run(makeHandler(attempt({ status: 'SCORED', score: 100, passed: true })).handler);
+    expect(result.value.outcome).toBe('approved');
+  });
+
+  it('is somebody else’s attempt: forbidden', async () => {
+    const result = await run(makeHandler(attempt()).handler, 'student-2');
+    expect(result.error).toEqual({ code: 'FORBIDDEN' });
+  });
+
+  it('is not found when the attempt is not', async () => {
+    expect((await run(makeHandler(null).handler)).error).toEqual({ code: 'ATTEMPT_NOT_FOUND' });
+  });
+
+  it('has nothing to show while the verdict has not landed, even with the review stored', async () => {
+    const waiting = attempt({ status: 'ROUTED_FOR_REVIEW', reviewedAt: null, score: null, passed: null });
+    expect((await run(makeHandler(waiting).handler)).error).toEqual({ code: 'NO_AI_REVIEW' });
+  });
+
+  it('has nothing to show on a teacher’s verdict', async () => {
+    const teachers = attempt({ schoolId: 'school-1', reviewedByUserId: 'teacher-1' });
+    expect((await run(makeHandler(teachers).handler)).error).toEqual({ code: 'NO_AI_REVIEW' });
+  });
+
+  it('reads a failed review as none', async () => {
+    expect((await run(makeHandler(attempt(), review('FAILED')).handler)).error).toEqual({
+      code: 'NO_AI_REVIEW',
+    });
+  });
+});
