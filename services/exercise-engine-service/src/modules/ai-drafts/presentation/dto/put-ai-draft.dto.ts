@@ -41,9 +41,11 @@ export class AiDraftRemarkDto {
   @Min(1)
   sentenceIndex!: number;
 
-  // `alternative`: a correction the key did not foresee that is also right (error_correction).
+  // `alternative`: a correction the key did not foresee that is also right (error_correction),
+  // or a key point said in words the phrase match missed (short_answer).
   // `task`, `structure`: about an essay as a whole (writing_task).
-  @IsIn(['grammar', 'order', 'lexis', 'register', 'alternative', 'task', 'structure'])
+  // `content`: a key point an answer leaves out or gets wrong (short_answer).
+  @IsIn(['grammar', 'order', 'lexis', 'register', 'alternative', 'task', 'structure', 'content'])
   aspect!: string;
 
   /** Null only for a remark about the text as a whole; ai-service decides which aspects may. */

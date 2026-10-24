@@ -64,8 +64,30 @@ export interface WritingTaskSubject {
   text: string;
 }
 
+/** A `short_answer` submission as exercise-engine reads it, through the template's grader (step 1.7e). */
+export interface ShortAnswerSubject {
+  template: 'short_answer';
+  /** The language learnt, as the attempt records it (`nb`). */
+  targetLanguage: string;
+  instruction: string;
+  ai: { on: boolean; checks: { grammar?: boolean } };
+  /** The questions the learner answered; skipped ones are left out. */
+  questions: Array<{
+    itemId: string;
+    kind: string;
+    passage: string;
+    prompt: string;
+    model: string;
+    why: string;
+    elements: Array<{ label: string; required: boolean; hit: boolean }>;
+    verdict: string;
+    tooShort: boolean;
+    answer: string;
+  }>;
+}
+
 /** A submission beside its key, in its template's shape. */
-export type EngineSubject = TranslateSubject | ErrorCorrectionSubject | WritingTaskSubject;
+export type EngineSubject = TranslateSubject | ErrorCorrectionSubject | WritingTaskSubject | ShortAnswerSubject;
 
 /** What exercise-engine answers about a submission: something to review, or why not. */
 export interface ReviewSubjectResult {

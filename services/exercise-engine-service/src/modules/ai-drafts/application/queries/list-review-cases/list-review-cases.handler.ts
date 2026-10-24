@@ -59,7 +59,7 @@ export type ReviewCaseSkip =
    * measure a draft against. A rubric-marked essay has none by design and is not skipped.
    */
   | 'NO_DECISIONS'
-  /** No review prompt for this template yet (translate, error_correction and writing_task have one). */
+  /** No review prompt for this template, or a `short_answer` of the old single-question form. */
   | 'TEMPLATE_NOT_SUPPORTED'
   /** The exercise was deleted: there is no key to review against. */
   | 'EXERCISE_GONE';

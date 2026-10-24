@@ -228,10 +228,86 @@ describe('GetReviewSubjectHandler', () => {
     });
   });
 
+  // Plan 79, step 1.7e.
+  it('reads a short_answer submission through its grader: answered questions only, key points as found', async () => {
+    const { handler } = setup({
+      attempt: { status: 'ROUTED_FOR_REVIEW', schoolId: 'school-1', templateCode: 'short_answer' },
+      submitted: {
+        answers: [
+          { questionId: 'q1', text: 'Han flyttet fordi han fikk jobb.' },
+          // The author has since deleted the question: nothing to read the answer against.
+          { questionId: 'gone', text: 'Noe.' },
+        ],
+      },
+      exercise: {
+        content: {
+          title: 'Teksten',
+          instruction: 'Svar med én til tre setninger.',
+          questions: [
+            { id: 'q1', kind: 'reading', passage: 'Ali flyttet til Bergen i 2019 fordi han fikk jobb der.', prompt: 'Hvorfor flyttet Ali?' },
+            // Skipped by the learner: left out of the subject.
+            { id: 'q2', kind: 'opinion', passage: '', prompt: 'Hva synes du?' },
+          ],
+          settings: { passRule: 'all', minWords: 3, aiStage: true, aiGrammar: false, teacherReview: 'flagged' },
+        },
+        expectedAnswers: {
+          questions: {
+            q1: {
+              elements: [
+                { id: 'e1', label: 'Han fikk jobb', anchors: ['fikk jobb'], required: true },
+                { id: 'e2', label: 'I Bergen', anchors: ['i bergen'], required: true },
+                { id: 'e3', label: 'Half-written', anchors: [' '], required: true },
+              ],
+              model: 'Han fikk jobb i Bergen.',
+              why: 'Teksten sier at han fikk jobb der.',
+            },
+            q2: { elements: [{ id: 'e4', label: 'En mening', anchors: ['synes'], required: true }], model: 'Jeg synes …', why: '' },
+          },
+        },
+      },
+    });
+    const result = await run(handler);
+
+    expect(result.value.skip).toBeNull();
+    expect(result.value.subject).toEqual({
+      template: 'short_answer',
+      targetLanguage: 'nb',
+      instruction: 'Svar med én til tre setninger.',
+      ai: { on: true, checks: { grammar: false } },
+      questions: [
+        {
+          itemId: 'q1',
+          kind: 'reading',
+          passage: 'Ali flyttet til Bergen i 2019 fordi han fikk jobb der.',
+          prompt: 'Hvorfor flyttet Ali?',
+          model: 'Han fikk jobb i Bergen.',
+          why: 'Teksten sier at han fikk jobb der.',
+          elements: [
+            { label: 'Han fikk jobb', required: true, hit: true },
+            { label: 'I Bergen', required: true, hit: false },
+          ],
+          verdict: 'partial',
+          tooShort: false,
+          answer: 'Han flyttet fordi han fikk jobb.',
+        },
+      ],
+    });
+  });
+
+  it('reads an old-form short_answer, then skips it: there are no key points to review by', async () => {
+    const { handler, reads } = setup({
+      attempt: { status: 'ROUTED_FOR_REVIEW', schoolId: 'school-1', templateCode: 'short_answer' },
+      submitted: { text: 'Han bor i Oslo.' },
+      exercise: { content: { question: 'Hvor bor han?' }, expectedAnswers: { accepted_answers: ['i Oslo'] } },
+    });
+    expect((await run(handler)).value).toMatchObject({ skip: 'TEMPLATE_NOT_SUPPORTED', subject: null });
+    expect(reads).toEqual(['ex-1:nb:PRACTICE']);
+  });
+
   it.each([
     [{ status: 'SCORED' as AttemptStatus, schoolId: 'school-1', templateCode: 'translate_to_target' }, 'ATTEMPT_NOT_IN_REVIEW'],
     [{ status: 'ROUTED_FOR_REVIEW' as AttemptStatus, schoolId: null, templateCode: 'translate_to_target' }, 'NO_TEACHER_REVIEW'],
-    [{ status: 'ROUTED_FOR_REVIEW' as AttemptStatus, schoolId: 'school-1', templateCode: 'short_answer' }, 'TEMPLATE_NOT_SUPPORTED'],
+    [{ status: 'ROUTED_FOR_REVIEW' as AttemptStatus, schoolId: 'school-1', templateCode: 'dictation' }, 'TEMPLATE_NOT_SUPPORTED'],
   ])('skips %o as %s without reading content', async (attempt, reason) => {
     const { handler, reads } = setup({ attempt });
     const result = await run(handler);

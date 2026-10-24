@@ -147,7 +147,7 @@ describe('DraftReviewHandler', () => {
   });
 
   it.each([
-    [{ templateCode: 'short_answer' }, 'template_not_in_first_wave'],
+    [{ templateCode: 'dictation' }, 'template_not_in_first_wave'],
     [{ schoolId: null }, 'no_school'],
   ])('skips %o from the event alone, reading nothing', async (over, reason) => {
     const { handler, reads, calls } = setup();

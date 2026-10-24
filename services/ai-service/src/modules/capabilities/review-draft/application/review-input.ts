@@ -1,10 +1,17 @@
 import { commentLanguage, languageName } from '../domain/comment-language.js';
-import { enabledAspects, errorCorrectionAspects, writingTaskAspects, type ReviewAspect } from '../domain/review-aspect.js';
+import {
+  enabledAspects,
+  errorCorrectionAspects,
+  shortAnswerAspects,
+  writingTaskAspects,
+  type ReviewAspect,
+} from '../domain/review-aspect.js';
 import type { ReviewFrame } from '../domain/review-remarks.js';
+import type { ShortAnswerReviewInput } from '../domain/short-answer-review.js';
 import type { TranslateReviewInput } from '../domain/translate-review.js';
 import { ESSAY_ITEM_ID, type WritingTaskReviewInput } from '../domain/writing-task-review.js';
 import type { ReviewSubject } from '../prompts/prompts.js';
-import type { EngineSubject, TranslateSubject, WritingTaskSubject } from './ports/review-attempts.client.js';
+import type { EngineSubject, ShortAnswerSubject, TranslateSubject, WritingTaskSubject } from './ports/review-attempts.client.js';
 
 /** Why a submission is not asked of a model at all — the same in the queue and in a run over the set. */
 export type UnaskableReason = 'ai_off' | 'no_checks' | 'empty_answer';
@@ -18,15 +25,18 @@ export function subjectAspects(subject: EngineSubject): ReviewAspect[] {
       return errorCorrectionAspects(subject.ai.checks);
     case 'writing_task':
       return writingTaskAspects(subject.ai.checks);
+    case 'short_answer':
+      return shortAnswerAspects(subject.ai.checks);
   }
 }
 
 /**
  * The submission's answers in the order the prompt numbers them — what remarks quote and
- * point at by index. An essay is one: the whole text.
+ * point at by index. An essay is one: the whole text; a set of open questions, one per answer.
  */
 export function subjectSentences(subject: EngineSubject): ReviewFrame['sentences'] {
   if (subject.template === 'writing_task') return [{ itemId: ESSAY_ITEM_ID, answer: subject.text }];
+  if (subject.template === 'short_answer') return subject.questions.map((q) => ({ itemId: q.itemId, answer: q.answer }));
   return subject.sentences.map((s) => ({ itemId: s.itemId, answer: s.answer }));
 }
 
@@ -45,6 +55,8 @@ export function unaskable(subject: EngineSubject): UnaskableReason | null {
       return subject.sentences.every((s) => s.answer === s.given) ? 'empty_answer' : null;
     case 'writing_task':
       return subject.text.trim() === '' ? 'empty_answer' : null;
+    case 'short_answer':
+      return subject.questions.every((q) => q.answer.trim() === '') ? 'empty_answer' : null;
   }
 }
 
@@ -61,6 +73,9 @@ export function toReviewSubject(subject: EngineSubject, schoolLanguage: string |
   }
   if (subject.template === 'writing_task') {
     return { template: 'writing_task', input: toWritingTaskInput(subject, aspects, schoolLanguage) };
+  }
+  if (subject.template === 'short_answer') {
+    return { template: 'short_answer', input: toShortAnswerInput(subject, aspects, schoolLanguage) };
   }
   const target = languageName(subject.targetLanguage);
   return {
@@ -122,5 +137,18 @@ function toWritingTaskInput(subject: WritingTaskSubject, aspects: ReviewAspect[]
     // the rubric was frozen on it (or an engine that does not send one) gets remarks only.
     rubric: subject.ai.checks.draft === true && subject.rubric && subject.rubric.length > 0 ? subject.rubric : null,
     sentences: [{ itemId: ESSAY_ITEM_ID, answer: subject.text }],
+  };
+}
+
+function toShortAnswerInput(subject: ShortAnswerSubject, aspects: ReviewAspect[], schoolLanguage: string | null): ShortAnswerReviewInput {
+  const target = languageName(subject.targetLanguage);
+  return {
+    targetLanguage: target,
+    // The template carries no explanation language: without the school's, the language learnt.
+    commentLanguage: commentLanguage(schoolLanguage, target),
+    instruction: subject.instruction,
+    aspects,
+    questions: subject.questions,
+    sentences: subject.questions.map((q) => ({ itemId: q.itemId, answer: q.answer })),
   };
 }

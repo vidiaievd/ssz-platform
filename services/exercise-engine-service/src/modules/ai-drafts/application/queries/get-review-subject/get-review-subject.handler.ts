@@ -25,7 +25,7 @@ export type ReviewSubjectSkip =
   | 'NO_TEACHER_REVIEW'
   /** A draft is already on it — written, failed or acted on. A redelivered event stops here. */
   | 'DRAFT_EXISTS'
-  /** No review prompt for this template yet (translate, error_correction and writing_task have one). */
+  /** No review prompt for this template, or a `short_answer` of the old single-question form. */
   | 'TEMPLATE_NOT_SUPPORTED'
   /** The exercise was deleted: there is no key to review against. */
   | 'EXERCISE_GONE';

@@ -152,7 +152,7 @@ describe('ListReviewCasesHandler', () => {
       [draft('gone'), draft('silent'), draft('other'), draft('ok')],
       [
         attempt('silent', { reviewDecisions: [] }),
-        attempt('other', { templateCode: 'short_answer' }),
+        attempt('other', { templateCode: 'dictation' }),
         attempt('ok'),
       ],
     );
