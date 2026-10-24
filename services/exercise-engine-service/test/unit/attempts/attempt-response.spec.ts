@@ -159,6 +159,11 @@ describe('toAttemptDto — who delivered the verdict (plan 79, 2.3)', () => {
     );
     expect(dto.reviewedBy).toBeNull();
   });
+
+  it('says whose queue routed work waits in — none without a school (plan 79, 2.3c2)', () => {
+    expect(toAttemptDto(attempt()).schoolId).toBe('school-1');
+    expect(toAttemptDto(attempt({ schoolId: null })).schoolId).toBeNull();
+  });
 });
 
 describe('toAttemptDto — the questions already handed in', () => {

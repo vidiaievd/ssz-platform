@@ -182,6 +182,7 @@ export function toAttemptDto(attempt: Attempt): AttemptResponseDto {
     exerciseId: attempt.exerciseId,
     assignmentId: attempt.assignmentId,
     enrollmentId: attempt.enrollmentId,
+    schoolId: attempt.schoolId,
     templateCode: attempt.templateCode,
     targetLanguage: attempt.targetLanguage,
     difficultyLevel: attempt.difficultyLevel,

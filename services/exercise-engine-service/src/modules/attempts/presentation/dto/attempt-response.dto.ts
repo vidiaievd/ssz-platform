@@ -17,6 +17,15 @@ export class AttemptResponseDto {
   @ApiPropertyOptional({ nullable: true })
   enrollmentId!: string | null;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'The school whose queue reads work this attempt routes for review. Null for a learner ' +
+      'with no school: their routed work is read by a model or by nobody (plan 79, 2.1c), and ' +
+      'a client waiting on it must not say «your teacher».',
+  })
+  schoolId!: string | null;
+
   @ApiProperty()
   templateCode!: string;
 
