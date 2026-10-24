@@ -771,6 +771,34 @@ export class Attempt extends AggregateRoot {
     return this.closeUnscored('NO_REVIEWER', counts);
   }
 
+  /**
+   * Work routed to a model that turned out unable to read it (plan 79, step 2.2a): the
+   * learner's credits ran out between the hand-in and the call, the author switched the
+   * checks off, the answer was blank, or every model failed. Left routed, it would wait
+   * forever in a queue no screen shows — the hole 2.1c closed at hand-in.
+   *
+   * Nothing is announced: routing already counted the work as handed in, and nobody judged
+   * it, so there is nothing for progress or memory to hear. Idempotent, so a redelivered
+   * request answers from the row.
+   */
+  giveUpReview(): Result<void, InvalidAttemptTransitionError> {
+    if (this._status === 'NO_REVIEWER') return Result.ok();
+    if (this._status !== 'ROUTED_FOR_REVIEW') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot close attempt with status ${this._status} without a reviewer`,
+        ),
+      );
+    }
+    if (this._schoolId !== null) {
+      return Result.fail(
+        new InvalidAttemptTransitionError('A teacher reviews this submission'),
+      );
+    }
+    this._status = 'NO_REVIEWER';
+    return Result.ok();
+  }
+
   /** Both ways free-form work leaves `SUBMITTED` without a score: to a reviewer, or to nobody. */
   private closeUnscored(
     status: 'ROUTED_FOR_REVIEW' | 'NO_REVIEWER',

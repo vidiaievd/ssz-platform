@@ -483,6 +483,56 @@ describe('Attempt entity', () => {
     });
   });
 
+  // Plan 79, step 2.2a — routed to a model that cannot read the work after all.
+  describe('giveUpReview()', () => {
+    const routedTo = (schoolId: string | null) => {
+      const attempt = makeAttempt();
+      attempt.snapshotReviewContext({
+        schoolId,
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        previousAttemptId: null,
+        revisionCount: 0,
+      });
+      attempt.submit({}, 'h');
+      attempt.routeForReview({ autoPassedItems: 1, totalItems: 3 });
+      attempt.clearDomainEvents();
+      return attempt;
+    };
+
+    it('transitions ROUTED_FOR_REVIEW → NO_REVIEWER, keeping the tally and announcing nothing', () => {
+      const attempt = routedTo(null);
+      expect(attempt.giveUpReview().isOk).toBe(true);
+      expect(attempt.status).toBe('NO_REVIEWER');
+      expect(attempt.autoPassedItems).toBe(1);
+      expect(attempt.scoreValue).toBeNull();
+      expect(attempt.getDomainEvents()).toHaveLength(0);
+    });
+
+    it('is idempotent', () => {
+      const attempt = routedTo(null);
+      attempt.giveUpReview();
+      expect(attempt.giveUpReview().isOk).toBe(true);
+      expect(attempt.status).toBe('NO_REVIEWER');
+    });
+
+    it('leaves a teacher’s work in the queue', () => {
+      const attempt = routedTo('school-1');
+      expect(attempt.giveUpReview().isFail).toBe(true);
+      expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
+    });
+
+    it('fails on work that is not waiting for review', () => {
+      const attempt = makeAttempt();
+      attempt.submit({}, 'h');
+      const result = attempt.giveUpReview();
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(InvalidAttemptTransitionError);
+      expect(attempt.status).toBe('SUBMITTED');
+    });
+  });
+
   describe('abandon()', () => {
     it('transitions IN_PROGRESS → ABANDONED', () => {
       const attempt = makeAttempt();
