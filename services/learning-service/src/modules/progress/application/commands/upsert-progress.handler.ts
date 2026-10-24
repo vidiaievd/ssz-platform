@@ -58,6 +58,7 @@ export class UpsertProgressHandler
         score: cmd.score,
         completed: cmd.outcome === undefined ? cmd.completed : cmd.outcome === 'passed',
         awaitingReview: cmd.outcome === 'submitted',
+        byAi: cmd.reviewedBy === 'ai',
         now,
       });
     }

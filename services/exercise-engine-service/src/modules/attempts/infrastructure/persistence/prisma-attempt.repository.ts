@@ -291,18 +291,18 @@ export class PrismaAttemptRepository implements IAttemptRepository {
    */
   private mySubmissionsWhere(userId: string, status: MySubmissionsStatus) {
     const base = { userId, submittedAt: { not: null } };
+    // A score somebody delivered: a teacher's signature, or a model's review of the work of
+    // a learner nobody reviews — the one delivery with no signature (plan 79, 2.3).
+    const delivered = {
+      status: 'SCORED' as const,
+      OR: [{ reviewedByUserId: { not: null } }, { reviewedAt: { not: null } }],
+    };
     if (status === 'pending') return { ...base, status: 'ROUTED_FOR_REVIEW' as const };
     if (status === 'returned') return { ...base, status: 'RETURNED' as const };
-    if (status === 'approved') {
-      return { ...base, status: 'SCORED' as const, reviewedByUserId: { not: null } };
-    }
+    if (status === 'approved') return { ...base, ...delivered };
     return {
       ...base,
-      OR: [
-        { status: 'ROUTED_FOR_REVIEW' as const },
-        { status: 'RETURNED' as const },
-        { status: 'SCORED' as const, reviewedByUserId: { not: null } },
-      ],
+      OR: [{ status: 'ROUTED_FOR_REVIEW' as const }, { status: 'RETURNED' as const }, delivered],
     };
   }
 

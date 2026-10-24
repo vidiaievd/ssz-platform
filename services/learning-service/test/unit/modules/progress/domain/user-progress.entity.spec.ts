@@ -30,6 +30,36 @@ describe('UserProgress', () => {
     });
   });
 
+  describe('completed on a model’s verdict (plan 79 §2.1)', () => {
+    it('marks a first completion reached on a model’s verdict', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 30, score: 90, completed: true, byAi: true, now: NOW });
+      expect(p.status).toBe('COMPLETED');
+      expect(p.completedByAi).toBe(true);
+    });
+
+    it('clears the mark once a person or the machine passes it too', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 30, score: 90, completed: true, byAi: true, now: NOW });
+      p.recordAttempt({ timeSpentSeconds: 30, score: 80, completed: true, now: LATER });
+      expect(p.completedByAi).toBe(false);
+    });
+
+    it('never marks a completion a stronger verdict already reached', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 30, score: 80, completed: true, now: NOW });
+      p.recordAttempt({ timeSpentSeconds: 30, score: 90, completed: true, byAi: true, now: LATER });
+      expect(p.completedByAi).toBe(false);
+    });
+
+    it('is not touched by an attempt that does not complete', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 30, score: 90, completed: true, byAi: true, now: NOW });
+      p.recordAttempt({ timeSpentSeconds: 30, score: 20, completed: false, now: LATER });
+      expect(p.completedByAi).toBe(true);
+    });
+  });
+
   describe('recordAttempt', () => {
     it('an attempt made earlier and arriving later keeps neither its score nor its time', () => {
       // Worked offline at NOW and synced after an online attempt at LATER (VoxOrd offline

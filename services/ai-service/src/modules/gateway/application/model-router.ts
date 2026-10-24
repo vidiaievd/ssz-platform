@@ -17,6 +17,13 @@ import { CIRCUIT_BREAKER, type ICircuitBreaker } from './ports/circuit-breaker.p
 /** The call as an agent states it; output cap, temperature and timeout come from the binding. */
 export type GatewayRequest = Omit<LlmRequest, 'maxOutputTokens' | 'temperature' | 'timeoutMs'>;
 
+/**
+ * A request, or how to build one from the binding's `promptVersion` — the admin picks the
+ * prompt version on the binding, so an agent with versioned prompts cannot build its
+ * request before the binding is read.
+ */
+export type GatewayInput = GatewayRequest | ((promptVersion: string) => GatewayRequest);
+
 export type ModelRole = 'primary' | 'fallback';
 
 /** What the access gate allows this call; null regions = any. */
@@ -102,12 +109,13 @@ export class ModelRouter {
 
   async call(
     capability: string,
-    call: GatewayRequest,
+    input: GatewayInput,
     constraints: RouteConstraints = NO_CONSTRAINTS,
   ): Promise<Result<RoutedCall, RouteFailure>> {
     const binding = await this.bindings.get(capability);
     if (!binding || !binding.enabled) return Result.fail({ kind: 'disabled', binding, attempts: [] });
 
+    const call = typeof input === 'function' ? input(binding.promptVersion) : input;
     const request: LlmRequest = {
       ...call,
       maxOutputTokens: binding.maxOutputTokens,

@@ -13,6 +13,7 @@ type PrismaProgressModel = {
   completedAt: Date | null;
   needsReviewSince: Date | null;
   reviewResolvedAt: Date | null;
+  completedByAi: boolean;
 };
 
 export class ProgressMapper {
@@ -30,6 +31,7 @@ export class ProgressMapper {
       completedAt: row.completedAt,
       needsReviewSince: row.needsReviewSince,
       reviewResolvedAt: row.reviewResolvedAt,
+      completedByAi: row.completedByAi,
     });
   }
 
@@ -47,6 +49,7 @@ export class ProgressMapper {
       completedAt: p.completedAt,
       needsReviewSince: p.needsReviewSince,
       reviewResolvedAt: p.reviewResolvedAt,
+      completedByAi: p.completedByAi,
     };
   }
 }

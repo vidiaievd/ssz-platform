@@ -97,4 +97,19 @@ export class ReviewAttemptRequestDto {
   @IsOptional()
   @IsObject()
   rubricMarks?: Record<string, number>;
+
+  /**
+   * What the reviewer did with the model's draft (plan 79, 1.5), keyed as the card keeps it:
+   * a remark's index, `summary` for the overall note, `draft` for dropping all of it. A
+   * remark with no key was left alone. Sent only when the reviewer was shown a draft —
+   * absent, the draft stays unlabelled. Unknown keys and values are dropped.
+   */
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'string', enum: ['accepted', 'edited', 'discarded'] },
+    example: { '0': 'accepted', '1': 'edited', '2': 'discarded', summary: 'accepted' },
+  })
+  @IsOptional()
+  @IsObject()
+  aiOutcomes?: Record<string, string>;
 }

@@ -25,8 +25,23 @@ enum AttemptStatus {
   ROUTED_FOR_REVIEW @map("routed_for_review")
   RETURNED          @map("returned")
   ABANDONED         @map("abandoned")
+  // Free-form work nobody will read: no school's queue, and no model the learner may
+  // ask (plan 79, step 2.1c). Closed at submit instead of waiting in a queue nobody shows.
+  NO_REVIEWER       @map("no_reviewer")
 
   @@map("attempt_status")
+}
+
+// What became of a model's draft review (plan 79, step 1.2). READY/FAILED are written by
+// ai-service; SENT/EDITED/DISCARDED by the teacher's verdict (step 1.5).
+enum AiDraftStatus {
+  READY     @map("ready")
+  FAILED    @map("failed")
+  SENT      @map("sent")
+  EDITED    @map("edited")
+  DISCARDED @map("discarded")
+
+  @@map("ai_draft_status")
 }
 
 // PRACTICE ships expectedAnswers for instant local checking; GRADED withholds them.
@@ -310,6 +325,9 @@ model Attempt {
   // (IMPLEMENTATION.md, "Persistence").
   rubricSnapshot Json? @map("rubric_snapshot")
 
+  // Model-drafted reviews of this submission (plan 79). Kept after the verdict.
+  aiDrafts AttemptAiDraft[]
+
   @@index([userId, status])
   @@index([exerciseId])
   // The review queue: everything waiting on one exercise.
@@ -326,6 +344,57 @@ model Attempt {
   // "attempts_one_open_per_user_exercise" WHERE status = 'in_progress', in raw SQL
   // (migration 20261017120000) — Prisma cannot express a partial index (plan 76, 2.5).
   @@map("attempts")
+}
+
+// A model's draft review of one submission (plan 79, step 1.2) — a property of the attempt,
+// not of the exercise. Written by ai-service over the internal API, idempotent on
+// `aiCallId`. One per (attempt, capability): a rerun replaces a draft nobody has acted on.
+//
+// What the model proposed is never overwritten once the teacher decides: the verdict
+// records what was sent (review_decisions), and this row keeps what was offered. The pair
+// is the labelled data plan 79 §1.6 compares models on.
+model AttemptAiDraft {
+  id        String @id @default(uuid())
+  attemptId String @map("attempt_id")
+  attempt   Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  // ai-service capability code: `review_draft` (teacher) now, `review_direct` in part 2.
+  capability String
+  status     AiDraftStatus
+
+  // Remarks, as ai-service produced them: [{ itemId, sentenceIndex, aspect, fragment,
+  // comment, suggestion }]. Empty for FAILED.
+  items   Json
+  summary String?
+  // Suggested rubric marks (step 1.7c): [{ criterionId, mark 0-3, reason }], keyed by the
+  // attempt's rubric snapshot. `[]` (or null on rows from before the step) = not asked for.
+  marks   Json?
+  // Why there is no draft text (FAILED): invalid_response, unavailable, …
+  errorCode String? @map("error_code")
+
+  // Which model and prompt produced it — the axes outcomes are folded on (step 1.5).
+  providerId    String? @map("provider_id")
+  modelId       String? @map("model_id")
+  promptVersion String? @map("prompt_version")
+  // ai-service ledger row; the idempotency key of the write.
+  aiCallId String @unique @map("ai_call_id")
+
+  // What the verdict made of it (step 1.5): { remarks: outcome[], summary: outcome | null,
+  // draftDiscarded, marks? }, outcome = accepted | edited | discarded | untouched; marks (1.7c)
+  // = [{ criterionId, outcome: same | different, delta }]. Null until decided.
+  outcomes  Json?
+  decidedAt DateTime? @map("decided_at")
+
+  // The learner said a `review_direct` review is wrong (step 2.3b) — once, with an optional
+  // word on why. The word stays here; the event carries only that there was one.
+  disputedAt    DateTime? @map("disputed_at") @db.Timestamptz
+  disputeReason String?   @map("dispute_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([attemptId, capability])
+  @@map("attempt_ai_drafts")
 }
 
 // RabbitMQ consumer idempotency — one row per processed event.

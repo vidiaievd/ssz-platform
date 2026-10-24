@@ -96,6 +96,24 @@ describe('toAttemptDto — the rubric a learner may read', () => {
     expect(dto.rubricSnapshot).toMatchObject({ passScore: 4 });
   });
 
+  it('sends the rubric under a model’s verdict too, for a learner nobody reviews (plan 79, 2.3)', () => {
+    const dto = toAttemptDto(
+      attempt({
+        schoolId: null,
+        status: 'RETURNED' as AttemptStatus,
+        reviewedAt: new Date('2026-10-24T18:00:00Z'),
+        reviewComment: 'Avslutningen mangler.',
+        rubricSnapshot: SNAPSHOT,
+        rubricMarks: { c1: 1 },
+      }),
+    );
+
+    expect(dto.reviewedBy).toBe('ai');
+    expect(dto.reviewedByUserId).toBeNull();
+    expect(dto.rubricMarks).toEqual({ c1: 1 });
+    expect(dto.rubricSnapshot).toMatchObject({ passScore: 4 });
+  });
+
   it('reports no rubric at all for the templates graded per item', () => {
     const dto = toAttemptDto(
       attempt({
@@ -108,6 +126,43 @@ describe('toAttemptDto — the rubric a learner may read', () => {
 
     expect(dto.rubricSnapshot).toBeNull();
     expect(dto.rubricMarks).toBeNull();
+  });
+});
+
+describe('toAttemptDto — who delivered the verdict (plan 79, 2.3)', () => {
+  it('names the teacher’s verdict', () => {
+    const dto = toAttemptDto(
+      attempt({
+        status: 'SCORED' as AttemptStatus,
+        reviewedByUserId: 'teacher-1',
+        reviewedAt: new Date('2026-08-21T18:00:00Z'),
+      }),
+    );
+    expect(dto.reviewedBy).toBe('teacher');
+  });
+
+  it('is null while the work waits, and on a returned attempt the learner resumed', () => {
+    expect(toAttemptDto(attempt()).reviewedBy).toBeNull();
+    // A resumed return keeps the columns of the verdict it answers; that verdict is not
+    // this attempt's any more.
+    const resumed = attempt({
+      schoolId: null,
+      status: 'IN_PROGRESS' as AttemptStatus,
+      reviewedAt: new Date('2026-10-24T18:00:00Z'),
+    });
+    expect(toAttemptDto(resumed).reviewedBy).toBeNull();
+  });
+
+  it('is null on a score the machine set', () => {
+    const dto = toAttemptDto(
+      attempt({ templateCode: 'multiple_choice', status: 'SCORED' as AttemptStatus, score: 80 }),
+    );
+    expect(dto.reviewedBy).toBeNull();
+  });
+
+  it('says whose queue routed work waits in — none without a school (plan 79, 2.3c2)', () => {
+    expect(toAttemptDto(attempt()).schoolId).toBe('school-1');
+    expect(toAttemptDto(attempt({ schoolId: null })).schoolId).toBeNull();
   });
 });
 

@@ -6,7 +6,7 @@ import type { CallContext } from '../../ledger/domain/ai-call.js';
 import { BINDING_SOURCE, type IBindingSource } from '../../registry/application/ports/binding.source.js';
 import type { AiBinding } from '../../registry/domain/binding.js';
 import { Result } from '../../../shared/kernel/result.js';
-import { ModelRouter, type GatewayRequest, type RouteAttempt, type RouteFailure, type RoutedCall } from './model-router.js';
+import { ModelRouter, type GatewayInput, type RouteAttempt, type RouteFailure, type RoutedCall } from './model-router.js';
 
 export type GatewayFailure =
   | RouteFailure
@@ -42,7 +42,7 @@ export class AiGateway {
     private readonly recorder: CallRecorder,
   ) {}
 
-  async call(capability: string, context: CallContext, request: GatewayRequest): Promise<GatewayCall> {
+  async call(capability: string, context: CallContext, request: GatewayInput): Promise<GatewayCall> {
     const startedAt = new Date();
     const { routed, grant } = await this.route(capability, context, request);
     const latencyMs = Date.now() - startedAt.getTime();
@@ -54,7 +54,7 @@ export class AiGateway {
   private async route(
     capability: string,
     context: CallContext,
-    request: GatewayRequest,
+    request: GatewayInput,
   ): Promise<{ routed: Result<RoutedCall, GatewayFailure>; grant: GateGrant | null }> {
     const binding = await this.bindings.get(capability);
     if (!binding || !binding.enabled) return { routed: Result.fail({ kind: 'disabled', binding, attempts: [] }), grant: null };

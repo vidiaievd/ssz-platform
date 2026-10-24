@@ -44,6 +44,16 @@ export class SubmitAnswerResponseDto {
   @ApiProperty()
   requiresReview!: boolean;
 
+  @ApiPropertyOptional({
+    enum: ['teacher', 'ai', 'none'],
+    example: 'none',
+    description:
+      'Who will read an answer that requires review: the school\'s teacher, a model (self-study ' +
+      'with ai.review_direct), or nobody — then the attempt is closed as no_reviewer and nothing ' +
+      'more will come. Absent when nothing went to review.',
+  })
+  reviewer?: 'teacher' | 'ai' | 'none';
+
   @ApiProperty({ type: FeedbackDto })
   feedback!: FeedbackDto;
 

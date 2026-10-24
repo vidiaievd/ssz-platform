@@ -182,6 +182,7 @@ export function toAttemptDto(attempt: Attempt): AttemptResponseDto {
     exerciseId: attempt.exerciseId,
     assignmentId: attempt.assignmentId,
     enrollmentId: attempt.enrollmentId,
+    schoolId: attempt.schoolId,
     templateCode: attempt.templateCode,
     targetLanguage: attempt.targetLanguage,
     difficultyLevel: attempt.difficultyLevel,
@@ -200,13 +201,14 @@ export function toAttemptDto(attempt: Attempt): AttemptResponseDto {
     // The rubric behind the mark, and only once there is a mark. The criteria carry
     // their level descriptors, which sit in the answer key precisely because a learner
     // must not read them while writing (plan 50 §4); a delivered verdict is what turns
-    // them from a key into an explanation. `deliveredVerdict()` is the same reading the
-    // review screen uses, so the two cannot disagree about whether this is graded.
-    ...(attempt.deliveredVerdict() === null
+    // them from a key into an explanation. A model's verdict on the work of a learner
+    // nobody reviews is a delivered one too (plan 79, 2.3): its marks are the grade.
+    ...(attempt.reviewedBy === null
       ? { rubricMarks: null, rubricSnapshot: null }
       : { rubricMarks: attempt.rubricMarks, rubricSnapshot: attempt.rubricSnapshot }),
     reviewedAt: attempt.reviewedAt?.toISOString() ?? null,
     reviewedByUserId: attempt.reviewedByUserId,
+    reviewedBy: attempt.reviewedBy,
   };
 }
 

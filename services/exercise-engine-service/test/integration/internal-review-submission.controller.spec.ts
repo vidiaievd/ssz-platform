@@ -5,6 +5,8 @@ import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import request from 'supertest';
 import { InternalReviewController } from '../../src/modules/attempts/presentation/controllers/internal-review.controller.js';
+import { GetDraftForReviewHandler } from '../../src/modules/ai-drafts/application/queries/get-draft-for-review/get-draft-for-review.handler.js';
+import { ATTEMPT_AI_DRAFT_REPOSITORY } from '../../src/modules/ai-drafts/domain/repositories/attempt-ai-draft.repository.js';
 import { GetSubmissionForReviewHandler } from '../../src/modules/attempts/application/queries/get-submission-for-review/get-submission-for-review.handler.js';
 import { ATTEMPT_REPOSITORY } from '../../src/modules/attempts/domain/repositories/attempt.repository.js';
 import { ANSWER_VALIDATOR } from '../../src/shared/application/ports/answer-validator.port.js';
@@ -111,7 +113,13 @@ describe('InternalReviewController — one submission (integration)', () => {
       controllers: [InternalReviewController],
       providers: [
         GetSubmissionForReviewHandler,
+        GetDraftForReviewHandler,
         { provide: ATTEMPT_REPOSITORY, useValue: mockRepo },
+        // No model has drafted these: the card is the one it was before plan 79.
+        {
+          provide: ATTEMPT_AI_DRAFT_REPOSITORY,
+          useValue: { findByAttempt: jest.fn(() => Promise.resolve(null)) },
+        },
         { provide: ANSWER_VALIDATOR, useValue: mockValidator },
         { provide: CONTENT_CLIENT, useValue: mockContent },
         { provide: ConfigService, useValue: { get: () => INTERNAL_TOKEN } },

@@ -113,6 +113,26 @@ describe('SchemaGuard', () => {
     expect(() => guard.check(result({ kind: 'structured', data: {} }), broken)).toThrow('broken');
   });
 
+  it("runs the request's verify after the schema and refuses on its reason", () => {
+    const seen: unknown[] = [];
+    const verify = (data: unknown) => {
+      seen.push(data);
+      return (data as { score: number }).score > 50 ? 'score too high for this test' : null;
+    };
+    const req: LlmRequest = { ...request(), responseSchema: { name: 'verdict', schema, verify } };
+
+    expect(guard.check(result({ kind: 'text', text: '{"verdict":"correct","score":10}' }), req).isOk).toBe(true);
+    expect(seen).toEqual([{ verdict: 'correct', score: 10 }]);
+    expectInvalid(guard.check(result({ kind: 'structured', data: { verdict: 'correct', score: 90 } }), req), 'score too high');
+  });
+
+  it('does not run verify on an answer that already fails the schema', () => {
+    const verify = jest.fn(() => null);
+    const req: LlmRequest = { ...request(), responseSchema: { name: 'verdict', schema, verify } };
+    expectInvalid(guard.check(result({ kind: 'structured', data: { verdict: 'maybe', score: 1 } }), req), 'verdict');
+    expect(verify).not.toHaveBeenCalled();
+  });
+
   it('reuses the compiled validator for the same schema object', () => {
     const local = new SchemaGuard();
     const compile = jest.spyOn((local as any).ajv, 'compile');

@@ -17,6 +17,8 @@ type ValidateFn = ((data: unknown) => boolean) & { errors?: unknown[] | null };
  * answer either satisfies the schema as written or is `invalid_response` — never "close
  * enough", because the caller hands it to the kernel's validator or to a learner.
  *
+ * After the schema, the request's own `verify` (if any) has its say, with the same verdict.
+ *
  * On success the result comes back with `output.kind = 'structured'`: a text answer from a
  * `json_mode` / `none` model is parsed here, so callers read one shape.
  */
@@ -69,6 +71,13 @@ export class SchemaGuard {
           'invalid_response',
           `Answer does not match schema "${request.responseSchema!.name}": ${this.ajv.errorsText(validate.errors)}`,
         ),
+      );
+    }
+
+    const problem = request.responseSchema!.verify?.(data) ?? null;
+    if (problem) {
+      return Result.fail(
+        new LlmError('invalid_response', `Answer fails the checks of "${request.responseSchema!.name}": ${problem}`),
       );
     }
 

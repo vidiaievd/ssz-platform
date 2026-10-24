@@ -2,7 +2,7 @@
 // clamps a rating and the projection that weighs the same attempt (plan 55 §3.9).
 
 export type { AnswerForm, EvidenceInput, EvidenceStrength, ReviewRatingValue } from './evidence-strength.js';
-export { clampByEvidence, evidenceStrength, ratingRank } from './evidence-strength.js';
+export { clampByEvidence, evidenceStrength, ratingRank, weaker } from './evidence-strength.js';
 
 // What one answer proves about one atom inside it — plan 63 phase 5.
 export type { AtomEvidenceInput, AtomModality, AtomRole } from './atom-evidence.js';

@@ -7,6 +7,8 @@ export const EXERCISE_ENGINE_EVENT_TYPES = {
   ATTEMPT_COMPLETED: 'exercise.attempt.completed',
   ATTEMPT_ROUTED_FOR_REVIEW: 'exercise.attempt.routed_for_review',
   ATTEMPT_REVIEWED: 'exercise.attempt.reviewed',
+  ATTEMPT_AI_REVIEWED: 'exercise.attempt.ai_reviewed',
+  ATTEMPT_AI_REVIEW_DISPUTED: 'exercise.attempt.ai_review_disputed',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -109,6 +111,17 @@ export interface ExerciseAttemptCompletedPayload {
    * Absent on every publisher that predates it, and on every machine-scored attempt.
    */
   reviewOutcome?: 'approved' | 'returned';
+  /**
+   * Additive (plan 79 §2.1, decision Q1) — who gave the verdict in `reviewOutcome`.
+   *
+   * `ai` is a model's verdict on the work of a learner with nobody to review it. It is read
+   * as a person's in every respect but one: memory is rated through the kernel's
+   * `evidenceStrength` with `reviewedBy: 'ai'` (success at most GOOD, failure at least HARD)
+   * instead of being let through unclamped, and progress records that the verdict was a
+   * model's. Absent means a teacher — every publisher before plan 79 — and is never set
+   * without `reviewOutcome`.
+   */
+  reviewedBy?: 'teacher' | 'ai';
   /**
    * Additive (plan 66, decision Q2-B) — the exercise was delivered in a way that hands part
    * of the answer over, so a success proves one step less than its form says.
@@ -357,6 +370,82 @@ export interface ExerciseAttemptReviewedPayload {
   /** How much of the submission counted. Both `0` when there was nothing readable. */
   approvedItems: number;
   totalItems: number;
+  /**
+   * What the teacher did with a model's draft of this review (plan 79, 1.5) — the label a
+   * model and a prompt version are judged by. Counts are over the draft's remarks: taken
+   * as written, reworded, thrown out, or left alone.
+   *
+   * `null` when there was no draft to act on (none, failed, or the verdict came from a
+   * batch approval, which never shows one). Absent on events older than plan 79.
+   */
+  aiDraft?: AttemptReviewedAiDraft | null;
+  occurredAt: string;
+}
+
+export interface AttemptReviewedAiDraft {
+  /** ai-service capability that wrote it: `review_draft`. */
+  capability: string;
+  /** ai-service registry ids — the axes the outcomes are folded on. */
+  modelId: string | null;
+  promptVersion: string | null;
+  accepted: number;
+  edited: number;
+  discarded: number;
+  /** Remarks the teacher neither took nor threw out — read as "not worth acting on". */
+  untouched: number;
+  /**
+   * The model's suggested rubric marks against the ones the teacher gave (plan 79, 1.7d).
+   * `null` when the draft suggested none; absent on events older than 1.7d.
+   */
+  marks?: AttemptReviewedAiDraftMarks | null;
+}
+
+/**
+ * Suggested marks beside the teacher's, criterion by criterion. A teacher sets every mark
+ * themselves, so there is no "taken" — only where they landed against the model.
+ */
+export interface AttemptReviewedAiDraftMarks {
+  /** The teacher gave the mark the model suggested. */
+  same: number;
+  /** The teacher gave another mark, or none the engine could read. */
+  different: number;
+  /** Marks with a teacher's number to compare with — `same` plus the `different` that have one. */
+  compared: number;
+  /** Σ (teacher − model) over `compared`: its sign says which way the model leans. */
+  deltaSum: number;
+  /** Σ |teacher − model| over `compared`. */
+  absDeltaSum: number;
+}
+
+/**
+ * A model's verdict closed the attempt of a learner nobody reviews (plan 79, 2.3b) — what a
+ * dispute rate is read against. Published beside the `completed` that carries
+ * `reviewedBy: 'ai'`: that one is about the learner's progress, this one about the model.
+ */
+export interface ExerciseAttemptAiReviewedPayload {
+  attemptId: string;
+  userId: string;
+  exerciseId: string;
+  templateCode: string;
+  /** ai-service capability that wrote the review: `review_direct`. */
+  capability: string;
+  /** ai-service registry ids — the axes the counts are folded on. */
+  modelId: string | null;
+  promptVersion: string | null;
+  outcome: 'approved' | 'returned';
+  occurredAt: string;
+}
+
+/**
+ * The learner said a model's review of their work is wrong (plan 79, 2.3b) — the learner's
+ * counterpart of a teacher discarding a draft. Once per review. What they wrote, if anything,
+ * stays in exercise-engine; only that they wrote something travels.
+ */
+export interface ExerciseAttemptAiReviewDisputedPayload
+  extends Omit<ExerciseAttemptAiReviewedPayload, 'occurredAt'> {
+  /** When the review was delivered: a dispute is counted on its review's day, so the rate stays per review. */
+  reviewedAt: string;
+  withReason: boolean;
   occurredAt: string;
 }
 
@@ -365,5 +454,7 @@ export interface ExerciseAttemptReviewedPayload {
 export type ExerciseAttemptStartedEvent = BaseEvent<ExerciseAttemptStartedPayload>;
 export type ExerciseAttemptCompletedEvent = BaseEvent<ExerciseAttemptCompletedPayload>;
 export type ExerciseAttemptReviewedEvent = BaseEvent<ExerciseAttemptReviewedPayload>;
+export type ExerciseAttemptAiReviewedEvent = BaseEvent<ExerciseAttemptAiReviewedPayload>;
+export type ExerciseAttemptAiReviewDisputedEvent = BaseEvent<ExerciseAttemptAiReviewDisputedPayload>;
 export type ExerciseAttemptRoutedForReviewEvent =
   BaseEvent<ExerciseAttemptRoutedForReviewPayload>;

@@ -64,6 +64,7 @@ import type {
   ReviewQueueSummary,
 } from '../../domain/repositories/attempt.repository.js';
 import type { Result } from '../../../../shared/kernel/result.js';
+import { readReviewerOutcomes } from '../../../ai-drafts/domain/draft-outcomes.js';
 
 /** The default page of the scoped queue; a hundred is the ceiling (see the DTO). */
 const DEFAULT_QUEUE_LIMIT = 50;
@@ -440,6 +441,7 @@ export class InternalReviewController {
         dto.comment ?? null,
         dto.sentenceComments ?? {},
         dto.rubricMarks ?? null,
+        readReviewerOutcomes(dto.aiOutcomes),
       ),
     );
 

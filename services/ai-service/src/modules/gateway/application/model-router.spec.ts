@@ -250,6 +250,24 @@ describe('ModelRouter', () => {
     expect(seen[0]).toMatchObject({ maxOutputTokens: 512, timeoutMs: 5_000, temperature: 0.3 });
   });
 
+  it("builds the request from the binding's prompt version when given a builder", async () => {
+    const versions: string[] = [];
+    const { router } = setup({ binding: binding({ promptVersion: 'diagnostic@7' }), models: [model('primary')] });
+    const routed = await router.call('diagnostic', (promptVersion) => {
+      versions.push(promptVersion);
+      return CALL;
+    });
+    expect(routed.isOk).toBe(true);
+    expect(versions).toEqual(['diagnostic@7']);
+  });
+
+  it('does not build the request for a switched-off capability', async () => {
+    const build = jest.fn(() => CALL);
+    const { router } = setup({ binding: binding({ enabled: false }), models: [model('primary')] });
+    await router.call('diagnostic', build);
+    expect(build).not.toHaveBeenCalled();
+  });
+
   describe('payer regions', () => {
     const EU_ONLY = { allowedRegions: ['eu' as const] };
 

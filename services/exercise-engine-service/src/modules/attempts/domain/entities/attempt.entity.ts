@@ -9,7 +9,14 @@ import {
   ReviewCommentRequiredError,
 } from '../exceptions/attempt.errors.js';
 import { AttemptStartedEvent } from '../events/attempt-started.event.js';
-import type { AnswerForm, AttemptTarget, Focus, Modality, Skill } from '@ssz/contracts';
+import type {
+  AnswerForm,
+  AttemptReviewedAiDraft,
+  AttemptTarget,
+  Focus,
+  Modality,
+  Skill,
+} from '@ssz/contracts';
 import type { RubricMarks, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import type { AttemptTiming } from '../events/attempt-timing.js';
 import { AttemptScoredEvent } from '../events/attempt-scored.event.js';
@@ -25,7 +32,12 @@ export type AttemptStatus =
   | 'ROUTED_FOR_REVIEW'
   /** A teacher read the submission and sent it back instead of scoring it. */
   | 'RETURNED'
-  | 'ABANDONED';
+  | 'ABANDONED'
+  /**
+   * Free-form work nobody will read (plan 79, step 2.1c): no school's queue, and no model
+   * the learner may ask. Final — the honest answer instead of a wait with no end.
+   */
+  | 'NO_REVIEWER';
 
 export type DifficultyLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
@@ -242,6 +254,40 @@ export interface ReviewDecision {
   itemId: string;
   approved: boolean;
   comment?: string;
+}
+
+/** A verdict on a submission in review — a teacher's (`review`) or a model's (`reviewByAi`). */
+export interface ReviewVerdict {
+  outcome: 'approved' | 'returned';
+  decisions: ReviewDecision[];
+  comment: string | null;
+  /** 0–100. Required when approving, ignored when returning. */
+  score?: number;
+  passed?: boolean;
+  /** How much of the submission counted, for the letter back to the learner. */
+  approvedItems?: number;
+  totalItems?: number;
+  /**
+   * The marks a teacher set, for the submissions graded out of a rubric.
+   *
+   * Kept on both outcomes: work sent back was still read criterion by criterion, and
+   * the learner's next draft is answering those marks.
+   */
+  rubricMarks?: RubricMarks | null;
+  /**
+   * The verdict per item, for the templates a person rules on item by item rather than
+   * as one — a `read_aloud` prompt passes on its own marks (plan 70, Q1-A). Carried on
+   * both outcomes, with the addresses of each item, so that the memory hears about each
+   * prompt and not only about the attempt.
+   */
+  gapResults?: Array<{ gapKey: string; correct: boolean }>;
+  /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
+  evidenceLowered?: boolean;
+  /**
+   * What the reviewer did with a model's draft (plan 79, 1.5), for the letter's
+   * `aiDraft`. Absent when they were shown none.
+   */
+  aiDraft?: AttemptReviewedAiDraft | null;
 }
 
 /**
@@ -683,21 +729,95 @@ export class Attempt extends AggregateRoot {
      */
     rubricSnapshot?: RubricSnapshot | null,
   ): Result<void, InvalidAttemptTransitionError> {
+    const closed = this.closeUnscored('ROUTED_FOR_REVIEW', counts);
+    if (closed.isFail) return closed;
+    if (rubricSnapshot) {
+      this._rubricSnapshot = rubricSnapshot;
+    }
+
+    this.addDomainEvent(
+      new AttemptRoutedForReviewEvent(this.id, {
+        attemptId: this.id,
+        userId: this._userId,
+        exerciseId: this._exerciseId,
+        templateCode: this._templateCode,
+        schoolId: this._schoolId,
+        containerId: this._containerId,
+        groupId: this._groupId,
+        submittedAt: (this._submittedAt ?? new Date()).toISOString(),
+      }),
+    );
+
+    return Result.ok();
+  }
+
+  /**
+   * Closes free-form work that nobody will read (plan 79, step 2.1c, decision Q5-A).
+   *
+   * The validator asked for a person, and there is none: the learner has no school, and
+   * no model they may ask. Routing it anyway is what the platform did before this — a
+   * row in a queue no screen shows, and «sent for review» forever. Here the work ends
+   * where it is, honestly: handed in, unscored, and no `routed_for_review` raised, so
+   * nothing downstream waits for a verdict that will never come.
+   *
+   * Counted as handed in, exactly like routed work (`completed_unscored`): the learner did
+   * the exercise, and progress should not pretend they did not. Nothing reaches the memory —
+   * nobody judged the answer, so there is no evidence of recall either way.
+   */
+  closeWithoutReviewer(counts?: {
+    autoPassedItems: number | null;
+    totalItems: number | null;
+  }): Result<void, InvalidAttemptTransitionError> {
+    return this.closeUnscored('NO_REVIEWER', counts);
+  }
+
+  /**
+   * Work routed to a model that turned out unable to read it (plan 79, step 2.2a): the
+   * learner's credits ran out between the hand-in and the call, the author switched the
+   * checks off, the answer was blank, or every model failed. Left routed, it would wait
+   * forever in a queue no screen shows — the hole 2.1c closed at hand-in.
+   *
+   * Nothing is announced: routing already counted the work as handed in, and nobody judged
+   * it, so there is nothing for progress or memory to hear. Idempotent, so a redelivered
+   * request answers from the row.
+   */
+  giveUpReview(): Result<void, InvalidAttemptTransitionError> {
+    if (this._status === 'NO_REVIEWER') return Result.ok();
+    if (this._status !== 'ROUTED_FOR_REVIEW') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot close attempt with status ${this._status} without a reviewer`,
+        ),
+      );
+    }
+    if (this._schoolId !== null) {
+      return Result.fail(
+        new InvalidAttemptTransitionError('A teacher reviews this submission'),
+      );
+    }
+    this._status = 'NO_REVIEWER';
+    return Result.ok();
+  }
+
+  /** Both ways free-form work leaves `SUBMITTED` without a score: to a reviewer, or to nobody. */
+  private closeUnscored(
+    status: 'ROUTED_FOR_REVIEW' | 'NO_REVIEWER',
+    counts?: { autoPassedItems: number | null; totalItems: number | null },
+  ): Result<void, InvalidAttemptTransitionError> {
     if (this._status !== 'SUBMITTED') {
       return Result.fail(
         new InvalidAttemptTransitionError(
-          `Cannot route attempt with status ${this._status} for review`,
+          status === 'ROUTED_FOR_REVIEW'
+            ? `Cannot route attempt with status ${this._status} for review`
+            : `Cannot close attempt with status ${this._status} without a reviewer`,
         ),
       );
     }
 
-    this._status = 'ROUTED_FOR_REVIEW';
+    this._status = status;
     if (counts) {
       this._autoPassedItems = counts.autoPassedItems;
       this._totalItems = counts.totalItems;
-    }
-    if (rubricSnapshot) {
-      this._rubricSnapshot = rubricSnapshot;
     }
 
     this.addDomainEvent(
@@ -712,19 +832,6 @@ export class Attempt extends AggregateRoot {
         focus: this._focus,
         containerId: this._containerId,
         ephemeral: this._ephemeral,
-      }),
-    );
-
-    this.addDomainEvent(
-      new AttemptRoutedForReviewEvent(this.id, {
-        attemptId: this.id,
-        userId: this._userId,
-        exerciseId: this._exerciseId,
-        templateCode: this._templateCode,
-        schoolId: this._schoolId,
-        containerId: this._containerId,
-        groupId: this._groupId,
-        submittedAt: (this._submittedAt ?? new Date()).toISOString(),
       }),
     );
 
@@ -754,7 +861,11 @@ export class Attempt extends AggregateRoot {
     if (this._status === 'ABANDONED') {
       return Result.ok();
     }
-    if (this._status === 'SCORED' || this._status === 'ROUTED_FOR_REVIEW') {
+    if (
+      this._status === 'SCORED' ||
+      this._status === 'ROUTED_FOR_REVIEW' ||
+      this._status === 'NO_REVIEWER'
+    ) {
       return Result.fail(
         new InvalidAttemptTransitionError(
           `Cannot abandon attempt with status ${this._status}`,
@@ -1021,34 +1132,41 @@ export class Attempt extends AggregateRoot {
    * The score is computed by the caller from the decisions — the domain does not know how
    * many items the exercise had, only what was decided about them.
    */
-  review(props: {
-    reviewerId: string;
-    outcome: 'approved' | 'returned';
-    decisions: ReviewDecision[];
-    comment: string | null;
-    /** 0–100. Required when approving, ignored when returning. */
-    score?: number;
-    passed?: boolean;
-    /** How much of the submission counted, for the letter back to the learner. */
-    approvedItems?: number;
-    totalItems?: number;
-    /**
-     * The marks a teacher set, for the submissions graded out of a rubric.
-     *
-     * Kept on both outcomes: work sent back was still read criterion by criterion, and
-     * the learner's next draft is answering those marks.
-     */
-    rubricMarks?: RubricMarks | null;
-    /**
-     * The verdict per item, for the templates a person rules on item by item rather than
-     * as one — a `read_aloud` prompt passes on its own marks (plan 70, Q1-A). Carried on
-     * both outcomes, with the addresses of each item, so that the memory hears about each
-     * prompt and not only about the attempt.
-     */
-    gapResults?: Array<{ gapKey: string; correct: boolean }>;
-    /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
-    evidenceLowered?: boolean;
-  }): Result<
+  review(props: ReviewVerdict & { reviewerId: string }): Result<
+    void,
+    InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
+  > {
+    return this.deliver(props, props.reviewerId);
+  }
+
+  /**
+   * A model's verdict on the work of a learner nobody reviews (plan 79 §2.1, decision Q1).
+   *
+   * The same two outcomes as a teacher's, with three differences. Only work with no school
+   * takes one: where a teacher reads the queue, their verdict is the one that counts, and a
+   * model's rating the memory first would be a second review of the same card. Nobody
+   * signs it, so `deliveredVerdict` stays empty and no colleague is named. And no letter is
+   * raised — `exercise.attempt.reviewed` says a teacher answered, and here none did; the
+   * events that close the attempt say `reviewedBy: 'ai'` instead, so progress records it and
+   * memory rates it as the weaker evidence it is.
+   */
+  reviewByAi(props: Omit<ReviewVerdict, 'aiDraft'>): Result<
+    void,
+    InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
+  > {
+    if (this._schoolId !== null) {
+      return Result.fail(
+        new InvalidAttemptTransitionError('A model does not review work a teacher reviews'),
+      );
+    }
+    return this.deliver(props, null);
+  }
+
+  /** Both verdicts. `reviewerId` is null for a model's. */
+  private deliver(
+    props: ReviewVerdict,
+    reviewerId: string | null,
+  ): Result<
     void,
     InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
   > {
@@ -1078,7 +1196,7 @@ export class Attempt extends AggregateRoot {
       return Result.fail(new ReviewCommentRequiredError());
     }
 
-    this._reviewedByUserId = props.reviewerId;
+    this._reviewedByUserId = reviewerId;
     this._reviewedAt = new Date();
     if (props.rubricMarks) {
       this._rubricMarks = props.rubricMarks;
@@ -1109,6 +1227,7 @@ export class Attempt extends AggregateRoot {
           completed: false,
           passed: false,
           reviewOutcome: 'returned',
+          ...(reviewerId === null ? { reviewedBy: 'ai' as const } : {}),
           practicedAtoms: this._practicedAtoms,
           skills: this._skills,
           focus: this._focus,
@@ -1129,7 +1248,7 @@ export class Attempt extends AggregateRoot {
         }),
       );
 
-      this.addReviewedEvent(props, null);
+      if (reviewerId !== null) this.addReviewedEvent({ ...props, reviewerId }, null);
       return Result.ok();
     }
 
@@ -1163,6 +1282,11 @@ export class Attempt extends AggregateRoot {
         templateCode: this._templateCode,
         passed: this._passed,
         modality: this._modality,
+        // A teacher's approval needs no special reading (`reviewOutcome` in the contract);
+        // a model's does, and the contract never carries `reviewedBy` without it.
+        ...(reviewerId === null
+          ? { reviewOutcome: 'approved' as const, reviewedBy: 'ai' as const }
+          : {}),
         // A free-form template grades as one, so the address it carries is the whole
         // exercise's — and this is the strongest evidence the platform has, because a
         // person read the answer.
@@ -1178,7 +1302,7 @@ export class Attempt extends AggregateRoot {
       }),
     );
 
-    this.addReviewedEvent(props, this._score);
+    if (reviewerId !== null) this.addReviewedEvent({ ...props, reviewerId }, this._score);
 
     return Result.ok();
   }
@@ -1197,6 +1321,7 @@ export class Attempt extends AggregateRoot {
       comment: string | null;
       approvedItems?: number;
       totalItems?: number;
+      aiDraft?: AttemptReviewedAiDraft | null;
     },
     score: number | null,
   ): void {
@@ -1226,6 +1351,7 @@ export class Attempt extends AggregateRoot {
         hasComment,
         approvedItems: props.approvedItems ?? 0,
         totalItems: props.totalItems ?? 0,
+        aiDraft: props.aiDraft ?? null,
         occurredAt: new Date().toISOString(),
       }),
     );
@@ -1303,6 +1429,21 @@ export class Attempt extends AggregateRoot {
     }
 
     return null;
+  }
+
+  /**
+   * Who delivered the verdict this attempt carries (plan 79, 2.3): a person, a model for a
+   * learner nobody reviews, or nobody — still waiting, closed as `NO_REVIEWER`, scored by
+   * the machine.
+   *
+   * Only a delivery writes `reviewedAt`; a model's is the one without a signature. Read off
+   * the status as well, because a returned attempt the learner resumes keeps both columns
+   * from the verdict it is answering.
+   */
+  get reviewedBy(): 'teacher' | 'ai' | null {
+    if (this._status !== 'SCORED' && this._status !== 'RETURNED') return null;
+    if (this._reviewedByUserId !== null) return 'teacher';
+    return this._reviewedAt === null ? null : 'ai';
   }
 
   /**

@@ -72,6 +72,26 @@ describe('bindingProblems', () => {
     expect(check(settings(), null, found('b'))).toEqual(['primary model a does not exist']);
   });
 
+  it('refuses a prompt version the capability does not keep, and accepts one it does', () => {
+    const versioned = { ...capability, promptVersions: ['review_draft@1'] };
+    const run = (promptVersion: string) =>
+      bindingProblems({
+        capability: versioned,
+        settings: settings({ promptVersion }),
+        primary: found('a'),
+        fallback: found('b'),
+        credentials: { isSet: () => false },
+      });
+    expect(run('review_draft@1')).toEqual([]);
+    expect(run('review_draft@9')).toEqual([
+      'prompt version "review_draft@9" is unknown to "review_draft" (known: review_draft@1)',
+    ]);
+  });
+
+  it('accepts any prompt label when the capability keeps no versions', () => {
+    expect(check(settings({ promptVersion: 'anything' }), found('a'), found('b'))).toEqual([]);
+  });
+
   it('refuses the primary as its own fallback', () => {
     expect(check(settings({ fallbackModelId: 'a' }), found('a'), found('a'))).toEqual(['fallback model must differ from the primary']);
   });

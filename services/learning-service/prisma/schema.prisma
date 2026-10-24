@@ -114,6 +114,8 @@ model UserProgress {
   completedAt      DateTime?      @map("completed_at")
   needsReviewSince DateTime?      @map("needs_review_since")
   reviewResolvedAt DateTime?      @map("review_resolved_at")
+  // Completed on a model's verdict, with no person or machine check behind it (plan 79 §2.1).
+  completedByAi    Boolean        @default(false) @map("completed_by_ai")
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 

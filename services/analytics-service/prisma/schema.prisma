@@ -267,6 +267,11 @@ model AttemptEvidence {
   // read as «not lowered».
   evidenceLowered Boolean? @map("evidence_lowered")
 
+  // `ai` when the verdict rated here was a model's, on the work of a learner nobody reviews
+  // (plan 79 §2.1). Weighed by the kernel's `reviewedBy` rule, as the rating was clamped by
+  // it. Null for a teacher's verdict, the machine check, and every row before it.
+  reviewedBy      String?  @map("reviewed_by")
+
   // Worked on a phone with no network and replayed later (VoxOrd offline plan, B4). Kept
   // to measure how much practice happens offline. False for every row before it: offline
   // attempts did not reach the server dated until the field existed.
@@ -534,4 +539,44 @@ model AiUsageDaily {
   @@index([day])
   @@index([payerType, payerId, day])
   @@map("ai_usage_daily")
+}
+
+// ─── Rollup: AiDraftQualityDaily ──────────────────────────────────────────────
+// What teachers did with the remarks of models' review drafts, per day × agent × model ×
+// prompt version — plan 79, step 1.5; suggested rubric marks beside the teacher's — 1.7d. Fed by `exercise.attempt.reviewed` (`aiDraft`); the
+// remarks themselves and the per-remark labels stay in exercise-engine
+// (`attempt_ai_drafts`), this is the quality readout a model is chosen by.
+//
+// `model_id` / `prompt_version` are ai-service registry ids, nullable as the draft carries
+// them; the unique index is NULLS NOT DISTINCT in the migration, as for ai_usage_daily.
+
+model AiDraftQualityDaily {
+  id               String   @id @default(uuid())
+  day              DateTime @db.Date
+  capability       String
+  modelId          String?  @map("model_id")
+  promptVersion    String?  @map("prompt_version")
+  /// Verdicts given with a draft on screen.
+  reviews          Int
+  remarksAccepted  Int      @map("remarks_accepted")
+  remarksEdited    Int      @map("remarks_edited")
+  remarksDiscarded Int      @map("remarks_discarded")
+  remarksUntouched Int      @map("remarks_untouched")
+  /// Verdicts on drafts that suggested rubric marks (step 1.7d) — and the marks' counts.
+  reviewsWithMarks Int      @default(0) @map("reviews_with_marks")
+  marksSame        Int      @default(0) @map("marks_same")
+  marksDifferent   Int      @default(0) @map("marks_different")
+  /// Marks with a teacher's number beside them; the delta sums are over these (teacher − model).
+  marksCompared    Int      @default(0) @map("marks_compared")
+  marksDeltaSum    Int      @default(0) @map("marks_delta_sum")
+  marksAbsDeltaSum Int      @default(0) @map("marks_abs_delta_sum")
+  /// `review_direct` rows (step 2.3b): `reviews` counts the verdicts a model delivered to a
+  /// learner nobody reviews, `disputes` how many of them the learner said were wrong —
+  /// folded on the review's day, so the two stay a rate. Always 0 on `review_draft` rows.
+  disputes         Int      @default(0)
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([day, capability, modelId, promptVersion], map: "ai_draft_quality_daily_dims_key")
+  @@index([day])
+  @@map("ai_draft_quality_daily")
 }

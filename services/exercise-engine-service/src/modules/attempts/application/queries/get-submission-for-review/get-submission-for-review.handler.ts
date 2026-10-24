@@ -1,4 +1,4 @@
-import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
+import { IQueryHandler, QueryBus, QueryHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { GetSubmissionForReviewQuery } from './get-submission-for-review.query.js';
 import {
@@ -16,6 +16,10 @@ import {
 } from '../../../../../shared/application/ports/content-client.port.js';
 import type { RubricMarks, RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { Result } from '../../../../../shared/kernel/result.js';
+// Through the bus rather than the repository: ai-drafts imports this module, so injecting
+// its repository here would make the two modules import each other.
+import { GetDraftForReviewQuery } from '../../../../ai-drafts/application/queries/get-draft-for-review/get-draft-for-review.query.js';
+import type { ReviewDraftView } from '../../../../ai-drafts/application/queries/get-draft-for-review/get-draft-for-review.handler.js';
 import type {
   Attempt,
   AttemptStatus,
@@ -103,6 +107,12 @@ export interface GetSubmissionForReviewResult {
    * show them from once the reviewer's own draft is gone. Null while the work is waiting.
    */
   reviewDecisions: ReviewDecision[] | null;
+  /**
+   * The model's draft review, for the teacher to take from (plan 79, step 1.4). Null when
+   * there is none, or the model's attempt at one failed. Part 1 drafts for the teacher
+   * only, so `ai.visibility` has nothing to hide here yet.
+   */
+  aiDraft: ReviewDraftView | null;
   submittedAnswer: unknown;
   timeSpentSeconds: number;
   selfChecksUsed: number;
@@ -127,6 +137,7 @@ export class GetSubmissionForReviewHandler implements IQueryHandler<GetSubmissio
     @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
     @Inject(ANSWER_VALIDATOR) private readonly validator: IAnswerValidator,
     @Inject(CONTENT_CLIENT) private readonly contentClient: IContentClient,
+    private readonly queryBus: QueryBus,
   ) {}
 
   async execute(
@@ -139,9 +150,12 @@ export class GetSubmissionForReviewHandler implements IQueryHandler<GetSubmissio
       return Result.fail({ code: 'ATTEMPT_NOT_FOUND' });
     }
 
-    const [exercise, previous] = await Promise.all([
+    const [exercise, previous, aiDraft] = await Promise.all([
       this.exerciseFor(attempt),
       this.previousVerdictFor(attempt),
+      this.queryBus.execute<GetDraftForReviewQuery, ReviewDraftView | null>(
+        new GetDraftForReviewQuery(attempt.id, 'review_draft'),
+      ),
     ]);
 
     return Result.ok({
@@ -167,6 +181,7 @@ export class GetSubmissionForReviewHandler implements IQueryHandler<GetSubmissio
       rubricSnapshot: attempt.rubricSnapshot,
       rubricMarks: attempt.rubricMarks,
       reviewDecisions: attempt.reviewDecisions,
+      aiDraft,
       submittedAnswer: attempt.submittedAnswer,
       timeSpentSeconds: attempt.timeSpentSeconds,
       selfChecksUsed: attempt.selfChecksUsed,

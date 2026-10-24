@@ -272,3 +272,40 @@ model AiPayerEntitlements {
   @@id([payerType, payerId])
   @@map("ai_payer_entitlements")
 }
+
+// ─── Evals (plan 79, step 1.6) ───────────────────────────────────────────────
+
+/// One run of a candidate model over the teachers' settled drafts (exercise-engine's
+/// labelled set), scored against what the teachers kept and threw out. Counts only: no
+/// prompt, answer or remark text — the same rule as the ledger. Each call of the run is
+/// also an ordinary ledger row (surface `admin_eval`).
+model AiEvalRun {
+  id            String    @id @default(uuid())
+  capability    String
+  modelId       String    @map("model_id")
+  promptVersion String    @map("prompt_version")
+  /// `running` → `done` | `failed`. Plain text, not an enum: a run is read back as written.
+  status        String
+  startedBy     String    @map("started_by")
+  /// The binding when the run started — `{ primaryModelId, fallbackModelId, promptVersion }`,
+  /// null when none — so a row says what it was meant to be compared with.
+  bindingAtStart Json?    @map("binding_at_start")
+  caseCount     Int       @map("case_count")
+  /// Settled drafts the engine left out of the set, by reason.
+  skipped       Json
+  /// `RunScores`; null until done.
+  scores        Json?
+  /// Per case: `{ caseId, outcome, errorCode, latencyMs, score }`; null until done.
+  cases         Json?
+  /// Sum over the run's calls; null when any call had no price.
+  costMicros    BigInt?   @map("cost_micros")
+  currency      String?
+  credits       Decimal?  @db.Decimal(18, 6)
+  /// Why a run failed as a whole (interrupted, the set unreadable).
+  error         String?
+  startedAt     DateTime  @default(now()) @map("started_at")
+  finishedAt    DateTime? @map("finished_at")
+
+  @@index([capability, startedAt])
+  @@map("ai_eval_runs")
+}

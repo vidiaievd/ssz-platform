@@ -1,5 +1,6 @@
 import type { RubricMarks } from '@ssz/shared-kernel/writing-task';
 import type { ReviewDecision } from '../../../domain/entities/attempt.entity.js';
+import type { ReviewerOutcomes } from '../../../../ai-drafts/domain/draft-outcomes.js';
 
 /**
  * A teacher's verdict on a submission the machine refused to close.
@@ -34,5 +35,11 @@ export class ReviewAttemptCommand {
      * client can award one.
      */
     public readonly rubricMarks: RubricMarks | null = null,
+    /**
+     * What the reviewer did with the model's draft, as the card keeps it (plan 79, 1.5): a
+     * remark's index, `summary`, `draft`. `null` when they were shown no draft — which
+     * leaves the draft unlabelled rather than reading the silence as "all ignored".
+     */
+    public readonly aiOutcomes: ReviewerOutcomes | null = null,
   ) {}
 }

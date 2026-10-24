@@ -29,6 +29,7 @@ import { ListMySubmissionsHandler } from './application/queries/list-my-submissi
 import { GetSubmissionForReviewHandler } from './application/queries/get-submission-for-review/get-submission-for-review.handler.js';
 import { ReviewScoring } from './application/services/review-scoring.js';
 import { ReviewContextResolver } from './application/services/review-context-resolver.js';
+import { ReviewerResolver } from './application/services/reviewer-resolver.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
 import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
 
@@ -68,10 +69,11 @@ const QueryHandlers = [
     PrismaAttemptRepository,
     { provide: ATTEMPT_REPOSITORY, useExisting: PrismaAttemptRepository },
     ReviewContextResolver,
+    ReviewerResolver,
     ReviewScoring,
     ...CommandHandlers,
     ...QueryHandlers,
   ],
-  exports: [ATTEMPT_REPOSITORY],
+  exports: [ATTEMPT_REPOSITORY, ReviewScoring],
 })
 export class AttemptsModule {}

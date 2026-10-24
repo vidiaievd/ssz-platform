@@ -200,6 +200,94 @@ describe('ExerciseAttemptedConsumer', () => {
     });
 
     /**
+     * A model's verdict on the work of a learner nobody reviews (plan 79 §2.1, Q1). It counts,
+     * but not as a person's: the same rejection a teacher would have rated AGAIN is held at
+     * HARD — no lapse — and a full approval stops at GOOD.
+     */
+    it('holds a model’s rejection at HARD, where a teacher’s is AGAIN', async () => {
+      const { consumer, commandBus } = makeConsumer();
+
+      await (consumer as any).handleMessage(
+        makeChannel(),
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 0,
+            timeSpentSeconds: 120,
+            completed: false,
+            passed: false,
+            reviewOutcome: 'returned',
+            reviewedBy: 'ai',
+            templateCode: 'short_answer',
+            answerForm: { mode: 'free' },
+          }),
+        ),
+      );
+
+      const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+      const review = calls.find((c: unknown) => c instanceof ReviewCardCommand) as { rating: string };
+      expect(review.rating).toBe('HARD');
+      const progress = calls.find((c) => c instanceof UpsertProgressCommand) as UpsertProgressCommand;
+      expect(progress.reviewedBy).toBe('ai');
+    });
+
+    it('holds a model’s full approval at GOOD and tells progress who approved it', async () => {
+      const { consumer, commandBus, publisher } = makeConsumer();
+
+      await (consumer as any).handleMessage(
+        makeChannel(),
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 100,
+            timeSpentSeconds: 120,
+            completed: true,
+            passed: true,
+            reviewOutcome: 'approved',
+            reviewedBy: 'ai',
+            templateCode: 'translate_to_target',
+          }),
+        ),
+      );
+
+      const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+      const review = calls.find((c: unknown) => c instanceof ReviewCardCommand) as { rating: string };
+      expect(review.rating).toBe('GOOD');
+      const progress = calls.find((c) => c instanceof UpsertProgressCommand) as UpsertProgressCommand;
+      expect(progress.outcome).toBe('passed');
+      expect(progress.reviewedBy).toBe('ai');
+      expect(ratedPayload(publisher)?.reviewedBy).toBe('ai');
+    });
+
+    it('lets a teacher’s full approval reach EASY and names the teacher to progress', async () => {
+      const { consumer, commandBus } = makeConsumer();
+
+      await (consumer as any).handleMessage(
+        makeChannel(),
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            score: 100,
+            timeSpentSeconds: 120,
+            completed: true,
+            passed: true,
+            reviewOutcome: 'approved',
+            templateCode: 'translate_to_target',
+          }),
+        ),
+      );
+
+      const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+      const review = calls.find((c: unknown) => c instanceof ReviewCardCommand) as { rating: string };
+      expect(review.rating).toBe('EASY');
+      const progress = calls.find((c) => c instanceof UpsertProgressCommand) as UpsertProgressCommand;
+      expect(progress.reviewedBy).toBe('teacher');
+    });
+
+    /**
      * The moment the work was handed over is not a verdict — nobody has read it yet —
      * and it must stay unrated however long it waits in the queue.
      */
@@ -478,6 +566,8 @@ describe('ExerciseAttemptedConsumer', () => {
         lessonId: null,
         // Plan 66 — the engine did not say the delivery gave part of the answer away.
         evidenceLowered: null,
+        // Plan 79 — no model ruled on it.
+        reviewedBy: null,
         timeSpentSeconds: 60,
         stabilityAfter: null,
         // Plan 63 phase 3 — what was rated and what it is evidence about. Nothing said

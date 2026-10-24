@@ -10,10 +10,16 @@ import type { Attempt, ExercisePathSnapshot } from '../../../domain/entities/att
 
 export type MySubmissionEntryStatus = 'pending' | 'returned' | 'approved';
 
-/** The teacher's word on a submission, as this screen may say it — no per-item detail. */
+/** The reviewer's word on a submission, as this screen may say it — no per-item detail. */
 export interface MySubmissionDecision {
   verdict: 'approved' | 'returned';
-  byUserId: string;
+  /**
+   * A teacher, or a model reviewing the work of a learner nobody reviews (plan 79, 2.3) —
+   * which the learner's screen must say, and which has no person to name.
+   */
+  by: 'teacher' | 'ai';
+  /** The teacher; null for a model's verdict. */
+  byUserId: string | null;
   at: Date;
   comment: string | null;
 }
@@ -63,11 +69,12 @@ export interface ListMySubmissionsResult {
 }
 
 /**
- * "Мои работы": every submission of one learner's that ever went to a person, across every
- * exercise, newest first.
+ * "Мои работы": every submission of one learner's that ever went to a reviewer, across every
+ * exercise, newest first. The reviewer is a person, or a model for a learner nobody reviews
+ * (plan 79, 2.3).
  *
  * The selection is the invariant, not the `status` filter: only `ROUTED_FOR_REVIEW`,
- * `RETURNED`, and `SCORED` attempts a person actually signed make the list at all — a
+ * `RETURNED`, and `SCORED` attempts a verdict actually closed make the list at all — a
  * machine-scored MCQ never appears here, `status=all` just stops narrowing further
  * (plan 47 §1, invariant 1 is enforced below by mapping each attempt onto
  * `MySubmissionEntry` field by field rather than forwarding the row — `submittedAnswer`
@@ -151,7 +158,7 @@ export class ListMySubmissionsHandler implements IQueryHandler<ListMySubmissions
 
 /**
  * `ROUTED_FOR_REVIEW` → pending; `RETURNED` → returned; `SCORED` → approved. The
- * repository's selection already guarantees a `SCORED` row here carries a reviewer, so
+ * repository's selection already guarantees a `SCORED` row here carries a verdict, so
  * nothing further is checked — a machine-scored attempt never reaches this mapping.
  */
 function statusOf(attempt: Attempt): MySubmissionEntryStatus {
@@ -162,11 +169,23 @@ function statusOf(attempt: Attempt): MySubmissionEntryStatus {
 
 function decisionOf(attempt: Attempt): MySubmissionDecision | null {
   const verdict = attempt.deliveredVerdict();
-  if (verdict === null) return null;
+  if (verdict !== null) {
+    return {
+      verdict: verdict.outcome,
+      by: 'teacher',
+      byUserId: verdict.reviewerId,
+      at: verdict.at,
+      comment: verdict.comment,
+    };
+  }
+  if (attempt.reviewedBy !== 'ai') return null;
   return {
-    verdict: verdict.outcome,
-    byUserId: verdict.reviewerId,
-    at: verdict.at,
-    comment: verdict.comment,
+    verdict: attempt.status === 'RETURNED' ? 'returned' : 'approved',
+    by: 'ai',
+    byUserId: null,
+    // `reviewedBy` is only `ai` with a delivery time on the attempt.
+    at: attempt.reviewedAt as Date,
+    // The model's summary — written to the learner, as a teacher's comment is.
+    comment: attempt.reviewComment,
   };
 }

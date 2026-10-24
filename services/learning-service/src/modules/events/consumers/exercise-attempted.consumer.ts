@@ -82,7 +82,10 @@ function ratingForAttempt(
   // kernel) — and that doubt is exactly what a teacher's verdict removes. Lifting their
   // judgement off the floor would forgive the one failure nobody should forgive, and it
   // would do it only to the modalities people mark: recall and production.
-  if (p.reviewOutcome !== undefined) return rating;
+  //
+  // A model's verdict (plan 79 §2.1) is not a person's: it goes through the scale below,
+  // which reads `reviewedBy` and holds it between HARD and GOOD.
+  if (p.reviewOutcome !== undefined && p.reviewedBy !== 'ai') return rating;
 
   return clampByEvidence(
     rating,
@@ -93,6 +96,7 @@ function ratingForAttempt(
       // The delivery handed part of the answer over (plan 66, Q2-B): one step off the
       // success ceiling, decided by the engine from the document.
       lowered: p.evidenceLowered,
+      reviewedBy: p.reviewedBy,
     }),
   );
 }
@@ -120,7 +124,7 @@ function ratingForAtom(
   // A person read this one, so the doubt the form-based ceilings exist for is gone —
   // but only about the answer. It says nothing about an atom the item never asked
   // about, which is still worth what background is worth.
-  if (p.reviewOutcome !== undefined && role === 'focus') return rating;
+  if (p.reviewOutcome !== undefined && p.reviewedBy !== 'ai' && role === 'focus') return rating;
 
   return clampByEvidence(
     rating,
@@ -131,6 +135,7 @@ function ratingForAtom(
       role,
       modality: p.modality,
       lowered: p.evidenceLowered,
+      reviewedBy: p.reviewedBy,
     }),
   );
 }
@@ -367,6 +372,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
             p.completed ?? false,
             attemptedAtOf(p),
             outcomeOf(p),
+            p.reviewOutcome !== undefined ? (p.reviewedBy ?? 'teacher') : undefined,
           ),
         );
         if (progressResult.isFail) {
@@ -741,6 +747,8 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       lessonId: p.lessonId ?? null,
       // Forwarded so analytics weighs the attempt by the rule that clamped its rating.
       evidenceLowered: p.evidenceLowered ?? null,
+      // Forwarded for the same reason: a model's verdict weighs less there too (plan 79 §2.1).
+      reviewedBy: p.reviewedBy ?? null,
       timeSpentSeconds: p.timeSpentSeconds ?? null,
       stabilityAfter,
       modality: p.modality ?? null,

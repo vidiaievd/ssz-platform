@@ -62,6 +62,7 @@ import type { Attempt } from '../../../domain/entities/attempt.entity.js';
 import { InvalidAttemptTransitionError } from '../../../domain/exceptions/attempt.errors.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
+import { ReviewerResolver, type Reviewer } from '../../services/reviewer-resolver.js';
 import { audioTranscriptFor, type AudioTranscript } from '../../services/audio-transcript.js';
 import { firstVerdictsIn, isItemByItem } from '../../services/item-states.js';
 import { CLOCK, SystemClock, type IClock } from '../../../../../shared/application/ports/clock.port.js';
@@ -102,6 +103,12 @@ export interface SubmitAnswerResult {
   correct: boolean;
   score: number | null;
   requiresReview: boolean;
+  /**
+   * Who will read work that `requiresReview` (plan 79, step 2.1c): the school's teacher, a
+   * model, or nobody — the last closes the attempt as `NO_REVIEWER`, and the client says so
+   * instead of «sent for review». Absent when nothing went to review.
+   */
+  reviewer?: Reviewer;
   feedback: { summary: string; hints?: string[]; correctAnswer?: unknown };
   /** Per-item verdicts for the templates graded item by item, and nothing for the rest. */
   details?: unknown;
@@ -341,6 +348,9 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     // test — with no binding still runs every other template; a recording submitted there is
     // answered as if media-service were away, which is the truth of it.
     @Optional() @Inject(MEDIA_ASSETS) private readonly media: IMediaAssets | null = null,
+    // Who reads work with no school (plan 79, step 2.1c). Optional for the same reason; with
+    // no binding every such submission routes for review, as it did before the step.
+    @Optional() @Inject(ReviewerResolver) private readonly reviewers: ReviewerResolver | null = null,
   ) {}
 
   async execute(
@@ -460,10 +470,17 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
         );
       }
 
-      const routeResult = attempt.routeForReview(
-        machineTally(outcome.details),
-        rubricFor(attempt.templateCode, def.exercise.content, def.exercise.expectedAnswers),
+      const rubric = rubricFor(
+        attempt.templateCode,
+        def.exercise.content,
+        def.exercise.expectedAnswers,
       );
+      const reviewer = await this.reviewerOf(attempt, def.exercise, rubric);
+
+      const routeResult =
+        reviewer === 'none'
+          ? attempt.closeWithoutReviewer(machineTally(outcome.details))
+          : attempt.routeForReview(machineTally(outcome.details), rubric);
       if (routeResult.isFail) {
         return Result.fail(routeResult.error as AttemptDomainError);
       }
@@ -475,8 +492,16 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
         attemptId: attempt.id,
         correct: false,
         score: null,
+        // Still true for `none`: the answer needed a person, and what the machine could
+        // decide below is all the learner gets. `reviewer` says nobody is coming.
         requiresReview: true,
-        feedback: { summary: 'Your answer has been submitted for review.' },
+        reviewer,
+        feedback: {
+          summary:
+            reviewer === 'none'
+              ? 'Your answer has been saved. Nobody can check it: there is no teacher to review it and no AI review on your plan.'
+              : 'Your answer has been submitted for review.',
+        },
         audioTranscript: audioTranscriptFor(def.exercise.content, true),
         // A routed submission is where `translate_*` spends most of its life, and the
         // split it carries — approved outright vs waiting for a teacher — is per
@@ -666,6 +691,25 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       userId: attempt.userId,
     });
     return refused ?? whole;
+  }
+
+  /** `ai` with no resolver bound: routing is what the handler did before step 2.1c. */
+  private async reviewerOf(
+    attempt: Attempt,
+    exercise: { content: unknown; expectedAnswers: unknown },
+    rubricSnapshot: RubricSnapshot | null,
+  ): Promise<Reviewer> {
+    if (attempt.schoolId !== null) return 'teacher';
+    if (this.reviewers === null) return 'ai';
+    return this.reviewers.resolve({
+      userId: attempt.userId,
+      schoolId: attempt.schoolId,
+      templateCode: attempt.templateCode,
+      targetLanguage: attempt.targetLanguage,
+      submittedAnswer: attempt.submittedAnswer,
+      rubricSnapshot,
+      exercise,
+    });
   }
 
   private async publishEvents(attempt: import('../../../domain/entities/attempt.entity.js').Attempt): Promise<void> {

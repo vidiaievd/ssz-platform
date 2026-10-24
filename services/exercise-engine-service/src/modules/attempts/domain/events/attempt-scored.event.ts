@@ -63,6 +63,12 @@ export interface AttemptScoredPayload extends AttemptTiming {
    * (plan 69, Q3-A). Read off the document by the engine. Absent everywhere else, which consumers read as «not lowered».
    */
   evidenceLowered?: boolean;
+  /**
+   * A model approved the work of a learner nobody reviews (plan 79 §2.1). Both set together
+   * and only then: a teacher's approval is read as a machine score is, a model's is not.
+   */
+  reviewOutcome?: 'approved';
+  reviewedBy?: 'ai';
 }
 
 export class AttemptScoredEvent implements IDomainEvent {

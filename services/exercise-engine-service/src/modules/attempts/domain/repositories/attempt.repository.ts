@@ -178,9 +178,9 @@ export interface IAttemptRepository {
   /**
    * One page of a learner's own submissions, newest first (47.1).
    *
-   * Selects `ROUTED_FOR_REVIEW`, `RETURNED`, and `SCORED`-with-a-reviewer only — the same
-   * three buckets `status` narrows within. A practice attempt or a machine-scored one
-   * never matches, `status=all` either.
+   * Selects `ROUTED_FOR_REVIEW`, `RETURNED`, and `SCORED` by a verdict — a teacher's or a
+   * model's (plan 79, 2.3) — only: the same three buckets `status` narrows within. A
+   * practice attempt or a machine-scored one never matches, `status=all` either.
    */
   findMySubmissionsPage(
     userId: string,
