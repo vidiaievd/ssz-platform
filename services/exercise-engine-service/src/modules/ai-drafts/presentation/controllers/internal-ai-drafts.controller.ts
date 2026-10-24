@@ -18,11 +18,12 @@ import { Result } from '../../../../shared/kernel/result.js';
 import { PutAiDraftCommand } from '../../application/commands/put-ai-draft/put-ai-draft.command.js';
 import type { PutAiDraftError } from '../../application/commands/put-ai-draft/put-ai-draft.handler.js';
 import type { AttemptAiDraft } from '../../domain/entities/attempt-ai-draft.entity.js';
-import { PutAiDraftDto } from '../dto/put-ai-draft.dto.js';
+import { PutAiDraftDto, toProposedDraft } from '../dto/put-ai-draft.dto.js';
 
 const REFUSALS: Record<Exclude<PutAiDraftError['code'], 'ATTEMPT_NOT_FOUND'>, string> = {
   ATTEMPT_NOT_IN_REVIEW: 'The submission is not waiting for review',
   NO_TEACHER_REVIEW: 'No teacher reviews this submission',
+  HAS_TEACHER_REVIEW: 'A teacher reviews this submission',
   DRAFT_DECIDED: 'The teacher already acted on the draft of this submission',
   AI_CALL_ID_REUSED: 'This aiCallId already holds a draft of another submission',
 };
@@ -44,19 +45,7 @@ export class InternalAiDraftsController {
   @HttpCode(HttpStatus.OK)
   async put(@Param('attemptId', ParseUUIDPipe) attemptId: string, @Body() dto: PutAiDraftDto) {
     const result: Result<AttemptAiDraft, PutAiDraftError> = await this.commandBus.execute(
-      new PutAiDraftCommand(attemptId, dto.capability, {
-        status: dto.status === 'ready' ? 'READY' : 'FAILED',
-        // A failed call leaves no text behind, whatever was sent.
-        items: dto.status === 'ready' ? dto.items.map((i) => ({ ...i, suggestion: i.suggestion ?? null })) : [],
-        summary: dto.status === 'ready' ? (dto.summary ?? null) : null,
-        // An empty list is no marks, as storage reads it.
-        marks: dto.status === 'ready' && dto.marks && dto.marks.length > 0 ? dto.marks : null,
-        errorCode: dto.errorCode ?? null,
-        providerId: dto.providerId ?? null,
-        modelId: dto.modelId ?? null,
-        promptVersion: dto.promptVersion ?? null,
-        aiCallId: dto.aiCallId,
-      }),
+      new PutAiDraftCommand(attemptId, dto.capability, toProposedDraft(dto)),
     );
     if (result.isFail) {
       const { code } = result.error;
@@ -67,7 +56,7 @@ export class InternalAiDraftsController {
   }
 }
 
-function toResponse(draft: AttemptAiDraft) {
+export function toResponse(draft: AttemptAiDraft) {
   return {
     id: draft.id,
     attemptId: draft.attemptId,

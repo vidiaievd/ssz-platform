@@ -72,6 +72,6 @@ const QueryHandlers = [
     ...CommandHandlers,
     ...QueryHandlers,
   ],
-  exports: [ATTEMPT_REPOSITORY],
+  exports: [ATTEMPT_REPOSITORY, ReviewScoring],
 })
 export class AttemptsModule {}

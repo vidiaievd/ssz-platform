@@ -71,7 +71,8 @@ function setup({ attempt, draft = false, content = 'ok', submitted, exercise }: 
   return { handler: new GetReviewSubjectHandler(attempts, drafts, contentClient), reads };
 }
 
-const run = (handler: GetReviewSubjectHandler) => handler.execute(new GetReviewSubjectQuery(ATTEMPT, 'review_draft'));
+const run = (handler: GetReviewSubjectHandler, capability: 'review_draft' | 'review_direct' = 'review_draft') =>
+  handler.execute(new GetReviewSubjectQuery(ATTEMPT, capability));
 
 describe('GetReviewSubjectHandler', () => {
   it('reads the submission beside its key, through the template model', async () => {
@@ -313,6 +314,18 @@ describe('GetReviewSubjectHandler', () => {
     const result = await run(handler);
     expect(result.value).toMatchObject({ skip: reason, subject: null });
     expect(reads).toEqual([]);
+  });
+
+  // Plan 79, step 2.1b: a direct review is for the learner no teacher reads.
+  it('serves a direct review only for work without a school', async () => {
+    const school = setup();
+    expect((await run(school.handler, 'review_direct')).value).toMatchObject({ skip: 'HAS_TEACHER_REVIEW', subject: null });
+    expect(school.reads).toEqual([]);
+
+    const alone = setup({ attempt: { status: 'ROUTED_FOR_REVIEW', schoolId: null, templateCode: 'translate_to_target' } });
+    const result = await run(alone.handler, 'review_direct');
+    expect(result.value.skip).toBeNull();
+    expect(result.value.subject).not.toBeNull();
   });
 
   it('skips a submission that already has a draft — a redelivered event stops here', async () => {

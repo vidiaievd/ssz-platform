@@ -251,6 +251,40 @@ export interface ReviewDecision {
   comment?: string;
 }
 
+/** A verdict on a submission in review — a teacher's (`review`) or a model's (`reviewByAi`). */
+export interface ReviewVerdict {
+  outcome: 'approved' | 'returned';
+  decisions: ReviewDecision[];
+  comment: string | null;
+  /** 0–100. Required when approving, ignored when returning. */
+  score?: number;
+  passed?: boolean;
+  /** How much of the submission counted, for the letter back to the learner. */
+  approvedItems?: number;
+  totalItems?: number;
+  /**
+   * The marks a teacher set, for the submissions graded out of a rubric.
+   *
+   * Kept on both outcomes: work sent back was still read criterion by criterion, and
+   * the learner's next draft is answering those marks.
+   */
+  rubricMarks?: RubricMarks | null;
+  /**
+   * The verdict per item, for the templates a person rules on item by item rather than
+   * as one — a `read_aloud` prompt passes on its own marks (plan 70, Q1-A). Carried on
+   * both outcomes, with the addresses of each item, so that the memory hears about each
+   * prompt and not only about the attempt.
+   */
+  gapResults?: Array<{ gapKey: string; correct: boolean }>;
+  /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
+  evidenceLowered?: boolean;
+  /**
+   * What the reviewer did with a model's draft (plan 79, 1.5), for the letter's
+   * `aiDraft`. Absent when they were shown none.
+   */
+  aiDraft?: AttemptReviewedAiDraft | null;
+}
+
 /**
  * Course · module · exercise titles snapshotted at attempt start (plan 44 §0.3).
  * Survives the exercise being renamed or removed later — the review screen
@@ -1028,39 +1062,41 @@ export class Attempt extends AggregateRoot {
    * The score is computed by the caller from the decisions — the domain does not know how
    * many items the exercise had, only what was decided about them.
    */
-  review(props: {
-    reviewerId: string;
-    outcome: 'approved' | 'returned';
-    decisions: ReviewDecision[];
-    comment: string | null;
-    /** 0–100. Required when approving, ignored when returning. */
-    score?: number;
-    passed?: boolean;
-    /** How much of the submission counted, for the letter back to the learner. */
-    approvedItems?: number;
-    totalItems?: number;
-    /**
-     * The marks a teacher set, for the submissions graded out of a rubric.
-     *
-     * Kept on both outcomes: work sent back was still read criterion by criterion, and
-     * the learner's next draft is answering those marks.
-     */
-    rubricMarks?: RubricMarks | null;
-    /**
-     * The verdict per item, for the templates a person rules on item by item rather than
-     * as one — a `read_aloud` prompt passes on its own marks (plan 70, Q1-A). Carried on
-     * both outcomes, with the addresses of each item, so that the memory hears about each
-     * prompt and not only about the attempt.
-     */
-    gapResults?: Array<{ gapKey: string; correct: boolean }>;
-    /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
-    evidenceLowered?: boolean;
-    /**
-     * What the reviewer did with a model's draft (plan 79, 1.5), for the letter's
-     * `aiDraft`. Absent when they were shown none.
-     */
-    aiDraft?: AttemptReviewedAiDraft | null;
-  }): Result<
+  review(props: ReviewVerdict & { reviewerId: string }): Result<
+    void,
+    InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
+  > {
+    return this.deliver(props, props.reviewerId);
+  }
+
+  /**
+   * A model's verdict on the work of a learner nobody reviews (plan 79 §2.1, decision Q1).
+   *
+   * The same two outcomes as a teacher's, with three differences. Only work with no school
+   * takes one: where a teacher reads the queue, their verdict is the one that counts, and a
+   * model's rating the memory first would be a second review of the same card. Nobody
+   * signs it, so `deliveredVerdict` stays empty and no colleague is named. And no letter is
+   * raised — `exercise.attempt.reviewed` says a teacher answered, and here none did; the
+   * events that close the attempt say `reviewedBy: 'ai'` instead, so progress records it and
+   * memory rates it as the weaker evidence it is.
+   */
+  reviewByAi(props: Omit<ReviewVerdict, 'aiDraft'>): Result<
+    void,
+    InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
+  > {
+    if (this._schoolId !== null) {
+      return Result.fail(
+        new InvalidAttemptTransitionError('A model does not review work a teacher reviews'),
+      );
+    }
+    return this.deliver(props, null);
+  }
+
+  /** Both verdicts. `reviewerId` is null for a model's. */
+  private deliver(
+    props: ReviewVerdict,
+    reviewerId: string | null,
+  ): Result<
     void,
     InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
   > {
@@ -1090,7 +1126,7 @@ export class Attempt extends AggregateRoot {
       return Result.fail(new ReviewCommentRequiredError());
     }
 
-    this._reviewedByUserId = props.reviewerId;
+    this._reviewedByUserId = reviewerId;
     this._reviewedAt = new Date();
     if (props.rubricMarks) {
       this._rubricMarks = props.rubricMarks;
@@ -1121,6 +1157,7 @@ export class Attempt extends AggregateRoot {
           completed: false,
           passed: false,
           reviewOutcome: 'returned',
+          ...(reviewerId === null ? { reviewedBy: 'ai' as const } : {}),
           practicedAtoms: this._practicedAtoms,
           skills: this._skills,
           focus: this._focus,
@@ -1141,7 +1178,7 @@ export class Attempt extends AggregateRoot {
         }),
       );
 
-      this.addReviewedEvent(props, null);
+      if (reviewerId !== null) this.addReviewedEvent({ ...props, reviewerId }, null);
       return Result.ok();
     }
 
@@ -1175,6 +1212,11 @@ export class Attempt extends AggregateRoot {
         templateCode: this._templateCode,
         passed: this._passed,
         modality: this._modality,
+        // A teacher's approval needs no special reading (`reviewOutcome` in the contract);
+        // a model's does, and the contract never carries `reviewedBy` without it.
+        ...(reviewerId === null
+          ? { reviewOutcome: 'approved' as const, reviewedBy: 'ai' as const }
+          : {}),
         // A free-form template grades as one, so the address it carries is the whole
         // exercise's — and this is the strongest evidence the platform has, because a
         // person read the answer.
@@ -1190,7 +1232,7 @@ export class Attempt extends AggregateRoot {
       }),
     );
 
-    this.addReviewedEvent(props, this._score);
+    if (reviewerId !== null) this.addReviewedEvent({ ...props, reviewerId }, this._score);
 
     return Result.ok();
   }

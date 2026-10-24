@@ -23,6 +23,8 @@ export type ReviewSubjectSkip =
   | 'ATTEMPT_NOT_IN_REVIEW'
   /** No school: no teacher reads the queue it is in (part 2 of the plan). */
   | 'NO_TEACHER_REVIEW'
+  /** A school's: a teacher reviews it, so no direct review (`review_direct`). */
+  | 'HAS_TEACHER_REVIEW'
   /** A draft is already on it — written, failed or acted on. A redelivered event stops here. */
   | 'DRAFT_EXISTS'
   /** No review prompt for this template, or a `short_answer` of the old single-question form. */
@@ -76,7 +78,9 @@ export class GetReviewSubjectHandler implements IQueryHandler<GetReviewSubjectQu
     const skip = (reason: ReviewSubjectSkip) => Result.ok<ReviewSubjectResult, GetReviewSubjectError>({ ...base, skip: reason, subject: null });
 
     const refusal = draftRefusal(attempt, query.capability);
-    if (refusal === 'ATTEMPT_NOT_IN_REVIEW' || refusal === 'NO_TEACHER_REVIEW') return skip(refusal);
+    if (refusal === 'ATTEMPT_NOT_IN_REVIEW' || refusal === 'NO_TEACHER_REVIEW' || refusal === 'HAS_TEACHER_REVIEW') {
+      return skip(refusal);
+    }
     if (await this.drafts.findByAttempt(attempt.id, query.capability)) return skip('DRAFT_EXISTS');
 
     if (!hasReviewPrompt(attempt.templateCode)) return skip('TEMPLATE_NOT_SUPPORTED');

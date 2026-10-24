@@ -13,7 +13,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { AI_DRAFT_CAPABILITIES, type AiDraftCapability } from '../../domain/entities/attempt-ai-draft.entity.js';
+import type { ProposedDraft } from '../../domain/entities/attempt-ai-draft.entity.js';
 
 /** A suggested mark on one rubric criterion (step 1.7c), keyed by the attempt's rubric snapshot. */
 export class AiDraftMarkDto {
@@ -66,11 +66,11 @@ export class AiDraftRemarkDto {
   suggestion!: string | null;
 }
 
-/** What ai-service writes. Wire statuses are lowercase, like every other status on the wire. */
-export class PutAiDraftDto {
-  @IsIn(AI_DRAFT_CAPABILITIES)
-  capability!: AiDraftCapability;
-
+/**
+ * What ai-service writes about a submission — a teacher's draft (`ai-draft`) or a learner's
+ * review (`ai-review`). Wire statuses are lowercase, like every other status on the wire.
+ */
+export class AiDraftBodyDto {
   @IsIn(['ready', 'failed'])
   status!: 'ready' | 'failed';
 
@@ -95,7 +95,7 @@ export class PutAiDraftDto {
   marks?: AiDraftMarkDto[] | null;
 
   /** Required for `failed`: why there is no draft text. */
-  @ValidateIf((o: PutAiDraftDto) => o.status === 'failed' || o.errorCode != null)
+  @ValidateIf((o: AiDraftBodyDto) => o.status === 'failed' || o.errorCode != null)
   @IsString()
   @MinLength(1)
   @MaxLength(64)
@@ -112,4 +112,27 @@ export class PutAiDraftDto {
   /** The ai-service ledger row behind this draft — the idempotency key. */
   @IsUUID()
   aiCallId!: string;
+}
+
+/** A teacher's draft. A learner's review is written with its verdict, through `ai-review`. */
+export class PutAiDraftDto extends AiDraftBodyDto {
+  @IsIn(['review_draft'])
+  capability!: 'review_draft';
+}
+
+/** The body as storage keeps it. */
+export function toProposedDraft(dto: AiDraftBodyDto): ProposedDraft {
+  return {
+    status: dto.status === 'ready' ? 'READY' : 'FAILED',
+    // A failed call leaves no text behind, whatever was sent.
+    items: dto.status === 'ready' ? dto.items.map((i) => ({ ...i, suggestion: i.suggestion ?? null })) : [],
+    summary: dto.status === 'ready' ? (dto.summary ?? null) : null,
+    // An empty list is no marks, as storage reads it.
+    marks: dto.status === 'ready' && dto.marks && dto.marks.length > 0 ? dto.marks : null,
+    errorCode: dto.errorCode ?? null,
+    providerId: dto.providerId ?? null,
+    modelId: dto.modelId ?? null,
+    promptVersion: dto.promptVersion ?? null,
+    aiCallId: dto.aiCallId,
+  };
 }

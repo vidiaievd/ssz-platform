@@ -16,10 +16,11 @@ export type AiDraftStatus = 'READY' | 'FAILED' | 'SENT' | 'EDITED' | 'DISCARDED'
 export type ProposedDraftStatus = Extract<AiDraftStatus, 'READY' | 'FAILED'>;
 
 /**
- * ai-service capabilities that leave a draft on an attempt. `review_direct` (plan 79, part 2)
- * joins with its own audience rule in `draftRefusal`.
+ * ai-service capabilities that leave a draft on an attempt, each with its own audience in
+ * `draftRefusal`: `review_draft` is help for a teacher, `review_direct` (plan 79, part 2) is
+ * the review itself for a learner nobody reviews — written with its verdict (`ai-review`).
  */
-export const AI_DRAFT_CAPABILITIES = ['review_draft'] as const;
+export const AI_DRAFT_CAPABILITIES = ['review_draft', 'review_direct'] as const;
 export type AiDraftCapability = (typeof AI_DRAFT_CAPABILITIES)[number];
 
 /**
@@ -64,13 +65,16 @@ export type DraftRefusal =
   | 'ATTEMPT_NOT_IN_REVIEW'
   /** A teacher's draft on work no teacher reviews (no school) — part 2's ground, not this one's. */
   | 'NO_TEACHER_REVIEW'
+  /** A model's verdict on work a teacher reviews (a school's) — theirs is the one that counts. */
+  | 'HAS_TEACHER_REVIEW'
   /** The teacher already acted on the draft that is there. */
   | 'DRAFT_DECIDED';
 
 /**
  * Whether an attempt takes a draft of this capability at all. A draft is help for whoever
  * reviews the submission, so it only makes sense while the submission waits in a queue
- * that reviewer reads.
+ * that reviewer reads. A direct review is the reverse: it is for the learner whose work no
+ * queue shows to anyone (plan 79 §0).
  */
 export function draftRefusal(
   attempt: { status: AttemptStatus; schoolId: string | null },
@@ -78,6 +82,7 @@ export function draftRefusal(
 ): DraftRefusal | null {
   if (attempt.status !== 'ROUTED_FOR_REVIEW') return 'ATTEMPT_NOT_IN_REVIEW';
   if (capability === 'review_draft' && attempt.schoolId === null) return 'NO_TEACHER_REVIEW';
+  if (capability === 'review_direct' && attempt.schoolId !== null) return 'HAS_TEACHER_REVIEW';
   return null;
 }
 
