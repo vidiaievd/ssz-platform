@@ -158,6 +158,23 @@ describe('UserProgress', () => {
     });
   });
 
+  describe('a verdict that credits nothing', () => {
+    it('takes a submission off SUBMITTED, back to IN_PROGRESS', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 30, score: null, completed: false, awaitingReview: true, now: NOW });
+      p.recordAttempt({ timeSpentSeconds: 0, score: 0, completed: false, byAi: true, now: LATER });
+      expect(p.status).toBe('IN_PROGRESS');
+      expect(p.completedAt).toBeNull();
+    });
+
+    it('leaves a submission waiting when another one is handed in', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 30, score: null, completed: false, awaitingReview: true, now: NOW });
+      p.recordAttempt({ timeSpentSeconds: 30, score: null, completed: false, awaitingReview: true, now: LATER });
+      expect(p.status).toBe('SUBMITTED');
+    });
+  });
+
   describe('recordReturn', () => {
     it('sends a submission back to IN_PROGRESS without counting an attempt', () => {
       const p = freshProgress();

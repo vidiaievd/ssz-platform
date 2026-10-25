@@ -133,6 +133,11 @@ export class UserProgress extends AggregateRoot {
       (this._status === 'NOT_STARTED' || this._status === 'IN_PROGRESS')
     ) {
       this._status = 'SUBMITTED';
+    } else if (this._status === 'SUBMITTED' && props.awaitingReview !== true) {
+      // The verdict the submission was waiting for credited none of it — an approval of
+      // nothing, a teacher's or a model's (plan 80). Not done, and no longer waiting: back
+      // to being worked on, as a return is (`recordReturn`).
+      this._status = 'IN_PROGRESS';
     } else if (this._status === 'NOT_STARTED') {
       this._status = 'IN_PROGRESS';
     }
