@@ -149,9 +149,26 @@ describe('review_direct — capability and versions', () => {
   it('is in the catalog with its own prompt line, on the same floor as the draft', () => {
     const capability = findCapability('review_direct');
     expect(capability?.requiredFeatures).toEqual({ structuredOutput: 'json_mode' });
-    expect(capability?.promptVersions).toEqual(['review_direct@1']);
+    expect(capability?.promptVersions).toEqual(['review_direct@1', 'review_direct@2']);
     expect(REVIEW_DIRECT_PROMPT_VERSIONS).not.toContain('review_draft@1');
     expect(() => directReviewRequest('review_draft@1', toDirectSubject(translate, null))).toThrow('review_draft@1');
+  });
+
+  // Plan 80, step 3d.
+  it('opens @2 by its audience and leaves @1 as it was, whoever pays', () => {
+    const subject = toDirectSubject(translate, 'ru');
+    const alone = directReviewRequest('review_direct@2', subject, 'self_study');
+    const school = directReviewRequest('review_direct@2', subject, 'school');
+
+    expect(alone.system).toBe(directReviewRequest(V1, subject).system);
+    expect(directReviewRequest(V1, subject, 'school').system).toBe(alone.system);
+    expect(school.system).toMatch(/^You review a translation exercise for a learner of a school\./);
+    expect(school.system).toContain('A teacher of the school may read the work later');
+    expect(school.system).not.toContain('without a teacher');
+    // Only the opening differs: the rules after it are the same.
+    const rest = (system: string) => system.slice(system.indexOf('Be right rather than thorough'));
+    expect(rest(school.system)).toBe(rest(alone.system));
+    expect(school.responseSchema!.name).toBe(alone.responseSchema!.name);
   });
 
   it('leaves review_draft@1 addressed to the teacher', () => {

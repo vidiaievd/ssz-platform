@@ -119,8 +119,10 @@ export class DirectReviewHandler implements ICommandHandler<DirectReviewCommand,
       actor: { userId: found.userId, role: null },
       surface: schoolId === null ? SELF_STUDY_SURFACE : REVIEW_QUEUE_SURFACE,
     };
+    // Who pays is whose learner this is: a school's is told a teacher may read the work after.
+    const audience = context.payer.type === 'workspace' ? 'school' : 'self_study';
     const call = await this.gateway.call(REVIEW_DIRECT.code, context, (promptVersion) =>
-      directReviewRequest(promptVersion, subject),
+      directReviewRequest(promptVersion, subject, audience),
     );
     const report = describeCall(REVIEW_DIRECT.code, context, call);
 

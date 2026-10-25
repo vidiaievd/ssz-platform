@@ -3,7 +3,7 @@ import type { WritingTaskReviewInput } from '../../review-draft/domain/writing-t
 import { ASPECT_RULES, userMessageV1 } from '../../review-draft/prompts/writing-task.v1.js';
 import { rubricOf } from '../../review-draft/prompts/writing-task.v2.js';
 import { directSchema, verifyDirectReview } from '../domain/direct-review.js';
-import { decisionRules, directFraming, markRules, summaryRules } from './verdict-rules.js';
+import { decisionRules, directFraming, type Framing, markRules, summaryRules } from './verdict-rules.js';
 
 /**
  * `review_direct@1`, template `writing_task` (plan 79, step 2.2b). The remarks of
@@ -13,12 +13,12 @@ import { decisionRules, directFraming, markRules, summaryRules } from './verdict
  * the text as an answer to the task.
  */
 
-export function systemPromptV1(input: WritingTaskReviewInput): string {
+export function systemPromptV1(input: WritingTaskReviewInput, framing: Framing = directFraming): string {
   const quoted = input.aspects.filter((aspect) => aspect === 'grammar' || aspect === 'lexis');
   const whole = input.aspects.filter((aspect) => aspect === 'task' || aspect === 'structure');
   const marked = input.rubric !== null && input.rubric.length > 0;
   return [
-    ...directFraming('a written text'),
+    ...framing('a written text'),
     '',
     `The learner studies ${input.targetLanguage} and wrote \`learnerText\` to the task below. There is no`,
     'key: `exampleAnswer`, when given, is one possible text by the author, never a target — a text that',
@@ -71,9 +71,9 @@ export function userMessageDirectV1(input: WritingTaskReviewInput): string {
   return JSON.stringify({ ...task, rubric: rubricOf(input.rubric), learnerText }, null, 2);
 }
 
-export function writingTaskDirectRequestV1(input: WritingTaskReviewInput): GatewayRequest {
+export function writingTaskDirectRequestV1(input: WritingTaskReviewInput, framing: Framing = directFraming): GatewayRequest {
   return {
-    system: systemPromptV1(input),
+    system: systemPromptV1(input, framing),
     messages: [{ role: 'user', parts: [{ type: 'text', text: userMessageDirectV1(input) }] }],
     responseSchema: {
       name: 'writing_task_direct_review',

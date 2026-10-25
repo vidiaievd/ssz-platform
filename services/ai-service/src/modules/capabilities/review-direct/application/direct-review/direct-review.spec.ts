@@ -103,7 +103,7 @@ function setup({
   const calls: Array<{ capability: string; context: CallContext; request: ReturnType<Extract<GatewayInput, Function>> }> = [];
   const gateway = {
     call: async (capability: string, context: CallContext, input: GatewayInput) => {
-      calls.push({ capability, context, request: typeof input === 'function' ? input('review_direct@1') : input });
+      calls.push({ capability, context, request: typeof input === 'function' ? input('review_direct@2') : input });
       return call;
     },
   } as unknown as AiGateway;
@@ -177,6 +177,7 @@ describe('DirectReviewHandler', () => {
     });
     // Remarks in the learner's interface language, spelled out.
     expect(calls[0]!.request.system).toContain('English');
+    expect(calls[0]!.request.system).toMatch(/^You review .* for a learner who studies without a teacher\./);
     expect(writes).toEqual([
       {
         review: {
@@ -321,6 +322,8 @@ describe('DirectReviewHandler', () => {
         surface: REVIEW_QUEUE_SURFACE,
       });
       expect(calls[0]!.request.system).toContain('Ukrainian');
+      // Plan 80, step 3d: the school's learner is told a teacher may read the work after.
+      expect(calls[0]!.request.system).toMatch(/^You review .* for a learner of a school\./);
       expect(writes).toHaveLength(1);
       expect(gaveUp).toHaveLength(0);
     });
