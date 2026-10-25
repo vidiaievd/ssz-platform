@@ -13,6 +13,7 @@ import {
   Post,
   Get,
   Query,
+  ServiceUnavailableException,
   UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
@@ -45,7 +46,10 @@ import type { ListPendingReviewSchoolsResult } from '../../application/queries/l
 import { ListReviewTermsAheadQuery } from '../../application/queries/list-review-terms-ahead/list-review-terms-ahead.query.js';
 import type { ListReviewTermsAheadResult } from '../../application/queries/list-review-terms-ahead/list-review-terms-ahead.handler.js';
 import { GetReviewEffortQuery } from '../../application/queries/get-review-effort/get-review-effort.query.js';
-import type { GetReviewEffortResult } from '../../application/queries/get-review-effort/get-review-effort.handler.js';
+import type {
+  GetReviewEffortError,
+  GetReviewEffortResult,
+} from '../../application/queries/get-review-effort/get-review-effort.handler.js';
 import { AggregateReviewLoadQuery } from '../../application/queries/aggregate-review-load/aggregate-review-load.query.js';
 import type { AggregateReviewLoadResult } from '../../application/queries/aggregate-review-load/aggregate-review-load.handler.js';
 import { ListReviewDecisionsQuery } from '../../application/queries/list-review-decisions/list-review-decisions.query.js';
@@ -278,20 +282,37 @@ export class InternalReviewController {
 
   /**
    * The school's queue per group × template, beside the minutes each template takes there
-   * (plan 81, step 5) — what the teacher's schedule turns into "≈ X h of review against
-   * Y h set aside". Numbers only; whether that is too much is the caller's to say.
+   * (plan 81, steps 5 and 5c) — what the teacher's schedule turns into "≈ X h of review
+   * against Y h set aside". Numbers only; whether that is too much is the caller's to say.
+   * 404 when organization-service has no such school, 503 when it cannot be reached.
    *
    * Declared before the parameterised routes so the literal segment keeps winning.
    */
   @Get('review/effort')
-  async getReviewEffort(@Query('schoolId') schoolId?: string): Promise<GetReviewEffortResult> {
+  async getReviewEffort(
+    // Checked here: a malformed id would come back from organization-service as a 400 and
+    // read below as an outage.
+    @Query('schoolId', new ParseUUIDPipe({ optional: true })) schoolId?: string,
+  ): Promise<GetReviewEffortResult> {
     if (!schoolId) {
       throw new UnprocessableEntityException('schoolId is required');
     }
 
-    return this.queryBus.execute<GetReviewEffortQuery, GetReviewEffortResult>(
-      new GetReviewEffortQuery(schoolId),
-    );
+    const result = await this.queryBus.execute<
+      GetReviewEffortQuery,
+      Result<GetReviewEffortResult, GetReviewEffortError>
+    >(new GetReviewEffortQuery(schoolId));
+
+    if (result.isFail) {
+      if (result.error.code === 'SCHOOL_NOT_FOUND') {
+        throw new NotFoundException('School not found');
+      }
+      throw new ServiceUnavailableException(
+        "organization-service did not answer with the school's review minutes",
+      );
+    }
+
+    return result.value;
   }
 
   @Post('review/aggregate')

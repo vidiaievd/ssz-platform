@@ -23,12 +23,28 @@ export interface CourseReviewPolicy {
   ownerSchoolId: string | null;
 }
 
+/** Whose a starting figure is: the school set it, or organization-service's factory value. */
+export type SchoolReviewMinutesSource = 'school' | 'default';
+
 /**
- * The two reads a school's review policy is made of. Each answers null when the course or
+ * Minutes per submission a school expects before its own measurements take over
+ * (organization-service, plan 81 step 5b). Factory values come filled in, so every figure
+ * here is usable as it is.
+ */
+export interface SchoolReviewEffortMinutes {
+  /** Every factory template plus every one the school set. */
+  templates: { templateCode: string; minutes: number; source: SchoolReviewMinutesSource }[];
+  /** For a template on neither list. */
+  other: { minutes: number; source: SchoolReviewMinutesSource };
+}
+
+/**
+ * The reads a school's review policy is made of. Each answers null when the course or
  * school is not there, and throws when its service cannot be reached — the caller decides
  * what an outage means.
  */
 export interface IReviewPolicyReader {
   courseReviewPolicy(courseId: string): Promise<CourseReviewPolicy | null>;
   schoolReviewPolicy(schoolId: string): Promise<SchoolReviewPolicy | null>;
+  schoolReviewEffortMinutes(schoolId: string): Promise<SchoolReviewEffortMinutes | null>;
 }

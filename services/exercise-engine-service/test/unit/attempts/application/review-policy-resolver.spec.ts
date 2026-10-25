@@ -69,6 +69,7 @@ const setup = (opts: {
   const policies = {
     courseReviewPolicy: jest.fn<IReviewPolicyReader['courseReviewPolicy']>(() => answer(opts.course, course())),
     schoolReviewPolicy: jest.fn<IReviewPolicyReader['schoolReviewPolicy']>(() => answer(opts.school, school())),
+    schoolReviewEffortMinutes: jest.fn<IReviewPolicyReader['schoolReviewEffortMinutes']>(),
   };
   const isEnabled = jest
     .fn<IEntitlementsClient['isEnabled']>()

@@ -1,38 +1,19 @@
 /**
  * How long a teacher takes over one submission of a template — the figure a review
- * forecast multiplies the queue by (plan 81, Q3).
+ * forecast multiplies the queue by (plan 81, Q3 and Q5).
  *
  * The school's own history when it has enough of it: the median of
  * `review_handling_seconds` over the last {@link REVIEW_EFFORT_HISTORY_DAYS} days, once
- * at least {@link REVIEW_EFFORT_MIN_SAMPLE} verdicts back it. Until then a constant from
- * {@link DEFAULT_REVIEW_MINUTES} — a guess, and the answer says which of the two it is.
+ * at least {@link REVIEW_EFFORT_MIN_SAMPLE} verdicts back it. Until then the school's
+ * starting minutes — its own setting, or organization-service's factory value where it set
+ * none — and the answer says which of the three it is.
  */
 
 /** How far back a school's handling times are read. */
 export const REVIEW_EFFORT_HISTORY_DAYS = 90;
 
-/** The fewest timed verdicts a school's median is trusted on; below it the constant wins. */
+/** The fewest timed verdicts a school's median is trusted on; below it the starting minutes win. */
 export const REVIEW_EFFORT_MIN_SAMPLE = 20;
-
-/**
- * Minutes per submission before a school has history of its own.
- *
- * Starting guesses, not measurements: an essay is read and commented on, a recording is
- * listened to through, a sentence is checked against its key. Each school replaces them
- * with its own median as soon as the sample allows.
- */
-export const DEFAULT_REVIEW_MINUTES: Readonly<Record<string, number>> = {
-  writing_task: 12,
-  read_aloud: 5,
-  information_transfer: 4,
-  translate_to_target: 4,
-  translate_from_target: 4,
-  error_correction: 3,
-  short_answer: 2,
-};
-
-/** A template that reaches a teacher but has no entry above. */
-export const FALLBACK_REVIEW_MINUTES = 3;
 
 /** What the school's history says about one template, as the database counted it. */
 export interface HandlingTimeStat {
@@ -41,7 +22,20 @@ export interface HandlingTimeStat {
   medianSeconds: number;
 }
 
-export type ReviewEffortNormSource = 'history' | 'default';
+/** Whose a starting figure is, as organization-service reports it. */
+export type StartingMinutesSource = 'school' | 'default';
+
+/**
+ * A school's minutes per submission before measurements (plan 81, step 5b). Factory values
+ * are already filled in by organization-service, so the engine keeps no copy of them.
+ */
+export interface StartingReviewMinutes {
+  templates: readonly { templateCode: string; minutes: number; source: StartingMinutesSource }[];
+  /** For a template on neither list. */
+  other: { minutes: number; source: StartingMinutesSource };
+}
+
+export type ReviewEffortNormSource = 'history' | StartingMinutesSource;
 
 export interface ReviewEffortNorm {
   templateCode: string;
@@ -61,8 +55,10 @@ export interface ReviewEffortNorm {
 export function resolveReviewEffortNorms(
   templateCodes: Iterable<string>,
   stats: readonly HandlingTimeStat[],
+  starting: StartingReviewMinutes,
 ): ReviewEffortNorm[] {
   const byTemplate = new Map(stats.map((stat) => [stat.templateCode, stat]));
+  const startingByTemplate = new Map(starting.templates.map((entry) => [entry.templateCode, entry]));
   const codes = new Set([...templateCodes, ...byTemplate.keys()]);
 
   return [...codes].sort().map((templateCode) => {
@@ -80,10 +76,11 @@ export function resolveReviewEffortNorms(
       };
     }
 
+    const start = startingByTemplate.get(templateCode) ?? starting.other;
     return {
       templateCode,
-      minutesPerSubmission: DEFAULT_REVIEW_MINUTES[templateCode] ?? FALLBACK_REVIEW_MINUTES,
-      source: 'default',
+      minutesPerSubmission: start.minutes,
+      source: start.source,
       sampleSize,
     };
   });
