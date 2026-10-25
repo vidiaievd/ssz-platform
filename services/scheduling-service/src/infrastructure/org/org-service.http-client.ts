@@ -76,8 +76,10 @@ export class OrgServiceHttpClient {
   async getSchoolTeachers(schoolId: string): Promise<SchoolTeacherEntry[]> {
     try {
       const res = await fetch(
-        `${this.baseUrl}/api/v1/schools/${schoolId}/teachers`,
-        { headers: { Authorization: `Bearer ${this.token}` } },
+        // The internal twin of the public list: the public route wants a person's JWT
+        // and refused the service token, so every school read as having no teachers.
+        `${this.baseUrl}/api/v1/internal/schools/${schoolId}/teachers`,
+        { headers: this.internalHeaders() },
       );
       if (!res.ok) {
         this.logger.warn(`getSchoolTeachers: org-service returned ${res.status} for school ${schoolId}`);

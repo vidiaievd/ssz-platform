@@ -2,7 +2,8 @@ import type { IQuery } from '@nestjs/cqrs';
 
 export class ListSchoolTeachersQuery implements IQuery {
   constructor(
-    public readonly actorId: string,
+    /** Null for a service asking over the internal API: there is no person to check. */
+    public readonly actorId: string | null,
     public readonly schoolId: string,
   ) {}
 }

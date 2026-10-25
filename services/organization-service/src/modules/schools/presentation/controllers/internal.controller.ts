@@ -13,6 +13,7 @@ import { QueryBus } from '@nestjs/cqrs';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { GetSchoolQuery } from '../../application/queries/get-school/get-school.query.js';
+import { ListSchoolTeachersQuery } from '../../application/queries/list-school-teachers/list-school-teachers.query.js';
 import {
   SCHOOL_REPOSITORY,
   type ISchoolRepository,
@@ -21,7 +22,7 @@ import {
   SCHOOL_GROUP_REPOSITORY,
   type ISchoolGroupRepository,
 } from '../../domain/repositories/school-group.repository.interface.js';
-import type { SchoolDto } from '../../application/dto/school.dto.js';
+import type { SchoolDto, SchoolTeacherDto } from '../../application/dto/school.dto.js';
 
 interface MemberRoleResponse {
   schoolId: string;
@@ -151,6 +152,22 @@ export class InternalController {
     const school = await this.schoolRepository.findById(schoolId);
     if (!school) throw new NotFoundException(`School ${schoolId} not found`);
     return { schoolId, language: school.defaultExplanationLanguage?.trim() || null };
+  }
+
+  /**
+   * The school's teachers with their workload attributes — the public
+   * `schools/:id/teachers` list, for a service rather than a person.
+   *
+   * Scheduling's command centre, substitute ranking and availability read this. They
+   * used to call the public route with the internal token as a Bearer, which the JWT
+   * guard refused, so every school's teacher list came back empty and read as "no
+   * teachers" rather than as an error.
+   */
+  @Get(':schoolId/teachers')
+  async listSchoolTeachers(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+  ): Promise<SchoolTeacherDto[]> {
+    return this.queryBus.execute(new ListSchoolTeachersQuery(null, schoolId));
   }
 
   /**
