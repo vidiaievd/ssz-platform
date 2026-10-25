@@ -125,12 +125,28 @@ export class ReviewBlockOccurrenceDto {
   @ApiPropertyOptional({ nullable: true }) note!: string | null;
 }
 
+export class ReviewBlockOverlapDto {
+  @ApiProperty({ enum: ['block_lesson', 'blocks'] }) kind!: 'block_lesson' | 'blocks';
+  @ApiProperty() teacherId!: string;
+  @ApiProperty({ example: '2026-10-27' }) date!: string;
+  @ApiPropertyOptional({ description: 'block_lesson: the block' }) blockId?: string;
+  @ApiPropertyOptional({ description: 'block_lesson: the lesson it runs into' }) lessonId?: string;
+  @ApiPropertyOptional({ description: 'blocks: one of the two' }) blockAId?: string;
+  @ApiPropertyOptional({ description: 'blocks: the other' }) blockBId?: string;
+}
+
 export class ReviewBlockWindowDto {
   @ApiProperty({ type: [ReviewBlockResponseDto], description: 'Rules with a day in the window' })
   blocks!: ReviewBlockResponseDto[];
 
   @ApiProperty({ type: [ReviewBlockOccurrenceDto], description: 'Dated sittings in the window' })
   occurrences!: ReviewBlockOccurrenceDto[];
+
+  @ApiProperty({
+    type: [ReviewBlockOverlapDto],
+    description: 'Sittings running into a lesson (cancelled ones free the slot) or another block',
+  })
+  overlaps!: ReviewBlockOverlapDto[];
 }
 
 export function toReviewBlockDto(block: ReviewBlock): ReviewBlockResponseDto {
@@ -159,5 +175,6 @@ export function toReviewBlockWindowDto(window: ReviewBlockWindow): ReviewBlockWi
   return {
     blocks: window.blocks.map(toReviewBlockDto),
     occurrences: window.occurrences.map(toOccurrenceDto),
+    overlaps: window.overlaps,
   };
 }

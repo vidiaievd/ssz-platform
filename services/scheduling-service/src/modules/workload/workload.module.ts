@@ -4,9 +4,10 @@ import { WorkloadCalculatorService } from './application/services/workload-calcu
 import { UpdateWorkloadPolicyHandler } from './application/commands/update-workload-policy/update-workload-policy.handler.js';
 import { WorkloadController } from './presentation/controllers/workload.controller.js';
 import { SlotsModule } from '../slots/slots.module.js';
+import { ReviewBlocksModule } from '../review-blocks/review-blocks.module.js';
 
 @Module({
-  imports: [CqrsModule, SlotsModule],
+  imports: [CqrsModule, SlotsModule, ReviewBlocksModule],
   controllers: [WorkloadController],
   providers: [WorkloadCalculatorService, UpdateWorkloadPolicyHandler],
   exports: [WorkloadCalculatorService],

@@ -91,7 +91,9 @@ export class TeacherLoadDto {
   @ApiProperty() teacherId!: string;
   @ApiProperty() contactHours!: number;
   @ApiProperty() prepHours!: number;
-  @ApiProperty() effectiveHours!: number;
+  @ApiProperty({ description: 'Held for marking work (review blocks). In effectiveHours, not in dailyPeak.' })
+  reviewHours!: number;
+  @ApiProperty({ description: 'contact + prep + review' }) effectiveHours!: number;
   @ApiProperty() distinctGroups!: number;
   @ApiProperty() dailyPeak!: number;
   @ApiProperty({ enum: ['ok', 'warn', 'danger'] }) health!: string;
@@ -99,14 +101,30 @@ export class TeacherLoadDto {
 }
 
 export class ConflictEntryDto {
+  @ApiProperty({
+    enum: ['lessons', 'block_lesson', 'blocks'],
+    description:
+      'lessons — two lessons at once; block_lesson — time held for marking runs into a lesson; ' +
+      'blocks — two such blocks overlap. Block kinds are shown, never refused.',
+  })
+  kind!: 'lessons' | 'block_lesson' | 'blocks';
   @ApiProperty() teacherId!: string;
   @ApiProperty() date!: string;
-  @ApiProperty() lessonAId!: string;
-  @ApiProperty() lessonBId!: string;
+  @ApiPropertyOptional({ nullable: true, description: 'The lesson; set for lessons and block_lesson' })
+  lessonAId!: string | null;
+  @ApiPropertyOptional({ nullable: true, description: 'Set for lessons only' })
+  lessonBId!: string | null;
+  @ApiPropertyOptional({ nullable: true, description: 'The block; set for block_lesson and blocks' })
+  blockAId!: string | null;
+  @ApiPropertyOptional({ nullable: true, description: 'Set for blocks only' })
+  blockBId!: string | null;
 }
 
 export class CommandCenterDto {
-  @ApiProperty() conflictCount!: number;
+  @ApiProperty({ description: 'Lessons clashing with lessons — the timetable’s own problems' })
+  conflictCount!: number;
+  @ApiProperty({ description: 'Time held for marking running into a lesson or another block' })
+  reviewBlockConflictCount!: number;
   @ApiProperty() overloadedTeachers!: number;
   @ApiProperty() nearCapTeachers!: number;
   @ApiProperty({ type: [TeacherLoadDto] }) teacherLoads!: TeacherLoadDto[];

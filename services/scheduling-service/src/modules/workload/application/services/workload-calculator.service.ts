@@ -2,6 +2,14 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { LESSON_REPOSITORY, type ILessonRepository } from '../../../slots/domain/repositories/lesson.repository.interface.js';
 import type { Lesson } from '../../../slots/domain/entities/lesson.entity.js';
+import {
+  REVIEW_BLOCK_REPOSITORY,
+  type IReviewBlockRepository,
+} from '../../../review-blocks/domain/repositories/review-block.repository.interface.js';
+import {
+  findReviewBlockOverlaps,
+  reviewHours,
+} from '../../../review-blocks/domain/services/review-block-overlaps.js';
 
 export type HealthState = 'ok' | 'warn' | 'danger';
 
@@ -16,6 +24,8 @@ export interface TeacherLoadSummary {
   teacherId: string;
   contactHours: number;
   prepHours: number;
+  /** Held for marking (plan 81). Counted in effectiveHours, never in dailyPeak — it is not contact. */
+  reviewHours: number;
   effectiveHours: number;
   distinctGroups: number;
   dailyPeak: number;
@@ -23,11 +33,19 @@ export interface TeacherLoadSummary {
   overloaded: boolean;
 }
 
+/**
+ * Two things one teacher holds at the same time on one day. `lessons` is the
+ * timetable's own clash; the review-block kinds (plan 81) are held marking time
+ * running into a lesson or into another block — shown, never refused.
+ */
 export interface ConflictEntry {
+  kind: 'lessons' | 'block_lesson' | 'blocks';
   teacherId: string;
   date: string;
-  lessonAId: string;
-  lessonBId: string;
+  lessonAId: string | null;
+  lessonBId: string | null;
+  blockAId: string | null;
+  blockBId: string | null;
 }
 
 export interface ProposedSlot {
@@ -87,6 +105,7 @@ function durationHours(lesson: Lesson): number {
 export class WorkloadCalculatorService {
   constructor(
     @Inject(LESSON_REPOSITORY) private readonly lessons: ILessonRepository,
+    @Inject(REVIEW_BLOCK_REPOSITORY) private readonly reviewBlocks: IReviewBlockRepository,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -101,7 +120,10 @@ export class WorkloadCalculatorService {
   }
 
   async getConflicts(schoolId: string, from: Date, to: Date): Promise<ConflictEntry[]> {
-    const all = await this.lessons.findBySchoolAndDateRange(schoolId, from, to);
+    const [all, blocks] = await Promise.all([
+      this.lessons.findBySchoolAndDateRange(schoolId, from, to),
+      this.reviewBlocks.findForSchool(schoolId, from, to),
+    ]);
 
     // Group by teacherId + date
     const byKey = new Map<string, Lesson[]>();
@@ -121,10 +143,28 @@ export class WorkloadCalculatorService {
       for (let i = 0; i < dayLessons.length; i++) {
         for (let j = i + 1; j < dayLessons.length; j++) {
           if (lessonsOverlap(dayLessons[i]!, dayLessons[j]!)) {
-            conflicts.push({ teacherId, date, lessonAId: dayLessons[i]!.id, lessonBId: dayLessons[j]!.id });
+            conflicts.push({
+              kind: 'lessons',
+              teacherId,
+              date,
+              lessonAId: dayLessons[i]!.id,
+              lessonBId: dayLessons[j]!.id,
+              blockAId: null,
+              blockBId: null,
+            });
           }
         }
       }
+    }
+
+    const occurrences = blocks.flatMap((b) => b.occurrencesBetween(from, to));
+    for (const overlap of findReviewBlockOverlaps(occurrences, all)) {
+      const { kind, teacherId, date } = overlap;
+      conflicts.push(
+        kind === 'block_lesson'
+          ? { kind, teacherId, date, lessonAId: overlap.lessonId, lessonBId: null, blockAId: overlap.blockId, blockBId: null }
+          : { kind, teacherId, date, lessonAId: null, lessonBId: null, blockAId: overlap.blockAId, blockBId: overlap.blockBId },
+      );
     }
     return conflicts;
   }
@@ -135,13 +175,19 @@ export class WorkloadCalculatorService {
     to: Date,
     policy: WorkloadPolicyValues,
   ): Promise<TeacherLoadSummary> {
-    const teacherLessons = await this.lessons.findByTeacherAndDateRange(teacherId, from, to);
+    const [teacherLessons, blocks] = await Promise.all([
+      this.lessons.findByTeacherAndDateRange(teacherId, from, to),
+      this.reviewBlocks.findForTeacher(teacherId, from, to),
+    ]);
     const active = teacherLessons.filter((l) => l.status !== 'cancelled');
 
     const contactHours = active.reduce((acc, l) => acc + durationHours(l), 0);
     const distinctGroups = new Set(active.map((l) => l.groupId)).size;
     const prepHours = contactHours * policy.prepFactor + distinctGroups * 1.0;
-    const effectiveHours = contactHours + prepHours;
+    // Held marking time is work the week holds, so it adds to the effective load; it is
+    // not time in front of a class, so the daily contact cap below never sees it.
+    const heldForReview = reviewHours(blocks.flatMap((b) => b.occurrencesBetween(from, to)));
+    const effectiveHours = contactHours + prepHours + heldForReview;
 
     // Daily peak contact hours
     const byDay = new Map<string, number>();
@@ -156,7 +202,17 @@ export class WorkloadCalculatorService {
     if (dailyPeak >= policy.dailyContactCap) health = 'danger';
     else if (dailyPeak >= policy.nearCapRatio * policy.dailyContactCap) health = 'warn';
 
-    return { teacherId, contactHours, prepHours, effectiveHours, distinctGroups, dailyPeak, health, overloaded };
+    return {
+      teacherId,
+      contactHours,
+      prepHours,
+      reviewHours: heldForReview,
+      effectiveHours,
+      distinctGroups,
+      dailyPeak,
+      health,
+      overloaded,
+    };
   }
 
   async getSchoolLoadSummaries(
@@ -172,7 +228,8 @@ export class WorkloadCalculatorService {
   /**
    * Derived availability: no positive-availability calendar exists, so a teacher
    * is "free" for a proposed weekly slot set unless a future Lesson (other group)
-   * overlaps one of the slots, or an absence currently covers today.
+   * overlaps one of the slots, or an absence currently covers today. Review blocks
+   * (plan 81) deliberately do not count: held marking time moves for a class.
    */
   async getAvailability(
     schoolId: string,

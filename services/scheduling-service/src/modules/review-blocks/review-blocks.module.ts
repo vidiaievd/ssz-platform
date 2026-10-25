@@ -12,6 +12,7 @@ import { ListTeacherReviewBlocksHandler } from './application/queries/list-teach
 import { ListSchoolReviewBlocksHandler } from './application/queries/list-school-review-blocks/list-school-review-blocks.handler.js';
 import { ReviewBlocksController } from './presentation/controllers/review-blocks.controller.js';
 import { OrgServiceHttpClient } from '../../infrastructure/org/org-service.http-client.js';
+import { SlotsModule } from '../slots/slots.module.js';
 
 const CommandHandlers = [
   CreateReviewBlockHandler,
@@ -22,7 +23,7 @@ const CommandHandlers = [
 const QueryHandlers = [ListTeacherReviewBlocksHandler, ListSchoolReviewBlocksHandler];
 
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, SlotsModule],
   controllers: [ReviewBlocksController],
   providers: [
     ...CommandHandlers,

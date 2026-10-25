@@ -5,6 +5,10 @@ import {
   REVIEW_BLOCK_REPOSITORY,
   type IReviewBlockRepository,
 } from '../../../domain/repositories/review-block.repository.interface.js';
+import {
+  LESSON_REPOSITORY,
+  type ILessonRepository,
+} from '../../../../slots/domain/repositories/lesson.repository.interface.js';
 import { toWindow, type ReviewBlockWindow } from '../review-block-window.js';
 
 /** One teacher's blocks across every school they mark in — whose schedule is the caller's business. */
@@ -12,10 +16,16 @@ import { toWindow, type ReviewBlockWindow } from '../review-block-window.js';
 export class ListTeacherReviewBlocksHandler
   implements IQueryHandler<ListTeacherReviewBlocksQuery, ReviewBlockWindow>
 {
-  constructor(@Inject(REVIEW_BLOCK_REPOSITORY) private readonly blocks: IReviewBlockRepository) {}
+  constructor(
+    @Inject(REVIEW_BLOCK_REPOSITORY) private readonly blocks: IReviewBlockRepository,
+    @Inject(LESSON_REPOSITORY) private readonly lessons: ILessonRepository,
+  ) {}
 
   async execute(query: ListTeacherReviewBlocksQuery): Promise<ReviewBlockWindow> {
-    const blocks = await this.blocks.findForTeacher(query.teacherId, query.from, query.to);
-    return toWindow(blocks, query.from, query.to);
+    const [blocks, lessons] = await Promise.all([
+      this.blocks.findForTeacher(query.teacherId, query.from, query.to),
+      this.lessons.findByTeacherAndDateRange(query.teacherId, query.from, query.to),
+    ]);
+    return toWindow(blocks, query.from, query.to, lessons);
   }
 }
