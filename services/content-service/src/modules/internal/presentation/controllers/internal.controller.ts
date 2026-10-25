@@ -95,6 +95,9 @@ import type { ModuleReaderStructureResult } from '../../application/queries/get-
 import { GetExercisePlacementQuery } from '../../application/queries/get-exercise-placement/get-exercise-placement.query.js';
 import type { ExercisePlacementResult } from '../../application/queries/get-exercise-placement/get-exercise-placement.handler.js';
 
+import { GetContainerReviewAiPolicyQuery } from '../../../container/application/queries/get-review-ai-policy/get-container-review-ai-policy.query.js';
+import type { ContainerReviewAiPolicyResult } from '../../../container/application/queries/get-review-ai-policy/get-container-review-ai-policy.handler.js';
+
 // Service-to-service routes only — @Public() exempts them from the global
 // JwtAuthGuard (APP_GUARD runs before any controller-level guard), and
 // InternalAuthGuard takes over instead, requiring x-internal-token. Excluded
@@ -661,6 +664,22 @@ export class InternalController {
   // against uppercase literals ('ASSIGNED_ONLY', 'FREE_WITHIN_SCHOOL', ...),
   // so the domain's lowercase AccessTier enum value is upper-cased on the wire
   // here rather than passed through raw.
+  /**
+   * A course's review policy with the school's terms resolved (plan 80), for
+   * exercise-engine deciding whether a model's verdict stands, waits or goes to a teacher.
+   * Whether the school's plan allows a model is the engine's own check.
+   */
+  @Get('containers/:id/review-policy')
+  async getContainerReviewAiPolicy(@Param('id') id: string): Promise<ContainerReviewAiPolicyResult> {
+    const result = await this.queryBus.execute<
+      GetContainerReviewAiPolicyQuery,
+      Result<ContainerReviewAiPolicyResult, ContainerDomainError>
+    >(new GetContainerReviewAiPolicyQuery(id));
+
+    if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
+    return result.value;
+  }
+
   @Get('containers/:id/access-tier')
   async getContainerAccessTier(@Param('id') id: string): Promise<{ accessTier: string }> {
     const result = await this.queryBus.execute<

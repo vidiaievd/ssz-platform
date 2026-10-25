@@ -8,6 +8,7 @@ import type {
   CourseTeacher,
   IOrganizationClient,
   SchoolMemberRole,
+  SchoolReviewAiPolicy,
   SchoolReviewSettings,
 } from '../../domain/ports/organization-client.port.js';
 import { OrganizationServiceUnavailableException } from './organization-service-unavailable.exception.js';
@@ -202,6 +203,58 @@ export class HttpOrganizationClient implements IOrganizationClient {
 
     this.logger.error(
       `getSchoolReviewSettings exhausted ${this.retries + 1} attempts — ${this.describeError(lastError)}`,
+    );
+    throw new OrganizationServiceUnavailableException(lastError);
+  }
+
+  async getSchoolReviewAiPolicy(schoolId: string): Promise<SchoolReviewAiPolicy | null> {
+    return this.getInternal<SchoolReviewAiPolicy>(
+      `${this.baseUrl}/api/v1/internal/schools/${schoolId}/review-policy`,
+      'getSchoolReviewAiPolicy',
+    );
+  }
+
+  /**
+   * The retry loop of the reads above for a plain internal GET: null on a 404, a thrown
+   * misconfiguration on 401/403, `OrganizationServiceUnavailableException` once the
+   * retries run out.
+   */
+  private async getInternal<T>(url: string, label: string): Promise<T | null> {
+    let lastError: unknown;
+    const delays = [250, 500, 1000];
+
+    for (let attempt = 0; attempt <= this.retries; attempt++) {
+      try {
+        const response = await firstValueFrom(
+          this.http
+            .get<T>(url, { headers: { 'x-internal-token': this.authToken } })
+            .pipe(timeout(this.timeoutMs)),
+        );
+        return response.data;
+      } catch (err: unknown) {
+        const status = this.extractStatus(err);
+        if (status === 404) {
+          this.logger.debug(`${label} 404 — ${url}`);
+          return null;
+        }
+        if (status === 401 || status === 403) {
+          this.logger.error(`${label} auth failure — INTERNAL_SERVICE_TOKEN misconfigured`);
+          throw new Error('Internal auth misconfigured');
+        }
+
+        lastError = err;
+        if (attempt < this.retries) {
+          const delay = delays[attempt] ?? 1000;
+          this.logger.warn(
+            `${label} attempt ${attempt + 1} failed (${this.describeError(err)}) — retrying in ${delay}ms`,
+          );
+          await this.sleep(delay);
+        }
+      }
+    }
+
+    this.logger.error(
+      `${label} exhausted ${this.retries + 1} attempts — ${this.describeError(lastError)}`,
     );
     throw new OrganizationServiceUnavailableException(lastError);
   }

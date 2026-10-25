@@ -14,6 +14,13 @@ export interface SchoolReviewSettings {
   escalateTo: string;
 }
 
+/** Who answers a school's work first, and the terms it set for that (plan 80). */
+export interface SchoolReviewAiPolicy {
+  mode: 'teacher_only' | 'ai_then_teacher' | 'ai_with_sampling';
+  autoAcceptAfterHours: number;
+  samplePercent: number;
+}
+
 export interface IOrganizationClient {
   /**
    * Returns the user's role in the given school, or null if not a member.
@@ -36,6 +43,13 @@ export interface IOrganizationClient {
    * Throws OrganizationServiceUnavailableException if the service is unreachable.
    */
   getSchoolReviewSettings(schoolId: string): Promise<SchoolReviewSettings | null>;
+
+  /**
+   * The school's review policy — what a course's auto-accept term inherits.
+   * `null` when the school is unknown to organization-service.
+   * Throws OrganizationServiceUnavailableException if the service is unreachable.
+   */
+  getSchoolReviewAiPolicy(schoolId: string): Promise<SchoolReviewAiPolicy | null>;
 }
 
 export const ORGANIZATION_CLIENT = Symbol('IOrganizationClient');
