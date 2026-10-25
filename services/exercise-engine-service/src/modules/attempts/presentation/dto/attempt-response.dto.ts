@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { SegmentState } from '@ssz/shared-kernel/dictation';
+import { PendingAiVerdictDto } from './my-submissions.dto.js';
 
 export class AttemptResponseDto {
   @ApiProperty()
@@ -300,6 +301,16 @@ export class AttemptResponseDto {
       'Null while nothing was delivered.',
   })
   reviewedBy!: 'teacher' | 'ai' | null;
+
+  @ApiPropertyOptional({
+    type: PendingAiVerdictDto,
+    nullable: true,
+    description:
+      'A school that has a model answer first (plan 80): the model’s verdict while the teacher’s is ' +
+      'awaited — not counted yet; the client labels it «проверено ИИ, ждёт учителя» and reads the ' +
+      'remarks from `GET …/ai-review`. Null once a verdict counts, and everywhere else.',
+  })
+  provisionalVerdict!: PendingAiVerdictDto | null;
 }
 
 export class ListAttemptsResponseDto {

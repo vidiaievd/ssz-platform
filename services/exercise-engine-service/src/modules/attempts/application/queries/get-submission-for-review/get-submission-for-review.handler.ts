@@ -20,11 +20,13 @@ import { Result } from '../../../../../shared/kernel/result.js';
 // its repository here would make the two modules import each other.
 import { GetDraftForReviewQuery } from '../../../../ai-drafts/application/queries/get-draft-for-review/get-draft-for-review.query.js';
 import type { ReviewDraftView } from '../../../../ai-drafts/application/queries/get-draft-for-review/get-draft-for-review.handler.js';
+import { teacherDraftCapability } from '../../../../ai-drafts/domain/entities/attempt-ai-draft.entity.js';
 import type {
   Attempt,
   AttemptStatus,
   DeliveredVerdict,
   ExercisePathSnapshot,
+  ProvisionalAiVerdict,
   ReviewDecision,
 } from '../../../domain/entities/attempt.entity.js';
 
@@ -113,6 +115,14 @@ export interface GetSubmissionForReviewResult {
    * only, so `ai.visibility` has nothing to hide here yet.
    */
   aiDraft: ReviewDraftView | null;
+  /**
+   * The model's verdict the learner was given while this work waits for the teacher (plan
+   * 80): what it would count as if no teacher answers by `autoAcceptAt`. Null where the
+   * school has no model answer first, or the model has not answered yet.
+   */
+  aiVerdict: ProvisionalAiVerdict | null;
+  /** When the model's verdict counts by itself (plan 80); null — it waits for the teacher. */
+  autoAcceptAt: Date | null;
   submittedAnswer: unknown;
   timeSpentSeconds: number;
   selfChecksUsed: number;
@@ -154,7 +164,7 @@ export class GetSubmissionForReviewHandler implements IQueryHandler<GetSubmissio
       this.exerciseFor(attempt),
       this.previousVerdictFor(attempt),
       this.queryBus.execute<GetDraftForReviewQuery, ReviewDraftView | null>(
-        new GetDraftForReviewQuery(attempt.id, 'review_draft'),
+        new GetDraftForReviewQuery(attempt.id, teacherDraftCapability(attempt)),
       ),
     ]);
 
@@ -182,6 +192,8 @@ export class GetSubmissionForReviewHandler implements IQueryHandler<GetSubmissio
       rubricMarks: attempt.rubricMarks,
       reviewDecisions: attempt.reviewDecisions,
       aiDraft,
+      aiVerdict: attempt.provisionalAiVerdict,
+      autoAcceptAt: attempt.reviewAiPolicy?.autoAcceptAt ?? null,
       submittedAnswer: attempt.submittedAnswer,
       timeSpentSeconds: attempt.timeSpentSeconds,
       selfChecksUsed: attempt.selfChecksUsed,

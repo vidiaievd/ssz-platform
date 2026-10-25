@@ -7,7 +7,10 @@ import {
   AttemptAlreadySubmittedError,
   InvalidAttemptTransitionError,
   InvalidScoreError,
+  ReviewCommentRequiredError,
 } from '../../../../src/modules/attempts/domain/exceptions/attempt.errors.js';
+import type { AttemptReviewAiPolicy } from '../../../../src/modules/attempts/domain/entities/attempt.entity.js';
+import { AttemptMapper } from '../../../../src/modules/attempts/infrastructure/persistence/attempt.mapper.js';
 
 const makeAttempt = () =>
   Attempt.create({
@@ -563,6 +566,135 @@ describe('Attempt entity', () => {
       expect(result.isFail).toBe(true);
       expect(result.error).toBeInstanceOf(InvalidAttemptTransitionError);
       expect(attempt.status).toBe('SUBMITTED');
+    });
+  });
+
+  // Plan 80, step 3b — a model answers a school's work first.
+  describe('reviewByAi() on a school’s work', () => {
+    const AUTO_ACCEPT_AT = new Date('2026-11-01T09:00:00Z');
+    const AT = new Date('2026-10-25T09:05:00Z');
+    const approved = { outcome: 'approved' as const, decisions: [], comment: 'Bra.', score: 100, passed: true };
+    const returned = {
+      outcome: 'returned' as const,
+      decisions: [{ itemId: 'i1', approved: false }],
+      comment: 'Se på ordstillingen.',
+      score: 0,
+    };
+
+    const routed = (policy: AttemptReviewAiPolicy | null) => {
+      const attempt = makeAttempt();
+      attempt.snapshotReviewContext({
+        schoolId: 'school-1',
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        previousAttemptId: null,
+        revisionCount: 0,
+      });
+      attempt.submit({}, 'h');
+      attempt.routeForReview({ autoPassedItems: 1, totalItems: 3 }, null, policy);
+      attempt.clearDomainEvents();
+      return attempt;
+    };
+    const firstThenTeacher = { mode: 'ai_then_teacher' as const, autoAcceptAt: AUTO_ACCEPT_AT, teacherDrawn: false };
+    const sampling = (teacherDrawn: boolean) => ({
+      mode: 'ai_with_sampling' as const,
+      autoAcceptAt: AUTO_ACCEPT_AT,
+      teacherDrawn,
+    });
+
+    it('takes none where the school has a teacher answer alone', () => {
+      const result = routed(null).reviewByAi(approved);
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(InvalidAttemptTransitionError);
+    });
+
+    it('keeps it provisional in ai_then_teacher: the work waits, nothing is announced', () => {
+      const attempt = routed(firstThenTeacher);
+
+      const result = attempt.reviewByAi(approved, {}, AT);
+
+      expect(result.value).toBe('provisional');
+      expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
+      expect(attempt.scoreValue).toBeNull();
+      expect(attempt.reviewedBy).toBeNull();
+      expect(attempt.getDomainEvents()).toHaveLength(0);
+      expect(attempt.provisionalAiVerdict).toMatchObject({ outcome: 'approved', score: 100, at: AT });
+      expect(attempt.pendingAiVerdict()).toEqual({
+        outcome: 'approved',
+        comment: 'Bra.',
+        at: AT,
+        countsAt: AUTO_ACCEPT_AT,
+      });
+    });
+
+    it('takes one answer only: the learner has read it', () => {
+      const attempt = routed(firstThenTeacher);
+      attempt.reviewByAi(approved);
+      expect(attempt.reviewByAi(returned).isFail).toBe(true);
+      expect(attempt.provisionalAiVerdict?.outcome).toBe('approved');
+    });
+
+    it('closes the work at once in sampling when the draw passed it by and the model credits it', () => {
+      const attempt = routed(sampling(false));
+
+      const result = attempt.reviewByAi(approved);
+
+      expect(result.value).toBe('final');
+      expect(attempt.status).toBe('SCORED');
+      expect(attempt.reviewedBy).toBe('ai');
+      expect(attempt.provisionalAiVerdict).toBeNull();
+      const scored = attempt.getDomainEvents().find((e) => e instanceof AttemptScoredEvent) as AttemptScoredEvent;
+      expect(scored.payload).toMatchObject({ reviewedBy: 'ai', reviewOutcome: 'approved' });
+    });
+
+    it.each([
+      ['the draw sent it to a teacher', sampling(true), approved, {}],
+      ['the model sends it back', sampling(false), returned, {}],
+      ['the model credits none of it', sampling(false), { ...approved, passed: false }, {}],
+      ['the model contradicts the auto-check', sampling(false), approved, { disagreesWithMachine: true }],
+    ])('keeps it provisional in sampling when %s', (_case, policy, verdict, opts) => {
+      const attempt = routed(policy);
+      expect(attempt.reviewByAi(verdict, opts).value).toBe('provisional');
+      expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
+      expect(attempt.getDomainEvents()).toHaveLength(0);
+    });
+
+    it('wants a word on a provisional return too', () => {
+      const attempt = routed(firstThenTeacher);
+      const result = attempt.reviewByAi({ ...returned, comment: null });
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(ReviewCommentRequiredError);
+      expect(attempt.provisionalAiVerdict).toBeNull();
+    });
+
+    it('lets the teacher’s verdict count, and keeps the model’s beside it', () => {
+      const attempt = routed(firstThenTeacher);
+      attempt.reviewByAi(returned);
+
+      expect(attempt.review({ ...approved, reviewerId: 'teacher-1' }).isOk).toBe(true);
+
+      expect(attempt.status).toBe('SCORED');
+      expect(attempt.reviewedBy).toBe('teacher');
+      expect(attempt.pendingAiVerdict()).toBeNull();
+      expect(attempt.provisionalAiVerdict?.outcome).toBe('returned');
+    });
+
+    it('survives the round trip through persistence', () => {
+      const attempt = routed(firstThenTeacher);
+      attempt.reviewByAi(approved, {}, AT);
+      const row = AttemptMapper.toPersistence(attempt);
+      // The JSON column comes back as JSON: its date as a string.
+      const restored = AttemptMapper.toDomain({
+        ...row,
+        reviewAiVerdict: JSON.parse(JSON.stringify(row.reviewAiVerdict)),
+      });
+      expect(restored.pendingAiVerdict()).toEqual({
+        outcome: 'approved',
+        comment: 'Bra.',
+        at: AT,
+        countsAt: AUTO_ACCEPT_AT,
+      });
     });
   });
 

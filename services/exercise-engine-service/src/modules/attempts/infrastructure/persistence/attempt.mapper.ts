@@ -1,6 +1,11 @@
 import type { AttemptModel } from '../../../../../generated/prisma/models/Attempt.js';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
-import type { AttemptItemTarget, AttemptReviewAiPolicy, WorkContext } from '../../domain/entities/attempt.entity.js';
+import type {
+  AttemptItemTarget,
+  AttemptReviewAiPolicy,
+  ProvisionalAiVerdict,
+  WorkContext,
+} from '../../domain/entities/attempt.entity.js';
 import type { Focus, Modality, Skill } from '@ssz/contracts';
 import { readRubricMarks, readRubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { readPlacement } from '../../../../shared/application/services/sentence-schema-rows.js';
@@ -185,6 +190,7 @@ export class AttemptMapper {
       rubricMarks: row.rubricMarks === null ? null : readRubricMarks(row.rubricMarks),
       rubricSnapshot: readRubricSnapshot(row.rubricSnapshot),
       reviewAiPolicy: readReviewAiPolicy(row),
+      provisionalAiVerdict: readProvisionalAiVerdict(row.reviewAiVerdict),
     });
   }
 
@@ -249,6 +255,7 @@ export class AttemptMapper {
       reviewAiMode: attempt.reviewAiPolicy?.mode ?? null,
       reviewAutoAcceptAt: attempt.reviewAiPolicy?.autoAcceptAt ?? null,
       reviewTeacherDrawn: attempt.reviewAiPolicy?.teacherDrawn ?? null,
+      reviewAiVerdict: attempt.provisionalAiVerdict as unknown as AttemptModel['reviewAiVerdict'],
     };
   }
 }
@@ -263,4 +270,12 @@ function readReviewAiPolicy(
     autoAcceptAt: row.reviewAutoAcceptAt,
     teacherDrawn: row.reviewTeacherDrawn ?? false,
   };
+}
+
+/** The column as the entity wrote it; `at` comes back from JSON as a string. */
+function readProvisionalAiVerdict(value: AttemptModel['reviewAiVerdict']): ProvisionalAiVerdict | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+  const stored = value as unknown as Omit<ProvisionalAiVerdict, 'at'> & { at: string };
+  if (stored.outcome !== 'approved' && stored.outcome !== 'returned') return null;
+  return { ...stored, decisions: stored.decisions ?? [], at: new Date(stored.at) };
 }

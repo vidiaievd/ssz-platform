@@ -336,6 +336,9 @@ model Attempt {
   reviewAutoAcceptAt DateTime? @map("review_auto_accept_at") @db.Timestamptz
   // Sampling only: a teacher sees it whatever the model says (template list or the draw).
   reviewTeacherDrawn Boolean?  @map("review_teacher_drawn")
+  // A model's verdict that does not count yet (step 3b): the learner reads it while the
+  // teacher's is awaited, and it counts by itself at reviewAutoAcceptAt (step 4).
+  reviewAiVerdict    Json?     @map("review_ai_verdict")
 
   // Model-drafted reviews of this submission (plan 79). Kept after the verdict.
   aiDrafts AttemptAiDraft[]

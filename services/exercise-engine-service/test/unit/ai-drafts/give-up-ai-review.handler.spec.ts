@@ -9,7 +9,7 @@ import { Attempt } from '../../../src/modules/attempts/domain/entities/attempt.e
 
 // Plan 79, step 2.2a.
 
-function routed(schoolId: string | null = null): Attempt {
+function routed(schoolId: string | null = null, withPolicy = false): Attempt {
   const attempt = Attempt.create({
     userId: 'user-1',
     exerciseId: 'ex-1',
@@ -29,7 +29,11 @@ function routed(schoolId: string | null = null): Attempt {
     revisionCount: 0,
   });
   attempt.submit([{ itemId: 'i1', text: 'Jeg bor i Tromsø.' }], 'hash');
-  attempt.routeForReview();
+  attempt.routeForReview(
+    undefined,
+    null,
+    withPolicy ? { mode: 'ai_then_teacher', autoAcceptAt: null, teacherDrawn: false } : null,
+  );
   attempt.clearDomainEvents();
   return attempt;
 }
@@ -58,6 +62,16 @@ function setup(attempt: Attempt | null, review: AttemptAiDraft | null = null) {
 }
 
 describe('GiveUpAiReviewHandler', () => {
+  // Plan 80: a school's work the model was to answer first.
+  it('leaves a school’s work with its teacher, and answers 200', async () => {
+    const attempt = routed('school-1', true);
+    const { run, attempts } = setup(attempt);
+    const result = await run();
+    expect(result.value).toEqual({ status: 'ROUTED_FOR_REVIEW' });
+    expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
+    expect(attempts.save).not.toHaveBeenCalled();
+  });
+
   it('closes a learner’s routed work as NO_REVIEWER and saves it', async () => {
     const attempt = routed();
     const { run, attempts } = setup(attempt);

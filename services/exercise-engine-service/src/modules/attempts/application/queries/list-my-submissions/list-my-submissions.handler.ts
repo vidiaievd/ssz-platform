@@ -6,7 +6,11 @@ import {
   ATTEMPT_REPOSITORY,
   type IAttemptRepository,
 } from '../../../domain/repositories/attempt.repository.js';
-import type { Attempt, ExercisePathSnapshot } from '../../../domain/entities/attempt.entity.js';
+import type {
+  Attempt,
+  ExercisePathSnapshot,
+  PendingAiVerdict,
+} from '../../../domain/entities/attempt.entity.js';
 
 export type MySubmissionEntryStatus = 'pending' | 'returned' | 'approved';
 
@@ -64,6 +68,11 @@ export interface MySubmissionEntry {
   status: MySubmissionEntryStatus;
   attemptNo: number;
   decision: MySubmissionDecision | null;
+  /**
+   * A model's verdict given while the school's teacher is awaited (plan 80): the learner
+   * reads it at once, labelled as not counting yet. Only on `pending` rows.
+   */
+  provisional: PendingAiVerdict | null;
   /** `true` only on the `RETURNED` row a resubmit actually resumes (see below). */
   canResubmit: boolean;
 }
@@ -123,6 +132,7 @@ export class ListMySubmissionsHandler implements IQueryHandler<ListMySubmissions
         status,
         attemptNo: attempt.revisionCount + 1,
         decision: decisionOf(attempt, aiDrafted.has(attempt.id)),
+        provisional: attempt.pendingAiVerdict(),
         canResubmit: status === 'returned' && latestReturnedByExercise.get(attempt.exerciseId) === attempt.id,
       };
     });

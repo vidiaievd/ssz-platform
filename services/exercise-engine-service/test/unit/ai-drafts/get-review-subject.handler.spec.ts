@@ -35,7 +35,7 @@ const ANSWERS = {
 };
 
 interface Setup {
-  attempt?: { status: AttemptStatus; schoolId: string | null; templateCode: string; rubricSnapshot?: unknown } | null;
+  attempt?: { status: AttemptStatus; schoolId: string | null; templateCode: string; rubricSnapshot?: unknown; reviewAiPolicy?: unknown } | null;
   draft?: boolean;
   content?: 'ok' | 404 | 503;
   submitted?: unknown;
@@ -326,6 +326,16 @@ describe('GetReviewSubjectHandler', () => {
     const result = await run(alone.handler, 'review_direct');
     expect(result.value.skip).toBeNull();
     expect(result.value.subject).not.toBeNull();
+  });
+
+  // Plan 80: a school that has a model answer first takes the direct review, not the draft.
+  it('serves a school’s work under a policy the direct review, and no teacher’s draft', async () => {
+    const policy = { mode: 'ai_then_teacher', autoAcceptAt: null, teacherDrawn: false };
+    const first = setup({
+      attempt: { status: 'ROUTED_FOR_REVIEW', schoolId: 'school-1', templateCode: 'translate_to_target', reviewAiPolicy: policy },
+    });
+    expect((await run(first.handler, 'review_direct')).value.skip).toBeNull();
+    expect((await run(first.handler, 'review_draft')).value.skip).toBe('AI_REVIEWS_FIRST');
   });
 
   it('skips a submission that already has a draft — a redelivered event stops here', async () => {

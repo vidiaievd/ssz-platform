@@ -24,6 +24,7 @@ const REFUSALS: Record<Exclude<PutAiDraftError['code'], 'ATTEMPT_NOT_FOUND'>, st
   ATTEMPT_NOT_IN_REVIEW: 'The submission is not waiting for review',
   NO_TEACHER_REVIEW: 'No teacher reviews this submission',
   HAS_TEACHER_REVIEW: 'A teacher reviews this submission',
+  AI_REVIEWS_FIRST: 'The school has a model review this submission first',
   DRAFT_DECIDED: 'The teacher already acted on the draft of this submission',
   AI_CALL_ID_REUSED: 'This aiCallId already holds a draft of another submission',
 };

@@ -19,6 +19,10 @@ import {
 } from '../../../domain/repositories/attempt.repository.js';
 import { Inject, Logger } from '@nestjs/common';
 import { GetDraftForReviewQuery } from '../../../../ai-drafts/application/queries/get-draft-for-review/get-draft-for-review.query.js';
+import {
+  teacherDraftCapability,
+  type AiDraftCapability,
+} from '../../../../ai-drafts/domain/entities/attempt-ai-draft.entity.js';
 import type { ReviewDraftView } from '../../../../ai-drafts/application/queries/get-draft-for-review/get-draft-for-review.handler.js';
 import { SettleAiDraftCommand } from '../../../../ai-drafts/application/commands/settle-ai-draft/settle-ai-draft.command.js';
 import { settleOutcomes, tallyOutcomes } from '../../../../ai-drafts/domain/draft-outcomes.js';
@@ -132,7 +136,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       snapshot && attempt.templateCode === READ_ALOUD ? readSpeakingSnapshot(snapshot) : null;
     // An essay's marks are what a draft's suggested ones are compared with (plan 79, 1.7d).
     const essayMarks = snapshot && !speaking ? readRubricMarks(command.rubricMarks) : null;
-    const aiDraft = await this.draftTally(command, essayMarks);
+    const aiDraft = await this.draftTally(command, teacherDraftCapability(attempt), essayMarks);
 
     if (speaking) return this.reviewByPrompt(attempt, command, speaking, aiDraft);
     if (snapshot) {
@@ -214,11 +218,12 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
    */
   private async draftTally(
     command: ReviewAttemptCommand,
+    capability: AiDraftCapability,
     rubricMarks: RubricMarks | null,
   ): Promise<AttemptReviewedAiDraft | null> {
     if (command.aiOutcomes === null) return null;
     const draft: ReviewDraftView | null = await this.queryBus.execute(
-      new GetDraftForReviewQuery(command.attemptId, 'review_draft'),
+      new GetDraftForReviewQuery(command.attemptId, capability),
     );
     if (draft === null) return null;
 
@@ -232,7 +237,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       rubricMarks,
     );
     return tallyOutcomes(settled, {
-      capability: 'review_draft',
+      capability,
       modelId: draft.modelId,
       promptVersion: draft.promptVersion,
     });
@@ -250,7 +255,12 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     if (aiDraft === null || command.aiOutcomes === null) return;
     try {
       await this.commandBus.execute(
-        new SettleAiDraftCommand(command.attemptId, 'review_draft', command.aiOutcomes, rubricMarks),
+        new SettleAiDraftCommand(
+          command.attemptId,
+          aiDraft.capability as AiDraftCapability,
+          command.aiOutcomes,
+          rubricMarks,
+        ),
       );
     } catch (err) {
       this.logger.warn(

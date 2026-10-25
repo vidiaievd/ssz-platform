@@ -41,6 +41,24 @@ export class MySubmissionDecisionDto {
   aiDrafted!: boolean;
 }
 
+export class PendingAiVerdictDto {
+  @ApiProperty({ enum: ['approved', 'returned'], description: 'What the model ruled — not counted yet.' })
+  outcome!: 'approved' | 'returned';
+
+  @ApiPropertyOptional({ nullable: true, description: 'The model’s summary, written to the learner.' })
+  comment!: string | null;
+
+  @ApiProperty({ example: '2026-10-24T09:01:00.000Z', description: 'When the model answered.' })
+  at!: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    example: '2026-10-31T09:00:00.000Z',
+    description: 'When the model’s verdict counts by itself if no teacher answers; null — it waits for the teacher.',
+  })
+  countsAt!: string | null;
+}
+
 export class MySubmissionDto {
   @ApiProperty({ format: 'uuid' })
   attemptId!: string;
@@ -85,6 +103,15 @@ export class MySubmissionDto {
 
   @ApiPropertyOptional({ type: MySubmissionDecisionDto, nullable: true })
   decision!: MySubmissionDecisionDto | null;
+
+  @ApiPropertyOptional({
+    type: PendingAiVerdictDto,
+    nullable: true,
+    description:
+      'A school that has a model answer first (plan 80): the model’s verdict while the teacher’s is awaited. ' +
+      'The client labels it «проверено ИИ, ждёт учителя»; remarks from `GET …/ai-review`.',
+  })
+  provisional!: PendingAiVerdictDto | null;
 
   @ApiProperty({ description: 'Only on the returned row a new attempt at this exercise would resume.' })
   canResubmit!: boolean;

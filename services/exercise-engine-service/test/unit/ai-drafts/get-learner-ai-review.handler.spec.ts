@@ -96,6 +96,59 @@ const run = (handler: GetLearnerAiReviewHandler, userId = 'student-1') =>
   handler.execute(new GetLearnerAiReviewQuery('a1', userId));
 
 describe('GetLearnerAiReviewHandler', () => {
+  // Plan 80, step 3b.
+  describe('on a school’s work a model answered first', () => {
+    const AT = new Date('2026-10-24T09:31:00Z');
+    const COUNTS_AT = new Date('2026-10-31T09:30:00Z');
+    const waiting = (over: Partial<AttemptPersistenceProps> = {}) =>
+      attempt({
+        status: 'ROUTED_FOR_REVIEW',
+        score: null,
+        passed: null,
+        reviewedAt: null,
+        reviewComment: null,
+        reviewDecisions: null,
+        schoolId: 'school-1',
+        reviewAiPolicy: { mode: 'ai_then_teacher', autoAcceptAt: COUNTS_AT, teacherDrawn: false },
+        provisionalAiVerdict: {
+          outcome: 'returned',
+          decisions: [{ itemId: 'i1', approved: false }],
+          comment: 'Se på ordstillingen.',
+          score: 0,
+          at: AT,
+        },
+        ...over,
+      });
+
+    it('hands over the review at once, labelled as not counting yet', async () => {
+      const result = await run(makeHandler(waiting()).handler);
+      expect(result.value).toMatchObject({
+        outcome: 'returned',
+        summary: 'Se på ordstillingen.',
+        reviewedAt: AT,
+        disputedAt: null,
+        provisional: true,
+        countsAt: COUNTS_AT,
+      });
+    });
+
+    it('goes quiet once the teacher has answered', async () => {
+      const decided = waiting({
+        status: 'SCORED',
+        score: 100,
+        passed: true,
+        reviewedByUserId: 'teacher-1',
+        reviewedAt: REVIEWED,
+      });
+      expect((await run(makeHandler(decided).handler)).error).toEqual({ code: 'NO_AI_REVIEW' });
+    });
+
+    it('has nothing before the model answered', async () => {
+      const result = await run(makeHandler(waiting({ provisionalAiVerdict: null })).handler);
+      expect(result.error).toEqual({ code: 'NO_AI_REVIEW' });
+    });
+  });
+
   it('hands the learner the remarks and the verdict, not the model behind them', async () => {
     const { handler, drafts } = makeHandler(attempt());
 
@@ -109,6 +162,8 @@ describe('GetLearnerAiReviewHandler', () => {
       marks: null,
       reviewedAt: REVIEWED,
       disputedAt: null,
+      provisional: false,
+      countsAt: null,
     });
     expect(JSON.stringify(result.value)).not.toContain('fake-model');
     expect(drafts.findByAttempt).toHaveBeenCalledWith('a1', 'review_direct');

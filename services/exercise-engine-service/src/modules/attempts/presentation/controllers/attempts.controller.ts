@@ -125,6 +125,7 @@ import type { Attempt, AttemptStatus } from '../../domain/entities/attempt.entit
  */
 export function toAttemptDto(attempt: Attempt): AttemptResponseDto {
   const isPractice = attempt.checkMode === 'PRACTICE';
+  const pending = attempt.pendingAiVerdict();
 
   return {
     checkMode: attempt.checkMode,
@@ -202,13 +203,27 @@ export function toAttemptDto(attempt: Attempt): AttemptResponseDto {
     // their level descriptors, which sit in the answer key precisely because a learner
     // must not read them while writing (plan 50 §4); a delivered verdict is what turns
     // them from a key into an explanation. A model's verdict on the work of a learner
-    // nobody reviews is a delivered one too (plan 79, 2.3): its marks are the grade.
+    // nobody reviews is a delivered one too (plan 79, 2.3): its marks are the grade. So is
+    // a model's provisional one at a school (plan 80) — the learner is reading its marks,
+    // which come with `…/ai-review`; the attempt has none of its own until one counts.
     ...(attempt.reviewedBy === null
-      ? { rubricMarks: null, rubricSnapshot: null }
+      ? {
+          rubricMarks: null,
+          rubricSnapshot: pending === null ? null : attempt.rubricSnapshot,
+        }
       : { rubricMarks: attempt.rubricMarks, rubricSnapshot: attempt.rubricSnapshot }),
     reviewedAt: attempt.reviewedAt?.toISOString() ?? null,
     reviewedByUserId: attempt.reviewedByUserId,
     reviewedBy: attempt.reviewedBy,
+    provisionalVerdict:
+      pending === null
+        ? null
+        : {
+            outcome: pending.outcome,
+            comment: pending.comment,
+            at: pending.at.toISOString(),
+            countsAt: pending.countsAt?.toISOString() ?? null,
+          },
   };
 }
 

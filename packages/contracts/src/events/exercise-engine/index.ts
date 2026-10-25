@@ -392,7 +392,10 @@ export interface ExerciseAttemptReviewedPayload {
 }
 
 export interface AttemptReviewedAiDraft {
-  /** ai-service capability that wrote it: `review_draft`. */
+  /**
+   * ai-service capability that wrote it: `review_draft`, or `review_direct` — the review the
+   * learner was already given, where the school has a model answer first (plan 80).
+   */
   capability: string;
   /** ai-service registry ids — the axes the outcomes are folded on. */
   modelId: string | null;

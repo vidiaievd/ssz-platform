@@ -242,6 +242,7 @@ export interface AttemptPersistenceProps {
   rubricMarks: RubricMarks | null;
   rubricSnapshot: RubricSnapshot | null;
   reviewAiPolicy?: AttemptReviewAiPolicy | null;
+  provisionalAiVerdict?: ProvisionalAiVerdict | null;
 }
 
 /**
@@ -351,6 +352,29 @@ export interface AttemptReviewAiPolicy {
   teacherDrawn: boolean;
 }
 
+/**
+ * A model's verdict on a school's work that does not count yet (plan 80 §3): the learner
+ * reads it at once, the work stays in the teacher's queue, and nothing reaches progress or
+ * memory. It becomes the one that counts only if no teacher gives theirs by the term
+ * (`autoAcceptAt`, step 4) — kept whole for that, as the model ruled it.
+ */
+export interface ProvisionalAiVerdict extends Omit<ReviewVerdict, 'aiDraft'> {
+  at: Date;
+}
+
+/** A provisional verdict as the learner reads it — see `Attempt.pendingAiVerdict`. */
+export interface PendingAiVerdict {
+  outcome: 'approved' | 'returned';
+  /** The model's summary, written to the learner. */
+  comment: string | null;
+  at: Date;
+  /** When it counts by itself if no teacher answers; null — it waits for the teacher. */
+  countsAt: Date | null;
+}
+
+/** Where a model's verdict landed: closing the attempt, or waiting for a teacher beside it. */
+export type AiVerdictLanding = 'final' | 'provisional';
+
 export class Attempt extends AggregateRoot {
   private constructor(
     id: string,
@@ -410,6 +434,7 @@ export class Attempt extends AggregateRoot {
     private _probeDraw: unknown = null,
     private _recordedOffline: boolean = false,
     private _reviewAiPolicy: AttemptReviewAiPolicy | null = null,
+    private _provisionalAiVerdict: ProvisionalAiVerdict | null = null,
   ) {
     super(id);
   }
@@ -529,6 +554,7 @@ export class Attempt extends AggregateRoot {
       props.probeDraw ?? null,
       props.recordedOffline ?? false,
       props.reviewAiPolicy ?? null,
+      props.provisionalAiVerdict ?? null,
     );
   }
 
@@ -1183,26 +1209,90 @@ export class Attempt extends AggregateRoot {
   }
 
   /**
-   * A model's verdict on the work of a learner nobody reviews (plan 79 §2.1, decision Q1).
+   * A model's verdict (plan 79 §2.1, decision Q1; plan 80 §3).
    *
-   * The same two outcomes as a teacher's, with three differences. Only work with no school
-   * takes one: where a teacher reads the queue, their verdict is the one that counts, and a
-   * model's rating the memory first would be a second review of the same card. Nobody
-   * signs it, so `deliveredVerdict` stays empty and no colleague is named. And no letter is
-   * raised — `exercise.attempt.reviewed` says a teacher answered, and here none did; the
-   * events that close the attempt say `reviewedBy: 'ai'` instead, so progress records it and
-   * memory rates it as the weaker evidence it is.
+   * On the work of a learner nobody reviews it closes the attempt — the same two outcomes as
+   * a teacher's, with two differences. Nobody signs it, so `deliveredVerdict` stays empty and
+   * no colleague is named. And no letter is raised — `exercise.attempt.reviewed` says a
+   * teacher answered, and here none did; the events that close the attempt say
+   * `reviewedBy: 'ai'` instead, so progress records it and memory rates it as the weaker
+   * evidence it is.
+   *
+   * On a school's work it is taken only where the school lets a model answer first (the
+   * policy snapshotted at hand-in), and mostly it does not count yet: it is kept beside the
+   * work as provisional, for the learner to read while a teacher's verdict — the one that
+   * counts — is awaited. The memory is rated once, by whichever verdict is final. It closes
+   * the attempt at once only in `ai_with_sampling`, on work the draw did not send to a
+   * teacher, that the model credits, and where it does not contradict the auto-check (§3).
+   *
+   * `disagreesWithMachine`: the model ruled against an item the auto-check accepted.
    */
-  reviewByAi(props: Omit<ReviewVerdict, 'aiDraft'>): Result<
-    void,
+  reviewByAi(
+    props: Omit<ReviewVerdict, 'aiDraft'>,
+    opts: { disagreesWithMachine?: boolean } = {},
+    now: Date = new Date(),
+  ): Result<
+    AiVerdictLanding,
     InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
   > {
-    if (this._schoolId !== null) {
+    if (this._schoolId === null) {
+      return this.deliver(props, null).map(() => 'final' as const);
+    }
+    const policy = this._reviewAiPolicy;
+    if (policy === null) {
       return Result.fail(
         new InvalidAttemptTransitionError('A model does not review work a teacher reviews'),
       );
     }
-    return this.deliver(props, null);
+    if (this._status !== 'ROUTED_FOR_REVIEW') {
+      return Result.fail(
+        new InvalidAttemptTransitionError(
+          `Cannot review an attempt with status ${this._status}`,
+        ),
+      );
+    }
+    // One model's answer per piece of work: the learner has read this one already, and a
+    // second would change under them what they were told.
+    if (this._provisionalAiVerdict !== null) {
+      return Result.fail(
+        new InvalidAttemptTransitionError('A model already answered this submission'),
+      );
+    }
+
+    const credited = props.outcome === 'approved' && props.passed !== false;
+    const toTeacher =
+      policy.mode === 'ai_then_teacher' ||
+      policy.teacherDrawn ||
+      !credited ||
+      opts.disagreesWithMachine === true;
+    if (!toTeacher) {
+      return this.deliver(props, null).map(() => 'final' as const);
+    }
+
+    if (!this.explained(props)) return Result.fail(new ReviewCommentRequiredError());
+    if (props.outcome === 'approved') {
+      const score = Score.create(props.score ?? 0);
+      if (score.isFail) return Result.fail(score.error);
+    }
+    this._provisionalAiVerdict = { ...props, at: now };
+    return Result.ok('provisional');
+  }
+
+  /**
+   * A return is an instruction to try again, and one without a word on it is not an
+   * instruction. Checked in the domain rather than at the edge so that no caller — the
+   * queue, a batch, a model — can send work back silently.
+   *
+   * A note on every item ruled on is a word too: a `read_aloud` requires one per prompt and
+   * has no field for the submission as a whole (plan 70 §3.6). A note on *some* items still
+   * is not — the rest of the work would go back with nothing said about it.
+   */
+  private explained(props: Pick<ReviewVerdict, 'outcome' | 'comment' | 'decisions'>): boolean {
+    if (props.outcome !== 'returned' || (props.comment ?? '').trim() !== '') return true;
+    return (
+      props.decisions.length > 0 &&
+      props.decisions.every((decision) => (decision.comment ?? '').trim() !== '')
+    );
   }
 
   /** Both verdicts. `reviewerId` is null for a model's. */
@@ -1221,23 +1311,7 @@ export class Attempt extends AggregateRoot {
       );
     }
 
-    // A return is an instruction to try again, and one without a word on it is not an
-    // instruction. Checked here rather than at the edge so that no caller — the queue,
-    // a batch, a future one — can send work back silently.
-    //
-    // A note on every item ruled on is a word too: a `read_aloud` requires one per prompt
-    // and has no field for the submission as a whole (plan 70 §3.6). A note on *some* items
-    // still is not — the rest of the work would go back with nothing said about it.
-    const everyItemExplained =
-      props.decisions.length > 0 &&
-      props.decisions.every((decision) => (decision.comment ?? '').trim() !== '');
-    if (
-      props.outcome === 'returned' &&
-      (props.comment ?? '').trim() === '' &&
-      !everyItemExplained
-    ) {
-      return Result.fail(new ReviewCommentRequiredError());
-    }
+    if (!this.explained(props)) return Result.fail(new ReviewCommentRequiredError());
 
     this._reviewedByUserId = reviewerId;
     this._reviewedAt = new Date();
@@ -1614,6 +1688,26 @@ export class Attempt extends AggregateRoot {
    */
   get recordedOffline(): boolean { return this._recordedOffline; }
   get reviewAiPolicy(): AttemptReviewAiPolicy | null { return this._reviewAiPolicy; }
+  /**
+   * The model's verdict that does not count yet (plan 80, step 3b). Kept after a teacher's
+   * verdict too: what the model said beside what the teacher decided is the measure of it.
+   */
+  get provisionalAiVerdict(): ProvisionalAiVerdict | null { return this._provisionalAiVerdict; }
+  /**
+   * What the learner is told while a teacher's verdict is awaited after a model's (plan 80,
+   * step 3b): the model's word, when it was given, and when it counts by itself. Null once
+   * a verdict counts — the teacher's, or the model's at the term — and where none was given.
+   */
+  pendingAiVerdict(): PendingAiVerdict | null {
+    const verdict = this._provisionalAiVerdict;
+    if (this._status !== 'ROUTED_FOR_REVIEW' || verdict === null) return null;
+    return {
+      outcome: verdict.outcome,
+      comment: verdict.comment,
+      at: verdict.at,
+      countsAt: this._reviewAiPolicy?.autoAcceptAt ?? null,
+    };
+  }
 
   markRecordedOffline(): void {
     this._recordedOffline = true;

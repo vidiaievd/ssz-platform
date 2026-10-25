@@ -19,6 +19,11 @@ export interface ReviewDraftView {
   marks: AiDraftMark[] | null;
   modelId: string | null;
   promptVersion: string | null;
+  /**
+   * The learner has read this review already (plan 80): it is the model's answer to them,
+   * not a draft the teacher may quietly drop — the card says so.
+   */
+  shownToLearner: boolean;
   createdAt: Date;
 }
 
@@ -47,6 +52,7 @@ export class GetDraftForReviewHandler implements IQueryHandler<GetDraftForReview
       marks: draft.marks,
       modelId: draft.modelId,
       promptVersion: draft.promptVersion,
+      shownToLearner: draft.capability === 'review_direct',
       createdAt: draft.createdAt,
     };
   }

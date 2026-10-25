@@ -296,7 +296,9 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     const rows = await this.prisma.attemptAiDraft.findMany({
       where: {
         attemptId: { in: attemptIds },
-        capability: 'review_draft',
+        // A school that has a model answer first (plan 80) has its teacher sign off the
+        // model's review to the learner instead of a draft.
+        capability: { in: ['review_draft', 'review_direct'] },
         status: { in: ['SENT', 'EDITED'] },
       },
       select: { attemptId: true },

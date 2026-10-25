@@ -94,6 +94,7 @@ describe('ListMySubmissionsHandler', () => {
         status: 'pending',
         attemptNo: 1,
         decision: null,
+        provisional: null,
         canResubmit: false,
       },
     ]);
