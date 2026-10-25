@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Entity } from '../../../../shared/domain/entity.base.js';
-import type { AttemptStatus } from '../../../attempts/domain/entities/attempt.entity.js';
+import type {
+  AttemptReviewAiPolicy,
+  AttemptStatus,
+  ProvisionalAiVerdict,
+} from '../../../attempts/domain/entities/attempt.entity.js';
 import type { RubricMarks } from '@ssz/shared-kernel/writing-task';
 import {
   settledStatus,
@@ -18,7 +22,8 @@ export type ProposedDraftStatus = Extract<AiDraftStatus, 'READY' | 'FAILED'>;
 /**
  * ai-service capabilities that leave a draft on an attempt, each with its own audience in
  * `draftRefusal`: `review_draft` is help for a teacher, `review_direct` (plan 79, part 2) is
- * the review itself for a learner nobody reviews — written with its verdict (`ai-review`).
+ * the review itself for the learner — written with its verdict (`ai-review`). At a school
+ * that lets a model answer first (plan 80) the learner's review is the teacher's draft too.
  */
 export const AI_DRAFT_CAPABILITIES = ['review_draft', 'review_direct'] as const;
 export type AiDraftCapability = (typeof AI_DRAFT_CAPABILITIES)[number];
@@ -67,23 +72,54 @@ export type DraftRefusal =
   | 'NO_TEACHER_REVIEW'
   /** A model's verdict on work a teacher reviews (a school's) — theirs is the one that counts. */
   | 'HAS_TEACHER_REVIEW'
-  /** The teacher already acted on the draft that is there. */
+  /**
+   * A teacher's draft on work the school has a model answer first (plan 80): the review the
+   * learner was given is the one the teacher reads, and a second model's would contradict it.
+   */
+  | 'AI_REVIEWS_FIRST'
+  /**
+   * The teacher already acted on the draft that is there — or, for a school's work, the model's
+   * review already reached the learner, and replacing it would change what they read.
+   */
   | 'DRAFT_DECIDED';
 
 /**
  * Whether an attempt takes a draft of this capability at all. A draft is help for whoever
  * reviews the submission, so it only makes sense while the submission waits in a queue
  * that reviewer reads. A direct review is the reverse: it is for the learner whose work no
- * queue shows to anyone (plan 79 §0).
+ * queue shows to anyone (plan 79 §0) — or a school's work, where the school lets a model
+ * answer first (the policy taken at hand-in, plan 80); there it replaces the teacher's draft.
  */
 export function draftRefusal(
-  attempt: { status: AttemptStatus; schoolId: string | null },
+  attempt: {
+    status: AttemptStatus;
+    schoolId: string | null;
+    reviewAiPolicy?: AttemptReviewAiPolicy | null;
+    provisionalAiVerdict?: ProvisionalAiVerdict | null;
+  },
   capability: AiDraftCapability,
 ): DraftRefusal | null {
   if (attempt.status !== 'ROUTED_FOR_REVIEW') return 'ATTEMPT_NOT_IN_REVIEW';
-  if (capability === 'review_draft' && attempt.schoolId === null) return 'NO_TEACHER_REVIEW';
-  if (capability === 'review_direct' && attempt.schoolId !== null) return 'HAS_TEACHER_REVIEW';
+  if (capability === 'review_draft') {
+    if (attempt.schoolId === null) return 'NO_TEACHER_REVIEW';
+    if (attempt.reviewAiPolicy) return 'AI_REVIEWS_FIRST';
+    return null;
+  }
+  if (attempt.schoolId === null) return null;
+  if (!attempt.reviewAiPolicy) return 'HAS_TEACHER_REVIEW';
+  if (attempt.provisionalAiVerdict) return 'DRAFT_DECIDED';
   return null;
+}
+
+/**
+ * The draft a teacher's card shows and the verdict settles: the model's help for the
+ * teacher, or — where the school has a model answer first (plan 80) — the review the
+ * learner was already given.
+ */
+export function teacherDraftCapability(attempt: {
+  reviewAiPolicy?: AttemptReviewAiPolicy | null;
+}): AiDraftCapability {
+  return attempt.reviewAiPolicy ? 'review_direct' : 'review_draft';
 }
 
 export interface AttemptAiDraftProps extends Omit<ProposedDraft, 'status'> {

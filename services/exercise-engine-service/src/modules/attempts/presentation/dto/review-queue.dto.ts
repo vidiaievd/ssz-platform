@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsIn,
+  IsISO8601,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -53,6 +54,25 @@ export class ReviewQueueScopeDto {
   @ArrayMaxSize(MAX_SCOPE_IDS)
   @IsString({ each: true })
   templateCodes?: string[];
+
+  @ApiPropertyOptional({
+    enum: ['pending', 'accepted_at_term'],
+    default: 'pending',
+    description:
+      "What to list: work waiting on a person, or work a model's verdict closed at the " +
+      "school's term with no teacher's verdict yet (plan 80, step 7f)",
+  })
+  @IsOptional()
+  @IsIn(['pending', 'accepted_at_term'])
+  view?: 'pending' | 'accepted_at_term';
+
+  @ApiPropertyOptional({
+    description: 'With `accepted_at_term`: closed at or after this time. Default — seven days back',
+    example: '2026-10-18T00:00:00.000Z',
+  })
+  @IsOptional()
+  @IsISO8601()
+  acceptedSince?: string;
 }
 
 export class ReviewQueueRequestDto extends ReviewQueueScopeDto {

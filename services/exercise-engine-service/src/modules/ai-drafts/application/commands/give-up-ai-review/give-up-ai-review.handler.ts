@@ -28,6 +28,10 @@ export interface GiveUpAiReviewResult {
  * ai-service could not review the work of a learner nobody else reviews (plan 79, step
  * 2.2a): the attempt closes as `NO_REVIEWER`, as it would have at hand-in had the engine
  * known. Idempotent: an attempt already closed this way answers 200 again.
+ *
+ * A school's work the model was to answer first (plan 80) has a reviewer all the same: it
+ * simply stays in the teacher's queue, as it would without the policy, and the answer is 200
+ * with the attempt still routed.
  */
 @CommandHandler(GiveUpAiReviewCommand)
 export class GiveUpAiReviewHandler implements ICommandHandler<GiveUpAiReviewCommand> {
@@ -45,7 +49,14 @@ export class GiveUpAiReviewHandler implements ICommandHandler<GiveUpAiReviewComm
     if (!attempt) return Result.fail({ code: 'ATTEMPT_NOT_FOUND' });
     if (attempt.status === 'NO_REVIEWER') return Result.ok({ status: attempt.status });
     if (attempt.status !== 'ROUTED_FOR_REVIEW') return Result.fail({ code: 'ATTEMPT_NOT_IN_REVIEW' });
-    if (attempt.schoolId !== null) return Result.fail({ code: 'HAS_TEACHER_REVIEW' });
+    if (attempt.schoolId !== null) {
+      if (attempt.reviewAiPolicy === null) return Result.fail({ code: 'HAS_TEACHER_REVIEW' });
+      this.logger.log(
+        `No model's review of attempt ${command.attemptId}; it stays with the teacher: ${command.reason}` +
+          (command.aiCallId ? ` (call ${command.aiCallId})` : ''),
+      );
+      return Result.ok({ status: attempt.status });
+    }
 
     const review = await this.drafts.findByAttempt(command.attemptId, 'review_direct');
     if (review?.status === 'READY') return Result.fail({ code: 'REVIEW_EXISTS' });

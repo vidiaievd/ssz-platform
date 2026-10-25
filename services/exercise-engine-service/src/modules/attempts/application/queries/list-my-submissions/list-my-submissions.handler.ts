@@ -6,7 +6,11 @@ import {
   ATTEMPT_REPOSITORY,
   type IAttemptRepository,
 } from '../../../domain/repositories/attempt.repository.js';
-import type { Attempt, ExercisePathSnapshot } from '../../../domain/entities/attempt.entity.js';
+import type {
+  Attempt,
+  ExercisePathSnapshot,
+  PendingAiVerdict,
+} from '../../../domain/entities/attempt.entity.js';
 
 export type MySubmissionEntryStatus = 'pending' | 'returned' | 'approved';
 
@@ -22,6 +26,17 @@ export interface MySubmissionDecision {
   byUserId: string | null;
   at: Date;
   comment: string | null;
+  /**
+   * The teacher sent or edited a model's draft rather than writing from scratch (plan 79,
+   * `review_draft`) — the learner is told so. Always false on a model's own verdict.
+   */
+  aiDrafted: boolean;
+  /**
+   * A model's verdict at a school that counted by itself — the term ran out with no
+   * teacher's answer (plan 80, step 4): «засчитано автоматически». A teacher may still
+   * answer it, and then the row is theirs. Always false on a teacher's verdict.
+   */
+  acceptedAtTerm: boolean;
 }
 
 export interface MySubmissionEntry {
@@ -59,6 +74,11 @@ export interface MySubmissionEntry {
   status: MySubmissionEntryStatus;
   attemptNo: number;
   decision: MySubmissionDecision | null;
+  /**
+   * A model's verdict given while the school's teacher is awaited (plan 80): the learner
+   * reads it at once, labelled as not counting yet. Only on `pending` rows.
+   */
+  provisional: PendingAiVerdict | null;
   /** `true` only on the `RETURNED` row a resubmit actually resumes (see below). */
   canResubmit: boolean;
 }
@@ -95,7 +115,13 @@ export class ListMySubmissionsHandler implements IQueryHandler<ListMySubmissions
     const hasMore = rows.length > query.limit;
     const page = hasMore ? rows.slice(0, query.limit) : rows;
 
-    const latestReturnedByExercise = await this.latestReturnedIds(query.userId, page);
+    const [latestReturnedByExercise, aiDrafted] = await Promise.all([
+      this.latestReturnedIds(query.userId, page),
+      // Only rows a teacher signed can have been drafted; a model's verdict never is.
+      this.attempts.findAiDraftedIds(
+        page.filter((a) => a.reviewedBy === 'teacher').map((a) => a.id),
+      ),
+    ]);
 
     const items = page.map((attempt): MySubmissionEntry => {
       const status = statusOf(attempt);
@@ -111,7 +137,8 @@ export class ListMySubmissionsHandler implements IQueryHandler<ListMySubmissions
         submittedAt: attempt.submittedAt as Date,
         status,
         attemptNo: attempt.revisionCount + 1,
-        decision: decisionOf(attempt),
+        decision: decisionOf(attempt, aiDrafted.has(attempt.id)),
+        provisional: attempt.pendingAiVerdict(),
         canResubmit: status === 'returned' && latestReturnedByExercise.get(attempt.exerciseId) === attempt.id,
       };
     });
@@ -167,7 +194,7 @@ function statusOf(attempt: Attempt): MySubmissionEntryStatus {
   return 'approved';
 }
 
-function decisionOf(attempt: Attempt): MySubmissionDecision | null {
+function decisionOf(attempt: Attempt, aiDrafted: boolean): MySubmissionDecision | null {
   const verdict = attempt.deliveredVerdict();
   if (verdict !== null) {
     return {
@@ -176,6 +203,8 @@ function decisionOf(attempt: Attempt): MySubmissionDecision | null {
       byUserId: verdict.reviewerId,
       at: verdict.at,
       comment: verdict.comment,
+      aiDrafted,
+      acceptedAtTerm: false,
     };
   }
   if (attempt.reviewedBy !== 'ai') return null;
@@ -187,5 +216,7 @@ function decisionOf(attempt: Attempt): MySubmissionDecision | null {
     at: attempt.reviewedAt as Date,
     // The model's summary — written to the learner, as a teacher's comment is.
     comment: attempt.reviewComment,
+    aiDrafted: false,
+    acceptedAtTerm: attempt.acceptedAtTerm,
   };
 }

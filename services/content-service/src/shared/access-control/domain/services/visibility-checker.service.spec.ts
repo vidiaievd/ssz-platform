@@ -46,6 +46,7 @@ function makeService(mocks?: {
     getMemberRole: mocks?.getMemberRole ?? jest.fn().mockResolvedValue(null),
     getCourseTeachers: jest.fn().mockResolvedValue([]),
     getSchoolReviewSettings: jest.fn().mockResolvedValue(null),
+    getSchoolReviewAiPolicy: jest.fn().mockResolvedValue(null),
   };
   const shareLookup: IContentShareLookup = {
     hasActiveShare: mocks?.hasActiveShare ?? jest.fn().mockResolvedValue(false),

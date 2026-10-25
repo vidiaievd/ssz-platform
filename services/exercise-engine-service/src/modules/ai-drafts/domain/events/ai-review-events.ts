@@ -11,6 +11,10 @@ export const ATTEMPT_AI_REVIEW_DISPUTED = 'exercise.attempt.ai_review_disputed';
 /**
  * A model's verdict landed on a learner's attempt (plan 79, 2.3b): the count a dispute rate
  * is read against, on the axes the review was written on.
+ *
+ * Where the work was handed in rides along, and `acceptedAtTerm` when the verdict counted
+ * because the school's term ran out (plan 80, step 6a) — read off the attempt, so the job
+ * and the immediate delivery cannot disagree about which one it was.
  */
 export function aiReviewedPayload(
   attempt: Attempt,
@@ -26,6 +30,10 @@ export function aiReviewedPayload(
     modelId: review.modelId,
     promptVersion: review.promptVersion,
     outcome: attempt.status === 'RETURNED' ? 'returned' : 'approved',
+    schoolId: attempt.schoolId,
+    groupId: attempt.groupId,
+    containerId: attempt.containerId,
+    ...(attempt.acceptedAtTerm ? { acceptedAtTerm: true as const } : {}),
     occurredAt: at.toISOString(),
   };
 }
@@ -37,7 +45,16 @@ export function aiReviewDisputedPayload(
   withReason: boolean,
   at: Date,
 ): ExerciseAttemptAiReviewDisputedPayload {
-  const { occurredAt: _reviewed, ...axes } = aiReviewedPayload(attempt, review, at);
+  // The review's axes only: where the work was handed in is the journal's (step 6a), and a
+  // dispute is counted against its review, not against a school.
+  const {
+    occurredAt: _reviewed,
+    schoolId: _school,
+    groupId: _group,
+    containerId: _container,
+    acceptedAtTerm: _term,
+    ...axes
+  } = aiReviewedPayload(attempt, review, at);
   return {
     ...axes,
     // Only a delivered verdict makes a review disputable, and a delivery writes this.

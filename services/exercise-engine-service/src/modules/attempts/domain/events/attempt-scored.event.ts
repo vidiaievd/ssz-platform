@@ -69,6 +69,11 @@ export interface AttemptScoredPayload extends AttemptTiming {
    */
   reviewOutcome?: 'approved';
   reviewedBy?: 'ai';
+  /**
+   * A teacher's verdict replacing the model's that counted at the school's term (plan 80,
+   * step 4b): progress follows it, memory does not hear it again. See `@ssz/contracts`.
+   */
+  revisesVerdict?: true;
 }
 
 export class AttemptScoredEvent implements IDomainEvent {

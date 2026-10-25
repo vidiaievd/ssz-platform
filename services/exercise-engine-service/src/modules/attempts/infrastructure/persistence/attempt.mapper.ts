@@ -1,6 +1,11 @@
 import type { AttemptModel } from '../../../../../generated/prisma/models/Attempt.js';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
-import type { AttemptItemTarget, WorkContext } from '../../domain/entities/attempt.entity.js';
+import type {
+  AttemptItemTarget,
+  AttemptReviewAiPolicy,
+  ProvisionalAiVerdict,
+  WorkContext,
+} from '../../domain/entities/attempt.entity.js';
 import type { Focus, Modality, Skill } from '@ssz/contracts';
 import { readRubricMarks, readRubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { readPlacement } from '../../../../shared/application/services/sentence-schema-rows.js';
@@ -184,6 +189,8 @@ export class AttemptMapper {
       // that is not a usable rubric, which is the honest "grade this one out of items".
       rubricMarks: row.rubricMarks === null ? null : readRubricMarks(row.rubricMarks),
       rubricSnapshot: readRubricSnapshot(row.rubricSnapshot),
+      reviewAiPolicy: readReviewAiPolicy(row),
+      provisionalAiVerdict: readProvisionalAiVerdict(row.reviewAiVerdict),
     });
   }
 
@@ -245,6 +252,30 @@ export class AttemptMapper {
       recordedOffline: attempt.recordedOffline,
       rubricMarks: attempt.rubricMarks as unknown as AttemptModel['rubricMarks'],
       rubricSnapshot: attempt.rubricSnapshot as unknown as AttemptModel['rubricSnapshot'],
+      reviewAiMode: attempt.reviewAiPolicy?.mode ?? null,
+      reviewAutoAcceptAt: attempt.reviewAiPolicy?.autoAcceptAt ?? null,
+      reviewTeacherDrawn: attempt.reviewAiPolicy?.teacherDrawn ?? null,
+      reviewAiVerdict: attempt.provisionalAiVerdict as unknown as AttemptModel['reviewAiVerdict'],
     };
   }
+}
+
+/** A mode the engine does not know reads as none: the work is a teacher's, as before plan 80. */
+function readReviewAiPolicy(
+  row: Pick<AttemptModel, 'reviewAiMode' | 'reviewAutoAcceptAt' | 'reviewTeacherDrawn'>,
+): AttemptReviewAiPolicy | null {
+  if (row.reviewAiMode !== 'ai_then_teacher' && row.reviewAiMode !== 'ai_with_sampling') return null;
+  return {
+    mode: row.reviewAiMode,
+    autoAcceptAt: row.reviewAutoAcceptAt,
+    teacherDrawn: row.reviewTeacherDrawn ?? false,
+  };
+}
+
+/** The column as the entity wrote it; `at` comes back from JSON as a string. */
+function readProvisionalAiVerdict(value: AttemptModel['reviewAiVerdict']): ProvisionalAiVerdict | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+  const stored = value as unknown as Omit<ProvisionalAiVerdict, 'at'> & { at: string };
+  if (stored.outcome !== 'approved' && stored.outcome !== 'returned') return null;
+  return { ...stored, decisions: stored.decisions ?? [], at: new Date(stored.at) };
 }

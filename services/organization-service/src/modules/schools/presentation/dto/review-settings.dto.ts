@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsInt, Max, Min } from 'class-validator';
 import { ReviewEscalationTarget } from '../../domain/value-objects/review-settings.vo.js';
+import { ReviewAiMode } from '../../domain/value-objects/review-ai-policy.vo.js';
 
 /**
  * The school's promise, set whole.
@@ -37,4 +38,42 @@ export class ReviewSettingsResponseDto {
   @ApiProperty({ example: 72 }) escalateAfterHours!: number;
   @ApiProperty({ enum: Object.values(ReviewEscalationTarget) })
   escalateTo!: ReviewEscalationTarget;
+}
+
+/** Who answers the school's work first (plan 80), set whole. */
+export class UpdateReviewAiPolicyRequestDto {
+  @ApiProperty({
+    enum: Object.values(ReviewAiMode),
+    example: 'ai_then_teacher',
+    description:
+      'teacher_only — the teacher alone; ai_then_teacher — a model answers, the teacher confirms ' +
+      'or the model’s verdict counts after autoAcceptAfterHours; ai_with_sampling — the model’s ' +
+      'verdict counts, failed and disputed work plus samplePercent of the rest go to the teacher. ' +
+      'Both modes with a model need the plan feature school.review_ai_policy',
+  })
+  @IsIn(Object.values(ReviewAiMode))
+  mode!: ReviewAiMode;
+
+  @ApiProperty({
+    minimum: 1,
+    maximum: 720,
+    example: 168,
+    description: 'In a mode with a model, never earlier than escalateAfterHours — checked in the domain',
+  })
+  @IsInt()
+  @Min(1)
+  @Max(720)
+  autoAcceptAfterHours!: number;
+
+  @ApiProperty({ minimum: 0, maximum: 100, example: 15, description: 'Share of ai_with_sampling work sent to the teacher at random' })
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  samplePercent!: number;
+}
+
+export class ReviewAiPolicyResponseDto {
+  @ApiProperty({ enum: Object.values(ReviewAiMode) }) mode!: ReviewAiMode;
+  @ApiProperty({ example: 168 }) autoAcceptAfterHours!: number;
+  @ApiProperty({ example: 15 }) samplePercent!: number;
 }

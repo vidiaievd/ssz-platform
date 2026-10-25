@@ -1,5 +1,6 @@
 import type {
   AttemptReviewedAiDraft,
+  AttemptReviewedAiVerdict,
   ExerciseAttemptAiReviewDisputedPayload,
   ExerciseAttemptAiReviewedPayload,
 } from '@ssz/contracts';
@@ -21,6 +22,8 @@ export interface DraftQualityRow {
   marksDeltaSum: number;
   marksAbsDeltaSum: number;
   disputes: number;
+  teacherVerdicts: number;
+  teacherOverturned: number;
 }
 
 /** Suggested rubric marks against the teachers' over the range (plan 79, 1.7d). */
@@ -59,6 +62,13 @@ export interface DraftQualityGroup {
    * `review_draft`, where a teacher's discard is the label and learners never see the draft.
    */
   disputeRate: number | null;
+  /**
+   * Teachers' verdicts on school work this model had answered first (plan 80, step 6c), apart
+   * from `reviews` — the verdicts it delivered. `overturned`: the teacher went the other way
+   * (approved ↔ returned); `overturnRate` is over `total`, null with none. Zeros on
+   * `review_draft`, whose drafts give no verdict to overturn.
+   */
+  teacherVerdicts: { total: number; overturned: number; overturnRate: number | null };
 }
 
 /**
@@ -83,6 +93,7 @@ export function aggregateDraftQuality(rows: DraftQualityRow[]): DraftQualityGrou
         marks: { reviews: 0, same: 0, different: 0, compared: 0, agreement: null, meanAbsDelta: null, bias: null },
         disputes: 0,
         disputeRate: null,
+        teacherVerdicts: { total: 0, overturned: 0, overturnRate: null },
       };
       groups.set(key, group);
       sums.set(key, { delta: 0, absDelta: 0 });
@@ -99,6 +110,8 @@ export function aggregateDraftQuality(rows: DraftQualityRow[]): DraftQualityGrou
     sums.get(key)!.delta += row.marksDeltaSum;
     sums.get(key)!.absDelta += row.marksAbsDeltaSum;
     group.disputes += row.disputes;
+    group.teacherVerdicts.total += row.teacherVerdicts;
+    group.teacherVerdicts.overturned += row.teacherOverturned;
   }
 
   for (const [key, group] of groups) {
@@ -110,6 +123,8 @@ export function aggregateDraftQuality(rows: DraftQualityRow[]): DraftQualityGrou
     m.meanAbsDelta = share(sums.get(key)!.absDelta, m.compared);
     m.bias = share(sums.get(key)!.delta, m.compared);
     if (group.capability === 'review_direct') group.disputeRate = share(group.disputes, group.reviews);
+    const t = group.teacherVerdicts;
+    t.overturnRate = share(t.overturned, t.total);
   }
   return [...groups.values()];
 }
@@ -148,6 +163,94 @@ function isFoldableMarks(value: unknown): boolean {
 
 function isCount(value: unknown): boolean {
   return Number.isInteger(value) && (value as number) >= 0;
+}
+
+/** One increment of `ai_draft_quality_daily` a teacher's letter makes: the row, and the counts. */
+export interface ReviewedIncrement {
+  capability: string;
+  modelId: string | null;
+  promptVersion: string | null;
+  /** 1 for a teacher's verdict on a `review_draft` draft; a `review_direct` draft adds none. */
+  reviews: number;
+  remarks: { accepted: number; edited: number; discarded: number; untouched: number };
+  marks: { reviews: number; same: number; different: number; compared: number; deltaSum: number; absDeltaSum: number };
+  teacherVerdicts: number;
+  teacherOverturned: number;
+}
+
+/**
+ * What a teacher's letter (`exercise.attempt.reviewed`) adds to the quality fold — none, one
+ * or two increments; `null` for a letter that should be read and cannot.
+ *
+ * - `aiDraft` — the remarks and marks the teacher acted on. On a `review_draft` row it is
+ *   also a review: the verdict given with the draft on screen. On `review_direct` it is not
+ *   (plan 80, step 6c): there `reviews` are the verdicts a model delivered, the denominator of
+ *   its dispute rate, and a teacher's verdict is counted apart.
+ * - `aiVerdict` — the model's verdict the learner had been given at a school that lets a model
+ *   answer first: a teacher's verdict, overturned when the outcome differs. Carried whether
+ *   the teacher acted on the review or not (a batch approval too), so it is its own count.
+ *
+ * Both name the same `review_direct` draft when both are there; the two increments then land
+ * on one row, which the fold adds up as any other.
+ */
+export function reviewedIncrements(payload: unknown): ReviewedIncrement[] | null {
+  if (typeof payload !== 'object' || payload === null) return null;
+  const p = payload as Record<string, unknown>;
+  const increments: ReviewedIncrement[] = [];
+
+  if (p.aiDraft !== undefined && p.aiDraft !== null) {
+    if (!isFoldableDraft(p.aiDraft)) return null;
+    const d = p.aiDraft;
+    const m = d.marks ?? null;
+    increments.push({
+      ...axesOf(d),
+      reviews: d.capability === 'review_direct' ? 0 : 1,
+      remarks: { accepted: d.accepted, edited: d.edited, discarded: d.discarded, untouched: d.untouched },
+      marks: {
+        reviews: m === null ? 0 : 1,
+        same: m?.same ?? 0,
+        different: m?.different ?? 0,
+        compared: m?.compared ?? 0,
+        deltaSum: m?.deltaSum ?? 0,
+        absDeltaSum: m?.absDeltaSum ?? 0,
+      },
+      teacherVerdicts: 0,
+      teacherOverturned: 0,
+    });
+  }
+
+  if (p.aiVerdict !== undefined) {
+    if (!isFoldableAiVerdict(p.aiVerdict) || !isOutcome(p.outcome)) return null;
+    increments.push({
+      ...axesOf(p.aiVerdict),
+      reviews: 0,
+      remarks: { accepted: 0, edited: 0, discarded: 0, untouched: 0 },
+      marks: { reviews: 0, same: 0, different: 0, compared: 0, deltaSum: 0, absDeltaSum: 0 },
+      teacherVerdicts: 1,
+      teacherOverturned: p.outcome === p.aiVerdict.outcome ? 0 : 1,
+    });
+  }
+  return increments;
+}
+
+function axesOf(v: { capability: string; modelId: string | null; promptVersion: string | null }) {
+  return { capability: v.capability, modelId: v.modelId, promptVersion: v.promptVersion };
+}
+
+function isFoldableAiVerdict(value: unknown): value is AttemptReviewedAiVerdict {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  const nullableString = (x: unknown) => x === null || typeof x === 'string';
+  return (
+    typeof v.capability === 'string' &&
+    nullableString(v.modelId) &&
+    nullableString(v.promptVersion) &&
+    isOutcome(v.outcome)
+  );
+}
+
+function isOutcome(value: unknown): value is 'approved' | 'returned' {
+  return value === 'approved' || value === 'returned';
 }
 
 /** A model's verdict on a learner's work (2.3b): the axes and the day the fold reads. */

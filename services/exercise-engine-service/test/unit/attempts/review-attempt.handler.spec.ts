@@ -643,6 +643,44 @@ describe('ReviewAttemptHandler', () => {
       );
     });
 
+    // Plan 80, step 3b: the review the learner was already given is the teacher's draft.
+    it('settles the review the learner saw where the school has a model answer first', async () => {
+      const attempt = Attempt.create({
+        userId: 'user-1',
+        exerciseId: 'ex-1',
+        templateCode: 'translate_to_target',
+        targetLanguage: 'no',
+        difficultyLevel: 'B1',
+        checkMode: 'GRADED',
+        practicedAtoms: [],
+        axes: { skills: [], focus: [] },
+      });
+      attempt.snapshotReviewContext({
+        schoolId: 'school-1',
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        previousAttemptId: null,
+        revisionCount: 0,
+      });
+      attempt.submit([{ itemId: 'i1', text: 'Jeg har bodd i Tromsø i tre år.' }], 'hash');
+      attempt.routeForReview(undefined, null, { mode: 'ai_then_teacher', autoAcceptAt: null, teacherDrawn: false });
+      attempt.reviewByAi({ outcome: 'approved', decisions: [], comment: 'Bra.', score: 100, passed: true });
+      attempt.clearDomainEvents();
+      const { handler, publisher, queryBus, commandBus } = makeHandler(attempt, DETAILS, DRAFT);
+
+      await handler.execute(withOutcomes({ '0': 'accepted' }));
+
+      expect(queryBus.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ attemptId: 'att-1', capability: 'review_direct' }),
+      );
+      expect(letterOf(publisher).aiDraft).toMatchObject({ capability: 'review_direct', accepted: 1 });
+      expect(commandBus.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ attemptId: 'att-1', capability: 'review_direct' }),
+      );
+      expect(attempt.reviewedBy).toBe('teacher');
+    });
+
     it('reads a dropped draft as every open remark thrown out', async () => {
       const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, DRAFT);
 

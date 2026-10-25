@@ -105,4 +105,10 @@ describe('validatePlanFeatures', () => {
       featureKey: 'scheduling',
     });
   });
+
+  it('knows the school review policy key as a switch', () => {
+    const key = 'school.review_ai_policy';
+    expect(validatePlanFeatures([feature(key, { monthlyCredits: null })]).isOk).toBe(true);
+    expect(validatePlanFeatures([feature(key)]).error).toEqual({ code: 'credits_not_applicable', featureKey: key });
+  });
 });

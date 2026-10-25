@@ -26,6 +26,7 @@ import { SchedulingConsumerService } from '../../infrastructure/messaging/schedu
 import { OrganizationConsumerService } from '../../infrastructure/messaging/organization-consumer.service.js';
 import { ExerciseEngineConsumerService } from '../../infrastructure/messaging/exercise-engine-consumer.service.js';
 import { ReviewDigestService } from './schedules/review-digest.service.js';
+import { ReviewTermWarningService } from './schedules/review-term-warning.service.js';
 import { ReviewDigestStateRepository } from './schedules/review-digest-state.repository.js';
 import { ReviewLoadClient } from './schedules/clients/review-load.client.js';
 import { ReviewReviewersClient } from './schedules/clients/review-reviewers.client.js';
@@ -66,6 +67,7 @@ import { LessonsClient } from './schedules/clients/lessons.client.js';
     // and inspectable, not absent.
     ReviewDigestService,
     ReviewDigestStateRepository,
+    ReviewTermWarningService,
     ReviewLoadClient,
     ReviewReviewersClient,
     LessonReminderService,

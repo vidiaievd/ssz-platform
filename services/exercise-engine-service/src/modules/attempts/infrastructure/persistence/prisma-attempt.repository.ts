@@ -11,6 +11,7 @@ import type {
   ReviewQueueScope,
   ReviewQueueSummary,
   ReviewedLoadRow,
+  ReviewTermRow,
 } from '../../domain/repositories/attempt.repository.js';
 import { TEMPLATE_CODE as INFLECTION_TABLE } from '@ssz/shared-kernel/inflection-table';
 import { TEMPLATE_CODE as INFORMATION_TRANSFER } from '@ssz/shared-kernel/information-transfer';
@@ -140,6 +141,8 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     scope: ReviewQueueScope,
     page: { limit: number; after: ReviewQueueCursor | null },
   ): Promise<Attempt[]> {
+    if (scope.acceptedAtTermSince) return this.findAcceptedAtTermPage(scope, page);
+
     const after = page.after;
     const rows = await this.prisma.attempt.findMany({
       where: {
@@ -289,6 +292,23 @@ export class PrismaAttemptRepository implements IAttemptRepository {
    * same reading `deliveredVerdict()` and the decisions journal use) — so it always
    * carries `reviewedByUserId: { not: null }` alongside it.
    */
+  async findAiDraftedIds(attemptIds: string[]): Promise<Set<string>> {
+    if (attemptIds.length === 0) return new Set();
+    // Read straight off the drafts table: the drafts module imports this one, so going
+    // through its repository would be a cycle for one boolean per row.
+    const rows = await this.prisma.attemptAiDraft.findMany({
+      where: {
+        attemptId: { in: attemptIds },
+        // A school that has a model answer first (plan 80) has its teacher sign off the
+        // model's review to the learner instead of a draft.
+        capability: { in: ['review_draft', 'review_direct'] },
+        status: { in: ['SENT', 'EDITED'] },
+      },
+      select: { attemptId: true },
+    });
+    return new Set(rows.map((row) => row.attemptId));
+  }
+
   private mySubmissionsWhere(userId: string, status: MySubmissionsStatus) {
     const base = { userId, submittedAt: { not: null } };
     // A score somebody delivered: a teacher's signature, or a model's review of the work of
@@ -339,7 +359,82 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     return rows.map(AttemptMapper.toDomain);
   }
 
+  /**
+   * The scope's work closed at the term (`Attempt.acceptedAtTerm`, plan 80, step 7f), paged
+   * like the queue: delivered without a signature, the provisional verdict kept on it.
+   *
+   * Raw for the same JSON null test as `findDueAiVerdictIds`; ids only, then read through the
+   * mapper. The cursor's time is turned back into the column's own zone-less UTC, so the
+   * keyset compares like with like.
+   */
+  private async findAcceptedAtTermPage(
+    scope: ReviewQueueScope,
+    page: { limit: number; after: ReviewQueueCursor | null },
+  ): Promise<Attempt[]> {
+    const filter = this.acceptedAtTermFilter(scope);
+    const afterAt = page.after?.submittedAt ?? null;
+    const afterId = page.after?.id ?? null;
+    const ids = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM attempts
+      WHERE school_id = ${scope.schoolId}
+        AND status IN ('scored', 'returned')
+        AND reviewed_by_user_id IS NULL
+        AND reviewed_at >= ${filter.since}
+        AND submitted_at IS NOT NULL
+        AND review_ai_verdict IS NOT NULL
+        AND jsonb_typeof(review_ai_verdict) = 'object'
+        AND (${filter.groupIds}::text[] IS NULL OR group_id = ANY(${filter.groupIds}::text[]))
+        AND (${filter.containerIds}::text[] IS NULL OR container_id = ANY(${filter.containerIds}::text[]))
+        AND (${filter.templateCodes}::text[] IS NULL OR template_code = ANY(${filter.templateCodes}::text[]))
+        AND (
+          ${afterAt}::timestamptz IS NULL
+          OR (submitted_at, id) > ((${afterAt}::timestamptz AT TIME ZONE 'UTC'), ${afterId}::text)
+        )
+      ORDER BY submitted_at, id
+      LIMIT ${page.limit}`;
+    if (ids.length === 0) return [];
+
+    const rows = await this.prisma.attempt.findMany({
+      where: { id: { in: ids.map((row) => row.id) } },
+    });
+    const order = new Map(ids.map((row, index) => [row.id, index]));
+    return rows
+      .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+      .map(AttemptMapper.toDomain);
+  }
+
+  private async summariseAcceptedAtTerm(scope: ReviewQueueScope): Promise<ReviewQueueSummary> {
+    const filter = this.acceptedAtTermFilter(scope);
+    const [row] = await this.prisma.$queryRaw<Array<{ pending: number; oldest: Date | null }>>`
+      SELECT count(*)::int AS pending, min(submitted_at) AS oldest
+      FROM attempts
+      WHERE school_id = ${scope.schoolId}
+        AND status IN ('scored', 'returned')
+        AND reviewed_by_user_id IS NULL
+        AND reviewed_at >= ${filter.since}
+        AND submitted_at IS NOT NULL
+        AND review_ai_verdict IS NOT NULL
+        AND jsonb_typeof(review_ai_verdict) = 'object'
+        AND (${filter.groupIds}::text[] IS NULL OR group_id = ANY(${filter.groupIds}::text[]))
+        AND (${filter.containerIds}::text[] IS NULL OR container_id = ANY(${filter.containerIds}::text[]))
+        AND (${filter.templateCodes}::text[] IS NULL OR template_code = ANY(${filter.templateCodes}::text[]))`;
+    return { pending: row?.pending ?? 0, oldestSubmittedAt: row?.oldest ?? null };
+  }
+
+  /** An unnarrowed dimension goes in as SQL NULL, which the predicate reads as "any". */
+  private acceptedAtTermFilter(scope: ReviewQueueScope) {
+    return {
+      since: scope.acceptedAtTermSince ?? new Date(0),
+      groupIds: scope.groupIds?.length ? scope.groupIds : null,
+      containerIds: scope.containerIds?.length ? scope.containerIds : null,
+      templateCodes: scope.templateCodes?.length ? scope.templateCodes : null,
+    };
+  }
+
   async summariseReviewQueue(scope: ReviewQueueScope): Promise<ReviewQueueSummary> {
+    if (scope.acceptedAtTermSince) return this.summariseAcceptedAtTerm(scope);
+
     const where = this.reviewQueueWhere(scope);
 
     const [pending, oldest] = await Promise.all([
@@ -387,6 +482,60 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     return rows.map((row) => row.id);
   }
 
+  async findDueAiVerdictIds(now: Date, limit: number): Promise<string[]> {
+    // Raw for the JSON null test, which Prisma's filter only spells with a client value
+    // (`Prisma.DbNull`) — and importing the client as a value breaks the test suites. The
+    // mapper's null lands as JSON `null`, not SQL NULL, hence the type test; the IS NOT NULL
+    // beside it is the partial index's own predicate, for the planner.
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM attempts
+      WHERE status = 'routed_for_review'
+        AND review_ai_verdict IS NOT NULL
+        AND jsonb_typeof(review_ai_verdict) = 'object'
+        AND review_auto_accept_at <= ${now}
+      ORDER BY review_auto_accept_at, id
+      LIMIT ${limit}`;
+    return rows.map((row) => row.id);
+  }
+
+  async findReviewTermsAhead(
+    schoolId: string,
+    after: Date,
+    until: Date,
+    limit: number,
+  ): Promise<ReviewTermRow[]> {
+    // The term job's own predicate (`findDueAiVerdictIds`), narrowed to a school and moved
+    // forward in time: a warning names exactly the work that job is going to close.
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        container_id: string | null;
+        group_id: string | null;
+        submitted_at: Date;
+        review_auto_accept_at: Date;
+      }>
+    >`
+      SELECT id, container_id, group_id, submitted_at, review_auto_accept_at
+      FROM attempts
+      WHERE school_id = ${schoolId}
+        AND status = 'routed_for_review'
+        AND submitted_at IS NOT NULL
+        AND review_ai_verdict IS NOT NULL
+        AND jsonb_typeof(review_ai_verdict) = 'object'
+        AND review_auto_accept_at > ${after}
+        AND review_auto_accept_at <= ${until}
+      ORDER BY review_auto_accept_at, id
+      LIMIT ${limit}`;
+    return rows.map((row) => ({
+      attemptId: row.id,
+      containerId: row.container_id,
+      groupId: row.group_id,
+      submittedAt: row.submitted_at,
+      autoAcceptAt: row.review_auto_accept_at,
+    }));
+  }
+
   async save(attempt: Attempt): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = AttemptMapper.toPersistence(attempt) as any;
@@ -400,6 +549,16 @@ export class PrismaAttemptRepository implements IAttemptRepository {
       if (isUniqueViolation(err)) throw new OpenAttemptExistsError();
       throw err;
     }
+  }
+
+  async saveIfInReview(attempt: Attempt): Promise<boolean> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { id, ...data } = AttemptMapper.toPersistence(attempt) as any;
+    const { count } = await this.prisma.attempt.updateMany({
+      where: { id, status: 'ROUTED_FOR_REVIEW' },
+      data,
+    });
+    return count === 1;
   }
 
   async saveAll(attempts: Attempt[]): Promise<void> {

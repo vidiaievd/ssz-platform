@@ -53,6 +53,19 @@ export function decisionsUnderMachine(
   return { decisions, missing };
 }
 
+/**
+ * The model ruled against an item the auto-check accepted (plan 80 §3). Its ruling there does
+ * not count (`decisionsUnderMachine`), but it is the disagreement a school's sampling sends
+ * to a teacher: one of the two is wrong, and only a person can say which.
+ */
+export function rejectsMachineCredit(
+  auto: Array<{ itemId: string; autoPassed: boolean }>,
+  model: AiItemDecision[],
+): boolean {
+  const accepted = new Set(auto.filter((item) => item.autoPassed).map((item) => item.itemId));
+  return model.some((decision) => !decision.approved && accepted.has(decision.itemId));
+}
+
 /** A draft's suggested marks as the rubric scorer reads them, keyed by criterion. */
 export function marksOf(marks: AiDraftMark[] | null): RubricMarks {
   return Object.fromEntries((marks ?? []).map((m) => [m.criterionId, m.mark]));

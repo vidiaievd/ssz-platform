@@ -6,6 +6,10 @@ import {
   ReviewSettings,
   type ReviewEscalationTarget,
 } from '../../domain/value-objects/review-settings.vo.js';
+import {
+  ReviewAiPolicy,
+  type ReviewAiMode,
+} from '../../domain/value-objects/review-ai-policy.vo.js';
 
 type PrismaSchoolMember = {
   id: string;
@@ -41,6 +45,10 @@ type PrismaSchool = {
   // Optional for the same reason, and absent from a row written before the setting
   // existed: such a school shows the band, which is what it was doing already.
   showGroupPositionToStudents?: boolean;
+  // Optional for the narrower reads too; a row from before plan 80 has the defaults.
+  reviewAiMode?: string;
+  reviewAutoAcceptAfterHours?: number;
+  reviewSamplePercent?: number;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -85,6 +93,16 @@ export class SchoolMapper {
               escalateTo: (raw.reviewEscalateTo ?? 'school_admins') as ReviewEscalationTarget,
             }),
       showGroupPositionToStudents: raw.showGroupPositionToStudents,
+      reviewAiPolicy:
+        raw.reviewAiMode === undefined ||
+        raw.reviewAutoAcceptAfterHours === undefined ||
+        raw.reviewSamplePercent === undefined
+          ? undefined
+          : ReviewAiPolicy.rehydrate({
+              mode: raw.reviewAiMode as ReviewAiMode,
+              autoAcceptAfterHours: raw.reviewAutoAcceptAfterHours,
+              samplePercent: raw.reviewSamplePercent,
+            }),
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt ?? undefined,

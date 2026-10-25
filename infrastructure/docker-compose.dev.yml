@@ -102,6 +102,7 @@ services:
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       PROFILE_SERVICE_URL: http://user-profile-service:3001
       SCHEDULING_SERVICE_URL: http://scheduling-service:3009
+      SUBSCRIPTION_SERVICE_URL: http://subscription-service:3011
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
     ports:
       - "3002:3002"
@@ -243,6 +244,7 @@ services:
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
       REVIEW_DIGEST_ENABLED: ${REVIEW_DIGEST_ENABLED:-false}
       REVIEW_DIGEST_INTERVAL_HOURS: ${REVIEW_DIGEST_INTERVAL_HOURS:-6}
+      REVIEW_TERM_WARNING_HOURS: ${REVIEW_TERM_WARNING_HOURS:-24}
       # Lesson reminders (plan 62): the timetable says when a lesson is, this service
       # decides whether to tell the learner the evening before. Off by the same rule.
       SCHEDULING_SERVICE_URL: http://scheduling-service:3009

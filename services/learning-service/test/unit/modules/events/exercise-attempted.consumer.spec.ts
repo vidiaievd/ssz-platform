@@ -344,6 +344,47 @@ describe('ExerciseAttemptedConsumer', () => {
       expect(progress.outcome).toBe(outcome);
     });
 
+    /**
+     * Plan 80, step 4b (R5): a teacher answers after the model's verdict counted at the
+     * term. Progress follows the teacher; memory was rated once, at the term, and is not
+     * rated again — no card, no fan-out, no evidence record.
+     */
+    it.each([
+      [{ completed: false, score: 0, passed: false, reviewOutcome: 'returned' }, 'returned'],
+      [{ completed: true, score: 100, passed: true }, 'passed'],
+    ])('moves only progress on a teacher’s verdict after the term (%j)', async (verdict, outcome) => {
+      const { consumer, commandBus, publisher, prisma } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg(
+          envelope({
+            userId: USER_ID,
+            exerciseId: EXERCISE_ID,
+            timeSpentSeconds: 120,
+            templateCode: 'translate',
+            practicedAtoms: [{ atomType: 'vocabulary_item', atomId: 'w1' }],
+            attemptedAt: '2026-10-25T09:00:00.000Z',
+            revisesVerdict: true,
+            ...verdict,
+          }),
+        ),
+      );
+
+      const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+      expect(calls).toHaveLength(1);
+      const progress = calls[0] as UpsertProgressCommand;
+      expect(progress).toBeInstanceOf(UpsertProgressCommand);
+      expect(progress.outcome).toBe(outcome);
+      expect(progress.revisesVerdict).toBe(true);
+      expect(progress.reviewedBy).toBe('teacher');
+      expect(progress.timeSpentSeconds).toBe(0);
+      expect(ratedPayload(publisher)).toBeUndefined();
+      expect(prisma.processedEvent.create).toHaveBeenCalled();
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+    });
+
     it('marks the event as processed and acks on success', async () => {
       const { consumer, prisma } = makeConsumer();
       const channel = makeChannel();

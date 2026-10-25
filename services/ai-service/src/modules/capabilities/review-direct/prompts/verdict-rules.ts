@@ -1,11 +1,21 @@
 /**
- * The rules every `review_direct@1` prompt ends with: the ruling, the outcome and the summary.
+ * The rules every `review_direct` prompt ends with: the ruling, the outcome and the summary.
  * The template's own rules say what a remark is; these say what the learner's work counts as.
  */
 
+/** The opening of a direct prompt: who reads the review, and who else may. `work` names the exercise. */
+export type Framing = (work: string) => string[];
+
 /**
- * The opening of every direct prompt: who reads the review, and that nobody stands between.
- * `work` names the exercise ("a translation exercise").
+ * Whose learner the review is for (plan 80, step 3d) — read off the payer of the call: a
+ * school pays for its learners' reviews, a learner studying alone for their own.
+ */
+export type ReviewAudience = 'self_study' | 'school';
+
+/**
+ * The opening for a learner studying alone (`review_direct@1`, and `@2` for that audience):
+ * nobody stands between the review and the learner. `work` names the exercise ("a translation
+ * exercise").
  */
 export function directFraming(work: string): string[] {
   return [
@@ -13,6 +23,25 @@ export function directFraming(work: string): string[] {
     'the learner as you write it, marked as checked by AI, and your verdict decides whether the work counts.',
     'Be right rather than thorough: a wrong remark or a wrong verdict teaches the learner something false.',
   ];
+}
+
+/**
+ * The opening for a school's learner (`review_direct@2`, plan 80): the learner still reads the
+ * review first and unchecked, but a teacher may read the work after it, and the verdict counts
+ * by itself only if none does in time. The same demand for being right — the learner has
+ * already read it by the time anyone else does.
+ */
+export function schoolFraming(work: string): string[] {
+  return [
+    `You review ${work} for a learner of a school. The learner reads your review at once, marked as checked`,
+    'by AI, before any teacher does. A teacher of the school may read the work later and give their own',
+    'verdict; if none does within the school\'s term, your verdict decides whether the work counts.',
+    'Be right rather than thorough: a wrong remark or a wrong verdict teaches the learner something false.',
+  ];
+}
+
+export function framingFor(audience: ReviewAudience): Framing {
+  return audience === 'school' ? schoolFraming : directFraming;
 }
 
 /**

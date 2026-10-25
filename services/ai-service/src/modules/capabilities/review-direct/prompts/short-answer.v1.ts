@@ -3,7 +3,7 @@ import type { ReviewAspect } from '../../review-draft/domain/review-aspect.js';
 import type { ShortAnswerReviewInput } from '../../review-draft/domain/short-answer-review.js';
 import { ASPECT_RULES as DRAFT_ASPECT_RULES, userMessageV1 } from '../../review-draft/prompts/short-answer.v1.js';
 import { directSchema, verifyDirectReview } from '../domain/direct-review.js';
-import { decisionRules, directFraming, summaryRules } from './verdict-rules.js';
+import { decisionRules, directFraming, type Framing, summaryRules } from './verdict-rules.js';
 
 /**
  * `review_direct@1`, template `short_answer` (plan 79, step 2.2b). The remarks of
@@ -20,10 +20,10 @@ const ASPECT_RULES: Partial<Record<ReviewAspect, string>> = {
     'check did not look for. Not an error: the remark tells the learner the point counts.',
 };
 
-export function systemPromptV1(input: ShortAnswerReviewInput): string {
+export function systemPromptV1(input: ShortAnswerReviewInput, framing: Framing = directFraming): string {
   const language = input.aspects.filter((aspect) => aspect === 'grammar' || aspect === 'lexis');
   return [
-    ...directFraming('answers to open questions'),
+    ...framing('answers to open questions'),
     '',
     `The learner studies ${input.targetLanguage} and answered each question below in their own words.`,
     '`keyPoints` are what the author says an answer has to make (`required: false` — welcome, not',
@@ -70,9 +70,9 @@ export function systemPromptV1(input: ShortAnswerReviewInput): string {
   ].join('\n');
 }
 
-export function shortAnswerDirectRequestV1(input: ShortAnswerReviewInput): GatewayRequest {
+export function shortAnswerDirectRequestV1(input: ShortAnswerReviewInput, framing: Framing = directFraming): GatewayRequest {
   return {
-    system: systemPromptV1(input),
+    system: systemPromptV1(input, framing),
     messages: [{ role: 'user', parts: [{ type: 'text', text: userMessageV1(input) }] }],
     responseSchema: {
       name: 'short_answer_direct_review',

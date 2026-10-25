@@ -53,6 +53,12 @@ export const envSchema = z.object({
   // How many expired probes one sweep clears. Bounded so that a sweep is a short
   // statement rather than a long lock on the table.
   PROBE_SWEEP_BATCH: z.coerce.number().int().positive().default(500),
+
+  // Plan 80, step 4 — how often school work whose model verdict ran out of term is
+  // closed by it, and how many in one pass. Terms are hours long; five minutes late is
+  // nothing to anyone waiting on them.
+  REVIEW_TERM_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  REVIEW_TERM_BATCH: z.coerce.number().int().positive().default(100),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -123,6 +129,10 @@ export interface AppConfig {
     maxTtlSeconds: number;
     sweepBatch: number;
   };
+  reviewTerms: {
+    intervalMs: number;
+    batch: number;
+  };
   internalServiceToken: string;
 }
 
@@ -181,6 +191,10 @@ export default (): AppConfig => {
       defaultTtlSeconds: env.PROBE_DEFAULT_TTL_SECONDS,
       maxTtlSeconds: env.PROBE_MAX_TTL_SECONDS,
       sweepBatch: env.PROBE_SWEEP_BATCH,
+    },
+    reviewTerms: {
+      intervalMs: env.REVIEW_TERM_INTERVAL_MS,
+      batch: env.REVIEW_TERM_BATCH,
     },
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };

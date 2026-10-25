@@ -123,6 +123,17 @@ export interface ExerciseAttemptCompletedPayload {
    */
   reviewedBy?: 'teacher' | 'ai';
   /**
+   * Additive (plan 80, step 4b, R5) — this verdict replaces one the attempt was already
+   * counted by: a teacher answering a school's work after a model's verdict counted at the
+   * school's term.
+   *
+   * Progress follows the new verdict; memory does not hear it. The cards were rated once,
+   * by the verdict that counted at the term, and a second rating of the same answer days
+   * later would read as a review at an interval that never happened. Absent on everything
+   * else, which is read exactly as before.
+   */
+  revisesVerdict?: boolean;
+  /**
    * Additive (plan 66, decision Q2-B) — the exercise was delivered in a way that hands part
    * of the answer over, so a success proves one step less than its form says.
    *
@@ -306,7 +317,16 @@ export interface ExerciseAttemptRoutedForReviewPayload {
   groupId: string | null;
   /** ISO 8601 — the clock every "how long has this been waiting" answer starts from. */
   submittedAt: string;
+  /**
+   * The school answers this work with a model first (plan 80): its mode as it stood at
+   * hand-in, already checked against the school's plan and the template. Absent or null —
+   * only a teacher reads it, and no model is asked for the learner's review.
+   */
+  reviewAiMode?: ReviewAiMode | null;
 }
+
+/** A school's mode that has a model answer first (plan 80, R1); `teacher_only` never travels. */
+export type ReviewAiMode = 'ai_then_teacher' | 'ai_with_sampling';
 
 /**
  * Published when a person has marked a submission — plan 42.
@@ -379,11 +399,39 @@ export interface ExerciseAttemptReviewedPayload {
    * batch approval, which never shows one). Absent on events older than plan 79.
    */
   aiDraft?: AttemptReviewedAiDraft | null;
+  /**
+   * Additive (plan 80, step 4b) — the teacher answered after the model's verdict had counted
+   * at the school's term, and this verdict replaces it. What the teacher made of the model's
+   * review (`aiDraft`) is then a disagreement with a verdict the learner was already given.
+   * Absent on every other letter.
+   */
+  revisesVerdict?: boolean;
+  /**
+   * Additive (plan 80, step 6c) — the model's verdict the learner had already been given on
+   * this work, when the school lets a model answer first: provisional, or counted at the
+   * term (`revisesVerdict`). Whether the teacher went the other way is read against it.
+   * Present on every teacher's verdict on such work — with a draft acted on or not, a batch
+   * approval included; absent everywhere else.
+   */
+  aiVerdict?: AttemptReviewedAiVerdict;
   occurredAt: string;
 }
 
+/** A model's verdict a teacher ruled after (plan 80, step 6c), on the axes it is judged by. */
+export interface AttemptReviewedAiVerdict {
+  /** ai-service capability that gave it: `review_direct`. */
+  capability: string;
+  /** ai-service registry ids; null on verdicts given before step 6c, which kept none. */
+  modelId: string | null;
+  promptVersion: string | null;
+  outcome: 'approved' | 'returned';
+}
+
 export interface AttemptReviewedAiDraft {
-  /** ai-service capability that wrote it: `review_draft`. */
+  /**
+   * ai-service capability that wrote it: `review_draft`, or `review_direct` — the review the
+   * learner was already given, where the school has a model answer first (plan 80).
+   */
   capability: string;
   /** ai-service registry ids — the axes the outcomes are folded on. */
   modelId: string | null;
@@ -433,6 +481,19 @@ export interface ExerciseAttemptAiReviewedPayload {
   modelId: string | null;
   promptVersion: string | null;
   outcome: 'approved' | 'returned';
+  /**
+   * Additive (plan 80, step 6a) — where the work was handed in, snapshotted at attempt start,
+   * as on `exercise.attempt.reviewed`. `null` outside a school; absent on older events.
+   */
+  schoolId?: string | null;
+  groupId?: string | null;
+  containerId?: string | null;
+  /**
+   * Additive (plan 80, step 6a) — the verdict counted by itself at the school's term because
+   * no teacher answered: the row the auto-acceptance journal is built from. Absent on a
+   * verdict that closed the work at once.
+   */
+  acceptedAtTerm?: true;
   occurredAt: string;
 }
 

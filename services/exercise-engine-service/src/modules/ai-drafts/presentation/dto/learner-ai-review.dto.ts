@@ -42,7 +42,10 @@ export class LearnerAiMarkDto {
 }
 
 export class LearnerAiReviewResponseDto {
-  @ApiProperty({ enum: ['approved', 'returned'], description: 'The verdict the review closed the attempt with.' })
+  @ApiProperty({
+    enum: ['approved', 'returned'],
+    description: 'The verdict the review closed the attempt with — or, when `provisional`, would count as.',
+  })
   outcome!: 'approved' | 'returned';
 
   @ApiProperty({ type: [LearnerAiRemarkDto] })
@@ -67,6 +70,29 @@ export class LearnerAiReviewResponseDto {
     description: 'When I said this review is wrong (`POST …/ai-review/dispute`); null until I do.',
   })
   disputedAt!: string | null;
+
+  @ApiProperty({
+    example: false,
+    description:
+      'My school’s teacher has yet to answer (plan 80): the verdict does not count yet, and the client ' +
+      'labels it «проверено ИИ, ждёт учителя». Not disputable — the teacher reads the work anyway.',
+  })
+  provisional!: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    example: '2026-10-31T09:00:00.000Z',
+    description: 'For a provisional verdict: when it counts by itself if no teacher answers. Null otherwise.',
+  })
+  countsAt!: string | null;
+
+  @ApiProperty({
+    example: false,
+    description:
+      'My school’s term ran out and no teacher answered, so this verdict counted by itself (plan 80) — ' +
+      'the client labels it «засчитано автоматически». A teacher may still read the work later.',
+  })
+  acceptedAtTerm!: boolean;
 }
 
 export class DisputeAiReviewRequestDto {

@@ -23,6 +23,12 @@ export interface ReviewQueueScope {
   groupIds?: string[];
   containerIds?: string[];
   templateCodes?: string[];
+  /**
+   * Instead of what waits on a person: the work a model's verdict closed at the school's term
+   * since this moment, with no teacher's verdict on it yet (plan 80, step 7f) — the one place
+   * a teacher finds what they may still revise. A teacher's verdict takes it off the list.
+   */
+  acceptedAtTermSince?: Date;
 }
 
 /**
@@ -56,6 +62,18 @@ export interface PendingLoadRow {
   containerId: string | null;
   groupId: string | null;
   submittedAt: Date;
+}
+
+/**
+ * One submission whose provisional model verdict counts by itself at `autoAcceptAt`
+ * (plan 80, step 5): where it sits, so the caller can find who reviews it.
+ */
+export interface ReviewTermRow {
+  attemptId: string;
+  containerId: string | null;
+  groupId: string | null;
+  submittedAt: Date;
+  autoAcceptAt: Date;
 }
 
 /** One verdict a person delivered, as the two timestamps oversight measures between. */
@@ -187,6 +205,12 @@ export interface IAttemptRepository {
     status: MySubmissionsStatus,
     page: { limit: number; after: MySubmissionsCursor | null },
   ): Promise<Attempt[]>;
+  /**
+   * Which of these attempts a teacher reviewed from a model's draft they sent or edited
+   * (plan 79, `review_draft`) — the "AI drafted, teacher checked" line a learner reads.
+   * A discarded draft does not count: the teacher wrote that review themselves.
+   */
+  findAiDraftedIds(attemptIds: string[]): Promise<Set<string>>;
   /** How much is waiting in a scope, and since when — without reading the submissions. */
   summariseReviewQueue(scope: ReviewQueueScope): Promise<ReviewQueueSummary>;
   /**
@@ -196,6 +220,26 @@ export interface IAttemptRepository {
    * draft was saved at or after `liveDraftSince`.
    */
   findRecordingsInUse(assetIds: readonly string[], liveDraftSince: Date): Promise<string[]>;
+  /**
+   * School work whose model verdict is due to count by itself (plan 80, step 4): still in
+   * review, a provisional verdict on it, the term at or before `now`. Oldest term first.
+   */
+  findDueAiVerdictIds(now: Date, limit: number): Promise<string[]>;
+  /**
+   * The school's work the term job will close within `(after, until]` (plan 80, step 5):
+   * still in review, a provisional verdict on it. Earliest term first, at most `limit`.
+   */
+  findReviewTermsAhead(
+    schoolId: string,
+    after: Date,
+    until: Date,
+    limit: number,
+  ): Promise<ReviewTermRow[]>;
   save(attempt: Attempt): Promise<void>;
   saveAll(attempts: Attempt[]): Promise<void>;
+  /**
+   * `save`, only while the stored row is still in review — false when someone closed it in
+   * between (a teacher's verdict landing beside the term job). Nothing is written then.
+   */
+  saveIfInReview(attempt: Attempt): Promise<boolean>;
 }

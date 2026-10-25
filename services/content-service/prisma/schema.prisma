@@ -159,6 +159,12 @@ model Container {
   // Null means the school's own promise applies — the course has not overridden it
   // (plan 44 §44.12). Only meaningful for containerType=COURSE.
   reviewRespondWithinHours  Int?            @map("review_respond_within_hours")
+  // When a model's verdict on THIS course's work counts by itself if no teacher has
+  // answered (plan 80). Null inherits the school's term. Only meaningful for COURSE.
+  reviewAutoAcceptAfterHours Int?           @map("review_auto_accept_after_hours")
+  // Exercise templates whose work always goes to a teacher when the school samples the
+  // model's verdicts — the unit's essay and speech, typically (plan 80, Q4).
+  reviewTeacherTemplates    String[]        @default([]) @map("review_teacher_templates")
   // What every lesson of THIS course is expected to train (plan 64, decision O).
   // Null inherits the workspace's recipe; `{ "rules": [] }` is a course that has opted
   // out of the workspace's. Shape: `Recipe` in @ssz/shared-kernel/skills.

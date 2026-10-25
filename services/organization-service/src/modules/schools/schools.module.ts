@@ -9,6 +9,7 @@ import { GROUP_MATERIAL_REPOSITORY } from './domain/repositories/group-material.
 import { SCHOOL_ONBOARDING_SETTINGS_REPOSITORY } from './domain/repositories/school-onboarding-settings.repository.interface.js';
 import { SCHOOL_MEMBERSHIP_REPOSITORY } from './domain/repositories/school-membership.repository.interface.js';
 import { PROFILE_SERVICE_PORT } from '../../shared/application/ports/profile-service.interface.js';
+import { WORKSPACE_ENTITLEMENTS_PORT } from '../../shared/application/ports/workspace-entitlements.interface.js';
 
 import { SchoolPrismaRepository } from './infrastructure/persistence/school.prisma.repository.js';
 import { SchoolInvitationPrismaRepository } from './infrastructure/persistence/school-invitation.prisma.repository.js';
@@ -20,6 +21,7 @@ import { SchoolMembershipPrismaRepository } from './infrastructure/persistence/s
 import { InvitationTokenService } from './infrastructure/invitation-token.service.js';
 import { ProfileServiceHttpClient } from '../../infrastructure/profile/profile-service.http-client.js';
 import { SchedulingServiceHttpClient } from '../../infrastructure/scheduling/scheduling-service.http-client.js';
+import { SubscriptionServiceHttpClient } from '../../infrastructure/subscription/subscription-service.http-client.js';
 
 import { CreateSchoolHandler } from './application/commands/create-school/create-school.handler.js';
 import { UpdateSchoolHandler } from './application/commands/update-school/update-school.handler.js';
@@ -78,6 +80,8 @@ import { GetSchoolInvitationPreviewHandler } from './application/queries/get-inv
 import { GetMyPermissionsHandler } from './application/queries/get-my-permissions/get-my-permissions.handler.js';
 import { GetReviewSettingsHandler } from './application/queries/get-review-settings/get-review-settings.handler.js';
 import { UpdateReviewSettingsHandler } from './application/commands/update-review-settings/update-review-settings.handler.js';
+import { GetReviewAiPolicyHandler } from './application/queries/get-review-ai-policy/get-review-ai-policy.handler.js';
+import { UpdateReviewAiPolicyHandler } from './application/commands/update-review-ai-policy/update-review-ai-policy.handler.js';
 import { GetOnboardingSettingsHandler } from './application/queries/get-onboarding-settings/get-onboarding-settings.handler.js';
 import { ListMembershipsHandler } from './application/queries/list-memberships/list-memberships.handler.js';
 import { GetMyMembershipHandler } from './application/queries/get-my-membership/get-my-membership.handler.js';
@@ -107,6 +111,7 @@ import { GetSoloWorkspaceHandler } from './application/queries/get-solo-workspac
 
 const CommandHandlers = [
   UpdateReviewSettingsHandler,
+  UpdateReviewAiPolicyHandler,
   CreateSchoolHandler,
   ProvisionSoloWorkspaceHandler,
   UpdateSchoolHandler,
@@ -168,6 +173,7 @@ const QueryHandlers = [
   GetMyPermissionsHandler,
   GetOnboardingSettingsHandler,
   GetReviewSettingsHandler,
+  GetReviewAiPolicyHandler,
   ListMembershipsHandler,
   GetMyMembershipHandler,
   GetPublicSchoolHandler,
@@ -233,6 +239,10 @@ const QueryHandlers = [
     {
       provide: PROFILE_SERVICE_PORT,
       useClass: ProfileServiceHttpClient,
+    },
+    {
+      provide: WORKSPACE_ENTITLEMENTS_PORT,
+      useClass: SubscriptionServiceHttpClient,
     },
   ],
 })

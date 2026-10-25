@@ -35,6 +35,12 @@ export interface ReviewQueueItem {
    * being clean since (the author fixed a key) is skipped there rather than passed here.
    */
   autoClean: boolean;
+  /**
+   * When the model's verdict counted at the school's term — set only in the
+   * `acceptedAtTermSince` view (plan 80, step 7f), where the work is closed and waits on
+   * nothing but the teacher's own verdict.
+   */
+  acceptedAt: Date | null;
   lock: ReviewQueueLock | null;
 }
 
@@ -149,6 +155,7 @@ export class ListReviewQueueV2Handler implements IQueryHandler<ListReviewQueueV2
       submittedAt: attempt.submittedAt ?? attempt.startedAt,
       attemptNo: attempt.revisionCount + 1,
       autoClean: this.isAutoClean(attempt),
+      acceptedAt: attempt.acceptedAtTerm ? attempt.reviewedAt : null,
       lock: attempt.activeReviewLock(now),
     };
   }
@@ -159,6 +166,8 @@ export class ListReviewQueueV2Handler implements IQueryHandler<ListReviewQueueV2
    * still has to look.
    */
   private isAutoClean(attempt: Attempt): boolean {
+    // Closed at the term: a verdict there is a revision, which only the single path takes.
+    if (attempt.acceptedAtTerm) return false;
     const { autoPassedItems, totalItems } = attempt;
     if (autoPassedItems === null || totalItems === null) return false;
     return totalItems > 0 && autoPassedItems === totalItems;

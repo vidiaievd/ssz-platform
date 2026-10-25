@@ -1,0 +1,133 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class MySubmissionPathDto {
+  @ApiProperty({ example: 'Ny i Norge — A2' })
+  course!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'Leksjon 19' })
+  module!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, example: 'Familien' })
+  exercise!: string | null;
+}
+
+export class MySubmissionDecisionDto {
+  @ApiProperty({ enum: ['approved', 'returned'] })
+  verdict!: 'approved' | 'returned';
+
+  @ApiProperty({
+    enum: ['teacher', 'ai'],
+    description: 'A teacher, or a model reviewing the work of a learner nobody reviews — to be labelled as AI.',
+  })
+  by!: 'teacher' | 'ai';
+
+  @ApiPropertyOptional({
+    nullable: true,
+    format: 'uuid',
+    description: 'The teacher; null for a model’s verdict. Names come from `GET /api/v1/profiles?userIds=`.',
+  })
+  byUserId!: string | null;
+
+  @ApiProperty({ example: '2026-10-24T10:00:00.000Z' })
+  at!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'Se på perfektum.' })
+  comment!: string | null;
+
+  @ApiProperty({
+    example: false,
+    description: 'The teacher sent or edited a model’s draft rather than writing the review from scratch.',
+  })
+  aiDrafted!: boolean;
+
+  @ApiProperty({
+    example: false,
+    description:
+      'A model’s verdict at a school that counted by itself when the term ran out with no teacher’s answer (plan 80).',
+  })
+  acceptedAtTerm!: boolean;
+}
+
+export class PendingAiVerdictDto {
+  @ApiProperty({ enum: ['approved', 'returned'], description: 'What the model ruled — not counted yet.' })
+  outcome!: 'approved' | 'returned';
+
+  @ApiPropertyOptional({ nullable: true, description: 'The model’s summary, written to the learner.' })
+  comment!: string | null;
+
+  @ApiProperty({ example: '2026-10-24T09:01:00.000Z', description: 'When the model answered.' })
+  at!: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    example: '2026-10-31T09:00:00.000Z',
+    description: 'When the model’s verdict counts by itself if no teacher answers; null — it waits for the teacher.',
+  })
+  countsAt!: string | null;
+}
+
+export class MySubmissionDto {
+  @ApiProperty({ format: 'uuid' })
+  attemptId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  exerciseId!: string;
+
+  @ApiProperty({ example: 'writing_task' })
+  templateCode!: string;
+
+  @ApiProperty({ example: 'no' })
+  targetLanguage!: string;
+
+  @ApiPropertyOptional({
+    type: MySubmissionPathDto,
+    nullable: true,
+    description: 'Course · module · exercise as they read when the work was started.',
+  })
+  exercisePath!: MySubmissionPathDto | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  containerId!: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    format: 'uuid',
+    description: 'The school it was handed in under; null for a learner without one.',
+  })
+  schoolId!: string | null;
+
+  @ApiProperty({ example: '2026-10-24T09:00:00.000Z' })
+  submittedAt!: string;
+
+  @ApiProperty({
+    enum: ['pending', 'returned', 'approved'],
+    description: 'Waiting for a reviewer, sent back to be rewritten, or accepted.',
+  })
+  status!: 'pending' | 'returned' | 'approved';
+
+  @ApiProperty({ example: 1 })
+  attemptNo!: number;
+
+  @ApiPropertyOptional({ type: MySubmissionDecisionDto, nullable: true })
+  decision!: MySubmissionDecisionDto | null;
+
+  @ApiPropertyOptional({
+    type: PendingAiVerdictDto,
+    nullable: true,
+    description:
+      'A school that has a model answer first (plan 80): the model’s verdict while the teacher’s is awaited. ' +
+      'The client labels it «проверено ИИ, ждёт учителя»; remarks from `GET …/ai-review`.',
+  })
+  provisional!: PendingAiVerdictDto | null;
+
+  @ApiProperty({ description: 'Only on the returned row a new attempt at this exercise would resume.' })
+  canResubmit!: boolean;
+}
+
+export class MySubmissionsResponseDto {
+  @ApiProperty({ type: [MySubmissionDto] })
+  items!: MySubmissionDto[];
+
+  @ApiPropertyOptional({ nullable: true, description: 'Pass as `cursor` for the next page; null on the last one.' })
+  nextCursor!: string | null;
+}

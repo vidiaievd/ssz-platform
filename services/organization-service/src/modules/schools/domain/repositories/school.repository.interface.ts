@@ -1,5 +1,6 @@
 import type { School } from '../entities/school.entity.js';
 import type { ReviewSettings } from '../value-objects/review-settings.vo.js';
+import type { ReviewAiPolicy } from '../value-objects/review-ai-policy.vo.js';
 
 export interface PublicSchoolFilter {
   q?: string;
@@ -47,6 +48,8 @@ export interface ISchoolRepository {
    * from 48 hours to 24.
    */
   saveReviewSettings(schoolId: string, settings: ReviewSettings): Promise<void>;
+  /** Writes only who answers work first, for the same reason as `saveReviewSettings`. */
+  saveReviewAiPolicy(schoolId: string, policy: ReviewAiPolicy): Promise<void>;
 }
 
 export const SCHOOL_REPOSITORY = Symbol('SCHOOL_REPOSITORY');

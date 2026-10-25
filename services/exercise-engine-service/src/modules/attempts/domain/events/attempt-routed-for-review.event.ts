@@ -20,6 +20,8 @@ export interface AttemptRoutedForReviewPayload {
   containerId: string | null;
   groupId: string | null;
   submittedAt: string;
+  /** A model answers first (plan 80); null — only a teacher reads it. */
+  reviewAiMode: 'ai_then_teacher' | 'ai_with_sampling' | null;
 }
 
 export class AttemptRoutedForReviewEvent implements IDomainEvent {

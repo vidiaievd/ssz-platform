@@ -7,6 +7,9 @@ import type {
   ReviewSubjectResult,
   TranslateSubject,
 } from '../../../review-draft/application/ports/review-attempts.client.js';
+import { REVIEW_QUEUE_SURFACE } from '../../../review-draft/application/draft-review/draft-review.handler.js';
+import type { ISchoolLanguageReader } from '../../../review-draft/application/ports/school-language.reader.js';
+import { SchoolPayerResolver } from '../../../review-draft/application/school-payer.resolver.js';
 import { LearnerPayerResolver } from '../learner-payer.resolver.js';
 import type {
   GiveUpReason,
@@ -17,10 +20,11 @@ import type { ILearnerLanguageReader } from '../ports/learner-language.reader.js
 import { DirectReviewCommand } from './direct-review.command.js';
 import { DirectReviewHandler, SELF_STUDY_SURFACE } from './direct-review.handler.js';
 
-// Plan 79, step 2.2c.
+// Plan 79, step 2.2c; a school's work under its review policy — plan 80, step 3c.
 
 const ATTEMPT = 'a0000000-0000-4000-8000-000000000002';
 const LEARNER = 'c8655ecd-0000-4000-8000-000000000001';
+const SCHOOL = 'f3ced490-5f8b-4d04-bd05-45ab1a101ff8';
 
 const subjectResult = (over: Partial<ReviewSubjectResult> = {}, ai = { on: true, checks: { grammar: true, order: false, lexis: true } }): ReviewSubjectResult => ({
   attemptId: ATTEMPT,
@@ -83,15 +87,23 @@ interface Setup {
   subject?: ReviewSubjectResult | null;
   call?: GatewayCall;
   language?: string | null | 'throws';
-  put?: Array<Answer<'ok'>>;
+  put?: Array<Answer<'ok' | 'provisional'>>;
   giveUp?: Array<Answer<'ok'>>;
+  schoolLanguage?: string | null | 'throws';
 }
 
-function setup({ subject = subjectResult(), call = answered(RETURNED), language = 'en', put = ['ok'], giveUp = ['ok'] }: Setup = {}) {
+function setup({
+  subject = subjectResult(),
+  call = answered(RETURNED),
+  language = 'en',
+  put = ['ok'],
+  giveUp = ['ok'],
+  schoolLanguage = 'uk',
+}: Setup = {}) {
   const calls: Array<{ capability: string; context: CallContext; request: ReturnType<Extract<GatewayInput, Function>> }> = [];
   const gateway = {
     call: async (capability: string, context: CallContext, input: GatewayInput) => {
-      calls.push({ capability, context, request: typeof input === 'function' ? input('review_direct@1') : input });
+      calls.push({ capability, context, request: typeof input === 'function' ? input('review_direct@2') : input });
       return call;
     },
   } as unknown as AiGateway;
@@ -106,7 +118,9 @@ function setup({ subject = subjectResult(), call = answered(RETURNED), language 
       const next = puts.shift() ?? 'ok';
       if (next === 'throws') throw new Error('engine down');
       writes.push({ review, meta });
-      return next === 'ok' ? { written: true, attemptStatus: 'returned' } : { written: false, code: next.code };
+      if (next === 'ok') return { written: true, attemptStatus: 'returned', provisional: false };
+      if (next === 'provisional') return { written: true, attemptStatus: 'routed_for_review', provisional: true };
+      return { written: false, code: next.code };
     },
     giveUp: async (_id, reason, aiCallId) => {
       const next = giveUps.shift() ?? 'ok';
@@ -121,17 +135,39 @@ function setup({ subject = subjectResult(), call = answered(RETURNED), language 
       return language;
     },
   };
-  const handler = new DirectReviewHandler(gateway, new LearnerPayerResolver(), attempts, learners, 0);
+  const schools: ISchoolLanguageReader = {
+    explanationLanguage: async () => {
+      if (schoolLanguage === 'throws') throw new Error('organizations down');
+      return schoolLanguage;
+    },
+  };
+  const handler = new DirectReviewHandler(
+    gateway,
+    new LearnerPayerResolver(),
+    new SchoolPayerResolver(),
+    attempts,
+    learners,
+    schools,
+    0,
+  );
   return { handler, calls, writes, gaveUp };
 }
 
-const command = () => new DirectReviewCommand(ATTEMPT, LEARNER, 'translate_to_target');
+const command = (schoolId: string | null = null) => new DirectReviewCommand(ATTEMPT, LEARNER, 'translate_to_target', schoolId);
+const atSchool = (over: Partial<ReviewSubjectResult> = {}, ai?: Parameters<typeof subjectResult>[1]) =>
+  subjectResult({ schoolId: SCHOOL, ...over }, ai);
 
 describe('DirectReviewHandler', () => {
   it("reviews the learner's work under the learner as payer, on the self_study surface, and writes the verdict", async () => {
     const { handler, calls, writes, gaveUp } = setup();
 
-    expect(await handler.execute(command())).toEqual({ kind: 'ruled', attemptStatus: 'returned', remarks: 1, aiCallId: 'call-1' });
+    expect(await handler.execute(command())).toEqual({
+      kind: 'ruled',
+      attemptStatus: 'returned',
+      provisional: false,
+      remarks: 1,
+      aiCallId: 'call-1',
+    });
     expect(calls).toHaveLength(1);
     expect(calls[0]!.capability).toBe('review_direct');
     expect(calls[0]!.context).toEqual({
@@ -141,6 +177,7 @@ describe('DirectReviewHandler', () => {
     });
     // Remarks in the learner's interface language, spelled out.
     expect(calls[0]!.request.system).toContain('English');
+    expect(calls[0]!.request.system).toMatch(/^You review .* for a learner who studies without a teacher\./);
     expect(writes).toEqual([
       {
         review: {
@@ -166,7 +203,7 @@ describe('DirectReviewHandler', () => {
     ['unknown attempt', null, 'attempt_not_found'],
     ['a decided submission', subjectResult({ skip: 'ATTEMPT_NOT_IN_REVIEW', subject: null }), 'attempt_not_in_review'],
     ['a school submission', subjectResult({ skip: 'HAS_TEACHER_REVIEW', subject: null }), 'has_teacher_review'],
-    ['a school on the row the event did not carry', subjectResult({ schoolId: 'f3ced490-5f8b-4d04-bd05-45ab1a101ff8' }), 'has_school'],
+    ['a school on the row the event did not carry', subjectResult({ schoolId: SCHOOL }), 'school_differs_from_event'],
   ])('skips %s: somebody else decides it, nothing is closed', async (_label, subject, reason) => {
     const { handler, calls, gaveUp } = setup({ subject });
     expect(await handler.execute(command())).toEqual({ kind: 'skipped', reason });
@@ -265,5 +302,63 @@ describe('DirectReviewHandler', () => {
       await handler.execute(command());
       expect(calls[0]!.request.system).toContain('Russisk');
     }
+  });
+  describe("at a school that has a model answer first (plan 80, step 3c)", () => {
+    it("asks under the school as payer, in the school's language, on the review_queue surface", async () => {
+      const { handler, calls, writes, gaveUp } = setup({ subject: atSchool(), put: ['provisional'] });
+
+      expect(await handler.execute(command(SCHOOL))).toEqual({
+        kind: 'ruled',
+        attemptStatus: 'routed_for_review',
+        provisional: true,
+        remarks: 1,
+        aiCallId: 'call-1',
+      });
+      expect(calls).toHaveLength(1);
+      expect(calls[0]!.capability).toBe('review_direct');
+      expect(calls[0]!.context).toEqual({
+        payer: { type: 'workspace', id: SCHOOL },
+        actor: { userId: LEARNER, role: null },
+        surface: REVIEW_QUEUE_SURFACE,
+      });
+      expect(calls[0]!.request.system).toContain('Ukrainian');
+      // Plan 80, step 3d: the school's learner is told a teacher may read the work after.
+      expect(calls[0]!.request.system).toMatch(/^You review .* for a learner of a school\./);
+      expect(writes).toHaveLength(1);
+      expect(gaveUp).toHaveLength(0);
+    });
+
+    it("falls back to the exercise's label when the school's language is unreadable", async () => {
+      const { handler, calls } = setup({ subject: atSchool(), schoolLanguage: 'throws' });
+      await handler.execute(command(SCHOOL));
+      expect(calls[0]!.request.system).toContain('Russisk');
+    });
+
+    it.each<[string, ReviewSubjectResult, string]>([
+      ['work without the policy', atSchool({ skip: 'HAS_TEACHER_REVIEW', subject: null }), 'has_teacher_review'],
+      ['a verdict already given', atSchool({ skip: 'DRAFT_EXISTS', subject: null }), 'draft_exists'],
+      ['a template without a prompt', atSchool({ skip: 'TEMPLATE_NOT_SUPPORTED', subject: null }), 'template_not_supported'],
+      ['an exercise gone from content', atSchool({ skip: 'EXERCISE_GONE', subject: null }), 'exercise_gone'],
+      ['another school on the row', subjectResult({ schoolId: 'b0000000-0000-4000-8000-000000000009' }), 'school_differs_from_event'],
+      ['no school on the row', subjectResult(), 'school_differs_from_event'],
+    ])('skips %s and closes nothing: the teacher has it', async (_label, subject, reason) => {
+      const { handler, calls, gaveUp } = setup({ subject });
+      expect(await handler.execute(command(SCHOOL))).toEqual({ kind: 'skipped', reason });
+      expect(calls).toHaveLength(0);
+      expect(gaveUp).toHaveLength(0);
+    });
+
+    it.each<[string, Setup, string, string | null]>([
+      ['nothing to ask', { subject: atSchool({}, { on: false, checks: { grammar: true, order: true, lexis: true } }) }, 'ai_off', null],
+      ["the school's credits refused", { subject: atSchool(), call: notRouted({ kind: 'refused', code: 'not_entitled' }) }, 'not_entitled', 'call-1'],
+      ['every model skipped', { subject: atSchool(), call: notRouted({ kind: 'unavailable' }) }, 'unavailable', 'call-1'],
+      ['a failed answer', { subject: atSchool(), call: failedWith('invalid_response') }, 'invalid_response', 'call-1'],
+      ['the verdict turned down', { subject: atSchool(), put: [{ code: 'VERDICT_INCOMPLETE' }] }, 'engine_verdict_incomplete', 'call-1'],
+      ['the review lost on both writes', { subject: atSchool(), put: ['throws', 'throws'] }, 'review_write_lost', 'call-1'],
+    ])('leaves the work to the teacher without closing it — %s', async (_label, over, cause, aiCallId) => {
+      const { handler, gaveUp } = setup(over);
+      expect(await handler.execute(command(SCHOOL))).toEqual({ kind: 'left_to_teacher', cause, aiCallId });
+      expect(gaveUp).toHaveLength(0);
+    });
   });
 });

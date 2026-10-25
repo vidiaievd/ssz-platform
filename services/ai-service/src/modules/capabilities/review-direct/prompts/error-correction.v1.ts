@@ -3,7 +3,7 @@ import type { ErrorCorrectionReviewInput } from '../../review-draft/domain/error
 import type { ReviewAspect } from '../../review-draft/domain/review-aspect.js';
 import { ASPECT_RULES as DRAFT_ASPECT_RULES, userMessageV1 } from '../../review-draft/prompts/error-correction.v1.js';
 import { directSchema, verifyDirectReview } from '../domain/direct-review.js';
-import { decisionRules, directFraming, summaryRules } from './verdict-rules.js';
+import { decisionRules, directFraming, type Framing, summaryRules } from './verdict-rules.js';
 
 /**
  * `review_direct@1`, template `error_correction` (plan 79, step 2.2b). The remarks of
@@ -20,11 +20,11 @@ const ASPECT_RULES: Partial<Record<ReviewAspect, string>> = {
     'correct and keeps the meaning. Not an error: the remark tells the learner their version is right too.',
 };
 
-export function systemPromptV1(input: ErrorCorrectionReviewInput): string {
+export function systemPromptV1(input: ErrorCorrectionReviewInput, framing: Framing = directFraming): string {
   const errors = input.aspects.filter((aspect) => aspect !== 'alternative');
   const alternatives = input.aspects.includes('alternative');
   return [
-    ...directFraming('an error-correction exercise'),
+    ...framing('an error-correction exercise'),
     '',
     `The learner studies ${input.targetLanguage}. Each sentence was given to them with mistakes in it`,
     '(`given`); they repaired it, and `learnerAnswer` is the sentence their repair produced.',
@@ -70,9 +70,9 @@ export function systemPromptV1(input: ErrorCorrectionReviewInput): string {
   ].join('\n');
 }
 
-export function errorCorrectionDirectRequestV1(input: ErrorCorrectionReviewInput): GatewayRequest {
+export function errorCorrectionDirectRequestV1(input: ErrorCorrectionReviewInput, framing: Framing = directFraming): GatewayRequest {
   return {
-    system: systemPromptV1(input),
+    system: systemPromptV1(input, framing),
     messages: [{ role: 'user', parts: [{ type: 'text', text: userMessageV1(input) }] }],
     responseSchema: {
       name: 'error_correction_direct_review',

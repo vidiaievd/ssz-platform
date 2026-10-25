@@ -33,6 +33,7 @@ enum NotificationType {
   REVIEW_ESCALATION
   REVIEW_SCHOOL_SUMMARY
   LESSON_REMINDER
+  REVIEW_TERM_WARNING
 
   @@map("notification_type")
 }
@@ -120,6 +121,23 @@ model LessonReminder {
   @@id([sessionId, userId])
   @@index([sentAt])
   @@map("lesson_reminders")
+}
+
+/**
+ * Which teacher has been warned about which submission's term (plan 80, step 5).
+ *
+ * A model's provisional verdict counts by itself at the school's term; a teacher hears
+ * about it once beforehand. The job runs hourly and a rerun must not warn twice, so the
+ * row is written after the message and keyed by the pair. Swept once the term is long past.
+ */
+model ReviewTermWarning {
+  attemptId String   @map("attempt_id")
+  userId    String   @map("user_id")
+  sentAt    DateTime @default(now()) @map("sent_at")
+
+  @@id([attemptId, userId])
+  @@index([sentAt])
+  @@map("review_term_warnings")
 }
 
 model ProcessedEvent {

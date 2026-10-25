@@ -116,6 +116,8 @@ export class PrismaContainerItemDuplicator implements IContainerItemDuplicator {
             levelSystem: source.levelSystem,
             gatingMode: source.gatingMode,
             reviewRespondWithinHours: source.reviewRespondWithinHours,
+            reviewAutoAcceptAfterHours: source.reviewAutoAcceptAfterHours,
+            reviewTeacherTemplates: source.reviewTeacherTemplates,
             coverageRecipe: json(source.coverageRecipe),
             learningGoals: source.learningGoals,
           },

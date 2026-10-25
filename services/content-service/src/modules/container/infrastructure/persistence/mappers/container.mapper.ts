@@ -34,6 +34,8 @@ export interface ContainerCreateData {
   levelSystem: $Enums.LevelSystem;
   gatingMode: $Enums.GatingMode;
   reviewRespondWithinHours: number | null;
+  reviewAutoAcceptAfterHours: number | null;
+  reviewTeacherTemplates: string[];
   coverageRecipe: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
   learningGoals: string[];
   currentPublishedVersionId: string | null;
@@ -71,6 +73,8 @@ export class ContainerMapper {
       levelSystem: prismaLevelSystemToDomain(raw.levelSystem),
       gatingMode: prismaGatingModeToDomain(raw.gatingMode),
       reviewRespondWithinHours: raw.reviewRespondWithinHours,
+      reviewAutoAcceptAfterHours: raw.reviewAutoAcceptAfterHours,
+      reviewTeacherTemplates: raw.reviewTeacherTemplates,
       // Lenient on the way out: a value an axis has since retired costs its rule only.
       coverageRecipe: raw.coverageRecipe === null ? null : parseRecipe(raw.coverageRecipe),
       learningGoals: raw.learningGoals,
@@ -99,6 +103,8 @@ export class ContainerMapper {
       levelSystem: domainLevelSystemToPrisma(entity.levelSystem),
       gatingMode: domainGatingModeToPrisma(entity.gatingMode),
       reviewRespondWithinHours: entity.reviewRespondWithinHours,
+      reviewAutoAcceptAfterHours: entity.reviewAutoAcceptAfterHours,
+      reviewTeacherTemplates: entity.reviewTeacherTemplates,
       coverageRecipe: recipeToJson(entity.coverageRecipe),
       learningGoals: entity.learningGoals,
       currentPublishedVersionId: entity.currentPublishedVersionId,
@@ -123,6 +129,8 @@ export class ContainerMapper {
       levelSystem: domainLevelSystemToPrisma(entity.levelSystem),
       gatingMode: domainGatingModeToPrisma(entity.gatingMode),
       reviewRespondWithinHours: entity.reviewRespondWithinHours,
+      reviewAutoAcceptAfterHours: entity.reviewAutoAcceptAfterHours,
+      reviewTeacherTemplates: entity.reviewTeacherTemplates,
       coverageRecipe: recipeToJson(entity.coverageRecipe),
       learningGoals: entity.learningGoals,
       currentPublishedVersionId: entity.currentPublishedVersionId,

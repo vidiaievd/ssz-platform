@@ -35,6 +35,8 @@ export interface AttemptReturnedPayload extends AttemptTiming {
   reviewOutcome: 'returned';
   /** A model sent it back, not a teacher (plan 79 §2.1). Absent for a teacher. */
   reviewedBy?: 'ai';
+  /** A teacher sent back work a model's verdict had approved at the term (plan 80, step 4b). */
+  revisesVerdict?: true;
   practicedAtoms: Array<{ atomType: string; atomId: string }>;
   skills: Skill[];
   focus: Focus[];

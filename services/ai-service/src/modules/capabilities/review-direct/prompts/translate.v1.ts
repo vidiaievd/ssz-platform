@@ -2,7 +2,7 @@ import type { GatewayRequest } from '../../../gateway/application/model-router.j
 import type { TranslateReviewInput } from '../../review-draft/domain/translate-review.js';
 import { ASPECT_RULES, userMessageV1 } from '../../review-draft/prompts/translate.v1.js';
 import { directSchema, verifyDirectReview } from '../domain/direct-review.js';
-import { decisionRules, directFraming, summaryRules } from './verdict-rules.js';
+import { decisionRules, directFraming, type Framing, summaryRules } from './verdict-rules.js';
 
 /**
  * `review_direct@1`, template `translate_*` (plan 79, step 2.2b). The remarks are those of
@@ -11,9 +11,9 @@ import { decisionRules, directFraming, summaryRules } from './verdict-rules.js';
  * change of wording is a new version.
  */
 
-export function systemPromptV1(input: TranslateReviewInput): string {
+export function systemPromptV1(input: TranslateReviewInput, framing: Framing = directFraming): string {
   return [
-    ...directFraming('a translation exercise'),
+    ...framing('a translation exercise'),
     '',
     `The learner studies ${input.langs.target}. Their own language is ${input.langs.explain}.`,
     'Each sentence is translated in its own direction: `into` names the language of the expected answer.',
@@ -44,9 +44,9 @@ export function systemPromptV1(input: TranslateReviewInput): string {
   ].join('\n');
 }
 
-export function translateDirectRequestV1(input: TranslateReviewInput): GatewayRequest {
+export function translateDirectRequestV1(input: TranslateReviewInput, framing: Framing = directFraming): GatewayRequest {
   return {
-    system: systemPromptV1(input),
+    system: systemPromptV1(input, framing),
     messages: [{ role: 'user', parts: [{ type: 'text', text: userMessageV1(input) }] }],
     responseSchema: {
       name: 'translate_direct_review',

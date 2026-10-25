@@ -49,7 +49,7 @@ export class ReviewerResolver {
 
   async resolve(question: ReviewerQuestion): Promise<Reviewer> {
     if (question.schoolId !== null) return 'teacher';
-    if (!this.modelCanRead(question)) return 'none';
+    if (!modelCanReview(question, this.logger)) return 'none';
 
     const enabled = await this.entitlements.isEnabled(
       { type: 'user', id: question.userId },
@@ -63,22 +63,31 @@ export class ReviewerResolver {
     }
     return enabled.value ? 'ai' : 'none';
   }
+}
 
-  private modelCanRead(question: ReviewerQuestion): boolean {
-    try {
-      const subject = reviewSubject(question.templateCode, question.exercise, {
-        submittedAnswer: question.submittedAnswer,
-        targetLanguage: question.targetLanguage,
-        rubricSnapshot: question.rubricSnapshot,
-      });
-      return subject !== null && subject.ai.on;
-    } catch (err) {
-      // A document the template's reader cannot read is one no prompt can be built from.
-      // The submission still closes — the learner's work is not refused for the author's bug.
-      this.logger.warn(
-        `No review subject for ${question.templateCode}: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      return false;
-    }
+/**
+ * Whether a model could review this work at all: the template has a review prompt (read off
+ * the same `reviewSubject` ai-service is handed, so the two cannot disagree — an old-form
+ * `short_answer` has none) and the author left AI on for the exercise. Shared by the
+ * self-study reviewer and the school's policy (plan 80), which ask the same question.
+ */
+export function modelCanReview(
+  question: Pick<ReviewerQuestion, 'templateCode' | 'submittedAnswer' | 'targetLanguage' | 'rubricSnapshot' | 'exercise'>,
+  logger: Logger,
+): boolean {
+  try {
+    const subject = reviewSubject(question.templateCode, question.exercise, {
+      submittedAnswer: question.submittedAnswer,
+      targetLanguage: question.targetLanguage,
+      rubricSnapshot: question.rubricSnapshot,
+    });
+    return subject !== null && subject.ai.on;
+  } catch (err) {
+    // A document the template's reader cannot read is one no prompt can be built from.
+    // The submission still closes — the learner's work is not refused for the author's bug.
+    logger.warn(
+      `No review subject for ${question.templateCode}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return false;
   }
 }

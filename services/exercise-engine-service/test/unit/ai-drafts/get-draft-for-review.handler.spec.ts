@@ -56,6 +56,7 @@ describe('GetDraftForReviewHandler', () => {
       marks: null,
       modelId: 'fake-model',
       promptVersion: 'review_draft@1',
+      shownToLearner: false,
       createdAt: CREATED,
     });
     expect(drafts.findByAttempt).toHaveBeenCalledWith('a1', 'review_draft');

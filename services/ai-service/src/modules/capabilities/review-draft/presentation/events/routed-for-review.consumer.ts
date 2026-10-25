@@ -24,6 +24,8 @@ interface Envelope {
  * Plan 79: every submission routed for review. With a school behind it, it may get a
  * teacher's draft (step 1.3); without one, nobody but a model reads it, and it gets the
  * learner's own review with the verdict — or is closed as having no reviewer (step 2.2c).
+ * A school that has a model answer first (`reviewAiMode`, plan 80) gets the learner's review
+ * instead of the draft — the teacher's card shows the same one (step 3c).
  *
  * No processed-events table: a second delivery finds the draft already on the attempt, or
  * the attempt decided (the engine answers `DRAFT_EXISTS` / `ATTEMPT_NOT_IN_REVIEW`), and asks
@@ -78,9 +80,11 @@ export class RoutedForReviewConsumer implements OnModuleInit, OnModuleDestroy {
         throw new Error('no attemptId, userId or templateCode');
       }
       command =
-        typeof p.schoolId === 'string'
-          ? new DraftReviewCommand(p.attemptId, p.userId, p.templateCode, p.schoolId)
-          : new DirectReviewCommand(p.attemptId, p.userId, p.templateCode);
+        typeof p.schoolId !== 'string'
+          ? new DirectReviewCommand(p.attemptId, p.userId, p.templateCode)
+          : p.reviewAiMode
+            ? new DirectReviewCommand(p.attemptId, p.userId, p.templateCode, p.schoolId)
+            : new DraftReviewCommand(p.attemptId, p.userId, p.templateCode, p.schoolId);
     } catch (err) {
       this.logger.error(`Malformed ${msg.fields.routingKey} — dropped: ${err instanceof Error ? err.message : String(err)}`);
       channel.nack(msg, false, false);
@@ -128,11 +132,16 @@ function describeDirect(outcome: DirectReviewOutcome): string {
     case 'skipped':
       return `learner's review skipped (${outcome.reason})`;
     case 'ruled':
-      return `learner's review written, ${outcome.remarks} remark(s), attempt ${outcome.attemptStatus} (call ${outcome.aiCallId})`;
+      return (
+        `learner's review written, ${outcome.remarks} remark(s), attempt ${outcome.attemptStatus}` +
+        `${outcome.provisional ? ' (provisional, the teacher decides)' : ''} (call ${outcome.aiCallId})`
+      );
     case 'gave_up':
       return (
         `no reviewer (${outcome.reason}: ${outcome.cause}), engine ${outcome.engine}` +
         (outcome.aiCallId ? ` (call ${outcome.aiCallId})` : '')
       );
+    case 'left_to_teacher':
+      return `no model's review (${outcome.cause}), the teacher reviews it` + (outcome.aiCallId ? ` (call ${outcome.aiCallId})` : '');
   }
 }

@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import { SubmitAnswerHandler } from '../../../../src/modules/attempts/application/commands/submit-answer/submit-answer.handler.js';
 import { SubmitAnswerCommand } from '../../../../src/modules/attempts/application/commands/submit-answer/submit-answer.command.js';
 import type { ReviewerResolver } from '../../../../src/modules/attempts/application/services/reviewer-resolver.js';
+import type { ReviewPolicyResolver } from '../../../../src/modules/attempts/application/services/review-policy-resolver.js';
 import type { IAttemptRepository } from '../../../../src/modules/attempts/domain/repositories/attempt.repository.js';
 import type { IEventPublisher } from '../../../../src/shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../src/shared/kernel/result.js';
@@ -38,7 +39,17 @@ const makeAttempt = (schoolId: string | null) =>
     groupId: schoolId === null ? null : 'group-1',
   } as never);
 
-const setup = (opts: { schoolId: string | null; reviewer?: 'ai' | 'none' | 'unbound' }) => {
+const AI_FIRST = {
+  mode: 'ai_with_sampling' as const,
+  autoAcceptAt: new Date('2026-11-01T10:00:00.000Z'),
+  teacherDrawn: true,
+};
+
+const setup = (opts: {
+  schoolId: string | null;
+  reviewer?: 'ai' | 'none' | 'unbound';
+  policy?: typeof AI_FIRST | null;
+}) => {
   const attempt = makeAttempt(opts.schoolId);
   const repo = {
     findById: jest.fn<IAttemptRepository['findById']>().mockResolvedValue(attempt),
@@ -71,6 +82,9 @@ const setup = (opts: { schoolId: string | null; reviewer?: 'ai' | 'none' | 'unbo
   const resolve = jest.fn<ReviewerResolver['resolve']>().mockResolvedValue(
     opts.reviewer === 'none' ? 'none' : 'ai',
   );
+  const resolvePolicy = jest
+    .fn<ReviewPolicyResolver['resolve']>()
+    .mockResolvedValue(opts.policy ?? null);
   const handler = new SubmitAnswerHandler(
     repo as never,
     content as never,
@@ -81,11 +95,14 @@ const setup = (opts: { schoolId: string | null; reviewer?: 'ai' | 'none' | 'unbo
     undefined,
     null,
     opts.reviewer === 'unbound' ? null : ({ resolve } as never),
+    { resolve: resolvePolicy } as never,
   );
   const submit = () =>
     handler.execute(new SubmitAnswerCommand('attempt-1', 'user-1', { answers: [] }, 30, 'nb'));
   const published = () => publisher.publish.mock.calls.map(([type]) => type);
-  return { attempt, submit, published, resolve };
+  const routed = () =>
+    publisher.publish.mock.calls.find(([type]) => type === 'exercise.attempt.routed_for_review')?.[1];
+  return { attempt, submit, published, routed, resolve, resolvePolicy };
 };
 
 describe('SubmitAnswerHandler — who reads free-form work (plan 79, 2.1c)', () => {
@@ -126,5 +143,35 @@ describe('SubmitAnswerHandler — who reads free-form work (plan 79, 2.1c)', () 
     const s = setup({ schoolId: null, reviewer: 'unbound' });
     await s.submit();
     expect(s.attempt.status).toBe('ROUTED_FOR_REVIEW');
+  });
+});
+
+describe('SubmitAnswerHandler — the school’s review policy (plan 80, 3a)', () => {
+  it('keeps the school’s terms on the work and tells ai-service a model answers first', async () => {
+    const s = setup({ schoolId: 'school-1', policy: AI_FIRST });
+    const result = await s.submit();
+
+    // A teacher still owns the work.
+    expect(result.value.reviewer).toBe('teacher');
+    expect(s.attempt.status).toBe('ROUTED_FOR_REVIEW');
+    expect(s.attempt.reviewAiPolicy).toEqual(AI_FIRST);
+    expect(s.routed()).toMatchObject({ schoolId: 'school-1', reviewAiMode: 'ai_with_sampling' });
+    expect(s.resolvePolicy).toHaveBeenCalledWith(
+      expect.objectContaining({ schoolId: 'school-1', containerId: 'course-1', templateCode: 'translate_to_target' }),
+    );
+  });
+
+  it('routes to the teacher alone when the school has no model first', async () => {
+    const s = setup({ schoolId: 'school-1', policy: null });
+    await s.submit();
+
+    expect(s.attempt.reviewAiPolicy).toBeNull();
+    expect(s.routed()).toMatchObject({ reviewAiMode: null });
+  });
+
+  it('does not ask for work without a school', async () => {
+    const s = setup({ schoolId: null, reviewer: 'ai' });
+    await s.submit();
+    expect(s.resolvePolicy).not.toHaveBeenCalled();
   });
 });

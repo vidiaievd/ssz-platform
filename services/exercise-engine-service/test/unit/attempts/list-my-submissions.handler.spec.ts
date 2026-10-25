@@ -60,10 +60,15 @@ function attempt(props: Partial<AttemptPersistenceProps> = {}): Attempt {
   });
 }
 
-function makeHandler(rows: Attempt[], latestReturned: Attempt | null = null) {
+function makeHandler(
+  rows: Attempt[],
+  latestReturned: Attempt | null = null,
+  aiDrafted: string[] = [],
+) {
   const attempts = {
     findMySubmissionsPage: jest.fn(() => Promise.resolve(rows)),
     findLatestReturned: jest.fn(() => Promise.resolve(latestReturned)),
+    findAiDraftedIds: jest.fn((_ids: string[]) => Promise.resolve(new Set(aiDrafted))),
   };
   return { handler: new ListMySubmissionsHandler(attempts as never), attempts };
 }
@@ -89,6 +94,7 @@ describe('ListMySubmissionsHandler', () => {
         status: 'pending',
         attemptNo: 1,
         decision: null,
+        provisional: null,
         canResubmit: false,
       },
     ]);
@@ -127,6 +133,8 @@ describe('ListMySubmissionsHandler', () => {
       byUserId: 'teacher-1',
       at: new Date('2026-08-19T10:00:00Z'),
       comment: 'Se på perfektum.',
+      aiDrafted: false,
+      acceptedAtTerm: false,
     });
   });
 
@@ -170,7 +178,85 @@ describe('ListMySubmissionsHandler', () => {
       byUserId: null,
       at: new Date('2026-10-24T10:00:00Z'),
       comment: 'Bra! Se på ordstillingen i setning 2.',
+      aiDrafted: false,
+      acceptedAtTerm: false,
     });
+  });
+
+  it('says a school’s work counted by itself when the term ran out (plan 80, step 4)', async () => {
+    const accepted = attempt({
+      status: 'SCORED',
+      score: 100,
+      passed: true,
+      scoredAt: new Date('2026-11-01T09:00:00Z'),
+      reviewedAt: new Date('2026-11-01T09:00:00Z'),
+      reviewComment: 'Bra jobbet.',
+      provisionalAiVerdict: {
+        outcome: 'scored',
+        decisions: [{ itemId: 'i1', approved: true }],
+        comment: 'Bra jobbet.',
+        score: 100,
+        at: new Date('2026-10-25T09:01:00Z'),
+      },
+    });
+    const { handler } = makeHandler([accepted]);
+
+    const result = await handler.execute(query());
+
+    expect(result.items[0]).toMatchObject({
+      status: 'approved',
+      provisional: null,
+      decision: { verdict: 'approved', by: 'ai', byUserId: null, acceptedAtTerm: true },
+    });
+  });
+
+  it('says a teacher’s verdict came from a model’s draft when one was sent or edited', async () => {
+    const drafted = attempt({
+      id: 'att-drafted',
+      status: 'SCORED',
+      score: 100,
+      passed: true,
+      scoredAt: new Date('2026-10-24T10:00:00Z'),
+      reviewedByUserId: 'teacher-1',
+      reviewedAt: new Date('2026-10-24T10:00:00Z'),
+    });
+    const own = attempt({
+      id: 'att-own',
+      status: 'SCORED',
+      score: 100,
+      passed: true,
+      scoredAt: new Date('2026-10-24T09:00:00Z'),
+      reviewedByUserId: 'teacher-1',
+      reviewedAt: new Date('2026-10-24T09:00:00Z'),
+    });
+    const { handler } = makeHandler([drafted, own], null, ['att-drafted']);
+
+    const result = await handler.execute(query());
+
+    expect(result.items.find((i) => i.attemptId === 'att-drafted')?.decision?.aiDrafted).toBe(true);
+    expect(result.items.find((i) => i.attemptId === 'att-own')?.decision?.aiDrafted).toBe(false);
+  });
+
+  it('asks about drafts only for rows a teacher signed', async () => {
+    const signed = attempt({
+      id: 'att-signed',
+      status: 'RETURNED',
+      reviewedByUserId: 'teacher-1',
+      reviewedAt: new Date('2026-10-24T10:00:00Z'),
+    });
+    const byModel = attempt({
+      id: 'att-model',
+      schoolId: null,
+      status: 'SCORED',
+      scoredAt: new Date('2026-10-24T10:00:00Z'),
+      reviewedAt: new Date('2026-10-24T10:00:00Z'),
+    });
+    const waiting = attempt({ id: 'att-waiting' });
+    const { handler, attempts } = makeHandler([signed, byModel, waiting], signed);
+
+    await handler.execute(query());
+
+    expect(attempts.findAiDraftedIds).toHaveBeenCalledWith(['att-signed']);
   });
 
   it('says a model’s return is a model’s', async () => {

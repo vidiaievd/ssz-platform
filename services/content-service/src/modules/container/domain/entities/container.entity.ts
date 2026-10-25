@@ -31,6 +31,10 @@ interface ContainerProps {
   gatingMode: GatingMode;
   /** Null: this course makes no promise of its own — the school's stands (§44.12). */
   reviewRespondWithinHours: number | null;
+  /** Null: the school's auto-accept term applies (plan 80). */
+  reviewAutoAcceptAfterHours: number | null;
+  /** Template codes whose work a sampling school always sends to a teacher (plan 80, Q4). */
+  reviewTeacherTemplates: string[];
   /** Null: the workspace's recipe stands. An empty recipe opts out of it (plan 64, O). */
   coverageRecipe: Recipe | null;
   /** Only meaningful on a module. Empty: the author has not written any (plan 39, B5). */
@@ -121,6 +125,12 @@ export class ContainerEntity extends AggregateRoot {
   get reviewRespondWithinHours(): number | null {
     return this.props.reviewRespondWithinHours;
   }
+  get reviewAutoAcceptAfterHours(): number | null {
+    return this.props.reviewAutoAcceptAfterHours;
+  }
+  get reviewTeacherTemplates(): string[] {
+    return [...this.props.reviewTeacherTemplates];
+  }
   get coverageRecipe(): Recipe | null {
     return this.props.coverageRecipe;
   }
@@ -171,6 +181,8 @@ export class ContainerEntity extends AggregateRoot {
       gatingMode: p.gatingMode ?? GatingMode.OPEN,
       // A new course inherits, always: overriding is a decision somebody makes later.
       reviewRespondWithinHours: null,
+      reviewAutoAcceptAfterHours: null,
+      reviewTeacherTemplates: [],
       coverageRecipe: null,
       learningGoals: [],
       currentPublishedVersionId: null,
@@ -297,6 +309,45 @@ export class ContainerEntity extends AggregateRoot {
       new ContainerUpdatedEvent({
         containerId: this.id,
         updatedFields: ['reviewRespondWithinHours'],
+      }),
+    );
+
+    return Result.ok();
+  }
+
+  /**
+   * The course's part of the school's review policy (plan 80): its own auto-accept term,
+   * or null to follow the school's, and the templates that always go to a teacher.
+   *
+   * Whether the codes name real templates is the handler's question — the entity does not
+   * see the catalogue; it keeps them sorted and unique so the same set reads the same.
+   */
+  setReviewAiPolicy(
+    autoAcceptAfterHours: number | null,
+    teacherTemplates: string[],
+  ): Result<void, ContainerDomainError> {
+    if (
+      autoAcceptAfterHours !== null &&
+      (!Number.isInteger(autoAcceptAfterHours) || autoAcceptAfterHours < 1 || autoAcceptAfterHours > 720)
+    ) {
+      return Result.fail(ContainerDomainError.INVALID_REVIEW_AI_POLICY);
+    }
+    const templates = [...new Set(teacherTemplates)].sort();
+
+    if (
+      autoAcceptAfterHours === this.props.reviewAutoAcceptAfterHours &&
+      templates.join() === this.props.reviewTeacherTemplates.join()
+    ) {
+      return Result.ok();
+    }
+
+    this.props.reviewAutoAcceptAfterHours = autoAcceptAfterHours;
+    this.props.reviewTeacherTemplates = templates;
+    this.props.updatedAt = new Date();
+    this.addDomainEvent(
+      new ContainerUpdatedEvent({
+        containerId: this.id,
+        updatedFields: ['reviewAutoAcceptAfterHours', 'reviewTeacherTemplates'],
       }),
     );
 

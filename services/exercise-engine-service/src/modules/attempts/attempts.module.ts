@@ -24,14 +24,17 @@ import { InternalRecordingsController } from './presentation/controllers/interna
 import { CountReviewQueueHandler } from './application/queries/count-review-queue/count-review-queue.handler.js';
 import { AggregateReviewLoadHandler } from './application/queries/aggregate-review-load/aggregate-review-load.handler.js';
 import { ListPendingReviewSchoolsHandler } from './application/queries/list-pending-review-schools/list-pending-review-schools.handler.js';
+import { ListReviewTermsAheadHandler } from './application/queries/list-review-terms-ahead/list-review-terms-ahead.handler.js';
 import { ListReviewDecisionsHandler } from './application/queries/list-review-decisions/list-review-decisions.handler.js';
 import { ListMySubmissionsHandler } from './application/queries/list-my-submissions/list-my-submissions.handler.js';
 import { GetSubmissionForReviewHandler } from './application/queries/get-submission-for-review/get-submission-for-review.handler.js';
 import { ReviewScoring } from './application/services/review-scoring.js';
 import { ReviewContextResolver } from './application/services/review-context-resolver.js';
 import { ReviewerResolver } from './application/services/reviewer-resolver.js';
+import { ReviewPolicyResolver } from './application/services/review-policy-resolver.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
 import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
+import { MySubmissionsController } from './presentation/controllers/my-submissions.controller.js';
 
 const CommandHandlers = [
   StartAttemptHandler,
@@ -58,18 +61,25 @@ const QueryHandlers = [
   GetSubmissionForReviewHandler,
   AggregateReviewLoadHandler,
   ListPendingReviewSchoolsHandler,
+  ListReviewTermsAheadHandler,
   ListReviewDecisionsHandler,
   ListMySubmissionsHandler,
 ];
 
 @Module({
   imports: [CqrsModule],
-  controllers: [AttemptsController, InternalReviewController, InternalRecordingsController],
+  controllers: [
+    AttemptsController,
+    MySubmissionsController,
+    InternalReviewController,
+    InternalRecordingsController,
+  ],
   providers: [
     PrismaAttemptRepository,
     { provide: ATTEMPT_REPOSITORY, useExisting: PrismaAttemptRepository },
     ReviewContextResolver,
     ReviewerResolver,
+    ReviewPolicyResolver,
     ReviewScoring,
     ...CommandHandlers,
     ...QueryHandlers,

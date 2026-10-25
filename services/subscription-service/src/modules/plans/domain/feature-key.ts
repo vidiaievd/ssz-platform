@@ -24,6 +24,9 @@ export const FEATURE_KEYS: readonly FeatureKeyDefinition[] = [
   { key: 'ai.student_assist', limitKind: 'ai_credits', limitNames: ['perLearnerMonthlyCredits'] },
   { key: 'ai.practice', limitKind: 'ai_credits', limitNames: ['perLearnerMonthlyCredits'] },
   { key: 'ai.authoring', limitKind: 'ai_credits', limitNames: [] },
+  // The AI-first review modes of a school (plan 80, R7): organization-service refuses to
+  // save them without the key, exercise-engine does not apply them without it.
+  { key: 'school.review_ai_policy', limitKind: 'switch', limitNames: [] },
 ];
 
 const BY_KEY = new Map(FEATURE_KEYS.map((d) => [d.key, d]));

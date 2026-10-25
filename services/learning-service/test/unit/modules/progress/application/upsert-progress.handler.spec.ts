@@ -205,5 +205,50 @@ describe('UpsertProgressHandler', () => {
 
       expect(repo.save).not.toHaveBeenCalled();
     });
+
+    describe('a teacher’s verdict after the term (plan 80, step 4b)', () => {
+      const revision = (outcome: ExerciseOutcome) =>
+        new UpsertProgressCommand(
+          USER_ID, 'EXERCISE', CONTENT_ID, 0, outcome === 'passed' ? 100 : 0, outcome === 'passed',
+          NOW, outcome, 'teacher', true,
+        );
+      const byModel = () =>
+        UserProgress.reconstitute({
+          id: 'p-1', userId: USER_ID, contentType: 'EXERCISE', contentId: CONTENT_ID, status: 'COMPLETED',
+          attemptsCount: 1, lastAttemptAt: NOW, timeSpentSeconds: 60, score: 80,
+          completedAt: NOW, needsReviewSince: null, reviewResolvedAt: null, completedByAi: true,
+        });
+
+      it('a return undoes the model’s pass without counting an attempt', async () => {
+        const { handler, repo } = withRow(byModel());
+
+        const result = await handler.execute(revision('returned'));
+
+        expect(result.value.status).toBe('IN_PROGRESS');
+        expect(result.value.attemptsCount).toBe(1);
+        expect(result.value.timeSpentSeconds).toBe(60);
+        expect(repo.save).toHaveBeenCalledTimes(1);
+      });
+
+      it('a return changes nothing where a person’s pass stands', async () => {
+        const { handler, repo, publisher } = withRow(existing('COMPLETED'));
+
+        const result = await handler.execute(revision('returned'));
+
+        expect(result.value.status).toBe('COMPLETED');
+        expect(repo.save).not.toHaveBeenCalled();
+        expect(publisher.publish).not.toHaveBeenCalled();
+      });
+
+      it('an approval completes work the model sent back', async () => {
+        const { handler } = withRow(existing('IN_PROGRESS'));
+
+        const result = await handler.execute(revision('passed'));
+
+        expect(result.value.status).toBe('COMPLETED');
+        expect(result.value.attemptsCount).toBe(1);
+        expect(result.value.score).toBe(100);
+      });
+    });
   });
 });

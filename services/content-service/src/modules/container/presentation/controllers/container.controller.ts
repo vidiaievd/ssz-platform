@@ -74,6 +74,11 @@ import type { ContainerReviewSettingsResult } from '../../application/queries/ge
 import { SetContainerReviewSettingsCommand } from '../../application/commands/set-review-settings/set-container-review-settings.command.js';
 import { SetContainerReviewSettingsRequestDto } from '../dto/requests/review-settings.request.dto.js';
 import { ContainerReviewSettingsResponseDto } from '../dto/responses/review-settings.response.dto.js';
+import { GetContainerReviewAiPolicyQuery } from '../../application/queries/get-review-ai-policy/get-container-review-ai-policy.query.js';
+import type { ContainerReviewAiPolicyResult } from '../../application/queries/get-review-ai-policy/get-container-review-ai-policy.handler.js';
+import { SetContainerReviewAiPolicyCommand } from '../../application/commands/set-review-ai-policy/set-container-review-ai-policy.command.js';
+import { SetContainerReviewAiPolicyRequestDto } from '../dto/requests/review-ai-policy.request.dto.js';
+import { ContainerReviewAiPolicyResponseDto } from '../dto/responses/review-ai-policy.response.dto.js';
 import { GetContainerCoverageRecipeQuery } from '../../application/queries/get-coverage-recipe/get-container-coverage-recipe.query.js';
 import type { ContainerCoverageRecipeResult } from '../../application/queries/get-coverage-recipe/get-container-coverage-recipe.handler.js';
 import { SetContainerCoverageRecipeCommand } from '../../application/commands/set-coverage-recipe/set-container-coverage-recipe.command.js';
@@ -388,6 +393,48 @@ export class ContainerController {
 
     if (result.isFail) throwHttpException(result.error);
     return ContainerReviewSettingsResponseDto.from(result.value);
+  }
+
+  @Get(':id/review-policy')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('view', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({ summary: 'This course’s auto-accept term and teacher-only templates, and what it inherits (plan 80)' })
+  @ApiOkResponse({ type: ContainerReviewAiPolicyResponseDto })
+  async getReviewAiPolicy(@Param('id') id: string): Promise<ContainerReviewAiPolicyResponseDto> {
+    const result = await this.queryBus.execute<
+      GetContainerReviewAiPolicyQuery,
+      Result<ContainerReviewAiPolicyResult, ContainerDomainError>
+    >(new GetContainerReviewAiPolicyQuery(id));
+
+    if (result.isFail) throwHttpException(result.error);
+    return ContainerReviewAiPolicyResponseDto.from(result.value);
+  }
+
+  /** Set whole; the response says what applies now, with the school's terms resolved. */
+  @Put(':id/review-policy')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({ summary: 'Set this course’s auto-accept term and teacher-only templates' })
+  @ApiOkResponse({ type: ContainerReviewAiPolicyResponseDto })
+  async setReviewAiPolicy(
+    @Param('id') id: string,
+    @Body() dto: SetContainerReviewAiPolicyRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ContainerReviewAiPolicyResponseDto> {
+    const applied = await this.commandBus.execute<
+      SetContainerReviewAiPolicyCommand,
+      Result<void, ContainerDomainError>
+    >(
+      new SetContainerReviewAiPolicyCommand(
+        user.userId,
+        id,
+        dto.autoAcceptAfterHours,
+        dto.teacherReviewTemplates,
+      ),
+    );
+
+    if (applied.isFail) throwHttpException(applied.error);
+    return this.getReviewAiPolicy(id);
   }
 
   @Patch(':id')

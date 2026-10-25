@@ -25,6 +25,7 @@ function makeHandler(overrides?: {
     getMemberRole: overrides?.getMemberRole ?? jest.fn().mockResolvedValue(null),
     getCourseTeachers: jest.fn().mockResolvedValue([]),
     getSchoolReviewSettings: jest.fn().mockResolvedValue(null),
+    getSchoolReviewAiPolicy: jest.fn().mockResolvedValue(null),
   };
 
   const slugGenerator = {

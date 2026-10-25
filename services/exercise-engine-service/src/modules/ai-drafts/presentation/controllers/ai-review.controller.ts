@@ -51,13 +51,14 @@ export class AiReviewController {
     description:
       'The remarks a model wrote on the submission it reviewed, item by item, with its summary and — ' +
       'for an essay graded out of a rubric — the reason behind each mark. Only for an attempt whose ' +
-      'verdict came from the model (`reviewedBy: ai`); the client must label it as a review by AI.',
+      'verdict came from the model (`reviewedBy: ai`), or that carries its provisional verdict while a ' +
+      'school’s teacher is awaited (`provisional: true`); the client must label it as a review by AI.',
   })
   @ApiResponse({ status: 200, type: LearnerAiReviewResponseDto })
   @ApiResponse({ status: 403, description: 'Not your attempt' })
   @ApiResponse({
     status: 404,
-    description: 'Attempt not found, or `NO_AI_REVIEW` — no model’s verdict closed it (waiting, a teacher’s, none)',
+    description: 'Attempt not found, or `NO_AI_REVIEW` — no model’s verdict on it (waiting, a teacher’s, none)',
   })
   async get(
     @Param('exerciseId') _exerciseId: string,
@@ -73,6 +74,7 @@ export class AiReviewController {
       ...review,
       reviewedAt: review.reviewedAt.toISOString(),
       disputedAt: review.disputedAt?.toISOString() ?? null,
+      countsAt: review.countsAt?.toISOString() ?? null,
     };
   }
 

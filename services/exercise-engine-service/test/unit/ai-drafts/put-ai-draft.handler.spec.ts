@@ -40,7 +40,12 @@ class MemoryDrafts implements IAttemptAiDraftRepository {
 
 const ATTEMPT = 'a0000000-0000-4000-8000-000000000001';
 
-function setup(attempt: { status: AttemptStatus; schoolId: string | null } | null = { status: 'ROUTED_FOR_REVIEW', schoolId: 'school-1' }) {
+function setup(
+  attempt: { status: AttemptStatus; schoolId: string | null; reviewAiPolicy?: unknown } | null = {
+    status: 'ROUTED_FOR_REVIEW',
+    schoolId: 'school-1',
+  },
+) {
   const drafts = new MemoryDrafts();
   const attempts = { findById: async (id: string) => (attempt && id === ATTEMPT ? { id, ...attempt } : null) } as unknown as IAttemptRepository;
   return { handler: new PutAiDraftHandler(attempts, drafts), drafts };
@@ -139,6 +144,16 @@ describe('PutAiDraftHandler', () => {
   it("refuses a teacher's draft on work no teacher reviews", async () => {
     const { handler } = setup({ status: 'ROUTED_FOR_REVIEW', schoolId: null });
     expect((await put(handler)).error).toEqual({ code: 'NO_TEACHER_REVIEW' });
+  });
+
+  // Plan 80: the learner's review is the teacher's draft there.
+  it("refuses a teacher's draft on work the school has a model answer first", async () => {
+    const { handler } = setup({
+      status: 'ROUTED_FOR_REVIEW',
+      schoolId: 'school-1',
+      reviewAiPolicy: { mode: 'ai_then_teacher', autoAcceptAt: null, teacherDrawn: false },
+    });
+    expect((await put(handler)).error).toEqual({ code: 'AI_REVIEWS_FIRST' });
   });
 
   it('refuses an aiCallId that already holds another submission’s draft', async () => {

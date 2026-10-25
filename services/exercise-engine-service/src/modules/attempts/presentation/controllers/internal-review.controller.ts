@@ -42,6 +42,8 @@ import { BatchApproveRequestDto } from '../dto/batch-approve.dto.js';
 import { AggregateReviewLoadRequestDto } from '../dto/review-oversight.dto.js';
 import { ListPendingReviewSchoolsQuery } from '../../application/queries/list-pending-review-schools/list-pending-review-schools.query.js';
 import type { ListPendingReviewSchoolsResult } from '../../application/queries/list-pending-review-schools/list-pending-review-schools.handler.js';
+import { ListReviewTermsAheadQuery } from '../../application/queries/list-review-terms-ahead/list-review-terms-ahead.query.js';
+import type { ListReviewTermsAheadResult } from '../../application/queries/list-review-terms-ahead/list-review-terms-ahead.handler.js';
 import { AggregateReviewLoadQuery } from '../../application/queries/aggregate-review-load/aggregate-review-load.query.js';
 import type { AggregateReviewLoadResult } from '../../application/queries/aggregate-review-load/aggregate-review-load.handler.js';
 import { ListReviewDecisionsQuery } from '../../application/queries/list-review-decisions/list-review-decisions.query.js';
@@ -49,6 +51,7 @@ import type { ListReviewDecisionsResult } from '../../application/queries/list-r
 import { decodeReviewDecisionsCursor } from '../../application/queries/list-review-decisions/review-decisions-cursor.js';
 import {
   ListMySubmissionsQuery,
+  MY_SUBMISSIONS_STATUSES,
   type MySubmissionsStatus,
 } from '../../application/queries/list-my-submissions/list-my-submissions.query.js';
 import type { ListMySubmissionsResult } from '../../application/queries/list-my-submissions/list-my-submissions.handler.js';
@@ -78,21 +81,20 @@ const DEFAULT_QUEUE_LIMIT = 50;
  */
 const MAX_BATCH_APPROVE = 100;
 
+/** How far back the list of work closed at the term looks when the caller does not say (7f). */
+const DEFAULT_ACCEPTED_AT_TERM_DAYS = 7;
+
 /** How far back oversight may count verdicts when the caller does not say. */
 const DEFAULT_PERIOD_DAYS = 30;
+
+/** How far ahead a term warning looks when the caller does not say (plan 80, R3). */
+const DEFAULT_TERM_WARNING_HOURS = 24;
 
 /** The journal's page; a hundred is the ceiling, as everywhere else on this controller. */
 const DEFAULT_DECISIONS_LIMIT = 50;
 
 /** A learner's own list; a hundred is the ceiling, as everywhere else on this controller. */
 const DEFAULT_MY_SUBMISSIONS_LIMIT = 50;
-
-const MY_SUBMISSIONS_STATUSES: readonly MySubmissionsStatus[] = [
-  'all',
-  'pending',
-  'returned',
-  'approved',
-];
 
 /**
  * The teacher's side of an attempt — service-to-service only.
@@ -177,6 +179,13 @@ export class InternalReviewController {
       groupIds,
       containerIds,
       templateCodes: dto.templateCodes?.length ? [...new Set(dto.templateCodes)] : undefined,
+      ...(dto.view === 'accepted_at_term'
+        ? {
+            acceptedAtTermSince: dto.acceptedSince
+              ? new Date(dto.acceptedSince)
+              : new Date(Date.now() - DEFAULT_ACCEPTED_AT_TERM_DAYS * 24 * 60 * 60 * 1000),
+          }
+        : {}),
     };
   }
 
@@ -237,6 +246,31 @@ export class InternalReviewController {
   async listPendingReviewSchools(): Promise<ListPendingReviewSchoolsResult> {
     return this.queryBus.execute<ListPendingReviewSchoolsQuery, ListPendingReviewSchoolsResult>(
       new ListPendingReviewSchoolsQuery(),
+    );
+  }
+
+  /**
+   * Work in a school that a model's verdict will close by itself within `withinHours`
+   * (plan 80, step 5) — the warning job's question, asked per school it already found
+   * through `review/schools`. Rows with their group; who reviews the group is asked of
+   * organization-service, as for the digest.
+   *
+   * Declared before the parameterised routes so the literal segment keeps winning.
+   */
+  @Get('review/terms')
+  async listReviewTermsAhead(
+    @Query('schoolId') schoolId?: string,
+    @Query('withinHours', new DefaultValuePipe(DEFAULT_TERM_WARNING_HOURS), ParseIntPipe)
+    withinHours = DEFAULT_TERM_WARNING_HOURS,
+  ): Promise<ListReviewTermsAheadResult> {
+    if (!schoolId) {
+      throw new UnprocessableEntityException('schoolId is required');
+    }
+
+    return this.queryBus.execute<ListReviewTermsAheadQuery, ListReviewTermsAheadResult>(
+      // A week is the furthest a warning has any business looking: past it is the queue,
+      // not a term about to run out.
+      new ListReviewTermsAheadQuery(schoolId, Math.min(Math.max(withinHours, 1), 168)),
     );
   }
 

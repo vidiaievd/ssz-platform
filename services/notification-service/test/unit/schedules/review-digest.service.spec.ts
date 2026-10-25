@@ -22,6 +22,7 @@ function makeService(
     settings?: { respondWithinHours: number; escalateAfterHours: number; escalateTo: string } | null;
     recipients?: { target: string; recipients: { userId: string; name: string }[] } | null;
     states?: Map<string, { lastMaxSubmittedAt: Date; lastEscalatedAt: Date | null }>;
+    terms?: { attemptId: string; groupId: string | null; autoAcceptAt: Date }[] | null;
     enabled?: boolean;
   } = {},
 ) {
@@ -35,6 +36,7 @@ function makeService(
         ? [{ groupId: 'g1', containerId: 'course-1', submittedAt: hoursAgo(5) }]
         : overrides.pending,
     ),
+    termsAhead: jest.fn(async () => overrides.terms ?? []),
   };
   const directory = {
     configured: true,
@@ -71,6 +73,7 @@ function makeService(
       exerciseServiceUrl: 'http://engine',
       organizationServiceUrl: 'http://org',
       internalToken: 'token',
+      termWarningHours: 24,
     })),
   };
 
@@ -98,6 +101,32 @@ describe('ReviewDigestService — the digest run', () => {
     });
     // The mark the next run compares against — written after the message, never before.
     expect(state.recordDigest).toHaveBeenCalledWith('kari', hoursAgo(5), expect.any(Date));
+  });
+
+  it('says in the digest how much of it a model will close by itself soon', async () => {
+    const { service, notifications } = makeService({
+      terms: [{ attemptId: 'a1', groupId: 'g1', autoAcceptAt: new Date('2026-08-21T09:00:00Z') }],
+    });
+
+    await service.runDigest(onTheDigestHour());
+
+    expect(notifications.create.mock.calls[0]![0]).toMatchObject({
+      templateData: expect.objectContaining({
+        expiring: 1,
+        expiringWithinHours: 24,
+        earliestAutoAcceptAt: '2026-08-21T09:00:00.000Z',
+      }),
+    });
+  });
+
+  it('still sends the digest when the terms cannot be read', async () => {
+    const { service, notifications } = makeService({ terms: null });
+
+    await service.runDigest(onTheDigestHour());
+
+    expect(notifications.create.mock.calls[0]![0]).toMatchObject({
+      templateData: expect.objectContaining({ pending: 1, expiring: 0 }),
+    });
   });
 
   it('does nothing at all when the job is switched off', async () => {

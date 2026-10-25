@@ -22,6 +22,9 @@ import { CONTAINER_SECTION_REPOSITORY } from './domain/repositories/container-se
 import { CreateContainerHandler } from './application/commands/create-container/create-container.handler.js';
 import { SetContainerReviewSettingsHandler } from './application/commands/set-review-settings/set-container-review-settings.handler.js';
 import { GetContainerReviewSettingsHandler } from './application/queries/get-review-settings/get-container-review-settings.handler.js';
+import { SetContainerReviewAiPolicyHandler } from './application/commands/set-review-ai-policy/set-container-review-ai-policy.handler.js';
+import { GetContainerReviewAiPolicyHandler } from './application/queries/get-review-ai-policy/get-container-review-ai-policy.handler.js';
+import { ExerciseTemplateModule } from '../exercise-template/exercise-template.module.js';
 import { SetContainerCoverageRecipeHandler } from './application/commands/set-coverage-recipe/set-container-coverage-recipe.handler.js';
 import { GetContainerCoverageRecipeHandler } from './application/queries/get-coverage-recipe/get-container-coverage-recipe.handler.js';
 import { CoverageRecipeModule } from '../coverage-recipe/coverage-recipe.module.js';
@@ -82,6 +85,7 @@ const CommandHandlers = [
   CreateContainerHandler,
   UpdateContainerHandler,
   SetContainerReviewSettingsHandler,
+  SetContainerReviewAiPolicyHandler,
   SetContainerCoverageRecipeHandler,
   DeleteContainerHandler,
   ArchiveContainerHandler,
@@ -110,6 +114,7 @@ const CommandHandlers = [
 const QueryHandlers = [
   GetContainerHandler,
   GetContainerReviewSettingsHandler,
+  GetContainerReviewAiPolicyHandler,
   GetContainerCoverageRecipeHandler,
   GetContainersHandler,
   GetContainerBySlugHandler,
@@ -126,7 +131,7 @@ const QueryHandlers = [
 ];
 
 @Module({
-  imports: [CqrsModule, CoverageRecipeModule],
+  imports: [CqrsModule, CoverageRecipeModule, ExerciseTemplateModule],
   controllers: [
     ContainerController,
     ContainerVersionController,
