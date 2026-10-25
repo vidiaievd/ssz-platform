@@ -129,7 +129,10 @@ export class WorkloadController {
     const loads = await this.calculator.getSchoolLoadSummaries(schoolId, from, to, policy, teacherIds);
 
     return {
-      conflictCount: conflicts.length,
+      // Kept to lesson clashes so the figure means what it meant before review blocks:
+      // a block running into a lesson is the teacher's to move, not the timetable's.
+      conflictCount: conflicts.filter((c) => c.kind === 'lessons').length,
+      reviewBlockConflictCount: conflicts.filter((c) => c.kind !== 'lessons').length,
       overloadedTeachers: loads.filter((l) => l.overloaded).length,
       nearCapTeachers: loads.filter((l) => l.health === 'warn').length,
       teacherLoads: loads,

@@ -4,6 +4,7 @@ import type { ISchoolRepository, PublicSchoolDetail, PublicSchoolFilter, PublicS
 import type { School } from '../../domain/entities/school.entity.js';
 import type { ReviewSettings } from '../../domain/value-objects/review-settings.vo.js';
 import type { ReviewAiPolicy } from '../../domain/value-objects/review-ai-policy.vo.js';
+import { ReviewEffortMinutes } from '../../domain/value-objects/review-effort-minutes.vo.js';
 import { SchoolMapper } from './school.mapper.js';
 
 const INCLUDE_MEMBERS = { members: true } as const;
@@ -197,6 +198,21 @@ export class SchoolPrismaRepository implements ISchoolRepository {
         reviewSamplePercent: policy.samplePercent,
         updatedAt: new Date(),
       },
+    });
+  }
+
+  async findReviewEffortMinutes(schoolId: string): Promise<ReviewEffortMinutes | null> {
+    const row = await (this.prisma as any).school.findUnique({
+      where: { id: schoolId },
+      select: { reviewEffortMinutes: true },
+    });
+    return row ? ReviewEffortMinutes.rehydrate(row.reviewEffortMinutes) : null;
+  }
+
+  async saveReviewEffortMinutes(schoolId: string, minutes: ReviewEffortMinutes): Promise<void> {
+    await (this.prisma as any).school.update({
+      where: { id: schoolId },
+      data: { reviewEffortMinutes: minutes.toJSON(), updatedAt: new Date() },
     });
   }
 

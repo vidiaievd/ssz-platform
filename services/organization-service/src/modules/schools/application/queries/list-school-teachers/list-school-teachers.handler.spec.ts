@@ -84,3 +84,24 @@ describe('a school', () => {
     await expect(handler.execute(query)).resolves.toEqual([]);
   });
 });
+
+describe('a service asking over the internal API', () => {
+  it('gets the list without being a member — there is no person to check', async () => {
+    const { handler } = setup({
+      isSolo: false,
+      rows: [{ userId: TEACHER_ID, name: 'Kari', avatarUrl: null, teacherAttrs: null }],
+    });
+
+    const teachers = await handler.execute(new ListSchoolTeachersQuery(null, SCHOOL_ID));
+
+    expect(teachers.map((t) => t.userId)).toEqual([TEACHER_ID]);
+  });
+
+  it('still keeps an outsider out of the public route', async () => {
+    const { handler } = setup({ isSolo: false, rows: [] });
+
+    await expect(
+      handler.execute(new ListSchoolTeachersQuery('stranger', SCHOOL_ID)),
+    ).rejects.toThrow('Not a member of this school');
+  });
+});

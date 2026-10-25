@@ -7,13 +7,16 @@ import type { AppConfig } from '../../config/configuration.js';
 import type {
   CourseReviewPolicy,
   IReviewPolicyReader,
+  SchoolReviewEffortMinutes,
   SchoolReviewPolicy,
 } from '../../shared/application/ports/review-policy-reader.port.js';
 
 /**
  * content-service `GET /api/v1/internal/containers/:id/review-policy` and organization-service
- * `GET /api/v1/internal/schools/:id/review-policy` (plan 80, steps 1–2). Both are cached at
- * their source for a minute, so this reads straight through.
+ * `GET /api/v1/internal/schools/:id/review-policy` (plan 80, steps 1–2), and organization-service
+ * `GET /api/v1/internal/schools/:id/review-effort` (plan 81, step 5b). Read straight through:
+ * the policies are cached at their source, and the minutes are one indexed row read on a
+ * screen that is opened, not polled.
  */
 @Injectable()
 export class HttpReviewPolicyReader implements IReviewPolicyReader {
@@ -40,6 +43,13 @@ export class HttpReviewPolicyReader implements IReviewPolicyReader {
   schoolReviewPolicy(schoolId: string): Promise<SchoolReviewPolicy | null> {
     return this.read<SchoolReviewPolicy>(
       `${this.organization.baseUrl}/api/v1/internal/schools/${schoolId}/review-policy`,
+      this.organization.timeoutMs,
+    );
+  }
+
+  schoolReviewEffortMinutes(schoolId: string): Promise<SchoolReviewEffortMinutes | null> {
+    return this.read<SchoolReviewEffortMinutes>(
+      `${this.organization.baseUrl}/api/v1/internal/schools/${schoolId}/review-effort`,
       this.organization.timeoutMs,
     );
   }

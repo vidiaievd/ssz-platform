@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/configuration.js';
 
@@ -76,8 +76,10 @@ export class OrgServiceHttpClient {
   async getSchoolTeachers(schoolId: string): Promise<SchoolTeacherEntry[]> {
     try {
       const res = await fetch(
-        `${this.baseUrl}/api/v1/schools/${schoolId}/teachers`,
-        { headers: { Authorization: `Bearer ${this.token}` } },
+        // The internal twin of the public list: the public route wants a person's JWT
+        // and refused the service token, so every school read as having no teachers.
+        `${this.baseUrl}/api/v1/internal/schools/${schoolId}/teachers`,
+        { headers: this.internalHeaders() },
       );
       if (!res.ok) {
         this.logger.warn(`getSchoolTeachers: org-service returned ${res.status} for school ${schoolId}`);
@@ -107,6 +109,34 @@ export class OrgServiceHttpClient {
       this.logger.warn(`getGroup failed: ${String(err)}`);
       return null;
     }
+  }
+
+  /**
+   * The person's role in the school, owner included — the roster alone answers
+   * "nobody" about the owner. Null when they are neither on the roster nor the
+   * owner. Fails closed: an outage throws rather than reads as "not a member",
+   * so a rights check can never pass or fail on a timeout.
+   */
+  async getMemberRole(schoolId: string, userId: string): Promise<string | null> {
+    let res: Response;
+    try {
+      res = await fetch(
+        `${this.baseUrl}/api/v1/internal/schools/${schoolId}/members/${userId}/role`,
+        { headers: this.internalHeaders() },
+      );
+    } catch (err) {
+      this.logger.warn(`getMemberRole failed: ${String(err)}`);
+      throw new ServiceUnavailableException('organization-service is unreachable');
+    }
+    // 404 — no such school or no such member; 403 — the school's own answer for
+    // an outsider; 400 — a malformed id. None of them holds a role there.
+    if (res.status === 404 || res.status === 403 || res.status === 400) return null;
+    if (!res.ok) {
+      this.logger.warn(`getMemberRole: org-service returned ${res.status} for school ${schoolId}`);
+      throw new ServiceUnavailableException('organization-service did not answer about the school');
+    }
+    const body = (await res.json()) as { role?: string };
+    return body.role ?? null;
   }
 
   async getSchoolMembers(schoolId: string): Promise<SchoolMemberEntry[]> {

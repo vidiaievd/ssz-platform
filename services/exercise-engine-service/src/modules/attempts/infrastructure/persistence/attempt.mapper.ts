@@ -191,6 +191,8 @@ export class AttemptMapper {
       rubricSnapshot: readRubricSnapshot(row.rubricSnapshot),
       reviewAiPolicy: readReviewAiPolicy(row),
       provisionalAiVerdict: readProvisionalAiVerdict(row.reviewAiVerdict),
+      reviewStartedAt: row.reviewStartedAt,
+      reviewHandlingSeconds: row.reviewHandlingSeconds,
     });
   }
 
@@ -256,6 +258,8 @@ export class AttemptMapper {
       reviewAutoAcceptAt: attempt.reviewAiPolicy?.autoAcceptAt ?? null,
       reviewTeacherDrawn: attempt.reviewAiPolicy?.teacherDrawn ?? null,
       reviewAiVerdict: attempt.provisionalAiVerdict as unknown as AttemptModel['reviewAiVerdict'],
+      reviewStartedAt: attempt.reviewStartedAt,
+      reviewHandlingSeconds: attempt.reviewHandlingSeconds,
     };
   }
 }

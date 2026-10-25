@@ -18,6 +18,7 @@ import { AbsencesModule } from './modules/absences/absences.module.js';
 import { SubstitutionsModule } from './modules/substitutions/substitutions.module.js';
 import { CurriculumModule } from './modules/curriculum/curriculum.module.js';
 import { AlertsModule } from './modules/alerts/alerts.module.js';
+import { ReviewBlocksModule } from './modules/review-blocks/review-blocks.module.js';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AlertsModule } from './modules/alerts/alerts.module.js';
     SubstitutionsModule,
     CurriculumModule,
     AlertsModule,
+    ReviewBlocksModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

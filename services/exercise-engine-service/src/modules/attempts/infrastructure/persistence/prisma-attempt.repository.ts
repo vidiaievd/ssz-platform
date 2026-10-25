@@ -4,6 +4,7 @@ import type {
   FindUserAttemptsFilter,
   MySubmissionsCursor,
   MySubmissionsStatus,
+  PendingEffortRow,
   PendingLoadRow,
   PendingSchoolRow,
   ReviewDecisionsCursor,
@@ -16,6 +17,7 @@ import type {
 import { TEMPLATE_CODE as INFLECTION_TABLE } from '@ssz/shared-kernel/inflection-table';
 import { TEMPLATE_CODE as INFORMATION_TRANSFER } from '@ssz/shared-kernel/information-transfer';
 import { Attempt } from '../../domain/entities/attempt.entity.js';
+import type { HandlingTimeStat } from '../../domain/value-objects/review-effort-norm.js';
 import { AttemptMapper } from './attempt.mapper.js';
 import { OpenAttemptExistsError } from '../../domain/exceptions/attempt.errors.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
@@ -255,6 +257,42 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     });
 
     return row?.submittedAt ?? null;
+  }
+
+  async countPendingByGroupAndTemplate(schoolId: string): Promise<PendingEffortRow[]> {
+    // The same predicate as `findPendingLoad`, grouped in the database: the forecast
+    // needs how many, not which.
+    const rows = await this.prisma.attempt.groupBy({
+      by: ['groupId', 'templateCode'],
+      where: { schoolId, status: 'ROUTED_FOR_REVIEW', submittedAt: { not: null } },
+      _count: { _all: true },
+    });
+
+    return rows.map((row) => ({
+      groupId: row.groupId,
+      templateCode: row.templateCode,
+      count: row._count._all,
+    }));
+  }
+
+  async findHandlingTimeStats(schoolId: string, since: Date): Promise<HandlingTimeStat[]> {
+    const rows = await this.prisma.$queryRaw<
+      Array<{ template_code: string; sample_size: number; median_seconds: number }>
+    >`
+      SELECT template_code,
+             count(*)::int AS sample_size,
+             percentile_cont(0.5) WITHIN GROUP (ORDER BY review_handling_seconds)::float8
+               AS median_seconds
+      FROM attempts
+      WHERE school_id = ${schoolId}
+        AND review_handling_seconds IS NOT NULL
+        AND reviewed_at >= ${since}
+      GROUP BY template_code`;
+    return rows.map((row) => ({
+      templateCode: row.template_code,
+      sampleSize: row.sample_size,
+      medianSeconds: row.median_seconds,
+    }));
   }
 
   async findReviewDecisionsPage(

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsInt, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsObject, IsOptional, Max, Min, ValidateIf } from 'class-validator';
 import { ReviewEscalationTarget } from '../../domain/value-objects/review-settings.vo.js';
 import { ReviewAiMode } from '../../domain/value-objects/review-ai-policy.vo.js';
 
@@ -76,4 +76,51 @@ export class ReviewAiPolicyResponseDto {
   @ApiProperty({ enum: Object.values(ReviewAiMode) }) mode!: ReviewAiMode;
   @ApiProperty({ example: 168 }) autoAcceptAfterHours!: number;
   @ApiProperty({ example: 15 }) samplePercent!: number;
+}
+
+/**
+ * The minutes per submission a school sets (plan 81, Q5), whole. Each template's figure is
+ * checked by `ReviewEffortMinutes` — a map's values are past what a decorator can name.
+ */
+export class UpdateReviewEffortMinutesRequestDto {
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'integer', minimum: 1, maximum: 120 },
+    example: { writing_task: 15, short_answer: 2 },
+    description: 'Minutes per submission by template code; a template left out follows the factory value',
+  })
+  @IsObject()
+  templates!: Record<string, number>;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    minimum: 1,
+    maximum: 120,
+    example: 3,
+    description: 'Minutes for a template on neither list; null or absent — the factory value',
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsInt()
+  @Min(1)
+  @Max(120)
+  other?: number | null;
+}
+
+export class ReviewEffortMinutesEntryDto {
+  @ApiProperty({ example: 'writing_task' }) templateCode!: string;
+  @ApiProperty({ example: 12 }) minutes!: number;
+  @ApiProperty({ enum: ['school', 'default'], description: 'Set by the school, or the factory value' })
+  source!: 'school' | 'default';
+}
+
+export class ReviewEffortMinutesOtherDto {
+  @ApiProperty({ example: 3 }) minutes!: number;
+  @ApiProperty({ enum: ['school', 'default'] }) source!: 'school' | 'default';
+}
+
+export class ReviewEffortMinutesResponseDto {
+  @ApiProperty({ type: [ReviewEffortMinutesEntryDto] }) templates!: ReviewEffortMinutesEntryDto[];
+  @ApiProperty({ type: ReviewEffortMinutesOtherDto }) other!: ReviewEffortMinutesOtherDto;
 }

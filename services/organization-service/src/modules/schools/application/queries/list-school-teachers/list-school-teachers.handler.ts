@@ -29,10 +29,12 @@ export class ListSchoolTeachersHandler implements IQueryHandler<ListSchoolTeache
     const school = await this.schoolRepository.findById(query.schoolId);
     if (!school) throw new SchoolNotFoundException(query.schoolId);
 
-    const actorRole = school.getMemberRole(query.actorId);
-    const isOwner = query.actorId === school.ownerId;
-    if (!isOwner && !actorRole) {
-      throw new ForbiddenOperationException('Not a member of this school');
+    if (query.actorId !== null) {
+      const actorRole = school.getMemberRole(query.actorId);
+      const isOwner = query.actorId === school.ownerId;
+      if (!isOwner && !actorRole) {
+        throw new ForbiddenOperationException('Not a member of this school');
+      }
     }
 
     // Fetch all TEACHER members + their attrs in one join
