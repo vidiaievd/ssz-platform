@@ -39,6 +39,13 @@ export class MySubmissionDecisionDto {
     description: 'The teacher sent or edited a model’s draft rather than writing the review from scratch.',
   })
   aiDrafted!: boolean;
+
+  @ApiProperty({
+    example: false,
+    description:
+      'A model’s verdict at a school that counted by itself when the term ran out with no teacher’s answer (plan 80).',
+  })
+  acceptedAtTerm!: boolean;
 }
 
 export class PendingAiVerdictDto {

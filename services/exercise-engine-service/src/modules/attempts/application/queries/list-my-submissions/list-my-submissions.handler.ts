@@ -31,6 +31,12 @@ export interface MySubmissionDecision {
    * `review_draft`) — the learner is told so. Always false on a model's own verdict.
    */
   aiDrafted: boolean;
+  /**
+   * A model's verdict at a school that counted by itself — the term ran out with no
+   * teacher's answer (plan 80, step 4): «засчитано автоматически». A teacher may still
+   * answer it, and then the row is theirs. Always false on a teacher's verdict.
+   */
+  acceptedAtTerm: boolean;
 }
 
 export interface MySubmissionEntry {
@@ -198,6 +204,7 @@ function decisionOf(attempt: Attempt, aiDrafted: boolean): MySubmissionDecision 
       at: verdict.at,
       comment: verdict.comment,
       aiDrafted,
+      acceptedAtTerm: false,
     };
   }
   if (attempt.reviewedBy !== 'ai') return null;
@@ -210,5 +217,6 @@ function decisionOf(attempt: Attempt, aiDrafted: boolean): MySubmissionDecision 
     // The model's summary — written to the learner, as a teacher's comment is.
     comment: attempt.reviewComment,
     aiDrafted: false,
+    acceptedAtTerm: attempt.acceptedAtTerm,
   };
 }

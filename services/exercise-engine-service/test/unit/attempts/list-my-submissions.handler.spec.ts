@@ -134,6 +134,7 @@ describe('ListMySubmissionsHandler', () => {
       at: new Date('2026-08-19T10:00:00Z'),
       comment: 'Se på perfektum.',
       aiDrafted: false,
+      acceptedAtTerm: false,
     });
   });
 
@@ -178,6 +179,34 @@ describe('ListMySubmissionsHandler', () => {
       at: new Date('2026-10-24T10:00:00Z'),
       comment: 'Bra! Se på ordstillingen i setning 2.',
       aiDrafted: false,
+      acceptedAtTerm: false,
+    });
+  });
+
+  it('says a school’s work counted by itself when the term ran out (plan 80, step 4)', async () => {
+    const accepted = attempt({
+      status: 'SCORED',
+      score: 100,
+      passed: true,
+      scoredAt: new Date('2026-11-01T09:00:00Z'),
+      reviewedAt: new Date('2026-11-01T09:00:00Z'),
+      reviewComment: 'Bra jobbet.',
+      provisionalAiVerdict: {
+        outcome: 'scored',
+        decisions: [{ itemId: 'i1', approved: true }],
+        comment: 'Bra jobbet.',
+        score: 100,
+        at: new Date('2026-10-25T09:01:00Z'),
+      },
+    });
+    const { handler } = makeHandler([accepted]);
+
+    const result = await handler.execute(query());
+
+    expect(result.items[0]).toMatchObject({
+      status: 'approved',
+      provisional: null,
+      decision: { verdict: 'approved', by: 'ai', byUserId: null, acceptedAtTerm: true },
     });
   });
 
