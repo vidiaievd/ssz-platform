@@ -1205,6 +1205,9 @@ export class Attempt extends AggregateRoot {
     void,
     InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
   > {
+    if (this.revisableAfterTerm) {
+      return this.deliver(props, props.reviewerId, this._submittedAt, true);
+    }
     return this.deliver(props, props.reviewerId);
   }
 
@@ -1327,18 +1330,35 @@ export class Attempt extends AggregateRoot {
   }
 
   /**
+   * A teacher may still give their verdict on work the model's verdict closed at the school's
+   * term (plan 80, step 4b, R5) — once: their signature ends it, as on any other verdict.
+   */
+  get revisableAfterTerm(): boolean {
+    return this.acceptedAtTerm;
+  }
+
+  /**
    * Both verdicts. `reviewerId` is null for a model's. `evidenceAt` dates what progress and
    * memory hear when it is not the moment of delivery — see `acceptAiVerdictAtTerm`.
+   *
+   * `revising`: a teacher's verdict on work the model's verdict already closed at the term
+   * (plan 80, step 4b, R5). It replaces that verdict for the learner — status, score, the
+   * letter — and the events carry `revisesVerdict`, so progress follows it while memory,
+   * already rated by the verdict that counted, does not hear the same answer twice.
    */
   private deliver(
     props: ReviewVerdict,
     reviewerId: string | null,
     evidenceAt: Date | null = null,
+    revising = false,
   ): Result<
     void,
     InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
   > {
-    if (this._status !== 'ROUTED_FOR_REVIEW') {
+    const open = revising
+      ? this._status === 'SCORED' || this._status === 'RETURNED'
+      : this._status === 'ROUTED_FOR_REVIEW';
+    if (!open) {
       return Result.fail(
         new InvalidAttemptTransitionError(
           `Cannot review an attempt with status ${this._status}`,
@@ -1359,8 +1379,14 @@ export class Attempt extends AggregateRoot {
     this._reviewClaimedBy = null;
     this._reviewClaimedAt = null;
 
+    const revision = revising ? { revisesVerdict: true as const } : {};
+
     if (props.outcome === 'returned') {
       this._status = 'RETURNED';
+      // Work the model's verdict had approved keeps no score once a teacher sends it back.
+      this._score = null;
+      this._passed = null;
+      this._scoredAt = null;
 
       // The work is not done and keeps no score — the learner has been asked to do it
       // again, and the letter to them says exactly that. What a person judged about their
@@ -1380,6 +1406,7 @@ export class Attempt extends AggregateRoot {
           passed: false,
           reviewOutcome: 'returned',
           ...(reviewerId === null ? { reviewedBy: 'ai' as const } : {}),
+          ...revision,
           practicedAtoms: this._practicedAtoms,
           skills: this._skills,
           focus: this._focus,
@@ -1400,7 +1427,9 @@ export class Attempt extends AggregateRoot {
         }),
       );
 
-      if (reviewerId !== null) this.addReviewedEvent({ ...props, reviewerId }, null);
+      if (reviewerId !== null) {
+        this.addReviewedEvent({ ...props, reviewerId, revisesVerdict: revising }, null);
+      }
       return Result.ok();
     }
 
@@ -1439,6 +1468,7 @@ export class Attempt extends AggregateRoot {
         ...(reviewerId === null
           ? { reviewOutcome: 'approved' as const, reviewedBy: 'ai' as const }
           : {}),
+        ...revision,
         // A free-form template grades as one, so the address it carries is the whole
         // exercise's — and this is the strongest evidence the platform has, because a
         // person read the answer.
@@ -1454,7 +1484,9 @@ export class Attempt extends AggregateRoot {
       }),
     );
 
-    if (reviewerId !== null) this.addReviewedEvent({ ...props, reviewerId }, this._score);
+    if (reviewerId !== null) {
+      this.addReviewedEvent({ ...props, reviewerId, revisesVerdict: revising }, this._score);
+    }
 
     return Result.ok();
   }
@@ -1474,6 +1506,7 @@ export class Attempt extends AggregateRoot {
       approvedItems?: number;
       totalItems?: number;
       aiDraft?: AttemptReviewedAiDraft | null;
+      revisesVerdict?: boolean;
     },
     score: number | null,
   ): void {
@@ -1504,6 +1537,7 @@ export class Attempt extends AggregateRoot {
         approvedItems: props.approvedItems ?? 0,
         totalItems: props.totalItems ?? 0,
         aiDraft: props.aiDraft ?? null,
+        ...(props.revisesVerdict === true ? { revisesVerdict: true } : {}),
         occurredAt: new Date().toISOString(),
       }),
     );
@@ -1610,12 +1644,13 @@ export class Attempt extends AggregateRoot {
    * A submission nobody is waiting on cannot be claimed. The marker is cleared by a
    * verdict, so one placed after the verdict has nothing left to clear it and would tell
    * colleagues for fifteen minutes that work is under way on something already finished.
+   * Work the model's verdict closed at the term still waits on a teacher's (plan 80, 4b).
    */
   claimForReview(
     teacherId: string,
     now: Date = new Date(),
   ): Result<ReviewLock, InvalidAttemptTransitionError> {
-    if (this._status !== 'ROUTED_FOR_REVIEW') {
+    if (this._status !== 'ROUTED_FOR_REVIEW' && !this.revisableAfterTerm) {
       return Result.fail(
         new InvalidAttemptTransitionError(
           `Cannot claim an attempt with status ${this._status} for review`,

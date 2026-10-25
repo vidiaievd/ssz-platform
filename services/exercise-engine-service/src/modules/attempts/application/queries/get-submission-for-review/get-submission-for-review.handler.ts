@@ -123,6 +123,12 @@ export interface GetSubmissionForReviewResult {
   aiVerdict: ProvisionalAiVerdict | null;
   /** When the model's verdict counts by itself (plan 80); null — it waits for the teacher. */
   autoAcceptAt: Date | null;
+  /**
+   * The model's verdict counted at the school's term and no teacher has answered since (plan
+   * 80, step 4b): the screen is not read-only — the teacher's verdict replaces the model's
+   * for the learner's progress and feedback, while memory keeps the rating it already had.
+   */
+  acceptedAtTerm: boolean;
   submittedAnswer: unknown;
   timeSpentSeconds: number;
   selfChecksUsed: number;
@@ -194,6 +200,7 @@ export class GetSubmissionForReviewHandler implements IQueryHandler<GetSubmissio
       aiDraft,
       aiVerdict: attempt.provisionalAiVerdict,
       autoAcceptAt: attempt.reviewAiPolicy?.autoAcceptAt ?? null,
+      acceptedAtTerm: attempt.acceptedAtTerm,
       submittedAnswer: attempt.submittedAnswer,
       timeSpentSeconds: attempt.timeSpentSeconds,
       selfChecksUsed: attempt.selfChecksUsed,

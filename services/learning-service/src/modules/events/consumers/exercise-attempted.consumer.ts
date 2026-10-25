@@ -360,6 +360,37 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       */
       const ephemeral = p.ephemeral === true;
 
+      // A teacher's verdict replacing the model's that counted at the school's term (plan 80,
+      // step 4b, R5). Progress follows it; nothing else here does. The cards were rated once,
+      // by the verdict that counted, and rating the same answer again days later would read
+      // as a review at an interval that never happened — and the evidence record would count
+      // one answer twice. The teacher's disagreement with the model is a quality outcome,
+      // folded by analytics from the letter, not a fact about the learner's memory.
+      if (p.revisesVerdict === true) {
+        if (!ephemeral) {
+          const revised = await this.commandBus.execute(
+            new UpsertProgressCommand(
+              p.userId,
+              'EXERCISE',
+              p.exerciseId,
+              0,
+              p.score ?? null,
+              p.completed ?? false,
+              attemptedAtOf(p),
+              outcomeOf(p),
+              'teacher',
+              true,
+            ),
+          );
+          if (revised.isFail) {
+            this.logger.warn(`Revised progress failed for event ${eventId}: ${revised.error?.message}`);
+          }
+        }
+        await this.prisma.processedEvent.create({ data: { eventId, eventType } });
+        channel.ack(msg);
+        return;
+      }
+
       // 1. Progress tracking.
       if (!ephemeral) {
         const progressResult = await this.commandBus.execute(

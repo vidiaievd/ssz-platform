@@ -21,5 +21,10 @@ export class UpsertProgressCommand {
     public readonly outcome?: ExerciseOutcome,
     /** Who gave the verdict behind `outcome`, when the work was reviewed (plan 79 §2.1). */
     public readonly reviewedBy?: 'teacher' | 'ai',
+    /**
+     * `outcome` replaces a verdict this attempt was already counted by — a teacher's after the
+     * model's counted at the school's term (plan 80, step 4b). Not a new attempt.
+     */
+    public readonly revisesVerdict?: boolean,
   ) {}
 }

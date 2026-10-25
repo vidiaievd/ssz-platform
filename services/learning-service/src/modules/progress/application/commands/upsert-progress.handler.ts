@@ -48,7 +48,11 @@ export class UpsertProgressHandler
     }
 
     const now = boundReplayedTime(cmd.occurredAt, this.clock.now());
-    if (cmd.outcome === 'returned') {
+    if (cmd.revisesVerdict === true) {
+      progress.reviseVerdict({ passed: cmd.outcome === 'passed', score: cmd.score, attemptedAt: now });
+      // The verdict changed nothing about whether the exercise is done.
+      if (progress.getDomainEvents().length === 0) return Result.ok(toProgressDto(progress));
+    } else if (cmd.outcome === 'returned') {
       progress.recordReturn();
       // Nothing was waiting for this verdict — no row to create, none to touch.
       if (progress.getDomainEvents().length === 0) return Result.ok(toProgressDto(progress));

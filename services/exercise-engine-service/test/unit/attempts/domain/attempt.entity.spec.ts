@@ -797,6 +797,135 @@ describe('Attempt entity', () => {
     });
   });
 
+  describe('review() after the term', () => {
+    // Plan 80, step 4b (R5): a teacher answers work the model's verdict closed at the term.
+    const TERM = new Date('2026-11-01T09:00:00Z');
+    const AFTER = new Date('2026-11-01T09:05:00Z');
+    const approved = { outcome: 'approved' as const, decisions: [], comment: 'Bra.', score: 80, passed: true };
+    const returned = {
+      outcome: 'returned' as const,
+      decisions: [{ itemId: 'i1', approved: false }],
+      comment: 'Se på ordstillingen.',
+      score: 0,
+    };
+
+    const acceptedAtTerm = (verdict: typeof approved | typeof returned) => {
+      const attempt = makeAttempt();
+      attempt.snapshotReviewContext({
+        schoolId: 'school-1',
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        previousAttemptId: null,
+        revisionCount: 0,
+      });
+      attempt.submit({}, 'h');
+      attempt.routeForReview({ autoPassedItems: 1, totalItems: 3 }, null, {
+        mode: 'ai_then_teacher',
+        autoAcceptAt: TERM,
+        teacherDrawn: false,
+      });
+      attempt.reviewByAi(verdict);
+      attempt.acceptAiVerdictAtTerm(AFTER);
+      attempt.clearDomainEvents();
+      return attempt;
+    };
+    const completed = (attempt: Attempt) =>
+      attempt.getDomainEvents().find((e) => e.eventType === 'exercise.attempt.completed');
+    const letter = (attempt: Attempt) =>
+      attempt.getDomainEvents().find((e) => e.eventType === 'exercise.attempt.reviewed');
+
+    it('sends back work the model approved: no score, progress hears it, memory does not', () => {
+      const attempt = acceptedAtTerm(approved);
+      expect(attempt.revisableAfterTerm).toBe(true);
+
+      expect(attempt.review({ ...returned, reviewerId: 'teacher-1' }).isOk).toBe(true);
+
+      expect(attempt.status).toBe('RETURNED');
+      expect(attempt.scoreValue).toBeNull();
+      expect(attempt.passed).toBeNull();
+      expect(attempt.reviewedBy).toBe('teacher');
+      expect(attempt.acceptedAtTerm).toBe(false);
+      expect(attempt.deliveredVerdict()).toMatchObject({ outcome: 'returned', reviewerId: 'teacher-1' });
+      expect(completed(attempt)?.payload).toMatchObject({
+        reviewOutcome: 'returned',
+        revisesVerdict: true,
+        attemptedAt: (attempt.submittedAt as Date).toISOString(),
+      });
+      expect(completed(attempt)?.payload).not.toHaveProperty('reviewedBy');
+      expect(letter(attempt)?.payload).toMatchObject({ outcome: 'returned', revisesVerdict: true });
+      // What the model said stays beside the teacher's verdict.
+      expect(attempt.provisionalAiVerdict?.outcome).toBe('approved');
+    });
+
+    it('approves work the model sent back', () => {
+      const attempt = acceptedAtTerm(returned);
+
+      expect(attempt.review({ ...approved, score: 100, reviewerId: 'teacher-1' }).isOk).toBe(true);
+
+      expect(attempt.status).toBe('SCORED');
+      expect(attempt.scoreValue).toBe(100);
+      expect(attempt.reviewedBy).toBe('teacher');
+      expect(completed(attempt)?.payload).toMatchObject({ completed: true, passed: true, revisesVerdict: true });
+      expect(completed(attempt)?.payload).not.toHaveProperty('reviewOutcome');
+      expect(letter(attempt)?.payload).toMatchObject({ outcome: 'approved', score: 100, revisesVerdict: true });
+    });
+
+    it('takes one teacher’s verdict only', () => {
+      const attempt = acceptedAtTerm(approved);
+      attempt.review({ ...approved, reviewerId: 'teacher-1' });
+      attempt.clearDomainEvents();
+
+      expect(attempt.revisableAfterTerm).toBe(false);
+      expect(attempt.review({ ...returned, reviewerId: 'teacher-2' }).isFail).toBe(true);
+      expect(attempt.getDomainEvents()).toHaveLength(0);
+    });
+
+    it('lets the teacher hold the card while they answer', () => {
+      const attempt = acceptedAtTerm(approved);
+      expect(attempt.claimForReview('teacher-1', AFTER).isOk).toBe(true);
+    });
+
+    it('does not reopen work the model closed at once, nor a teacher’s verdict', () => {
+      const atOnce = makeAttempt();
+      atOnce.submit({}, 'h');
+      atOnce.routeForReview({ autoPassedItems: 0, totalItems: 1 });
+      atOnce.reviewByAi(approved);
+      expect(atOnce.review({ ...returned, reviewerId: 'teacher-1' }).isFail).toBe(true);
+      expect(atOnce.claimForReview('teacher-1').isFail).toBe(true);
+
+      const ordinary = makeAttempt();
+      ordinary.submit({}, 'h');
+      ordinary.routeForReview({ autoPassedItems: 0, totalItems: 1 });
+      ordinary.review({ ...approved, reviewerId: 'teacher-1' });
+      ordinary.clearDomainEvents();
+      expect(ordinary.review({ ...returned, reviewerId: 'teacher-2' }).isFail).toBe(true);
+    });
+
+    it('carries no revision on a teacher’s verdict before the term', () => {
+      const attempt = makeAttempt();
+      attempt.snapshotReviewContext({
+        schoolId: 'school-1',
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        previousAttemptId: null,
+        revisionCount: 0,
+      });
+      attempt.submit({}, 'h');
+      attempt.routeForReview({ autoPassedItems: 1, totalItems: 3 }, null, {
+        mode: 'ai_then_teacher',
+        autoAcceptAt: TERM,
+        teacherDrawn: false,
+      });
+      attempt.reviewByAi(returned);
+      attempt.review({ ...approved, reviewerId: 'teacher-1' });
+
+      expect(completed(attempt)?.payload).not.toHaveProperty('revisesVerdict');
+      expect(letter(attempt)?.payload).not.toHaveProperty('revisesVerdict');
+    });
+  });
+
   describe('abandon()', () => {
     it('transitions IN_PROGRESS → ABANDONED', () => {
       const attempt = makeAttempt();

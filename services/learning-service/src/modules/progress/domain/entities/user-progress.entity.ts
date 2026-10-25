@@ -176,6 +176,53 @@ export class UserProgress extends AggregateRoot {
     }));
   }
 
+  /**
+   * A teacher's verdict replacing the model's that counted at the school's term (plan 80,
+   * step 4b, R5). Not an attempt — that was counted when the work was handed in — so the
+   * counters stay where they are; what moves is whether the exercise is done.
+   *
+   * Approved and passed: done, and done by a person now, whatever the model said. Sent back
+   * (or approved with nothing credited): undone only where the model's pass is all that made
+   * it done — a pass by a person or the machine check, on this attempt or another, stands.
+   * The score follows an approval of the latest attempt, as `recordAttempt` reads «latest».
+   */
+  reviseVerdict(props: { passed: boolean; score: number | null; attemptedAt: Date }): void {
+    if (this._status === 'NEEDS_REVIEW') return;
+    const latest = this._lastAttemptAt === null || props.attemptedAt >= this._lastAttemptAt;
+
+    if (props.passed) {
+      const isFirstCompletion = !this._completedAt;
+      if (latest && props.score !== null) this._score = props.score;
+      this._completedByAi = false;
+      this._completedAt = this._completedAt ?? props.attemptedAt;
+      this._status = 'COMPLETED';
+      if (isFirstCompletion) {
+        this.addDomainEvent(new ProgressCompletedEvent(this.id, {
+          userId: this._userId,
+          contentType: this._contentRef.type,
+          contentId: this._contentRef.id,
+          completedAt: this._completedAt.toISOString(),
+          score: this._score,
+        }));
+        return;
+      }
+    } else {
+      if (this._status !== 'COMPLETED' || !this._completedByAi) return;
+      this._status = 'IN_PROGRESS';
+      this._completedAt = null;
+      this._completedByAi = false;
+    }
+
+    this.addDomainEvent(new ProgressUpdatedEvent(this.id, {
+      userId: this._userId,
+      contentType: this._contentRef.type,
+      contentId: this._contentRef.id,
+      status: this._status,
+      attemptsCount: this._attemptsCount,
+      score: this._score,
+    }));
+  }
+
   markNeedsReview(now: Date): Result<void, ProgressDomainError> {
     if (this._status !== 'COMPLETED') {
       return Result.fail(new ProgressNotCompletedError());

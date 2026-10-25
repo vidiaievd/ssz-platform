@@ -183,6 +183,63 @@ describe('UserProgress', () => {
     });
   });
 
+  describe('reviseVerdict (plan 80, step 4b)', () => {
+    const passedByModel = (): UserProgress => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 30, score: null, completed: false, awaitingReview: true, now: NOW });
+      p.recordAttempt({ timeSpentSeconds: 0, score: 80, completed: true, byAi: true, now: NOW });
+      p.clearDomainEvents();
+      return p;
+    };
+
+    it('undoes a pass the model’s verdict alone made, without counting an attempt', () => {
+      const p = passedByModel();
+      p.reviseVerdict({ passed: false, score: null, attemptedAt: NOW });
+      expect(p.status).toBe('IN_PROGRESS');
+      expect(p.completedAt).toBeNull();
+      expect(p.completedByAi).toBe(false);
+      expect(p.attemptsCount).toBe(2);
+      expect(p.getDomainEvents()[0]?.eventType).toBe('learning.progress.updated');
+    });
+
+    it('leaves a pass by a person or the machine check standing', () => {
+      const p = passedByModel();
+      p.recordAttempt({ timeSpentSeconds: 10, score: 100, completed: true, now: LATER });
+      p.clearDomainEvents();
+      p.reviseVerdict({ passed: false, score: null, attemptedAt: NOW });
+      expect(p.status).toBe('COMPLETED');
+      expect(p.getDomainEvents()).toHaveLength(0);
+    });
+
+    it('confirms the model’s pass as a person’s and takes the teacher’s score', () => {
+      const p = passedByModel();
+      p.reviseVerdict({ passed: true, score: 100, attemptedAt: NOW });
+      expect(p.status).toBe('COMPLETED');
+      expect(p.completedByAi).toBe(false);
+      expect(p.score).toBe(100);
+      expect(p.attemptsCount).toBe(2);
+      expect(p.getDomainEvents()[0]?.eventType).toBe('learning.progress.updated');
+    });
+
+    it('completes work the model sent back, as a first completion', () => {
+      const p = freshProgress();
+      p.recordAttempt({ timeSpentSeconds: 30, score: null, completed: false, awaitingReview: true, now: NOW });
+      p.recordReturn();
+      p.clearDomainEvents();
+      p.reviseVerdict({ passed: true, score: 90, attemptedAt: NOW });
+      expect(p.status).toBe('COMPLETED');
+      expect(p.completedAt).toEqual(NOW);
+      expect(p.getDomainEvents()[0]?.eventType).toBe('learning.progress.completed');
+    });
+
+    it('does not take the score of an older attempt over a newer one', () => {
+      const p = passedByModel();
+      p.recordAttempt({ timeSpentSeconds: 10, score: 70, completed: false, now: LATER });
+      p.reviseVerdict({ passed: true, score: 100, attemptedAt: NOW });
+      expect(p.score).toBe(70);
+    });
+  });
+
   describe('markNeedsReview', () => {
     it('transitions COMPLETED → NEEDS_REVIEW', () => {
       const p = freshProgress();

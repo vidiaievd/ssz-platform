@@ -123,6 +123,17 @@ export interface ExerciseAttemptCompletedPayload {
    */
   reviewedBy?: 'teacher' | 'ai';
   /**
+   * Additive (plan 80, step 4b, R5) — this verdict replaces one the attempt was already
+   * counted by: a teacher answering a school's work after a model's verdict counted at the
+   * school's term.
+   *
+   * Progress follows the new verdict; memory does not hear it. The cards were rated once,
+   * by the verdict that counted at the term, and a second rating of the same answer days
+   * later would read as a review at an interval that never happened. Absent on everything
+   * else, which is read exactly as before.
+   */
+  revisesVerdict?: boolean;
+  /**
    * Additive (plan 66, decision Q2-B) — the exercise was delivered in a way that hands part
    * of the answer over, so a success proves one step less than its form says.
    *
@@ -388,6 +399,13 @@ export interface ExerciseAttemptReviewedPayload {
    * batch approval, which never shows one). Absent on events older than plan 79.
    */
   aiDraft?: AttemptReviewedAiDraft | null;
+  /**
+   * Additive (plan 80, step 4b) — the teacher answered after the model's verdict had counted
+   * at the school's term, and this verdict replaces it. What the teacher made of the model's
+   * review (`aiDraft`) is then a disagreement with a verdict the learner was already given.
+   * Absent on every other letter.
+   */
+  revisesVerdict?: boolean;
   occurredAt: string;
 }
 
