@@ -49,6 +49,7 @@ RUN npm install --install-links
 COPY services/subscription-service/tsconfig*.json services/subscription-service/nest-cli.json services/subscription-service/prisma.config.ts ./
 COPY services/subscription-service/prisma/ ./prisma/
 COPY services/subscription-service/src/ ./src/
+COPY services/subscription-service/scripts/ ./scripts/
 
 RUN npx prisma generate
 RUN npm run build
@@ -70,6 +71,8 @@ COPY --from=builder /workspace/services/subscription-service/generated     ./gen
 COPY --from=builder /workspace/services/subscription-service/prisma        ./prisma
 # The seed (tsx prisma/seed.ts) runs the plan checks from the domain sources.
 COPY --from=builder /workspace/services/subscription-service/src           ./src
+# One-off scripts (npx tsx scripts/...) import the same domain sources.
+COPY --from=builder /workspace/services/subscription-service/scripts       ./scripts
 COPY --from=builder /workspace/services/subscription-service/prisma.config.ts ./
 COPY --from=builder /workspace/services/subscription-service/package.json  ./
 COPY --from=builder /workspace/services/subscription-service/tsconfig.json ./
