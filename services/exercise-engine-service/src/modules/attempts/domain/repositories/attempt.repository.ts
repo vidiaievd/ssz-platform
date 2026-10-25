@@ -1,4 +1,5 @@
 import type { Attempt, AttemptStatus } from '../entities/attempt.entity.js';
+import type { HandlingTimeStat } from '../value-objects/review-effort-norm.js';
 
 export const ATTEMPT_REPOSITORY = Symbol('IAttemptRepository');
 
@@ -83,6 +84,13 @@ export interface ReviewedLoadRow {
   groupId: string | null;
   submittedAt: Date | null;
   reviewedAt: Date;
+}
+
+/** How much one group has waiting on a person in one template (plan 81, step 5). */
+export interface PendingEffortRow {
+  groupId: string | null;
+  templateCode: string;
+  count: number;
 }
 
 /** A place in the decisions journal: newest first, so paging walks backwards in time. */
@@ -187,6 +195,17 @@ export interface IAttemptRepository {
    * the school context on attempts, and no reading of the period can reach further back.
    */
   earliestSubmissionAt(schoolId: string): Promise<Date | null>;
+  /**
+   * What the school has waiting on a person, counted per group × template (plan 81,
+   * step 5). Counts rather than rows: a forecast multiplies them by a norm and needs no
+   * timestamps, so the answer stays a handful of rows however long the queue.
+   */
+  countPendingByGroupAndTemplate(schoolId: string): Promise<PendingEffortRow[]>;
+  /**
+   * The median time a teacher spent on a card, per template, over the verdicts the school
+   * delivered since `since` — only those that measured one (`review_handling_seconds`).
+   */
+  findHandlingTimeStats(schoolId: string, since: Date): Promise<HandlingTimeStat[]>;
   /** One page of the decisions journal, newest verdict first. */
   findReviewDecisionsPage(
     schoolId: string,

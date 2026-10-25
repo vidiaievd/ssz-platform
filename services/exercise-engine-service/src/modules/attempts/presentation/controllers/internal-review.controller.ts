@@ -44,6 +44,8 @@ import { ListPendingReviewSchoolsQuery } from '../../application/queries/list-pe
 import type { ListPendingReviewSchoolsResult } from '../../application/queries/list-pending-review-schools/list-pending-review-schools.handler.js';
 import { ListReviewTermsAheadQuery } from '../../application/queries/list-review-terms-ahead/list-review-terms-ahead.query.js';
 import type { ListReviewTermsAheadResult } from '../../application/queries/list-review-terms-ahead/list-review-terms-ahead.handler.js';
+import { GetReviewEffortQuery } from '../../application/queries/get-review-effort/get-review-effort.query.js';
+import type { GetReviewEffortResult } from '../../application/queries/get-review-effort/get-review-effort.handler.js';
 import { AggregateReviewLoadQuery } from '../../application/queries/aggregate-review-load/aggregate-review-load.query.js';
 import type { AggregateReviewLoadResult } from '../../application/queries/aggregate-review-load/aggregate-review-load.handler.js';
 import { ListReviewDecisionsQuery } from '../../application/queries/list-review-decisions/list-review-decisions.query.js';
@@ -271,6 +273,24 @@ export class InternalReviewController {
       // A week is the furthest a warning has any business looking: past it is the queue,
       // not a term about to run out.
       new ListReviewTermsAheadQuery(schoolId, Math.min(Math.max(withinHours, 1), 168)),
+    );
+  }
+
+  /**
+   * The school's queue per group × template, beside the minutes each template takes there
+   * (plan 81, step 5) — what the teacher's schedule turns into "≈ X h of review against
+   * Y h set aside". Numbers only; whether that is too much is the caller's to say.
+   *
+   * Declared before the parameterised routes so the literal segment keeps winning.
+   */
+  @Get('review/effort')
+  async getReviewEffort(@Query('schoolId') schoolId?: string): Promise<GetReviewEffortResult> {
+    if (!schoolId) {
+      throw new UnprocessableEntityException('schoolId is required');
+    }
+
+    return this.queryBus.execute<GetReviewEffortQuery, GetReviewEffortResult>(
+      new GetReviewEffortQuery(schoolId),
     );
   }
 
