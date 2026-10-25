@@ -70,9 +70,13 @@ import { MemberRole } from '../../domain/value-objects/member-role.vo.js';
 import { GetReviewSettingsQuery } from '../../application/queries/get-review-settings/get-review-settings.query.js';
 import { UpdateReviewSettingsCommand } from '../../application/commands/update-review-settings/update-review-settings.command.js';
 import {
+  ReviewAiPolicyResponseDto,
   ReviewSettingsResponseDto,
+  UpdateReviewAiPolicyRequestDto,
   UpdateReviewSettingsRequestDto,
 } from '../dto/review-settings.dto.js';
+import { GetReviewAiPolicyQuery } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.query.js';
+import { UpdateReviewAiPolicyCommand } from '../../application/commands/update-review-ai-policy/update-review-ai-policy.command.js';
 
 @ApiTags('Schools')
 @ApiBearerAuth('JWT')
@@ -472,6 +476,38 @@ export class SchoolsController {
         dto.respondWithinHours,
         dto.escalateAfterHours,
         dto.escalateTo,
+      ),
+    );
+  }
+
+  @Get(':id/review-policy')
+  @ApiOperation({ summary: 'Who answers this school’s work first — the teacher, or a model (plan 80)' })
+  @ApiResponse({ status: 200, type: ReviewAiPolicyResponseDto })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async getReviewAiPolicy(
+    @Param('id', ParseUUIDPipe) schoolId: string,
+  ): Promise<ReviewAiPolicyResponseDto> {
+    return this.queryBus.execute(new GetReviewAiPolicyQuery(schoolId));
+  }
+
+  @Put(':id/review-policy')
+  @ApiOperation({ summary: 'Set who answers this school’s work first (owner/admin)' })
+  @ApiResponse({ status: 200, type: ReviewAiPolicyResponseDto })
+  @ApiResponse({ status: 403, description: 'Only owner or admin; FEATURE_NOT_ENTITLED — the plan has no school.review_ai_policy' })
+  @ApiResponse({ status: 422, description: 'Auto-accept earlier than the escalation in a mode with a model' })
+  @ApiResponse({ status: 503, description: 'subscription-service could not confirm the plan' })
+  async updateReviewAiPolicy(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) schoolId: string,
+    @Body() dto: UpdateReviewAiPolicyRequestDto,
+  ): Promise<ReviewAiPolicyResponseDto> {
+    return this.commandBus.execute(
+      new UpdateReviewAiPolicyCommand(
+        schoolId,
+        user.sub,
+        dto.mode,
+        dto.autoAcceptAfterHours,
+        dto.samplePercent,
       ),
     );
   }

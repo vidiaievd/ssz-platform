@@ -8,6 +8,8 @@ import { MemberRole } from '../value-objects/member-role.vo.js';
 import { SchoolType } from '../value-objects/school-type.vo.js';
 import { SchoolKind } from '../value-objects/school-kind.vo.js';
 import { ReviewSettings } from '../value-objects/review-settings.vo.js';
+import { ReviewAiPolicy } from '../value-objects/review-ai-policy.vo.js';
+import { InvalidReviewSettingsException } from '../exceptions/invalid-review-settings.exception.js';
 import type { SchoolMember } from './school-member.entity.js';
 
 export interface CreateSchoolProps {
@@ -40,6 +42,8 @@ export interface RehydrateSchoolProps extends CreateSchoolProps {
   reviewSettings?: ReviewSettings;
   /** Absent for a row written before the setting existed — learners see their band. */
   showGroupPositionToStudents?: boolean;
+  /** Absent for a row written before plan 80 — the teacher answers alone. */
+  reviewAiPolicy?: ReviewAiPolicy;
 }
 
 export class School extends BaseEntity {
@@ -60,6 +64,7 @@ export class School extends BaseEntity {
   private _defaultExplanationLanguage: string | undefined;
   private _reviewSettings: ReviewSettings;
   private _showGroupPositionToStudents: boolean;
+  private _reviewAiPolicy: ReviewAiPolicy;
 
   private constructor(
     id: string,
@@ -82,6 +87,7 @@ export class School extends BaseEntity {
     defaultExplanationLanguage: string | undefined,
     reviewSettings: ReviewSettings,
     showGroupPositionToStudents: boolean,
+    reviewAiPolicy: ReviewAiPolicy,
   ) {
     super(id, createdAt, updatedAt);
     this._name = name;
@@ -101,6 +107,7 @@ export class School extends BaseEntity {
     this._defaultExplanationLanguage = defaultExplanationLanguage;
     this._reviewSettings = reviewSettings;
     this._showGroupPositionToStudents = showGroupPositionToStudents;
+    this._reviewAiPolicy = reviewAiPolicy;
   }
 
   static create(props: CreateSchoolProps, eventId: string): School {
@@ -130,6 +137,9 @@ export class School extends BaseEntity {
       // the sentence carries no rank and no classmate's number, and a school that would
       // rather not compare at all can turn it off.
       true,
+      // A new school answers through its teachers until it chooses a model, and its plan
+      // allows one (plan 80, R8).
+      ReviewAiPolicy.default(),
     );
 
     school.addDomainEvent(
@@ -161,6 +171,7 @@ export class School extends BaseEntity {
       props.defaultExplanationLanguage,
       props.reviewSettings ?? ReviewSettings.default(),
       props.showGroupPositionToStudents ?? true,
+      props.reviewAiPolicy ?? ReviewAiPolicy.default(),
     );
   }
 
@@ -199,7 +210,18 @@ export class School extends BaseEntity {
    * escalates before it is broken cannot reach the column whichever caller writes it.
    */
   setReviewSettings(settings: ReviewSettings): void {
+    assertEscalationBeforeAutoAccept(settings, this._reviewAiPolicy);
     this._reviewSettings = settings;
+    this._updatedAt = new Date();
+  }
+
+  /**
+   * Sets who answers work first. Whether the plan allows a mode with a model is the
+   * handler's question — the entity cannot see the subscription.
+   */
+  setReviewAiPolicy(policy: ReviewAiPolicy): void {
+    assertEscalationBeforeAutoAccept(this._reviewSettings, policy);
+    this._reviewAiPolicy = policy;
     this._updatedAt = new Date();
   }
 
@@ -295,6 +317,21 @@ export class School extends BaseEntity {
   get requireTutorReviewForSelfPaced(): boolean { return this._requireTutorReviewForSelfPaced; }
   get defaultExplanationLanguage(): string | undefined { return this._defaultExplanationLanguage; }
   get reviewSettings(): ReviewSettings { return this._reviewSettings; }
+  get reviewAiPolicy(): ReviewAiPolicy { return this._reviewAiPolicy; }
   /** Whether a learner of this school is told where they stand in their group, in words. */
   get showGroupPositionToStudents(): boolean { return this._showGroupPositionToStudents; }
+}
+
+/**
+ * In a mode with a model, the escalation fires before the model's verdict counts by itself
+ * (plan 80, Q2-A): it is the administrator's warning that a teacher is not keeping up,
+ * and after the auto-accept there is nothing left to warn about. Both settings are checked
+ * together whichever of them changes, so neither save can break the order.
+ */
+function assertEscalationBeforeAutoAccept(settings: ReviewSettings, policy: ReviewAiPolicy): void {
+  if (policy.usesAi && settings.escalateAfterHours > policy.autoAcceptAfterHours) {
+    throw new InvalidReviewSettingsException(
+      'escalateAfterHours cannot be later than autoAcceptAfterHours while a model answers first',
+    );
+  }
 }

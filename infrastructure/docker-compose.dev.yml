@@ -102,6 +102,7 @@ services:
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       PROFILE_SERVICE_URL: http://user-profile-service:3001
       SCHEDULING_SERVICE_URL: http://scheduling-service:3009
+      SUBSCRIPTION_SERVICE_URL: http://subscription-service:3011
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
     ports:
       - "3002:3002"

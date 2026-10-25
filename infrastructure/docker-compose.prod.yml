@@ -116,6 +116,7 @@ services:
       APP_BASE_URL: ${APP_BASE_URL}
       PROFILE_SERVICE_URL: http://user-profile-service:3001
       SCHEDULING_SERVICE_URL: http://scheduling-service:3009
+      SUBSCRIPTION_SERVICE_URL: http://subscription-service:3011
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
     depends_on:
       postgres:

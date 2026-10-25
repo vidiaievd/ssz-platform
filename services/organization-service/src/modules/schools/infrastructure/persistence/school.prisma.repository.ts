@@ -3,6 +3,7 @@ import { PrismaService } from '../../../../infrastructure/database/prisma.servic
 import type { ISchoolRepository, PublicSchoolDetail, PublicSchoolFilter, PublicSchoolPage } from '../../domain/repositories/school.repository.interface.js';
 import type { School } from '../../domain/entities/school.entity.js';
 import type { ReviewSettings } from '../../domain/value-objects/review-settings.vo.js';
+import type { ReviewAiPolicy } from '../../domain/value-objects/review-ai-policy.vo.js';
 import { SchoolMapper } from './school.mapper.js';
 
 const INCLUDE_MEMBERS = { members: true } as const;
@@ -182,6 +183,18 @@ export class SchoolPrismaRepository implements ISchoolRepository {
         reviewRespondWithinHours: settings.respondWithinHours,
         reviewEscalateAfterHours: settings.escalateAfterHours,
         reviewEscalateTo: settings.escalateTo,
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async saveReviewAiPolicy(schoolId: string, policy: ReviewAiPolicy): Promise<void> {
+    await (this.prisma as any).school.update({
+      where: { id: schoolId },
+      data: {
+        reviewAiMode: policy.mode,
+        reviewAutoAcceptAfterHours: policy.autoAcceptAfterHours,
+        reviewSamplePercent: policy.samplePercent,
         updatedAt: new Date(),
       },
     });

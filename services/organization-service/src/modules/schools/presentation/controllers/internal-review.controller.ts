@@ -26,6 +26,8 @@ import { GetReviewEscalationRecipientsRequestDto } from '../dto/get-review-escal
 
 import { GetReviewSettingsQuery } from '../../application/queries/get-review-settings/get-review-settings.query.js';
 import type { ReviewSettingsDto } from '../../application/queries/get-review-settings/get-review-settings.handler.js';
+import { GetReviewAiPolicyQuery } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.query.js';
+import type { ReviewAiPolicyDto } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.handler.js';
 
 import { GetReviewScopeQuery } from '../../application/queries/get-review-scope/get-review-scope.query.js';
 import type { ReviewScopeResult } from '../../application/queries/get-review-scope/get-review-scope.handler.js';
@@ -120,6 +122,19 @@ export class InternalReviewController {
   ): Promise<ReviewSettingsDto> {
     return this.queryBus.execute<GetReviewSettingsQuery, ReviewSettingsDto>(
       new GetReviewSettingsQuery(schoolId),
+    );
+  }
+
+  /**
+   * Who answers the school's work first, for exercise-engine deciding what happens to a
+   * submission (plan 80). The saved policy: the engine checks the plan feature itself.
+   */
+  @Get('schools/:schoolId/review-policy')
+  async getSchoolReviewAiPolicy(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+  ): Promise<ReviewAiPolicyDto> {
+    return this.queryBus.execute<GetReviewAiPolicyQuery, ReviewAiPolicyDto>(
+      new GetReviewAiPolicyQuery(schoolId),
     );
   }
 

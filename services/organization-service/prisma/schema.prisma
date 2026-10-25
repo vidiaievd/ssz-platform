@@ -131,6 +131,12 @@ model School {
   reviewRespondWithinHours Int                    @default(48) @map("review_respond_within_hours")
   reviewEscalateAfterHours Int                    @default(72) @map("review_escalate_after_hours")
   reviewEscalateTo         ReviewEscalationTarget @default(school_admins) @map("review_escalate_to")
+  // Whether a model answers first (plan 80): only the teacher; the model, then the teacher
+  // confirms or the model's verdict counts after the hours below; or the model, with a
+  // share of its answers sent to the teacher. Modes with a model need `school.review_ai_policy`.
+  reviewAiMode                ReviewAiMode @default(teacher_only) @map("review_ai_mode")
+  reviewAutoAcceptAfterHours  Int          @default(168) @map("review_auto_accept_after_hours")
+  reviewSamplePercent         Int          @default(15) @map("review_sample_percent")
   // Whether a learner is told, in one sentence and without a rank, roughly where they
   // stand in their group. On by default: the sentence carries no classmate's number and
   // no percentile, and a school that would rather not compare at all turns it off here.
@@ -146,6 +152,13 @@ model School {
   memberships         SchoolMembership[]
 
   @@map("schools")
+}
+
+/** Who answers a learner's work first — names lower-case for the reason below. */
+enum ReviewAiMode {
+  teacher_only
+  ai_then_teacher
+  ai_with_sampling
 }
 
 /**
