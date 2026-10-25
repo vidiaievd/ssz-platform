@@ -125,6 +125,13 @@ enum AlertStatus {
   @@map("alert_status")
 }
 
+enum ReviewBlockRepeat {
+  one_off
+  weekly
+
+  @@map("review_block_repeat")
+}
+
 // ─── Slots ────────────────────────────────────────────────────────────────────
 
 model Slot {
@@ -336,6 +343,49 @@ model CurriculumUnit {
 
   @@index([planId, order])
   @@map("curriculum_units")
+}
+
+// ─── Review blocks (plan 81) ─────────────────────────────────────────────────
+
+/// Time a teacher keeps for marking learners' work. Not a lesson: no group, no
+/// learners, no log — so none of the lesson readers (log, delivery, reminders,
+/// substitutions) can ever pick one up. A series is stored as its rule and
+/// expanded on reading; a one-off is a series whose last day is its first.
+model ReviewBlock {
+  id        String            @id @default(uuid())
+  schoolId  String            @map("school_id")
+  teacherId String            @map("teacher_id")
+  repeat    ReviewBlockRepeat
+  /// First day. A weekly series falls on this weekday — the weekday is not
+  /// stored, so it can never disagree with the date.
+  startsOn  DateTime          @map("starts_on") @db.Date
+  /// Last day, inclusive. Equals startsOn for a one-off; null is a weekly
+  /// series with no end.
+  endsOn    DateTime?         @map("ends_on") @db.Date
+  startTime String            @map("start_time") // "HH:MM"
+  endTime   String            @map("end_time")
+  note      String?           @db.Text
+  createdBy String            @map("created_by")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  skips ReviewBlockSkip[]
+
+  @@index([teacherId, startsOn])
+  @@index([schoolId, startsOn])
+  @@map("review_blocks")
+}
+
+/// One occurrence of a series taken out — "not this Tuesday" — without
+/// touching the rule.
+model ReviewBlockSkip {
+  blockId   String      @map("block_id")
+  block     ReviewBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  date      DateTime    @db.Date
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@id([blockId, date])
+  @@map("review_block_skips")
 }
 
 // ─── Alerts ───────────────────────────────────────────────────────────────────
