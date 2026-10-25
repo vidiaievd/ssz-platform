@@ -1,6 +1,9 @@
 import {
   composeDigests,
   composeEscalations,
+  composeTermWarnings,
+  warnedKey,
+  type TermAhead,
   type DigestState,
   type PendingSubmission,
   type ReviewerGroup,
@@ -160,5 +163,118 @@ describe('composeEscalations', () => {
     expect(
       composeEscalations('school-1', pending, reviewers(['g1', 'kari']), told, settings, NOW),
     ).toHaveLength(1);
+  });
+});
+
+const term = (attemptId: string, groupId: string | null, hoursAhead: number): TermAhead => ({
+  attemptId,
+  groupId,
+  autoAcceptAt: new Date(NOW.getTime() + hoursAhead * 60 * 60 * 1000),
+});
+
+describe('composeDigests — terms (plan 80)', () => {
+  it('counts the expiring work in the teacher\'s own groups only', () => {
+    const pending = [waiting('g1', 5), waiting('g2', 4)];
+    const terms = [term('a1', 'g1', 10), term('a2', 'g1', 3), term('a3', 'g2', 1)];
+
+    const digests = composeDigests(
+      'school-1',
+      pending,
+      reviewers(['g1', 'kari'], ['g2', 'ola']),
+      states(),
+      terms,
+    );
+
+    const kari = digests.find((digest) => digest.userId === 'kari')!;
+    expect(kari.expiring).toBe(2);
+    expect(kari.earliestAutoAcceptAt).toEqual(term('a2', 'g1', 3).autoAcceptAt);
+  });
+
+  it('does not send a digest just because a term is near', () => {
+    const pending = [waiting('g1', 5)];
+
+    const digests = composeDigests(
+      'school-1',
+      pending,
+      reviewers(['g1', 'kari']),
+      states({ kari: { lastMaxSubmittedAt: hoursAgo(5) } }),
+      [term('a1', 'g1', 2)],
+    );
+
+    expect(digests).toEqual([]);
+  });
+
+  it('reads no terms as nothing expiring', () => {
+    const digests = composeDigests('school-1', [waiting('g1', 1)], reviewers(['g1', 'kari']), states());
+
+    expect(digests[0]).toMatchObject({ expiring: 0, earliestAutoAcceptAt: null });
+  });
+});
+
+describe('composeTermWarnings', () => {
+  it('warns each teacher of the group once, naming every expiring submission', () => {
+    const terms = [term('a1', 'g1', 20), term('a2', 'g1', 5), term('a3', 'g2', 8)];
+
+    const warnings = composeTermWarnings(
+      'school-1',
+      terms,
+      reviewers(['g1', 'kari', 'ola'], ['g2', 'ola']),
+      new Set(),
+    );
+
+    const byUser = new Map(warnings.map((warning) => [warning.userId, warning]));
+    expect(byUser.get('kari')).toMatchObject({
+      schoolId: 'school-1',
+      expiring: 2,
+      attemptIds: ['a1', 'a2'],
+      groups: [{ groupId: 'g1', pending: 2 }],
+    });
+    expect(byUser.get('kari')!.earliestAutoAcceptAt).toEqual(term('a2', 'g1', 5).autoAcceptAt);
+    expect(byUser.get('ola')).toMatchObject({
+      expiring: 3,
+      groups: [
+        { groupId: 'g1', pending: 2 },
+        { groupId: 'g2', pending: 1 },
+      ],
+    });
+  });
+
+  it('stays quiet for a teacher already warned about everything expiring', () => {
+    const terms = [term('a1', 'g1', 20)];
+
+    const warnings = composeTermWarnings(
+      'school-1',
+      terms,
+      reviewers(['g1', 'kari', 'ola']),
+      new Set([warnedKey('a1', 'kari')]),
+    );
+
+    expect(warnings.map((warning) => warning.userId)).toEqual(['ola']);
+  });
+
+  /** A new submission entering the window speaks again — with the whole count, not only the new one. */
+  it('warns again when something new enters the window', () => {
+    const terms = [term('a1', 'g1', 3), term('a2', 'g1', 23)];
+
+    const warnings = composeTermWarnings(
+      'school-1',
+      terms,
+      reviewers(['g1', 'kari']),
+      new Set([warnedKey('a1', 'kari')]),
+    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatchObject({ expiring: 2, attemptIds: ['a1', 'a2'] });
+  });
+
+  it('warns nobody about work with no group or no reviewer', () => {
+    const warnings = composeTermWarnings(
+      'school-1',
+      [term('a1', null, 3), term('a2', 'g9', 3)],
+      reviewers(['g1', 'kari']),
+      new Set(),
+    );
+
+    expect(warnings).toEqual([]);
   });
 });

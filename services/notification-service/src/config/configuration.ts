@@ -52,6 +52,12 @@ export const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
+  /**
+   * How long before a model's verdict counts by itself a teacher is warned (plan 80, R3).
+   * Rides on `REVIEW_DIGEST_ENABLED`: it is the same conversation with the same people.
+   */
+  REVIEW_TERM_WARNING_HOURS: z.coerce.number().int().positive().max(168).default(24),
+
   // ── Lesson reminders (plan 62, open question 2) ──────────────────────────────
   // The schedule knows when a lesson is; this service decides whether to tell the
   // learner about it the evening before.
@@ -90,6 +96,7 @@ export interface AppConfig {
     internalToken: string | undefined;
     digestIntervalHours: number;
     digestEnabled: boolean;
+    termWarningHours: number;
   };
   lessonReminder: {
     schedulingServiceUrl: string | undefined;
@@ -128,6 +135,7 @@ export default (): AppConfig => {
       internalToken: env.INTERNAL_SERVICE_TOKEN,
       digestIntervalHours: env.REVIEW_DIGEST_INTERVAL_HOURS,
       digestEnabled: env.REVIEW_DIGEST_ENABLED,
+      termWarningHours: env.REVIEW_TERM_WARNING_HOURS,
     },
     lessonReminder: {
       schedulingServiceUrl: env.SCHEDULING_SERVICE_URL,

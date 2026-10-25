@@ -42,6 +42,8 @@ import { BatchApproveRequestDto } from '../dto/batch-approve.dto.js';
 import { AggregateReviewLoadRequestDto } from '../dto/review-oversight.dto.js';
 import { ListPendingReviewSchoolsQuery } from '../../application/queries/list-pending-review-schools/list-pending-review-schools.query.js';
 import type { ListPendingReviewSchoolsResult } from '../../application/queries/list-pending-review-schools/list-pending-review-schools.handler.js';
+import { ListReviewTermsAheadQuery } from '../../application/queries/list-review-terms-ahead/list-review-terms-ahead.query.js';
+import type { ListReviewTermsAheadResult } from '../../application/queries/list-review-terms-ahead/list-review-terms-ahead.handler.js';
 import { AggregateReviewLoadQuery } from '../../application/queries/aggregate-review-load/aggregate-review-load.query.js';
 import type { AggregateReviewLoadResult } from '../../application/queries/aggregate-review-load/aggregate-review-load.handler.js';
 import { ListReviewDecisionsQuery } from '../../application/queries/list-review-decisions/list-review-decisions.query.js';
@@ -81,6 +83,9 @@ const MAX_BATCH_APPROVE = 100;
 
 /** How far back oversight may count verdicts when the caller does not say. */
 const DEFAULT_PERIOD_DAYS = 30;
+
+/** How far ahead a term warning looks when the caller does not say (plan 80, R3). */
+const DEFAULT_TERM_WARNING_HOURS = 24;
 
 /** The journal's page; a hundred is the ceiling, as everywhere else on this controller. */
 const DEFAULT_DECISIONS_LIMIT = 50;
@@ -231,6 +236,31 @@ export class InternalReviewController {
   async listPendingReviewSchools(): Promise<ListPendingReviewSchoolsResult> {
     return this.queryBus.execute<ListPendingReviewSchoolsQuery, ListPendingReviewSchoolsResult>(
       new ListPendingReviewSchoolsQuery(),
+    );
+  }
+
+  /**
+   * Work in a school that a model's verdict will close by itself within `withinHours`
+   * (plan 80, step 5) — the warning job's question, asked per school it already found
+   * through `review/schools`. Rows with their group; who reviews the group is asked of
+   * organization-service, as for the digest.
+   *
+   * Declared before the parameterised routes so the literal segment keeps winning.
+   */
+  @Get('review/terms')
+  async listReviewTermsAhead(
+    @Query('schoolId') schoolId?: string,
+    @Query('withinHours', new DefaultValuePipe(DEFAULT_TERM_WARNING_HOURS), ParseIntPipe)
+    withinHours = DEFAULT_TERM_WARNING_HOURS,
+  ): Promise<ListReviewTermsAheadResult> {
+    if (!schoolId) {
+      throw new UnprocessableEntityException('schoolId is required');
+    }
+
+    return this.queryBus.execute<ListReviewTermsAheadQuery, ListReviewTermsAheadResult>(
+      // A week is the furthest a warning has any business looking: past it is the queue,
+      // not a term about to run out.
+      new ListReviewTermsAheadQuery(schoolId, Math.min(Math.max(withinHours, 1), 168)),
     );
   }
 

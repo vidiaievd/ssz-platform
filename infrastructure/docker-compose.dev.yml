@@ -244,6 +244,7 @@ services:
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
       REVIEW_DIGEST_ENABLED: ${REVIEW_DIGEST_ENABLED:-false}
       REVIEW_DIGEST_INTERVAL_HOURS: ${REVIEW_DIGEST_INTERVAL_HOURS:-6}
+      REVIEW_TERM_WARNING_HOURS: ${REVIEW_TERM_WARNING_HOURS:-24}
       # Lesson reminders (plan 62): the timetable says when a lesson is, this service
       # decides whether to tell the learner the evening before. Off by the same rule.
       SCHEDULING_SERVICE_URL: http://scheduling-service:3009

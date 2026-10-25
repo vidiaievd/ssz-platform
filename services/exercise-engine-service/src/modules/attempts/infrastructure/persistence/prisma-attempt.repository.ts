@@ -11,6 +11,7 @@ import type {
   ReviewQueueScope,
   ReviewQueueSummary,
   ReviewedLoadRow,
+  ReviewTermRow,
 } from '../../domain/repositories/attempt.repository.js';
 import { TEMPLATE_CODE as INFLECTION_TABLE } from '@ssz/shared-kernel/inflection-table';
 import { TEMPLATE_CODE as INFORMATION_TRANSFER } from '@ssz/shared-kernel/information-transfer';
@@ -419,6 +420,43 @@ export class PrismaAttemptRepository implements IAttemptRepository {
       ORDER BY review_auto_accept_at, id
       LIMIT ${limit}`;
     return rows.map((row) => row.id);
+  }
+
+  async findReviewTermsAhead(
+    schoolId: string,
+    after: Date,
+    until: Date,
+    limit: number,
+  ): Promise<ReviewTermRow[]> {
+    // The term job's own predicate (`findDueAiVerdictIds`), narrowed to a school and moved
+    // forward in time: a warning names exactly the work that job is going to close.
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        container_id: string | null;
+        group_id: string | null;
+        submitted_at: Date;
+        review_auto_accept_at: Date;
+      }>
+    >`
+      SELECT id, container_id, group_id, submitted_at, review_auto_accept_at
+      FROM attempts
+      WHERE school_id = ${schoolId}
+        AND status = 'routed_for_review'
+        AND submitted_at IS NOT NULL
+        AND review_ai_verdict IS NOT NULL
+        AND jsonb_typeof(review_ai_verdict) = 'object'
+        AND review_auto_accept_at > ${after}
+        AND review_auto_accept_at <= ${until}
+      ORDER BY review_auto_accept_at, id
+      LIMIT ${limit}`;
+    return rows.map((row) => ({
+      attemptId: row.id,
+      containerId: row.container_id,
+      groupId: row.group_id,
+      submittedAt: row.submitted_at,
+      autoAcceptAt: row.review_auto_accept_at,
+    }));
   }
 
   async save(attempt: Attempt): Promise<void> {

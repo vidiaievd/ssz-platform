@@ -211,7 +211,10 @@ export class ReviewDigestService {
 
     const { pending, reviewers } = context;
     const states = await this.state.load(everyTeacher(reviewers));
-    const digests = composeDigests(schoolId, pending, reviewers, states);
+    // A line in the digest, never a reason to hold it back: when the engine cannot say
+    // which terms are near, the digest goes out without that line rather than not at all.
+    const terms = (await this.load.termsAhead(schoolId, this.termWarningHours)) ?? [];
+    const digests = composeDigests(schoolId, pending, reviewers, states, terms);
 
     for (const digest of digests) {
       await this.send(digest, now);
@@ -276,6 +279,10 @@ export class ReviewDigestService {
         pending: digest.pending,
         groups: digest.groups,
         oldestSubmittedAt: digest.oldestSubmittedAt.toISOString(),
+        // Plan 80: how much of it a model's verdict will close by itself within the window.
+        expiring: digest.expiring,
+        expiringWithinHours: this.termWarningHours,
+        earliestAutoAcceptAt: digest.earliestAutoAcceptAt?.toISOString() ?? null,
       },
     });
 
@@ -309,6 +316,10 @@ export class ReviewDigestService {
       return null;
     }
     return schools;
+  }
+
+  private get termWarningHours(): number {
+    return this.config.get<AppConfig['review']>('review')!.termWarningHours;
   }
 
   /** Both neighbours addressed and the job switched on. Otherwise this is simply off. */

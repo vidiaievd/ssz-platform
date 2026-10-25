@@ -15,6 +15,16 @@ export interface PendingSubmission {
   submittedAt: Date;
 }
 
+/**
+ * One submission a model's provisional verdict will close by itself (plan 80, step 5), as
+ * the engine's `review/terms` reports it.
+ */
+export interface TermAhead {
+  attemptId: string;
+  groupId: string | null;
+  autoAcceptAt: Date;
+}
+
 /** Who reviews one group, as organization-service answers `reviewers(sub)`. */
 export interface ReviewerGroup {
   groupId: string;
@@ -42,6 +52,24 @@ export interface TeacherDigest {
   /** Written to the state row after sending — the mark the next run compares against. */
   newestSubmittedAt: Date;
   /** Biggest group first, because that is the one to start with. */
+  groups: DigestGroupLine[];
+  /** Of what is waiting, how much a model's verdict will close by itself soon (plan 80). */
+  expiring: number;
+  earliestAutoAcceptAt: Date | null;
+}
+
+/**
+ * One teacher, one school: work that will count as the model marked it unless they open it
+ * first (plan 80, R3). Sent once per submission per teacher.
+ */
+export interface TeacherTermWarning {
+  userId: string;
+  schoolId: string;
+  expiring: number;
+  earliestAutoAcceptAt: Date;
+  /** Written to `review_term_warnings` after sending — what this teacher has now heard of. */
+  attemptIds: string[];
+  /** Biggest group first, as in the digest. */
   groups: DigestGroupLine[];
 }
 
@@ -89,18 +117,24 @@ export function composeDigests(
   pending: PendingSubmission[],
   reviewers: ReviewerGroup[],
   states: Map<string, DigestState>,
+  terms: TermAhead[] = [],
 ): TeacherDigest[] {
   const byGroup = groupPending(pending);
+  const termsByGroup = groupTerms(terms);
 
-  const byTeacher = new Map<string, { lines: DigestGroupLine[]; times: Date[] }>();
+  const byTeacher = new Map<
+    string,
+    { lines: DigestGroupLine[]; times: Date[]; terms: TermAhead[] }
+  >();
   for (const group of reviewers) {
     const submissions = byGroup.get(group.groupId);
     if (submissions === undefined || submissions.length === 0) continue;
 
     for (const teacher of group.teachers) {
-      const entry = byTeacher.get(teacher.userId) ?? { lines: [], times: [] };
+      const entry = byTeacher.get(teacher.userId) ?? { lines: [], times: [], terms: [] };
       entry.lines.push({ groupId: group.groupId, pending: submissions.length });
       entry.times.push(...submissions);
+      entry.terms.push(...(termsByGroup.get(group.groupId) ?? []));
       byTeacher.set(teacher.userId, entry);
     }
   }
@@ -120,6 +154,11 @@ export function composeDigests(
       oldestSubmittedAt: earliest(entry.times),
       newestSubmittedAt: newest,
       groups: [...entry.lines].sort((a, b) => b.pending - a.pending),
+      // Carried, never a reason to send: a term running out has a message of its own
+      // (`composeTermWarnings`), and a digest is still about what has newly arrived.
+      expiring: entry.terms.length,
+      earliestAutoAcceptAt:
+        entry.terms.length > 0 ? earliest(entry.terms.map((term) => term.autoAcceptAt)) : null,
     });
   }
 
@@ -182,6 +221,62 @@ export function composeEscalations(
 }
 
 /**
+ * Who should hear that a model's verdict is about to count by itself (plan 80, R3):
+ * "the term is running out, the work will be accepted as it stands".
+ *
+ * Once per submission per teacher, whatever the clock does: `alreadyWarned` holds the
+ * pairs this job has written about, and a teacher hears again only when a submission they
+ * have not been told about enters the window. The message then names everything still
+ * expiring in their groups, not only the new — the count they read is the one they can act
+ * on — and every submission in it is marked, so the next run stays quiet.
+ *
+ * Work with no group has no reviewer to warn, exactly as in the digest.
+ */
+export function composeTermWarnings(
+  schoolId: string,
+  terms: TermAhead[],
+  reviewers: ReviewerGroup[],
+  alreadyWarned: Set<string>,
+): TeacherTermWarning[] {
+  const termsByGroup = groupTerms(terms);
+
+  const byTeacher = new Map<string, { lines: DigestGroupLine[]; terms: TermAhead[] }>();
+  for (const group of reviewers) {
+    const expiring = termsByGroup.get(group.groupId);
+    if (expiring === undefined || expiring.length === 0) continue;
+
+    for (const teacher of group.teachers) {
+      const entry = byTeacher.get(teacher.userId) ?? { lines: [], terms: [] };
+      entry.lines.push({ groupId: group.groupId, pending: expiring.length });
+      entry.terms.push(...expiring);
+      byTeacher.set(teacher.userId, entry);
+    }
+  }
+
+  const warnings: TeacherTermWarning[] = [];
+  for (const [userId, entry] of byTeacher) {
+    const fresh = entry.terms.some((term) => !alreadyWarned.has(warnedKey(term.attemptId, userId)));
+    if (!fresh) continue;
+
+    warnings.push({
+      userId,
+      schoolId,
+      expiring: entry.terms.length,
+      earliestAutoAcceptAt: earliest(entry.terms.map((term) => term.autoAcceptAt)),
+      attemptIds: entry.terms.map((term) => term.attemptId),
+      groups: [...entry.lines].sort((a, b) => b.pending - a.pending),
+    });
+  }
+
+  return warnings.sort((a, b) => b.expiring - a.expiring);
+}
+
+/** The pair a term warning is remembered by. */
+export function warnedKey(attemptId: string, userId: string): string {
+  return `${attemptId}|${userId}`;
+}
+
+/**
  * The school's own queue, in the three numbers an administrator can act on.
  *
  * `null` when nothing is waiting at all — a weekly summary of an empty queue is a weekly
@@ -231,6 +326,16 @@ function groupPending(pending: PendingSubmission[]): Map<string, Date[]> {
   for (const item of pending) {
     if (item.groupId === null) continue;
     byGroup.set(item.groupId, [...(byGroup.get(item.groupId) ?? []), item.submittedAt]);
+  }
+  return byGroup;
+}
+
+/** Terms by group, dropping work with none — nobody reviews "no group". */
+function groupTerms(terms: TermAhead[]): Map<string, TermAhead[]> {
+  const byGroup = new Map<string, TermAhead[]>();
+  for (const term of terms) {
+    if (term.groupId === null) continue;
+    byGroup.set(term.groupId, [...(byGroup.get(term.groupId) ?? []), term]);
   }
   return byGroup;
 }

@@ -58,6 +58,18 @@ export interface PendingLoadRow {
   submittedAt: Date;
 }
 
+/**
+ * One submission whose provisional model verdict counts by itself at `autoAcceptAt`
+ * (plan 80, step 5): where it sits, so the caller can find who reviews it.
+ */
+export interface ReviewTermRow {
+  attemptId: string;
+  containerId: string | null;
+  groupId: string | null;
+  submittedAt: Date;
+  autoAcceptAt: Date;
+}
+
 /** One verdict a person delivered, as the two timestamps oversight measures between. */
 export interface ReviewedLoadRow {
   reviewerId: string;
@@ -207,6 +219,16 @@ export interface IAttemptRepository {
    * review, a provisional verdict on it, the term at or before `now`. Oldest term first.
    */
   findDueAiVerdictIds(now: Date, limit: number): Promise<string[]>;
+  /**
+   * The school's work the term job will close within `(after, until]` (plan 80, step 5):
+   * still in review, a provisional verdict on it. Earliest term first, at most `limit`.
+   */
+  findReviewTermsAhead(
+    schoolId: string,
+    after: Date,
+    until: Date,
+    limit: number,
+  ): Promise<ReviewTermRow[]>;
   save(attempt: Attempt): Promise<void>;
   saveAll(attempts: Attempt[]): Promise<void>;
   /**

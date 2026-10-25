@@ -3,7 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom, timeout } from 'rxjs';
 import type { AppConfig } from '../../../../config/configuration.js';
-import type { PendingSubmission } from '../review-digest.composer.js';
+import type { PendingSubmission, TermAhead } from '../review-digest.composer.js';
 
 /** A school with something waiting, as `GET /internal/attempts/review/schools` reports it. */
 export interface PendingSchool {
@@ -24,6 +24,10 @@ interface PendingSchoolsResponse {
 
 interface AggregateResponse {
   pending: { containerId: string | null; groupId: string | null; submittedAt: string[] }[];
+}
+
+interface TermsResponse {
+  terms: { attemptId: string; groupId: string | null; autoAcceptAt: string }[];
 }
 
 const TIMEOUT_MS = 10_000;
@@ -83,6 +87,23 @@ export class ReviewLoadClient {
         submittedAt: new Date(at),
       })),
     );
+  }
+
+  /**
+   * The school's work a model's verdict will close by itself within `withinHours`
+   * (plan 80, step 5). Only what the engine's term job would actually close — work under
+   * the policy the model never answered is not on it.
+   */
+  async termsAhead(schoolId: string, withinHours: number): Promise<TermAhead[] | null> {
+    const query = new URLSearchParams({ schoolId, withinHours: String(withinHours) });
+    const body = await this.get<TermsResponse>(`/internal/attempts/review/terms?${query}`);
+    if (body === null) return null;
+
+    return body.terms.map((term) => ({
+      attemptId: term.attemptId,
+      groupId: term.groupId,
+      autoAcceptAt: new Date(term.autoAcceptAt),
+    }));
   }
 
   private get review(): AppConfig['review'] {
