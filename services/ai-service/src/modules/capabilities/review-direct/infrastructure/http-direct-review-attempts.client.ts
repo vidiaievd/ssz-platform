@@ -29,15 +29,19 @@ export class HttpDirectReviewAttemptsClient implements IDirectReviewAttemptsClie
     attemptId: string,
     review: ReviewToWrite,
     meta: DraftWriteMeta,
-  ): Promise<{ written: true; attemptStatus: string } | { written: false; code: string }> {
+  ): Promise<{ written: true; attemptStatus: string; provisional: boolean } | { written: false; code: string }> {
     const body =
       review.status === 'ready'
         ? { status: 'ready', items: review.items, summary: review.summary, marks: review.marks, verdict: review.verdict, ...meta }
         : { status: 'failed', items: [], errorCode: review.errorCode, ...meta };
     const res = await this.put(`/api/v1/internal/attempts/${attemptId}/ai-review`, body);
     if (res.ok) {
-      const answer = (await res.json()) as { attempt?: { status?: unknown } };
-      return { written: true, attemptStatus: typeof answer.attempt?.status === 'string' ? answer.attempt.status : 'unknown' };
+      const answer = (await res.json()) as { attempt?: { status?: unknown; provisional?: unknown } };
+      return {
+        written: true,
+        attemptStatus: typeof answer.attempt?.status === 'string' ? answer.attempt.status : 'unknown',
+        provisional: answer.attempt?.provisional === true,
+      };
     }
     // 409 (another write landed first) and 503 (content-service down) are worth the retry a throw brings.
     if (res.status === 404 || res.status === 422) return { written: false, code: await refusalCode(res) };

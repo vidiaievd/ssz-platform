@@ -17,14 +17,15 @@ export interface IDirectReviewAttemptsClient {
   /** The subject under `review_direct`. Null when the attempt is unknown. Throws when the engine cannot answer now. */
   getSubject(attemptId: string): Promise<ReviewSubjectResult | null>;
   /**
-   * `written` with where the attempt now stands, or `refused` with the engine's code.
+   * `written` with where the attempt now stands — `provisional` when a school's teacher is still
+   * to read it (plan 80) — or `refused` with the engine's code.
    * Throws when the engine cannot answer now — a 409 or 503 included, the two worth a retry.
    */
   putReview(
     attemptId: string,
     review: ReviewToWrite,
     meta: DraftWriteMeta,
-  ): Promise<{ written: true; attemptStatus: string } | { written: false; code: string }>;
+  ): Promise<{ written: true; attemptStatus: string; provisional: boolean } | { written: false; code: string }>;
   /** `closed` as `NO_REVIEWER`, or `refused` with the engine's code. Throws when the engine cannot answer now. */
   giveUp(
     attemptId: string,

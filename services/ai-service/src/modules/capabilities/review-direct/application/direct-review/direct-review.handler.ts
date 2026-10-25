@@ -3,8 +3,14 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { AiGateway, type GatewayCall } from '../../../../gateway/application/ai-gateway.js';
 import type { CallContext } from '../../../../ledger/domain/ai-call.js';
 import { describeCall, type CallReport } from '../../../application/describe-call.js';
+import { REVIEW_QUEUE_SURFACE } from '../../../review-draft/application/draft-review/draft-review.handler.js';
 import type { DraftWriteMeta } from '../../../review-draft/application/ports/review-attempts.client.js';
+import {
+  SCHOOL_LANGUAGE_READER,
+  type ISchoolLanguageReader,
+} from '../../../review-draft/application/ports/school-language.reader.js';
 import { unaskable } from '../../../review-draft/application/review-input.js';
+import { SchoolPayerResolver } from '../../../review-draft/application/school-payer.resolver.js';
 import { toDirectReview } from '../../domain/direct-review.js';
 import { directReviewRequest } from '../../prompts/prompts.js';
 import { REVIEW_DIRECT } from '../../review-direct.capability.js';
@@ -31,13 +37,18 @@ const REFUSED_OUTCOMES = new Set<CallReport['outcome']>(['disabled', 'refused_po
 export type DirectReviewOutcome =
   /** Nothing to do: decided meanwhile, or a teacher reviews it. The reason, for the log. */
   | { kind: 'skipped'; reason: string }
-  /** The verdict closed the attempt. */
-  | { kind: 'ruled'; attemptStatus: string; remarks: number; aiCallId: string }
+  /** The verdict closed the attempt — or, `provisional`, waits beside it for the school's teacher. */
+  | { kind: 'ruled'; attemptStatus: string; provisional: boolean; remarks: number; aiCallId: string }
   /**
    * Nobody will review the work, so it is closed as `NO_REVIEWER` — or would have been:
    * `engine` is `closed`, the engine's refusal code, or `lost` when it could not be reached.
    */
-  | { kind: 'gave_up'; reason: GiveUpReason; cause: string; aiCallId: string | null; engine: string };
+  | { kind: 'gave_up'; reason: GiveUpReason; cause: string; aiCallId: string | null; engine: string }
+  /**
+   * A school's work with no verdict from the model (plan 80, step 3c): nothing to close, its
+   * teacher reads it as without the policy. `cause` and the call, for the log.
+   */
+  | { kind: 'left_to_teacher'; cause: string; aiCallId: string | null };
 
 const WRITE_ATTEMPTS = 2;
 /** Pause before the second write; a token so tests need not wait. */
@@ -51,6 +62,13 @@ export const DIRECT_WRITE_RETRY_MS = Symbol('DIRECT_WRITE_RETRY_MS');
  * Unlike the teacher's draft, stopping is not free here: nobody else will read the work, so
  * every way out that leaves no verdict — the gate refused, nothing to ask, no usable answer —
  * closes the attempt as `NO_REVIEWER` rather than leave it waiting for review forever.
+ *
+ * At a school that has a model answer first (plan 80, step 3c) the same review is asked for
+ * with the school as payer (its `ai.review_direct` credits), in the school's explanation
+ * language, on the `review_queue` surface; the engine decides whether the verdict counts or
+ * waits for the teacher. Here stopping is free again: the work stays in the teacher's queue
+ * and nothing is closed. Whether the school has the policy is the engine's to say — it
+ * answers `HAS_TEACHER_REVIEW` for work without one.
  */
 @CommandHandler(DirectReviewCommand)
 export class DirectReviewHandler implements ICommandHandler<DirectReviewCommand, DirectReviewOutcome> {
@@ -59,8 +77,10 @@ export class DirectReviewHandler implements ICommandHandler<DirectReviewCommand,
   constructor(
     private readonly gateway: AiGateway,
     private readonly payers: LearnerPayerResolver,
+    private readonly schoolPayers: SchoolPayerResolver,
     @Inject(DIRECT_REVIEW_ATTEMPTS_CLIENT) private readonly attempts: IDirectReviewAttemptsClient,
     @Inject(LEARNER_LANGUAGE_READER) private readonly learners: ILearnerLanguageReader,
+    @Inject(SCHOOL_LANGUAGE_READER) private readonly schools: ISchoolLanguageReader,
     @Optional() @Inject(DIRECT_WRITE_RETRY_MS) private readonly writeRetryMs: number = 1_000,
   ) {}
 
@@ -69,27 +89,35 @@ export class DirectReviewHandler implements ICommandHandler<DirectReviewCommand,
     // attempt is given up on rather than skipped from the event and left waiting.
     const found = await this.attempts.getSubject(command.attemptId);
     if (!found) return { kind: 'skipped', reason: 'attempt_not_found' };
-    if (found.skip) {
+    // The attempt's own school, not the event's: the engine's row is the truth.
+    if (found.schoolId !== command.schoolId) return { kind: 'skipped', reason: 'school_differs_from_event' };
+    const schoolId = found.schoolId;
+    if (schoolId !== null) {
+      // A redelivery after the verdict, or a run cut off after a failed review: the teacher has it.
+      if (found.skip || !found.subject) return { kind: 'skipped', reason: (found.skip ?? 'no_subject').toLowerCase() };
+    } else if (found.skip) {
       const cause = found.skip.toLowerCase();
-      if (UNASKABLE_SKIPS.has(found.skip)) return this.giveUp(command.attemptId, 'unaskable', cause, null);
+      if (UNASKABLE_SKIPS.has(found.skip)) return this.giveUp(command.attemptId, null, 'unaskable', cause, null);
       // A review stored by a run cut off before its verdict or its give-up: a failed one is
       // closed now; a ready one the engine refuses to close (REVIEW_EXISTS), and the log says so.
-      if (found.skip === 'DRAFT_EXISTS') return this.giveUp(command.attemptId, 'failed', cause, null);
+      if (found.skip === 'DRAFT_EXISTS') return this.giveUp(command.attemptId, null, 'failed', cause, null);
       return { kind: 'skipped', reason: cause };
     }
     if (!found.subject) return { kind: 'skipped', reason: 'no_subject' };
-    // The attempt's own school, not the event's: the engine's row is the truth.
-    if (found.schoolId !== null) return { kind: 'skipped', reason: 'has_school' };
 
     const unasked = unaskable(found.subject);
-    if (unasked) return this.giveUp(command.attemptId, 'unaskable', unasked, null);
+    if (unasked) return this.giveUp(command.attemptId, schoolId, 'unaskable', unasked, null);
 
-    const subject = toDirectSubject(found.subject, await this.learnerLanguage(found.userId));
+    const language = schoolId === null ? await this.learnerLanguage(found.userId) : await this.schoolLanguage(schoolId);
+    const subject = toDirectSubject(found.subject, language);
 
     const context: CallContext = {
-      payer: await this.payers.resolve({ userId: found.userId }),
+      payer:
+        schoolId === null
+          ? await this.payers.resolve({ userId: found.userId })
+          : await this.schoolPayers.resolve({ schoolId }),
       actor: { userId: found.userId, role: null },
-      surface: SELF_STUDY_SURFACE,
+      surface: schoolId === null ? SELF_STUDY_SURFACE : REVIEW_QUEUE_SURFACE,
     };
     const call = await this.gateway.call(REVIEW_DIRECT.code, context, (promptVersion) =>
       directReviewRequest(promptVersion, subject),
@@ -100,7 +128,7 @@ export class DirectReviewHandler implements ICommandHandler<DirectReviewCommand,
     // tariff unreadable, which nobody retries later either.
     if (report.answeredBy === null) {
       const reason = REFUSED_OUTCOMES.has(report.outcome) ? 'refused' : 'failed';
-      return this.giveUp(command.attemptId, reason, report.errorCode ?? report.outcome, report.callId);
+      return this.giveUp(command.attemptId, schoolId, reason, report.errorCode ?? report.outcome, report.callId);
     }
 
     const review: ReviewToWrite =
@@ -116,20 +144,33 @@ export class DirectReviewHandler implements ICommandHandler<DirectReviewCommand,
     const written = await this.retried(`Review of ${command.attemptId} (call ${meta.aiCallId})`, () =>
       this.attempts.putReview(command.attemptId, review, meta),
     );
-    if (written === null) return this.giveUp(command.attemptId, 'failed', 'review_write_lost', report.callId);
+    if (written === null) return this.giveUp(command.attemptId, schoolId, 'failed', 'review_write_lost', report.callId);
     // A ready review turned down (a verdict the engine cannot rule by) is not stored: as good as no answer.
-    if (!written.written) return this.giveUp(command.attemptId, 'failed', `engine_${written.code.toLowerCase()}`, report.callId);
-    if (review.status === 'failed') return this.giveUp(command.attemptId, 'failed', review.errorCode, report.callId);
-    return { kind: 'ruled', attemptStatus: written.attemptStatus, remarks: review.items.length, aiCallId: report.callId };
+    if (!written.written) {
+      return this.giveUp(command.attemptId, schoolId, 'failed', `engine_${written.code.toLowerCase()}`, report.callId);
+    }
+    if (review.status === 'failed') return this.giveUp(command.attemptId, schoolId, 'failed', review.errorCode, report.callId);
+    return {
+      kind: 'ruled',
+      attemptStatus: written.attemptStatus,
+      provisional: written.provisional,
+      remarks: review.items.length,
+      aiCallId: report.callId,
+    };
   }
 
-  /** Closes the attempt as `NO_REVIEWER`; the outcome says whether the engine took it. */
+  /**
+   * Closes the attempt as `NO_REVIEWER`; the outcome says whether the engine took it. A
+   * school's work is not closed — its teacher is still there to read it.
+   */
   private async giveUp(
     attemptId: string,
+    schoolId: string | null,
     reason: GiveUpReason,
     cause: string,
     aiCallId: string | null,
   ): Promise<DirectReviewOutcome> {
+    if (schoolId !== null) return { kind: 'left_to_teacher', cause, aiCallId };
     const closed = await this.retried(`Give-up on ${attemptId}`, () => this.attempts.giveUp(attemptId, reason, aiCallId));
     const engine = closed === null ? 'lost' : closed.closed ? 'closed' : closed.code;
     return { kind: 'gave_up', reason, cause, aiCallId, engine };
@@ -152,6 +193,16 @@ export class DirectReviewHandler implements ICommandHandler<DirectReviewCommand,
         this.logger.warn(`${label} not written, retrying: ${message}`);
         await new Promise((resolve) => setTimeout(resolve, this.writeRetryMs));
       }
+    }
+  }
+
+  /** As the learner's: a nicety, the exercise's own label when unreadable. */
+  private async schoolLanguage(schoolId: string): Promise<string | null> {
+    try {
+      return await this.schools.explanationLanguage(schoolId);
+    } catch (err) {
+      this.logger.warn(`Explanation language of school ${schoolId} unreadable: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
     }
   }
 
