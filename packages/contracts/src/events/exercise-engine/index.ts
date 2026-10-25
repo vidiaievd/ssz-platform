@@ -463,6 +463,19 @@ export interface ExerciseAttemptAiReviewedPayload {
   modelId: string | null;
   promptVersion: string | null;
   outcome: 'approved' | 'returned';
+  /**
+   * Additive (plan 80, step 6a) — where the work was handed in, snapshotted at attempt start,
+   * as on `exercise.attempt.reviewed`. `null` outside a school; absent on older events.
+   */
+  schoolId?: string | null;
+  groupId?: string | null;
+  containerId?: string | null;
+  /**
+   * Additive (plan 80, step 6a) — the verdict counted by itself at the school's term because
+   * no teacher answered: the row the auto-acceptance journal is built from. Absent on a
+   * verdict that closed the work at once.
+   */
+  acceptedAtTerm?: true;
   occurredAt: string;
 }
 

@@ -213,6 +213,8 @@ describe('PutAiReviewHandler', () => {
       outcome: 'approved',
       templateCode: attempt.templateCode,
     });
+    // Closed at once, not by a school's term — no journal row for it.
+    expect(events[1]!.payload).not.toHaveProperty('acceptedAtTerm');
   });
 
   it('sends the work back with its summary, marked as a model\'s return', async () => {

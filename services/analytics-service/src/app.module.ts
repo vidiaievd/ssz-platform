@@ -18,6 +18,7 @@ import { StudentAnalyticsModule } from './modules/student-analytics/student-anal
 import { CourseAnalyticsModule } from './modules/course-analytics/course-analytics.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AiUsageModule } from './modules/ai-usage/ai-usage.module.js';
+import { ReviewTermsModule } from './modules/review-terms/review-terms.module.js';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { AiUsageModule } from './modules/ai-usage/ai-usage.module.js';
     CourseAnalyticsModule,
     AuditModule,
     AiUsageModule,
+    ReviewTermsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

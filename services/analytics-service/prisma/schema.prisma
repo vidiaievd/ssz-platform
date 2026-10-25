@@ -580,3 +580,39 @@ model AiDraftQualityDaily {
   @@index([day])
   @@map("ai_draft_quality_daily")
 }
+
+// ─── Journal: ReviewTermAcceptance ────────────────────────────────────────────
+// School work a model's verdict closed at the school's term because no teacher answered,
+// one row per attempt — plan 80, step 6a (R4). Fed by `exercise.attempt.ai_reviewed`
+// (`acceptedAtTerm`) and by a teacher's later verdict on the same work,
+// `exercise.attempt.reviewed` (`revisesVerdict`).
+//
+// No teacher is stored: who was answerable is the group's teachers on the day of the term,
+// which organization-service keeps with dates and is asked at read time (6b). Either event
+// may land first, so every column but the school is nullable and the reader takes only rows
+// with `accepted_at` — a revision with nothing to revise (work closed before 6a) stays inert.
+
+model ReviewTermAcceptance {
+  attemptId      String    @id @map("attempt_id")
+  schoolId       String    @map("school_id")
+  groupId        String?   @map("group_id")
+  containerId    String?   @map("container_id")
+  userId         String?   @map("user_id")
+  exerciseId     String?   @map("exercise_id")
+  templateCode   String?   @map("template_code")
+  /// The model's review that counted — the axes its quality is read on.
+  capability     String?
+  modelId        String?   @map("model_id")
+  promptVersion  String?   @map("prompt_version")
+  aiOutcome      String?   @map("ai_outcome") // approved | returned
+  acceptedAt     DateTime? @map("accepted_at")
+  /// The teacher who gave their own verdict after the term, once (plan 80, 4b).
+  revisedBy      String?   @map("revised_by")
+  revisedAt      DateTime? @map("revised_at")
+  revisedOutcome String?   @map("revised_outcome") // approved | returned
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([schoolId, acceptedAt])
+  @@index([revisedBy, revisedAt])
+  @@map("review_term_acceptances")
+}

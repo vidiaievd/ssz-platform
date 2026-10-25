@@ -22,8 +22,8 @@ function provisional(): Attempt {
   });
   attempt.snapshotReviewContext({
     schoolId: 'school-1',
-    containerId: null,
-    groupId: null,
+    containerId: 'course-1',
+    groupId: 'group-1',
     exercisePath: null,
     previousAttemptId: null,
     revisionCount: 0,
@@ -88,6 +88,11 @@ describe('AcceptAiVerdictsAtTermHandler', () => {
       capability: 'review_direct',
       modelId: 'm1',
       outcome: 'approved',
+      // The auto-acceptance journal's row (step 6a): where, and that the term did it.
+      schoolId: 'school-1',
+      groupId: 'group-1',
+      containerId: 'course-1',
+      acceptedAtTerm: true,
     });
   });
 
