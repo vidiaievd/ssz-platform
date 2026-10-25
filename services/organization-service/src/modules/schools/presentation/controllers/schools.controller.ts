@@ -74,7 +74,11 @@ import {
   ReviewSettingsResponseDto,
   UpdateReviewAiPolicyRequestDto,
   UpdateReviewSettingsRequestDto,
+  ReviewEffortMinutesResponseDto,
+  UpdateReviewEffortMinutesRequestDto,
 } from '../dto/review-settings.dto.js';
+import { GetReviewEffortMinutesQuery } from '../../application/queries/get-review-effort-minutes/get-review-effort-minutes.query.js';
+import { UpdateReviewEffortMinutesCommand } from '../../application/commands/update-review-effort-minutes/update-review-effort-minutes.command.js';
 import { GetReviewAiPolicyQuery } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.query.js';
 import { UpdateReviewAiPolicyCommand } from '../../application/commands/update-review-ai-policy/update-review-ai-policy.command.js';
 
@@ -509,6 +513,32 @@ export class SchoolsController {
         dto.autoAcceptAfterHours,
         dto.samplePercent,
       ),
+    );
+  }
+
+  @Get(':id/review-effort')
+  @ApiOperation({ summary: 'Minutes per submission this school expects, by template (plan 81)' })
+  @ApiResponse({ status: 200, type: ReviewEffortMinutesResponseDto })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async getReviewEffortMinutes(
+    @Param('id', ParseUUIDPipe) schoolId: string,
+  ): Promise<ReviewEffortMinutesResponseDto> {
+    return this.queryBus.execute(new GetReviewEffortMinutesQuery(schoolId));
+  }
+
+  /** Set whole: a template left out of the body goes back to the factory value. */
+  @Put(':id/review-effort')
+  @ApiOperation({ summary: 'Set the minutes per submission this school expects (owner/admin)' })
+  @ApiResponse({ status: 200, type: ReviewEffortMinutesResponseDto })
+  @ApiResponse({ status: 403, description: 'Only owner or admin' })
+  @ApiResponse({ status: 422, description: 'A template code or a figure out of shape' })
+  async updateReviewEffortMinutes(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) schoolId: string,
+    @Body() dto: UpdateReviewEffortMinutesRequestDto,
+  ): Promise<ReviewEffortMinutesResponseDto> {
+    return this.commandBus.execute(
+      new UpdateReviewEffortMinutesCommand(schoolId, user.sub, dto.templates, dto.other ?? null),
     );
   }
 

@@ -1,6 +1,7 @@
 import type { School } from '../entities/school.entity.js';
 import type { ReviewSettings } from '../value-objects/review-settings.vo.js';
 import type { ReviewAiPolicy } from '../value-objects/review-ai-policy.vo.js';
+import type { ReviewEffortMinutes } from '../value-objects/review-effort-minutes.vo.js';
 
 export interface PublicSchoolFilter {
   q?: string;
@@ -50,6 +51,14 @@ export interface ISchoolRepository {
   saveReviewSettings(schoolId: string, settings: ReviewSettings): Promise<void>;
   /** Writes only who answers work first, for the same reason as `saveReviewSettings`. */
   saveReviewAiPolicy(schoolId: string, policy: ReviewAiPolicy): Promise<void>;
+  /**
+   * The minutes per submission a school set (plan 81, Q5), or null for no such school.
+   * Read on its own rather than through `findById`: the forecast asks for it per school
+   * and has no use for the roster.
+   */
+  findReviewEffortMinutes(schoolId: string): Promise<ReviewEffortMinutes | null>;
+  /** Writes only the minutes per submission, for the same reason as `saveReviewSettings`. */
+  saveReviewEffortMinutes(schoolId: string, minutes: ReviewEffortMinutes): Promise<void>;
 }
 
 export const SCHOOL_REPOSITORY = Symbol('SCHOOL_REPOSITORY');

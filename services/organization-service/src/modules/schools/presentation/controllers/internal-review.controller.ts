@@ -28,6 +28,8 @@ import { GetReviewSettingsQuery } from '../../application/queries/get-review-set
 import type { ReviewSettingsDto } from '../../application/queries/get-review-settings/get-review-settings.handler.js';
 import { GetReviewAiPolicyQuery } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.query.js';
 import type { ReviewAiPolicyDto } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.handler.js';
+import { GetReviewEffortMinutesQuery } from '../../application/queries/get-review-effort-minutes/get-review-effort-minutes.query.js';
+import type { ReviewEffortMinutesDto } from '../../application/queries/get-review-effort-minutes/get-review-effort-minutes.handler.js';
 
 import { GetReviewScopeQuery } from '../../application/queries/get-review-scope/get-review-scope.query.js';
 import type { ReviewScopeResult } from '../../application/queries/get-review-scope/get-review-scope.handler.js';
@@ -135,6 +137,19 @@ export class InternalReviewController {
   ): Promise<ReviewAiPolicyDto> {
     return this.queryBus.execute<GetReviewAiPolicyQuery, ReviewAiPolicyDto>(
       new GetReviewAiPolicyQuery(schoolId),
+    );
+  }
+
+  /**
+   * Minutes per submission the school expects, factory values filled in (plan 81, Q5) —
+   * for exercise-engine's review forecast, until the school's own measurements take over.
+   */
+  @Get('schools/:schoolId/review-effort')
+  async getSchoolReviewEffortMinutes(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+  ): Promise<ReviewEffortMinutesDto> {
+    return this.queryBus.execute<GetReviewEffortMinutesQuery, ReviewEffortMinutesDto>(
+      new GetReviewEffortMinutesQuery(schoolId),
     );
   }
 

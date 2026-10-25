@@ -137,6 +137,9 @@ model School {
   reviewAiMode                ReviewAiMode @default(teacher_only) @map("review_ai_mode")
   reviewAutoAcceptAfterHours  Int          @default(168) @map("review_auto_accept_after_hours")
   reviewSamplePercent         Int          @default(15) @map("review_sample_percent")
+  // Minutes per submission the school expects, by template (plan 81, Q5): `{ templates, other }`,
+  // only what the school set. The factory values live in code and fill the rest on read.
+  reviewEffortMinutes         Json         @default("{}") @map("review_effort_minutes")
   // Whether a learner is told, in one sentence and without a rank, roughly where they
   // stand in their group. On by default: the sentence carries no classmate's number and
   // no percentile, and a school that would rather not compare at all turns it off here.
