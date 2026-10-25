@@ -298,6 +298,12 @@ model Attempt {
   // reviewClaimedAt; no background job clears it, expiry is checked on read.
   reviewClaimedBy String?   @map("review_claimed_by")
   reviewClaimedAt DateTime? @map("review_claimed_at") @db.Timestamptz
+  // When the current holder first claimed it (plan 81, step 4). Unlike reviewClaimedAt
+  // an extension does not move it; a release or a lapse does. The verdict turns it into
+  // reviewHandlingSeconds — time a teacher spent on the card, clamped 30 s … 60 min —
+  // which the review-time norm reads per school × template.
+  reviewStartedAt       DateTime? @map("review_started_at") @db.Timestamptz
+  reviewHandlingSeconds Int?      @map("review_handling_seconds")
 
   // The RETURNED attempt this one resubmits, if any — feeds attemptNo/`previous`.
   previousAttemptId String? @map("previous_attempt_id")

@@ -244,6 +244,8 @@ export interface AttemptPersistenceProps {
   rubricSnapshot: RubricSnapshot | null;
   reviewAiPolicy?: AttemptReviewAiPolicy | null;
   provisionalAiVerdict?: ProvisionalAiVerdict | null;
+  reviewStartedAt?: Date | null;
+  reviewHandlingSeconds?: number | null;
 }
 
 /**
@@ -312,6 +314,18 @@ export interface ExercisePathSnapshot {
  * itself, and a background sweep would be one more thing to be down.
  */
 export const REVIEW_CLAIM_TTL_MS = 15 * 60 * 1000;
+
+/**
+ * The bounds a measured handling time is clamped to (plan 81, step 4).
+ *
+ * The upper one is the point: a tab left open over lunch and closed with a verdict must
+ * not become the school's norm for that template. The lower one keeps a verdict clicked
+ * through in a second — a teacher who had read the work elsewhere — from pulling the
+ * median toward zero. A median barely moves under either, which is why clamping rather
+ * than dropping is enough.
+ */
+export const REVIEW_HANDLING_MIN_SECONDS = 30;
+export const REVIEW_HANDLING_MAX_SECONDS = 60 * 60;
 
 /** How an attempt ended, when it ended by a person's decision. */
 export interface DeliveredVerdict {
@@ -448,6 +462,8 @@ export class Attempt extends AggregateRoot {
     private _recordedOffline: boolean = false,
     private _reviewAiPolicy: AttemptReviewAiPolicy | null = null,
     private _provisionalAiVerdict: ProvisionalAiVerdict | null = null,
+    private _reviewStartedAt: Date | null = null,
+    private _reviewHandlingSeconds: number | null = null,
   ) {
     super(id);
   }
@@ -568,6 +584,8 @@ export class Attempt extends AggregateRoot {
       props.recordedOffline ?? false,
       props.reviewAiPolicy ?? null,
       props.provisionalAiVerdict ?? null,
+      props.reviewStartedAt ?? null,
+      props.reviewHandlingSeconds ?? null,
     );
   }
 
@@ -1386,6 +1404,9 @@ export class Attempt extends AggregateRoot {
 
     if (!this.explained(props)) return Result.fail(new ReviewCommentRequiredError());
 
+    // Read before the marker is cleared below: the time is the holder's, and only theirs.
+    const handling = reviewerId === null ? null : this.handlingSeconds(reviewerId, new Date());
+
     this._reviewedByUserId = reviewerId;
     this._reviewedAt = new Date();
     if (props.rubricMarks) {
@@ -1396,6 +1417,11 @@ export class Attempt extends AggregateRoot {
     // Nobody is looking at this any more — it has been decided (plan 44 §44.8).
     this._reviewClaimedBy = null;
     this._reviewClaimedAt = null;
+    this._reviewStartedAt = null;
+    // A person's verdict always writes it, null when they never held the card: the column
+    // describes the verdict the attempt carries, and a learner's resubmission reviewed a
+    // second time must not keep the first review's minutes under the second's name.
+    if (reviewerId !== null) this._reviewHandlingSeconds = handling;
 
     const revision = revising ? { revisesVerdict: true as const } : {};
 
@@ -1700,6 +1726,11 @@ export class Attempt extends AggregateRoot {
       return Result.ok(held);
     }
 
+    // Work on the card starts with the first claim; an extension is the same sitting and
+    // keeps its start (plan 81, step 4). A lapsed marker is not extended but begun again —
+    // the screen renews it on activity, so fifteen quiet minutes are a reviewer who was
+    // away, and counting them would put lunch into the norm.
+    if (held === null) this._reviewStartedAt = now;
     this._reviewClaimedBy = teacherId;
     this._reviewClaimedAt = now;
     return Result.ok({ teacherId, expiresAt: new Date(now.getTime() + REVIEW_CLAIM_TTL_MS) });
@@ -1721,7 +1752,28 @@ export class Attempt extends AggregateRoot {
 
     this._reviewClaimedBy = null;
     this._reviewClaimedAt = null;
+    // Leaving the screen ends the sitting; coming back to it starts a new one.
+    this._reviewStartedAt = null;
     return null;
+  }
+
+  /**
+   * How long `reviewerId` has been working on this card, clamped — or null when the card
+   * is not theirs to time (plan 81, step 4).
+   *
+   * Only the holder of the marker has a sitting: a verdict delivered without opening the
+   * card (a batch approval) or over a colleague's claim measured nothing, and writing a
+   * number for it would be inventing one. A marker that lapsed while its holder stayed on
+   * the screen still counts — the verdict is the activity that would have renewed it.
+   */
+  private handlingSeconds(reviewerId: string, now: Date): number | null {
+    if (this._reviewStartedAt === null || this._reviewClaimedBy !== reviewerId) return null;
+
+    const seconds = Math.round((now.getTime() - this._reviewStartedAt.getTime()) / 1000);
+    return Math.min(
+      Math.max(seconds, REVIEW_HANDLING_MIN_SECONDS),
+      REVIEW_HANDLING_MAX_SECONDS,
+    );
   }
 
   /** The work in progress, as last autosaved. `null` when the runner never saved one. */
@@ -1904,6 +1956,9 @@ export class Attempt extends AggregateRoot {
   get exercisePath(): ExercisePathSnapshot | null { return this._exercisePath; }
   get reviewClaimedBy(): string | null { return this._reviewClaimedBy; }
   get reviewClaimedAt(): Date | null { return this._reviewClaimedAt; }
+  get reviewStartedAt(): Date | null { return this._reviewStartedAt; }
+  /** Set by a person's verdict when they held the card — see `handlingSeconds`. */
+  get reviewHandlingSeconds(): number | null { return this._reviewHandlingSeconds; }
   get previousAttemptId(): string | null { return this._previousAttemptId; }
   get autoPassedItems(): number | null { return this._autoPassedItems; }
   get totalItems(): number | null { return this._totalItems; }

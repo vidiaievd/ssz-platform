@@ -965,6 +965,128 @@ describe('Attempt entity', () => {
     });
   });
 
+  // Plan 81, step 4: how long a teacher worked on the card, for the review-time norm.
+  // `review()` stamps its own clock, so the sittings below start in the past.
+  describe('review handling time', () => {
+    const approved = { outcome: 'approved' as const, decisions: [], comment: null, score: 80, passed: true };
+    const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000);
+
+    const waiting = () => {
+      const attempt = makeAttempt();
+      attempt.submit({}, 'h');
+      attempt.routeForReview();
+      return attempt;
+    };
+
+    it('starts on the first claim and measures it at the verdict', () => {
+      const attempt = waiting();
+      const start = minutesAgo(5);
+      attempt.claimForReview('teacher-1', start);
+      expect(attempt.reviewStartedAt).toEqual(start);
+
+      attempt.review({ ...approved, reviewerId: 'teacher-1' });
+
+      expect(attempt.reviewHandlingSeconds).toBeGreaterThanOrEqual(299);
+      expect(attempt.reviewHandlingSeconds).toBeLessThanOrEqual(301);
+      expect(attempt.reviewStartedAt).toBeNull();
+    });
+
+    it('keeps the start through an extension', () => {
+      const attempt = waiting();
+      const start = minutesAgo(10);
+      attempt.claimForReview('teacher-1', start);
+      attempt.claimForReview('teacher-1', minutesAgo(2));
+
+      expect(attempt.reviewStartedAt).toEqual(start);
+    });
+
+    it('begins again after the marker lapsed', () => {
+      const attempt = waiting();
+      attempt.claimForReview('teacher-1', minutesAgo(40));
+      const back = minutesAgo(3);
+      attempt.claimForReview('teacher-1', back);
+
+      expect(attempt.reviewStartedAt).toEqual(back);
+    });
+
+    it('begins again for a colleague who claims a lapsed card', () => {
+      const attempt = waiting();
+      attempt.claimForReview('teacher-1', minutesAgo(40));
+      const theirs = minutesAgo(3);
+      attempt.claimForReview('teacher-2', theirs);
+
+      expect(attempt.reviewStartedAt).toEqual(theirs);
+    });
+
+    it('does not move for a colleague whose claim was turned away', () => {
+      const attempt = waiting();
+      const start = minutesAgo(5);
+      attempt.claimForReview('teacher-1', start);
+      attempt.claimForReview('teacher-2');
+
+      expect(attempt.reviewStartedAt).toEqual(start);
+    });
+
+    it('is cleared by a release', () => {
+      const attempt = waiting();
+      attempt.claimForReview('teacher-1', minutesAgo(5));
+      attempt.releaseReview('teacher-1');
+      attempt.review({ ...approved, reviewerId: 'teacher-1' });
+
+      expect(attempt.reviewStartedAt).toBeNull();
+      expect(attempt.reviewHandlingSeconds).toBeNull();
+    });
+
+    it('caps an abandoned tab at an hour', () => {
+      const attempt = waiting();
+      attempt.claimForReview('teacher-1', minutesAgo(180));
+      attempt.review({ ...approved, reviewerId: 'teacher-1' });
+
+      expect(attempt.reviewHandlingSeconds).toBe(3600);
+    });
+
+    it('raises a click-through to thirty seconds', () => {
+      const attempt = waiting();
+      attempt.claimForReview('teacher-1');
+      attempt.review({ ...approved, reviewerId: 'teacher-1' });
+
+      expect(attempt.reviewHandlingSeconds).toBe(30);
+    });
+
+    it('measures nothing for a verdict over a colleague’s claim', () => {
+      const attempt = waiting();
+      attempt.claimForReview('teacher-1', minutesAgo(5));
+      attempt.review({ ...approved, reviewerId: 'teacher-2' });
+
+      expect(attempt.reviewHandlingSeconds).toBeNull();
+    });
+
+    it('measures nothing for a verdict nobody claimed — a batch approval', () => {
+      const attempt = waiting();
+      attempt.review({ ...approved, reviewerId: 'teacher-1' });
+
+      expect(attempt.reviewHandlingSeconds).toBeNull();
+    });
+
+    it('is not written by a model’s verdict', () => {
+      const attempt = waiting();
+      attempt.claimForReview('teacher-1', minutesAgo(5));
+      attempt.reviewByAi(approved);
+
+      expect(attempt.reviewHandlingSeconds).toBeNull();
+      expect(attempt.reviewStartedAt).toBeNull();
+    });
+
+    it('survives the trip through persistence', () => {
+      const attempt = waiting();
+      attempt.claimForReview('teacher-1', minutesAgo(5));
+      attempt.review({ ...approved, reviewerId: 'teacher-1' });
+
+      const back = AttemptMapper.toDomain(AttemptMapper.toPersistence(attempt) as never);
+      expect(back.reviewHandlingSeconds).toBe(attempt.reviewHandlingSeconds);
+    });
+  });
+
   describe('abandon()', () => {
     it('transitions IN_PROGRESS → ABANDONED', () => {
       const attempt = makeAttempt();
