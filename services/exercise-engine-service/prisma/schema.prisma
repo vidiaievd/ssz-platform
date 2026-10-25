@@ -325,6 +325,18 @@ model Attempt {
   // (IMPLEMENTATION.md, "Persistence").
   rubricSnapshot Json? @map("rubric_snapshot")
 
+  // ── School review policy (plan 80) ──────────────────────────────────────
+  // Snapshotted at hand-in, only where a model may answer the school's work first:
+  // the mode, when its verdict counts by itself, and whether sampling drew the work
+  // for a teacher. All null — a teacher reviews it, as before the plan.
+
+  // 'ai_then_teacher' | 'ai_with_sampling'.
+  reviewAiMode       String?   @map("review_ai_mode")
+  // Hand-in plus the term in force (course's, else the school's).
+  reviewAutoAcceptAt DateTime? @map("review_auto_accept_at") @db.Timestamptz
+  // Sampling only: a teacher sees it whatever the model says (template list or the draw).
+  reviewTeacherDrawn Boolean?  @map("review_teacher_drawn")
+
   // Model-drafted reviews of this submission (plan 79). Kept after the verdict.
   aiDrafts AttemptAiDraft[]
 

@@ -241,6 +241,7 @@ export interface AttemptPersistenceProps {
   recordedOffline?: boolean;
   rubricMarks: RubricMarks | null;
   rubricSnapshot: RubricSnapshot | null;
+  reviewAiPolicy?: AttemptReviewAiPolicy | null;
 }
 
 /**
@@ -324,6 +325,32 @@ export interface ReviewLock {
   expiresAt: Date;
 }
 
+/** A school's mode that has a model answer first (plan 80, R1). */
+export type ReviewAiMode = 'ai_then_teacher' | 'ai_with_sampling';
+
+/**
+ * The school's review policy as it stood when this work was handed in (plan 80, step 3a).
+ *
+ * Taken at hand-in for the same reason as the rubric: a school that changes its mode or its
+ * term afterwards must not rewrite the terms of work already waiting. Present only where a
+ * model may answer first — the school chose a mode with one, its plan has the key, and the
+ * template can be read by one. Everything else is reviewed by a teacher, as before.
+ */
+export interface AttemptReviewAiPolicy {
+  mode: ReviewAiMode;
+  /**
+   * When the model's verdict counts by itself if no teacher has given theirs (R2): hand-in
+   * plus the term. Null when there was no term to read — the work then waits for a teacher.
+   */
+  autoAcceptAt: Date | null;
+  /**
+   * `ai_with_sampling` only: the work goes to a teacher whatever the model says — its
+   * template is on the course's list, or it fell into the school's random share (§3).
+   * Always false in `ai_then_teacher`, where every piece of work goes to one.
+   */
+  teacherDrawn: boolean;
+}
+
 export class Attempt extends AggregateRoot {
   private constructor(
     id: string,
@@ -382,6 +409,7 @@ export class Attempt extends AggregateRoot {
     private _ephemeral: boolean = false,
     private _probeDraw: unknown = null,
     private _recordedOffline: boolean = false,
+    private _reviewAiPolicy: AttemptReviewAiPolicy | null = null,
   ) {
     super(id);
   }
@@ -500,6 +528,7 @@ export class Attempt extends AggregateRoot {
       props.ephemeral ?? false,
       props.probeDraw ?? null,
       props.recordedOffline ?? false,
+      props.reviewAiPolicy ?? null,
     );
   }
 
@@ -728,11 +757,24 @@ export class Attempt extends AggregateRoot {
      * (IMPLEMENTATION.md, "Persistence").
      */
     rubricSnapshot?: RubricSnapshot | null,
+    /**
+     * The school lets a model answer this work first (plan 80). Only work a teacher
+     * reviews carries one: without a school a model is the only reviewer anyway.
+     */
+    reviewAiPolicy?: AttemptReviewAiPolicy | null,
   ): Result<void, InvalidAttemptTransitionError> {
+    if (reviewAiPolicy && this._schoolId === null) {
+      return Result.fail(
+        new InvalidAttemptTransitionError('Only work a school reviews takes its review policy'),
+      );
+    }
     const closed = this.closeUnscored('ROUTED_FOR_REVIEW', counts);
     if (closed.isFail) return closed;
     if (rubricSnapshot) {
       this._rubricSnapshot = rubricSnapshot;
+    }
+    if (reviewAiPolicy) {
+      this._reviewAiPolicy = reviewAiPolicy;
     }
 
     this.addDomainEvent(
@@ -745,6 +787,7 @@ export class Attempt extends AggregateRoot {
         containerId: this._containerId,
         groupId: this._groupId,
         submittedAt: (this._submittedAt ?? new Date()).toISOString(),
+        reviewAiMode: this._reviewAiPolicy?.mode ?? null,
       }),
     );
 
@@ -1570,6 +1613,7 @@ export class Attempt extends AggregateRoot {
    * the server replayed from the offline journal (VoxOrd offline plan, B4).
    */
   get recordedOffline(): boolean { return this._recordedOffline; }
+  get reviewAiPolicy(): AttemptReviewAiPolicy | null { return this._reviewAiPolicy; }
 
   markRecordedOffline(): void {
     this._recordedOffline = true;

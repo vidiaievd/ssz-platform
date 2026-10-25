@@ -4,10 +4,12 @@ import { CONTENT_CLIENT } from '../../shared/application/ports/content-client.po
 import { ORGANIZATION_CLIENT } from '../../shared/application/ports/organization-client.port.js';
 import { MEDIA_ASSETS } from '../../shared/application/ports/media-assets.port.js';
 import { ENTITLEMENTS_CLIENT } from '../../shared/application/ports/entitlements-client.port.js';
+import { REVIEW_POLICY_READER } from '../../shared/application/ports/review-policy-reader.port.js';
 import { HttpContentClient } from './http-content-client.js';
 import { HttpOrganizationClient } from './http-organization-client.js';
 import { HttpMediaAssetsClient } from './http-media-assets-client.js';
 import { HttpEntitlementsClient } from './http-entitlements-client.js';
+import { HttpReviewPolicyReader } from './http-review-policy-reader.js';
 import { ExerciseDefinitionCache } from '../cache/exercise-definition-cache.js';
 import { ExercisePlacementCache } from '../cache/exercise-placement-cache.js';
 import { CachedContentClient } from '../cache/cached-content-client.js';
@@ -53,12 +55,16 @@ import { ProbeAwareContentClient } from '../../modules/probes/infrastructure/con
 
     HttpEntitlementsClient,
     { provide: ENTITLEMENTS_CLIENT, useExisting: HttpEntitlementsClient },
+
+    HttpReviewPolicyReader,
+    { provide: REVIEW_POLICY_READER, useExisting: HttpReviewPolicyReader },
   ],
   exports: [
     CONTENT_CLIENT,
     ORGANIZATION_CLIENT,
     MEDIA_ASSETS,
     ENTITLEMENTS_CLIENT,
+    REVIEW_POLICY_READER,
     // Exported so the events consumer (Step 19) can call invalidate() on exercise delete.
     ExerciseDefinitionCache,
   ],

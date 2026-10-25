@@ -382,6 +382,39 @@ describe('Attempt entity', () => {
         groupId: 'group-1',
       });
       expect(ev.payload.submittedAt).toBe(attempt.submittedAt?.toISOString());
+      expect(ev.payload.reviewAiMode).toBeNull();
+    });
+
+    // Plan 80, step 3a.
+    it('keeps the school’s review policy and says a model answers first', () => {
+      const attempt = makeAttempt();
+      attempt.snapshotReviewContext({
+        schoolId: 'school-1',
+        containerId: 'course-1',
+        groupId: 'group-1',
+        exercisePath: null,
+        previousAttemptId: null,
+        revisionCount: 0,
+      });
+      attempt.submit({}, 'h');
+      attempt.clearDomainEvents();
+      const policy = { mode: 'ai_then_teacher' as const, autoAcceptAt: new Date(), teacherDrawn: false };
+      expect(attempt.routeForReview(undefined, null, policy).isOk).toBe(true);
+
+      expect(attempt.reviewAiPolicy).toEqual(policy);
+      const ev = attempt
+        .getDomainEvents()
+        .find((e) => e instanceof AttemptRoutedForReviewEvent) as AttemptRoutedForReviewEvent;
+      expect(ev.payload.reviewAiMode).toBe('ai_then_teacher');
+    });
+
+    it('refuses a school’s review policy on work without a school', () => {
+      const attempt = makeAttempt();
+      attempt.submit({}, 'h');
+      const policy = { mode: 'ai_then_teacher' as const, autoAcceptAt: null, teacherDrawn: false };
+
+      expect(attempt.routeForReview(undefined, null, policy).isFail).toBe(true);
+      expect(attempt.status).toBe('SUBMITTED');
     });
 
     it('writes down the machine tally as a hint for the queue', () => {

@@ -29,6 +29,9 @@ export class ContainerReviewAiPolicyResponseDto {
   @ApiProperty({ nullable: true, example: 15, description: 'The school’s sampling share' })
   samplePercent!: number | null;
 
+  @ApiProperty({ nullable: true, format: 'uuid', description: 'The school whose policy this is' })
+  ownerSchoolId!: string | null;
+
   static from(result: ContainerReviewAiPolicyResult): ContainerReviewAiPolicyResponseDto {
     return { ...result, teacherReviewTemplates: [...result.teacherReviewTemplates] };
   }

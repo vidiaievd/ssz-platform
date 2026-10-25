@@ -58,11 +58,12 @@ import { ANSWER_VALIDATOR, type IAnswerValidator, ValidationError } from '../../
 import { FEEDBACK_GENERATOR, type IFeedbackGenerator } from '../../../../../shared/application/ports/feedback-generator.port.js';
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
-import type { Attempt } from '../../../domain/entities/attempt.entity.js';
+import type { Attempt, AttemptReviewAiPolicy } from '../../../domain/entities/attempt.entity.js';
 import { InvalidAttemptTransitionError } from '../../../domain/exceptions/attempt.errors.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
 import { ReviewerResolver, type Reviewer } from '../../services/reviewer-resolver.js';
+import { ReviewPolicyResolver } from '../../services/review-policy-resolver.js';
 import { audioTranscriptFor, type AudioTranscript } from '../../services/audio-transcript.js';
 import { firstVerdictsIn, isItemByItem } from '../../services/item-states.js';
 import { CLOCK, SystemClock, type IClock } from '../../../../../shared/application/ports/clock.port.js';
@@ -351,6 +352,9 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     // Who reads work with no school (plan 79, step 2.1c). Optional for the same reason; with
     // no binding every such submission routes for review, as it did before the step.
     @Optional() @Inject(ReviewerResolver) private readonly reviewers: ReviewerResolver | null = null,
+    // The school's review policy (plan 80, step 3a). Optional likewise; with no binding a
+    // school's work goes to its teacher only, as it did before the plan.
+    @Optional() @Inject(ReviewPolicyResolver) private readonly reviewPolicies: ReviewPolicyResolver | null = null,
   ) {}
 
   async execute(
@@ -476,11 +480,13 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
         def.exercise.expectedAnswers,
       );
       const reviewer = await this.reviewerOf(attempt, def.exercise, rubric);
+      const aiPolicy =
+        reviewer === 'teacher' ? await this.reviewPolicyOf(attempt, def.exercise, rubric) : null;
 
       const routeResult =
         reviewer === 'none'
           ? attempt.closeWithoutReviewer(machineTally(outcome.details))
-          : attempt.routeForReview(machineTally(outcome.details), rubric);
+          : attempt.routeForReview(machineTally(outcome.details), rubric, aiPolicy);
       if (routeResult.isFail) {
         return Result.fail(routeResult.error as AttemptDomainError);
       }
@@ -704,6 +710,30 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     return this.reviewers.resolve({
       userId: attempt.userId,
       schoolId: attempt.schoolId,
+      templateCode: attempt.templateCode,
+      targetLanguage: attempt.targetLanguage,
+      submittedAnswer: attempt.submittedAnswer,
+      rubricSnapshot,
+      exercise,
+    });
+  }
+
+  /**
+   * Whether the school has a model answer this work first, and on what terms (plan 80).
+   * `reviewer` stays `teacher` either way: a teacher still owns the work, and what the
+   * learner is told about a model's provisional verdict is the clients' next step.
+   */
+  private async reviewPolicyOf(
+    attempt: Attempt,
+    exercise: { content: unknown; expectedAnswers: unknown },
+    rubricSnapshot: RubricSnapshot | null,
+  ): Promise<AttemptReviewAiPolicy | null> {
+    if (this.reviewPolicies === null || attempt.schoolId === null) return null;
+    return this.reviewPolicies.resolve({
+      userId: attempt.userId,
+      schoolId: attempt.schoolId,
+      containerId: attempt.containerId,
+      submittedAt: attempt.submittedAt ?? new Date(),
       templateCode: attempt.templateCode,
       targetLanguage: attempt.targetLanguage,
       submittedAnswer: attempt.submittedAnswer,

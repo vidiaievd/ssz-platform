@@ -306,7 +306,16 @@ export interface ExerciseAttemptRoutedForReviewPayload {
   groupId: string | null;
   /** ISO 8601 — the clock every "how long has this been waiting" answer starts from. */
   submittedAt: string;
+  /**
+   * The school answers this work with a model first (plan 80): its mode as it stood at
+   * hand-in, already checked against the school's plan and the template. Absent or null —
+   * only a teacher reads it, and no model is asked for the learner's review.
+   */
+  reviewAiMode?: ReviewAiMode | null;
 }
+
+/** A school's mode that has a model answer first (plan 80, R1); `teacher_only` never travels. */
+export type ReviewAiMode = 'ai_then_teacher' | 'ai_with_sampling';
 
 /**
  * Published when a person has marked a submission — plan 42.

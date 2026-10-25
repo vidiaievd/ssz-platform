@@ -78,6 +78,7 @@ describe('GetContainerReviewAiPolicyHandler', () => {
       teacherReviewTemplates: [],
       schoolMode: 'ai_then_teacher',
       samplePercent: 15,
+      ownerSchoolId: SCHOOL,
     });
   });
 
@@ -102,7 +103,12 @@ describe('GetContainerReviewAiPolicyHandler', () => {
 
   it('inherits nothing for a course outside a school, or while the school cannot be reached', async () => {
     const outside = await makeQuery(course(null)).handler.execute(new GetContainerReviewAiPolicyQuery('c-1'));
-    expect(outside.value).toMatchObject({ autoAcceptAfterHours: null, schoolMode: null, samplePercent: null });
+    expect(outside.value).toMatchObject({
+      autoAcceptAfterHours: null,
+      schoolMode: null,
+      samplePercent: null,
+      ownerSchoolId: null,
+    });
 
     const c = course();
     c.setReviewAiPolicy(96, []);

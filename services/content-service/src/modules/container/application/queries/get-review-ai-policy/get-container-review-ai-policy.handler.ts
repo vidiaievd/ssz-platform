@@ -37,6 +37,11 @@ export interface ContainerReviewAiPolicyResult {
   /** The school's mode and share, so one read tells exercise-engine everything. */
   schoolMode: SchoolReviewAiPolicy['mode'] | null;
   samplePercent: number | null;
+  /**
+   * The school the course belongs to — the one whose policy this is. exercise-engine applies
+   * it only to work handed in at that school; elsewhere the learner's own school decides.
+   */
+  ownerSchoolId: string | null;
 }
 
 interface SchoolTerms {
@@ -87,6 +92,7 @@ export class GetContainerReviewAiPolicyHandler
       teacherReviewTemplates: container.reviewTeacherTemplates,
       schoolMode: school?.policy.mode ?? null,
       samplePercent: school?.policy.samplePercent ?? null,
+      ownerSchoolId: container.ownerSchoolId ?? null,
     });
   }
 
