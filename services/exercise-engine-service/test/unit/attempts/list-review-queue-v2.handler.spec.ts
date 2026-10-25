@@ -21,7 +21,10 @@ interface WaitingProps {
   reviewClaimedAt?: Date | null;
 }
 
-function waiting(props: WaitingProps): Attempt {
+function waiting(
+  props: WaitingProps,
+  over: Partial<Parameters<typeof Attempt.reconstitute>[0]> = {},
+): Attempt {
   return Attempt.reconstitute({
     id: props.id,
     userId: props.userId,
@@ -61,6 +64,7 @@ function waiting(props: WaitingProps): Attempt {
     previousAttemptId: null,
     autoPassedItems: props.autoPassedItems ?? null,
     totalItems: props.totalItems ?? null,
+    ...over,
   });
 }
 
@@ -197,6 +201,62 @@ describe('ListReviewQueueV2Handler', () => {
 
     expect(result.groups[0]!.autoCleanIds).toEqual(['clean']);
     expect(result.groups[0]!.items.map((i) => i.autoClean)).toEqual([true, false, false]);
+  });
+
+  it('marks work closed at the term with when it counted, and never as batch-clean', async () => {
+    const acceptedAt = new Date('2026-10-31T09:35:00Z');
+    const { handler } = makeHandler([
+      waiting(
+        {
+          id: 'closed',
+          exerciseId: 'ex-1',
+          userId: 'u1',
+          submittedAt: '2026-10-24T09:30:00Z',
+          autoPassedItems: 2,
+          totalItems: 2,
+        },
+        {
+          status: 'SCORED',
+          score: 100,
+          passed: true,
+          reviewedAt: acceptedAt,
+          reviewAiPolicy: {
+            mode: 'ai_then_teacher',
+            autoAcceptAt: new Date('2026-10-31T09:30:00Z'),
+            teacherDrawn: false,
+          },
+          provisionalAiVerdict: {
+            outcome: 'scored',
+            decisions: [{ itemId: 'i1', approved: true }],
+            comment: null,
+            score: 100,
+            at: new Date('2026-10-24T09:31:00Z'),
+          },
+        },
+      ),
+    ]);
+
+    const result = await handler.execute(
+      new ListReviewQueueV2Query(
+        { ...SCOPE, acceptedAtTermSince: new Date('2026-10-25T00:00:00Z') },
+        'exercise',
+        50,
+        null,
+      ),
+    );
+
+    expect(result.groups[0]!.items[0]).toMatchObject({ acceptedAt, autoClean: false });
+    expect(result.groups[0]!.autoCleanIds).toEqual([]);
+  });
+
+  it('leaves work still waiting without an acceptance time', async () => {
+    const { handler } = makeHandler([
+      waiting({ id: 'a1', exerciseId: 'ex-1', userId: 'u1', submittedAt: '2026-08-10T08:00:00Z' }),
+    ]);
+
+    const result = await handler.execute(new ListReviewQueueV2Query(SCOPE, 'exercise', 50, null));
+
+    expect(result.groups[0]!.items[0]!.acceptedAt).toBeNull();
   });
 
   it('drops a claim that has aged out and keeps one that has not', async () => {

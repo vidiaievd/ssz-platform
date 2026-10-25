@@ -141,6 +141,8 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     scope: ReviewQueueScope,
     page: { limit: number; after: ReviewQueueCursor | null },
   ): Promise<Attempt[]> {
+    if (scope.acceptedAtTermSince) return this.findAcceptedAtTermPage(scope, page);
+
     const after = page.after;
     const rows = await this.prisma.attempt.findMany({
       where: {
@@ -357,7 +359,82 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     return rows.map(AttemptMapper.toDomain);
   }
 
+  /**
+   * The scope's work closed at the term (`Attempt.acceptedAtTerm`, plan 80, step 7f), paged
+   * like the queue: delivered without a signature, the provisional verdict kept on it.
+   *
+   * Raw for the same JSON null test as `findDueAiVerdictIds`; ids only, then read through the
+   * mapper. The cursor's time is turned back into the column's own zone-less UTC, so the
+   * keyset compares like with like.
+   */
+  private async findAcceptedAtTermPage(
+    scope: ReviewQueueScope,
+    page: { limit: number; after: ReviewQueueCursor | null },
+  ): Promise<Attempt[]> {
+    const filter = this.acceptedAtTermFilter(scope);
+    const afterAt = page.after?.submittedAt ?? null;
+    const afterId = page.after?.id ?? null;
+    const ids = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM attempts
+      WHERE school_id = ${scope.schoolId}
+        AND status IN ('scored', 'returned')
+        AND reviewed_by_user_id IS NULL
+        AND reviewed_at >= ${filter.since}
+        AND submitted_at IS NOT NULL
+        AND review_ai_verdict IS NOT NULL
+        AND jsonb_typeof(review_ai_verdict) = 'object'
+        AND (${filter.groupIds}::text[] IS NULL OR group_id = ANY(${filter.groupIds}::text[]))
+        AND (${filter.containerIds}::text[] IS NULL OR container_id = ANY(${filter.containerIds}::text[]))
+        AND (${filter.templateCodes}::text[] IS NULL OR template_code = ANY(${filter.templateCodes}::text[]))
+        AND (
+          ${afterAt}::timestamptz IS NULL
+          OR (submitted_at, id) > ((${afterAt}::timestamptz AT TIME ZONE 'UTC'), ${afterId}::text)
+        )
+      ORDER BY submitted_at, id
+      LIMIT ${page.limit}`;
+    if (ids.length === 0) return [];
+
+    const rows = await this.prisma.attempt.findMany({
+      where: { id: { in: ids.map((row) => row.id) } },
+    });
+    const order = new Map(ids.map((row, index) => [row.id, index]));
+    return rows
+      .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+      .map(AttemptMapper.toDomain);
+  }
+
+  private async summariseAcceptedAtTerm(scope: ReviewQueueScope): Promise<ReviewQueueSummary> {
+    const filter = this.acceptedAtTermFilter(scope);
+    const [row] = await this.prisma.$queryRaw<Array<{ pending: number; oldest: Date | null }>>`
+      SELECT count(*)::int AS pending, min(submitted_at) AS oldest
+      FROM attempts
+      WHERE school_id = ${scope.schoolId}
+        AND status IN ('scored', 'returned')
+        AND reviewed_by_user_id IS NULL
+        AND reviewed_at >= ${filter.since}
+        AND submitted_at IS NOT NULL
+        AND review_ai_verdict IS NOT NULL
+        AND jsonb_typeof(review_ai_verdict) = 'object'
+        AND (${filter.groupIds}::text[] IS NULL OR group_id = ANY(${filter.groupIds}::text[]))
+        AND (${filter.containerIds}::text[] IS NULL OR container_id = ANY(${filter.containerIds}::text[]))
+        AND (${filter.templateCodes}::text[] IS NULL OR template_code = ANY(${filter.templateCodes}::text[]))`;
+    return { pending: row?.pending ?? 0, oldestSubmittedAt: row?.oldest ?? null };
+  }
+
+  /** An unnarrowed dimension goes in as SQL NULL, which the predicate reads as "any". */
+  private acceptedAtTermFilter(scope: ReviewQueueScope) {
+    return {
+      since: scope.acceptedAtTermSince ?? new Date(0),
+      groupIds: scope.groupIds?.length ? scope.groupIds : null,
+      containerIds: scope.containerIds?.length ? scope.containerIds : null,
+      templateCodes: scope.templateCodes?.length ? scope.templateCodes : null,
+    };
+  }
+
   async summariseReviewQueue(scope: ReviewQueueScope): Promise<ReviewQueueSummary> {
+    if (scope.acceptedAtTermSince) return this.summariseAcceptedAtTerm(scope);
+
     const where = this.reviewQueueWhere(scope);
 
     const [pending, oldest] = await Promise.all([

@@ -81,6 +81,9 @@ const DEFAULT_QUEUE_LIMIT = 50;
  */
 const MAX_BATCH_APPROVE = 100;
 
+/** How far back the list of work closed at the term looks when the caller does not say (7f). */
+const DEFAULT_ACCEPTED_AT_TERM_DAYS = 7;
+
 /** How far back oversight may count verdicts when the caller does not say. */
 const DEFAULT_PERIOD_DAYS = 30;
 
@@ -176,6 +179,13 @@ export class InternalReviewController {
       groupIds,
       containerIds,
       templateCodes: dto.templateCodes?.length ? [...new Set(dto.templateCodes)] : undefined,
+      ...(dto.view === 'accepted_at_term'
+        ? {
+            acceptedAtTermSince: dto.acceptedSince
+              ? new Date(dto.acceptedSince)
+              : new Date(Date.now() - DEFAULT_ACCEPTED_AT_TERM_DAYS * 24 * 60 * 60 * 1000),
+          }
+        : {}),
     };
   }
 

@@ -23,6 +23,12 @@ export interface ReviewQueueScope {
   groupIds?: string[];
   containerIds?: string[];
   templateCodes?: string[];
+  /**
+   * Instead of what waits on a person: the work a model's verdict closed at the school's term
+   * since this moment, with no teacher's verdict on it yet (plan 80, step 7f) — the one place
+   * a teacher finds what they may still revise. A teacher's verdict takes it off the list.
+   */
+  acceptedAtTermSince?: Date;
 }
 
 /**
