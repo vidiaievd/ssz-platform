@@ -143,6 +143,18 @@ describe('GetLearnerAiReviewHandler', () => {
       expect((await run(makeHandler(decided).handler)).error).toEqual({ code: 'NO_AI_REVIEW' });
     });
 
+    it('says the verdict counted by itself once the term ran out (step 4)', async () => {
+      const accepted = waiting({ status: 'RETURNED', reviewedAt: REVIEWED });
+      const result = await run(makeHandler(accepted).handler);
+      expect(result.value).toMatchObject({
+        outcome: 'returned',
+        reviewedAt: REVIEWED,
+        provisional: false,
+        countsAt: null,
+        acceptedAtTerm: true,
+      });
+    });
+
     it('has nothing before the model answered', async () => {
       const result = await run(makeHandler(waiting({ provisionalAiVerdict: null })).handler);
       expect(result.error).toEqual({ code: 'NO_AI_REVIEW' });
@@ -164,6 +176,7 @@ describe('GetLearnerAiReviewHandler', () => {
       disputedAt: null,
       provisional: false,
       countsAt: null,
+      acceptedAtTerm: false,
     });
     expect(JSON.stringify(result.value)).not.toContain('fake-model');
     expect(drafts.findByAttempt).toHaveBeenCalledWith('a1', 'review_direct');

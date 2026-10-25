@@ -202,6 +202,16 @@ export interface IAttemptRepository {
    * draft was saved at or after `liveDraftSince`.
    */
   findRecordingsInUse(assetIds: readonly string[], liveDraftSince: Date): Promise<string[]>;
+  /**
+   * School work whose model verdict is due to count by itself (plan 80, step 4): still in
+   * review, a provisional verdict on it, the term at or before `now`. Oldest term first.
+   */
+  findDueAiVerdictIds(now: Date, limit: number): Promise<string[]>;
   save(attempt: Attempt): Promise<void>;
   saveAll(attempts: Attempt[]): Promise<void>;
+  /**
+   * `save`, only while the stored row is still in review — false when someone closed it in
+   * between (a teacher's verdict landing beside the term job). Nothing is written then.
+   */
+  saveIfInReview(attempt: Attempt): Promise<boolean>;
 }

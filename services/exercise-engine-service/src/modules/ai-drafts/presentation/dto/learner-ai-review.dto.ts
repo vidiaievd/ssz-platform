@@ -85,6 +85,14 @@ export class LearnerAiReviewResponseDto {
     description: 'For a provisional verdict: when it counts by itself if no teacher answers. Null otherwise.',
   })
   countsAt!: string | null;
+
+  @ApiProperty({
+    example: false,
+    description:
+      'My school’s term ran out and no teacher answered, so this verdict counted by itself (plan 80) — ' +
+      'the client labels it «засчитано автоматически». A teacher may still read the work later.',
+  })
+  acceptedAtTerm!: boolean;
 }
 
 export class DisputeAiReviewRequestDto {

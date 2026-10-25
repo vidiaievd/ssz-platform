@@ -698,6 +698,105 @@ describe('Attempt entity', () => {
     });
   });
 
+  describe('acceptAiVerdictAtTerm()', () => {
+    // Plan 80, step 4: no teacher answered by the term, the model's verdict counts.
+    const TERM = new Date('2026-11-01T09:00:00Z');
+    const AFTER = new Date('2026-11-01T09:05:00Z');
+    const approved = { outcome: 'approved' as const, decisions: [], comment: 'Bra.', score: 80, passed: true };
+    const returned = {
+      outcome: 'returned' as const,
+      decisions: [{ itemId: 'i1', approved: false }],
+      comment: 'Se på ordstillingen.',
+      score: 0,
+    };
+
+    const withVerdict = (verdict: typeof approved | typeof returned | null, autoAcceptAt: Date | null = TERM) => {
+      const attempt = makeAttempt();
+      attempt.snapshotReviewContext({
+        schoolId: 'school-1',
+        containerId: null,
+        groupId: null,
+        exercisePath: null,
+        previousAttemptId: null,
+        revisionCount: 0,
+      });
+      attempt.submit({}, 'h');
+      attempt.routeForReview({ autoPassedItems: 1, totalItems: 3 }, null, {
+        mode: 'ai_then_teacher',
+        autoAcceptAt,
+        teacherDrawn: false,
+      });
+      if (verdict) attempt.reviewByAi(verdict);
+      attempt.clearDomainEvents();
+      return attempt;
+    };
+
+    it('closes the work by the model’s verdict, as a model’s evidence dated by the hand-in', () => {
+      const attempt = withVerdict(approved);
+
+      expect(attempt.acceptAiVerdictAtTerm(AFTER).isOk).toBe(true);
+
+      expect(attempt.status).toBe('SCORED');
+      expect(attempt.scoreValue).toBe(80);
+      expect(attempt.reviewedBy).toBe('ai');
+      expect(attempt.acceptedAtTerm).toBe(true);
+      expect(attempt.pendingAiVerdict()).toBeNull();
+      expect(attempt.deliveredVerdict()).toBeNull();
+      const scored = attempt.getDomainEvents().find((e) => e instanceof AttemptScoredEvent) as AttemptScoredEvent;
+      expect(scored.payload).toMatchObject({
+        reviewedBy: 'ai',
+        reviewOutcome: 'approved',
+        attemptedAt: (attempt.submittedAt as Date).toISOString(),
+      });
+      // No letter: a teacher did not answer.
+      expect(attempt.getDomainEvents().map((e) => e.eventType)).not.toContain('exercise.attempt.reviewed');
+    });
+
+    it('sends the work back when that is what the model said', () => {
+      const attempt = withVerdict(returned);
+
+      expect(attempt.acceptAiVerdictAtTerm(AFTER).isOk).toBe(true);
+
+      expect(attempt.status).toBe('RETURNED');
+      expect(attempt.acceptedAtTerm).toBe(true);
+      const event = attempt.getDomainEvents()[0];
+      expect(event.payload).toMatchObject({
+        reviewedBy: 'ai',
+        reviewOutcome: 'returned',
+        attemptedAt: (attempt.submittedAt as Date).toISOString(),
+      });
+    });
+
+    it.each([
+      ['before the term', withVerdict(approved), TERM.getTime() - 1],
+      ['with no model verdict', withVerdict(null), AFTER.getTime()],
+      ['with no term', withVerdict(approved, null), AFTER.getTime()],
+    ])('refuses %s', (_case, attempt, at) => {
+      const result = attempt.acceptAiVerdictAtTerm(new Date(at));
+      expect(result.error).toBeInstanceOf(InvalidAttemptTransitionError);
+      expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
+      expect(attempt.getDomainEvents()).toHaveLength(0);
+    });
+
+    it('refuses once a teacher has answered', () => {
+      const attempt = withVerdict(approved);
+      attempt.review({ ...returned, reviewerId: 'teacher-1' });
+
+      expect(attempt.acceptAiVerdictAtTerm(AFTER).isFail).toBe(true);
+      expect(attempt.reviewedBy).toBe('teacher');
+      expect(attempt.acceptedAtTerm).toBe(false);
+    });
+
+    it('is not a term acceptance when the model closed the work at once', () => {
+      const attempt = makeAttempt();
+      attempt.submit({}, 'h');
+      attempt.routeForReview({ autoPassedItems: 0, totalItems: 1 });
+      attempt.reviewByAi(approved);
+      expect(attempt.reviewedBy).toBe('ai');
+      expect(attempt.acceptedAtTerm).toBe(false);
+    });
+  });
+
   describe('abandon()', () => {
     it('transitions IN_PROGRESS → ABANDONED', () => {
       const attempt = makeAttempt();

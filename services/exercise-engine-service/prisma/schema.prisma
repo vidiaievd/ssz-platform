@@ -355,6 +355,9 @@ model Attempt {
   @@index([containerId, status])
   // Decision journal and median-response-time aggregate.
   @@index([schoolId, reviewedAt])
+  // The term job's scan (plan 80, step 4): partial index "attempts_ai_verdict_due" on
+  // review_auto_accept_at WHERE status = 'routed_for_review' AND review_ai_verdict IS NOT
+  // NULL, in raw SQL (migration 20261025180000) — Prisma cannot express a partial index.
   // At most one IN_PROGRESS attempt per (userId, exerciseId): partial unique index
   // "attempts_one_open_per_user_exercise" WHERE status = 'in_progress', in raw SQL
   // (migration 20261017120000) — Prisma cannot express a partial index (plan 76, 2.5).

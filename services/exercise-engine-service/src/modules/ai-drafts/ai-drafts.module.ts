@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { AttemptsModule } from '../attempts/attempts.module.js';
+import { AcceptAiVerdictsAtTermHandler } from './application/commands/accept-ai-verdicts-at-term/accept-ai-verdicts-at-term.handler.js';
 import { DisputeAiReviewHandler } from './application/commands/dispute-ai-review/dispute-ai-review.handler.js';
 import { GiveUpAiReviewHandler } from './application/commands/give-up-ai-review/give-up-ai-review.handler.js';
 import { PutAiDraftHandler } from './application/commands/put-ai-draft/put-ai-draft.handler.js';
@@ -18,6 +19,8 @@ import { InternalAiReviewController } from './presentation/controllers/internal-
 import { InternalNoReviewerController } from './presentation/controllers/internal-no-reviewer.controller.js';
 import { InternalReviewCasesController } from './presentation/controllers/internal-review-cases.controller.js';
 import { InternalReviewSubjectController } from './presentation/controllers/internal-review-subject.controller.js';
+import { InternalReviewTermsController } from './presentation/controllers/internal-review-terms.controller.js';
+import { AiVerdictTermJob } from './presentation/jobs/ai-verdict-term.job.js';
 
 /**
  * Model-drafted reviews of submissions (plan 79). ai-service reads what to review (the
@@ -26,7 +29,8 @@ import { InternalReviewSubjectController } from './presentation/controllers/inte
  * set candidate models are measured on (step 1.6). For a learner nobody reviews, the model's
  * review comes with a verdict that closes the attempt (step 2.1b) — or, when no model can
  * read it, the attempt closes as `NO_REVIEWER` (step 2.2a). That learner reads the review on
- * their own attempt and may say it is wrong (steps 2.3a–b).
+ * their own attempt and may say it is wrong (steps 2.3a–b). At a school whose model answers
+ * first, its verdict counts by itself once the school's term runs out (plan 80, step 4).
  */
 @Module({
   imports: [CqrsModule, AttemptsModule],
@@ -37,6 +41,7 @@ import { InternalReviewSubjectController } from './presentation/controllers/inte
     InternalNoReviewerController,
     InternalReviewSubjectController,
     InternalReviewCasesController,
+    InternalReviewTermsController,
   ],
   providers: [
     PrismaAttemptAiDraftRepository,
@@ -46,6 +51,8 @@ import { InternalReviewSubjectController } from './presentation/controllers/inte
     GiveUpAiReviewHandler,
     DisputeAiReviewHandler,
     SettleAiDraftHandler,
+    AcceptAiVerdictsAtTermHandler,
+    AiVerdictTermJob,
     GetReviewSubjectHandler,
     GetDraftForReviewHandler,
     GetLearnerAiReviewHandler,

@@ -404,6 +404,23 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     return rows.map((row) => row.id);
   }
 
+  async findDueAiVerdictIds(now: Date, limit: number): Promise<string[]> {
+    // Raw for the JSON null test, which Prisma's filter only spells with a client value
+    // (`Prisma.DbNull`) — and importing the client as a value breaks the test suites. The
+    // mapper's null lands as JSON `null`, not SQL NULL, hence the type test; the IS NOT NULL
+    // beside it is the partial index's own predicate, for the planner.
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM attempts
+      WHERE status = 'routed_for_review'
+        AND review_ai_verdict IS NOT NULL
+        AND jsonb_typeof(review_ai_verdict) = 'object'
+        AND review_auto_accept_at <= ${now}
+      ORDER BY review_auto_accept_at, id
+      LIMIT ${limit}`;
+    return rows.map((row) => row.id);
+  }
+
   async save(attempt: Attempt): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = AttemptMapper.toPersistence(attempt) as any;
@@ -417,6 +434,16 @@ export class PrismaAttemptRepository implements IAttemptRepository {
       if (isUniqueViolation(err)) throw new OpenAttemptExistsError();
       throw err;
     }
+  }
+
+  async saveIfInReview(attempt: Attempt): Promise<boolean> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { id, ...data } = AttemptMapper.toPersistence(attempt) as any;
+    const { count } = await this.prisma.attempt.updateMany({
+      where: { id, status: 'ROUTED_FOR_REVIEW' },
+      data,
+    });
+    return count === 1;
   }
 
   async saveAll(attempts: Attempt[]): Promise<void> {

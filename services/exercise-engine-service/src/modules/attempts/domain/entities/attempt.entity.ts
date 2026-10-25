@@ -1295,10 +1295,45 @@ export class Attempt extends AggregateRoot {
     );
   }
 
-  /** Both verdicts. `reviewerId` is null for a model's. */
+  /**
+   * The model's provisional verdict counts by itself: the school's term ran out and no
+   * teacher gave theirs (plan 80, step 4, R2). Delivered as the model ruled it then — the
+   * review the learner has been reading all along — and with the same weaker evidence as any
+   * model's (`reviewedBy: 'ai'`).
+   *
+   * Dated for memory by the hand-in, not by today (§3): FSRS counts the interval from when the
+   * learner did the work, so a week in the queue is not read as a week of remembering. The
+   * provisional verdict stays on the attempt — it is how this one is told from a model's
+   * verdict that closed the work at once (`acceptedAtTerm`).
+   */
+  acceptAiVerdictAtTerm(now: Date = new Date()): Result<
+    void,
+    InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
+  > {
+    const verdict = this._provisionalAiVerdict;
+    const due = this._reviewAiPolicy?.autoAcceptAt ?? null;
+    if (verdict === null || due === null) {
+      return Result.fail(
+        new InvalidAttemptTransitionError('No model verdict waits on a term for this attempt'),
+      );
+    }
+    if (due > now) {
+      return Result.fail(
+        new InvalidAttemptTransitionError('The term for a teacher to answer has not run out yet'),
+      );
+    }
+    const { at: _given, ...ruling } = verdict;
+    return this.deliver(ruling, null, this._submittedAt);
+  }
+
+  /**
+   * Both verdicts. `reviewerId` is null for a model's. `evidenceAt` dates what progress and
+   * memory hear when it is not the moment of delivery — see `acceptAiVerdictAtTerm`.
+   */
   private deliver(
     props: ReviewVerdict,
     reviewerId: string | null,
+    evidenceAt: Date | null = null,
   ): Result<
     void,
     InvalidScoreError | InvalidAttemptTransitionError | ReviewCommentRequiredError
@@ -1334,7 +1369,7 @@ export class Attempt extends AggregateRoot {
       // collected about recall and production was evidence of success.
       this.addDomainEvent(
         new AttemptReturnedEvent(this.id, {
-          ...this.timing(this._reviewedAt),
+          ...this.timing(evidenceAt ?? this._reviewedAt),
           userId: this._userId,
           exerciseId: this._exerciseId,
           // What the verdict credited, on an approval's scale. Zero when nobody said —
@@ -1382,7 +1417,7 @@ export class Attempt extends AggregateRoot {
     // teacher's judgement of a translation is the strongest evidence this template has.
     this.addDomainEvent(
       new AttemptScoredEvent(this.id, {
-        ...this.timing(this._scoredAt),
+        ...this.timing(evidenceAt ?? this._scoredAt),
         userId: this._userId,
         exerciseId: this._exerciseId,
         score: this._score,
@@ -1693,6 +1728,13 @@ export class Attempt extends AggregateRoot {
    * verdict too: what the model said beside what the teacher decided is the measure of it.
    */
   get provisionalAiVerdict(): ProvisionalAiVerdict | null { return this._provisionalAiVerdict; }
+  /**
+   * The verdict that counts is the model's, taken at the school's term because no teacher
+   * answered (plan 80, step 4) — «засчитано автоматически» to the learner.
+   */
+  get acceptedAtTerm(): boolean {
+    return this.reviewedBy === 'ai' && this._provisionalAiVerdict !== null;
+  }
   /**
    * What the learner is told while a teacher's verdict is awaited after a model's (plan 80,
    * step 3b): the model's word, when it was given, and when it counts by itself. Null once

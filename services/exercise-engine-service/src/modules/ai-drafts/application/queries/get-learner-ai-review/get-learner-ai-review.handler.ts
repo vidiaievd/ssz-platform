@@ -35,6 +35,8 @@ export interface LearnerAiReview {
   provisional: boolean;
   /** For a provisional one: when it counts by itself if no teacher answers; null otherwise. */
   countsAt: Date | null;
+  /** It counted by itself — the school's term ran out with no teacher's answer (step 4). */
+  acceptedAtTerm: boolean;
 }
 
 /**
@@ -76,6 +78,7 @@ export class GetLearnerAiReviewHandler implements IQueryHandler<GetLearnerAiRevi
         disputedAt: null,
         provisional: true,
         countsAt: pending.countsAt,
+        acceptedAtTerm: false,
       });
     }
     return Result.ok({
@@ -88,6 +91,7 @@ export class GetLearnerAiReviewHandler implements IQueryHandler<GetLearnerAiRevi
       disputedAt: review.disputedAt,
       provisional: false,
       countsAt: null,
+      acceptedAtTerm: attempt.acceptedAtTerm,
     });
   }
 }
