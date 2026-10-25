@@ -203,7 +203,10 @@ export class PutAiReviewHandler implements ICommandHandler<PutAiReviewCommand> {
       };
     }
 
-    const reviewed = attempt.reviewByAi(ruling, { disagreesWithMachine });
+    const reviewed = attempt.reviewByAi(ruling, {
+      disagreesWithMachine,
+      model: { capability: CAPABILITY, modelId: draft.modelId, promptVersion: draft.promptVersion },
+    });
     if (reviewed.isFail) {
       return Result.fail(
         reviewed.error instanceof ReviewCommentRequiredError

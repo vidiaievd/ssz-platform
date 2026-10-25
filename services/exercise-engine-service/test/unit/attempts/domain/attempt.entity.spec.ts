@@ -680,9 +680,43 @@ describe('Attempt entity', () => {
       expect(attempt.provisionalAiVerdict?.outcome).toBe('returned');
     });
 
+    // Plan 80, step 6c: what the teacher's letter is folded against as the model's quality.
+    const MODEL = { capability: 'review_direct', modelId: 'm1', promptVersion: 'review_direct@2' };
+    const letterOf = (attempt: Attempt) =>
+      attempt.getDomainEvents().find((e) => e.eventType === 'exercise.attempt.reviewed');
+
+    it('tells the teacher’s letter what the model said, and which model said it', () => {
+      const attempt = routed(firstThenTeacher);
+      attempt.reviewByAi(returned, { model: MODEL });
+
+      attempt.review({ ...approved, reviewerId: 'teacher-1' });
+
+      expect(letterOf(attempt)?.payload).toMatchObject({
+        outcome: 'approved',
+        aiVerdict: { ...MODEL, outcome: 'returned' },
+      });
+    });
+
+    it('names no model for a verdict kept before it was recorded', () => {
+      const attempt = routed(firstThenTeacher);
+      attempt.reviewByAi(approved);
+
+      attempt.review({ ...approved, reviewerId: 'teacher-1' });
+
+      expect(letterOf(attempt)?.payload).toMatchObject({
+        aiVerdict: { capability: 'review_direct', modelId: null, promptVersion: null, outcome: 'approved' },
+      });
+    });
+
+    it('carries no model verdict on a letter where no model answered', () => {
+      const attempt = routed(firstThenTeacher);
+      attempt.review({ ...approved, reviewerId: 'teacher-1' });
+      expect(letterOf(attempt)?.payload).not.toHaveProperty('aiVerdict');
+    });
+
     it('survives the round trip through persistence', () => {
       const attempt = routed(firstThenTeacher);
-      attempt.reviewByAi(approved, {}, AT);
+      attempt.reviewByAi(approved, { model: MODEL }, AT);
       const row = AttemptMapper.toPersistence(attempt);
       // The JSON column comes back as JSON: its date as a string.
       const restored = AttemptMapper.toDomain({
@@ -695,6 +729,7 @@ describe('Attempt entity', () => {
         at: AT,
         countsAt: AUTO_ACCEPT_AT,
       });
+      expect(restored.provisionalAiVerdict?.model).toEqual(MODEL);
     });
   });
 
@@ -853,7 +888,11 @@ describe('Attempt entity', () => {
         attemptedAt: (attempt.submittedAt as Date).toISOString(),
       });
       expect(completed(attempt)?.payload).not.toHaveProperty('reviewedBy');
-      expect(letter(attempt)?.payload).toMatchObject({ outcome: 'returned', revisesVerdict: true });
+      expect(letter(attempt)?.payload).toMatchObject({
+        outcome: 'returned',
+        revisesVerdict: true,
+        aiVerdict: { outcome: 'approved' },
+      });
       // What the model said stays beside the teacher's verdict.
       expect(attempt.provisionalAiVerdict?.outcome).toBe('approved');
     });

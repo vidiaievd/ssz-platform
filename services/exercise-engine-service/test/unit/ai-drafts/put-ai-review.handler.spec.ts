@@ -363,7 +363,14 @@ describe('PutAiReviewHandler on a school’s work', () => {
 
     expect(result.isOk).toBe(true);
     expect(result.value.attempt).toEqual({ status: 'ROUTED_FOR_REVIEW', score: null, passed: null, provisional: true });
-    expect(attempt.provisionalAiVerdict).toMatchObject({ outcome: 'approved', score: 67, approvedItems: 2, totalItems: 3 });
+    expect(attempt.provisionalAiVerdict).toMatchObject({
+      outcome: 'approved',
+      score: 67,
+      approvedItems: 2,
+      totalItems: 3,
+      // Step 6c: kept for the teacher's letter to be folded on.
+      model: { capability: 'review_direct', modelId: 'm1', promptVersion: 'review_direct@1' },
+    });
     expect(attempts.save).toHaveBeenCalledTimes(1);
     expect([...drafts.rows.values()]).toEqual([expect.objectContaining({ capability: 'review_direct', status: 'READY' })]);
     expect(publisher.publish).not.toHaveBeenCalled();

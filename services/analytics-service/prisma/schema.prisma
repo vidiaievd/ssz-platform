@@ -556,7 +556,8 @@ model AiDraftQualityDaily {
   capability       String
   modelId          String?  @map("model_id")
   promptVersion    String?  @map("prompt_version")
-  /// Verdicts given with a draft on screen.
+  /// `review_draft`: verdicts given with a draft on screen. `review_direct`: verdicts a model
+  /// delivered — a teacher's verdict after one is `teacher_verdicts`, not a review (step 6c).
   reviews          Int
   remarksAccepted  Int      @map("remarks_accepted")
   remarksEdited    Int      @map("remarks_edited")
@@ -574,6 +575,11 @@ model AiDraftQualityDaily {
   /// learner nobody reviews, `disputes` how many of them the learner said were wrong —
   /// folded on the review's day, so the two stay a rate. Always 0 on `review_draft` rows.
   disputes         Int      @default(0)
+  /// `review_direct` rows (plan 80, step 6c): teachers' verdicts on school work the model had
+  /// answered first — provisional or counted at the term — on the teacher's day, and how many
+  /// went the other way (approved ↔ returned). Always 0 on `review_draft` rows.
+  teacherVerdicts  Int      @default(0) @map("teacher_verdicts")
+  teacherOverturned Int     @default(0) @map("teacher_overturned")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@unique([day, capability, modelId, promptVersion], map: "ai_draft_quality_daily_dims_key")

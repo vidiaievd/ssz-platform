@@ -406,7 +406,25 @@ export interface ExerciseAttemptReviewedPayload {
    * Absent on every other letter.
    */
   revisesVerdict?: boolean;
+  /**
+   * Additive (plan 80, step 6c) — the model's verdict the learner had already been given on
+   * this work, when the school lets a model answer first: provisional, or counted at the
+   * term (`revisesVerdict`). Whether the teacher went the other way is read against it.
+   * Present on every teacher's verdict on such work — with a draft acted on or not, a batch
+   * approval included; absent everywhere else.
+   */
+  aiVerdict?: AttemptReviewedAiVerdict;
   occurredAt: string;
+}
+
+/** A model's verdict a teacher ruled after (plan 80, step 6c), on the axes it is judged by. */
+export interface AttemptReviewedAiVerdict {
+  /** ai-service capability that gave it: `review_direct`. */
+  capability: string;
+  /** ai-service registry ids; null on verdicts given before step 6c, which kept none. */
+  modelId: string | null;
+  promptVersion: string | null;
+  outcome: 'approved' | 'returned';
 }
 
 export interface AttemptReviewedAiDraft {

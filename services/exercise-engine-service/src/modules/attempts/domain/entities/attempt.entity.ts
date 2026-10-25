@@ -12,6 +12,7 @@ import { AttemptStartedEvent } from '../events/attempt-started.event.js';
 import type {
   AnswerForm,
   AttemptReviewedAiDraft,
+  AttemptReviewedAiVerdict,
   AttemptTarget,
   Focus,
   Modality,
@@ -360,6 +361,18 @@ export interface AttemptReviewAiPolicy {
  */
 export interface ProvisionalAiVerdict extends Omit<ReviewVerdict, 'aiDraft'> {
   at: Date;
+  /**
+   * Which model and prompt gave it (step 6c) — what a teacher's verdict after it is folded
+   * on as that model's quality. Absent on verdicts kept before 6c.
+   */
+  model?: AiVerdictModel;
+}
+
+/** The ai-service axes a model's verdict is judged on. */
+export interface AiVerdictModel {
+  capability: string;
+  modelId: string | null;
+  promptVersion: string | null;
 }
 
 /** A provisional verdict as the learner reads it — see `Attempt.pendingAiVerdict`. */
@@ -1228,11 +1241,12 @@ export class Attempt extends AggregateRoot {
    * the attempt at once only in `ai_with_sampling`, on work the draw did not send to a
    * teacher, that the model credits, and where it does not contradict the auto-check (§3).
    *
-   * `disagreesWithMachine`: the model ruled against an item the auto-check accepted.
+   * `disagreesWithMachine`: the model ruled against an item the auto-check accepted. `model`:
+   * which model gave it, kept with a provisional verdict for the teacher's letter (step 6c).
    */
   reviewByAi(
     props: Omit<ReviewVerdict, 'aiDraft'>,
-    opts: { disagreesWithMachine?: boolean } = {},
+    opts: { disagreesWithMachine?: boolean; model?: AiVerdictModel } = {},
     now: Date = new Date(),
   ): Result<
     AiVerdictLanding,
@@ -1277,7 +1291,11 @@ export class Attempt extends AggregateRoot {
       const score = Score.create(props.score ?? 0);
       if (score.isFail) return Result.fail(score.error);
     }
-    this._provisionalAiVerdict = { ...props, at: now };
+    this._provisionalAiVerdict = {
+      ...props,
+      at: now,
+      ...(opts.model === undefined ? {} : { model: opts.model }),
+    };
     return Result.ok('provisional');
   }
 
@@ -1325,7 +1343,7 @@ export class Attempt extends AggregateRoot {
         new InvalidAttemptTransitionError('The term for a teacher to answer has not run out yet'),
       );
     }
-    const { at: _given, ...ruling } = verdict;
+    const { at: _given, model: _model, ...ruling } = verdict;
     return this.deliver(ruling, null, this._submittedAt);
   }
 
@@ -1538,9 +1556,28 @@ export class Attempt extends AggregateRoot {
         totalItems: props.totalItems ?? 0,
         aiDraft: props.aiDraft ?? null,
         ...(props.revisesVerdict === true ? { revisesVerdict: true } : {}),
+        ...this.answeredModelVerdict(),
         occurredAt: new Date().toISOString(),
       }),
     );
+  }
+
+  /**
+   * The model's verdict a teacher's letter answers, for its quality (plan 80, step 6c):
+   * every teacher's verdict on work a model answered first carries it — whatever the teacher
+   * did with the review on screen, so a batch approval is counted as much as a card.
+   */
+  private answeredModelVerdict(): { aiVerdict?: AttemptReviewedAiVerdict } {
+    const verdict = this._provisionalAiVerdict;
+    if (verdict === null) return {};
+    return {
+      aiVerdict: {
+        capability: verdict.model?.capability ?? 'review_direct',
+        modelId: verdict.model?.modelId ?? null,
+        promptVersion: verdict.model?.promptVersion ?? null,
+        outcome: verdict.outcome,
+      },
+    };
   }
 
   /**

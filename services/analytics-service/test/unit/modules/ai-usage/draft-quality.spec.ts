@@ -1,4 +1,4 @@
-import { aggregateDraftQuality, isFoldableDraft } from '../../../../src/modules/ai-usage/domain/draft-quality.js';
+import { aggregateDraftQuality, isFoldableDraft, reviewedIncrements } from '../../../../src/modules/ai-usage/domain/draft-quality.js';
 
 const row = (over: Partial<Parameters<typeof aggregateDraftQuality>[0][number]> = {}) => ({
   capability: 'review_draft',
@@ -16,6 +16,8 @@ const row = (over: Partial<Parameters<typeof aggregateDraftQuality>[0][number]> 
   marksDeltaSum: 0,
   marksAbsDeltaSum: 0,
   disputes: 0,
+  teacherVerdicts: 0,
+  teacherOverturned: 0,
   ...over,
 });
 
@@ -38,6 +40,21 @@ describe('aggregateDraftQuality', () => {
       marks: { reviews: 0, same: 0, different: 0, compared: 0, agreement: null, meanAbsDelta: null, bias: null },
       disputes: 0,
       disputeRate: null,
+      teacherVerdicts: { total: 0, overturned: 0, overturnRate: null },
+    });
+  });
+
+  // Plan 80, step 6c.
+  it('rates teachers’ verdicts after a model’s apart from the reviews it delivered', () => {
+    const direct = { capability: 'review_direct', promptVersion: 'review_direct@2' };
+    const [group] = aggregateDraftQuality([
+      row({ ...direct, reviews: 4, disputes: 1, teacherVerdicts: 3, teacherOverturned: 1 }),
+      row({ ...direct, reviews: 0, teacherVerdicts: 1, teacherOverturned: 1 }),
+    ]);
+    expect(group).toMatchObject({
+      reviews: 4,
+      disputeRate: 0.25,
+      teacherVerdicts: { total: 4, overturned: 2, overturnRate: 0.5 },
     });
   });
 
@@ -118,5 +135,51 @@ describe('isFoldableDraft', () => {
     expect(isFoldableDraft({ ...draft, marks: { ...marks, absDeltaSum: -1 } })).toBe(false);
     expect(isFoldableDraft({ ...draft, marks: { ...marks, deltaSum: 0.5 } })).toBe(false);
     expect(isFoldableDraft({ ...draft, marks: 'x' })).toBe(false);
+  });
+});
+
+// Plan 80, step 6c.
+describe('reviewedIncrements', () => {
+  const tally = { modelId: 'm1', promptVersion: 'review_direct@2', accepted: 1, edited: 0, discarded: 2, untouched: 0 };
+  const modelSaid = (outcome: string) => ({
+    capability: 'review_direct',
+    modelId: 'm1',
+    promptVersion: 'review_direct@2',
+    outcome,
+  });
+
+  it('counts nothing on a letter with no model in it', () => {
+    expect(reviewedIncrements({ outcome: 'approved', aiDraft: null })).toEqual([]);
+  });
+
+  it('counts a review_draft draft as a review, as before', () => {
+    const [i, ...rest] = reviewedIncrements({ outcome: 'approved', aiDraft: { ...tally, capability: 'review_draft' } })!;
+    expect(rest).toHaveLength(0);
+    expect(i).toMatchObject({ capability: 'review_draft', reviews: 1, remarks: { accepted: 1, discarded: 2 }, teacherVerdicts: 0 });
+  });
+
+  it('takes a review_direct draft’s remarks without counting it as a delivered review', () => {
+    const increments = reviewedIncrements({
+      outcome: 'returned',
+      aiDraft: { ...tally, capability: 'review_direct' },
+      aiVerdict: modelSaid('approved'),
+    })!;
+    expect(increments).toEqual([
+      expect.objectContaining({ capability: 'review_direct', reviews: 0, remarks: expect.objectContaining({ accepted: 1 }), teacherVerdicts: 0 }),
+      expect.objectContaining({ capability: 'review_direct', modelId: 'm1', reviews: 0, teacherVerdicts: 1, teacherOverturned: 1 }),
+    ]);
+  });
+
+  it('counts a teacher’s verdict that agrees, with no draft acted on — a batch approval', () => {
+    expect(reviewedIncrements({ outcome: 'approved', aiDraft: null, aiVerdict: modelSaid('approved') })).toEqual([
+      expect.objectContaining({ teacherVerdicts: 1, teacherOverturned: 0 }),
+    ]);
+  });
+
+  it('refuses a letter it should read and cannot', () => {
+    expect(reviewedIncrements({ outcome: 'approved', aiVerdict: modelSaid('maybe') })).toBeNull();
+    expect(reviewedIncrements({ outcome: 'later', aiVerdict: modelSaid('approved') })).toBeNull();
+    expect(reviewedIncrements({ outcome: 'approved', aiDraft: { ...tally, capability: 'review_draft', edited: -1 } })).toBeNull();
+    expect(reviewedIncrements(null)).toBeNull();
   });
 });
