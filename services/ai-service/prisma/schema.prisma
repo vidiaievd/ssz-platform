@@ -36,6 +36,16 @@ enum AiRegion {
   @@map("ai_region")
 }
 
+/// What a model takes and gives (plan 82, step 3): `llm` — text in, text or structure out,
+/// priced per token; `speech` — audio and a reference text in, words out, priced per audio hour.
+/// A capability binds only models of its own modality.
+enum AiModelModality {
+  llm
+  speech
+
+  @@map("ai_model_modality")
+}
+
 enum AiModelStatus {
   active
   deprecated
@@ -73,7 +83,9 @@ model AiModel {
   /// The id the provider's API expects; for Azure, the deployment name.
   providerModelId String        @map("provider_model_id")
   displayName     String        @map("display_name")
-  /// `ModelFeatures` (src/modules/providers/domain/model-features.ts).
+  modality        AiModelModality @default(llm)
+  /// `ModelFeatures` for `llm`, `SpeechFeatures` for `speech`
+  /// (src/modules/providers/domain/model-features.ts).
   features        Json
   status          AiModelStatus @default(active)
   createdAt       DateTime      @default(now()) @map("created_at")
@@ -100,6 +112,9 @@ model AiModelPrice {
   outputPerMtok     Decimal  @map("output_per_mtok") @db.Decimal(12, 6)
   cacheReadPerMtok  Decimal  @map("cache_read_per_mtok") @db.Decimal(12, 6)
   cacheWritePerMtok Decimal  @map("cache_write_per_mtok") @db.Decimal(12, 6)
+  /// Per hour of audio in, in `currency` — speech models (plan 82, step 3). Per hour, not per
+  /// second: providers list it so ($1/h), and per second it would not fit six decimals.
+  audioPerHour      Decimal  @default(0) @map("audio_per_hour") @db.Decimal(12, 6)
   currency          String   @default("USD")
   createdAt         DateTime @default(now()) @map("created_at")
 
@@ -196,6 +211,8 @@ model AiCall {
   outputTokens     Int?          @map("output_tokens")
   cacheReadTokens  Int?          @map("cache_read_tokens")
   cacheWriteTokens Int?          @map("cache_write_tokens")
+  /// Audio a speech model was given, in milliseconds; null for language models.
+  audioMs          Int?          @map("audio_ms")
   /// In 1e-6 of `currency`. Null when the model had no price in effect.
   costMicros       BigInt?       @map("cost_micros")
   currency         String?

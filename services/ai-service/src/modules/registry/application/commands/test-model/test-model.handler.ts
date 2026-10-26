@@ -8,6 +8,7 @@ import type { LlmOutput, LlmStopReason, LlmUsage } from '../../../../providers/d
 import { CallRecorder } from '../../../../ledger/application/call-recorder.js';
 import { CREDENTIAL_PRESENCE, type ICredentialPresence } from '../../ports/credential-presence.js';
 import { REGISTRY_READER, type IRegistryReader, type ModelForCall } from '../../ports/registry.reader.js';
+import { llmModelRef } from '../../model-ref.js';
 import { providerReadiness } from '../../provider-readiness.js';
 import { TestModelCommand } from './test-model.command.js';
 
@@ -46,6 +47,9 @@ const TEST_SCHEMA = {
  * A failed call is still a 200 with `outcome: 'error'`: the test ran, and its answer is the
  * failure. Every test is a ledger row under capability `diagnostic`, paid by the platform —
  * a real call to a real model, whose cost has to show up somewhere.
+ *
+ * Language models only: a speech model is a 422 — the check would need a recording, and the
+ * recognizer's own check comes with its adapter (plan 82, step 4).
  */
 @CommandHandler(TestModelCommand)
 export class TestModelHandler implements ICommandHandler<TestModelCommand, TestModelResult> {
@@ -61,6 +65,9 @@ export class TestModelHandler implements ICommandHandler<TestModelCommand, TestM
     const found = await this.registry.getModelForCall(command.modelId, new Date());
     if (!found) throw new NotFoundException(`Model ${command.modelId} not found`);
     const { model, provider } = found;
+    if (model.modality !== 'llm') {
+      throw new UnprocessableEntityException(`Model ${model.id} is a ${model.modality} model: the test covers language models only`);
+    }
 
     const readiness = providerReadiness(provider, this.credentials);
     if (!readiness.configured) {
@@ -112,19 +119,12 @@ export class TestModelHandler implements ICommandHandler<TestModelCommand, TestM
   private async call(
     adapter: LlmProvider,
     request: LlmRequest,
-    { model, provider }: ModelForCall,
+    found: ModelForCall,
   ): Promise<Omit<TestModelResult, 'latencyMs' | 'cost' | 'credits' | 'callId'> & { latencyMs: number | null }> {
     try {
-      const raw = await adapter.complete(request, {
-        providerModelId: model.providerModelId,
-        features: model.features,
-        provider: {
-          code: provider.code,
-          baseUrl: provider.baseUrl,
-          apiVersion: provider.apiVersion,
-          credentialRef: provider.credentialRef,
-        },
-      });
+      const ref = llmModelRef(found);
+      if (!ref) throw new Error(`Model ${found.model.id} is not a language model`);
+      const raw = await adapter.complete(request, ref);
       const checked = this.guard.check(raw, request);
       const base = { stop: raw.stop, usage: raw.usage, latencyMs: raw.latencyMs, providerRequestId: raw.providerRequestId };
       if (checked.isOk) {

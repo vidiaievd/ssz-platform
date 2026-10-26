@@ -4,7 +4,7 @@ import { CallRecorder, type CallToRecord } from './call-recorder.js';
 import { LedgerRecordRejected, type IAiCallLedger } from './ports/ai-call.ledger.js';
 import type { ILedgerSpool } from './ports/ledger-spool.js';
 
-function model(price: { input: string; output: string; currency?: string } | null): ModelForCall {
+function model(price: { input: string; output: string; audioPerHour?: string; currency?: string } | null): ModelForCall {
   return {
     model: {
       id: 'm1',
@@ -12,6 +12,7 @@ function model(price: { input: string; output: string; currency?: string } | nul
       providerCode: 'anthropic',
       providerModelId: 'claude-sonnet-5-5',
       displayName: 'Sonnet',
+      modality: 'llm',
       features: {} as never,
       status: 'active',
     },
@@ -33,6 +34,7 @@ function model(price: { input: string; output: string; currency?: string } | nul
           outputPerMtok: price.output,
           cacheReadPerMtok: '0.3',
           cacheWritePerMtok: '3.75',
+          audioPerHour: price.audioPerHour ?? '0',
           currency: price.currency ?? 'USD',
         }
       : null,
@@ -130,6 +132,21 @@ describe('CallRecorder', () => {
     const { recorder: r } = recorder();
     const result = await r.record(call({ model: model({ input: '3', output: '15', currency: 'EUR' }) }));
     expect(result).toMatchObject({ cost: { micros: 6_000, currency: 'EUR' }, credits: null });
+  });
+
+  it('prices a speech call by its audio and keeps the length on the row', async () => {
+    const { recorder: r, written } = recorder();
+    // 90 s at $1/h = $0.025 = 25 000 micro-USD → 25 credits at 1000/USD.
+    const result = await r.record(call({ model: model({ input: '0', output: '0', audioPerHour: '1' }), usage: null, audioMs: 90_000 }));
+    expect(result).toMatchObject({ cost: { micros: 25_000, currency: 'USD' }, credits: '25.000000' });
+    expect(written[0]).toMatchObject({ audioMs: 90_000, usage: null });
+  });
+
+  it('leaves a speech call unpriced without a price, and a language call without audio', async () => {
+    const { recorder: r, written } = recorder();
+    expect(await r.record(call({ model: model(null), usage: null, audioMs: 1_000 }))).toMatchObject({ cost: null, credits: null });
+    await r.record(call());
+    expect(written[1]!.audioMs).toBeNull();
   });
 
   it('retries a failed write and records the row on the next attempt', async () => {

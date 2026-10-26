@@ -9,6 +9,7 @@ import type { LlmResult } from '../../providers/domain/llm-result.js';
 import { BINDING_SOURCE, type IBindingSource } from '../../registry/application/ports/binding.source.js';
 import { CREDENTIAL_PRESENCE, type ICredentialPresence } from '../../registry/application/ports/credential-presence.js';
 import { REGISTRY_READER, type IRegistryReader, type ModelForCall } from '../../registry/application/ports/registry.reader.js';
+import { llmModelRef } from '../../registry/application/model-ref.js';
 import { providerReadiness } from '../../registry/application/provider-readiness.js';
 import { Result } from '../../../shared/kernel/result.js';
 import type { GatewayRequest } from './model-router.js';
@@ -60,6 +61,7 @@ export class ModelCaller {
     const found = await this.registry.getModelForCall(modelId, new Date());
     if (!found) return Result.fail({ kind: 'not_found' });
     const missing = [...providerReadiness(found.provider, this.credentials).missing];
+    if (found.model.modality !== 'llm') missing.push(`a ${found.model.modality} model, not a language model`);
     if (!this.providers.some((p) => p.kind === found.provider.kind)) missing.push(`adapter ${found.provider.kind}`);
     return missing.length > 0 ? Result.fail({ kind: 'not_configured', missing }) : Result.ok(found);
   }
@@ -102,19 +104,12 @@ export class ModelCaller {
   private async complete(found: ModelForCall, request: LlmRequest): Promise<NamedModelOutcome> {
     const adapter = this.providers.find((p) => p.kind === found.provider.kind);
     if (!adapter) throw new Error(`No adapter for provider kind "${found.provider.kind}"`);
+    const ref = llmModelRef(found);
+    if (!ref) throw new Error(`Model ${found.model.id} is not a language model`);
 
     let raw: LlmResult;
     try {
-      raw = await adapter.complete(request, {
-        providerModelId: found.model.providerModelId,
-        features: found.model.features,
-        provider: {
-          code: found.provider.code,
-          baseUrl: found.provider.baseUrl,
-          apiVersion: found.provider.apiVersion,
-          credentialRef: found.provider.credentialRef,
-        },
-      });
+      raw = await adapter.complete(request, ref);
     } catch (err) {
       if (!(err instanceof LlmError)) throw err;
       return { kind: 'error', error: err, raw: null };

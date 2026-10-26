@@ -1,6 +1,7 @@
 import { Inject, NotFoundException } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { findCapability } from '../../../../capabilities/catalog.js';
+import { capabilityModality } from '../../../../capabilities/domain/capability.js';
 import { BINDING_REPOSITORY, type IBindingRepository } from '../../ports/binding.repository.js';
 import type { CapabilityBinding } from '../list-bindings/list-bindings.handler.js';
 import { GetBindingQuery } from './get-binding.query.js';
@@ -15,6 +16,7 @@ export class GetBindingHandler implements IQueryHandler<GetBindingQuery, Capabil
     return {
       capability: capability.code,
       description: capability.description,
+      modality: capabilityModality(capability),
       requiredFeatures: capability.requiredFeatures,
       binding: await this.bindings.get(capability.code),
     };

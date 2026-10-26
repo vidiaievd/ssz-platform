@@ -3,7 +3,7 @@ import type {
   AiModelPrice as PrismaPrice,
   AiProvider as PrismaProvider,
 } from '../../../../../generated/prisma/client.js';
-import type { ModelFeatures } from '../../../providers/domain/model-features.js';
+import type { ModelFeatures, SpeechFeatures } from '../../../providers/domain/model-features.js';
 import type { AiModel, AiModelPrice, AiProvider } from '../../domain/registry.types.js';
 
 // Enum members are declared in their wire form in schema.prisma, so the generated
@@ -24,15 +24,17 @@ export function toProvider(row: PrismaProvider): AiProvider {
 }
 
 export function toModel(row: PrismaModel & { provider: { code: string } }): AiModel {
-  return {
+  const base = {
     id: row.id,
     providerId: row.providerId,
     providerCode: row.provider.code,
     providerModelId: row.providerModelId,
     displayName: row.displayName,
-    features: row.features as unknown as ModelFeatures,
     status: row.status,
   };
+  return row.modality === 'speech'
+    ? { ...base, modality: 'speech', features: row.features as unknown as SpeechFeatures }
+    : { ...base, modality: 'llm', features: row.features as unknown as ModelFeatures };
 }
 
 export function toPrice(row: PrismaPrice): AiModelPrice {
@@ -42,6 +44,7 @@ export function toPrice(row: PrismaPrice): AiModelPrice {
     outputPerMtok: row.outputPerMtok.toString(),
     cacheReadPerMtok: row.cacheReadPerMtok.toString(),
     cacheWritePerMtok: row.cacheWritePerMtok.toString(),
+    audioPerHour: row.audioPerHour.toString(),
     currency: row.currency,
   };
 }

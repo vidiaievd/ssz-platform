@@ -28,6 +28,7 @@ function found(over: { kind?: any; providerModelId?: string; credentialRef?: str
       providerCode: 'fake',
       providerModelId: over.providerModelId ?? 'fake',
       displayName: 'Fake',
+      modality: 'llm',
       features,
       status: 'active',
     },
@@ -51,6 +52,7 @@ function found(over: { kind?: any; providerModelId?: string; credentialRef?: str
             outputPerMtok: '10',
             cacheReadPerMtok: '0',
             cacheWritePerMtok: '0',
+            audioPerHour: '0',
             currency: 'USD',
           },
   };

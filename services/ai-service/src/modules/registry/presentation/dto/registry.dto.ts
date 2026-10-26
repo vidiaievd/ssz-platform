@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiExtraModels, ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
 import { IsOptional, IsUUID } from 'class-validator';
 
 const PROVIDER_KINDS = ['anthropic', 'openai', 'openai_compatible', 'azure_openai', 'google', 'fake'];
@@ -70,6 +70,9 @@ export class ModelPriceResponseDto {
   @ApiProperty({ example: '2.5', description: 'Per 1M cache-write tokens, decimal string' })
   cacheWritePerMtok!: string;
 
+  @ApiProperty({ example: '0', description: 'Per hour of audio in, decimal string — speech models' })
+  audioPerHour!: string;
+
   @ApiProperty({ example: 'USD' })
   currency!: string;
 }
@@ -92,6 +95,18 @@ export class ModelFeaturesDto {
   maxOutput!: number;
 }
 
+export class SpeechFeaturesDto {
+  @ApiProperty({ type: [String], example: ['nb'], description: 'Course languages it recognizes' })
+  languages!: string[];
+
+  @ApiProperty({ description: 'Start and end of every word' }) wordTimings!: boolean;
+  @ApiProperty({ description: 'Scores pronunciation against the reference text' }) pronunciation!: boolean;
+
+  @ApiProperty({ example: 120, description: 'Longest audio one call takes' })
+  maxAudioSeconds!: number;
+}
+
+@ApiExtraModels(ModelFeaturesDto, SpeechFeaturesDto)
 export class ModelResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -108,8 +123,18 @@ export class ModelResponseDto {
   @ApiProperty({ example: 'Claude Sonnet 5.5' })
   displayName!: string;
 
-  @ApiProperty({ type: ModelFeaturesDto })
-  features!: ModelFeaturesDto;
+  @ApiProperty({
+    enum: ['llm', 'speech'],
+    example: 'llm',
+    description: '`llm` — text in, priced per token; `speech` — audio in, priced per audio hour',
+  })
+  modality!: string;
+
+  @ApiProperty({
+    oneOf: [{ $ref: getSchemaPath(ModelFeaturesDto) }, { $ref: getSchemaPath(SpeechFeaturesDto) }],
+    description: '`ModelFeaturesDto` for `llm`, `SpeechFeaturesDto` for `speech`',
+  })
+  features!: ModelFeaturesDto | SpeechFeaturesDto;
 
   @ApiProperty({ enum: ['active', 'deprecated', 'disabled'], example: 'active' })
   status!: string;

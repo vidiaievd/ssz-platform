@@ -71,11 +71,11 @@ export class AdminRegistryController {
       'Checks the key, the model id and structured output in one go. Runs on a disabled provider ' +
       '(that is what it is for) but not on an unconfigured one. A failed call is a 200 with ' +
       '`outcome: "error"` — the test ran, the failure is its answer. Each test is a ledger row ' +
-      '(capability diagnostic, payer platform).',
+      '(capability diagnostic, payer platform). Language models only: a speech model is a 422.',
   })
   @ApiOkResponse({ type: TestModelResponseDto })
   @ApiNotFoundResponse({ description: 'No such model' })
-  @ApiUnprocessableEntityResponse({ description: 'Provider not configured, or no adapter for its kind yet' })
+  @ApiUnprocessableEntityResponse({ description: 'Provider not configured, no adapter for its kind yet, or a speech model' })
   testModel(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser): Promise<TestModelResult> {
     return this.commandBus.execute(new TestModelCommand(id, user.userId, 'platform_admin'));
   }

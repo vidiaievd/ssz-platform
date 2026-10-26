@@ -8,6 +8,7 @@ import type { LlmResult } from '../../providers/domain/llm-result.js';
 import { BINDING_SOURCE, type IBindingSource } from '../../registry/application/ports/binding.source.js';
 import { CREDENTIAL_PRESENCE, type ICredentialPresence } from '../../registry/application/ports/credential-presence.js';
 import { REGISTRY_READER, type IRegistryReader, type ModelForCall } from '../../registry/application/ports/registry.reader.js';
+import { llmModelRef } from '../../registry/application/model-ref.js';
 import { providerReadiness } from '../../registry/application/provider-readiness.js';
 import type { AiBinding } from '../../registry/domain/binding.js';
 import type { AiRegion } from '../../registry/domain/registry.types.js';
@@ -36,6 +37,8 @@ const NO_CONSTRAINTS: RouteConstraints = { allowedRegions: null };
 /** Why a model was stepped over without being called. */
 export type SkipReason =
   | 'model_missing'
+  /** A speech model bound to a language-model capability — the binding check refuses it, stale data does not. */
+  | 'wrong_modality'
   /** The provider's region is not one the payer allows. */
   | 'region_not_allowed'
   | 'model_disabled'
@@ -131,24 +134,16 @@ export class ModelRouter {
     for (const { role, modelId } of candidates) {
       const model = await this.registry.getModelForCall(modelId, new Date());
       const adapter = model ? this.providers.find((p) => p.kind === model.provider.kind) : undefined;
+      const ref = model ? llmModelRef(model) : null;
       const skip = await this.skipReason(model, adapter, constraints);
-      if (skip || !model || !adapter) {
+      if (skip || !model || !adapter || !ref) {
         attempts.push({ role, modelId, outcome: 'skipped', reason: skip });
         continue;
       }
 
       let raw: LlmResult;
       try {
-        raw = await adapter.complete(request, {
-          providerModelId: model.model.providerModelId,
-          features: model.model.features,
-          provider: {
-            code: model.provider.code,
-            baseUrl: model.provider.baseUrl,
-            apiVersion: model.provider.apiVersion,
-            credentialRef: model.provider.credentialRef,
-          },
-        });
+        raw = await adapter.complete(request, ref);
       } catch (err) {
         if (!(err instanceof LlmError)) throw err;
         attempts.push({ role, modelId, outcome: 'error', reason: err.code });
@@ -181,6 +176,7 @@ export class ModelRouter {
     constraints: RouteConstraints,
   ): Promise<SkipReason | null> {
     if (!model) return 'model_missing';
+    if (model.model.modality !== 'llm') return 'wrong_modality';
     if (!regionAllowed(constraints, model.provider.region)) return 'region_not_allowed';
     if (model.model.status === 'disabled') return 'model_disabled';
     if (!model.provider.enabled) return 'provider_disabled';

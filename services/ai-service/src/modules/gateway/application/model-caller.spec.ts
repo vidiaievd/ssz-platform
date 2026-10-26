@@ -34,6 +34,7 @@ function model(
       providerCode: 'fake',
       providerModelId: over.providerModelId ?? 'fake',
       displayName: id,
+      modality: 'llm',
       features,
       status: over.status ?? 'active',
     },

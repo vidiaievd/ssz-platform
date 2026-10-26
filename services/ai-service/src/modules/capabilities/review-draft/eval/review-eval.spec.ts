@@ -245,7 +245,7 @@ const features: ModelFeatures = {
 };
 
 const CANDIDATE: ModelForCall = {
-  model: { id: 'cand', providerId: 'p', providerCode: 'fake', providerModelId: 'fake', displayName: 'cand', features, status: 'active' },
+  model: { id: 'cand', providerId: 'p', providerCode: 'fake', providerModelId: 'fake', displayName: 'cand', modality: 'llm', features, status: 'active' },
   provider: { id: 'p', code: 'fake', kind: 'fake', displayName: 'Fake', baseUrl: null, apiVersion: null, credentialRef: null, region: 'local', enabled: true },
   currentPrice: null,
 };
@@ -436,7 +436,7 @@ describe('RunReviewEvalHandler + ReviewEvalRunner', () => {
   });
 
   it('refuses a model without structured output', async () => {
-    const plain: ModelForCall = { ...CANDIDATE, model: { ...CANDIDATE.model, features: { ...features, structuredOutput: 'none' } } };
+    const plain: ModelForCall = { ...CANDIDATE, model: { ...CANDIDATE.model, modality: 'llm', features: { ...features, structuredOutput: 'none' } } };
     await expect(setup({ resolved: plain }).handler.execute(command())).rejects.toThrow('lacks what review_draft needs');
   });
 

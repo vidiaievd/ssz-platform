@@ -39,6 +39,7 @@ function model(
       providerCode: 'fake',
       providerModelId: over.providerModelId ?? 'fake',
       displayName: id,
+      modality: 'llm',
       features,
       status: over.status ?? 'active',
     },
@@ -116,6 +117,19 @@ describe('ModelRouter', () => {
     expect(routed.value.result.output.kind).toBe('structured');
     expect(routed.value.attempts).toEqual([{ role: 'primary', modelId: 'primary', outcome: 'ok', reason: null }]);
     expect(breaker.successes).toEqual(['primary']);
+  });
+
+  it('steps over a speech model a stale binding points at, to the fallback', async () => {
+    const stale = model('primary');
+    const recognizer: ModelForCall = {
+      ...stale,
+      model: { ...stale.model, modality: 'speech', features: { languages: ['nb'], wordTimings: true, pronunciation: false, maxAudioSeconds: 60 } },
+    };
+    const { router } = setup({ binding: binding(), models: [recognizer, model('fallback')] });
+    const routed = await router.call('diagnostic', CALL);
+    expect(routed.isOk).toBe(true);
+    expect(routed.value.role).toBe('fallback');
+    expect(routed.value.attempts[0]).toEqual({ role: 'primary', modelId: 'primary', outcome: 'skipped', reason: 'wrong_modality' });
   });
 
   it('switches to the fallback on a retryable error and counts it against the primary', async () => {

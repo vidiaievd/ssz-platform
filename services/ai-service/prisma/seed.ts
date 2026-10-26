@@ -2,7 +2,7 @@
 //
 // Idempotent and conservative, because after the first run the admin owns these rows:
 //  - a provider or model that exists keeps its `enabled` / `status`; only descriptive
-//    fields (names, URLs, credentialRef, region, features) follow the file;
+//    fields (names, URLs, credentialRef, region, modality, features) follow the file;
 //  - a price is immutable: an existing (model, effectiveFrom) is never rewritten, and a
 //    file entry that disagrees with it is reported, not applied;
 //  - nothing absent from the file is deleted.
@@ -21,12 +21,16 @@ interface SeedPrice {
   outputPerMtok: string;
   cacheReadPerMtok: string;
   cacheWritePerMtok: string;
+  /** Speech models; absent = 0. */
+  audioPerHour?: string;
   currency?: string;
 }
 
 interface SeedModel {
   providerModelId: string;
   displayName: string;
+  /** Absent = `llm`. */
+  modality?: 'llm' | 'speech';
   features: Record<string, unknown>;
   prices: SeedPrice[];
 }
@@ -52,7 +56,7 @@ const url = process.env['DATABASE_URL'];
 if (!url) throw new Error('DATABASE_URL is not set');
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 
-const PRICE_FIELDS = ['inputPerMtok', 'outputPerMtok', 'cacheReadPerMtok', 'cacheWritePerMtok'] as const;
+const PRICE_FIELDS = ['inputPerMtok', 'outputPerMtok', 'cacheReadPerMtok', 'cacheWritePerMtok', 'audioPerHour'] as const;
 
 async function main(): Promise<void> {
   for (const p of data.providers) {
@@ -78,9 +82,10 @@ async function main(): Promise<void> {
           providerId: provider.id,
           providerModelId: m.providerModelId,
           displayName: m.displayName,
+          modality: m.modality ?? 'llm',
           features: m.features as Prisma.InputJsonValue,
         },
-        update: { displayName: m.displayName, features: m.features as Prisma.InputJsonValue },
+        update: { displayName: m.displayName, modality: m.modality ?? 'llm', features: m.features as Prisma.InputJsonValue },
       });
       console.log(`  model ${m.providerModelId} (status=${model.status})`);
 
@@ -98,13 +103,14 @@ async function main(): Promise<void> {
               outputPerMtok: price.outputPerMtok,
               cacheReadPerMtok: price.cacheReadPerMtok,
               cacheWritePerMtok: price.cacheWritePerMtok,
+              audioPerHour: price.audioPerHour ?? '0',
               currency: price.currency ?? 'USD',
             },
           });
           console.log(`    price from ${price.effectiveFrom} added`);
           continue;
         }
-        const differs = PRICE_FIELDS.filter((f) => !existing[f].equals(new Prisma.Decimal(price[f])));
+        const differs = PRICE_FIELDS.filter((f) => !existing[f].equals(new Prisma.Decimal(price[f] ?? '0')));
         if (differs.length > 0) {
           console.warn(
             `    price from ${price.effectiveFrom} differs from the stored one in ${differs.join(', ')} — ` +

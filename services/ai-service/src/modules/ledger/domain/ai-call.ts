@@ -35,6 +35,8 @@ export interface AiCallRecord {
   model: CalledModel | null;
   promptVersion: string | null;
   usage: LlmUsage | null;
+  /** Audio a speech model took, in ms; null for language models (plan 82, step 3). */
+  audioMs: number | null;
   /** Null when the model had no price in effect (or nothing was called — then 0). */
   cost: { micros: number; currency: string } | null;
   /** Decimal string; null when the cost is unknown. */

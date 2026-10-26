@@ -103,9 +103,14 @@ export class CapabilityBindingResponseDto {
   @ApiProperty({ example: 'Echo through the gateway, for checking a binding' })
   description!: string;
 
+  @ApiProperty({ enum: ['llm', 'speech'], example: 'llm', description: 'The modality both models must have' })
+  modality!: string;
+
   @ApiProperty({
     example: { structuredOutput: 'json_mode', tools: true },
-    description: 'Floor both models must meet; absent field = no requirement',
+    description:
+      'Floor both models must meet; absent field = no requirement. Speech capabilities: ' +
+      '`languages`, `wordTimings`, `pronunciation`, `minAudioSeconds`',
   })
   requiredFeatures!: Record<string, unknown>;
 

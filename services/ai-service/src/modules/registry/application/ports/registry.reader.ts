@@ -4,10 +4,10 @@ export interface ProviderWithModelCount extends AiProvider {
   modelCount: number;
 }
 
-export interface ModelWithCurrentPrice extends AiModel {
+export type ModelWithCurrentPrice = AiModel & {
   /** The latest price whose `effectiveFrom` is not in the future; null when none is recorded. */
   currentPrice: AiModelPrice | null;
-}
+};
 
 export interface ModelForCall {
   model: AiModel;
