@@ -11,6 +11,7 @@ import {
   OpenAiCompatibleLlmProvider,
   OpenAiLlmProvider,
 } from './infrastructure/openai/openai-llm.provider.js';
+import { WhisperLocalSpeechAssessor } from './infrastructure/whisper/whisper-local.assessor.js';
 
 /**
  * Every adapter is registered here and exposed as one list under `LLM_PROVIDERS`; the
@@ -39,10 +40,11 @@ import {
       ],
     },
     FakeSpeechAssessor,
+    WhisperLocalSpeechAssessor,
     {
       provide: SPEECH_ASSESSORS,
       useFactory: (...assessors: SpeechAssessor[]) => assessors,
-      inject: [FakeSpeechAssessor],
+      inject: [FakeSpeechAssessor, WhisperLocalSpeechAssessor],
     },
   ],
   exports: [SchemaGuard, LLM_PROVIDERS, SPEECH_ASSESSORS],

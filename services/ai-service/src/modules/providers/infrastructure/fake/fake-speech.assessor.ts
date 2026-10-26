@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import { lexicalWords } from '../../domain/lexical.js';
 import { LlmError } from '../../domain/llm-error.js';
 import type { SpeechModelRef } from '../../domain/model-features.js';
 import type { SpeechAssessor } from '../../domain/speech-assessor.port.js';
@@ -114,14 +115,6 @@ function pronunciation(reference: string[], heardAt: (i: number) => boolean): Pr
     prosody: null,
     words,
   };
-}
-
-/** Lowercase, punctuation off — the lexical form a recognizer returns. */
-function lexicalWords(text: string): string[] {
-  return text
-    .split(/\s+/)
-    .map((w) => w.toLowerCase().replace(/[^\p{L}\p{N}'-]+/gu, ''))
-    .filter((w) => w.length > 0);
 }
 
 function throwIfFailure(scenario: FakeSpeechScenario): void {

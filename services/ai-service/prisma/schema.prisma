@@ -20,6 +20,7 @@ enum AiProviderKind {
   openai_compatible
   azure_openai
   google
+  whisper_local
   fake
 
   @@map("ai_provider_kind")

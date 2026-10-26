@@ -6,7 +6,8 @@
     "Seeding never touches `enabled` or `status` of rows that already exist — those belong to the admin.",
     "Anthropic prices: first-party API list prices as of 2026-10-06; cacheWrite assumed 1.25x input (5-minute cache). Verify before going live.",
     "OpenAI and Google models carry no price yet: public sources disagreed on 2026-10-20. Add one from the provider's own pricing page before binding them.",
-    "modality: absent = llm. A speech model's features are SpeechFeatures (languages, wordTimings, pronunciation, maxAudioSeconds) and it is priced by audioPerHour (USD per hour of audio); absent audioPerHour = 0 (plan 82, step 3)."
+    "modality: absent = llm. A speech model's features are SpeechFeatures (languages, wordTimings, pronunciation, maxAudioSeconds) and it is priced by audioPerHour (USD per hour of audio); absent audioPerHour = 0 (plan 82, step 3).",
+    "whisper-local: the NB-Whisper sidecar (infrastructure/whisper, plan 82, step 4). providerModelId must be the model the image was built with (Dockerfile ARG MODEL) — another one is answered 404. Self-hosted, so audioPerHour = 0."
   ],
   "providers": [
     {
@@ -41,6 +42,24 @@
           "displayName": "Fake speech — misses every 3rd word",
           "modality": "speech",
           "features": { "languages": ["nb", "nn", "en"], "wordTimings": true, "pronunciation": false, "maxAudioSeconds": 120 },
+          "prices": [{ "effectiveFrom": "2026-10-26", "inputPerMtok": "0", "outputPerMtok": "0", "cacheReadPerMtok": "0", "cacheWritePerMtok": "0", "audioPerHour": "0" }]
+        }
+      ]
+    },
+    {
+      "code": "whisper-local",
+      "kind": "whisper_local",
+      "displayName": "NB-Whisper (self-hosted sidecar)",
+      "baseUrl": "http://whisper:8000",
+      "credentialRef": null,
+      "region": "local",
+      "enabled": true,
+      "models": [
+        {
+          "providerModelId": "nb-whisper-small-verbatim",
+          "displayName": "NB-Whisper small, verbatim",
+          "modality": "speech",
+          "features": { "languages": ["nb", "nn"], "wordTimings": true, "pronunciation": false, "maxAudioSeconds": 120 },
           "prices": [{ "effectiveFrom": "2026-10-26", "inputPerMtok": "0", "outputPerMtok": "0", "cacheReadPerMtok": "0", "cacheWritePerMtok": "0", "audioPerHour": "0" }]
         }
       ]

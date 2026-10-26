@@ -47,6 +47,8 @@ export type ProviderKind =
   | 'openai_compatible'
   | 'azure_openai'
   | 'google'
+  /** Self-hosted NB-Whisper sidecar (plan 82, step 4): speech only, keyless, needs `baseUrl`. */
+  | 'whisper_local'
   | 'fake';
 
 /** Where and how to reach a provider — the registry row, minus anything secret. */
