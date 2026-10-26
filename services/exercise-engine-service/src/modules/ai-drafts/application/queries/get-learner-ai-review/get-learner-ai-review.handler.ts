@@ -14,7 +14,7 @@ import {
   ATTEMPT_AI_DRAFT_REPOSITORY,
   type IAttemptAiDraftRepository,
 } from '../../../domain/repositories/attempt-ai-draft.repository.js';
-import type { DraftReading } from '../../../domain/reading-verdict.js';
+import { readingForView, type ViewedReading } from '../../../domain/reading-verdict.js';
 import { GetLearnerAiReviewQuery } from './get-learner-ai-review.query.js';
 
 export type GetLearnerAiReviewError =
@@ -34,7 +34,7 @@ export interface LearnerAiReview {
    * A `read_aloud` reading (plan 82): what was heard in each prompt and the check the verdict
    * stood on. Null for every other template.
    */
-  reading: DraftReading | null;
+  reading: ViewedReading | null;
   reviewedAt: Date;
   /** When the learner said the review is wrong (2.3b); null until they do. */
   disputedAt: Date | null;
@@ -84,7 +84,7 @@ export class GetLearnerAiReviewHandler implements IQueryHandler<GetLearnerAiRevi
         items: review.items,
         summary: review.summary,
         marks: review.marks,
-        reading: review.reading,
+        reading: readingForView(review.reading),
         reviewedAt: pending.at,
         disputedAt: null,
         provisional: true,
@@ -97,7 +97,7 @@ export class GetLearnerAiReviewHandler implements IQueryHandler<GetLearnerAiRevi
       items: review.items,
       summary: review.summary,
       marks: review.marks,
-      reading: review.reading,
+      reading: readingForView(review.reading),
       // `reviewedBy` is only `ai` with a delivery time on the attempt.
       reviewedAt: attempt.reviewedAt as Date,
       disputedAt: review.disputedAt,

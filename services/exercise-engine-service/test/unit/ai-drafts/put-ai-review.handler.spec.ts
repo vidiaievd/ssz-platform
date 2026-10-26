@@ -504,6 +504,7 @@ describe('PutAiReviewHandler — read_aloud', () => {
     words: [],
     audioMs: 15000,
     pronunciation: null,
+    aiCallId: `call-${itemId}`,
   });
   const heardAll = () => [hearing(P1, lexical(doc.prompts[0]!.text)), hearing(P2, lexical(doc.prompts[1]!.text))];
   // 13 of 15 — under the 90 % mark.
@@ -533,9 +534,9 @@ describe('PutAiReviewHandler — read_aloud', () => {
     const stored = [...drafts.rows.values()][0]!;
     expect(stored.capability).toBe('voice_review');
     expect(stored.reading?.passPercent).toBe(90);
-    expect(stored.reading?.prompts.map((p) => [p.itemId, p.percent, p.passed])).toEqual([
-      [P1, 100, true],
-      [P2, 100, true],
+    expect(stored.reading?.prompts.map((p) => [p.itemId, p.percent, p.passed, p.aiCallId])).toEqual([
+      [P1, 100, true, `call-${P1}`],
+      [P2, 100, true, `call-${P2}`],
     ]);
 
     const scored = published(publisher).find((e) => e.type === 'exercise.attempt.completed')?.payload;

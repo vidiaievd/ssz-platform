@@ -9,6 +9,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -126,6 +127,11 @@ export class PromptHearingDto {
   @ValidateNested()
   @Type(() => PronunciationScoresDto)
   pronunciation?: PronunciationScoresDto | null;
+
+  /** The ledger row of the call that heard this prompt; the review's own `aiCallId` is the first prompt's. */
+  @IsOptional()
+  @IsUUID()
+  aiCallId?: string | null;
 }
 
 /** A `read_aloud` reading (plan 82, step 7): what was heard, prompt by prompt. */
@@ -172,5 +178,6 @@ export function toHearings(dto: ReadingHearingDto): PromptHearing[] {
           words: p.pronunciation.words.map((w) => ({ text: w.text, accuracy: w.accuracy, error: w.error })),
         }
       : null,
+    aiCallId: p.aiCallId ?? null,
   }));
 }

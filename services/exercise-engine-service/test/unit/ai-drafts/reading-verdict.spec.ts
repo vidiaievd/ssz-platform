@@ -1,6 +1,7 @@
 import { SAMPLE_PROMPT_IDS, sampleDocument, type SubmittedRecording } from '@ssz/shared-kernel/read-aloud';
 import {
   readingComment,
+  readingForView,
   readingRuling,
   type PromptHearing,
   type ReadingRulingInput,
@@ -22,6 +23,7 @@ const hearing = (itemId: string, transcript: string, over: Partial<PromptHearing
   words: [],
   audioMs: 20000,
   pronunciation: null,
+  aiCallId: null,
   ...over,
 });
 
@@ -169,5 +171,20 @@ describe('readingComment', () => {
     // 84.6 %.
     expect(readingComment({ read: 11, total: 13 }, 85)).toBe('11/13 · 84 % < 85 %');
     expect(readingComment({ read: 17, total: 20 }, 85)).toBe('17/20 · 85 % ≥ 85 %');
+  });
+
+  // Plan 82, step 8: every prompt is its own ai-service call.
+  it('keeps the call that heard each prompt, and leaves it out of what people are shown', () => {
+    const result = readingRuling(input(), [
+      hearing(P1, lexical(TEXT1), { aiCallId: 'call-1' }),
+      hearing(P2, lexical(TEXT2), { aiCallId: 'call-2' }),
+    ]);
+    if ('missing' in result) throw new Error('expected a ruling');
+    expect(result.reading.prompts.map((p) => p.aiCallId)).toEqual(['call-1', 'call-2']);
+
+    const viewed = readingForView(result.reading)!;
+    expect(viewed.prompts.map((p) => 'aiCallId' in p)).toEqual([false, false]);
+    expect(viewed.prompts.map((p) => p.passed)).toEqual(result.reading.prompts.map((p) => p.passed));
+    expect(readingForView(null)).toBeNull();
   });
 });

@@ -142,7 +142,8 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
       calls.push(heard.call);
     }
 
-    // The first prompt's call stands for the review; every prompt's call is its own ledger row.
+    // The first prompt's call stands for the review — its key at the engine; every prompt
+    // carries its own call in what was heard.
     const meta = metaOf(calls[0]!);
     const lastCallId = calls[calls.length - 1]!.recorded.callId;
     const written = await this.write(command.attemptId, { status: 'ready', prompts: hearings }, meta);
@@ -176,7 +177,11 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
     const { routed } = call;
     if (routed.isOk) {
       const { transcript, words, audioMs, pronunciation } = routed.value.result;
-      return { kind: 'heard', hearing: { itemId, transcript, words, audioMs, pronunciation }, call };
+      return {
+        kind: 'heard',
+        hearing: { itemId, transcript, words, audioMs, pronunciation, aiCallId: call.recorded.callId },
+        call,
+      };
     }
     const failure = routed.error;
     switch (failure.kind) {

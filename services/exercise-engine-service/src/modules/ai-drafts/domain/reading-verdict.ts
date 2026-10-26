@@ -46,6 +46,13 @@ export interface PromptHearing {
   /** Length of the audio the provider took; null when it did not say. */
   audioMs: number | null;
   pronunciation: PronunciationScores | null;
+  /**
+   * The ai-service ledger row of the call that heard this prompt — each prompt is its own call,
+   * and a fallback or a dropped pronunciation level may answer one prompt and not the next.
+   * The draft's `aiCallId` is the first prompt's. Internal: never shown to a learner or a
+   * teacher. Null when ai-service did not say.
+   */
+  aiCallId: string | null;
 }
 
 /**
@@ -141,6 +148,7 @@ export function readingRuling(input: ReadingRulingInput, heard: readonly PromptH
     words: hearing.words,
     audioMs: hearing.audioMs,
     pronunciation: hearing.pronunciation,
+    aiCallId: hearing.aiCallId,
     check,
     percent: verdict.prompts[index]!.percent,
     passed: verdict.prompts[index]!.passed,
@@ -194,4 +202,14 @@ export function readingComment(check: Pick<ReadingCheck, 'read' | 'total'>, pass
 function speechSeconds(words: readonly HeardWord[]): number {
   if (words.length === 0) return 0;
   return Math.max(0, words[words.length - 1]!.endMs - words[0]!.startMs) / 1000;
+}
+
+/** A reading as a learner or a teacher sees it: without the ledger ids of the calls behind it. */
+export interface ViewedReading extends Omit<DraftReading, 'prompts'> {
+  prompts: Array<Omit<PromptReadingReview, 'aiCallId'>>;
+}
+
+export function readingForView(reading: DraftReading | null): ViewedReading | null {
+  if (reading === null) return null;
+  return { ...reading, prompts: reading.prompts.map(({ aiCallId: _aiCallId, ...prompt }) => prompt) };
 }

@@ -5,7 +5,7 @@ import {
   ATTEMPT_AI_DRAFT_REPOSITORY,
   type IAttemptAiDraftRepository,
 } from '../../../domain/repositories/attempt-ai-draft.repository.js';
-import type { DraftReading } from '../../../domain/reading-verdict.js';
+import { readingForView, type ViewedReading } from '../../../domain/reading-verdict.js';
 import { GetDraftForReviewQuery } from './get-draft-for-review.query.js';
 
 /** `ready` until the verdict settles it; the other three are set by step 1.5. */
@@ -19,7 +19,7 @@ export interface ReviewDraftView {
   /** Suggested rubric marks, by criterion id; null when the model was not asked (1.7c). */
   marks: AiDraftMark[] | null;
   /** A `read_aloud` reading (plan 82): what was heard beside each recording, and the check. */
-  reading: DraftReading | null;
+  reading: ViewedReading | null;
   modelId: string | null;
   promptVersion: string | null;
   /**
@@ -53,7 +53,7 @@ export class GetDraftForReviewHandler implements IQueryHandler<GetDraftForReview
       items: draft.items,
       summary: draft.summary,
       marks: draft.marks,
-      reading: draft.reading,
+      reading: readingForView(draft.reading),
       modelId: draft.modelId,
       promptVersion: draft.promptVersion,
       shownToLearner: draft.capability !== 'review_draft',

@@ -180,6 +180,10 @@ describe('VoiceReviewHandler', () => {
       ['p2', 'jeg jobber på et kontor.', 3_000],
     ]);
     expect(meta).toMatchObject({ providerId: 'provider-1', modelId: 'model-1', promptVersion: 'voice_review@1' });
+    // Each prompt names the call that heard it; the review is written under the first one.
+    const ids = reading.prompts.map((p) => p.aiCallId);
+    expect(new Set(ids).size).toBe(2);
+    expect(ids[0]).toBe(meta.aiCallId);
     expect(outcome).toMatchObject({ kind: 'ruled', attemptStatus: 'scored', provisional: false, capability: 'voice_review' });
     if (outcome.kind === 'ruled') expect(outcome.aiCallIds[0]).toBe(meta.aiCallId);
     expect(gaveUp).toEqual([]);
@@ -215,6 +219,9 @@ describe('VoiceReviewHandler', () => {
     expect(asked.map((a) => a.capability)).toEqual(['voice_review_pronunciation', 'voice_review', 'voice_review']);
     expect(writes[0]?.reading.status).toBe('ready');
     expect(outcome).toMatchObject({ kind: 'ruled', capability: 'voice_review' });
+    if (outcome.kind !== 'ruled' || writes[0]?.reading.status !== 'ready') return;
+    // The refused pronunciation call heard nothing: the first prompt names the plain call after it.
+    expect(writes[0].reading.prompts.map((p) => p.aiCallId)).toEqual(outcome.aiCallIds);
   });
 
   it.each([

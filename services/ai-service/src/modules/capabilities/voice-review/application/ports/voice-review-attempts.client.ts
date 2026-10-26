@@ -5,8 +5,15 @@ import type { VoiceSubjectResult } from '../../domain/read-aloud-subject.js';
 
 export const VOICE_REVIEW_ATTEMPTS_CLIENT = Symbol('IVoiceReviewAttemptsClient');
 
-/** What one prompt's recording was heard as — the speech model's answer as it is (engine step 7). */
-export type PromptHearing = { itemId: string } & Pick<SpeechResult, 'transcript' | 'words' | 'audioMs' | 'pronunciation'>;
+/**
+ * What one prompt's recording was heard as — the speech model's answer as it is (engine step 7) —
+ * and the ledger row of the call that heard it: a fallback or the plain level may answer one
+ * prompt and not the next, and the review's own `aiCallId` is the first prompt's.
+ */
+export type PromptHearing = { itemId: string; aiCallId: string } & Pick<
+  SpeechResult,
+  'transcript' | 'words' | 'audioMs' | 'pronunciation'
+>;
 
 /** One write of a voice review: what was heard in every prompt, or the record that hearing failed. */
 export type ReadingToWrite = { status: 'ready'; prompts: PromptHearing[] } | { status: 'failed'; errorCode: string };
