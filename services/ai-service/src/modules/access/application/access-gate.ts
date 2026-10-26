@@ -77,6 +77,23 @@ export class AccessGate {
     return Result.ok({ allowedRegions, feature, quota });
   }
 
+  /**
+   * Whether `check` would let the payer past the policy and the tariff — without the quota,
+   * and false when either cannot be read. For an agent choosing between capabilities before it
+   * calls one (plan 82, step 8: the pronunciation level); the call itself is still checked.
+   */
+  async allows(capability: string, payer: Payer): Promise<boolean> {
+    if (payer.type === 'platform') return true;
+    try {
+      const policy = (await this.policies.get(payer)) ?? DEFAULT_POLICY;
+      if (!policy.aiEnabled) return false;
+      return (await this.entitlements.getFeature(payer, featureKeyOf(capability)))?.enabled === true;
+    } catch (err) {
+      this.logger.warn({ err, capability, payer }, 'Access gate could not read the payer policy or entitlement; not available');
+      return false;
+    }
+  }
+
   /** Adds a finished call's credits to the counter the gate checked. Never throws. */
   async charge(grant: GateGrant, credits: string | null): Promise<void> {
     if (!grant.quota || !credits) return;

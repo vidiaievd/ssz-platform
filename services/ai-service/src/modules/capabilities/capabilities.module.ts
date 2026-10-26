@@ -26,8 +26,16 @@ import { ReviewEvalRunner } from './review-draft/eval/application/review-eval-ru
 import { RunReviewEvalHandler } from './review-draft/eval/application/run-review-eval.handler.js';
 import { PrismaEvalRunRepository } from './review-draft/eval/infrastructure/prisma-eval-run.repository.js';
 import { AdminReviewEvalsController } from './review-draft/eval/presentation/admin-review-evals.controller.js';
+import { RECORDING_AUDIO_SOURCE } from './voice-review/application/ports/recording-audio.source.js';
+import { VOICE_REVIEW_ATTEMPTS_CLIENT } from './voice-review/application/ports/voice-review-attempts.client.js';
+import { VoiceReviewHandler } from './voice-review/application/voice-review/voice-review.handler.js';
+import { HttpRecordingAudioSource } from './voice-review/infrastructure/http-recording-audio.source.js';
+import { HttpVoiceReviewAttemptsClient } from './voice-review/infrastructure/http-voice-review-attempts.client.js';
 
-/** Agents: `diagnostic` (plan 77), `review_draft` and `review_direct` (plan 79); each agent plan adds its own folder here. */
+/**
+ * Agents: `diagnostic` (plan 77), `review_draft` and `review_direct` (plan 79), `voice_review`
+ * (plan 82); each agent plan adds its own folder here.
+ */
 @Module({
   imports: [GatewayModule],
   controllers: [AdminDiagnosticController, AdminReviewDraftController, AdminReviewEvalsController],
@@ -42,6 +50,8 @@ import { AdminReviewEvalsController } from './review-draft/eval/presentation/adm
     // review_direct for a learner without a school, from the same event (plan 79, step 2.2c)
     DirectReviewHandler,
     LearnerPayerResolver,
+    // voice_review of a reading aloud, from the same event (plan 82, step 8)
+    VoiceReviewHandler,
     // candidate models measured on the settled drafts (plan 79, step 1.6)
     RunReviewEvalHandler,
     ListReviewEvalRunsHandler,
@@ -59,6 +69,18 @@ import { AdminReviewEvalsController } from './review-draft/eval/presentation/adm
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfig>) =>
         new HttpDirectReviewAttemptsClient(config.get<string>('exerciseEngineUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: VOICE_REVIEW_ATTEMPTS_CLIENT,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpVoiceReviewAttemptsClient(config.get<string>('exerciseEngineUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: RECORDING_AUDIO_SOURCE,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpRecordingAudioSource(config.get<string>('mediaServiceUrl')!, config.get<string>('internalServiceToken')!),
     },
     {
       provide: LEARNER_LANGUAGE_READER,

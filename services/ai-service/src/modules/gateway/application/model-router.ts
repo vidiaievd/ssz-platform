@@ -5,10 +5,14 @@ import { LlmError } from '../../providers/domain/llm-error.js';
 import { LLM_PROVIDERS, type LlmProvider } from '../../providers/domain/llm-provider.port.js';
 import type { LlmRequest } from '../../providers/domain/llm-request.js';
 import type { LlmResult } from '../../providers/domain/llm-result.js';
+import type { ModelModality } from '../../providers/domain/model-features.js';
+import { SPEECH_ASSESSORS, type SpeechAssessor } from '../../providers/domain/speech-assessor.port.js';
+import type { SpeechRequest } from '../../providers/domain/speech-request.js';
+import type { SpeechResult } from '../../providers/domain/speech-result.js';
 import { BINDING_SOURCE, type IBindingSource } from '../../registry/application/ports/binding.source.js';
 import { CREDENTIAL_PRESENCE, type ICredentialPresence } from '../../registry/application/ports/credential-presence.js';
 import { REGISTRY_READER, type IRegistryReader, type ModelForCall } from '../../registry/application/ports/registry.reader.js';
-import { llmModelRef } from '../../registry/application/model-ref.js';
+import { llmModelRef, speechModelRef } from '../../registry/application/model-ref.js';
 import { providerReadiness } from '../../registry/application/provider-readiness.js';
 import type { AiBinding } from '../../registry/domain/binding.js';
 import type { AiRegion } from '../../registry/domain/registry.types.js';
@@ -25,6 +29,9 @@ export type GatewayRequest = Omit<LlmRequest, 'maxOutputTokens' | 'temperature' 
  */
 export type GatewayInput = GatewayRequest | ((promptVersion: string) => GatewayRequest);
 
+/** A recording as a voice capability states it; the timeout comes from the binding (plan 82, step 8). */
+export type SpeechGatewayRequest = Omit<SpeechRequest, 'timeoutMs'>;
+
 export type ModelRole = 'primary' | 'fallback';
 
 /** What the access gate allows this call; null regions = any. */
@@ -37,8 +44,10 @@ const NO_CONSTRAINTS: RouteConstraints = { allowedRegions: null };
 /** Why a model was stepped over without being called. */
 export type SkipReason =
   | 'model_missing'
-  /** A speech model bound to a language-model capability — the binding check refuses it, stale data does not. */
+  /** A model of the other modality — the binding check refuses it, stale data does not. */
   | 'wrong_modality'
+  /** A speech model that does not list the recording's language; the fallback may (plan 82, step 8). */
+  | 'language_not_supported'
   /** The provider's region is not one the payer allows. */
   | 'region_not_allowed'
   | 'model_disabled'
@@ -55,16 +64,17 @@ export interface RouteAttempt {
   reason: SkipReason | LlmError['code'] | null;
 }
 
-export interface RoutedCall {
-  /** Checked by `SchemaGuard`: a structured answer is `{ kind: 'structured' }`. */
-  result: LlmResult;
+/** A routed call's answer: `R` is `LlmResult` for a language model, `SpeechResult` for a speech one. */
+export interface Routed<R> {
+  /** For a language model, checked by `SchemaGuard`: a structured answer is `{ kind: 'structured' }`. */
+  result: R;
   model: ModelForCall;
   role: ModelRole;
   binding: AiBinding;
   attempts: RouteAttempt[];
 }
 
-export type RouteFailure =
+export type RouteFailureOf<R> =
   /** No binding, or its switch is off: refused before any model. */
   | { kind: 'disabled'; binding: AiBinding | null; attempts: RouteAttempt[] }
   /** Every model was stepped over; none was called. */
@@ -81,9 +91,17 @@ export type RouteFailure =
       model: ModelForCall;
       role: ModelRole;
       binding: AiBinding;
-      raw: LlmResult | null;
+      raw: R | null;
       attempts: RouteAttempt[];
     };
+
+export type RoutedCall = Routed<LlmResult>;
+export type RouteFailure = RouteFailureOf<LlmResult>;
+export type RoutedSpeech = Routed<SpeechResult>;
+export type SpeechRouteFailure = RouteFailureOf<SpeechResult>;
+
+/** One model of the route, called: the answer, or a refused answer as an error beside it. */
+type Invoke<R> = (model: ModelForCall) => (() => Promise<Result<R, { error: LlmError; raw: R }>>) | null;
 
 /**
  * Binding → primary model; on a retryable error, a switched-off provider or an open
@@ -98,6 +116,10 @@ export type RouteFailure =
  * EU-only school whose primary is in the US is answered by an EU fallback. When region is
  * the only reason every model was stepped over, the call is refused by policy rather than
  * reported as an outage.
+ *
+ * A voice capability (plan 82, step 8) takes the same route with a recording — `callSpeech`:
+ * only speech models, through the speech adapters, and a model that does not list the
+ * recording's language is stepped over to the fallback like a switched-off one.
  */
 @Injectable()
 export class ModelRouter {
@@ -108,6 +130,7 @@ export class ModelRouter {
     @Inject(LLM_PROVIDERS) private readonly providers: LlmProvider[],
     @Inject(CIRCUIT_BREAKER) private readonly breaker: ICircuitBreaker,
     private readonly guard: SchemaGuard,
+    @Inject(SPEECH_ASSESSORS) private readonly assessors: SpeechAssessor[] = [],
   ) {}
 
   async call(
@@ -125,6 +148,49 @@ export class ModelRouter {
       timeoutMs: binding.timeoutMs,
       ...(binding.temperature !== null ? { temperature: binding.temperature } : {}),
     };
+    return this.route<LlmResult>(binding, 'llm', constraints, (model) => {
+      const adapter = this.providers.find((p) => p.kind === model.provider.kind);
+      const ref = llmModelRef(model);
+      if (!adapter || !ref) return null;
+      return async () => {
+        const raw = await adapter.complete(request, ref);
+        const checked = this.guard.check(raw, request);
+        return checked.isFail ? Result.fail({ error: checked.error, raw }) : Result.ok(checked.value);
+      };
+    });
+  }
+
+  /** A recording to a voice capability's speech models (plan 82, step 8). */
+  async callSpeech(
+    capability: string,
+    input: SpeechGatewayRequest,
+    constraints: RouteConstraints = NO_CONSTRAINTS,
+  ): Promise<Result<RoutedSpeech, SpeechRouteFailure>> {
+    const binding = await this.bindings.get(capability);
+    if (!binding || !binding.enabled) return Result.fail({ kind: 'disabled', binding, attempts: [] });
+
+    const request: SpeechRequest = { ...input, timeoutMs: binding.timeoutMs };
+    const invoke: Invoke<SpeechResult> = (model) => {
+      const adapter = this.assessors.find((a) => a.kind === model.provider.kind);
+      const ref = speechModelRef(model);
+      if (!adapter || !ref) return null;
+      return async () => Result.ok(await adapter.assess(request, ref));
+    };
+    return this.route(binding, 'speech', constraints, invoke, request.language);
+  }
+
+  /**
+   * Primary, then fallback. `invoke` gives null when no adapter takes the model, else the call:
+   * it rejects with an `LlmError` when the provider failed, and fails when the answer came but
+   * was refused.
+   */
+  private async route<R>(
+    binding: AiBinding,
+    modality: ModelModality,
+    constraints: RouteConstraints,
+    invoke: Invoke<R>,
+    language: string | null = null,
+  ): Promise<Result<Routed<R>, RouteFailureOf<R>>> {
     const candidates: Array<{ role: ModelRole; modelId: string }> = [{ role: 'primary', modelId: binding.primaryModelId }];
     if (binding.fallbackModelId) candidates.push({ role: 'fallback', modelId: binding.fallbackModelId });
 
@@ -133,17 +199,16 @@ export class ModelRouter {
 
     for (const { role, modelId } of candidates) {
       const model = await this.registry.getModelForCall(modelId, new Date());
-      const adapter = model ? this.providers.find((p) => p.kind === model.provider.kind) : undefined;
-      const ref = model ? llmModelRef(model) : null;
-      const skip = await this.skipReason(model, adapter, constraints);
-      if (skip || !model || !adapter || !ref) {
-        attempts.push({ role, modelId, outcome: 'skipped', reason: skip });
+      const skip = await this.skipReason(model, modality, constraints, language);
+      const called = !skip && model ? invoke(model) : null;
+      if (!model || !called) {
+        attempts.push({ role, modelId, outcome: 'skipped', reason: skip ?? 'no_adapter' });
         continue;
       }
 
-      let raw: LlmResult;
+      let answer: Result<R, { error: LlmError; raw: R }>;
       try {
-        raw = await adapter.complete(request, ref);
+        answer = await called();
       } catch (err) {
         if (!(err instanceof LlmError)) throw err;
         attempts.push({ role, modelId, outcome: 'error', reason: err.code });
@@ -154,13 +219,12 @@ export class ModelRouter {
       }
 
       await this.breaker.recordSuccess(modelId);
-      const checked = this.guard.check(raw, request);
-      if (checked.isFail) {
-        attempts.push({ role, modelId, outcome: 'error', reason: checked.error.code });
-        return Result.fail({ kind: 'error', error: checked.error, model, role, binding, raw, attempts });
+      if (answer.isFail) {
+        attempts.push({ role, modelId, outcome: 'error', reason: answer.error.error.code });
+        return Result.fail({ kind: 'error', error: answer.error.error, model, role, binding, raw: answer.error.raw, attempts });
       }
       attempts.push({ role, modelId, outcome: 'ok', reason: null });
-      return Result.ok({ result: checked.value, model, role, binding, attempts });
+      return Result.ok({ result: answer.value, model, role, binding, attempts });
     }
 
     if (lastRetryable) return Result.fail({ kind: 'error', ...lastRetryable, binding, raw: null, attempts });
@@ -172,16 +236,19 @@ export class ModelRouter {
 
   private async skipReason(
     model: ModelForCall | null,
-    adapter: LlmProvider | undefined,
+    modality: ModelModality,
     constraints: RouteConstraints,
+    language: string | null,
   ): Promise<SkipReason | null> {
     if (!model) return 'model_missing';
-    if (model.model.modality !== 'llm') return 'wrong_modality';
+    if (model.model.modality !== modality) return 'wrong_modality';
     if (!regionAllowed(constraints, model.provider.region)) return 'region_not_allowed';
     if (model.model.status === 'disabled') return 'model_disabled';
     if (!model.provider.enabled) return 'provider_disabled';
     if (!providerReadiness(model.provider, this.credentials).configured) return 'provider_not_configured';
-    if (!adapter) return 'no_adapter';
+    if (language !== null && model.model.modality === 'speech' && !model.model.features.languages.includes(language)) {
+      return 'language_not_supported';
+    }
     if (await this.breaker.isOpen(model.model.id)) return 'breaker_open';
     return null;
   }
