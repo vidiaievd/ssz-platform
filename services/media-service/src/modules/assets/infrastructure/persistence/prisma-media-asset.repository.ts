@@ -83,6 +83,20 @@ export class PrismaMediaAssetRepository implements IMediaAssetRepository {
     return rows.map((row) => MediaAssetMapper.toDomain(row));
   }
 
+  async findReadyRecordingsWithoutVariant(variantType: string, limit: number): Promise<MediaAssetEntity[]> {
+    const rows = await this.prisma.mediaAsset.findMany({
+      where: {
+        entityType: SUBMISSION_RECORDING,
+        status: 'READY',
+        deletedAt: null,
+        variants: { none: { variantType } },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: limit,
+    });
+    return rows.map((row) => MediaAssetMapper.toDomain(row));
+  }
+
   async findAbandonedUploadsOlderThan(
     olderThan: Date,
     after: RecordingSweepCursor | null,

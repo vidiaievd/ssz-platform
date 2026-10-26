@@ -33,11 +33,20 @@ import {
   type ContentSweepReport,
 } from '../../application/services/sweep-orphan-content-assets.service.js';
 import {
+  BackfillSpeechVariantsService,
+  type SpeechBackfillReport,
+} from '../../application/services/backfill-speech-variants.service.js';
+import {
   SupersedeAssetCommand,
   type SupersedeAssetResult,
 } from '../../application/commands/supersede-asset/supersede-asset.command.js';
 import { SupersedeAssetDto, SupersedeAssetResponseDto } from '../dto/asset-response.dto.js';
-import { AssetDescriptionDto, AssetIdsDto, AssetPlaybackDto } from '../dto/internal-assets.dto.js';
+import {
+  AssetDescriptionDto,
+  AssetIdsDto,
+  AssetPlaybackDto,
+  PlaybackRequestDto,
+} from '../dto/internal-assets.dto.js';
 
 // Service-to-service routes only — @Public() exempts them from the global JWT guard,
 // InternalAuthGuard demands 'x-internal-token' instead. Not routed by the gateway:
@@ -56,6 +65,7 @@ export class InternalAssetsController {
     private readonly sweepSuperseded: SweepSupersededNarrationsService,
     private readonly sweepAbandoned: SweepAbandonedUploadsService,
     private readonly sweepContent: SweepOrphanContentAssetsService,
+    private readonly backfillSpeech: BackfillSpeechVariantsService,
   ) {}
 
   @Post('describe')
@@ -75,16 +85,18 @@ export class InternalAssetsController {
   @Post('playback')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Playback URLs for assets (review BFF)',
+    summary: 'Playback URLs for assets (review BFF, ai-service)',
     description:
       'Pre-signed URLs with duration and waveform peaks, for a reviewer listening to a submission. ' +
       'The caller must have had the engine confirm the submission is the reviewer\'s to review. ' +
-      'Assets not in storage (pending, refused, deleted) and unknown ids are left out.',
+      'Assets not in storage (pending, refused, deleted) and unknown ids are left out. ' +
+      'With `variant: "speech"` — the WAV a voice review feeds a recogniser (plan 82); a recording ' +
+      'without it yet is left out too.',
   })
   @ApiResponse({ status: 200, type: [AssetPlaybackDto] })
-  @ApiResponse({ status: 400, description: 'ids missing, empty, too many or not UUIDs' })
-  async playback(@Body() dto: AssetIdsDto): Promise<AssetPlayback[]> {
-    return this.queryBus.execute(new GetPlaybackQuery(dto.ids));
+  @ApiResponse({ status: 400, description: 'ids missing, empty, too many or not UUIDs; unknown variant' })
+  async playback(@Body() dto: PlaybackRequestDto): Promise<AssetPlayback[]> {
+    return this.queryBus.execute(new GetPlaybackQuery(dto.ids, dto.variant));
   }
 
   @Post(':assetId/supersede')
@@ -165,5 +177,26 @@ export class InternalAssetsController {
   @ApiResponse({ status: 200, description: 'ContentSweepReport' })
   async sweepOrphanContentNow(@Query('dryRun') dryRun?: string): Promise<ContentSweepReport> {
     return this.sweepContent.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
+  }
+
+  @Post('backfill-speech')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Write the speech variant for older recordings (operator)',
+    description:
+      'READY recordings processed before the speech variant existed (plan 82, step 5) get their WAV ' +
+      '16 kHz mono, oldest first, up to `limit` (default and ceiling 500) in one pass. A DRY RUN ' +
+      'unless `dryRun=false` is passed explicitly. Answers with what was found, written and failed.',
+  })
+  @ApiResponse({ status: 200, description: 'SpeechBackfillReport' })
+  async backfillSpeechNow(
+    @Query('dryRun') dryRun?: string,
+    @Query('limit') limit?: string,
+  ): Promise<SpeechBackfillReport> {
+    const parsed = limit === undefined ? undefined : Number.parseInt(limit, 10);
+    return this.backfillSpeech.run({
+      mode: dryRun === 'false' ? 'write' : 'dry-run',
+      limit: Number.isFinite(parsed) ? parsed : undefined,
+    });
   }
 }

@@ -20,6 +20,7 @@ function makeHandler() {
     findMany: jest.fn(),
     countMany: jest.fn(),
     findRecordingsOlderThan: jest.fn(),
+    findReadyRecordingsWithoutVariant: jest.fn(),
     findAbandonedUploadsOlderThan: jest.fn(),
     findContentAssetsOlderThan: jest.fn(),
     findSupersededBefore: jest.fn(),

@@ -41,6 +41,7 @@ function makeHandler(asset: MediaAssetEntity | null = makePendingAsset()) {
     findMany: jest.fn(),
     countMany: jest.fn(),
     findRecordingsOlderThan: jest.fn(),
+    findReadyRecordingsWithoutVariant: jest.fn(),
     findAbandonedUploadsOlderThan: jest.fn(),
     findContentAssetsOlderThan: jest.fn(),
     findSupersededBefore: jest.fn(),
@@ -80,6 +81,7 @@ function makeHandler(asset: MediaAssetEntity | null = makePendingAsset()) {
   const audio: jest.Mocked<IAudioInspector> = {
     durationMs: jest.fn().mockResolvedValue(5_000),
     waveform: jest.fn(),
+    speechWav: jest.fn(),
   };
 
   storage.getObject.mockResolvedValue(Buffer.from('recording'));

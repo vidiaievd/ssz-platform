@@ -2,9 +2,16 @@ import { IQuery } from '@nestjs/cqrs';
 
 // A reviewer's player for a submission's recordings (plan 70, Q2-A). The caller — the
 // review BFF — has already had the engine confirm the submission is the reviewer's.
+//
+// `speech` is the same route for a machine listener (plan 82, step 5): ai-service asks for
+// the WAV a recogniser takes. It has no fallback — an asset without the variant (still
+// processing, made before the variant existed, or not a recording) is left out, and the
+// caller tells those apart by describing the asset.
+export type PlaybackVariant = 'playback' | 'speech';
+
 export interface AssetPlayback {
   id: string;
-  /** The mp3 variant once processed; the original until then. */
+  /** `playback`: the mp3 variant once processed, the original until then. `speech`: the WAV. */
   url: string;
   mimeType: string;
   expiresAt: string;
@@ -14,5 +21,8 @@ export interface AssetPlayback {
 }
 
 export class GetPlaybackQuery implements IQuery {
-  constructor(readonly ids: readonly string[]) {}
+  constructor(
+    readonly ids: readonly string[],
+    readonly variant: PlaybackVariant = 'playback',
+  ) {}
 }

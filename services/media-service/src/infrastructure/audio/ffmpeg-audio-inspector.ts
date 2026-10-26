@@ -12,11 +12,13 @@ import {
   pcmSamples,
   peaksOf,
 } from './audio-measure.js';
+import { buildWav } from './wav.js';
 
 // Low enough to keep a three-minute decode at ~3 MB, high enough for a waveform.
 const PCM_RATE = 8000;
 // A recording is capped at 8 MB and three minutes; anything slower than this is stuck.
 const TIMEOUT_MS = 30_000;
+// Three minutes of 16 kHz speech PCM is ~5.8 MB — the largest output any call makes.
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 
 @Injectable()
@@ -61,6 +63,23 @@ export class FfmpegAudioInspector implements IAudioInspector {
         peaks: peaksOf(samples, bins),
         durationMs: Math.round((samples.length / PCM_RATE) * 1000),
       };
+    });
+  }
+
+  // Raw PCM through the pipe and our own header: ffmpeg writing WAV to a pipe cannot seek
+  // back to fill in the sizes, and a reader that trusts the header then sees no data.
+  async speechWav(data: Buffer, extension: string, sampleRate: number): Promise<Buffer> {
+    return this.withFile(data, extension, async (path) => {
+      const pcm = await run(ffmpegInstaller.path, [
+        '-v', 'error',
+        '-i', path,
+        '-vn',
+        '-ac', '1',
+        '-ar', String(sampleRate),
+        '-f', 's16le',
+        'pipe:1',
+      ]);
+      return buildWav({ sampleRate, channels: 1, bitsPerSample: 16, data: pcm });
     });
   }
 
