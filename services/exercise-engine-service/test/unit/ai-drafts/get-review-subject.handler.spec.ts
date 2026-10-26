@@ -1,3 +1,4 @@
+import { sampleDocument, toContent, toExpectedAnswers } from '@ssz/shared-kernel/read-aloud';
 import { GetReviewSubjectHandler } from '../../../src/modules/ai-drafts/application/queries/get-review-subject/get-review-subject.handler.js';
 import { GetReviewSubjectQuery } from '../../../src/modules/ai-drafts/application/queries/get-review-subject/get-review-subject.query.js';
 import type { IAttemptAiDraftRepository } from '../../../src/modules/ai-drafts/domain/repositories/attempt-ai-draft.repository.js';
@@ -71,7 +72,10 @@ function setup({ attempt, draft = false, content = 'ok', submitted, exercise }: 
   return { handler: new GetReviewSubjectHandler(attempts, drafts, contentClient), reads };
 }
 
-const run = (handler: GetReviewSubjectHandler, capability: 'review_draft' | 'review_direct' = 'review_draft') =>
+const run = (
+  handler: GetReviewSubjectHandler,
+  capability: 'review_draft' | 'review_direct' | 'voice_review' = 'review_draft',
+) =>
   handler.execute(new GetReviewSubjectQuery(ATTEMPT, capability));
 
 describe('GetReviewSubjectHandler', () => {
@@ -351,5 +355,83 @@ describe('GetReviewSubjectHandler', () => {
 
   it('fails on an unknown attempt', async () => {
     expect((await run(setup({ attempt: null }).handler)).error).toEqual({ code: 'ATTEMPT_NOT_FOUND' });
+  });
+
+  // Plan 82, step 6: a reading is checked by ear, and only the voice check is handed it.
+  describe('read_aloud', () => {
+    const readAloud = (overrides: { carried?: boolean; mode?: 'read' | 'dialogue' } = {}) => {
+      const doc = sampleDocument();
+      doc.mode = overrides.mode ?? 'read';
+      doc.review.aiStage = true;
+      doc.review.readingPassPercent = 90;
+      const [p1, p2] = doc.prompts;
+      const carried = { attemptId: 'a-prev', attempt: 1, marks: {}, points: 9, max: 12, comment: 'Bra.' };
+      return setup({
+        attempt: { status: 'ROUTED_FOR_REVIEW', schoolId: null, templateCode: 'read_aloud' },
+        exercise: { content: toContent(doc), expectedAnswers: toExpectedAnswers(doc) },
+        submitted: {
+          recordings: [
+            { itemId: p1!.id, assetId: 'asset-1', seconds: 21, takes: 2, ...(overrides.carried ? { carried } : {}) },
+            { itemId: p2!.id, assetId: 'asset-2', seconds: 12, takes: 1, discarded: [{ assetId: 'asset-3', seconds: 10 }] },
+          ],
+        },
+      });
+    };
+
+    it('reads each passage beside the take chosen for it, the pass mark and the author’s switches', async () => {
+      const { handler } = readAloud();
+      const result = await run(handler, 'voice_review');
+      const doc = sampleDocument();
+      expect(result.value).toMatchObject({ skip: null, templateCode: 'read_aloud' });
+      expect(result.value.subject).toEqual({
+        template: 'read_aloud',
+        targetLanguage: 'nb',
+        passPercent: 90,
+        ai: { on: true, checks: { transcript: true, pronunciation: true, fluency: false } },
+        prompts: [
+          {
+            itemId: doc.prompts[0]!.id,
+            label: 'Avsnitt 1',
+            text: doc.prompts[0]!.text,
+            focus: ['søkte', 'Kjetil', 'Kirkegata'],
+            assetId: 'asset-1',
+            seconds: 21,
+          },
+          {
+            itemId: doc.prompts[1]!.id,
+            label: 'Avsnitt 2',
+            text: doc.prompts[1]!.text,
+            focus: ['hvert', 'tjue'],
+            assetId: 'asset-2',
+            seconds: 12,
+          },
+        ],
+        carriedItemIds: [],
+      });
+    });
+
+    it('leaves a prompt carried from a returned try to the teacher’s ruling', async () => {
+      const { handler } = readAloud({ carried: true });
+      const subject = (await run(handler, 'voice_review')).value.subject;
+      expect(subject).toMatchObject({ carriedItemIds: [sampleDocument().prompts[0]!.id] });
+      expect(subject && 'prompts' in subject && subject.prompts.map((p) => p.assetId)).toEqual(['asset-2']);
+    });
+
+    it('reads AI as off for a mode the machine cannot check (Q7)', async () => {
+      const { handler } = readAloud({ mode: 'dialogue' });
+      expect((await run(handler, 'voice_review')).value.subject).toMatchObject({ ai: { on: false } });
+    });
+
+    it('is not handed to a text capability, which would read it as a template it does not know', async () => {
+      const { handler, reads } = readAloud();
+      expect((await run(handler, 'review_direct')).value).toMatchObject({ skip: 'TEMPLATE_NOT_SUPPORTED', subject: null });
+      expect(reads).toEqual([]);
+    });
+
+    it('does not hand text to the voice check', async () => {
+      const { handler, reads } = setup({ attempt: { status: 'ROUTED_FOR_REVIEW', schoolId: null, templateCode: 'translate_to_target' } });
+      expect((await run(handler, 'voice_review')).value).toMatchObject({ skip: 'TEMPLATE_NOT_SUPPORTED', subject: null });
+      expect(reads).toEqual([]);
+    });
   });
 });

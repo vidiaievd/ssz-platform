@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { sampleDocument, toContent, toExpectedAnswers } from '@ssz/shared-kernel/read-aloud';
 import {
   ReviewPolicyResolver,
   SCHOOL_REVIEW_AI_POLICY_FEATURE,
@@ -186,6 +187,54 @@ describe('ReviewPolicyResolver', () => {
       expect(await resolver.resolve(question({ templateCode: 'read_aloud' }))).toBeNull();
       expect(policies.courseReviewPolicy).not.toHaveBeenCalled();
       expect(isEnabled).not.toHaveBeenCalled();
+    });
+  });
+
+  // Plan 82, Q3/Q5: a school's recordings join its mode only once its plan has the voice check.
+  describe('read_aloud', () => {
+    const reading = (): ReviewPolicyQuestion => {
+      const doc = sampleDocument();
+      doc.review.aiStage = true;
+      return question({
+        templateCode: 'read_aloud',
+        submittedAnswer: {
+          recordings: doc.prompts.map((p, i) => ({ itemId: p.id, assetId: `asset-${i}`, seconds: 20, takes: 1 })),
+        },
+        exercise: { content: toContent(doc), expectedAnswers: toExpectedAnswers(doc) },
+      });
+    };
+    const withKeys = (keys: Record<string, Result<boolean, EntitlementsClientError>>) => {
+      const { resolver, isEnabled } = setup();
+      isEnabled.mockImplementation(async (_payer, key) => keys[key] ?? Result.ok(false));
+      return { resolver, isEnabled };
+    };
+
+    it('follows the school’s mode when its plan has the voice check', async () => {
+      const { resolver, isEnabled } = withKeys({
+        [SCHOOL_REVIEW_AI_POLICY_FEATURE]: Result.ok(true),
+        'ai.voice_review': Result.ok(true),
+      });
+      expect(await resolver.resolve(reading())).toMatchObject({ mode: 'ai_then_teacher' });
+      expect(isEnabled).toHaveBeenCalledWith({ type: 'workspace', id: SCHOOL }, 'ai.voice_review');
+    });
+
+    it('leaves the recordings to a teacher while the voice check is off', async () => {
+      const { resolver } = withKeys({ [SCHOOL_REVIEW_AI_POLICY_FEATURE]: Result.ok(true) });
+      expect(await resolver.resolve(reading())).toBeNull();
+    });
+
+    it('leaves them to a teacher when the voice key cannot be read', async () => {
+      const { resolver } = withKeys({
+        [SCHOOL_REVIEW_AI_POLICY_FEATURE]: Result.ok(true),
+        'ai.voice_review': Result.fail(new EntitlementsClientError(503, 'down')),
+      });
+      expect(await resolver.resolve(reading())).toBeNull();
+    });
+
+    it('does not ask for the voice check on text', async () => {
+      const { resolver, isEnabled } = withKeys({ [SCHOOL_REVIEW_AI_POLICY_FEATURE]: Result.ok(true) });
+      expect(await resolver.resolve(question())).not.toBeNull();
+      expect(isEnabled.mock.calls.map(([, key]) => key)).toEqual([SCHOOL_REVIEW_AI_POLICY_FEATURE]);
     });
   });
 });

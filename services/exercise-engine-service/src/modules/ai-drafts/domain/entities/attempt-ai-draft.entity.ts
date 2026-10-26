@@ -24,8 +24,10 @@ export type ProposedDraftStatus = Extract<AiDraftStatus, 'READY' | 'FAILED'>;
  * `draftRefusal`: `review_draft` is help for a teacher, `review_direct` (plan 79, part 2) is
  * the review itself for the learner — written with its verdict (`ai-review`). At a school
  * that lets a model answer first (plan 80) the learner's review is the teacher's draft too.
+ * `voice_review` (plan 82) is the learner's review of a `read_aloud` reading, by ear: the
+ * same audience as `review_direct`, a different subject.
  */
-export const AI_DRAFT_CAPABILITIES = ['review_draft', 'review_direct'] as const;
+export const AI_DRAFT_CAPABILITIES = ['review_draft', 'review_direct', 'voice_review'] as const;
 export type AiDraftCapability = (typeof AI_DRAFT_CAPABILITIES)[number];
 
 /**

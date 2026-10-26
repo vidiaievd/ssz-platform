@@ -9,7 +9,8 @@ import {
   type SchoolReviewMode,
 } from '../../../../shared/application/ports/review-policy-reader.port.js';
 import type { AttemptReviewAiPolicy } from '../../domain/entities/attempt.entity.js';
-import { modelCanReview, type ReviewerQuestion } from './reviewer-resolver.js';
+import { hasVoiceCheck } from '../../../ai-drafts/application/queries/get-review-subject/review-subject.js';
+import { anyEnabled, modelCanReview, reviewFeatures, type ReviewerQuestion } from './reviewer-resolver.js';
 
 /** The switch a school's plan needs before a mode with a model applies (plan 80, R7). */
 export const SCHOOL_REVIEW_AI_POLICY_FEATURE = 'school.review_ai_policy';
@@ -39,7 +40,10 @@ const HOUR_MS = 60 * 60 * 1000;
  * A mode with a model applies only if everything holds, cheapest first: a model can read the
  * work at all (the same test as for a learner without a school), the school chose such a
  * mode, and the school's plan has `school.review_ai_policy` — checked here, not trusted from
- * the saved mode, because a plan can lapse after the mode was saved (R7).
+ * the saved mode, because a plan can lapse after the mode was saved (R7). A `read_aloud`
+ * reading also needs the voice check on the school's plan (plan 82, Q3/Q5): the school's
+ * mode covers it only once its plan has `ai.voice_review` — off until the shadow run agrees
+ * with teachers — so switching a mode on does not hand recordings to a check nobody measured.
  *
  * Every doubt reads as "a teacher reviews it": no policy, a neighbour down, the plan
  * unreadable. That is the platform's behaviour before this plan, and it costs nobody
@@ -76,6 +80,9 @@ export class ReviewPolicyResolver {
       return null;
     }
     if (!enabled.value) return null;
+    if (hasVoiceCheck(question.templateCode)) {
+      if (!(await this.voiceCheckEnabled(question.schoolId, question.templateCode))) return null;
+    }
 
     return {
       mode: terms.mode,
@@ -88,6 +95,18 @@ export class ReviewPolicyResolver {
         (terms.teacherReviewTemplates.includes(question.templateCode) ||
           this.random() * 100 < terms.samplePercent),
     };
+  }
+
+  private async voiceCheckEnabled(schoolId: string, templateCode: string): Promise<boolean> {
+    const enabled = await anyEnabled(
+      this.entitlements,
+      { type: 'workspace', id: schoolId },
+      reviewFeatures(templateCode),
+    );
+    if (enabled === null) {
+      this.logger.warn(`Entitlements unknown for school ${schoolId}; its recordings go to a teacher only`);
+    }
+    return enabled === true;
   }
 
   /**
