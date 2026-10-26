@@ -5,6 +5,7 @@ import type {
   AttemptStatus,
   ProvisionalAiVerdict,
 } from '../../../attempts/domain/entities/attempt.entity.js';
+import { TEMPLATE_CODE as READ_ALOUD } from '@ssz/shared-kernel/read-aloud';
 import type { RubricMarks } from '@ssz/shared-kernel/writing-task';
 import {
   settledStatus,
@@ -12,6 +13,7 @@ import {
   type ReviewerOutcomes,
   type SettledOutcomes,
 } from '../draft-outcomes.js';
+import type { DraftReading } from '../reading-verdict.js';
 
 /** Names as Prisma carries them (`AiDraftStatus`), so the mapper passes them through. */
 export type AiDraftStatus = 'READY' | 'FAILED' | 'SENT' | 'EDITED' | 'DISCARDED';
@@ -29,6 +31,11 @@ export type ProposedDraftStatus = Extract<AiDraftStatus, 'READY' | 'FAILED'>;
  */
 export const AI_DRAFT_CAPABILITIES = ['review_draft', 'review_direct', 'voice_review'] as const;
 export type AiDraftCapability = (typeof AI_DRAFT_CAPABILITIES)[number];
+
+/** The learner's review of this template: by ear for a reading (plan 82), over text otherwise. */
+export function learnerReviewCapability(templateCode: string): Extract<AiDraftCapability, 'review_direct' | 'voice_review'> {
+  return templateCode === READ_ALOUD ? 'voice_review' : 'review_direct';
+}
 
 /**
  * One remark, as ai-service verified it: `fragment` occurs verbatim in that item's answer,
@@ -65,6 +72,11 @@ export interface ProposedDraft {
   modelId: string | null;
   promptVersion: string | null;
   aiCallId: string;
+  /**
+   * `voice_review` only: what was heard in each prompt and the check the verdict was computed
+   * from (plan 82, step 7). Written by the engine beside ai-service's write, never taken from it.
+   */
+  reading?: DraftReading | null;
 }
 
 export type DraftRefusal =
@@ -120,8 +132,9 @@ export function draftRefusal(
  */
 export function teacherDraftCapability(attempt: {
   reviewAiPolicy?: AttemptReviewAiPolicy | null;
+  templateCode: string;
 }): AiDraftCapability {
-  return attempt.reviewAiPolicy ? 'review_direct' : 'review_draft';
+  return attempt.reviewAiPolicy ? learnerReviewCapability(attempt.templateCode) : 'review_draft';
 }
 
 export interface AttemptAiDraftProps extends Omit<ProposedDraft, 'status'> {
@@ -169,7 +182,7 @@ export class AttemptAiDraft extends Entity<string> {
    */
   replaceWith(draft: ProposedDraft, now: Date): DraftRefusal | null {
     if (this.isDecided) return 'DRAFT_DECIDED';
-    this.props = { ...this.props, ...draft, updatedAt: now };
+    this.props = { ...this.props, ...draft, reading: draft.reading ?? null, updatedAt: now };
     return null;
   }
 
@@ -206,6 +219,7 @@ export class AttemptAiDraft extends Entity<string> {
   get items(): AiDraftRemark[] { return this.props.items; }
   get summary(): string | null { return this.props.summary; }
   get marks(): AiDraftMark[] | null { return this.props.marks ?? null; }
+  get reading(): DraftReading | null { return this.props.reading ?? null; }
   get errorCode(): string | null { return this.props.errorCode; }
   get providerId(): string | null { return this.props.providerId; }
   get modelId(): string | null { return this.props.modelId; }

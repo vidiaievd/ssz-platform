@@ -10,6 +10,7 @@ import {
   ATTEMPT_AI_DRAFT_REPOSITORY,
   type IAttemptAiDraftRepository,
 } from '../../../domain/repositories/attempt-ai-draft.repository.js';
+import { learnerReviewCapability } from '../../../domain/entities/attempt-ai-draft.entity.js';
 import { GiveUpAiReviewCommand } from './give-up-ai-review.command.js';
 
 export type GiveUpAiReviewError =
@@ -58,7 +59,7 @@ export class GiveUpAiReviewHandler implements ICommandHandler<GiveUpAiReviewComm
       return Result.ok({ status: attempt.status });
     }
 
-    const review = await this.drafts.findByAttempt(command.attemptId, 'review_direct');
+    const review = await this.drafts.findByAttempt(command.attemptId, learnerReviewCapability(attempt.templateCode));
     if (review?.status === 'READY') return Result.fail({ code: 'REVIEW_EXISTS' });
 
     const closed = attempt.giveUpReview();

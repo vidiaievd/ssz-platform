@@ -338,8 +338,8 @@ export class PrismaAttemptRepository implements IAttemptRepository {
       where: {
         attemptId: { in: attemptIds },
         // A school that has a model answer first (plan 80) has its teacher sign off the
-        // model's review to the learner instead of a draft.
-        capability: { in: ['review_draft', 'review_direct'] },
+        // model's review to the learner instead of a draft — by ear for a reading (plan 82).
+        capability: { in: ['review_draft', 'review_direct', 'voice_review'] },
         status: { in: ['SENT', 'EDITED'] },
       },
       select: { attemptId: true },

@@ -54,6 +54,7 @@ describe('GetDraftForReviewHandler', () => {
       items: [expect.objectContaining({ itemId: 'i1', fragment: 'i går jeg var' })],
       summary: 'Ordstilling i leddsetninger.',
       marks: null,
+      reading: null,
       modelId: 'fake-model',
       promptVersion: 'review_draft@1',
       shownToLearner: false,

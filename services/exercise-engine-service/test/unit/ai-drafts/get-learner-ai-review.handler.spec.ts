@@ -161,6 +161,33 @@ describe('GetLearnerAiReviewHandler', () => {
     });
   });
 
+  // Plan 82, step 7.
+  it('reads a reading’s review off the voice check, with the check behind it', async () => {
+    const reading = { passPercent: 85, prompts: [], carriedItemIds: [] };
+    const voice = AttemptAiDraft.restore('d2', {
+      attemptId: 'a1',
+      capability: 'voice_review',
+      status: 'READY',
+      items: [],
+      summary: null,
+      marks: null,
+      reading,
+      errorCode: null,
+      providerId: 'whisper-local',
+      modelId: 'nb-whisper-small-verbatim',
+      promptVersion: null,
+      aiCallId: 'call-2',
+      createdAt: REVIEWED,
+      updatedAt: REVIEWED,
+    });
+    const { handler, drafts } = makeHandler(attempt({ templateCode: 'read_aloud' }), voice);
+
+    const result = await run(handler);
+
+    expect(drafts.findByAttempt).toHaveBeenCalledWith('a1', 'voice_review');
+    expect(result.value).toMatchObject({ items: [], summary: null, reading });
+  });
+
   it('hands the learner the remarks and the verdict, not the model behind them', async () => {
     const { handler, drafts } = makeHandler(attempt());
 
@@ -172,6 +199,7 @@ describe('GetLearnerAiReviewHandler', () => {
       items: [expect.objectContaining({ itemId: 'i1', suggestion: 'i går var jeg' })],
       summary: 'Se på ordstillingen.',
       marks: null,
+      reading: null,
       reviewedAt: REVIEWED,
       disputedAt: null,
       provisional: false,
