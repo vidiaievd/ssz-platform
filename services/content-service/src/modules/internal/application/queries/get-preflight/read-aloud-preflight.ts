@@ -114,5 +114,7 @@ export function describeReadAloudIssue(issue: Issue, count: number): string {
       return 'The microphone is not checked before the first recording';
     case 'RA_AI_NOT_LIVE':
       return 'The AI stage is configured but not live yet';
+    case 'RA_AI_READ_ONLY':
+      return 'The machine checks only a text read aloud, so the AI stage does nothing in this mode';
   }
 }

@@ -60,7 +60,9 @@ export type Issue =
   | { code: 'RA_CHOOSE_NO_EFFECT'; level: 'info'; step: 4 }
   | { code: 'RA_NO_MIC_CHECK'; level: 'info'; step: 4 }
   // ── Step 5 — flow ──
-  | { code: 'RA_AI_NOT_LIVE'; level: 'info'; step: 5 };
+  | { code: 'RA_AI_NOT_LIVE'; level: 'info'; step: 5 }
+  /** The machine checks only `read` against its passage (plan 82, Q7): the switch does nothing here. */
+  | { code: 'RA_AI_READ_ONLY'; level: 'info'; step: 5 };
 
 export type IssueCode = Issue['code'];
 
@@ -171,6 +173,7 @@ export function issues(ex: ReadAloudContent, ctx: IssueContext): Issue[] {
 
   // ── Step 5 ─────────────────────────────────────────────────────────────────
   if (ex.review.aiStage) out.push({ code: 'RA_AI_NOT_LIVE', level: 'info', step: 5 });
+  if (ex.review.aiStage && ex.mode !== 'read') out.push({ code: 'RA_AI_READ_ONLY', level: 'info', step: 5 });
 
   if (ex.settings.showModel === 'never' && ctx.audio) {
     out.push({ code: 'RA_MODEL_NEVER_SHOWN', level: 'info', step: 3 });
