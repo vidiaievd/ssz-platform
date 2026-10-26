@@ -1,56 +1,20 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { lexicalWord } from '../../domain/lexical.js';
 import { LlmError } from '../../domain/llm-error.js';
 import type { SpeechModelRef } from '../../domain/model-features.js';
 import type { SpeechAssessor } from '../../domain/speech-assessor.port.js';
 import type { SpeechRequest } from '../../domain/speech-request.js';
-import type { HeardWord, PronouncedWord, PronunciationScores, SpeechResult } from '../../domain/speech-result.js';
+import type { SpeechResult } from '../../domain/speech-result.js';
 import { wavDurationMs } from '../../domain/wav.js';
 import { readCredential } from '../credentials.js';
+import { AzureContinuousRecognizer } from './azure-continuous.recognizer.js';
+import { hearingOf, mergeSegments, NOTHING_HEARD, type AzureRecognition } from './azure-result.js';
 
 /** Course language → Azure locale. Azure has no Nynorsk recognizer. */
 const AZURE_LOCALE: Record<string, string> = { nb: 'nb-NO', en: 'en-US' };
 
 /** Azure's REST endpoint for short audio takes at most 30 s with pronunciation assessment. */
 export const AZURE_REST_MAX_AUDIO_SECONDS = 30;
-
-/** Offsets and durations come in 100-nanosecond ticks. */
-const TICKS_PER_MS = 10_000;
-
-/** Statuses that mean "nothing was said", not a failure. */
-const NOTHING_HEARD = new Set(['NoMatch', 'InitialSilenceTimeout', 'BabbleTimeout']);
-
-/**
- * Scores sit on the word / best result itself in the REST answer, and under
- * `PronunciationAssessment` in the Speech SDK's JSON; both are read.
- */
-interface AzureScored {
-  AccuracyScore?: number;
-  FluencyScore?: number;
-  CompletenessScore?: number;
-  ProsodyScore?: number;
-  ErrorType?: string;
-  PronunciationAssessment?: Omit<AzureScored, 'PronunciationAssessment'>;
-}
-
-interface AzureWord extends AzureScored {
-  Word: string;
-  Offset?: number | string;
-  Duration?: number | string;
-  Confidence?: number | string;
-}
-
-interface AzureBest extends AzureScored {
-  Lexical?: string;
-  Words?: AzureWord[];
-}
-
-/** What `…/conversation/cognitiveservices/v1?format=detailed` answers. */
-interface AzureRecognition {
-  RecognitionStatus: string;
-  NBest?: AzureBest[];
-}
 
 /**
  * Azure AI Speech with Pronunciation Assessment (plan 82, step 9) — the REST endpoint for short
@@ -67,12 +31,15 @@ interface AzureRecognition {
  * Without `pronunciation` the passage is not sent and the call is plain recognition, so the
  * recognizer is not primed (see `SpeechRequest.referenceText`).
  *
- * At most 30 s a call: `maxAudioSeconds` of the model says so and the router hands a longer
- * recording to the fallback. Longer audio needs the Speech SDK (step 9b).
+ * The REST endpoint takes 30 s at most; a longer recording (up to the model's `maxAudioSeconds`)
+ * goes through the Speech SDK's continuous recognition instead (step 9b,
+ * `AzureContinuousRecognizer`), whose phrases are put together by `mergeSegments`.
  */
 @Injectable()
 export class AzureSpeechAssessor implements SpeechAssessor {
   readonly kind = 'azure_speech' as const;
+
+  constructor(private readonly continuous: AzureContinuousRecognizer) {}
 
   async assess(request: SpeechRequest, model: SpeechModelRef): Promise<SpeechResult> {
     const key = readCredential(model.provider);
@@ -83,15 +50,17 @@ export class AzureSpeechAssessor implements SpeechAssessor {
     }
     const durationMs = wavDurationMs(request.audio.data);
     if (durationMs === null) throw new LlmError('invalid_request', 'Azure Speech: audio is not a WAV recording');
-    const maxSeconds = Math.min(model.features.maxAudioSeconds, AZURE_REST_MAX_AUDIO_SECONDS);
-    if (durationMs > maxSeconds * 1000) {
-      throw new LlmError('invalid_request', `Azure Speech: audio is longer than ${maxSeconds} s`);
+    if (durationMs > model.features.maxAudioSeconds * 1000) {
+      throw new LlmError('invalid_request', `Azure Speech: audio is longer than ${model.features.maxAudioSeconds} s`);
     }
     const locale = AZURE_LOCALE[request.language];
     if (!locale || !model.features.languages.includes(request.language)) {
       throw new LlmError('invalid_request', `Azure Speech: language "${request.language}" is not supported`);
     }
     const assess = request.pronunciation && model.features.pronunciation;
+    if (durationMs > AZURE_REST_MAX_AUDIO_SECONDS * 1000) {
+      return this.assessLong(request, { baseUrl, key, locale, assess, durationMs });
+    }
 
     const url = new URL(
       'speech/recognition/conversation/cognitiveservices/v1',
@@ -139,19 +108,29 @@ export class AzureSpeechAssessor implements SpeechAssessor {
     }
     const best = body?.RecognitionStatus === 'Success' ? body.NBest?.[0] : undefined;
     if (!best) throw new LlmError('unknown', `Azure Speech: recognition status "${body?.RecognitionStatus}"`);
+    return { ...hearingOf(best, assess), ...common };
+  }
 
-    const aligned = best.Words ?? [];
-    const words: HeardWord[] = aligned.flatMap((w) => {
-      const text = lexicalWord(w.Word);
-      if (!text || errorOf(w) === 'omission') return [];
-      const startMs = ticksToMs(w.Offset);
-      return [{ text, startMs, endMs: startMs + ticksToMs(w.Duration), confidence: confidenceOf(w.Confidence) }];
+  /** Over 30 s: continuous recognition through the Speech SDK, phrase by phrase. */
+  private async assessLong(
+    request: SpeechRequest,
+    call: { baseUrl: string; key: string; locale: string; assess: boolean; durationMs: number },
+  ): Promise<SpeechResult> {
+    const started = Date.now();
+    const { segments, sessionId } = await this.continuous.recognize({
+      baseUrl: call.baseUrl,
+      key: call.key,
+      locale: call.locale,
+      wav: request.audio.data,
+      referenceText: call.assess ? request.referenceText : null,
+      timeoutMs: request.timeoutMs,
     });
-    // Built from the words rather than `Lexical`: with miscue, the aligned words are the miscue
-    // view of what was read, and a word Azure calls omitted must not reappear here.
-    const transcript = aligned.length > 0 ? words.map((w) => w.text).join(' ') : lexicalText(best.Lexical);
-
-    return { transcript, words, pronunciation: assess ? scoresOf(best, aligned) : null, ...common };
+    return {
+      ...mergeSegments(segments, call.assess ? request.referenceText : null),
+      audioMs: call.durationMs,
+      providerRequestId: sessionId,
+      latencyMs: Date.now() - started,
+    };
   }
 }
 
@@ -165,61 +144,6 @@ function assessmentHeader(referenceText: string): string {
     EnableMiscue: true,
   };
   return Buffer.from(JSON.stringify(params), 'utf8').toString('base64');
-}
-
-function scoresOf(best: AzureBest, aligned: AzureWord[]): PronunciationScores {
-  const words: PronouncedWord[] = aligned.flatMap((w) => {
-    const text = lexicalWord(w.Word);
-    return text ? [{ text, accuracy: score(w, 'AccuracyScore') ?? 0, error: errorOf(w) }] : [];
-  });
-  return {
-    accuracy: score(best, 'AccuracyScore') ?? 0,
-    fluency: score(best, 'FluencyScore') ?? 0,
-    completeness: score(best, 'CompletenessScore') ?? 0,
-    // Prosody is scored for a few locales only (not `nb-NO`).
-    prosody: score(best, 'ProsodyScore'),
-    words,
-  };
-}
-
-function score(scored: AzureScored, field: 'AccuracyScore' | 'FluencyScore' | 'CompletenessScore' | 'ProsodyScore'): number | null {
-  const raw = scored.PronunciationAssessment?.[field] ?? scored[field];
-  if (raw === undefined || raw === null) return null;
-  const value = Number(raw);
-  return Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : null;
-}
-
-/** Azure's own error types; the prosody ones (breaks, monotone) are not reading errors. */
-function errorOf(word: AzureScored): PronouncedWord['error'] {
-  switch (word.PronunciationAssessment?.ErrorType ?? word.ErrorType) {
-    case 'Mispronunciation':
-      return 'mispronunciation';
-    case 'Omission':
-      return 'omission';
-    case 'Insertion':
-      return 'insertion';
-    default:
-      return 'none';
-  }
-}
-
-function ticksToMs(ticks: number | string | undefined): number {
-  const value = Number(ticks);
-  return Number.isFinite(value) && value > 0 ? Math.round(value / TICKS_PER_MS) : 0;
-}
-
-function confidenceOf(value: number | string | undefined): number | null {
-  if (value === undefined) return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : null;
-}
-
-function lexicalText(text: string | undefined): string {
-  return (text ?? '')
-    .split(/\s+/)
-    .map(lexicalWord)
-    .filter((w) => w.length > 0)
-    .join(' ');
 }
 
 /** The call never got an answer: our timeout, or the endpoint is unreachable. */

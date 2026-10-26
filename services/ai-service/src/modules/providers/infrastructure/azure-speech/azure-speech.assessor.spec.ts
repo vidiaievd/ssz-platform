@@ -2,6 +2,7 @@ import { LlmError } from '../../domain/llm-error.js';
 import type { SpeechFeatures, SpeechModelRef } from '../../domain/model-features.js';
 import type { SpeechRequest } from '../../domain/speech-request.js';
 import { silentWav } from '../../domain/wav.fixture.js';
+import type { AzureContinuousRecognizer, ContinuousInput } from './azure-continuous.recognizer.js';
 import { AzureSpeechAssessor } from './azure-speech.assessor.js';
 
 const features: SpeechFeatures = { languages: ['nb', 'en'], wordTimings: true, pronunciation: true, maxAudioSeconds: 30 };
@@ -57,7 +58,8 @@ const json = (body: unknown, init: ResponseInit = {}) =>
   new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' }, ...init });
 
 describe('AzureSpeechAssessor', () => {
-  const azure = new AzureSpeechAssessor();
+  const recognize = jest.fn<ReturnType<AzureContinuousRecognizer['recognize']>, [ContinuousInput]>();
+  const azure = new AzureSpeechAssessor({ recognize } as unknown as AzureContinuousRecognizer);
   let fetchMock: jest.SpyInstance;
 
   beforeEach(() => {
@@ -66,6 +68,7 @@ describe('AzureSpeechAssessor', () => {
   });
   afterEach(() => {
     fetchMock.mockRestore();
+    recognize.mockReset();
     delete process.env['AZURE_SPEECH_KEY_TEST'];
   });
 
@@ -193,13 +196,68 @@ describe('AzureSpeechAssessor', () => {
     expect((await failure(azure.assess(request({ audio: { format: 'wav', data: new Uint8Array(10) } }), model())))?.code).toBe(
       'invalid_request',
     );
-    // The REST limit holds even when the registry promises more.
     const long = request({ audio: { format: 'wav', data: silentWav(31_000) } });
-    expect((await failure(azure.assess(long, model({ features: { maxAudioSeconds: 120 } }))))?.code).toBe('invalid_request');
+    expect((await failure(azure.assess(long, model())))?.code).toBe('invalid_request');
     expect((await failure(azure.assess(request({ language: 'nn' }), model({ features: { languages: ['nb', 'nn'] } }))))?.code).toBe(
       'invalid_request',
     );
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(recognize).not.toHaveBeenCalled();
+  });
+
+  it('takes a recording over 30 s through continuous recognition, phrases put together', async () => {
+    recognize.mockResolvedValue({
+      sessionId: 'session-1',
+      segments: [
+        {
+          durationMs: 20_000,
+          best: {
+            PronunciationAssessment: { FluencyScore: 90 },
+            Words: [
+              { Word: 'jeg', Offset: 10_000_000, Duration: 2_000_000, PronunciationAssessment: { AccuracyScore: 100, ErrorType: 'None' } },
+              { Word: 'heter', Offset: 13_000_000, Duration: 3_000_000, PronunciationAssessment: { AccuracyScore: 80, ErrorType: 'None' } },
+            ],
+          },
+        },
+        {
+          durationMs: 20_000,
+          best: {
+            PronunciationAssessment: { FluencyScore: 70 },
+            Words: [{ Word: 'Bergen', Offset: 350_000_000, Duration: 5_000_000, PronunciationAssessment: { AccuracyScore: 60, ErrorType: 'None' } }],
+          },
+        },
+      ],
+    });
+    const audio = silentWav(45_000);
+    const result = await azure.assess(request({ audio: { format: 'wav', data: audio }, referenceText: 'Jeg heter Ola i Bergen.' }), model({ features: { maxAudioSeconds: 120 } }));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(recognize).toHaveBeenCalledWith({
+      baseUrl: 'https://norwayeast.stt.speech.microsoft.com',
+      key: 'secret-key',
+      locale: 'nb-NO',
+      wav: audio,
+      referenceText: 'Jeg heter Ola i Bergen.',
+      timeoutMs: 5_000,
+    });
+    expect(result.transcript).toBe('jeg heter bergen');
+    expect(result.words[2]).toEqual({ text: 'bergen', startMs: 35_000, endMs: 35_500, confidence: null });
+    expect(result.pronunciation).toMatchObject({ accuracy: 48, fluency: 80, completeness: 60, prosody: null });
+    expect(result.audioMs).toBe(45_000);
+    expect(result.providerRequestId).toBe('session-1');
+  });
+
+  it('does not send the passage on the long path either when no pronunciation is asked', async () => {
+    recognize.mockResolvedValue({ sessionId: null, segments: [{ durationMs: 1_000, best: { Lexical: 'jeg heter' } }] });
+    const result = await azure.assess(request({ audio: { format: 'wav', data: silentWav(40_000) }, pronunciation: false }), model({ features: { maxAudioSeconds: 120 } }));
+    expect(recognize.mock.calls[0]![0].referenceText).toBeNull();
+    expect(result).toMatchObject({ transcript: 'jeg heter', words: [], pronunciation: null });
+  });
+
+  it('passes a failed continuous recognition on as it is', async () => {
+    recognize.mockRejectedValue(new LlmError('rate_limited', 'Azure Speech TooManyRequests'));
+    const err = await failure(azure.assess(request({ audio: { format: 'wav', data: silentWav(40_000) } }), model({ features: { maxAudioSeconds: 120 } })));
+    expect(err?.code).toBe('rate_limited');
   });
 
   it.each([

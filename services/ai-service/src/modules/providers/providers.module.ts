@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { SchemaGuard } from './application/schema-guard.js';
 import { LLM_PROVIDERS, type LlmProvider } from './domain/llm-provider.port.js';
 import { SPEECH_ASSESSORS, type SpeechAssessor } from './domain/speech-assessor.port.js';
+import { AzureContinuousRecognizer } from './infrastructure/azure-speech/azure-continuous.recognizer.js';
 import { AzureSpeechAssessor } from './infrastructure/azure-speech/azure-speech.assessor.js';
 import { AnthropicLlmProvider } from './infrastructure/anthropic/anthropic-llm.provider.js';
 import { FakeLlmProvider } from './infrastructure/fake/fake-llm.provider.js';
@@ -42,6 +43,7 @@ import { WhisperLocalSpeechAssessor } from './infrastructure/whisper/whisper-loc
     },
     FakeSpeechAssessor,
     WhisperLocalSpeechAssessor,
+    AzureContinuousRecognizer,
     AzureSpeechAssessor,
     {
       provide: SPEECH_ASSESSORS,

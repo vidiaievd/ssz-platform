@@ -75,9 +75,9 @@
       "models": [
         {
           "providerModelId": "pronunciation-assessment",
-          "displayName": "Azure Pronunciation Assessment (REST, ≤ 30 s)",
+          "displayName": "Azure Pronunciation Assessment",
           "modality": "speech",
-          "features": { "languages": ["nb", "en"], "wordTimings": true, "pronunciation": true, "maxAudioSeconds": 30 },
+          "features": { "languages": ["nb", "en"], "wordTimings": true, "pronunciation": true, "maxAudioSeconds": 120 },
           "prices": [{ "effectiveFrom": "2026-10-26", "inputPerMtok": "0", "outputPerMtok": "0", "cacheReadPerMtok": "0", "cacheWritePerMtok": "0", "audioPerHour": "1.00" }]
         }
       ]

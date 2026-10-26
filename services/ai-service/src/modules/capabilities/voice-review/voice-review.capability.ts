@@ -16,8 +16,7 @@ export const VOICE_REVIEW: CapabilityDefinition = {
 /**
  * The same hearing with pronunciation scores beside it (`ai.voice_review_pronunciation`, plan
  * 82 step 9 — Azure Pronunciation Assessment, `azure_speech`). Scores are feedback only, so a
- * fallback without them still serves: the reading is ruled from the words alone either way. Azure's
- * REST call takes 30 s at most; a longer recording goes to the fallback (NB-Whisper).
+ * fallback without them still serves: the reading is ruled from the words alone either way.
  */
 export const VOICE_REVIEW_PRONUNCIATION: CapabilityDefinition = {
   code: 'voice_review_pronunciation',
