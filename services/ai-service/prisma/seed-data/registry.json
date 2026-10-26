@@ -65,6 +65,24 @@
       ]
     },
     {
+      "code": "azure-speech",
+      "kind": "azure_speech",
+      "displayName": "Azure AI Speech (Pronunciation Assessment)",
+      "baseUrl": null,
+      "credentialRef": "AZURE_SPEECH_KEY",
+      "region": "eu",
+      "enabled": false,
+      "models": [
+        {
+          "providerModelId": "pronunciation-assessment",
+          "displayName": "Azure Pronunciation Assessment (REST, ≤ 30 s)",
+          "modality": "speech",
+          "features": { "languages": ["nb", "en"], "wordTimings": true, "pronunciation": true, "maxAudioSeconds": 30 },
+          "prices": [{ "effectiveFrom": "2026-10-26", "inputPerMtok": "0", "outputPerMtok": "0", "cacheReadPerMtok": "0", "cacheWritePerMtok": "0", "audioPerHour": "1.00" }]
+        }
+      ]
+    },
+    {
       "code": "anthropic",
       "kind": "anthropic",
       "displayName": "Anthropic",

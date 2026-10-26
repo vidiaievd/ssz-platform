@@ -172,7 +172,7 @@ models and prices; adapters `anthropic`, `openai` / `openai_compatible` / `azure
 and `fake` (dev/tests); agent → model bindings with a fallback and a per-model circuit breaker;
 access gate (payer policy, regions, entitlements, quotas); call ledger with cost in credits.
 Agents call the gateway, never a provider directly. Provider keys live only here
-(`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `AZURE_OPENAI_API_KEY`; the registry
+(`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `AZURE_OPENAI_API_KEY`, `AZURE_SPEECH_KEY`; the registry
 names the variable per provider).
 Agent `review_draft` (plan 79): consumes `exercise.attempt.routed_for_review`, reads the submission
 beside its key from exercise-engine (`GET /api/v1/internal/attempts/:id/ai-review-subject`) and the

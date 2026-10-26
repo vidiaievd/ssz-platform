@@ -9,6 +9,7 @@ import type { ModelModality } from '../../providers/domain/model-features.js';
 import { SPEECH_ASSESSORS, type SpeechAssessor } from '../../providers/domain/speech-assessor.port.js';
 import type { SpeechRequest } from '../../providers/domain/speech-request.js';
 import type { SpeechResult } from '../../providers/domain/speech-result.js';
+import { wavDurationMs } from '../../providers/domain/wav.js';
 import { BINDING_SOURCE, type IBindingSource } from '../../registry/application/ports/binding.source.js';
 import { CREDENTIAL_PRESENCE, type ICredentialPresence } from '../../registry/application/ports/credential-presence.js';
 import { REGISTRY_READER, type IRegistryReader, type ModelForCall } from '../../registry/application/ports/registry.reader.js';
@@ -48,6 +49,8 @@ export type SkipReason =
   | 'wrong_modality'
   /** A speech model that does not list the recording's language; the fallback may (plan 82, step 8). */
   | 'language_not_supported'
+  /** A speech model whose `maxAudioSeconds` is shorter than the recording (Azure REST: 30 s, step 9). */
+  | 'audio_too_long'
   /** The provider's region is not one the payer allows. */
   | 'region_not_allowed'
   | 'model_disabled'
@@ -101,6 +104,12 @@ export type RoutedSpeech = Routed<SpeechResult>;
 export type SpeechRouteFailure = RouteFailureOf<SpeechResult>;
 
 /** One model of the route, called: the answer, or a refused answer as an error beside it. */
+/** What a speech model must take for a recording; `audioMs` null = not a readable WAV (the adapter refuses it). */
+interface RecordingFit {
+  language: string;
+  audioMs: number | null;
+}
+
 type Invoke<R> = (model: ModelForCall) => (() => Promise<Result<R, { error: LlmError; raw: R }>>) | null;
 
 /**
@@ -119,7 +128,8 @@ type Invoke<R> = (model: ModelForCall) => (() => Promise<Result<R, { error: LlmE
  *
  * A voice capability (plan 82, step 8) takes the same route with a recording — `callSpeech`:
  * only speech models, through the speech adapters, and a model that does not list the
- * recording's language is stepped over to the fallback like a switched-off one.
+ * recording's language, or takes less audio than the recording is long, is stepped over to the
+ * fallback like a switched-off one.
  */
 @Injectable()
 export class ModelRouter {
@@ -176,7 +186,8 @@ export class ModelRouter {
       if (!adapter || !ref) return null;
       return async () => Result.ok(await adapter.assess(request, ref));
     };
-    return this.route(binding, 'speech', constraints, invoke, request.language);
+    const recording: RecordingFit = { language: request.language, audioMs: wavDurationMs(request.audio.data) };
+    return this.route(binding, 'speech', constraints, invoke, recording);
   }
 
   /**
@@ -189,7 +200,7 @@ export class ModelRouter {
     modality: ModelModality,
     constraints: RouteConstraints,
     invoke: Invoke<R>,
-    language: string | null = null,
+    recording: RecordingFit | null = null,
   ): Promise<Result<Routed<R>, RouteFailureOf<R>>> {
     const candidates: Array<{ role: ModelRole; modelId: string }> = [{ role: 'primary', modelId: binding.primaryModelId }];
     if (binding.fallbackModelId) candidates.push({ role: 'fallback', modelId: binding.fallbackModelId });
@@ -199,7 +210,7 @@ export class ModelRouter {
 
     for (const { role, modelId } of candidates) {
       const model = await this.registry.getModelForCall(modelId, new Date());
-      const skip = await this.skipReason(model, modality, constraints, language);
+      const skip = await this.skipReason(model, modality, constraints, recording);
       const called = !skip && model ? invoke(model) : null;
       if (!model || !called) {
         attempts.push({ role, modelId, outcome: 'skipped', reason: skip ?? 'no_adapter' });
@@ -238,7 +249,7 @@ export class ModelRouter {
     model: ModelForCall | null,
     modality: ModelModality,
     constraints: RouteConstraints,
-    language: string | null,
+    recording: RecordingFit | null,
   ): Promise<SkipReason | null> {
     if (!model) return 'model_missing';
     if (model.model.modality !== modality) return 'wrong_modality';
@@ -246,8 +257,10 @@ export class ModelRouter {
     if (model.model.status === 'disabled') return 'model_disabled';
     if (!model.provider.enabled) return 'provider_disabled';
     if (!providerReadiness(model.provider, this.credentials).configured) return 'provider_not_configured';
-    if (language !== null && model.model.modality === 'speech' && !model.model.features.languages.includes(language)) {
-      return 'language_not_supported';
+    if (recording && model.model.modality === 'speech') {
+      const { features } = model.model;
+      if (!features.languages.includes(recording.language)) return 'language_not_supported';
+      if (recording.audioMs !== null && recording.audioMs > features.maxAudioSeconds * 1000) return 'audio_too_long';
     }
     if (await this.breaker.isOpen(model.model.id)) return 'breaker_open';
     return null;

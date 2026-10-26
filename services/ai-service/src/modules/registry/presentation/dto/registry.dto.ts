@@ -1,7 +1,7 @@
 import { ApiExtraModels, ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
 import { IsOptional, IsUUID } from 'class-validator';
 
-const PROVIDER_KINDS = ['anthropic', 'openai', 'openai_compatible', 'azure_openai', 'google', 'whisper_local', 'fake'];
+const PROVIDER_KINDS = ['anthropic', 'openai', 'openai_compatible', 'azure_openai', 'google', 'whisper_local', 'azure_speech', 'fake'];
 const REGIONS = ['eu', 'us', 'global', 'local'];
 
 export class ListModelsQueryDto {

@@ -326,9 +326,9 @@ describe('ModelRouter', () => {
   });
 
   describe('speech (plan 82, step 8)', () => {
-    const recognizer = (id: string, languages: string[], providerModelId = 'fake-speech'): ModelForCall => {
+    const recognizer = (id: string, languages: string[], providerModelId = 'fake-speech', maxAudioSeconds = 60): ModelForCall => {
       const base = model(id, { providerModelId });
-      return { ...base, model: { ...base.model, modality: 'speech', features: { languages, wordTimings: true, pronunciation: false, maxAudioSeconds: 60 } } };
+      return { ...base, model: { ...base.model, modality: 'speech', features: { languages, wordTimings: true, pronunciation: false, maxAudioSeconds } } };
     };
     const HEAR: SpeechGatewayRequest = {
       audio: { format: 'wav', data: silentWav(3_000) },
@@ -358,6 +358,19 @@ describe('ModelRouter', () => {
       const stale = setup({ binding: binding({ capability: 'voice_review' }), models: [model('primary'), recognizer('fallback', ['nb'])] });
       const routedStale = await stale.router.callSpeech('voice_review', HEAR);
       expect(routedStale.value.attempts[0]?.reason).toBe('wrong_modality');
+    });
+
+    it('steps over a model that takes less audio than the recording is long to the fallback', async () => {
+      const { router } = setup({
+        binding: binding({ capability: 'voice_review' }),
+        models: [recognizer('primary', ['nb'], 'fake-speech', 2), recognizer('fallback', ['nb'], 'fake-speech', 120)],
+      });
+      const routed = await router.callSpeech('voice_review', HEAR);
+      expect(routed.value.role).toBe('fallback');
+      expect(routed.value.attempts[0]).toEqual({ role: 'primary', modelId: 'primary', outcome: 'skipped', reason: 'audio_too_long' });
+
+      const exact = setup({ binding: binding({ capability: 'voice_review' }), models: [recognizer('primary', ['nb'], 'fake-speech', 3)] });
+      expect((await exact.router.callSpeech('voice_review', HEAR)).value.role).toBe('primary');
     });
 
     it('falls back on a retryable speech error and counts it against the primary', async () => {

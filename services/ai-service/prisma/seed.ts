@@ -37,7 +37,7 @@ interface SeedModel {
 
 interface SeedProvider {
   code: string;
-  kind: 'anthropic' | 'openai' | 'openai_compatible' | 'azure_openai' | 'google' | 'whisper_local' | 'fake';
+  kind: 'anthropic' | 'openai' | 'openai_compatible' | 'azure_openai' | 'google' | 'whisper_local' | 'azure_speech' | 'fake';
   displayName: string;
   baseUrl?: string | null;
   apiVersion?: string | null;

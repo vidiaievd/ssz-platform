@@ -119,6 +119,23 @@ describe('readingRuling', () => {
     expect(result.reading.prompts[0]!.wordsPerMinute).toBeNull();
   });
 
+  it('rules from the words alone: pronunciation scores, however low or high, change nothing (§2.3)', () => {
+    const poor = { accuracy: 5, fluency: 3, completeness: 10, prosody: null, words: [{ text: 'bussen', accuracy: 0, error: 'mispronunciation' as const }] };
+    const perfect = { accuracy: 100, fluency: 100, completeness: 100, prosody: 100, words: [] };
+    const rule = (p1: typeof poor | typeof perfect | null, p2: typeof poor | typeof perfect | null) => {
+      const result = readingRuling(input({ passPercent: 90 }), [
+        hearing(P1, lexical(TEXT1), { pronunciation: p1 }),
+        hearing(P2, P2_TWO_MISSED, { pronunciation: p2 }),
+      ]);
+      if ('missing' in result) throw new Error('expected a ruling');
+      return result.ruling;
+    };
+
+    const plain = rule(null, null);
+    expect(rule(poor, perfect)).toEqual(plain);
+    expect(rule(perfect, poor)).toEqual(plain);
+  });
+
   it('names the prompts nothing was heard for, and rules on none of them', () => {
     expect(readingRuling(input(), [hearing(P1, lexical(TEXT1))])).toEqual({ missing: [P2] });
   });

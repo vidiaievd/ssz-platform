@@ -9,7 +9,7 @@ export interface ProviderReadiness {
 }
 
 /** Kinds with no fixed endpoint: the registry row says where the server is. */
-const NEEDS_BASE_URL: ReadonlySet<AiProvider['kind']> = new Set(['openai_compatible', 'azure_openai', 'whisper_local']);
+const NEEDS_BASE_URL: ReadonlySet<AiProvider['kind']> = new Set(['openai_compatible', 'azure_openai', 'whisper_local', 'azure_speech']);
 
 /**
  * `configured` is about the environment, `enabled` about the admin's choice — a provider

@@ -21,6 +21,7 @@ enum AiProviderKind {
   azure_openai
   google
   whisper_local
+  azure_speech
   fake
 
   @@map("ai_provider_kind")

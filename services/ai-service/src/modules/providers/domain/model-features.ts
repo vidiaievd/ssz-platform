@@ -49,6 +49,11 @@ export type ProviderKind =
   | 'google'
   /** Self-hosted NB-Whisper sidecar (plan 82, step 4): speech only, keyless, needs `baseUrl`. */
   | 'whisper_local'
+  /**
+   * Azure AI Speech with Pronunciation Assessment (plan 82, step 9): speech only; `baseUrl` is
+   * the resource's speech endpoint (`https://<region>.stt.speech.microsoft.com`).
+   */
+  | 'azure_speech'
   | 'fake';
 
 /** Where and how to reach a provider — the registry row, minus anything secret. */
