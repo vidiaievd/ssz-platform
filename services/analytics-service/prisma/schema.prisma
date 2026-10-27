@@ -556,8 +556,9 @@ model AiDraftQualityDaily {
   capability       String
   modelId          String?  @map("model_id")
   promptVersion    String?  @map("prompt_version")
-  /// `review_draft`: verdicts given with a draft on screen. `review_direct`: verdicts a model
-  /// delivered — a teacher's verdict after one is `teacher_verdicts`, not a review (step 6c).
+  /// `review_draft`: verdicts given with a draft on screen. `review_direct` / `voice_review`
+  /// (plan 82): verdicts a model delivered — a teacher's verdict after one is
+  /// `teacher_verdicts`, not a review (step 6c).
   reviews          Int
   remarksAccepted  Int      @map("remarks_accepted")
   remarksEdited    Int      @map("remarks_edited")
@@ -571,11 +572,11 @@ model AiDraftQualityDaily {
   marksCompared    Int      @default(0) @map("marks_compared")
   marksDeltaSum    Int      @default(0) @map("marks_delta_sum")
   marksAbsDeltaSum Int      @default(0) @map("marks_abs_delta_sum")
-  /// `review_direct` rows (step 2.3b): `reviews` counts the verdicts a model delivered to a
+  /// `review_direct` / `voice_review` rows (step 2.3b): `reviews` counts the verdicts a model delivered to a
   /// learner nobody reviews, `disputes` how many of them the learner said were wrong —
   /// folded on the review's day, so the two stay a rate. Always 0 on `review_draft` rows.
   disputes         Int      @default(0)
-  /// `review_direct` rows (plan 80, step 6c): teachers' verdicts on school work the model had
+  /// `review_direct` / `voice_review` rows (plan 80, step 6c): teachers' verdicts on school work the model had
   /// answered first — provisional or counted at the term — on the teacher's day, and how many
   /// went the other way (approved ↔ returned). Always 0 on `review_draft` rows.
   teacherVerdicts  Int      @default(0) @map("teacher_verdicts")

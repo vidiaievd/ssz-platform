@@ -68,6 +68,20 @@ describe('aggregateDraftQuality', () => {
     expect(group).toMatchObject({ reviews: 8, disputes: 1, disputeRate: 0.125, takenRate: null });
   });
 
+  // Plan 82, step 10c.
+  it('rates a speech model’s readings of learners as their reviews too', () => {
+    const voice = { capability: 'voice_review', promptVersion: null };
+    const [group] = aggregateDraftQuality([
+      row({ ...voice, reviews: 4, disputes: 1, teacherVerdicts: 2, teacherOverturned: 1 }),
+    ]);
+    expect(group).toMatchObject({
+      capability: 'voice_review',
+      reviews: 4,
+      disputeRate: 0.25,
+      teacherVerdicts: { total: 2, overturned: 1, overturnRate: 0.5 },
+    });
+  });
+
   it('gives no dispute rate to teachers’ drafts, which learners never see', () => {
     expect(aggregateDraftQuality([row({ reviews: 4 })])[0]!.disputeRate).toBeNull();
   });
@@ -167,6 +181,20 @@ describe('reviewedIncrements', () => {
     expect(increments).toEqual([
       expect.objectContaining({ capability: 'review_direct', reviews: 0, remarks: expect.objectContaining({ accepted: 1 }), teacherVerdicts: 0 }),
       expect.objectContaining({ capability: 'review_direct', modelId: 'm1', reviews: 0, teacherVerdicts: 1, teacherOverturned: 1 }),
+    ]);
+  });
+
+  // Plan 82, step 10c.
+  it('does not count a teacher’s verdict on a voice_review draft as a delivered review', () => {
+    const voice = { capability: 'voice_review', modelId: 'whisper', promptVersion: null };
+    const increments = reviewedIncrements({
+      outcome: 'returned',
+      aiDraft: { ...voice, accepted: 0, edited: 0, discarded: 0, untouched: 0 },
+      aiVerdict: { ...voice, outcome: 'approved' },
+    })!;
+    expect(increments).toEqual([
+      expect.objectContaining({ capability: 'voice_review', reviews: 0, teacherVerdicts: 0 }),
+      expect.objectContaining({ capability: 'voice_review', reviews: 0, teacherVerdicts: 1, teacherOverturned: 1 }),
     ]);
   });
 
