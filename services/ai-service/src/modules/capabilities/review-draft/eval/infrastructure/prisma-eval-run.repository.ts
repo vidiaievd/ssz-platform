@@ -3,13 +3,12 @@ import type { AiEvalRun as EvalRunRow } from '../../../../../../generated/prisma
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import type { IEvalRunRepository } from '../application/ports/eval-run.repository.js';
 import type { BindingAtStart, EvalRun, EvalRunFinish, EvalRunStatus } from '../domain/eval-run.js';
-import type { CaseResult, RunScores } from '../domain/eval-score.js';
 
 @Injectable()
-export class PrismaEvalRunRepository implements IEvalRunRepository {
+export class PrismaEvalRunRepository<S, C> implements IEvalRunRepository<S, C> {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(run: EvalRun): Promise<void> {
+  async create(run: EvalRun<S, C>): Promise<void> {
     await this.prisma.aiEvalRun.create({
       data: {
         id: run.id,
@@ -28,7 +27,7 @@ export class PrismaEvalRunRepository implements IEvalRunRepository {
     });
   }
 
-  async finish(id: string, finish: EvalRunFinish, at: Date): Promise<boolean> {
+  async finish(id: string, finish: EvalRunFinish<S, C>, at: Date): Promise<boolean> {
     const data =
       finish.status === 'done'
         ? {
@@ -47,18 +46,18 @@ export class PrismaEvalRunRepository implements IEvalRunRepository {
     return count === 1;
   }
 
-  async findById(id: string): Promise<EvalRun | null> {
+  async findById(id: string): Promise<EvalRun<S, C> | null> {
     const row = await this.prisma.aiEvalRun.findUnique({ where: { id } });
-    return row ? toRun(row) : null;
+    return row ? toRun<S, C>(row) : null;
   }
 
-  async list(capability: string, limit: number): Promise<EvalRun[]> {
+  async list(capability: string, limit: number): Promise<EvalRun<S, C>[]> {
     const rows = await this.prisma.aiEvalRun.findMany({
       where: { capability },
       orderBy: { startedAt: 'desc' },
       take: limit,
     });
-    return rows.map(toRun);
+    return rows.map((row) => toRun<S, C>(row));
   }
 
   async failRunning(error: string, at: Date): Promise<number> {
@@ -70,7 +69,7 @@ export class PrismaEvalRunRepository implements IEvalRunRepository {
   }
 }
 
-function toRun(row: EvalRunRow): EvalRun {
+function toRun<S, C>(row: EvalRunRow): EvalRun<S, C> {
   return {
     id: row.id,
     capability: row.capability,
@@ -81,8 +80,8 @@ function toRun(row: EvalRunRow): EvalRun {
     bindingAtStart: row.bindingAtStart as unknown as BindingAtStart | null,
     caseCount: row.caseCount,
     skipped: row.skipped as Record<string, number>,
-    scores: row.scores as unknown as RunScores | null,
-    cases: row.cases as unknown as CaseResult[] | null,
+    scores: row.scores as unknown as S | null,
+    cases: row.cases as unknown as C[] | null,
     cost: row.costMicros !== null && row.currency ? { micros: Number(row.costMicros), currency: row.currency } : null,
     credits: row.credits?.toFixed(6) ?? null,
     error: row.error,

@@ -31,6 +31,12 @@ import { VOICE_REVIEW_ATTEMPTS_CLIENT } from './voice-review/application/ports/v
 import { VoiceReviewHandler } from './voice-review/application/voice-review/voice-review.handler.js';
 import { HttpRecordingAudioSource } from './voice-review/infrastructure/http-recording-audio.source.js';
 import { HttpVoiceReviewAttemptsClient } from './voice-review/infrastructure/http-voice-review-attempts.client.js';
+import { READING_CASES_CLIENT } from './voice-review/eval/application/ports/reading-cases.client.js';
+import { RunVoiceEvalHandler } from './voice-review/eval/application/run-voice-eval.handler.js';
+import { GetVoiceEvalRunHandler, ListVoiceEvalRunsHandler } from './voice-review/eval/application/voice-eval-runs.queries.js';
+import { VoiceEvalRunner } from './voice-review/eval/application/voice-eval-runner.js';
+import { HttpReadingCasesClient } from './voice-review/eval/infrastructure/http-reading-cases.client.js';
+import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admin-voice-evals.controller.js';
 
 /**
  * Agents: `diagnostic` (plan 77), `review_draft` and `review_direct` (plan 79), `voice_review`
@@ -38,7 +44,7 @@ import { HttpVoiceReviewAttemptsClient } from './voice-review/infrastructure/htt
  */
 @Module({
   imports: [GatewayModule],
-  controllers: [AdminDiagnosticController, AdminReviewDraftController, AdminReviewEvalsController],
+  controllers: [AdminDiagnosticController, AdminReviewDraftController, AdminReviewEvalsController, AdminVoiceEvalsController],
   providers: [
     RunDiagnosticHandler,
     TryTranslateReviewHandler,
@@ -58,6 +64,17 @@ import { HttpVoiceReviewAttemptsClient } from './voice-review/infrastructure/htt
     GetReviewEvalRunHandler,
     ReviewEvalRunner,
     { provide: EVAL_RUN_REPOSITORY, useClass: PrismaEvalRunRepository },
+    // speech models measured on the readings teachers ruled on, same runs table (plan 82, step 10b)
+    RunVoiceEvalHandler,
+    ListVoiceEvalRunsHandler,
+    GetVoiceEvalRunHandler,
+    VoiceEvalRunner,
+    {
+      provide: READING_CASES_CLIENT,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpReadingCasesClient(config.get<string>('exerciseEngineUrl')!, config.get<string>('internalServiceToken')!),
+    },
     {
       provide: REVIEW_ATTEMPTS_CLIENT,
       inject: [ConfigService],
