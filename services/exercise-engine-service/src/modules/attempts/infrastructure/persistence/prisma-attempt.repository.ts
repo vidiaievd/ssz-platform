@@ -537,6 +537,17 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     return rows.map((row) => row.id);
   }
 
+  async findTeacherReviewed(templateCode: string, limit: number): Promise<Attempt[]> {
+    // A model's verdict leaves `reviewedByUserId` empty, so the person is the filter. Rows
+    // without decisions are the caller's to count — the JSON null test needs a client value.
+    const rows = await this.prisma.attempt.findMany({
+      where: { templateCode, reviewedByUserId: { not: null }, reviewedAt: { not: null } },
+      orderBy: [{ reviewedAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+    });
+    return rows.map(AttemptMapper.toDomain);
+  }
+
   async findReviewTermsAhead(
     schoolId: string,
     after: Date,

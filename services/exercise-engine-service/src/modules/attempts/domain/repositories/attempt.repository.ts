@@ -245,6 +245,11 @@ export interface IAttemptRepository {
    */
   findDueAiVerdictIds(now: Date, limit: number): Promise<string[]>;
   /**
+   * Work of one template a person ruled on, item by item — a teacher's verdict, not a model's
+   * (plan 82, step 10: the readings a speech model is measured against). Newest verdict first.
+   */
+  findTeacherReviewed(templateCode: string, limit: number): Promise<Attempt[]>;
+  /**
    * The school's work the term job will close within `(after, until]` (plan 80, step 5):
    * still in review, a provisional verdict on it. Earliest term first, at most `limit`.
    */

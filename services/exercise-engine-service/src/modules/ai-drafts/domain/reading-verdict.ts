@@ -198,6 +198,45 @@ export function readingComment(check: Pick<ReadingCheck, 'read' | 'total'>, pass
   return `${check.read}/${check.total} · ${accuracyPercent(check)} % ${sign} ${passPercent} %`;
 }
 
+/** A passage beside what was heard in its take, to be checked and not ruled on. */
+export interface ReadingToCheck {
+  itemId: string;
+  text: string;
+  transcript: string;
+}
+
+/** The check's counts on one prompt — what a verdict would stand on, without the verdict. */
+export interface PromptCheckCount {
+  itemId: string;
+  read: number;
+  total: number;
+  /** Whole percent, rounded down (`accuracyPercent`). */
+  percent: number;
+  passed: boolean;
+}
+
+/**
+ * The same check `readingRuling` rules by, prompt by prompt, with nothing written and nothing
+ * ruled — for a speech model run in the shadow over teachers' verdicts (plan 82, step 10), so
+ * the machine's pass and fail there are exactly what it would give a learner.
+ */
+export function checkReadings(
+  language: string,
+  passPercent: number,
+  readings: readonly ReadingToCheck[],
+): PromptCheckCount[] {
+  return readings.map(({ itemId, text, transcript }) => {
+    const check = checkReading(text, transcript, language, []);
+    return {
+      itemId,
+      read: check.read,
+      total: check.total,
+      percent: accuracyPercent(check),
+      passed: readingPasses(check, passPercent),
+    };
+  });
+}
+
 /** From the first word heard to the end of the last; 0 when nothing was heard. */
 function speechSeconds(words: readonly HeardWord[]): number {
   if (words.length === 0) return 0;

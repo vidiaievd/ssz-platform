@@ -1,5 +1,6 @@
 import { SAMPLE_PROMPT_IDS, sampleDocument, type SubmittedRecording } from '@ssz/shared-kernel/read-aloud';
 import {
+  checkReadings,
   readingComment,
   readingForView,
   readingRuling,
@@ -203,5 +204,29 @@ describe('readingComment', () => {
     expect(viewed.prompts.map((p) => 'aiCallId' in p)).toEqual([false, false]);
     expect(viewed.prompts.map((p) => p.passed)).toEqual(result.reading.prompts.map((p) => p.passed));
     expect(readingForView(null)).toBeNull();
+  });
+});
+
+describe('checkReadings', () => {
+  it('counts each prompt as the ruling would, and rules on none (step 10)', () => {
+    const passages = [
+      { itemId: P1, text: TEXT1, transcript: lexical(TEXT1) },
+      { itemId: P2, text: TEXT2, transcript: P2_TWO_MISSED },
+    ];
+    expect(checkReadings('nb', 90, passages)).toEqual([
+      { itemId: P1, read: 23, total: 23, percent: 100, passed: true },
+      { itemId: P2, read: 13, total: 15, percent: 86, passed: false },
+    ]);
+
+    // The same transcripts ruled on: the same pass and fail, prompt by prompt.
+    const ruled = readingRuling(input({ passPercent: 90 }), [hearing(P1, lexical(TEXT1)), hearing(P2, P2_TWO_MISSED)]);
+    if ('missing' in ruled) throw new Error('expected a ruling');
+    expect(ruled.reading.prompts.map((p) => p.passed)).toEqual([true, false]);
+  });
+
+  it('reads silence as nothing read', () => {
+    expect(checkReadings('nb', 85, [{ itemId: P2, text: TEXT2, transcript: '' }])).toEqual([
+      { itemId: P2, read: 0, total: 15, percent: 0, passed: false },
+    ]);
   });
 });
