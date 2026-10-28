@@ -1,4 +1,6 @@
-import type { LlmRequest } from '../../domain/llm-request.js';
+import { LlmError } from '../../domain/llm-error.js';
+import type { LlmMessage, LlmRequest } from '../../domain/llm-request.js';
+import { assistantToolTurn, toolResultsTurn } from '../../domain/llm-turns.js';
 import type { LlmModelRef, ModelFeatures } from '../../domain/model-features.js';
 import { ANSWER_TOOL, toAnthropicCall } from './anthropic-request.mapper.js';
 
@@ -127,5 +129,104 @@ describe('toAnthropicCall', () => {
   it('sends temperature only to a model that accepts it', () => {
     expect(toAnthropicCall({ ...base, temperature: 0.2 }, model()).params.temperature).toBe(0.2);
     expect(toAnthropicCall({ ...base, temperature: 0.2 }, model({ samplingParams: false })).params.temperature).toBeUndefined();
+  });
+
+  describe('tool turns', () => {
+    const lookup = { name: 'lookup', description: 'Find a unit', inputSchema: { type: 'object' } };
+    const call = assistantToolTurn({
+      kind: 'tool_calls',
+      text: 'Looking it up.',
+      calls: [
+        { id: 'tu_1', name: 'lookup', input: { q: 'hus' } },
+        { id: 'tu_2', name: 'lookup', input: { q: 'bil' } },
+      ],
+    });
+    const results = toolResultsTurn([
+      { callId: 'tu_1', content: '{"title":"Leksjon 1"}' },
+      { callId: 'tu_2', content: 'not found', isError: true },
+    ]);
+    const ask: LlmMessage = { role: 'user', parts: [{ type: 'text', text: 'Hva betyr hus?' }] };
+    const tooled: LlmRequest = { ...base, tools: [lookup], messages: [ask, call, results] };
+
+    it('maps calls to tool_use and results to tool_result blocks', () => {
+      const { params } = toAnthropicCall(tooled, model());
+      expect(params.messages).toEqual([
+        { role: 'user', content: [{ type: 'text', text: 'Hva betyr hus?' }] },
+        {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: 'Looking it up.' },
+            { type: 'tool_use', id: 'tu_1', name: 'lookup', input: { q: 'hus' } },
+            { type: 'tool_use', id: 'tu_2', name: 'lookup', input: { q: 'bil' } },
+          ],
+        },
+        {
+          role: 'user',
+          content: [
+            { type: 'tool_result', tool_use_id: 'tu_1', content: '{"title":"Leksjon 1"}' },
+            { type: 'tool_result', tool_use_id: 'tu_2', content: 'not found', is_error: true },
+          ],
+        },
+      ]);
+      expect(params.tools).toEqual([{ name: 'lookup', description: 'Find a unit', input_schema: { type: 'object' } }]);
+    });
+
+    it('puts tool results before text in a user message', () => {
+      const mixed: LlmMessage = { role: 'user', parts: [{ type: 'text', text: 'and?' }, ...results.parts] };
+      const { params } = toAnthropicCall({ ...tooled, messages: [ask, call, mixed] }, model());
+      expect((params.messages[2]!.content as any[]).map((b) => b.type)).toEqual(['tool_result', 'tool_result', 'text']);
+    });
+
+    it('keeps agent tools beside the answer tool in wrapper mode', () => {
+      const { params, mode } = toAnthropicCall(
+        { ...tooled, responseSchema: { name: 'mc', schema: templateSchema } },
+        model(),
+      );
+      expect(mode).toBe('wrapper');
+      expect(params.tools?.map((t) => (t as { name: string }).name)).toEqual(['lookup', ANSWER_TOOL]);
+    });
+
+    it('replays the native turn of the same model verbatim', () => {
+      const data = [
+        { type: 'thinking', thinking: 'plan', signature: 'sig' },
+        { type: 'tool_use', id: 'tu_1', name: 'lookup', input: { q: 'hus' } },
+        { type: 'tool_use', id: 'tu_2', name: 'lookup', input: { q: 'bil' } },
+      ];
+      const native: LlmMessage = { ...call, native: { provider: 'anthropic', providerModelId: 'claude-sonnet-5-5', data } };
+      const { params } = toAnthropicCall({ ...tooled, messages: [ask, native, results] }, model());
+      expect(params.messages[1]!.content).toEqual(data);
+    });
+
+    it('maps the parts when the native turn came from another model or provider', () => {
+      const data = [{ type: 'thinking', thinking: 'plan', signature: 'sig' }];
+      for (const n of [
+        { provider: 'anthropic' as const, providerModelId: 'claude-haiku-5-5', data },
+        { provider: 'google' as const, providerModelId: 'claude-sonnet-5-5', data },
+      ]) {
+        const { params } = toAnthropicCall({ ...tooled, messages: [ask, { ...call, native: n }, results] }, model());
+        expect(JSON.stringify(params.messages[1])).not.toContain('thinking');
+        expect((params.messages[1]!.content as any[])[1]).toMatchObject({ type: 'tool_use', id: 'tu_1' });
+      }
+    });
+
+    it('sets the cache point past a trailing thinking block and leaves the history unchanged', () => {
+      const data = [
+        { type: 'tool_use', id: 'tu_1', name: 'lookup', input: {} },
+        { type: 'tool_use', id: 'tu_2', name: 'lookup', input: {} },
+        { type: 'redacted_thinking', data: 'x' },
+      ];
+      const native: LlmMessage = { ...call, native: { provider: 'anthropic', providerModelId: 'claude-sonnet-5-5', data } };
+      const { params } = toAnthropicCall({ ...tooled, messages: [ask, native, results], cacheBoundary: 1 }, model());
+      const sent = params.messages[1]!.content as any[];
+      expect(sent[1].cache_control).toEqual({ type: 'ephemeral' });
+      expect(sent[2].cache_control).toBeUndefined();
+      expect(JSON.stringify(data)).not.toContain('cache_control');
+    });
+
+    it('refuses an unpaired tool history as invalid_request before any call', () => {
+      const run = () => toAnthropicCall({ ...tooled, messages: [ask, call] }, model());
+      expect(run).toThrow(LlmError);
+      expect(run).toThrow(expect.objectContaining({ code: 'invalid_request' }));
+    });
   });
 });

@@ -27,7 +27,7 @@ export class AnthropicLlmProvider implements LlmProvider {
     const started = Date.now();
     try {
       const message = await client.messages.create(params, { timeout: request.timeoutMs });
-      return fromAnthropicMessage(message, mode, Date.now() - started);
+      return fromAnthropicMessage(message, mode, Date.now() - started, model.providerModelId);
     } catch (err) {
       throw toLlmError(err);
     }
@@ -44,7 +44,7 @@ export class AnthropicLlmProvider implements LlmProvider {
           yield { type: 'text_delta', text: event.delta.text };
         }
       }
-      const result = fromAnthropicMessage(await stream.finalMessage(), mode, Date.now() - started);
+      const result = fromAnthropicMessage(await stream.finalMessage(), mode, Date.now() - started, model.providerModelId);
       if (result.output.kind === 'tool_calls') {
         for (const call of result.output.calls) yield { type: 'tool_call', call };
       }
