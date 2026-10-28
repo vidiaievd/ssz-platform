@@ -20,6 +20,17 @@ import { TaggableEntityType } from '../../../../shared/access-control/domain/typ
 import { VisibilityCheckerService } from '../../../../shared/access-control/domain/services/visibility-checker.service.js';
 import { EntityResolverRegistry } from '../../../../shared/access-control/infrastructure/registry/entity-resolver-registry.js';
 
+import {
+  GetAssistGrammarRuleQuery,
+  GetAssistUnitMaterialQuery,
+  LookupAssistWordQuery,
+} from '../../application/queries/assist-material/assist-material.query.js';
+import type {
+  AssistGrammarRule,
+  AssistUnitMaterial,
+  AssistWordLookup,
+} from '../../application/queries/assist-material/assist-material.projection.js';
+
 import { ListRelationsBySourceQuery } from '../../../content-relation/application/queries/list-relations-by-source/list-relations-by-source.query.js';
 import { ListRelationsByTargetQuery } from '../../../content-relation/application/queries/list-relations-by-target/list-relations-by-target.query.js';
 import { ListContentRelationsRequestDto } from '../../../content-relation/presentation/dto/requests/list-content-relations.request.dto.js';
@@ -739,6 +750,46 @@ export class InternalController {
   async getExercisePlacement(@Param('id') id: string): Promise<ExercisePlacementResult> {
     return this.queryBus.execute<GetExercisePlacementQuery, ExercisePlacementResult>(
       new GetExercisePlacementQuery(id),
+    );
+  }
+
+  // ai-service's student assistant reads a course through these (plan 83, step 2): the
+  // published material of a unit, a rule, a word. Each names the course and answers 404
+  // for what is not published in it. Exercises come as title and template only — the
+  // learner asks the assistant before handing work in, so no key may reach the model.
+  @Get('assist/courses/:courseId/units/:unitId')
+  async getAssistUnitMaterial(
+    @Param('courseId') courseId: string,
+    @Param('unitId') unitId: string,
+    @Query('language') language = 'en',
+  ): Promise<AssistUnitMaterial> {
+    return this.queryBus.execute<GetAssistUnitMaterialQuery, AssistUnitMaterial>(
+      new GetAssistUnitMaterialQuery(courseId, unitId, language),
+    );
+  }
+
+  @Get('assist/courses/:courseId/grammar-rules/:ruleId')
+  async getAssistGrammarRule(
+    @Param('courseId') courseId: string,
+    @Param('ruleId') ruleId: string,
+    @Query('language') language = 'en',
+  ): Promise<AssistGrammarRule> {
+    return this.queryBus.execute<GetAssistGrammarRuleQuery, AssistGrammarRule>(
+      new GetAssistGrammarRuleQuery(courseId, ruleId, language),
+    );
+  }
+
+  @Get('assist/words')
+  async lookupAssistWord(
+    @Query('lemma') lemma?: string,
+    @Query('userId') userId?: string,
+    @Query('language') language = 'en',
+    @Query('courseId') courseId?: string,
+  ): Promise<AssistWordLookup> {
+    if (!lemma?.trim() || lemma.length > 100) throw new BadRequestException('lemma is required, at most 100 characters');
+    if (!userId) throw new BadRequestException('userId is required');
+    return this.queryBus.execute<LookupAssistWordQuery, AssistWordLookup>(
+      new LookupAssistWordQuery(lemma, userId, language, courseId ?? null),
     );
   }
 }
