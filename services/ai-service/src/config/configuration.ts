@@ -50,6 +50,11 @@ export const envSchema = z.object({
   PROFILE_SERVICE_URL: z.string().url().default('http://user-profile-service:3001'),
   // A voice review (plan 82, step 8) fetches the recording's speech WAV through media-service.
   MEDIA_SERVICE_URL: z.string().url().default('http://media-service:3004'),
+  // The student assistant's tools (plan 83, step 2): the course's published material, the
+  // learner's mastery profile, a class.
+  CONTENT_SERVICE_URL: z.string().url().default('http://content-service:3003'),
+  ANALYTICS_SERVICE_URL: z.string().url().default('http://analytics-service:3008'),
+  SCHEDULING_SERVICE_URL: z.string().url().default('http://scheduling-service:3009'),
   // How often quota counters are raised to the ledger's sums (step 9b). A day by default.
   AI_QUOTA_RECONCILE_MS: z.coerce.number().int().positive().default(86_400_000),
 });
@@ -82,6 +87,9 @@ export interface AppConfig {
   organizationServiceUrl: string;
   profileServiceUrl: string;
   mediaServiceUrl: string;
+  contentServiceUrl: string;
+  analyticsServiceUrl: string;
+  schedulingServiceUrl: string;
   quotaReconcileMs: number;
   /** Shared secret for service-to-service routes (`x-internal-token`). */
   internalServiceToken: string;
@@ -115,6 +123,9 @@ export default (): AppConfig => {
     organizationServiceUrl: env.ORGANIZATION_SERVICE_URL,
     profileServiceUrl: env.PROFILE_SERVICE_URL,
     mediaServiceUrl: env.MEDIA_SERVICE_URL,
+    contentServiceUrl: env.CONTENT_SERVICE_URL,
+    analyticsServiceUrl: env.ANALYTICS_SERVICE_URL,
+    schedulingServiceUrl: env.SCHEDULING_SERVICE_URL,
     quotaReconcileMs: env.AI_QUOTA_RECONCILE_MS,
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };

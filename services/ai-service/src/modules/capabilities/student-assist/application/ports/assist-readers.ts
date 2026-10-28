@@ -1,0 +1,114 @@
+/**
+ * What the student assistant's tools read (plan 83, step 2), one port per service. Every
+ * read is learner-safe by the route it calls: content-service answers only what is
+ * published in the named course, with exercises as title and template; exercise-engine
+ * only the learner's own attempt after its verdict; scheduling-service a session without
+ * notes or scores. A reader answers null for "not there" and throws for "could not ask".
+ */
+
+export interface UnitMaterial {
+  courseId: string;
+  unit: { id: string; title: string };
+  lessons: { id: string; title: string; text: string; truncated: boolean }[];
+  grammarRules: GrammarRuleSummary[];
+  vocabulary: { id: string; word: string; partOfSpeech: string | null; translation: string | null }[];
+  exercises: { id: string; title: string | null; template: string }[];
+}
+
+export interface GrammarRuleSummary {
+  id: string;
+  title: string;
+  summary: string | null;
+  examples: { sentence: string; correct: boolean; note: string | null }[];
+}
+
+export interface GrammarRuleText extends GrammarRuleSummary {
+  text: string;
+  truncated: boolean;
+}
+
+export interface WordLookup {
+  lemma: string;
+  course: {
+    id: string;
+    word: string;
+    partOfSpeech: string | null;
+    translation: string | null;
+    alternatives: string[];
+    definition: string | null;
+    usageNotes: string | null;
+    falseFriendWarning: string | null;
+    examples: string[];
+  }[];
+  personal: {
+    vocabularyItemId: string;
+    word: string;
+    surfaceForm: string;
+    contextSentence: string | null;
+    translation: string | null;
+  }[];
+}
+
+export const COURSE_MATERIAL_READER = Symbol('COURSE_MATERIAL_READER');
+
+export interface ICourseMaterialReader {
+  unitMaterial(courseId: string, unitId: string, language: string): Promise<UnitMaterial | null>;
+  grammarRule(courseId: string, ruleId: string, language: string): Promise<GrammarRuleText | null>;
+  lookupWord(lemma: string, userId: string, language: string, courseId: string | null): Promise<WordLookup>;
+}
+
+/** A cell of the learner's `SkillMastery` profile the profile itself calls weak (R-h). */
+export interface WeakTopic {
+  skill: string;
+  focus: string;
+  reason: string;
+  successRate: number | null;
+}
+
+export const MASTERY_READER = Symbol('MASTERY_READER');
+
+export interface IMasteryReader {
+  weakTopics(userId: string, courseId: string | null): Promise<WeakTopic[]>;
+}
+
+export interface ReviewedWork {
+  attemptId: string;
+  exerciseId: string;
+  courseId: string | null;
+  templateCode: string;
+  status: string;
+  reviewedBy: 'teacher' | 'ai';
+  reviewedAt: string | null;
+  score: number | null;
+  passed: boolean | null;
+  answer: unknown;
+  comment: string | null;
+  decisions: { itemId: string; approved: boolean; comment: string | null }[];
+  rubricMarks: unknown;
+}
+
+export const REVIEWED_WORK_READER = Symbol('REVIEWED_WORK_READER');
+
+export interface IReviewedWorkReader {
+  /** `not_reviewed` before a delivered verdict; null for an unknown attempt or someone else's. */
+  reviewedWork(attemptId: string, userId: string): Promise<ReviewedWork | 'not_reviewed' | null>;
+}
+
+export interface ClassSession {
+  id: string;
+  groupId: string;
+  schoolId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  type: string;
+  contentUnitId: string | null;
+  contentLessonId: string | null;
+}
+
+export const CLASS_SESSION_READER = Symbol('CLASS_SESSION_READER');
+
+export interface IClassSessionReader {
+  session(sessionId: string): Promise<ClassSession | null>;
+}

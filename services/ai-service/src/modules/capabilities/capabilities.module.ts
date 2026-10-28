@@ -11,6 +11,19 @@ import { DIRECT_REVIEW_ATTEMPTS_CLIENT } from './review-direct/application/ports
 import { LEARNER_LANGUAGE_READER } from './review-direct/application/ports/learner-language.reader.js';
 import { HttpDirectReviewAttemptsClient } from './review-direct/infrastructure/http-direct-review-attempts.client.js';
 import { HttpLearnerLanguageReader } from './review-direct/infrastructure/http-learner-language.reader.js';
+import { AssistToolbox } from './student-assist/application/assist-toolbox.js';
+import {
+  CLASS_SESSION_READER,
+  COURSE_MATERIAL_READER,
+  MASTERY_READER,
+  REVIEWED_WORK_READER,
+} from './student-assist/application/ports/assist-readers.js';
+import {
+  HttpClassSessionReader,
+  HttpCourseMaterialReader,
+  HttpMasteryReader,
+  HttpReviewedWorkReader,
+} from './student-assist/infrastructure/http-assist-readers.js';
 import { DraftReviewHandler } from './review-draft/application/draft-review/draft-review.handler.js';
 import { REVIEW_ATTEMPTS_CLIENT } from './review-draft/application/ports/review-attempts.client.js';
 import { SCHOOL_LANGUAGE_READER } from './review-draft/application/ports/school-language.reader.js';
@@ -46,6 +59,32 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
   imports: [GatewayModule],
   controllers: [AdminDiagnosticController, AdminReviewDraftController, AdminReviewEvalsController, AdminVoiceEvalsController],
   providers: [
+    // the student assistant's read-only tools (plan 83, step 2)
+    AssistToolbox,
+    {
+      provide: COURSE_MATERIAL_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpCourseMaterialReader(config.get<string>('contentServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: MASTERY_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpMasteryReader(config.get<string>('analyticsServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: REVIEWED_WORK_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpReviewedWorkReader(config.get<string>('exerciseEngineUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: CLASS_SESSION_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpClassSessionReader(config.get<string>('schedulingServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
     RunDiagnosticHandler,
     TryTranslateReviewHandler,
     AdminPayerResolver,
