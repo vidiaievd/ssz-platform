@@ -112,3 +112,41 @@ export const CLASS_SESSION_READER = Symbol('CLASS_SESSION_READER');
 export interface IClassSessionReader {
   session(sessionId: string): Promise<ClassSession | null>;
 }
+
+/*
+ * What the payer resolver reads before a turn (plan 83, step 3): whether the learner may
+ * ask about this course or class at all, and through which workspace.
+ */
+
+export interface AssistEnrollment {
+  status: 'active' | 'completed';
+  /** The workspace the enrolment belongs to; null for self-study. */
+  schoolId: string | null;
+}
+
+export const ENROLLMENT_READER = Symbol('ENROLLMENT_READER');
+
+export interface IEnrollmentReader {
+  /** Null when the learner does not hold the course (never joined, or left it). */
+  enrollment(userId: string, courseId: string): Promise<AssistEnrollment | null>;
+}
+
+export interface AttemptScope {
+  attemptId: string;
+  exerciseId: string;
+  courseId: string | null;
+}
+
+export const ATTEMPT_SCOPE_READER = Symbol('ATTEMPT_SCOPE_READER');
+
+export interface IAttemptScopeReader {
+  /** The course of the learner's own attempt, reviewed or not; null for an unknown attempt or someone else's. */
+  attemptScope(attemptId: string, userId: string): Promise<AttemptScope | null>;
+}
+
+export const GROUP_ROSTER_READER = Symbol('GROUP_ROSTER_READER');
+
+export interface IGroupRosterReader {
+  /** The learners of a group; null when the school has no such group. */
+  members(schoolId: string, groupId: string): Promise<string[] | null>;
+}

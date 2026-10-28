@@ -518,6 +518,7 @@ services:
       CONTENT_SERVICE_URL: http://content-service:3003
       ANALYTICS_SERVICE_URL: http://analytics-service:3008
       SCHEDULING_SERVICE_URL: http://scheduling-service:3009
+      LEARNING_SERVICE_URL: http://learning-service:3007
       # Provider keys: the registry names the variable (credentialRef), this passes it in.
       # Empty = provider shows configured: false; nothing else breaks.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

@@ -11,16 +11,23 @@ import { DIRECT_REVIEW_ATTEMPTS_CLIENT } from './review-direct/application/ports
 import { LEARNER_LANGUAGE_READER } from './review-direct/application/ports/learner-language.reader.js';
 import { HttpDirectReviewAttemptsClient } from './review-direct/infrastructure/http-direct-review-attempts.client.js';
 import { HttpLearnerLanguageReader } from './review-direct/infrastructure/http-learner-language.reader.js';
+import { AssistPayerResolver } from './student-assist/application/assist-payer.resolver.js';
 import { AssistToolbox } from './student-assist/application/assist-toolbox.js';
 import {
+  ATTEMPT_SCOPE_READER,
   CLASS_SESSION_READER,
   COURSE_MATERIAL_READER,
+  ENROLLMENT_READER,
+  GROUP_ROSTER_READER,
   MASTERY_READER,
   REVIEWED_WORK_READER,
 } from './student-assist/application/ports/assist-readers.js';
 import {
+  HttpAttemptScopeReader,
   HttpClassSessionReader,
   HttpCourseMaterialReader,
+  HttpEnrollmentReader,
+  HttpGroupRosterReader,
   HttpMasteryReader,
   HttpReviewedWorkReader,
 } from './student-assist/infrastructure/http-assist-readers.js';
@@ -84,6 +91,26 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfig>) =>
         new HttpClassSessionReader(config.get<string>('schedulingServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    // who pays for a turn, and whether the learner may ask in its context (plan 83, step 3)
+    AssistPayerResolver,
+    {
+      provide: ENROLLMENT_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpEnrollmentReader(config.get<string>('learningServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: ATTEMPT_SCOPE_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpAttemptScopeReader(config.get<string>('exerciseEngineUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: GROUP_ROSTER_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpGroupRosterReader(config.get<string>('organizationServiceUrl')!, config.get<string>('internalServiceToken')!),
     },
     RunDiagnosticHandler,
     TryTranslateReviewHandler,

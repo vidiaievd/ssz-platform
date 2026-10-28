@@ -93,3 +93,40 @@ export class InternalAssistReviewController {
     return work;
   }
 }
+
+/** Which course a learner's attempt belongs to — known before its verdict, unlike the work. */
+export interface AssistAttemptScope {
+  attemptId: string;
+  exerciseId: string;
+  courseId: string | null;
+}
+
+/**
+ * The assistant settles who pays for a question about a submission, and whether the learner
+ * still holds its course, from the attempt's course (plan 83, step 3) — also while the work
+ * waits for review, when `assist-review` answers 409. Same rules: the caller names the
+ * learner, somebody else's attempt is 404. Callers must include the `/api/v1` prefix.
+ */
+@ApiExcludeController()
+@Public()
+@UseGuards(InternalAuthGuard)
+@Controller('internal/attempts/:attemptId/assist-scope')
+export class InternalAssistScopeController {
+  constructor(private readonly queryBus: QueryBus) {}
+
+  @Get()
+  async get(
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Query('userId') userId?: string,
+  ): Promise<AssistAttemptScope> {
+    if (!userId) throw new UnprocessableEntityException('userId is required');
+
+    const result: Result<Attempt, GetAttemptByIdError> = await this.queryBus.execute(
+      new GetAttemptByIdQuery(attemptId, userId),
+    );
+    if (result.isFail) throw new NotFoundException('Attempt not found');
+
+    const attempt = result.value;
+    return { attemptId: attempt.id, exerciseId: attempt.exerciseId, courseId: attempt.containerId };
+  }
+}

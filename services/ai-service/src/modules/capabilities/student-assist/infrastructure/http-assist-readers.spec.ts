@@ -1,6 +1,9 @@
 import {
+  HttpAttemptScopeReader,
   HttpClassSessionReader,
   HttpCourseMaterialReader,
+  HttpEnrollmentReader,
+  HttpGroupRosterReader,
   HttpMasteryReader,
   HttpReviewedWorkReader,
 } from './http-assist-readers.js';
@@ -83,5 +86,44 @@ describe('HttpClassSessionReader', () => {
     const fetchMock = respond(200, { id: 's' });
     expect(await new HttpClassSessionReader(BASE, TOKEN).session('s')).toEqual({ id: 's' });
     expect(requested(fetchMock).url.pathname).toBe('/api/v1/internal/sessions/s/assist');
+  });
+});
+
+// Plan 83, step 3: what the payer resolver reads.
+
+describe('HttpEnrollmentReader', () => {
+  const reader = new HttpEnrollmentReader(BASE, TOKEN);
+
+  it('asks learning-service with its own header; 404 is «does not hold the course»', async () => {
+    const fetchMock = respond(200, { status: 'active', schoolId: 's-1' });
+    expect(await reader.enrollment('user-1', 'c')).toEqual({ status: 'active', schoolId: 's-1' });
+    const { url, headers } = requested(fetchMock);
+    expect(url.toString()).toBe(`${BASE}/api/v1/internal/enrollments/assist?userId=user-1&courseId=c`);
+    expect(headers['x-service-token']).toBe(TOKEN);
+    expect(headers['x-internal-token']).toBeUndefined();
+    respond(404);
+    expect(await reader.enrollment('user-1', 'c')).toBeNull();
+  });
+});
+
+describe('HttpAttemptScopeReader', () => {
+  it('reads the attempt\'s course as the named learner', async () => {
+    const fetchMock = respond(200, { attemptId: 'a', exerciseId: 'e', courseId: 'c' });
+    expect(await new HttpAttemptScopeReader(BASE, TOKEN).attemptScope('a', 'user-1')).toEqual({ attemptId: 'a', exerciseId: 'e', courseId: 'c' });
+    const { url, headers } = requested(fetchMock);
+    expect(url.toString()).toBe(`${BASE}/api/v1/internal/attempts/a/assist-scope?userId=user-1`);
+    expect(headers['x-internal-token']).toBe(TOKEN);
+  });
+});
+
+describe('HttpGroupRosterReader', () => {
+  const reader = new HttpGroupRosterReader(BASE, TOKEN);
+
+  it('reads a group\'s learners; an unknown group is null', async () => {
+    const fetchMock = respond(200, { userIds: ['user-1'] });
+    expect(await reader.members('s', 'g')).toEqual(['user-1']);
+    expect(requested(fetchMock).url.pathname).toBe('/api/v1/internal/schools/s/groups/g/members');
+    respond(404);
+    expect(await reader.members('s', 'g')).toBeNull();
   });
 });
