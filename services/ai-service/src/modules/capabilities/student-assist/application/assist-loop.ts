@@ -1,8 +1,9 @@
-import type { GatewayRequest } from '../../../gateway/application/model-router.js';
+import type { AnswerListener, GatewayRequest } from '../../../gateway/application/model-router.js';
 import type { LlmMessage } from '../../../providers/domain/llm-request.js';
 import type { LlmOutput } from '../../../providers/domain/llm-result.js';
 import { assistantToolTurn, toolResultsTurn, type LlmToolOutcome } from '../../../providers/domain/llm-turns.js';
 import { toAssistAnswer, type AssistAnswer, type AssistEvidence, type AssistSource } from '../domain/assist-answer.js';
+import { AssistAnswerPreview, type AssistDelta } from '../domain/assist-answer-preview.js';
 import { assistRequest, type AssistPrompt, type AssistTurn } from '../prompts/prompts.js';
 import type { AssistRefusal } from './assist-refusal.js';
 import type { AssistToolbox, AssistToolScope } from './assist-toolbox.js';
@@ -27,8 +28,25 @@ export type AssistRound =
   /** Every model failed, or the gate could not be asked. */
   | { kind: 'failed'; callId: string; code: string };
 
-/** Calls the model once with the request the loop builds for the round's prompt version. */
-export type AssistRoundCaller = (build: (promptVersion: string) => GatewayRequest) => Promise<AssistRound>;
+/**
+ * Calls the model once with the request the loop builds for the round's prompt version;
+ * `listener`, when given, hears the answer as it is written (step 9).
+ */
+export type AssistRoundCaller = (build: (promptVersion: string) => GatewayRequest, listener?: AnswerListener) => Promise<AssistRound>;
+
+/**
+ * What a streamed turn sends before its outcome (plan 83, step 9): the blocks' text as it is
+ * written, and `reset` when what was sent is void — the round turned out to be tool calls, the
+ * answer went to repair, or the fallback started over. Only the outcome is checked; the client
+ * replaces whatever it showed with the answer, or drops it on any other outcome.
+ */
+export type AssistStreamEvent = { type: 'delta'; delta: AssistDelta } | { type: 'reset' };
+
+export interface AssistStream {
+  send(event: AssistStreamEvent): void;
+  /** True once the client has gone: no further round is started for it. */
+  closed(): boolean;
+}
 
 /** How a turn went, in counts — what the eval scores and the handler logs. */
 export interface AssistLoopTrace {
@@ -51,6 +69,8 @@ export interface AssistLoopInput {
   prompt: AssistPrompt;
   turn: AssistTurn;
   scope: AssistToolScope;
+  /** A streamed turn's client (step 9); absent, every round is a plain call. */
+  stream?: AssistStream;
 }
 
 /**
@@ -62,11 +82,15 @@ export interface AssistLoopInput {
  * The answer is checked by `SchemaGuard` against the schema and the verifier, which reads the
  * sources and texts the tools returned so far. An answer that fails gets one repair round:
  * the model reads its answer and why it was not accepted. A second failure is silence (R-f).
+ *
+ * Streamed (step 9), each round's answer is read as it arrives and its blocks' text sent on;
+ * a client that has gone stops the turn before its next round — the round under way is paid
+ * for either way.
  */
 export async function runAssistLoop(
   call: AssistRoundCaller,
   toolbox: Pick<AssistToolbox, 'run'>,
-  { prompt, turn, scope }: AssistLoopInput,
+  { prompt, turn, scope, stream }: AssistLoopInput,
 ): Promise<AssistLoopOutcome> {
   // What the answer may cite and name: grows with every tool round of this turn only.
   const sources: AssistSource[] = [];
@@ -75,12 +99,24 @@ export async function runAssistLoop(
   const trace: AssistLoopTrace = { calls: 0, toolRounds: 0, toolCalls: 0, rejections: [] };
   let repaired = false;
 
+  // What this round's answer has sent so far; void it when the answer will not stand.
+  let preview = new AssistAnswerPreview();
+  const discard = () => {
+    if (preview.spoke) stream!.send({ type: 'reset' });
+    preview = new AssistAnswerPreview();
+  };
+  const listener: AnswerListener | undefined = stream && {
+    text: (piece) => preview.push(piece).forEach((delta) => stream.send({ type: 'delta', delta })),
+    restart: discard,
+  };
+
   for (;;) {
+    if (stream?.closed()) return { kind: 'silent', cause: 'client_closed', callId: null, trace };
     const evidence: AssistEvidence = { sources: [...sources], texts: [...texts] };
     const round = await call((promptVersion) => {
       const request = assistRequest(promptVersion, prompt, turn, evidence);
       return { ...request, messages: [...request.messages, ...rounds] };
-    });
+    }, listener);
     trace.calls++;
 
     switch (round.kind) {
@@ -92,6 +128,8 @@ export async function runAssistLoop(
         if (output.kind !== 'tool_calls') return { kind: 'silent', cause: 'invalid_response', callId: round.callId, trace };
         if (trace.toolRounds >= MAX_TOOL_ROUNDS) return { kind: 'silent', cause: 'tool_budget', callId: round.callId, trace };
         trace.toolRounds++;
+        // Whatever the model wrote beside its calls is not the answer.
+        if (stream) discard();
 
         const outcomes: LlmToolOutcome[] = [];
         for (const toolCall of output.calls) {
@@ -111,6 +149,7 @@ export async function runAssistLoop(
         if (!repaired && round.output && round.output.kind !== 'tool_calls') {
           repaired = true;
           rounds.push(...repairTurn(round.output, round.reason));
+          if (stream) discard();
           continue;
         }
         return { kind: 'silent', cause: 'invalid_response', callId: round.callId, trace };

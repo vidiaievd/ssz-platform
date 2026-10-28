@@ -7,7 +7,7 @@ import type { LlmModelRef } from '../../domain/model-features.js';
 import { readCredential } from '../credentials.js';
 import { toLlmError } from './anthropic-error.mapper.js';
 import { toAnthropicCall } from './anthropic-request.mapper.js';
-import { fromAnthropicMessage } from './anthropic-response.mapper.js';
+import { answerDeltaOf, fromAnthropicMessage } from './anthropic-response.mapper.js';
 
 /**
  * Anthropic Messages API through the official SDK.
@@ -39,10 +39,10 @@ export class AnthropicLlmProvider implements LlmProvider {
     const started = Date.now();
     try {
       const stream = client.messages.stream(params, { timeout: request.timeoutMs });
+      const answerBlocks = new Set<number>();
       for await (const event of stream) {
-        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-          yield { type: 'text_delta', text: event.delta.text };
-        }
+        const text = answerDeltaOf(event, mode, answerBlocks);
+        if (text) yield { type: 'text_delta', text };
       }
       const result = fromAnthropicMessage(await stream.finalMessage(), mode, Date.now() - started, model.providerModelId);
       if (result.output.kind === 'tool_calls') {

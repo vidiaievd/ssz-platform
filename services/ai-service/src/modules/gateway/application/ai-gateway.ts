@@ -10,6 +10,7 @@ import { Result } from '../../../shared/kernel/result.js';
 import type { SpeechResult } from '../../providers/domain/speech-result.js';
 import {
   ModelRouter,
+  type AnswerListener,
   type GatewayInput,
   type RouteAttempt,
   type RouteConstraints,
@@ -67,8 +68,12 @@ export class AiGateway {
     private readonly recorder: CallRecorder,
   ) {}
 
-  async call(capability: string, context: CallContext, request: GatewayInput): Promise<GatewayCall> {
-    return this.run(capability, context, (constraints) => this.router.call(capability, request, constraints), byTokens);
+  /**
+   * `listener` hears the answer as the model writes it (plan 83, step 9) — unchecked; the call
+   * is gated, routed, recorded and charged exactly as without one.
+   */
+  async call(capability: string, context: CallContext, request: GatewayInput, listener?: AnswerListener): Promise<GatewayCall> {
+    return this.run(capability, context, (constraints) => this.router.call(capability, request, constraints, listener), byTokens);
   }
 
   async callSpeech(capability: string, context: CallContext, request: SpeechGatewayRequest): Promise<GatewaySpeechCall> {

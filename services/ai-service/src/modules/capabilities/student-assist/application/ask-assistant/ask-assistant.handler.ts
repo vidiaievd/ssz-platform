@@ -105,8 +105,8 @@ export class AskAssistantHandler implements ICommandHandler<AskAssistantCommand,
       surface: assistSurface(context),
     };
 
-    const round: AssistRoundCaller = async (build) => {
-      const call = await this.gateway.call(STUDENT_ASSIST.code, callContext, build);
+    const round: AssistRoundCaller = async (build, listener) => {
+      const call = await this.gateway.call(STUDENT_ASSIST.code, callContext, build, listener);
       const report = describeCall(STUDENT_ASSIST.code, callContext, call);
       if (report.outcome === 'ok') return { kind: 'output', callId: report.callId, output: report.output! };
       const refusal = refusalOf(call);
@@ -117,7 +117,7 @@ export class AskAssistantHandler implements ICommandHandler<AskAssistantCommand,
       return { kind: 'failed', callId: report.callId, code: report.errorCode ?? report.outcome };
     };
 
-    const outcome = await runAssistLoop(round, this.toolbox, { prompt, turn, scope });
+    const outcome = await runAssistLoop(round, this.toolbox, { prompt, turn, scope, stream: command.stream });
     switch (outcome.kind) {
       case 'answered':
         return { kind: 'answered', callId: outcome.callId, answer: outcome.answer, rounds: outcome.trace.calls };

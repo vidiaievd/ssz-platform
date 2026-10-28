@@ -4,7 +4,7 @@ import { SchemaGuard } from '../../providers/application/schema-guard.js';
 import { LlmError } from '../../providers/domain/llm-error.js';
 import { LLM_PROVIDERS, type LlmProvider } from '../../providers/domain/llm-provider.port.js';
 import type { LlmRequest } from '../../providers/domain/llm-request.js';
-import type { LlmResult } from '../../providers/domain/llm-result.js';
+import type { LlmChunk, LlmResult } from '../../providers/domain/llm-result.js';
 import type { ModelModality } from '../../providers/domain/model-features.js';
 import { SPEECH_ASSESSORS, type SpeechAssessor } from '../../providers/domain/speech-assessor.port.js';
 import type { SpeechRequest } from '../../providers/domain/speech-request.js';
@@ -32,6 +32,17 @@ export type GatewayInput = GatewayRequest | ((promptVersion: string) => GatewayR
 
 /** A recording as a voice capability states it; the timeout comes from the binding (plan 82, step 8). */
 export type SpeechGatewayRequest = Omit<SpeechRequest, 'timeoutMs'>;
+
+/**
+ * Hears an answer as the model writes it (plan 83, step 9): `text` gets each piece, raw and
+ * unchecked — of a structured answer, slices of its JSON. `restart` voids what came so far:
+ * that model failed and the fallback starts over. The routed result stays the only checked
+ * answer; what the listener heard is a preview of it at best.
+ */
+export interface AnswerListener {
+  text(delta: string): void;
+  restart(): void;
+}
 
 export type ModelRole = 'primary' | 'fallback';
 
@@ -143,10 +154,12 @@ export class ModelRouter {
     @Inject(SPEECH_ASSESSORS) private readonly assessors: SpeechAssessor[] = [],
   ) {}
 
+  /** With a `listener`, each model is asked through its adapter's `stream` and the answer's text is passed on as it comes. */
   async call(
     capability: string,
     input: GatewayInput,
     constraints: RouteConstraints = NO_CONSTRAINTS,
+    listener?: AnswerListener,
   ): Promise<Result<RoutedCall, RouteFailure>> {
     const binding = await this.bindings.get(capability);
     if (!binding || !binding.enabled) return Result.fail({ kind: 'disabled', binding, attempts: [] });
@@ -158,12 +171,13 @@ export class ModelRouter {
       timeoutMs: binding.timeoutMs,
       ...(binding.temperature !== null ? { temperature: binding.temperature } : {}),
     };
+    const hear = listener ? hearing(listener) : null;
     return this.route<LlmResult>(binding, 'llm', constraints, (model) => {
       const adapter = this.providers.find((p) => p.kind === model.provider.kind);
       const ref = llmModelRef(model);
       if (!adapter || !ref) return null;
       return async () => {
-        const raw = await adapter.complete(request, ref);
+        const raw = hear ? await hear(adapter.stream(request, ref)) : await adapter.complete(request, ref);
         const checked = this.guard.check(raw, request);
         return checked.isFail ? Result.fail({ error: checked.error, raw }) : Result.ok(checked.value);
       };
@@ -265,4 +279,27 @@ export class ModelRouter {
     if (await this.breaker.isOpen(model.model.id)) return 'breaker_open';
     return null;
   }
+}
+
+/**
+ * Reads a model's stream to its result, passing the answer's text to the listener. The listener
+ * is told to restart before a model that follows one which had already spoken — the fallback.
+ */
+function hearing(listener: AnswerListener): (chunks: AsyncIterable<LlmChunk>) => Promise<LlmResult> {
+  let spoke = false;
+  return async (chunks) => {
+    if (spoke) {
+      spoke = false;
+      listener.restart();
+    }
+    for await (const chunk of chunks) {
+      if (chunk.type === 'text_delta') {
+        spoke = true;
+        listener.text(chunk.text);
+      } else if (chunk.type === 'done') {
+        return chunk.result;
+      }
+    }
+    throw new LlmError('unavailable', 'The stream ended without a result');
+  };
 }

@@ -1,6 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { ANSWER_TOOL, type SchemaMode } from './anthropic-request.mapper.js';
-import { fromAnthropicMessage } from './anthropic-response.mapper.js';
+import { answerDeltaOf, fromAnthropicMessage } from './anthropic-response.mapper.js';
 
 const fromMessage = (m: Anthropic.Message, mode: SchemaMode, latencyMs: number) =>
   fromAnthropicMessage(m, mode, latencyMs, 'claude-sonnet-5-5');
@@ -142,5 +142,28 @@ describe('fromAnthropicMessage', () => {
     const m = message([], 'end_turn');
     Object.defineProperty(m, '_request_id', { value: 'req_9', enumerable: false });
     expect(fromMessage(m, 'none', 1).providerRequestId).toBe('req_9');
+  });
+});
+
+describe('answerDeltaOf (plan 83, step 9)', () => {
+  const start = (index: number, name: string) =>
+    ({ type: 'content_block_start', index, content_block: { type: 'tool_use', id: `t${index}`, name, input: {} } }) as Anthropic.MessageStreamEvent;
+  const json = (index: number, partial_json: string) =>
+    ({ type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json } }) as Anthropic.MessageStreamEvent;
+  const text = (index: number, value: string) =>
+    ({ type: 'content_block_delta', index, delta: { type: 'text_delta', text: value } }) as Anthropic.MessageStreamEvent;
+
+  it('passes text on in native and none mode', () => {
+    expect(answerDeltaOf(text(0, '{"a"'), 'native', new Set())).toBe('{"a"');
+    expect(answerDeltaOf(text(0, 'Hei'), 'none', new Set())).toBe('Hei');
+    expect(answerDeltaOf(json(1, '{"q":'), 'native', new Set())).toBeNull();
+  });
+
+  it('in wrapper mode passes on only the final_answer input, not prose or other tools', () => {
+    const blocks = new Set<number>();
+    const heard = [text(0, 'Let me look.'), start(1, 'get_unit_material'), json(1, '{"q":1}'), start(2, ANSWER_TOOL), json(2, '{"blocks"'), json(2, ':[]}')]
+      .map((e) => answerDeltaOf(e, 'wrapper', blocks))
+      .filter(Boolean);
+    expect(heard).toEqual(['{"blocks"', ':[]}']);
   });
 });

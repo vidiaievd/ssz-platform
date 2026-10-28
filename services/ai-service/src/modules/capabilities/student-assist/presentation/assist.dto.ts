@@ -90,6 +90,16 @@ export class AskAssistantDto {
   message!: string;
 }
 
+export class AskAssistantQueryDto {
+  @ApiPropertyOptional({
+    enum: ['1', '0', 'true', 'false'],
+    description: 'Stream the answer as server-sent events (`text/event-stream`) instead of one JSON body',
+  })
+  @IsOptional()
+  @IsIn(['1', '0', 'true', 'false'])
+  stream?: '1' | '0' | 'true' | 'false';
+}
+
 /** `availability` reads the same context from the query string. */
 export class AssistAvailabilityQueryDto extends AssistContextDto {}
 
@@ -183,6 +193,18 @@ export class AssistAnswerDto {
 
   @ApiProperty({ type: [AssistSuggestionDto] })
   suggestions!: AssistSuggestionDto[];
+}
+
+/** The data of a streamed answer's `delta` event (step 9). */
+export class AssistDeltaDto {
+  @ApiProperty({ example: 0, description: 'Index of the block the text belongs to' })
+  block!: number;
+
+  @ApiPropertyOptional({ enum: ['text', 'example'], description: 'Set once the block’s type is known' })
+  type?: 'text' | 'example';
+
+  @ApiProperty({ example: 'Verbet står ', description: 'Text to append to the block' })
+  text!: string;
 }
 
 export class AssistRefusedDto {

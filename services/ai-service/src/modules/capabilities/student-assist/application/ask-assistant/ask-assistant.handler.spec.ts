@@ -1,10 +1,11 @@
 import { Logger } from '@nestjs/common';
 import type { AiGateway, GatewayCall } from '../../../../gateway/application/ai-gateway.js';
-import type { GatewayInput, GatewayRequest } from '../../../../gateway/application/model-router.js';
+import type { AnswerListener, GatewayInput, GatewayRequest } from '../../../../gateway/application/model-router.js';
 import type { CallContext } from '../../../../ledger/domain/ai-call.js';
 import type { LlmOutput } from '../../../../providers/domain/llm-result.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { AssistContext, AssistSource } from '../../domain/assist-answer.js';
+import type { AssistStream, AssistStreamEvent } from '../assist-loop.js';
 import type { AssistPayerResolver } from '../assist-payer.resolver.js';
 import type { AssistToolbox, AssistToolOutcome, AssistToolScope } from '../assist-toolbox.js';
 import { AskAssistantCommand } from './ask-assistant.command.js';
@@ -64,6 +65,9 @@ const invalid = (raw: LlmOutput | null = { kind: 'structured', data: { blocks: [
 const notRouted = (failure: Record<string, unknown>): GatewayCall =>
   ({ routed: Result.fail({ binding: BINDING, attempts: [], ...failure }), recorded: recorded(), latencyMs: 1 }) as unknown as GatewayCall;
 
+/** A round that, streamed, is heard in these pieces before it returns. */
+const spoken = (pieces: string[], call: GatewayCall): GatewayCall => Object.assign(call, { pieces });
+
 type Read = string | null | 'throws';
 const reader = (value: Read) => async () => {
   if (value === 'throws') throw new Error('service down');
@@ -89,13 +93,16 @@ function setup({
 }: Setup = {}) {
   const requests: GatewayRequest[] = [];
   const contexts: CallContext[] = [];
+  const listeners: (AnswerListener | undefined)[] = [];
   const queue = [...script];
   const gateway = {
-    call: async (_capability: string, context: CallContext, input: GatewayInput) => {
+    call: async (_capability: string, context: CallContext, input: GatewayInput, listener?: AnswerListener) => {
       contexts.push(context);
       requests.push(typeof input === 'function' ? input('student_assist@1') : input);
+      listeners.push(listener);
       const next = queue.shift();
       if (!next) throw new Error('script ran out');
+      for (const piece of (next as { pieces?: string[] }).pieces ?? []) listener?.text(piece);
       return next;
     },
   } as unknown as AiGateway;
@@ -122,9 +129,9 @@ function setup({
     { explanationLanguage: reader(schoolLanguage) },
     { interfaceLanguage: reader(learnerLanguage) },
   );
-  const ask = (context: AssistContext = UNIT_CONTEXT) =>
-    handler.execute(new AskAssistantCommand(LEARNER, context, [{ role: 'assistant', text: 'Hei!' }], SECRET));
-  return { ask, requests, contexts, scopes };
+  const ask = (context: AssistContext = UNIT_CONTEXT, stream?: AssistStream) =>
+    handler.execute(new AskAssistantCommand(LEARNER, context, [{ role: 'assistant', text: 'Hei!' }], SECRET, stream));
+  return { ask, requests, contexts, scopes, listeners };
 }
 
 describe('AskAssistantHandler', () => {
@@ -238,6 +245,61 @@ describe('AskAssistantHandler', () => {
     const { ask, requests } = setup({ access: 'throws' });
     expect(await ask()).toEqual({ kind: 'silent', cause: 'context_unavailable', callId: null, rounds: 0 });
     expect(requests).toHaveLength(0);
+  });
+
+  describe('streamed (step 9)', () => {
+    const client = (closeAfter = Infinity) => {
+      const events: AssistStreamEvent[] = [];
+      let asked = 0;
+      const stream: AssistStream = { send: (e) => events.push(e), closed: () => asked++ >= closeAfter };
+      return { stream, events };
+    };
+    const json = JSON.stringify(ANSWER);
+    const halves = [json.slice(0, 30), json.slice(30)];
+    const textOf = (events: AssistStreamEvent[]) =>
+      events.map((e) => (e.type === 'delta' ? e.delta.text : '<reset>')).join('');
+
+    it('sends the blocks’ text as it is written, then answers as a plain turn would', async () => {
+      const { ask } = setup({ script: [toolCall(), spoken(halves, answer())] });
+      const { stream, events } = client();
+      expect(await ask(UNIT_CONTEXT, stream)).toMatchObject({ kind: 'answered', callId: 'call-2' });
+      expect(textOf(events)).toBe('The verb comes second.');
+      expect(events.find((e) => e.type === 'delta')).toMatchObject({ delta: { block: 0, type: 'text' } });
+    });
+
+    it('resets what a round sent when it turns out to be tool calls', async () => {
+      const { ask } = setup({ script: [spoken(['Let me look. ', '{"blocks":[{"text":"Draft'], toolCall()), spoken(halves, answer())] });
+      const { stream, events } = client();
+      await ask(UNIT_CONTEXT, stream);
+      expect(textOf(events)).toBe('Draft<reset>The verb comes second.');
+    });
+
+    it('resets what an answer sent when it goes to repair', async () => {
+      const { ask } = setup({ script: [spoken(['{"blocks":[{"text":"Wrong"}]}'], invalid()), spoken(halves, answer())] });
+      const { stream, events } = client();
+      await ask(UNIT_CONTEXT, stream);
+      expect(textOf(events)).toBe('Wrong<reset>The verb comes second.');
+    });
+
+    it('does not reset after a tool round that sent nothing', async () => {
+      const { ask } = setup({ script: [spoken(['Let me look.'], toolCall()), answer()] });
+      const { stream, events } = client();
+      await ask(UNIT_CONTEXT, stream);
+      expect(events).toEqual([]);
+    });
+
+    it('starts no further round once the client has gone', async () => {
+      const { ask, requests } = setup();
+      const { stream } = client(1);
+      expect(await ask(UNIT_CONTEXT, stream)).toEqual({ kind: 'silent', cause: 'client_closed', callId: null, rounds: 1 });
+      expect(requests).toHaveLength(1);
+    });
+
+    it('calls the gateway without a listener when the turn is not streamed', async () => {
+      const { ask, listeners } = setup();
+      await ask();
+      expect(listeners).toEqual([undefined, undefined]);
+    });
   });
 
   describe('languages (Q5)', () => {
