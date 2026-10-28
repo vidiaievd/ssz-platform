@@ -30,6 +30,8 @@ import { GetCardStatesHandler } from './application/queries/get-card-states.hand
 import { GetVocabularyReplicaHandler } from './application/queries/get-vocabulary-replica.handler.js';
 import { GetGrammarRuleMasteryHandler } from './application/queries/get-grammar-rule-mastery.handler.js';
 import { GetContentMasteryHandler } from './application/queries/get-content-mastery.handler.js';
+import { GetDueGrammarRulesHandler } from './application/queries/get-due-grammar-rules.handler.js';
+import { GetGrammarRuleReviewHandler } from './application/queries/get-grammar-rule-review.handler.js';
 
 // Services
 import { GrammarRuleMasteryService } from './application/services/grammar-rule-mastery.service.js';
@@ -57,6 +59,8 @@ const QueryHandlers = [
   GetVocabularyReplicaHandler,
   GetGrammarRuleMasteryHandler,
   GetContentMasteryHandler,
+  GetDueGrammarRulesHandler,
+  GetGrammarRuleReviewHandler,
 ];
 
 @Module({
