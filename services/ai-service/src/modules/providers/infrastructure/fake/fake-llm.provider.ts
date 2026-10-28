@@ -3,14 +3,16 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { Injectable } from '@nestjs/common';
 import { LlmError } from '../../domain/llm-error.js';
 import type { LlmProvider } from '../../domain/llm-provider.port.js';
-import type { LlmRequest } from '../../domain/llm-request.js';
+import type { LlmMessage, LlmPart, LlmRequest } from '../../domain/llm-request.js';
 import type { LlmChunk, LlmOutput, LlmResult, LlmStopReason } from '../../domain/llm-result.js';
+import { toolTurnProblem } from '../../domain/llm-turns.js';
 import type { LlmModelRef } from '../../domain/model-features.js';
 import { sampleFromSchema } from './schema-sample.js';
 
 export const FAKE_SCENARIOS = [
   'ok',
   'tool_call',
+  'tool_then_answer',
   'invalid_schema',
   'not_json',
   'truncated',
@@ -44,6 +46,13 @@ const SLOW_MS = 8_000;
  * Errors are thrown at once: `timeout` reports a timeout without waiting for one. `slow`
  * is the one scenario that waits — SLOW_MS, then an ordinary answer (a timeout if the
  * request allows less).
+ *
+ * Tool turns (plan 83, step 4): `tool_call` calls the first tool on every round, so a loop
+ * never ends on its own — what a round budget is tested with; `tool_then_answer` calls it
+ * until the last message carries the results, then answers as `ok` does — the scripted
+ * tool-then-answer sequence. Markers are read from text parts only, never from a tool's
+ * result. Like a real provider, the fake refuses a history whose results do not pair with
+ * the calls before them, and an own turn (`native`) replayed with its calls changed.
  */
 @Injectable()
 export class FakeLlmProvider implements LlmProvider {
@@ -53,9 +62,10 @@ export class FakeLlmProvider implements LlmProvider {
     const started = Date.now();
     const scenario = this.scenarioOf(request, model);
     this.throwIfFailure(scenario);
+    this.checkHistory(request, model);
     if (scenario === 'slow') await this.waitSlowly(request.timeoutMs);
 
-    const { output, stop } = this.answer(scenario, request);
+    const { output, stop } = this.answer(scenario, request, model);
     return {
       output,
       stop,
@@ -83,7 +93,7 @@ export class FakeLlmProvider implements LlmProvider {
   }
 
   private scenarioOf(request: LlmRequest, model: LlmModelRef): FakeScenario {
-    const texts = [request.system, ...request.messages.flatMap((m) => m.parts.map((p) => p.text))];
+    const texts = [request.system, ...request.messages.flatMap(textsOf)];
     const fromRequest = texts.map((t) => MARKER.exec(t)?.[1]).find(Boolean);
     if (fromRequest) {
       if (!isScenario(fromRequest)) throw new Error(`Unknown fake scenario "${fromRequest}"`);
@@ -94,6 +104,19 @@ export class FakeLlmProvider implements LlmProvider {
     // fake model that answers.
     const suffix = model.providerModelId.replace(/^fake-/, '').replace(/-/g, '_');
     return isScenario(suffix) ? suffix : 'ok';
+  }
+
+  private checkHistory(request: LlmRequest, model: LlmModelRef): void {
+    const problem = toolTurnProblem(request.messages);
+    if (problem) throw new LlmError('invalid_request', `fake: ${problem}`);
+
+    for (const message of request.messages) {
+      const { native } = message;
+      if (native?.provider !== this.kind || native.providerModelId !== model.providerModelId) continue;
+      if (JSON.stringify((native.data as FakeNative).callIds) !== JSON.stringify(callIdsOf(message))) {
+        throw new LlmError('invalid_request', 'fake: a replayed turn does not match the one the model produced');
+      }
+    }
   }
 
   private async waitSlowly(timeoutMs: number): Promise<void> {
@@ -120,20 +143,20 @@ export class FakeLlmProvider implements LlmProvider {
     }
   }
 
-  private answer(scenario: FakeScenario, request: LlmRequest): { output: LlmOutput; stop: LlmStopReason } {
+  private answer(
+    scenario: FakeScenario,
+    request: LlmRequest,
+    model: LlmModelRef,
+  ): { output: LlmOutput; stop: LlmStopReason } {
     const schema = request.responseSchema?.schema;
     switch (scenario) {
-      case 'tool_call': {
-        const tool = request.tools?.[0];
-        if (!tool) throw new Error('fake scenario "tool_call" needs at least one tool in the request');
-        return {
-          output: {
-            kind: 'tool_calls',
-            calls: [{ id: `fake_call_${randomUUID()}`, name: tool.name, input: sampleFromSchema(tool.inputSchema) }],
-          },
-          stop: 'tool',
-        };
-      }
+      case 'tool_then_answer':
+        if (request.messages.at(-1)?.parts.some((p) => p.type === 'tool_result')) {
+          return this.answer('ok', request, model);
+        }
+        return this.toolCall(scenario, request, model);
+      case 'tool_call':
+        return this.toolCall(scenario, request, model);
       case 'invalid_schema':
         // Valid JSON, wrong shape: the case `native` providers are not supposed to produce.
         return { output: { kind: 'structured', data: { unexpected: true } }, stop: 'end' };
@@ -148,6 +171,50 @@ export class FakeLlmProvider implements LlmProvider {
         return { output: { kind: 'text', text: `fake: ${lastUserText(request)}` }, stop: 'end' };
     }
   }
+
+  private toolCall(
+    scenario: FakeScenario,
+    request: LlmRequest,
+    model: LlmModelRef,
+  ): { output: LlmOutput; stop: LlmStopReason } {
+    const tool = request.tools?.[0];
+    if (!tool) throw new Error(`fake scenario "${scenario}" needs at least one tool in the request`);
+    const call = { id: `fake_call_${randomUUID()}`, name: tool.name, input: sampleFromSchema(tool.inputSchema) };
+    const native: FakeNative = { callIds: [call.id] };
+    return {
+      output: {
+        kind: 'tool_calls',
+        calls: [call],
+        native: { provider: this.kind, providerModelId: model.providerModelId, data: native },
+      },
+      stop: 'tool',
+    };
+  }
+}
+
+/** What the fake keeps of its own turn: enough to notice a replay that was tampered with. */
+interface FakeNative {
+  callIds: string[];
+}
+
+function callIdsOf(message: LlmMessage): string[] {
+  return message.parts.flatMap((p) => (p.type === 'tool_call' ? [p.id] : []));
+}
+
+function textsOf(message: LlmMessage): string[] {
+  return message.parts.flatMap((p) => (p.type === 'text' ? [p.text] : []));
+}
+
+/** Every part as the model would read it — for the token estimate. */
+function partText(part: LlmPart): string {
+  switch (part.type) {
+    case 'text':
+      return part.text;
+    case 'tool_call':
+      return `${part.name}(${JSON.stringify(part.input)})`;
+    case 'tool_result':
+      return part.content;
+  }
 }
 
 function isScenario(value: string): value is FakeScenario {
@@ -155,12 +222,12 @@ function isScenario(value: string): value is FakeScenario {
 }
 
 function promptText(request: LlmRequest): string {
-  return [request.system, ...request.messages.flatMap((m) => m.parts.map((p) => p.text))].join('\n');
+  return [request.system, ...request.messages.flatMap((m) => m.parts.map(partText))].join('\n');
 }
 
 function lastUserText(request: LlmRequest): string {
-  const last = [...request.messages].reverse().find((m) => m.role === 'user');
-  return last?.parts.map((p) => p.text).join(' ') ?? '';
+  const last = [...request.messages].reverse().find((m) => m.role === 'user' && textsOf(m).length > 0);
+  return last ? textsOf(last).join(' ') : '';
 }
 
 function outputText(output: LlmOutput): string {

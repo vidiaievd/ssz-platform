@@ -125,9 +125,10 @@ describe('student_assist@1 request', () => {
   it('carries the history, then the context and the message, and the tools', () => {
     const { messages, tools } = request();
     expect(messages.map((m) => m.role)).toEqual(['user', 'assistant', 'user']);
-    expect(messages[2]!.parts[0]!.text).toBe(
-      'Context: {"kind":"unit","courseId":"c1","unitId":"u1"}\n\nПочему «en bil», а не «et bil»?',
-    );
+    expect(messages[2]!.parts[0]).toEqual({
+      type: 'text',
+      text: 'Context: {"kind":"unit","courseId":"c1","unitId":"u1"}\n\nПочему «en bil», а не «et bil»?',
+    });
     expect(tools?.map((t) => t.name)).toEqual(['get_unit_material']);
   });
 });

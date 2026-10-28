@@ -1,5 +1,6 @@
 import type { GenerateContentConfig, GenerateContentParameters } from '@google/genai';
 import type { LlmRequest } from '../../domain/llm-request.js';
+import { textOfPart } from '../../domain/llm-turns.js';
 import type { LlmModelRef } from '../../domain/model-features.js';
 import { toGeminiSchema } from './gemini-schema.js';
 
@@ -75,7 +76,7 @@ export function toGoogleCall(request: LlmRequest, model: LlmModelRef): GoogleCal
       model: model.providerModelId,
       contents: request.messages.map((m) => ({
         role: m.role === 'assistant' ? 'model' : 'user',
-        parts: m.parts.map((p) => ({ text: p.text })),
+        parts: m.parts.map((p) => ({ text: textOfPart(p, 'google') })),
       })),
       config,
     },

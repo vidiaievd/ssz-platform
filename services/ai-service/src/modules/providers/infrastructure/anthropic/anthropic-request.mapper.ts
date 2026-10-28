@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { jsonSchemaOutputFormat } from '@anthropic-ai/sdk/helpers/json-schema';
 import type { LlmRequest } from '../../domain/llm-request.js';
+import { textOfPart } from '../../domain/llm-turns.js';
 import type { LlmModelRef } from '../../domain/model-features.js';
 
 /** Reserved tool name for the wrapper mode. Agents must not declare a tool by this name. */
@@ -30,7 +31,7 @@ export function toAnthropicCall(request: LlmRequest, model: LlmModelRef): Anthro
   }
 
   const messages: Anthropic.MessageParam[] = request.messages.map((m, i) => {
-    const content: Anthropic.TextBlockParam[] = m.parts.map((p) => ({ type: 'text', text: p.text }));
+    const content: Anthropic.TextBlockParam[] = m.parts.map((p) => ({ type: 'text', text: textOfPart(p, 'anthropic') }));
     if (i === cacheBoundary && model.features.promptCache) {
       content[content.length - 1] = { ...content[content.length - 1]!, cache_control: { type: 'ephemeral' } };
     }

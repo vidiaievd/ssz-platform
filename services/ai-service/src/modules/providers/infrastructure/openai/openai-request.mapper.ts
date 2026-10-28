@@ -1,6 +1,7 @@
 import type OpenAI from 'openai';
 import { toStrictJsonSchema } from 'openai/lib/transform';
 import type { LlmMessage, LlmRequest } from '../../domain/llm-request.js';
+import { textOfPart } from '../../domain/llm-turns.js';
 import type { LlmModelRef, ProviderKind } from '../../domain/model-features.js';
 
 /**
@@ -86,8 +87,8 @@ function toMessage(message: LlmMessage): OpenAI.Chat.ChatCompletionMessageParam 
   // A lone text part goes as a plain string — the form every compatible server accepts.
   const content =
     message.parts.length === 1
-      ? message.parts[0]!.text
-      : message.parts.map((p) => ({ type: 'text' as const, text: p.text }));
+      ? textOfPart(message.parts[0]!, 'openai')
+      : message.parts.map((p) => ({ type: 'text' as const, text: textOfPart(p, 'openai') }));
   return message.role === 'assistant' ? { role: 'assistant', content } : { role: 'user', content };
 }
 

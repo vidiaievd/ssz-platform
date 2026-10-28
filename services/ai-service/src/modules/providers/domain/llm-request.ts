@@ -3,12 +3,39 @@
  * nothing above `providers` ever sees a vendor type.
  */
 
-/** One piece of a message. Images and audio join this union when an agent needs them. */
-export type LlmPart = { type: 'text'; text: string };
+import type { ProviderKind } from './model-features.js';
+
+/**
+ * One piece of a message. Images and audio join this union when an agent needs them.
+ *
+ * Tool turns (plan 83, step 4): an assistant message carries the model's `tool_call`s, the
+ * next user message the matching `tool_result`s — one per call, `callId` = the call's `id`.
+ * Adapters whose API has a separate tool role (OpenAI) split that message themselves.
+ */
+export type LlmPart =
+  | { type: 'text'; text: string }
+  | { type: 'tool_call'; id: string; name: string; input: unknown }
+  /** `content` is what the model reads — the tool's answer serialized, or why it failed. */
+  | { type: 'tool_result'; callId: string; content: string; isError?: boolean };
+
+/**
+ * A model turn exactly as the provider returned it, to be sent back unchanged: Gemini's
+ * thought signatures and Anthropic's thinking blocks are only accepted verbatim, by the
+ * model that produced them. The adapter of that provider and model replays `data` in place
+ * of the message's parts; any other adapter (a fallback mid-loop) ignores it and maps the
+ * parts. Nothing outside the adapter that wrote `data` reads it.
+ */
+export interface LlmNativeTurn {
+  provider: ProviderKind;
+  providerModelId: string;
+  data: unknown;
+}
 
 export interface LlmMessage {
   role: 'user' | 'assistant';
   parts: LlmPart[];
+  /** Assistant messages only: the provider's own form of the same turn. */
+  native?: LlmNativeTurn;
 }
 
 export interface LlmTool {
