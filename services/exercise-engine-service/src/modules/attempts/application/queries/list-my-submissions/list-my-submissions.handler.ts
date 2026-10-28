@@ -63,6 +63,11 @@ export interface MySubmissionEntry {
   exercisePath: ExercisePathSnapshot | null;
   containerId: string | null;
   /**
+   * The module the exercise sat in when started — where a new attempt is made from. Null on
+   * attempts older than the snapshot's `moduleId`, or never placed in a course.
+   */
+  unitId: string | null;
+  /**
    * The school the attempt was submitted under, snapshotted at start (44.4).
    *
    * On the list because the response time a learner is owed is the school's promise
@@ -130,8 +135,15 @@ export class ListMySubmissionsHandler implements IQueryHandler<ListMySubmissions
         exerciseId: attempt.exerciseId,
         templateCode: attempt.templateCode,
         targetLanguage: attempt.targetLanguage,
-        exercisePath: attempt.exercisePath,
+        exercisePath: attempt.exercisePath
+          ? {
+              course: attempt.exercisePath.course,
+              module: attempt.exercisePath.module,
+              exercise: attempt.exercisePath.exercise,
+            }
+          : null,
         containerId: attempt.containerId,
+        unitId: attempt.exercisePath?.moduleId ?? null,
         schoolId: attempt.schoolId,
         // The selection above guarantees a submission time on every row this reaches.
         submittedAt: attempt.submittedAt as Date,
