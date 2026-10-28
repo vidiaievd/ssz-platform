@@ -149,6 +149,28 @@ describe('AiGateway', () => {
     expect(constraints()).toEqual({ allowedRegions: ['eu'] });
   });
 
+  describe('admits (plan 83, step 5)', () => {
+    it('answers the switch and the gate — quota included — with no router, no ledger row and no charge', async () => {
+      const off = setup({ binding: { ...binding, enabled: false } });
+      expect((await off.gateway.admits('student_assist', SCHOOL.payer)).error).toEqual({ kind: 'disabled', binding: { ...binding, enabled: false } });
+      expect(off.log).toEqual([]);
+
+      const unbound = setup({ binding: null });
+      expect((await unbound.gateway.admits('student_assist', SCHOOL.payer)).error).toEqual({ kind: 'disabled', binding: null });
+
+      const exhausted = setup({ binding: { ...binding, enabled: true }, gate: Result.fail({ kind: 'refused', code: 'quota_exhausted' }) });
+      expect((await exhausted.gateway.admits('student_assist', SCHOOL.payer)).error).toMatchObject({ kind: 'refused', code: 'quota_exhausted' });
+
+      const blind = setup({ binding: { ...binding, enabled: true }, gate: Result.fail({ kind: 'gate_unavailable' }) });
+      expect((await blind.gateway.admits('student_assist', SCHOOL.payer)).error).toMatchObject({ kind: 'gate_unavailable' });
+
+      const open = setup({ binding: { ...binding, enabled: true } });
+      expect((await open.gateway.admits('student_assist', SCHOOL.payer)).isOk).toBe(true);
+      expect(open.log).toEqual(['gate']);
+      expect(open.recorded).toEqual([]);
+    });
+  });
+
   describe('speech (plan 82, step 8)', () => {
     const HEAR = { audio: { format: 'wav' as const, data: new Uint8Array() }, referenceText: 'Jeg bor', language: 'nb', pronunciation: false };
 

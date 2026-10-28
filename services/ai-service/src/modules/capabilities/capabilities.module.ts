@@ -12,6 +12,7 @@ import { LEARNER_LANGUAGE_READER } from './review-direct/application/ports/learn
 import { HttpDirectReviewAttemptsClient } from './review-direct/infrastructure/http-direct-review-attempts.client.js';
 import { HttpLearnerLanguageReader } from './review-direct/infrastructure/http-learner-language.reader.js';
 import { AskAssistantHandler } from './student-assist/application/ask-assistant/ask-assistant.handler.js';
+import { GetAssistAvailabilityHandler } from './student-assist/application/assist-availability/assist-availability.query.js';
 import { AssistPayerResolver } from './student-assist/application/assist-payer.resolver.js';
 import { AssistToolbox } from './student-assist/application/assist-toolbox.js';
 import {
@@ -25,6 +26,7 @@ import {
   REVIEWED_WORK_READER,
   STUDENT_STANDING_READER,
 } from './student-assist/application/ports/assist-readers.js';
+import { ASSIST_RATE_LIMITER } from './student-assist/application/ports/assist-rate-limiter.js';
 import {
   HttpAttemptScopeReader,
   HttpClassSessionReader,
@@ -36,6 +38,9 @@ import {
   HttpReviewedWorkReader,
   HttpStudentStandingReader,
 } from './student-assist/infrastructure/http-assist-readers.js';
+import { RedisAssistRateLimiter } from './student-assist/infrastructure/redis-assist-rate-limiter.js';
+import { AssistRateLimitGuard } from './student-assist/presentation/assist-rate-limit.guard.js';
+import { AssistController } from './student-assist/presentation/assist.controller.js';
 import { DraftReviewHandler } from './review-draft/application/draft-review/draft-review.handler.js';
 import { REVIEW_ATTEMPTS_CLIENT } from './review-draft/application/ports/review-attempts.client.js';
 import { SCHOOL_LANGUAGE_READER } from './review-draft/application/ports/school-language.reader.js';
@@ -69,8 +74,18 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
  */
 @Module({
   imports: [GatewayModule],
-  controllers: [AdminDiagnosticController, AdminReviewDraftController, AdminReviewEvalsController, AdminVoiceEvalsController],
+  controllers: [
+    AdminDiagnosticController,
+    AdminReviewDraftController,
+    AdminReviewEvalsController,
+    AdminVoiceEvalsController,
+    AssistController,
+  ],
   providers: [
+    // the learner's HTTP API of the assistant (plan 83, step 5)
+    GetAssistAvailabilityHandler,
+    AssistRateLimitGuard,
+    { provide: ASSIST_RATE_LIMITER, useClass: RedisAssistRateLimiter },
     // the student assistant's read-only tools (plan 83, step 2)
     AssistToolbox,
     {

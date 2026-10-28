@@ -17,7 +17,13 @@ import { RegistryModule } from './modules/registry/registry.module.js';
 @Module({
   imports: [
     AppConfigModule,
-    LoggerModule.forRoot({ pinoHttp: { level: process.env['NODE_ENV'] === 'production' ? 'info' : 'debug' } }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env['NODE_ENV'] === 'production' ? 'info' : 'debug',
+        // Learners' tokens reach this service since the assistant's routes (plan 83, step 5).
+        redact: ['req.headers.authorization', 'req.headers["x-internal-token"]'],
+      },
+    }),
     CqrsModule.forRoot(),
     PrismaModule,
     RedisModule,

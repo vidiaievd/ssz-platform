@@ -1,7 +1,6 @@
 import { Inject, Logger } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import type { Payer } from '../../../../access/domain/payer.js';
-import type { RefusalCode } from '../../../../access/domain/refusal.js';
 import { AiGateway, type GatewayCall } from '../../../../gateway/application/ai-gateway.js';
 import type { CallContext } from '../../../../ledger/domain/ai-call.js';
 import type { LlmMessage } from '../../../../providers/domain/llm-request.js';
@@ -18,6 +17,7 @@ import { toAssistAnswer, type AssistAnswer, type AssistContext, type AssistEvide
 import { assistRequest, type AssistPrompt, type AssistTurn } from '../../prompts/prompts.js';
 import { STUDENT_ASSIST } from '../../student-assist.capability.js';
 import { AssistPayerResolver, type AssistAccessError } from '../assist-payer.resolver.js';
+import { assistRefusalOf, type AssistRefusal } from '../assist-refusal.js';
 import { AssistToolbox, type AssistToolScope } from '../assist-toolbox.js';
 import { COURSE_LANGUAGE_READER, type ICourseLanguageReader } from '../ports/assist-readers.js';
 import { AskAssistantCommand } from './ask-assistant.command.js';
@@ -27,16 +27,6 @@ export const MAX_TOOL_ROUNDS = 4;
 
 /** The ledger's surface of a turn: one per entry point of the client (R-k). */
 export const assistSurface = (context: AssistContext): string => `assistant_${context.kind}`;
-
-/** Why the assistant is not there for this payer (§3's 409 `reason`). */
-export type AssistRefusal = 'no_key' | 'policy' | 'quota' | 'disabled' | 'no_binding';
-
-const REFUSAL_REASON: Record<RefusalCode, AssistRefusal> = {
-  ai_disabled: 'policy',
-  region_not_allowed: 'policy',
-  not_entitled: 'no_key',
-  quota_exhausted: 'quota',
-};
 
 /** When nothing better is known: the language most of the platform's learners read. */
 const DEFAULT_EXPLANATION = 'en';
@@ -203,9 +193,7 @@ export class AskAssistantHandler implements ICommandHandler<AskAssistantCommand,
 function refusalOf({ routed }: GatewayCall): AssistRefusal | null {
   if (routed.isOk) return null;
   const failure = routed.error;
-  if (failure.kind === 'disabled') return failure.binding ? 'disabled' : 'no_binding';
-  if (failure.kind === 'refused') return REFUSAL_REASON[failure.code];
-  return null;
+  return failure.kind === 'disabled' || failure.kind === 'refused' ? assistRefusalOf(failure) : null;
 }
 
 /**
