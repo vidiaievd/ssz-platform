@@ -112,8 +112,8 @@ export function describeReadAloudIssue(issue: Issue, count: number): string {
       return '«Choose the best take» has no effect with one take';
     case 'RA_NO_MIC_CHECK':
       return 'The microphone is not checked before the first recording';
-    case 'RA_AI_NOT_LIVE':
-      return 'The AI stage is configured but not live yet';
+    case 'RA_AI_NO_CHECK':
+      return 'The AI stage is on without the reading check, so the machine has nothing to decide';
     case 'RA_AI_READ_ONLY':
       return 'The machine checks only a text read aloud, so the AI stage does nothing in this mode';
   }

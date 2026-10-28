@@ -78,7 +78,7 @@ export type Issue =
   /**
    * Plan 72 Q1-A. The contrast is recorded as evidence now; its own review schedule needs the
    * learning consumer, which waits for phase 7 of plan 63 — until then the set comes back as one
-   * card. Said rather than hidden, as `RA_AI_NOT_LIVE` does for the AI stage of `read_aloud`.
+   * card. Said rather than hidden.
    */
   | { code: 'MP_CONTRAST_CARD_LATER'; level: 'info'; step: 5 }
   /** Plan 72 Q1-A — exposure is kept with the attempt and not yet written to the word. */
