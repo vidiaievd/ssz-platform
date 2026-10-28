@@ -271,6 +271,7 @@ export class PutAiReviewHandler implements ICommandHandler<PutAiReviewCommand> {
       {
         language: subject.targetLanguage,
         passPercent: subject.passPercent,
+        fluency: subject.ai.checks.fluency,
         passages: subject.prompts.map((p) => ({ itemId: p.itemId, text: p.text, focus: p.focus })),
         recordings: readSubmission(attempt.submittedAnswer)?.recordings ?? [],
       },

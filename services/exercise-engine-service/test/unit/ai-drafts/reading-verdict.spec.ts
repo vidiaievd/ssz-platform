@@ -32,6 +32,7 @@ function input(over: Partial<ReadingRulingInput> = {}): ReadingRulingInput {
   return {
     language: 'nb',
     passPercent: 85,
+    fluency: true,
     passages: [
       { itemId: P1, text: TEXT1, focus: ['søkte', 'Kjetil', 'Kirkegata'] },
       { itemId: P2, text: TEXT2, focus: ['hvert', 'tjue'] },
@@ -118,6 +119,21 @@ describe('readingRuling', () => {
       { k: 'missed', i: 13, expected: 'tjue', focus: true },
     ]);
     expect(result.reading.prompts[0]!.wordsPerMinute).toBeNull();
+  });
+
+  it('keeps no pace when the author did not ask for it (review.ai.fluency)', () => {
+    const words = [
+      { text: 'bussen', startMs: 500, endMs: 900, confidence: 0.9 },
+      { text: 'går', startMs: 900, endMs: 1100, confidence: null },
+    ];
+    const result = readingRuling(input({ fluency: false }), [
+      hearing(P1, lexical(TEXT1)),
+      hearing(P2, P2_TWO_MISSED, { words }),
+    ]);
+    if ('missing' in result) throw new Error('expected a ruling');
+
+    expect(result.reading.prompts.map((p) => p.wordsPerMinute)).toEqual([null, null]);
+    expect(result.ruling.outcome).toBe('approved');
   });
 
   it('rules from the words alone: pronunciation scores, however low or high, change nothing (§2.3)', () => {

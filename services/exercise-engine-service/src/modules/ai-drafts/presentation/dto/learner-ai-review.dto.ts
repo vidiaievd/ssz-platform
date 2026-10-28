@@ -84,7 +84,7 @@ export class LearnerReadingPromptDto {
   @ApiProperty({ example: false, description: 'Whether the prompt reached the pass mark.' })
   passed!: boolean;
 
-  @ApiPropertyOptional({ nullable: true, example: 96, description: 'Words per minute over the speech heard — feedback only.' })
+  @ApiPropertyOptional({ nullable: true, example: 96, description: 'Words per minute over the speech heard — feedback only. Null unless the author asks for the pace (`review.ai.fluency`).' })
   wordsPerMinute!: number | null;
 }
 

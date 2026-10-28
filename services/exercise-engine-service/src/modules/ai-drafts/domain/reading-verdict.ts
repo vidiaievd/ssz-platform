@@ -64,7 +64,10 @@ export interface PromptReadingReview extends PromptHearing {
   /** Whole percent, rounded down (`accuracyPercent`). */
   percent: number;
   passed: boolean;
-  /** Over the speech heard — fluency feedback (`review.ai.fluency`), never the verdict. */
+  /**
+   * Over the speech heard — fluency feedback, never the verdict. Null when the author did not
+   * ask for it (`review.ai.fluency` at the time of the ruling) or nothing was heard.
+   */
   wordsPerMinute: number | null;
 }
 
@@ -88,6 +91,8 @@ export interface ReadingRulingInput {
   /** The course language — picks the number words of the check. */
   language: string;
   passPercent: number;
+  /** The author asks for the pace to be reported (`review.ai.fluency`) — frozen as the mark is. */
+  fluency: boolean;
   /** The prompts recorded in this try, in the exercise's order. */
   passages: ReadingPassage[];
   /** The whole submission, carried prompts included. */
@@ -152,7 +157,7 @@ export function readingRuling(input: ReadingRulingInput, heard: readonly PromptH
     check,
     percent: verdict.prompts[index]!.percent,
     passed: verdict.prompts[index]!.passed,
-    wordsPerMinute: wordsPerMinute(hearing.words.length, speechSeconds(hearing.words)),
+    wordsPerMinute: input.fluency ? wordsPerMinute(hearing.words.length, speechSeconds(hearing.words)) : null,
   }));
 
   const checked = new Map(prompts.map((p) => [p.itemId, p]));
