@@ -35,6 +35,7 @@ import { ReviewerResolver } from './application/services/reviewer-resolver.js';
 import { ReviewPolicyResolver } from './application/services/review-policy-resolver.js';
 import { AttemptsController } from './presentation/controllers/attempts.controller.js';
 import { InternalReviewController } from './presentation/controllers/internal-review.controller.js';
+import { InternalAssistReviewController, InternalAssistScopeController } from './presentation/controllers/internal-assist-review.controller.js';
 import { MySubmissionsController } from './presentation/controllers/my-submissions.controller.js';
 
 const CommandHandlers = [
@@ -74,6 +75,8 @@ const QueryHandlers = [
     AttemptsController,
     MySubmissionsController,
     InternalReviewController,
+    InternalAssistReviewController,
+    InternalAssistScopeController,
     InternalRecordingsController,
   ],
   providers: [

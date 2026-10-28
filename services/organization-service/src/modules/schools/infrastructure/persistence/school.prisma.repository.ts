@@ -5,6 +5,7 @@ import type { School } from '../../domain/entities/school.entity.js';
 import type { ReviewSettings } from '../../domain/value-objects/review-settings.vo.js';
 import type { ReviewAiPolicy } from '../../domain/value-objects/review-ai-policy.vo.js';
 import { ReviewEffortMinutes } from '../../domain/value-objects/review-effort-minutes.vo.js';
+import { AssistantAccess, type AssistantMode } from '../../domain/value-objects/assistant-access.vo.js';
 import { SchoolMapper } from './school.mapper.js';
 
 const INCLUDE_MEMBERS = { members: true } as const;
@@ -214,6 +215,57 @@ export class SchoolPrismaRepository implements ISchoolRepository {
       where: { id: schoolId },
       data: { reviewEffortMinutes: minutes.toJSON(), updatedAt: new Date() },
     });
+  }
+
+  async findAssistantAccess(schoolId: string): Promise<AssistantAccess | null> {
+    const row = await (this.prisma as any).school.findUnique({
+      where: { id: schoolId },
+      select: { assistantMode: true, assistantGroupIds: true, assistantStudentIds: true },
+    });
+    return row
+      ? AssistantAccess.rehydrate({
+          mode: row.assistantMode as AssistantMode,
+          groupIds: row.assistantGroupIds,
+          studentIds: row.assistantStudentIds,
+        })
+      : null;
+  }
+
+  async saveAssistantAccess(schoolId: string, access: AssistantAccess): Promise<void> {
+    await (this.prisma as any).school.update({
+      where: { id: schoolId },
+      data: {
+        assistantMode: access.mode,
+        assistantGroupIds: [...access.groupIds],
+        assistantStudentIds: [...access.studentIds],
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async findAssistantSelectable(
+    schoolId: string,
+    groupIds: readonly string[],
+    studentIds: readonly string[],
+  ): Promise<{ groupIds: string[]; studentIds: string[] }> {
+    const [groups, students] = await Promise.all([
+      groupIds.length
+        ? (this.prisma as any).schoolGroup.findMany({
+            where: { schoolId, id: { in: [...groupIds] }, deletedAt: null },
+            select: { id: true },
+          })
+        : [],
+      studentIds.length
+        ? (this.prisma as any).schoolMember.findMany({
+            where: { schoolId, userId: { in: [...studentIds] }, role: 'STUDENT', status: 'active' },
+            select: { userId: true },
+          })
+        : [],
+    ]);
+    return {
+      groupIds: groups.map((g: { id: string }) => g.id),
+      studentIds: students.map((m: { userId: string }) => m.userId),
+    };
   }
 
   async save(school: School): Promise<void> {

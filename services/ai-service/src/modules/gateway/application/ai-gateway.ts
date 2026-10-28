@@ -10,6 +10,7 @@ import { Result } from '../../../shared/kernel/result.js';
 import type { SpeechResult } from '../../providers/domain/speech-result.js';
 import {
   ModelRouter,
+  type AnswerListener,
   type GatewayInput,
   type RouteAttempt,
   type RouteConstraints,
@@ -26,6 +27,12 @@ export type GatewayFailureOf<R> =
   | { kind: 'gate_unavailable'; binding: AiBinding; attempts: RouteAttempt[] };
 
 export type GatewayFailure = GatewayFailureOf<LlmResult>;
+
+/** Why a call would stop before any model: the switch or the gate (the first stage of `call`). */
+export type AdmissionFailure =
+  | { kind: 'disabled'; binding: AiBinding | null }
+  | { kind: 'refused'; code: RefusalCode; binding: AiBinding }
+  | { kind: 'gate_unavailable'; binding: AiBinding };
 
 export interface GatewayCallOf<R> {
   routed: Result<Routed<R>, GatewayFailureOf<R>>;
@@ -61,8 +68,12 @@ export class AiGateway {
     private readonly recorder: CallRecorder,
   ) {}
 
-  async call(capability: string, context: CallContext, request: GatewayInput): Promise<GatewayCall> {
-    return this.run(capability, context, (constraints) => this.router.call(capability, request, constraints), byTokens);
+  /**
+   * `listener` hears the answer as the model writes it (plan 83, step 9) — unchecked; the call
+   * is gated, routed, recorded and charged exactly as without one.
+   */
+  async call(capability: string, context: CallContext, request: GatewayInput, listener?: AnswerListener): Promise<GatewayCall> {
+    return this.run(capability, context, (constraints) => this.router.call(capability, request, constraints, listener), byTokens);
   }
 
   async callSpeech(capability: string, context: CallContext, request: SpeechGatewayRequest): Promise<GatewaySpeechCall> {
@@ -78,6 +89,16 @@ export class AiGateway {
     const binding = await this.bindings.get(capability);
     if (!binding || !binding.enabled) return false;
     return this.gate.allows(capability, payer);
+  }
+
+  /**
+   * Whether a call to this capability would get past its switch and the whole gate for this
+   * payer, quota included, and if not why — the first stage of `call` without a model, a ledger
+   * row or a charge: the learner's client asks it before it shows the assistant (plan 83, step 5).
+   * The call itself is checked again.
+   */
+  async admits(capability: string, payer: CallContext['payer']): Promise<Result<void, AdmissionFailure>> {
+    return (await this.admit(capability, payer)).map(() => undefined);
   }
 
   private async run<R>(
@@ -99,23 +120,27 @@ export class AiGateway {
     context: CallContext,
     route: (constraints: RouteConstraints) => Promise<Result<Routed<R>, RouteFailureOf<R>>>,
   ): Promise<{ routed: Result<Routed<R>, GatewayFailureOf<R>>; grant: GateGrant | null }> {
-    const binding = await this.bindings.get(capability);
-    if (!binding || !binding.enabled) return { routed: Result.fail({ kind: 'disabled', binding, attempts: [] }), grant: null };
+    const admitted = await this.admit(capability, context.payer);
+    if (admitted.isFail) return { routed: Result.fail({ ...admitted.error, attempts: [] }), grant: null };
+    const { grant } = admitted.value;
+    return { routed: await route({ allowedRegions: grant.allowedRegions }), grant };
+  }
 
-    const access = await this.gate.check(capability, context.payer);
+  private async admit(
+    capability: string,
+    payer: CallContext['payer'],
+  ): Promise<Result<{ binding: AiBinding; grant: GateGrant }, AdmissionFailure>> {
+    const binding = await this.bindings.get(capability);
+    if (!binding || !binding.enabled) return Result.fail({ kind: 'disabled', binding });
+
+    const access = await this.gate.check(capability, payer);
     if (access.isFail) {
       const failure = access.error;
-      return {
-        routed: Result.fail(
-          failure.kind === 'refused'
-            ? { kind: 'refused', code: failure.code, binding, attempts: [] }
-            : { kind: 'gate_unavailable', binding, attempts: [] },
-        ),
-        grant: null,
-      };
+      return Result.fail(
+        failure.kind === 'refused' ? { kind: 'refused', code: failure.code, binding } : { kind: 'gate_unavailable', binding },
+      );
     }
-    const grant = access.value;
-    return { routed: await route({ allowedRegions: grant.allowedRegions }), grant };
+    return Result.ok({ binding, grant: access.value });
   }
 }
 

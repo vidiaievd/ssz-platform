@@ -1,4 +1,4 @@
-import { creditsFor, microCredits, parseRate } from './credits.js';
+import { creditsFor, formatMicroCredits, microCredits, parseRate } from './credits.js';
 
 describe('creditsFor', () => {
   it('multiplies cost by the rate per currency unit', () => {
@@ -40,5 +40,18 @@ describe('microCredits', () => {
   it('rejects anything but a plain decimal', () => {
     expect(() => microCredits('1e-6')).toThrow();
     expect(() => microCredits('-1')).toThrow();
+  });
+});
+
+describe('formatMicroCredits', () => {
+  it('prints six places and reads back the same', () => {
+    expect(formatMicroCredits(0n)).toBe('0.000000');
+    expect(formatMicroCredits(50_000n)).toBe('0.050000');
+    expect(formatMicroCredits(12_300_001n)).toBe('12.300001');
+    expect(microCredits(formatMicroCredits(987_654_321n))).toBe(987_654_321n);
+  });
+
+  it('rejects a negative amount', () => {
+    expect(() => formatMicroCredits(-1n)).toThrow();
   });
 });

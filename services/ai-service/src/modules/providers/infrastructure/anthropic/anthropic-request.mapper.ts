@@ -1,6 +1,8 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { jsonSchemaOutputFormat } from '@anthropic-ai/sdk/helpers/json-schema';
-import type { LlmRequest } from '../../domain/llm-request.js';
+import { LlmError } from '../../domain/llm-error.js';
+import type { LlmMessage, LlmPart, LlmRequest } from '../../domain/llm-request.js';
+import { toolTurnProblem } from '../../domain/llm-turns.js';
 import type { LlmModelRef } from '../../domain/model-features.js';
 
 /** Reserved tool name for the wrapper mode. Agents must not declare a tool by this name. */
@@ -29,11 +31,12 @@ export function toAnthropicCall(request: LlmRequest, model: LlmModelRef): Anthro
     throw new Error(`cacheBoundary ${cacheBoundary} is outside the ${request.messages.length} messages`);
   }
 
+  const problem = toolTurnProblem(request.messages);
+  if (problem) throw new LlmError('invalid_request', `anthropic: ${problem}`);
+
   const messages: Anthropic.MessageParam[] = request.messages.map((m, i) => {
-    const content: Anthropic.TextBlockParam[] = m.parts.map((p) => ({ type: 'text', text: p.text }));
-    if (i === cacheBoundary && model.features.promptCache) {
-      content[content.length - 1] = { ...content[content.length - 1]!, cache_control: { type: 'ephemeral' } };
-    }
+    const content = toContent(m, model);
+    if (i === cacheBoundary && model.features.promptCache) markCachePoint(content);
     return { role: m.role, content };
   });
 
@@ -80,6 +83,54 @@ export function toAnthropicCall(request: LlmRequest, model: LlmModelRef): Anthro
   }
 
   return { params, mode };
+}
+
+/**
+ * The blocks of one message. An assistant turn this provider and model produced is replayed
+ * as it came (thinking blocks are only accepted verbatim, signature included); any other
+ * message is mapped from its parts, `tool_result`s first — the API rejects a user message
+ * where text precedes them.
+ */
+function toContent(message: LlmMessage, model: LlmModelRef): Anthropic.ContentBlockParam[] {
+  const { native } = message;
+  if (
+    native?.provider === 'anthropic' &&
+    native.providerModelId === model.providerModelId &&
+    Array.isArray(native.data) &&
+    native.data.length > 0
+  ) {
+    // A copy: the cache point is set on the last block, and the history must stay as it was.
+    return (native.data as Anthropic.ContentBlockParam[]).map((b) => ({ ...b }));
+  }
+  const results = message.parts.filter((p) => p.type === 'tool_result');
+  const rest = message.parts.filter((p) => p.type !== 'tool_result');
+  return [...results, ...rest].map(toBlock);
+}
+
+function toBlock(part: LlmPart): Anthropic.ContentBlockParam {
+  switch (part.type) {
+    case 'text':
+      return { type: 'text', text: part.text };
+    case 'tool_call':
+      return { type: 'tool_use', id: part.id, name: part.name, input: part.input };
+    case 'tool_result':
+      return {
+        type: 'tool_result',
+        tool_use_id: part.callId,
+        content: part.content,
+        ...(part.isError ? { is_error: true } : {}),
+      };
+  }
+}
+
+/** On the last block that takes one — thinking blocks cannot carry `cache_control`. */
+function markCachePoint(content: Anthropic.ContentBlockParam[]): void {
+  for (let i = content.length - 1; i >= 0; i--) {
+    const block = content[i]!;
+    if (block.type === 'thinking' || block.type === 'redacted_thinking') continue;
+    content[i] = { ...block, cache_control: { type: 'ephemeral' } } as Anthropic.ContentBlockParam;
+    return;
+  }
 }
 
 /**

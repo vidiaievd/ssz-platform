@@ -144,6 +144,12 @@ model School {
   // stand in their group. On by default: the sentence carries no classmate's number and
   // no percentile, and a school that would rather not compare at all turns it off here.
   showGroupPositionToStudents Boolean @default(true) @map("show_group_position_to_students")
+  // Which of its students may ask the assistant on the school's account (plan 83, Q6):
+  // everyone, nobody, the members of the chosen groups, or the chosen students. The lists
+  // are kept whatever the mode, so a school switching back finds its choice where it left it.
+  assistantMode       AssistantMode @default(all_students) @map("assistant_mode")
+  assistantGroupIds   String[]      @default([]) @map("assistant_group_ids") @db.Uuid
+  assistantStudentIds String[]      @default([]) @map("assistant_student_ids")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
@@ -155,6 +161,14 @@ model School {
   memberships         SchoolMembership[]
 
   @@map("schools")
+}
+
+/** Which students a school's assistant answers on the school's account (plan 83, Q6). */
+enum AssistantMode {
+  off
+  all_students
+  selected_groups
+  selected_students
 }
 
 /** Who answers a learner's work first — names lower-case for the reason below. */

@@ -217,74 +217,52 @@ describe('EnrollInContainerHandler', () => {
     expect(result.error).toBeInstanceOf(ContentServiceUnavailableError);
   });
 
-  // A private tutor's course belongs to no school, so nobody names one when their student
-  // enrols — and the row used to be stored with no workspace at all, which is why the
-  // tutor's dashboard counted zero students of a course they teach themselves.
-  describe('workspace attribution when the caller names none', () => {
-    it('files the enrolment under the learner\'s own workspace', async () => {
-      const { handler, publisher, orgClient } = makeHandler();
+  // A public course is the learner's own: enrolling in it never makes them a school's —
+  // the school would pay for their AI and count them as its student (plan 83, step 3).
+  describe('workspace attribution', () => {
+    it('files a public course under no workspace, asking nobody', async () => {
+      const { handler, publisher, orgClient, contentClient } = makeHandler();
 
       const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
 
       expect(result.isOk).toBe(true);
-      expect(result.value.schoolId).toBe(LEARNER_WORKSPACE_ID);
+      expect(result.value.schoolId).toBeNull();
       expect(publisher.publish).toHaveBeenCalledWith(
         'learning.enrollment.created',
-        expect.objectContaining({ schoolId: LEARNER_WORKSPACE_ID }),
+        expect.objectContaining({ schoolId: null }),
       );
-      // The course's author breaks the tie for a learner who studies both at a school and
-      // with a private tutor — without it the tutor's course lands in the school.
-      expect(orgClient.getLearnerWorkspace).toHaveBeenCalledWith(USER_ID, {
-        courseId: CONTAINER_ID,
-        preferredSchoolId: null,
-        preferredTeacherId: OWNER_ID,
-      });
+      expect(orgClient.getLearnerWorkspace).not.toHaveBeenCalled();
+      expect(contentClient.getContainerOwner).not.toHaveBeenCalled();
     });
 
-    it('keeps the workspace the caller stated rather than asking', async () => {
-      const { handler, orgClient } = makeHandler();
+    it('ignores a school the caller names for a public course', async () => {
+      const { handler } = makeHandler();
+
+      const result = await handler.execute(
+        new EnrollInContainerCommand(USER_ID, CONTAINER_ID, SCHOOL_ID),
+      );
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.schoolId).toBeNull();
+    });
+
+    it('files a course of the school\'s own shelf under that school', async () => {
+      const { handler } = makeHandler({ accessTier: 'FREE_WITHIN_SCHOOL' });
 
       const result = await handler.execute(
         new EnrollInContainerCommand(USER_ID, CONTAINER_ID, SCHOOL_ID),
       );
 
       expect(result.value.schoolId).toBe(SCHOOL_ID);
-      expect(orgClient.getLearnerWorkspace).not.toHaveBeenCalled();
     });
 
-    it('carries the resolved workspace onto a row the learner is coming back to', async () => {
-      const existing = Enrollment.create({ userId: USER_ID, containerId: CONTAINER_ID }, NOW);
+    it('clears an old attribution from a public-course row the learner comes back to', async () => {
+      const existing = Enrollment.create(
+        { userId: USER_ID, containerId: CONTAINER_ID, schoolId: SCHOOL_ID },
+        NOW,
+      );
       existing.unenroll();
       const { handler } = makeHandler({ existingEnrollment: existing });
-
-      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
-
-      expect(result.isOk).toBe(true);
-      expect(result.value.schoolId).toBe(LEARNER_WORKSPACE_ID);
-    });
-
-    // Losing a number on a dashboard is not a reason to refuse a learner the course.
-    it('still enrols when the neighbour cannot be asked', async () => {
-      const { handler } = makeHandler({ workspaceLookupError: true });
-
-      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
-
-      expect(result.isOk).toBe(true);
-      expect(result.value.schoolId).toBeNull();
-    });
-
-    it('still enrols when the course owner cannot be read', async () => {
-      const { handler, orgClient } = makeHandler({ ownerLookupError: true });
-
-      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
-
-      expect(result.isOk).toBe(true);
-      expect(result.value.schoolId).toBeNull();
-      expect(orgClient.getLearnerWorkspace).not.toHaveBeenCalled();
-    });
-
-    it('leaves the enrolment unattributed when the learner is in no workspace', async () => {
-      const { handler } = makeHandler({ learnerWorkspaceId: null });
 
       const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
 

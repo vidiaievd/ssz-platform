@@ -11,6 +11,43 @@ import { DIRECT_REVIEW_ATTEMPTS_CLIENT } from './review-direct/application/ports
 import { LEARNER_LANGUAGE_READER } from './review-direct/application/ports/learner-language.reader.js';
 import { HttpDirectReviewAttemptsClient } from './review-direct/infrastructure/http-direct-review-attempts.client.js';
 import { HttpLearnerLanguageReader } from './review-direct/infrastructure/http-learner-language.reader.js';
+import { AskAssistantHandler } from './student-assist/application/ask-assistant/ask-assistant.handler.js';
+import { GetAssistAvailabilityHandler } from './student-assist/application/assist-availability/assist-availability.query.js';
+import { AssistPayerResolver } from './student-assist/application/assist-payer.resolver.js';
+import { GiveAssistFeedbackHandler } from './student-assist/application/give-feedback/give-assist-feedback.handler.js';
+import { ASSIST_FEEDBACK_REPOSITORY } from './student-assist/application/ports/assist-feedback.repository.js';
+import { AssistToolbox } from './student-assist/application/assist-toolbox.js';
+import {
+  ATTEMPT_SCOPE_READER,
+  CLASS_SESSION_READER,
+  COURSE_LANGUAGE_READER,
+  COURSE_MATERIAL_READER,
+  ENROLLMENT_READER,
+  GROUP_ROSTER_READER,
+  MASTERY_READER,
+  REVIEWED_WORK_READER,
+  STUDENT_STANDING_READER,
+} from './student-assist/application/ports/assist-readers.js';
+import { ASSIST_RATE_LIMITER } from './student-assist/application/ports/assist-rate-limiter.js';
+import {
+  HttpAttemptScopeReader,
+  HttpClassSessionReader,
+  HttpCourseLanguageReader,
+  HttpCourseMaterialReader,
+  HttpEnrollmentReader,
+  HttpGroupRosterReader,
+  HttpMasteryReader,
+  HttpReviewedWorkReader,
+  HttpStudentStandingReader,
+} from './student-assist/infrastructure/http-assist-readers.js';
+import { PrismaAssistFeedbackRepository } from './student-assist/infrastructure/prisma-assist-feedback.repository.js';
+import { RedisAssistRateLimiter } from './student-assist/infrastructure/redis-assist-rate-limiter.js';
+import { AssistRateLimitGuard } from './student-assist/presentation/assist-rate-limit.guard.js';
+import { AssistController } from './student-assist/presentation/assist.controller.js';
+import { AssistEvalRunner } from './student-assist/eval/application/assist-eval-runner.js';
+import { GetAssistEvalRunHandler, ListAssistEvalRunsHandler } from './student-assist/eval/application/assist-eval-runs.queries.js';
+import { RunAssistEvalHandler } from './student-assist/eval/application/run-assist-eval.handler.js';
+import { AdminAssistEvalsController } from './student-assist/eval/presentation/admin-assist-evals.controller.js';
 import { DraftReviewHandler } from './review-draft/application/draft-review/draft-review.handler.js';
 import { REVIEW_ATTEMPTS_CLIENT } from './review-draft/application/ports/review-attempts.client.js';
 import { SCHOOL_LANGUAGE_READER } from './review-draft/application/ports/school-language.reader.js';
@@ -44,8 +81,82 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
  */
 @Module({
   imports: [GatewayModule],
-  controllers: [AdminDiagnosticController, AdminReviewDraftController, AdminReviewEvalsController, AdminVoiceEvalsController],
+  controllers: [
+    AdminDiagnosticController,
+    AdminReviewDraftController,
+    AdminReviewEvalsController,
+    AdminVoiceEvalsController,
+    AdminAssistEvalsController,
+    AssistController,
+  ],
   providers: [
+    // the learner's HTTP API of the assistant (plan 83, step 5)
+    GetAssistAvailabilityHandler,
+    AssistRateLimitGuard,
+    { provide: ASSIST_RATE_LIMITER, useClass: RedisAssistRateLimiter },
+    // the learner's mark on an answer (plan 83, step 7)
+    GiveAssistFeedbackHandler,
+    { provide: ASSIST_FEEDBACK_REPOSITORY, useClass: PrismaAssistFeedbackRepository },
+    // the student assistant's read-only tools (plan 83, step 2)
+    AssistToolbox,
+    {
+      provide: COURSE_MATERIAL_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpCourseMaterialReader(config.get<string>('contentServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: MASTERY_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpMasteryReader(config.get<string>('analyticsServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: REVIEWED_WORK_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpReviewedWorkReader(config.get<string>('exerciseEngineUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: CLASS_SESSION_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpClassSessionReader(config.get<string>('schedulingServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    // the turn's loop and the course language its prompt names (plan 83, step 4e)
+    AskAssistantHandler,
+    {
+      provide: COURSE_LANGUAGE_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpCourseLanguageReader(config.get<string>('contentServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    // who pays for a turn, and whether the learner may ask in its context (plan 83, step 3)
+    AssistPayerResolver,
+    {
+      provide: ENROLLMENT_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpEnrollmentReader(config.get<string>('learningServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: ATTEMPT_SCOPE_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpAttemptScopeReader(config.get<string>('exerciseEngineUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: GROUP_ROSTER_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpGroupRosterReader(config.get<string>('organizationServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: STUDENT_STANDING_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpStudentStandingReader(config.get<string>('organizationServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
     RunDiagnosticHandler,
     TryTranslateReviewHandler,
     AdminPayerResolver,
@@ -69,6 +180,11 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     ListVoiceEvalRunsHandler,
     GetVoiceEvalRunHandler,
     VoiceEvalRunner,
+    // candidate models measured on the assistant's hand-written set, same runs table (plan 83, step 8)
+    RunAssistEvalHandler,
+    ListAssistEvalRunsHandler,
+    GetAssistEvalRunHandler,
+    AssistEvalRunner,
     {
       provide: READING_CASES_CLIENT,
       inject: [ConfigService],

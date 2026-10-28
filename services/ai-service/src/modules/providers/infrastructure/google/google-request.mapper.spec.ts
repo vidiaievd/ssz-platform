@@ -1,6 +1,8 @@
-import type { LlmRequest } from '../../domain/llm-request.js';
+import { LlmError } from '../../domain/llm-error.js';
+import type { LlmMessage, LlmRequest } from '../../domain/llm-request.js';
+import { assistantToolTurn, toolResultsTurn } from '../../domain/llm-turns.js';
 import type { LlmModelRef, ModelFeatures } from '../../domain/model-features.js';
-import { toGoogleCall } from './google-request.mapper.js';
+import { FOREIGN_THOUGHT_SIGNATURE, toGoogleCall } from './google-request.mapper.js';
 
 const features: ModelFeatures = {
   structuredOutput: 'native',
@@ -128,5 +130,90 @@ describe('toGoogleCall', () => {
   it('ignores cacheBoundary — Gemini caches implicitly', () => {
     const { params } = toGoogleCall({ ...base, cacheBoundary: 0 }, model());
     expect(params.config?.cachedContent).toBeUndefined();
+  });
+
+  describe('tool turns', () => {
+    const lookup = { name: 'lookup', description: 'Find a unit', inputSchema: { type: 'object' } };
+    // One id Gemini made up for us, one a fallback provider wrote.
+    const call = assistantToolTurn({
+      kind: 'tool_calls',
+      text: 'Looking it up.',
+      calls: [
+        { id: 'gemini_call_0', name: 'lookup', input: { q: 'hus' } },
+        { id: 'toolu_1', name: 'fetch_unit', input: 'not json' },
+      ],
+    });
+    const results = toolResultsTurn([
+      { callId: 'gemini_call_0', content: '{"title":"Leksjon 1"}' },
+      { callId: 'toolu_1', content: 'no such unit', isError: true },
+    ]);
+    const ask: LlmMessage = { role: 'user', parts: [{ type: 'text', text: 'Hva betyr hus?' }] };
+    const tooled: LlmRequest = { ...base, tools: [lookup], messages: [ask, call, results] };
+
+    it('maps calls to functionCall and results to functionResponse named after their call', () => {
+      const { params } = toGoogleCall(tooled, model());
+      expect(params.contents).toEqual([
+        { role: 'user', parts: [{ text: 'Hva betyr hus?' }] },
+        {
+          role: 'model',
+          parts: [
+            { text: 'Looking it up.' },
+            // Made-up ids stay here; a foreign turn carries the stand-in signature on its first call.
+            { functionCall: { name: 'lookup', args: { q: 'hus' } }, thoughtSignature: FOREIGN_THOUGHT_SIGNATURE },
+            { functionCall: { id: 'toolu_1', name: 'fetch_unit', args: { input: 'not json' } } },
+          ],
+        },
+        {
+          role: 'user',
+          parts: [
+            { functionResponse: { name: 'lookup', response: { output: '{"title":"Leksjon 1"}' } } },
+            { functionResponse: { id: 'toolu_1', name: 'fetch_unit', response: { error: 'no such unit' } } },
+          ],
+        },
+      ]);
+    });
+
+    it('puts function responses before text in a user message', () => {
+      const mixed: LlmMessage = { role: 'user', parts: [{ type: 'text', text: 'and?' }, ...results.parts] };
+      const { params } = toGoogleCall({ ...tooled, messages: [ask, call, mixed] }, model());
+      const parts = (params.contents as any[])[2].parts;
+      expect(parts.map((p: object) => Object.keys(p)[0])).toEqual(['functionResponse', 'functionResponse', 'text']);
+    });
+
+    it('replays the native turn of the same model verbatim', () => {
+      const data = [
+        { text: 'plan', thought: true },
+        { functionCall: { name: 'lookup', args: { q: 'hus' } }, thoughtSignature: 'sig-1' },
+        { functionCall: { id: 'toolu_1', name: 'fetch_unit', args: {} } },
+      ];
+      const native: LlmMessage = { ...call, native: { provider: 'google', providerModelId: 'gemini-2.5-flash', data } };
+      const { params } = toGoogleCall({ ...tooled, messages: [ask, native, results] }, model());
+      expect((params.contents as any[])[1]).toEqual({ role: 'model', parts: data });
+    });
+
+    it('maps the parts when the native turn came from another model or provider', () => {
+      const data = [{ functionCall: { name: 'lookup', args: {} }, thoughtSignature: 'sig-1' }];
+      for (const n of [
+        { provider: 'google' as const, providerModelId: 'gemini-3-pro', data },
+        { provider: 'anthropic' as const, providerModelId: 'gemini-2.5-flash', data },
+      ]) {
+        const { params } = toGoogleCall({ ...tooled, messages: [ask, { ...call, native: n }, results] }, model());
+        expect(JSON.stringify(params.contents)).not.toContain('sig-1');
+      }
+    });
+
+    it('declares the tools and keeps the schema in the prompt beside them', () => {
+      const { params, mode } = toGoogleCall({ ...tooled, responseSchema: { name: 'v', schema: plainSchema } }, model());
+      expect(mode).toBe('prompt');
+      expect(params.config?.tools).toEqual([
+        { functionDeclarations: [{ name: 'lookup', description: 'Find a unit', parametersJsonSchema: { type: 'object' } }] },
+      ]);
+    });
+
+    it('refuses an unpaired tool history as invalid_request before any call', () => {
+      const run = () => toGoogleCall({ ...tooled, messages: [ask, call] }, model());
+      expect(run).toThrow(LlmError);
+      expect(run).toThrow(expect.objectContaining({ code: 'invalid_request' }));
+    });
   });
 });

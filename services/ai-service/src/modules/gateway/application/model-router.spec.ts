@@ -1,6 +1,7 @@
 import { SchemaGuard } from '../../providers/application/schema-guard.js';
 import { LlmError } from '../../providers/domain/llm-error.js';
 import type { LlmProvider } from '../../providers/domain/llm-provider.port.js';
+import type { LlmChunk } from '../../providers/domain/llm-result.js';
 import type { ModelFeatures, ProviderKind } from '../../providers/domain/model-features.js';
 import { FakeLlmProvider } from '../../providers/infrastructure/fake/fake-llm.provider.js';
 import { FakeSpeechAssessor } from '../../providers/infrastructure/fake/fake-speech.assessor.js';
@@ -283,6 +284,67 @@ describe('ModelRouter', () => {
     const { router } = setup({ binding: binding({ enabled: false }), models: [model('primary')] });
     await router.call('diagnostic', build);
     expect(build).not.toHaveBeenCalled();
+  });
+
+  describe('with a listener (plan 83, step 9)', () => {
+    const listener = () => {
+      const heard: string[] = [];
+      return { heard, text: (delta: string) => heard.push(delta), restart: () => heard.push('<restart>') };
+    };
+
+    /** Speaks a few pieces, then fails retryably — what a dropped stream looks like. */
+    class BreaksMidStream implements LlmProvider {
+      readonly kind = 'openai' as const;
+      constructor(private readonly said: string[] = []) {}
+      complete(): never {
+        throw new Error('not asked');
+      }
+      async *stream(): AsyncIterable<LlmChunk> {
+        for (const text of this.said) yield { type: 'text_delta', text };
+        throw new LlmError('overloaded', 'mid-stream');
+      }
+    }
+    const SpeaksThenBreaks = class extends BreaksMidStream {
+      constructor() {
+        super(['{"ec']);
+      }
+    };
+
+    it('streams the answer to the listener and returns the same checked result as a plain call', async () => {
+      const { router } = setup({ binding: binding(), models: [model('primary'), model('fallback')] });
+      const ear = listener();
+      const routed = await router.call('diagnostic', CALL, undefined, ear);
+      const plain = await router.call('diagnostic', CALL);
+      expect(routed.value.result.output).toEqual(plain.value.result.output);
+      expect(JSON.parse(ear.heard.join(''))).toEqual((routed.value.result.output as { data: unknown }).data);
+    });
+
+    it('restarts the listener when the fallback takes over from a model that had spoken', async () => {
+      const { router } = setup({
+        binding: binding(),
+        models: [model('primary', { kind: 'openai' }), model('fallback')],
+        providers: [new SpeaksThenBreaks(), new FakeLlmProvider()],
+        keySet: true,
+      });
+      const ear = listener();
+      const routed = await router.call('diagnostic', CALL, undefined, ear);
+      expect(routed.value.role).toBe('fallback');
+      expect(ear.heard[0]).toBe('{"ec');
+      expect(ear.heard[1]).toBe('<restart>');
+      expect(JSON.parse(ear.heard.slice(2).join(''))).toEqual({ echo: expect.any(String) });
+    });
+
+    it('does not restart for a fallback when the failed model said nothing', async () => {
+      const { router } = setup({
+        binding: binding(),
+        models: [model('primary', { kind: 'openai' }), model('fallback')],
+        providers: [new BreaksMidStream(), new FakeLlmProvider()],
+        keySet: true,
+      });
+      const ear = listener();
+      await router.call('diagnostic', CALL, undefined, ear);
+      expect(ear.heard).not.toContain('<restart>');
+    });
   });
 
   describe('payer regions', () => {

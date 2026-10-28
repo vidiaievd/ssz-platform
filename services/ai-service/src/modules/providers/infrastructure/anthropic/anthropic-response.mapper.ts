@@ -13,7 +13,36 @@ const STOP: Record<Anthropic.StopReason, LlmStopReason> = {
   refusal: 'refusal',
 };
 
-export function fromAnthropicMessage(message: Anthropic.Message, mode: SchemaMode, latencyMs: number): LlmResult {
+/**
+ * The piece of the answer a stream event carries, if any (plan 83, step 9): the text in `native`
+ * and `none` mode; in `wrapper` mode the `final_answer` tool's input JSON — the answer itself —
+ * and not the prose around it. `answerBlocks` collects the indexes of `final_answer` blocks as
+ * they start; the caller keeps it for the whole stream.
+ */
+export function answerDeltaOf(event: Anthropic.MessageStreamEvent, mode: SchemaMode, answerBlocks: Set<number>): string | null {
+  if (mode !== 'wrapper') {
+    return event.type === 'content_block_delta' && event.delta.type === 'text_delta' ? event.delta.text : null;
+  }
+  if (event.type === 'content_block_start' && event.content_block.type === 'tool_use' && event.content_block.name === ANSWER_TOOL) {
+    answerBlocks.add(event.index);
+    return null;
+  }
+  if (event.type === 'content_block_delta' && event.delta.type === 'input_json_delta' && answerBlocks.has(event.index)) {
+    return event.delta.partial_json || null;
+  }
+  return null;
+}
+
+/**
+ * `providerModelId` — the id the request named, not `message.model`: a replayed turn is
+ * matched against the model ref of the next round, which names the model the same way.
+ */
+export function fromAnthropicMessage(
+  message: Anthropic.Message,
+  mode: SchemaMode,
+  latencyMs: number,
+  providerModelId: string,
+): LlmResult {
   const text = message.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
@@ -28,7 +57,16 @@ export function fromAnthropicMessage(message: Anthropic.Message, mode: SchemaMod
   let stop: LlmStopReason = message.stop_reason ? STOP[message.stop_reason] : 'end';
   if (calls.length > 0) {
     // A real tool comes first: the agent loop runs it and asks again.
-    output = { kind: 'tool_calls', calls, ...(text ? { text } : {}) };
+    // An answer-tool call beside them is premature (it was written before the results) and
+    // is left out of the replayed turn too: the loop answers only the real calls, and an
+    // unanswered tool_use is a 400 on the next round.
+    const data = message.content.filter((b) => !(b.type === 'tool_use' && b.name === ANSWER_TOOL));
+    output = {
+      kind: 'tool_calls',
+      calls,
+      ...(text ? { text } : {}),
+      native: { provider: 'anthropic', providerModelId, data },
+    };
   } else if (answer) {
     // The wrapper's tool call *is* the answer, so the turn ended rather than paused.
     output = { kind: 'structured', data: answer.input };

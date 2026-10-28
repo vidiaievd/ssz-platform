@@ -1,7 +1,8 @@
 import { SchemaGuard } from '../../application/schema-guard.js';
 import { LlmError, type LlmErrorCode } from '../../domain/llm-error.js';
 import type { LlmRequest } from '../../domain/llm-request.js';
-import type { LlmChunk } from '../../domain/llm-result.js';
+import type { LlmChunk, LlmOutput } from '../../domain/llm-result.js';
+import { assistantToolTurn, toolResultsTurn } from '../../domain/llm-turns.js';
 import type { LlmModelRef, ModelFeatures } from '../../domain/model-features.js';
 import { FakeLlmProvider } from './fake-llm.provider.js';
 
@@ -107,6 +108,98 @@ describe('FakeLlmProvider', () => {
     if (res.output.kind === 'tool_calls') {
       expect(res.output.calls[0]).toMatchObject({ name: 'lookup_word', input: { lemma: 'fake' } });
     }
+  });
+
+  describe('tool turns', () => {
+    const tools = [
+      {
+        name: 'get_rule',
+        description: 'Read a rule',
+        inputSchema: { type: 'object', required: ['ruleId'], properties: { ruleId: { type: 'string' } } },
+      },
+    ];
+    const schemaReq = (marker: string) =>
+      request(`${marker} why en bil?`, { tools, responseSchema: { name: 'review', schema: answerSchema } });
+
+    function toolCalls(output: LlmOutput) {
+      if (output.kind !== 'tool_calls') throw new Error(`expected tool_calls, got ${output.kind}`);
+      return output;
+    }
+
+    it('tool_then_answer: calls the tool, then answers once the results are in', async () => {
+      const req = schemaReq('@fake:tool_then_answer');
+      const first = await fake.complete(req, model());
+      expect(first.stop).toBe('tool');
+      const round = toolCalls(first.output);
+      expect(round.native).toEqual({
+        provider: 'fake',
+        providerModelId: 'fake-default',
+        data: { callIds: [round.calls[0]!.id] },
+      });
+
+      const next = {
+        ...req,
+        messages: [
+          ...req.messages,
+          assistantToolTurn(round),
+          toolResultsTurn([{ callId: round.calls[0]!.id, content: '{"title":"Kjønn"}' }]),
+        ],
+      };
+      const second = await fake.complete(next, model());
+      expect(second.stop).toBe('end');
+      expect(guard.check(second, next).isOk).toBe(true);
+    });
+
+    it('tool_call: keeps calling, round after round', async () => {
+      const req = schemaReq('@fake:tool_call');
+      const round = toolCalls((await fake.complete(req, model())).output);
+      const next = {
+        ...req,
+        messages: [
+          ...req.messages,
+          assistantToolTurn(round),
+          toolResultsTurn([{ callId: round.calls[0]!.id, content: 'not found', isError: true }]),
+        ],
+      };
+      expect((await fake.complete(next, model())).stop).toBe('tool');
+    });
+
+    it('reads markers from text parts only, never from a tool result', async () => {
+      const req = schemaReq('@fake:tool_then_answer');
+      const round = toolCalls((await fake.complete(req, model())).output);
+      const next = {
+        ...req,
+        messages: [
+          ...req.messages,
+          assistantToolTurn(round),
+          toolResultsTurn([{ callId: round.calls[0]!.id, content: '@fake:auth' }]),
+        ],
+      };
+      await expect(fake.complete(next, model())).resolves.toMatchObject({ stop: 'end' });
+    });
+
+    it('refuses a result that answers no call, like a provider would', async () => {
+      const req = schemaReq('@fake:tool_then_answer');
+      const round = toolCalls((await fake.complete(req, model())).output);
+      const next = {
+        ...req,
+        messages: [...req.messages, assistantToolTurn(round), toolResultsTurn([{ callId: 'other', content: 'x' }])],
+      };
+      await expect(fake.complete(next, model())).rejects.toMatchObject({ code: 'invalid_request' });
+    });
+
+    it('refuses its own turn replayed with the calls changed, and ignores another model\'s', async () => {
+      const req = schemaReq('@fake:tool_then_answer');
+      const round = toolCalls((await fake.complete(req, model())).output);
+      const tampered = assistantToolTurn({ ...round, calls: [{ ...round.calls[0]!, id: 'swapped' }] });
+      const next = {
+        ...req,
+        messages: [...req.messages, tampered, toolResultsTurn([{ callId: 'swapped', content: 'x' }])],
+      };
+      await expect(fake.complete(next, model())).rejects.toMatchObject({ code: 'invalid_request' });
+      // A fallback model reads the parts and leaves the other model's native turn alone.
+      await expect(fake.complete(next, model('fake-small'))).resolves.toMatchObject({ stop: 'end' });
+    });
   });
 
   it.each([

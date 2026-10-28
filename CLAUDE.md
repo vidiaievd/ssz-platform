@@ -190,6 +190,20 @@ Model comparison (plan 79, step 1.6): `POST /api/v1/admin/ai/evals/review_draft/
 reruns teachers' settled drafts (exercise-engine `GET /api/v1/internal/ai-review-cases`) on a candidate
 via `ModelCaller` (named model, no gate/fallback/breaker, surface `admin_eval`) and scores it against
 what teachers kept and discarded; runs in `ai_eval_runs` (counts only, no text), compared at `GET …/runs`.
+Student assistant (plan 83, key `ai.student_assist`, capability `student_assist@1`): a tool loop (≤ 4 rounds,
+each round a separate gated/recorded call, surface `assistant_<kind>`) over read-only tools served by
+content-service (`internal/assist/*`), exercise-engine (`internal/attempts/:id/assist-review`,
+`assist-scope`) and scheduling-service (`internal/sessions/:id/assist`); the model never sees an answer key.
+Payer by the server (`AssistPayerResolver`): the school pays only for an active enrolment of its active
+student that organization-service's `assistantAllowed` lets through (school setting
+`GET/PUT /api/v1/schools/:id/assistant-access`, modes `off` / `all_students` / `selected_groups` /
+`selected_students`); anything else → the learner's own plan. Learner routes (`StudentGuard`, role `student`):
+`GET ai/assist/availability`, `POST ai/assist/messages` (JSON, or SSE with `?stream=1` — events `delta`,
+`reset`, `answer`, `refused`, `unavailable`; `X-Accel-Buffering: no`, no nginx change), `POST ai/assist/feedback`
+(→ `ai.assist.feedback`, folded into `ai_assist_quality_daily`), `GET ai/usage/me?feature=`. Redis:
+`ai:assist:rl:<userId>` (rate limit 20 / 10 min, `AI_ASSIST_RATE_LIMIT`, `AI_ASSIST_RATE_WINDOW_MS`).
+Eval: `POST /api/v1/admin/ai/evals/student_assist/run { modelId, promptVersion? }` over the hand-written
+`assist-set@1` (20 cases).
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.

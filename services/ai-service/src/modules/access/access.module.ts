@@ -9,6 +9,7 @@ import { ENTITLEMENT_READER } from './application/ports/entitlement.reader.js';
 import { PAYER_POLICY_REPOSITORY } from './application/ports/payer-policy.repository.js';
 import { QUOTA_COUNTER } from './application/ports/quota-counter.js';
 import { QUOTA_RECONCILE_INTERVAL_MS, QuotaReconciler } from './application/quota-reconciler.js';
+import { GetMyUsageHandler } from './application/queries/get-my-usage/get-my-usage.handler.js';
 import { GetPayerPolicyHandler } from './application/queries/get-payer-policy/get-payer-policy.handler.js';
 import { SUBSCRIPTION_CLIENT, type ISubscriptionClient } from './application/ports/subscription.client.js';
 import { ProjectedEntitlementReader } from './application/projected-entitlement.reader.js';
@@ -18,20 +19,22 @@ import { PrismaPayerPolicyRepository } from './infrastructure/prisma-payer-polic
 import { RedisQuotaCounter } from './infrastructure/redis-quota-counter.js';
 import { AdminPayerPoliciesController } from './presentation/admin-payer-policies.controller.js';
 import { EntitlementsChangedConsumer } from './presentation/events/entitlements-changed.consumer.js';
+import { UsageController } from './presentation/usage.controller.js';
 
 /**
  * Who may call which agent, and where the data may go: payer policies (here), the tariff
  * (projected from subscription-service, plan 78 §6), and the quota counters in Redis with
  * their reconciler. The gateway asks `AccessGate` before the router and has it
- * charge the call's credits after.
+ * charge the call's credits after. Learners read their own plan's credits at `ai/usage/me`.
  */
 @Module({
   imports: [LedgerModule],
-  controllers: [AdminPayerPoliciesController],
+  controllers: [AdminPayerPoliciesController, UsageController],
   providers: [
     AccessGate,
     GetPayerPolicyHandler,
     PutPayerPolicyHandler,
+    GetMyUsageHandler,
     { provide: PAYER_POLICY_REPOSITORY, useClass: PrismaPayerPolicyRepository },
     { provide: QUOTA_COUNTER, useClass: RedisQuotaCounter },
     {

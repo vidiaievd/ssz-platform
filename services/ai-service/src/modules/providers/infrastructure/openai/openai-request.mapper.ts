@@ -1,6 +1,8 @@
 import type OpenAI from 'openai';
 import { toStrictJsonSchema } from 'openai/lib/transform';
-import type { LlmMessage, LlmRequest } from '../../domain/llm-request.js';
+import { LlmError } from '../../domain/llm-error.js';
+import type { LlmMessage, LlmPart, LlmRequest } from '../../domain/llm-request.js';
+import { toolTurnProblem } from '../../domain/llm-turns.js';
 import type { LlmModelRef, ProviderKind } from '../../domain/model-features.js';
 
 /**
@@ -32,9 +34,13 @@ export interface OpenAiCall {
  * OpenAI-compatible server (Ollama, vLLM, LM Studio, OpenRouter) all speak.
  *
  * `cacheBoundary` is ignored: OpenAI caches a repeated prefix automatically, and the
- * cached part comes back in `usage`.
+ * cached part comes back in `usage`. A message's `native` form is ignored too: Chat
+ * Completions keeps no state of its own between turns, so the parts are the whole turn.
  */
 export function toOpenAiCall(request: LlmRequest, model: LlmModelRef, kind: ProviderKind): OpenAiCall {
+  const problem = toolTurnProblem(request.messages);
+  if (problem) throw new LlmError('invalid_request', `openai: ${problem}`);
+
   let system = request.system;
   let mode: OpenAiSchemaMode = 'none';
   let responseFormat: OpenAiCall['params']['response_format'];
@@ -60,7 +66,7 @@ export function toOpenAiCall(request: LlmRequest, model: LlmModelRef, kind: Prov
 
   const params: OpenAiCall['params'] = {
     model: model.providerModelId,
-    messages: [{ role: 'system', content: system }, ...request.messages.map(toMessage)],
+    messages: [{ role: 'system', content: system }, ...request.messages.flatMap(toMessages)],
   };
 
   // OpenAI and Azure renamed the limit (reasoning models reject `max_tokens`); compatible
@@ -82,13 +88,45 @@ export function toOpenAiCall(request: LlmRequest, model: LlmModelRef, kind: Prov
   return { params, mode };
 }
 
-function toMessage(message: LlmMessage): OpenAI.Chat.ChatCompletionMessageParam {
-  // A lone text part goes as a plain string — the form every compatible server accepts.
-  const content =
-    message.parts.length === 1
-      ? message.parts[0]!.text
-      : message.parts.map((p) => ({ type: 'text' as const, text: p.text }));
-  return message.role === 'assistant' ? { role: 'assistant', content } : { role: 'user', content };
+/**
+ * One message of ours is one message of theirs, except tool results: each is a `role: 'tool'`
+ * message of its own, right after the assistant message that asked — so they come before
+ * any text the user message carries beside them.
+ */
+function toMessages(message: LlmMessage): OpenAI.Chat.ChatCompletionMessageParam[] {
+  const texts = message.parts.filter((p): p is Extract<LlmPart, { type: 'text' }> => p.type === 'text');
+
+  if (message.role === 'assistant') {
+    const calls = message.parts.filter((p): p is Extract<LlmPart, { type: 'tool_call' }> => p.type === 'tool_call');
+    if (calls.length === 0) return [{ role: 'assistant', content: textContent(texts) }];
+    return [
+      {
+        role: 'assistant',
+        content: texts.length > 0 ? textContent(texts) : null,
+        tool_calls: calls.map((c) => ({
+          id: c.id,
+          type: 'function',
+          // Arguments that did not parse came back as the raw string; they go back as they were.
+          function: { name: c.name, arguments: typeof c.input === 'string' ? c.input : JSON.stringify(c.input) },
+        })),
+      },
+    ];
+  }
+
+  const results = message.parts.filter((p): p is Extract<LlmPart, { type: 'tool_result' }> => p.type === 'tool_result');
+  const out: OpenAI.Chat.ChatCompletionMessageParam[] = results.map((r) => ({
+    role: 'tool',
+    tool_call_id: r.callId,
+    // The API has no error flag on a tool message, so the model reads it in the content.
+    content: r.isError ? `Error: ${r.content}` : r.content,
+  }));
+  if (texts.length > 0 || results.length === 0) out.push({ role: 'user', content: textContent(texts) });
+  return out;
+}
+
+/** A lone text part goes as a plain string — the form every compatible server accepts. */
+function textContent(texts: Array<{ text: string }>): string | Array<{ type: 'text'; text: string }> {
+  return texts.length === 1 ? texts[0]!.text : texts.map((t) => ({ type: 'text' as const, text: t.text }));
 }
 
 /** The SDK's strict-mode normalization, or undefined when the schema cannot take it. */

@@ -79,6 +79,12 @@ import {
 } from '../dto/review-settings.dto.js';
 import { GetReviewEffortMinutesQuery } from '../../application/queries/get-review-effort-minutes/get-review-effort-minutes.query.js';
 import { UpdateReviewEffortMinutesCommand } from '../../application/commands/update-review-effort-minutes/update-review-effort-minutes.command.js';
+import { GetAssistantAccessQuery } from '../../application/queries/get-assistant-access/get-assistant-access.query.js';
+import { UpdateAssistantAccessCommand } from '../../application/commands/update-assistant-access/update-assistant-access.command.js';
+import {
+  AssistantAccessResponseDto,
+  UpdateAssistantAccessRequestDto,
+} from '../dto/assistant-access.dto.js';
 import { GetReviewAiPolicyQuery } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.query.js';
 import { UpdateReviewAiPolicyCommand } from '../../application/commands/update-review-ai-policy/update-review-ai-policy.command.js';
 
@@ -539,6 +545,34 @@ export class SchoolsController {
   ): Promise<ReviewEffortMinutesResponseDto> {
     return this.commandBus.execute(
       new UpdateReviewEffortMinutesCommand(schoolId, user.sub, dto.templates, dto.other ?? null),
+    );
+  }
+
+  @Get(':id/assistant-access')
+  @ApiOperation({ summary: 'Which students the school’s assistant answers on the school’s account (plan 83, owner/admin)' })
+  @ApiResponse({ status: 200, type: AssistantAccessResponseDto })
+  @ApiResponse({ status: 403, description: 'Only owner or admin' })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async getAssistantAccess(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) schoolId: string,
+  ): Promise<AssistantAccessResponseDto> {
+    return this.queryBus.execute(new GetAssistantAccessQuery(schoolId, user.sub));
+  }
+
+  @Put(':id/assistant-access')
+  @ApiOperation({ summary: 'Set which students the school’s assistant answers on the school’s account (owner/admin)' })
+  @ApiResponse({ status: 200, type: AssistantAccessResponseDto })
+  @ApiResponse({ status: 403, description: 'Only owner or admin; FEATURE_NOT_ENTITLED — the plan has no ai.student_assist' })
+  @ApiResponse({ status: 422, description: 'INVALID_ASSISTANT_ACCESS — a group or student that is not this school’s' })
+  @ApiResponse({ status: 503, description: 'subscription-service could not confirm the plan' })
+  async updateAssistantAccess(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) schoolId: string,
+    @Body() dto: UpdateAssistantAccessRequestDto,
+  ): Promise<AssistantAccessResponseDto> {
+    return this.commandBus.execute(
+      new UpdateAssistantAccessCommand(schoolId, user.sub, dto.mode, dto.groupIds, dto.studentIds),
     );
   }
 

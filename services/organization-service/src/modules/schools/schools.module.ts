@@ -84,6 +84,8 @@ import { GetReviewAiPolicyHandler } from './application/queries/get-review-ai-po
 import { UpdateReviewAiPolicyHandler } from './application/commands/update-review-ai-policy/update-review-ai-policy.handler.js';
 import { GetReviewEffortMinutesHandler } from './application/queries/get-review-effort-minutes/get-review-effort-minutes.handler.js';
 import { UpdateReviewEffortMinutesHandler } from './application/commands/update-review-effort-minutes/update-review-effort-minutes.handler.js';
+import { GetAssistantAccessHandler } from './application/queries/get-assistant-access/get-assistant-access.handler.js';
+import { UpdateAssistantAccessHandler } from './application/commands/update-assistant-access/update-assistant-access.handler.js';
 import { GetOnboardingSettingsHandler } from './application/queries/get-onboarding-settings/get-onboarding-settings.handler.js';
 import { ListMembershipsHandler } from './application/queries/list-memberships/list-memberships.handler.js';
 import { GetMyMembershipHandler } from './application/queries/get-my-membership/get-my-membership.handler.js';
@@ -91,6 +93,7 @@ import { GetPublicSchoolHandler } from './application/queries/get-public-school/
 import { ListPublicSchoolsHandler } from './application/queries/list-public-schools/list-public-schools.handler.js';
 import { GetLearnerReviewContextHandler } from './application/queries/get-learner-review-context/get-learner-review-context.handler.js';
 import { GetLearnerPositionContextHandler } from './application/queries/get-learner-position-context/get-learner-position-context.handler.js';
+import { GetStudentStandingHandler } from './application/queries/get-student-standing/get-student-standing.handler.js';
 import { GetReviewReviewersHandler } from './application/queries/get-review-reviewers/get-review-reviewers.handler.js';
 import { GetReviewEscalationRecipientsHandler } from './application/queries/get-review-escalation-recipients/get-review-escalation-recipients.handler.js';
 import { GetReviewScopeHandler } from './application/queries/get-review-scope/get-review-scope.handler.js';
@@ -115,6 +118,7 @@ const CommandHandlers = [
   UpdateReviewSettingsHandler,
   UpdateReviewAiPolicyHandler,
   UpdateReviewEffortMinutesHandler,
+  UpdateAssistantAccessHandler,
   CreateSchoolHandler,
   ProvisionSoloWorkspaceHandler,
   UpdateSchoolHandler,
@@ -178,12 +182,14 @@ const QueryHandlers = [
   GetReviewSettingsHandler,
   GetReviewAiPolicyHandler,
   GetReviewEffortMinutesHandler,
+  GetAssistantAccessHandler,
   ListMembershipsHandler,
   GetMyMembershipHandler,
   GetPublicSchoolHandler,
   ListPublicSchoolsHandler,
   GetLearnerReviewContextHandler,
   GetLearnerPositionContextHandler,
+  GetStudentStandingHandler,
   GetReviewReviewersHandler,
   GetReviewEscalationRecipientsHandler,
   GetReviewScopeHandler,

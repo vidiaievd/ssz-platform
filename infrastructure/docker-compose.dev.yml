@@ -450,6 +450,11 @@ services:
       PROFILE_SERVICE_URL: http://user-profile-service:3001
       # Voice review (plan 82 §8): the recording's speech WAV, through media-service.
       MEDIA_SERVICE_URL: http://media-service:3004
+      # The student assistant's tools (plan 83, step 2) read the course, the mastery profile and the class.
+      CONTENT_SERVICE_URL: http://content-service:3003
+      ANALYTICS_SERVICE_URL: http://analytics-service:3008
+      SCHEDULING_SERVICE_URL: http://scheduling-service:3009
+      LEARNING_SERVICE_URL: http://learning-service:3007
       # Provider keys: the registry names the variable (credentialRef), this passes it in.
       # Empty = provider shows configured: false; nothing else breaks.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

@@ -1,7 +1,7 @@
 import { FinishReason, type GenerateContentResponse, type Part } from '@google/genai';
 import type { LlmOutput, LlmResult, LlmStopReason, LlmToolCall } from '../../domain/llm-result.js';
 import { unfence } from '../unfence.js';
-import type { GoogleSchemaMode } from './google-request.mapper.js';
+import { SYNTHETIC_CALL_ID, type GoogleSchemaMode } from './google-request.mapper.js';
 
 /** The fields of a response this mapper reads — a merged stream produces the same shape. */
 export type GoogleResponse = Pick<GenerateContentResponse, 'candidates' | 'usageMetadata' | 'responseId' | 'promptFeedback'>;
@@ -36,7 +36,16 @@ export function answerText(parts: Part[] | undefined): string {
     .join('');
 }
 
-export function fromGoogleResponse(response: GoogleResponse, mode: GoogleSchemaMode, latencyMs: number): LlmResult {
+/**
+ * `providerModelId` — the id the request named, which a replayed turn is matched against on
+ * the next round (`modelVersion` in the response may name the model differently).
+ */
+export function fromGoogleResponse(
+  response: GoogleResponse,
+  mode: GoogleSchemaMode,
+  latencyMs: number,
+  providerModelId: string,
+): LlmResult {
   const candidate = response.candidates?.[0];
   const parts = candidate?.content?.parts ?? [];
 
@@ -45,7 +54,7 @@ export function fromGoogleResponse(response: GoogleResponse, mode: GoogleSchemaM
     .filter((p) => p.functionCall)
     .map((p, i) => ({
       // The Gemini API leaves the id out; it only has to be unique within this turn.
-      id: p.functionCall!.id ?? `call_${i}`,
+      id: p.functionCall!.id ?? `${SYNTHETIC_CALL_ID}${i}`,
       name: p.functionCall!.name ?? '',
       input: p.functionCall!.args ?? {},
     }));
@@ -58,7 +67,13 @@ export function fromGoogleResponse(response: GoogleResponse, mode: GoogleSchemaM
     output = { kind: 'text', text: '' };
   } else if (calls.length > 0) {
     stop = 'tool';
-    output = { kind: 'tool_calls', calls, ...(text ? { text } : {}) };
+    // All the parts, thought signatures included: the next round replays them as they are.
+    output = {
+      kind: 'tool_calls',
+      calls,
+      ...(text ? { text } : {}),
+      native: { provider: 'google', providerModelId, data: parts },
+    };
   } else {
     stop = toStop(candidate?.finishReason);
     output = { kind: 'text', text: mode === 'prompt' ? unfence(text) : text };
