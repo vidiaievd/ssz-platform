@@ -27,7 +27,7 @@ export class GoogleLlmProvider implements LlmProvider {
     const started = Date.now();
     try {
       const response = await client.models.generateContent(params);
-      return fromGoogleResponse(response, mode, Date.now() - started);
+      return fromGoogleResponse(response, mode, Date.now() - started, model.providerModelId);
     } catch (err) {
       throw toLlmError(err);
     }
@@ -57,7 +57,7 @@ export class GoogleLlmProvider implements LlmProvider {
       }
       if (candidate) merged.candidates = [{ ...candidate, content: { role: 'model', parts } }];
 
-      const result = fromGoogleResponse(merged, mode, Date.now() - started);
+      const result = fromGoogleResponse(merged, mode, Date.now() - started, model.providerModelId);
       if (result.output.kind === 'tool_calls') {
         for (const call of result.output.calls) yield { type: 'tool_call', call };
       }

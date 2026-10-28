@@ -1,5 +1,9 @@
 import { BlockedReason, FinishReason, type Part } from '@google/genai';
-import { fromGoogleResponse, type GoogleResponse } from './google-response.mapper.js';
+import type { GoogleSchemaMode } from './google-request.mapper.js';
+import { fromGoogleResponse as fromGoogle, type GoogleResponse } from './google-response.mapper.js';
+
+const fromGoogleResponse = (r: GoogleResponse, mode: GoogleSchemaMode, latencyMs: number) =>
+  fromGoogle(r, mode, latencyMs, 'gemini-2.5-flash');
 
 const usage = {
   promptTokenCount: 120,
@@ -39,11 +43,29 @@ describe('fromGoogleResponse', () => {
       0,
     );
     expect(result.stop).toBe('tool');
-    expect(result.output).toEqual({
+    expect(result.output).toMatchObject({
       kind: 'tool_calls',
       text: 'Looking up.',
-      calls: [{ id: 'call_0', name: 'lookup', input: { q: 'hus' } }],
+      calls: [{ id: 'gemini_call_0', name: 'lookup', input: { q: 'hus' } }],
     });
+  });
+
+  it('keeps every part of a tool turn, signatures and thoughts included, as the native form', () => {
+    const parts: Part[] = [
+      { text: 'plan', thought: true },
+      { functionCall: { id: 'fc-1', name: 'lookup', args: { q: 'hus' } }, thoughtSignature: 'sig-1' },
+      { functionCall: { name: 'lookup', args: { q: 'bil' } } },
+    ];
+    const result = fromGoogleResponse(response(parts), 'none', 0);
+    expect(result.output).toMatchObject({
+      kind: 'tool_calls',
+      calls: [{ id: 'fc-1' }, { id: 'gemini_call_1' }],
+      native: { provider: 'google', providerModelId: 'gemini-2.5-flash', data: parts },
+    });
+  });
+
+  it('keeps no native form for an answer', () => {
+    expect(fromGoogleResponse(response([{ text: 'hi' }]), 'none', 0).output).not.toHaveProperty('native');
   });
 
   it.each([
