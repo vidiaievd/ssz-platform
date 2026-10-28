@@ -757,6 +757,20 @@ export class InternalController {
   // published material of a unit, a rule, a word. Each names the course and answers 404
   // for what is not published in it. Exercises come as title and template only — the
   // learner asks the assistant before handing work in, so no key may reach the model.
+  // The language the course teaches, which the assistant's prompt names (plan 83, step 4e).
+  @Get('assist/courses/:courseId')
+  async getAssistCourse(
+    @Param('courseId') courseId: string,
+  ): Promise<{ courseId: string; targetLanguage: string }> {
+    const result = await this.queryBus.execute<
+      GetContainerQuery,
+      Result<GetContainerResult, ContainerDomainError>
+    >(new GetContainerQuery(courseId, ''));
+
+    if (result.isFail) throw new NotFoundException(`Course ${courseId} not found`);
+    return { courseId, targetLanguage: result.value.container.targetLanguage };
+  }
+
   @Get('assist/courses/:courseId/units/:unitId')
   async getAssistUnitMaterial(
     @Param('courseId') courseId: string,
