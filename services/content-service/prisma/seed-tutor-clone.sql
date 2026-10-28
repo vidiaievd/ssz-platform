@@ -26,7 +26,8 @@ create temp table s_leaf on commit drop as
 -- Containers ---------------------------------------------------------------
 insert into containers (id,slug,container_type,target_language,difficulty_level,title,description,
   cover_image_media_id,owner_user_id,owner_school_id,visibility,access_tier,current_published_version_id,
-  created_at,updated_at,deleted_at,level_system,archived_at,gating_mode,review_respond_within_hours)
+  created_at,updated_at,deleted_at,level_system,archived_at,gating_mode,review_respond_within_hours,
+  learning_goals)
 select tclone(c.id),
        case when c.id=(select id from s_course) then 'ny-i-norge-a2-privat'
             when c.slug is null then null else c.slug||'-privat' end,
@@ -34,8 +35,16 @@ select tclone(c.id),
        c.cover_image_media_id, :tutor::uuid, null,
        'public'::visibility, 'public_free'::access_tier,
        tclone(c.current_published_version_id),
-       c.created_at, now(), null, c.level_system, null, c.gating_mode, c.review_respond_within_hours
+       c.created_at, now(), null, c.level_system, null, c.gating_mode, c.review_respond_within_hours,
+       c.learning_goals
 from containers c join s_containers sc on sc.id=c.id;
+
+-- Catalogue tags: the clone carries the source's global tags (school tags stay behind).
+insert into tag_assignments (id,tag_id,entity_type,entity_id,assigned_at,assigned_by_user_id)
+select tclone(a.id),a.tag_id,a.entity_type,tclone(a.entity_id),a.assigned_at,:tutor::uuid
+from tag_assignments a join s_containers sc on sc.id=a.entity_id
+join tags t on t.id=a.tag_id and t.scope='global' and t.deleted_at is null
+where a.entity_type='container';
 
 update containers set title='Ny i Norge A2 — privattimer',
   description='Privatkurs i norsk (A2) hos Dmytro. Leksjon 17–19: helse, høytider og kontakt med nordmenn.'
