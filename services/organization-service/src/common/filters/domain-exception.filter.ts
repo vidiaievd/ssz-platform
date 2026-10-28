@@ -25,6 +25,7 @@ import { MemberNotFoundException } from '../../modules/schools/domain/exceptions
 import { MembershipNotFoundException } from '../../modules/schools/domain/exceptions/membership-not-found.exception.js';
 import { InvalidMembershipTransitionException } from '../../modules/schools/domain/exceptions/invalid-membership-transition.exception.js';
 import { InvalidReviewSettingsException } from '../../modules/schools/domain/exceptions/invalid-review-settings.exception.js';
+import { InvalidAssistantAccessException } from '../../modules/schools/domain/exceptions/invalid-assistant-access.exception.js';
 import { FeatureNotEntitledException } from '../../modules/schools/domain/exceptions/feature-not-entitled.exception.js';
 
 @Catch(
@@ -33,6 +34,7 @@ import { FeatureNotEntitledException } from '../../modules/schools/domain/except
   MembershipNotFoundException,
   InvalidMembershipTransitionException,
   InvalidReviewSettingsException,
+  InvalidAssistantAccessException,
   FeatureNotEntitledException,
   SchoolAlreadyExistsException,
   ForbiddenOperationException,
@@ -80,6 +82,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
     // Not a 400: the shape of each field was fine, the promise they make together was not.
     if (exception instanceof InvalidReviewSettingsException) {
       return { status: HttpStatus.UNPROCESSABLE_ENTITY, code: 'INVALID_REVIEW_SETTINGS' };
+    }
+    if (exception instanceof InvalidAssistantAccessException) {
+      return { status: HttpStatus.UNPROCESSABLE_ENTITY, code: 'INVALID_ASSISTANT_ACCESS' };
     }
     if (exception instanceof FeatureNotEntitledException) {
       return { status: HttpStatus.FORBIDDEN, code: 'FEATURE_NOT_ENTITLED' };
