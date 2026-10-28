@@ -8,6 +8,7 @@ import type {
   ICourseMaterialReader,
   IEnrollmentReader,
   IGroupRosterReader,
+  IStudentStandingReader,
   IMasteryReader,
   IReviewedWorkReader,
   ReviewedWork,
@@ -121,5 +122,12 @@ export class HttpGroupRosterReader extends InternalReader implements IGroupRoste
     const path = `/api/v1/internal/schools/${encodeURIComponent(schoolId)}/groups/${encodeURIComponent(groupId)}/members`;
     const { body } = await this.get<{ userIds?: string[] }>(path);
     return body ? (body.userIds ?? []) : null;
+  }
+}
+
+export class HttpStudentStandingReader extends InternalReader implements IStudentStandingReader {
+  async isActiveStudent(schoolId: string, userId: string): Promise<boolean> {
+    const path = `/api/v1/internal/schools/${encodeURIComponent(schoolId)}/students/${encodeURIComponent(userId)}/standing`;
+    return (await this.get<{ activeStudent?: boolean }>(path)).body?.activeStudent === true;
   }
 }

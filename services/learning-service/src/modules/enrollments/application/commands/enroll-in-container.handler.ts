@@ -69,13 +69,14 @@ export class EnrollInContainerHandler
       return Result.fail(new AccessDeniedForContainerError(tier));
     }
 
-    // Which workspace this enrolment belongs to. The caller names one only when the
-    // learner reached the course through a school's shelf; on a private tutor's course
-    // nobody names anything, and the row used to be stored with `schoolId: null` — the
-    // tutor's dashboard then counted zero students of a course they teach themselves.
-    // Attribution is not access: it is resolved after the tier checks above, so what a
-    // learner may enrol in is still decided by the workspace the caller stated.
-    const schoolId = cmd.schoolId ?? (await this.resolveWorkspace(cmd.userId, cmd.containerId));
+    // Which workspace this enrolment belongs to. Only a school's own shelf makes the learner
+    // the school's — the FREE_WITHIN_SCHOOL tier, with membership checked above. Enrolling in
+    // a public course is the learner's own act: it is never filed under a school, neither the
+    // one the caller names (unchecked on a public course) nor one guessed from the learner's
+    // rosters, or the school would pay for its AI and count the learner on its dashboards
+    // (plan 83, step 3). A school's students get a public course as a school's through a
+    // group assignment, which states the school itself.
+    const schoolId = tier === 'FREE_WITHIN_SCHOOL' ? cmd.schoolId! : null;
 
     let enrollment: Enrollment;
     if (existing) {
@@ -105,41 +106,5 @@ export class EnrollInContainerHandler
       `${existing ? 'Re-enrolled' : 'Enrolled'} user ${cmd.userId} in container ${cmd.containerId}`,
     );
     return Result.ok(toEnrollmentDto(enrollment));
-  }
-
-  /**
-   * The learner's own workspace, asked of the service that owns rosters.
-   *
-   * Same rule the review queue learned in phase 3: the workspace comes from the learner,
-   * with the course and its author as tie-breaks for someone who studies both at a school
-   * and with a private tutor — without the author hint their tutor's homework is filed
-   * under the school (plan 59 §3.2).
-   *
-   * Neither neighbour being reachable loses the attribution, not the enrolment: a learner
-   * pressing "Enrol" should not be told the platform is broken because a dashboard would
-   * miss a number.
-   */
-  private async resolveWorkspace(userId: string, containerId: string): Promise<string | null> {
-    const owner = await this.contentClient.getContainerOwner(containerId);
-    if (owner.isFail) {
-      this.logger.warn(
-        `Enrolment of ${userId} in ${containerId} stored without a workspace: ${owner.error.message}`,
-      );
-      return null;
-    }
-
-    const context = await this.orgClient.getLearnerWorkspace(userId, {
-      courseId: containerId,
-      preferredSchoolId: owner.value.ownerSchoolId,
-      preferredTeacherId: owner.value.ownerUserId,
-    });
-    if (context.isFail) {
-      this.logger.warn(
-        `Enrolment of ${userId} in ${containerId} stored without a workspace: ${context.error.message}`,
-      );
-      return null;
-    }
-
-    return context.value.schoolId;
   }
 }

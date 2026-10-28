@@ -7,10 +7,12 @@ import {
   CLASS_SESSION_READER,
   ENROLLMENT_READER,
   GROUP_ROSTER_READER,
+  STUDENT_STANDING_READER,
   type IAttemptScopeReader,
   type IClassSessionReader,
   type IEnrollmentReader,
   type IGroupRosterReader,
+  type IStudentStandingReader,
 } from './ports/assist-readers.js';
 
 export interface AssistTurnRequest {
@@ -43,8 +45,11 @@ export type AssistAccessError =
  * context at all (plan 83, step 3; 48 §3). The tools read only within what this lets
  * through, so every check the tools do not make is made here:
  *
- * - a course in the context → the learner must hold it; an enrolment through a workspace
- *   (school or tutor) → that workspace pays, self-study → the learner;
+ * - a course in the context → the learner must hold it (active or completed). The workspace
+ *   (school or tutor) pays only for an **active** enrolment filed under it, of a learner who
+ *   is still its **active student**; anything else — self-study, a finished course, a former
+ *   student, staff — goes to the learner's own plan, and the gate refuses there if that plan
+ *   lacks the key. Learning-service files a public course under no workspace;
  * - a submission → it must be the learner's, and its course is the attempt's;
  * - a class → the learner must be in the session's group, and the session's workspace pays —
  *   the class is that workspace's work, even when the course came to the learner otherwise;
@@ -61,6 +66,7 @@ export class AssistPayerResolver {
     @Inject(ATTEMPT_SCOPE_READER) private readonly attempts: IAttemptScopeReader,
     @Inject(CLASS_SESSION_READER) private readonly classes: IClassSessionReader,
     @Inject(GROUP_ROSTER_READER) private readonly rosters: IGroupRosterReader,
+    @Inject(STUDENT_STANDING_READER) private readonly standing: IStudentStandingReader,
   ) {}
 
   async resolve(request: AssistTurnRequest): Promise<Result<AssistAccess, AssistAccessError>> {
@@ -90,7 +96,9 @@ export class AssistPayerResolver {
 
     const enrollment = await this.enrollments.enrollment(userId, context.courseId);
     if (!enrollment) return Result.fail({ code: 'not_enrolled' });
-    const payer: Payer = enrollment.schoolId ? { type: 'workspace', id: enrollment.schoolId } : { type: 'user', id: userId };
+    const schoolId = enrollment.status === 'active' ? enrollment.schoolId : null;
+    const schoolPays = schoolId !== null && (await this.standing.isActiveStudent(schoolId, userId));
+    const payer: Payer = schoolPays ? { type: 'workspace', id: schoolId } : { type: 'user', id: userId };
     return Result.ok({ payer, context });
   }
 }

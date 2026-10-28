@@ -21,6 +21,7 @@ import {
   GROUP_ROSTER_READER,
   MASTERY_READER,
   REVIEWED_WORK_READER,
+  STUDENT_STANDING_READER,
 } from './student-assist/application/ports/assist-readers.js';
 import {
   HttpAttemptScopeReader,
@@ -30,6 +31,7 @@ import {
   HttpGroupRosterReader,
   HttpMasteryReader,
   HttpReviewedWorkReader,
+  HttpStudentStandingReader,
 } from './student-assist/infrastructure/http-assist-readers.js';
 import { DraftReviewHandler } from './review-draft/application/draft-review/draft-review.handler.js';
 import { REVIEW_ATTEMPTS_CLIENT } from './review-draft/application/ports/review-attempts.client.js';
@@ -111,6 +113,12 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfig>) =>
         new HttpGroupRosterReader(config.get<string>('organizationServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: STUDENT_STANDING_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpStudentStandingReader(config.get<string>('organizationServiceUrl')!, config.get<string>('internalServiceToken')!),
     },
     RunDiagnosticHandler,
     TryTranslateReviewHandler,

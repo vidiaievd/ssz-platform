@@ -150,3 +150,10 @@ export interface IGroupRosterReader {
   /** The learners of a group; null when the school has no such group. */
   members(schoolId: string, groupId: string): Promise<string[] | null>;
 }
+
+export const STUDENT_STANDING_READER = Symbol('STUDENT_STANDING_READER');
+
+export interface IStudentStandingReader {
+  /** On the school's roster as a student and not archived — staff and former students are not. */
+  isActiveStudent(schoolId: string, userId: string): Promise<boolean>;
+}

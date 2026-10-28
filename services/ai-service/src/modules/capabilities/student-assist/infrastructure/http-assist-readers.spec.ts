@@ -6,6 +6,7 @@ import {
   HttpGroupRosterReader,
   HttpMasteryReader,
   HttpReviewedWorkReader,
+  HttpStudentStandingReader,
 } from './http-assist-readers.js';
 
 // Plan 83, step 2: the internal routes behind the assistant's tools.
@@ -125,5 +126,18 @@ describe('HttpGroupRosterReader', () => {
     expect(requested(fetchMock).url.pathname).toBe('/api/v1/internal/schools/s/groups/g/members');
     respond(404);
     expect(await reader.members('s', 'g')).toBeNull();
+  });
+});
+
+describe('HttpStudentStandingReader', () => {
+  it('reads the learner\'s standing; anything but an explicit true is «not a current student»', async () => {
+    const reader = new HttpStudentStandingReader(BASE, TOKEN);
+    const fetchMock = respond(200, { activeStudent: true });
+    expect(await reader.isActiveStudent('s', 'user-1')).toBe(true);
+    expect(requested(fetchMock).url.pathname).toBe('/api/v1/internal/schools/s/students/user-1/standing');
+    respond(200, { activeStudent: false });
+    expect(await reader.isActiveStudent('s', 'user-1')).toBe(false);
+    respond(404);
+    expect(await reader.isActiveStudent('s', 'user-1')).toBe(false);
   });
 });

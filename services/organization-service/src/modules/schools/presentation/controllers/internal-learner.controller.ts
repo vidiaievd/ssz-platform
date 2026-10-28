@@ -1,10 +1,12 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { QueryBus } from '@nestjs/cqrs';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { GetLearnerPositionContextQuery } from '../../application/queries/get-learner-position-context/get-learner-position-context.query.js';
 import type { LearnerPositionContextResult } from '../../application/queries/get-learner-position-context/get-learner-position-context.handler.js';
+import { GetStudentStandingQuery } from '../../application/queries/get-student-standing/get-student-standing.query.js';
+import type { StudentStandingResult } from '../../application/queries/get-student-standing/get-student-standing.handler.js';
 
 /**
  * What another service needs to know about a learner's own screens.
@@ -34,6 +36,20 @@ export class InternalLearnerController {
   ): Promise<LearnerPositionContextResult> {
     return this.queryBus.execute<GetLearnerPositionContextQuery, LearnerPositionContextResult>(
       new GetLearnerPositionContextQuery(userId, courseId),
+    );
+  }
+
+  /**
+   * Whether the learner is a current student of the school — not staff, not archived.
+   * ai-service asks before the school pays for the learner's assistant (plan 83, step 3).
+   */
+  @Get('schools/:schoolId/students/:userId/standing')
+  async getStudentStanding(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+    @Param('userId') userId: string,
+  ): Promise<StudentStandingResult> {
+    return this.queryBus.execute<GetStudentStandingQuery, StudentStandingResult>(
+      new GetStudentStandingQuery(schoolId, userId),
     );
   }
 }
