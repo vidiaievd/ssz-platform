@@ -3,9 +3,6 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import type { Payer } from '../../../../access/domain/payer.js';
 import { AiGateway, type GatewayCall } from '../../../../gateway/application/ai-gateway.js';
 import type { CallContext } from '../../../../ledger/domain/ai-call.js';
-import type { LlmMessage } from '../../../../providers/domain/llm-request.js';
-import type { LlmOutput } from '../../../../providers/domain/llm-result.js';
-import { assistantToolTurn, toolResultsTurn, type LlmToolOutcome } from '../../../../providers/domain/llm-turns.js';
 import { describeCall } from '../../../application/describe-call.js';
 import { LEARNER_LANGUAGE_READER, type ILearnerLanguageReader } from '../../../review-direct/application/ports/learner-language.reader.js';
 import { languageName } from '../../../review-draft/domain/comment-language.js';
@@ -13,24 +10,23 @@ import {
   SCHOOL_LANGUAGE_READER,
   type ISchoolLanguageReader,
 } from '../../../review-draft/application/ports/school-language.reader.js';
-import { toAssistAnswer, type AssistAnswer, type AssistContext, type AssistEvidence, type AssistSource } from '../../domain/assist-answer.js';
-import { assistRequest, type AssistPrompt, type AssistTurn } from '../../prompts/prompts.js';
+import type { AssistAnswer, AssistContext } from '../../domain/assist-answer.js';
+import type { AssistPrompt, AssistTurn } from '../../prompts/prompts.js';
 import { STUDENT_ASSIST } from '../../student-assist.capability.js';
+import { runAssistLoop, UNKNOWN_TARGET, type AssistRoundCaller } from '../assist-loop.js';
 import { AssistPayerResolver, type AssistAccessError } from '../assist-payer.resolver.js';
 import { assistRefusalOf, type AssistRefusal } from '../assist-refusal.js';
 import { AssistToolbox, type AssistToolScope } from '../assist-toolbox.js';
 import { COURSE_LANGUAGE_READER, type ICourseLanguageReader } from '../ports/assist-readers.js';
 import { AskAssistantCommand } from './ask-assistant.command.js';
 
-/** Q4: tool rounds in one turn; the answer after the last one is a round of its own. */
-export const MAX_TOOL_ROUNDS = 4;
-
 /** The ledger's surface of a turn: one per entry point of the client (R-k). */
 export const assistSurface = (context: AssistContext): string => `assistant_${context.kind}`;
 
 /** When nothing better is known: the language most of the platform's learners read. */
 const DEFAULT_EXPLANATION = 'en';
-const UNKNOWN_TARGET = 'the language they are learning';
+
+export { MAX_TOOL_ROUNDS } from '../assist-loop.js';
 
 export type AskAssistantOutcome =
   /** `callId` — the ledger row of the round that answered; feedback (step 7) is given on it. */
@@ -48,14 +44,9 @@ export type AskAssistantOutcome =
 
 /**
  * One turn of `student_assist` (plan 83, step 4e): who pays and what may be read (step 3) →
- * the request (step 1's prompt, the context's tools) → the gateway; on tool calls the
- * toolbox (step 2) runs them, their results join the turn and the gateway is called again,
- * up to `MAX_TOOL_ROUNDS`. Every round is a gateway call of its own — gated, routed, recorded
- * and charged — so a quota spent mid-turn refuses the next round like the first.
- *
- * The answer is checked by `SchemaGuard` against the schema and the verifier, which reads the
- * sources and texts the tools returned so far. An answer that fails gets one repair round:
- * the model reads its answer and why it was not accepted. A second failure is silence (R-f).
+ * the agent loop (`runAssistLoop`) with the gateway as its round caller. Every round is a
+ * gateway call of its own — gated, routed, recorded and charged — so a quota spent mid-turn
+ * refuses the next round like the first.
  *
  * Nothing the learner wrote, nothing a tool returned and nothing a model answered goes to
  * the log (R-j): only codes, counts and ledger ids.
@@ -114,52 +105,26 @@ export class AskAssistantHandler implements ICommandHandler<AskAssistantCommand,
       surface: assistSurface(context),
     };
 
-    // What the answer may cite and name: grows with every tool round of this turn only.
-    const sources: AssistSource[] = [];
-    const texts: string[] = [...command.history.map((h) => h.text), command.message, ...(context.lemma ? [context.lemma] : [])];
-    const rounds: LlmMessage[] = [];
-    let toolRounds = 0;
-    let repaired = false;
-    let calls = 0;
-
-    for (;;) {
-      const evidence: AssistEvidence = { sources: [...sources], texts: [...texts] };
-      const call = await this.gateway.call(STUDENT_ASSIST.code, callContext, (promptVersion) => {
-        const request = assistRequest(promptVersion, prompt, turn, evidence);
-        return { ...request, messages: [...request.messages, ...rounds] };
-      });
-      calls++;
+    const round: AssistRoundCaller = async (build) => {
+      const call = await this.gateway.call(STUDENT_ASSIST.code, callContext, build);
       const report = describeCall(STUDENT_ASSIST.code, callContext, call);
-
-      if (report.outcome === 'ok') {
-        const output = report.output!;
-        if (output.kind === 'structured') {
-          return { kind: 'answered', callId: report.callId, answer: toAssistAnswer(output.data, evidence), rounds: calls };
-        }
-        if (output.kind !== 'tool_calls') return { kind: 'silent', cause: 'invalid_response', callId: report.callId, rounds: calls };
-        if (toolRounds >= MAX_TOOL_ROUNDS) return { kind: 'silent', cause: 'tool_budget', callId: report.callId, rounds: calls };
-        toolRounds++;
-
-        const outcomes: LlmToolOutcome[] = [];
-        for (const toolCall of output.calls) {
-          const result = await this.toolbox.run(toolCall, scope);
-          sources.push(...result.sources);
-          texts.push(result.content);
-          outcomes.push({ callId: toolCall.id, content: result.content });
-        }
-        rounds.push(assistantToolTurn(output), toolResultsTurn(outcomes));
-        continue;
-      }
-
+      if (report.outcome === 'ok') return { kind: 'output', callId: report.callId, output: report.output! };
       const refusal = refusalOf(call);
-      if (refusal) return { kind: 'refused', reason: refusal, callId: report.callId };
-
-      if (report.outcome === 'invalid_response' && !repaired && report.output && report.output.kind !== 'tool_calls') {
-        repaired = true;
-        rounds.push(...repairTurn(report.output, report.errorMessage));
-        continue;
+      if (refusal) return { kind: 'refused', callId: report.callId, reason: refusal };
+      if (report.outcome === 'invalid_response') {
+        return { kind: 'invalid', callId: report.callId, output: report.output, reason: report.errorMessage };
       }
-      return { kind: 'silent', cause: report.errorCode ?? report.outcome, callId: report.callId, rounds: calls };
+      return { kind: 'failed', callId: report.callId, code: report.errorCode ?? report.outcome };
+    };
+
+    const outcome = await runAssistLoop(round, this.toolbox, { prompt, turn, scope });
+    switch (outcome.kind) {
+      case 'answered':
+        return { kind: 'answered', callId: outcome.callId, answer: outcome.answer, rounds: outcome.trace.calls };
+      case 'refused':
+        return { kind: 'refused', reason: outcome.reason, callId: outcome.callId };
+      case 'silent':
+        return { kind: 'silent', cause: outcome.cause, callId: outcome.callId, rounds: outcome.trace.calls };
     }
   }
 
@@ -194,29 +159,6 @@ function refusalOf({ routed }: GatewayCall): AssistRefusal | null {
   if (routed.isOk) return null;
   const failure = routed.error;
   return failure.kind === 'disabled' || failure.kind === 'refused' ? assistRefusalOf(failure) : null;
-}
-
-/**
- * The repair round: the model's own answer back as its turn, and why it was not accepted.
- * The reason is `SchemaGuard`'s — a schema path or which citation was invented — never a text
- * of the learner's beyond what the model itself wrote.
- */
-function repairTurn(output: Exclude<LlmOutput, { kind: 'tool_calls' }>, reason: string | null): LlmMessage[] {
-  const answer = output.kind === 'structured' ? JSON.stringify(output.data) : output.text;
-  return [
-    { role: 'assistant', parts: [{ type: 'text', text: answer }] },
-    {
-      role: 'user',
-      parts: [
-        {
-          type: 'text',
-          text:
-            `That answer was not accepted: ${reason ?? 'it does not match the required format'}.\n` +
-            'Give the answer again in the required format, fixing only that. Cite only what a tool returned in this turn.',
-        },
-      ],
-    },
-  ];
 }
 
 function messageOf(err: unknown): string {

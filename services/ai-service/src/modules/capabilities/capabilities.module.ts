@@ -44,6 +44,10 @@ import { PrismaAssistFeedbackRepository } from './student-assist/infrastructure/
 import { RedisAssistRateLimiter } from './student-assist/infrastructure/redis-assist-rate-limiter.js';
 import { AssistRateLimitGuard } from './student-assist/presentation/assist-rate-limit.guard.js';
 import { AssistController } from './student-assist/presentation/assist.controller.js';
+import { AssistEvalRunner } from './student-assist/eval/application/assist-eval-runner.js';
+import { GetAssistEvalRunHandler, ListAssistEvalRunsHandler } from './student-assist/eval/application/assist-eval-runs.queries.js';
+import { RunAssistEvalHandler } from './student-assist/eval/application/run-assist-eval.handler.js';
+import { AdminAssistEvalsController } from './student-assist/eval/presentation/admin-assist-evals.controller.js';
 import { DraftReviewHandler } from './review-draft/application/draft-review/draft-review.handler.js';
 import { REVIEW_ATTEMPTS_CLIENT } from './review-draft/application/ports/review-attempts.client.js';
 import { SCHOOL_LANGUAGE_READER } from './review-draft/application/ports/school-language.reader.js';
@@ -82,6 +86,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     AdminReviewDraftController,
     AdminReviewEvalsController,
     AdminVoiceEvalsController,
+    AdminAssistEvalsController,
     AssistController,
   ],
   providers: [
@@ -175,6 +180,11 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     ListVoiceEvalRunsHandler,
     GetVoiceEvalRunHandler,
     VoiceEvalRunner,
+    // candidate models measured on the assistant's hand-written set, same runs table (plan 83, step 8)
+    RunAssistEvalHandler,
+    ListAssistEvalRunsHandler,
+    GetAssistEvalRunHandler,
+    AssistEvalRunner,
     {
       provide: READING_CASES_CLIENT,
       inject: [ConfigService],
