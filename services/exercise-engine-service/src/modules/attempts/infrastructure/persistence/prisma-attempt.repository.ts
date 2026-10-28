@@ -398,6 +398,47 @@ export class PrismaAttemptRepository implements IAttemptRepository {
   }
 
   /**
+   * `DISTINCT ON` picks each exercise's latest scored attempt; the outer filter keeps those
+   * that failed. Raw because Prisma has no `DISTINCT ON` with an ordering per group. Ids and
+   * the total only, then read through the mapper like the other raw pages.
+   */
+  async findLatestMistakes(
+    userId: string,
+    options: { courseId: string | null; limit: number },
+  ): Promise<{ attempts: Attempt[]; total: number }> {
+    const ids = await this.prisma.$queryRaw<Array<{ id: string; total: bigint }>>`
+      WITH latest AS (
+        SELECT DISTINCT ON (exercise_id) id, passed, scored_at
+        FROM attempts
+        WHERE user_id = ${userId}
+          AND status = 'scored'
+          AND NOT ephemeral
+          AND container_id IS NOT NULL
+          AND reviewed_at IS NULL
+          AND scored_at IS NOT NULL
+          AND (${options.courseId}::text IS NULL OR container_id = ${options.courseId}::text)
+        ORDER BY exercise_id, scored_at DESC, id DESC
+      )
+      SELECT id, COUNT(*) OVER () AS total
+      FROM latest
+      WHERE passed IS FALSE
+      ORDER BY scored_at DESC, id DESC
+      LIMIT ${options.limit}`;
+    if (ids.length === 0) return { attempts: [], total: 0 };
+
+    const rows = await this.prisma.attempt.findMany({
+      where: { id: { in: ids.map((row) => row.id) } },
+    });
+    const order = new Map(ids.map((row, index) => [row.id, index]));
+    return {
+      attempts: rows
+        .map(AttemptMapper.toDomain)
+        .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)),
+      total: Number(ids[0].total),
+    };
+  }
+
+  /**
    * The scope's work closed at the term (`Attempt.acceptedAtTerm`, plan 80, step 7f), paged
    * like the queue: delivered without a signature, the provisional verdict kept on it.
    *

@@ -225,6 +225,16 @@ export interface IAttemptRepository {
     page: { limit: number; after: MySubmissionsCursor | null },
   ): Promise<Attempt[]>;
   /**
+   * A learner's exercises whose latest machine-scored attempt failed (VoxOrd plan 05, step 8):
+   * newest mistake first, at most `limit`, and how many there are in all. Only attempts in a
+   * course, never a probe, never work a reviewer judged. A later passing attempt is the
+   * latest one, so a corrected exercise drops out by itself.
+   */
+  findLatestMistakes(
+    userId: string,
+    options: { courseId: string | null; limit: number },
+  ): Promise<{ attempts: Attempt[]; total: number }>;
+  /**
    * Which of these attempts a teacher reviewed from a model's draft they sent or edited
    * (plan 79, `review_draft`) — the "AI drafted, teacher checked" line a learner reads.
    * A discarded draft does not count: the teacher wrote that review themselves.
