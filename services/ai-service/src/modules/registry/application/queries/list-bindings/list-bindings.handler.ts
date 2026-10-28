@@ -1,7 +1,11 @@
 import { Inject } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { CAPABILITIES } from '../../../../capabilities/catalog.js';
-import type { RequiredFeatures } from '../../../../capabilities/domain/capability.js';
+import {
+  capabilityModality,
+  type CapabilityDefinition,
+} from '../../../../capabilities/domain/capability.js';
+import type { ModelModality } from '../../../domain/registry.types.js';
 import type { AiBinding } from '../../../domain/binding.js';
 import { BINDING_REPOSITORY, type IBindingRepository } from '../../ports/binding.repository.js';
 import { ListBindingsQuery } from './list-bindings.query.js';
@@ -9,7 +13,9 @@ import { ListBindingsQuery } from './list-bindings.query.js';
 export interface CapabilityBinding {
   capability: string;
   description: string;
-  requiredFeatures: RequiredFeatures;
+  /** The modality both models must have. */
+  modality: ModelModality;
+  requiredFeatures: CapabilityDefinition['requiredFeatures'];
   /** Null until an admin binds the capability — every call to it is refused until then. */
   binding: AiBinding | null;
 }
@@ -24,6 +30,7 @@ export class ListBindingsHandler implements IQueryHandler<ListBindingsQuery, Cap
     return CAPABILITIES.map((c) => ({
       capability: c.code,
       description: c.description,
+      modality: capabilityModality(c),
       requiredFeatures: c.requiredFeatures,
       binding: byCode.get(c.code) ?? null,
     }));

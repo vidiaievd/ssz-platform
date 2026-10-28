@@ -8,6 +8,9 @@ export interface ProviderReadiness {
   missing: string[];
 }
 
+/** Kinds with no fixed endpoint: the registry row says where the server is. */
+const NEEDS_BASE_URL: ReadonlySet<AiProvider['kind']> = new Set(['openai_compatible', 'azure_openai', 'whisper_local', 'azure_speech']);
+
 /**
  * `configured` is about the environment, `enabled` about the admin's choice — a provider
  * can be either without the other, and the admin screen needs to tell them apart.
@@ -20,7 +23,7 @@ export function providerReadiness(provider: AiProvider, credentials: ICredential
   if (provider.credentialRef && !credentials.isSet(provider.credentialRef)) {
     missing.push(`environment variable ${provider.credentialRef} is not set`);
   }
-  if ((provider.kind === 'openai_compatible' || provider.kind === 'azure_openai') && !provider.baseUrl) {
+  if (NEEDS_BASE_URL.has(provider.kind) && !provider.baseUrl) {
     missing.push('baseUrl is not set');
   }
   if (provider.kind === 'azure_openai' && !provider.apiVersion) {

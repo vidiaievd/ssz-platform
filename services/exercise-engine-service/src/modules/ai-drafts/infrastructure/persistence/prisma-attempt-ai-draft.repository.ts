@@ -3,6 +3,7 @@ import type { AttemptAiDraftModel } from '../../../../../generated/prisma/models
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { AttemptAiDraft, type AiDraftMark, type AiDraftRemark } from '../../domain/entities/attempt-ai-draft.entity.js';
 import type { SettledOutcomes } from '../../domain/draft-outcomes.js';
+import type { DraftReading } from '../../domain/reading-verdict.js';
 import type { IAttemptAiDraftRepository } from '../../domain/repositories/attempt-ai-draft.repository.js';
 
 @Injectable()
@@ -42,6 +43,10 @@ export class PrismaAttemptAiDraftRepository implements IAttemptAiDraftRepository
       // A rubric is never empty, so the empty list cannot mean anything else.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       marks: (draft.marks ?? []) as any,
+      // The same spelling of "none" for the reading check (plan 82, step 7): a reading is an
+      // object, so the empty list cannot mean anything else either.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reading: (draft.reading ?? []) as any,
       errorCode: draft.errorCode,
       providerId: draft.providerId,
       modelId: draft.modelId,
@@ -90,6 +95,7 @@ function toDomain(row: AttemptAiDraftModel): AttemptAiDraft {
     items: row.items as unknown as AiDraftRemark[],
     summary: row.summary,
     marks: Array.isArray(row.marks) && row.marks.length > 0 ? (row.marks as unknown as AiDraftMark[]) : null,
+    reading: isReading(row.reading) ? (row.reading as unknown as DraftReading) : null,
     errorCode: row.errorCode,
     providerId: row.providerId,
     modelId: row.modelId,
@@ -102,6 +108,11 @@ function toDomain(row: AttemptAiDraftModel): AttemptAiDraft {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
+}
+
+/** A stored reading check — not the `[]` that spells none, nor a null from before the column. */
+function isReading(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && Array.isArray((value as { prompts?: unknown }).prompts);
 }
 
 /** Prisma's P2002 by its code: importing the client as a value breaks the test suites (as in the attempt repository). */

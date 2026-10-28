@@ -161,6 +161,60 @@ describe('GetLearnerAiReviewHandler', () => {
     });
   });
 
+  // Plan 82, step 7.
+  it('reads a reading’s review off the voice check, with the check behind it', async () => {
+    const reading = { passPercent: 85, prompts: [], carriedItemIds: [] };
+    const voice = AttemptAiDraft.restore('d2', {
+      attemptId: 'a1',
+      capability: 'voice_review',
+      status: 'READY',
+      items: [],
+      summary: null,
+      marks: null,
+      reading,
+      errorCode: null,
+      providerId: 'whisper-local',
+      modelId: 'nb-whisper-small-verbatim',
+      promptVersion: null,
+      aiCallId: 'call-2',
+      createdAt: REVIEWED,
+      updatedAt: REVIEWED,
+    });
+    const { handler, drafts } = makeHandler(attempt({ templateCode: 'read_aloud' }), voice);
+
+    const result = await run(handler);
+
+    expect(drafts.findByAttempt).toHaveBeenCalledWith('a1', 'voice_review');
+    expect(result.value).toMatchObject({ items: [], summary: null, reading });
+  });
+
+  // Plan 82, step 8.
+  it('hands the learner the reading without the ledger ids of the calls that heard it', async () => {
+    const prompt = { itemId: 'p1', transcript: 'jeg bor', words: [], audioMs: 1000, pronunciation: null, check: {}, percent: 100, passed: true, wordsPerMinute: null };
+    const reading = { passPercent: 85, prompts: [{ ...prompt, aiCallId: 'call-2' }], carriedItemIds: [] } as never;
+    const voice = AttemptAiDraft.restore('d2', {
+      attemptId: 'a1',
+      capability: 'voice_review',
+      status: 'READY',
+      items: [],
+      summary: null,
+      marks: null,
+      reading,
+      errorCode: null,
+      providerId: 'whisper-local',
+      modelId: 'nb-whisper-small-verbatim',
+      promptVersion: null,
+      aiCallId: 'call-2',
+      createdAt: REVIEWED,
+      updatedAt: REVIEWED,
+    });
+    const { handler } = makeHandler(attempt({ templateCode: 'read_aloud' }), voice);
+
+    const result = await run(handler);
+
+    expect(result.value.reading?.prompts).toEqual([prompt]);
+  });
+
   it('hands the learner the remarks and the verdict, not the model behind them', async () => {
     const { handler, drafts } = makeHandler(attempt());
 
@@ -172,6 +226,7 @@ describe('GetLearnerAiReviewHandler', () => {
       items: [expect.objectContaining({ itemId: 'i1', suggestion: 'i går var jeg' })],
       summary: 'Se på ordstillingen.',
       marks: null,
+      reading: null,
       reviewedAt: REVIEWED,
       disputedAt: null,
       provisional: false,

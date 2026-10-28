@@ -17,4 +17,7 @@ export interface IAudioInspector {
 
   /** Decodes the audio and folds it into `bins` normalised maxima. */
   waveform(data: Buffer, extension: string, bins: number): Promise<Waveform>;
+
+  /** Decodes the audio into a canonical WAV: 16-bit PCM, mono, `sampleRate` Hz. */
+  speechWav(data: Buffer, extension: string, sampleRate: number): Promise<Buffer>;
 }

@@ -194,6 +194,28 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # NB-Whisper speech recognition (plan 82, step 4) — reached only by ai-service.
+  whisper:
+    image: ssz/whisper:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      WHISPER_CPU_THREADS: ${WHISPER_CPU_THREADS:-4}
+    expose:
+      - "8000"
+    networks:
+      - ssz-network
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   media-service:
     image: ssz/media-service:${IMAGE_TAG:-latest}
     restart: unless-stopped
@@ -490,12 +512,15 @@ services:
       EXERCISE_ENGINE_URL: http://exercise-engine-service:3006
       ORGANIZATION_SERVICE_URL: http://organization-service:3002
       PROFILE_SERVICE_URL: http://user-profile-service:3001
+      # Voice review (plan 82 §8): the recording's speech WAV, through media-service.
+      MEDIA_SERVICE_URL: http://media-service:3004
       # Provider keys: the registry names the variable (credentialRef), this passes it in.
       # Empty = provider shows configured: false; nothing else breaks.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

@@ -338,8 +338,8 @@ export class PrismaAttemptRepository implements IAttemptRepository {
       where: {
         attemptId: { in: attemptIds },
         // A school that has a model answer first (plan 80) has its teacher sign off the
-        // model's review to the learner instead of a draft.
-        capability: { in: ['review_draft', 'review_direct'] },
+        // model's review to the learner instead of a draft — by ear for a reading (plan 82).
+        capability: { in: ['review_draft', 'review_direct', 'voice_review'] },
         status: { in: ['SENT', 'EDITED'] },
       },
       select: { attemptId: true },
@@ -535,6 +535,17 @@ export class PrismaAttemptRepository implements IAttemptRepository {
       ORDER BY review_auto_accept_at, id
       LIMIT ${limit}`;
     return rows.map((row) => row.id);
+  }
+
+  async findTeacherReviewed(templateCode: string, limit: number): Promise<Attempt[]> {
+    // A model's verdict leaves `reviewedByUserId` empty, so the person is the filter. Rows
+    // without decisions are the caller's to count — the JSON null test needs a client value.
+    const rows = await this.prisma.attempt.findMany({
+      where: { templateCode, reviewedByUserId: { not: null }, reviewedAt: { not: null } },
+      orderBy: [{ reviewedAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+    });
+    return rows.map(AttemptMapper.toDomain);
   }
 
   async findReviewTermsAhead(

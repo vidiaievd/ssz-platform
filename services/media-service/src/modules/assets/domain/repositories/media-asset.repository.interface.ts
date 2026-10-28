@@ -41,6 +41,11 @@ export interface IMediaAssetRepository {
     limit: number,
   ): Promise<MediaAssetEntity[]>;
   /**
+   * READY recordings, not deleted, that have no variant of `variantType` — the ones processed
+   * before that variant existed (plan 82, step 5). Oldest first.
+   */
+  findReadyRecordingsWithoutVariant(variantType: string, limit: number): Promise<MediaAssetEntity[]>;
+  /**
    * Assets of any kind still in `PENDING_UPLOAD` and created before `olderThan` — an upload
    * that was asked for and never finished (plan 76, 5.1). Same order and cursor as recordings.
    */

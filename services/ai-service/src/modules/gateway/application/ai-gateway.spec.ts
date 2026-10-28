@@ -81,7 +81,7 @@ describe('AiGateway', () => {
   const SCHOOL: CallContext = { ...context, payer: { type: 'workspace', id: 'w1' } };
   const CALL = { system: 's', messages: [] } as unknown as GatewayRequest;
 
-  function setup(opts: { binding: AiBinding | null; gate?: Result<GateGrant, GateFailure> }) {
+  function setup(opts: { binding: AiBinding | null; gate?: Result<GateGrant, GateFailure>; allows?: boolean }) {
     const log: string[] = [];
     const recorded: CallToRecord[] = [];
     let constraints: RouteConstraints | undefined;
@@ -95,12 +95,21 @@ describe('AiGateway', () => {
         charge: async (_g: GateGrant, credits: string | null) => {
           log.push(`charge ${credits}`);
         },
+        allows: async () => {
+          log.push('allows');
+          return opts.allows ?? true;
+        },
       } as unknown as AccessGate,
       {
         call: async (_c: string, _r: GatewayRequest, given: RouteConstraints) => {
           log.push('router');
           constraints = given;
           return Result.fail({ kind: 'unavailable', binding: opts.binding!, attempts: [] });
+        },
+        callSpeech: async (_c: string, _r: unknown, given: RouteConstraints) => {
+          log.push('router speech');
+          constraints = given;
+          return Result.ok({ result: { transcript: 'jeg bor', words: [], pronunciation: null, audioMs: 2_400 }, model, role: 'primary', binding: opts.binding!, attempts: [] });
         },
       } as unknown as ModelRouter,
       {
@@ -138,5 +147,31 @@ describe('AiGateway', () => {
     await gateway.call('diagnostic', SCHOOL, CALL);
     expect(log).toEqual(['gate', 'router', 'record', 'charge 0.500000']);
     expect(constraints()).toEqual({ allowedRegions: ['eu'] });
+  });
+
+  describe('speech (plan 82, step 8)', () => {
+    const HEAR = { audio: { format: 'wav' as const, data: new Uint8Array() }, referenceText: 'Jeg bor', language: 'nb', pronunciation: false };
+
+    it('takes a recording the same way — gate, router, ledger, quota — and records its audio, not tokens', async () => {
+      const { gateway, log, recorded, constraints } = setup({ binding: { ...binding, enabled: true } });
+      const { routed } = await gateway.callSpeech('voice_review', SCHOOL, HEAR);
+      expect(routed.isOk).toBe(true);
+      expect(log).toEqual(['gate', 'router speech', 'record', 'charge 0.500000']);
+      expect(constraints()).toEqual({ allowedRegions: ['eu'] });
+      expect(recorded[0]).toMatchObject({ capability: 'voice_review', outcome: 'ok', usage: null, audioMs: 2_400 });
+    });
+
+    it('is available only with its switch on and the gate allowing, writing no ledger row', async () => {
+      const off = setup({ binding: { ...binding, enabled: false } });
+      expect(await off.gateway.available('voice_review_pronunciation', SCHOOL.payer)).toBe(false);
+      expect(off.log).toEqual([]);
+
+      const refused = setup({ binding: { ...binding, enabled: true }, allows: false });
+      expect(await refused.gateway.available('voice_review_pronunciation', SCHOOL.payer)).toBe(false);
+
+      const open = setup({ binding: { ...binding, enabled: true } });
+      expect(await open.gateway.available('voice_review_pronunciation', SCHOOL.payer)).toBe(true);
+      expect(open.log).toEqual(['allows']);
+    });
   });
 });

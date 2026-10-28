@@ -20,7 +20,7 @@ const features: ModelFeatures = {
 };
 
 const found = (id: string): ModelForCall => ({
-  model: { id, providerId: 'p', providerCode: 'fake', providerModelId: id, displayName: id, features, status: 'active' },
+  model: { id, providerId: 'p', providerCode: 'fake', providerModelId: id, displayName: id, modality: 'llm', features, status: 'active' },
   provider: { id: 'p', code: 'fake', kind: 'fake', displayName: 'Fake', baseUrl: null, apiVersion: null, credentialRef: null, region: 'local', enabled: true },
   currentPrice: null,
 });

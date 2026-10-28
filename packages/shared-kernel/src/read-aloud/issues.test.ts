@@ -7,6 +7,7 @@ import {
   addPoint,
   addPrompt,
   removeCriterion,
+  setAi,
   setLevel,
   setMode,
   setNote,
@@ -179,8 +180,22 @@ describe('step 4', () => {
 });
 
 describe('step 5', () => {
-  it('notes that the AI stage calls nothing', () => {
-    expect(codes(setReview(sampleDocument(), { aiStage: true }))).toContain('RA_AI_NOT_LIVE');
+  it('says nothing when the AI stage is on with the reading check', () => {
+    const on = codes(setReview(sampleDocument(), { aiStage: true }));
+    expect(on).not.toContain('RA_AI_NO_CHECK');
+    expect(on).not.toContain('RA_AI_READ_ONLY');
+  });
+
+  it('notes an AI stage without the reading check, which leaves the machine nothing to do', () => {
+    const on = setReview(sampleDocument(), { aiStage: true });
+    expect(codes(setAi(on, { transcript: false }))).toContain('RA_AI_NO_CHECK');
+    expect(codes(setAi(setMode(on, 'monologue'), { transcript: false }))).not.toContain('RA_AI_NO_CHECK');
+  });
+
+  it('notes an AI stage outside `read`, where the machine does not check', () => {
+    expect(codes(setMode(setReview(sampleDocument(), { aiStage: true }), 'monologue'))).toContain(
+      'RA_AI_READ_ONLY',
+    );
   });
 });
 

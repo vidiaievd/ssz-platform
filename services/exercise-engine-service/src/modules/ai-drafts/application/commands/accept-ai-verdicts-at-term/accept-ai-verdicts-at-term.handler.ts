@@ -14,6 +14,7 @@ import {
   ATTEMPT_AI_DRAFT_REPOSITORY,
   type IAttemptAiDraftRepository,
 } from '../../../domain/repositories/attempt-ai-draft.repository.js';
+import { learnerReviewCapability } from '../../../domain/entities/attempt-ai-draft.entity.js';
 import { AcceptAiVerdictsAtTermCommand } from './accept-ai-verdicts-at-term.command.js';
 
 export interface AcceptAiVerdictsAtTermResult {
@@ -77,7 +78,7 @@ export class AcceptAiVerdictsAtTermHandler implements ICommandHandler<AcceptAiVe
       }
 
       await publishAttemptEvents(this.publisher, attempt);
-      const review = await this.drafts.findByAttempt(id, 'review_direct');
+      const review = await this.drafts.findByAttempt(id, learnerReviewCapability(attempt.templateCode));
       if (review !== null) {
         await this.publisher.publish(ATTEMPT_AI_REVIEWED, aiReviewedPayload(attempt, review, now));
       }

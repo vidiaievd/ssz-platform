@@ -126,4 +126,29 @@ describe('GetPlaybackHandler', () => {
     expect(out).toEqual([]);
     expect(prisma.assetVariant.findMany).not.toHaveBeenCalled();
   });
+
+  it('serves the speech WAV when asked, with no fallback to the original', async () => {
+    const ready = recording('ready');
+    const processing = recording('uploaded');
+    const { handler, prisma } = makeHandler(
+      [ready, processing],
+      [{ assetId: ready.id, variantType: 'speech', storageKey: 'k/variants/speech.wav', mimeType: 'audio/wav' }],
+    );
+
+    const out = await handler.execute(new GetPlaybackQuery([ready.id, processing.id], 'speech'));
+
+    expect(prisma.assetVariant.findMany).toHaveBeenCalledWith({
+      where: { assetId: { in: [ready.id, processing.id] }, variantType: 'speech' },
+    });
+    expect(out).toEqual([
+      expect.objectContaining({ id: ready.id, url: 'https://minio/k/variants/speech.wav', mimeType: 'audio/wav' }),
+    ]);
+  });
+
+  it('answers empty for speech when no asset has the variant yet', async () => {
+    const { handler, storage } = makeHandler([recording('ready')]);
+
+    expect(await handler.execute(new GetPlaybackQuery([recording('ready').id], 'speech'))).toEqual([]);
+    expect(storage.generatePresignedDownloadUrl).not.toHaveBeenCalled();
+  });
 });

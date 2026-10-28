@@ -21,6 +21,8 @@ import type { MediaProcessedPayload, MediaProcessingFailedPayload } from '@ssz/c
 import { isPublicEntityType } from '../../../shared/application/ports/storage.port.js';
 import { AUDIO_INSPECTOR } from '../../../shared/application/ports/audio-inspector.port.js';
 import type { IAudioInspector } from '../../../shared/application/ports/audio-inspector.port.js';
+import { isRecordingEntityType } from '../../assets/domain/policies/recording-policy.js';
+import { SpeechVariantWriter } from '../../assets/application/services/speech-variant-writer.js';
 
 // Bins in the waveform the review queue draws under a recording (README «Playback in the queue»).
 const WAVEFORM_BINS = 100;
@@ -73,6 +75,7 @@ export class AudioProcessorWorker extends WorkerHost {
     @Inject(EVENT_PUBLISHER) private readonly events: IEventPublisher,
     private readonly prisma: PrismaService,
     @Inject(AUDIO_INSPECTOR) private readonly audio: IAudioInspector,
+    private readonly speech: SpeechVariantWriter,
   ) {
     super();
   }
@@ -134,6 +137,11 @@ export class AudioProcessorWorker extends WorkerHost {
         });
 
         this.logger.debug(`Created audio variant ${spec.type} (${outputBuffer.length} bytes) for asset ${assetId}`);
+      }
+
+      if (isRecordingEntityType(asset.entityType)) {
+        const speech = await this.writeSpeech(asset, originalBuffer, ext);
+        if (speech) variantInfos.push(speech);
       }
 
       await this.attachWaveform(asset, originalBuffer, ext);
@@ -202,6 +210,24 @@ export class AudioProcessorWorker extends WorkerHost {
       this.logger.warn(
         `Waveform failed for asset ${asset.id}: ${err instanceof Error ? err.message : String(err)}`,
       );
+    }
+  }
+
+  // The speech variant serves a machine check, not the reviewer's ear: a take that fails to
+  // convert is still playable, and the voice review answers `no-reviewer` for it rather than
+  // the recording going FAILED. The backfill route can write it later.
+  private async writeSpeech(
+    asset: MediaAssetEntity,
+    data: Buffer,
+    ext: string,
+  ) {
+    try {
+      return await this.speech.write(asset, data, ext);
+    } catch (err) {
+      this.logger.warn(
+        `Speech variant failed for asset ${asset.id}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
     }
   }
 

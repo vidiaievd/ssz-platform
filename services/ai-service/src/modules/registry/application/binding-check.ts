@@ -1,4 +1,4 @@
-import { missingFeatures, type CapabilityDefinition } from '../../capabilities/domain/capability.js';
+import { capabilityGaps, type CapabilityDefinition } from '../../capabilities/domain/capability.js';
 import type { BindingSettings } from '../domain/binding.js';
 import type { ICredentialPresence } from './ports/credential-presence.js';
 import type { ModelForCall } from './ports/registry.reader.js';
@@ -7,8 +7,8 @@ import { providerReadiness } from './provider-readiness.js';
 /**
  * Everything that stops a binding from being written, in words an admin can act on.
  *
- * Both models must exist, not be `disabled`, sit on a configured provider, have what the
- * capability requires, and allow `maxOutputTokens`; the prompt version must be one the
+ * Both models must exist, not be `disabled`, sit on a configured provider, be of the
+ * capability's modality, have what it requires, and — language models — allow `maxOutputTokens`; the prompt version must be one the
  * capability keeps in the repository. A provider that is merely switched off
  * passes: `enabled` is the admin's runtime switch and the router steps over it to the
  * fallback — that is how a provider is taken out of service without rewriting bindings.
@@ -33,10 +33,11 @@ export function bindingProblems(input: {
     for (const missing of providerReadiness(found.provider, credentials).missing) {
       problems.push(`${label}: provider not configured — ${missing}`);
     }
-    for (const feature of missingFeatures(found.model.features, capability.requiredFeatures)) {
+    for (const feature of capabilityGaps(found.model, capability)) {
       problems.push(`${label} lacks ${feature}, required by "${capability.code}"`);
     }
-    if (settings.maxOutputTokens > found.model.features.maxOutput) {
+    // A speech model has no output tokens: the binding's cap does not apply to it.
+    if (found.model.modality === 'llm' && settings.maxOutputTokens > found.model.features.maxOutput) {
       problems.push(
         `maxOutputTokens ${settings.maxOutputTokens} exceeds ${label}'s maxOutput ${found.model.features.maxOutput}`,
       );

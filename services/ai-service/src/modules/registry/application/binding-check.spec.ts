@@ -22,7 +22,7 @@ function found(
 ): ModelForCall {
   const code = over.code ?? 'fake';
   return {
-    model: { id, providerId: 'p', providerCode: code, providerModelId: id, displayName: id, features: { ...features, ...over.features }, status: over.status ?? 'active' },
+    model: { id, providerId: 'p', providerCode: code, providerModelId: id, displayName: id, modality: 'llm', features: { ...features, ...over.features }, status: over.status ?? 'active' },
     provider: { id: 'p', code, kind: 'fake', displayName: code, baseUrl: null, apiVersion: null, credentialRef: over.credentialRef ?? null, region: 'local', enabled: over.enabled ?? true },
     currentPrice: null,
   };
@@ -94,5 +94,24 @@ describe('bindingProblems', () => {
 
   it('refuses the primary as its own fallback', () => {
     expect(check(settings({ fallbackModelId: 'a' }), found('a'), found('a'))).toEqual(['fallback model must differ from the primary']);
+  });
+
+  it('refuses a speech model for a language-model capability, and the other way round', () => {
+    const recognizer = (id: string): ModelForCall => {
+      const f = found(id);
+      return {
+        ...f,
+        model: { ...f.model, modality: 'speech', features: { languages: ['nb'], wordTimings: true, pronunciation: false, maxAudioSeconds: 60 } },
+      };
+    };
+    expect(check(settings({ fallbackModelId: null }), recognizer('a'), null)).toEqual([
+      'primary model "fake/a" lacks modality llm (is speech), required by "review_draft"',
+    ]);
+
+    const voice: CapabilityDefinition = { code: 'voice_review', description: '', modality: 'speech', requiredFeatures: { languages: ['nb'] } };
+    // No output-token cap on a recognizer: 2000 > nothing is not a problem.
+    expect(bindingProblems({ capability: voice, settings: settings(), primary: recognizer('a'), fallback: found('b'), credentials: { isSet: () => false } })).toEqual([
+      'fallback model "fake/b" lacks modality speech (is llm), required by "voice_review"',
+    ]);
   });
 });

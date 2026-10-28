@@ -15,6 +15,14 @@ export function isRecordingEntityType(entityType: string | null | undefined): bo
   return entityType === SUBMISSION_RECORDING;
 }
 
+// What a speech recogniser or pronunciation assessor listens to (plan 82, step 5): WAV,
+// 16-bit PCM, 16 kHz mono — the input both the NB-Whisper sidecar and Azure take as is.
+// Only recordings get it: lesson audio is never assessed, and the take is not normalised,
+// so the assessor hears the student's own level.
+export const SPEECH_VARIANT = 'speech';
+export const SPEECH_SAMPLE_RATE = 16_000;
+export const SPEECH_MIME_TYPE = 'audio/wav';
+
 // The ceilings are the kernel's, not a second copy: the recorder stops at them, the
 // engine measures against them and this service refuses past them (README «Limits»).
 export const RECORDING_MAX_BYTES = LIMITS.maxBytes;

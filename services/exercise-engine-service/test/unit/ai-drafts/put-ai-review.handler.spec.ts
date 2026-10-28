@@ -1,4 +1,12 @@
 import { jest } from '@jest/globals';
+import {
+  SAMPLE_PROMPT_IDS,
+  sampleDocument,
+  snapshotOf,
+  toContent,
+  toExpectedAnswers,
+  type ReadAloudContent,
+} from '@ssz/shared-kernel/read-aloud';
 import type { RubricSnapshot } from '@ssz/shared-kernel/writing-task';
 import { PutAiReviewHandler } from '../../../src/modules/ai-drafts/application/commands/put-ai-review/put-ai-review.handler.js';
 import { PutAiReviewCommand } from '../../../src/modules/ai-drafts/application/commands/put-ai-review/put-ai-review.command.js';
@@ -9,6 +17,7 @@ import {
   type ProposedDraft,
 } from '../../../src/modules/ai-drafts/domain/entities/attempt-ai-draft.entity.js';
 import type { IAttemptAiDraftRepository } from '../../../src/modules/ai-drafts/domain/repositories/attempt-ai-draft.repository.js';
+import type { PromptHearing } from '../../../src/modules/ai-drafts/domain/reading-verdict.js';
 import { ReviewScoring } from '../../../src/modules/attempts/application/services/review-scoring.js';
 import { Attempt, type AttemptReviewAiPolicy } from '../../../src/modules/attempts/domain/entities/attempt.entity.js';
 import { Result } from '../../../src/shared/kernel/result.js';
@@ -90,7 +99,12 @@ function routed(
   return attempt;
 }
 
-function setup(attempt: Attempt | null, details: unknown = DETAILS) {
+function setup(
+  attempt: Attempt | null,
+  details: unknown = DETAILS,
+  exercise: { content: unknown; expectedAnswers: unknown } = { content: {}, expectedAnswers: {} },
+  contentResult: Result<unknown, { statusCode: number }> | null = null,
+) {
   const drafts = new MemoryDrafts();
   const attempts = {
     findById: jest.fn(() => Promise.resolve(attempt)),
@@ -102,10 +116,11 @@ function setup(attempt: Attempt | null, details: unknown = DETAILS) {
   const contentClient = {
     getExerciseForAttempt: jest.fn(() =>
       Promise.resolve(
-        Result.ok({
-          exercise: { content: {}, expectedAnswers: {}, answerCheckSettings: null },
-          template: { answerSchema: {}, defaultCheckSettings: {} },
-        }),
+        contentResult ??
+          Result.ok({
+            exercise: { ...exercise, answerCheckSettings: null },
+            template: { answerSchema: {}, defaultCheckSettings: {} },
+          }),
       ),
     ),
   };
@@ -115,8 +130,9 @@ function setup(attempt: Attempt | null, details: unknown = DETAILS) {
     drafts,
     new ReviewScoring(validator as never, contentClient as never),
     publisher as never,
+    contentClient as never,
   );
-  return { handler, drafts, attempts, publisher };
+  return { handler, drafts, attempts, publisher, contentClient };
 }
 
 const draft = (over: Partial<ProposedDraft> = {}): ProposedDraft => ({
@@ -427,6 +443,192 @@ describe('PutAiReviewHandler on a school’s work', () => {
     const attempt = routed('translate_to_target', 'school-1');
     const { handler } = setup(attempt);
     expect((await put(handler, attempt)).error).toEqual({ code: 'HAS_TEACHER_REVIEW' });
+  });
+});
+
+// Plan 82, step 7: a reading is ruled by the engine from what was heard.
+describe('PutAiReviewHandler — read_aloud', () => {
+  const [P1, P2] = SAMPLE_PROMPT_IDS;
+
+  /** The sample with the voice check on and a 90 % mark. */
+  function readingDoc(): ReadAloudContent {
+    const doc = sampleDocument();
+    doc.review.aiStage = true;
+    doc.review.readingPassPercent = 90;
+    return doc;
+  }
+
+  function reading(
+    schoolId: string | null = null,
+    policy: AttemptReviewAiPolicy | null = null,
+    doc: ReadAloudContent = readingDoc(),
+  ): Attempt {
+    const attempt = Attempt.create({
+      userId: 'user-1',
+      exerciseId: 'ex-1',
+      templateCode: 'read_aloud',
+      targetLanguage: 'nb',
+      difficultyLevel: 'A2',
+      checkMode: 'PRACTICE',
+      practicedAtoms: [],
+      axes: { skills: [], focus: [] },
+    });
+    attempt.snapshotReviewContext({
+      schoolId,
+      containerId: null,
+      groupId: null,
+      exercisePath: null,
+      previousAttemptId: null,
+      revisionCount: 0,
+    });
+    attempt.submit(
+      {
+        recordings: [
+          { itemId: P1, assetId: 'a1', seconds: 22, takes: 1 },
+          { itemId: P2, assetId: 'a2', seconds: 14, takes: 1 },
+        ],
+      },
+      'hash',
+    );
+    attempt.routeForReview({ autoPassedItems: 0, totalItems: 2 }, snapshotOf(doc), policy);
+    attempt.clearDomainEvents();
+    return attempt;
+  }
+
+  const exerciseOf = (doc: ReadAloudContent) => ({ content: toContent(doc), expectedAnswers: toExpectedAnswers(doc) });
+  const lexical = (text: string) => text.toLowerCase().replace(/[.,]/g, '');
+  const doc = sampleDocument();
+  const hearing = (itemId: string, transcript: string): PromptHearing => ({
+    itemId,
+    transcript,
+    words: [],
+    audioMs: 15000,
+    pronunciation: null,
+    aiCallId: `call-${itemId}`,
+  });
+  const heardAll = () => [hearing(P1, lexical(doc.prompts[0]!.text)), hearing(P2, lexical(doc.prompts[1]!.text))];
+  // 13 of 15 — under the 90 % mark.
+  const heardShort = () => [
+    hearing(P1, lexical(doc.prompts[0]!.text)),
+    hearing(P2, 'bussen går kvarter hvis du kommer for sent må du vente i minutter'),
+  ];
+
+  const voiceDraft = (over: Partial<ProposedDraft> = {}) =>
+    draft({ items: [], summary: null, promptVersion: null, modelId: 'nb-whisper', ...over });
+  const putReading = (handler: PutAiReviewHandler, attempt: Attempt, heard: PromptHearing[] | null, over: Partial<ProposedDraft> = {}) =>
+    handler.execute(new PutAiReviewCommand(attempt.id, voiceDraft(over), null, heard));
+
+  it('rules the reading itself and closes the attempt as a model-approved one', async () => {
+    const attempt = reading();
+    const { handler, drafts, publisher } = setup(attempt, DETAILS, exerciseOf(readingDoc()));
+
+    const result = await putReading(handler, attempt, heardAll());
+
+    expect(result.isOk).toBe(true);
+    expect(result.value.attempt).toEqual({ status: 'SCORED', score: 100, passed: true, provisional: false });
+    expect(attempt.reviewDecisions).toEqual([
+      { itemId: P1, approved: true, comment: '23/23 · 100 % ≥ 90 %' },
+      { itemId: P2, approved: true, comment: '15/15 · 100 % ≥ 90 %' },
+    ]);
+
+    const stored = [...drafts.rows.values()][0]!;
+    expect(stored.capability).toBe('voice_review');
+    expect(stored.reading?.passPercent).toBe(90);
+    expect(stored.reading?.prompts.map((p) => [p.itemId, p.percent, p.passed, p.aiCallId])).toEqual([
+      [P1, 100, true, `call-${P1}`],
+      [P2, 100, true, `call-${P2}`],
+    ]);
+
+    const scored = published(publisher).find((e) => e.type === 'exercise.attempt.completed')?.payload;
+    expect(scored).toMatchObject({ reviewedBy: 'ai', evidenceLowered: true });
+    expect((scored?.gapResults as Array<{ gapKey: string }>).map((g) => g.gapKey)).toEqual([P1, P2]);
+    const reviewed = published(publisher).find((e) => e.type === 'exercise.attempt.ai_reviewed')?.payload;
+    expect(reviewed).toMatchObject({ capability: 'voice_review', outcome: 'approved' });
+  });
+
+  it('returns the work when a prompt falls short of the mark, with the check as its word', async () => {
+    const attempt = reading();
+    const { handler, publisher } = setup(attempt, DETAILS, exerciseOf(readingDoc()));
+
+    const result = await putReading(handler, attempt, heardShort());
+
+    expect(result.value.attempt).toMatchObject({ status: 'RETURNED', passed: null, provisional: false });
+    expect(attempt.reviewDecisions?.[1]).toEqual({ itemId: P2, approved: false, comment: '13/15 · 86 % < 90 %' });
+    const returned = published(publisher).find((e) => e.type === 'exercise.attempt.completed')?.payload;
+    expect(returned).toMatchObject({ reviewedBy: 'ai', score: 93 });
+  });
+
+  it('keeps it provisional at a school whose teacher reads every piece of work', async () => {
+    const attempt = reading('school-1', { mode: 'ai_then_teacher', autoAcceptAt: null, teacherDrawn: false });
+    const { handler, publisher } = setup(attempt, DETAILS, exerciseOf(readingDoc()));
+
+    const result = await putReading(handler, attempt, heardAll());
+
+    expect(result.value.attempt.provisional).toBe(true);
+    expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
+    expect(attempt.provisionalAiVerdict?.model).toEqual({ capability: 'voice_review', modelId: 'nb-whisper', promptVersion: null });
+    expect(publisher.publish).not.toHaveBeenCalled();
+  });
+
+  it('needs what was heard, and every prompt of it', async () => {
+    const attempt = reading();
+    const { handler, drafts } = setup(attempt, DETAILS, exerciseOf(readingDoc()));
+
+    expect((await putReading(handler, attempt, null)).error).toEqual({ code: 'READING_MISSING' });
+    expect((await putReading(handler, attempt, heardAll().slice(0, 1))).error).toEqual({
+      code: 'VERDICT_INCOMPLETE',
+      missing: [P2],
+    });
+    expect(drafts.saves).toBe(0);
+    expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
+  });
+
+  it('refuses when the author has since turned the check off', async () => {
+    const off = readingDoc();
+    off.review.aiStage = false;
+    const attempt = reading();
+    const { handler } = setup(attempt, DETAILS, exerciseOf(off));
+    expect((await putReading(handler, attempt, heardAll())).error).toEqual({ code: 'MACHINE_CANNOT_CHECK' });
+  });
+
+  it('tells a deleted exercise from one that cannot be read right now', async () => {
+    const attempt = reading();
+    const gone = setup(attempt, DETAILS, undefined, Result.fail({ statusCode: 404 }));
+    expect((await putReading(gone.handler, attempt, heardAll())).error).toEqual({ code: 'EXERCISE_GONE' });
+    const down = setup(attempt, DETAILS, undefined, Result.fail({ statusCode: 503 }));
+    expect((await putReading(down.handler, attempt, heardAll())).error).toEqual({ code: 'CONTENT_UNAVAILABLE' });
+  });
+
+  it('records a failed check without touching the attempt', async () => {
+    const attempt = reading();
+    const { handler, drafts, contentClient } = setup(attempt, DETAILS, exerciseOf(readingDoc()));
+
+    const result = await putReading(handler, attempt, null, { status: 'FAILED', errorCode: 'unavailable' });
+
+    expect(result.isOk).toBe(true);
+    expect(attempt.status).toBe('ROUTED_FOR_REVIEW');
+    expect([...drafts.rows.values()][0]).toMatchObject({ capability: 'voice_review', status: 'FAILED', reading: null });
+    expect(contentClient.getExerciseForAttempt).not.toHaveBeenCalled();
+  });
+
+  it('refuses a call id that holds the text review of the same attempt', async () => {
+    const attempt = reading();
+    const { handler, drafts } = setup(attempt, DETAILS, exerciseOf(readingDoc()));
+    await drafts.save(AttemptAiDraft.propose(attempt.id, 'review_direct', draft(), new Date()));
+    expect((await putReading(handler, attempt, heardAll())).error).toEqual({ code: 'AI_CALL_ID_REUSED' });
+  });
+
+  it('answers a repeat of the same call from what it stored', async () => {
+    const attempt = reading();
+    const { handler, drafts, publisher } = setup(attempt, DETAILS, exerciseOf(readingDoc()));
+    await putReading(handler, attempt, heardAll());
+    publisher.publish.mockClear();
+
+    const again = await putReading(handler, attempt, heardShort());
+
+    expect(again.value.attempt.status).toBe('SCORED');
+    expect(drafts.saves).toBe(1);
+    expect(publisher.publish).not.toHaveBeenCalled();
   });
 });
 

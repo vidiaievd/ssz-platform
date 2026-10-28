@@ -382,7 +382,8 @@ model AttemptAiDraft {
   attemptId String @map("attempt_id")
   attempt   Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
 
-  // ai-service capability code: `review_draft` (teacher) now, `review_direct` in part 2.
+  // ai-service capability code: `review_draft` (teacher), `review_direct` (learner, part 2),
+  // `voice_review` (a `read_aloud` reading, plan 82).
   capability String
   status     AiDraftStatus
 
@@ -393,6 +394,11 @@ model AttemptAiDraft {
   // Suggested rubric marks (step 1.7c): [{ criterionId, mark 0-3, reason }], keyed by the
   // attempt's rubric snapshot. `[]` (or null on rows from before the step) = not asked for.
   marks   Json?
+  // `voice_review` (plan 82, step 7): what the recognizer heard in each prompt and the reading
+  // check the engine computed from it — { passPercent, prompts: [{ itemId, transcript, words,
+  // audioMs, pronunciation, check, percent, passed, wordsPerMinute }], carriedItemIds }. `[]`
+  // (or null on rows from before the step) = none: every other capability.
+  reading Json?
   // Why there is no draft text (FAILED): invalid_response, unavailable, …
   errorCode String? @map("error_code")
 

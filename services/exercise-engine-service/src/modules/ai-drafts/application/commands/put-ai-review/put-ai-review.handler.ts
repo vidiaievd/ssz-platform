@@ -1,5 +1,10 @@
 import { Inject } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
+import { readSubmission } from '@ssz/shared-kernel/read-aloud';
+import {
+  CONTENT_CLIENT,
+  type IContentClient,
+} from '../../../../../shared/application/ports/content-client.port.js';
 import {
   EVENT_PUBLISHER,
   type IEventPublisher,
@@ -9,6 +14,7 @@ import { ReviewScoring } from '../../../../attempts/application/services/review-
 import { publishAttemptEvents } from '../../../../attempts/application/services/review-verdict.js';
 import type {
   AiVerdictLanding,
+  AiVerdictModel,
   Attempt,
   ReviewVerdict,
 } from '../../../../attempts/domain/entities/attempt.entity.js';
@@ -27,24 +33,40 @@ import { ATTEMPT_AI_REVIEWED, aiReviewedPayload } from '../../../domain/events/a
 import {
   AttemptAiDraft,
   draftRefusal,
+  learnerReviewCapability,
   type DraftRefusal,
+  type ProposedDraft,
 } from '../../../domain/entities/attempt-ai-draft.entity.js';
 import {
   ATTEMPT_AI_DRAFT_REPOSITORY,
   type IAttemptAiDraftRepository,
 } from '../../../domain/repositories/attempt-ai-draft.repository.js';
-import { hasReviewPrompt } from '../../queries/get-review-subject/review-subject.js';
+import { readingRuling, type DraftReading, type PromptHearing } from '../../../domain/reading-verdict.js';
+import { readAloudSubject } from '../../queries/get-review-subject/read-aloud-subject.js';
+import { capabilityReads, hasVoiceCheck } from '../../queries/get-review-subject/review-subject.js';
 import { PutAiReviewCommand } from './put-ai-review.command.js';
 
 export type PutAiReviewError =
   | { code: 'ATTEMPT_NOT_FOUND' }
   | { code: Exclude<DraftRefusal, 'NO_TEACHER_REVIEW' | 'AI_REVIEWS_FIRST'> }
-  /** No review prompt for this template: nothing should have been asked. */
+  /** No review prompt and no voice check for this template: nothing should have been asked. */
   | { code: 'TEMPLATE_NOT_SUPPORTED' }
   /** A `ready` review without its verdict. */
   | { code: 'VERDICT_MISSING' }
-  /** Items the machine left open, or rubric criteria, the verdict says nothing about. */
+  /** A `ready` review of a reading without what was heard (plan 82, step 7). */
+  | { code: 'READING_MISSING' }
+  /**
+   * Items the machine left open, rubric criteria, or prompts of a reading nothing was heard
+   * for, the verdict says nothing about.
+   */
   | { code: 'VERDICT_INCOMPLETE'; missing: string[] }
+  /**
+   * The exercise no longer lets the machine check the reading — the author turned the check
+   * off or left `read` since it was handed in, or no prompt of this try is the machine's.
+   */
+  | { code: 'MACHINE_CANNOT_CHECK' }
+  /** The exercise was deleted: there is no passage to check the reading against. */
+  | { code: 'EXERCISE_GONE' }
   /** Sent back with nothing said about why. */
   | { code: 'RETURN_REQUIRES_COMMENT' }
   /** The exercise could not be read to recompute what the machine closed. */
@@ -67,7 +89,11 @@ export interface PutAiReviewResult {
   };
 }
 
-const CAPABILITY = 'review_direct';
+/** A ruling, ready to land, and the reading check behind it when it is a reading's. */
+interface Ruled {
+  landing: AiVerdictLanding;
+  reading: DraftReading | null;
+}
 
 /**
  * A model's review of a learner's work, and its verdict (plan 79, step 2.1b). The review is
@@ -84,6 +110,12 @@ const CAPABILITY = 'review_direct';
  * item it closed, the model the rest. An essay is ruled by the model's marks against the
  * rubric frozen on the attempt, as a teacher's are — its `outcome` is not read.
  *
+ * A `read_aloud` reading (plan 82, step 7) is the voice check's (`voice_review`): ai-service
+ * sends what the recognizer heard in each prompt and no verdict at all — the engine checks it
+ * against the passages with the kernel's reading check and rules from that (`readingRuling`),
+ * the machine deciding in full, by the same spirit as Q4-C. The check is kept on the review
+ * for the learner's panel and the teacher's card.
+ *
  * Idempotent on `aiCallId`. The review is saved before the attempt, so a write cut off
  * between the two is finished by its retry rather than refused as a duplicate. A `FAILED`
  * draft records that there is no review and leaves the attempt waiting.
@@ -95,14 +127,16 @@ export class PutAiReviewHandler implements ICommandHandler<PutAiReviewCommand> {
     @Inject(ATTEMPT_AI_DRAFT_REPOSITORY) private readonly drafts: IAttemptAiDraftRepository,
     private readonly scoring: ReviewScoring,
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
+    @Inject(CONTENT_CLIENT) private readonly content: IContentClient,
   ) {}
 
   async execute(command: PutAiReviewCommand): Promise<Result<PutAiReviewResult, PutAiReviewError>> {
     const attempt = await this.attempts.findById(command.attemptId);
     if (!attempt) return Result.fail({ code: 'ATTEMPT_NOT_FOUND' });
+    const capability = learnerReviewCapability(attempt.templateCode);
 
     const stored = await this.drafts.findByAiCallId(command.draft.aiCallId);
-    if (stored && (stored.attemptId !== command.attemptId || stored.capability !== CAPABILITY)) {
+    if (stored && (stored.attemptId !== command.attemptId || stored.capability !== capability)) {
       return Result.fail({ code: 'AI_CALL_ID_REUSED' });
     }
     // The same call again, and nothing left of it to do.
@@ -115,37 +149,39 @@ export class PutAiReviewHandler implements ICommandHandler<PutAiReviewCommand> {
       return Result.ok(view(stored, attempt));
     }
 
-    const refusal = draftRefusal(attempt, CAPABILITY);
+    const refusal = draftRefusal(attempt, capability);
     if (refusal) {
       return Result.fail({ code: refusal as Exclude<DraftRefusal, 'NO_TEACHER_REVIEW' | 'AI_REVIEWS_FIRST'> });
     }
-    if (!hasReviewPrompt(attempt.templateCode)) return Result.fail({ code: 'TEMPLATE_NOT_SUPPORTED' });
+    if (!capabilityReads(capability, attempt.templateCode)) return Result.fail({ code: 'TEMPLATE_NOT_SUPPORTED' });
 
-    let landing: AiVerdictLanding | null = null;
+    let ruled: Ruled | null = null;
     if (command.draft.status === 'READY') {
-      if (command.verdict === null) return Result.fail({ code: 'VERDICT_MISSING' });
-      const ruled = await this.rule(attempt, command.draft, command.verdict);
-      if (ruled.isFail) return Result.fail(ruled.error);
-      landing = ruled.value;
+      const ruling = hasVoiceCheck(attempt.templateCode)
+        ? await this.ruleReading(attempt, command.draft, command.reading)
+        : await this.rule(attempt, command.draft, command.verdict);
+      if (ruling.isFail) return Result.fail(ruling.error);
+      ruled = ruling.value;
     }
 
     // A retry of a write cut off after the review was saved: it is there, only the verdict is not.
     let draft = stored;
     if (draft === null) {
       const now = new Date();
-      const existing = await this.drafts.findByAttempt(command.attemptId, CAPABILITY);
+      const proposed: ProposedDraft = { ...command.draft, reading: ruled?.reading ?? null };
+      const existing = await this.drafts.findByAttempt(command.attemptId, capability);
       if (existing) {
-        if (existing.replaceWith(command.draft, now)) return Result.fail({ code: 'CONCURRENT_WRITE' });
+        if (existing.replaceWith(proposed, now)) return Result.fail({ code: 'CONCURRENT_WRITE' });
         draft = existing;
       } else {
-        draft = AttemptAiDraft.propose(command.attemptId, CAPABILITY, command.draft, now);
+        draft = AttemptAiDraft.propose(command.attemptId, capability, proposed, now);
       }
       if ((await this.drafts.save(draft)) === 'conflict') return Result.fail({ code: 'CONCURRENT_WRITE' });
     }
 
-    if (draft.status === 'READY' && landing !== null) {
+    if (draft.status === 'READY' && ruled !== null) {
       await this.attempts.save(attempt);
-      if (landing === 'final') {
+      if (ruled.landing === 'final') {
         await publishAttemptEvents(this.publisher, attempt);
         // The count a dispute rate is read against (2.3b), once the verdict has landed. A
         // provisional one cannot be disputed — a teacher is going to read the work anyway.
@@ -155,13 +191,14 @@ export class PutAiReviewHandler implements ICommandHandler<PutAiReviewCommand> {
     return Result.ok(view(draft, attempt));
   }
 
-  /** Applies the verdict to the attempt, in memory — the caller saves it after the review. */
+  /** Applies the model's verdict to the attempt, in memory — the caller saves it after the review. */
   private async rule(
     attempt: Attempt,
-    draft: PutAiReviewCommand['draft'],
-    verdict: AiVerdict,
-  ): Promise<Result<AiVerdictLanding, PutAiReviewError>> {
-    const comment = (draft.summary ?? '').trim() === '' ? null : draft.summary;
+    draft: ProposedDraft,
+    verdict: AiVerdict | null,
+  ): Promise<Result<Ruled, PutAiReviewError>> {
+    if (verdict === null) return Result.fail({ code: 'VERDICT_MISSING' });
+    const comment = commentOf(draft);
     let ruling: Omit<ReviewVerdict, 'aiDraft'>;
     let disagreesWithMachine = false;
 
@@ -203,19 +240,74 @@ export class PutAiReviewHandler implements ICommandHandler<PutAiReviewCommand> {
       };
     }
 
-    const reviewed = attempt.reviewByAi(ruling, {
-      disagreesWithMachine,
-      model: { capability: CAPABILITY, modelId: draft.modelId, promptVersion: draft.promptVersion },
-    });
-    if (reviewed.isFail) {
-      return Result.fail(
-        reviewed.error instanceof ReviewCommentRequiredError
-          ? { code: 'RETURN_REQUIRES_COMMENT' }
-          : { code: 'ATTEMPT_NOT_IN_REVIEW' },
-      );
-    }
-    return Result.ok(reviewed.value);
+    return land(attempt, ruling, { disagreesWithMachine, model: modelOf(draft, 'review_direct') }, null);
   }
+
+  /**
+   * The reading's verdict, computed from what was heard against the passages as the review
+   * subject reads them (plan 82, step 6) — the same prompts, mark and language ai-service was
+   * given. Nothing a recognizer says is a ruling, so there is nothing for it to contradict.
+   */
+  private async ruleReading(
+    attempt: Attempt,
+    draft: ProposedDraft,
+    heard: PromptHearing[] | null,
+  ): Promise<Result<Ruled, PutAiReviewError>> {
+    if (heard === null) return Result.fail({ code: 'READING_MISSING' });
+
+    const exercise = await this.content.getExerciseForAttempt(
+      attempt.exerciseId,
+      attempt.targetLanguage,
+      'PRACTICE',
+    );
+    if (exercise.isFail) {
+      return Result.fail({ code: exercise.error.statusCode === 404 ? 'EXERCISE_GONE' : 'CONTENT_UNAVAILABLE' });
+    }
+    const { content, expectedAnswers } = exercise.value.exercise;
+    const subject = readAloudSubject(content, expectedAnswers, attempt.submittedAnswer, attempt.targetLanguage);
+    if (!subject.ai.on) return Result.fail({ code: 'MACHINE_CANNOT_CHECK' });
+
+    const result = readingRuling(
+      {
+        language: subject.targetLanguage,
+        passPercent: subject.passPercent,
+        fluency: subject.ai.checks.fluency,
+        passages: subject.prompts.map((p) => ({ itemId: p.itemId, text: p.text, focus: p.focus })),
+        recordings: readSubmission(attempt.submittedAnswer)?.recordings ?? [],
+      },
+      heard,
+    );
+    if ('missing' in result) return Result.fail({ code: 'VERDICT_INCOMPLETE', missing: result.missing });
+
+    const ruling = { ...result.ruling, comment: commentOf(draft) };
+    return land(attempt, ruling, { model: modelOf(draft, 'voice_review') }, result.reading);
+  }
+}
+
+/** The verdict onto the attempt, in memory: closed, or provisional beside a school's queue. */
+function land(
+  attempt: Attempt,
+  ruling: Omit<ReviewVerdict, 'aiDraft'>,
+  opts: { disagreesWithMachine?: boolean; model: AiVerdictModel },
+  reading: DraftReading | null,
+): Result<Ruled, PutAiReviewError> {
+  const reviewed = attempt.reviewByAi(ruling, opts);
+  if (reviewed.isFail) {
+    return Result.fail(
+      reviewed.error instanceof ReviewCommentRequiredError
+        ? { code: 'RETURN_REQUIRES_COMMENT' }
+        : { code: 'ATTEMPT_NOT_IN_REVIEW' },
+    );
+  }
+  return Result.ok({ landing: reviewed.value, reading });
+}
+
+function commentOf(draft: ProposedDraft): string | null {
+  return (draft.summary ?? '').trim() === '' ? null : draft.summary;
+}
+
+function modelOf(draft: ProposedDraft, capability: AiVerdictModel['capability']): AiVerdictModel {
+  return { capability, modelId: draft.modelId, promptVersion: draft.promptVersion };
 }
 
 function view(draft: AttemptAiDraft, attempt: Attempt): PutAiReviewResult {

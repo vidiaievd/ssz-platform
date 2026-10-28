@@ -8,7 +8,9 @@
       "features": [
         { "featureKey": "ai.student_assist", "enabled": true, "monthlyCredits": "20", "limits": {} },
         { "featureKey": "ai.practice", "enabled": true, "monthlyCredits": "20", "limits": {} },
-        { "featureKey": "ai.review_direct", "enabled": false, "monthlyCredits": null, "limits": {} }
+        { "featureKey": "ai.review_direct", "enabled": false, "monthlyCredits": null, "limits": {} },
+        { "featureKey": "ai.voice_review", "enabled": false, "monthlyCredits": null, "limits": {} },
+        { "featureKey": "ai.voice_review_pronunciation", "enabled": false, "monthlyCredits": null, "limits": {} }
       ]
     },
     {
@@ -18,7 +20,9 @@
       "features": [
         { "featureKey": "ai.student_assist", "enabled": true, "monthlyCredits": "300", "limits": {} },
         { "featureKey": "ai.practice", "enabled": true, "monthlyCredits": "300", "limits": {} },
-        { "featureKey": "ai.review_direct", "enabled": true, "monthlyCredits": "200", "limits": {} }
+        { "featureKey": "ai.review_direct", "enabled": true, "monthlyCredits": "200", "limits": {} },
+        { "featureKey": "ai.voice_review", "enabled": true, "monthlyCredits": "200", "limits": {} },
+        { "featureKey": "ai.voice_review_pronunciation", "enabled": false, "monthlyCredits": null, "limits": {} }
       ]
     },
     {

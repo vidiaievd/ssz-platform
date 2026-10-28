@@ -9,8 +9,11 @@ export interface BindingAtStart {
   promptVersion: string;
 }
 
-/** One candidate model's run over the labelled set (plan 79, step 1.6). No text. */
-export interface EvalRun {
+/**
+ * One candidate model's run over the labelled set (plan 79, step 1.6). No text. `S` and `C` are
+ * the capability's scores and per-case results — a reading's (plan 82, step 10) are not a draft's.
+ */
+export interface EvalRun<S = RunScores, C = CaseResult> {
   id: string;
   capability: string;
   modelId: string;
@@ -20,8 +23,8 @@ export interface EvalRun {
   bindingAtStart: BindingAtStart | null;
   caseCount: number;
   skipped: Record<string, number>;
-  scores: RunScores | null;
-  cases: CaseResult[] | null;
+  scores: S | null;
+  cases: C[] | null;
   /** Sum over the run's calls; null when any call had no price. */
   cost: { micros: number; currency: string } | null;
   credits: string | null;
@@ -31,8 +34,8 @@ export interface EvalRun {
 }
 
 /** What finishing a run writes. */
-export type EvalRunFinish =
-  | { status: 'done'; scores: RunScores; cases: CaseResult[]; cost: EvalRun['cost']; credits: string | null }
+export type EvalRunFinish<S = RunScores, C = CaseResult> =
+  | { status: 'done'; scores: S; cases: C[]; cost: EvalRun['cost']; credits: string | null }
   | { status: 'failed'; error: string };
 
 /**

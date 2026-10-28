@@ -15,7 +15,7 @@ import {
   type IAttemptAiDraftRepository,
 } from '../../../domain/repositories/attempt-ai-draft.repository.js';
 import { GetReviewSubjectQuery } from './get-review-subject.query.js';
-import { hasReviewPrompt, reviewSubject, type ReviewSubject } from './review-subject.js';
+import { capabilityReads, reviewSubject, type ReviewSubject } from './review-subject.js';
 
 /** Why there is nothing to review — answered as a 200, since none of these is a fault. */
 export type ReviewSubjectSkip =
@@ -29,7 +29,10 @@ export type ReviewSubjectSkip =
   | 'AI_REVIEWS_FIRST'
   /** A draft is already on it — written, failed or acted on. A redelivered event stops here. */
   | 'DRAFT_EXISTS'
-  /** No review prompt for this template, or a `short_answer` of the old single-question form. */
+  /**
+   * The capability does not read this template — no review prompt, a recording asked of a
+   * text capability or text of the voice check — or a `short_answer` of the old form.
+   */
   | 'TEMPLATE_NOT_SUPPORTED'
   /** The exercise was deleted: there is no key to review against. */
   | 'EXERCISE_GONE';
@@ -84,7 +87,7 @@ export class GetReviewSubjectHandler implements IQueryHandler<GetReviewSubjectQu
     if (refusal !== null) return skip(refusal);
     if (await this.drafts.findByAttempt(attempt.id, query.capability)) return skip('DRAFT_EXISTS');
 
-    if (!hasReviewPrompt(attempt.templateCode)) return skip('TEMPLATE_NOT_SUPPORTED');
+    if (!capabilityReads(query.capability, attempt.templateCode)) return skip('TEMPLATE_NOT_SUPPORTED');
 
     const exercise = await this.content.getExerciseForAttempt(
       attempt.exerciseId,

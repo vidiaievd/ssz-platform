@@ -3,7 +3,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { LlmUsage } from '../../providers/domain/llm-result.js';
 import type { ModelForCall } from '../../registry/application/ports/registry.reader.js';
-import { costMicros } from '../../registry/domain/cost.js';
+import { costMicros, speechCostMicros } from '../../registry/domain/cost.js';
 import type { AiCallOutcome, AiCallRecord, CallAttempt, CallContext } from '../domain/ai-call.js';
 import { creditsFor } from '../domain/credits.js';
 import { AI_CALL_LEDGER, LedgerRecordRejected, type IAiCallLedger } from './ports/ai-call.ledger.js';
@@ -27,6 +27,11 @@ export interface CallToRecord {
   promptVersion: string | null;
   /** Null when no answer arrived (provider error, nothing called). */
   usage: LlmUsage | null;
+  /**
+   * Audio a speech model took, in ms — what it is priced by (plan 82, step 3). Absent or null
+   * for a language model, and for a speech call no answer came back from.
+   */
+  audioMs?: number | null;
   latencyMs: number;
   outcome: AiCallOutcome;
   errorCode: string | null;
@@ -65,7 +70,7 @@ export class CallRecorder {
   async record(call: CallToRecord): Promise<RecordedCall> {
     const cost = this.cost(call);
     const credits = cost && cost.currency === CREDIT_CURRENCY ? creditsFor(cost.micros, this.creditRate) : null;
-    if (call.usage && call.model && !call.model.currentPrice) {
+    if ((call.usage || call.audioMs != null) && call.model && !call.model.currentPrice) {
       this.logger.warn(`Model ${call.model.model.id} (${call.model.model.providerModelId}) has no price — call recorded without cost`);
     }
 
@@ -83,6 +88,7 @@ export class CallRecorder {
         : null,
       promptVersion: call.promptVersion,
       usage: call.usage,
+      audioMs: call.audioMs ?? null,
       cost,
       credits,
       latencyMs: call.latencyMs,
@@ -125,12 +131,17 @@ export class CallRecorder {
     }
   }
 
-  /** No usage (nothing answered) costs nothing; usage without a price is an unknown cost. */
+  /**
+   * No usage and no audio (nothing answered) costs nothing; either without a price is an
+   * unknown cost. A speech call is priced by its audio, plus any tokens it reported.
+   */
   private cost(call: CallToRecord): RecordedCall['cost'] {
-    if (!call.usage) return { micros: 0, currency: call.model?.currentPrice?.currency ?? CREDIT_CURRENCY };
+    const audioMs = call.audioMs ?? null;
+    if (!call.usage && audioMs === null) return { micros: 0, currency: call.model?.currentPrice?.currency ?? CREDIT_CURRENCY };
     const price = call.model?.currentPrice;
     if (!price) return null;
-    return { micros: costMicros(call.usage, price), currency: price.currency };
+    const micros = audioMs === null ? costMicros(call.usage!, price) : speechCostMicros(audioMs, call.usage, price);
+    return { micros, currency: price.currency };
   }
 }
 

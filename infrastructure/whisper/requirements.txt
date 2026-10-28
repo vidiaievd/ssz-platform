@@ -1,0 +1,4 @@
+# NB-Whisper sidecar (plan 82, step 4). Versions are the owner's to pin; the server itself
+# needs nothing beyond the standard library and faster-whisper (which brings ctranslate2,
+# tokenizers, PyAV, onnxruntime for the VAD filter, and huggingface-hub).
+faster-whisper==1.2.1

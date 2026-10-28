@@ -18,6 +18,8 @@ import { SweepOrphanRecordingsService } from './application/services/sweep-orpha
 import { SweepAbandonedUploadsService } from './application/services/sweep-abandoned-uploads.service.js';
 import { SweepOrphanContentAssetsService } from './application/services/sweep-orphan-content-assets.service.js';
 import { SweepSupersededNarrationsService } from './application/services/sweep-superseded-narrations.service.js';
+import { SpeechVariantWriter } from './application/services/speech-variant-writer.js';
+import { BackfillSpeechVariantsService } from './application/services/backfill-speech-variants.service.js';
 import { HttpLessonMediaUsageClient } from '../../infrastructure/http-lesson-media-usage.client.js';
 import { LESSON_MEDIA_USAGE } from '../../shared/application/ports/lesson-media-usage.port.js';
 import { HttpRecordingUsageClient } from '../../infrastructure/http-recording-usage.client.js';
@@ -46,6 +48,8 @@ import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from '../../infrastruc
     SweepSupersededNarrationsService,
     SweepAbandonedUploadsService,
     SweepOrphanContentAssetsService,
+    SpeechVariantWriter,
+    BackfillSpeechVariantsService,
     { provide: RECORDING_USAGE, useClass: HttpRecordingUsageClient },
     { provide: LESSON_MEDIA_USAGE, useClass: HttpLessonMediaUsageClient },
     DeleteAssetHandler,

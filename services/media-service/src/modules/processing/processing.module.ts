@@ -5,6 +5,7 @@ import { MEDIA_ASSET_REPOSITORY } from '../assets/domain/repositories/media-asse
 import { PrismaMediaAssetRepository } from '../assets/infrastructure/persistence/prisma-media-asset.repository.js';
 import { ImageProcessorWorker } from './image/image-processor.worker.js';
 import { AudioProcessorWorker } from './audio/audio-processor.worker.js';
+import { SpeechVariantWriter } from '../assets/application/services/speech-variant-writer.js';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AudioProcessorWorker } from './audio/audio-processor.worker.js';
   providers: [
     ImageProcessorWorker,
     AudioProcessorWorker,
+    SpeechVariantWriter,
     {
       provide: MEDIA_ASSET_REPOSITORY,
       useClass: PrismaMediaAssetRepository,

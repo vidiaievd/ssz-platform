@@ -14,6 +14,7 @@ import {
   ATTEMPT_AI_DRAFT_REPOSITORY,
   type IAttemptAiDraftRepository,
 } from '../../../domain/repositories/attempt-ai-draft.repository.js';
+import { learnerReviewCapability } from '../../../domain/entities/attempt-ai-draft.entity.js';
 import { DisputeAiReviewCommand } from './dispute-ai-review.command.js';
 
 export type DisputeAiReviewError =
@@ -51,14 +52,14 @@ export class DisputeAiReviewHandler implements ICommandHandler<DisputeAiReviewCo
     if (attempt.userId !== command.userId) return Result.fail({ code: 'FORBIDDEN' });
     if (attempt.reviewedBy !== 'ai') return Result.fail({ code: 'NO_AI_REVIEW' });
 
-    const review = await this.drafts.findByAttempt(attempt.id, 'review_direct');
+    const review = await this.drafts.findByAttempt(attempt.id, learnerReviewCapability(attempt.templateCode));
     if (review === null || review.status === 'FAILED') return Result.fail({ code: 'NO_AI_REVIEW' });
     if (review.disputedAt) return Result.ok({ disputedAt: review.disputedAt });
 
     const now = new Date();
     if (!(await this.drafts.markDisputed(review.id, now, command.reason))) {
       // Another press landed in between and has already been counted.
-      const marked = await this.drafts.findByAttempt(attempt.id, 'review_direct');
+      const marked = await this.drafts.findByAttempt(attempt.id, learnerReviewCapability(attempt.templateCode));
       return Result.ok({ disputedAt: marked?.disputedAt ?? now });
     }
 

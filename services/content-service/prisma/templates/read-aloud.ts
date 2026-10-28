@@ -116,7 +116,7 @@ export function readAloudTemplate(audioSchema: object) {
             revision: { type: 'string', enum: ['once', 'return'] },
           },
         },
-        // The AI stage is configuration only: it is not live (plan 70 deviation 12).
+        // The AI stage: the machine's reading check of `read` (plan 82); configuration until it is live.
         review: {
           type: 'object',
           properties: {
@@ -131,6 +131,8 @@ export function readAloudTemplate(audioSchema: object) {
               },
             },
             aiVisibility: { type: 'string', enum: ['teacher', 'studentAfter'] },
+            // Share of a prompt's words the machine's reading check needs (plan 82, Q4).
+            readingPassPercent: { type: 'integer', minimum: 50, maximum: 100 },
           },
         },
       },

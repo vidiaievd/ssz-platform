@@ -24,6 +24,13 @@ export const FEATURE_KEYS: readonly FeatureKeyDefinition[] = [
   { key: 'ai.student_assist', limitKind: 'ai_credits', limitNames: ['perLearnerMonthlyCredits'] },
   { key: 'ai.practice', limitKind: 'ai_credits', limitNames: ['perLearnerMonthlyCredits'] },
   { key: 'ai.authoring', limitKind: 'ai_credits', limitNames: [] },
+  // Checking a `read_aloud` recording against its passage without a teacher (plan 82): the
+  // recognizer's words decide the verdict. exercise-engine asks at hand-in, ai-service's gate
+  // before the call.
+  { key: 'ai.voice_review', limitKind: 'ai_credits', limitNames: [] },
+  // The premium tier on top of it: pronunciation scores (Azure) beside the same verdict —
+  // feedback only (plan 82 §2.3). Read by exercise-engine to pick the recognizer.
+  { key: 'ai.voice_review_pronunciation', limitKind: 'ai_credits', limitNames: [] },
   // The AI-first review modes of a school (plan 80, R7): organization-service refuses to
   // save them without the key, exercise-engine does not apply them without it.
   { key: 'school.review_ai_policy', limitKind: 'switch', limitNames: [] },

@@ -42,6 +42,12 @@ describe('providerReadiness', () => {
     expect(providerReadiness({ ...local, baseUrl: 'http://ollama:11434/v1' }, env()).configured).toBe(true);
   });
 
+  it('the Whisper sidecar is keyless but needs its baseUrl', () => {
+    const whisper = provider({ kind: 'whisper_local', credentialRef: null, region: 'local' });
+    expect(providerReadiness(whisper, env()).missing).toEqual(['baseUrl is not set']);
+    expect(providerReadiness({ ...whisper, baseUrl: 'http://whisper:8000' }, env()).configured).toBe(true);
+  });
+
   it('Azure needs key, endpoint and api version, and names each one missing', () => {
     const azure = provider({ kind: 'azure_openai', credentialRef: 'AZURE_OPENAI_API_KEY' });
     expect(providerReadiness(azure, env()).missing).toEqual([

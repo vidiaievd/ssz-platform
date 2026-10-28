@@ -5,11 +5,16 @@ import {
   ATTEMPT_REPOSITORY,
   type IAttemptRepository,
 } from '../../../../attempts/domain/repositories/attempt.repository.js';
-import type { AiDraftMark, AiDraftRemark } from '../../../domain/entities/attempt-ai-draft.entity.js';
+import {
+  learnerReviewCapability,
+  type AiDraftMark,
+  type AiDraftRemark,
+} from '../../../domain/entities/attempt-ai-draft.entity.js';
 import {
   ATTEMPT_AI_DRAFT_REPOSITORY,
   type IAttemptAiDraftRepository,
 } from '../../../domain/repositories/attempt-ai-draft.repository.js';
+import { readingForView, type ViewedReading } from '../../../domain/reading-verdict.js';
 import { GetLearnerAiReviewQuery } from './get-learner-ai-review.query.js';
 
 export type GetLearnerAiReviewError =
@@ -25,6 +30,11 @@ export interface LearnerAiReview {
   summary: string | null;
   /** The marks behind an essay's grade, with the model's reason for each; null otherwise. */
   marks: AiDraftMark[] | null;
+  /**
+   * A `read_aloud` reading (plan 82): what was heard in each prompt and the check the verdict
+   * stood on. Null for every other template.
+   */
+  reading: ViewedReading | null;
   reviewedAt: Date;
   /** When the learner said the review is wrong (2.3b); null until they do. */
   disputedAt: Date | null;
@@ -65,7 +75,7 @@ export class GetLearnerAiReviewHandler implements IQueryHandler<GetLearnerAiRevi
     const pending = attempt.pendingAiVerdict();
     if (attempt.reviewedBy !== 'ai' && pending === null) return Result.fail({ code: 'NO_AI_REVIEW' });
 
-    const review = await this.drafts.findByAttempt(attempt.id, 'review_direct');
+    const review = await this.drafts.findByAttempt(attempt.id, learnerReviewCapability(attempt.templateCode));
     if (review === null || review.status === 'FAILED') return Result.fail({ code: 'NO_AI_REVIEW' });
 
     if (pending !== null) {
@@ -74,6 +84,7 @@ export class GetLearnerAiReviewHandler implements IQueryHandler<GetLearnerAiRevi
         items: review.items,
         summary: review.summary,
         marks: review.marks,
+        reading: readingForView(review.reading),
         reviewedAt: pending.at,
         disputedAt: null,
         provisional: true,
@@ -86,6 +97,7 @@ export class GetLearnerAiReviewHandler implements IQueryHandler<GetLearnerAiRevi
       items: review.items,
       summary: review.summary,
       marks: review.marks,
+      reading: readingForView(review.reading),
       // `reviewedBy` is only `ai` with a delivery time on the attempt.
       reviewedAt: attempt.reviewedAt as Date,
       disputedAt: review.disputedAt,

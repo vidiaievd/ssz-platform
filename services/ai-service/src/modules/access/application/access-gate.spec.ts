@@ -130,6 +130,25 @@ describe('AccessGate', () => {
     expect((await gate.check('diagnostic', SCHOOL)).error).toEqual({ kind: 'gate_unavailable' });
   });
 
+  describe('allows (plan 82, step 8)', () => {
+    it('says yes to an entitled payer under the agent’s feature key, without the quota', async () => {
+      const { gate, asked, counter } = setup({ feature: feature({ monthlyCredits: '10' }) });
+      counter.down = true;
+      expect(await gate.allows('voice_review_pronunciation', SCHOOL)).toBe(true);
+      expect(asked).toEqual(['ai.voice_review_pronunciation']);
+    });
+
+    it.each([
+      ['AI is off for the payer', { policy: { aiEnabled: false, allowedRegions: null } }],
+      ['the key is not in the tariff', { feature: null }],
+      ['the key is switched off', { feature: feature({ enabled: false }) }],
+      ['the tariff cannot be read', { tariffFails: true }],
+    ])('says no when %s', async (_label, opts) => {
+      const { gate } = setup(opts);
+      expect(await gate.allows('voice_review_pronunciation', SCHOOL)).toBe(false);
+    });
+  });
+
   describe('quota', () => {
     const TEN = feature({ monthlyCredits: '10' });
 

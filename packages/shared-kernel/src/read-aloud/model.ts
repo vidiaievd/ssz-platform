@@ -168,13 +168,23 @@ export interface Settings {
 export type AiVisibility = 'teacher' | 'studentAfter';
 
 /**
- * The AI stage — designed, switchable, calls nothing (DECISIONS §4, plan 48). Carried so that
- * connecting a model later needs no migration, as in `writing_task`.
+ * The AI stage (DECISIONS §4, plan 48), given its meaning by plan 82. Without a teacher the
+ * machine checks a `read` exercise against its passage (`reading.ts`); with one it follows the
+ * school's review policy (plan 80).
+ *
+ * - `aiStage` — the author lets a machine look at the recordings at all.
+ * - `ai.transcript` — the reading check: the recognizer's words against the passage. It is what
+ *   decides, so without it there is nothing for the machine to do.
+ * - `ai.pronunciation` — pronunciation scores, on plans that include them (Azure). Feedback only.
+ * - `ai.fluency` — pace in words per minute. Feedback only.
+ * - `ai.draft` — a draft for the teacher; not built.
  */
 export interface Review {
   aiStage: boolean;
   ai: { transcript: boolean; pronunciation: boolean; fluency: boolean; draft: boolean };
   aiVisibility: AiVisibility;
+  /** Share of a prompt's words the reading check needs, whole percent, 50–100 (plan 82, Q4). */
+  readingPassPercent: number;
 }
 
 export interface ReadAloudContent {
@@ -211,6 +221,7 @@ export const DEFAULT_REVIEW: Review = {
   aiStage: false,
   ai: { transcript: true, pronunciation: true, fluency: false, draft: false },
   aiVisibility: 'teacher',
+  readingPassPercent: 85,
 };
 
 export const SHOW_RUBRIC: readonly ShowRubricPolicy[] = ['always', 'afterGraded', 'never'];

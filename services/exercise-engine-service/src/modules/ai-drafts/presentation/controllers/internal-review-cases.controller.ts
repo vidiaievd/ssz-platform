@@ -12,6 +12,11 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { Result } from '../../../../shared/kernel/result.js';
+import { ListReadingCasesQuery } from '../../application/queries/list-reading-cases/list-reading-cases.query.js';
+import type {
+  ListReadingCasesError,
+  ReadingCasesResult,
+} from '../../application/queries/list-reading-cases/list-reading-cases.handler.js';
 import { ListReviewCasesQuery } from '../../application/queries/list-review-cases/list-review-cases.query.js';
 import type {
   ListReviewCasesError,
@@ -24,7 +29,10 @@ const MAX_LIMIT = 500;
 
 /**
  * Teachers' settled drafts as labelled data, for ai-service to measure a candidate model on
- * (plan 79, step 1.6). Carries answer keys, so it is service-to-service only:
+ * (plan 79, step 1.6) — and, under `voice_review`, the readings aloud teachers ruled on prompt
+ * by prompt, whether or not a model drafted them (plan 82, step 10): a speech model is measured
+ * before it serves a school, so there are no drafts of it to start from. Carries answer keys and
+ * learners' recordings, so it is service-to-service only:
  * `x-internal-token`, not routed by the gateway. Callers must include the `/api/v1` prefix.
  *
  * 503 when content-service is unreachable — a set with holes would score a model on less
@@ -41,12 +49,20 @@ export class InternalReviewCasesController {
   async list(
     @Query('capability') capability?: string,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
-  ): Promise<ReviewCasesResult> {
+  ): Promise<ReviewCasesResult | ReadingCasesResult> {
     if (!capability || !(AI_DRAFT_CAPABILITIES as readonly string[]).includes(capability)) {
       throw new UnprocessableEntityException(`capability must be one of: ${AI_DRAFT_CAPABILITIES.join(', ')}`);
     }
     if (limit !== undefined && (limit < 1 || limit > MAX_LIMIT)) {
       throw new UnprocessableEntityException(`limit must be between 1 and ${MAX_LIMIT}`);
+    }
+
+    if (capability === 'voice_review') {
+      const readings: Result<ReadingCasesResult, ListReadingCasesError> = await this.queryBus.execute(
+        new ListReadingCasesQuery(limit ?? DEFAULT_LIMIT),
+      );
+      if (readings.isFail) throw new ServiceUnavailableException('An exercise could not be read from content-service');
+      return readings.value;
     }
 
     const result: Result<ReviewCasesResult, ListReviewCasesError> = await this.queryBus.execute(

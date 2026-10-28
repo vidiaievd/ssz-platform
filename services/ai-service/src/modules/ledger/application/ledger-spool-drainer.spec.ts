@@ -12,6 +12,7 @@ function row(id: string): AiCallRecord {
     model: null,
     promptVersion: null,
     usage: { input: 10, output: 2, cacheRead: 0, cacheWrite: 0 },
+    audioMs: null,
     cost: { micros: 60, currency: 'USD' },
     credits: '0.060000',
     latencyMs: 12,
@@ -114,6 +115,9 @@ describe('spool serialisation', () => {
 
   it('reads anything without an id or a valid date as unreadable', () => {
     expect(parseRecord('{"id":"a"}')).toBeNull();
+    // Spooled before speech models: no audioMs at all.
+    const { audioMs: _, ...older } = row('a');
+    expect(parseRecord(JSON.stringify(older))).toEqual(row('a'));
     expect(parseRecord('{"id":"a","createdAt":"nope"}')).toBeNull();
     expect(parseRecord('[')).toBeNull();
   });

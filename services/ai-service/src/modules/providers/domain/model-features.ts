@@ -23,12 +23,37 @@ export interface ModelFeatures {
   samplingParams?: boolean;
 }
 
+/**
+ * What a speech model can do (plan 82, step 3) — the registry's `features` of a model whose
+ * modality is `speech`. A voice capability declares the ones it needs, like an agent does.
+ */
+export interface SpeechFeatures {
+  /** Languages it recognizes, as the course names them (`nb`, `en`) — not provider locales. */
+  languages: string[];
+  /** Start and end of every word. */
+  wordTimings: boolean;
+  /** Scores pronunciation against the reference text (Azure Pronunciation Assessment). */
+  pronunciation: boolean;
+  /** Longest audio one call takes; longer is refused before the call. */
+  maxAudioSeconds: number;
+}
+
+/** `llm` — text in, text or structure out; `speech` — audio in, words out. */
+export type ModelModality = 'llm' | 'speech';
+
 export type ProviderKind =
   | 'anthropic'
   | 'openai'
   | 'openai_compatible'
   | 'azure_openai'
   | 'google'
+  /** Self-hosted NB-Whisper sidecar (plan 82, step 4): speech only, keyless, needs `baseUrl`. */
+  | 'whisper_local'
+  /**
+   * Azure AI Speech with Pronunciation Assessment (plan 82, step 9): speech only; `baseUrl` is
+   * the resource's speech endpoint (`https://<region>.stt.speech.microsoft.com`).
+   */
+  | 'azure_speech'
   | 'fake';
 
 /** Where and how to reach a provider — the registry row, minus anything secret. */
@@ -45,5 +70,12 @@ export interface LlmModelRef {
   /** For Azure, the deployment name. */
   providerModelId: string;
   features: ModelFeatures;
+  provider: ProviderConnection;
+}
+
+/** The speech model as an adapter needs it. */
+export interface SpeechModelRef {
+  providerModelId: string;
+  features: SpeechFeatures;
   provider: ProviderConnection;
 }

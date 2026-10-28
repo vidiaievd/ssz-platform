@@ -9,7 +9,7 @@ import { CommandHandler, QueryBus, type ICommandHandler } from '@nestjs/cqrs';
 import { ModelCaller } from '../../../../gateway/application/model-caller.js';
 import type { CapabilityBinding } from '../../../../registry/application/queries/list-bindings/list-bindings.handler.js';
 import { GetBindingQuery } from '../../../../registry/application/queries/get-binding/get-binding.query.js';
-import { missingFeatures } from '../../../domain/capability.js';
+import { capabilityGaps } from '../../../domain/capability.js';
 import { REVIEW_ATTEMPTS_CLIENT, type IReviewAttemptsClient } from '../../application/ports/review-attempts.client.js';
 import { unaskable as unaskableSubject } from '../../application/review-input.js';
 import { REVIEW_DRAFT_PROMPT_VERSIONS } from '../../prompts/prompts.js';
@@ -54,7 +54,7 @@ export class RunReviewEvalHandler implements ICommandHandler<RunReviewEvalComman
       throw new UnprocessableEntityException({ message: 'The model cannot be called', missing: resolved.error.missing });
     }
     const model = resolved.value;
-    const lacking = missingFeatures(model.model.features, REVIEW_DRAFT.requiredFeatures);
+    const lacking = capabilityGaps(model.model, REVIEW_DRAFT);
     if (lacking.length > 0) {
       throw new UnprocessableEntityException({ message: 'The model lacks what review_draft needs', missing: lacking });
     }

@@ -3,10 +3,12 @@ import { LlmError } from '../../providers/domain/llm-error.js';
 import type { LlmProvider } from '../../providers/domain/llm-provider.port.js';
 import type { ModelFeatures, ProviderKind } from '../../providers/domain/model-features.js';
 import { FakeLlmProvider } from '../../providers/infrastructure/fake/fake-llm.provider.js';
+import { FakeSpeechAssessor } from '../../providers/infrastructure/fake/fake-speech.assessor.js';
+import { silentWav } from '../../providers/domain/wav.fixture.js';
 import type { ModelForCall } from '../../registry/application/ports/registry.reader.js';
 import type { AiBinding } from '../../registry/domain/binding.js';
 import type { AiRegion } from '../../registry/domain/registry.types.js';
-import { ModelRouter, type GatewayRequest } from './model-router.js';
+import { ModelRouter, type GatewayRequest, type SpeechGatewayRequest } from './model-router.js';
 import type { ICircuitBreaker } from './ports/circuit-breaker.port.js';
 
 const features: ModelFeatures = {
@@ -39,6 +41,7 @@ function model(
       providerCode: 'fake',
       providerModelId: over.providerModelId ?? 'fake',
       displayName: id,
+      modality: 'llm',
       features,
       status: over.status ?? 'active',
     },
@@ -103,6 +106,7 @@ function setup(opts: { binding: AiBinding | null; models: ModelForCall[]; provid
     opts.providers ?? [new FakeLlmProvider()],
     breaker,
     new SchemaGuard(),
+    [new FakeSpeechAssessor()],
   );
   return { router, breaker };
 }
@@ -116,6 +120,19 @@ describe('ModelRouter', () => {
     expect(routed.value.result.output.kind).toBe('structured');
     expect(routed.value.attempts).toEqual([{ role: 'primary', modelId: 'primary', outcome: 'ok', reason: null }]);
     expect(breaker.successes).toEqual(['primary']);
+  });
+
+  it('steps over a speech model a stale binding points at, to the fallback', async () => {
+    const stale = model('primary');
+    const recognizer: ModelForCall = {
+      ...stale,
+      model: { ...stale.model, modality: 'speech', features: { languages: ['nb'], wordTimings: true, pronunciation: false, maxAudioSeconds: 60 } },
+    };
+    const { router } = setup({ binding: binding(), models: [recognizer, model('fallback')] });
+    const routed = await router.call('diagnostic', CALL);
+    expect(routed.isOk).toBe(true);
+    expect(routed.value.role).toBe('fallback');
+    expect(routed.value.attempts[0]).toEqual({ role: 'primary', modelId: 'primary', outcome: 'skipped', reason: 'wrong_modality' });
   });
 
   it('switches to the fallback on a retryable error and counts it against the primary', async () => {
@@ -305,6 +322,74 @@ describe('ModelRouter', () => {
       const { router } = setup({ binding: binding({ fallbackModelId: null }), models: [model('primary', { region: 'local' })] });
       expect((await router.call('diagnostic', CALL, EU_ONLY)).error.kind).toBe('refused');
       expect((await router.call('diagnostic', CALL, { allowedRegions: ['eu', 'local'] })).isOk).toBe(true);
+    });
+  });
+
+  describe('speech (plan 82, step 8)', () => {
+    const recognizer = (id: string, languages: string[], providerModelId = 'fake-speech', maxAudioSeconds = 60): ModelForCall => {
+      const base = model(id, { providerModelId });
+      return { ...base, model: { ...base.model, modality: 'speech', features: { languages, wordTimings: true, pronunciation: false, maxAudioSeconds } } };
+    };
+    const HEAR: SpeechGatewayRequest = {
+      audio: { format: 'wav', data: silentWav(3_000) },
+      referenceText: 'Jeg bor i Oslo og jobber på et kontor i sentrum',
+      language: 'nb',
+      pronunciation: false,
+    };
+
+    it('hears a recording through the speech adapter, with the binding’s timeout', async () => {
+      const { router, breaker } = setup({ binding: binding({ capability: 'voice_review' }), models: [recognizer('primary', ['nb'])] });
+      const routed = await router.callSpeech('voice_review', HEAR);
+      expect(routed.isOk).toBe(true);
+      expect(routed.value.result.transcript.length).toBeGreaterThan(0);
+      expect(routed.value.result.audioMs).toBe(3_000);
+      expect(breaker.successes).toEqual(['primary']);
+    });
+
+    it('steps over a recognizer without the recording’s language, and a language model, to the fallback', async () => {
+      const { router } = setup({
+        binding: binding({ capability: 'voice_review' }),
+        models: [recognizer('primary', ['en']), recognizer('fallback', ['nb', 'nn'])],
+      });
+      const routed = await router.callSpeech('voice_review', HEAR);
+      expect(routed.value.role).toBe('fallback');
+      expect(routed.value.attempts[0]).toEqual({ role: 'primary', modelId: 'primary', outcome: 'skipped', reason: 'language_not_supported' });
+
+      const stale = setup({ binding: binding({ capability: 'voice_review' }), models: [model('primary'), recognizer('fallback', ['nb'])] });
+      const routedStale = await stale.router.callSpeech('voice_review', HEAR);
+      expect(routedStale.value.attempts[0]?.reason).toBe('wrong_modality');
+    });
+
+    it('steps over a model that takes less audio than the recording is long to the fallback', async () => {
+      const { router } = setup({
+        binding: binding({ capability: 'voice_review' }),
+        models: [recognizer('primary', ['nb'], 'fake-speech', 2), recognizer('fallback', ['nb'], 'fake-speech', 120)],
+      });
+      const routed = await router.callSpeech('voice_review', HEAR);
+      expect(routed.value.role).toBe('fallback');
+      expect(routed.value.attempts[0]).toEqual({ role: 'primary', modelId: 'primary', outcome: 'skipped', reason: 'audio_too_long' });
+
+      const exact = setup({ binding: binding({ capability: 'voice_review' }), models: [recognizer('primary', ['nb'], 'fake-speech', 3)] });
+      expect((await exact.router.callSpeech('voice_review', HEAR)).value.role).toBe('primary');
+    });
+
+    it('falls back on a retryable speech error and counts it against the primary', async () => {
+      const { router, breaker } = setup({
+        binding: binding({ capability: 'voice_review' }),
+        models: [recognizer('primary', ['nb'], 'fake-speech-overloaded'), recognizer('fallback', ['nb'])],
+      });
+      const routed = await router.callSpeech('voice_review', HEAR);
+      expect(routed.value.role).toBe('fallback');
+      expect(routed.value.attempts.map((a) => [a.role, a.outcome, a.reason])).toEqual([
+        ['primary', 'error', 'overloaded'],
+        ['fallback', 'ok', null],
+      ]);
+      expect(breaker.failures.map((f) => f.key)).toEqual(['primary']);
+    });
+
+    it('is refused as disabled without a binding', async () => {
+      const { router } = setup({ binding: null, models: [] });
+      expect((await router.callSpeech('voice_review', HEAR)).error.kind).toBe('disabled');
     });
   });
 });

@@ -5,6 +5,18 @@ import type {
   ExerciseAttemptAiReviewedPayload,
 } from '@ssz/contracts';
 
+/**
+ * Agents whose review the learner is given as the verdict: `review_direct` (plan 79, part 2)
+ * and `voice_review`, a reading checked by a speech model (plan 82). Their `reviews` are the
+ * verdicts delivered, learners may dispute them, and a teacher's verdict after one is counted
+ * apart. `review_draft` is help a teacher reads; its `reviews` are the teachers' verdicts.
+ */
+export const LEARNER_REVIEW_CAPABILITIES: readonly string[] = ['review_direct', 'voice_review'];
+
+export function isLearnerReview(capability: string): boolean {
+  return LEARNER_REVIEW_CAPABILITIES.includes(capability);
+}
+
 /** One stored row of `ai_draft_quality_daily`, as the reader needs it. */
 export interface DraftQualityRow {
   capability: string;
@@ -55,7 +67,7 @@ export interface DraftQualityGroup {
    */
   takenRate: number | null;
   marks: DraftMarksQuality;
-  /** Learners who said a model's review of their work was wrong (2.3b) — `review_direct` only. */
+  /** Learners who said a model's review of their work was wrong (2.3b) — learners' reviews only. */
   disputes: number;
   /**
    * Share of a model's reviews its learners disputed; null with none delivered, and on
@@ -122,7 +134,7 @@ export function aggregateDraftQuality(rows: DraftQualityRow[]): DraftQualityGrou
     m.agreement = share(m.same, m.same + m.different);
     m.meanAbsDelta = share(sums.get(key)!.absDelta, m.compared);
     m.bias = share(sums.get(key)!.delta, m.compared);
-    if (group.capability === 'review_direct') group.disputeRate = share(group.disputes, group.reviews);
+    if (isLearnerReview(group.capability)) group.disputeRate = share(group.disputes, group.reviews);
     const t = group.teacherVerdicts;
     t.overturnRate = share(t.overturned, t.total);
   }
@@ -170,7 +182,7 @@ export interface ReviewedIncrement {
   capability: string;
   modelId: string | null;
   promptVersion: string | null;
-  /** 1 for a teacher's verdict on a `review_draft` draft; a `review_direct` draft adds none. */
+  /** 1 for a teacher's verdict on a `review_draft` draft; a learner's review adds none. */
   reviews: number;
   remarks: { accepted: number; edited: number; discarded: number; untouched: number };
   marks: { reviews: number; same: number; different: number; compared: number; deltaSum: number; absDeltaSum: number };
@@ -183,14 +195,15 @@ export interface ReviewedIncrement {
  * or two increments; `null` for a letter that should be read and cannot.
  *
  * - `aiDraft` — the remarks and marks the teacher acted on. On a `review_draft` row it is
- *   also a review: the verdict given with the draft on screen. On `review_direct` it is not
- *   (plan 80, step 6c): there `reviews` are the verdicts a model delivered, the denominator of
- *   its dispute rate, and a teacher's verdict is counted apart.
+ *   also a review: the verdict given with the draft on screen. On a learner's review
+ *   (`review_direct`, `voice_review`) it is not (plan 80, step 6c): there `reviews` are the
+ *   verdicts a model delivered, the denominator of its dispute rate, and a teacher's verdict is
+ *   counted apart.
  * - `aiVerdict` — the model's verdict the learner had been given at a school that lets a model
  *   answer first: a teacher's verdict, overturned when the outcome differs. Carried whether
  *   the teacher acted on the review or not (a batch approval too), so it is its own count.
  *
- * Both name the same `review_direct` draft when both are there; the two increments then land
+ * Both name the same learner's review when both are there; the two increments then land
  * on one row, which the fold adds up as any other.
  */
 export function reviewedIncrements(payload: unknown): ReviewedIncrement[] | null {
@@ -204,7 +217,7 @@ export function reviewedIncrements(payload: unknown): ReviewedIncrement[] | null
     const m = d.marks ?? null;
     increments.push({
       ...axesOf(d),
-      reviews: d.capability === 'review_direct' ? 0 : 1,
+      reviews: isLearnerReview(d.capability) ? 0 : 1,
       remarks: { accepted: d.accepted, edited: d.edited, discarded: d.discarded, untouched: d.untouched },
       marks: {
         reviews: m === null ? 0 : 1,
