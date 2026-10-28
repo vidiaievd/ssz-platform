@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateNested } from 'class-validator';
 import type { AssistContext, AssistContextKind } from '../domain/assist-answer.js';
 import type { AssistRefusal } from '../application/assist-refusal.js';
 
@@ -11,6 +11,7 @@ const REFUSALS: readonly AssistRefusal[] = ['no_key', 'policy', 'quota', 'disabl
 export const MAX_HISTORY_TURNS = 10;
 export const MAX_HISTORY_CHARS = 4000;
 export const MAX_MESSAGE_CHARS = 1000;
+export const MAX_FEEDBACK_REASON_CHARS = 500;
 
 /**
  * What the learner is looking at. Which ids a kind needs is the server's to check (422):
@@ -193,4 +194,24 @@ export class AssistRefusedDto {
 
   @ApiProperty({ enum: REFUSALS, example: 'no_key' })
   reason!: AssistRefusal;
+}
+
+export class AssistFeedbackDto {
+  @ApiProperty({ format: 'uuid', description: 'The `callId` of the answer being marked' })
+  @IsUUID()
+  callId!: string;
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  helpful!: boolean;
+
+  @ApiPropertyOptional({
+    example: 'Svaret handlet om et annet ord',
+    maxLength: MAX_FEEDBACK_REASON_CHARS,
+    description: 'Why, in the learner’s words. Kept in ai-service only; never sent on in events',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_FEEDBACK_REASON_CHARS)
+  reason?: string;
 }

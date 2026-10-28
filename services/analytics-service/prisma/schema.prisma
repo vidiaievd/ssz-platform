@@ -588,6 +588,32 @@ model AiDraftQualityDaily {
   @@map("ai_draft_quality_daily")
 }
 
+// ─── Rollup: AiAssistQualityDaily ─────────────────────────────────────────────
+// Learners' «helpful» / «not helpful» on the assistant's answers, per day × agent × model ×
+// prompt version — plan 83, step 7, the assistant's beside `ai_draft_quality_daily`. Fed by
+// `ai.assist.feedback`, counted on the day the answer was given so a model's and prompt's
+// marks stay with their own period. The reasons stay in ai-service (`assist_feedback`).
+//
+// `model_id` / `prompt_version` are ai-service registry ids, nullable as the ledger row
+// holds them; the unique index is NULLS NOT DISTINCT in the migration.
+
+model AiAssistQualityDaily {
+  id            String   @id @default(uuid())
+  day           DateTime @db.Date
+  capability    String
+  modelId       String?  @map("model_id")
+  promptVersion String?  @map("prompt_version")
+  helpful       Int
+  notHelpful    Int      @map("not_helpful")
+  /// Marks, either way, the learner wrote a reason beside.
+  withReason    Int      @map("with_reason")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([day, capability, modelId, promptVersion], map: "ai_assist_quality_daily_dims_key")
+  @@index([day])
+  @@map("ai_assist_quality_daily")
+}
+
 // ─── Journal: ReviewTermAcceptance ────────────────────────────────────────────
 // School work a model's verdict closed at the school's term because no teacher answered,
 // one row per attempt — plan 80, step 6a (R4). Fed by `exercise.attempt.ai_reviewed`

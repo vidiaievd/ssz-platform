@@ -328,3 +328,20 @@ model AiEvalRun {
   @@index([capability, startedAt])
   @@map("ai_eval_runs")
 }
+
+// ─── Assistant feedback (plan 83, step 7) ────────────────────────────────────
+
+/// A learner's «helpful» / «not helpful» on one answer of the assistant — once per answer,
+/// keyed by the answering call's ledger id. The reason text stays here, like a dispute's in
+/// exercise-engine; `ai.assist.feedback` carries only the axes and whether a reason was given.
+model AssistFeedback {
+  callId    String   @id @map("call_id")
+  userId    String   @map("user_id")
+  helpful   Boolean
+  /// Null when the learner gave none.
+  reason    String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("assist_feedback")
+}

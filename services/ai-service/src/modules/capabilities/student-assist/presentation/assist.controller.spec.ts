@@ -11,6 +11,8 @@ import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-veri
 import { AskAssistantCommand } from '../application/ask-assistant/ask-assistant.command.js';
 import type { AskAssistantOutcome } from '../application/ask-assistant/ask-assistant.handler.js';
 import type { AssistAvailability } from '../application/assist-availability/assist-availability.query.js';
+import { GiveAssistFeedbackCommand } from '../application/give-feedback/give-assist-feedback.command.js';
+import type { GiveAssistFeedbackOutcome } from '../application/give-feedback/give-assist-feedback.handler.js';
 import { AssistController } from './assist.controller.js';
 import type { AskAssistantDto } from './assist.dto.js';
 
@@ -19,7 +21,7 @@ const COURSE = 'b1000000-0000-4000-8000-000000000001';
 const UNIT = 'b2000000-0000-4000-8000-000000000002';
 const ANSWER = { blocks: [{ type: 'text' as const, text: 'V2.' }], citations: [], suggestions: [] };
 
-function setup(outcome: AskAssistantOutcome | AssistAvailability) {
+function setup(outcome: AskAssistantOutcome | AssistAvailability | GiveAssistFeedbackOutcome) {
   const sent: unknown[] = [];
   const bus = {
     execute: async (message: unknown) => {
@@ -86,6 +88,31 @@ describe('AssistController', () => {
     it('rejects a context as a message in it would be', async () => {
       const { controller } = setup({ kind: 'rejected', error: { code: 'not_found' } });
       await expect(controller.availability({ kind: 'class' }, LEARNER)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('feedback', () => {
+    const CALL = 'a1000000-0000-4000-8000-000000000001';
+
+    it('hands the mark on with the caller from the token, and answers nothing', async () => {
+      const { controller, sent } = setup({ kind: 'recorded' });
+      expect(await controller.feedback({ callId: CALL, helpful: false, reason: 'Feil' }, LEARNER)).toBeUndefined();
+      expect(sent[0]).toEqual(new GiveAssistFeedbackCommand(LEARNER.userId, CALL, false, 'Feil'));
+    });
+
+    it('sends no reason as null', async () => {
+      const { controller, sent } = setup({ kind: 'recorded' });
+      await controller.feedback({ callId: CALL, helpful: true }, LEARNER);
+      expect(sent[0]).toEqual(new GiveAssistFeedbackCommand(LEARNER.userId, CALL, true, null));
+    });
+
+    it('is 404 for an answer that is not the learner’s, 409 for a second mark', async () => {
+      await expect(setup({ kind: 'not_found' }).controller.feedback({ callId: CALL, helpful: true }, LEARNER)).rejects.toThrow(
+        NotFoundException,
+      );
+      await expect(setup({ kind: 'already_given' }).controller.feedback({ callId: CALL, helpful: true }, LEARNER)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 });

@@ -10,6 +10,8 @@ import { GetAiUsageQuery } from '../queries/get-ai-usage.query.js';
 import type { GetAiUsageResult } from '../queries/get-ai-usage.handler.js';
 import { GetAiDraftQualityQuery } from '../queries/get-ai-draft-quality.query.js';
 import type { GetAiDraftQualityResult } from '../queries/get-ai-draft-quality.handler.js';
+import { GetAiAssistQualityQuery } from '../queries/get-ai-assist-quality.query.js';
+import type { GetAiAssistQualityResult } from '../queries/get-ai-assist-quality.handler.js';
 
 /**
  * AI usage rollup for the future platform admin — plan 77, step 10.
@@ -54,6 +56,20 @@ export class AiUsageController {
   ): Promise<GetAiDraftQualityResult> {
     parseDayRange(from, to);
     return this.queryBus.execute(new GetAiDraftQualityQuery(from!, to!));
+  }
+
+  /**
+   * Learners' «helpful» / «not helpful» on the assistant's answers, per agent × model × prompt
+   * version over the range (plan 83, step 7), counted on the answers' days:
+   * `GET /internal/ai-usage/assist-feedback?from=2026-10-01&to=2026-10-28`.
+   */
+  @Get('assist-feedback')
+  async assistFeedback(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<GetAiAssistQualityResult> {
+    parseDayRange(from, to);
+    return this.queryBus.execute(new GetAiAssistQualityQuery(from!, to!));
   }
 }
 

@@ -4,6 +4,7 @@ import type { BaseEvent } from '../base.js';
 
 export const AI_EVENT_TYPES = {
   CALL_COMPLETED: 'ai.call.completed',
+  ASSIST_FEEDBACK: 'ai.assist.feedback',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -55,6 +56,24 @@ export interface AiCallCompletedPayload {
   createdAt: string;
 }
 
+/**
+ * A learner's «helpful» / «not helpful» on one answer of the assistant (plan 83, step 7).
+ * Axes only — no learner, no call, no text: the reason, when given, stays in ai-service.
+ * The axes are those of the answering call, as its ledger row holds them.
+ */
+export interface AiAssistFeedbackPayload {
+  capability: string;
+  /** ai-service registry ids; null when the ledger row has none. */
+  modelId: string | null;
+  promptVersion: string | null;
+  helpful: boolean;
+  /** The learner wrote a reason beside the mark. */
+  reasonGiven: boolean;
+  /** ISO 8601 — when the answered call started; the day the fold counts it on. */
+  answeredAt: string;
+}
+
 // ─── Typed event aliases ──────────────────────────────────────────────────────
 
 export type AiCallCompletedEvent = BaseEvent<AiCallCompletedPayload>;
+export type AiAssistFeedbackEvent = BaseEvent<AiAssistFeedbackPayload>;

@@ -14,6 +14,8 @@ import { HttpLearnerLanguageReader } from './review-direct/infrastructure/http-l
 import { AskAssistantHandler } from './student-assist/application/ask-assistant/ask-assistant.handler.js';
 import { GetAssistAvailabilityHandler } from './student-assist/application/assist-availability/assist-availability.query.js';
 import { AssistPayerResolver } from './student-assist/application/assist-payer.resolver.js';
+import { GiveAssistFeedbackHandler } from './student-assist/application/give-feedback/give-assist-feedback.handler.js';
+import { ASSIST_FEEDBACK_REPOSITORY } from './student-assist/application/ports/assist-feedback.repository.js';
 import { AssistToolbox } from './student-assist/application/assist-toolbox.js';
 import {
   ATTEMPT_SCOPE_READER,
@@ -38,6 +40,7 @@ import {
   HttpReviewedWorkReader,
   HttpStudentStandingReader,
 } from './student-assist/infrastructure/http-assist-readers.js';
+import { PrismaAssistFeedbackRepository } from './student-assist/infrastructure/prisma-assist-feedback.repository.js';
 import { RedisAssistRateLimiter } from './student-assist/infrastructure/redis-assist-rate-limiter.js';
 import { AssistRateLimitGuard } from './student-assist/presentation/assist-rate-limit.guard.js';
 import { AssistController } from './student-assist/presentation/assist.controller.js';
@@ -86,6 +89,9 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     GetAssistAvailabilityHandler,
     AssistRateLimitGuard,
     { provide: ASSIST_RATE_LIMITER, useClass: RedisAssistRateLimiter },
+    // the learner's mark on an answer (plan 83, step 7)
+    GiveAssistFeedbackHandler,
+    { provide: ASSIST_FEEDBACK_REPOSITORY, useClass: PrismaAssistFeedbackRepository },
     // the student assistant's read-only tools (plan 83, step 2)
     AssistToolbox,
     {

@@ -19,6 +19,7 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiForbiddenResponse,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -33,6 +34,8 @@ import { StudentGuard } from '../../../../common/guards/student.guard.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { AskAssistantCommand } from '../application/ask-assistant/ask-assistant.command.js';
 import type { AskAssistantOutcome } from '../application/ask-assistant/ask-assistant.handler.js';
+import { GiveAssistFeedbackCommand } from '../application/give-feedback/give-assist-feedback.command.js';
+import type { GiveAssistFeedbackOutcome } from '../application/give-feedback/give-assist-feedback.handler.js';
 import type { AssistAccessError } from '../application/assist-payer.resolver.js';
 import { GetAssistAvailabilityQuery, type AssistAvailability } from '../application/assist-availability/assist-availability.query.js';
 import { AssistRateLimitGuard } from './assist-rate-limit.guard.js';
@@ -41,6 +44,7 @@ import {
   AssistAnswerDto,
   AssistAvailabilityDto,
   AssistAvailabilityQueryDto,
+  AssistFeedbackDto,
   AssistRefusedDto,
   MAX_HISTORY_CHARS,
   toAssistContext,
@@ -123,6 +127,32 @@ export class AssistController {
         throw new ConflictException({ statusCode: 409, message: 'The assistant is not available', reason: outcome.reason });
       case 'silent':
         throw new ServiceUnavailableException('The assistant is unavailable');
+    }
+  }
+
+  @Post('feedback')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Mark an answer helpful or not',
+    description:
+      'Once per answer, on the `callId` it came with. What is counted is the answering model and prompt, read ' +
+      'from the ledger; the reason stays in ai-service and is never sent on.',
+  })
+  @ApiNoContentResponse({ description: 'Recorded' })
+  @ApiBadRequestResponse({ description: 'Malformed body, or the reason is longer than allowed' })
+  @ApiNotFoundResponse({ description: 'No answer of the assistant to this learner under that id' })
+  @ApiConflictResponse({ description: 'This answer was marked before' })
+  async feedback(@Body() body: AssistFeedbackDto, @CurrentUser() user: AuthenticatedUser): Promise<void> {
+    const outcome: GiveAssistFeedbackOutcome = await this.commandBus.execute(
+      new GiveAssistFeedbackCommand(user.userId, body.callId, body.helpful, body.reason ?? null),
+    );
+    switch (outcome.kind) {
+      case 'recorded':
+        return;
+      case 'not_found':
+        throw new NotFoundException('No such answer');
+      case 'already_given':
+        throw new ConflictException('This answer was marked before');
     }
   }
 }
