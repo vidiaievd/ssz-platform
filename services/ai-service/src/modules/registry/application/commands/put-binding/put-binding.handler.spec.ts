@@ -65,7 +65,7 @@ describe('PutBindingHandler', () => {
 
   it('is 404 for a capability not in the catalog', async () => {
     const { handler } = setup(Result.ok(stored));
-    await expect(handler.execute(new PutBindingCommand('student_assist', settings, undefined, 'u1'))).rejects.toBeInstanceOf(NotFoundException);
+    await expect(handler.execute(new PutBindingCommand('not_a_capability', settings, undefined, 'u1'))).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('is 422 with the list of problems, and writes nothing', async () => {
