@@ -43,6 +43,8 @@ import { DeleteLocalizationCommand } from '../../application/commands/delete-loc
 import { GetContainerQuery } from '../../application/queries/get-container/get-container.query.js';
 import type { GetContainerResult } from '../../application/queries/get-container/get-container.handler.js';
 import { GetContainersQuery } from '../../application/queries/get-containers/get-containers.query.js';
+import { GetContainerTagsQuery } from '../../application/queries/get-container-tags/get-container-tags.query.js';
+import type { ContainerTag } from '../../application/ports/container-tag-reader.port.js';
 import { GetContainerBySlugQuery } from '../../application/queries/get-container-by-slug/get-container-by-slug.query.js';
 import type { Result } from '../../../../shared/kernel/result.js';
 import type { PaginatedResult } from '../../../../shared/discovery/domain/types/pagination.js';
@@ -136,9 +138,10 @@ export class ContainerController {
     const paged = await this.queryBus.execute<GetContainersQuery, PaginatedResult<ContainerEntity>>(
       new GetContainersQuery(dto, user),
     );
+    const tags = await this.tagsOf(paged.items.map((c) => c.id));
 
     return new PaginatedResponseDto({
-      items: paged.items.map((c) => ContainerResponseDto.from(c)),
+      items: paged.items.map((c) => ContainerResponseDto.from(c, [], tags.get(c.id))),
       total: paged.total,
       page: paged.page,
       limit: paged.limit,
@@ -156,7 +159,8 @@ export class ContainerController {
     >(new GetContainerBySlugQuery(slug));
 
     if (result.isFail) throwHttpException(result.error);
-    return ContainerResponseDto.from(result.value);
+    const tags = await this.tagsOf([result.value.id]);
+    return ContainerResponseDto.from(result.value, [], tags.get(result.value.id));
   }
 
   @Get(':id')
@@ -175,7 +179,15 @@ export class ContainerController {
 
     if (result.isFail) throwHttpException(result.error);
     const { container, localizations } = result.value;
-    return ContainerResponseDto.from(container, localizations);
+    const tags = await this.tagsOf([container.id]);
+    return ContainerResponseDto.from(container, localizations, tags.get(container.id));
+  }
+
+  /** The tags of containers already read for the caller — one query for a whole page. */
+  private tagsOf(containerIds: string[]): Promise<Map<string, ContainerTag[]>> {
+    return this.queryBus.execute<GetContainerTagsQuery, Map<string, ContainerTag[]>>(
+      new GetContainerTagsQuery(containerIds),
+    );
   }
 
   /**
