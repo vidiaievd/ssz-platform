@@ -5,6 +5,7 @@ import type {
   GrammarRuleText,
   IAttemptScopeReader,
   IClassSessionReader,
+  ICourseLanguageReader,
   ICourseMaterialReader,
   IEnrollmentReader,
   IGroupRosterReader,
@@ -60,6 +61,13 @@ export class HttpCourseMaterialReader extends InternalReader implements ICourseM
   async lookupWord(lemma: string, userId: string, language: string, courseId: string | null): Promise<WordLookup> {
     const { body } = await this.get<WordLookup>('/api/v1/internal/assist/words', { lemma, userId, language, courseId });
     return body ?? { lemma, course: [], personal: [] };
+  }
+}
+
+export class HttpCourseLanguageReader extends InternalReader implements ICourseLanguageReader {
+  async targetLanguage(courseId: string): Promise<string | null> {
+    const { body } = await this.get<{ targetLanguage?: string }>(`/api/v1/internal/assist/courses/${encodeURIComponent(courseId)}`);
+    return body?.targetLanguage ?? null;
   }
 }
 

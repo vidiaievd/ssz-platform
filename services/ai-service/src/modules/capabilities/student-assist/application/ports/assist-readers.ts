@@ -57,6 +57,14 @@ export interface ICourseMaterialReader {
   lookupWord(lemma: string, userId: string, language: string, courseId: string | null): Promise<WordLookup>;
 }
 
+export const COURSE_LANGUAGE_READER = Symbol('COURSE_LANGUAGE_READER');
+
+/** The language a course teaches — what the assistant's prompt names (plan 83, step 4e). */
+export interface ICourseLanguageReader {
+  /** A language code (`nb`), or null for an unknown course. Throws when unreadable. */
+  targetLanguage(courseId: string): Promise<string | null>;
+}
+
 /** A cell of the learner's `SkillMastery` profile the profile itself calls weak (R-h). */
 export interface WeakTopic {
   skill: string;

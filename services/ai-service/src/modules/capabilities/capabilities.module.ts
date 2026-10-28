@@ -11,11 +11,13 @@ import { DIRECT_REVIEW_ATTEMPTS_CLIENT } from './review-direct/application/ports
 import { LEARNER_LANGUAGE_READER } from './review-direct/application/ports/learner-language.reader.js';
 import { HttpDirectReviewAttemptsClient } from './review-direct/infrastructure/http-direct-review-attempts.client.js';
 import { HttpLearnerLanguageReader } from './review-direct/infrastructure/http-learner-language.reader.js';
+import { AskAssistantHandler } from './student-assist/application/ask-assistant/ask-assistant.handler.js';
 import { AssistPayerResolver } from './student-assist/application/assist-payer.resolver.js';
 import { AssistToolbox } from './student-assist/application/assist-toolbox.js';
 import {
   ATTEMPT_SCOPE_READER,
   CLASS_SESSION_READER,
+  COURSE_LANGUAGE_READER,
   COURSE_MATERIAL_READER,
   ENROLLMENT_READER,
   GROUP_ROSTER_READER,
@@ -26,6 +28,7 @@ import {
 import {
   HttpAttemptScopeReader,
   HttpClassSessionReader,
+  HttpCourseLanguageReader,
   HttpCourseMaterialReader,
   HttpEnrollmentReader,
   HttpGroupRosterReader,
@@ -93,6 +96,14 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfig>) =>
         new HttpClassSessionReader(config.get<string>('schedulingServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    // the turn's loop and the course language its prompt names (plan 83, step 4e)
+    AskAssistantHandler,
+    {
+      provide: COURSE_LANGUAGE_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpCourseLanguageReader(config.get<string>('contentServiceUrl')!, config.get<string>('internalServiceToken')!),
     },
     // who pays for a turn, and whether the learner may ask in its context (plan 83, step 3)
     AssistPayerResolver,

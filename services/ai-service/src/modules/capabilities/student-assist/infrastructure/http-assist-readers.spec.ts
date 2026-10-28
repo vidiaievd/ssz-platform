@@ -1,6 +1,7 @@
 import {
   HttpAttemptScopeReader,
   HttpClassSessionReader,
+  HttpCourseLanguageReader,
   HttpCourseMaterialReader,
   HttpEnrollmentReader,
   HttpGroupRosterReader,
@@ -51,6 +52,23 @@ describe('HttpCourseMaterialReader', () => {
     expect(url.pathname).toBe('/api/v1/internal/assist/words');
     expect(url.searchParams.has('courseId')).toBe(false);
     expect(url.searchParams.get('userId')).toBe('user-1');
+  });
+});
+
+describe('HttpCourseLanguageReader', () => {
+  const reader = new HttpCourseLanguageReader(BASE, TOKEN);
+
+  it("reads the course's target language under /api/v1 with the internal token", async () => {
+    const fetchMock = respond(200, { courseId: 'c', targetLanguage: 'nb' });
+    expect(await reader.targetLanguage('c')).toBe('nb');
+    const { url, headers } = requested(fetchMock);
+    expect(url.pathname).toBe('/api/v1/internal/assist/courses/c');
+    expect(headers['x-internal-token']).toBe(TOKEN);
+  });
+
+  it('is null for an unknown course', async () => {
+    respond(404);
+    expect(await reader.targetLanguage('c')).toBeNull();
   });
 });
 
