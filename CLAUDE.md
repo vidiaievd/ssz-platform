@@ -178,6 +178,14 @@ Agent `review_draft` (plan 79): consumes `exercise.attempt.routed_for_review`, r
 beside its key from exercise-engine (`GET /api/v1/internal/attempts/:id/ai-review-subject`) and the
 school's explanation language from organization-service, calls the gateway with the school as payer
 (surface `review_queue`) and writes the draft back (`PUT /api/v1/internal/attempts/:id/ai-draft`).
+Speech (plan 82): a separate port `SpeechAssessor` (audio + reference + language → words with timings,
+optional pronunciation scores), priced per hour of audio (`audio_per_hour`, `ai_calls.audio_ms`). Adapters
+`whisper_local` (sidecar `infrastructure/whisper`, NB-Whisper via faster-whisper, :8001, no key), `azure_speech`
+(Pronunciation Assessment, `nb-NO`; REST up to 30 s, Speech SDK beyond; `AZURE_SPEECH_KEY`) and `fake`.
+Capabilities `voice_review` and `voice_review_pronunciation` consume `exercise.attempt.routed_for_review` for
+`read_aloud` (mode `read`), read WAV `speech` variants from media-service and PUT `reading.prompts[]` back; the
+verdict is computed by exercise-engine from the transcript, not by ai-service. Keys `ai.voice_review`,
+`ai.voice_review_pronunciation`. Shadow run: `POST /api/v1/admin/ai/evals/voice_review/run { modelId, pronunciation? }`.
 Model comparison (plan 79, step 1.6): `POST /api/v1/admin/ai/evals/review_draft/run { modelId, promptVersion? }`
 reruns teachers' settled drafts (exercise-engine `GET /api/v1/internal/ai-review-cases`) on a candidate
 via `ModelCaller` (named model, no gate/fallback/breaker, surface `admin_eval`) and scores it against
