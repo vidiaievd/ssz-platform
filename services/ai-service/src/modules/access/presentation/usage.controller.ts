@@ -16,7 +16,7 @@ import { StudentGuard } from '../../../common/guards/student.guard.js';
 import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
 import type { MyUsage } from '../application/queries/get-my-usage/get-my-usage.handler.js';
 import { GetMyUsageQuery } from '../application/queries/get-my-usage/get-my-usage.query.js';
-import { UsageDto, UsageQueryDto } from './usage.dto.js';
+import { MyUsageDto, UsageQueryDto } from './usage.dto.js';
 
 /** The learner's own AI credits (plan 83, step 6) — VoxOrd «Today» and Profile ▸ Subscription. */
 @ApiTags('Usage')
@@ -35,11 +35,11 @@ export class UsageController {
       'What the learner’s own plan has spent on one agent and what it allows. Only the learner’s own account: ' +
       'work a school pays for is not counted here. `total: null` = unmetered.',
   })
-  @ApiOkResponse({ type: UsageDto })
+  @ApiOkResponse({ type: MyUsageDto })
   @ApiBadRequestResponse({ description: 'Unknown feature' })
   @ApiNotFoundResponse({ description: 'The learner’s plan does not carry this feature' })
   @ApiServiceUnavailableResponse({ description: 'The plan or the ledger could not be read' })
-  async me(@Query() query: UsageQueryDto, @CurrentUser() user: AuthenticatedUser): Promise<UsageDto> {
+  async me(@Query() query: UsageQueryDto, @CurrentUser() user: AuthenticatedUser): Promise<MyUsageDto> {
     const result: MyUsage = await this.queryBus.execute(new GetMyUsageQuery(user.userId, query.feature));
     switch (result.kind) {
       case 'usage':

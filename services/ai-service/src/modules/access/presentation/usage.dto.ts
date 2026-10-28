@@ -10,7 +10,7 @@ export class UsageQueryDto {
   feature!: string;
 }
 
-export class UsageDto {
+export class MyUsageDto {
   @ApiProperty({ enum: LEARNER_USAGE_FEATURES, example: 'ai.review_direct' })
   feature!: string;
 
