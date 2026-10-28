@@ -162,6 +162,10 @@ export interface IGroupRosterReader {
 export const STUDENT_STANDING_READER = Symbol('STUDENT_STANDING_READER');
 
 export interface IStudentStandingReader {
-  /** On the school's roster as a student and not archived — staff and former students are not. */
-  isActiveStudent(schoolId: string, userId: string): Promise<boolean>;
+  /**
+   * Whether the school pays the assistant for this learner: an active student of its roster
+   * (not staff, not archived) whom the school chose (plan 83, Q6 — all its students, the
+   * chosen groups or the chosen students; nobody when it turned the assistant off).
+   */
+  schoolPaysFor(schoolId: string, userId: string): Promise<boolean>;
 }

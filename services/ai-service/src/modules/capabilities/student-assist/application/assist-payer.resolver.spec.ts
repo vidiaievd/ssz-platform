@@ -2,7 +2,7 @@ import type { AssistContext } from '../domain/assist-answer.js';
 import { AssistPayerResolver } from './assist-payer.resolver.js';
 import type { AssistEnrollment, ClassSession } from './ports/assist-readers.js';
 
-// Plan 83, step 3: who pays for a turn of the student assistant, and whether it may start.
+// Plan 83, steps 3 and 3b: who pays for a turn of the student assistant, and whether it may start.
 
 const USER = 'user-1';
 const COURSE = 'c0000000-0000-4000-8000-000000000001';
@@ -26,7 +26,7 @@ const session: ClassSession = {
   contentLessonId: null,
 };
 
-function setup(over: { enrollment?: AssistEnrollment | null; courseOfAttempt?: string | null; attemptFound?: boolean; members?: string[] | null; session?: ClassSession | null; activeStudent?: boolean } = {}) {
+function setup(over: { enrollment?: AssistEnrollment | null; courseOfAttempt?: string | null; attemptFound?: boolean; members?: string[] | null; session?: ClassSession | null; schoolPays?: boolean } = {}) {
   const enrollments = {
     enrollment: jest.fn().mockResolvedValue(over.enrollment === undefined ? { status: 'active', schoolId: null } : over.enrollment),
   };
@@ -39,7 +39,7 @@ function setup(over: { enrollment?: AssistEnrollment | null; courseOfAttempt?: s
   };
   const classes = { session: jest.fn().mockResolvedValue(over.session === undefined ? session : over.session) };
   const rosters = { members: jest.fn().mockResolvedValue(over.members === undefined ? [USER] : over.members) };
-  const standing = { isActiveStudent: jest.fn().mockResolvedValue(over.activeStudent ?? true) };
+  const standing = { schoolPaysFor: jest.fn().mockResolvedValue(over.schoolPays ?? true) };
   const resolver = new AssistPayerResolver(enrollments, attempts, classes, rosters, standing);
   return { resolver, enrollments, attempts, classes, rosters, standing };
 }
@@ -59,7 +59,7 @@ describe('AssistPayerResolver — a course in the context', () => {
   it('bills the workspace of an active enrolment of its current student — a school or a tutor', async () => {
     const school = await resolve({ kind: 'unit', courseId: COURSE, unitId: UNIT }, { enrollment: { status: 'active', schoolId: SCHOOL } });
     expect(school.result.value.payer).toEqual({ type: 'workspace', id: SCHOOL });
-    expect(school.standing.isActiveStudent).toHaveBeenCalledWith(SCHOOL, USER);
+    expect(school.standing.schoolPaysFor).toHaveBeenCalledWith(SCHOOL, USER);
     const tutor = await resolve({ kind: 'word', courseId: COURSE, lemma: 'bil' }, { enrollment: { status: 'active', schoolId: TUTOR } });
     expect(tutor.result.value.payer).toEqual({ type: 'workspace', id: TUTOR });
   });
@@ -67,13 +67,13 @@ describe('AssistPayerResolver — a course in the context', () => {
   it('sends a finished course to the learner\'s own plan, asking the school nothing', async () => {
     const { result, standing } = await resolve({ kind: 'unit', courseId: COURSE, unitId: UNIT }, { enrollment: { status: 'completed', schoolId: SCHOOL } });
     expect(result.value.payer).toEqual({ type: 'user', id: USER });
-    expect(standing.isActiveStudent).not.toHaveBeenCalled();
+    expect(standing.schoolPaysFor).not.toHaveBeenCalled();
   });
 
-  it('sends a former student or a member of staff to their own plan', async () => {
+  it('sends a former student, a member of staff or a student outside the school\'s choice to their own plan', async () => {
     const { result } = await resolve(
       { kind: 'unit', courseId: COURSE, unitId: UNIT },
-      { enrollment: { status: 'active', schoolId: SCHOOL }, activeStudent: false },
+      { enrollment: { status: 'active', schoolId: SCHOOL }, schoolPays: false },
     );
     expect(result.value.payer).toEqual({ type: 'user', id: USER });
   });
@@ -123,9 +123,15 @@ describe('AssistPayerResolver — a submission', () => {
 
 describe('AssistPayerResolver — a class', () => {
   it('bills the session\'s workspace for a learner of its group', async () => {
-    const { result, rosters } = await resolve({ kind: 'class', lessonId: LESSON });
+    const { result, rosters, standing } = await resolve({ kind: 'class', lessonId: LESSON });
     expect(rosters.members).toHaveBeenCalledWith(SCHOOL, 'g-1');
+    expect(standing.schoolPaysFor).toHaveBeenCalledWith(SCHOOL, USER);
     expect(result.value.payer).toEqual({ type: 'workspace', id: SCHOOL });
+  });
+
+  it('bills the learner when the workspace did not choose them for its assistant (Q6)', async () => {
+    const { result } = await resolve({ kind: 'class', lessonId: LESSON }, { schoolPays: false });
+    expect(result.value.payer).toEqual({ type: 'user', id: USER });
   });
 
   it('bills the session\'s workspace even when the course came to the learner as self-study', async () => {

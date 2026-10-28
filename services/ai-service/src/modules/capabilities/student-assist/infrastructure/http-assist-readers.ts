@@ -134,8 +134,8 @@ export class HttpGroupRosterReader extends InternalReader implements IGroupRoste
 }
 
 export class HttpStudentStandingReader extends InternalReader implements IStudentStandingReader {
-  async isActiveStudent(schoolId: string, userId: string): Promise<boolean> {
+  async schoolPaysFor(schoolId: string, userId: string): Promise<boolean> {
     const path = `/api/v1/internal/schools/${encodeURIComponent(schoolId)}/students/${encodeURIComponent(userId)}/standing`;
-    return (await this.get<{ activeStudent?: boolean }>(path)).body?.activeStudent === true;
+    return (await this.get<{ assistantAllowed?: boolean }>(path)).body?.assistantAllowed === true;
   }
 }

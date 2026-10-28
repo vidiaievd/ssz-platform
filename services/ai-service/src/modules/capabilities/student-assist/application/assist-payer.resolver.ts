@@ -47,12 +47,15 @@ export type AssistAccessError =
  *
  * - a course in the context → the learner must hold it (active or completed). The workspace
  *   (school or tutor) pays only for an **active** enrolment filed under it, of a learner who
- *   is still its **active student**; anything else — self-study, a finished course, a former
- *   student, staff — goes to the learner's own plan, and the gate refuses there if that plan
- *   lacks the key. Learning-service files a public course under no workspace;
+ *   is still its **active student** and one the school chose for its assistant (Q6: all
+ *   students, chosen groups, chosen students, or nobody); anything else — self-study, a
+ *   finished course, a former student, staff, a student outside the school's choice — goes
+ *   to the learner's own plan, and the gate refuses there if that plan lacks the key.
+ *   Learning-service files a public course under no workspace;
  * - a submission → it must be the learner's, and its course is the attempt's;
  * - a class → the learner must be in the session's group, and the session's workspace pays —
- *   the class is that workspace's work, even when the course came to the learner otherwise;
+ *   the class is that workspace's work, even when the course came to the learner otherwise —
+ *   if it chose this learner for its assistant; else the learner's own plan;
  * - no course (a free question, a word outside a course) → the learner's own plan (Q3 = A),
  *   never a school's: a school pays only for work in its course.
  *
@@ -89,7 +92,9 @@ export class AssistPayerResolver {
       if (context.courseId && !(await this.enrollments.enrollment(userId, context.courseId))) {
         return Result.fail({ code: 'not_enrolled' });
       }
-      return Result.ok({ payer: { type: 'workspace', id: session.schoolId }, context });
+      const workspacePays = await this.standing.schoolPaysFor(session.schoolId, userId);
+      const payer: Payer = workspacePays ? { type: 'workspace', id: session.schoolId } : { type: 'user', id: userId };
+      return Result.ok({ payer, context });
     }
 
     if (!context.courseId) return Result.ok({ payer: { type: 'user', id: userId }, context });
@@ -97,7 +102,7 @@ export class AssistPayerResolver {
     const enrollment = await this.enrollments.enrollment(userId, context.courseId);
     if (!enrollment) return Result.fail({ code: 'not_enrolled' });
     const schoolId = enrollment.status === 'active' ? enrollment.schoolId : null;
-    const schoolPays = schoolId !== null && (await this.standing.isActiveStudent(schoolId, userId));
+    const schoolPays = schoolId !== null && (await this.standing.schoolPaysFor(schoolId, userId));
     const payer: Payer = schoolPays ? { type: 'workspace', id: schoolId } : { type: 'user', id: userId };
     return Result.ok({ payer, context });
   }

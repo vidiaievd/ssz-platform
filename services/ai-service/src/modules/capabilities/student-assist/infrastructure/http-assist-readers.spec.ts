@@ -148,14 +148,18 @@ describe('HttpGroupRosterReader', () => {
 });
 
 describe('HttpStudentStandingReader', () => {
-  it('reads the learner\'s standing; anything but an explicit true is «not a current student»', async () => {
+  it('reads whether the school pays for the learner; anything but an explicit true is «it does not»', async () => {
     const reader = new HttpStudentStandingReader(BASE, TOKEN);
-    const fetchMock = respond(200, { activeStudent: true });
-    expect(await reader.isActiveStudent('s', 'user-1')).toBe(true);
+    const fetchMock = respond(200, { activeStudent: true, assistantAllowed: true });
+    expect(await reader.schoolPaysFor('s', 'user-1')).toBe(true);
     expect(requested(fetchMock).url.pathname).toBe('/api/v1/internal/schools/s/students/user-1/standing');
-    respond(200, { activeStudent: false });
-    expect(await reader.isActiveStudent('s', 'user-1')).toBe(false);
+    // A current student outside the school's choice (Q6).
+    respond(200, { activeStudent: true, assistantAllowed: false });
+    expect(await reader.schoolPaysFor('s', 'user-1')).toBe(false);
+    // An organization-service from before step 3b answers no `assistantAllowed`.
+    respond(200, { activeStudent: true });
+    expect(await reader.schoolPaysFor('s', 'user-1')).toBe(false);
     respond(404);
-    expect(await reader.isActiveStudent('s', 'user-1')).toBe(false);
+    expect(await reader.schoolPaysFor('s', 'user-1')).toBe(false);
   });
 });
