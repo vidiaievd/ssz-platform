@@ -380,6 +380,10 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(254)")
                         .HasColumnName("email");
 
+                    b.Property<DateTimeOffset?>("DeletionRequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deletion_requested_at");
+
                     b.Property<bool>("EmailVerified")
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
@@ -437,6 +441,10 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DeletionRequestedAt")
+                        .HasDatabaseName("ix_users_deletion_requested_at")
+                        .HasFilter("deletion_requested_at IS NOT NULL");
 
                     b.HasIndex("NormalizedEmail")
                         .IsUnique()

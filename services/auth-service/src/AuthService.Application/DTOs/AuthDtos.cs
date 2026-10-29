@@ -37,7 +37,9 @@ public sealed record AuthTokensResponse(
     string AccessToken,
     string RefreshToken,
     DateTimeOffset AccessTokenExpiresAt,
-    DateTimeOffset RefreshTokenExpiresAt);
+    DateTimeOffset RefreshTokenExpiresAt,
+    /// <summary>True when this sign-in cancelled a pending account deletion — the app says so.</summary>
+    bool DeletionCancelled = false);
 
 public sealed record MfaChallengeResponse(
     string MfaChallengeToken,
@@ -72,6 +74,14 @@ public sealed record ResetPasswordRequest(
 
 public sealed record VerifyEmailRequest(
     string Token);
+
+public sealed record DeleteAccountRequest(
+    string Password);
+
+public sealed record AccountDeletionResponse(
+    DateTimeOffset DeletionRequestedAt,
+    /// <summary>From this instant the account may be erased; signing in before it cancels.</summary>
+    DateTimeOffset PurgeAfter);
 // ── Refresh-token lifetimes by role and client (ADR-012) ──────────────────────
 
 public sealed record TokenLifetimeDto(

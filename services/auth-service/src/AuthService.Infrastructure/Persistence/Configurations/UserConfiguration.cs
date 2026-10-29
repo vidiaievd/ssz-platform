@@ -66,6 +66,9 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.LastLoginAt)
             .HasColumnName("last_login_at");
 
+        builder.Property(u => u.DeletionRequestedAt)
+            .HasColumnName("deletion_requested_at");
+
         builder.Property(u => u.CreatedAt)
             .HasColumnName("created_at");
 
@@ -75,6 +78,11 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasIndex(u => u.NormalizedEmail)
             .IsUnique()
             .HasDatabaseName("ix_users_normalized_email");
+
+        // The purge reads only the few accounts with a pending deletion.
+        builder.HasIndex(u => u.DeletionRequestedAt)
+            .HasDatabaseName("ix_users_deletion_requested_at")
+            .HasFilter("deletion_requested_at IS NOT NULL");
 
         builder.HasMany(u => u.RefreshTokens)
             .WithOne()

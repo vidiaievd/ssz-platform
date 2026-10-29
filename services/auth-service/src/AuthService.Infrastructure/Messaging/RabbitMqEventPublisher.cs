@@ -25,7 +25,9 @@ public sealed class RabbitMqEventPublisher : IDomainEventPublisher, IDisposable
     private readonly IConnection _connection;
     private readonly IModel _channel;
     private readonly ILogger<RabbitMqEventPublisher> _logger;
+    private readonly object _publishLock = new();
     private const string ExchangeName = "auth.events";
+    private static readonly TimeSpan ConfirmTimeout = TimeSpan.FromSeconds(5);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -60,6 +62,10 @@ public sealed class RabbitMqEventPublisher : IDomainEventPublisher, IDisposable
             type: ExchangeType.Topic,
             durable: true,
             autoDelete: false);
+
+        // Publisher confirms: a publish returns only once the broker has the message, so a
+        // caller that must not lose an event (the account purge) learns about a failure.
+        _channel.ConfirmSelect();
     }
 
     public async Task PublishAsync<TEvent>(
@@ -95,11 +101,20 @@ public sealed class RabbitMqEventPublisher : IDomainEventPublisher, IDisposable
 
         try
         {
-            _channel.BasicPublish(
-                exchange: ExchangeName,
-                routingKey: routingKey,
-                basicProperties: props,
-                body: body);
+            // One channel is shared by every request and is not thread-safe; the lock also
+            // keeps a confirm wait from covering another caller's message.
+            lock (_publishLock)
+            {
+                _channel.BasicPublish(
+                    exchange: ExchangeName,
+                    routingKey: routingKey,
+                    basicProperties: props,
+                    body: body);
+
+                if (!_channel.WaitForConfirms(ConfirmTimeout))
+                    throw new InvalidOperationException(
+                        $"The broker did not confirm {routingKey} within {ConfirmTimeout.TotalSeconds} s.");
+            }
 
             _logger.LogInformation(
                 "Published {EventType} with id {EventId} to {RoutingKey}",
@@ -131,6 +146,7 @@ public sealed class RabbitMqEventPublisher : IDomainEventPublisher, IDisposable
         PasswordChangedEvent => "auth.password_changed",
         EmailVerificationRequestedEvent => "auth.email_verification_requested",
         EmailVerifiedEvent => "auth.email_verified",
+        UserDeletedEvent => "auth.user.deleted",
         _ => null,
     };
 
@@ -182,6 +198,8 @@ public sealed record EventEnvelope
             ev.UserId, ev.Email, ev.VerificationUrl, ev.ExpiresInMinutes,
         },
         EmailVerifiedEvent ev => new { ev.UserId, ev.Email },
+        // No e-mail: by the time this is read the address is already gone from auth.
+        UserDeletedEvent ev => new { ev.UserId },
         _ => new { },
     };
 }

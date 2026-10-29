@@ -22,6 +22,8 @@ public sealed class AuthOptions
     public string AppBaseUrl { get; set; } = "http://localhost:3000";
     public int LoginRateLimitMaxAttempts { get; set; } = 10;
     public int LoginRateLimitWindowSeconds { get; set; } = 300;
+    public int AccountDeletionGraceDays { get; set; } = 30;
+    public int AccountPurgeIntervalMinutes { get; set; } = 60;
 
     public TimeSpan AccessTokenLifetime =>
         TimeSpan.FromMinutes(AccessTokenLifetimeMinutes);
@@ -37,4 +39,8 @@ public sealed class AuthOptions
         TimeSpan.FromMinutes(EmailVerificationTokenLifetimeMinutes);
     public TimeSpan LoginRateLimitWindow =>
         TimeSpan.FromSeconds(LoginRateLimitWindowSeconds);
+    public TimeSpan AccountDeletionGrace =>
+        TimeSpan.FromDays(AccountDeletionGraceDays);
+    public TimeSpan AccountPurgeInterval =>
+        TimeSpan.FromMinutes(AccountPurgeIntervalMinutes);
 }

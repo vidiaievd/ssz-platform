@@ -97,3 +97,16 @@ public sealed record EmailVerifiedEvent(
     public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
     public int Version => 1;
 }
+
+/// <summary>
+/// The account is erased for good: every service drops what it holds about the user.
+/// Published only after the grace period, never when the deletion is merely requested.
+/// </summary>
+public sealed record UserDeletedEvent(
+    Guid UserId
+) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
+    public int Version => 1;
+}
