@@ -151,6 +151,25 @@ describe('resolveEntitlements', () => {
       }),
     );
     expect(e.features['ai.review_direct']).toBeUndefined();
+    expect(e.grants).toEqual([]);
+  });
+
+  it('lists the grants counting now, soonest to end first', () => {
+    const later = new Date(NOW.getTime() + 30 * DAY);
+    const sooner = new Date(NOW.getTime() + 5 * DAY);
+    const e = resolveEntitlements(
+      inputs({
+        grants: [
+          grant('ai.review_direct', '10', { endsAt: later }),
+          grant('ai.student_assist', null, { endsAt: sooner }),
+          grant('ai.practice', '5', { startsAt: new Date(NOW.getTime() + DAY) }),
+        ],
+      }),
+    );
+    expect(e.grants).toEqual([
+      { featureKey: 'ai.student_assist', endsAt: sooner },
+      { featureKey: 'ai.review_direct', endsAt: later },
+    ]);
   });
 
   it('does not let a grant mutate the plan it was resolved from', () => {
