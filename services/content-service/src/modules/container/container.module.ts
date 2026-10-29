@@ -180,6 +180,7 @@ export class ContainerModule implements OnModuleInit {
         ownerSchoolId: container.ownerSchoolId,
         visibility: container.visibility,
         deletedAt: container.deletedAt,
+        title: container.title,
         accessTier: container.accessTier,
       };
     });

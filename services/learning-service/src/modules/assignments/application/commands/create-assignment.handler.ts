@@ -73,7 +73,15 @@ export class CreateAssignmentHandler
 
     // 5. Create aggregate
     const assignmentResult = Assignment.create(
-      { assignerId: cmd.assignerId, assigneeId: cmd.assigneeId, schoolId: cmd.schoolId, contentRef, dueAt: cmd.dueAt, notes: cmd.notes },
+      {
+        assignerId: cmd.assignerId,
+        assigneeId: cmd.assigneeId,
+        schoolId: cmd.schoolId,
+        contentRef,
+        dueAt: cmd.dueAt,
+        notes: cmd.notes,
+        contentTitle: visibilityResult.value.title ?? null,
+      },
       this.clock,
     );
     if (assignmentResult.isFail) {

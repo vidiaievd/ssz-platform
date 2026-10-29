@@ -30,6 +30,8 @@ export interface ContainerOwnerRef {
 export interface VisibilityResult {
   isVisible: boolean;
   reason?: string;
+  /** What the content is called; absent from an older content-service. */
+  title?: string | null;
 }
 
 export type AccessTier =

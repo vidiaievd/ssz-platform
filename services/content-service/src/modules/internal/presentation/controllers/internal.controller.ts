@@ -162,7 +162,7 @@ export class InternalController {
     @Param('type') type: string,
     @Param('id') id: string,
     @Query('userId') userId: string,
-  ): Promise<{ isVisible: boolean; reason?: string }> {
+  ): Promise<{ isVisible: boolean; reason?: string; title: string | null }> {
     if (!userId) throw new BadRequestException('userId query parameter is required');
 
     const entityType = CONTENT_TYPE_TO_ENTITY[type.toUpperCase()];
@@ -177,7 +177,13 @@ export class InternalController {
       'view',
     );
 
-    return { isVisible: decision.allowed, ...(decision.reason && { reason: decision.reason }) };
+    // The title rides along — the caller creating an assignment names it in the learner's
+    // notification without a second round trip (VoxOrd plan 06, step 6b).
+    return {
+      isVisible: decision.allowed,
+      ...(decision.reason && { reason: decision.reason }),
+      title: entity.title ?? null,
+    };
   }
 
   @Get('content-relations')

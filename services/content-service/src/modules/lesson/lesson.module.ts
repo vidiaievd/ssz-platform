@@ -154,6 +154,7 @@ export class LessonModule implements OnModuleInit {
         ownerSchoolId: lesson.ownerSchoolId,
         visibility: lesson.visibility,
         deletedAt: lesson.deletedAt,
+        title: lesson.title,
       };
     });
   }

@@ -27,9 +27,17 @@ export interface AssignmentCreatedPayload {
   assignerId: string;
   assigneeId: string;
   schoolId: string | null;
+  /** Set when the assignment came from a group assignment; absent on older events. */
+  groupId?: string | null;
   contentType: string;
   contentId: string;
   dueAt: string | null;
+  /**
+   * Additive (VoxOrd mobile redesign 06, step 6b) — what was assigned, as content-service
+   * called it at creation, so the learner's notification can name it. `null` when the
+   * title could not be read; absent on older events.
+   */
+  contentTitle?: string | null;
 }
 
 export interface AssignmentCompletedPayload {

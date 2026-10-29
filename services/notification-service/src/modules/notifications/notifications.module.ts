@@ -22,10 +22,12 @@ import { GroupAssignedHandler } from './handlers/group-assigned.handler.js';
 import { StudentNudgedHandler } from './handlers/student-nudged.handler.js';
 import { AttemptReviewedHandler } from './handlers/attempt-reviewed.handler.js';
 import { AiReviewedHandler } from './handlers/ai-reviewed.handler.js';
+import { AssignmentCreatedHandler } from './handlers/assignment-created.handler.js';
 import { AnalyticsConsumerService } from '../../infrastructure/messaging/analytics-consumer.service.js';
 import { SchedulingConsumerService } from '../../infrastructure/messaging/scheduling-consumer.service.js';
 import { OrganizationConsumerService } from '../../infrastructure/messaging/organization-consumer.service.js';
 import { ExerciseEngineConsumerService } from '../../infrastructure/messaging/exercise-engine-consumer.service.js';
+import { LearningConsumerService } from '../../infrastructure/messaging/learning-consumer.service.js';
 import { ReviewDigestService } from './schedules/review-digest.service.js';
 import { ReviewTermWarningService } from './schedules/review-term-warning.service.js';
 import { ReviewDigestStateRepository } from './schedules/review-digest-state.repository.js';
@@ -59,10 +61,12 @@ import { LessonsClient } from './schedules/clients/lessons.client.js';
     StudentNudgedHandler,
     AttemptReviewedHandler,
     AiReviewedHandler,
+    AssignmentCreatedHandler,
     AnalyticsConsumerService,
     SchedulingConsumerService,
     OrganizationConsumerService,
     ExerciseEngineConsumerService,
+    LearningConsumerService,
     // The review digest (plan 47.5). Registered unconditionally; whether it does anything
     // is `REVIEW_DIGEST_ENABLED` plus having both neighbours addressed, decided inside the
     // run rather than by leaving the provider out — a job that is off should be visible

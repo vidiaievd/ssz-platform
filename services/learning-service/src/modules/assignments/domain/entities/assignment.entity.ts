@@ -28,6 +28,12 @@ export interface CreateAssignmentProps {
   contentRef: ContentRef;
   dueAt: Date;
   notes?: string;
+  /**
+   * What the content was called at creation — carried on the created event only, so the
+   * learner's notification can name it (VoxOrd plan 06, step 6b). Not stored: the title
+   * lives in content-service and may change.
+   */
+  contentTitle?: string | null;
 }
 
 export interface AssignmentPersistenceProps {
@@ -109,6 +115,7 @@ export class Assignment extends AggregateRoot {
         contentType: assignment._contentRef.type,
         contentId: assignment._contentRef.id,
         dueAt: assignment._dueAt.toISOString(),
+        contentTitle: props.contentTitle ?? null,
       }),
     );
 
