@@ -71,8 +71,29 @@ export class NotificationsRepository {
     });
   }
 
+  /**
+   * One page of the feed, newest first. The cursor is the last row's id, as before; the page
+   * after it is read by (createdAt, id), the order the feed is in. Paging by `id < cursor`
+   * alone (until VoxOrd plan 06, step 6e) compared random uuids and skipped or repeated rows.
+   * A cursor that is not one of the reader's rows — deleted since, or someone else's — ends
+   * the feed rather than restarting it.
+   */
   async listInApp(opts: InAppFeedOptions) {
     const filter = opts.filter ?? 'all';
+    let after = {};
+    if (opts.cursor) {
+      const last = await this.prisma.notification.findFirst({
+        where: { id: opts.cursor, recipientId: opts.recipientId },
+        select: { id: true, createdAt: true },
+      });
+      if (!last) return [];
+      after = {
+        OR: [
+          { createdAt: { lt: last.createdAt } },
+          { createdAt: last.createdAt, id: { lt: last.id } },
+        ],
+      };
+    }
     return this.prisma.notification.findMany({
       where: {
         recipientId: opts.recipientId,
@@ -80,9 +101,9 @@ export class NotificationsRepository {
         ...(filter === 'archived' ? { archivedAt: { not: null } } : { archivedAt: null }),
         ...(filter === 'unread' ? { isRead: false } : {}),
         ...(opts.type ? { type: opts.type } : {}),
-        ...(opts.cursor ? { id: { lt: opts.cursor } } : {}),
+        ...after,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: opts.limit,
       select: {
         id: true,
