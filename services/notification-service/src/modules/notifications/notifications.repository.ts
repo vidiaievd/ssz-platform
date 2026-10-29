@@ -108,9 +108,16 @@ export class NotificationsRepository {
     });
   }
 
-  async markAllRead(recipientId: string): Promise<void> {
+  /** `before`: only what was created at or before it, so a later arrival stays unread. */
+  async markAllRead(recipientId: string, before?: Date): Promise<void> {
     await this.prisma.notification.updateMany({
-      where: { recipientId, channel: 'IN_APP', isRead: false, archivedAt: null },
+      where: {
+        recipientId,
+        channel: 'IN_APP',
+        isRead: false,
+        archivedAt: null,
+        ...(before ? { createdAt: { lte: before } } : {}),
+      },
       data: { isRead: true, readAt: new Date(), updatedAt: new Date() },
     });
   }
