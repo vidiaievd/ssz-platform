@@ -206,5 +206,5 @@ public sealed class User : AggregateRoot
     }
 
     /// <summary>Raised right before the account is erased, for every other service to follow.</summary>
-    public void MarkPurged() => AddDomainEvent(new UserDeletedEvent(Id));
+    public void MarkPurged() => AddDomainEvent(new UserDeletedEvent(Id, Email));
 }

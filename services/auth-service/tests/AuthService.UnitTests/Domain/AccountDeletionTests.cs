@@ -101,8 +101,9 @@ public sealed class AccountDeletionTests
 
         user.MarkPurged();
 
-        user.DomainEvents.Should().ContainSingle()
-            .Which.Should().BeOfType<UserDeletedEvent>()
-            .Which.UserId.Should().Be(user.Id);
+        var deleted = user.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<UserDeletedEvent>().Subject;
+        deleted.UserId.Should().Be(user.Id);
+        deleted.Email.Should().Be(user.Email);
     }
 }

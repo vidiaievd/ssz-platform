@@ -4,6 +4,7 @@ import { NotificationsRepository } from './notifications.repository.js';
 import { NotificationsService } from './notifications.service.js';
 import { NotificationsController } from './controllers/notifications.controller.js';
 import { UserRegisteredHandler } from './handlers/user-registered.handler.js';
+import { UserDeletedHandler } from './handlers/user-deleted.handler.js';
 import { EmailVerificationHandler } from './handlers/email-verification.handler.js';
 import { PasswordResetHandler } from './handlers/password-reset.handler.js';
 import { NudgeRequestedHandler } from './handlers/nudge-requested.handler.js';
@@ -44,6 +45,7 @@ import { LessonsClient } from './schedules/clients/lessons.client.js';
     NotificationsRepository,
     NotificationsService,
     UserRegisteredHandler,
+    UserDeletedHandler,
     EmailVerificationHandler,
     PasswordResetHandler,
     NudgeRequestedHandler,
@@ -81,6 +83,6 @@ import { LessonsClient } from './schedules/clients/lessons.client.js';
     LessonReminderService,
     LessonsClient,
   ],
-  exports: [NotificationsService, UserRegisteredHandler, EmailVerificationHandler, PasswordResetHandler],
+  exports: [NotificationsService, UserRegisteredHandler, UserDeletedHandler, EmailVerificationHandler, PasswordResetHandler],
 })
 export class NotificationsModule {}

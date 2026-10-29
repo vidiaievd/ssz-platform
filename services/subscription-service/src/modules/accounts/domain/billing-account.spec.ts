@@ -104,3 +104,19 @@ describe('BillingAccount', () => {
   });
 });
 
+
+describe('BillingAccount.closeAll (VoxOrd plan 07, step 3c)', () => {
+  it('closes the open subscription and falls back to nothing', () => {
+    const acc = account([running()]);
+
+    const closed = acc.closeAll('system', now);
+
+    expect(closed).toEqual([expect.objectContaining({ id: 'old', endedAt: now, endedBy: 'system' })]);
+    expect(acc.current(now)).toBeNull();
+    expect(acc.changedSubscriptions()).toEqual(closed);
+  });
+
+  it('has nothing to close on an account without subscriptions', () => {
+    expect(account().closeAll('system', now)).toEqual([]);
+  });
+});

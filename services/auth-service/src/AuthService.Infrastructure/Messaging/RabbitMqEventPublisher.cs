@@ -198,8 +198,8 @@ public sealed record EventEnvelope
             ev.UserId, ev.Email, ev.VerificationUrl, ev.ExpiresInMinutes,
         },
         EmailVerifiedEvent ev => new { ev.UserId, ev.Email },
-        // No e-mail: by the time this is read the address is already gone from auth.
-        UserDeletedEvent ev => new { ev.UserId },
+        // The address goes along: by the time this is read it is already gone from auth.
+        UserDeletedEvent ev => new { ev.UserId, ev.Email },
         _ => new { },
     };
 }

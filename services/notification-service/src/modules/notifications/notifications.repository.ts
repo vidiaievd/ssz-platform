@@ -177,6 +177,24 @@ export class NotificationsRepository {
     });
   }
 
+  /**
+   * Everything kept about a deleted account (VoxOrd plan 07, step 3c): its feed and e-mail log —
+   * also mail sent to the address before it had an account, e.g. an invitation — and the
+   * bookkeeping rows of the reminder, digest and term-warning jobs. One transaction.
+   */
+  async eraseUser(userId: string, email: string | null): Promise<{ notifications: number }> {
+    const recipient = email
+      ? { OR: [{ recipientId: userId }, { recipientEmail: { equals: email, mode: 'insensitive' as const } }] }
+      : { recipientId: userId };
+    const [notifications] = await this.prisma.$transaction([
+      this.prisma.notification.deleteMany({ where: recipient }),
+      this.prisma.reviewDigestState.deleteMany({ where: { userId } }),
+      this.prisma.lessonReminder.deleteMany({ where: { userId } }),
+      this.prisma.reviewTermWarning.deleteMany({ where: { userId } }),
+    ]);
+    return { notifications: notifications.count };
+  }
+
   async delete(id: string, recipientId: string): Promise<void> {
     await this.prisma.notification.deleteMany({
       where: { id, recipientId },

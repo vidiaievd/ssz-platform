@@ -8,11 +8,13 @@ import {
   EXCHANGES,
   ORGANIZATION_EVENT_TYPES,
   type SchoolCreatedPayload,
+  type UserDeletedPayload,
   type UserRegisteredPayload,
 } from '@ssz/contracts';
 import type { AppConfig } from '../../../../config/configuration.js';
 import { PROCESSED_EVENTS, type IProcessedEvents } from '../../../../shared/application/ports/processed-events.js';
-import { OpenAccountCommand, type OpenAccountOutcome } from '../../application/commands/open-account/open-account.command.js';
+import { OpenAccountCommand } from '../../application/commands/open-account/open-account.command.js';
+import { CloseUserAccountCommand } from '../../application/commands/close-user-account/close-user-account.command.js';
 
 const QUEUE = 'subscription-service.payer-created';
 const STUDENT_ROLE = 'student';
@@ -26,6 +28,9 @@ interface Envelope {
  * Plan 78 §5: a payer appearing elsewhere opens its account here. `school.created` covers
  * SOLO workspaces too (organization-service provisions one per registering tutor), so a
  * tutor needs no `user` account; a registering student gets one for their own learning.
+ *
+ * `auth.user.deleted` (VoxOrd plan 07, step 3c) closes the learner's account on the same queue,
+ * so a registration and a deletion of one user are never handled out of order.
  */
 @Injectable()
 export class PayerCreatedConsumer implements OnModuleInit, OnModuleDestroy {
@@ -59,6 +64,7 @@ export class PayerCreatedConsumer implements OnModuleInit, OnModuleDestroy {
         await channel.assertQueue(QUEUE, { durable: true });
         await channel.bindQueue(QUEUE, EXCHANGES.ORGANIZATION!, ORGANIZATION_EVENT_TYPES.SCHOOL_CREATED);
         await channel.bindQueue(QUEUE, EXCHANGES.AUTH!, AUTH_EVENT_TYPES.USER_REGISTERED);
+        await channel.bindQueue(QUEUE, EXCHANGES.AUTH!, AUTH_EVENT_TYPES.USER_DELETED);
         // One at a time: two events for one payer must not race each other's account write.
         await channel.prefetch(1);
         await channel.consume(QUEUE, (msg) => void this.handle(channel, msg));
@@ -94,20 +100,21 @@ export class PayerCreatedConsumer implements OnModuleInit, OnModuleDestroy {
       }
       const command = this.toCommand(eventType, envelope.payload);
       if (command) {
-        const outcome = await this.commands.execute<OpenAccountCommand, OpenAccountOutcome>(command);
+        const outcome = await this.commands.execute<OpenAccountCommand | CloseUserAccountCommand, string>(command);
         this.logger.log(`${eventType} [${eventId}] → ${command.type} ${command.externalId}: ${outcome}`);
       }
       await this.processed.markProcessed(eventId, eventType);
       channel.ack(msg);
     } catch (err) {
       // One retry; after that the payer simply has no account row yet, which resolves to
-      // the free plan anyway — nothing is lost but the pinned plan version.
+      // the free plan anyway — nothing is lost but the pinned plan version. A deletion that
+      // fails twice leaves a deleted learner's subscription open: logged, nobody can use it.
       this.logger.error(`Failed ${eventType} [${eventId}]: ${err instanceof Error ? err.message : String(err)}`);
       channel.nack(msg, false, !msg.fields.redelivered);
     }
   }
 
-  private toCommand(eventType: string, payload: unknown): OpenAccountCommand | null {
+  private toCommand(eventType: string, payload: unknown): OpenAccountCommand | CloseUserAccountCommand | null {
     if (eventType === ORGANIZATION_EVENT_TYPES.SCHOOL_CREATED) {
       const { schoolId } = (payload ?? {}) as Partial<SchoolCreatedPayload>;
       return schoolId ? new OpenAccountCommand('workspace', schoolId) : null;
@@ -116,6 +123,10 @@ export class PayerCreatedConsumer implements OnModuleInit, OnModuleDestroy {
       const { userId, roles } = (payload ?? {}) as Partial<UserRegisteredPayload>;
       if (!userId || !Array.isArray(roles)) return null;
       return roles.some((r) => r.toLowerCase() === STUDENT_ROLE) ? new OpenAccountCommand('user', userId) : null;
+    }
+    if (eventType === AUTH_EVENT_TYPES.USER_DELETED) {
+      const { userId } = (payload ?? {}) as Partial<UserDeletedPayload>;
+      return userId ? new CloseUserAccountCommand(userId) : null;
     }
     return null;
   }

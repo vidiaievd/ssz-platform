@@ -101,9 +101,12 @@ public sealed record EmailVerifiedEvent(
 /// <summary>
 /// The account is erased for good: every service drops what it holds about the user.
 /// Published only after the grace period, never when the deletion is merely requested.
+/// Carries the address because invitations elsewhere are keyed by it, and nobody can look
+/// it up once auth has erased the row.
 /// </summary>
 public sealed record UserDeletedEvent(
-    Guid UserId
+    Guid UserId,
+    string Email
 ) : IDomainEvent
 {
     public Guid EventId { get; } = Guid.NewGuid();

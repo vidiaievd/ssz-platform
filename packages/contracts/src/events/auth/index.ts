@@ -73,6 +73,8 @@ export interface EmailVerifiedPayload {
  */
 export interface UserDeletedPayload {
   userId: string;
+  /** The account's address, for what is keyed by it (invitations); auth no longer has it. */
+  email: string;
 }
 
 // ─── Typed event interfaces ───────────────────────────────────────────────────
