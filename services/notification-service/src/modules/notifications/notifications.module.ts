@@ -23,6 +23,7 @@ import { StudentNudgedHandler } from './handlers/student-nudged.handler.js';
 import { AttemptReviewedHandler } from './handlers/attempt-reviewed.handler.js';
 import { AiReviewedHandler } from './handlers/ai-reviewed.handler.js';
 import { AssignmentCreatedHandler } from './handlers/assignment-created.handler.js';
+import { LessonChangedHandler } from './handlers/lesson-changed.handler.js';
 import { AnalyticsConsumerService } from '../../infrastructure/messaging/analytics-consumer.service.js';
 import { SchedulingConsumerService } from '../../infrastructure/messaging/scheduling-consumer.service.js';
 import { OrganizationConsumerService } from '../../infrastructure/messaging/organization-consumer.service.js';
@@ -62,6 +63,7 @@ import { LessonsClient } from './schedules/clients/lessons.client.js';
     AttemptReviewedHandler,
     AiReviewedHandler,
     AssignmentCreatedHandler,
+    LessonChangedHandler,
     AnalyticsConsumerService,
     SchedulingConsumerService,
     OrganizationConsumerService,
