@@ -9,6 +9,12 @@ import {
   type ICurriculumPlanReader,
 } from '../ports/curriculum-plan.reader.js';
 import { SessionAccessService } from './session-access.service.js';
+import { lessonChangeFor } from './lesson-change.js';
+import {
+  SCHEDULING_EVENT_PUBLISHER,
+  type ISchedulingEventPublisher,
+} from '../../../../infrastructure/messaging/scheduling-event-publisher.service.js';
+import { SCHEDULING_EVENT_TYPES } from '@ssz/contracts';
 import { utcMidnight } from './session-plan.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Lesson, LessonScore, LessonType } from '../../domain/entities/lesson.entity.js';
@@ -55,6 +61,7 @@ export class SessionWriterService {
     @Inject(LESSON_REPOSITORY) private readonly lessons: ILessonRepository,
     @Inject(CURRICULUM_PLAN_READER) private readonly plan: ICurriculumPlanReader,
     private readonly access: SessionAccessService,
+    @Inject(SCHEDULING_EVENT_PUBLISHER) private readonly publisher: ISchedulingEventPublisher,
   ) {}
 
   async find(sessionId: string): Promise<Lesson> {
@@ -74,7 +81,9 @@ export class SessionWriterService {
     const patch = await this.toPatch(session, changes);
     this.assertCoherent(session, patch);
 
-    return this.lessons.update(sessionId, patch);
+    const updated = await this.lessons.update(sessionId, patch);
+    await this.announce(session, updated);
+    return updated;
   }
 
   async create(input: NewSessionInput, user: AuthenticatedUser): Promise<Lesson> {
@@ -119,6 +128,16 @@ export class SessionWriterService {
       );
     }
     await this.lessons.delete(sessionId);
+    await this.announce(session, null);
+  }
+
+  /**
+   * Tells the group's learners when a write changed when or whether a lesson happens
+   * (VoxOrd plan 06, step 6c) — through the outbox, so it leaves only if it is sent.
+   */
+  private async announce(before: Lesson, after: Lesson | null): Promise<void> {
+    const change = lessonChangeFor(before, after, new Date().toISOString().slice(0, 10));
+    if (change) await this.publisher.publish(SCHEDULING_EVENT_TYPES.LESSON_STATUS_CHANGED, change);
   }
 
   async putScores(

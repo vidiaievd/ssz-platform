@@ -2,6 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ContainerEntity } from '../../../domain/entities/container.entity.js';
 import { ContainerLocalizationEntity } from '../../../domain/entities/container-localization.entity.js';
 import { ContainerLocalizationResponseDto } from './container-localization.response.dto.js';
+import { ContainerTagResponseDto } from './container-tag.response.dto.js';
+import type { ContainerTag } from '../../../application/ports/container-tag-reader.port.js';
 
 export class ContainerResponseDto {
   @ApiProperty({ example: 'a1b2c3d4-e5f6-...' })
@@ -62,7 +64,8 @@ export class ContainerResponseDto {
   @ApiProperty({
     example: ['Order food in a café'],
     type: [String],
-    description: 'Module-only: what a student should be able to do after it. Empty when unset.',
+    description:
+      'What a student should be able to do after it — on a module its own goals, on a course «What you will learn». Empty when unset.',
   })
   learningGoals!: string[];
 
@@ -84,9 +87,17 @@ export class ContainerResponseDto {
   @ApiProperty({ type: () => ContainerLocalizationResponseDto, isArray: true })
   localizations!: ContainerLocalizationResponseDto[];
 
+  @ApiProperty({
+    type: () => ContainerTagResponseDto,
+    isArray: true,
+    description: 'Tags placed on the container, by name. Empty when it has none.',
+  })
+  tags!: ContainerTagResponseDto[];
+
   static from(
     entity: ContainerEntity,
     localizations: ContainerLocalizationEntity[] = [],
+    tags: ContainerTag[] = [],
   ): ContainerResponseDto {
     const dto = new ContainerResponseDto();
     dto.id = entity.id;
@@ -110,6 +121,7 @@ export class ContainerResponseDto {
     dto.deletedAt = entity.deletedAt;
     dto.archivedAt = entity.archivedAt;
     dto.localizations = localizations.map((l) => ContainerLocalizationResponseDto.from(l));
+    dto.tags = tags.map((t) => ContainerTagResponseDto.from(t));
     return dto;
   }
 }

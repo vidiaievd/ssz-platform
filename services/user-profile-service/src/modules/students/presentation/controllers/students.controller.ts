@@ -23,10 +23,14 @@ import type { JwtPayload } from '../../../../infrastructure/auth/jwt-verifier.se
 import { AddTargetLanguageCommand } from '../../application/commands/add-target-language/add-target-language.command.js';
 import { CreateStudentProfileCommand } from '../../application/commands/create-student-profile/create-student-profile.command.js';
 import { RemoveTargetLanguageCommand } from '../../application/commands/remove-target-language/remove-target-language.command.js';
+import { UpdateStudentPreferencesCommand } from '../../application/commands/update-student-preferences/update-student-preferences.command.js';
 import { UpdateStudentProfileCommand } from '../../application/commands/update-student-profile/update-student-profile.command.js';
+import { GetStudentPreferencesQuery } from '../../application/queries/get-student-preferences/get-student-preferences.query.js';
 import { GetStudentProfileQuery } from '../../application/queries/get-student-profile/get-student-profile.query.js';
 import { AddTargetLanguageRequestDto } from '../dto/add-target-language.request.dto.js';
 import { CreateStudentProfileRequestDto } from '../dto/create-student-profile.request.dto.js';
+import { StudentPreferencesResponseDto } from '../dto/student-preferences.response.dto.js';
+import { UpdateStudentPreferencesRequestDto } from '../dto/update-student-preferences.request.dto.js';
 import { UpdateStudentProfileRequestDto } from '../dto/update-student-profile.request.dto.js';
 import { StudentProfileResponseDto } from '../dto/student-profile.response.dto.js';
 
@@ -91,6 +95,50 @@ export class StudentsController {
       new UpdateStudentProfileCommand(user.sub, dto.nativeLanguage),
     );
     return this.queryBus.execute(new GetStudentProfileQuery(user.sub));
+  }
+
+  @Get('preferences')
+  @Roles('student')
+  @ApiOperation({
+    summary: 'Get my account-level learning preferences',
+    description:
+      'Daily goal and translation language, shared by every device of the learner. ' +
+      'A learner who never chose anything gets nulls, not 404.',
+  })
+  @ApiResponse({ status: 200, type: StudentPreferencesResponseDto })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — requires student role' })
+  @ApiResponse({ status: 404, description: 'Base profile not found' })
+  async getMyPreferences(
+    @CurrentUser() user: JwtPayload,
+  ): Promise<StudentPreferencesResponseDto> {
+    return this.queryBus.execute(new GetStudentPreferencesQuery(user.sub));
+  }
+
+  @Patch('preferences')
+  @Roles('student')
+  @ApiOperation({
+    summary: 'Change my account-level learning preferences',
+    description:
+      'Fields left out stay as they are, null clears one. Last write wins. ' +
+      'Starts the student profile if the learner has none yet.',
+  })
+  @ApiResponse({ status: 200, type: StudentPreferencesResponseDto })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — requires student role' })
+  @ApiResponse({ status: 404, description: 'Base profile not found' })
+  async updateMyPreferences(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdateStudentPreferencesRequestDto,
+  ): Promise<StudentPreferencesResponseDto> {
+    await this.commandBus.execute(
+      new UpdateStudentPreferencesCommand(user.sub, {
+        dailyGoalMin: dto.dailyGoalMin,
+        translationLanguage: dto.translationLanguage,
+      }),
+    );
+    return this.queryBus.execute(new GetStudentPreferencesQuery(user.sub));
   }
 
   @Post('languages')

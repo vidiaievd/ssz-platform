@@ -32,6 +32,7 @@ describe('InternalController.checkVisibility', () => {
 
     await expect(controller.checkVisibility('EXERCISE', EXERCISE_ID, USER_ID)).resolves.toEqual({
       isVisible: true,
+      title: null,
     });
     // The same verdict every guarded route runs, and asked on behalf of somebody with no
     // platform-admin powers: a service must not be able to see more than the person it
@@ -49,6 +50,17 @@ describe('InternalController.checkVisibility', () => {
     await expect(controller.checkVisibility('EXERCISE', EXERCISE_ID, USER_ID)).resolves.toEqual({
       isVisible: false,
       reason: 'private',
+      title: null,
+    });
+  });
+
+  // A new assignment names the content in the learner's notification (VoxOrd plan 06, 6b).
+  it('hands back what the item is called', async () => {
+    const { controller } = makeController({ entity: { ...ENTITY, title: 'Familien' } });
+
+    await expect(controller.checkVisibility('EXERCISE', EXERCISE_ID, USER_ID)).resolves.toEqual({
+      isVisible: true,
+      title: 'Familien',
     });
   });
 

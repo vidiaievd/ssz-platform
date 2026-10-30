@@ -6,14 +6,16 @@ import { EXCHANGES } from '@ssz/contracts';
 import type { AppConfig } from '../../config/configuration.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { AttemptReviewedHandler } from '../../modules/notifications/handlers/attempt-reviewed.handler.js';
+import { AiReviewedHandler } from '../../modules/notifications/handlers/ai-reviewed.handler.js';
 import type { IMessageHandler } from './message-handler.interface.js';
 
 const QUEUE = 'notification-service.exercise-engine';
 
 /**
- * The exercise engine's exchange, bound for the one event a learner is owed: a person has
- * read their submission. Nothing else from that exchange is anyone's news — an attempt
- * being started or scored by a machine is progress, and progress has its own surfaces.
+ * The exercise engine's exchange, bound for the two events a learner is owed: a person has
+ * read their submission, or a model's verdict on it has become the one that counts. Nothing
+ * else from that exchange is anyone's news — an attempt being started or scored by a check
+ * is progress, and progress has its own surfaces.
  */
 @Injectable()
 export class ExerciseEngineConsumerService implements OnModuleInit, OnModuleDestroy {
@@ -27,8 +29,9 @@ export class ExerciseEngineConsumerService implements OnModuleInit, OnModuleDest
     private readonly config: ConfigService<AppConfig>,
     private readonly prisma: PrismaService,
     private readonly attemptReviewedHandler: AttemptReviewedHandler,
+    private readonly aiReviewedHandler: AiReviewedHandler,
   ) {
-    this.handlers = [attemptReviewedHandler];
+    this.handlers = [attemptReviewedHandler, aiReviewedHandler];
   }
 
   onModuleInit(): void {

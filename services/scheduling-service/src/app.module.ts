@@ -11,6 +11,7 @@ import { OrgConsumerModule } from './infrastructure/messaging/org-consumer.modul
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { ProjectionsModule } from './modules/projections/projections.module.js';
+import { UserErasureModule } from './modules/user-erasure/user-erasure.module.js';
 import { SlotsModule } from './modules/slots/slots.module.js';
 import { WorkloadModule } from './modules/workload/workload.module.js';
 import { ClashesModule } from './modules/clashes/clashes.module.js';
@@ -32,6 +33,7 @@ import { ReviewBlocksModule } from './modules/review-blocks/review-blocks.module
     OrgConsumerModule,
     HealthModule,
     ProjectionsModule,
+    UserErasureModule,
     SlotsModule,
     WorkloadModule,
     ClashesModule,

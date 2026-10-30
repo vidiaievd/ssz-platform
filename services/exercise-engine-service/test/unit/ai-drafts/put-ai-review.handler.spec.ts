@@ -228,7 +228,11 @@ describe('PutAiReviewHandler', () => {
       capability: 'review_direct',
       outcome: 'approved',
       templateCode: attempt.templateCode,
+      // What the learner's notification names and marks (VoxOrd plan 06, step 6a).
+      score: 67,
+      exercisePath: attempt.exercisePath,
     });
+    expect(events[1]!.payload).toHaveProperty('exercisePath');
     // Closed at once, not by a school's term — no journal row for it.
     expect(events[1]!.payload).not.toHaveProperty('acceptedAtTerm');
   });

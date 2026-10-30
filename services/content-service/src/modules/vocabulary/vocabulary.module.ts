@@ -148,6 +148,7 @@ export class VocabularyModule implements OnModuleInit {
         ownerSchoolId: list.ownerSchoolId,
         visibility: list.visibility,
         deletedAt: list.deletedAt,
+        title: list.title,
       };
     });
   }

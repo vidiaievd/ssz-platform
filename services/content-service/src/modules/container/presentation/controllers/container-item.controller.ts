@@ -41,6 +41,7 @@ import { MoveContainerItemCommand } from '../../application/commands/move-contai
 import type { MoveContainerItemResult } from '../../application/commands/move-container-item/move-container-item.handler.js';
 import { GetVersionItemsQuery } from '../../application/queries/get-version-items/get-version-items.query.js';
 import type { VersionItemsResult } from '../../application/queries/get-version-items/get-version-items.handler.js';
+import { ContainerItemType } from '../../domain/value-objects/item-type.vo.js';
 import type { Result } from '../../../../shared/kernel/result.js';
 import type { ContainerDomainError } from '../../domain/exceptions/container-domain.exceptions.js';
 import {
@@ -77,9 +78,15 @@ export class ContainerItemController {
     >(new GetVersionItemsQuery(versionId));
 
     if (result.isFail) throwHttpException(result.error);
-    const { items, titles } = result.value;
+    const { items, titles, learningGoals } = result.value;
     return items.map((item) =>
-      ContainerItemResponseDto.from(item, titles.get(item.itemId) ?? null),
+      ContainerItemResponseDto.from(
+        item,
+        titles.get(item.itemId) ?? null,
+        item.itemType === ContainerItemType.CONTAINER
+          ? (learningGoals.get(item.itemId) ?? [])
+          : undefined,
+      ),
     );
   }
 

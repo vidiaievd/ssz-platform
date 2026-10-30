@@ -46,6 +46,14 @@ public sealed class ExceptionHandlingMiddleware(
                 StatusCodes.Status409Conflict,
                 CreateProblem(ex.Message, ex.Code, StatusCodes.Status409Conflict)),
 
+            SelfDeletionNotAllowedException ex => (
+                StatusCodes.Status409Conflict,
+                CreateProblem(ex.Message, ex.Code, StatusCodes.Status409Conflict)),
+
+            PasswordMismatchException ex => (
+                StatusCodes.Status403Forbidden,
+                CreateProblem(ex.Message, ex.Code, StatusCodes.Status403Forbidden)),
+
             AccountLockedException ex => (
                 StatusCodes.Status423Locked,
                 CreateProblem(ex.Message, ex.Code, StatusCodes.Status423Locked,

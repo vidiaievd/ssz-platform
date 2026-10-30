@@ -25,6 +25,12 @@ public sealed class User : AggregateRoot
     public bool TotpVerified { get; private set; }
     public DateTimeOffset? LastLoginAt { get; private set; }
 
+    /// <summary>
+    /// When the user asked to delete the account; null when no deletion is pending. The account
+    /// is erased once the grace period has passed, unless the user signs in before that.
+    /// </summary>
+    public DateTimeOffset? DeletionRequestedAt { get; private set; }
+
     public IReadOnlyList<UserRole> Roles => _roles.AsReadOnly();
     public IReadOnlyList<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
     public IReadOnlyList<BackupCode> BackupCodes => _backupCodes.AsReadOnly();
@@ -42,8 +48,11 @@ public sealed class User : AggregateRoot
         return user;
     }
 
-    public void RecordSuccessfulLogin()
+    /// <returns>True when this sign-in cancelled a pending account deletion.</returns>
+    public bool RecordSuccessfulLogin()
     {
+        var deletionCancelled = DeletionRequestedAt is not null;
+        DeletionRequestedAt = null;
         FailedLoginAttempts = 0;
         LastFailedLoginAt = null;
         IsLocked = false;
@@ -51,6 +60,7 @@ public sealed class User : AggregateRoot
         LastLoginAt = DateTimeOffset.UtcNow;
         SetUpdated();
         AddDomainEvent(new UserLoggedInEvent(Id, Email, TwoFactorEnabled));
+        return deletionCancelled;
     }
 
     public void RecordFailedLogin(int maxAttempts, TimeSpan lockoutDuration)
@@ -178,4 +188,23 @@ public sealed class User : AggregateRoot
         RevokeAllRefreshTokens();
         SetUpdated();
     }
+
+    /// <summary>
+    /// Schedules the account for deletion and signs it out everywhere. Only an account whose
+    /// sole role is student may delete itself: anyone else owns workspaces, groups or content
+    /// and goes through support. Asking again keeps the first request's date.
+    /// </summary>
+    public void RequestDeletion(IReadOnlyCollection<string> roleNames)
+    {
+        if (roleNames.Count != 1 || roleNames.First() != RoleNames.Student)
+            throw new SelfDeletionNotAllowedException();
+
+        if (DeletionRequestedAt is not null) return;
+
+        DeletionRequestedAt = DateTimeOffset.UtcNow;
+        RevokeAllRefreshTokens();
+    }
+
+    /// <summary>Raised right before the account is erased, for every other service to follow.</summary>
+    public void MarkPurged() => AddDomainEvent(new UserDeletedEvent(Id, Email));
 }

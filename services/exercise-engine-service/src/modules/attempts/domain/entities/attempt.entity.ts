@@ -304,6 +304,11 @@ export interface ExercisePathSnapshot {
   course: string;
   module: string | null;
   exercise: string | null;
+  /**
+   * The module the exercise sat in — what a learner's «rewrite» opens (mobile redesign 03,
+   * step 4). Absent on attempts started before it was recorded.
+   */
+  moduleId?: string | null;
 }
 
 /**

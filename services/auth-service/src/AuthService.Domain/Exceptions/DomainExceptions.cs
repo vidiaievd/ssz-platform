@@ -61,3 +61,19 @@ public sealed class EmailNotVerifiedException : DomainException
     public EmailNotVerifiedException()
         : base("Email address is not verified. Please check your inbox.", "EMAIL_NOT_VERIFIED") { }
 }
+
+public sealed class SelfDeletionNotAllowedException : DomainException
+{
+    public SelfDeletionNotAllowedException()
+        : base("This account cannot be deleted from the app. Please contact support.", "CONTACT_SUPPORT") { }
+}
+
+/// <summary>
+/// A wrong password on an already signed-in request — not a 401, which clients read as an
+/// expired session and sign out.
+/// </summary>
+public sealed class PasswordMismatchException : DomainException
+{
+    public PasswordMismatchException()
+        : base("The password is incorrect.", "INVALID_PASSWORD") { }
+}

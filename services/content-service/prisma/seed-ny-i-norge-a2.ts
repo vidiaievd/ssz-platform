@@ -38,6 +38,11 @@
  *
  * Run from services/content-service:
  *   npx tsx prisma/seed-ny-i-norge-a2.ts
+ *   npx tsx prisma/seed-ny-i-norge-a2.ts --goals-only   # learning goals + tags only
+ *
+ * --goals-only touches nothing but containers.learning_goals and the course's tags
+ * (data/ny-i-norge-a2/goals-tags.json), so it is safe on a stand where the course
+ * was edited in the authoring UI — a full run rebuilds every version's items.
  *
  * Requires the exercise templates from prisma/seed.ts to be seeded first.
  */
@@ -107,6 +112,17 @@ const lessonBody = (key: string): string =>
   readFileSync(join(DATA_DIR, 'lessons', `${key}.md`), 'utf-8');
 const grammarBody = (key: string): string =>
   readFileSync(join(DATA_DIR, 'grammar', `${key}.md`), 'utf-8');
+
+// Learning goals (course «Чему научитесь» + per-unit programme subtitles) and the
+// course's catalogue tags. Tags are global: the public tutor clone has no school.
+interface GoalsAndTags {
+  course: string[];
+  units: Record<string, string[]>;
+  tags: { category: 'SKILL' | 'TOPIC' | 'SITUATION'; slug: string; name: string }[];
+}
+const goalsAndTags: GoalsAndTags = JSON.parse(
+  readFileSync(join(DATA_DIR, 'goals-tags.json'), 'utf-8'),
+);
 
 // ─── Lesson & grammar metadata ──────────────────────────────────────────────
 const lessonMeta: Record<string, { title: string; description: string }> = {
@@ -329,6 +345,11 @@ const modules: ModuleDef[] = levels.flatMap((l) => l.subLessons);
 
 // ─── Seeding logic ──────────────────────────────────────────────────────────
 async function main(): Promise<void> {
+  if (process.argv.includes('--goals-only')) {
+    console.log('Seeding «Ny i Norge — A2» learning goals and tags only…');
+    await seedGoalsAndTags();
+    return;
+  }
   console.log('Seeding «Ny i Norge — A2» (leksjon 17–19, module structure)…');
 
   const templateCodes = [
@@ -492,7 +513,62 @@ async function main(): Promise<void> {
         : ''),
   );
 
+  await seedGoalsAndTags();
+
   console.log('Done.');
+}
+
+// Writes learning goals on the course and its unit modules, and assigns the
+// course's global tags. Goals and tag assignments are not versioned, so nothing
+// needs republishing. A global tag that already exists under the slug is reused.
+async function seedGoalsAndTags(): Promise<void> {
+  const courseId = id('container', 'ny-i-norge-a2');
+  await prisma.container.update({
+    where: { id: courseId },
+    data: { learningGoals: goalsAndTags.course },
+  });
+  for (const mod of modules) {
+    await prisma.container.update({
+      where: { id: id('module-container', mod.key) },
+      data: { learningGoals: goalsAndTags.units[mod.key] ?? [] },
+    });
+  }
+
+  const tagIds: string[] = [];
+  for (const def of goalsAndTags.tags) {
+    const existing = await prisma.tag.findFirst({
+      where: { slug: def.slug, scope: 'GLOBAL', ownerSchoolId: null, deletedAt: null },
+    });
+    const tag = existing
+      ? await prisma.tag.update({
+          where: { id: existing.id },
+          data: { name: def.name, category: def.category },
+        })
+      : await prisma.tag.create({
+          data: {
+            id: id('tag', def.slug),
+            slug: def.slug,
+            name: def.name,
+            category: def.category,
+            scope: 'GLOBAL',
+            createdByUserId: TEACHER_ID,
+          },
+        });
+    tagIds.push(tag.id);
+  }
+  await prisma.tagAssignment.deleteMany({
+    where: { entityType: 'CONTAINER', entityId: courseId, tagId: { notIn: tagIds } },
+  });
+  for (const tagId of tagIds) {
+    await prisma.tagAssignment.upsert({
+      where: { tagId_entityType_entityId: { tagId, entityType: 'CONTAINER', entityId: courseId } },
+      update: {},
+      create: { tagId, entityType: 'CONTAINER', entityId: courseId, assignedByUserId: TEACHER_ID },
+    });
+  }
+  console.log(
+    `  \u2713 Learning goals (course + ${modules.length} units), ${tagIds.length} course tags`,
+  );
 }
 
 // Every container keeps exactly one PUBLISHED (v1) and one DRAFT (v2) version.

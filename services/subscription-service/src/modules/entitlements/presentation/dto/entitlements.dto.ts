@@ -67,6 +67,14 @@ class EntitlementsSubscriptionDto {
   periodEnd!: Date | null;
 }
 
+class EntitlementsGrantDto {
+  @ApiProperty({ example: 'ai.review_direct' })
+  featureKey!: string;
+
+  @ApiProperty({ description: 'When the grant stops counting' })
+  endsAt!: Date;
+}
+
 export class EntitlementsResponseDto {
   @ApiProperty({ type: EntitlementsAccountDto })
   account!: EntitlementsAccountDto;
@@ -87,6 +95,12 @@ export class EntitlementsResponseDto {
     description: 'Plan features with active grants applied; a key absent here is not available',
   })
   features!: Record<string, FeatureEntitlementDto>;
+
+  @ApiProperty({
+    type: [EntitlementsGrantDto],
+    description: 'Grants counting now, soonest to end first; their keys are already folded into `features`',
+  })
+  grants!: EntitlementsGrantDto[];
 
   @ApiProperty({ description: 'Start of the period monthly credits are counted in' })
   periodStart!: Date;

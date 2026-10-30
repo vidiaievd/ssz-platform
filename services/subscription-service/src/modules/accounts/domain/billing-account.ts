@@ -112,6 +112,17 @@ export class BillingAccount {
   }
 
   /**
+   * The payer is gone (a learner's account deleted, VoxOrd plan 07 step 3c): closes whatever is
+   * open, current or not, without falling back to anything. The rows stay — they are the record
+   * of what was paid for. Nothing open = nothing to do, not an error.
+   */
+  closeAll(by: string, now: Date): Subscription[] {
+    const before = new Set(this.touched.keys());
+    this.closeOpen(by, now);
+    return [...this.touched.values()].filter((s) => !before.has(s.id));
+  }
+
+  /**
    * Marks open subscriptions whose period has run out `expired` as of their end. They
    * stopped counting the moment it passed; this only makes the rows say so.
    */
