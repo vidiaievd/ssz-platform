@@ -26,9 +26,13 @@ export class StudentProfilePrismaRepository implements IStudentProfileRepository
           id: studentProfile.id,
           profileId: studentProfile.profileId,
           nativeLanguage: studentProfile.nativeLanguage ?? null,
+          dailyGoalMin: studentProfile.dailyGoalMin ?? null,
+          translationLanguage: studentProfile.translationLanguage ?? null,
         },
         update: {
           nativeLanguage: studentProfile.nativeLanguage ?? null,
+          dailyGoalMin: studentProfile.dailyGoalMin ?? null,
+          translationLanguage: studentProfile.translationLanguage ?? null,
         },
       });
 
