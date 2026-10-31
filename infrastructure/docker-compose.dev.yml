@@ -306,6 +306,7 @@ services:
       ORGANIZATION_SERVICE_BASE_URL: http://organization-service:3002
       MEDIA_SERVICE_BASE_URL: http://media-service:3004
       SUBSCRIPTION_SERVICE_BASE_URL: http://subscription-service:3011
+      AI_SERVICE_BASE_URL: http://ai-service:3010
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
       EXERCISE_DEFINITION_CACHE_TTL_SECONDS: 300
       EXERCISE_PLACEMENT_CACHE_TTL_SECONDS: 300
