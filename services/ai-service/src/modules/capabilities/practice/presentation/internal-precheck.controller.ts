@@ -22,8 +22,9 @@ export class InternalPrecheckController {
   @ApiOperation({
     summary: 'Check work in progress before hand-in',
     description:
-      'Asks the `practice` agent about the subject, with the school as payer (`ai.practice`, surface ' +
-      '`precheck`), and answers with hints in the `AiFeedback` shape. The attempt is not touched and no ' +
+      'Asks the `practice` agent about the subject — `practice_voice` for a `read_aloud`, one call per ' +
+      'passage — with the school as payer (`ai.practice`, surface `precheck`), and answers in the ' +
+      '`AiFeedback` shape: hints for a text, the words heard for a reading. The attempt is not touched and no ' +
       'event is published; only the ledger row is written. Every outcome is a 200: `ok`, `refused` ' +
       '(nothing to ask, not available to the school, credits spent) or `failed` (no usable answer).',
   })

@@ -54,6 +54,8 @@ export interface AiFeedbackPhoneme {
 /** One word of a spoken answer, in the order heard. */
 export interface AiFeedbackWord {
   text: string;
+  /** Which passage of the exercise the word was read in, 0-based. */
+  passageIndex?: number;
   /** 0–100; absent when the provider gives no pronunciation scores. */
   accuracy?: number;
   startMs?: number;
@@ -62,7 +64,10 @@ export interface AiFeedbackWord {
 }
 
 export interface AiFeedback {
-  /** In the school's explanation language. */
+  /**
+   * In the school's explanation language. Empty for a voice answer until plan 86, where a
+   * model explains what the speech model measured.
+   */
   summary: string;
   items: AiFeedbackItem[];
   /** Voice answers only. */

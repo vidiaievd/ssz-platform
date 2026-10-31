@@ -11,11 +11,15 @@ import type {
 } from '../review-draft/application/ports/review-attempts.client.js';
 import type { ISchoolLanguageReader } from '../review-draft/application/ports/school-language.reader.js';
 import { SchoolPayerResolver } from '../review-draft/application/school-payer.resolver.js';
+import type { RecordingAudio } from '../voice-review/application/ports/recording-audio.source.js';
 import type { ReadAloudSubject } from '../voice-review/domain/read-aloud-subject.js';
+import type { SpeechGatewayRequest } from '../../gateway/application/model-router.js';
+import type { SpeechResult } from '../../providers/domain/speech-result.js';
 import { practiceUnaskable, toPracticeSubject } from './application/practice-subject.js';
 import { PrecheckCommand, type PracticeSubject } from './application/precheck/precheck.command.js';
 import { PRECHECK_SURFACE, PrecheckHandler } from './application/precheck/precheck.handler.js';
 import { practiceSchema, toAiFeedback, verifyPractice } from './domain/practice-feedback.js';
+import { toVoiceFeedback } from './domain/voice-feedback.js';
 import { practiceRequest } from './prompts/prompts.js';
 import { PrecheckRequestDto } from './presentation/precheck.dto.js';
 
@@ -91,13 +95,50 @@ const shortAnswer = (): ShortAnswerSubject => ({
   ],
 });
 
-const reading = (): ReadAloudSubject => ({
+const reading = (over: Partial<ReadAloudSubject> = {}): ReadAloudSubject => ({
   template: 'read_aloud',
   targetLanguage: 'nb',
   passPercent: 80,
-  ai: { on: true, checks: { transcript: true, pronunciation: false, fluency: false } },
-  prompts: [{ itemId: 'p1', label: '1', text: 'Jeg heter Kari.', focus: [], assetId: 'asset-1', seconds: 3 }],
+  ai: { on: true, checks: { transcript: true, pronunciation: true, fluency: false } },
+  prompts: [
+    { itemId: 'p1', label: '1', text: 'Jeg heter Kari.', focus: [], assetId: 'asset-1', seconds: 3 },
+    { itemId: 'p2', label: '2', text: 'Hun bor i Bergen.', focus: [], assetId: 'asset-2', seconds: 3 },
+  ],
   carriedItemIds: [],
+  ...over,
+});
+
+const heardAs = (texts: string[], scored?: Array<{ text: string; accuracy: number; error: 'none' | 'mispronunciation' | 'omission' | 'insertion' }>) => ({
+  words: texts.map((text, i) => ({ text, startMs: i * 500, endMs: i * 500 + 400, confidence: 0.9 })),
+  pronunciation: scored ? { accuracy: 80, fluency: 0, completeness: 90, prosody: null, words: scored } : null,
+});
+
+describe('voice feedback (domain)', () => {
+  it('gives every word heard, passage by passage, with its timings and the accuracy beside it', () => {
+    const feedback = toVoiceFeedback([
+      {
+        passageIndex: 0,
+        heard: heardAs(['jeg', 'kari'], [
+          { text: 'jeg', accuracy: 95, error: 'none' },
+          { text: 'heter', accuracy: 0, error: 'omission' },
+          { text: 'kari', accuracy: 40, error: 'mispronunciation' },
+        ]),
+      },
+      { passageIndex: 1, heard: heardAs(['hun']) },
+    ]);
+    expect(feedback.summary).toBe('');
+    expect(feedback.items).toEqual([]);
+    expect(feedback.words).toEqual([
+      { text: 'jeg', passageIndex: 0, accuracy: 95, startMs: 0, endMs: 400, phonemes: [] },
+      { text: 'kari', passageIndex: 0, accuracy: 40, startMs: 500, endMs: 900, phonemes: [] },
+      { text: 'hun', passageIndex: 1, startMs: 0, endMs: 400, phonemes: [] },
+    ]);
+  });
+
+  it('gives no accuracy when the scores cannot be paired with the words heard', () => {
+    const feedback = toVoiceFeedback([{ passageIndex: 0, heard: heardAs(['jeg', 'heter', 'kari'], [{ text: 'jeg', accuracy: 95, error: 'none' }]) }]);
+    expect(feedback.words!.every((w) => w.accuracy === undefined)).toBe(true);
+  });
 });
 
 describe('practice feedback (domain)', () => {
@@ -198,20 +239,42 @@ describe('PrecheckHandler', () => {
 
   const failedWith = (error: unknown): GatewayCall => ({ routed: Result.fail(error), recorded, latencyMs: 5 }) as unknown as GatewayCall;
 
-  function setup(call: GatewayCall, language: () => Promise<string | null> = async () => 'ru') {
+  const WAV = new Uint8Array([1, 2, 3]);
+
+  function setup(
+    call: GatewayCall,
+    language: () => Promise<string | null> = async () => 'ru',
+    voice: { heard?: (n: number) => unknown; audio?: (assetId: string, n: number) => RecordingAudio | Error } = {},
+  ) {
     const calls: Array<{ capability: string; context: CallContext; request: GatewayRequest }> = [];
+    const speech: Array<{ capability: string; context: CallContext; request: SpeechGatewayRequest }> = [];
+    const fetched: string[] = [];
     const gateway = {
       call: async (capability: string, context: CallContext, input: GatewayInput) => {
         const request = typeof input === 'function' ? input('practice@1') : input;
         calls.push({ capability, context, request });
         return call;
       },
+      callSpeech: async (capability: string, context: CallContext, request: SpeechGatewayRequest) => {
+        speech.push({ capability, context, request });
+        const n = speech.length;
+        const routed = voice.heard?.(n) ?? Result.ok({ result: heardAs([`w${n}`]) as SpeechResult });
+        return { routed, recorded: { callId: `speech-${n}`, cost: null, credits: '0.01' }, latencyMs: 5 };
+      },
     } as unknown as AiGateway;
     const schools: ISchoolLanguageReader = { explanationLanguage: language } as ISchoolLanguageReader;
-    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), schools);
+    const recordings = {
+      fetch: async (assetId: string): Promise<RecordingAudio> => {
+        fetched.push(assetId);
+        const audio = voice.audio?.(assetId, fetched.length) ?? { kind: 'ready', wav: WAV };
+        if (audio instanceof Error) throw audio;
+        return audio;
+      },
+    };
+    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), schools, recordings, [0, 0]);
     const run = (subject: PracticeSubject) =>
       handler.execute(new PrecheckCommand({ schoolId: SCHOOL, userId: LEARNER, exerciseId: EXERCISE, attemptId: ATTEMPT, subject }));
-    return { run, calls };
+    return { run, calls, speech, fetched };
   }
 
   it('asks practice as the school, on the precheck surface, and answers with the feedback', async () => {
@@ -247,9 +310,62 @@ describe('PrecheckHandler', () => {
   it('refuses without a call: nothing to ask, or a template it does not read', async () => {
     const { run, calls } = setup(answered({ items: [], summary: 'Ok.' }));
     expect(await run(translate(''))).toEqual({ status: 'refused', reason: 'unaskable', detail: 'empty_answer' });
-    expect(await run(reading())).toEqual({ status: 'refused', reason: 'template_not_supported', detail: 'read_aloud' });
     expect(await run({ template: 'match_pairs' } as unknown as PracticeSubject)).toMatchObject({ reason: 'template_not_supported' });
     expect(calls).toHaveLength(0);
+  });
+
+  describe('a reading aloud (step 2c)', () => {
+    it('hears every passage with practice_voice as the school, and gives the words back', async () => {
+      const { run, calls, speech } = setup(answered({}));
+      const outcome = await run(reading());
+      expect(outcome).toMatchObject({ status: 'ok', aiCallIds: ['speech-1', 'speech-2'] });
+      expect(outcome.status === 'ok' && outcome.feedback.words!.map((w) => [w.text, w.passageIndex])).toEqual([
+        ['w1', 0],
+        ['w2', 1],
+      ]);
+      expect(calls).toHaveLength(0);
+      expect(speech.map((s) => s.capability)).toEqual(['practice_voice', 'practice_voice']);
+      expect(speech[0]!.context).toEqual({
+        payer: { type: 'workspace', id: SCHOOL },
+        actor: { userId: LEARNER, role: 'student' },
+        surface: PRECHECK_SURFACE,
+      });
+      expect(speech[1]!.request).toEqual({ audio: { format: 'wav', data: WAV }, referenceText: 'Hun bor i Bergen.', language: 'nb', pronunciation: true });
+    });
+
+    it('waits a little for a take media is still converting', async () => {
+      const { run, fetched } = setup(answered({}), undefined, { audio: (_id, n) => (n === 1 ? { kind: 'pending' } : { kind: 'ready', wav: WAV }) });
+      expect((await run(reading())).status).toBe('ok');
+      expect(fetched).toEqual(['asset-1', 'asset-2', 'asset-1']);
+    });
+
+    it.each([
+      ['missing', () => ({ kind: 'missing' }) as RecordingAudio, 'recording_missing'],
+      ['never ready', () => ({ kind: 'pending' }) as RecordingAudio, 'recording_not_ready'],
+      ['unreadable', () => new Error('media down'), 'recording_unreadable'],
+    ])('pays for nothing when a take is %s', async (_label, audio, errorCode) => {
+      const { run, speech } = setup(answered({}), undefined, { audio });
+      expect(await run(reading())).toEqual({ status: 'failed', errorCode, aiCallIds: [] });
+      expect(speech).toHaveLength(0);
+    });
+
+    it('stops at the first passage not heard, with the calls made so far', async () => {
+      const { run, speech } = setup(answered({}), undefined, {
+        heard: (n) => (n === 1 ? Result.fail({ kind: 'refused', code: 'quota_exhausted', attempts: [] }) : undefined),
+      });
+      expect(await run(reading())).toEqual({ status: 'refused', reason: 'pool_empty', detail: null });
+      expect(speech).toHaveLength(1);
+    });
+
+    it('has nothing to hear when the machine may not check the reading', async () => {
+      const { run, speech } = setup(answered({}));
+      expect(await run(reading({ ai: { on: false, checks: { transcript: false, pronunciation: false, fluency: false } } }))).toEqual({
+        status: 'refused',
+        reason: 'unaskable',
+        detail: 'machine_cannot_check',
+      });
+      expect(speech).toHaveLength(0);
+    });
   });
 
   it.each([
