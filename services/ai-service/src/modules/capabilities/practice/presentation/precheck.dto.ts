@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsObject, IsUUID } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsDefined, IsInt, IsNumber, IsObject, IsUUID, Max, Min, ValidateIf, ValidateNested } from 'class-validator';
 import type { PracticeSubject } from '../application/precheck/precheck.command.js';
 
 const SUBJECT_TEMPLATES = ['translate', 'error_correction', 'writing_task', 'short_answer', 'read_aloud'] as const;
@@ -11,6 +12,28 @@ const SUBJECT_TEMPLATES = ['translate', 'error_correction', 'writing_task', 'sho
 export class PracticeSubjectDto {
   @ApiProperty({ enum: SUBJECT_TEMPLATES, example: 'writing_task' })
   template!: (typeof SUBJECT_TEMPLATES)[number];
+}
+
+/** Each is required and may be null: the engine says "no limit" out loud. */
+export class PrecheckLimitsDto {
+  @ApiProperty({ type: Number, nullable: true, example: 3, description: 'Checks per (learner, exercise), ever; null = no limit' })
+  @ValidateIf((o: PrecheckLimitsDto) => o.perExercise !== null)
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  perExercise!: number | null;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    example: null,
+    description: 'Credits per learner per calendar month (UTC) at this school; null = no limit',
+  })
+  @ValidateIf((o: PrecheckLimitsDto) => o.perLearnerMonthlyCredits !== null)
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(0)
+  @Max(1_000_000)
+  perLearnerMonthlyCredits!: number | null;
 }
 
 export class PrecheckRequestDto {
@@ -37,6 +60,21 @@ export class PrecheckRequestDto {
   })
   @IsObject()
   subject!: PracticeSubject;
+
+  @ApiProperty({ type: PrecheckLimitsDto, description: "The school's limits, as the engine read them; the pool is the tariff's" })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => PrecheckLimitsDto)
+  limits!: PrecheckLimitsDto;
+}
+
+export class PrecheckRemainingDto {
+  @ApiProperty({ type: Number, nullable: true, example: 2, description: 'Checks of this exercise left; null = no limit' })
+  exercise!: number | null;
+  @ApiProperty({ type: String, nullable: true, example: '4.250000', description: 'Credits left this month; null = no limit' })
+  learnerCredits!: string | null;
+  @ApiProperty({ type: Number, nullable: true, example: 17, description: '≈ checks those credits buy at the learner’s average' })
+  learnerChecksApprox!: number | null;
 }
 
 export class AiFeedbackTargetDto {
@@ -68,11 +106,17 @@ export class PrecheckResponseDto {
   @ApiProperty({ enum: ['ok', 'refused', 'failed'] }) status!: string;
   @ApiPropertyOptional({ type: AiFeedbackDto, description: 'When ok' }) feedback?: AiFeedbackDto;
   @ApiPropertyOptional({
-    enum: ['unaskable', 'not_available', 'pool_empty', 'template_not_supported'],
+    enum: ['unaskable', 'exercise_limit', 'learner_limit', 'pool_empty', 'not_available', 'template_not_supported'],
     description: 'When refused',
   })
   reason?: string;
   @ApiPropertyOptional({ type: String, nullable: true, example: 'empty_answer', description: 'When refused' }) detail?: string | null;
   @ApiPropertyOptional({ example: 'timeout', description: 'When failed' }) errorCode?: string;
   @ApiPropertyOptional({ type: [String], description: 'Ledger rows of the calls made' }) aiCallIds?: string[];
+  @ApiProperty({
+    type: PrecheckRemainingDto,
+    nullable: true,
+    description: 'What the limits leave after this request; null when they were not read',
+  })
+  remaining!: PrecheckRemainingDto | null;
 }

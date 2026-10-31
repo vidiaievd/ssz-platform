@@ -60,6 +60,9 @@ export class PrismaAiCallLedger implements IAiCallLedger {
           errorCode: call.errorCode,
           fallbackUsed: call.fallbackUsed,
           attempts: call.attempts as object[],
+          // A row spooled before plan 84 has no subject.
+          exerciseId: call.context.subject?.exerciseId ?? null,
+          checkId: call.context.subject?.checkId ?? null,
           createdAt: call.createdAt,
         },
       }),

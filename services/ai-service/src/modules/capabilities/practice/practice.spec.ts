@@ -18,6 +18,8 @@ import type { SpeechResult } from '../../providers/domain/speech-result.js';
 import { practiceUnaskable, toPracticeSubject } from './application/practice-subject.js';
 import { PrecheckCommand, type PracticeSubject } from './application/precheck/precheck.command.js';
 import { PRECHECK_SURFACE, PrecheckHandler } from './application/precheck/precheck.handler.js';
+import { calendarMonthOf, limitReached, remainingAfter, type PrecheckLimits } from './application/precheck/precheck-limits.js';
+import type { PracticeUsage } from './application/ports/practice-usage.reader.js';
 import { practiceSchema, toAiFeedback, verifyPractice } from './domain/practice-feedback.js';
 import { toVoiceFeedback } from './domain/voice-feedback.js';
 import { practiceRequest } from './prompts/prompts.js';
@@ -240,12 +242,22 @@ describe('PrecheckHandler', () => {
   const failedWith = (error: unknown): GatewayCall => ({ routed: Result.fail(error), recorded, latencyMs: 5 }) as unknown as GatewayCall;
 
   const WAV = new Uint8Array([1, 2, 3]);
+  const NO_LIMITS: PrecheckLimits = { perExercise: null, perLearnerMonthlyCredits: null };
 
   function setup(
     call: GatewayCall,
     language: () => Promise<string | null> = async () => 'ru',
     voice: { heard?: (n: number) => unknown; audio?: (assetId: string, n: number) => RecordingAudio | Error } = {},
+    ledger: { usage?: PracticeUsage | Error; limits?: PrecheckLimits } = {},
   ) {
+    const usageAsked: Array<{ from: Date; to: Date; exerciseId: string }> = [];
+    const usageReader = {
+      usage: async (q: { from: Date; to: Date; exerciseId: string }) => {
+        usageAsked.push(q);
+        if (ledger.usage instanceof Error) throw ledger.usage;
+        return ledger.usage ?? { exerciseChecks: 0, learnerMicro: 0n, learnerChecks: 0 };
+      },
+    };
     const calls: Array<{ capability: string; context: CallContext; request: GatewayRequest }> = [];
     const speech: Array<{ capability: string; context: CallContext; request: SpeechGatewayRequest }> = [];
     const fetched: string[] = [];
@@ -271,10 +283,19 @@ describe('PrecheckHandler', () => {
         return audio;
       },
     };
-    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), schools, recordings, [0, 0]);
+    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), schools, recordings, usageReader, [0, 0]);
     const run = (subject: PracticeSubject) =>
-      handler.execute(new PrecheckCommand({ schoolId: SCHOOL, userId: LEARNER, exerciseId: EXERCISE, attemptId: ATTEMPT, subject }));
-    return { run, calls, speech, fetched };
+      handler.execute(
+        new PrecheckCommand({
+          schoolId: SCHOOL,
+          userId: LEARNER,
+          exerciseId: EXERCISE,
+          attemptId: ATTEMPT,
+          subject,
+          limits: ledger.limits ?? NO_LIMITS,
+        }),
+      );
+    return { run, calls, speech, fetched, usageAsked };
   }
 
   it('asks practice as the school, on the precheck surface, and answers with the feedback', async () => {
@@ -289,6 +310,7 @@ describe('PrecheckHandler', () => {
         items: [{ kind: 'grammar', target: { passageIndex: 0, span: [4, 7] }, original: 'bor', explanation: 'Время?', atomRef: null, severity: 'major' }],
       },
       aiCallIds: ['call-1'],
+      remaining: null,
     });
     expect(calls).toHaveLength(1);
     expect(calls[0]!.capability).toBe('practice');
@@ -296,6 +318,7 @@ describe('PrecheckHandler', () => {
       payer: { type: 'workspace', id: SCHOOL },
       actor: { userId: LEARNER, role: 'student' },
       surface: PRECHECK_SURFACE,
+      subject: { exerciseId: EXERCISE, checkId: expect.any(String) },
     });
   });
 
@@ -309,7 +332,7 @@ describe('PrecheckHandler', () => {
 
   it('refuses without a call: nothing to ask, or a template it does not read', async () => {
     const { run, calls } = setup(answered({ items: [], summary: 'Ok.' }));
-    expect(await run(translate(''))).toEqual({ status: 'refused', reason: 'unaskable', detail: 'empty_answer' });
+    expect(await run(translate(''))).toEqual({ status: 'refused', reason: 'unaskable', detail: 'empty_answer', remaining: null });
     expect(await run({ template: 'match_pairs' } as unknown as PracticeSubject)).toMatchObject({ reason: 'template_not_supported' });
     expect(calls).toHaveLength(0);
   });
@@ -329,7 +352,10 @@ describe('PrecheckHandler', () => {
         payer: { type: 'workspace', id: SCHOOL },
         actor: { userId: LEARNER, role: 'student' },
         surface: PRECHECK_SURFACE,
+        subject: { exerciseId: EXERCISE, checkId: expect.any(String) },
       });
+      // One check, one id: both passages' calls carry it.
+      expect(speech[1]!.context.subject).toEqual(speech[0]!.context.subject);
       expect(speech[1]!.request).toEqual({ audio: { format: 'wav', data: WAV }, referenceText: 'Hun bor i Bergen.', language: 'nb', pronunciation: true });
     });
 
@@ -345,7 +371,7 @@ describe('PrecheckHandler', () => {
       ['unreadable', () => new Error('media down'), 'recording_unreadable'],
     ])('pays for nothing when a take is %s', async (_label, audio, errorCode) => {
       const { run, speech } = setup(answered({}), undefined, { audio });
-      expect(await run(reading())).toEqual({ status: 'failed', errorCode, aiCallIds: [] });
+      expect(await run(reading())).toEqual({ status: 'failed', errorCode, aiCallIds: [], remaining: null });
       expect(speech).toHaveLength(0);
     });
 
@@ -353,7 +379,7 @@ describe('PrecheckHandler', () => {
       const { run, speech } = setup(answered({}), undefined, {
         heard: (n) => (n === 1 ? Result.fail({ kind: 'refused', code: 'quota_exhausted', attempts: [] }) : undefined),
       });
-      expect(await run(reading())).toEqual({ status: 'refused', reason: 'pool_empty', detail: null });
+      expect(await run(reading())).toEqual({ status: 'refused', reason: 'pool_empty', detail: null, remaining: null });
       expect(speech).toHaveLength(1);
     });
 
@@ -363,20 +389,136 @@ describe('PrecheckHandler', () => {
         status: 'refused',
         reason: 'unaskable',
         detail: 'machine_cannot_check',
+        remaining: null,
       });
       expect(speech).toHaveLength(0);
     });
   });
 
   it.each([
-    ['the pool is spent', { kind: 'refused', code: 'quota_exhausted' }, { status: 'refused', reason: 'pool_empty', detail: null }],
-    ['the tariff lacks the key', { kind: 'refused', code: 'not_entitled' }, { status: 'refused', reason: 'not_available', detail: 'not_entitled' }],
-    ['the agent is off', { kind: 'disabled', binding: null }, { status: 'refused', reason: 'not_available', detail: 'disabled' }],
-    ['the gate cannot read', { kind: 'gate_unavailable' }, { status: 'failed', errorCode: 'gate_unavailable', aiCallIds: ['call-1'] }],
-    ['the model failed', { kind: 'error', error: { code: 'timeout' } }, { status: 'failed', errorCode: 'timeout', aiCallIds: ['call-1'] }],
+    ['the pool is spent', { kind: 'refused', code: 'quota_exhausted' }, { status: 'refused', reason: 'pool_empty', detail: null, remaining: null }],
+    ['the tariff lacks the key', { kind: 'refused', code: 'not_entitled' }, { status: 'refused', reason: 'not_available', detail: 'not_entitled', remaining: null }],
+    ['the agent is off', { kind: 'disabled', binding: null }, { status: 'refused', reason: 'not_available', detail: 'disabled', remaining: null }],
+    ['the gate cannot read', { kind: 'gate_unavailable' }, { status: 'failed', errorCode: 'gate_unavailable', aiCallIds: ['call-1'], remaining: null }],
+    ['the model failed', { kind: 'error', error: { code: 'timeout' } }, { status: 'failed', errorCode: 'timeout', aiCallIds: ['call-1'], remaining: null }],
   ])('answers when %s', async (_label, failure, expected) => {
     const { run } = setup(failedWith({ attempts: [], ...failure }));
     expect(await run(essay())).toEqual(expected);
+  });
+});
+
+describe('precheck limits (step 3)', () => {
+  const used = (over: Partial<PracticeUsage> = {}): PracticeUsage => ({ exerciseChecks: 0, learnerMicro: 0n, learnerChecks: 0, ...over });
+
+  it('takes the calendar month in UTC', () => {
+    expect(calendarMonthOf(new Date('2026-12-31T23:30:00Z'))).toEqual({
+      from: new Date('2026-12-01T00:00:00Z'),
+      to: new Date('2027-01-01T00:00:00Z'),
+    });
+  });
+
+  it('stops at the exercise limit before the learner’s, and lets anything through without limits', () => {
+    const limits = { perExercise: 3, perLearnerMonthlyCredits: 1 };
+    expect(limitReached(limits, used({ exerciseChecks: 3, learnerMicro: 5_000_000n }))).toBe('exercise_limit');
+    expect(limitReached(limits, used({ exerciseChecks: 2, learnerMicro: 1_000_000n }))).toBe('learner_limit');
+    expect(limitReached(limits, used({ exerciseChecks: 2, learnerMicro: 999_999n }))).toBeNull();
+    expect(limitReached({ perExercise: null, perLearnerMonthlyCredits: null }, used({ exerciseChecks: 99, learnerMicro: 99n }))).toBeNull();
+  });
+
+  it('counts this check in what is left, and estimates checks by the learner’s average', () => {
+    const limits = { perExercise: 3, perLearnerMonthlyCredits: 1 };
+    // Three checks this month for 0.3 credits, this one 0.1 → 0.6 left at 0.1 a check.
+    expect(remainingAfter(limits, used({ exerciseChecks: 1, learnerMicro: 300_000n, learnerChecks: 3 }), { counted: true, credits: ['0.100000'] })).toEqual({
+      exercise: 1,
+      learnerCredits: '0.600000',
+      learnerChecksApprox: 6,
+    });
+    expect(remainingAfter(limits, used({ exerciseChecks: 5, learnerMicro: 2_000_000n, learnerChecks: 1 }))).toEqual({
+      exercise: 0,
+      learnerCredits: '0.000000',
+      learnerChecksApprox: 0,
+    });
+    expect(remainingAfter({ perExercise: null, perLearnerMonthlyCredits: null }, used())).toEqual({
+      exercise: null,
+      learnerCredits: null,
+      learnerChecksApprox: null,
+    });
+  });
+});
+
+describe('PrecheckHandler limits (step 3)', () => {
+  const MODEL = { model: { id: 'model-1', providerId: 'provider-1', providerModelId: 'fake-1' }, provider: { code: 'fake' } };
+  const okCall = {
+    routed: Result.ok({
+      result: { output: { kind: 'structured', data: { items: [], summary: 'Ok.' } }, usage: null },
+      model: MODEL,
+      role: 'primary',
+      binding: { promptVersion: 'practice@1' },
+      attempts: [],
+    }),
+    recorded: { callId: 'call-1', cost: null, credits: '0.100000' },
+    latencyMs: 5,
+  } as unknown as GatewayCall;
+  const LIMITS: PrecheckLimits = { perExercise: 3, perLearnerMonthlyCredits: 1 };
+
+  function handler(usage: PracticeUsage | Error) {
+    const asked: Array<{ from: Date; to: Date; exerciseId: string }> = [];
+    let called = 0;
+    const gateway = { call: async () => (called++, okCall) } as unknown as AiGateway;
+    const h = new PrecheckHandler(
+      gateway,
+      new SchoolPayerResolver(),
+      { explanationLanguage: async () => 'ru' } as ISchoolLanguageReader,
+      { fetch: async () => ({ kind: 'missing' }) },
+      {
+        usage: async (q) => {
+          asked.push(q);
+          if (usage instanceof Error) throw usage;
+          return usage;
+        },
+      },
+      [0],
+    );
+    const run = (limits: PrecheckLimits = LIMITS) =>
+      h.execute(new PrecheckCommand({ schoolId: SCHOOL, userId: LEARNER, exerciseId: EXERCISE, attemptId: ATTEMPT, subject: translate(), limits }));
+    return { run, asked, calls: () => called };
+  }
+
+  it('refuses at a limit before any call, with what is left', async () => {
+    const { run, calls } = handler({ exerciseChecks: 3, learnerMicro: 200_000n, learnerChecks: 2 });
+    expect(await run()).toEqual({
+      status: 'refused',
+      reason: 'exercise_limit',
+      detail: null,
+      remaining: { exercise: 0, learnerCredits: '0.800000', learnerChecksApprox: 8 },
+    });
+    expect(calls()).toBe(0);
+  });
+
+  it('refuses when the learner’s month is spent', async () => {
+    const { run } = handler({ exerciseChecks: 0, learnerMicro: 1_000_000n, learnerChecks: 10 });
+    expect(await run()).toMatchObject({ status: 'refused', reason: 'learner_limit' });
+  });
+
+  it('checks within the limits and says what this check left, reading the current month', async () => {
+    const { run, asked } = handler({ exerciseChecks: 1, learnerMicro: 300_000n, learnerChecks: 3 });
+    expect(await run()).toMatchObject({ status: 'ok', remaining: { exercise: 1, learnerCredits: '0.600000', learnerChecksApprox: 6 } });
+    const now = Date.now();
+    expect(asked[0]!.exerciseId).toBe(EXERCISE);
+    expect(asked[0]!.from.getTime()).toBeLessThanOrEqual(now);
+    expect(asked[0]!.to.getTime()).toBeGreaterThan(now);
+  });
+
+  it('does not read the ledger when the school set no limits', async () => {
+    const { run, asked } = handler({ exerciseChecks: 99, learnerMicro: 0n, learnerChecks: 0 });
+    expect(await run({ perExercise: null, perLearnerMonthlyCredits: null })).toMatchObject({ status: 'ok', remaining: null });
+    expect(asked).toHaveLength(0);
+  });
+
+  it('checks uncounted when the ledger cannot be read — the pool still holds', async () => {
+    const { run, calls } = handler(new Error('db down'));
+    expect(await run()).toMatchObject({ status: 'ok', remaining: null });
+    expect(calls()).toBe(1);
   });
 });
 
@@ -386,14 +528,30 @@ describe('PrecheckRequestDto at the door', () => {
 
   it('keeps the engine’s subject whole', async () => {
     const subject = translate();
-    const body = await pipe.transform({ schoolId: SCHOOL, userId: LEARNER, exerciseId: EXERCISE, attemptId: ATTEMPT, subject }, meta);
+    const limits = { perExercise: 3, perLearnerMonthlyCredits: null };
+    const body = await pipe.transform({ schoolId: SCHOOL, userId: LEARNER, exerciseId: EXERCISE, attemptId: ATTEMPT, subject, limits }, meta);
     expect((body as PrecheckRequestDto).subject).toEqual(subject);
+    expect((body as PrecheckRequestDto).limits).toEqual(limits);
+  });
+
+  it.each([
+    ['without limits', undefined],
+    ['with a limit left out rather than null', { perExercise: 3 }],
+    ['with a negative limit', { perExercise: -1, perLearnerMonthlyCredits: null }],
+    ['with a fractional check count', { perExercise: 1.5, perLearnerMonthlyCredits: null }],
+  ])('turns away a body %s', async (_label, limits) => {
+    await expect(
+      pipe.transform({ schoolId: SCHOOL, userId: LEARNER, exerciseId: EXERCISE, attemptId: ATTEMPT, subject: translate(), limits }, meta),
+    ).rejects.toThrow();
   });
 
   it('turns away a body without a subject or with a malformed id', async () => {
     await expect(pipe.transform({ schoolId: SCHOOL, userId: LEARNER, exerciseId: EXERCISE, attemptId: ATTEMPT }, meta)).rejects.toThrow();
     await expect(
-      pipe.transform({ schoolId: 'x', userId: LEARNER, exerciseId: EXERCISE, attemptId: ATTEMPT, subject: translate() }, meta),
+      pipe.transform(
+        { schoolId: 'x', userId: LEARNER, exerciseId: EXERCISE, attemptId: ATTEMPT, subject: translate(), limits: { perExercise: null, perLearnerMonthlyCredits: null } },
+        meta,
+      ),
     ).rejects.toThrow();
   });
 });

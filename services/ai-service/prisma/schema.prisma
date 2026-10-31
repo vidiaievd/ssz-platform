@@ -226,10 +226,16 @@ model AiCall {
   fallbackUsed     Boolean       @map("fallback_used")
   /// The router's route: role, model, outcome, reason per model considered. No text.
   attempts         Json
+  /// The exercise a rehearsal was about (plan 84, step 3); null for every other call.
+  exerciseId       String?       @map("exercise_id")
+  /// One rehearsal: every call it made (a reading — one per passage) shares it. Null elsewhere.
+  checkId          String?       @map("check_id")
   createdAt        DateTime      @default(now()) @map("created_at")
 
   @@index([createdAt])
   @@index([payerType, payerId, capability, createdAt])
+  /// A rehearsal's limits: checks per (learner, exercise), credits per learner per month.
+  @@index([payerId, actorUserId, surface, createdAt])
   @@map("ai_calls")
 }
 

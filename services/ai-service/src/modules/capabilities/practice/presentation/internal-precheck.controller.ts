@@ -24,9 +24,11 @@ export class InternalPrecheckController {
     description:
       'Asks the `practice` agent about the subject — `practice_voice` for a `read_aloud`, one call per ' +
       'passage — with the school as payer (`ai.practice`, surface `precheck`), and answers in the ' +
-      '`AiFeedback` shape: hints for a text, the words heard for a reading. The attempt is not touched and no ' +
-      'event is published; only the ledger row is written. Every outcome is a 200: `ok`, `refused` ' +
-      '(nothing to ask, not available to the school, credits spent) or `failed` (no usable answer).',
+      '`AiFeedback` shape: hints for a text, the words heard for a reading. The school\'s limits sent in the ' +
+      'body (checks per learner and exercise, credits per learner per month) are counted from the ledger first. ' +
+      'The attempt is not touched and no event is published; only the ledger rows are written. Every outcome ' +
+      'is a 200: `ok`, `refused` (nothing to ask, a limit reached, the pool spent, not available to the school) ' +
+      'or `failed` (no usable answer), each with what the limits leave.',
   })
   @ApiOkResponse({ type: PrecheckResponseDto })
   precheck(@Body() body: PrecheckRequestDto): Promise<PrecheckOutcome> {
@@ -37,6 +39,7 @@ export class InternalPrecheckController {
         exerciseId: body.exerciseId,
         attemptId: body.attemptId,
         subject: body.subject,
+        limits: { perExercise: body.limits.perExercise, perLearnerMonthlyCredits: body.limits.perLearnerMonthlyCredits },
       }),
     );
   }

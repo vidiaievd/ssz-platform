@@ -9,6 +9,11 @@ export interface CallContext {
   actor: { userId: string; role: string | null } | null;
   /** Where the call came from: `admin_diagnostic`, `admin_model_test`, an agent's screen. */
   surface: string;
+  /**
+   * What a rehearsal was about (plan 84, step 3) — the exercise, and the check its calls
+   * belong to — so its limits can be counted from the ledger. Absent for every other call.
+   */
+  subject?: { exerciseId: string; checkId: string } | null;
 }
 
 /** The model a call reached; null on the record when none was called. */

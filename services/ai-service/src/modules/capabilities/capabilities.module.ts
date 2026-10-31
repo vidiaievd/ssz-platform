@@ -5,7 +5,9 @@ import { GatewayModule } from '../gateway/gateway.module.js';
 import { AdminPayerResolver } from './application/admin-payer.resolver.js';
 import { RunDiagnosticHandler } from './diagnostic/application/run-diagnostic.handler.js';
 import { AdminDiagnosticController } from './diagnostic/presentation/admin-diagnostic.controller.js';
+import { PRACTICE_USAGE_READER } from './practice/application/ports/practice-usage.reader.js';
 import { PrecheckHandler } from './practice/application/precheck/precheck.handler.js';
+import { PrismaPracticeUsageReader } from './practice/infrastructure/prisma-practice-usage.reader.js';
 import { InternalPrecheckController } from './practice/presentation/internal-precheck.controller.js';
 import { DirectReviewHandler } from './review-direct/application/direct-review/direct-review.handler.js';
 import { LearnerPayerResolver } from './review-direct/application/learner-payer.resolver.js';
@@ -172,8 +174,9 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     LearnerPayerResolver,
     // voice_review of a reading aloud, from the same event (plan 82, step 8)
     VoiceReviewHandler,
-    // a rehearsal before hand-in, asked by exercise-engine (plan 84, step 2)
+    // a rehearsal before hand-in, asked by exercise-engine (plan 84, step 2), and its limits (step 3)
     PrecheckHandler,
+    { provide: PRACTICE_USAGE_READER, useClass: PrismaPracticeUsageReader },
     // candidate models measured on the settled drafts (plan 79, step 1.6)
     RunReviewEvalHandler,
     ListReviewEvalRunsHandler,
