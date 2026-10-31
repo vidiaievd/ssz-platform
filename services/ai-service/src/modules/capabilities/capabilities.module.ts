@@ -5,6 +5,8 @@ import { GatewayModule } from '../gateway/gateway.module.js';
 import { AdminPayerResolver } from './application/admin-payer.resolver.js';
 import { RunDiagnosticHandler } from './diagnostic/application/run-diagnostic.handler.js';
 import { AdminDiagnosticController } from './diagnostic/presentation/admin-diagnostic.controller.js';
+import { PrecheckHandler } from './practice/application/precheck/precheck.handler.js';
+import { InternalPrecheckController } from './practice/presentation/internal-precheck.controller.js';
 import { DirectReviewHandler } from './review-direct/application/direct-review/direct-review.handler.js';
 import { LearnerPayerResolver } from './review-direct/application/learner-payer.resolver.js';
 import { DIRECT_REVIEW_ATTEMPTS_CLIENT } from './review-direct/application/ports/direct-review-attempts.client.js';
@@ -77,7 +79,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
 
 /**
  * Agents: `diagnostic` (plan 77), `review_draft` and `review_direct` (plan 79), `voice_review`
- * (plan 82); each agent plan adds its own folder here.
+ * (plan 82), `practice` (plan 84); each agent plan adds its own folder here.
  */
 @Module({
   imports: [GatewayModule],
@@ -88,6 +90,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     AdminVoiceEvalsController,
     AdminAssistEvalsController,
     AssistController,
+    InternalPrecheckController,
   ],
   providers: [
     // the learner's HTTP API of the assistant (plan 83, step 5)
@@ -169,6 +172,8 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     LearnerPayerResolver,
     // voice_review of a reading aloud, from the same event (plan 82, step 8)
     VoiceReviewHandler,
+    // a rehearsal before hand-in, asked by exercise-engine (plan 84, step 2)
+    PrecheckHandler,
     // candidate models measured on the settled drafts (plan 79, step 1.6)
     RunReviewEvalHandler,
     ListReviewEvalRunsHandler,
