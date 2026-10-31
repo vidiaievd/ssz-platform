@@ -6,6 +6,7 @@ import type { ReviewSettings } from '../../domain/value-objects/review-settings.
 import type { ReviewAiPolicy } from '../../domain/value-objects/review-ai-policy.vo.js';
 import { ReviewEffortMinutes } from '../../domain/value-objects/review-effort-minutes.vo.js';
 import { AssistantAccess, type AssistantMode } from '../../domain/value-objects/assistant-access.vo.js';
+import { AiPrecheckSettings } from '../../domain/value-objects/ai-precheck-settings.vo.js';
 import { SchoolMapper } from './school.mapper.js';
 
 const INCLUDE_MEMBERS = { members: true } as const;
@@ -266,6 +267,36 @@ export class SchoolPrismaRepository implements ISchoolRepository {
       groupIds: groups.map((g: { id: string }) => g.id),
       studentIds: students.map((m: { userId: string }) => m.userId),
     };
+  }
+
+  async findAiPrecheckSettings(schoolId: string): Promise<AiPrecheckSettings | null> {
+    const row = await (this.prisma as any).school.findUnique({
+      where: { id: schoolId },
+      select: {
+        aiPrecheckEnabled: true,
+        aiPrecheckPerExerciseLimit: true,
+        aiPrecheckPerLearnerMonthlyCredits: true,
+      },
+    });
+    return row
+      ? AiPrecheckSettings.rehydrate({
+          enabled: row.aiPrecheckEnabled,
+          perExerciseLimit: row.aiPrecheckPerExerciseLimit,
+          perLearnerMonthlyCredits: row.aiPrecheckPerLearnerMonthlyCredits,
+        })
+      : null;
+  }
+
+  async saveAiPrecheckSettings(schoolId: string, settings: AiPrecheckSettings): Promise<void> {
+    await (this.prisma as any).school.update({
+      where: { id: schoolId },
+      data: {
+        aiPrecheckEnabled: settings.enabled,
+        aiPrecheckPerExerciseLimit: settings.perExerciseLimit,
+        aiPrecheckPerLearnerMonthlyCredits: settings.perLearnerMonthlyCredits,
+        updatedAt: new Date(),
+      },
+    });
   }
 
   async save(school: School): Promise<void> {

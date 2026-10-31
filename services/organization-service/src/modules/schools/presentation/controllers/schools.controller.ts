@@ -85,6 +85,12 @@ import {
   AssistantAccessResponseDto,
   UpdateAssistantAccessRequestDto,
 } from '../dto/assistant-access.dto.js';
+import { GetAiPrecheckSettingsQuery } from '../../application/queries/get-ai-precheck-settings/get-ai-precheck-settings.query.js';
+import { UpdateAiPrecheckSettingsCommand } from '../../application/commands/update-ai-precheck-settings/update-ai-precheck-settings.command.js';
+import {
+  AiPrecheckSettingsResponseDto,
+  UpdateAiPrecheckSettingsRequestDto,
+} from '../dto/ai-precheck-settings.dto.js';
 import { GetReviewAiPolicyQuery } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.query.js';
 import { UpdateReviewAiPolicyCommand } from '../../application/commands/update-review-ai-policy/update-review-ai-policy.command.js';
 
@@ -573,6 +579,38 @@ export class SchoolsController {
   ): Promise<AssistantAccessResponseDto> {
     return this.commandBus.execute(
       new UpdateAssistantAccessCommand(schoolId, user.sub, dto.mode, dto.groupIds, dto.studentIds),
+    );
+  }
+
+  @Get(':id/ai-precheck')
+  @ApiOperation({ summary: 'Whether learners may have a model check their work before handing it in (plan 84)' })
+  @ApiResponse({ status: 200, type: AiPrecheckSettingsResponseDto })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async getAiPrecheckSettings(
+    @Param('id', ParseUUIDPipe) schoolId: string,
+  ): Promise<AiPrecheckSettingsResponseDto> {
+    return this.queryBus.execute(new GetAiPrecheckSettingsQuery(schoolId));
+  }
+
+  @Put(':id/ai-precheck')
+  @ApiOperation({ summary: 'Set whether learners may have a model check their work, and the limits (owner/admin)' })
+  @ApiResponse({ status: 200, type: AiPrecheckSettingsResponseDto })
+  @ApiResponse({ status: 403, description: 'Only owner or admin; FEATURE_NOT_ENTITLED — the plan has no ai.practice' })
+  @ApiResponse({ status: 422, description: 'INVALID_AI_PRECHECK_SETTINGS — a limit out of range' })
+  @ApiResponse({ status: 503, description: 'subscription-service could not confirm the plan' })
+  async updateAiPrecheckSettings(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) schoolId: string,
+    @Body() dto: UpdateAiPrecheckSettingsRequestDto,
+  ): Promise<AiPrecheckSettingsResponseDto> {
+    return this.commandBus.execute(
+      new UpdateAiPrecheckSettingsCommand(
+        schoolId,
+        user.sub,
+        dto.enabled,
+        dto.perExerciseLimit,
+        dto.perLearnerMonthlyCredits,
+      ),
     );
   }
 

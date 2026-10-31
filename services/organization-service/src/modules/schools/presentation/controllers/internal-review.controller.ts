@@ -30,6 +30,8 @@ import { GetReviewAiPolicyQuery } from '../../application/queries/get-review-ai-
 import type { ReviewAiPolicyDto } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.handler.js';
 import { GetReviewEffortMinutesQuery } from '../../application/queries/get-review-effort-minutes/get-review-effort-minutes.query.js';
 import type { ReviewEffortMinutesDto } from '../../application/queries/get-review-effort-minutes/get-review-effort-minutes.handler.js';
+import { GetAiPrecheckSettingsQuery } from '../../application/queries/get-ai-precheck-settings/get-ai-precheck-settings.query.js';
+import type { AiPrecheckSettingsDto } from '../../application/queries/get-ai-precheck-settings/get-ai-precheck-settings.handler.js';
 
 import { GetReviewScopeQuery } from '../../application/queries/get-review-scope/get-review-scope.query.js';
 import type { ReviewScopeResult } from '../../application/queries/get-review-scope/get-review-scope.handler.js';
@@ -150,6 +152,20 @@ export class InternalReviewController {
   ): Promise<ReviewEffortMinutesDto> {
     return this.queryBus.execute<GetReviewEffortMinutesQuery, ReviewEffortMinutesDto>(
       new GetReviewEffortMinutesQuery(schoolId),
+    );
+  }
+
+  /**
+   * Whether the school's learners may rehearse with a model, and the school's limits — for
+   * exercise-engine before it asks ai-service for a check (plan 84). As saved: the engine
+   * checks `ai.practice` itself and lowers the monthly limit to the plan's.
+   */
+  @Get('schools/:schoolId/ai-precheck')
+  async getSchoolAiPrecheckSettings(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+  ): Promise<AiPrecheckSettingsDto> {
+    return this.queryBus.execute<GetAiPrecheckSettingsQuery, AiPrecheckSettingsDto>(
+      new GetAiPrecheckSettingsQuery(schoolId),
     );
   }
 
