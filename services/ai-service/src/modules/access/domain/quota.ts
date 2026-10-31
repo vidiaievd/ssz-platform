@@ -3,6 +3,7 @@ import type { Payer } from './payer.js';
 /** One counter: what a payer has spent on one agent in one tariff period. */
 export interface QuotaKey {
   payer: Payer;
+  /** The agent's pool (`quotaPoolOf`): agents sold under one key share a counter. */
   capability: string;
   periodStart: Date;
   periodEnd: Date;

@@ -1,4 +1,4 @@
-import { featureOf, isStale, supersedes, type PayerEntitlements } from './entitlement.js';
+import { capabilitiesOfPool, featureKeyOf, featureOf, isStale, quotaPoolOf, supersedes, type PayerEntitlements } from './entitlement.js';
 
 const snap = (version: number, validUntil: string, features: PayerEntitlements['features'] = {}): PayerEntitlements => ({
   features,
@@ -45,5 +45,18 @@ describe('featureOf', () => {
       periodEnd: s.periodEnd,
     });
     expect(featureOf(s, 'ai.practice')).toBeNull();
+  });
+});
+
+describe('quota pools (plan 84)', () => {
+  it('sells a voice rehearsal under the text rehearsal’s key and pool', () => {
+    expect(featureKeyOf('practice_voice')).toBe('ai.practice');
+    expect(quotaPoolOf('practice_voice')).toBe('practice');
+    expect(capabilitiesOfPool('practice')).toEqual(['practice', 'practice_voice']);
+  });
+
+  it('keeps every other agent its own key and pool', () => {
+    expect(featureKeyOf('review_draft')).toBe('ai.review_draft');
+    expect(capabilitiesOfPool('voice_review')).toEqual(['voice_review']);
   });
 });

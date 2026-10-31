@@ -188,6 +188,17 @@ describe('AccessGate', () => {
       await expect(gate.charge({ ...decision.value, quota: { key: {} as QuotaKey, limitMicro: 1n } }, '1.0')).resolves.toBeUndefined();
     });
 
+    it('spends one pool for a voice and a text rehearsal, under ai.practice (plan 84)', async () => {
+      const { gate, asked, counter, ledgerReads } = setup({ feature: TEN, ledgerSpent: 9_000_000n });
+      const voice = (await gate.check('practice_voice', SCHOOL)).value;
+      expect(voice.quota?.key.capability).toBe('practice');
+      await gate.charge(voice, '1.000000');
+      expect((await gate.check('practice', SCHOOL)).error).toEqual({ kind: 'refused', code: 'quota_exhausted' });
+      expect(asked).toEqual(['ai.practice', 'ai.practice']);
+      expect(counter.values.size).toBe(1);
+      expect(ledgerReads).toHaveLength(1);
+    });
+
     it('fails closed on the policy even when the quota would pass', async () => {
       const { gate } = setup({ feature: TEN, policyFails: true });
       expect((await gate.check('diagnostic', SCHOOL)).error).toEqual({ kind: 'gate_unavailable' });

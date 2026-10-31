@@ -31,9 +31,29 @@ export interface PayerEntitlements {
   version: number;
 }
 
+/**
+ * Agents sold under another agent's key and drawing on its credits (plan 84): a rehearsal is
+ * one feature, `ai.practice`, whether a language model reads a text or a speech model hears a
+ * reading — two agents only because a binding holds models of one modality.
+ */
+const SOLD_UNDER: Readonly<Record<string, string>> = { practice_voice: 'practice' };
+
+/**
+ * The agent whose key and credits this one uses — itself for every agent but those above. The
+ * quota counter is kept per pool, so agents of one pool spend one allowance.
+ */
+export function quotaPoolOf(capability: string): string {
+  return SOLD_UNDER[capability] ?? capability;
+}
+
+/** Every agent spending the pool's credits, the pool's own agent first — what the ledger sums. */
+export function capabilitiesOfPool(pool: string): string[] {
+  return [pool, ...Object.keys(SOLD_UNDER).filter((capability) => SOLD_UNDER[capability] === pool)];
+}
+
 /** The subscription key an agent is sold under. */
 export function featureKeyOf(capability: string): string {
-  return `ai.${capability}`;
+  return `ai.${quotaPoolOf(capability)}`;
 }
 
 export function isStale(snapshot: PayerEntitlements, now: Date): boolean {
