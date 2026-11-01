@@ -5,7 +5,10 @@
     "add an entry with a later effectiveFrom. An existing (model, effectiveFrom) is left as it is.",
     "Seeding never touches `enabled` or `status` of rows that already exist — those belong to the admin.",
     "Anthropic prices: first-party API list prices as of 2026-10-06; cacheWrite assumed 1.25x input (5-minute cache). Verify before going live.",
-    "OpenAI and Google models carry no price yet: public sources disagreed on 2026-10-20. Add one from the provider's own pricing page before binding them.",
+    "OpenAI carries no price yet: public sources disagreed on 2026-10-20. Add one from the provider's own pricing page before binding it.",
+    "Gemini 2.5 Flash: ai.google.dev list price as of 2026-11-01 (text input, standard tier). Gemini 3.5 Flash is no longer on that page; 1.50 / 9.00 come from Google's 3.6 announcement and a Google Cloud table (the Vertex table says 2.50 output — it disagreed). Verify, then add a row with a later effectiveFrom. Gemini has no cache-write fee, so cacheWrite = 0; cacheRead for 3.5 is assumed 10% of input.",
+    "status (model, optional): applied only when the row is created; an existing model keeps the admin's status. Absent = active.",
+    "bindings: created only when the capability has no binding yet; an existing binding is the admin's and is never touched. They mirror dev as of 2026-10-30 (plan 84, step 10). Models are named as provider/providerModelId.",
     "modality: absent = llm. A speech model's features are SpeechFeatures (languages, wordTimings, pronunciation, maxAudioSeconds) and it is priced by audioPerHour (USD per hour of audio); absent audioPerHour = 0 (plan 82, step 3).",
     "whisper-local: the NB-Whisper sidecar (infrastructure/whisper, plan 82, step 4). providerModelId must be the model the image was built with (Dockerfile ARG MODEL) — another one is answered 404. Self-hosted, so audioPerHour = 0."
   ],
@@ -68,10 +71,10 @@
       "code": "azure-speech",
       "kind": "azure_speech",
       "displayName": "Azure AI Speech (Pronunciation Assessment)",
-      "baseUrl": null,
+      "baseUrl": "https://norwayeast.stt.speech.microsoft.com",
       "credentialRef": "AZURE_SPEECH_KEY",
       "region": "eu",
-      "enabled": false,
+      "enabled": true,
       "models": [
         {
           "providerModelId": "pronunciation-assessment",
@@ -126,13 +129,20 @@
       "displayName": "Google Gemini",
       "credentialRef": "GEMINI_API_KEY",
       "region": "global",
-      "enabled": false,
+      "enabled": true,
       "models": [
+        {
+          "providerModelId": "gemini-3.5-flash",
+          "displayName": "Gemini 3.5 Flash",
+          "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": true, "batch": true, "promptCache": true, "contextWindow": 1048576, "maxOutput": 65536 },
+          "prices": [{ "effectiveFrom": "2026-11-01", "inputPerMtok": "1.50", "outputPerMtok": "9.00", "cacheReadPerMtok": "0.15", "cacheWritePerMtok": "0" }]
+        },
         {
           "providerModelId": "gemini-2.5-flash",
           "displayName": "Gemini 2.5 Flash",
+          "status": "disabled",
           "features": { "structuredOutput": "native", "tools": true, "streaming": true, "vision": true, "audioIn": true, "batch": true, "promptCache": true, "contextWindow": 1048576, "maxOutput": 65536 },
-          "prices": []
+          "prices": [{ "effectiveFrom": "2026-11-01", "inputPerMtok": "0.30", "outputPerMtok": "2.50", "cacheReadPerMtok": "0.03", "cacheWritePerMtok": "0" }]
         }
       ]
     },
@@ -147,5 +157,10 @@
       "enabled": false,
       "models": []
     }
+  ],
+  "bindings": [
+    { "capability": "student_assist", "primary": "google/gemini-3.5-flash", "fallback": null, "maxOutputTokens": 2000, "timeoutMs": 60000, "promptVersion": "student_assist@1" },
+    { "capability": "voice_review_pronunciation", "primary": "azure-speech/pronunciation-assessment", "fallback": "whisper-local/nb-whisper-small-verbatim", "maxOutputTokens": 1, "timeoutMs": 60000, "promptVersion": "voice_review@1" },
+    { "capability": "voice_review", "primary": "whisper-local/nb-whisper-small-verbatim", "fallback": null, "maxOutputTokens": 1, "timeoutMs": 60000, "promptVersion": "voice_review@1" }
   ]
 }

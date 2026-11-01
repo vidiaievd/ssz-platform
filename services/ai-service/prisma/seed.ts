@@ -5,6 +5,7 @@
 //    fields (names, URLs, credentialRef, region, modality, features) follow the file;
 //  - a price is immutable: an existing (model, effectiveFrom) is never rewritten, and a
 //    file entry that disagrees with it is reported, not applied;
+//  - a binding is created only when its capability has none; an existing one is the admin's;
 //  - nothing absent from the file is deleted.
 //
 // Run: npx prisma db seed   (inside the container: docker compose ... exec ai-service npx prisma db seed)
@@ -31,6 +32,8 @@ interface SeedModel {
   displayName: string;
   /** Absent = `llm`. */
   modality?: 'llm' | 'speech';
+  /** Applied on create only; absent = active. */
+  status?: 'active' | 'disabled';
   features: Record<string, unknown>;
   prices: SeedPrice[];
 }
@@ -47,9 +50,20 @@ interface SeedProvider {
   models: SeedModel[];
 }
 
+interface SeedBinding {
+  capability: string;
+  /** `<provider code>/<providerModelId>` */
+  primary: string;
+  fallback: string | null;
+  maxOutputTokens: number;
+  timeoutMs: number;
+  promptVersion: string;
+}
+
 const here = dirname(fileURLToPath(import.meta.url));
 const data = JSON.parse(readFileSync(join(here, 'seed-data/registry.json'), 'utf8')) as {
   providers: SeedProvider[];
+  bindings?: SeedBinding[];
 };
 
 const url = process.env['DATABASE_URL'];
@@ -83,6 +97,7 @@ async function main(): Promise<void> {
           providerModelId: m.providerModelId,
           displayName: m.displayName,
           modality: m.modality ?? 'llm',
+          ...(m.status ? { status: m.status } : {}),
           features: m.features as Prisma.InputJsonValue,
         },
         update: { displayName: m.displayName, modality: m.modality ?? 'llm', features: m.features as Prisma.InputJsonValue },
@@ -119,6 +134,43 @@ async function main(): Promise<void> {
         }
       }
     }
+  }
+
+  await seedBindings(data.bindings ?? []);
+}
+
+async function modelIdOf(ref: string): Promise<string> {
+  const [code, ...rest] = ref.split('/');
+  const model = await prisma.aiModel.findFirst({
+    where: { providerModelId: rest.join('/'), provider: { code } },
+  });
+  if (!model) throw new Error(`binding refers to an unknown model ${ref}`);
+  return model.id;
+}
+
+async function seedBindings(bindings: SeedBinding[]): Promise<void> {
+  for (const b of bindings) {
+    if (await prisma.aiBinding.findUnique({ where: { capability: b.capability } })) {
+      console.log(`binding ${b.capability} exists — left as it is`);
+      continue;
+    }
+    const settings = {
+      primaryModelId: await modelIdOf(b.primary),
+      fallbackModelId: b.fallback ? await modelIdOf(b.fallback) : null,
+      maxOutputTokens: b.maxOutputTokens,
+      temperature: null,
+      timeoutMs: b.timeoutMs,
+      promptVersion: b.promptVersion,
+      enabled: true,
+    };
+    // Same shape as PrismaBindingRepository.save: the row and its history entry together.
+    await prisma.$transaction([
+      prisma.aiBinding.create({ data: { capability: b.capability, ...settings, version: 1, updatedBy: 'seed' } }),
+      prisma.aiBindingChange.create({
+        data: { capability: b.capability, version: 1, changedBy: 'seed', before: Prisma.DbNull, after: settings },
+      }),
+    ]);
+    console.log(`binding ${b.capability} created (${b.primary})`);
   }
 }
 
