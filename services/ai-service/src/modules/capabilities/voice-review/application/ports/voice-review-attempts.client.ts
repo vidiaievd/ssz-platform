@@ -25,11 +25,12 @@ export type PromptHearing = { itemId: string; aiCallId: string } & Pick<
   };
 
 /**
- * One write of a voice review: what was heard in every prompt and the remarks on its weak
- * sounds (plan 88, step 5c) — or the record that hearing failed.
+ * One write of a voice review: what was heard in every prompt, the remarks on its weak sounds
+ * (plan 88, step 5c) and a model's summary of them (step 5c.2; null when none explained them) —
+ * or the record that hearing failed.
  */
 export type ReadingToWrite =
-  | { status: 'ready'; prompts: PromptHearing[]; remarks: ReadingSoundRemark[] }
+  | { status: 'ready'; prompts: PromptHearing[]; remarks: ReadingSoundRemark[]; summary: string | null }
   | { status: 'failed'; errorCode: string };
 
 /**

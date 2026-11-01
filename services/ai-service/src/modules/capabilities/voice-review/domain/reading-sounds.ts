@@ -7,7 +7,7 @@ import {
   wordSoundRemarks,
   type NamedSound,
 } from '../../../pronunciation/domain/sound-remarks.js';
-import type { SoundToExplain } from '../../pronunciation-explain/domain/sound-explanations.js';
+import type { SoundExplanations, SoundToExplain } from '../../pronunciation-explain/domain/sound-explanations.js';
 
 /** One prompt of a reading heard at the pronunciation level, with the sounds of its scored words. */
 export interface MeasuredPrompt {
@@ -31,7 +31,7 @@ export interface ReadingSoundRemark {
   wordIndex: number;
   /** The word as Azure scored it — the remark's `fragment`. */
   word: string;
-  /** The inventory's English note until a model explains it (step 5c.2). */
+  /** The inventory's English note, or a model's explanation in the school's language (step 5c.2). */
   comment: string;
   atomRef: { atomType: 'sound'; atomId: string };
   /** What a model explaining the remark is told. */
@@ -55,6 +55,17 @@ export function readingSoundRemarks(language: string, prompts: readonly Measured
       }));
     }),
   );
+}
+
+/**
+ * The remarks with a model's explanations in place of the inventory's notes, in their order
+ * (step 5c.2). What they are about and point at stays.
+ */
+export function explainedRemarks(
+  remarks: readonly ReadingSoundRemark[],
+  explained: SoundExplanations,
+): ReadingSoundRemark[] {
+  return remarks.map((remark, i) => ({ ...remark, comment: explained.explanations[i] ?? remark.comment }));
 }
 
 /** Beside each scored word, its sounds named against the lexicon — or null where they could not be; null when unmeasured. */

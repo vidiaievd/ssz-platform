@@ -33,13 +33,14 @@ export class HttpVoiceReviewAttemptsClient implements IVoiceReviewAttemptsClient
     reading: ReadingToWrite,
     meta: DraftWriteMeta,
   ): Promise<{ written: true; attemptStatus: string; provisional: boolean } | { written: false; code: string }> {
-    // The engine reads the verdict off what was heard (step 7); the remarks are the weak sounds only (plan 88, step 5c).
+    // The engine reads the verdict off what was heard (step 7); the remarks are the weak sounds only (plan 88,
+    // step 5c), the summary a model's word on them — the verdict's comment at the engine.
     const body =
       reading.status === 'ready'
         ? {
             status: 'ready',
             items: reading.remarks.map(remarkOnTheWire),
-            summary: null,
+            summary: reading.summary,
             marks: null,
             reading: { prompts: reading.prompts.map(onTheWire) },
             ...meta,

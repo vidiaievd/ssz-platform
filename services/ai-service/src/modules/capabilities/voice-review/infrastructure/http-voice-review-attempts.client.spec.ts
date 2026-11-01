@@ -47,7 +47,12 @@ describe('HttpVoiceReviewAttemptsClient.putReading', () => {
     const client = new HttpVoiceReviewAttemptsClient('http://exercise-engine:3006', 'token');
     await client.putReading(
       ATTEMPT,
-      { status: 'ready', prompts: [prompt(), prompt({ itemId: 'p2', pronunciation: null })], remarks: [] },
+      {
+        status: 'ready',
+        prompts: [prompt(), prompt({ itemId: 'p2', pronunciation: null })],
+        remarks: [],
+        summary: null,
+      },
       META,
     );
 
@@ -99,11 +104,17 @@ describe('HttpVoiceReviewAttemptsClient.putReading', () => {
             finding: { word: 'bor', transcription: 'buːr', family: 'kj', symbols: ['KJ'], severity: 'minor' },
           },
         ],
+        summary: 'Start with kj.',
       },
       META,
     );
 
-    const body = bodies[0] as { items: unknown[]; reading: { prompts: Array<Record<string, unknown>> } };
+    const body = bodies[0] as {
+      items: unknown[];
+      summary: unknown;
+      reading: { prompts: Array<Record<string, unknown>> };
+    };
+    expect(body.summary).toBe('Start with kj.');
     expect(body.reading.prompts[0]).not.toHaveProperty('sounds');
     expect((body.reading.prompts[0]!.pronunciation as { words: unknown[] }).words).toEqual([
       {

@@ -55,6 +55,11 @@ describe('quota pools (plan 84)', () => {
     expect(capabilitiesOfPool('practice')).toEqual(['practice', 'practice_voice', 'pronunciation_explain']);
   });
 
+  it('sells the explanation of a handed-in reading’s sounds under the pronunciation level (plan 88, step 5c.2)', () => {
+    expect(featureKeyOf('voice_review_explain')).toBe('ai.voice_review_pronunciation');
+    expect(capabilitiesOfPool('voice_review_pronunciation')).toEqual(['voice_review_pronunciation', 'voice_review_explain']);
+  });
+
   it('keeps every other agent its own key and pool', () => {
     expect(featureKeyOf('review_draft')).toBe('ai.review_draft');
     expect(capabilitiesOfPool('voice_review')).toEqual(['voice_review']);

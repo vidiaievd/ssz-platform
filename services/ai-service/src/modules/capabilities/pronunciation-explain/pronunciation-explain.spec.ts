@@ -30,6 +30,14 @@ describe('pronunciation_explain', () => {
     expect(quotaPoolOf('pronunciation_explain')).toBe('practice');
   });
 
+  it('runs on hand-in as voice_review_explain, under the pronunciation level, with the same prompts (plan 88, step 5c.2)', () => {
+    expect(findCapability('voice_review_explain')).toMatchObject({
+      requiredFeatures: { structuredOutput: 'json_mode' },
+      promptVersions: PRONUNCIATION_EXPLAIN_PROMPT_VERSIONS,
+    });
+    expect(featureKeyOf('voice_review_explain')).toBe('ai.voice_review_pronunciation');
+  });
+
   describe('pronunciation_explain@1', () => {
     const request = pronunciationExplainRequest('pronunciation_explain@1', input());
 

@@ -1,5 +1,5 @@
-import type { AiGateway, GatewaySpeechCall } from '../../../../gateway/application/ai-gateway.js';
-import type { SpeechGatewayRequest } from '../../../../gateway/application/model-router.js';
+import type { AiGateway, GatewayCall, GatewaySpeechCall } from '../../../../gateway/application/ai-gateway.js';
+import type { GatewayInput, GatewayRequest, SpeechGatewayRequest } from '../../../../gateway/application/model-router.js';
 import type { CallContext } from '../../../../ledger/domain/ai-call.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { DraftWriteMeta } from '../../../review-draft/application/ports/review-attempts.client.js';
@@ -92,6 +92,10 @@ interface Setup {
   audio?: Record<string, RecordingAudio[]>;
   put?: Array<Answer<'ok' | 'provisional'>>;
   sounds?: PassageSounds;
+  /** What `voice_review_explain` answers; absent — the agent is off. */
+  explain?: GatewayCall;
+  /** The school's explanation language; a function to make it throw. */
+  schoolLanguage?: string | null | (() => Promise<string | null>);
 }
 
 const NO_SOUNDS = { of: async () => null } as unknown as PassageSounds;
@@ -103,14 +107,29 @@ function setup({
   audio = {},
   put = ['ok'],
   sounds = NO_SOUNDS,
+  explain,
+  schoolLanguage = null,
 }: Setup = {}) {
   const asked: Array<{ capability: string; context: CallContext; request: SpeechGatewayRequest }> = [];
+  const explaining: Array<{ capability: string; context: CallContext; request: GatewayRequest }> = [];
   const availability: string[] = [];
   const queues = Object.fromEntries(Object.entries(calls).map(([k, v]) => [k, [...v]]));
   const gateway = {
     callSpeech: async (capability: string, context: CallContext, request: SpeechGatewayRequest) => {
       asked.push({ capability, context, request });
       return queues[capability]?.shift() ?? heard(request.referenceText.toLowerCase());
+    },
+    call: async (capability: string, context: CallContext, input: GatewayInput) => {
+      const request = typeof input === 'function' ? input('pronunciation_explain@1') : input;
+      explaining.push({ capability, context, request });
+      return (
+        explain ??
+        ({
+          routed: Result.fail({ kind: 'disabled', binding: null }),
+          recorded: { callId: 'explain-off', cost: null, credits: null },
+          latencyMs: 1,
+        } as unknown as GatewayCall)
+      );
     },
     available: async (capability: string) => {
       availability.push(capability);
@@ -154,10 +173,13 @@ function setup({
     attempts,
     recordings,
     sounds,
+    {
+      explanationLanguage: async () => (typeof schoolLanguage === 'function' ? schoolLanguage() : schoolLanguage),
+    },
     0,
     [0, 0],
   );
-  return { handler, asked, availability, fetched, writes, gaveUp };
+  return { handler, asked, explaining, availability, fetched, writes, gaveUp };
 }
 
 const learnerCommand = () => new VoiceReviewCommand(ATTEMPT, LEARNER, 'read_aloud');
@@ -289,6 +311,104 @@ describe('VoiceReviewHandler', () => {
       expect(outcome).toMatchObject({ kind: 'ruled' });
       const { reading } = writes[0]!;
       expect(reading.status === 'ready' && reading.remarks).toEqual([]);
+    });
+
+    // Plan 88, step 5c.2.
+    describe('explained (voice_review_explain)', () => {
+      const twoKj = () => ({ voice_review_pronunciation: [scored(['kjør', 'bil']), scored(['kjenner', 'deg'])] });
+      const explainedAs = (data: unknown): GatewayCall =>
+        ({
+          routed: Result.ok({
+            result: { output: { kind: 'structured', data }, usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 } },
+            model: modelOf(9),
+            role: 'primary',
+            binding: { promptVersion: 'pronunciation_explain@1' },
+            attempts: [],
+          }),
+          recorded: { callId: 'explain-1', cost: null, credits: '0.002' },
+          latencyMs: 5,
+        }) as unknown as GatewayCall;
+      const answer = explainedAs({
+        items: [
+          { index: 1, explanation: 'Знову kj.' },
+          { index: 0, explanation: 'Кінчик язика вниз.' },
+        ],
+        summary: 'Почніть з kj.',
+      });
+
+      it('asks once for every weak sound, under the pronunciation level, and writes the words on the remarks', async () => {
+        const { handler, asked, explaining, writes } = setup({
+          subject: withPronunciation,
+          available: true,
+          calls: twoKj(),
+          sounds: kjFirst(),
+          explain: answer,
+        });
+        const outcome = await handler.execute(learnerCommand());
+
+        expect(explaining.map((e) => e.capability)).toEqual(['voice_review_explain']);
+        expect(explaining[0]!.context).toEqual(asked[0]!.context);
+        // No school: the inventory's language.
+        expect(explaining[0]!.request.system).toContain('in English');
+        expect(explaining[0]!.request.messages[0]!.parts[0]).toEqual({
+          type: 'text',
+          text: 'Remarks:\n0. «kjør» [ç] — kj-sound [ç], major\n1. «kjenner» [ç] — kj-sound [ç], major',
+        });
+        const { reading, meta } = writes[0]!;
+        if (reading.status !== 'ready') throw new Error('not ready');
+        expect(reading.remarks.map((r) => [r.word, r.comment, r.atomRef.atomId])).toEqual([
+          ['kjør', 'Кінчик язика вниз.', 'nb:kj'],
+          ['kjenner', 'Знову kj.', 'nb:kj'],
+        ]);
+        expect(reading.summary).toBe('Почніть з kj.');
+        // The review stays written under the first hearing; the explanation is one more call of it.
+        expect(meta.aiCallId).toBe(reading.prompts[0]!.aiCallId);
+        expect(outcome.kind === 'ruled' && outcome.aiCallIds).toEqual([...reading.prompts.map((p) => p.aiCallId), 'explain-1']);
+      });
+
+      it('explains in the school’s language, with the school as payer', async () => {
+        const { handler, explaining } = setup({
+          subject: subjectResult({ schoolId: SCHOOL }, withPronunciation.subject!),
+          available: true,
+          calls: twoKj(),
+          sounds: kjFirst(),
+          explain: answer,
+          schoolLanguage: 'uk',
+        });
+        await handler.execute(schoolCommand());
+        expect(explaining[0]!.context.payer).toEqual({ type: 'workspace', id: SCHOOL });
+        expect(explaining[0]!.request.system).toContain('in Ukrainian');
+      });
+
+      it('falls back to English when the school’s language cannot be read', async () => {
+        const { handler, explaining } = setup({
+          subject: subjectResult({ schoolId: SCHOOL }, withPronunciation.subject!),
+          available: true,
+          calls: twoKj(),
+          sounds: kjFirst(),
+          schoolLanguage: async () => Promise.reject(new Error('down')),
+        });
+        await handler.execute(schoolCommand());
+        expect(explaining[0]!.request.system).toContain('in English');
+      });
+
+      it('keeps the inventory’s notes and no summary when the agent does not answer', async () => {
+        const { handler, writes } = setup({ subject: withPronunciation, available: true, calls: twoKj(), sounds: kjFirst() });
+        const outcome = await handler.execute(learnerCommand());
+        const { reading } = writes[0]!;
+        if (reading.status !== 'ready') throw new Error('not ready');
+        expect(reading.remarks.every((r) => /^kj/i.test(r.comment))).toBe(true);
+        expect(reading.summary).toBeNull();
+        expect(outcome).toMatchObject({ kind: 'ruled' });
+        expect(outcome.kind === 'ruled' && outcome.aiCallIds.at(-1)).toBe('explain-off');
+      });
+
+      it('asks nothing when no sound is weak', async () => {
+        const { handler, explaining, writes } = setup({ subject: withPronunciation, available: true });
+        await handler.execute(learnerCommand());
+        expect(explaining).toEqual([]);
+        expect(writes[0]!.reading.status === 'ready' && writes[0]!.reading.summary).toBeNull();
+      });
     });
   });
 

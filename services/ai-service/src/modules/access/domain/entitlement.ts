@@ -35,9 +35,15 @@ export interface PayerEntitlements {
  * Agents sold under another agent's key and drawing on its credits (plan 84): a rehearsal is
  * one feature, `ai.practice`, whether a language model reads a text or a speech model hears a
  * reading — two agents only because a binding holds models of one modality. The explanation of
- * a rehearsed reading's sounds (plan 88, step 5b) is part of the same check.
+ * a rehearsed reading's sounds (plan 88, step 5b) is part of the same check; on hand-in it is part
+ * of the pronunciation-level voice review (step 5c.2) — the same prompts under a second code, so
+ * each pool stays a static entry here.
  */
-const SOLD_UNDER: Readonly<Record<string, string>> = { practice_voice: 'practice', pronunciation_explain: 'practice' };
+const SOLD_UNDER: Readonly<Record<string, string>> = {
+  practice_voice: 'practice',
+  pronunciation_explain: 'practice',
+  voice_review_explain: 'voice_review_pronunciation',
+};
 
 /**
  * The agent whose key and credits this one uses — itself for every agent but those above. The
