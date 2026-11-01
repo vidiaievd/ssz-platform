@@ -56,6 +56,8 @@ import type { ExerciseTemplateEntity } from '../../../exercise-template/domain/e
 import type { ExerciseTemplateDomainError } from '../../../exercise-template/domain/exceptions/exercise-template-domain.exceptions.js';
 import { DescribeAtomsQuery } from '../../../exercise/application/queries/describe-atoms/describe-atoms.query.js';
 import { GetAtomCoverageQuery } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.query.js';
+import { GetGrammarAtomCatalogQuery } from '../../application/queries/grammar-atom-catalog/grammar-atom-catalog.query.js';
+import type { GrammarAtomCatalog } from '../../application/queries/grammar-atom-catalog/grammar-atom-catalog.handler.js';
 import type { AtomCoverageResult } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.handler.js';
 import type { AtomDescriptor } from '../../../exercise/domain/repositories/exercise-item-target.repository.interface.js';
 import type { ExerciseEnvelope } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.handler.js';
@@ -775,6 +777,19 @@ export class InternalController {
 
     if (result.isFail) throw new NotFoundException(`Course ${courseId} not found`);
     return { courseId, targetLanguage: result.value.container.targetLanguage };
+  }
+
+  // The grammar atoms a model may point a mistake at (plan 85, step 2): every atom of the
+  // course's published version, with the rule's title in the school's explanation language.
+  // Which of them a learner has reached is learning-service's answer; ai-service intersects.
+  @Get('courses/:courseId/grammar-atom-catalog')
+  async getGrammarAtomCatalog(
+    @Param('courseId') courseId: string,
+    @Query('language') language = 'en',
+  ): Promise<GrammarAtomCatalog> {
+    return this.queryBus.execute<GetGrammarAtomCatalogQuery, GrammarAtomCatalog>(
+      new GetGrammarAtomCatalogQuery(courseId, language),
+    );
   }
 
   @Get('assist/courses/:courseId/units/:unitId')
