@@ -42,6 +42,8 @@ export interface ReviewSubjectResult {
   userId: string;
   schoolId: string | null;
   exerciseId: string;
+  /** The course the attempt sits in; null outside one. ai-service names its grammar atoms (plan 85, step 3b). */
+  courseId: string | null;
   templateCode: string;
   skip: ReviewSubjectSkip | null;
   /** Null exactly when `skip` is set. */
@@ -78,6 +80,7 @@ export class GetReviewSubjectHandler implements IQueryHandler<GetReviewSubjectQu
       userId: attempt.userId,
       schoolId: attempt.schoolId,
       exerciseId: attempt.exerciseId,
+      courseId: attempt.containerId,
       templateCode: attempt.templateCode,
     };
     const skip = (reason: ReviewSubjectSkip) => Result.ok<ReviewSubjectResult, GetReviewSubjectError>({ ...base, skip: reason, subject: null });

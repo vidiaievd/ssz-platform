@@ -54,6 +54,7 @@ function setup({ attempt, draft = false, content = 'ok', submitted, exercise }: 
           targetLanguage: 'nb',
           status: 'ROUTED_FOR_REVIEW' as AttemptStatus,
           schoolId: 'school-1',
+          containerId: 'course-1',
           templateCode: 'translate_to_target',
           submittedAnswer: submitted ?? { answers: [{ itemId: 's1', text: 'Jeg bor her i tre år' }] },
           rubricSnapshot: null,
@@ -85,7 +86,7 @@ describe('GetReviewSubjectHandler', () => {
 
     expect(reads).toEqual(['ex-1:nb:PRACTICE']);
     expect(result.value.skip).toBeNull();
-    expect(result.value).toMatchObject({ attemptId: ATTEMPT, userId: 'learner-1', schoolId: 'school-1' });
+    expect(result.value).toMatchObject({ attemptId: ATTEMPT, userId: 'learner-1', schoolId: 'school-1', courseId: 'course-1' });
     expect(result.value.subject).toEqual({
       template: 'translate',
       langs: { explain: 'Russisk', target: 'Norsk' },

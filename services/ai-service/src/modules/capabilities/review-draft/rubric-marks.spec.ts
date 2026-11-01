@@ -58,7 +58,7 @@ describe('review_draft@2 — suggested rubric marks', () => {
   const check = (data: unknown) => guard.check(answered(data), request('review_draft@2'));
 
   it('is a known prompt version beside v1', () => {
-    expect(REVIEW_DRAFT_PROMPT_VERSIONS).toEqual(['review_draft@1', 'review_draft@2']);
+    expect(REVIEW_DRAFT_PROMPT_VERSIONS).toEqual(['review_draft@1', 'review_draft@2', 'review_draft@3']);
   });
 
   it('asks for marks only when the draft switch is on and the attempt carries a rubric', () => {

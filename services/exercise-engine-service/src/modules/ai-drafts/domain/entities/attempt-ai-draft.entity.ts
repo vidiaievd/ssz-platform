@@ -48,6 +48,12 @@ export interface AiDraftRemark {
   fragment: string | null;
   comment: string;
   suggestion: string | null;
+  /**
+   * The grammar atom the remark is about, from the atoms the learner had reached in the
+   * course (plan 85, step 3b). Absent on a draft written before it, or by a prompt that
+   * named none.
+   */
+  atomRef?: { atomType: 'grammar_rule_atom'; atomId: string } | null;
 }
 
 /**

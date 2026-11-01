@@ -1,4 +1,6 @@
 import { WHOLE_TEXT_ASPECTS, type ReviewAspect } from './review-aspect.js';
+import type { AiFeedbackAtomRef } from '@ssz/contracts';
+import { atomRefOf, EMPTY_CATALOG, type AtomCatalog } from '../../grammar-atoms/domain/atom-catalog.js';
 import { toRubricHints, type RubricCriterion, type RubricHint } from './rubric-marks.js';
 
 /**
@@ -35,6 +37,12 @@ export interface ReviewRemark {
   fragment: string | null;
   comment: string;
   suggestion: string | null;
+  /**
+   * The grammar atom the remark is about (plan 85, step 3b). Present only when the request
+   * carried the learner's atoms — an engine before plan 85 refuses the field — and then null
+   * on any remark that names none.
+   */
+  atomRef?: AiFeedbackAtomRef | null;
 }
 
 export interface ReviewDraft {
@@ -51,6 +59,8 @@ interface RawRemark {
   fragment: string | null;
   comment: string;
   suggestion: string | null;
+  /** Only in a request that carried the learner's grammar atoms (`review_draft@3`). */
+  atomId?: string | null;
 }
 
 interface RawReview {
@@ -145,8 +155,11 @@ export function verifyReview(input: ReviewFrame): (data: unknown) => string | nu
   };
 }
 
-/** The verified answer as a draft: indices resolved to item ids, blank text normalised. */
-export function toReviewDraft(data: unknown, input: ReviewFrame): ReviewDraft {
+/**
+ * The verified answer as a draft: indices resolved to item ids, blank text normalised. An
+ * atom is named only from the catalogue the request carried (plan 85 §1, rule 4).
+ */
+export function toReviewDraft(data: unknown, input: ReviewFrame, catalog: AtomCatalog = EMPTY_CATALOG): ReviewDraft {
   const review = data as RawReview;
   return {
     items: review.items.map((remark) => ({
@@ -156,6 +169,7 @@ export function toReviewDraft(data: unknown, input: ReviewFrame): ReviewDraft {
       fragment: remark.fragment,
       comment: remark.comment.trim(),
       suggestion: remark.suggestion?.trim() ? remark.suggestion.trim() : null,
+      ...(catalog.length > 0 ? { atomRef: atomRefOf(remark.atomId, remark.aspect, catalog) } : {}),
     })),
     summary: review.summary?.trim() ? review.summary.trim() : null,
     // Marks are read only where they were asked for: the prompt version's schema and verify

@@ -15,6 +15,16 @@ import {
 } from 'class-validator';
 import type { ProposedDraft } from '../../domain/entities/attempt-ai-draft.entity.js';
 
+/** The grammar atom a remark is about (plan 85, step 3b). ai-service names only atoms the learner reached. */
+export class AiDraftAtomRefDto {
+  @IsIn(['grammar_rule_atom'])
+  atomType!: 'grammar_rule_atom';
+
+  // Any version: seeded content ids are uuidv5.
+  @IsUUID()
+  atomId!: string;
+}
+
 /** A suggested mark on one rubric criterion (step 1.7c), keyed by the attempt's rubric snapshot. */
 export class AiDraftMarkDto {
   @IsString()
@@ -64,6 +74,12 @@ export class AiDraftRemarkDto {
   @IsString()
   @MaxLength(2000)
   suggestion!: string | null;
+
+  /** Absent or null when the remark names no atom. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AiDraftAtomRefDto)
+  atomRef?: AiDraftAtomRefDto | null;
 }
 
 /**
