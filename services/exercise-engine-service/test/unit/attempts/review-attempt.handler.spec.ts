@@ -731,6 +731,63 @@ describe('ReviewAttemptHandler', () => {
       expect(letterOf(publisher).aiDraft).toMatchObject({ accepted: 1 });
     });
 
+    describe('rule atoms of the remarks the teacher kept (plan 85, step 4)', () => {
+      const ATOM = (atomId: string) => ({ atomType: 'grammar_rule_atom', atomId });
+      const ATOM_DRAFT = {
+        ...DRAFT,
+        items: [
+          { ...DRAFT.items[0], atomRef: ATOM('atom-a') },
+          { ...DRAFT.items[1], atomRef: ATOM('atom-b') },
+          { ...DRAFT.items[2], atomRef: ATOM('atom-c') },
+        ],
+      };
+      const flaggedOf = (publisher: { publish: jest.Mock }) =>
+        (publisher.publish.mock.calls as unknown as [string, Record<string, unknown>][]).filter(
+          ([type]) => type === 'exercise.feedback.atoms_flagged',
+        );
+
+      it('publishes the atoms of taken and reworded remarks as ai_review, after the verdict', async () => {
+        const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, ATOM_DRAFT);
+
+        await handler.execute(withOutcomes({ '0': 'accepted', '1': 'discarded', '2': 'edited' }));
+
+        const flagged = flaggedOf(publisher);
+        expect(flagged).toHaveLength(1);
+        expect(flagged[0]![1]).toMatchObject({
+          userId: 'user-1',
+          exerciseId: 'ex-1',
+          source: 'ai_review',
+          atoms: [
+            { atomType: 'grammar_rule_atom', atomId: 'atom-a', inExerciseTargets: false },
+            { atomType: 'grammar_rule_atom', atomId: 'atom-c', inExerciseTargets: false },
+          ],
+          schoolId: 'school-1',
+          containerId: 'course-1',
+          groupId: 'group-1',
+        });
+        const types = (publisher.publish.mock.calls as unknown as [string][]).map(([type]) => type);
+        expect(types.indexOf('exercise.feedback.atoms_flagged')).toBe(types.length - 1);
+      });
+
+      it('publishes nothing for a dropped draft, or remarks left alone', async () => {
+        const dropped = makeHandler(routedAttempt(), DETAILS, ATOM_DRAFT);
+        await dropped.handler.execute(withOutcomes({ draft: 'discarded' }));
+        expect(flaggedOf(dropped.publisher)).toHaveLength(0);
+
+        const untouched = makeHandler(routedAttempt(), DETAILS, ATOM_DRAFT);
+        await untouched.handler.execute(withOutcomes({}));
+        expect(flaggedOf(untouched.publisher)).toHaveLength(0);
+      });
+
+      it('publishes nothing for a draft whose remarks name no atom', async () => {
+        const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, DRAFT);
+
+        await handler.execute(withOutcomes({ '0': 'accepted' }));
+
+        expect(flaggedOf(publisher)).toHaveLength(0);
+      });
+    });
+
     // Plan 79, step 1.7d.
     it('counts suggested rubric marks against the marks the verdict gives an essay', async () => {
       const essayDraft = {

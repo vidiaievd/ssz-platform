@@ -158,3 +158,19 @@ export function readReviewerOutcomes(raw: unknown): ReviewerOutcomes | null {
   }
   return outcomes;
 }
+
+/**
+ * The atoms of the remarks the verdict kept — taken as written or reworded (plan 85, step 4).
+ *
+ * A remark thrown out, or left alone, was not the teacher's word on the work, and the atom it
+ * named is not either. Order is the draft's; a remark with no atom is skipped.
+ */
+export function keptAtomRefs<T>(
+  items: ReadonlyArray<{ atomRef?: T | null }>,
+  settled: SettledOutcomes,
+): T[] {
+  return items.flatMap((item, index) => {
+    const outcome = settled.remarks[index];
+    return (outcome === 'accepted' || outcome === 'edited') && item.atomRef ? [item.atomRef] : [];
+  });
+}

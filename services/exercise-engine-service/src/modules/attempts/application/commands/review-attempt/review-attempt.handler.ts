@@ -25,7 +25,7 @@ import {
 } from '../../../../ai-drafts/domain/entities/attempt-ai-draft.entity.js';
 import type { ReviewDraftView } from '../../../../ai-drafts/application/queries/get-draft-for-review/get-draft-for-review.handler.js';
 import { SettleAiDraftCommand } from '../../../../ai-drafts/application/commands/settle-ai-draft/settle-ai-draft.command.js';
-import { settleOutcomes, tallyOutcomes } from '../../../../ai-drafts/domain/draft-outcomes.js';
+import { keptAtomRefs, settleOutcomes, tallyOutcomes } from '../../../../ai-drafts/domain/draft-outcomes.js';
 import {
   EVENT_PUBLISHER,
   type IEventPublisher,
@@ -35,6 +35,7 @@ import { Result } from '../../../../../shared/kernel/result.js';
 import { ReviewScoring } from '../../services/review-scoring.js';
 import type { AutoOutcome } from '../../services/review-scoring.js';
 import { foldSentenceComments, publishAttemptEvents } from '../../services/review-verdict.js';
+import { atomsFlagged, publishAtomsFlagged, type NamedAtom } from '../../services/flagged-atoms.js';
 import {
   ReviewCommentRequiredError,
   type AttemptDomainError,
@@ -81,6 +82,12 @@ export interface ReviewAttemptResult {
     passed: boolean;
     carried?: true;
   }>;
+}
+
+/** The model's draft as the verdict leaves it: the counts for its letter, the atoms it kept. */
+interface DraftAtVerdict {
+  tally: AttemptReviewedAiDraft;
+  keptAtoms: NamedAtom[];
 }
 
 /**
@@ -136,11 +143,12 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       snapshot && attempt.templateCode === READ_ALOUD ? readSpeakingSnapshot(snapshot) : null;
     // An essay's marks are what a draft's suggested ones are compared with (plan 79, 1.7d).
     const essayMarks = snapshot && !speaking ? readRubricMarks(command.rubricMarks) : null;
-    const aiDraft = await this.draftTally(command, teacherDraftCapability(attempt), essayMarks);
+    const drafted = await this.draftTally(command, teacherDraftCapability(attempt), essayMarks);
+    const aiDraft = drafted?.tally ?? null;
 
-    if (speaking) return this.reviewByPrompt(attempt, command, speaking, aiDraft);
+    if (speaking) return this.reviewByPrompt(attempt, command, speaking, drafted);
     if (snapshot) {
-      return this.reviewByRubric(attempt, command, snapshot, aiDraft);
+      return this.reviewByRubric(attempt, command, snapshot, drafted);
     }
 
     if (command.outcome === 'returned') {
@@ -159,8 +167,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       if (returned.isFail) return Result.fail(toError(returned.error));
 
       await this.attempts.save(attempt);
-      await this.settleDraft(command, aiDraft);
-      await publishAttemptEvents(this.publisher, attempt);
+      await this.deliver(attempt, command, drafted);
       return Result.ok({
         attemptId: attempt.id,
         status: 'RETURNED',
@@ -195,8 +202,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     if (reviewed.isFail) return Result.fail(toError(reviewed.error));
 
     await this.attempts.save(attempt);
-    await this.settleDraft(command, aiDraft);
-    await publishAttemptEvents(this.publisher, attempt);
+    await this.deliver(attempt, command, drafted);
 
     return Result.ok({
       attemptId: attempt.id,
@@ -220,7 +226,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     command: ReviewAttemptCommand,
     capability: AiDraftCapability,
     rubricMarks: RubricMarks | null,
-  ): Promise<AttemptReviewedAiDraft | null> {
+  ): Promise<DraftAtVerdict | null> {
     if (command.aiOutcomes === null) return null;
     const draft: ReviewDraftView | null = await this.queryBus.execute(
       new GetDraftForReviewQuery(command.attemptId, capability),
@@ -236,11 +242,34 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       command.aiOutcomes,
       rubricMarks,
     );
-    return tallyOutcomes(settled, {
-      capability,
-      modelId: draft.modelId,
-      promptVersion: draft.promptVersion,
-    });
+    return {
+      tally: tallyOutcomes(settled, {
+        capability,
+        modelId: draft.modelId,
+        promptVersion: draft.promptVersion,
+      }),
+      keptAtoms: keptAtomRefs(draft.items, settled),
+    };
+  }
+
+  /**
+   * After the verdict is stored: the draft labelled, the verdict's letters published, and
+   * then the rule atoms of the remarks the teacher kept (plan 85, step 4) — `ai_review`,
+   * since a model named them and the teacher let them stand.
+   */
+  private async deliver(
+    attempt: Attempt,
+    command: ReviewAttemptCommand,
+    drafted: DraftAtVerdict | null,
+    rubricMarks: RubricMarks | null = null,
+  ): Promise<void> {
+    await this.settleDraft(command, drafted?.tally ?? null, rubricMarks);
+    await publishAttemptEvents(this.publisher, attempt);
+    await publishAtomsFlagged(
+      this.publisher,
+      this.logger,
+      atomsFlagged(attempt, 'ai_review', drafted?.keptAtoms ?? [], new Date()),
+    );
   }
 
   /**
@@ -312,7 +341,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     attempt: Attempt,
     command: ReviewAttemptCommand,
     snapshot: RubricSnapshot,
-    aiDraft: AttemptReviewedAiDraft | null,
+    drafted: DraftAtVerdict | null,
   ): Promise<Result<ReviewAttemptResult, ReviewAttemptError>> {
     const marks = readRubricMarks(command.rubricMarks);
     const scored = this.scoring.scoreOf([], [], { snapshot, marks });
@@ -336,13 +365,12 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       approvedItems: scored.approvedItems,
       totalItems: scored.totalItems,
       rubricMarks: marks,
-      aiDraft,
+      aiDraft: drafted?.tally ?? null,
     });
     if (reviewed.isFail) return Result.fail(toError(reviewed.error));
 
     await this.attempts.save(attempt);
-    await this.settleDraft(command, aiDraft, marks);
-    await publishAttemptEvents(this.publisher, attempt);
+    await this.deliver(attempt, command, drafted, marks);
 
     return Result.ok({
       attemptId: attempt.id,
@@ -389,7 +417,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     attempt: Attempt,
     command: ReviewAttemptCommand,
     snapshot: SpeakingSnapshot,
-    aiDraft: AttemptReviewedAiDraft | null,
+    drafted: DraftAtVerdict | null,
   ): Promise<Result<ReviewAttemptResult, ReviewAttemptError>> {
     const recordings = raReadSubmission(attempt.submittedAnswer)?.recordings ?? [];
     const freshIds = recordings.filter((r) => !r.carried).map((r) => r.itemId);
@@ -435,13 +463,12 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
           correct: prompt.outcome.passed,
         })),
       evidenceLowered: snapshot.mode === 'read',
-      aiDraft,
+      aiDraft: drafted?.tally ?? null,
     });
     if (reviewed.isFail) return Result.fail(toError(reviewed.error));
 
     await this.attempts.save(attempt);
-    await this.settleDraft(command, aiDraft);
-    await publishAttemptEvents(this.publisher, attempt);
+    await this.deliver(attempt, command, drafted);
 
     return Result.ok({
       attemptId: attempt.id,

@@ -43,11 +43,16 @@ import {
   type PrecheckRemaining,
 } from '../../../../../shared/application/ports/ai-precheck-client.port.js';
 import { MEDIA_ASSETS, type IMediaAssets } from '../../../../../shared/application/ports/media-assets.port.js';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../../../shared/application/ports/event-publisher.port.js';
 import { ValidationError } from '../../../../../shared/application/ports/answer-validator.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import { reviewSubject } from '../../../../ai-drafts/application/queries/get-review-subject/review-subject.js';
 import type { ReadAloudSubject } from '../../../../ai-drafts/application/queries/get-review-subject/read-aloud-subject.js';
 import { precheckCapability } from '../../services/precheck-capability.js';
+import { atomsFlagged, publishAtomsFlagged } from '../../services/flagged-atoms.js';
 import {
   gradeErrorCorrection,
   gradeTranslate,
@@ -162,10 +167,11 @@ type Access = { limits: PrecheckLimits } | { refusal: AccessRefusal };
  * on and its plan has `ai.practice` — within the school's limits, the monthly one lowered to
  * the plan's.
  *
- * Nothing that counts moves (§3, rules 1–2): the attempt stays in progress, no event is
- * published, no card is rated. The one write is the self-check budget on the attempt; the model's
- * calls are counted in ai-service's ledger by (learner, exercise), so a new attempt does not
- * reset them.
+ * Nothing that counts moves (§3, rules 1–2): the attempt stays in progress, no card is rated,
+ * and nothing about the attempt is published. The one write is the self-check budget on the
+ * attempt; the model's calls are counted in ai-service's ledger by (learner, exercise), so a new
+ * attempt does not reset them. The one letter is `exercise.feedback.atoms_flagged` (plan 85,
+ * step 4), when the model's remarks named rule atoms: a mistake on a rule, never a verdict.
  *
  * A `read_aloud` take is checked as a hand-in checks it — this learner's, made for this attempt,
  * uploaded — before its id goes anywhere: ai-service plays whatever id it is given, and the
@@ -181,6 +187,7 @@ export class CheckAttemptHandler implements ICommandHandler<CheckAttemptCommand>
     @Inject(PRECHECK_SETTINGS_READER) private readonly settings: IPrecheckSettingsReader,
     @Inject(ENTITLEMENT_LIMITS_CLIENT) private readonly entitlements: IEntitlementLimitsClient,
     @Inject(AI_PRECHECK_CLIENT) private readonly ai: IAiPrecheckClient,
+    @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
     @Optional() @Inject(MEDIA_ASSETS) private readonly media: IMediaAssets | null = null,
   ) {}
 
@@ -274,6 +281,11 @@ export class CheckAttemptHandler implements ICommandHandler<CheckAttemptCommand>
     if (outcome.status === 'failed') {
       return Result.ok(answered(base, selfCheck, { status: 'failed', errorCode: outcome.errorCode }, outcome.remaining));
     }
+    await publishAtomsFlagged(
+      this.publisher,
+      this.logger,
+      atomsFlagged(attempt, 'ai_precheck', (outcome.feedback.items ?? []).map((item) => item.atomRef), new Date()),
+    );
     return Result.ok({
       ...answered(base, selfCheck, { status: 'ok' }, outcome.remaining),
       feedback: outcome.feedback,

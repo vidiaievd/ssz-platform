@@ -60,6 +60,8 @@ function makeAttempt(overrides: Record<string, unknown> = {}) {
     containerId: 'course-1',
     previousAttemptId: null,
     answeredQuestions: [],
+    groupId: null,
+    itemTargets: [{ itemKey: null, atomType: 'grammar_rule_atom', atomId: 'atom-v2', role: 'focus' }],
     get selfChecksUsed() {
       return used;
     },
@@ -86,6 +88,7 @@ function setup(opts: {
   plan?: FeatureEntitlement | EntitlementsClientError;
   outcome?: AiPrecheckOutcome | AiPrecheckClientError;
   assets?: MediaAssetDescription[];
+  publishFails?: boolean;
 } = {}) {
   const attempt = opts.attempt ?? makeAttempt();
   const attempts = { findById: jest.fn(() => Promise.resolve(attempt)), save: jest.fn() };
@@ -115,6 +118,11 @@ function setup(opts: {
   const media = {
     describe: jest.fn(() => Promise.resolve(Result.ok(opts.assets ?? []))),
   };
+  const publisher = {
+    publish: jest.fn((_type: string, _payload: unknown) =>
+      opts.publishFails ? Promise.reject(new Error('channel closed')) : Promise.resolve(),
+    ),
+  };
   const handler = new CheckAttemptHandler(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     attempts as any,
@@ -123,11 +131,12 @@ function setup(opts: {
     settings,
     entitlements,
     ai,
+    publisher,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     media as any,
   );
   const check = (draft: unknown) => handler.execute(new CheckAttemptCommand('att-1', 'user-1', draft));
-  return { handler, attempt, attempts, contentClient, settings, entitlements, ai, media, check };
+  return { handler, attempt, attempts, contentClient, settings, entitlements, ai, media, publisher, check };
 }
 
 describe('CheckAttemptHandler (plan 84, step 5)', () => {
@@ -228,6 +237,66 @@ describe('CheckAttemptHandler (plan 84, step 5)', () => {
       expect(result.isOk).toBe(true);
       expect(result.value.ai).toEqual({ status: 'failed', errorCode: 'ai_unavailable' });
       expect(result.value.remaining).toBeNull();
+    });
+  });
+
+  describe('rule atoms the remarks named (plan 85, step 4)', () => {
+    const remark = (atomId: string | null) => ({
+      kind: 'grammar',
+      target: {},
+      original: 'jeg har',
+      explanation: 'Inversjon.',
+      atomRef: atomId === null ? null : { atomType: 'grammar_rule_atom', atomId },
+      severity: 'major',
+    });
+
+    it('publishes them once each, as ai_precheck, with which are the exercise’s own targets', async () => {
+      const { check, publisher } = setup({
+        outcome: ok({ summary: '', items: [remark('atom-v2'), remark(null), remark('atom-x'), remark('atom-v2')] }),
+      });
+
+      const result = await check({ text: 'I helgen jeg har vært på hytta.' });
+
+      expect(result.isOk).toBe(true);
+      expect(publisher.publish).toHaveBeenCalledTimes(1);
+      expect(publisher.publish).toHaveBeenCalledWith(
+        'exercise.feedback.atoms_flagged',
+        expect.objectContaining({
+          userId: 'user-1',
+          exerciseId: 'ex-1',
+          attemptId: 'att-1',
+          templateCode: 'writing_task',
+          source: 'ai_precheck',
+          atoms: [
+            { atomType: 'grammar_rule_atom', atomId: 'atom-v2', inExerciseTargets: true },
+            { atomType: 'grammar_rule_atom', atomId: 'atom-x', inExerciseTargets: false },
+          ],
+          schoolId: 'school-1',
+          containerId: 'course-1',
+          groupId: null,
+        }),
+      );
+    });
+
+    it('publishes nothing when no remark named an atom, or the model did not answer', async () => {
+      const none = setup({ outcome: ok({ summary: '', items: [remark(null)] }) });
+      await none.check({ text: 'Tekst.' });
+      expect(none.publisher.publish).not.toHaveBeenCalled();
+
+      const refused = setup({
+        outcome: { status: 'refused', reason: 'exercise_limit', detail: null, remaining: { exercise: 0, learnerCredits: null, learnerChecksApprox: null } },
+      });
+      await refused.check({ text: 'Tekst.' });
+      expect(refused.publisher.publish).not.toHaveBeenCalled();
+    });
+
+    it('answers the learner even when the letter cannot be published', async () => {
+      const { check } = setup({ outcome: ok({ summary: '', items: [remark('atom-x')] }), publishFails: true });
+
+      const result = await check({ text: 'Tekst.' });
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.ai).toEqual({ status: 'ok' });
     });
   });
 
