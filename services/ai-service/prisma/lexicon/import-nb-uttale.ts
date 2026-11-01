@@ -16,37 +16,37 @@
 //   docker compose -f docker-compose.dev.yml --env-file .env.dev exec ai-service \
 //     npx tsx prisma/lexicon/import-nb-uttale.ts --written /tmp/e_written_pronunciation_lexicon.csv \
 //       --spoken /tmp/e_spoken_pronunciation_lexicon.csv [--dialect e]
-import "dotenv/config";
-import { createReadStream } from "node:fs";
-import { createInterface } from "node:readline";
-import pg from "pg";
+import 'dotenv/config';
+import { createReadStream } from 'node:fs';
+import { createInterface } from 'node:readline';
+import pg from 'pg';
 
-const LANGUAGE = "nb";
-const SOURCE = "nb_uttale";
+const LANGUAGE = 'nb';
+const SOURCE = 'nb_uttale';
 const BATCH = 2000;
 const COLUMNS = [
-  "language",
-  "dialect",
-  "word_key",
-  "wordform",
-  "pos",
-  "feats",
-  "nofabet",
-  "ipa",
-  "tone",
-  "in_written",
-  "in_spoken",
-  "source",
+  'language',
+  'dialect',
+  'word_key',
+  'wordform',
+  'pos',
+  'feats',
+  'nofabet',
+  'ipa',
+  'tone',
+  'in_written',
+  'in_spoken',
+  'source',
 ];
 const HEADER = [
-  "wordform",
-  "pos",
-  "feats",
-  "wordform_id",
-  "update_info",
-  "nofabet_transcription",
-  "ipa_transcription",
-  "sampa_transcription",
+  'wordform',
+  'pos',
+  'feats',
+  'wordform_id',
+  'update_info',
+  'nofabet_transcription',
+  'ipa_transcription',
+  'sampa_transcription',
 ];
 
 interface Entry {
@@ -70,7 +70,7 @@ function arg(name: string, fallback?: string): string {
 /** One RFC 4180 record; NB Uttale has no line breaks inside fields. */
 function parseCsvLine(line: string): string[] {
   const fields: string[] = [];
-  let field = "";
+  let field = '';
   let quoted = false;
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
@@ -81,9 +81,9 @@ function parseCsvLine(line: string): string[] {
       } else if (ch === '"') quoted = false;
       else field += ch;
     } else if (ch === '"') quoted = true;
-    else if (ch === ",") {
+    else if (ch === ',') {
       fields.push(field);
-      field = "";
+      field = '';
     } else field += ch;
   }
   fields.push(field);
@@ -92,29 +92,22 @@ function parseCsvLine(line: string): string[] {
 
 /** Toneme of the single primary stress (a vowel marked 1 or 2); null for none or several. */
 function toneOf(nofabet: string): number | null {
-  const primaries = nofabet
-    .split(" ")
-    .filter((p) => p.endsWith("1") || p.endsWith("2"));
+  const primaries = nofabet.split(' ').filter((p) => p.endsWith('1') || p.endsWith('2'));
   return primaries.length === 1 ? Number(primaries[0].slice(-1)) : null;
 }
 
 /** An affix or a multi-word name: never one spoken word. */
 function skipped(wordform: string): boolean {
-  return (
-    wordform.startsWith("-") ||
-    wordform.endsWith("-") ||
-    wordform.includes("_") ||
-    /\s/.test(wordform)
-  );
+  return wordform.startsWith('-') || wordform.endsWith('-') || wordform.includes('_') || /\s/.test(wordform);
 }
 
 async function readInto(
   path: string,
-  norm: "written" | "spoken",
+  norm: 'written' | 'spoken',
   entries: Map<string, Entry>,
 ): Promise<{ read: number; skipped: number }> {
   const lines = createInterface({
-    input: createReadStream(path, { encoding: "utf8" }),
+    input: createReadStream(path, { encoding: 'utf8' }),
     crlfDelay: Infinity,
   });
   let read = 0;
@@ -122,9 +115,8 @@ async function readInto(
   let header = true;
   for await (const line of lines) {
     if (header) {
-      const got = parseCsvLine(line.replace(/^﻿/, ""));
-      if (got.join(",") !== HEADER.join(","))
-        throw new Error(`${path}: unexpected header ${got.join(",")}`);
+      const got = parseCsvLine(line.replace(/^﻿/, ''));
+      if (got.join(',') !== HEADER.join(',')) throw new Error(`${path}: unexpected header ${got.join(',')}`);
       header = false;
       continue;
     }
@@ -135,7 +127,7 @@ async function readInto(
       skippedCount++;
       continue;
     }
-    const key = [wordform, pos, feats, nofabet].join("\u0001");
+    const key = [wordform, pos, feats, nofabet].join('\u0001');
     let entry = entries.get(key);
     if (!entry) {
       entry = {
@@ -150,22 +142,22 @@ async function readInto(
       };
       entries.set(key, entry);
     }
-    if (norm === "written") entry.inWritten = true;
+    if (norm === 'written') entry.inWritten = true;
     else entry.inSpoken = true;
   }
   return { read, skipped: skippedCount };
 }
 
 async function main(): Promise<void> {
-  const written = arg("written");
-  const spoken = arg("spoken");
-  const dialect = arg("dialect", "e");
+  const written = arg('written');
+  const spoken = arg('spoken');
+  const dialect = arg('dialect', 'e');
   const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set");
+  if (!url) throw new Error('DATABASE_URL is not set');
 
   const entries = new Map<string, Entry>();
-  const w = await readInto(written, "written", entries);
-  const s = await readInto(spoken, "spoken", entries);
+  const w = await readInto(written, 'written', entries);
+  const s = await readInto(spoken, 'spoken', entries);
   console.log(
     `read written ${w.read} (skipped ${w.skipped}), spoken ${s.read} (skipped ${s.skipped}) → ${entries.size} rows`,
   );
@@ -173,9 +165,9 @@ async function main(): Promise<void> {
   const client = new pg.Client({ connectionString: url });
   await client.connect();
   try {
-    await client.query("BEGIN");
+    await client.query('BEGIN');
     const removed = await client.query(
-      "DELETE FROM pronunciation_lexicon WHERE language = $1 AND dialect = $2 AND source = $3",
+      'DELETE FROM pronunciation_lexicon WHERE language = $1 AND dialect = $2 AND source = $3',
       [LANGUAGE, dialect, SOURCE],
     );
     let batch: unknown[][] = [];
@@ -186,12 +178,9 @@ async function main(): Promise<void> {
       const tuples = batch.map((row) => {
         const start = params.length;
         params.push(...row);
-        return `(${row.map((_, j) => `$${start + j + 1}`).join(",")})`;
+        return `(${row.map((_, j) => `$${start + j + 1}`).join(',')})`;
       });
-      await client.query(
-        `INSERT INTO pronunciation_lexicon (${COLUMNS.join(",")}) VALUES ${tuples.join(",")}`,
-        params,
-      );
+      await client.query(`INSERT INTO pronunciation_lexicon (${COLUMNS.join(',')}) VALUES ${tuples.join(',')}`, params);
       inserted += batch.length;
       batch = [];
     };
@@ -213,12 +202,12 @@ async function main(): Promise<void> {
       if (batch.length === BATCH) await flush();
     }
     await flush();
-    await client.query("COMMIT");
+    await client.query('COMMIT');
     console.log(
       `replaced ${removed.rowCount} rows with ${inserted} (language ${LANGUAGE}, dialect ${dialect}, source ${SOURCE})`,
     );
   } catch (err) {
-    await client.query("ROLLBACK");
+    await client.query('ROLLBACK');
     throw err;
   } finally {
     await client.end();
