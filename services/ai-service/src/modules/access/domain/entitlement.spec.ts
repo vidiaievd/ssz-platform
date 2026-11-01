@@ -52,7 +52,7 @@ describe('quota pools (plan 84)', () => {
   it('sells a voice rehearsal under the text rehearsal’s key and pool', () => {
     expect(featureKeyOf('practice_voice')).toBe('ai.practice');
     expect(quotaPoolOf('practice_voice')).toBe('practice');
-    expect(capabilitiesOfPool('practice')).toEqual(['practice', 'practice_voice']);
+    expect(capabilitiesOfPool('practice')).toEqual(['practice', 'practice_voice', 'pronunciation_explain']);
   });
 
   it('keeps every other agent its own key and pool', () => {

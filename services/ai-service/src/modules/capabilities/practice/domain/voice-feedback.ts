@@ -1,6 +1,7 @@
 import type { AiFeedback, AiFeedbackItem, AiFeedbackPhoneme, AiFeedbackWord } from '@ssz/contracts';
 import type { SpeechResult } from '../../../providers/domain/speech-result.js';
 import type { WordSounds } from '../../../pronunciation/application/passage-sounds.js';
+import type { SoundExplanations, SoundToExplain } from '../../pronunciation-explain/domain/sound-explanations.js';
 import { familyOf, soundOf, type SoundFamily } from '../../../pronunciation/domain/sound-inventory.js';
 import type { WeakSound } from '../../../pronunciation/domain/weak-sounds.js';
 
@@ -26,12 +27,44 @@ export function soundAtomId(language: string, family: SoundFamily): string {
  * Which passage words were left out is the reading check's to say, in exercise-engine.
  *
  * Sounds (plan 88, step 5): one remark per word and family whose sound fell below the native
- * threshold, pointing at the `sound` atom. Nobody explains them yet — the explanation is the
- * sound's articulation from the inventory, in English, until a model writes one (step 5b).
+ * threshold, pointing at the `sound` atom. Its explanation is the sound's articulation from the
+ * inventory, in English — what stays when no model explains it (`withSoundExplanations`, step 5b).
  */
 export function toVoiceFeedback(hearings: readonly PassageHearing[], language: string): AiFeedback {
+  const { words, remarks } = read(hearings, language);
+  return { summary: '', items: remarks.map((r) => r.item), words };
+}
+
+/** What each sound remark of `toVoiceFeedback` is about, in the order of its items — for the model that explains them. */
+export function soundFindings(hearings: readonly PassageHearing[], language: string): SoundToExplain[] {
+  return read(hearings, language).remarks.map((r) => r.finding);
+}
+
+/**
+ * The feedback with the model's explanations on its sound remarks, in their order, and its
+ * summary (step 5b). The remarks stay where they were and what they point at; only the words change.
+ */
+export function withSoundExplanations(feedback: AiFeedback, explained: SoundExplanations): AiFeedback {
+  let next = 0;
+  const items = feedback.items.map((item) =>
+    item.atomRef?.atomType === 'sound'
+      ? { ...item, explanation: explained.explanations[next++] ?? item.explanation }
+      : item,
+  );
+  return { ...feedback, summary: explained.summary, items };
+}
+
+interface SoundRemark {
+  item: AiFeedbackItem;
+  finding: SoundToExplain;
+}
+
+function read(
+  hearings: readonly PassageHearing[],
+  language: string,
+): { words: AiFeedbackWord[]; remarks: SoundRemark[] } {
   const words: AiFeedbackWord[] = [];
-  const items: AiFeedbackItem[] = [];
+  const remarks: SoundRemark[] = [];
   for (const { passageIndex, heard, sounds } of hearings) {
     const offset = words.length;
     const heardIndex = heardIndexOfScored(heard);
@@ -49,8 +82,12 @@ export function toVoiceFeedback(hearings: readonly PassageHearing[], language: s
           measured.alignment.sounds.map((s) => ({ symbol: s.ipa ?? '', accuracy: s.accuracy })),
         );
       }
+      const transcription =
+        measured.alignment.status === 'aligned' ? measured.alignment.sounds.map((s) => s.ipa ?? '?').join('') : '';
       for (const [family, weak] of byFamily(measured.weak)) {
-        items.push(soundRemark(language, family, weak, word.text, passageIndex, at === null ? null : offset + at));
+        remarks.push(
+          soundRemark(language, family, weak, word.text, transcription, passageIndex, at === null ? null : offset + at),
+        );
       }
     });
 
@@ -65,7 +102,7 @@ export function toVoiceFeedback(hearings: readonly PassageHearing[], language: s
       });
     });
   }
-  return { summary: '', items, words };
+  return { words, remarks };
 }
 
 /**
@@ -97,17 +134,22 @@ function soundRemark(
   family: SoundFamily,
   weak: WeakSound[],
   word: string,
+  transcription: string,
   passageIndex: number,
   wordIndex: number | null,
-): AiFeedbackItem {
+): SoundRemark {
   const worst = weak.reduce((a, b) => (b.accuracy < a.accuracy ? b : a));
   const { title } = familyOf(family);
+  const severity = worst.accuracy < worst.threshold / 2 ? 'major' : 'minor';
   return {
-    kind: 'pronunciation',
-    target: { passageIndex, ...(wordIndex === null ? {} : { wordIndex }) },
-    original: word,
-    explanation: `${title}: ${soundOf(worst.symbols[0]!)!.articulation}`,
-    atomRef: { atomType: 'sound', atomId: soundAtomId(language, family), title },
-    severity: worst.accuracy < worst.threshold / 2 ? 'major' : 'minor',
+    item: {
+      kind: 'pronunciation',
+      target: { passageIndex, ...(wordIndex === null ? {} : { wordIndex }) },
+      original: word,
+      explanation: `${title}: ${soundOf(worst.symbols[0]!)!.articulation}`,
+      atomRef: { atomType: 'sound', atomId: soundAtomId(language, family), title },
+      severity,
+    },
+    finding: { word, transcription, family, symbols: [...new Set(weak.flatMap((w) => w.symbols))], severity },
   };
 }

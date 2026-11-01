@@ -1,6 +1,7 @@
 import { DIAGNOSTIC } from './diagnostic/diagnostic.capability.js';
 import type { CapabilityDefinition } from './domain/capability.js';
 import { PRACTICE, PRACTICE_VOICE } from './practice/practice.capability.js';
+import { PRONUNCIATION_EXPLAIN } from './pronunciation-explain/pronunciation-explain.capability.js';
 import { REVIEW_DIRECT } from './review-direct/review-direct.capability.js';
 import { REVIEW_DRAFT } from './review-draft/review-draft.capability.js';
 import { STUDENT_ASSIST } from './student-assist/student-assist.capability.js';
@@ -19,6 +20,7 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   STUDENT_ASSIST,
   PRACTICE,
   PRACTICE_VOICE,
+  PRONUNCIATION_EXPLAIN,
 ];
 
 export function findCapability(code: string): CapabilityDefinition | null {

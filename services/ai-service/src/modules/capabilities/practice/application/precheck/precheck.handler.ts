@@ -19,7 +19,11 @@ import { PassageSounds, type WordSounds } from '../../../../pronunciation/applic
 import type { SpeechResult } from '../../../../providers/domain/speech-result.js';
 import { EMPTY_CATALOG, GRAMMAR_ASPECTS } from '../../../grammar-atoms/domain/atom-catalog.js';
 import { toAiFeedback } from '../../domain/practice-feedback.js';
-import { toVoiceFeedback, type PassageHearing } from '../../domain/voice-feedback.js';
+import { soundFindings, toVoiceFeedback, withSoundExplanations, type PassageHearing } from '../../domain/voice-feedback.js';
+import { readExplanations, type SoundExplanations, type SoundToExplain } from '../../../pronunciation-explain/domain/sound-explanations.js';
+import { PRONUNCIATION_EXPLAIN } from '../../../pronunciation-explain/pronunciation-explain.capability.js';
+import { pronunciationExplainRequest } from '../../../pronunciation-explain/prompts/prompts.js';
+import { languageName } from '../../../review-draft/domain/comment-language.js';
 import { PRACTICE, PRACTICE_VOICE } from '../../practice.capability.js';
 import { practiceRequest } from '../../prompts/prompts.js';
 import { PRACTICE_USAGE_READER, type IPracticeUsageReader, type PracticeUsage } from '../ports/practice-usage.reader.js';
@@ -91,7 +95,9 @@ interface Ran {
  * media, one call per passage, the words heard back as they are. Every take is fetched before
  * the first call, so a reading missing one costs nothing. Where the model scored sounds, the
  * weak ones become remarks on the `sound` atom (plan 88, step 5) — fluent speech, so by the
- * fluent thresholds.
+ * fluent thresholds — and `pronunciation_explain` explains them all in one call, in the
+ * school's language (step 5b). That call is part of the check, under the same key and limits;
+ * when it does not answer, the remarks keep the inventory's note and the reading is still ok.
  *
  * Limits (step 3, plan §2 Q2): checks per (learner, exercise) and credits per learner per
  * calendar month, as the engine read them from the school, counted from the ledger — every
@@ -140,7 +146,8 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
       surface: PRECHECK_SURFACE,
       subject: { exerciseId: request.exerciseId, checkId: randomUUID() },
     };
-    const ran = subject.template === 'read_aloud' ? await this.hearReading(context, subject) : await this.readText(request, context, subject);
+    const ran =
+      subject.template === 'read_aloud' ? await this.hearReading(request, context, subject) : await this.readText(request, context, subject);
     const remaining = usage ? remainingAfter(request.limits, usage, ran) : null;
     return { ...ran.outcome, remaining } as PrecheckOutcome;
   }
@@ -162,7 +169,7 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
     return { outcome: { status: 'ok', feedback: toAiFeedback(output.data, prepared.input, catalog), aiCallIds: callIds }, ...billed };
   }
 
-  private async hearReading(context: CallContext, subject: ReadAloudSubject): Promise<Ran> {
+  private async hearReading(request: PrecheckRequest, context: CallContext, subject: ReadAloudSubject): Promise<Ran> {
     const takes = await this.takes(subject);
     if (takes.kind !== 'ready') {
       return { outcome: { status: 'failed', errorCode: `recording_${takes.kind}`, aiCallIds: [] }, counted: false, credits: [] };
@@ -184,14 +191,44 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
       const heard = call.routed.value.result;
       hearings.push({ passageIndex, heard, sounds: await this.soundsOf(subject.targetLanguage, prompt.text, heard) });
     }
-    return {
-      outcome: {
-        status: 'ok',
-        feedback: toVoiceFeedback(hearings, subject.targetLanguage),
-        aiCallIds: calls.map((c) => c.recorded.callId),
-      },
-      ...billed(),
+    let feedback = toVoiceFeedback(hearings, subject.targetLanguage);
+    const sounds = soundFindings(hearings, subject.targetLanguage);
+    if (sounds.length > 0) {
+      const explained = await this.explainSounds(request, context, subject.targetLanguage, sounds);
+      calls.push(explained.call);
+      if (explained.explanations) feedback = withSoundExplanations(feedback, explained.explanations);
+    }
+    return { outcome: { status: 'ok', feedback, aiCallIds: calls.map((c) => c.recorded.callId) }, ...billed() };
+  }
+
+  /**
+   * The weak sounds explained by a model (plan 88, step 5b), all in one call. Null explanations
+   * when it did not answer usably — off, refused, failed — and the inventory's notes stay.
+   */
+  private async explainSounds(
+    request: PrecheckRequest,
+    context: CallContext,
+    targetLanguage: string,
+    sounds: SoundToExplain[],
+  ): Promise<{ call: GatewayCallOf<unknown>; explanations: SoundExplanations | null }> {
+    const school = await this.schoolLanguage(request.schoolId);
+    const input = {
+      targetLanguage: languageName(targetLanguage),
+      // The inventory's notes are English: the language to fall back on.
+      explanationLanguage: languageName(school ?? 'en'),
+      sounds,
     };
+    const call = await this.gateway.call(PRONUNCIATION_EXPLAIN.code, context, (promptVersion) =>
+      pronunciationExplainRequest(promptVersion, input),
+    );
+    if (call.routed.isFail) {
+      // Off is a choice (no binding yet), not a failure worth a line per rehearsal.
+      if (call.routed.error.kind !== 'disabled') this.logger.warn(`Sounds of a rehearsed reading not explained: ${call.routed.error.kind}`);
+      return { call, explanations: null };
+    }
+    const { output } = call.routed.value.result;
+    if (output.kind !== 'structured') return { call, explanations: null };
+    return { call, explanations: readExplanations(output.data, sounds.length) };
   }
 
   /**

@@ -308,6 +308,8 @@ describe('PrecheckHandler', () => {
       heard?: (n: number) => unknown;
       audio?: (assetId: string, n: number) => RecordingAudio | Error;
       sounds?: PassageSounds;
+      /** What `pronunciation_explain` answers; absent — the agent is off. */
+      explain?: GatewayCall;
     } = {},
     ledger: { usage?: PracticeUsage | Error; limits?: PrecheckLimits } = {},
     atoms: { resolver?: AtomCatalogResolver; courseId?: string | null; promptVersion?: string } = {},
@@ -325,8 +327,11 @@ describe('PrecheckHandler', () => {
     const fetched: string[] = [];
     const gateway = {
       call: async (capability: string, context: CallContext, input: GatewayInput) => {
-        const request = typeof input === 'function' ? input(atoms.promptVersion ?? 'practice@1') : input;
+        const explaining = capability === 'pronunciation_explain';
+        const version = explaining ? 'pronunciation_explain@1' : (atoms.promptVersion ?? 'practice@1');
+        const request = typeof input === 'function' ? input(version) : input;
         calls.push({ capability, context, request });
+        if (explaining) return voice.explain ?? ({ routed: Result.fail({ kind: 'disabled', binding: null }), recorded: { callId: 'explain-off', cost: null, credits: null }, latencyMs: 1 } as unknown as GatewayCall);
         return call;
       },
       callSpeech: async (capability: string, context: CallContext, request: SpeechGatewayRequest) => {
@@ -516,6 +521,80 @@ describe('PrecheckHandler', () => {
           [{ passageIndex: 0, wordIndex: 0 }, 'nb:kj'],
           [{ passageIndex: 1, wordIndex: 1 }, 'nb:kj'],
         ]);
+      });
+
+      // Plan 88, step 5b.
+      describe('explained (pronunciation_explain)', () => {
+        const kjSounds = {
+          of: async () => {
+            const alignment = alignWord({ text: 'kjør', error: 'mispronunciation', phonemes: [{ startMs: 0, durationMs: 80, accuracy: 10 }] }, [
+              { nofabet: 'KJ' },
+            ]);
+            return [{ alignment, weak: weakSounds(alignment, 'fluent', false) }];
+          },
+        } as unknown as PassageSounds;
+        const explainedAs = (data: unknown): GatewayCall =>
+          ({ ...answered(data), recorded: { callId: 'explain-1', cost: null, credits: '0.002' } }) as unknown as GatewayCall;
+
+        it('asks once for every weak sound, in the school’s language, on the same check, and puts the words on the remarks', async () => {
+          const { run, calls, speech } = setup(answered({}), undefined, {
+            heard: scoredHearing,
+            sounds: kjSounds,
+            explain: explainedAs({
+              items: [
+                { index: 1, explanation: 'Снова kj.' },
+                { index: 0, explanation: 'Кончик языка вниз, воздух шипит.' },
+              ],
+              summary: 'Начните с kj.',
+            }),
+          });
+          const outcome = await run(reading());
+
+          expect(calls.map((c) => c.capability)).toEqual(['pronunciation_explain']);
+          expect(calls[0]!.context).toEqual(speech[0]!.context);
+          expect(calls[0]!.request.system).toContain('in Russian');
+          expect(calls[0]!.request.system).toContain('[ç] kj-sound');
+          expect(calls[0]!.request.messages[0]!.parts[0]).toEqual({
+            type: 'text',
+            text: 'Remarks:\n0. «w1» [ç] — kj-sound [ç], major\n1. «w2» [ç] — kj-sound [ç], major',
+          });
+          expect(outcome).toMatchObject({ status: 'ok', aiCallIds: ['speech-1', 'speech-2', 'explain-1'] });
+          expect(outcome.status === 'ok' && outcome.feedback.summary).toBe('Начните с kj.');
+          expect(outcome.status === 'ok' && outcome.feedback.items.map((i) => [i.explanation, i.atomRef?.atomId])).toEqual([
+            ['Кончик языка вниз, воздух шипит.', 'nb:kj'],
+            ['Снова kj.', 'nb:kj'],
+          ]);
+        });
+
+        it('keeps the inventory’s note when the agent does not answer, and the reading stays ok', async () => {
+          const { run } = setup(answered({}), undefined, {
+            heard: scoredHearing,
+            sounds: kjSounds,
+            explain: { ...failedWith({ kind: 'error', error: { code: 'timeout' }, attempts: [] }), recorded: { callId: 'explain-1', cost: null, credits: null } } as unknown as GatewayCall,
+          });
+          const outcome = await run(reading());
+          expect(outcome).toMatchObject({ status: 'ok', aiCallIds: ['speech-1', 'speech-2', 'explain-1'] });
+          expect(outcome.status === 'ok' && outcome.feedback.summary).toBe('');
+          expect(outcome.status === 'ok' && outcome.feedback.items.every((i) => i.explanation.startsWith('kj-sound [ç]:'))).toBe(true);
+        });
+
+        it('explains in English when the school language is unreadable', async () => {
+          const { run, calls } = setup(
+            answered({}),
+            async () => {
+              throw new Error('down');
+            },
+            { heard: scoredHearing, sounds: kjSounds },
+          );
+          await run(reading());
+          expect(calls[0]!.request.system).toContain('in English');
+        });
+
+        it('asks nothing when no sound is weak', async () => {
+          const { run, calls } = setup(answered({}), undefined, { heard: scoredHearing });
+          expect(await run(reading())).toMatchObject({ status: 'ok', aiCallIds: ['speech-1', 'speech-2'] });
+          expect(calls).toHaveLength(0);
+        });
       });
 
       it('gives the words back without sounds when the lexicon cannot be read', async () => {
