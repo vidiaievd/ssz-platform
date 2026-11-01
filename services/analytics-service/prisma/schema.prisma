@@ -614,6 +614,42 @@ model AiAssistQualityDaily {
   @@map("ai_assist_quality_daily")
 }
 
+// ─── Rollup: WeakRuleDaily ────────────────────────────────────────────────────
+// Grammar rules a check of a learner's work named as the ground of a mistake, one row per
+// (day, learner, exercise, atom, source) — plan 85, step 10. Fed by
+// `exercise.feedback.atoms_flagged`; the unique key is the plan's rule 3 (one signal per
+// learner, exercise and atom a day, however many rehearsals there were), kept here on its
+// own because learning-service's `atom_flags` is not shared.
+//
+// The grain is finer than the screens read (learner × atom × source) so that «how many
+// exercises» and «how many learners» are both countable, and so a rehearsal cannot be
+// told apart from a teacher's mark only by a sum. `group_id` / `container_id` are the
+// attempt's snapshot; the group screen reads by roster and course, not by `group_id`,
+// because work done alone carries no group (same reason as the work-context bucket).
+// Not a verdict and not progress: nothing here is ever averaged into a mastery number.
+
+model WeakRuleDaily {
+  id                String   @id @default(uuid())
+  day               DateTime @db.Date
+  userId            String   @map("user_id")
+  exerciseId        String   @map("exercise_id")
+  atomType          String   @map("atom_type")
+  atomId            String   @map("atom_id")
+  /// 'ai_precheck' | 'ai_review' | 'teacher'
+  source            String
+  schoolId          String?  @map("school_id")
+  groupId           String?  @map("group_id")
+  containerId       String?  @map("container_id")
+  inExerciseTargets Boolean  @map("in_exercise_targets")
+  /// The latest signal of the day, for «last flagged».
+  flaggedAt         DateTime @map("flagged_at")
+
+  @@unique([day, userId, exerciseId, atomType, atomId, source], map: "weak_rules_daily_key")
+  @@index([userId, day])
+  @@index([containerId, day])
+  @@map("weak_rules_daily")
+}
+
 // ─── Journal: ReviewTermAcceptance ────────────────────────────────────────────
 // School work a model's verdict closed at the school's term because no teacher answered,
 // one row per attempt — plan 80, step 6a (R4). Fed by `exercise.attempt.ai_reviewed`

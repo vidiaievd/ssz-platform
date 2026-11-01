@@ -30,7 +30,8 @@ export class DeletedUserPrismaEraser implements IDeletedUserEraser {
       // attempt it points at is gone from exercise-engine.
       const schoolRecords =
         (await tx.schoolActivity.deleteMany({ where: { actorId: userId } })).count +
-        (await tx.reviewTermAcceptance.deleteMany({ where: { userId } })).count;
+        (await tx.reviewTermAcceptance.deleteMany({ where: { userId } })).count +
+        (await tx.weakRuleDaily.deleteMany({ where: { userId } })).count;
 
       // The archive is what projections are replayed from: a row left here would bring the
       // user back on the next replay. Matched anywhere in the payload — a student-only
