@@ -255,7 +255,8 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
   /**
    * After the verdict is stored: the draft labelled, the verdict's letters published, and
    * then the rule atoms of the remarks the teacher kept (plan 85, step 4) — `ai_review`,
-   * since a model named them and the teacher let them stand.
+   * since a model named them and the teacher let them stand — and the ones the teacher
+   * marked themselves (step 9) — `teacher`.
    */
   private async deliver(
     attempt: Attempt,
@@ -269,6 +270,13 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
       this.publisher,
       this.logger,
       atomsFlagged(attempt, 'ai_review', drafted?.keptAtoms ?? [], new Date()),
+    );
+    // The teacher's own marks, in a letter of their own: full weight (§1 rule 5), and a
+    // different source, so the consumer's per-day dedup keeps it apart from the model's.
+    await publishAtomsFlagged(
+      this.publisher,
+      this.logger,
+      atomsFlagged(attempt, 'teacher', command.flaggedAtoms, new Date()),
     );
   }
 

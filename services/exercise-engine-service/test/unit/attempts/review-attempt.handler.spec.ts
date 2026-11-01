@@ -786,6 +786,45 @@ describe('ReviewAttemptHandler', () => {
 
         expect(flaggedOf(publisher)).toHaveLength(0);
       });
+
+      describe('rules the teacher marked (plan 85, step 9)', () => {
+        const marked = (atoms: Array<{ atomType: string; atomId: string }>) =>
+          new ReviewAttemptCommand('att-1', 'teacher-1', 'approved', [], null, {}, null, null, atoms);
+
+        it('publishes them as teacher, apart from the model\'s letter', async () => {
+          const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, ATOM_DRAFT);
+
+          await handler.execute(
+            new ReviewAttemptCommand('att-1', 'teacher-1', 'approved', [], null, {}, null, { '0': 'accepted' }, [
+              ATOM('atom-z'),
+              ATOM('atom-z'),
+            ]),
+          );
+
+          const flagged = flaggedOf(publisher);
+          expect(flagged.map(([, letter]) => letter.source)).toEqual(['ai_review', 'teacher']);
+          expect(flagged[1]![1]).toMatchObject({
+            userId: 'user-1',
+            atoms: [{ atomType: 'grammar_rule_atom', atomId: 'atom-z', inExerciseTargets: false }],
+          });
+        });
+
+        it('publishes them without any draft on the card', async () => {
+          const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, null);
+
+          await handler.execute(marked([ATOM('atom-z')]));
+
+          expect(flaggedOf(publisher).map(([, letter]) => letter.source)).toEqual(['teacher']);
+        });
+
+        it('publishes nothing when the teacher marked no rule', async () => {
+          const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, null);
+
+          await handler.execute(marked([]));
+
+          expect(flaggedOf(publisher)).toHaveLength(0);
+        });
+      });
     });
 
     // Plan 79, step 1.7d.

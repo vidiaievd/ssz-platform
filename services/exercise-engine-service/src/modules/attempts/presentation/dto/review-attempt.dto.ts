@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -10,6 +11,18 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
+
+/** A rule the teacher marked as the one the learner got wrong (plan 85, step 9). */
+export class FlaggedAtomDto {
+  @ApiProperty({ enum: ['grammar_rule_atom'], example: 'grammar_rule_atom' })
+  @IsIn(['grammar_rule_atom'])
+  atomType!: 'grammar_rule_atom';
+
+  @ApiProperty({ example: 'b6f1c0a4-3a0e-5a47-9d52-6a1e0f4d2c11' })
+  @IsString()
+  @MaxLength(64)
+  atomId!: string;
+}
 
 /** What the teacher decided about one sentence of a submission. */
 export class ReviewDecisionDto {
@@ -112,4 +125,18 @@ export class ReviewAttemptRequestDto {
   @IsOptional()
   @IsObject()
   aiOutcomes?: Record<string, string>;
+
+  /**
+   * Rule atoms the teacher marked while reviewing (plan 85, step 9), whatever the model
+   * said. Published as `exercise.feedback.atoms_flagged` with `source: 'teacher'` — the one
+   * source that lapses a card — after the verdict is stored. Which course the atoms belong
+   * to is the screen's catalogue to guarantee; unknown ids find no card and do nothing.
+   */
+  @ApiPropertyOptional({ type: [FlaggedAtomDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => FlaggedAtomDto)
+  flaggedAtoms?: FlaggedAtomDto[];
 }
