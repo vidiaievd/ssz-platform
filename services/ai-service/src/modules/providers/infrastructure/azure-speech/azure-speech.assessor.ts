@@ -134,12 +134,15 @@ export class AzureSpeechAssessor implements SpeechAssessor {
   }
 }
 
-/** What the assessment is asked for: 0–100 scores per word, against the passage, with miscue. */
+/**
+ * What the assessment is asked for: 0–100 scores per word and per sound (plan 88, step 4 — the
+ * sounds are named by the pronunciation lexicon), against the passage, with miscue.
+ */
 function assessmentHeader(referenceText: string): string {
   const params = {
     ReferenceText: referenceText,
     GradingSystem: 'HundredMark',
-    Granularity: 'Word',
+    Granularity: 'Phoneme',
     Dimension: 'Comprehensive',
     EnableMiscue: true,
   };

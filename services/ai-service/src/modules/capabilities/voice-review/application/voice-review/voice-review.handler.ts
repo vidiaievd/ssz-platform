@@ -9,6 +9,7 @@ import { SchoolPayerResolver } from '../../../review-draft/application/school-pa
 import { SELF_STUDY_SURFACE } from '../../../review-direct/application/direct-review/direct-review.handler.js';
 import { LearnerPayerResolver } from '../../../review-direct/application/learner-payer.resolver.js';
 import type { GiveUpReason } from '../../../review-direct/application/ports/direct-review-attempts.client.js';
+import { audible, recordingLevel } from '../../../../providers/domain/recording-level.js';
 import type { ReadAloudSubject } from '../../domain/read-aloud-subject.js';
 import { VOICE_REVIEW, VOICE_REVIEW_PRONUNCIATION } from '../../voice-review.capability.js';
 import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from '../ports/recording-audio.source.js';
@@ -66,7 +67,7 @@ type Heard =
  * the first — its credits spent — drops to the second rather than leave the reading unheard.
  *
  * Every take is fetched before the first call: a reading missing one cannot be ruled, and
- * nothing is paid for it. Then, as for a learner's text review, every way out without a
+ * nothing is paid for it — nor for one with a take no voice can be heard in (plan 88, step 4). Then, as for a learner's text review, every way out without a
  * verdict closes the attempt as `NO_REVIEWER`; at a school (plan 80) it is left to the teacher.
  */
 @CommandHandler(VoiceReviewCommand)
@@ -203,7 +204,7 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
    */
   private async takes(
     subject: ReadAloudSubject,
-  ): Promise<{ kind: 'ready'; wavs: Map<string, Uint8Array> } | { kind: 'missing' | 'not_ready' }> {
+  ): Promise<{ kind: 'ready'; wavs: Map<string, Uint8Array> } | { kind: 'missing' | 'not_ready' | 'inaudible' }> {
     const wavs = new Map<string, Uint8Array>();
     for (let round = 0; ; round++) {
       let pending = false;
@@ -214,11 +215,31 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
         if (audio.kind === 'pending') pending = true;
         else wavs.set(prompt.itemId, audio.wav);
       }
-      if (!pending) return { kind: 'ready', wavs };
+      if (!pending) return this.audibleTakes(subject, wavs);
       if (round >= this.recordingWaitsMs.length) return { kind: 'not_ready' };
       await sleep(this.recordingWaitsMs[round]);
     }
   }
+  /**
+   * The takes, unless one is too quiet or too noisy for a voice to be heard in it (plan 88,
+   * step 4): Azure would hear nothing and be paid for it, and the reading would read as not read.
+   */
+  private audibleTakes(
+    subject: ReadAloudSubject,
+    wavs: Map<string, Uint8Array>,
+  ): { kind: 'ready'; wavs: Map<string, Uint8Array> } | { kind: 'inaudible' } {
+    for (const prompt of subject.prompts) {
+      const level = recordingLevel(wavs.get(prompt.itemId)!);
+      if (!audible(level)) {
+        this.logger.warn(
+          `Take ${prompt.assetId} inaudible: voice ${level!.speechDb} dBFS, ${level!.contrastDb} dB over its noise`,
+        );
+        return { kind: 'inaudible' };
+      }
+    }
+    return { kind: 'ready', wavs };
+  }
+
 
   /**
    * Closes the attempt as `NO_REVIEWER`; the outcome says whether the engine took it. A

@@ -15,6 +15,7 @@ import type { RecordingAudio } from '../voice-review/application/ports/recording
 import type { ReadAloudSubject } from '../voice-review/domain/read-aloud-subject.js';
 import type { SpeechGatewayRequest } from '../../gateway/application/model-router.js';
 import type { SpeechResult } from '../../providers/domain/speech-result.js';
+import { levelledWav } from '../../providers/domain/wav.fixture.js';
 import { practiceUnaskable, toPracticeSubject } from './application/practice-subject.js';
 import { PrecheckCommand, type PracticeSubject } from './application/precheck/precheck.command.js';
 import { PRECHECK_SURFACE, PrecheckHandler } from './application/precheck/precheck.handler.js';
@@ -115,7 +116,9 @@ const reading = (over: Partial<ReadAloudSubject> = {}): ReadAloudSubject => ({
 
 const heardAs = (texts: string[], scored?: Array<{ text: string; accuracy: number; error: 'none' | 'mispronunciation' | 'omission' | 'insertion' }>) => ({
   words: texts.map((text, i) => ({ text, startMs: i * 500, endMs: i * 500 + 400, confidence: 0.9 })),
-  pronunciation: scored ? { accuracy: 80, fluency: 0, completeness: 90, prosody: null, words: scored } : null,
+  pronunciation: scored
+    ? { accuracy: 80, fluency: 0, completeness: 90, prosody: null, words: scored.map((w) => ({ ...w, phonemes: [] })) }
+    : null,
 });
 
 describe('voice feedback (domain)', () => {
@@ -431,6 +434,8 @@ describe('PrecheckHandler', () => {
       ['missing', () => ({ kind: 'missing' }) as RecordingAudio, 'recording_missing'],
       ['never ready', () => ({ kind: 'pending' }) as RecordingAudio, 'recording_not_ready'],
       ['unreadable', () => new Error('media down'), 'recording_unreadable'],
+      // Plan 88, step 4: Azure would hear nothing in it and be paid.
+      ['inaudible', () => ({ kind: 'ready', wav: levelledWav([{ ms: 500, dbfs: -48 }, { ms: 2_000, dbfs: -32 }]) }) as RecordingAudio, 'recording_inaudible'],
     ])('pays for nothing when a take is %s', async (_label, audio, errorCode) => {
       const { run, speech } = setup(answered({}), undefined, { audio });
       expect(await run(reading())).toEqual({ status: 'failed', errorCode, aiCallIds: [], remaining: null });

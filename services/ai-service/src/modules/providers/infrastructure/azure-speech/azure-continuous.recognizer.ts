@@ -48,7 +48,8 @@ export class AzureContinuousRecognizer {
       new sdk.PronunciationAssessmentConfig(
         input.referenceText,
         sdk.PronunciationAssessmentGradingSystem.HundredMark,
-        sdk.PronunciationAssessmentGranularity.Word,
+        // Sounds as well as words, as the REST call asks for (plan 88, step 4).
+        sdk.PronunciationAssessmentGranularity.Phoneme,
         false,
       ).applyTo(recognizer);
     }

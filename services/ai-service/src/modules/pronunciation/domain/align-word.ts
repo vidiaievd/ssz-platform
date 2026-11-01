@@ -6,6 +6,8 @@ export interface LexiconVariant {
   /** Space-separated NoFAbet, stress digits on vowels: `KJ OEH1 K AX0 N`. */
   nofabet: string;
   pos?: string;
+  /** The lexicon's features (`PLU|IND|NOM|MAS`); what part of speech alone cannot tell apart (step 4b). */
+  feats?: string;
 }
 
 /** A word as Azure scored it, sound by sound. */

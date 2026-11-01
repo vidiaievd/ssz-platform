@@ -134,22 +134,27 @@ function alignWithPassage(passage: string[], recognized: AzureWord[]): Pronounce
   let j = 0;
   while (i < n || j < m) {
     if (i < n && j < m && passage[i] === heard[j]) {
-      const error = errorOf(recognized[j]!) === 'mispronunciation' ? 'mispronunciation' : 'none';
-      out.push({ text: heard[j]!, accuracy: score(recognized[j]!, 'AccuracyScore') ?? 0, error });
+      const word = recognized[j]!;
+      const error = errorOf(word) === 'mispronunciation' ? 'mispronunciation' : 'none';
+      out.push({ text: heard[j]!, accuracy: score(word, 'AccuracyScore') ?? 0, error, phonemes: phonemesOf(word) });
       i++;
       j++;
     } else if (j < m && (i === n || lcs[i]![j + 1]! >= lcs[i + 1]![j]!)) {
-      out.push({ text: heard[j]!, accuracy: score(recognized[j]!, 'AccuracyScore') ?? 0, error: 'insertion' });
+      const word = recognized[j]!;
+      out.push({ text: heard[j]!, accuracy: score(word, 'AccuracyScore') ?? 0, error: 'insertion', phonemes: phonemesOf(word) });
       j++;
     } else {
-      out.push({ text: passage[i]!, accuracy: 0, error: 'omission' });
+      out.push({ text: passage[i]!, accuracy: 0, error: 'omission', phonemes: [] });
       i++;
     }
   }
   return out;
 }
 
-/** The sounds of a word with their times and scores, in order; empty without `Granularity: Phoneme`. */
+/**
+ * The sounds of a word with their times and scores, in order; empty without `Granularity: Phoneme`.
+ * Offsets are from the start of the recording, as the word's are — in a continuous recognition too.
+ */
 export function phonemesOf(word: AzureWord): PronouncedPhoneme[] {
   return (word.Phonemes ?? []).map((p) => {
     const startMs = ticksToMs(p.Offset);
@@ -169,7 +174,9 @@ function heardWords(aligned: AzureWord[]): HeardWord[] {
 function scoresOf(best: AzureBest, aligned: AzureWord[]): PronunciationScores {
   const words: PronouncedWord[] = aligned.flatMap((w) => {
     const text = lexicalWord(w.Word);
-    return text ? [{ text, accuracy: score(w, 'AccuracyScore') ?? 0, error: errorOf(w) }] : [];
+    if (!text) return [];
+    const error = errorOf(w);
+    return [{ text, accuracy: score(w, 'AccuracyScore') ?? 0, error, phonemes: error === 'omission' ? [] : phonemesOf(w) }];
   });
   return {
     accuracy: score(best, 'AccuracyScore') ?? 0,

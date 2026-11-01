@@ -1,6 +1,10 @@
 import type { DraftWriteMeta } from '../../review-draft/application/ports/review-attempts.client.js';
 import type { GiveUpReason } from '../../review-direct/application/ports/direct-review-attempts.client.js';
-import type { IVoiceReviewAttemptsClient, ReadingToWrite } from '../application/ports/voice-review-attempts.client.js';
+import type {
+  IVoiceReviewAttemptsClient,
+  PromptHearing,
+  ReadingToWrite,
+} from '../application/ports/voice-review-attempts.client.js';
 import type { VoiceSubjectResult } from '../domain/read-aloud-subject.js';
 
 /**
@@ -31,7 +35,7 @@ export class HttpVoiceReviewAttemptsClient implements IVoiceReviewAttemptsClient
     // No remarks: the engine reads the verdict off what was heard (step 7), the panel draws the words.
     const body =
       reading.status === 'ready'
-        ? { status: 'ready', items: [], summary: null, marks: null, reading: { prompts: reading.prompts }, ...meta }
+        ? { status: 'ready', items: [], summary: null, marks: null, reading: { prompts: reading.prompts.map(onTheWire) }, ...meta }
         : { status: 'failed', items: [], errorCode: reading.errorCode, ...meta };
     const res = await this.put(`/api/v1/internal/attempts/${attemptId}/ai-review`, body);
     if (res.ok) {
@@ -75,4 +79,14 @@ export class HttpVoiceReviewAttemptsClient implements IVoiceReviewAttemptsClient
 async function refusalCode(res: Response): Promise<string> {
   const answer = (await res.json().catch(() => ({}))) as { code?: unknown };
   return typeof answer.code === 'string' ? answer.code : `HTTP_${res.status}`;
+}
+
+/**
+ * A prompt's hearing as the engine stores it: the words' sounds stay here (plan 88, step 4) —
+ * the engine rules from the words, and its DTO refuses fields it does not know.
+ */
+function onTheWire(prompt: PromptHearing) {
+  if (!prompt.pronunciation) return prompt;
+  const words = prompt.pronunciation.words.map(({ phonemes: _phonemes, ...word }) => word);
+  return { ...prompt, pronunciation: { ...prompt.pronunciation, words } };
 }

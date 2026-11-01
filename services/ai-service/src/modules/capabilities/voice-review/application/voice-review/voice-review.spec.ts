@@ -8,6 +8,7 @@ import { SchoolPayerResolver } from '../../../review-draft/application/school-pa
 import { SELF_STUDY_SURFACE } from '../../../review-direct/application/direct-review/direct-review.handler.js';
 import { LearnerPayerResolver } from '../../../review-direct/application/learner-payer.resolver.js';
 import type { GiveUpReason } from '../../../review-direct/application/ports/direct-review-attempts.client.js';
+import { levelledWav } from '../../../../providers/domain/wav.fixture.js';
 import type { ReadAloudSubject, VoiceSubjectResult } from '../../domain/read-aloud-subject.js';
 import type { IRecordingAudioSource, RecordingAudio } from '../ports/recording-audio.source.js';
 import type { IVoiceReviewAttemptsClient, ReadingToWrite } from '../ports/voice-review-attempts.client.js';
@@ -258,6 +259,8 @@ describe('VoiceReviewHandler', () => {
   it.each([
     ['still converted after every wait', [{ kind: 'pending' } as RecordingAudio], 'recording_not_ready'],
     ['missing', [{ kind: 'missing' } as RecordingAudio], 'recording_missing'],
+    // Plan 88, step 4: Azure would hear nothing in it and be paid.
+    ['inaudible', [{ kind: 'ready', wav: levelledWav([{ ms: 500, dbfs: -48 }, { ms: 2_000, dbfs: -32 }]) } as RecordingAudio], 'recording_inaudible'],
   ])('gives up before any model when a take is %s', async (_label, takes, cause) => {
     const { handler, asked, gaveUp } = setup({ audio: { 'asset-1': takes } });
     const outcome = await handler.execute(learnerCommand());

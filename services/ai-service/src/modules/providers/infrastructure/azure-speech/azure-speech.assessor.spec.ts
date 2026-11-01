@@ -44,7 +44,18 @@ const assessed = {
         { Word: 'jeg', Offset: 3_000_000, Duration: 2_200_000, AccuracyScore: 98, ErrorType: 'None' },
         { Word: 'heter', Offset: 5_400_000, Duration: 2_600_000, AccuracyScore: 91, ErrorType: 'None' },
         { Word: 'Ola', Offset: 8_200_000, Duration: 2_800_000, AccuracyScore: 55, ErrorType: 'Mispronunciation' },
-        { Word: 'og', Offset: 12_000_000, Duration: 1_000_000, AccuracyScore: 97, ErrorType: 'None' },
+        {
+          Word: 'og',
+          Offset: 12_000_000,
+          Duration: 1_000_000,
+          AccuracyScore: 97,
+          ErrorType: 'None',
+          // nb-NO leaves the symbol empty (plan 88 §0.1).
+          Phonemes: [
+            { Phoneme: '', Offset: 12_000_000, Duration: 600_000, AccuracyScore: 99 },
+            { Phoneme: '', Offset: 12_600_000, Duration: 400_000, AccuracyScore: 94 },
+          ],
+        },
         { Word: 'jeg', Offset: 13_200_000, Duration: 1_500_000, AccuracyScore: 95, ErrorType: 'None' },
         { Word: 'bor', Offset: 14_900_000, Duration: 1_800_000, AccuracyScore: 93, ErrorType: 'None' },
         { Word: 'i', AccuracyScore: 0, ErrorType: 'Omission' },
@@ -93,7 +104,7 @@ describe('AzureSpeechAssessor', () => {
     expect(assessment).toEqual({
       ReferenceText: 'Jeg heter Ola, og jeg bor i Bergen.',
       GradingSystem: 'HundredMark',
-      Granularity: 'Word',
+      Granularity: 'Phoneme',
       Dimension: 'Comprehensive',
       EnableMiscue: true,
     });
@@ -112,11 +123,15 @@ describe('AzureSpeechAssessor', () => {
       completeness: 88,
       prosody: null,
       words: expect.arrayContaining([
-        { text: 'ola', accuracy: 55, error: 'mispronunciation' },
-        { text: 'i', accuracy: 0, error: 'omission' },
+        { text: 'ola', accuracy: 55, error: 'mispronunciation', phonemes: [] },
+        { text: 'i', accuracy: 0, error: 'omission', phonemes: [] },
       ]),
     });
     expect(result.pronunciation?.words).toHaveLength(8);
+    expect(result.pronunciation?.words.find((w) => w.text === 'og')?.phonemes).toEqual([
+      { startMs: 1_200, durationMs: 60, accuracy: 99 },
+      { startMs: 1_260, durationMs: 40, accuracy: 94 },
+    ]);
     expect(result.audioMs).toBe(4_000);
     expect(result.providerRequestId).toBe('req-1');
   });

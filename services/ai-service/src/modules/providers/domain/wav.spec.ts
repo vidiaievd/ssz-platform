@@ -1,4 +1,4 @@
-import { wavDurationMs } from './wav.js';
+import { readWav, wavDurationMs } from './wav.js';
 import { silentWav } from './wav.fixture.js';
 
 describe('wavDurationMs', () => {
@@ -23,5 +23,13 @@ describe('wavDurationMs', () => {
     const noFmt = silentWav(1_000);
     noFmt.set(new TextEncoder().encode('junk'), 12);
     expect(wavDurationMs(noFmt)).toBeNull();
+  });
+});
+
+describe('readWav', () => {
+  it('gives the format and the sample bytes past other chunks', () => {
+    const wav = readWav(silentWav(500, { listChunk: true }))!;
+    expect(wav).toMatchObject({ format: 1, channels: 1, sampleRate: 16_000, byteRate: 32_000, bitsPerSample: 16 });
+    expect(wav.samples.byteLength).toBe(16_000);
   });
 });

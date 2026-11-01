@@ -8,17 +8,6 @@ export interface HeardWord {
 }
 
 /**
- * How a word of the reference text was pronounced, by the provider's own alignment. Feedback
- * only (plan 82 §2.3): the verdict comes from the engine's reading check, not from here.
- */
-export interface PronouncedWord {
-  text: string;
-  /** 0–100. */
-  accuracy: number;
-  error: 'none' | 'mispronunciation' | 'omission' | 'insertion';
-}
-
-/**
  * One sound of a word as Azure scored it (`Granularity: Phoneme`). For `nb-NO` Azure leaves the
  * symbol empty — which sound it is comes from the pronunciation lexicon (plan 88, step 3).
  */
@@ -27,6 +16,22 @@ export interface PronouncedPhoneme {
   durationMs: number;
   /** 0–100. */
   accuracy: number;
+}
+
+/**
+ * How a word of the reference text was pronounced, by the provider's own alignment. Feedback
+ * only (plan 82 §2.3): the verdict comes from the engine's reading check, not from here.
+ */
+export interface PronouncedWord {
+  text: string;
+  /** 0–100. */
+  accuracy: number;
+  error: 'none' | 'mispronunciation' | 'omission' | 'insertion';
+  /**
+   * The word's sounds in order (plan 88, step 4); empty for an omission and where the provider
+   * does not score sounds. ai-service's own: not sent to the engine with what was heard.
+   */
+  phonemes: PronouncedPhoneme[];
 }
 
 /** Pronunciation assessment scores, 0–100. `prosody` is null where the locale has none. */

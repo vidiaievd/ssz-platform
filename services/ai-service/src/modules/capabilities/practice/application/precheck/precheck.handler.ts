@@ -12,6 +12,7 @@ import {
 } from '../../../review-draft/application/ports/school-language.reader.js';
 import { SchoolPayerResolver } from '../../../review-draft/application/school-payer.resolver.js';
 import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from '../../../voice-review/application/ports/recording-audio.source.js';
+import { audible, recordingLevel } from '../../../../providers/domain/recording-level.js';
 import type { ReadAloudSubject } from '../../../voice-review/domain/read-aloud-subject.js';
 import { AtomCatalogResolver } from '../../../grammar-atoms/application/atom-catalog.resolver.js';
 import { EMPTY_CATALOG, GRAMMAR_ASPECTS } from '../../../grammar-atoms/domain/atom-catalog.js';
@@ -49,8 +50,9 @@ const DEFAULT_RECORDING_WAITS_MS = [1_000, 2_000];
  * - `not_available` — the agent is switched off, or the school may not use it (policy, tariff);
  * - `template_not_supported` — not a template a rehearsal reads.
  *
- * A failure's `errorCode` is the provider's, `gate_unavailable` / `unavailable`, or for a
- * reading `recording_missing` / `recording_not_ready` / `recording_unreadable` (no call made).
+ * A failure's `errorCode` is the provider's, `gate_unavailable` / `unavailable`, or for a reading
+ * `recording_missing` / `recording_not_ready` / `recording_unreadable` / `recording_inaudible`
+ * (no call made).
  */
 export type PrecheckRefusal = 'unaskable' | LimitRefusal | 'pool_empty' | 'not_available' | 'template_not_supported';
 
@@ -204,7 +206,7 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
   /** Every take's speech WAV, asking again a little while media is still converting one. */
   private async takes(
     subject: ReadAloudSubject,
-  ): Promise<{ kind: 'ready'; wavs: Map<string, Uint8Array> } | { kind: 'missing' | 'not_ready' | 'unreadable' }> {
+  ): Promise<{ kind: 'ready'; wavs: Map<string, Uint8Array> } | { kind: 'missing' | 'not_ready' | 'unreadable' | 'inaudible' }> {
     const wavs = new Map<string, Uint8Array>();
     for (let round = 0; ; round++) {
       let pending = false;
@@ -222,11 +224,31 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
         if (audio.kind === 'pending') pending = true;
         else wavs.set(prompt.itemId, audio.wav);
       }
-      if (!pending) return { kind: 'ready', wavs };
+      if (!pending) return this.audibleTakes(subject, wavs);
       if (round >= this.recordingWaitsMs.length) return { kind: 'not_ready' };
       await sleep(this.recordingWaitsMs[round]);
     }
   }
+  /**
+   * The takes, unless one is too quiet or too noisy for a voice to be heard in it (plan 88,
+   * step 4): Azure would hear nothing and be paid for it, and the reading would read as not read.
+   */
+  private audibleTakes(
+    subject: ReadAloudSubject,
+    wavs: Map<string, Uint8Array>,
+  ): { kind: 'ready'; wavs: Map<string, Uint8Array> } | { kind: 'inaudible' } {
+    for (const prompt of subject.prompts) {
+      const level = recordingLevel(wavs.get(prompt.itemId)!);
+      if (!audible(level)) {
+        this.logger.warn(
+          `Take ${prompt.assetId} inaudible: voice ${level!.speechDb} dBFS, ${level!.contrastDb} dB over its noise`,
+        );
+        return { kind: 'inaudible' };
+      }
+    }
+    return { kind: 'ready', wavs };
+  }
+
 
   /** A nicety, as for the draft: unreadable → the exercise's own label. */
   private async schoolLanguage(schoolId: string): Promise<string | null> {

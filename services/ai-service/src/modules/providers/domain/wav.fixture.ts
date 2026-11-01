@@ -31,3 +31,22 @@ export function silentWav(durationMs: number, opts: { listChunk?: boolean } = {}
   view.setUint32(40 + list, dataBytes, true);
   return bytes;
 }
+
+/**
+ * A 16 kHz mono WAV in segments, each a 220 Hz tone at the given level in dBFS (RMS), or
+ * digital silence for null — a voice over room noise, for tests of the level check (plan 88, step 4).
+ */
+export function levelledWav(segments: Array<{ ms: number; dbfs: number | null }>): Uint8Array {
+  const sampleRate = 16_000;
+  const wav = silentWav(segments.reduce((sum, s) => sum + s.ms, 0));
+  const view = new DataView(wav.buffer);
+  let sample = 0;
+  for (const { ms, dbfs } of segments) {
+    const peak = dbfs === null ? 0 : 32_768 * 10 ** (dbfs / 20) * Math.SQRT2;
+    const end = sample + Math.round((ms * sampleRate) / 1000);
+    for (; sample < end; sample++) {
+      view.setInt16(44 + sample * 2, Math.round(peak * Math.sin((2 * Math.PI * 220 * sample) / sampleRate)), true);
+    }
+  }
+  return wav;
+}
