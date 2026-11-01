@@ -21,7 +21,7 @@ export class EraseDeletedUserHandler implements ICommandHandler<EraseDeletedUser
     const erased = await this.eraser.erase(command.userId);
     this.logger.log(
       `Erased user ${command.userId}: enrollments=${erased.enrollments} assignments=${erased.assignments} ` +
-        `progress=${erased.progress} srsCards=${erased.srsCards} canDo=${erased.canDo}`,
+        `progress=${erased.progress} srsCards=${erased.srsCards} canDo=${erased.canDo} atomFlags=${erased.atomFlags}`,
     );
     return erased;
   }

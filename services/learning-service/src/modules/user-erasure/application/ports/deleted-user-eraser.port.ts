@@ -5,12 +5,13 @@ export interface ErasedLearnerData {
   progress: number;
   srsCards: number;
   canDo: number;
+  atomFlags: number;
 }
 
 export interface IDeletedUserEraser {
   /**
    * Hard-deletes everything this service keeps about one learner — enrolments, assignments
-   * given to them, progress, SRS cards and can-do statements — in one transaction. Idempotent.
+   * given to them, progress, SRS cards, can-do statements and atom flags — in one transaction. Idempotent.
    */
   erase(userId: string): Promise<ErasedLearnerData>;
 }

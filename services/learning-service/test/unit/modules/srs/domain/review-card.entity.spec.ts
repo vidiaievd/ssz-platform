@@ -259,3 +259,29 @@ describe('ReviewCard', () => {
     });
   });
 });
+
+describe('ReviewCard.pullDueTo (plan 85, rule 2)', () => {
+  const later = new Date(NOW.getTime() + 10 * 24 * 60 * 60 * 1000);
+  const tomorrow = new Date(NOW.getTime() + 24 * 60 * 60 * 1000);
+
+  it('brings a later due date forward and touches nothing FSRS owns', () => {
+    const card = ReviewCard.create(USER_ID, 'GRAMMAR_ATOM', CONTENT_ID, 'grammar', NOW, later);
+
+    expect(card.pullDueTo(tomorrow, NOW)).toBe(true);
+    expect(card.dueAt).toEqual(tomorrow);
+    expect(card.state).toBe('NEW');
+    expect(card.reps).toBe(0);
+    expect(card.lastReviewedAt).toBeNull();
+  });
+
+  it('never pushes a card back, and leaves a suspended one alone', () => {
+    const due = ReviewCard.create(USER_ID, 'GRAMMAR_ATOM', CONTENT_ID, 'grammar', NOW, NOW);
+    expect(due.pullDueTo(tomorrow, NOW)).toBe(false);
+    expect(due.dueAt).toEqual(NOW);
+
+    const suspended = ReviewCard.create(USER_ID, 'GRAMMAR_ATOM', CONTENT_ID, 'grammar', NOW, later);
+    suspended.suspend(NOW);
+    expect(suspended.pullDueTo(tomorrow, NOW)).toBe(false);
+    expect(suspended.dueAt).toEqual(later);
+  });
+});

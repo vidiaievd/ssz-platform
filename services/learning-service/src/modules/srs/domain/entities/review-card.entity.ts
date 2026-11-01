@@ -263,6 +263,20 @@ export class ReviewCard extends AggregateRoot {
     return Result.ok();
   }
 
+  /**
+   * Brings the card due no later than `latest` (plan 85, §1 rule 2): a mistake on the rule was
+   * seen, so it comes back sooner. Not a review — no rating, no FSRS state, no reps; the next
+   * review decides what the card is worth. A suspended card is the learner's decision and stays
+   * as it is. Answers whether anything moved.
+   */
+  pullDueTo(latest: Date, now: Date): boolean {
+    if (this._state === 'SUSPENDED') return false;
+    if (this._dueAt.getTime() <= latest.getTime()) return false;
+    this._dueAt = latest;
+    this._updatedAt = now;
+    return true;
+  }
+
   suspend(now: Date): void {
     this._state = 'SUSPENDED';
     this._updatedAt = now;

@@ -4,6 +4,7 @@ import { PrismaModule } from '../../infrastructure/database/prisma.module.js';
 import { EnrollmentsModule } from '../enrollments/enrollments.module.js';
 import { ProgressModule } from '../progress/progress.module.js';
 import { SRS_REPOSITORY } from './domain/repositories/srs-repository.interface.js';
+import { ATOM_FLAG_LOG } from './domain/repositories/atom-flag-log.interface.js';
 import { SRS_SCHEDULER } from './application/ports/srs-scheduler.port.js';
 import { SRS_LIMITS_POLICY } from './application/ports/srs-limits-policy.port.js';
 import { CLOCK, SystemClock } from '../../shared/application/ports/clock.port.js';
@@ -14,6 +15,7 @@ import { RedisSrsLimitsPolicy } from './infrastructure/cache/redis-srs-limits-po
 import { RedisDueQueueService } from './infrastructure/cache/redis-due-queue.service.js';
 import { RedisReviewIdempotencyService } from './infrastructure/cache/redis-review-idempotency.service.js';
 import { PrismaSrsRepository } from './infrastructure/persistence/prisma-srs.repository.js';
+import { PrismaAtomFlagLog } from './infrastructure/persistence/prisma-atom-flag.log.js';
 
 // Command handlers
 import { IntroduceCardHandler } from './application/commands/introduce-card.handler.js';
@@ -23,6 +25,7 @@ import { UnsuspendCardHandler } from './application/commands/unsuspend-card.hand
 import { PruneGapCardsHandler } from './application/commands/prune-gap-cards.handler.js';
 import { BulkIntroduceFromVocabularyListHandler } from './application/commands/bulk-introduce-from-vocabulary-list.handler.js';
 import { ApplyPlacementHandler } from './application/commands/apply-placement/apply-placement.handler.js';
+import { ApplyFlaggedAtomsHandler } from './application/commands/apply-flagged-atoms.handler.js';
 
 // Query handlers
 import { GetDueCardsHandler } from './application/queries/get-due-cards.handler.js';
@@ -52,6 +55,7 @@ const CommandHandlers = [
   PruneGapCardsHandler,
   BulkIntroduceFromVocabularyListHandler,
   ApplyPlacementHandler,
+  ApplyFlaggedAtomsHandler,
 ];
 
 const QueryHandlers = [
@@ -73,6 +77,7 @@ const QueryHandlers = [
   controllers: [SrsController, MasteryController],
   providers: [
     { provide: SRS_REPOSITORY, useClass: PrismaSrsRepository },
+    { provide: ATOM_FLAG_LOG, useClass: PrismaAtomFlagLog },
     { provide: SRS_SCHEDULER, useClass: FsrsScheduler },
     { provide: SRS_LIMITS_POLICY, useClass: RedisSrsLimitsPolicy },
     { provide: CLOCK, useClass: SystemClock },
@@ -89,6 +94,7 @@ const QueryHandlers = [
     IntroduceCardHandler,
     ReviewCardHandler,
     BulkIntroduceFromVocabularyListHandler,
+    ApplyFlaggedAtomsHandler,
     GrammarRuleMasteryService,
     SRS_REPOSITORY,
     SRS_SCHEDULER,
