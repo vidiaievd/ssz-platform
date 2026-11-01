@@ -26,6 +26,7 @@ import { PruneGapCardsHandler } from './application/commands/prune-gap-cards.han
 import { BulkIntroduceFromVocabularyListHandler } from './application/commands/bulk-introduce-from-vocabulary-list.handler.js';
 import { ApplyPlacementHandler } from './application/commands/apply-placement/apply-placement.handler.js';
 import { ApplyFlaggedAtomsHandler } from './application/commands/apply-flagged-atoms.handler.js';
+import { AddReachedAtomHandler } from './application/commands/add-reached-atom.handler.js';
 
 // Query handlers
 import { GetDueCardsHandler } from './application/queries/get-due-cards.handler.js';
@@ -56,6 +57,7 @@ const CommandHandlers = [
   BulkIntroduceFromVocabularyListHandler,
   ApplyPlacementHandler,
   ApplyFlaggedAtomsHandler,
+  AddReachedAtomHandler,
 ];
 
 const QueryHandlers = [

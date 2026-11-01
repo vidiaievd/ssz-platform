@@ -143,6 +143,17 @@ export class IntroduceCardRequest {
   seedKind?: SrsSeedKind;
 }
 
+export class AddReachedAtomRequest {
+  @ApiProperty({
+    format: 'uuid',
+    description:
+      'Course the atom was offered in. "Reached" is a fact about a course: the atom must be ' +
+      'introduced in a unit the learner has opened or finished there (plan 85, Q1).',
+  })
+  @IsUUID()
+  courseId!: string;
+}
+
 export class BulkIntroduceRequest {
   @ApiProperty({ format: 'uuid', description: 'Vocabulary list whose items should be introduced' })
   @IsUUID()
