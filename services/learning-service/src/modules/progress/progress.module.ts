@@ -40,6 +40,6 @@ const QueryHandlers = [
     ...CommandHandlers,
     ...QueryHandlers,
   ],
-  exports: [ContainerCompletionService],
+  exports: [ContainerCompletionService, PROGRESS_REPOSITORY],
 })
 export class ProgressModule {}

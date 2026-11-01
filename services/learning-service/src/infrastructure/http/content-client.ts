@@ -6,6 +6,7 @@ import type {
   AccessTier,
   AtomDescriptorRef,
   CanDoDescriptorRef,
+  ContainerAtomCoverageRef,
   ContainerOwnerRef,
   ContentMetadata,
   ContentRelationRef,
@@ -290,6 +291,27 @@ export class ContentClient implements IContentClient {
       return Result.ok(data);
     } catch (err) {
       return this.mapError(err, `describeAtoms(${refs.length} refs)`);
+    }
+  }
+
+  async getContainerAtomCoverage(
+    containerId: string,
+  ): Promise<Result<ContainerAtomCoverageRef, ContentClientError>> {
+    try {
+      const { data } = await this.http.get<ContainerAtomCoverageRef>(
+        `/containers/${containerId}/atom-coverage`,
+      );
+      return Result.ok({
+        available: data.available,
+        atoms: data.atoms.map((atom) => ({
+          atomType: atom.atomType,
+          atomId: atom.atomId,
+          parentId: atom.parentId ?? null,
+          introducedBy: atom.introducedBy ?? [],
+        })),
+      });
+    } catch (err) {
+      return this.mapError(err, `getContainerAtomCoverage(${containerId})`);
     }
   }
 

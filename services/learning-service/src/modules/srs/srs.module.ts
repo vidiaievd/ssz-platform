@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { PrismaModule } from '../../infrastructure/database/prisma.module.js';
+import { EnrollmentsModule } from '../enrollments/enrollments.module.js';
+import { ProgressModule } from '../progress/progress.module.js';
 import { SRS_REPOSITORY } from './domain/repositories/srs-repository.interface.js';
 import { SRS_SCHEDULER } from './application/ports/srs-scheduler.port.js';
 import { SRS_LIMITS_POLICY } from './application/ports/srs-limits-policy.port.js';
@@ -32,6 +34,7 @@ import { GetGrammarRuleMasteryHandler } from './application/queries/get-grammar-
 import { GetContentMasteryHandler } from './application/queries/get-content-mastery.handler.js';
 import { GetDueGrammarRulesHandler } from './application/queries/get-due-grammar-rules.handler.js';
 import { GetGrammarRuleReviewHandler } from './application/queries/get-grammar-rule-review.handler.js';
+import { GetLearnerGrammarAtomsHandler } from './application/queries/get-learner-grammar-atoms.handler.js';
 
 // Services
 import { GrammarRuleMasteryService } from './application/services/grammar-rule-mastery.service.js';
@@ -61,10 +64,12 @@ const QueryHandlers = [
   GetContentMasteryHandler,
   GetDueGrammarRulesHandler,
   GetGrammarRuleReviewHandler,
+  GetLearnerGrammarAtomsHandler,
 ];
 
 @Module({
-  imports: [CqrsModule, PrismaModule],
+  // Enrollments and progress feed "which grammar atoms has this learner reached" (plan 85).
+  imports: [CqrsModule, PrismaModule, EnrollmentsModule, ProgressModule],
   controllers: [SrsController, MasteryController],
   providers: [
     { provide: SRS_REPOSITORY, useClass: PrismaSrsRepository },
