@@ -9,6 +9,8 @@ import type { GatewayRequest } from '../../../gateway/application/model-router.j
  */
 export interface AtomCatalogEntry {
   atomId: string;
+  /** `in_queue` — the learner has a card for it; `covered` — reached, no card (step 1). */
+  status: 'in_queue' | 'covered';
   /** The rule, in the school's explanation language where an explanation has one. */
   ruleTitle: string;
   /** The point inside the rule, as the author wrote it. */
@@ -93,4 +95,20 @@ export function withAtomCatalog(request: GatewayRequest, catalog: AtomCatalog): 
 export function atomRefOf(atomId: unknown, aspect: string, catalog: AtomCatalog): AiFeedbackAtomRef | null {
   if (typeof atomId !== 'string' || !GRAMMAR_ASPECTS.has(aspect)) return null;
   return catalog.some((atom) => atom.atomId === atomId) ? { atomType: 'grammar_rule_atom', atomId } : null;
+}
+
+/**
+ * `atomRefOf` plus where the learner stands with the atom and its names — what a rehearsal
+ * shows beside the remark (plan 85, step 7). Not for a teacher's draft: the engine's draft
+ * schema takes `atomType` and `atomId` only.
+ */
+export function describedAtomRefOf(
+  atomId: unknown,
+  aspect: string,
+  catalog: AtomCatalog,
+): AiFeedbackAtomRef | null {
+  const ref = atomRefOf(atomId, aspect, catalog);
+  const entry = ref && catalog.find((atom) => atom.atomId === ref.atomId);
+  if (!ref || !entry) return null;
+  return { ...ref, status: entry.status, ruleTitle: entry.ruleTitle, title: entry.title };
 }

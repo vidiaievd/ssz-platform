@@ -15,6 +15,16 @@ export type AiFeedbackAtomType = 'grammar_rule_atom' | 'vocabulary_item' | 'soun
 export interface AiFeedbackAtomRef {
   atomType: AiFeedbackAtomType;
   atomId: string;
+  /**
+   * Rehearsal remarks only (plan 85, step 7): where the learner stands with the rule, so the
+   * client can say «pulled closer» (`in_queue`) or offer «add» (`covered`) without a second
+   * read. A teacher's draft carries none of the three.
+   */
+  status?: 'in_queue' | 'covered';
+  /** The rule, in the school's explanation language where an explanation has one. */
+  ruleTitle?: string;
+  /** The point inside the rule, as the author wrote it. */
+  title?: string;
 }
 
 /**

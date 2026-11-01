@@ -4,13 +4,13 @@ import { practiceRequest } from '../practice/prompts/prompts.js';
 import type { TranslateSubject } from '../review-draft/application/ports/review-attempts.client.js';
 import { AtomCatalogResolver } from './application/atom-catalog.resolver.js';
 import type { CourseAtom, ILearnerGrammarAtomsReader, LearnerAtomStatus } from './application/ports/grammar-atoms.readers.js';
-import { atomRefOf, MAX_CATALOG_ATOMS, withAtomCatalog, type AtomCatalog } from './domain/atom-catalog.js';
+import { atomRefOf, describedAtomRefOf, MAX_CATALOG_ATOMS, withAtomCatalog, type AtomCatalog } from './domain/atom-catalog.js';
 
 // Plan 85, step 3a: the learner's grammar atoms in a rehearsal's prompt.
 
 const ATOM = 'e0000000-0000-5000-8000-000000000005';
 const CATALOG: AtomCatalog = [
-  { atomId: ATOM, ruleTitle: 'Времена', title: 'Perfektum: har + partisipp', description: 'Building the form.' },
+  { atomId: ATOM, status: 'in_queue', ruleTitle: 'Времена', title: 'Perfektum: har + partisipp', description: 'Building the form.' },
 ];
 
 const translate = (): TranslateSubject => ({
@@ -64,6 +64,20 @@ describe('atomRefOf', () => {
   });
 });
 
+describe('describedAtomRefOf', () => {
+  it('adds the standing and the names to a catalogue atom, and drops what atomRefOf drops', () => {
+    expect(describedAtomRefOf(ATOM, 'grammar', CATALOG)).toEqual({
+      atomType: 'grammar_rule_atom',
+      atomId: ATOM,
+      status: 'in_queue',
+      ruleTitle: 'Времена',
+      title: 'Perfektum: har + partisipp',
+    });
+    expect(describedAtomRefOf(ATOM, 'lexis', CATALOG)).toBeNull();
+    expect(describedAtomRefOf('invented', 'grammar', CATALOG)).toBeNull();
+  });
+});
+
 describe('AtomCatalogResolver', () => {
   const course = (ids: string[]): CourseAtom[] =>
     ids.map((atomId) => ({ atomId, ruleId: 'r', ruleTitle: 'R', title: `t-${atomId}`, description: null }));
@@ -78,7 +92,7 @@ describe('AtomCatalogResolver', () => {
     );
     const catalog = await resolver.forLearner({ userId: 'u', courseId: 'c', language: 'ru' });
     expect(catalog.map((atom) => atom.atomId)).toEqual(['queued-1', 'covered-1']);
-    expect(catalog[0]).toEqual({ atomId: 'queued-1', ruleTitle: 'R', title: 't-queued-1', description: null });
+    expect(catalog[0]).toEqual({ atomId: 'queued-1', status: 'in_queue', ruleTitle: 'R', title: 't-queued-1', description: null });
   });
 
   it(`stops at ${MAX_CATALOG_ATOMS} atoms`, async () => {

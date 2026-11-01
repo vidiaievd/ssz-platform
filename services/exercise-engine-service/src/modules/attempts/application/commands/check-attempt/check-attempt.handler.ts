@@ -142,6 +142,8 @@ export interface PrecheckReading {
 export interface CheckAttemptResult {
   attemptId: string;
   templateCode: string;
+  /** The course the attempt belongs to — what «add the rule to review» needs (plan 85, step 7). */
+  courseId: string | null;
   /** Null when the template has none, or the author's self-checks are spent. */
   selfCheck: CheckSelfCheck | null;
   ai: CheckAiOutcome;
@@ -222,7 +224,7 @@ export class CheckAttemptHandler implements ICommandHandler<CheckAttemptCommand>
     if (definition.isFail) return Result.fail(definition.error);
     const exercise = definition.value.exercise;
 
-    const base = { attemptId: attempt.id, templateCode: attempt.templateCode };
+    const base = { attemptId: attempt.id, templateCode: attempt.templateCode, courseId: attempt.containerId };
     let selfCheck: CheckSelfCheck | null = null;
     let spendRefused: AttemptDomainError | null = null;
     if (capability.selfCheck) {
@@ -387,7 +389,7 @@ export class CheckAttemptHandler implements ICommandHandler<CheckAttemptCommand>
 }
 
 function answered(
-  base: { attemptId: string; templateCode: string },
+  base: { attemptId: string; templateCode: string; courseId: string | null },
   selfCheck: CheckSelfCheck | null,
   ai: CheckAiOutcome,
   remaining: PrecheckRemaining | null = null,

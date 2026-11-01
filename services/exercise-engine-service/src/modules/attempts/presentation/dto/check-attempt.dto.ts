@@ -84,6 +84,13 @@ export class CheckAttemptResponseDto {
   templateCode!: string;
 
   @ApiProperty({
+    format: 'uuid',
+    nullable: true,
+    description: 'The course the attempt belongs to; the client passes it to `POST srs/atoms/:atomId/add` (plan 85)',
+  })
+  courseId!: string | null;
+
+  @ApiProperty({
     type: Object,
     nullable: true,
     description:
@@ -99,7 +106,7 @@ export class CheckAttemptResponseDto {
     type: Object,
     nullable: true,
     description:
-      'AiFeedback (packages/contracts): { summary, items[{ kind, target, original?, explanation, atomRef: null, ' +
+      'AiFeedback (packages/contracts): { summary, items[{ kind, target, original?, explanation, atomRef: { atomType, atomId, status, ruleTitle, title } | null, ' +
       'severity }], words? }. Hints, never the fix or the key. A reading carries only `words`. Null unless ai.status is ok.',
   })
   feedback!: unknown;

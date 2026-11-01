@@ -104,10 +104,16 @@ export class AiFeedbackItemDto {
   @ApiProperty({
     type: Object,
     nullable: true,
-    example: { atomType: 'grammar_rule_atom', atomId: 'f056f89e-fac6-4ec3-bfc3-db24a23db27a' },
+    example: {
+      atomType: 'grammar_rule_atom',
+      atomId: 'f056f89e-fac6-4ec3-bfc3-db24a23db27a',
+      status: 'in_queue',
+      ruleTitle: 'Inversjon',
+      title: 'Verb før subjekt etter adverbial',
+    },
     description: 'The grammar atom the remark is about — only one the learner has reached in the course (plan 85); else null',
   })
-  atomRef!: { atomType: string; atomId: string } | null;
+  atomRef!: { atomType: string; atomId: string; status?: string; ruleTitle?: string; title?: string } | null;
   @ApiProperty({ enum: ['minor', 'major'] }) severity!: string;
 }
 

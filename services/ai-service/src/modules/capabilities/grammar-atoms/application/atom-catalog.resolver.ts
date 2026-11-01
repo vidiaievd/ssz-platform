@@ -38,10 +38,10 @@ export class AtomCatalogResolver {
         ...reached.filter((atom) => atom.status === 'covered'),
       ];
       const catalog: AtomCatalogEntry[] = [];
-      for (const { atomId } of ordered) {
+      for (const { atomId, status } of ordered) {
         const atom = byId.get(atomId);
         if (!atom) continue;
-        catalog.push({ atomId, ruleTitle: atom.ruleTitle, title: atom.title, description: atom.description });
+        catalog.push({ atomId, status, ruleTitle: atom.ruleTitle, title: atom.title, description: atom.description });
         if (catalog.length === MAX_CATALOG_ATOMS) break;
       }
       return catalog;

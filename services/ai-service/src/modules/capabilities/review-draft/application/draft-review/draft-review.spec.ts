@@ -134,7 +134,7 @@ const command = (over: Partial<{ templateCode: string; schoolId: string | null }
 
 describe('DraftReviewHandler — grammar atoms (plan 85, step 3b)', () => {
   const ATOM = 'e0000000-0000-5000-8000-000000000005';
-  const CATALOG: AtomCatalog = [{ atomId: ATOM, ruleTitle: 'Времена', title: 'Perfektum', description: null }];
+  const CATALOG: AtomCatalog = [{ atomId: ATOM, status: 'covered', ruleTitle: 'Времена', title: 'Perfektum', description: null }];
   const remark = (atomId: string | null) => ({ sentenceIndex: 1, aspect: 'grammar', fragment: 'bor', comment: 'Perfektum.', suggestion: 'har bodd', atomId });
 
   it('asks for the learner’s atoms in the attempt’s course and writes the named one onto the draft', async () => {

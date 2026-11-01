@@ -335,7 +335,7 @@ describe('PrecheckHandler', () => {
       const resolver = {
         forLearner: async (input: unknown) => {
           asked.push(input);
-          return [{ atomId: ATOM, ruleTitle: 'Времена', title: 'Perfektum', description: null }];
+          return [{ atomId: ATOM, status: 'in_queue', ruleTitle: 'Времена', title: 'Perfektum', description: null }];
         },
       } as unknown as AtomCatalogResolver;
       return { resolver, asked };
@@ -363,7 +363,7 @@ describe('PrecheckHandler', () => {
       expect(asked).toEqual([{ userId: LEARNER, courseId: COURSE, language: 'ru' }]);
       expect(calls[0]!.request.system).toContain(`- ${ATOM} — Времена: Perfektum`);
       expect(outcome.status === 'ok' && outcome.feedback.items.map((item) => item.atomRef)).toEqual([
-        { atomType: 'grammar_rule_atom', atomId: ATOM },
+        { atomType: 'grammar_rule_atom', atomId: ATOM, status: 'in_queue', ruleTitle: 'Времена', title: 'Perfektum' },
         null,
         null,
       ]);

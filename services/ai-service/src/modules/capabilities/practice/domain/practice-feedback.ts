@@ -1,7 +1,7 @@
 import type { AiFeedback, AiFeedbackItem, AiFeedbackKind } from '@ssz/contracts';
 import type { ReviewAspect } from '../../review-draft/domain/review-aspect.js';
 import { reviewSchema, verifyReview, type ReviewFrame } from '../../review-draft/domain/review-remarks.js';
-import { atomRefOf, EMPTY_CATALOG, type AtomCatalog } from '../../grammar-atoms/domain/atom-catalog.js';
+import { describedAtomRefOf, EMPTY_CATALOG, type AtomCatalog } from '../../grammar-atoms/domain/atom-catalog.js';
 
 /**
  * The answer of a rehearsal (plan 84): the remarks of `review_draft` without the corrected
@@ -87,7 +87,7 @@ export function verifyPractice(frame: ReviewFrame): (data: unknown) => string | 
  * The verified answer in the contract's shape. A remark points at its answer by
  * `passageIndex` (0-based, the prompt's sentence number less one) and, when it quotes, at the
  * first occurrence of the quotation in that answer by `span`. A grammar remark names an atom
- * only from the catalogue the request carried; any other id is dropped (plan 85 §1, rule 4).
+ * only from the catalogue the request carried, with the learner's standing on it; any other id is dropped (plan 85 §1, rule 4).
  */
 export function toAiFeedback(data: unknown, frame: ReviewFrame, catalog: AtomCatalog = EMPTY_CATALOG): AiFeedback {
   const answer = data as RawPractice;
@@ -101,7 +101,7 @@ export function toAiFeedback(data: unknown, frame: ReviewFrame, catalog: AtomCat
         target: start >= 0 ? { passageIndex, span: [start, start + remark.fragment!.length] } : { passageIndex },
         ...(remark.fragment !== null ? { original: remark.fragment } : {}),
         explanation: remark.comment.trim(),
-        atomRef: atomRefOf(remark.atomId, remark.aspect, catalog),
+        atomRef: describedAtomRefOf(remark.atomId, remark.aspect, catalog),
         severity: remark.severity,
       };
     }),
