@@ -2,3 +2,8 @@
 # needs nothing beyond the standard library and faster-whisper (which brings ctranslate2,
 # tokenizers, PyAV, onnxruntime for the VAD filter, and huggingface-hub).
 faster-whisper==1.2.1
+# Part-of-speech tagger for the pronunciation lexicon (plan 88, step 4b, Q7). spaCy with its
+# Bokmål model (MIT, trained on UD Norwegian Bokmål): ~300 MB with its dependencies, 42 MB model.
+# The model is a wheel from spaCy's releases, installed at build time — no download at start-up.
+spacy==3.8.18
+nb_core_news_md @ https://github.com/explosion/spacy-models/releases/download/nb_core_news_md-3.8.0/nb_core_news_md-3.8.0-py3-none-any.whl

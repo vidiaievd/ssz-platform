@@ -1,4 +1,5 @@
-# NB-Whisper speech recognition, exposed over HTTP to ai-service (plan 82, step 4).
+# NB-Whisper speech recognition, exposed over HTTP to ai-service (plan 82, step 4), and the
+# spaCy part-of-speech tagger the pronunciation review narrows the lexicon with (plan 88, step 4b).
 #
 # Its own container, like piper-tts: the model is loaded once at start-up and answers every
 # request from memory. Only ai-service calls it, as the keyless provider `whisper_local` —

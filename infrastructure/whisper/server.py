@@ -1,12 +1,17 @@
-"""NB-Whisper over HTTP for ai-service (plan 82, step 4).
+"""NB-Whisper over HTTP for ai-service (plan 82, step 4), with a part-of-speech tagger (plan 88, step 4b).
 
-Two routes, nothing else:
+Three routes, nothing else:
 
-  GET  /health                         -> 200 {"status": "ok", "model": ...} once the model is loaded
+  GET  /health                         -> 200 {"status": "ok", "model": ..., "tagger": ...} once the model is loaded
   POST /v1/transcribe?model=&language= -> the words heard in the recording (raw audio body)
+  POST /v1/tag?language=               -> the passage's tokens with UD part of speech and morphology (JSON body)
 
-The standard library serves it: one internal caller, one route that matters, and every
-second of a request is spent inside the model, not in the framework.
+The standard library serves it: one internal caller, two routes that matter, and every
+second of a request is spent inside a model, not in the framework.
+
+The tagger narrows the pronunciation lexicon's variants of a passage word (*fokuser* noun /
+imperative). It is optional: an image without spaCy still transcribes and answers `/v1/tag`
+with 404, which ai-service reads as "no narrowing".
 
 The recognizer is never primed with the passage the learner was asked to read (no
 `initial_prompt`): biased toward the passage, it hears the passage, and a misread word comes
@@ -38,6 +43,11 @@ MAX_QUEUE = int(os.environ.get("WHISPER_MAX_QUEUE", "4"))
 MAX_BODY_BYTES = int(os.environ.get("WHISPER_MAX_BODY_BYTES", str(16 * 1024 * 1024)))
 PORT = int(os.environ.get("PORT", "8000"))
 
+# spaCy model per course language (plan 88 Q7: `nb_core_news_md`, MIT). Bokmål only for now.
+TAGGER_MODELS = {"nb": os.environ.get("TAGGER_MODEL_NB", "nb_core_news_md")}
+# A read_aloud passage is a few hundred words; a body far bigger is not one we sent.
+MAX_TAG_BYTES = int(os.environ.get("TAGGER_MAX_BODY_BYTES", str(64 * 1024)))
+
 # Whisper's own language codes. Bokmål is `no` in Whisper; NB-Whisper is trained that way.
 LANGUAGES = {"no", "nn", "en"}
 
@@ -53,6 +63,29 @@ log = logging.getLogger("whisper")
 log.info("loading %s from %s (%s, %s, %d threads)", MODEL_NAME, MODEL_DIR, DEVICE, COMPUTE_TYPE, CPU_THREADS)
 model = WhisperModel(MODEL_DIR, device=DEVICE, compute_type=COMPUTE_TYPE, cpu_threads=CPU_THREADS)
 log.info("model loaded")
+
+
+def load_taggers() -> dict:
+    """The spaCy pipelines this image carries; none when spaCy is not installed."""
+    try:
+        import spacy
+    except ImportError:
+        log.info("spaCy not installed: /v1/tag is off")
+        return {}
+    loaded = {}
+    for language, name in TAGGER_MODELS.items():
+        try:
+            # The parser stays: it draws the sentence boundaries a clause-initial imperative is told by.
+            loaded[language] = spacy.load(name, disable=["ner", "lemmatizer"])
+            log.info("tagger %s loaded for %s", name, language)
+        except OSError as err:
+            log.warning("tagger %s for %s not loaded: %s", name, language, err)
+    return loaded
+
+
+taggers = load_taggers()
+# A pipeline is not shared between threads; tagging takes milliseconds, so one at a time is enough.
+tagger_lock = threading.Lock()
 
 # One transcription at a time — on CPU two in parallel only split the same cores — and a
 # bounded line behind it: past that the caller hears 503 and its router falls back.
@@ -116,17 +149,38 @@ def transcribe(audio: bytes, language: str) -> dict:
     }
 
 
+def tag(text: str, language: str) -> list[dict]:
+    """Every token of the text: its span in the text, UD part of speech, morphology, sentence start."""
+    with tagger_lock:
+        doc = taggers[language](text)
+    return [
+        {
+            "text": t.text,
+            "start": t.idx,
+            "end": t.idx + len(t.text),
+            "upos": t.pos_,
+            "morph": str(t.morph),
+            "sentStart": bool(t.is_sent_start),
+        }
+        for t in doc
+        if not t.is_space
+    ]
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def do_GET(self) -> None:
         if urlparse(self.path).path == "/health":
-            self.reply(HTTPStatus.OK, {"status": "ok", "model": MODEL_NAME})
+            self.reply(HTTPStatus.OK, {"status": "ok", "model": MODEL_NAME, "tagger": {k: TAGGER_MODELS[k] for k in taggers}})
         else:
             self.reply(HTTPStatus.NOT_FOUND, {"error": "not_found"})
 
     def do_POST(self) -> None:
         url = urlparse(self.path)
+        if url.path == "/v1/tag":
+            self.tag(url)
+            return
         if url.path != "/v1/transcribe":
             self.reply(HTTPStatus.NOT_FOUND, {"error": "not_found"})
             return
@@ -183,6 +237,42 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "internal"}, request_id)
         finally:
             slots.release()
+
+    def tag(self, url) -> None:
+        language = parse_qs(url.query).get("language", [""])[0]
+        request_id = self.headers.get("X-Request-Id") or str(uuid.uuid4())
+        length = int(self.headers.get("Content-Length") or 0)
+        if length > MAX_TAG_BYTES:
+            self.close_connection = True
+            self.reply(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "too_large"}, request_id)
+            return
+        raw = self.rfile.read(length)
+        if language not in taggers:
+            # Not this image's language, or spaCy is absent: the caller goes on without narrowing.
+            self.reply(HTTPStatus.NOT_FOUND, {"error": "tagger_not_loaded", "language": language}, request_id)
+            return
+        try:
+            text = json.loads(raw or b"{}").get("text")
+        except (ValueError, AttributeError):
+            text = None
+        if not isinstance(text, str) or not text.strip():
+            self.reply(HTTPStatus.BAD_REQUEST, {"error": "empty_text"}, request_id)
+            return
+        try:
+            started = time.monotonic()
+            tokens = tag(text, language)
+            self.reply(
+                HTTPStatus.OK,
+                {
+                    "tokens": tokens,
+                    "model": TAGGER_MODELS[language],
+                    "latencyMs": round((time.monotonic() - started) * 1000),
+                },
+                request_id,
+            )
+        except Exception:
+            log.exception("%s tagging failed", request_id)
+            self.reply(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "internal"}, request_id)
 
     def reply(self, status: HTTPStatus, body: dict, request_id: str | None = None, headers: dict | None = None) -> None:
         data = json.dumps(body, ensure_ascii=False).encode("utf-8")
