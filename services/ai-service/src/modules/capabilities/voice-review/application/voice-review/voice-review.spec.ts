@@ -9,6 +9,10 @@ import { SELF_STUDY_SURFACE } from '../../../review-direct/application/direct-re
 import { LearnerPayerResolver } from '../../../review-direct/application/learner-payer.resolver.js';
 import type { GiveUpReason } from '../../../review-direct/application/ports/direct-review-attempts.client.js';
 import { levelledWav } from '../../../../providers/domain/wav.fixture.js';
+import type { PronunciationScores } from '../../../../providers/domain/speech-result.js';
+import type { PassageSounds } from '../../../../pronunciation/application/passage-sounds.js';
+import { alignWord } from '../../../../pronunciation/domain/align-word.js';
+import { weakSounds } from '../../../../pronunciation/domain/weak-sounds.js';
 import type { ReadAloudSubject, VoiceSubjectResult } from '../../domain/read-aloud-subject.js';
 import type { IRecordingAudioSource, RecordingAudio } from '../ports/recording-audio.source.js';
 import type { IVoiceReviewAttemptsClient, ReadingToWrite } from '../ports/voice-review-attempts.client.js';
@@ -87,7 +91,10 @@ interface Setup {
   /** By asset id, in fetch order; the last one repeats. */
   audio?: Record<string, RecordingAudio[]>;
   put?: Array<Answer<'ok' | 'provisional'>>;
+  sounds?: PassageSounds;
 }
+
+const NO_SOUNDS = { of: async () => null } as unknown as PassageSounds;
 
 function setup({
   subject = subjectResult(),
@@ -95,6 +102,7 @@ function setup({
   available = false,
   audio = {},
   put = ['ok'],
+  sounds = NO_SOUNDS,
 }: Setup = {}) {
   const asked: Array<{ capability: string; context: CallContext; request: SpeechGatewayRequest }> = [];
   const availability: string[] = [];
@@ -145,6 +153,7 @@ function setup({
     new SchoolPayerResolver(),
     attempts,
     recordings,
+    sounds,
     0,
     [0, 0],
   );
@@ -200,6 +209,87 @@ describe('VoiceReviewHandler', () => {
       ['voice_review_pronunciation', true],
     ]);
     expect(outcome).toMatchObject({ kind: 'ruled', capability: 'voice_review_pronunciation' });
+  });
+
+  // Plan 88, step 5c.
+  describe('sounds on hand-in', () => {
+    const withPronunciation = subjectResult({}, subjectOf({ ai: { on: true, checks: { transcript: true, pronunciation: true, fluency: false } } }));
+    const scores = (words: string[]): PronunciationScores => ({
+      accuracy: 70,
+      fluency: 80,
+      completeness: 100,
+      prosody: null,
+      words: words.map((text) => ({ text, accuracy: 60, error: 'none', phonemes: [{ startMs: 0, durationMs: 80, accuracy: 10 }] })),
+    });
+    const scored = (words: string[]): GatewaySpeechCall => {
+      const call = heard(words.join(' ')) as unknown as { routed: { value: { result: { pronunciation: unknown } } } };
+      call.routed.value.result.pronunciation = scores(words);
+      return call as unknown as GatewaySpeechCall;
+    };
+    /** The first word of every passage is a kj said badly; the rest are not in the lexicon. */
+    const kjFirst = (asked: unknown[][] = []) =>
+      ({
+        of: async (...args: unknown[]) => {
+          asked.push(args);
+          const words = args[2] as Array<{ text: string }>;
+          return words.map((word, i) => {
+            const alignment = alignWord(
+              { text: word.text, error: 'mispronunciation', phonemes: [{ startMs: 0, durationMs: 80, accuracy: 10 }] },
+              i === 0 ? [{ nofabet: 'KJ' }] : [],
+            );
+            return { alignment, weak: weakSounds(alignment, 'fluent', false) };
+          });
+        },
+      }) as unknown as PassageSounds;
+
+    it('names every prompt’s sounds at fluent thresholds and writes a remark per weak family on the sound atom', async () => {
+      const asked: unknown[][] = [];
+      const { handler, writes } = setup({
+        subject: withPronunciation,
+        available: true,
+        calls: { voice_review_pronunciation: [scored(['kjør', 'bil']), scored(['kjenner', 'deg'])] },
+        sounds: kjFirst(asked),
+      });
+      await handler.execute(learnerCommand());
+
+      expect(asked.map(([language, passage, , context]) => [language, passage, context])).toEqual([
+        ['nb', 'Jeg bor i Oslo.', 'fluent'],
+        ['nb', 'Jeg jobber på et kontor.', 'fluent'],
+      ]);
+      const { reading } = writes[0]!;
+      if (reading.status !== 'ready') throw new Error('not ready');
+      expect(reading.prompts.map((p) => p.sounds)).toEqual([
+        [[{ symbol: 'ç', accuracy: 10 }], null],
+        [[{ symbol: 'ç', accuracy: 10 }], null],
+      ]);
+      expect(reading.remarks.map((r) => [r.itemId, r.sentenceIndex, r.wordIndex, r.word, r.atomRef, r.finding.severity])).toEqual([
+        ['p1', 1, 0, 'kjør', { atomType: 'sound', atomId: 'nb:kj' }, 'major'],
+        ['p2', 2, 0, 'kjenner', { atomType: 'sound', atomId: 'nb:kj' }, 'major'],
+      ]);
+      expect(reading.remarks[0]!.comment).toMatch(/^kj/i);
+    });
+
+    it('writes no sounds and no remarks at the plain level', async () => {
+      const asked: unknown[][] = [];
+      const { handler, writes } = setup({ sounds: kjFirst(asked) });
+      await handler.execute(learnerCommand());
+      expect(asked).toEqual([]);
+      const { reading } = writes[0]!;
+      expect(reading.status === 'ready' && [reading.prompts.map((p) => p.sounds), reading.remarks]).toEqual([[null, null], []]);
+    });
+
+    it('still writes the reading, without sounds, when the lexicon cannot be read', async () => {
+      const { handler, writes } = setup({
+        subject: withPronunciation,
+        available: true,
+        calls: { voice_review_pronunciation: [scored(['kjør']), scored(['kjenner'])] },
+        sounds: { of: async () => Promise.reject(new Error('db down')) } as unknown as PassageSounds,
+      });
+      const outcome = await handler.execute(learnerCommand());
+      expect(outcome).toMatchObject({ kind: 'ruled' });
+      const { reading } = writes[0]!;
+      expect(reading.status === 'ready' && reading.remarks).toEqual([]);
+    });
   });
 
   it('hears plainly when the payer may not call the pronunciation level', async () => {

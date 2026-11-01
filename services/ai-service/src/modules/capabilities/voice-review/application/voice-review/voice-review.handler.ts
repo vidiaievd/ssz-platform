@@ -10,7 +10,10 @@ import { SELF_STUDY_SURFACE } from '../../../review-direct/application/direct-re
 import { LearnerPayerResolver } from '../../../review-direct/application/learner-payer.resolver.js';
 import type { GiveUpReason } from '../../../review-direct/application/ports/direct-review-attempts.client.js';
 import { audible, recordingLevel } from '../../../../providers/domain/recording-level.js';
+import type { SpeechResult } from '../../../../providers/domain/speech-result.js';
+import { PassageSounds, type WordSounds } from '../../../../pronunciation/application/passage-sounds.js';
 import type { ReadAloudSubject } from '../../domain/read-aloud-subject.js';
+import { namedSoundsOfPrompt, readingSoundRemarks, type MeasuredPrompt } from '../../domain/reading-sounds.js';
 import { VOICE_REVIEW, VOICE_REVIEW_PRONUNCIATION } from '../../voice-review.capability.js';
 import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from '../ports/recording-audio.source.js';
 import {
@@ -69,6 +72,10 @@ type Heard =
  * Every take is fetched before the first call: a reading missing one cannot be ruled, and
  * nothing is paid for it — nor for one with a take no voice can be heard in (plan 88, step 4). Then, as for a learner's text review, every way out without a
  * verdict closes the attempt as `NO_REVIEWER`; at a school (plan 80) it is left to the teacher.
+ *
+ * Sounds (plan 88, step 5c): where the model scored them, every prompt's words are named against
+ * the lexicon at fluent-speech thresholds; the engine gets each word's sounds and a remark per
+ * word and family that fell short — the draft's only remarks, never part of the verdict.
  */
 @CommandHandler(VoiceReviewCommand)
 export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, VoiceReviewOutcome> {
@@ -80,6 +87,7 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
     private readonly schoolPayers: SchoolPayerResolver,
     @Inject(VOICE_REVIEW_ATTEMPTS_CLIENT) private readonly attempts: IVoiceReviewAttemptsClient,
     @Inject(RECORDING_AUDIO_SOURCE) private readonly recordings: IRecordingAudioSource,
+    private readonly passageSounds: PassageSounds,
     @Optional() @Inject(VOICE_WRITE_RETRY_MS) private readonly writeRetryMs: number = 1_000,
     @Optional() @Inject(VOICE_RECORDING_WAITS_MS) private readonly recordingWaitsMs: number[] = DEFAULT_RECORDING_WAITS_MS,
   ) {}
@@ -125,6 +133,7 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
         : VOICE_REVIEW.code;
 
     const hearings: PromptHearing[] = [];
+    const measured: MeasuredPrompt[] = [];
     const calls: GatewaySpeechCall[] = [];
     for (const prompt of subject.prompts) {
       let heard = await this.hear(capability, context, subject, prompt.itemId, prompt.text, takes.wavs.get(prompt.itemId)!);
@@ -139,15 +148,18 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
         await this.write(command.attemptId, { status: 'failed', errorCode: heard.errorCode }, metaOf(heard.call));
         return this.giveUp(command.attemptId, schoolId, 'failed', heard.errorCode, heard.call.recorded.callId);
       }
-      hearings.push(heard.hearing);
+      const sounds = await this.soundsOf(subject.targetLanguage, prompt.text, heard.hearing);
+      hearings.push({ ...heard.hearing, sounds: namedSoundsOfPrompt(sounds) });
+      measured.push({ itemId: prompt.itemId, scored: heard.hearing.pronunciation?.words ?? [], sounds });
       calls.push(heard.call);
     }
+    const remarks = readingSoundRemarks(subject.targetLanguage, measured);
 
     // The first prompt's call stands for the review — its key at the engine; every prompt
     // carries its own call in what was heard.
     const meta = metaOf(calls[0]!);
     const lastCallId = calls[calls.length - 1]!.recorded.callId;
-    const written = await this.write(command.attemptId, { status: 'ready', prompts: hearings }, meta);
+    const written = await this.write(command.attemptId, { status: 'ready', prompts: hearings, remarks }, meta);
     if (written === null) return this.giveUp(command.attemptId, schoolId, 'failed', 'reading_write_lost', lastCallId);
     if (!written.written) {
       return this.giveUp(command.attemptId, schoolId, 'failed', `engine_${written.code.toLowerCase()}`, lastCallId);
@@ -199,6 +211,24 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
   }
 
   /**
+   * The prompt's sounds, as a nicety: the reading is ruled on its words, and a lexicon that
+   * cannot be read leaves them without sounds rather than lose the paid call.
+   */
+  private async soundsOf(
+    language: string,
+    passage: string,
+    heard: Pick<SpeechResult, 'pronunciation'>,
+  ): Promise<WordSounds[] | null> {
+    if (!heard.pronunciation) return null;
+    try {
+      return await this.passageSounds.of(language, passage, heard.pronunciation.words, 'fluent');
+    } catch (err) {
+      this.logger.warn(`Sounds of a handed-in passage not measured: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
+  }
+
+  /**
    * Every prompt's speech WAV, asking again while media is still converting a take. Throws when
    * media cannot answer — before any model call, so the event's redelivery is the retry.
    */
@@ -239,7 +269,6 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
     }
     return { kind: 'ready', wavs };
   }
-
 
   /**
    * Closes the attempt as `NO_REVIEWER`; the outcome says whether the engine took it. A

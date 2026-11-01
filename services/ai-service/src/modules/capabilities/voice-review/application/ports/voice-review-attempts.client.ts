@@ -1,7 +1,9 @@
 import type { SpeechResult } from '../../../../providers/domain/speech-result.js';
 import type { DraftWriteMeta } from '../../../review-draft/application/ports/review-attempts.client.js';
 import type { GiveUpReason } from '../../../review-direct/application/ports/direct-review-attempts.client.js';
+import type { NamedSound } from '../../../../pronunciation/domain/sound-remarks.js';
 import type { VoiceSubjectResult } from '../../domain/read-aloud-subject.js';
+import type { ReadingSoundRemark } from '../../domain/reading-sounds.js';
 
 export const VOICE_REVIEW_ATTEMPTS_CLIENT = Symbol('IVoiceReviewAttemptsClient');
 
@@ -13,10 +15,22 @@ export const VOICE_REVIEW_ATTEMPTS_CLIENT = Symbol('IVoiceReviewAttemptsClient')
 export type PromptHearing = { itemId: string; aiCallId: string } & Pick<
   SpeechResult,
   'transcript' | 'words' | 'audioMs' | 'pronunciation'
->;
+> & {
+    /**
+     * Beside each of `pronunciation.words`, its sounds in IPA (plan 88, step 5c) — null for a
+     * word they could not be named in; absent or null when they were not measured. Azure's own
+     * phonemes never leave ai-service: these go to the engine in their place.
+     */
+    sounds?: Array<NamedSound[] | null> | null;
+  };
 
-/** One write of a voice review: what was heard in every prompt, or the record that hearing failed. */
-export type ReadingToWrite = { status: 'ready'; prompts: PromptHearing[] } | { status: 'failed'; errorCode: string };
+/**
+ * One write of a voice review: what was heard in every prompt and the remarks on its weak
+ * sounds (plan 88, step 5c) — or the record that hearing failed.
+ */
+export type ReadingToWrite =
+  | { status: 'ready'; prompts: PromptHearing[]; remarks: ReadingSoundRemark[] }
+  | { status: 'failed'; errorCode: string };
 
 /**
  * A reading aloud's side of the work, in exercise-engine (plan 82, steps 6–7): the passages

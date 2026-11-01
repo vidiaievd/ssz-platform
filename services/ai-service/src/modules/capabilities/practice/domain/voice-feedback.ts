@@ -2,8 +2,13 @@ import type { AiFeedback, AiFeedbackItem, AiFeedbackPhoneme, AiFeedbackWord } fr
 import type { SpeechResult } from '../../../providers/domain/speech-result.js';
 import type { WordSounds } from '../../../pronunciation/application/passage-sounds.js';
 import type { SoundExplanations, SoundToExplain } from '../../pronunciation-explain/domain/sound-explanations.js';
-import { familyOf, soundOf, type SoundFamily } from '../../../pronunciation/domain/sound-inventory.js';
-import type { WeakSound } from '../../../pronunciation/domain/weak-sounds.js';
+import {
+  namedSoundsOf,
+  soundAtomId,
+  transcriptionOf,
+  wordSoundRemarks,
+  type WordSoundRemark,
+} from '../../../pronunciation/domain/sound-remarks.js';
 
 /** One passage as the speech model heard it. */
 export interface PassageHearing {
@@ -14,11 +19,6 @@ export interface PassageHearing {
    * when they were not measured — no scores, a language with no inventory, the lexicon down.
    */
   sounds?: WordSounds[] | null;
-}
-
-/** The `sound` atom of a family (plan 86 Q5): the language's inventory and the family in it. */
-export function soundAtomId(language: string, family: SoundFamily): string {
-  return `${language}:${family}`;
 }
 
 /**
@@ -76,17 +76,12 @@ function read(
       const measured = sounds?.[j];
       if (!measured) return;
       const at = heardIndex?.[j] ?? null;
-      if (at !== null && measured.alignment.status === 'aligned') {
-        phonemesOf.set(
-          at,
-          measured.alignment.sounds.map((s) => ({ symbol: s.ipa ?? '', accuracy: s.accuracy })),
-        );
-      }
-      const transcription =
-        measured.alignment.status === 'aligned' ? measured.alignment.sounds.map((s) => s.ipa ?? '?').join('') : '';
-      for (const [family, weak] of byFamily(measured.weak)) {
+      const named = namedSoundsOf(measured.alignment);
+      if (at !== null && named) phonemesOf.set(at, named);
+      const transcription = transcriptionOf(measured.alignment);
+      for (const remark of wordSoundRemarks(measured.weak)) {
         remarks.push(
-          soundRemark(language, family, weak, word.text, transcription, passageIndex, at === null ? null : offset + at),
+          soundRemark(language, remark, word.text, transcription, passageIndex, at === null ? null : offset + at),
         );
       }
     });
@@ -118,38 +113,25 @@ function heardIndexOfScored(heard: PassageHearing['heard']): Array<number | null
   return scored.map((w) => (w.error === 'omission' ? null : i++));
 }
 
-/** A word's weak sounds by family, in the order first met: two weak ʉ in one word are one remark. */
-function byFamily(weak: readonly WeakSound[]): Map<SoundFamily, WeakSound[]> {
-  const out = new Map<SoundFamily, WeakSound[]>();
-  for (const sound of weak) out.set(sound.family, [...(out.get(sound.family) ?? []), sound]);
-  return out;
-}
-
-/**
- * The remark on a word's family. `major` when the sound scored under half its threshold — kj
- * said as k scores 0–18 against 53 (§0.2); a near miss is `minor`.
- */
+/** The remark on a word's family, in the contract's shape, and what the model explaining it is told. */
 function soundRemark(
   language: string,
-  family: SoundFamily,
-  weak: WeakSound[],
+  remark: WordSoundRemark,
   word: string,
   transcription: string,
   passageIndex: number,
   wordIndex: number | null,
 ): SoundRemark {
-  const worst = weak.reduce((a, b) => (b.accuracy < a.accuracy ? b : a));
-  const { title } = familyOf(family);
-  const severity = worst.accuracy < worst.threshold / 2 ? 'major' : 'minor';
+  const { family, title, note, severity, symbols } = remark;
   return {
     item: {
       kind: 'pronunciation',
       target: { passageIndex, ...(wordIndex === null ? {} : { wordIndex }) },
       original: word,
-      explanation: `${title}: ${soundOf(worst.symbols[0]!)!.articulation}`,
+      explanation: note,
       atomRef: { atomType: 'sound', atomId: soundAtomId(language, family), title },
       severity,
     },
-    finding: { word, transcription, family, symbols: [...new Set(weak.flatMap((w) => w.symbols))], severity },
+    finding: { word, transcription, family, symbols, severity },
   };
 }
