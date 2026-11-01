@@ -257,6 +257,7 @@ export class CheckAttemptHandler implements ICommandHandler<CheckAttemptCommand>
       userId: attempt.userId,
       exerciseId: attempt.exerciseId,
       attemptId: attempt.id,
+      courseId: attempt.containerId,
       subject,
       limits: access.limits,
     });

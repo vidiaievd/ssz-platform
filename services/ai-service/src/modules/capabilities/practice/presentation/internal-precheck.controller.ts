@@ -38,6 +38,7 @@ export class InternalPrecheckController {
         userId: body.userId,
         exerciseId: body.exerciseId,
         attemptId: body.attemptId,
+        courseId: body.courseId ?? null,
         subject: body.subject,
         limits: { perExercise: body.limits.perExercise, perLearnerMonthlyCredits: body.limits.perLearnerMonthlyCredits },
       }),

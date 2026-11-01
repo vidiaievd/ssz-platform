@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDefined, IsInt, IsNumber, IsObject, IsUUID, Max, Min, ValidateIf, ValidateNested } from 'class-validator';
+import { IsDefined, IsInt, IsNumber, IsObject, IsOptional, IsUUID, Max, Min, ValidateIf, ValidateNested } from 'class-validator';
 import type { PracticeSubject } from '../application/precheck/precheck.command.js';
 
 const SUBJECT_TEMPLATES = ['translate', 'error_correction', 'writing_task', 'short_answer', 'read_aloud'] as const;
@@ -54,6 +54,15 @@ export class PrecheckRequestDto {
   @IsUUID()
   attemptId!: string;
 
+  @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+    description: "The course the attempt sits in; names the grammar atoms a remark may point at (plan 85). Absent = none",
+  })
+  @IsOptional()
+  @IsUUID()
+  courseId?: string | null;
+
   @ApiProperty({
     type: PracticeSubjectDto,
     description: 'The work in progress beside its key, as the engine builds it for `ai-review-subject`',
@@ -92,7 +101,13 @@ export class AiFeedbackItemDto {
   @ApiPropertyOptional({ example: 'bor', description: "The learner's fragment, verbatim" }) original?: string;
   @ApiPropertyOptional({ description: 'Never set by a rehearsal: the learner finds the fix' }) suggestion?: string;
   @ApiProperty({ example: 'Действие началось в прошлом и длится до сих пор — какое время это выражает?' }) explanation!: string;
-  @ApiProperty({ type: Object, nullable: true, description: 'Null until plan 85' }) atomRef!: null;
+  @ApiProperty({
+    type: Object,
+    nullable: true,
+    example: { atomType: 'grammar_rule_atom', atomId: 'f056f89e-fac6-4ec3-bfc3-db24a23db27a' },
+    description: 'The grammar atom the remark is about — only one the learner has reached in the course (plan 85); else null',
+  })
+  atomRef!: { atomType: string; atomId: string } | null;
   @ApiProperty({ enum: ['minor', 'major'] }) severity!: string;
 }
 

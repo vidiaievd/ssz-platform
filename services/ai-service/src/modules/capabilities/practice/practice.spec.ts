@@ -23,12 +23,15 @@ import type { PracticeUsage } from './application/ports/practice-usage.reader.js
 import { practiceSchema, toAiFeedback, verifyPractice } from './domain/practice-feedback.js';
 import { toVoiceFeedback } from './domain/voice-feedback.js';
 import { practiceRequest } from './prompts/prompts.js';
+import type { AtomCatalogResolver } from '../grammar-atoms/application/atom-catalog.resolver.js';
 import { PrecheckRequestDto } from './presentation/precheck.dto.js';
 
 // Plan 84, step 2.
 
 const SCHOOL = 'f3ced490-5f8b-4d04-bd05-45ab1a101ff8';
 const LEARNER = 'b0000000-0000-4000-8000-000000000002';
+/** A learner who has reached no grammar atom: every request is the one before plan 85. */
+const NO_ATOMS = { forLearner: async () => [] } as unknown as AtomCatalogResolver;
 const EXERCISE = 'c0000000-0000-5000-8000-000000000003';
 const ATTEMPT = 'a0000000-0000-4000-8000-000000000001';
 
@@ -249,6 +252,7 @@ describe('PrecheckHandler', () => {
     language: () => Promise<string | null> = async () => 'ru',
     voice: { heard?: (n: number) => unknown; audio?: (assetId: string, n: number) => RecordingAudio | Error } = {},
     ledger: { usage?: PracticeUsage | Error; limits?: PrecheckLimits } = {},
+    atoms: { resolver?: AtomCatalogResolver; courseId?: string | null; promptVersion?: string } = {},
   ) {
     const usageAsked: Array<{ from: Date; to: Date; exerciseId: string }> = [];
     const usageReader = {
@@ -263,7 +267,7 @@ describe('PrecheckHandler', () => {
     const fetched: string[] = [];
     const gateway = {
       call: async (capability: string, context: CallContext, input: GatewayInput) => {
-        const request = typeof input === 'function' ? input('practice@1') : input;
+        const request = typeof input === 'function' ? input(atoms.promptVersion ?? 'practice@1') : input;
         calls.push({ capability, context, request });
         return call;
       },
@@ -283,7 +287,7 @@ describe('PrecheckHandler', () => {
         return audio;
       },
     };
-    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), schools, recordings, usageReader, [0, 0]);
+    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), schools, recordings, usageReader, atoms.resolver ?? NO_ATOMS, [0, 0]);
     const run = (subject: PracticeSubject) =>
       handler.execute(
         new PrecheckCommand({
@@ -291,6 +295,7 @@ describe('PrecheckHandler', () => {
           userId: LEARNER,
           exerciseId: EXERCISE,
           attemptId: ATTEMPT,
+          courseId: atoms.courseId ?? null,
           subject,
           limits: ledger.limits ?? NO_LIMITS,
         }),
@@ -319,6 +324,63 @@ describe('PrecheckHandler', () => {
       actor: { userId: LEARNER, role: 'student' },
       surface: PRECHECK_SURFACE,
       subject: { exerciseId: EXERCISE, checkId: expect.any(String) },
+    });
+  });
+
+  describe('grammar atoms (plan 85, step 3a)', () => {
+    const COURSE = 'd0000000-0000-5000-8000-000000000004';
+    const ATOM = 'e0000000-0000-5000-8000-000000000005';
+    const catalogOf = () => {
+      const asked: unknown[] = [];
+      const resolver = {
+        forLearner: async (input: unknown) => {
+          asked.push(input);
+          return [{ atomId: ATOM, ruleTitle: 'Времена', title: 'Perfektum', description: null }];
+        },
+      } as unknown as AtomCatalogResolver;
+      return { resolver, asked };
+    };
+
+    it('names the atom a grammar remark points at, and drops an id the catalogue lacks', async () => {
+      const { resolver, asked } = catalogOf();
+      const { run, calls } = setup(
+        answered({
+          items: [
+            { sentenceIndex: 1, aspect: 'grammar', fragment: 'bor', comment: 'Время?', severity: 'major', atomId: ATOM },
+            { sentenceIndex: 1, aspect: 'grammar', fragment: 'tre', comment: '?', severity: 'minor', atomId: 'invented' },
+            { sentenceIndex: 1, aspect: 'lexis', fragment: 'her', comment: '?', severity: 'minor', atomId: ATOM },
+          ],
+          summary: 'Почти.',
+        }),
+        undefined,
+        {},
+        {},
+        { resolver, courseId: COURSE, promptVersion: 'practice@2' },
+      );
+
+      const outcome = await run(translate());
+
+      expect(asked).toEqual([{ userId: LEARNER, courseId: COURSE, language: 'ru' }]);
+      expect(calls[0]!.request.system).toContain(`- ${ATOM} — Времена: Perfektum`);
+      expect(outcome.status === 'ok' && outcome.feedback.items.map((item) => item.atomRef)).toEqual([
+        { atomType: 'grammar_rule_atom', atomId: ATOM },
+        null,
+        null,
+      ]);
+    });
+
+    it('under practice@1 the request stays v1’s even with a catalogue', async () => {
+      const { resolver } = catalogOf();
+      const { run, calls } = setup(answered({ items: [], summary: 'Ok.' }), undefined, {}, {}, { resolver, courseId: COURSE });
+      await run(translate());
+      expect(calls[0]!.request.system).not.toContain(ATOM);
+    });
+
+    it('does not read the catalogue for work no grammar aspect is checked on', async () => {
+      const { resolver, asked } = catalogOf();
+      const { run } = setup(answered({ items: [], summary: 'Ok.' }), undefined, {}, {}, { resolver, courseId: COURSE, promptVersion: 'practice@2' });
+      await run(shortAnswer());
+      expect(asked).toEqual([]);
     });
   });
 
@@ -477,10 +539,11 @@ describe('PrecheckHandler limits (step 3)', () => {
           return usage;
         },
       },
+      NO_ATOMS,
       [0],
     );
     const run = (limits: PrecheckLimits = LIMITS) =>
-      h.execute(new PrecheckCommand({ schoolId: SCHOOL, userId: LEARNER, exerciseId: EXERCISE, attemptId: ATTEMPT, subject: translate(), limits }));
+      h.execute(new PrecheckCommand({ schoolId: SCHOOL, userId: LEARNER, exerciseId: EXERCISE, attemptId: ATTEMPT, courseId: null, subject: translate(), limits }));
     return { run, asked, calls: () => called };
   }
 

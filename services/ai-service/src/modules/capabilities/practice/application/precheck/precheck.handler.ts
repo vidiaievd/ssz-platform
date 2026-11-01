@@ -13,6 +13,8 @@ import {
 import { SchoolPayerResolver } from '../../../review-draft/application/school-payer.resolver.js';
 import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from '../../../voice-review/application/ports/recording-audio.source.js';
 import type { ReadAloudSubject } from '../../../voice-review/domain/read-aloud-subject.js';
+import { AtomCatalogResolver } from '../../../grammar-atoms/application/atom-catalog.resolver.js';
+import { EMPTY_CATALOG, GRAMMAR_ASPECTS } from '../../../grammar-atoms/domain/atom-catalog.js';
 import { toAiFeedback } from '../../domain/practice-feedback.js';
 import { toVoiceFeedback, type PassageHearing } from '../../domain/voice-feedback.js';
 import { PRACTICE, PRACTICE_VOICE } from '../../practice.capability.js';
@@ -105,6 +107,7 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
     @Inject(SCHOOL_LANGUAGE_READER) private readonly schools: ISchoolLanguageReader,
     @Inject(RECORDING_AUDIO_SOURCE) private readonly recordings: IRecordingAudioSource,
     @Inject(PRACTICE_USAGE_READER) private readonly usageReader: IPracticeUsageReader,
+    private readonly atomCatalogs: AtomCatalogResolver,
     @Optional() @Inject(PRECHECK_RECORDING_WAITS_MS) private readonly recordingWaitsMs: number[] = DEFAULT_RECORDING_WAITS_MS,
   ) {}
 
@@ -136,15 +139,20 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
   }
 
   private async readText(request: PrecheckRequest, context: CallContext, subject: EngineSubject): Promise<Ran> {
-    const prepared = toPracticeSubject(subject, await this.schoolLanguage(request.schoolId));
-    const call = await this.gateway.call(PRACTICE.code, context, (promptVersion) => practiceRequest(promptVersion, prepared));
+    const language = await this.schoolLanguage(request.schoolId);
+    const prepared = toPracticeSubject(subject, language);
+    // Only worth reading when a grammar aspect is checked: no other remark names an atom.
+    const catalog = prepared.input.aspects.some((aspect) => GRAMMAR_ASPECTS.has(aspect))
+      ? await this.atomCatalogs.forLearner({ userId: request.userId, courseId: request.courseId, language: language ?? 'en' })
+      : EMPTY_CATALOG;
+    const call = await this.gateway.call(PRACTICE.code, context, (promptVersion) => practiceRequest(promptVersion, prepared, catalog));
     const callIds = [call.recorded.callId];
     const billed = { counted: call.routed.isOk, credits: [call.recorded.credits] };
 
     if (call.routed.isFail) return { outcome: notAnswered(call.routed.error, callIds), ...billed };
     const { output } = call.routed.value.result;
     if (output.kind !== 'structured') return { outcome: { status: 'failed', errorCode: 'invalid_response', aiCallIds: callIds }, ...billed };
-    return { outcome: { status: 'ok', feedback: toAiFeedback(output.data, prepared.input), aiCallIds: callIds }, ...billed };
+    return { outcome: { status: 'ok', feedback: toAiFeedback(output.data, prepared.input, catalog), aiCallIds: callIds }, ...billed };
   }
 
   private async hearReading(context: CallContext, subject: ReadAloudSubject): Promise<Ran> {

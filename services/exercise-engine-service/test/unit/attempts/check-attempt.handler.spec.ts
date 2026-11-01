@@ -57,6 +57,7 @@ function makeAttempt(overrides: Record<string, unknown> = {}) {
     targetLanguage: 'nb',
     status: 'IN_PROGRESS',
     schoolId: 'school-1',
+    containerId: 'course-1',
     previousAttemptId: null,
     answeredQuestions: [],
     get selfChecksUsed() {
@@ -148,6 +149,7 @@ describe('CheckAttemptHandler (plan 84, step 5)', () => {
         userId: 'user-1',
         exerciseId: 'ex-1',
         attemptId: 'att-1',
+        courseId: 'course-1',
         limits: { perExercise: 3, perLearnerMonthlyCredits: null },
       });
       expect(request.subject).toMatchObject({ template: 'writing_task', text: 'I helgen jeg har vært på hytta.' });

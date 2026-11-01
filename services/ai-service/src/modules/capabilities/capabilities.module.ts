@@ -56,6 +56,12 @@ import { DraftReviewHandler } from './review-draft/application/draft-review/draf
 import { REVIEW_ATTEMPTS_CLIENT } from './review-draft/application/ports/review-attempts.client.js';
 import { SCHOOL_LANGUAGE_READER } from './review-draft/application/ports/school-language.reader.js';
 import { SchoolPayerResolver } from './review-draft/application/school-payer.resolver.js';
+import { AtomCatalogResolver } from './grammar-atoms/application/atom-catalog.resolver.js';
+import {
+  COURSE_ATOM_CATALOG_READER,
+  LEARNER_GRAMMAR_ATOMS_READER,
+} from './grammar-atoms/application/ports/grammar-atoms.readers.js';
+import { HttpCourseAtomCatalogReader, HttpLearnerGrammarAtomsReader } from './grammar-atoms/infrastructure/http-grammar-atoms.readers.js';
 import { TryTranslateReviewHandler } from './review-draft/application/try-translate-review.handler.js';
 import { HttpReviewAttemptsClient } from './review-draft/infrastructure/http-review-attempts.client.js';
 import { HttpSchoolLanguageReader } from './review-draft/infrastructure/http-school-language.reader.js';
@@ -177,6 +183,20 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     // a rehearsal before hand-in, asked by exercise-engine (plan 84, step 2), and its limits (step 3)
     PrecheckHandler,
     { provide: PRACTICE_USAGE_READER, useClass: PrismaPracticeUsageReader },
+    // the learner's grammar atoms a remark may name (plan 85, step 3)
+    AtomCatalogResolver,
+    {
+      provide: LEARNER_GRAMMAR_ATOMS_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpLearnerGrammarAtomsReader(config.get<string>('learningServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: COURSE_ATOM_CATALOG_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpCourseAtomCatalogReader(config.get<string>('contentServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
     // candidate models measured on the settled drafts (plan 79, step 1.6)
     RunReviewEvalHandler,
     ListReviewEvalRunsHandler,

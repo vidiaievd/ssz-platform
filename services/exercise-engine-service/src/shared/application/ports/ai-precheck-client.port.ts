@@ -17,6 +17,11 @@ export interface AiPrecheckRequest {
   userId: string;
   exerciseId: string;
   attemptId: string;
+  /**
+   * The course the attempt sits in; null outside a course. ai-service names the course's
+   * grammar atoms a remark may point at (plan 85, step 3a).
+   */
+  courseId: string | null;
   /** The work in progress beside its key — the same subject the review queue's draft reads. */
   subject: ReviewSubject;
   limits: PrecheckLimits;

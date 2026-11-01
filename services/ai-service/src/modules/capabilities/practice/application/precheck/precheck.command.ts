@@ -11,6 +11,8 @@ export interface PrecheckRequest {
   userId: string;
   exerciseId: string;
   attemptId: string;
+  /** The course the attempt sits in; null outside one, or from an engine before plan 85. */
+  courseId: string | null;
   subject: PracticeSubject;
   limits: PrecheckLimits;
 }
