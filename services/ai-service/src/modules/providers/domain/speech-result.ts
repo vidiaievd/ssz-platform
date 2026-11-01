@@ -18,6 +18,17 @@ export interface PronouncedWord {
   error: 'none' | 'mispronunciation' | 'omission' | 'insertion';
 }
 
+/**
+ * One sound of a word as Azure scored it (`Granularity: Phoneme`). For `nb-NO` Azure leaves the
+ * symbol empty — which sound it is comes from the pronunciation lexicon (plan 88, step 3).
+ */
+export interface PronouncedPhoneme {
+  startMs: number;
+  durationMs: number;
+  /** 0–100. */
+  accuracy: number;
+}
+
 /** Pronunciation assessment scores, 0–100. `prosody` is null where the locale has none. */
 export interface PronunciationScores {
   accuracy: number;

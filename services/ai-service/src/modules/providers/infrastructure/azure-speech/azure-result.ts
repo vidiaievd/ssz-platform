@@ -1,5 +1,5 @@
 import { lexicalWord, lexicalWords } from '../../domain/lexical.js';
-import type { HeardWord, PronouncedWord, PronunciationScores } from '../../domain/speech-result.js';
+import type { HeardWord, PronouncedPhoneme, PronouncedWord, PronunciationScores } from '../../domain/speech-result.js';
 
 /**
  * Azure's recognition JSON, as both the REST endpoint and the Speech SDK give it (plan 82,
@@ -15,11 +15,20 @@ export interface AzureScored {
   PronunciationAssessment?: Omit<AzureScored, 'PronunciationAssessment'>;
 }
 
+export interface AzurePhoneme extends AzureScored {
+  /** Empty for `nb-NO`. */
+  Phoneme?: string;
+  Offset?: number | string;
+  Duration?: number | string;
+}
+
 export interface AzureWord extends AzureScored {
   Word: string;
   Offset?: number | string;
   Duration?: number | string;
   Confidence?: number | string;
+  /** With `Granularity: Phoneme` only. */
+  Phonemes?: AzurePhoneme[];
 }
 
 export interface AzureBest extends AzureScored {
@@ -140,6 +149,14 @@ function alignWithPassage(passage: string[], recognized: AzureWord[]): Pronounce
   return out;
 }
 
+/** The sounds of a word with their times and scores, in order; empty without `Granularity: Phoneme`. */
+export function phonemesOf(word: AzureWord): PronouncedPhoneme[] {
+  return (word.Phonemes ?? []).map((p) => {
+    const startMs = ticksToMs(p.Offset);
+    return { startMs, durationMs: ticksToMs(p.Duration), accuracy: score(p, 'AccuracyScore') ?? 0 };
+  });
+}
+
 function heardWords(aligned: AzureWord[]): HeardWord[] {
   return aligned.flatMap((w) => {
     const text = lexicalWord(w.Word);
@@ -186,7 +203,7 @@ function score(scored: AzureScored, field: 'AccuracyScore' | 'FluencyScore' | 'C
 }
 
 /** Azure's own error types; the prosody ones (breaks, monotone) are not reading errors. */
-function errorOf(word: AzureScored): PronouncedWord['error'] {
+export function errorOf(word: AzureScored): PronouncedWord['error'] {
   switch (word.PronunciationAssessment?.ErrorType ?? word.ErrorType) {
     case 'Mispronunciation':
       return 'mispronunciation';
