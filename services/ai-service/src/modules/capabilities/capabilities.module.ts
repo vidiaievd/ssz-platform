@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/configuration.js';
 import { GatewayModule } from '../gateway/gateway.module.js';
+import { PronunciationModule } from '../pronunciation/pronunciation.module.js';
 import { AdminPayerResolver } from './application/admin-payer.resolver.js';
 import { RunDiagnosticHandler } from './diagnostic/application/run-diagnostic.handler.js';
 import { AdminDiagnosticController } from './diagnostic/presentation/admin-diagnostic.controller.js';
@@ -90,7 +91,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
  * (plan 82), `practice` (plan 84); each agent plan adds its own folder here.
  */
 @Module({
-  imports: [GatewayModule],
+  imports: [GatewayModule, PronunciationModule],
   controllers: [
     AdminDiagnosticController,
     AdminReviewDraftController,

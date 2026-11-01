@@ -54,8 +54,9 @@ export interface AiFeedbackItem {
   severity: AiFeedbackSeverity;
 }
 
-/** One sound of a word, as the provider scored it. Empty until plan 86. */
+/** One sound of a word, as the provider scored it (plan 88, step 5). */
 export interface AiFeedbackPhoneme {
+  /** IPA of the sound; empty where the word's readings differ in it — timed and scored, not named. */
   symbol: string;
   /** 0–100. */
   accuracy?: number;

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/configuration.js';
+import { PassageSounds } from './application/passage-sounds.js';
 import { PassageVariants } from './application/passage-variants.js';
 import { POS_TAGGER } from './application/ports/pos-tagger.js';
 import { PRONUNCIATION_LEXICON_READER } from './application/ports/pronunciation-lexicon.reader.js';
@@ -9,8 +10,8 @@ import { HttpPosTagger } from './infrastructure/tagger/http-pos-tagger.js';
 
 /**
  * Sound-level pronunciation review (plan 88): the lexicon, the sound inventory and the aligner
- * that names Azure's sounds, and the passage's variants narrowed by part of speech (step 4b).
- * The feedback built on them is step 5.
+ * that names Azure's sounds, the passage's variants narrowed by part of speech (step 4b) and
+ * the weak sounds of a passage read (step 5).
  */
 @Module({
   providers: [
@@ -21,7 +22,8 @@ import { HttpPosTagger } from './infrastructure/tagger/http-pos-tagger.js';
       useFactory: (config: ConfigService<AppConfig>) => new HttpPosTagger(config.get<string>('posTaggerUrl')!),
     },
     PassageVariants,
+    PassageSounds,
   ],
-  exports: [PRONUNCIATION_LEXICON_READER, PassageVariants],
+  exports: [PRONUNCIATION_LEXICON_READER, PassageVariants, PassageSounds],
 })
 export class PronunciationModule {}

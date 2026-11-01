@@ -20,11 +20,15 @@ export interface AssessedWord {
 /**
  * One of Azure's sounds with its name from the lexicon. `symbol` is null where the word's
  * variants of this length disagree at this position (*det*: `D AX0` / `D EE1`) — the sound is
- * then timed and scored but not named, and nothing is said about it.
+ * then timed and scored but not named. Its family may still be known: *uten* `UH` / `UU` are
+ * both ʉ (§0.8 (6)).
  */
 export interface AlignedSound {
   symbol: string | null;
+  /** Every symbol the variants have here, distinct, in the variants' order; one when named. */
+  symbols: string[];
   ipa: string | null;
+  /** The inventory's family of the sound, when every variant's symbol here is of the same one. */
   family: SoundFamily | null;
   /** NoFAbet stress of a vowel or a syllabic consonant; null on consonants and where variants disagree. */
   stress: Stress | null;
@@ -104,14 +108,16 @@ export function alignWord(word: AssessedWord, variants: LexiconVariant[]): WordA
   }
 
   const sounds: AlignedSound[] = word.phonemes.map((phoneme, i) => {
-    const symbol = agreed(matching.map(([, tokens]) => tokens[i]!.symbol));
+    const symbols = [...new Set(matching.map(([, tokens]) => tokens[i]!.symbol))];
+    const symbol = symbols.length === 1 ? symbols[0]! : null;
     const marks = matching.map(([, tokens]) => tokens[i]!.stress);
     const stress = agreed(marks);
     const entry = symbol === null ? null : soundOf(symbol);
     return {
       symbol,
+      symbols,
       ipa: entry?.ipa ?? null,
-      family: entry?.family ?? null,
+      family: agreed(symbols.map((s) => soundOf(s)!.family)),
       stress: stress ?? null,
       // Primary in every variant, whatever its toneme (*tømmer*: OEH1 / OEH2).
       primary: marks.every((m) => m === 1 || m === 2),

@@ -58,3 +58,10 @@ export function assessedFamilies(context: SpeechContext): SoundFamily[] {
   for (const entry of Object.values(NB_SOUNDS)) if (entry.assess?.[context] != null) families.add(entry.assess.family);
   return [...families];
 }
+
+/** Course languages with a sound inventory — the only ones whose sounds are reviewed (plan 88). */
+const INVENTORY_LANGUAGES: ReadonlySet<string> = new Set(['nb']);
+
+export function hasSoundInventory(language: string): boolean {
+  return INVENTORY_LANGUAGES.has(language);
+}

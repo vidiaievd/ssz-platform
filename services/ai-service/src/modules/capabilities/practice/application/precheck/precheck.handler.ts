@@ -15,6 +15,8 @@ import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from '../../../voi
 import { audible, recordingLevel } from '../../../../providers/domain/recording-level.js';
 import type { ReadAloudSubject } from '../../../voice-review/domain/read-aloud-subject.js';
 import { AtomCatalogResolver } from '../../../grammar-atoms/application/atom-catalog.resolver.js';
+import { PassageSounds, type WordSounds } from '../../../../pronunciation/application/passage-sounds.js';
+import type { SpeechResult } from '../../../../providers/domain/speech-result.js';
 import { EMPTY_CATALOG, GRAMMAR_ASPECTS } from '../../../grammar-atoms/domain/atom-catalog.js';
 import { toAiFeedback } from '../../domain/practice-feedback.js';
 import { toVoiceFeedback, type PassageHearing } from '../../domain/voice-feedback.js';
@@ -87,7 +89,9 @@ interface Ran {
  *
  * A reading aloud (step 2c) goes to `practice_voice` instead: every take's speech WAV from
  * media, one call per passage, the words heard back as they are. Every take is fetched before
- * the first call, so a reading missing one costs nothing.
+ * the first call, so a reading missing one costs nothing. Where the model scored sounds, the
+ * weak ones become remarks on the `sound` atom (plan 88, step 5) — fluent speech, so by the
+ * fluent thresholds.
  *
  * Limits (step 3, plan §2 Q2): checks per (learner, exercise) and credits per learner per
  * calendar month, as the engine read them from the school, counted from the ledger — every
@@ -110,6 +114,7 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
     @Inject(RECORDING_AUDIO_SOURCE) private readonly recordings: IRecordingAudioSource,
     @Inject(PRACTICE_USAGE_READER) private readonly usageReader: IPracticeUsageReader,
     private readonly atomCatalogs: AtomCatalogResolver,
+    private readonly passageSounds: PassageSounds,
     @Optional() @Inject(PRECHECK_RECORDING_WAITS_MS) private readonly recordingWaitsMs: number[] = DEFAULT_RECORDING_WAITS_MS,
   ) {}
 
@@ -176,12 +181,31 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
       calls.push(call);
       // A passage unheard leaves the reading half-heard: the learner asks again rather than read half.
       if (call.routed.isFail) return { outcome: notAnswered(call.routed.error, calls.map((c) => c.recorded.callId)), ...billed() };
-      hearings.push({ passageIndex, heard: call.routed.value.result });
+      const heard = call.routed.value.result;
+      hearings.push({ passageIndex, heard, sounds: await this.soundsOf(subject.targetLanguage, prompt.text, heard) });
     }
     return {
-      outcome: { status: 'ok', feedback: toVoiceFeedback(hearings), aiCallIds: calls.map((c) => c.recorded.callId) },
+      outcome: {
+        status: 'ok',
+        feedback: toVoiceFeedback(hearings, subject.targetLanguage),
+        aiCallIds: calls.map((c) => c.recorded.callId),
+      },
       ...billed(),
     };
+  }
+
+  /**
+   * The passage's sounds, as a nicety: the words heard are the rehearsal's answer, and a
+   * lexicon that cannot be read leaves them without sounds rather than fail the paid call.
+   */
+  private async soundsOf(language: string, passage: string, heard: SpeechResult): Promise<WordSounds[] | null> {
+    if (!heard.pronunciation) return null;
+    try {
+      return await this.passageSounds.of(language, passage, heard.pronunciation.words, 'fluent');
+    } catch (err) {
+      this.logger.warn(`Sounds of a rehearsed passage not measured: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
   }
 
   /** What the learner has used at this school; null when the ledger cannot be read (then uncounted). */

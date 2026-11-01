@@ -26,6 +26,9 @@ import { toVoiceFeedback } from './domain/voice-feedback.js';
 import { practiceRequest } from './prompts/prompts.js';
 import type { AtomCatalogResolver } from '../grammar-atoms/application/atom-catalog.resolver.js';
 import { PrecheckRequestDto } from './presentation/precheck.dto.js';
+import type { PassageSounds, WordSounds } from '../../pronunciation/application/passage-sounds.js';
+import { alignWord } from '../../pronunciation/domain/align-word.js';
+import { weakSounds } from '../../pronunciation/domain/weak-sounds.js';
 
 // Plan 84, step 2.
 
@@ -33,6 +36,8 @@ const SCHOOL = 'f3ced490-5f8b-4d04-bd05-45ab1a101ff8';
 const LEARNER = 'b0000000-0000-4000-8000-000000000002';
 /** A learner who has reached no grammar atom: every request is the one before plan 85. */
 const NO_ATOMS = { forLearner: async () => [] } as unknown as AtomCatalogResolver;
+/** Sounds not measured: every rehearsal of a reading before plan 88, step 5. */
+const NO_SOUNDS = { of: async () => null } as unknown as PassageSounds;
 const EXERCISE = 'c0000000-0000-5000-8000-000000000003';
 const ATTEMPT = 'a0000000-0000-4000-8000-000000000001';
 
@@ -133,7 +138,7 @@ describe('voice feedback (domain)', () => {
         ]),
       },
       { passageIndex: 1, heard: heardAs(['hun']) },
-    ]);
+    ], 'nb');
     expect(feedback.summary).toBe('');
     expect(feedback.items).toEqual([]);
     expect(feedback.words).toEqual([
@@ -144,8 +149,54 @@ describe('voice feedback (domain)', () => {
   });
 
   it('gives no accuracy when the scores cannot be paired with the words heard', () => {
-    const feedback = toVoiceFeedback([{ passageIndex: 0, heard: heardAs(['jeg', 'heter', 'kari'], [{ text: 'jeg', accuracy: 95, error: 'none' }]) }]);
+    const feedback = toVoiceFeedback([{ passageIndex: 0, heard: heardAs(['jeg', 'heter', 'kari'], [{ text: 'jeg', accuracy: 95, error: 'none' }]) }], 'nb');
     expect(feedback.words!.every((w) => w.accuracy === undefined)).toBe(true);
+  });
+
+  // Plan 88, step 5: «kjenner» with kj said as k (12 against 53), «hus» clean.
+  describe('sounds', () => {
+    const phonemes = (...scores: number[]) => scores.map((accuracy, i) => ({ startMs: i * 80, durationMs: 80, accuracy }));
+    const scored = [
+      { text: 'jeg', accuracy: 95, error: 'none' as const, phonemes: phonemes(95, 95) },
+      { text: 'kjenner', accuracy: 60, error: 'mispronunciation' as const, phonemes: phonemes(12, 90, 90, 90, 90) },
+    ];
+    const measured = (functionWord: boolean[]): WordSounds[] =>
+      [
+        alignWord(scored[0]!, [{ nofabet: 'J AEJ1' }]),
+        alignWord(scored[1]!, [{ nofabet: 'KJ EH1 N AX0 R' }]),
+      ].map((alignment, i) => ({ alignment, weak: weakSounds(alignment, 'fluent', functionWord[i]!) }));
+    const hearing = (sounds: WordSounds[] | null) => ({
+      passageIndex: 1,
+      heard: { ...heardAs(['jeg', 'kjenner']), pronunciation: { accuracy: 70, fluency: 0, completeness: 100, prosody: null, words: scored } },
+      sounds,
+    });
+
+    it('names the sounds of each aligned word and remarks on the weak family, pointing at the sound atom', () => {
+      const feedback = toVoiceFeedback([{ passageIndex: 0, heard: heardAs(['hei']) }, hearing(measured([true, false]))], 'nb');
+      expect(feedback.words![2]!.phonemes).toEqual([
+        { symbol: 'ç', accuracy: 12 },
+        { symbol: 'ɛ', accuracy: 90 },
+        { symbol: 'n', accuracy: 90 },
+        { symbol: 'ə', accuracy: 90 },
+        { symbol: 'r', accuracy: 90 },
+      ]);
+      expect(feedback.items).toEqual([
+        {
+          kind: 'pronunciation',
+          target: { passageIndex: 1, wordIndex: 2 },
+          original: 'kjenner',
+          explanation: expect.stringContaining('kj-sound [ç]'),
+          atomRef: { atomType: 'sound', atomId: 'nb:kj', title: 'kj-sound [ç]' },
+          severity: 'major',
+        },
+      ]);
+    });
+
+    it('leaves the words without sounds when they were not measured', () => {
+      const feedback = toVoiceFeedback([hearing(null)], 'nb');
+      expect(feedback.items).toEqual([]);
+      expect(feedback.words!.every((w) => w.phonemes!.length === 0)).toBe(true);
+    });
   });
 });
 
@@ -253,7 +304,11 @@ describe('PrecheckHandler', () => {
   function setup(
     call: GatewayCall,
     language: () => Promise<string | null> = async () => 'ru',
-    voice: { heard?: (n: number) => unknown; audio?: (assetId: string, n: number) => RecordingAudio | Error } = {},
+    voice: {
+      heard?: (n: number) => unknown;
+      audio?: (assetId: string, n: number) => RecordingAudio | Error;
+      sounds?: PassageSounds;
+    } = {},
     ledger: { usage?: PracticeUsage | Error; limits?: PrecheckLimits } = {},
     atoms: { resolver?: AtomCatalogResolver; courseId?: string | null; promptVersion?: string } = {},
   ) {
@@ -290,7 +345,7 @@ describe('PrecheckHandler', () => {
         return audio;
       },
     };
-    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), schools, recordings, usageReader, atoms.resolver ?? NO_ATOMS, [0, 0]);
+    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), schools, recordings, usageReader, atoms.resolver ?? NO_ATOMS, voice.sounds ?? NO_SOUNDS, [0, 0]);
     const run = (subject: PracticeSubject) =>
       handler.execute(
         new PrecheckCommand({
@@ -424,6 +479,54 @@ describe('PrecheckHandler', () => {
       expect(speech[1]!.request).toEqual({ audio: { format: 'wav', data: WAV }, referenceText: 'Hun bor i Bergen.', language: 'nb', pronunciation: true });
     });
 
+    // Plan 88, step 5.
+    describe('sounds', () => {
+      const scoredHearing = (n: number) =>
+        Result.ok({
+          result: {
+            ...heardAs([`w${n}`]),
+            pronunciation: {
+              accuracy: 80,
+              fluency: 0,
+              completeness: 100,
+              prosody: null,
+              words: [{ text: `w${n}`, accuracy: 30, error: 'mispronunciation', phonemes: [{ startMs: 0, durationMs: 80, accuracy: 10 }] }],
+            },
+          } as SpeechResult,
+        });
+
+      it('measures each passage’s sounds in fluent speech and remarks on the weak ones', async () => {
+        const asked: unknown[][] = [];
+        const sounds = {
+          of: async (...args: unknown[]) => {
+            asked.push(args);
+            const alignment = alignWord({ text: 'kjør', error: 'mispronunciation', phonemes: [{ startMs: 0, durationMs: 80, accuracy: 10 }] }, [
+              { nofabet: 'KJ' },
+            ]);
+            return [{ alignment, weak: weakSounds(alignment, 'fluent', false) }];
+          },
+        } as unknown as PassageSounds;
+        const { run } = setup(answered({}), undefined, { heard: scoredHearing, sounds });
+        const outcome = await run(reading());
+        expect(asked.map(([language, passage, , context]) => [language, passage, context])).toEqual([
+          ['nb', 'Jeg heter Kari.', 'fluent'],
+          ['nb', 'Hun bor i Bergen.', 'fluent'],
+        ]);
+        expect(outcome.status === 'ok' && outcome.feedback.items.map((i) => [i.target, i.atomRef?.atomId])).toEqual([
+          [{ passageIndex: 0, wordIndex: 0 }, 'nb:kj'],
+          [{ passageIndex: 1, wordIndex: 1 }, 'nb:kj'],
+        ]);
+      });
+
+      it('gives the words back without sounds when the lexicon cannot be read', async () => {
+        const sounds = { of: async () => Promise.reject(new Error('db down')) } as unknown as PassageSounds;
+        const { run } = setup(answered({}), undefined, { heard: scoredHearing, sounds });
+        const outcome = await run(reading());
+        expect(outcome).toMatchObject({ status: 'ok', aiCallIds: ['speech-1', 'speech-2'] });
+        expect(outcome.status === 'ok' && outcome.feedback.items).toEqual([]);
+      });
+    });
+
     it('waits a little for a take media is still converting', async () => {
       const { run, fetched } = setup(answered({}), undefined, { audio: (_id, n) => (n === 1 ? { kind: 'pending' } : { kind: 'ready', wav: WAV }) });
       expect((await run(reading())).status).toBe('ok');
@@ -545,6 +648,7 @@ describe('PrecheckHandler limits (step 3)', () => {
         },
       },
       NO_ATOMS,
+      NO_SOUNDS,
       [0],
     );
     const run = (limits: PrecheckLimits = LIMITS) =>

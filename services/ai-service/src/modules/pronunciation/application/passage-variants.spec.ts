@@ -42,9 +42,9 @@ describe('PassageVariants', () => {
     expect(variantsOf).toHaveBeenCalledWith('nb', ['fokuser', 'på', 'api']);
     expect(tagger.tag).toHaveBeenCalledWith('nb', 'Fokuser på api!');
     expect(words).toEqual([
-      { text: 'fokuser', variants: [FOKUSER[1]], narrowedBy: 'pos' },
-      { text: 'på', variants: PAA, narrowedBy: 'feats' },
-      { text: 'api', variants: [], narrowedBy: 'none' },
+      { text: 'fokuser', variants: [FOKUSER[1]], narrowedBy: 'pos', upos: 'VERB' },
+      { text: 'på', variants: PAA, narrowedBy: 'feats', upos: 'ADP' },
+      { text: 'api', variants: [], narrowedBy: 'none', upos: 'NOUN' },
     ]);
   });
 
@@ -70,8 +70,8 @@ describe('PassageVariants', () => {
 describe('withPassageWords', () => {
   it('skips the inserted words when pairing Azure’s words with the passage', () => {
     const passage = [
-      { text: 'fokuser', variants: [], narrowedBy: 'untagged' as const },
-      { text: 'på', variants: [], narrowedBy: 'untagged' as const },
+      { text: 'fokuser', variants: [], narrowedBy: 'untagged' as const, upos: null },
+      { text: 'på', variants: [], narrowedBy: 'untagged' as const, upos: null },
     ];
     const pronounced = [{ error: 'none' as const }, { error: 'insertion' as const }, { error: 'omission' as const }];
     expect(withPassageWords(pronounced, passage).map((p) => p.passageWord?.text ?? null)).toEqual([

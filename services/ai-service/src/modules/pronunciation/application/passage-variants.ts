@@ -15,6 +15,8 @@ export interface PassageWord {
   /** What the aligner names the word's sounds from; empty when the lexicon lacks the word. */
   variants: LexiconVariant[];
   narrowedBy: NarrowedBy;
+  /** The tagger's UD part of speech; null when untagged. Tells a function word (step 5). */
+  upos: string | null;
 }
 
 /**
@@ -41,8 +43,9 @@ export class PassageVariants {
     ]);
     const tags = tokens ? tagsOfPassageWords(passage, tokens) : [];
     return words.map((text, i) => {
-      const narrowed = narrowVariants(variants.get(text) ?? [], tags[i] ?? null);
-      return { text, ...narrowed };
+      const tag = tags[i] ?? null;
+      const narrowed = narrowVariants(variants.get(text) ?? [], tag);
+      return { text, ...narrowed, upos: tag?.upos ?? null };
     });
   }
 
