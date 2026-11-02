@@ -76,7 +76,9 @@ import { ReviewEvalRunner } from './review-draft/eval/application/review-eval-ru
 import { RunReviewEvalHandler } from './review-draft/eval/application/run-review-eval.handler.js';
 import { PrismaEvalRunRepository } from './review-draft/eval/infrastructure/prisma-eval-run.repository.js';
 import { AdminReviewEvalsController } from './review-draft/eval/presentation/admin-review-evals.controller.js';
-import { RECORDING_AUDIO_SOURCE } from './voice-review/application/ports/recording-audio.source.js';
+import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from './voice-review/application/ports/recording-audio.source.js';
+import { REFERENCE_CLIP_SOURCE } from './toneme-check/application/ports/reference-clip.source.js';
+import { HttpReferenceClipSource } from './toneme-check/infrastructure/http-reference-clip.source.js';
 import { VOICE_REVIEW_ATTEMPTS_CLIENT } from './voice-review/application/ports/voice-review-attempts.client.js';
 import { VoiceReviewHandler } from './voice-review/application/voice-review/voice-review.handler.js';
 import { HttpRecordingAudioSource } from './voice-review/infrastructure/http-recording-audio.source.js';
@@ -247,6 +249,12 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfig>) =>
         new HttpRecordingAudioSource(config.get<string>('mediaServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: REFERENCE_CLIP_SOURCE,
+      inject: [ConfigService, RECORDING_AUDIO_SOURCE],
+      useFactory: (config: ConfigService<AppConfig>, recordings: IRecordingAudioSource) =>
+        new HttpReferenceClipSource(config.get<string>('mediaServiceUrl')!, config.get<string>('internalServiceToken')!, recordings),
     },
     {
       provide: LEARNER_LANGUAGE_READER,
