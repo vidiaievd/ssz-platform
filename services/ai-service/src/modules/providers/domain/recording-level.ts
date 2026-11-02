@@ -16,8 +16,10 @@ export interface RecordingLevel {
  * recordings (20 takes from phones and the browser + the 5 of plan 86, session 1): each one
  * Azure heard nothing in — even at 5–7× gain — stood 14–17 dB out of its noise; each one it
  * heard, 34–80 dB. A constant tone stands 0 dB out. Near-silence is caught by `speechDb`.
+ * Plan 88, step 9: laptop-microphone takes stand 24.3–24.8 dB out and Azure hears them (the
+ * 25 dB bound turned them away), hence 20 — inside the untested 17–34 dB gap.
  */
-export const AUDIBLE_MIN_CONTRAST_DB = 25;
+export const AUDIBLE_MIN_CONTRAST_DB = 20;
 export const AUDIBLE_MIN_SPEECH_DB = -50;
 
 const FRAME_MS = 20;
