@@ -65,9 +65,23 @@ describe('measureToneme (§0.5c)', () => {
     expect(measureToneme({ points }, 10, window)).toMatchObject({ score: 2, tone: null });
   });
 
+  it('takes the first voiced frames up to 100 ms when the onset window is voiceless (alle, step 9.2)', () => {
+    const window = { span: { startMs: 0, endMs: 300 }, post: { fromMs: 240, toMs: 300 } };
+    // Iselin's «alle» after «jeg»: the vowel's first 60 ms come back unvoiced.
+    const points = [null, null, null, null, null, null, 3.3, 3.6, 3.6, 3.3, 2.8, 2, 1.2, 0.3, -0.5, -1.3, -2];
+    points.push(-2.7, -3.2, -3.6, -3.8, -4, -4, -3.9, -3.3, -2.7, -2.2, -1.9, -1.6, -1.2);
+    expect(measureToneme({ points }, 10, window)).toMatchObject({ onset: 3.45, tone: 2 });
+  });
+
+  it('keeps the onset window when it has a voiced frame: the fallback does not move a measured onset', () => {
+    const window = { span: { startMs: 0, endMs: 200 }, post: { fromMs: 150, toMs: 200 } };
+    const points = [null, null, null, null, null, 1, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    expect(measureToneme({ points }, 10, window)!.onset).toBe(1);
+  });
+
   it('measures nothing without a voiced onset or post-tonic vowel', () => {
     const window = { span: { startMs: 0, endMs: 200 }, post: { fromMs: 150, toMs: 200 } };
-    const silentOnset = [1, 1, null, null, null, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const silentOnset = [1, 1, null, null, null, null, null, null, null, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     const silentPost = [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, null, null, null, null, null];
     expect(measureToneme({ points: silentOnset }, 10, window)).toBeNull();
     expect(measureToneme({ points: silentPost }, 10, window)).toBeNull();

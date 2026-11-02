@@ -179,7 +179,7 @@ describe('reference clips (plan 88, step 6b.2)', () => {
   });
 
   it('does not keep a clip it cannot measure or hear as the word', async () => {
-    const unvoiced = TONE_2.map((p, i) => (i < 6 ? null : p));
+    const unvoiced = TONE_2.map((p, i) => (i < 10 ? null : p));
     const { make } = setup({
       curves: [unvoiced],
       words: (n, word) => (n === 1 ? heard(word, 40) : n === 2 ? heard(word, 95, PHONEMES.slice(0, 4)) : heard(word)),

@@ -8,6 +8,14 @@ import type { AlignedSound } from './align-word.js';
  */
 export const ONSET_WINDOW_MS = { from: 20, to: 60 } as const;
 
+/**
+ * Where the onset is looked for when nothing in `ONSET_WINDOW_MS` is voiced — a word opening on
+ * its stressed vowel (*alle*) can start voiceless after the word before it (plan 88, step 9.2).
+ * The first `ONSET_FALLBACK_FRAMES` voiced frames from 20 ms up to here stand for the onset.
+ */
+export const ONSET_FALLBACK_TO_MS = 100;
+export const ONSET_FALLBACK_FRAMES = 4;
+
 /** How far past the end of the post-tonic vowel its level is still read — a voiced coda carries it. */
 export const POST_TAIL_MS = 30;
 
@@ -65,8 +73,8 @@ export function tonemeWindow(
 
 /**
  * The toneme measure from the curve of a `tonemeWindow` (§0.5c): the stressed vowel's onset
- * against the post-tonic vowel's level. Null when either has nothing voiced — the toneme is then
- * not measured, rather than guessed. Pure.
+ * against the post-tonic vowel's level. Null when either has nothing voiced (the onset after its
+ * fallback) — the toneme is then not measured, rather than guessed. Pure.
  */
 export function measureToneme(
   curve: Pick<PitchCurve, 'points'>,
@@ -77,7 +85,9 @@ export function measureToneme(
   const voiced = (from: number, to: number): number[] =>
     curve.points.flatMap((p, i) => (p !== null && i * stepMs >= from && i * stepMs < to ? [p] : []));
 
-  const onsetPoints = voiced(ONSET_WINDOW_MS.from, ONSET_WINDOW_MS.to);
+  let onsetPoints = voiced(ONSET_WINDOW_MS.from, ONSET_WINDOW_MS.to);
+  if (onsetPoints.length === 0)
+    onsetPoints = voiced(ONSET_WINDOW_MS.from, ONSET_FALLBACK_TO_MS).slice(0, ONSET_FALLBACK_FRAMES);
   const postPoints = voiced(window.post.fromMs, window.post.toMs);
   if (onsetPoints.length === 0 || postPoints.length === 0) return null;
 

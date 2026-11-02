@@ -56,6 +56,11 @@ MAX_TAG_BYTES = int(os.environ.get("TAGGER_MAX_BODY_BYTES", str(64 * 1024)))
 
 # Praat's pitch range: wide enough for a low male voice and a high female or synthetic one.
 PITCH_FLOOR_HZ = 75.0
+# A low voice's toneme 2 falls ~5 semitones under its median — under the floor for a speaker at
+# ~100 Hz, and the post-tonic syllable comes back unvoiced (plan 88, step 9.2: 4 of 10 words of a
+# synthetic male voice not measured). Such a voice is tracked again with its floor at this share
+# of its median; a voice whose share is above PITCH_FLOOR_HZ keeps the first track untouched.
+PITCH_FLOOR_SHARE_OF_MEDIAN = 0.65
 PITCH_CEILING_HZ = 500.0
 PITCH_STEP_MS = 10
 # A stressed vowel with the syllable after it is well under a second; a stretch far longer is
@@ -219,14 +224,21 @@ def pitch(audio: bytes, segments: list[tuple[int, int]]) -> dict:
     for start, end in segments:
         if end > duration_ms:
             raise InvalidAudio(f"segment {start}-{end} ends after the recording ({duration_ms} ms)")
-    with pitch_lock:
-        track = parselmouth.Sound(samples.astype(np.float64), sampling_frequency=16000).to_pitch(
-            time_step=PITCH_STEP_MS / 1000, pitch_floor=PITCH_FLOOR_HZ, pitch_ceiling=PITCH_CEILING_HZ
-        )
-    hz = track.selected_array["frequency"]
-    voiced = hz[hz > 0]
-    # No voice anywhere (a tone, silence): every point is null and there is no zero to report.
-    reference = float(np.median(voiced)) if voiced.size else None
+    sound = parselmouth.Sound(samples.astype(np.float64), sampling_frequency=16000)
+
+    def track_from(floor_hz: float):
+        with pitch_lock:
+            track = sound.to_pitch(
+                time_step=PITCH_STEP_MS / 1000, pitch_floor=floor_hz, pitch_ceiling=PITCH_CEILING_HZ
+            )
+        hz = track.selected_array["frequency"]
+        voiced = hz[hz > 0]
+        # No voice anywhere (a tone, silence): every point is null and there is no zero to report.
+        return track, float(np.median(voiced)) if voiced.size else None
+
+    track, reference = track_from(PITCH_FLOOR_HZ)
+    if reference is not None and reference * PITCH_FLOOR_SHARE_OF_MEDIAN < PITCH_FLOOR_HZ:
+        track, reference = track_from(reference * PITCH_FLOOR_SHARE_OF_MEDIAN)
 
     def semitones(t_ms: int):
         if reference is None:

@@ -193,7 +193,7 @@ describe('toneme check (plan 88, step 8.3)', () => {
   });
 
   it('gives the melodies without a verdict when the take is not voiced where the toneme is', async () => {
-    const unvoiced = TONE_2.map((p, i) => (i < 6 ? null : p));
+    const unvoiced = TONE_2.map((p, i) => (i < 10 ? null : p));
     expect(await setup({ learnerCurve: unvoiced }).check()).toMatchObject({
       status: 'ok',
       comparison: { learner: null, gap: null, verdict: { kind: 'not_measured' } },
