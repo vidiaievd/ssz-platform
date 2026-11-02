@@ -536,7 +536,9 @@ export interface ExerciseFeedbackAtomsFlaggedPayload {
   /**
    * Who named the atoms. `ai_precheck` — a model, on a draft before hand-in (only ever a
    * negative signal, §1 rule 1); `ai_review` — a model's remark on a hand-in that the teacher
-   * kept (taken or reworded) with their verdict; `teacher` — the teacher themselves (step 9).
+   * kept (taken or reworded) with their verdict; `teacher` — the teacher themselves (step 9);
+   * `ai_voice` — the weak sounds of a reading the voice check closed with no teacher in between
+   * (plan 88, step 5c.3), a model's signal like `ai_precheck`.
    */
   source: FlaggedAtomsSource;
   /** Distinct atoms, in the order the check first named them. Never empty. */
@@ -548,10 +550,10 @@ export interface ExerciseFeedbackAtomsFlaggedPayload {
   occurredAt: string;
 }
 
-export type FlaggedAtomsSource = 'ai_precheck' | 'ai_review' | 'teacher';
+export type FlaggedAtomsSource = 'ai_precheck' | 'ai_review' | 'teacher' | 'ai_voice';
 
 export interface FlaggedAtom {
-  /** A string for the reason `AttemptTarget.atomType` is one; today `grammar_rule_atom`. */
+  /** A string for the reason `AttemptTarget.atomType` is one: `grammar_rule_atom`, or `sound` (plan 88). */
   atomType: string;
   atomId: string;
   /**

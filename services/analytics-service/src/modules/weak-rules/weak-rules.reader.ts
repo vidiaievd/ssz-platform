@@ -71,6 +71,7 @@ export class WeakRulesReader {
             aiPrecheck: rule.bySource.ai_precheck,
             aiReview: rule.bySource.ai_review,
             teacher: rule.bySource.teacher,
+            aiVoice: rule.bySource.ai_voice,
           },
           lastFlaggedAt: rule.lastFlaggedAt,
         };

@@ -635,7 +635,7 @@ model WeakRuleDaily {
   exerciseId        String   @map("exercise_id")
   atomType          String   @map("atom_type")
   atomId            String   @map("atom_id")
-  /// 'ai_precheck' | 'ai_review' | 'teacher'
+  /// 'ai_precheck' | 'ai_review' | 'teacher' | 'ai_voice'
   source            String
   schoolId          String?  @map("school_id")
   groupId           String?  @map("group_id")

@@ -26,6 +26,19 @@ describe('flagRowsOf', () => {
     expect(rows[0]).toMatchObject({ day: '2026-11-01', schoolId: 's1', groupId: null, containerId: 'c1' });
   });
 
+  it('takes the voice check\'s source and drops its sound atoms (plan 88, step 5c.3)', () => {
+    const rows = flagRowsOf({
+      ...payload,
+      source: 'ai_voice',
+      atoms: [
+        { atomType: 'sound', atomId: 'nb:kj', inExerciseTargets: false },
+        { atomType: 'grammar_rule_atom', atomId: 'x1', inExerciseTargets: false },
+      ],
+    })!;
+
+    expect(rows.map((r) => [r.atomId, r.source])).toEqual([['x1', 'ai_voice']]);
+  });
+
   it('rejects a malformed event', () => {
     expect(flagRowsOf(undefined)).toBeNull();
     expect(flagRowsOf({ ...payload, source: 'robot' as never })).toBeNull();
@@ -59,15 +72,17 @@ describe('aggregateWeakRules', () => {
       { userId: 'u2', atomId: 'a', exerciseId: 'e1', source: 'teacher', flaggedAt: at('12') },
       { userId: 'u1', atomId: 'a', exerciseId: 'e2', source: 'ai_precheck', flaggedAt: at('11') },
       { userId: 'u1', atomId: 'b', exerciseId: 'e1', source: 'ai_review', flaggedAt: at('13') },
+      { userId: 'u3', atomId: 'b', exerciseId: 'e1', source: 'ai_voice', flaggedAt: at('09') },
     ]);
 
     expect(rules.map((r) => r.atomId)).toEqual(['a', 'b']);
     expect(rules[0]).toMatchObject({
       flags: 3,
       learners: 2,
-      bySource: { ai_precheck: 2, ai_review: 0, teacher: 1 },
+      bySource: { ai_precheck: 2, ai_review: 0, teacher: 1, ai_voice: 0 },
       lastFlaggedAt: at('12').toISOString(),
     });
+    expect(rules[1]!.bySource).toEqual({ ai_precheck: 0, ai_review: 1, teacher: 0, ai_voice: 1 });
   });
 
   it('is empty for no signals', () => {

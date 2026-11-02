@@ -21,7 +21,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * Rule atoms a check named as the ground of a mistake, applied to the learner's cards
  * (plan 85, step 5, §1).
  *
- * - **A model's signal** (`ai_precheck`, `ai_review`) only brings the card due within a day
+ * - **A model's signal** (`ai_precheck`, `ai_review`, `ai_voice`) only brings the card due within a day
  *   (`min(dueAt, now + 1 day)`, rule 2). It never rates: a rehearsal may be pressed as often as
  *   the learner likes, and a rating from it could be farmed (rule 1).
  * - **A teacher's mark** outside the exercise's targets is a real failure — the card is rated
@@ -33,7 +33,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  *
  * Every grammar atom leaves a row in `atom_flags`, and the row comes first: one signal per
  * (learner, exercise, atom, source) a UTC day (rule 3), so a second rehearsal the same day finds
- * its row and changes nothing. Atoms of other kinds are not this plan's and are skipped.
+ * its row and changes nothing. Atoms of other kinds are not this plan's and are skipped — the
+ * `sound` atoms a reading's voice check names (`ai_voice`, plan 88) wait for their cards (plan 86).
  *
  * `GRAMMAR_ATOM` cards are still shadow cards (plan 63 phase 5): a pulled due date changes no
  * queue a learner sees until phase 7, and that is the card that will carry it then.

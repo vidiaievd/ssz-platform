@@ -1,7 +1,7 @@
 import type { ExerciseFeedbackAtomsFlaggedPayload, FlaggedAtomsSource } from '@ssz/contracts';
 
 export const GRAMMAR_RULE_ATOM = 'grammar_rule_atom';
-const SOURCES: readonly FlaggedAtomsSource[] = ['ai_precheck', 'ai_review', 'teacher'];
+const SOURCES: readonly FlaggedAtomsSource[] = ['ai_precheck', 'ai_review', 'teacher', 'ai_voice'];
 const MAX_ATOMS = 100;
 
 export interface FlagRow {
@@ -24,8 +24,8 @@ const orNull = (v: unknown): string | null => (isString(v) ? v : null);
 /**
  * The rows one `atoms_flagged` event folds into, or null when the event is malformed.
  *
- * Only grammar rule atoms are kept — the one atom type the checks name today, and the one
- * the weak-rules screen can title. The day is the signal's own (`occurredAt`, UTC), so a
+ * Only grammar rule atoms are kept — the one atom type the weak-rules screen can title. The
+ * `sound` atoms a reading's voice check names (plan 88) are dropped until there is a screen for them. The day is the signal's own (`occurredAt`, UTC), so a
  * message that waited in the queue is still counted on the day it was made.
  */
 export function flagRowsOf(p: Partial<ExerciseFeedbackAtomsFlaggedPayload> | undefined): FlagRow[] | null {
@@ -99,7 +99,7 @@ export function aggregateWeakRules(facts: readonly FlagFact[]): WeakRule[] {
 
   return [...byAtom.entries()]
     .map(([atomId, { facts: list, users }]) => {
-      const bySource: Record<FlaggedAtomsSource, number> = { ai_precheck: 0, ai_review: 0, teacher: 0 };
+      const bySource: Record<FlaggedAtomsSource, number> = { ai_precheck: 0, ai_review: 0, teacher: 0, ai_voice: 0 };
       let last = list[0].flaggedAt;
       for (const f of list) {
         bySource[f.source] += 1;

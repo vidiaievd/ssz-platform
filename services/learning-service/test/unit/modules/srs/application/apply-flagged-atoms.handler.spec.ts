@@ -80,6 +80,15 @@ describe('ApplyFlaggedAtomsHandler (plan 85, step 5)', () => {
     expect(dueQueue.upsert).not.toHaveBeenCalled();
   });
 
+  it('takes the voice check’s signal as a model’s: pulled, never rated (plan 88, step 5c.3)', async () => {
+    const far = card('atom-far', 20);
+    const { run, commandBus } = setup([far]);
+
+    expect(await run(payload('ai_voice', [['atom-far', true]]))).toEqual(['pulled']);
+    expect(far.dueAt).toEqual(new Date(NOW.getTime() + DAY));
+    expect(commandBus.execute).not.toHaveBeenCalled();
+  });
+
   it('leaves a card already due alone, and the same for a model’s mark on a target', async () => {
     const soon = card('atom-soon', 0.5);
     const { run, repo } = setup([soon]);
