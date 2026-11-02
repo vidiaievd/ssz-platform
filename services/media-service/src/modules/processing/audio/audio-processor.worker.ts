@@ -22,6 +22,7 @@ import { isPublicEntityType } from '../../../shared/application/ports/storage.po
 import { AUDIO_INSPECTOR } from '../../../shared/application/ports/audio-inspector.port.js';
 import type { IAudioInspector } from '../../../shared/application/ports/audio-inspector.port.js';
 import { isRecordingEntityType } from '../../assets/domain/policies/recording-policy.js';
+import { isReferenceClip } from '../../assets/domain/policies/reference-clip-policy.js';
 import { SpeechVariantWriter } from '../../assets/application/services/speech-variant-writer.js';
 
 // Bins in the waveform the review queue draws under a recording (README «Playback in the queue»).
@@ -139,7 +140,8 @@ export class AudioProcessorWorker extends WorkerHost {
         this.logger.debug(`Created audio variant ${spec.type} (${outputBuffer.length} bytes) for asset ${assetId}`);
       }
 
-      if (isRecordingEntityType(asset.entityType)) {
+      // A reference clip is heard by the same machine check a learner's take is compared with (plan 88).
+      if (isRecordingEntityType(asset.entityType) || isReferenceClip(asset.entityType)) {
         const speech = await this.writeSpeech(asset, originalBuffer, ext);
         if (speech) variantInfos.push(speech);
       }

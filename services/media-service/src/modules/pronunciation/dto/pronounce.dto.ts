@@ -49,3 +49,50 @@ export class PronounceClipResponseDto {
   @ApiProperty({ example: 'no_NO-talesyntese-medium', description: 'Piper voice that spoke the clip' })
   voice!: string;
 }
+
+export class ReferenceClipDto {
+  @ApiProperty({ example: 'bønner', description: 'One word as written; spoken in a carrier sentence' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  text!: string;
+
+  @ApiPropertyOptional({ example: 'nb', description: 'Language of the word. Defaults to Norwegian Bokmål — the only one with a lexicon.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  lang?: string;
+}
+
+export class ClipSpanDto {
+  @ApiProperty({ example: 810 }) startMs!: number;
+  @ApiProperty({ example: 1100 }) endMs!: number;
+}
+
+export class ReferenceClipResponseDto {
+  @ApiProperty({ description: 'The `reference_clip` asset; readable by any signed-in user once READY' })
+  assetId!: string;
+
+  @ApiProperty({ example: 'nb-NO-PernilleNeural', description: 'The cloud voice that spoke it' })
+  voice!: string;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    enum: [1, 2],
+    description: "The lexicon's toneme the clip was checked against; null when the word carries none",
+  })
+  tone!: 1 | 2 | null;
+
+  @ApiProperty({ example: 'Nå sier jeg bønner igjen.' })
+  sentence!: string;
+
+  @ApiProperty({ type: ClipSpanDto, description: 'Where the word is in the clip' })
+  word!: ClipSpanDto;
+
+  @ApiProperty({ type: ClipSpanDto, nullable: true, description: 'Its stressed vowel; null without a toneme' })
+  stressedVowel!: ClipSpanDto | null;
+
+  @ApiProperty({ example: false, description: 'False when this request is what made the clip' })
+  cached!: boolean;
+}

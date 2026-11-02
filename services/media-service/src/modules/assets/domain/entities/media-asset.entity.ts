@@ -44,7 +44,30 @@ export interface AssetSynthesis {
   voiceId?: string;
   /** The speaker inside a multi-speaker model the narrator is. */
   speaker?: string;
+  /** A reference clip's self-check (plan 88, step 6b.3); absent on every other synthesis. */
+  reference?: ReferenceCheck;
 }
+
+/**
+ * What ai-service found when it checked a reference clip before it was kept. A type, not an
+ * interface: it is written to the JSON column as it is.
+ */
+export type ReferenceCheck = {
+  word: string;
+  sentence: string;
+  /** The lexicon's toneme the clip agreed with; null when the word carries none. */
+  tone: 1 | 2 | null;
+  /** Where the word and its stressed vowel are in the clip, in ms. */
+  wordSpan: { startMs: number; endMs: number };
+  stressedVowel: { startMs: number; endMs: number } | null;
+  /** Every voice tried, the kept one last. */
+  tries: Array<{
+    voice: string;
+    outcome: string;
+    accuracy: number | null;
+    measure: { onset: number; post: number; score: number; tone: 1 | 2 | null } | null;
+  }>;
+};
 
 interface MediaAssetProps {
   ownerId: string;

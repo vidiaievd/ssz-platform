@@ -74,6 +74,10 @@ export const envSchema = z.object({
   // Asked before a replaced narration is removed: does any lesson body still name it?
   CONTENT_SERVICE_URL: z.string().default('http://content-service:3003'),
   CONTENT_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  // Reference clips (plan 88, step 6b.3): ai-service synthesizes a word and checks its toneme,
+  // voice by voice — up to three synthesize-and-hear rounds, so far longer than a Piper call.
+  AI_SERVICE_URL: z.string().default('http://ai-service:3010'),
+  AI_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
 
   // Orphan recordings (plan 71): a recording no attempt stands on, older than the minimum age.
   // 'dry-run' only logs what it would delete; 'delete' purges (soft-delete + storage objects).
@@ -173,6 +177,10 @@ export interface AppConfig {
     baseUrl: string;
     timeoutMs: number;
   };
+  aiService: {
+    baseUrl: string;
+    timeoutMs: number;
+  };
 }
 
 export default (): AppConfig => {
@@ -246,6 +254,10 @@ export default (): AppConfig => {
     contentService: {
       baseUrl: env.CONTENT_SERVICE_URL,
       timeoutMs: env.CONTENT_SERVICE_TIMEOUT_MS,
+    },
+    aiService: {
+      baseUrl: env.AI_SERVICE_URL,
+      timeoutMs: env.AI_SERVICE_TIMEOUT_MS,
     },
   };
 };

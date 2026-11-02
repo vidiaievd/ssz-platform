@@ -16,6 +16,7 @@ import { RequestUploadCommand } from '../../application/commands/request-upload/
 import type { RequestUploadResult } from '../../application/commands/request-upload/request-upload.command.js';
 import { FinalizeUploadCommand } from '../../application/commands/finalize-upload/finalize-upload.command.js';
 import { MediaAssetDomainError } from '../../domain/exceptions/media-asset.exceptions.js';
+import { isReferenceClip } from '../../domain/policies/reference-clip-policy.js';
 import { RequestUploadDto } from '../dto/request-upload.dto.js';
 import { RequestUploadResponseDto } from '../dto/request-upload-response.dto.js';
 import { Result } from '../../../../shared/kernel/result.js';
@@ -39,6 +40,9 @@ export class UploadsController {
     @Body() dto: RequestUploadDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<RequestUploadResponseDto> {
+    // Reference clips are the platform's own, made by synthesis (plan 88); nobody uploads one.
+    if (isReferenceClip(dto.entityType)) throw new UnprocessableEntityException('ENTITY_TYPE_NOT_ALLOWED');
+
     const result: Result<RequestUploadResult, MediaAssetDomainError> =
       await this.commandBus.execute(
         new RequestUploadCommand(
