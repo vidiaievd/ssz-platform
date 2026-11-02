@@ -7,3 +7,6 @@ faster-whisper==1.2.1
 # The model is a wheel from spaCy's releases, installed at build time — no download at start-up.
 spacy==3.8.18
 nb_core_news_md @ https://github.com/explosion/spacy-models/releases/download/nb_core_news_md-3.8.0/nb_core_news_md-3.8.0-py3-none-any.whl
+# Pitch tracker for toneme references and comparison (plan 88, step 6a): Praat's pitch through
+# its Python binding (GPL-3.0, like Praat; a wheel with Praat built in, ~15 MB, no system packages).
+praat-parselmouth==0.4.7

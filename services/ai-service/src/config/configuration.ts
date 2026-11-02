@@ -60,6 +60,8 @@ export const envSchema = z.object({
   // Part-of-speech tagger the pronunciation review narrows the lexicon with (plan 88, step 4b):
   // spaCy in the whisper sidecar. Unreachable = no narrowing, nothing fails.
   POS_TAGGER_URL: z.string().url().default('http://whisper:8000'),
+  // Pitch tracker for toneme references and comparison (plan 88, step 6a): Praat in the same sidecar.
+  PITCH_TRACKER_URL: z.string().url().default('http://whisper:8000'),
   // A learner's messages to the assistant per window (plan 83, step 5); 429 beyond.
   AI_ASSIST_RATE_LIMIT: z.coerce.number().int().positive().default(20),
   AI_ASSIST_RATE_WINDOW_MS: z.coerce.number().int().positive().default(600_000),
@@ -100,6 +102,7 @@ export interface AppConfig {
   schedulingServiceUrl: string;
   learningServiceUrl: string;
   posTaggerUrl: string;
+  pitchTrackerUrl: string;
   quotaReconcileMs: number;
   assistRateLimit: { messages: number; windowMs: number };
   /** Shared secret for service-to-service routes (`x-internal-token`). */
@@ -139,6 +142,7 @@ export default (): AppConfig => {
     schedulingServiceUrl: env.SCHEDULING_SERVICE_URL,
     learningServiceUrl: env.LEARNING_SERVICE_URL,
     posTaggerUrl: env.POS_TAGGER_URL,
+    pitchTrackerUrl: env.PITCH_TRACKER_URL,
     quotaReconcileMs: env.AI_QUOTA_RECONCILE_MS,
     assistRateLimit: { messages: env.AI_ASSIST_RATE_LIMIT, windowMs: env.AI_ASSIST_RATE_WINDOW_MS },
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
