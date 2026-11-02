@@ -5,6 +5,7 @@ import { PRONUNCIATION_EXPLAIN, VOICE_REVIEW_EXPLAIN } from './pronunciation-exp
 import { REFERENCE_CHECK, REFERENCE_SYNTHESIS } from './reference-synthesis/reference-synthesis.capability.js';
 import { REVIEW_DIRECT } from './review-direct/review-direct.capability.js';
 import { REVIEW_DRAFT } from './review-draft/review-draft.capability.js';
+import { TONEME_CHECK } from './toneme-check/toneme-check.capability.js';
 import { STUDENT_ASSIST } from './student-assist/student-assist.capability.js';
 import { VOICE_REVIEW, VOICE_REVIEW_PRONUNCIATION } from './voice-review/voice-review.capability.js';
 
@@ -25,6 +26,7 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   VOICE_REVIEW_EXPLAIN,
   REFERENCE_SYNTHESIS,
   REFERENCE_CHECK,
+  TONEME_CHECK,
 ];
 
 export function findCapability(code: string): CapabilityDefinition | null {

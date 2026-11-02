@@ -52,7 +52,17 @@ describe('quota pools (plan 84)', () => {
   it('sells a voice rehearsal under the text rehearsal’s key and pool', () => {
     expect(featureKeyOf('practice_voice')).toBe('ai.practice');
     expect(quotaPoolOf('practice_voice')).toBe('practice');
-    expect(capabilitiesOfPool('practice')).toEqual(['practice', 'practice_voice', 'pronunciation_explain']);
+    expect(capabilitiesOfPool('practice')).toEqual([
+      'practice',
+      'practice_voice',
+      'pronunciation_explain',
+      'toneme_check',
+    ]);
+  });
+
+  it('sells a toneme check of a pronunciation drill under the rehearsal’s key (plan 88, step 8.3)', () => {
+    expect(featureKeyOf('toneme_check')).toBe('ai.practice');
+    expect(quotaPoolOf('toneme_check')).toBe('practice');
   });
 
   it('sells the explanation of a handed-in reading’s sounds under the pronunciation level (plan 88, step 5c.2)', () => {

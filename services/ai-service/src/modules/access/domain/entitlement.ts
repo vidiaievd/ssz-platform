@@ -37,12 +37,14 @@ export interface PayerEntitlements {
  * reading — two agents only because a binding holds models of one modality. The explanation of
  * a rehearsed reading's sounds (plan 88, step 5b) is part of the same check; on hand-in it is part
  * of the pronunciation-level voice review (step 5c.2) — the same prompts under a second code, so
- * each pool stays a static entry here.
+ * each pool stays a static entry here. A word's toneme heard in a pronunciation drill (step 8.3, Q15) spends
+ * the same `ai.practice`.
  */
 const SOLD_UNDER: Readonly<Record<string, string>> = {
   practice_voice: 'practice',
   pronunciation_explain: 'practice',
   voice_review_explain: 'voice_review_pronunciation',
+  toneme_check: 'practice',
 };
 
 /**
