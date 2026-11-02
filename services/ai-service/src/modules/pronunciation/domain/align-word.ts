@@ -1,5 +1,12 @@
 import type { PronouncedPhoneme, PronouncedWord } from '../../providers/domain/speech-result.js';
-import { parseNofabet, soundOf, type NofabetToken, type SoundFamily, type Stress } from './sound-inventory.js';
+import {
+  parseNofabet,
+  soundOf,
+  splitSyllabic,
+  type NofabetToken,
+  type SoundFamily,
+  type Stress,
+} from './sound-inventory.js';
 
 /** One transcription of the word from the pronunciation lexicon (plan 88, step 1). */
 export interface LexiconVariant {
@@ -73,7 +80,8 @@ export type WordAlignment =
  * Names Azure's sounds of one word by the lexicon (plan 88, step 3, §1). Azure tells where each
  * sound is and how well it was said but not which sound it is; the lexicon tells which, if the
  * two count the same sounds. A word whose count matches no variant is left unaligned — a sound
- * is never named by guess. Pure: the caller looks the variants up.
+ * is never named by guess. A variant with a syllabic consonant also counts as Azure splits it
+ * (step 9.1: *hesten* `NX0` or `AX0 N`). Pure: the caller looks the variants up.
  */
 export function alignWord(word: AssessedWord, variants: LexiconVariant[]): WordAlignment {
   const azureCount = word.phonemes.length;
@@ -89,21 +97,22 @@ export function alignWord(word: AssessedWord, variants: LexiconVariant[]): WordA
   if (azureCount === 0) return unaligned('no_phonemes');
   if (variants.length === 0) return unaligned('not_in_lexicon');
 
-  const parsed = new Map<string, NofabetToken[]>();
+  // Each variant as written and, with a syllabic consonant, as Azure splits it (step 9.1).
+  const parsed: [variant: string, tokens: NofabetToken[]][] = [];
   for (const v of variants) {
     const tokens = parseNofabet(v.nofabet);
+    if (!tokens) continue;
     // A word boundary inside an entry («c/o») is no sound: Azure gives it no phoneme.
-    if (tokens)
-      parsed.set(
-        v.nofabet,
-        tokens.filter((t) => soundOf(t.symbol)?.kind !== 'boundary'),
-      );
+    const sounds = tokens.filter((t) => soundOf(t.symbol)?.kind !== 'boundary');
+    parsed.push([v.nofabet, sounds]);
+    const split = splitSyllabic(sounds, word.text);
+    if (split) parsed.push([v.nofabet, split]);
   }
-  if (parsed.size === 0) return unaligned('unknown_symbol');
+  if (parsed.length === 0) return unaligned('unknown_symbol');
 
-  const matching = [...parsed].filter(([, tokens]) => tokens.length === azureCount);
+  const matching = parsed.filter(([, tokens]) => tokens.length === azureCount);
   if (matching.length === 0) {
-    const counts = [...new Set([...parsed.values()].map((t) => t.length))].sort((a, b) => a - b);
+    const counts = [...new Set(parsed.map(([, t]) => t.length))].sort((a, b) => a - b);
     return unaligned('count_mismatch', counts);
   }
 
@@ -132,7 +141,8 @@ export function alignWord(word: AssessedWord, variants: LexiconVariant[]): WordA
   const tones = new Set(matching.map(([, tokens]) => toneOf(tokens)));
   const tone = tones.size === 1 ? [...tones][0]! : null;
 
-  return { status: 'aligned', text: word.text, sounds, primaryIndex, tone, variants: matching.map(([v]) => v) };
+  const named = [...new Set(matching.map(([v]) => v))];
+  return { status: 'aligned', text: word.text, sounds, primaryIndex, tone, variants: named };
 }
 
 /**

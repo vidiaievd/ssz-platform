@@ -30,6 +30,31 @@ export function parseNofabet(nofabet: string): NofabetToken[] | null {
   return tokens.every((t) => t.symbol in NB_SOUNDS) ? tokens : null;
 }
 
+/**
+ * The transcription with every syllabic consonant split into the sounds Azure hears in its place
+ * (plan 88, step 9.1: *hesten* `H EH1 S T NX0` → `H EH1 S T AX0 N`); null when it has none.
+ * `spelling` is the word as written — a word-final split may follow it (*morgen* → r g ə n).
+ */
+export function splitSyllabic(tokens: readonly NofabetToken[], spelling = ''): NofabetToken[] | null {
+  if (!tokens.some((t) => NB_SOUNDS[t.symbol]?.split)) return null;
+  const written = spelling.toLowerCase();
+  return tokens.flatMap((t, i) => {
+    const entry = NB_SOUNDS[t.symbol];
+    if (!entry?.split) return [t];
+    const spelled =
+      i === tokens.length - 1
+        ? Object.entries(entry.splitSpelled ?? {}).find(([ending]) => written.endsWith(ending))?.[1]
+        : undefined;
+    let split = spelled ?? entry.split;
+    // The r is already in a retroflex before it: *stjernen* `RN RNX0` is heard ɳ ə n, not ɳ r ə n.
+    const before = tokens[i - 1] ? NB_SOUNDS[tokens[i - 1]!.symbol] : undefined;
+    if (!spelled && split[0] === 'R' && before?.kind === 'consonant' && before.family === 'retroflex') {
+      split = split.slice(1);
+    }
+    return split.map((symbol) => ({ symbol, stress: NB_SOUNDS[symbol]!.kind === 'vowel' ? t.stress : null }));
+  });
+}
+
 export function soundOf(symbol: string): SoundEntry | null {
   return NB_SOUNDS[symbol] ?? null;
 }

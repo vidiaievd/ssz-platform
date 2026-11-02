@@ -1,6 +1,7 @@
 import { lexicalWord } from '../../providers/domain/lexical.js';
 import { errorOf, phonemesOf, type AzureWord } from '../../providers/infrastructure/azure-speech/azure-result.js';
 import { alignWord, tonemeOfVariants, type AssessedWord, type WordAlignment } from './align-word.js';
+import { tonemeWindow } from './toneme-feature.js';
 import { LEXICON, REST_WORDS, SDK_WORDS } from './align-word.fixture.js';
 
 function assessed(word: AzureWord): AssessedWord {
@@ -135,6 +136,73 @@ describe('alignWord (plan 88, step 3)', () => {
 
     it('skips a word boundary inside an entry («ok»: OH3 _ K AEJ1)', () => {
       expect(symbols(alignWord(word('ok', 90, 90, 90), [{ nofabet: 'OH3 _ K AEJ1' }]))).toEqual(['OH', 'K', 'AEJ']);
+    });
+
+    // Step 9.1: Azure hears the syllabic -en / -ern as spelled — ə n, r ə n.
+    describe('a syllabic consonant', () => {
+      it('names the sounds as written or as Azure splits them («hesten»: NX0 / AX0 N)', () => {
+        const variants = [{ nofabet: 'H EH1 S T NX0' }];
+        const whole = alignWord(word('hesten', 1, 2, 3, 4, 5), variants);
+        const split = alignWord(word('hesten', 1, 2, 3, 4, 5, 6), variants);
+        expect(symbols(whole)).toEqual(['H', 'EH', 'S', 'T', 'NX']);
+        expect(symbols(split)).toEqual(['H', 'EH', 'S', 'T', 'AX', 'N']);
+        expect(aligned(split).sounds.slice(4)).toMatchObject([
+          { stress: 0, primary: false, family: 'schwa' },
+          { stress: null, primary: false },
+        ]);
+        for (const a of [whole, split]) {
+          expect(aligned(a)).toMatchObject({ primaryIndex: 1, tone: 1, variants: ['H EH1 S T NX0'] });
+        }
+      });
+
+      it('splits a retroflex -ern into r ə n («døren»: RNX0)', () => {
+        const variants = [{ nofabet: 'D OE1 RNX0' }];
+        expect(symbols(alignWord(word('døren', 1, 2, 3), variants))).toEqual(['D', 'OE', 'RNX']);
+        const split = alignWord(word('døren', 1, 2, 3, 4, 5), variants);
+        expect(symbols(split)).toEqual(['D', 'OE', 'R', 'AX', 'N']);
+        expect(aligned(split)).toMatchObject({ primaryIndex: 1, tone: 1 });
+      });
+
+      it('measures the toneme up to the syllable after the stress in either form', () => {
+        const variants = [{ nofabet: 'B AA2 N NX0' }];
+        const whole = aligned(alignWord(word('banen', 1, 2, 3, 4), variants));
+        const split = aligned(alignWord(word('banen', 1, 2, 3, 4, 5), variants));
+        expect(whole.tone).toBe(2);
+        expect(split.tone).toBe(2);
+        // Sounds 100 ms apart, the stressed AA at 100 ms: NX or AX after N begins 200 ms on.
+        expect(tonemeWindow(whole.sounds, whole.primaryIndex)?.post.fromMs).toBe(200);
+        expect(tonemeWindow(split.sounds, split.primaryIndex)?.post.fromMs).toBe(200);
+      });
+
+      it('still never guesses beyond the two forms', () => {
+        const a = alignWord(word('hesten', 1, 2, 3, 4, 5, 6, 7), [{ nofabet: 'H EH1 S T NX0' }]);
+        expect(a).toMatchObject({ status: 'unaligned', reason: 'count_mismatch', lexiconCounts: [5, 6] });
+        expect(alignWord(word('morgen', 1, 2, 3, 4, 5), [{ nofabet: 'M OA2 RNX0' }])).toMatchObject({
+          reason: 'count_mismatch',
+          lexiconCounts: [3, 6],
+        });
+      });
+
+      it('names the silent g of «morgen» Azure hears, the toneme kept', () => {
+        const a = alignWord(word('morgen', 1, 2, 3, 4, 5, 6), [{ nofabet: 'M OA2 RNX0' }]);
+        expect(symbols(a)).toEqual(['M', 'OA', 'R', 'G', 'AX', 'N']);
+        expect(aligned(a)).toMatchObject({ primaryIndex: 1, tone: 2 });
+      });
+
+      it('leaves the sound two variants split differently unnamed («hjernen»: RN RNX0 / RNX0)', () => {
+        const a = alignWord(word('hjernen', 1, 2, 3, 4, 5), [{ nofabet: 'J AE2 RN RNX0' }, { nofabet: 'J AE2 RNX0' }]);
+        expect(symbols(a)).toEqual(['J', 'AE', null, 'AX', 'N']);
+        expect(aligned(a)).toMatchObject({ primaryIndex: 1, tone: 2 });
+      });
+
+      it('leaves the variants of a word without one as they are («lærer», «gate»)', () => {
+        expect(alignWord(word('lærer', 1, 2, 3, 4, 5, 6), [{ nofabet: 'L AE2 R AX0 R' }])).toMatchObject({
+          lexiconCounts: [5],
+        });
+        expect(alignWord(word('gate', 1, 2, 3, 4, 5), [{ nofabet: 'G AA2 T AX0' }])).toMatchObject({
+          lexiconCounts: [4],
+        });
+      });
     });
 
     it.each([

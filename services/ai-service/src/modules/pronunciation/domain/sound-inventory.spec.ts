@@ -1,5 +1,12 @@
 import { NB_FAMILIES, NB_SOUNDS } from './nb-sounds.data.js';
-import { assessedFamilies, assessmentOf, parseNofabet, parseNofabetToken, soundOf } from './sound-inventory.js';
+import {
+  assessedFamilies,
+  assessmentOf,
+  parseNofabet,
+  parseNofabetToken,
+  soundOf,
+  splitSyllabic,
+} from './sound-inventory.js';
 
 // Every symbol NB Uttale's e_written / e_spoken use (plan 88, step 1 import).
 const LEXICON_SYMBOLS =
@@ -70,5 +77,40 @@ describe('NB sound inventory (plan 88, step 2)', () => {
     expect(parseNofabet('KJ XX1')).toBeNull();
     expect(soundOf('RS')?.ipa).toBe('ʂ');
     expect(soundOf('XX')).toBeNull();
+  });
+
+  // Step 9.1: Azure splits -en / -ern as spelled (17 words × 3 voices, 02.11).
+  const split = (nofabet: string, spelling?: string) =>
+    splitSyllabic(parseNofabet(nofabet)!, spelling)
+      ?.map((t) => `${t.symbol}${t.stress ?? ''}`)
+      .join(' ');
+
+  it('splits a syllabic consonant into what Azure hears, the stress on the schwa', () => {
+    expect(split('H EH1 S T NX0')).toBe('H EH1 S T AX0 N');
+    expect(split('D OE1 RNX0')).toBe('D OE1 R AX0 N');
+    expect(split('B OEH2 N AX0 R')).toBeUndefined();
+  });
+
+  it('drops the r of -ern after a retroflex that holds it («konserten», «perlen»)', () => {
+    expect(split('K OAH0 N S AEH1 RT RNX0')).toBe('K OAH0 N S AEH1 RT AX0 N');
+    expect(split('P AE2 RL RNX0')).toBe('P AE2 RL AX0 N');
+  });
+
+  it('splits a word-final -ern as spelled where Azure hears a silent letter («morgen»)', () => {
+    expect(split('M OA2 RNX0', 'morgen')).toBe('M OA2 R G AX0 N');
+    expect(split('H OEH2 S T M OA3 RNX0', 'Høstmorgen')).toBe('H OEH2 S T M OA3 R G AX0 N');
+    expect(split('G OA1 RNX0', 'gården')).toBe('G OA1 R AX0 N');
+  });
+
+  it('splits only syllabic consonants, into sounds the inventory has', () => {
+    for (const [symbol, entry] of Object.entries(NB_SOUNDS)) {
+      if (!entry.split) continue;
+      expect(symbol).toMatch(/X$/);
+      for (const sounds of [entry.split, ...Object.values(entry.splitSpelled ?? {})]) {
+        expect(sounds.filter((s) => NB_SOUNDS[s]?.kind === 'vowel')).toEqual(['AX']);
+        // Nothing split is scored: the split must not bring a remark the syllable did not have.
+        expect(sounds.every((s) => NB_SOUNDS[s]!.assess === null)).toBe(true);
+      }
+    }
   });
 });

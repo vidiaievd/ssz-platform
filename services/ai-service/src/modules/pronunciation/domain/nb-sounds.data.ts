@@ -51,6 +51,18 @@ export interface SoundEntry {
   /** Plain English, for the explanation the model writes (plan 86, step 9 grows it). */
   articulation: string;
   assess: SoundAssessment | null;
+  /**
+   * Syllabic consonants only: the sounds Azure hears in its place (plan 88, step 9.1) — it
+   * splits the syllable as the word is spelled, schwa included (*hesten* `NX0` → ə n, *døren*
+   * `RNX0` → r ə n). The syllable's stress mark goes to the `AX`. A leading `R` is dropped after
+   * a retroflex consonant, which already holds the r (*konserten* `RT RNX0` → ʈ ə n).
+   */
+  split?: string[];
+  /**
+   * Word-final splits by the spelling's ending, where Azure hears a letter the lexicon does not
+   * (*morgen* `RNX0` → r g ə n, three voices, 02.11).
+   */
+  splitSpelled?: Record<string, string[]>;
 }
 
 export interface FamilyEntry {
@@ -379,6 +391,8 @@ export const NB_SOUNDS: Record<string, SoundEntry> = {
     family: 'retroflex',
     articulation: 'Syllabic retroflex n, the unstressed -ern said as one curled n (as in «abboren»).',
     assess: null,
+    split: ['R', 'AX', 'N'],
+    splitSpelled: { rgen: ['R', 'G', 'AX', 'N'] },
   },
   RL: {
     ipa: 'ɭ',
@@ -477,6 +491,7 @@ export const NB_SOUNDS: Record<string, SoundEntry> = {
     family: 'consonant',
     articulation: 'Syllabic n, the unstressed -en (as in «aften»).',
     assess: null,
+    split: ['AX', 'N'],
   },
   NG: {
     ipa: 'ŋ',
