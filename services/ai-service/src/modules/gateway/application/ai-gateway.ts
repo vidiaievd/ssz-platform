@@ -98,6 +98,11 @@ export class AiGateway {
     );
   }
 
+  /** The voices a synthesis capability may be asked to speak `language` with (plan 88, step 6b.2); a read, no ledger row. */
+  voicesOf(capability: string, language: string): Promise<string[]> {
+    return this.router.voicesOf(capability, language);
+  }
+
   /**
    * Whether a call to this capability would get past its switch and the gate for this payer —
    * a read, no ledger row: a voice review picks its level by it (plan 82, step 8). The quota

@@ -1,6 +1,6 @@
 import { lexicalWord } from '../../providers/domain/lexical.js';
 import { errorOf, phonemesOf, type AzureWord } from '../../providers/infrastructure/azure-speech/azure-result.js';
-import { alignWord, type AssessedWord, type WordAlignment } from './align-word.js';
+import { alignWord, tonemeOfVariants, type AssessedWord, type WordAlignment } from './align-word.js';
 import { LEXICON, REST_WORDS, SDK_WORDS } from './align-word.fixture.js';
 
 function assessed(word: AzureWord): AssessedWord {
@@ -149,5 +149,27 @@ describe('alignWord (plan 88, step 3)', () => {
       expect(alignWord(word('hus'), [{ nofabet: 'H UU1 S' }])).toMatchObject({ reason: 'no_phonemes' });
       expect(alignWord(word('hus', 1, 2, 3), [{ nofabet: 'H XX1 S' }])).toMatchObject({ reason: 'unknown_symbol' });
     });
+  });
+});
+
+describe('tonemeOfVariants (plan 88, step 6b.2)', () => {
+  it('is the toneme every variant has', () => {
+    expect(tonemeOfVariants([{ nofabet: 'B OEH2 N AX0 R' }])).toBe(2);
+    // «sommer»: the noun and the surname, both toneme 1 here.
+    expect(tonemeOfVariants([{ nofabet: 'S OAH1 M AX0 R' }, { nofabet: 'S OAH1 M AX0 R', pos: 'PM' }])).toBe(1);
+  });
+
+  it('is ambiguous on a homograph whose meanings differ in toneme («tømmer»)', () => {
+    expect(tonemeOfVariants(LEXICON['tømmer']!)).toBe('ambiguous');
+  });
+
+  it('does not count a variant without a toneme against the others («finger» noun / imperative)', () => {
+    expect(tonemeOfVariants([{ nofabet: 'F IH1 NG AX0 R' }, { nofabet: 'F IH0 NG G EE1 R', pos: 'VB' }])).toBe(1);
+  });
+
+  it('is null on a word with nothing after its stress, and on one with no readable variant', () => {
+    expect(tonemeOfVariants([{ nofabet: 'H UU1 S' }])).toBeNull();
+    expect(tonemeOfVariants([{ nofabet: 'H XX1 S' }])).toBeNull();
+    expect(tonemeOfVariants([])).toBeNull();
   });
 });

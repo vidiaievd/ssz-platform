@@ -12,3 +12,15 @@ export const REFERENCE_SYNTHESIS: CapabilityDefinition = {
   description: 'Speaks a reference word in a carrier sentence; its toneme is checked before the clip is kept',
   requiredFeatures: { languages: ['nb'] },
 };
+
+/**
+ * The same clip heard back before it is kept (plan 88, step 6b.2): Pronunciation Assessment
+ * times its sounds, so the stressed vowel's F0 can be checked against the lexicon's toneme. Paid
+ * by the platform like the synthesis; bound to `azure-speech` (sounds need `pronunciation`).
+ */
+export const REFERENCE_CHECK: CapabilityDefinition = {
+  code: 'reference_check',
+  modality: 'speech',
+  description: 'Hears a synthesized reference clip back, sound by sound, so its toneme can be checked',
+  requiredFeatures: { languages: ['nb'], wordTimings: true, pronunciation: true },
+};

@@ -256,6 +256,24 @@ export class ModelRouter {
   }
 
   /**
+   * The voices a synthesis capability's models speak `language` with, the primary's first, each
+   * once (plan 88, step 6b.2): what a caller may try one after another. Empty when the capability
+   * is unbound or off, or no model of it has the language.
+   */
+  async voicesOf(capability: string, language: string): Promise<string[]> {
+    const binding = await this.bindings.get(capability);
+    if (!binding || !binding.enabled) return [];
+    const voices: string[] = [];
+    for (const modelId of [binding.primaryModelId, binding.fallbackModelId]) {
+      if (!modelId) continue;
+      const model = (await this.registry.getModelForCall(modelId, new Date()))?.model;
+      if (model?.modality !== 'tts' || !model.features.languages.includes(language)) continue;
+      for (const voice of model.features.voices[language] ?? []) if (!voices.includes(voice)) voices.push(voice);
+    }
+    return voices;
+  }
+
+  /**
    * Primary, then fallback. `invoke` gives null when no adapter takes the model, else the call:
    * it rejects with an `LlmError` when the provider failed, and fails when the answer came but
    * was refused.

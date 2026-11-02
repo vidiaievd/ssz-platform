@@ -10,6 +10,8 @@ import { PRACTICE_USAGE_READER } from './practice/application/ports/practice-usa
 import { PrecheckHandler } from './practice/application/precheck/precheck.handler.js';
 import { PrismaPracticeUsageReader } from './practice/infrastructure/prisma-practice-usage.reader.js';
 import { InternalPrecheckController } from './practice/presentation/internal-precheck.controller.js';
+import { MakeReferenceClipHandler } from './reference-synthesis/application/make-reference-clip/make-reference-clip.handler.js';
+import { InternalReferenceClipsController } from './reference-synthesis/presentation/internal-reference-clips.controller.js';
 import { DirectReviewHandler } from './review-direct/application/direct-review/direct-review.handler.js';
 import { LearnerPayerResolver } from './review-direct/application/learner-payer.resolver.js';
 import { DIRECT_REVIEW_ATTEMPTS_CLIENT } from './review-direct/application/ports/direct-review-attempts.client.js';
@@ -100,6 +102,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     AdminAssistEvalsController,
     AssistController,
     InternalPrecheckController,
+    InternalReferenceClipsController,
   ],
   providers: [
     // the learner's HTTP API of the assistant (plan 83, step 5)
@@ -183,6 +186,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     VoiceReviewHandler,
     // a rehearsal before hand-in, asked by exercise-engine (plan 84, step 2), and its limits (step 3)
     PrecheckHandler,
+    MakeReferenceClipHandler,
     { provide: PRACTICE_USAGE_READER, useClass: PrismaPracticeUsageReader },
     // the learner's grammar atoms a remark may name (plan 85, step 3)
     AtomCatalogResolver,

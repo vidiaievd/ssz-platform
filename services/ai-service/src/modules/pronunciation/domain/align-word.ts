@@ -135,6 +135,25 @@ export function alignWord(word: AssessedWord, variants: LexiconVariant[]): WordA
   return { status: 'aligned', text: word.text, sounds, primaryIndex, tone, variants: matching.map(([v]) => v) };
 }
 
+/**
+ * The toneme of a word by all its variants, before anything is heard (plan 88, step 6b): the one
+ * its variants that carry one agree on; null when none carries one (a final stressed syllable);
+ * `ambiguous` when two differ — a homograph (*tømmer* noun 1 / verb 2) whose toneme only its
+ * meaning decides. A variant without one does not count against the others: *finger* the noun
+ * (1) beside the verb's imperative (stressed last) is toneme 1 — which of them was said shows in
+ * the sounds heard, not here.
+ */
+export function tonemeOfVariants(variants: readonly LexiconVariant[]): 1 | 2 | null | 'ambiguous' {
+  const tones = new Set<1 | 2>();
+  for (const v of variants) {
+    const tokens = parseNofabet(v.nofabet);
+    const tone = tokens ? toneOf(tokens.filter((t) => soundOf(t.symbol)?.kind !== 'boundary')) : null;
+    if (tone !== null) tones.add(tone);
+  }
+  if (tones.size > 1) return 'ambiguous';
+  return tones.size === 1 ? [...tones][0]! : null;
+}
+
 /** The toneme of one variant: of its single primary stress, if a syllable follows it. */
 function toneOf(tokens: NofabetToken[]): 1 | 2 | null {
   const primaries = tokens.flatMap((t, i) => (t.stress === 1 || t.stress === 2 ? [i] : []));

@@ -506,5 +506,22 @@ describe('ModelRouter', () => {
       expect(routed.error.kind).toBe('unavailable');
       expect(routed.error.attempts.map((a) => a.reason)).toEqual(['wrong_modality', 'language_not_supported']);
     });
+
+    it("lists the voices of the language, the primary's first and each once (step 6b.2)", async () => {
+      const { router } = setup({
+        binding: binding({ capability: 'reference_synthesis' }),
+        models: [
+          synthesizer('primary', { nb: ['nb-NO-PernilleNeural', 'nb-NO-FinnNeural'], en: ['en-US-AvaNeural'] }),
+          synthesizer('fallback', { nb: ['nb-NO-FinnNeural', 'nb-NO-IselinNeural'] }),
+        ],
+      });
+      expect(await router.voicesOf('reference_synthesis', 'nb')).toEqual([
+        'nb-NO-PernilleNeural',
+        'nb-NO-FinnNeural',
+        'nb-NO-IselinNeural',
+      ]);
+      expect(await router.voicesOf('reference_synthesis', 'de')).toEqual([]);
+      expect(await setup({ binding: null, models: [] }).router.voicesOf('reference_synthesis', 'nb')).toEqual([]);
+    });
   });
 });
