@@ -46,6 +46,13 @@
           "modality": "speech",
           "features": { "languages": ["nb", "nn", "en"], "wordTimings": true, "pronunciation": false, "maxAudioSeconds": 120 },
           "prices": [{ "effectiveFrom": "2026-10-26", "inputPerMtok": "0", "outputPerMtok": "0", "cacheReadPerMtok": "0", "cacheWritePerMtok": "0", "audioPerHour": "0" }]
+        },
+        {
+          "providerModelId": "fake-tts",
+          "displayName": "Fake synthesizer — a tone as long as the text",
+          "modality": "tts",
+          "features": { "languages": ["nb", "en"], "voices": { "nb": ["fake-nb-1", "fake-nb-2"], "en": ["fake-en-1"] }, "maxCharacters": 400 },
+          "prices": [{ "effectiveFrom": "2026-11-02", "inputPerMtok": "0", "outputPerMtok": "0", "cacheReadPerMtok": "0", "cacheWritePerMtok": "0", "charsPerMillion": "0" }]
         }
       ]
     },
@@ -82,6 +89,24 @@
           "modality": "speech",
           "features": { "languages": ["nb", "en"], "wordTimings": true, "pronunciation": true, "maxAudioSeconds": 120 },
           "prices": [{ "effectiveFrom": "2026-10-26", "inputPerMtok": "0", "outputPerMtok": "0", "cacheReadPerMtok": "0", "cacheWritePerMtok": "0", "audioPerHour": "1.00" }]
+        }
+      ]
+    },
+    {
+      "code": "azure-tts",
+      "kind": "azure_speech",
+      "displayName": "Azure AI Speech (text to speech)",
+      "baseUrl": "https://norwayeast.tts.speech.microsoft.com",
+      "credentialRef": "AZURE_SPEECH_KEY",
+      "region": "eu",
+      "enabled": true,
+      "models": [
+        {
+          "providerModelId": "neural",
+          "displayName": "Azure neural voices",
+          "modality": "tts",
+          "features": { "languages": ["nb"], "voices": { "nb": ["nb-NO-PernilleNeural", "nb-NO-FinnNeural", "nb-NO-IselinNeural"] }, "maxCharacters": 400 },
+          "prices": [{ "effectiveFrom": "2026-11-02", "inputPerMtok": "0", "outputPerMtok": "0", "cacheReadPerMtok": "0", "cacheWritePerMtok": "0", "charsPerMillion": "16.00" }]
         }
       ]
     },
@@ -161,6 +186,7 @@
   "bindings": [
     { "capability": "student_assist", "primary": "google/gemini-3.5-flash", "fallback": null, "maxOutputTokens": 2000, "timeoutMs": 60000, "promptVersion": "student_assist@1" },
     { "capability": "voice_review_pronunciation", "primary": "azure-speech/pronunciation-assessment", "fallback": "whisper-local/nb-whisper-small-verbatim", "maxOutputTokens": 1, "timeoutMs": 60000, "promptVersion": "voice_review@1" },
-    { "capability": "voice_review", "primary": "whisper-local/nb-whisper-small-verbatim", "fallback": null, "maxOutputTokens": 1, "timeoutMs": 60000, "promptVersion": "voice_review@1" }
+    { "capability": "voice_review", "primary": "whisper-local/nb-whisper-small-verbatim", "fallback": null, "maxOutputTokens": 1, "timeoutMs": 60000, "promptVersion": "voice_review@1" },
+    { "capability": "reference_synthesis", "primary": "azure-tts/neural", "fallback": null, "maxOutputTokens": 1, "timeoutMs": 15000, "promptVersion": "reference_synthesis@1" }
   ]
 }

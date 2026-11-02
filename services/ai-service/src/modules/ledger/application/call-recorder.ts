@@ -3,7 +3,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { LlmUsage } from '../../providers/domain/llm-result.js';
 import type { ModelForCall } from '../../registry/application/ports/registry.reader.js';
-import { costMicros, speechCostMicros } from '../../registry/domain/cost.js';
+import { costMicros, speechCostMicros, synthesisCostMicros } from '../../registry/domain/cost.js';
 import type { AiCallOutcome, AiCallRecord, CallAttempt, CallContext } from '../domain/ai-call.js';
 import { creditsFor } from '../domain/credits.js';
 import { AI_CALL_LEDGER, LedgerRecordRejected, type IAiCallLedger } from './ports/ai-call.ledger.js';
@@ -32,6 +32,11 @@ export interface CallToRecord {
    * for a language model, and for a speech call no answer came back from.
    */
   audioMs?: number | null;
+  /**
+   * Characters a synthesizer spoke — what it is priced by (plan 88, step 6b). Absent or null
+   * for every other model, and for a synthesis no audio came back from.
+   */
+  characters?: number | null;
   latencyMs: number;
   outcome: AiCallOutcome;
   errorCode: string | null;
@@ -70,7 +75,7 @@ export class CallRecorder {
   async record(call: CallToRecord): Promise<RecordedCall> {
     const cost = this.cost(call);
     const credits = cost && cost.currency === CREDIT_CURRENCY ? creditsFor(cost.micros, this.creditRate) : null;
-    if ((call.usage || call.audioMs != null) && call.model && !call.model.currentPrice) {
+    if ((call.usage || call.audioMs != null || call.characters != null) && call.model && !call.model.currentPrice) {
       this.logger.warn(`Model ${call.model.model.id} (${call.model.model.providerModelId}) has no price — call recorded without cost`);
     }
 
@@ -89,6 +94,7 @@ export class CallRecorder {
       promptVersion: call.promptVersion,
       usage: call.usage,
       audioMs: call.audioMs ?? null,
+      characters: call.characters ?? null,
       cost,
       credits,
       latencyMs: call.latencyMs,
@@ -133,14 +139,23 @@ export class CallRecorder {
 
   /**
    * No usage and no audio (nothing answered) costs nothing; either without a price is an
-   * unknown cost. A speech call is priced by its audio, plus any tokens it reported.
+   * unknown cost. A speech call is priced by its audio, plus any tokens it reported; a
+   * synthesis by its characters.
    */
   private cost(call: CallToRecord): RecordedCall['cost'] {
     const audioMs = call.audioMs ?? null;
-    if (!call.usage && audioMs === null) return { micros: 0, currency: call.model?.currentPrice?.currency ?? CREDIT_CURRENCY };
+    const characters = call.characters ?? null;
+    if (!call.usage && audioMs === null && characters === null) {
+      return { micros: 0, currency: call.model?.currentPrice?.currency ?? CREDIT_CURRENCY };
+    }
     const price = call.model?.currentPrice;
     if (!price) return null;
-    const micros = audioMs === null ? costMicros(call.usage!, price) : speechCostMicros(audioMs, call.usage, price);
+    const micros =
+      characters !== null
+        ? synthesisCostMicros(characters, price)
+        : audioMs === null
+          ? costMicros(call.usage!, price)
+          : speechCostMicros(audioMs, call.usage, price);
     return { micros, currency: price.currency };
   }
 }

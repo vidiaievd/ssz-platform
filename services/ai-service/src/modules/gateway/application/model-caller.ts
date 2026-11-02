@@ -68,7 +68,7 @@ export class ModelCaller {
   ) {}
 
   /** The model, ready to call as a model of `modality` — or why it is not. */
-  async resolve(modelId: string, modality: ModelModality = 'llm'): Promise<Result<ModelForCall, ModelUnusable>> {
+  async resolve(modelId: string, modality: Exclude<ModelModality, 'tts'> = 'llm'): Promise<Result<ModelForCall, ModelUnusable>> {
     const found = await this.registry.getModelForCall(modelId, new Date());
     if (!found) return Result.fail({ kind: 'not_found' });
     const missing = [...providerReadiness(found.provider, this.credentials).missing];

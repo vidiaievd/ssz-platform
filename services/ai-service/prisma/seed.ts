@@ -24,6 +24,8 @@ interface SeedPrice {
   cacheWritePerMtok: string;
   /** Speech models; absent = 0. */
   audioPerHour?: string;
+  /** Synthesizers (plan 88, step 6b); absent = 0. */
+  charsPerMillion?: string;
   currency?: string;
 }
 
@@ -31,7 +33,7 @@ interface SeedModel {
   providerModelId: string;
   displayName: string;
   /** Absent = `llm`. */
-  modality?: 'llm' | 'speech';
+  modality?: 'llm' | 'speech' | 'tts';
   /** Applied on create only; absent = active. */
   status?: 'active' | 'disabled';
   features: Record<string, unknown>;
@@ -70,7 +72,14 @@ const url = process.env['DATABASE_URL'];
 if (!url) throw new Error('DATABASE_URL is not set');
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 
-const PRICE_FIELDS = ['inputPerMtok', 'outputPerMtok', 'cacheReadPerMtok', 'cacheWritePerMtok', 'audioPerHour'] as const;
+const PRICE_FIELDS = [
+  'inputPerMtok',
+  'outputPerMtok',
+  'cacheReadPerMtok',
+  'cacheWritePerMtok',
+  'audioPerHour',
+  'charsPerMillion',
+] as const;
 
 async function main(): Promise<void> {
   for (const p of data.providers) {
@@ -119,6 +128,7 @@ async function main(): Promise<void> {
               cacheReadPerMtok: price.cacheReadPerMtok,
               cacheWritePerMtok: price.cacheWritePerMtok,
               audioPerHour: price.audioPerHour ?? '0',
+              charsPerMillion: price.charsPerMillion ?? '0',
               currency: price.currency ?? 'USD',
             },
           });

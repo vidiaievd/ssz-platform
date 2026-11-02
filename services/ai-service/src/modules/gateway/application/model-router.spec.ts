@@ -5,11 +5,12 @@ import type { LlmChunk } from '../../providers/domain/llm-result.js';
 import type { ModelFeatures, ProviderKind } from '../../providers/domain/model-features.js';
 import { FakeLlmProvider } from '../../providers/infrastructure/fake/fake-llm.provider.js';
 import { FakeSpeechAssessor } from '../../providers/infrastructure/fake/fake-speech.assessor.js';
+import { FakeSpeechSynthesizer } from '../../providers/infrastructure/fake/fake-speech.synthesizer.js';
 import { silentWav } from '../../providers/domain/wav.fixture.js';
 import type { ModelForCall } from '../../registry/application/ports/registry.reader.js';
 import type { AiBinding } from '../../registry/domain/binding.js';
 import type { AiRegion } from '../../registry/domain/registry.types.js';
-import { ModelRouter, type GatewayRequest, type SpeechGatewayRequest } from './model-router.js';
+import { ModelRouter, type GatewayRequest, type SpeechGatewayRequest, type SynthesisGatewayRequest } from './model-router.js';
 import type { ICircuitBreaker } from './ports/circuit-breaker.port.js';
 
 const features: ModelFeatures = {
@@ -108,6 +109,7 @@ function setup(opts: { binding: AiBinding | null; models: ModelForCall[]; provid
     breaker,
     new SchemaGuard(),
     [new FakeSpeechAssessor()],
+    [new FakeSpeechSynthesizer()],
   );
   return { router, breaker };
 }
@@ -452,6 +454,57 @@ describe('ModelRouter', () => {
     it('is refused as disabled without a binding', async () => {
       const { router } = setup({ binding: null, models: [] });
       expect((await router.callSpeech('voice_review', HEAR)).error.kind).toBe('disabled');
+    });
+  });
+
+  describe('synthesis (plan 88, step 6b)', () => {
+    const synthesizer = (id: string, voices: Record<string, string[]>, maxCharacters = 400): ModelForCall => {
+      const base = model(id, { providerModelId: 'fake-tts' });
+      return { ...base, model: { ...base.model, modality: 'tts', features: { languages: Object.keys(voices), voices, maxCharacters } } };
+    };
+    const SAY: SynthesisGatewayRequest = { text: 'Nå sier jeg bønder igjen.', language: 'nb', voice: null };
+
+    it('speaks a text through the synthesis adapter, with the default voice', async () => {
+      const { router, breaker } = setup({
+        binding: binding({ capability: 'reference_synthesis' }),
+        models: [synthesizer('primary', { nb: ['nb-NO-PernilleNeural', 'nb-NO-FinnNeural'] })],
+      });
+      const routed = await router.callSynthesis('reference_synthesis', SAY);
+      expect(routed.isOk).toBe(true);
+      expect(routed.value.result).toMatchObject({ voice: 'nb-NO-PernilleNeural', characters: 25, audio: { format: 'wav' } });
+      expect(breaker.successes).toEqual(['primary']);
+    });
+
+    it('steps over a synthesizer without the voice asked for, or too short for the text, to the fallback', async () => {
+      const voiced = setup({
+        binding: binding({ capability: 'reference_synthesis' }),
+        models: [synthesizer('primary', { nb: ['nb-NO-PernilleNeural'] }), synthesizer('fallback', { nb: ['nb-NO-FinnNeural'] })],
+      });
+      const routed = await voiced.router.callSynthesis('reference_synthesis', { ...SAY, voice: 'nb-NO-FinnNeural' });
+      expect(routed.value.role).toBe('fallback');
+      expect(routed.value.result.voice).toBe('nb-NO-FinnNeural');
+      expect(routed.value.attempts[0]?.reason).toBe('voice_not_supported');
+
+      const short = setup({
+        binding: binding({ capability: 'reference_synthesis' }),
+        models: [synthesizer('primary', { nb: ['v'] }, 10), synthesizer('fallback', { nb: ['v'] })],
+      });
+      expect((await short.router.callSynthesis('reference_synthesis', SAY)).value.attempts[0]?.reason).toBe('text_too_long');
+    });
+
+    it('steps over a recognizer and a model without the language', async () => {
+      const base = model('primary');
+      const recognizer: ModelForCall = {
+        ...base,
+        model: { ...base.model, modality: 'speech', features: { languages: ['nb'], wordTimings: true, pronunciation: false, maxAudioSeconds: 60 } },
+      };
+      const { router } = setup({
+        binding: binding({ capability: 'reference_synthesis' }),
+        models: [recognizer, synthesizer('fallback', { en: ['en-US-AvaNeural'] })],
+      });
+      const routed = await router.callSynthesis('reference_synthesis', SAY);
+      expect(routed.error.kind).toBe('unavailable');
+      expect(routed.error.attempts.map((a) => a.reason)).toEqual(['wrong_modality', 'language_not_supported']);
     });
   });
 });

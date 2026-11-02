@@ -73,6 +73,9 @@ export class ModelPriceResponseDto {
   @ApiProperty({ example: '0', description: 'Per hour of audio in, decimal string — speech models' })
   audioPerHour!: string;
 
+  @ApiProperty({ example: '0', description: 'Per 1M characters spoken, decimal string — synthesizers' })
+  charsPerMillion!: string;
+
   @ApiProperty({ example: 'USD' })
   currency!: string;
 }
@@ -106,7 +109,21 @@ export class SpeechFeaturesDto {
   maxAudioSeconds!: number;
 }
 
-@ApiExtraModels(ModelFeaturesDto, SpeechFeaturesDto)
+export class TtsFeaturesDto {
+  @ApiProperty({ type: [String], example: ['nb'], description: 'Course languages it speaks' })
+  languages!: string[];
+
+  @ApiProperty({
+    example: { nb: ['nb-NO-PernilleNeural', 'nb-NO-FinnNeural', 'nb-NO-IselinNeural'] },
+    description: "The provider's voice names per language; the first is the default",
+  })
+  voices!: Record<string, string[]>;
+
+  @ApiProperty({ example: 400, description: 'Longest text one call takes, in characters' })
+  maxCharacters!: number;
+}
+
+@ApiExtraModels(ModelFeaturesDto, SpeechFeaturesDto, TtsFeaturesDto)
 export class ModelResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -124,17 +141,23 @@ export class ModelResponseDto {
   displayName!: string;
 
   @ApiProperty({
-    enum: ['llm', 'speech'],
+    enum: ['llm', 'speech', 'tts'],
     example: 'llm',
-    description: '`llm` — text in, priced per token; `speech` — audio in, priced per audio hour',
+    description:
+      '`llm` — text in, priced per token; `speech` — audio in, priced per audio hour; ' +
+      '`tts` — text in, audio out, priced per 1M characters',
   })
   modality!: string;
 
   @ApiProperty({
-    oneOf: [{ $ref: getSchemaPath(ModelFeaturesDto) }, { $ref: getSchemaPath(SpeechFeaturesDto) }],
-    description: '`ModelFeaturesDto` for `llm`, `SpeechFeaturesDto` for `speech`',
+    oneOf: [
+      { $ref: getSchemaPath(ModelFeaturesDto) },
+      { $ref: getSchemaPath(SpeechFeaturesDto) },
+      { $ref: getSchemaPath(TtsFeaturesDto) },
+    ],
+    description: '`ModelFeaturesDto` for `llm`, `SpeechFeaturesDto` for `speech`, `TtsFeaturesDto` for `tts`',
   })
-  features!: ModelFeaturesDto | SpeechFeaturesDto;
+  features!: ModelFeaturesDto | SpeechFeaturesDto | TtsFeaturesDto;
 
   @ApiProperty({ enum: ['active', 'deprecated', 'disabled'], example: 'active' })
   status!: string;

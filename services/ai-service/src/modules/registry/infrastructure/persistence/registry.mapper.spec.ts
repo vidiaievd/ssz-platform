@@ -73,6 +73,7 @@ describe('registry mapper', () => {
       cacheReadPerMtok: new Decimal('0.2'),
       cacheWritePerMtok: new Decimal('2.5'),
       audioPerHour: new Decimal('0.36'),
+      charsPerMillion: new Decimal('16'),
       currency: 'USD',
       createdAt: now,
     });
@@ -82,6 +83,7 @@ describe('registry mapper', () => {
       cacheReadPerMtok: '0.2',
       cacheWritePerMtok: '2.5',
       audioPerHour: '0.36',
+      charsPerMillion: '16',
     });
   });
 });

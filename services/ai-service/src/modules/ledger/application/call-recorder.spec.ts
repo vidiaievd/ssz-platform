@@ -4,7 +4,9 @@ import { CallRecorder, type CallToRecord } from './call-recorder.js';
 import { LedgerRecordRejected, type IAiCallLedger } from './ports/ai-call.ledger.js';
 import type { ILedgerSpool } from './ports/ledger-spool.js';
 
-function model(price: { input: string; output: string; audioPerHour?: string; currency?: string } | null): ModelForCall {
+function model(
+  price: { input: string; output: string; audioPerHour?: string; charsPerMillion?: string; currency?: string } | null,
+): ModelForCall {
   return {
     model: {
       id: 'm1',
@@ -35,6 +37,7 @@ function model(price: { input: string; output: string; audioPerHour?: string; cu
           cacheReadPerMtok: '0.3',
           cacheWritePerMtok: '3.75',
           audioPerHour: price.audioPerHour ?? '0',
+          charsPerMillion: price.charsPerMillion ?? '0',
           currency: price.currency ?? 'USD',
         }
       : null,
@@ -140,6 +143,16 @@ describe('CallRecorder', () => {
     const result = await r.record(call({ model: model({ input: '0', output: '0', audioPerHour: '1' }), usage: null, audioMs: 90_000 }));
     expect(result).toMatchObject({ cost: { micros: 25_000, currency: 'USD' }, credits: '25.000000' });
     expect(written[0]).toMatchObject({ audioMs: 90_000, usage: null });
+  });
+
+  it('prices a synthesis by its characters and keeps the count on the row', async () => {
+    const { recorder: r, written } = recorder();
+    // 25 characters at $16/M = 400 micro-USD → 0.4 credits at 1000/USD.
+    const result = await r.record(
+      call({ model: model({ input: '0', output: '0', charsPerMillion: '16' }), usage: null, characters: 25 }),
+    );
+    expect(result).toMatchObject({ cost: { micros: 400, currency: 'USD' }, credits: '0.400000' });
+    expect(written[0]).toMatchObject({ characters: 25, audioMs: null, usage: null });
   });
 
   it('leaves a speech call unpriced without a price, and a language call without audio', async () => {

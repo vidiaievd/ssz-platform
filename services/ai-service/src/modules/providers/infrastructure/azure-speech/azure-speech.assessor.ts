@@ -8,6 +8,7 @@ import type { SpeechResult } from '../../domain/speech-result.js';
 import { wavDurationMs } from '../../domain/wav.js';
 import { readCredential } from '../credentials.js';
 import { AzureContinuousRecognizer } from './azure-continuous.recognizer.js';
+import { fromFetchFailure, fromStatus } from './azure-errors.js';
 import { hearingOf, mergeSegments, NOTHING_HEARD, type AzureRecognition } from './azure-result.js';
 
 /** Course language → Azure locale. Azure has no Nynorsk recognizer. */
@@ -147,32 +148,4 @@ function assessmentHeader(referenceText: string): string {
     EnableMiscue: true,
   };
   return Buffer.from(JSON.stringify(params), 'utf8').toString('base64');
-}
-
-/** The call never got an answer: our timeout, or the endpoint is unreachable. */
-function fromFetchFailure(err: unknown): LlmError {
-  // Not `instanceof Error`: the timeout is a DOMException, which may come from another realm.
-  const name = typeof err === 'object' && err !== null && 'name' in err ? String(err.name) : '';
-  if (name === 'TimeoutError' || name === 'AbortError') {
-    return new LlmError('timeout', 'Azure Speech: request timed out', { cause: err });
-  }
-  const detail = err instanceof Error ? (err.cause instanceof Error ? err.cause.message : err.message) : String(err);
-  return new LlmError('unavailable', `Azure Speech: connection failed — ${detail}`, { cause: err });
-}
-
-async function fromStatus(response: Response): Promise<LlmError> {
-  const status = response.status;
-  const detail = await response.text().catch(() => '');
-  const message = `Azure Speech ${status}: ${detail.slice(0, 300)}`;
-  if (status === 401 || status === 403) return new LlmError('auth', message);
-  if (status === 429) return new LlmError('rate_limited', message, { retryAfterMs: retryAfterMs(response.headers) });
-  if (status === 408) return new LlmError('timeout', message);
-  if ([400, 413, 415, 422].includes(status)) return new LlmError('invalid_request', message);
-  if (status >= 500) return new LlmError('unavailable', message);
-  return new LlmError('unknown', message);
-}
-
-function retryAfterMs(headers: Headers): number | undefined {
-  const seconds = Number(headers.get('retry-after'));
-  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined;
 }

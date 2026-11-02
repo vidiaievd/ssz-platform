@@ -52,6 +52,7 @@ export class PrismaAiCallLedger implements IAiCallLedger {
           cacheReadTokens: call.usage?.cacheRead ?? null,
           cacheWriteTokens: call.usage?.cacheWrite ?? null,
           audioMs: call.audioMs,
+          characters: call.characters,
           costMicros: call.cost ? BigInt(call.cost.micros) : null,
           currency: call.cost?.currency ?? null,
           credits: call.credits,
