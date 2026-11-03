@@ -107,6 +107,10 @@
     "./narration": {
       "import": "./dist/narration/index.js",
       "types": "./dist/narration/index.d.ts"
+    },
+    "./prosody": {
+      "import": "./dist/prosody/index.js",
+      "types": "./dist/prosody/index.d.ts"
     }
   },
   "files": [
