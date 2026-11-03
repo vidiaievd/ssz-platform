@@ -3,6 +3,7 @@ import { PrismaService } from '../../../../infrastructure/database/prisma.servic
 import { Result } from '../../../../shared/kernel/result.js';
 import type {
   IProsodyTextReader,
+  LessonBody,
   ReadAloudPassages,
 } from '../../domain/repositories/prosody-text.reader.interface.js';
 import type { ExerciseScope } from '../../domain/prosody-owner.js';
@@ -14,14 +15,14 @@ const READ_ALOUD = 'read_aloud';
 export class PrismaProsodyTextReader implements IProsodyTextReader {
   constructor(private readonly prisma: PrismaService) {}
 
-  async lessonBody(lessonId: string, variantId: string): Promise<Result<string, ProsodyError>> {
+  async lessonBody(lessonId: string, variantId: string): Promise<Result<LessonBody, ProsodyError>> {
     const variant = await this.prisma.lessonContentVariant.findUnique({
       where: { id: variantId },
       select: {
         lessonId: true,
         bodyMarkdown: true,
         deletedAt: true,
-        lesson: { select: { kind: true, deletedAt: true } },
+        lesson: { select: { kind: true, deletedAt: true, targetLanguage: true } },
       },
     });
     // A variant of another lesson is "not found": the guard checked `lessonId`, not it.
@@ -35,7 +36,7 @@ export class PrismaProsodyTextReader implements IProsodyTextReader {
     }
     // Prisma enums carry member names, not their @map values.
     if (variant.lesson.kind !== 'TEXT') return Result.fail({ code: 'NOT_A_TEXT_LESSON' });
-    return Result.ok(variant.bodyMarkdown);
+    return Result.ok({ text: variant.bodyMarkdown, language: variant.lesson.targetLanguage });
   }
 
   async readAloudPassages(
@@ -49,6 +50,7 @@ export class PrismaProsodyTextReader implements IProsodyTextReader {
         draftContent: true,
         draftUpdatedAt: true,
         deletedAt: true,
+        targetLanguage: true,
         template: { select: { code: true } },
       },
     });
@@ -60,12 +62,12 @@ export class PrismaProsodyTextReader implements IProsodyTextReader {
       scope === 'draft' && exercise.draftUpdatedAt !== null
         ? exercise.draftContent
         : exercise.content;
-    return Result.ok(passagesOf(content));
+    return Result.ok({ language: exercise.targetLanguage, ...passagesOf(content) });
   }
 }
 
 /** The prompts of a read_aloud document, read defensively — it is JSON a builder wrote. */
-function passagesOf(content: unknown): ReadAloudPassages {
+function passagesOf(content: unknown): Omit<ReadAloudPassages, 'language'> {
   const doc = (content ?? {}) as { mode?: unknown; prompts?: unknown };
   const prompts = Array.isArray(doc.prompts) ? doc.prompts : [];
   return {

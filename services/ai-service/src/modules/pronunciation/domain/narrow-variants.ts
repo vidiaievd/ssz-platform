@@ -130,13 +130,8 @@ export function narrowVariants(
   return { variants, narrowedBy: 'none' };
 }
 
-/**
- * The tag of each lexical word of the passage, in the order of `lexicalWords(text)` — the order
- * Azure's words follow. A word gets the one tagger token that covers it and reads the same; where
- * the two split the text differently (a number, `10 000`; a token over two words) it gets null and
- * is not narrowed.
- */
-export function tagsOfPassageWords(text: string, tokens: readonly PosToken[]): Array<WordTag | null> {
+/** The tokens a clause opens with: the first word of a sentence or after a colon. */
+function clauseInitialTokens(tokens: readonly PosToken[]): Set<PosToken> {
   const clauseInitial = new Set<PosToken>();
   let opening = true;
   for (const t of tokens) {
@@ -148,20 +143,50 @@ export function tagsOfPassageWords(text: string, tokens: readonly PosToken[]): A
     if (opening) clauseInitial.add(t);
     opening = false;
   }
+  return clauseInitial;
+}
 
+/** The one lexical token over `[start, end)` that reads as `word`; null where the split differs. */
+function tagOfSpan(
+  tokens: readonly PosToken[],
+  clauseInitial: ReadonlySet<PosToken>,
+  word: string,
+  start: number,
+  end: number,
+): WordTag | null {
+  const covering = tokens.filter((t) => t.start < end && t.end > start && lexicalWord(t.text));
+  const token = covering.length === 1 ? covering[0]! : null;
+  return token && lexicalWord(token.text) === word
+    ? { upos: token.upos, morph: token.morph, clauseInitial: clauseInitial.has(token) }
+    : null;
+}
+
+/**
+ * The tag of each lexical word of the passage, in the order of `lexicalWords(text)` — the order
+ * Azure's words follow. A word gets the one tagger token that covers it and reads the same; where
+ * the two split the text differently (a number, `10 000`; a token over two words) it gets null and
+ * is not narrowed.
+ */
+export function tagsOfPassageWords(text: string, tokens: readonly PosToken[]): Array<WordTag | null> {
+  const clauseInitial = clauseInitialTokens(tokens);
   const out: Array<WordTag | null> = [];
   for (const chunk of text.matchAll(/\S+/g)) {
     const word = lexicalWord(chunk[0]);
     if (!word) continue;
-    const start = chunk.index;
-    const end = start + chunk[0].length;
-    const covering = tokens.filter((t) => t.start < end && t.end > start && lexicalWord(t.text));
-    const token = covering.length === 1 ? covering[0]! : null;
-    out.push(
-      token && lexicalWord(token.text) === word
-        ? { upos: token.upos, morph: token.morph, clauseInitial: clauseInitial.has(token) }
-        : null,
-    );
+    out.push(tagOfSpan(tokens, clauseInitial, word, chunk.index, chunk.index + chunk[0].length));
   }
   return out;
+}
+
+/**
+ * The tag of each span of the text — the words another service counted (plan 86, step 5b: the
+ * kernel's `tokenize`), by the same rule as `tagsOfPassageWords`.
+ */
+export function tagsOfSpans(
+  text: string,
+  spans: ReadonlyArray<readonly [number, number]>,
+  tokens: readonly PosToken[],
+): Array<WordTag | null> {
+  const clauseInitial = clauseInitialTokens(tokens);
+  return spans.map(([start, end]) => tagOfSpan(tokens, clauseInitial, lexicalWord(text.slice(start, end)), start, end));
 }

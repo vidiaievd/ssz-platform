@@ -130,6 +130,7 @@ services:
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       ORGANIZATION_SERVICE_URL: http://organization-service:3002
       MEDIA_SERVICE_URL: http://media-service:3004
+      AI_SERVICE_URL: http://ai-service:3010  # word stresses under the prosody layer (plan 86, step 5b)
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
       REDIS_HOST: redis
       REDIS_PORT: 6379

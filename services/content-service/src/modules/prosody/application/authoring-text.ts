@@ -13,7 +13,10 @@ export async function authoringText(
   reader: IProsodyTextReader,
   owner: ProsodyOwner,
 ): Promise<Result<string, ProsodyError>> {
-  if (owner.kind === 'lesson') return reader.lessonBody(owner.lessonId, owner.variantId);
+  if (owner.kind === 'lesson') {
+    const body = await reader.lessonBody(owner.lessonId, owner.variantId);
+    return body.isFail ? Result.fail(body.error) : Result.ok(body.value.text);
+  }
 
   const passages = await reader.readAloudPassages(owner.exerciseId, 'draft');
   if (passages.isFail) return Result.fail(passages.error);

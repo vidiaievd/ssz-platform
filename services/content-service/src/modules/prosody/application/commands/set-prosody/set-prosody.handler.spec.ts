@@ -14,7 +14,9 @@ const prompt: ProsodyOwner = { kind: 'exercise', exerciseId: 'e1', promptId: 'p1
 function setup(passageText = TEXT) {
   const readAloudPassages = jest
     .fn()
-    .mockResolvedValue(Result.ok({ mode: 'read', prompts: [{ id: 'p1', text: passageText }] }));
+    .mockResolvedValue(
+      Result.ok({ language: 'nb', mode: 'read', prompts: [{ id: 'p1', text: passageText }] }),
+    );
   const save = jest
     .fn()
     .mockImplementation((_owner: ProsodyOwner, value: object) =>
@@ -22,7 +24,7 @@ function setup(passageText = TEXT) {
     );
   const remove = jest.fn().mockResolvedValue(undefined);
   const texts: IProsodyTextReader = {
-    lessonBody: jest.fn().mockResolvedValue(Result.ok(TEXT)),
+    lessonBody: jest.fn().mockResolvedValue(Result.ok({ text: TEXT, language: 'nb' })),
     readAloudPassages,
   };
   const layers: IProsodyLayerRepository = {

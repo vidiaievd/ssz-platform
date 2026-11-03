@@ -4,7 +4,16 @@ import type { ProsodyError } from '../prosody-error.js';
 
 export const PROSODY_TEXT_READER = Symbol('PROSODY_TEXT_READER');
 
+/** A TEXT variant's body and the language it is written in — what the lexicon is chosen by. */
+export interface LessonBody {
+  text: string;
+  /** The lesson's `target_language` (`nb`). */
+  language: string;
+}
+
 export interface ReadAloudPassages {
+  /** The exercise's `target_language` (`nb`). */
+  language: string;
   /** `read`, `monologue` or `dialogue`; null when the document has none yet. */
   mode: string | null;
   /** Every prompt, in document order; `text` is '' when the prompt has no passage. */
@@ -14,7 +23,7 @@ export interface ReadAloudPassages {
 /** The texts a layer is drawn under, read where they live — the lesson and exercise tables. */
 export interface IProsodyTextReader {
   /** The body markdown of a TEXT variant of this lesson. */
-  lessonBody(lessonId: string, variantId: string): Promise<Result<string, ProsodyError>>;
+  lessonBody(lessonId: string, variantId: string): Promise<Result<LessonBody, ProsodyError>>;
   readAloudPassages(
     exerciseId: string,
     scope: ExerciseScope,

@@ -40,6 +40,10 @@ export const envSchema = z.object({
   MEDIA_SERVICE_URL: z.string().default('http://media-service:3004'),
   MEDIA_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
 
+  // The lexicon's word stresses under a student's prosody layer (plan 86, step 5b).
+  AI_SERVICE_URL: z.string().default('http://ai-service:3010'),
+  AI_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(3_000),
+
   // Discovery / catalog pagination
   DISCOVERY_DEFAULT_LIMIT: z.coerce.number().int().min(1).max(100).default(20),
   DISCOVERY_MAX_LIMIT: z.coerce.number().int().min(1).max(500).default(100),
@@ -102,6 +106,10 @@ export interface AppConfig {
     baseUrl: string;
     timeoutMs: number;
   };
+  ai: {
+    baseUrl: string;
+    timeoutMs: number;
+  };
   discovery: {
     pagination: {
       defaultLimit: number;
@@ -150,6 +158,10 @@ export default (): AppConfig => {
     media: {
       baseUrl: env.MEDIA_SERVICE_URL,
       timeoutMs: env.MEDIA_SERVICE_TIMEOUT_MS,
+    },
+    ai: {
+      baseUrl: env.AI_SERVICE_URL,
+      timeoutMs: env.AI_SERVICE_TIMEOUT_MS,
     },
     discovery: {
       pagination: {

@@ -30,8 +30,8 @@ export function layerForText(
 
 /**
  * What a student is drawn: the lexicon words with the authored layer over them, orphans
- * and any mark that does not fit the text left out. The lexicon words arrive with step 5b;
- * until then the authored layer is all there is.
+ * and any mark that does not fit the text left out. The lexicon words (step 5b) come from
+ * ai-service; without them the authored layer is all there is.
  */
 export function studentLayer(
   text: string,
