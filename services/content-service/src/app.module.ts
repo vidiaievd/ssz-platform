@@ -31,6 +31,7 @@ import { UserErasureModule } from './modules/user-erasure/user-erasure.module.js
 import { SkillsModule } from './shared/skills/skills.module.js';
 import { CoverageRecipeModule } from './modules/coverage-recipe/coverage-recipe.module.js';
 import { PersonalVocabularyModule } from './modules/personal-vocabulary/personal-vocabulary.module.js';
+import { ProsodyModule } from './modules/prosody/prosody.module.js';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { PersonalVocabularyModule } from './modules/personal-vocabulary/personal
     SkillsModule,
     CoverageRecipeModule,
     PersonalVocabularyModule,
+    ProsodyModule,
     TagModule,
     ContentRelationModule,
     InternalModule,

@@ -1,0 +1,59 @@
+import { parseProsodyNotation } from '@ssz/shared-kernel/prosody';
+import { MarkdownParagraphSplitterService } from '../../../lesson/domain/services/markdown-paragraph-splitter.service.js';
+import { isEmptyLayer, layerForText, splitLayer, studentLayer } from './prosody-view.js';
+
+const at = (notation: string) => parseProsodyNotation(notation);
+
+describe('layerForText', () => {
+  it('is empty when nothing is stored', () => {
+    expect(isEmptyLayer(layerForText(null, 'Hei'))).toBe(true);
+  });
+
+  it('follows an edit of the text from the snapshot the author saved against', () => {
+    const { text, layer } = at("Jeg '1heter ^'1Anna \\ |");
+    const moved = layerForText({ sourceText: text, layer }, `Hei! ${text}`);
+    expect(moved.stresses.map((s) => [s.i, s.w])).toEqual([
+      [2, 'heter'],
+      [3, 'Anna'],
+    ]);
+    expect(moved.boundaries.map((b) => [b.i, b.pitch, b.pause])).toEqual([[3, 'fall', 'short']]);
+  });
+});
+
+describe('studentLayer', () => {
+  it('leaves orphans out', () => {
+    const { text, layer } = at("Jeg '1heter Anna");
+    const edited = layerForText({ sourceText: text, layer }, 'Jeg er Anna');
+    expect(edited.orphans).toHaveLength(1);
+    const shown = studentLayer('Jeg er Anna', edited);
+    expect(shown.orphans).toEqual([]);
+    expect(shown.stresses).toEqual([]);
+  });
+
+  it('drops a mark whose word is not where its anchor says', () => {
+    const { layer } = at("Jeg '1heter Anna");
+    expect(studentLayer('Jeg snakker Anna', layer).stresses).toEqual([]);
+  });
+});
+
+describe('splitLayer', () => {
+  it('cuts a whole-body layer into paragraph-local anchors', () => {
+    const { text, layer } = at(
+      "# '1Hjemme\n\nJeg '2snakker _ litt 'norsk \\ ||\n\n  Ha det _\n\nbra",
+    );
+    const parts = MarkdownParagraphSplitterService.split(text);
+    const layers = splitLayer(text, layer, parts);
+
+    expect(parts).toHaveLength(4);
+    expect(layers[0]?.stresses.map((s) => [s.i, s.w])).toEqual([[0, 'Hjemme']]);
+    expect(layers[1]?.stresses.map((s) => [s.i, s.w])).toEqual([
+      [1, 'snakker'],
+      [3, 'norsk'],
+    ]);
+    expect(layers[1]?.links.map((l) => [l.i, l.w])).toEqual([[1, 'snakker litt']]);
+    expect(layers[1]?.boundaries.map((b) => b.i)).toEqual([3]);
+    // «det _» joins two paragraphs — the reader cannot draw it.
+    expect(layers[2]?.links).toEqual([]);
+    expect(layers[3]?.links).toEqual([]);
+  });
+});

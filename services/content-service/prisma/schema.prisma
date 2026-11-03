@@ -402,6 +402,7 @@ model LessonContentVariant {
   paragraphTranslations LessonParagraphTranslation[]
   glossaryMarks         LessonVariantGlossaryMark[]
   textSpans             LessonTextSpan[]
+  prosodyLayer          LessonProsodyLayer?
 
   @@unique([lessonId, explanationLanguage, minLevel, maxLevel])
   @@index([lessonId])
@@ -582,6 +583,29 @@ model LessonTextSpan {
   @@index([lessonContentVariantId, paragraphIndex])
   @@index([refId])
   @@map("lesson_text_spans")
+}
+
+// The author's intonation marks over a TEXT variant's body (plan 86, §4a): stress
+// overrides, phrase accents, group ends, linking — the `ProsodyLayer` of
+// `@ssz/shared-kernel/prosody`, anchored by token index over the whole body markdown.
+// The body itself is never touched; lexicon word stresses are computed per text and
+// never stored here.
+//
+// source_text is the body the layer was anchored to when the author saved it. A body
+// edited since is followed on read (`reanchorProsody` from source_text to the current
+// body) rather than on every body write, so no write path of the body has to know
+// about this table. The next author save re-anchors for good.
+model LessonProsodyLayer {
+  lessonContentVariantId String   @id @map("lesson_content_variant_id") @db.Uuid
+  sourceText             String   @map("source_text") @db.Text
+  layer                  Json
+  updatedByUserId        String   @map("updated_by_user_id") @db.Uuid
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  variant LessonContentVariant @relation(fields: [lessonContentVariantId], references: [id], onDelete: Cascade)
+
+  @@map("lesson_prosody_layers")
 }
 
 // ─── Block 3: Vocabulary ──────────────────────────────────────────────────────
@@ -854,6 +878,7 @@ model Exercise {
   listeningStages LessonListeningStage[]
   videoQuestions  LessonVideoQuestion[]
   mediaRefs       ExerciseMediaRef[]
+  prosodyLayers   ExerciseProsodyLayer[]
 
   @@index([exerciseTemplateId])
   @@index([ownerUserId])
@@ -862,6 +887,28 @@ model Exercise {
   @@index([targetLanguage, difficultyLevel])
   @@index([deletedAt, visibility, targetLanguage])
   @@map("exercises")
+}
+
+// The author's intonation marks over one `read_aloud` prompt's passage (plan 86, §4a) —
+// the same layer and the same read-time re-anchoring as LessonProsodyLayer. Kept out of
+// the exercise document: the builder rebuilds every prompt on save and would drop a field
+// it does not know, and the student loads the layer by a request of its own.
+//
+// One row per prompt id, shared by the live and the draft document: source_text is the
+// text it was saved against (usually the draft), and either document re-anchors from it.
+model ExerciseProsodyLayer {
+  exerciseId      String   @map("exercise_id") @db.Uuid
+  promptId        String   @map("prompt_id") @db.VarChar(64)
+  sourceText      String   @map("source_text") @db.Text
+  layer           Json
+  updatedByUserId String   @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@id([exerciseId, promptId])
+  @@map("exercise_prosody_layers")
 }
 
 // Per-language instruction for an exercise.
