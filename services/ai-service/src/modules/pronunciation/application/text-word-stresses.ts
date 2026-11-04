@@ -2,26 +2,26 @@ import { createHash } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { lexicalWord } from '../../providers/domain/lexical.js';
 import { narrowVariants, tagsOfSpans, type PosToken } from '../domain/narrow-variants.js';
-import { stressOfWord, type LexiconStress } from '../domain/word-stress.js';
+import { soundsOfWord, stressOfWord } from '../domain/word-stress.js';
 import { POS_TAGGER, type IPosTagger } from './ports/pos-tagger.js';
 import {
   PRONUNCIATION_LEXICON_READER,
   type IPronunciationLexiconReader,
 } from './ports/pronunciation-lexicon.reader.js';
-import { WORD_STRESS_CACHE, type IWordStressCache } from './ports/word-stress.cache.js';
+import { WORD_STRESS_CACHE, type IWordStressCache, type WordAnalysis } from './ports/word-stress.cache.js';
 
 /**
- * Bumped when what a span is answered with changes (the placement rule, the function words), so
- * the cache does not serve an old rule's marks. A lexicon reimport is not tracked: rare, and the
+ * Bumped when what a span is answered with changes (the placement rule, the function words, the
+ * letter alignment — 2 added the sounds, step 6d), so the cache does not serve an old rule's marks. A lexicon reimport is not tracked: rare, and the
  * key's lifetime bounds it.
  */
-const RULE_VERSION = 1;
+const RULE_VERSION = 2;
 
 export type Span = readonly [number, number];
 
 /**
- * The lexicon's word stresses under a text (plan 86, step 5b, §4a decisions 4–5): free, for any
- * text, whether an author marked it or not. The caller counts the words (`spans`); the answer is
+ * The lexicon's word stresses and sounds under a text (plan 86, steps 5b and 6d, §4a decisions
+ * 4–5): free, for any text, whether an author marked it or not. The caller counts the words (`spans`); the answer is
  * one entry per span. Homographs are narrowed by the tagger as in a review (plan 88, step 4b), and
  * the tagger failing only leaves them un-narrowed — mostly unmarked, since their variants then
  * disagree. The lexicon failing is a failure.
@@ -36,7 +36,7 @@ export class TextWordStresses {
     @Inject(WORD_STRESS_CACHE) private readonly cache: IWordStressCache,
   ) {}
 
-  async of(language: string, text: string, spans: readonly Span[]): Promise<Array<LexiconStress | null>> {
+  async of(language: string, text: string, spans: readonly Span[]): Promise<WordAnalysis[]> {
     if (spans.length === 0) return [];
     const key = cacheKey(language, text, spans);
     const hit = await this.cache.get(key);
@@ -46,7 +46,7 @@ export class TextWordStresses {
     const variants = await this.lexicon.variantsOf(language, words);
     // A language without a lexicon answers an empty map without a query; nothing to tag for.
     if (variants.size === 0) {
-      const none = spans.map(() => null);
+      const none = spans.map((): WordAnalysis => ({ stress: null, segs: null }));
       await this.cache.set(key, none);
       return none;
     }
@@ -56,7 +56,11 @@ export class TextWordStresses {
     const out = spans.map(([s, e], i) => {
       const tag = tags[i] ?? null;
       const narrowed = narrowVariants(variants.get(words[i]!) ?? [], tag);
-      return stressOfWord(text.slice(s, e), narrowed.variants, tag?.upos ?? null);
+      const word = text.slice(s, e);
+      return {
+        stress: stressOfWord(word, narrowed.variants, tag?.upos ?? null),
+        segs: soundsOfWord(word, narrowed.variants),
+      };
     });
     // An untagged answer is not cached: the tagger back, the homographs get their marks.
     if (tokens) await this.cache.set(key, out);

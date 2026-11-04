@@ -22,4 +22,6 @@ export { anchorLength, anchorWords, elementsOf, emptyProsodyLayer, layerOf } fro
 export type { NotationIssue, ParsedNotation } from './notation.js';
 export { checkProsodyNotation, parseProsodyNotation, toProsodyNotation } from './notation.js';
 export { reanchorProsody } from './reanchor.js';
+export type { SoundSeg, SoundSegKind, SoundStress, WordSounds } from './sounds.js';
+export { LENGTH_MARK, respell, respellSound, segsCoverWord } from './sounds.js';
 export { isVowelLetter, stressedVowelFrom, syllableStart } from './spelling.js';

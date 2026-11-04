@@ -1,5 +1,5 @@
 import type { LexiconVariant } from './align-word.js';
-import { stressOfVariant, stressOfWord, writtenNuclei } from './word-stress.js';
+import { soundsOfWord, stressOfVariant, stressOfWord, writtenNuclei } from './word-stress.js';
 
 // Plan 86, step 5b: the lexicon's stress placed in the written word. Rows as NB Uttale østnorsk
 // has them in ai_db; the words are from the dev lessons (03.11).
@@ -106,5 +106,31 @@ describe('stressOfWord', () => {
 
   it('marks nothing without variants', () => {
     expect(stressOfWord('xyz', [], 'NOUN')).toBeNull();
+  });
+});
+
+describe('soundsOfWord', () => {
+  it('lays a word whose variants all lay the same way', () => {
+    const segs = soundsOfWord('tunge', [
+      { nofabet: 'T OH2 NG AX0', pos: 'NN' },
+      { nofabet: 'T OH2 NG AX0', pos: 'VB' },
+    ]);
+    expect(segs?.map((x) => [x.s, x.e])).toEqual([
+      [0, 1],
+      [1, 2],
+      [2, 4],
+      [4, 5],
+    ]);
+  });
+
+  it('gives none to a homograph whose variants differ, a word that does not align and an empty list', () => {
+    expect(
+      soundsOfWord('kommer', [
+        { nofabet: 'K OAH2 M AX0 R', pos: 'NN' },
+        { nofabet: 'K OAH1 M AX0 R', pos: 'VB' },
+      ]),
+    ).toBeNull();
+    expect(soundsOfWord('community', [{ nofabet: 'K OAH0 M J UU1 N IH0 T IH0' }])).toBeNull();
+    expect(soundsOfWord('tunge', [])).toBeNull();
   });
 });

@@ -46,6 +46,27 @@ export class WordStressDto {
   @ApiProperty({ type: StressedVowelDto }) vowel!: StressedVowelDto;
 }
 
+export class SoundSegDto {
+  @ApiProperty({ example: 2, description: 'Offset of the first letter in the word' }) s!: number;
+  @ApiProperty({ example: 4, description: 'One past the last letter; equal to `s` for a sound the spelling does not write' })
+  e!: number;
+  @ApiProperty({ enum: ['vowel', 'consonant', 'silent'], description: 'Silent letters are written and not said' })
+  kind!: 'vowel' | 'consonant' | 'silent';
+  @ApiProperty({ type: [String], example: ['NG'], description: 'NoFAbet symbols heard here, no stress digits' })
+  sounds!: string[];
+  @ApiProperty({ type: Number, nullable: true, enum: [0, 1, 2, 3], description: 'Stress digit of a vowel or syllabic consonant' })
+  stress!: 0 | 1 | 2 | 3 | null;
+  @ApiProperty({ type: Boolean, nullable: true, description: 'Vowels only: long vowel or diphthong' })
+  long!: boolean | null;
+  @ApiProperty({ example: true, description: 'Several letters read as one sound (kj, sj, ng, rt)' }) tie!: boolean;
+}
+
+export class WordSoundsDto {
+  @ApiProperty({ example: 1, description: 'Index into the request’s `spans`' }) index!: number;
+  @ApiProperty({ type: [SoundSegDto], description: 'In order, with no gap over the letters of the word' })
+  segs!: SoundSegDto[];
+}
+
 export class WordStressesResponseDto {
   @ApiProperty({
     type: [WordStressDto],
@@ -54,4 +75,12 @@ export class WordStressesResponseDto {
       'agrees on the vowel and the toneme',
   })
   words!: WordStressDto[];
+
+  @ApiProperty({
+    type: [WordSoundsDto],
+    description:
+      'Only the words whose letters could be laid over their sounds: in the lexicon, every variant the context ' +
+      'leaves aligning to the same segments. Function words are here — they have sounds, just no stress mark',
+  })
+  sounds!: WordSoundsDto[];
 }

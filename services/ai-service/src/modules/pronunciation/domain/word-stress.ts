@@ -1,4 +1,5 @@
 import type { LexiconVariant } from './align-word.js';
+import { alignLetters, type LetterSeg } from './align-letters.js';
 import { parseNofabet, soundOf } from './sound-inventory.js';
 
 /**
@@ -117,4 +118,20 @@ export function stressOfWord(
   }
   const long = placed.every((p) => p!.vowel.long === first.vowel.long) ? first.vowel.long : null;
   return { toneme: first.toneme, vowel: { ...first.vowel, long } };
+}
+
+/**
+ * The letters of a word over its sounds (plan 86, step 6d), for any word the lexicon knows —
+ * function words included, they get no stress mark but have sounds. The same rule as the stress:
+ * every variant the context leaves must align, and to the same segments; a homograph the
+ * context did not settle (*kommer* noun / verb differ in the toneme only, and so in the digit)
+ * gets none.
+ */
+export function soundsOfWord(word: string, variants: readonly LexiconVariant[]): LetterSeg[] | null {
+  if (variants.length === 0) return null;
+  const aligned = variants.map((v) => alignLetters(word, v.nofabet));
+  const first = aligned[0];
+  if (!first) return null;
+  const key = JSON.stringify(first);
+  return aligned.every((a) => a && JSON.stringify(a) === key) ? first : null;
 }

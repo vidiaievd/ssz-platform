@@ -50,9 +50,29 @@ describe('TextWordStresses', () => {
   it('answers each span, narrowing homographs by the tagger and leaving function words out', async () => {
     const { service, variantsOf } = make(async () => TOKENS);
     const out = await service.of('nb', TEXT, SPANS);
-    expect(out.map((s) => s?.toneme ?? '-')).toEqual(['-', 1, '-', 2]);
-    expect(out[3]?.vowel).toEqual({ s: 1, e: 2, long: false });
+    expect(out.map((s) => s.stress?.toneme ?? '-')).toEqual(['-', 1, '-', 2]);
+    expect(out[3]?.stress?.vowel).toEqual({ s: 1, e: 2, long: false });
     expect(variantsOf).toHaveBeenCalledWith('nb', ['han', 'kommer', 'på', 'mandag']);
+  });
+
+  it('lays the letters over the sounds, function words included, and leaves a homograph open', async () => {
+    const { service } = make(async () => TOKENS);
+    const out = await service.of('nb', TEXT, SPANS);
+    // *han* is a pronoun: no stress mark, but it has sounds.
+    expect(out[0]?.stress).toBeNull();
+    expect(out[0]?.segs?.map((x) => x.sounds.join('.'))).toEqual(['H', 'AH', 'N']);
+    // *mandag*: the vowel is short, the stress is 2.
+    expect(out[3]?.segs?.find((x) => x.kind === 'vowel' && x.stress === 2)).toMatchObject({ s: 1, e: 2, long: false });
+  });
+
+  it('gives an untagged homograph no sounds when its variants lay differently', async () => {
+    const { service } = make(async () => {
+      throw new Error('down');
+    });
+    const out = await service.of('nb', TEXT, SPANS);
+    // `kommer` noun 2 / verb 1: same letters, different stress digits.
+    expect(out[1]?.segs).toBeNull();
+    expect(out[3]?.segs).not.toBeNull();
   });
 
   it('serves a second read of the same text from the cache', async () => {
@@ -69,19 +89,19 @@ describe('TextWordStresses', () => {
     });
     const out = await service.of('nb', TEXT, SPANS);
     // `kommer` keeps both variants, which disagree; `han` is a pronoun by the lexicon alone.
-    expect(out.map((s) => s?.toneme ?? '-')).toEqual(['-', '-', '-', 2]);
+    expect(out.map((s) => s.stress?.toneme ?? '-')).toEqual(['-', '-', '-', 2]);
     expect(cache.set).not.toHaveBeenCalled();
   });
 
   it('calls no tagger for a language without a lexicon', async () => {
     const { service, tagger } = make(async () => TOKENS, new Map());
-    expect(await service.of('de', 'Er kommt.', [[0, 2]])).toEqual([null]);
+    expect(await service.of('de', 'Er kommt.', [[0, 2]])).toEqual([{ stress: null, segs: null }]);
     expect(tagger.tag).not.toHaveBeenCalled();
   });
 
   it('keys the cache by language, text and spans', () => {
     const key = cacheKey('nb', TEXT, SPANS);
-    expect(key).toMatch(/^v1:nb:[0-9a-f]{64}$/);
+    expect(key).toMatch(/^v2:nb:[0-9a-f]{64}$/);
     expect(cacheKey('nb', TEXT, SPANS.slice(1))).not.toBe(key);
     expect(cacheKey('nn', TEXT, SPANS)).not.toBe(key);
   });

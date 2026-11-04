@@ -25,19 +25,22 @@ export class InternalWordStressesController {
   @Post()
   @HttpCode(200)
   @ApiOperation({
-    summary: "The lexicon's word stresses under a text",
+    summary: "The lexicon's word stresses and sounds under a text",
     description:
-      'For each word the caller counted: the stressed vowel in the word as written, its length and the toneme, from ' +
-      'NB Uttale, homographs narrowed by spaCy. No model is called and nothing is billed. Cached by a hash of the ' +
+      'For each word the caller counted: the stressed vowel in the word as written, its length and the toneme, and ' +
+      'the word\'s letters laid over its sounds (step 6d), from NB Uttale, homographs narrowed by spaCy. No model is called and nothing is billed. Cached by a hash of the ' +
       'text and its spans for 7 days.',
   })
   @ApiOkResponse({ type: WordStressesResponseDto })
   @ApiBadRequestResponse({ description: 'A span is not two integers inside the text, in order' })
   async of(@Body() body: WordStressesRequestDto): Promise<WordStressesResponseDto> {
     const spans = parseSpans(body.spans, body.text.length);
-    const stresses = await this.stresses.of(body.language, body.text, spans);
+    const analysed = await this.stresses.of(body.language, body.text, spans);
     return {
-      words: stresses.flatMap((s, index) => (s ? [{ index, toneme: s.toneme, vowel: s.vowel }] : [])),
+      words: analysed.flatMap(({ stress }, index) =>
+        stress ? [{ index, toneme: stress.toneme, vowel: stress.vowel }] : [],
+      ),
+      sounds: analysed.flatMap(({ segs }, index) => (segs ? [{ index, segs }] : [])),
     };
   }
 }
