@@ -40,7 +40,7 @@ interface Fixture {
   targets?: Array<{
     exerciseId: string;
     itemKey: string | null;
-    atomType: 'VOCABULARY_ITEM' | 'GRAMMAR_RULE_ATOM';
+    atomType: 'VOCABULARY_ITEM' | 'GRAMMAR_RULE_ATOM' | 'SOUND';
     atomId: string;
     role: 'FOCUS' | 'CONTEXT';
   }>;
@@ -477,6 +477,27 @@ describe('GetAtomCoverageHandler (plan 63 §4.2)', () => {
     expect(value.summary.untested).toBe(0);
     expect(value.summary.practisedElsewhere).toBe(1);
     expect(value.atoms[0]?.introducedBy).toEqual([]);
+  });
+
+  it('keeps a sound target a sound: addressed, never looked up as a grammar atom (plan 86, step 8.2)', async () => {
+    const prisma = prismaFrom({
+      containers: { 'unit-1': UNIT },
+      items: { 'v-draft': [{ itemType: 'EXERCISE', itemId: 'ex-1' }] },
+      targets: [
+        { exerciseId: 'ex-1', itemKey: null, atomType: 'SOUND', atomId: 'nb:kj', role: 'FOCUS' },
+      ],
+    });
+    const atomLookup = jest.spyOn(
+      (prisma as unknown as { grammarRuleAtom: { findMany: () => unknown } }).grammarRuleAtom,
+      'findMany',
+    );
+    const handler = new GetAtomCoverageHandler(prisma, axesFrom({ 'ex-1': 'production' }));
+
+    const { value } = await handler.execute(new GetAtomCoverageQuery('unit-1'));
+
+    expect(atomLookup).not.toHaveBeenCalled();
+    expect(value.summary.exercisesAddressed).toBe(1);
+    expect(value.atoms).toEqual([]);
   });
 
   it('says how much of the catalogue carries no address at all', async () => {

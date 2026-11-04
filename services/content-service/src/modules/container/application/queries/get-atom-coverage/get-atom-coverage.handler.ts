@@ -536,8 +536,7 @@ export class GetAtomCoverageHandler implements IQueryHandler<
 
     return rows.map((row) => ({
       exerciseId: row.exerciseId,
-      atomType:
-        row.atomType === 'VOCABULARY_ITEM' ? AtomType.VOCABULARY_ITEM : AtomType.GRAMMAR_RULE_ATOM,
+      atomType: ATOM_TYPE_OF_ROW[row.atomType],
       atomId: row.atomId,
       role: row.role === 'FOCUS' ? TargetRole.FOCUS : TargetRole.CONTEXT,
       // `unknown` where the axis table has no judgement about the template — the honest
@@ -611,6 +610,16 @@ export class GetAtomCoverageHandler implements IQueryHandler<
     };
   }
 }
+
+// Prisma hands back the enum member NAME. A sound target (plan 86, step 8.2) has to stay a
+// sound: read as a grammar atom, its `nb:kj` would reach a uuid column in `rules()` and fail
+// the whole report. Sounds count towards «addressed» but get no coverage entry yet — the
+// report has no row shape for them until the pronunciation course needs one.
+const ATOM_TYPE_OF_ROW: Record<string, AtomType> = {
+  VOCABULARY_ITEM: AtomType.VOCABULARY_ITEM,
+  GRAMMAR_RULE_ATOM: AtomType.GRAMMAR_RULE_ATOM,
+  SOUND: AtomType.SOUND,
+};
 
 interface ResolvedTarget {
   exerciseId: string;

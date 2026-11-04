@@ -132,13 +132,15 @@ export class PrismaExerciseItemTargetRepository implements IExerciseItemTargetRe
     // so the comparison is against the enum's values rather than its members.
     const GRAMMAR: string = AtomType.GRAMMAR_RULE_ATOM;
     const VOCABULARY: string = AtomType.VOCABULARY_ITEM;
+    const SOUND: string = AtomType.SOUND;
 
     const grammarIds = refs.filter((ref) => ref.atomType === GRAMMAR).map((ref) => ref.atomId);
     const vocabularyIds = refs
       .filter((ref) => ref.atomType === VOCABULARY)
       .map((ref) => ref.atomId);
+    const soundIds = refs.filter((ref) => ref.atomType === SOUND).map((ref) => ref.atomId);
 
-    const [grammarAtoms, vocabularyItems] = await Promise.all([
+    const [grammarAtoms, vocabularyItems, sounds] = await Promise.all([
       grammarIds.length === 0
         ? Promise.resolve([])
         : this.prisma.grammarRuleAtom.findMany({
@@ -150,6 +152,18 @@ export class PrismaExerciseItemTargetRepository implements IExerciseItemTargetRe
         : this.prisma.vocabularyItem.findMany({
             where: { id: { in: vocabularyIds }, deletedAt: null },
             select: { id: true, word: true },
+          }),
+      // The catalogue's English title: an author's target list names the sound, and the
+      // learner-facing texts are the catalogue's own business (`internal/sound-atoms`).
+      soundIds.length === 0
+        ? Promise.resolve([])
+        : this.prisma.soundAtom.findMany({
+            where: { id: { in: soundIds } },
+            select: {
+              id: true,
+              ipa: true,
+              texts: { where: { locale: 'en' }, select: { title: true } },
+            },
           }),
     ]);
 
@@ -168,6 +182,15 @@ export class PrismaExerciseItemTargetRepository implements IExerciseItemTargetRe
         // A word is lexis by definition — there is no column to read, and no case where it
         // would say otherwise.
         track: 'lexis',
+        parentId: null,
+      })),
+      ...sounds.map((sound) => ({
+        atomType: SOUND,
+        atomId: sound.id,
+        title: sound.texts[0]?.title ?? sound.ipa,
+        // Neither lexis nor grammar: which memory a sound card charges is learning-service's
+        // to settle (plan 86, step 8.3), as it is for a word.
+        track: null,
         parentId: null,
       })),
     ];

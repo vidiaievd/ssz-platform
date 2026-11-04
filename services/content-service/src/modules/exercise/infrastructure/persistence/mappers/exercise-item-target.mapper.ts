@@ -10,11 +10,13 @@ import { AtomType, TargetRole } from '../../../domain/value-objects/atom-type.vo
 const PRISMA_TO_DOMAIN_ATOM_TYPE: Record<$Enums.AtomType, AtomType> = {
   VOCABULARY_ITEM: AtomType.VOCABULARY_ITEM,
   GRAMMAR_RULE_ATOM: AtomType.GRAMMAR_RULE_ATOM,
+  SOUND: AtomType.SOUND,
 };
 
 const DOMAIN_TO_PRISMA_ATOM_TYPE: Record<AtomType, $Enums.AtomType> = {
   [AtomType.VOCABULARY_ITEM]: 'VOCABULARY_ITEM',
   [AtomType.GRAMMAR_RULE_ATOM]: 'GRAMMAR_RULE_ATOM',
+  [AtomType.SOUND]: 'SOUND',
 };
 
 const PRISMA_TO_DOMAIN_ROLE: Record<$Enums.TargetRole, TargetRole> = {

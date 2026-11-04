@@ -1246,6 +1246,8 @@ model GrammarRuleAtom {
 enum AtomType {
   VOCABULARY_ITEM   @map("vocabulary_item")
   GRAMMAR_RULE_ATOM @map("grammar_rule_atom")
+  // `sound_atoms.id` — a natural key (`nb:kj`), not a uuid (plan 86, step 8.2).
+  SOUND             @map("sound")
 
   @@map("atom_type")
 }
@@ -1296,9 +1298,11 @@ model ExerciseItemTarget {
   itemKey    String?    @map("item_key") @db.VarChar(120)
   atomType   AtomType   @map("atom_type")
   // Polymorphic by `atomType` (VOCABULARY_ITEM -> vocabulary_items.id, GRAMMAR_RULE_ATOM ->
-  // grammar_rule_atoms.id) and therefore carrying no FK, mirroring ContentRelation and
-  // LessonTextSpan.ref_id. An unresolvable atom is treated as broken at read time.
-  atomId     String     @map("atom_id") @db.Uuid
+  // grammar_rule_atoms.id, SOUND -> sound_atoms.id) and therefore carrying no FK, mirroring
+  // ContentRelation and LessonTextSpan.ref_id. An unresolvable atom is treated as broken at
+  // read time. Text, not uuid: a sound's id is `nb:kj` (plan 86, step 8.2); the DTOs check
+  // the format per type.
+  atomId     String     @map("atom_id") @db.Text
   role       TargetRole
 
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
