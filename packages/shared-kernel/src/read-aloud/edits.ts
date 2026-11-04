@@ -10,6 +10,8 @@ import type {
   CriterionWeight,
   Mode,
   Prompt,
+  PronunciationGuide,
+  PronunciationLens,
   ReadAloudContent,
   Recording,
   Review,
@@ -20,6 +22,7 @@ import {
   newCriterion,
   newId,
   newPrompt,
+  PRONUNCIATION_LENSES,
   RA_MAX_CRITERIA,
   RA_MAX_PREP_SECONDS,
   RA_MAX_PROMPTS,
@@ -214,4 +217,21 @@ export function setReview(ex: Doc, patch: Partial<Omit<Review, 'ai'>>): Doc {
 
 export function setAi(ex: Doc, patch: Partial<Review['ai']>): Doc {
   return { ...ex, review: { ...ex.review, ai: { ...ex.review.ai, ...patch } } };
+}
+
+// ── Pronunciation guide (step 6, plan 86) ───────────────────────────────────
+
+export function setGuide(ex: Doc, patch: Partial<Omit<PronunciationGuide, 'lenses'>>): Doc {
+  return { ...ex, pronunciationGuide: { ...ex.pronunciationGuide, ...patch } };
+}
+
+/** Offers or withdraws a lens; the list stays in the switch's order. */
+export function toggleLens(ex: Doc, lens: PronunciationLens): Doc {
+  const on = new Set(ex.pronunciationGuide.lenses);
+  if (on.has(lens)) on.delete(lens);
+  else on.add(lens);
+  return {
+    ...ex,
+    pronunciationGuide: { ...ex.pronunciationGuide, lenses: PRONUNCIATION_LENSES.filter((l) => on.has(l)) },
+  };
 }

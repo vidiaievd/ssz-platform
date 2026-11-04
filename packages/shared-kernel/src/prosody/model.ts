@@ -61,6 +61,16 @@ export interface WordStress extends ProsodyAnchor {
   source: ProsodySource;
 }
 
+/**
+ * An author's «this word has no stress» (plan 86, §4i.4): a lexicon stress that is wrong on a
+ * function word, or a word the lexicon does not know — a name like *Bartek* — confirmed as
+ * left bare. It takes the lexicon's stress off its word and settles the publish check that
+ * asks the author about unknown words (`guideIssues` of `read_aloud`).
+ */
+export interface WordUnstressed extends ProsodyAnchor {
+  source: PhraseSource;
+}
+
 /** The word a phrase carries its accent on — bold, with a deeper arc. */
 export interface PhraseAccent extends ProsodyAnchor {
   source: PhraseSource;
@@ -83,6 +93,7 @@ export interface WordLink extends ProsodyAnchor {
 
 export type ProsodyElement =
   | { kind: 'stress'; mark: WordStress }
+  | { kind: 'unstressed'; mark: WordUnstressed }
   | { kind: 'accent'; mark: PhraseAccent }
   | { kind: 'boundary'; mark: GroupBoundary }
   | { kind: 'link'; mark: WordLink };
@@ -97,6 +108,11 @@ export interface ProsodyLayer {
   tokenizer: typeof TOKENIZER_ID;
   /** Sorted by `i`, at most one per token. */
   stresses: WordStress[];
+  /**
+   * Optional because layers saved before it (plan 86, step 6h) do not carry it; read it with
+   * `?? []`. Never on the same token as a stress (`PR_STRESS_CONFLICT`).
+   */
+  unstressed?: WordUnstressed[];
   accents: PhraseAccent[];
   boundaries: GroupBoundary[];
   links: WordLink[];
@@ -107,6 +123,7 @@ export function emptyProsodyLayer(): ProsodyLayer {
   return {
     tokenizer: TOKENIZER_ID,
     stresses: [],
+    unstressed: [],
     accents: [],
     boundaries: [],
     links: [],
@@ -131,6 +148,7 @@ export function anchorLength(kind: ProsodyKind): number {
 export function elementsOf(layer: ProsodyLayer): ProsodyElement[] {
   return [
     ...layer.stresses.map((mark) => ({ kind: 'stress' as const, mark })),
+    ...(layer.unstressed ?? []).map((mark) => ({ kind: 'unstressed' as const, mark })),
     ...layer.accents.map((mark) => ({ kind: 'accent' as const, mark })),
     ...layer.boundaries.map((mark) => ({ kind: 'boundary' as const, mark })),
     ...layer.links.map((mark) => ({ kind: 'link' as const, mark })),
@@ -145,12 +163,14 @@ export function layerOf(
   const layer = emptyProsodyLayer();
   for (const el of elements) {
     if (el.kind === 'stress') layer.stresses.push(el.mark);
+    else if (el.kind === 'unstressed') (layer.unstressed ??= []).push(el.mark);
     else if (el.kind === 'accent') layer.accents.push(el.mark);
     else if (el.kind === 'boundary') layer.boundaries.push(el.mark);
     else layer.links.push(el.mark);
   }
   const byToken = (a: ProsodyAnchor, b: ProsodyAnchor) => a.i - b.i;
   layer.stresses.sort(byToken);
+  layer.unstressed?.sort(byToken);
   layer.accents.sort(byToken);
   layer.boundaries.sort(byToken);
   layer.links.sort(byToken);

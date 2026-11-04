@@ -17,6 +17,7 @@ export type {
   Toneme,
   WordLink,
   WordStress,
+  WordUnstressed,
 } from './model.js';
 export { anchorLength, anchorWords, elementsOf, emptyProsodyLayer, layerOf } from './model.js';
 export type { NotationIssue, ParsedNotation } from './notation.js';

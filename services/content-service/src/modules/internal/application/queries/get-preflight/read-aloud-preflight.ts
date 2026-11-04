@@ -116,5 +116,15 @@ export function describeReadAloudIssue(issue: Issue, count: number): string {
       return 'The AI stage is on without the reading check, so the machine has nothing to decide';
     case 'RA_AI_READ_ONLY':
       return 'The machine checks only a text read aloud, so the AI stage does nothing in this mode';
+    case 'RA_GUIDE_NO_LENS':
+      return 'The pronunciation guide is on with no view offered to the student';
+    case 'RA_GUIDE_LAYER_INVALID':
+      return `${prompts(count)} ${have(count)} pronunciation marks that no longer lie on the text`;
+    case 'RA_GUIDE_WORD_UNCONFIRMED':
+      return `${n(count, 'word')} ${have(count)} no stress the pronunciation dictionary could settle; set one or mark the word unstressed`;
+    case 'RA_GUIDE_SENTENCE_NO_END':
+      return `${n(count, 'sentence')} ${have(count)} no group end with a pitch on the last word, which the melody view needs`;
+    case 'RA_GUIDE_ORPHANS':
+      return `${prompts(count)} ${have(count)} pronunciation marks whose words were edited away`;
   }
 }

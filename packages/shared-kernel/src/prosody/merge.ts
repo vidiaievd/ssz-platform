@@ -1,7 +1,8 @@
 // What a student sees: the lexicon's word stresses with the authored layer over them
 // (§4a, decisions 4–5). An authored stress replaces the lexicon's on its word — a homograph
 // the lexicon resolved wrongly; phrase marks come only from the authored layer. A text nobody
-// marked is merged with an empty layer and shows the lexicon words alone.
+// marked is merged with an empty layer and shows the lexicon words alone. An authored «no
+// stress» takes the lexicon's stress off its word and is not passed on — there is nothing to draw.
 //
 // Both inputs must be anchored to the same text: the lexicon words are computed for it, the
 // authored layer re-anchored to it on every edit. Orphans are the author's business and are
@@ -26,6 +27,7 @@ export function mergeProsody(
         : null);
     byToken.set(s.i, { ...s, vowel: { ...s.vowel, long } });
   }
+  for (const u of authored.unstressed ?? []) byToken.delete(u.i);
 
   return {
     ...emptyProsodyLayer(),

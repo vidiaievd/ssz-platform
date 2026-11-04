@@ -14,7 +14,13 @@
 // monologue prompt is neither a problem nor a credit. Whether the audio layer is on is passed in:
 // the layer's block is the builder's and the preflight's, not this model's. The layer's own
 // issues are its own (`audioIssues`), folded into step 1 where its card sits.
+//
+// Step 6 is the pronunciation guide (plan 86, §4i.4) — numbered last so steps 1–5 keep their
+// numbers, drawn second on the rail (`railSteps`). Its marks live outside the document; the
+// caller that has read them passes them in `ctx.guide` (`guide.ts`).
 
+import type { GuideIssue, GuidePrompt } from './guide.js';
+import { guideIssues, guideShown } from './guide.js';
 import { hasMaterial, hasNote, planOf, rubricMax } from './derive.js';
 import { LIMITS, readSeconds, wordCount } from './limits.js';
 import type { ReadAloudContent } from './model.js';
@@ -28,7 +34,12 @@ import {
 export type IssueLevel = 'blocker' | 'warning' | 'info';
 
 /** Which builder step owns the fix. Rail dots and the gate's jump links both use it. */
-export type IssueStep = 1 | 2 | 3 | 4 | 5;
+export type IssueStep = 1 | 2 | 3 | 4 | 5 | 6;
+
+/** The builder's rail: the «Pronunciation» step right after the task, and only when it is on. */
+export function railSteps(ex: ReadAloudContent): IssueStep[] {
+  return guideShown(ex) ? [1, 6, 2, 3, 4, 5] : [1, 2, 3, 4, 5];
+}
 
 export type MaterialNeed = 'text' | 'support' | 'turn';
 
@@ -63,13 +74,20 @@ export type Issue =
   /** The AI stage is on without the reading check, which is what decides: the machine has nothing to do. */
   | { code: 'RA_AI_NO_CHECK'; level: 'info'; step: 5 }
   /** The machine checks only `read` against its passage (plan 82, Q7): the switch does nothing here. */
-  | { code: 'RA_AI_READ_ONLY'; level: 'info'; step: 5 };
+  | { code: 'RA_AI_READ_ONLY'; level: 'info'; step: 5 }
+  // ── Step 6 — pronunciation guide ──
+  | GuideIssue;
 
 export type IssueCode = Issue['code'];
 
 export interface IssueContext {
   /** The audio layer is on — a model reading (`read`) or the partner's line (`dialogue`). */
   audio: boolean;
+  /**
+   * The prompts' prosody layers and unresolved lexicon words, by prompt id — only a caller that
+   * read them passes this. Without it step 6 reports what the document alone shows.
+   */
+  guide?: Readonly<Record<string, GuidePrompt>>;
 }
 
 /** Everything wrong with the document, in the prototype's order. */
@@ -181,6 +199,9 @@ export function issues(ex: ReadAloudContent, ctx: IssueContext): Issue[] {
   if (ex.settings.showModel === 'never' && ctx.audio) {
     out.push({ code: 'RA_MODEL_NEVER_SHOWN', level: 'info', step: 3 });
   }
+
+  // ── Step 6 ─────────────────────────────────────────────────────────────────
+  out.push(...guideIssues(ex, ctx.guide ?? {}));
 
   return out;
 }

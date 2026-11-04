@@ -23,6 +23,8 @@ export type ProsodyIssue =
     }
   | { code: 'PR_VOWEL_OUTSIDE_WORD'; level: 'blocker'; i: number }
   | { code: 'PR_DUPLICATE'; level: 'blocker'; kind: ProsodyKind; i: number }
+  /** A word marked both stressed and unstressed. */
+  | { code: 'PR_STRESS_CONFLICT'; level: 'blocker'; i: number }
   | { code: 'PR_BOUNDARY_EMPTY'; level: 'blocker'; i: number }
   | { code: 'PR_LINK_ACROSS_BOUNDARY'; level: 'warning'; i: number }
   | { code: 'PR_ORPHANS'; level: 'warning'; count: number };
@@ -62,6 +64,11 @@ export function prosodyIssues(text: string, layer: ProsodyLayer): ProsodyIssue[]
         out.push({ code: 'PR_VOWEL_OUTSIDE_WORD', level: 'blocker', i: mark.i });
       }
     }
+  }
+
+  const stressed = new Set(layer.stresses.map((st) => st.i));
+  for (const u of layer.unstressed ?? []) {
+    if (stressed.has(u.i)) out.push({ code: 'PR_STRESS_CONFLICT', level: 'blocker', i: u.i });
   }
 
   for (const b of layer.boundaries) {

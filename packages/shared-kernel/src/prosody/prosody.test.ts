@@ -315,3 +315,48 @@ describe('mergeProsody', () => {
     expect(merged.orphans).toEqual([]);
   });
 });
+
+describe('«no stress» (plan 86, step 6h)', () => {
+  const lexicon: WordStress[] = [
+    { i: 0, w: 'Bartek', toneme: 1, vowel: { s: 1, e: 2, long: false }, source: 'lexicon' },
+    { i: 1, w: 'bor', toneme: null, vowel: { s: 1, e: 2, long: true }, source: 'lexicon' },
+  ];
+
+  it('reads and writes `\'0` at the start of a word', () => {
+    const parsed = checkProsodyNotation('Bartek bor her.', "'0Bartek 'bor her. \\");
+    expect(parsed.issues).toEqual([]);
+    expect(parsed.layer.unstressed).toEqual([{ i: 0, w: 'Bartek', source: 'teacher' }]);
+    expect(toProsodyNotation('Bartek bor her.', parsed.layer).notation).toBe("'0Bartek 'bor her. \\");
+  });
+
+  it('leaves `\'0` inside a word as text and refuses a word both stressed and not', () => {
+    expect(parseProsodyNotation("x'0y").text).toBe("x'0y");
+    const both = parseProsodyNotation("'0Bart'1ek");
+    expect(both.issues.map((i) => i.code)).toEqual(['PN_DUPLICATE']);
+  });
+
+  it('takes the lexicon stress off its word in the merge', () => {
+    const merged = mergeProsody(lexicon, layer({ unstressed: [{ i: 0, w: 'Bartek', source: 'teacher' }] }));
+    expect(merged.stresses.map((s) => s.i)).toEqual([1]);
+  });
+
+  it('blocks a word marked both ways, and accepts a layer saved before the field', () => {
+    const conflict = layer({
+      stresses: [lexicon[1]!],
+      unstressed: [{ i: 1, w: 'bor', source: 'teacher' }],
+    });
+    expect(prosodyIssues('Bartek bor her.', conflict).map((i) => i.code)).toEqual(['PR_STRESS_CONFLICT']);
+    const { unstressed: _gone, ...old } = emptyProsodyLayer();
+    expect(prosodyIssues('Bartek bor her.', old as ProsodyLayer)).toEqual([]);
+    expect(mergeProsody(lexicon, old as ProsodyLayer).stresses).toHaveLength(2);
+  });
+
+  it('follows its word through an edit', () => {
+    const moved = reanchorProsody(
+      'Bartek bor her.',
+      'I dag bor Bartek her.',
+      layer({ unstressed: [{ i: 0, w: 'Bartek', source: 'teacher' }] }),
+    );
+    expect(moved.unstressed).toEqual([{ i: 3, w: 'Bartek', source: 'teacher' }]);
+  });
+});
