@@ -62,6 +62,14 @@ PITCH_FLOOR_HZ = 75.0
 # of its median; a voice whose share is above PITCH_FLOOR_HZ keeps the first track untouched.
 PITCH_FLOOR_SHARE_OF_MEDIAN = 0.65
 PITCH_CEILING_HZ = 500.0
+# Praat's tracker sometimes drops a whole octave in a weak syllable (a child's ~260 Hz voice comes
+# back as ~128 Hz — plan 88, step 9.4: 8 of 72 takes of three speakers scored 12-13 semitones). The
+# speaker's level is the share of voiced frames below which 70% lie; a frame 10-14 semitones from it
+# is that octave error and is moved by an octave, a frame further than 14 is no pitch of this
+# speaker (creak, a stray harmonic) and is dropped. Frames within 10 semitones are never touched.
+PITCH_LEVEL_PERCENTILE = 70
+PITCH_OCTAVE_FIX_MIN_ST = 10.0
+PITCH_OCTAVE_FIX_MAX_ST = 14.0
 PITCH_STEP_MS = 10
 # A stressed vowel with the syllable after it is well under a second; a stretch far longer is
 # not one we asked for. The count covers a passage's stressed vowels with room to spare.
@@ -240,11 +248,31 @@ def pitch(audio: bytes, segments: list[tuple[int, int]]) -> dict:
     if reference is not None and reference * PITCH_FLOOR_SHARE_OF_MEDIAN < PITCH_FLOOR_HZ:
         track, reference = track_from(reference * PITCH_FLOOR_SHARE_OF_MEDIAN)
 
+    level = None
+    if reference is not None:
+        frames = track.selected_array["frequency"]
+        level = float(np.percentile(frames[frames > 0], PITCH_LEVEL_PERCENTILE))
+
+    def corrected(f):
+        """The frame's F0 with an octave error undone, or None for a frame that is no pitch of this voice."""
+        if f is None or not np.isfinite(f) or f <= 0:
+            return None
+        if level is None:
+            return f
+        d = 12 * float(np.log2(f / level))
+        if PITCH_OCTAVE_FIX_MIN_ST <= abs(d) <= PITCH_OCTAVE_FIX_MAX_ST:
+            return f * 2.0 if d < 0 else f / 2.0
+        return None if abs(d) > PITCH_OCTAVE_FIX_MAX_ST else f
+
+    if level is not None:
+        fixed = [c for c in (corrected(f) for f in track.selected_array["frequency"]) if c is not None]
+        reference = float(np.median(fixed)) if fixed else None
+
     def semitones(t_ms: int):
         if reference is None:
             return None
-        f = track.get_value_at_time(t_ms / 1000)
-        if f is None or not np.isfinite(f) or f <= 0:
+        f = corrected(track.get_value_at_time(t_ms / 1000))
+        if f is None:
             return None
         return round(12 * float(np.log2(f / reference)), 2)
 
