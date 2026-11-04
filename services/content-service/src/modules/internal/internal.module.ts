@@ -16,6 +16,7 @@ import {
   LookupAssistWordHandler,
 } from './application/queries/assist-material/assist-material.handler.js';
 import { GetGrammarAtomCatalogHandler } from './application/queries/grammar-atom-catalog/grammar-atom-catalog.handler.js';
+import { GetSoundAtomCatalogHandler } from './application/queries/sound-atom-catalog/sound-atom-catalog.handler.js';
 import { CourseNarrationService } from './application/narration/course-narration.service.js';
 import { MEDIA_NARRATION_CLIENT } from './application/narration/media-narration.port.js';
 import { HttpMediaNarrationClient } from './infrastructure/http-media-narration.client.js';
@@ -41,6 +42,7 @@ import { PrismaLessonContentVariantRepository } from '../lesson/infrastructure/p
     GetAssistGrammarRuleHandler,
     LookupAssistWordHandler,
     GetGrammarAtomCatalogHandler,
+    GetSoundAtomCatalogHandler,
     CourseNarrationService,
     { provide: MEDIA_NARRATION_CLIENT, useClass: HttpMediaNarrationClient },
     { provide: LESSON_CONTENT_VARIANT_REPOSITORY, useClass: PrismaLessonContentVariantRepository },

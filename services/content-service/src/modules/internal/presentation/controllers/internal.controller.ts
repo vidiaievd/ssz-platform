@@ -58,6 +58,8 @@ import { DescribeAtomsQuery } from '../../../exercise/application/queries/descri
 import { GetAtomCoverageQuery } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.query.js';
 import { GetGrammarAtomCatalogQuery } from '../../application/queries/grammar-atom-catalog/grammar-atom-catalog.query.js';
 import type { GrammarAtomCatalog } from '../../application/queries/grammar-atom-catalog/grammar-atom-catalog.handler.js';
+import { GetSoundAtomCatalogQuery } from '../../application/queries/sound-atom-catalog/sound-atom-catalog.query.js';
+import type { SoundAtomCatalog } from '../../application/queries/sound-atom-catalog/sound-atom-catalog.handler.js';
 import type { AtomCoverageResult } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.handler.js';
 import type { AtomDescriptor } from '../../../exercise/domain/repositories/exercise-item-target.repository.interface.js';
 import type { ExerciseEnvelope } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.handler.js';
@@ -789,6 +791,18 @@ export class InternalController {
   ): Promise<GrammarAtomCatalog> {
     return this.queryBus.execute<GetGrammarAtomCatalogQuery, GrammarAtomCatalog>(
       new GetGrammarAtomCatalogQuery(courseId, language),
+    );
+  }
+
+  // The `sound` atoms of a language (plan 86, step 8.1): ids as ai-service flags them
+  // (`nb:kj`), texts in the asked interface locale, English where it has none.
+  @Get('sound-atoms')
+  async getSoundAtomCatalog(
+    @Query('language') language = 'nb',
+    @Query('locale') locale = 'en',
+  ): Promise<SoundAtomCatalog> {
+    return this.queryBus.execute<GetSoundAtomCatalogQuery, SoundAtomCatalog>(
+      new GetSoundAtomCatalogQuery(language, locale),
     );
   }
 

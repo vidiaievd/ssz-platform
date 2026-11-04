@@ -911,6 +911,53 @@ model ExerciseProsodyLayer {
   @@map("exercise_prosody_layers")
 }
 
+// The `sound` atoms of a language (plan 86, step 8.1, Q17–Q18): one row per sound family the
+// pronunciation check can name (`nb:kj`) or the pronunciation course teaches. The id is the
+// natural key the whole platform already uses (ai-service `soundAtomId`, the engine's
+// `SOUND_ATOM_ID`) — a family is defined by the measuring code in ai-service, never by an
+// author, so a uuid would only mirror it. Platform data, seeded, not edited in an interface.
+//
+// `scored` = ai-service measures the family and may flag it; the others (retroflexes, schwa,
+// r) are taught by the course but never named by a check.
+model SoundAtom {
+  id           String   @id @db.VarChar(40)
+  language     String   @db.VarChar(8)
+  family       String   @db.VarChar(32)
+  ipa          String   @db.VarChar(40)
+  scored       Boolean
+  position     Int
+  // Words of the language that carry the sound, for the learner's card (step 9.1).
+  carrierWords String[] @default([]) @map("carrier_words")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  texts SoundAtomText[]
+
+  @@unique([language, family])
+  @@index([language, position])
+  @@map("sound_atoms")
+}
+
+// What a learner reads about a sound, per interface locale. Only the title is filled by
+// step 8.1; the articulation base (step 9.1) fills the rest. `common_error` is written for
+// speakers of Russian and Ukrainian — the two make nearly the same mistakes in Norwegian —
+// and `uk_note` says where Ukrainian differs.
+model SoundAtomText {
+  soundAtomId String  @map("sound_atom_id") @db.VarChar(40)
+  locale      String  @db.VarChar(8)
+  title       String  @db.VarChar(120)
+  description String? @db.Text
+  howTo       String? @map("how_to") @db.Text
+  commonError String? @map("common_error") @db.Text
+  ukNote      String? @map("uk_note") @db.Text
+  drill       String? @db.Text
+
+  soundAtom SoundAtom @relation(fields: [soundAtomId], references: [id], onDelete: Cascade)
+
+  @@id([soundAtomId, locale])
+  @@map("sound_atom_texts")
+}
+
 // Per-language instruction for an exercise.
 // instructionLanguage × exerciseId must be unique (@@unique below).
 // text_overrides JSONB: keys are placeholder tokens ($$token$$), values are per-language strings.
