@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ConflictException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -18,6 +19,14 @@ export function throwProsodyError(error: ProsodyError): never {
     case 'NOTATION_INVALID':
     case 'LAYER_INVALID':
       throw new BadRequestException({ message: error.code, issues: error.issues });
+    case 'LAYER_MALFORMED':
+      throw new BadRequestException({ message: error.code, errors: error.errors });
+    // As the exercise document's 409: the editor offers to reload rather than lose the edit.
+    case 'LAYER_MODIFIED_ELSEWHERE':
+      throw new ConflictException({
+        message: error.code,
+        currentUpdatedAt: error.currentUpdatedAt?.toISOString() ?? null,
+      });
     // The editor tells the author why by `reason` (e.g. `pool_empty` — the credits are spent).
     case 'SUGGESTION_REFUSED':
       throw new UnprocessableEntityException({ message: error.code, reason: error.reason });

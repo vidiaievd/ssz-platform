@@ -1,6 +1,6 @@
 import type { NotationIssue, ProsodyIssue } from '@ssz/shared-kernel/prosody';
 
-// Business errors of the prosody routes. The two invalid-input errors carry the kernel's
+// Business errors of the prosody routes. The invalid-input errors carry the kernel's
 // issue codes so that an editor can point at the place; the two suggestion errors carry what
 // ai-service answered (plan 86, step 5c.2).
 export type ProsodyError =
@@ -11,6 +11,10 @@ export type ProsodyError =
   | { code: 'PROMPT_HAS_NO_TEXT' }
   | { code: 'NOTATION_INVALID'; issues: NotationIssue[] }
   | { code: 'LAYER_INVALID'; issues: ProsodyIssue[] }
+  /** Step 6h.2b: a layer sent as JSON that is not the kernel's shape; `errors` are field paths. */
+  | { code: 'LAYER_MALFORMED'; errors: string[] }
+  /** Step 6h.2b: another save came first; null — the layer it expected was removed. */
+  | { code: 'LAYER_MODIFIED_ELSEWHERE'; currentUpdatedAt: Date | null }
   | { code: 'SUGGESTION_REFUSED'; reason: SuggestionRefusal }
   | { code: 'SUGGESTION_FAILED'; errorCode: string };
 

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -14,6 +15,7 @@ import {
   ApiBadGatewayResponse,
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -65,6 +67,14 @@ const SUGGESTION_DESCRIPTION =
   'answer is the authoring view of the proposal, saved with the PUT. Spends `ai.authoring` ' +
   "credits of the material's owner school, or of the author without one. Norwegian Bokmål only, " +
   'at most 1 500 words.';
+
+const SAVE_BAD_REQUEST_DESCRIPTION =
+  '`NOTATION_INVALID` / `LAYER_INVALID` with `issues` (kernel codes); `LAYER_MALFORMED` with ' +
+  '`errors` (field paths); `SEND_NOTATION_OR_LAYER` — both or neither sent.';
+
+const SAVE_CONFLICT_DESCRIPTION =
+  '`LAYER_MODIFIED_ELSEWHERE`: `expectedUpdatedAt` no longer matches; `currentUpdatedAt` (null — ' +
+  'the layer was removed) lets the editor offer to reload.';
 
 const SUGGESTION_REFUSED_DESCRIPTION =
   '`SUGGESTION_REFUSED` with `reason`: `language_not_supported`, `no_words`, `too_long`, ' +
@@ -130,18 +140,19 @@ export class ProsodyController {
   @ApiOperation({
     summary: 'Replace the prosody layer of a TEXT lesson variant',
     description:
-      'The notation covers the whole body markdown. The body alone, without marks, clears the layer.',
+      'The notation or the layer covers the whole body markdown. The body alone, or a layer without marks, clears it.',
   })
   @ApiParam({ name: 'id', description: 'Lesson ID' })
   @ApiOkResponse({ type: ProsodyAuthoringResponseDto })
-  @ApiBadRequestResponse({ description: '`NOTATION_INVALID` / `LAYER_INVALID` with `issues`.' })
+  @ApiBadRequestResponse({ description: SAVE_BAD_REQUEST_DESCRIPTION })
+  @ApiConflictResponse({ description: SAVE_CONFLICT_DESCRIPTION })
   async setLessonProsody(
     @Param('id') lessonId: string,
     @Param('variantId') variantId: string,
     @Body() dto: SetProsodyRequestDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ProsodyAuthoringResponseDto> {
-    return this.save(user.userId, { kind: 'lesson', lessonId, variantId }, dto.notation);
+    return this.save(user.userId, { kind: 'lesson', lessonId, variantId }, dto);
   }
 
   @Post('lessons/:id/variants/:variantId/prosody/suggestion')
@@ -219,7 +230,8 @@ export class ProsodyController {
       'Written against the draft passage when there is one. The row is shared by the draft and the live document; each re-anchors it on read.',
   })
   @ApiOkResponse({ type: ProsodyAuthoringResponseDto })
-  @ApiBadRequestResponse({ description: '`NOTATION_INVALID` / `LAYER_INVALID` with `issues`.' })
+  @ApiBadRequestResponse({ description: SAVE_BAD_REQUEST_DESCRIPTION })
+  @ApiConflictResponse({ description: SAVE_CONFLICT_DESCRIPTION })
   @ApiUnprocessableEntityResponse({ description: '`NOT_READ_ALOUD`, `PROMPT_HAS_NO_TEXT`.' })
   async setExerciseProsody(
     @Param('id') exerciseId: string,
@@ -227,7 +239,7 @@ export class ProsodyController {
     @Body() dto: SetProsodyRequestDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ProsodyAuthoringResponseDto> {
-    return this.save(user.userId, { kind: 'exercise', exerciseId, promptId }, dto.notation);
+    return this.save(user.userId, { kind: 'exercise', exerciseId, promptId }, dto);
   }
 
   @Post('exercises/:id/prompts/:promptId/prosody/suggestion')
@@ -265,12 +277,15 @@ export class ProsodyController {
   private async save(
     userId: string,
     owner: ProsodyOwner,
-    notation: string,
+    dto: SetProsodyRequestDto,
   ): Promise<ProsodyAuthoringResponseDto> {
+    if ((dto.notation === undefined) === (dto.layer === undefined))
+      throw new BadRequestException({ message: 'SEND_NOTATION_OR_LAYER' });
+    const input = dto.layer !== undefined ? { layer: dto.layer } : { notation: dto.notation! };
     const result = await this.commandBus.execute<
       SetProsodyCommand,
       Result<ProsodyAuthoringView, ProsodyError>
-    >(new SetProsodyCommand(userId, owner, notation));
+    >(new SetProsodyCommand(userId, owner, input, dto.expectedUpdatedAt));
     if (result.isFail) throwProsodyError(result.error);
     return ProsodyAuthoringResponseDto.from(result.value);
   }
