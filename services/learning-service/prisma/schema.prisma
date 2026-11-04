@@ -173,6 +173,9 @@ enum SrsContentType {
   // Written in shadow beside the types above: rated by the same attempts, shown to
   // nobody and counted into no daily budget until the two models are compared.
   GRAMMAR_ATOM    @map("grammar_atom")
+  // One sound family (plan 86, step 8.3). contentId is its natural key in content-service's
+  // `sound_atoms` (`nb:kj`). Shadow, like GRAMMAR_ATOM.
+  SOUND_ATOM      @map("sound_atom")
 
   @@map("srs_content_type")
 }

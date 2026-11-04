@@ -16,7 +16,9 @@ export type AtomFlagOutcome =
   /** The learner suspended the card; left alone. */
   | 'suspended'
   /** No card: the rule is offered to the learner on the screen (step 7), or not reached at all. */
-  | 'no_card';
+  | 'no_card'
+  /** A sound flagged again on another day: its shadow card was introduced (plan 86, step 8.3). */
+  | 'introduced';
 
 export interface AtomFlagEntry {
   userId: string;
@@ -40,4 +42,11 @@ export interface IAtomFlagLog {
    * already. `duplicate` means the signal was given today and must change nothing.
    */
   record(entry: AtomFlagEntry): Promise<'recorded' | 'duplicate'>;
+
+  /**
+   * The distinct UTC days in `[from, before)` on which the learner had this atom flagged, by
+   * any exercise and any source (plan 86, step 8.3) — `before` is today, so a second check
+   * the same day does not count as repeating.
+   */
+  flaggedDays(userId: string, atomType: string, atomId: string, from: Date, before: Date): Promise<number>;
 }

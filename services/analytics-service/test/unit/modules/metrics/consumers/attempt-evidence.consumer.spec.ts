@@ -144,6 +144,24 @@ describe("AttemptEvidenceConsumer — evidence about a fact", () => {
     expect(fake.atoms[0]).toMatchObject({ atomId: "word-2", role: null });
   });
 
+  it("keeps a sound family's card rating out of the attempts table (plan 86, step 8.3)", async () => {
+    const fake = fakePrisma();
+    await (consumerOn(fake.prisma) as any).handleMessage(
+      channel,
+      message(
+        rated({
+          contentType: "SOUND_ATOM",
+          itemKey: null,
+          targets: [{ atomType: "sound", atomId: "nb:kj", role: "focus" }],
+        }),
+      ),
+    );
+
+    expect(fake.attempts).toHaveLength(0);
+    expect(fake.atoms).toHaveLength(1);
+    expect(fake.atoms[0]).toMatchObject({ atomType: "sound", atomId: "nb:kj" });
+  });
+
   it("writes no atom row for a rating nobody addressed", async () => {
     // Most of the catalogue. The absence is the honest answer to "which fact was this
     // about": nobody has said yet.

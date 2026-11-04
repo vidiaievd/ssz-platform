@@ -1333,6 +1333,32 @@ describe('ExerciseAttemptedConsumer — grammar atom cards, in shadow', () => {
     });
   });
 
+  it('opens and rates a SOUND_ATOM card for a sound the exercise targets (plan 86, step 8.3)', async () => {
+    const { consumer, commandBus, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            templateCode: 'read_aloud',
+            score: 40,
+            targets: [{ atomType: 'sound', atomId: 'nb:kj', role: 'focus' }],
+          }),
+        ),
+      ),
+    );
+
+    const introduced = commandsOf<any>(commandBus, IntroduceCardCommand).find(
+      (c) => c.contentType === 'SOUND_ATOM',
+    );
+    expect(introduced).toMatchObject({ contentId: 'nb:kj', shadow: true });
+    expect(commandsOf<any>(commandBus, ReviewCardCommand).at(-1)).toMatchObject({ shadow: true });
+    expect(allRated(publisher).at(-1)).toMatchObject({
+      contentType: 'SOUND_ATOM',
+      targets: [{ atomType: 'sound', atomId: 'nb:kj', role: 'focus' }],
+    });
+  });
+
   it('rates an atom once for an attempt that addressed it twice, keeping the lapse', async () => {
     // Two gaps, one right and one wrong, both pointing at the same rule. One answer must
     // move a card once, and the informative half of it is the failure.

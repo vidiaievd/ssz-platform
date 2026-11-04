@@ -141,7 +141,11 @@ export class GetModalityGapHandler
       // which would leave the two tracks silently incomparable. When a card review
       // arrives with no exercise behind it, this is where it will show up, and it will be
       // independent evidence then.
-      if (row.contentType === 'VOCABULARY_WORD' || row.contentType === 'GRAMMAR_ATOM') {
+      if (
+        row.contentType === 'VOCABULARY_WORD' ||
+        row.contentType === 'GRAMMAR_ATOM' ||
+        row.contentType === 'SOUND_ATOM'
+      ) {
         cardReviews.set(key, (cardReviews.get(key) ?? 0) + 1);
         cardObservations += 1;
         continue;

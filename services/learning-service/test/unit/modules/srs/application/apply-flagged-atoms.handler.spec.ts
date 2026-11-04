@@ -36,10 +36,12 @@ function payload(
   };
 }
 
-function setup(cards: ReviewCard[], seen: string[] = []) {
-  const byAtom = new Map(cards.map((c) => [c.contentId, c]));
+function setup(cards: ReviewCard[], seen: string[] = [], earlierDays = 0) {
+  const byAtom = new Map(cards.map((c) => [`${c.contentType}:${c.contentId}`, c]));
   const repo = {
-    findByUserAndContent: jest.fn((_u: string, _t: string, atomId: string) => Promise.resolve(byAtom.get(atomId) ?? null)),
+    findByUserAndContent: jest.fn((_u: string, type: string, atomId: string) =>
+      Promise.resolve(byAtom.get(`${type}:${atomId}`) ?? null),
+    ),
     save: jest.fn(() => Promise.resolve()),
   };
   const recorded: AtomFlagEntry[] = [];
@@ -49,6 +51,7 @@ function setup(cards: ReviewCard[], seen: string[] = []) {
       recorded.push(entry);
       return Promise.resolve('recorded' as const);
     }),
+    flaggedDays: jest.fn((_u: string, _t: string, _a: string, _from: Date, _before: Date) => Promise.resolve(earlierDays)),
   };
   const dueQueue = { upsert: jest.fn(() => Promise.resolve()) };
   const commandBus = { execute: jest.fn(() => Promise.resolve(Result.ok({}))) };
@@ -165,5 +168,66 @@ describe('ApplyFlaggedAtomsHandler (plan 85, step 5)', () => {
     expect(recorded.map((r) => r.atomId)).toEqual(['atom-s']);
     expect(repo.save).not.toHaveBeenCalled();
     expect(commandBus.execute).not.toHaveBeenCalled();
+  });
+
+  describe('sound atoms (plan 86, step 8.3)', () => {
+    const sound = (atomId: string, inExerciseTargets = false) => ({ atomType: 'sound', atomId, inExerciseTargets });
+    const soundCard = (atomId: string, dueInDays: number) => {
+      const c = ReviewCard.create('user-1', 'SOUND_ATOM', atomId, 'lexis', NOW, new Date(NOW.getTime() + dueInDays * DAY));
+      c.clearDomainEvents();
+      return c;
+    };
+
+    it('pulls an existing sound card like a grammar one, looked up as SOUND_ATOM', async () => {
+      const far = soundCard('nb:kj', 20);
+      const { run, repo, flags } = setup([far]);
+
+      expect(await run({ ...payload('ai_voice', []), atoms: [sound('nb:kj')] })).toEqual(['pulled']);
+      expect(repo.findByUserAndContent).toHaveBeenCalledWith('user-1', 'SOUND_ATOM', 'nb:kj');
+      expect(far.dueAt).toEqual(new Date(NOW.getTime() + DAY));
+      expect(flags.flaggedDays).not.toHaveBeenCalled();
+    });
+
+    it('records a first flag without a card, asking only about the fortnight before today', async () => {
+      const { run, flags, commandBus, recorded } = setup([]);
+
+      expect(await run({ ...payload('ai_voice', []), atoms: [sound('nb:kj')] })).toEqual(['no_card']);
+      expect(flags.flaggedDays).toHaveBeenCalledWith(
+        'user-1',
+        'sound',
+        'nb:kj',
+        new Date('2026-10-19T00:00:00Z'),
+        new Date('2026-11-01T00:00:00Z'),
+      );
+      expect(commandBus.execute).not.toHaveBeenCalled();
+      expect(recorded[0]).toEqual(expect.objectContaining({ atomType: 'sound', outcome: 'no_card' }));
+    });
+
+    it('introduces a shadow card when the sound was flagged on another day too, without rating it', async () => {
+      const { run, commandBus, recorded } = setup([], [], 1);
+
+      expect(await run({ ...payload('ai_precheck', []), atoms: [sound('nb:kj')] })).toEqual(['introduced']);
+      expect(commandBus.execute).toHaveBeenCalledTimes(1);
+      expect(commandBus.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'user-1', contentType: 'SOUND_ATOM', contentId: 'nb:kj', shadow: true }),
+      );
+      expect(recorded[0]).toEqual(expect.objectContaining({ outcome: 'introduced' }));
+    });
+
+    it('wants a third day for the toneme', async () => {
+      const once = setup([], [], 1);
+      expect(await once.run({ ...payload('ai_voice', []), atoms: [sound('nb:tone')] })).toEqual(['no_card']);
+      expect(once.commandBus.execute).not.toHaveBeenCalled();
+
+      const twice = setup([], [], 2);
+      expect(await twice.run({ ...payload('ai_voice', []), atoms: [sound('nb:tone')] })).toEqual(['introduced']);
+    });
+
+    it('introduces nothing on a flag already given today', async () => {
+      const { run, commandBus } = setup([], ['nb:kj'], 5);
+
+      expect(await run({ ...payload('ai_voice', []), atoms: [sound('nb:kj')] })).toEqual([]);
+      expect(commandBus.execute).not.toHaveBeenCalled();
+    });
   });
 });
