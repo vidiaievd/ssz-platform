@@ -27,7 +27,7 @@ describe('HttpLexiconStressSource', () => {
     const fetchMock = answer(200, {
       words: [{ index: 1, toneme: 2, vowel: { s: 1, e: 2, long: true } }],
     });
-    const stresses = await new HttpLexiconStressSource(config).stressesOf('nb', 'Jeg heter Anna.');
+    const { stresses } = await new HttpLexiconStressSource(config).wordsOf('nb', 'Jeg heter Anna.');
 
     expect(stresses).toEqual([
       { i: 1, w: 'heter', toneme: 2, vowel: { s: 1, e: 2, long: true }, source: 'lexicon' },
@@ -53,21 +53,52 @@ describe('HttpLexiconStressSource', () => {
         { index: 0, toneme: null, vowel: { s: 1, e: 9, long: false } },
       ],
     });
-    expect(await new HttpLexiconStressSource(config).stressesOf('nb', 'Jeg heter')).toEqual([]);
+    expect((await new HttpLexiconStressSource(config).wordsOf('nb', 'Jeg heter')).stresses).toEqual(
+      [],
+    );
   });
 
   it('goes without the lexicon when ai-service refuses or is away', async () => {
     answer(503, {});
-    expect(await new HttpLexiconStressSource(config).stressesOf('nb', 'Jeg heter')).toEqual([]);
+    const none = { stresses: [], sounds: [] };
+    expect(await new HttpLexiconStressSource(config).wordsOf('nb', 'Jeg heter')).toEqual(none);
     global.fetch = jest
       .fn()
       .mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
-    expect(await new HttpLexiconStressSource(config).stressesOf('nb', 'Jeg heter')).toEqual([]);
+    expect(await new HttpLexiconStressSource(config).wordsOf('nb', 'Jeg heter')).toEqual(none);
   });
 
   it('asks nothing for a text without words', async () => {
     const fetchMock = answer(200, { words: [] });
-    expect(await new HttpLexiconStressSource(config).stressesOf('nb', ' — ')).toEqual([]);
+    expect(await new HttpLexiconStressSource(config).wordsOf('nb', ' — ')).toEqual({
+      stresses: [],
+      sounds: [],
+    });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('anchors the sounds to the words and drops the ones that do not lie over their letters', async () => {
+    const seg = (s: number, e: number, kind: string) => ({
+      s,
+      e,
+      kind,
+      sounds: kind === 'silent' ? [] : ['X'],
+      stress: null,
+      long: null,
+      tie: false,
+    });
+    answer(200, {
+      words: [],
+      sounds: [
+        { index: 0, segs: [seg(0, 1, 'consonant'), seg(1, 3, 'vowel')] },
+        // *heter* is five letters; this lies over four.
+        { index: 1, segs: [seg(0, 4, 'consonant')] },
+        // A kind the kernel does not know.
+        { index: 2, segs: [seg(0, 4, 'weird')] },
+        { index: 9, segs: [seg(0, 1, 'consonant')] },
+      ],
+    });
+    const { sounds } = await new HttpLexiconStressSource(config).wordsOf('nb', 'Jeg heter Anna.');
+    expect(sounds.map((x) => [x.i, x.w])).toEqual([[0, 'Jeg']]);
   });
 });

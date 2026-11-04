@@ -1,5 +1,5 @@
 import { parseProsodyNotation } from '@ssz/shared-kernel/prosody';
-import type { WordStress } from '@ssz/shared-kernel/prosody';
+import type { WordSounds, WordStress } from '@ssz/shared-kernel/prosody';
 import { Result } from '../../../../shared/kernel/result.js';
 import type { IProsodyLayerRepository } from '../../domain/repositories/prosody-layer.repository.interface.js';
 import type { IProsodyTextReader } from '../../domain/repositories/prosody-text.reader.interface.js';
@@ -19,12 +19,15 @@ const HETER: WordStress = {
   source: 'lexicon',
 };
 
-function lexiconOf(byText: Record<string, WordStress[]>) {
-  const stressesOf = jest.fn((_language: string, text: string) =>
-    Promise.resolve(byText[text] ?? []),
+function lexiconOf(
+  byText: Record<string, WordStress[]>,
+  soundsByText: Record<string, WordSounds[]> = {},
+) {
+  const wordsOf = jest.fn((_language: string, text: string) =>
+    Promise.resolve({ stresses: byText[text] ?? [], sounds: soundsByText[text] ?? [] }),
   );
-  const source: ILexiconStressSource = { stressesOf };
-  return { source, stressesOf };
+  const source: ILexiconStressSource = { wordsOf };
+  return { source, wordsOf };
 }
 
 describe('GetExerciseProsodyHandler', () => {
@@ -55,13 +58,14 @@ describe('GetExerciseProsodyHandler', () => {
   }
 
   it('gives an unmarked passage the lexicon words alone', async () => {
-    const { source, stressesOf } = lexiconOf({ [PASSAGE]: [HETER] });
+    const { source, wordsOf } = lexiconOf({ [PASSAGE]: [HETER] });
     const result = await setup(source).execute(new GetExerciseProsodyQuery('e1', 'live'));
 
     expect(result.value.prompts).toHaveLength(1);
     expect(result.value.prompts[0].layer.stresses).toEqual([HETER]);
-    expect(stressesOf).toHaveBeenCalledTimes(1);
-    expect(stressesOf).toHaveBeenCalledWith('nb', PASSAGE);
+    expect(result.value.prompts[0].sounds).toEqual([]);
+    expect(wordsOf).toHaveBeenCalledTimes(1);
+    expect(wordsOf).toHaveBeenCalledWith('nb', PASSAGE);
   });
 
   it("lays the author's marks over the lexicon", async () => {
@@ -87,7 +91,11 @@ describe('GetLessonProsodyHandler', () => {
       { i: 0, w: 'Hei', toneme: null, vowel: { s: 1, e: 3, long: true }, source: 'lexicon' },
       { ...HETER, i: 2 },
     ];
-    const { source, stressesOf } = lexiconOf({ [body]: words });
+    const sounds: WordSounds[] = [
+      { i: 0, w: 'Hei', segs: [] },
+      { i: 3, w: 'Anna', segs: [] },
+    ];
+    const { source, wordsOf } = lexiconOf({ [body]: words }, { [body]: sounds });
     const texts = {
       lessonBody: jest.fn().mockResolvedValue(Result.ok({ text: body, language: 'nb' })),
     } as unknown as IProsodyTextReader;
@@ -99,10 +107,15 @@ describe('GetLessonProsodyHandler', () => {
       new GetLessonProsodyQuery('l1', 'v1'),
     );
 
-    expect(stressesOf).toHaveBeenCalledWith('nb', body);
+    expect(wordsOf).toHaveBeenCalledWith('nb', body);
     expect(result.value.paragraphs.map((p) => p.layer.stresses.map((s) => [s.i, s.w]))).toEqual([
       [[0, 'Hei']],
       [[1, 'heter']],
+    ]);
+    // The sounds are cut with the paragraphs: *Anna* is the third word of the second one.
+    expect(result.value.paragraphs.map((p) => p.sounds.map((x) => [x.i, x.w]))).toEqual([
+      [[0, 'Hei']],
+      [[2, 'Anna']],
     ]);
   });
 });

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { ProsodyIssue, ProsodyLayer } from '@ssz/shared-kernel/prosody';
+import type { ProsodyIssue, ProsodyLayer, WordSounds } from '@ssz/shared-kernel/prosody';
 import type { ProsodyAuthoringView } from '../../application/authoring-text.js';
 import type { LessonProsodyView } from '../../application/queries/get-lesson-prosody/get-lesson-prosody.handler.js';
 import type { ExerciseProsodyView } from '../../application/queries/get-exercise-prosody/get-exercise-prosody.handler.js';
@@ -8,6 +8,11 @@ const LAYER_DESCRIPTION =
   'A `ProsodyLayer` of `@ssz/shared-kernel/prosody`: `tokenizer`, `stresses`, `accents`, ' +
   '`boundaries`, `links`, `orphans`. Every mark is anchored by `i` (token index of ' +
   '`tokenize`, `unicode-word-v1`, over `text`) and `w` (the word as written).';
+
+const SOUNDS_DESCRIPTION =
+  'Plan 86, step 6d: the lexicon\'s letters-over-sounds of the words, a `WordSounds` each (`i`, `w`, `segs`; ' +
+  '`SoundSeg` of `@ssz/shared-kernel/prosody`), anchored like the layer. Derived, never authored; a word ' +
+  'the lexicon does not know or cannot be laid has none. Empty when ai-service does not answer.';
 
 const LAYER_EXAMPLE = {
   tokenizer: 'unicode-word-v1',
@@ -32,6 +37,13 @@ export class ProsodyParagraphResponseDto {
     example: LAYER_EXAMPLE,
   })
   layer!: ProsodyLayer;
+
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', additionalProperties: true },
+    description: SOUNDS_DESCRIPTION,
+  })
+  sounds!: WordSounds[];
 }
 
 export class LessonProsodyResponseDto {
@@ -57,6 +69,13 @@ export class ProsodyPromptResponseDto {
     example: LAYER_EXAMPLE,
   })
   layer!: ProsodyLayer;
+
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', additionalProperties: true },
+    description: SOUNDS_DESCRIPTION,
+  })
+  sounds!: WordSounds[];
 }
 
 export class ExerciseProsodyResponseDto {

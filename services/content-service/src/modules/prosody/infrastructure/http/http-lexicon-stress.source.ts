@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { WordStress } from '@ssz/shared-kernel/prosody';
+import { segsCoverWord } from '@ssz/shared-kernel/prosody';
+import type { SoundSeg, WordSounds, WordStress } from '@ssz/shared-kernel/prosody';
 import { tokenize } from '@ssz/shared-kernel/text';
 
 import type { AppConfig } from '../../../../config/configuration.js';
-import type { ILexiconStressSource } from '../../application/ports/lexicon-stress.source.js';
+import type { ILexiconStressSource, LexiconWords } from '../../application/ports/lexicon-stress.source.js';
 
 /** What ai-service answers for each word it marks, by the index of the span sent. */
 interface AnsweredStress {
@@ -12,6 +13,27 @@ interface AnsweredStress {
   toneme: 1 | 2 | null;
   vowel: { s: number; e: number; long: boolean | null };
 }
+
+/** The letters of a word over its sounds, by the index of the span sent (step 6d). */
+interface AnsweredSounds {
+  index: number;
+  segs: SoundSeg[];
+}
+
+const KINDS = new Set(['vowel', 'consonant', 'silent']);
+
+/** A sound answer is kept only if it lies over exactly the letters of its word, in a kind the kernel knows. */
+function fits(segs: unknown, length: number): segs is SoundSeg[] {
+  return (
+    Array.isArray(segs) &&
+    segs.every(
+      (x) => typeof x === 'object' && x !== null && KINDS.has(x.kind) && Array.isArray(x.sounds),
+    ) &&
+    segsCoverWord(segs as SoundSeg[], length)
+  );
+}
+
+const NONE: LexiconWords = { stresses: [], sounds: [] };
 
 /**
  * ai-service's `POST /api/v1/internal/prosody/word-stresses` behind `x-internal-token`. The words
@@ -33,9 +55,9 @@ export class HttpLexiconStressSource implements ILexiconStressSource {
     this.token = config.get<string>('internalServiceToken')!;
   }
 
-  async stressesOf(language: string, text: string): Promise<WordStress[]> {
+  async wordsOf(language: string, text: string): Promise<LexiconWords> {
     const tokens = tokenize(text);
-    if (tokens.length === 0) return [];
+    if (tokens.length === 0) return NONE;
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/internal/prosody/word-stresses`, {
         method: 'POST',
@@ -44,11 +66,11 @@ export class HttpLexiconStressSource implements ILexiconStressSource {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
       if (!response.ok) {
-        this.logger.warn(`Lexicon stresses not read: ai-service answered HTTP ${response.status}`);
-        return [];
+        this.logger.warn(`Lexicon words not read: ai-service answered HTTP ${response.status}`);
+        return NONE;
       }
-      const body = (await response.json()) as { words?: AnsweredStress[] };
-      return (body.words ?? []).flatMap((word) => {
+      const body = (await response.json()) as { words?: AnsweredStress[]; sounds?: AnsweredSounds[] };
+      const stresses = (body.words ?? []).flatMap((word): WordStress[] => {
         const token = tokens[word.index];
         if (!token || word.vowel.e > token.w.length) return [];
         return [
@@ -61,11 +83,17 @@ export class HttpLexiconStressSource implements ILexiconStressSource {
           },
         ];
       });
+      const sounds = (body.sounds ?? []).flatMap((word): WordSounds[] => {
+        const token = tokens[word.index];
+        if (!token || !fits(word.segs, token.w.length)) return [];
+        return [{ i: token.i, w: token.w, segs: word.segs }];
+      });
+      return { stresses, sounds };
     } catch (err) {
       this.logger.warn(
-        `Lexicon stresses not read: ${err instanceof Error ? err.message : String(err)}`,
+        `Lexicon words not read: ${err instanceof Error ? err.message : String(err)}`,
       );
-      return [];
+      return NONE;
     }
   }
 }

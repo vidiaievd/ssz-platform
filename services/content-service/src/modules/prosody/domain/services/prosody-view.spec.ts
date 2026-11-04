@@ -4,6 +4,7 @@ import {
   isEmptyLayer,
   layerForText,
   splitLayer,
+  splitSounds,
   studentLayer,
   withSuggestedPhrases,
 } from './prosody-view.js';
@@ -85,5 +86,27 @@ describe('withSuggestedPhrases', () => {
     expect(layer.boundaries).toEqual([]);
     expect(layer.links).toHaveLength(1);
     expect(layer.orphans.map((o) => o.kind)).toEqual(['stress']);
+  });
+});
+
+describe('splitSounds', () => {
+  const word = (i: number, w: string) => ({ i, w, segs: [] });
+
+  it('cuts the sounds of a whole body into its paragraphs, anchors local to each', () => {
+    const body = '## Hei\n\nJeg heter Anna.';
+    const parts = MarkdownParagraphSplitterService.split(body);
+    const cut = splitSounds(body, [word(0, 'Hei'), word(1, 'Jeg'), word(2, 'heter'), word(3, 'Anna')], parts);
+    expect(cut.map((x) => x.map((y) => [y.i, y.w]))).toEqual([
+      [[0, 'Hei']],
+      [
+        [0, 'Jeg'],
+        [1, 'heter'],
+        [2, 'Anna'],
+      ],
+    ]);
+  });
+
+  it('gives a part with no words nothing', () => {
+    expect(splitSounds('Hei', [word(0, 'Hei')], ['Hei', ''])).toEqual([[word(0, 'Hei')], []]);
   });
 });

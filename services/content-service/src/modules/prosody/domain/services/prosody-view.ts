@@ -3,7 +3,7 @@
 // student only marks that land on a word.
 
 import { tokenize } from '@ssz/shared-kernel/text';
-import type { ProsodyElement, ProsodyLayer, WordStress } from '@ssz/shared-kernel/prosody';
+import type { ProsodyElement, ProsodyLayer, WordSounds, WordStress } from '@ssz/shared-kernel/prosody';
 import {
   anchorLength,
   elementsOf,
@@ -75,11 +75,31 @@ export function splitLayer(
   layer: ProsodyLayer,
   parts: readonly string[],
 ): ProsodyLayer[] {
-  const tokens = tokenize(text);
   const elements = elementsOf(layer);
+  return partRanges(text, parts).map(({ from, count }) => {
+    const own = elements
+      .filter((el) => el.mark.i >= from && el.mark.i + anchorLength(el.kind) <= from + count)
+      .map((el) => ({ ...el, mark: { ...el.mark, i: el.mark.i - from } }) as ProsodyElement);
+    return layerOf(own);
+  });
+}
+
+/** The sounds of the words of `text` cut into its parts the way `splitLayer` cuts the layer. */
+export function splitSounds(
+  text: string,
+  sounds: readonly WordSounds[],
+  parts: readonly string[],
+): WordSounds[][] {
+  return partRanges(text, parts).map(({ from, count }) =>
+    sounds.filter((x) => x.i >= from && x.i < from + count).map((x) => ({ ...x, i: x.i - from })),
+  );
+}
+
+/** Where each part's tokens begin and how many there are, counted over the tokens of the whole text. */
+function partRanges(text: string, parts: readonly string[]): { from: number; count: number }[] {
+  const tokens = tokenize(text);
   let cursor = 0;
   let first = 0;
-
   return parts.map((part) => {
     const start = text.indexOf(part, cursor);
     const end = start < 0 ? cursor : start + part.length;
@@ -88,11 +108,7 @@ export function splitLayer(
     while (first + count < tokens.length && (tokens[first + count]?.e ?? Infinity) <= end) count++;
     const from = first;
     first += count;
-
-    const own = elements
-      .filter((el) => el.mark.i >= from && el.mark.i + anchorLength(el.kind) <= from + count)
-      .map((el) => ({ ...el, mark: { ...el.mark, i: el.mark.i - from } }) as ProsodyElement);
-    return layerOf(own);
+    return { from, count };
   });
 }
 
