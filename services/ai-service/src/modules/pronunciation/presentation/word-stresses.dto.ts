@@ -83,4 +83,15 @@ export class WordStressesResponseDto {
       'leaves aligning to the same segments. Function words are here — they have sounds, just no stress mark',
   })
   sounds!: WordSoundsDto[];
+
+  @ApiProperty({
+    type: [Number],
+    example: [0],
+    description:
+      'Plan 86, step 6h.2: indices of the spans with letters that got no mark and are not function words — ' +
+      'unknown to the lexicon (names), or homographs the context did not settle, or not placeable without a ' +
+      'guess. An author with the pronunciation guide on settles each. Empty for a language with no lexicon ' +
+      'and for a text none of whose words the lexicon knows',
+  })
+  unresolved!: number[];
 }

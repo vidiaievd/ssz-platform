@@ -8,7 +8,9 @@ import type { IProsodyLayerRepository } from '../../../domain/repositories/proso
 import { PROSODY_TEXT_READER } from '../../../domain/repositories/prosody-text.reader.interface.js';
 import type { IProsodyTextReader } from '../../../domain/repositories/prosody-text.reader.interface.js';
 import { isEmptyLayer } from '../../../domain/services/prosody-view.js';
-import { authoringText, authoringView } from '../../authoring-text.js';
+import { LEXICON_STRESS_SOURCE } from '../../ports/lexicon-stress.source.js';
+import type { ILexiconStressSource } from '../../ports/lexicon-stress.source.js';
+import { authoringSubject, authoringView } from '../../authoring-text.js';
 import type { ProsodyAuthoringView } from '../../authoring-text.js';
 import { SetProsodyCommand } from './set-prosody.command.js';
 
@@ -26,27 +28,30 @@ export class SetProsodyHandler implements ICommandHandler<
   constructor(
     @Inject(PROSODY_TEXT_READER) private readonly texts: IProsodyTextReader,
     @Inject(PROSODY_LAYER_REPOSITORY) private readonly layers: IProsodyLayerRepository,
+    @Inject(LEXICON_STRESS_SOURCE) private readonly lexicon: ILexiconStressSource,
   ) {}
 
   async execute(command: SetProsodyCommand): Promise<Result<ProsodyAuthoringView, ProsodyError>> {
-    const text = await authoringText(this.texts, command.owner);
-    if (text.isFail) return Result.fail(text.error);
+    const subject = await authoringSubject(this.texts, command.owner);
+    if (subject.isFail) return Result.fail(subject.error);
+    const { text, language } = subject.value;
 
-    const parsed = checkProsodyNotation(text.value, command.notation);
+    const parsed = checkProsodyNotation(text, command.notation);
     if (parsed.issues.length > 0)
       return Result.fail({ code: 'NOTATION_INVALID', issues: parsed.issues });
-    const blockers = prosodyIssues(text.value, parsed.layer).filter((x) => x.level === 'blocker');
+    const blockers = prosodyIssues(text, parsed.layer).filter((x) => x.level === 'blocker');
     if (blockers.length > 0) return Result.fail({ code: 'LAYER_INVALID', issues: blockers });
 
+    const words = this.lexicon.wordsOf(language, text);
     if (isEmptyLayer(parsed.layer)) {
       await this.layers.remove(command.owner);
-      return Result.ok(authoringView(text.value, parsed.layer, null));
+      return Result.ok(authoringView(text, parsed.layer, null, await words));
     }
     const stored = await this.layers.save(
       command.owner,
-      { sourceText: text.value, layer: parsed.layer },
+      { sourceText: text, layer: parsed.layer },
       command.userId,
     );
-    return Result.ok(authoringView(text.value, stored.layer, stored.updatedAt));
+    return Result.ok(authoringView(text, stored.layer, stored.updatedAt, await words));
   }
 }

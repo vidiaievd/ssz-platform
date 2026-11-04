@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { segsCoverWord } from '@ssz/shared-kernel/prosody';
-import type { SoundSeg, WordSounds, WordStress } from '@ssz/shared-kernel/prosody';
+import type { ProsodyAnchor, SoundSeg, WordSounds, WordStress } from '@ssz/shared-kernel/prosody';
 import { tokenize } from '@ssz/shared-kernel/text';
 
 import type { AppConfig } from '../../../../config/configuration.js';
@@ -33,7 +33,7 @@ function fits(segs: unknown, length: number): segs is SoundSeg[] {
   );
 }
 
-const NONE: LexiconWords = { stresses: [], sounds: [] };
+const NONE: LexiconWords = { stresses: [], sounds: [], unresolved: [] };
 
 /**
  * ai-service's `POST /api/v1/internal/prosody/word-stresses` behind `x-internal-token`. The words
@@ -69,7 +69,11 @@ export class HttpLexiconStressSource implements ILexiconStressSource {
         this.logger.warn(`Lexicon words not read: ai-service answered HTTP ${response.status}`);
         return NONE;
       }
-      const body = (await response.json()) as { words?: AnsweredStress[]; sounds?: AnsweredSounds[] };
+      const body = (await response.json()) as {
+        words?: AnsweredStress[];
+        sounds?: AnsweredSounds[];
+        unresolved?: number[];
+      };
       const stresses = (body.words ?? []).flatMap((word): WordStress[] => {
         const token = tokens[word.index];
         if (!token || word.vowel.e > token.w.length) return [];
@@ -88,7 +92,12 @@ export class HttpLexiconStressSource implements ILexiconStressSource {
         if (!token || !fits(word.segs, token.w.length)) return [];
         return [{ i: token.i, w: token.w, segs: word.segs }];
       });
-      return { stresses, sounds };
+      // Step 6h.2; an older ai-service does not send it, and then nothing is asked of the author.
+      const unresolved = (body.unresolved ?? []).flatMap((index): ProsodyAnchor[] => {
+        const token = Number.isInteger(index) ? tokens[index] : undefined;
+        return token ? [{ i: token.i, w: token.w }] : [];
+      });
+      return { stresses, sounds, unresolved };
     } catch (err) {
       this.logger.warn(
         `Lexicon words not read: ${err instanceof Error ? err.message : String(err)}`,

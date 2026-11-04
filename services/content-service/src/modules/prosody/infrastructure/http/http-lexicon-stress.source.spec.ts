@@ -60,7 +60,7 @@ describe('HttpLexiconStressSource', () => {
 
   it('goes without the lexicon when ai-service refuses or is away', async () => {
     answer(503, {});
-    const none = { stresses: [], sounds: [] };
+    const none = { stresses: [], sounds: [], unresolved: [] };
     expect(await new HttpLexiconStressSource(config).wordsOf('nb', 'Jeg heter')).toEqual(none);
     global.fetch = jest
       .fn()
@@ -73,6 +73,7 @@ describe('HttpLexiconStressSource', () => {
     expect(await new HttpLexiconStressSource(config).wordsOf('nb', ' — ')).toEqual({
       stresses: [],
       sounds: [],
+      unresolved: [],
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -100,5 +101,15 @@ describe('HttpLexiconStressSource', () => {
     });
     const { sounds } = await new HttpLexiconStressSource(config).wordsOf('nb', 'Jeg heter Anna.');
     expect(sounds.map((x) => [x.i, x.w])).toEqual([[0, 'Jeg']]);
+  });
+
+  it('anchors the unresolved words and goes without them from an older ai-service', async () => {
+    answer(200, { words: [], unresolved: [0, 9, 1.5] });
+    const { unresolved } = await new HttpLexiconStressSource(config).wordsOf('nb', 'Bartek søker.');
+    expect(unresolved).toEqual([{ i: 0, w: 'Bartek' }]);
+    answer(200, { words: [] });
+    expect((await new HttpLexiconStressSource(config).wordsOf('nb', 'Bartek')).unresolved).toEqual(
+      [],
+    );
   });
 });

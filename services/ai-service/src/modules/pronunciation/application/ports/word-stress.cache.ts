@@ -10,6 +10,8 @@ export const WORD_STRESS_CACHE = Symbol('IWordStressCache');
 export interface WordAnalysis {
   stress: LexiconStress | null;
   segs: LetterSeg[] | null;
+  /** No stress, and the word should have one (`stressUnresolved`, step 6h.2). */
+  unresolved: boolean;
 }
 
 /** One answer of `TextWordStresses`, one entry per span. */

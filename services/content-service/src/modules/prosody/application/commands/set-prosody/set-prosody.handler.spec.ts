@@ -4,6 +4,7 @@ import { Result } from '../../../../../shared/kernel/result.js';
 import type { IProsodyLayerRepository } from '../../../domain/repositories/prosody-layer.repository.interface.js';
 import type { IProsodyTextReader } from '../../../domain/repositories/prosody-text.reader.interface.js';
 import type { ProsodyOwner } from '../../../domain/prosody-owner.js';
+import type { ILexiconStressSource } from '../../ports/lexicon-stress.source.js';
 import { SetProsodyCommand } from './set-prosody.command.js';
 import { SetProsodyHandler } from './set-prosody.handler.js';
 
@@ -33,7 +34,17 @@ function setup(passageText = TEXT) {
     save,
     remove,
   };
-  return { readAloudPassages, save, remove, handler: new SetProsodyHandler(texts, layers) };
+  const lexicon: ILexiconStressSource = {
+    wordsOf: jest
+      .fn()
+      .mockResolvedValue({ stresses: [], sounds: [], unresolved: [{ i: 2, w: 'Anna' }] }),
+  };
+  return {
+    readAloudPassages,
+    save,
+    remove,
+    handler: new SetProsodyHandler(texts, layers, lexicon),
+  };
 }
 
 describe('SetProsodyHandler', () => {
@@ -55,6 +66,8 @@ describe('SetProsodyHandler', () => {
     expect(saved.layer.boundaries).toHaveLength(1);
     expect(result.value.notation).toContain("'2snakker");
     expect(result.value.updatedAt).toEqual(new Date('2026-11-03T10:00:00Z'));
+    // Step 6h.2: the editor gets the lexicon's words back with the saved layer.
+    expect(result.value.lexicon.unresolved).toEqual([{ i: 2, w: 'Anna' }]);
   });
 
   it('refuses a notation written for another text', async () => {

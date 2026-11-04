@@ -25,11 +25,11 @@ export class InternalWordStressesController {
   @Post()
   @HttpCode(200)
   @ApiOperation({
-    summary: "The lexicon's word stresses and sounds under a text",
+    summary: "The lexicon's word stresses and sounds under a text, and the words it left open",
     description:
       'For each word the caller counted: the stressed vowel in the word as written, its length and the toneme, and ' +
       'the word\'s letters laid over its sounds (step 6d), from NB Uttale, homographs narrowed by spaCy. No model is called and nothing is billed. Cached by a hash of the ' +
-      'text and its spans for 7 days.',
+      'text and its spans for 7 days. `unresolved` (step 6h.2) lists the words an author must settle by hand.',
   })
   @ApiOkResponse({ type: WordStressesResponseDto })
   @ApiBadRequestResponse({ description: 'A span is not two integers inside the text, in order' })
@@ -41,6 +41,7 @@ export class InternalWordStressesController {
         stress ? [{ index, toneme: stress.toneme, vowel: stress.vowel }] : [],
       ),
       sounds: analysed.flatMap(({ segs }, index) => (segs ? [{ index, segs }] : [])),
+      unresolved: analysed.flatMap(({ unresolved }, index) => (unresolved ? [index] : [])),
     };
   }
 }

@@ -1,13 +1,19 @@
-import type { WordSounds, WordStress } from '@ssz/shared-kernel/prosody';
+import type { ProsodyAnchor, WordSounds, WordStress } from '@ssz/shared-kernel/prosody';
 
 export const LEXICON_STRESS_SOURCE = Symbol('LEXICON_STRESS_SOURCE');
 
-/** What the lexicon says under a text: the stresses of its words and their letters over their sounds. */
+/** What the lexicon says under a text: the stresses of its words, their letters over their sounds, the words it left open. */
 export interface LexiconWords {
   /** Anchored to `text` by the kernel's `tokenize`, source `lexicon`, sorted by token. */
   stresses: WordStress[];
   /** Plan 86, step 6d: the same anchors; a word whose letters cannot be laid over its sounds has none. */
   sounds: WordSounds[];
+  /**
+   * Step 6h.2: words left without the stress they should carry — unknown to the lexicon (names),
+   * or with readings it could not settle; not function words. What an author with the
+   * pronunciation guide on must answer (`guideIssues`).
+   */
+  unresolved: ProsodyAnchor[];
 }
 
 /**

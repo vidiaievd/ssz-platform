@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { lexicalWord } from '../../providers/domain/lexical.js';
 import { narrowVariants, tagsOfSpans, type PosToken } from '../domain/narrow-variants.js';
-import { soundsOfWord, stressOfWord } from '../domain/word-stress.js';
+import { soundsOfWord, stressOfWord, stressUnresolved } from '../domain/word-stress.js';
 import { POS_TAGGER, type IPosTagger } from './ports/pos-tagger.js';
 import {
   PRONUNCIATION_LEXICON_READER,
@@ -12,15 +12,15 @@ import { WORD_STRESS_CACHE, type IWordStressCache, type WordAnalysis } from './p
 
 /**
  * Bumped when what a span is answered with changes (the placement rule, the function words, the
- * letter alignment — 2 added the sounds, step 6d), so the cache does not serve an old rule's marks. A lexicon reimport is not tracked: rare, and the
+ * letter alignment — 2 added the sounds, step 6d; 3 the unresolved words, 6h.2), so the cache does not serve an old rule's marks. A lexicon reimport is not tracked: rare, and the
  * key's lifetime bounds it.
  */
-const RULE_VERSION = 2;
+const RULE_VERSION = 3;
 
 export type Span = readonly [number, number];
 
 /**
- * The lexicon's word stresses and sounds under a text (plan 86, steps 5b and 6d, §4a decisions
+ * The lexicon's word stresses and sounds under a text, and the words it left open (plan 86, steps 5b, 6d and 6h.2, §4a decisions
  * 4–5): free, for any text, whether an author marked it or not. The caller counts the words (`spans`); the answer is
  * one entry per span. Homographs are narrowed by the tagger as in a review (plan 88, step 4b), and
  * the tagger failing only leaves them un-narrowed — mostly unmarked, since their variants then
@@ -44,9 +44,10 @@ export class TextWordStresses {
 
     const words = spans.map(([s, e]) => lexicalWord(text.slice(s, e)));
     const variants = await this.lexicon.variantsOf(language, words);
-    // A language without a lexicon answers an empty map without a query; nothing to tag for.
+    // A language without a lexicon answers an empty map without a query; nothing to tag for, and
+    // nothing asked of an author — so is a text none of whose words the lexicon knows (accepted).
     if (variants.size === 0) {
-      const none = spans.map((): WordAnalysis => ({ stress: null, segs: null }));
+      const none = spans.map((): WordAnalysis => ({ stress: null, segs: null, unresolved: false }));
       await this.cache.set(key, none);
       return none;
     }
@@ -57,9 +58,12 @@ export class TextWordStresses {
       const tag = tags[i] ?? null;
       const narrowed = narrowVariants(variants.get(words[i]!) ?? [], tag);
       const word = text.slice(s, e);
+      const upos = tag?.upos ?? null;
+      const stress = stressOfWord(word, narrowed.variants, upos);
       return {
-        stress: stressOfWord(word, narrowed.variants, tag?.upos ?? null),
+        stress,
         segs: soundsOfWord(word, narrowed.variants),
+        unresolved: stressUnresolved(word, narrowed.variants, upos, stress),
       };
     });
     // An untagged answer is not cached: the tagger back, the homographs get their marks.

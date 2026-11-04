@@ -120,6 +120,27 @@ export function stressOfWord(
   return { toneme: first.toneme, vowel: { ...first.vowel, long } };
 }
 
+const LETTER = /\p{L}/u;
+
+/**
+ * Whether a word left without a mark should have had one (plan 86, step 6h.2): a word with
+ * letters, not a function word, which the lexicon does not know (*Bartek*) or knows in readings
+ * the context did not settle or that cannot be placed without a guess. An author with the guide
+ * switched on answers these with a stress or «no stress». A word that has a mark, a function
+ * word and a number are settled. Function words go by the tag when the text was tagged, by the
+ * lexicon otherwise — an unknown word untagged is open.
+ */
+export function stressUnresolved(
+  word: string,
+  variants: readonly LexiconVariant[],
+  upos: string | null,
+  stress: LexiconStress | null,
+): boolean {
+  if (stress || !LETTER.test(word)) return false;
+  if (upos !== null) return !FUNCTION_UPOS.has(upos);
+  return !(variants.length > 0 && variants.every((v) => FUNCTION_POS.has((v.pos ?? '').split('|')[0]!)));
+}
+
 /**
  * The letters of a word over its sounds (plan 86, step 6d), for any word the lexicon knows —
  * function words included, they get no stress mark but have sounds. The same rule as the stress:

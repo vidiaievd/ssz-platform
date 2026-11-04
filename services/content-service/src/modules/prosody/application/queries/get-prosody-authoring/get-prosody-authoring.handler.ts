@@ -7,7 +7,9 @@ import type { IProsodyLayerRepository } from '../../../domain/repositories/proso
 import { PROSODY_TEXT_READER } from '../../../domain/repositories/prosody-text.reader.interface.js';
 import type { IProsodyTextReader } from '../../../domain/repositories/prosody-text.reader.interface.js';
 import { layerForText } from '../../../domain/services/prosody-view.js';
-import { authoringText, authoringView } from '../../authoring-text.js';
+import { LEXICON_STRESS_SOURCE } from '../../ports/lexicon-stress.source.js';
+import type { ILexiconStressSource } from '../../ports/lexicon-stress.source.js';
+import { authoringSubject, authoringView } from '../../authoring-text.js';
 import type { ProsodyAuthoringView } from '../../authoring-text.js';
 import { GetProsodyAuthoringQuery } from './get-prosody-authoring.query.js';
 
@@ -19,16 +21,21 @@ export class GetProsodyAuthoringHandler implements IQueryHandler<
   constructor(
     @Inject(PROSODY_TEXT_READER) private readonly texts: IProsodyTextReader,
     @Inject(PROSODY_LAYER_REPOSITORY) private readonly layers: IProsodyLayerRepository,
+    @Inject(LEXICON_STRESS_SOURCE) private readonly lexicon: ILexiconStressSource,
   ) {}
 
   async execute(
     query: GetProsodyAuthoringQuery,
   ): Promise<Result<ProsodyAuthoringView, ProsodyError>> {
-    const text = await authoringText(this.texts, query.owner);
-    if (text.isFail) return Result.fail(text.error);
-    const stored = await this.layers.find(query.owner);
+    const subject = await authoringSubject(this.texts, query.owner);
+    if (subject.isFail) return Result.fail(subject.error);
+    const { text, language } = subject.value;
+    const [stored, words] = await Promise.all([
+      this.layers.find(query.owner),
+      this.lexicon.wordsOf(language, text),
+    ]);
     return Result.ok(
-      authoringView(text.value, layerForText(stored, text.value), stored?.updatedAt ?? null),
+      authoringView(text, layerForText(stored, text), stored?.updatedAt ?? null, words),
     );
   }
 }

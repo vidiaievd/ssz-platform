@@ -1,5 +1,5 @@
 import type { LexiconVariant } from './align-word.js';
-import { soundsOfWord, stressOfVariant, stressOfWord, writtenNuclei } from './word-stress.js';
+import { soundsOfWord, stressOfVariant, stressOfWord, stressUnresolved, writtenNuclei } from './word-stress.js';
 
 // Plan 86, step 5b: the lexicon's stress placed in the written word. Rows as NB Uttale østnorsk
 // has them in ai_db; the words are from the dev lessons (03.11).
@@ -106,6 +106,29 @@ describe('stressOfWord', () => {
 
   it('marks nothing without variants', () => {
     expect(stressOfWord('xyz', [], 'NOUN')).toBeNull();
+  });
+});
+
+describe('stressUnresolved', () => {
+  const KOMMER: LexiconVariant[] = [
+    { nofabet: 'K OAH2 M AX0 R', pos: 'NN' },
+    { nofabet: 'K OAH1 M AX0 R', pos: 'VB' },
+  ];
+  const open = (word: string, variants: LexiconVariant[], upos: string | null) =>
+    stressUnresolved(word, variants, upos, stressOfWord(word, variants, upos));
+
+  it('leaves open a name the lexicon does not know and a homograph the context did not settle', () => {
+    expect(open('Bartek', [], 'PROPN')).toBe(true);
+    expect(open('Bartek', [], null)).toBe(true);
+    expect(open('kommer', KOMMER, null)).toBe(true);
+  });
+
+  it('settles a marked word, a function word and a number', () => {
+    expect(open('kommer', [KOMMER[1]!], 'VERB')).toBe(false);
+    expect(open('på', [{ nofabet: 'P OA1', pos: 'PP' }], null)).toBe(false);
+    expect(open('har', [{ nofabet: 'H AA1 R', pos: 'VB' }], 'AUX')).toBe(false);
+    expect(open('ham', [], 'PRON')).toBe(false);
+    expect(open('2026', [], 'NUM')).toBe(false);
   });
 });
 

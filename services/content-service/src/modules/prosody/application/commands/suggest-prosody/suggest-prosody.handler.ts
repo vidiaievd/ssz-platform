@@ -9,6 +9,8 @@ import type { IProsodyTextReader } from '../../../domain/repositories/prosody-te
 import { layerForText, withSuggestedPhrases } from '../../../domain/services/prosody-view.js';
 import { PHRASE_MARKS_SUGGESTER } from '../../ports/phrase-marks.suggester.js';
 import type { IPhraseMarksSuggester } from '../../ports/phrase-marks.suggester.js';
+import { LEXICON_STRESS_SOURCE } from '../../ports/lexicon-stress.source.js';
+import type { ILexiconStressSource } from '../../ports/lexicon-stress.source.js';
 import { authoringSubject, authoringView } from '../../authoring-text.js';
 import type { ProsodyAuthoringView } from '../../authoring-text.js';
 import { SuggestProsodyCommand } from './suggest-prosody.command.js';
@@ -31,6 +33,7 @@ export class SuggestProsodyHandler implements ICommandHandler<
     @Inject(PROSODY_TEXT_READER) private readonly texts: IProsodyTextReader,
     @Inject(PROSODY_LAYER_REPOSITORY) private readonly layers: IProsodyLayerRepository,
     @Inject(PHRASE_MARKS_SUGGESTER) private readonly suggester: IPhraseMarksSuggester,
+    @Inject(LEXICON_STRESS_SOURCE) private readonly lexicon: ILexiconStressSource,
   ) {}
 
   async execute(
@@ -51,8 +54,11 @@ export class SuggestProsodyHandler implements ICommandHandler<
     if (suggestion.status === 'failed')
       return Result.fail({ code: 'SUGGESTION_FAILED', errorCode: suggestion.errorCode });
 
-    const stored = await this.layers.find(command.owner);
+    const [stored, words] = await Promise.all([
+      this.layers.find(command.owner),
+      this.lexicon.wordsOf(language, text),
+    ]);
     const layer = withSuggestedPhrases(layerForText(stored, text), suggestion.marks);
-    return Result.ok(authoringView(text, layer, stored?.updatedAt ?? null));
+    return Result.ok(authoringView(text, layer, stored?.updatedAt ?? null, words));
   }
 }

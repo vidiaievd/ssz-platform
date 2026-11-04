@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { ProsodyIssue, ProsodyLayer, WordSounds } from '@ssz/shared-kernel/prosody';
+import type {
+  ProsodyAnchor,
+  ProsodyIssue,
+  ProsodyLayer,
+  WordSounds,
+  WordStress,
+} from '@ssz/shared-kernel/prosody';
 import type { ProsodyAuthoringView } from '../../application/authoring-text.js';
 import type { LessonProsodyView } from '../../application/queries/get-lesson-prosody/get-lesson-prosody.handler.js';
 import type { ExerciseProsodyView } from '../../application/queries/get-exercise-prosody/get-exercise-prosody.handler.js';
@@ -90,6 +96,35 @@ export class ExerciseProsodyResponseDto {
   }
 }
 
+export class AuthoringLexiconResponseDto {
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', additionalProperties: true },
+    description:
+      "The lexicon's `WordStress`es under `text` (source `lexicon`), anchored like the layer: what the student " +
+      'sees on a word the author did not mark. Empty when ai-service does not answer.',
+  })
+  stresses!: WordStress[];
+
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', additionalProperties: true },
+    description: SOUNDS_DESCRIPTION,
+  })
+  sounds!: WordSounds[];
+
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'object', additionalProperties: true },
+    example: [{ i: 0, w: 'Bartek' }],
+    description:
+      'Plan 86, step 6h.2: anchors (`i`, `w`) of the words the lexicon left without the stress they should ' +
+      'carry — unknown (names) or with readings it could not settle; never function words. With the ' +
+      'pronunciation guide on, each needs a stress or «no stress» in the layer before publishing.',
+  })
+  unresolved!: ProsodyAnchor[];
+}
+
 export class ProsodyAuthoringResponseDto {
   @ApiProperty({ description: 'The text the layer is anchored to.' })
   text!: string;
@@ -120,6 +155,9 @@ export class ProsodyAuthoringResponseDto {
 
   @ApiPropertyOptional({ type: String, format: 'date-time', nullable: true })
   updatedAt!: string | null;
+
+  @ApiProperty({ type: AuthoringLexiconResponseDto })
+  lexicon!: AuthoringLexiconResponseDto;
 
   static from(view: ProsodyAuthoringView): ProsodyAuthoringResponseDto {
     return Object.assign(new ProsodyAuthoringResponseDto(), {

@@ -1,4 +1,5 @@
 import type { ProsodyIssue, ProsodyLayer } from '@ssz/shared-kernel/prosody';
+import type { LexiconWords } from './ports/lexicon-stress.source.js';
 import { prosodyIssues, toProsodyNotation } from '@ssz/shared-kernel/prosody';
 import { Result } from '../../../shared/kernel/result.js';
 import type { ProsodyError } from '../domain/prosody-error.js';
@@ -36,15 +37,6 @@ export async function authoringSubject(
   return Result.ok({ text: prompt.text, language, ownerSchoolId });
 }
 
-/** `authoringSubject`'s text alone. */
-export async function authoringText(
-  reader: IProsodyTextReader,
-  owner: ProsodyOwner,
-): Promise<Result<string, ProsodyError>> {
-  const subject = await authoringSubject(reader, owner);
-  return subject.isFail ? Result.fail(subject.error) : Result.ok(subject.value.text);
-}
-
 /** What the editor gets back, on read and after a save. */
 export interface ProsodyAuthoringView {
   text: string;
@@ -57,13 +49,20 @@ export interface ProsodyAuthoringView {
   issues: ProsodyIssue[];
   /** When the author last saved; null when nothing is stored. */
   updatedAt: Date | null;
+  /**
+   * Step 6h.2: what the lexicon says under `text` — the stresses the student sees unless the
+   * author overrides them, the sounds, and the words the author must settle when the
+   * pronunciation guide is on. Empty when ai-service does not answer.
+   */
+  lexicon: LexiconWords;
 }
 
 export function authoringView(
   text: string,
   layer: ProsodyLayer,
   updatedAt: Date | null,
+  lexicon: LexiconWords,
 ): ProsodyAuthoringView {
   const { notation, dropped } = toProsodyNotation(text, layer);
-  return { text, notation, dropped, layer, issues: prosodyIssues(text, layer), updatedAt };
+  return { text, notation, dropped, layer, issues: prosodyIssues(text, layer), updatedAt, lexicon };
 }

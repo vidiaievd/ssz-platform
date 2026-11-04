@@ -75,6 +75,25 @@ describe('TextWordStresses', () => {
     expect(out[3]?.segs).not.toBeNull();
   });
 
+  it('leaves open the words an author must settle: a name, and a homograph left untagged', async () => {
+    const text = 'Bartek kommer på mandag.';
+    const spans: Span[] = [
+      [0, 6],
+      [7, 13],
+      [14, 16],
+      [17, 23],
+    ];
+    const tagged = make(async () => [
+      { text: 'Bartek', start: 0, end: 6, upos: 'PROPN', morph: '', sentStart: true },
+      ...TOKENS.slice(1).map((t) => ({ ...t, start: t.start + 3, end: t.end + 3 })),
+    ]);
+    expect((await tagged.service.of('nb', text, spans)).map((x) => x.unresolved)).toEqual([true, false, false, false]);
+    const untagged = make(async () => {
+      throw new Error('down');
+    });
+    expect((await untagged.service.of('nb', text, spans)).map((x) => x.unresolved)).toEqual([true, true, false, false]);
+  });
+
   it('serves a second read of the same text from the cache', async () => {
     const { service, variantsOf, tagger } = make(async () => TOKENS);
     const first = await service.of('nb', TEXT, SPANS);
@@ -95,13 +114,13 @@ describe('TextWordStresses', () => {
 
   it('calls no tagger for a language without a lexicon', async () => {
     const { service, tagger } = make(async () => TOKENS, new Map());
-    expect(await service.of('de', 'Er kommt.', [[0, 2]])).toEqual([{ stress: null, segs: null }]);
+    expect(await service.of('de', 'Er kommt.', [[0, 2]])).toEqual([{ stress: null, segs: null, unresolved: false }]);
     expect(tagger.tag).not.toHaveBeenCalled();
   });
 
   it('keys the cache by language, text and spans', () => {
     const key = cacheKey('nb', TEXT, SPANS);
-    expect(key).toMatch(/^v2:nb:[0-9a-f]{64}$/);
+    expect(key).toMatch(/^v3:nb:[0-9a-f]{64}$/);
     expect(cacheKey('nb', TEXT, SPANS.slice(1))).not.toBe(key);
     expect(cacheKey('nn', TEXT, SPANS)).not.toBe(key);
   });

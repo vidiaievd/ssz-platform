@@ -24,7 +24,11 @@ function lexiconOf(
   soundsByText: Record<string, WordSounds[]> = {},
 ) {
   const wordsOf = jest.fn((_language: string, text: string) =>
-    Promise.resolve({ stresses: byText[text] ?? [], sounds: soundsByText[text] ?? [] }),
+    Promise.resolve({
+      stresses: byText[text] ?? [],
+      sounds: soundsByText[text] ?? [],
+      unresolved: [],
+    }),
   );
   const source: ILexiconStressSource = { wordsOf };
   return { source, wordsOf };

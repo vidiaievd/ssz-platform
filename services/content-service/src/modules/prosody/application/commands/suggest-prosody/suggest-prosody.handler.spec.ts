@@ -3,6 +3,7 @@ import { Result } from '../../../../../shared/kernel/result.js';
 import type { IProsodyLayerRepository } from '../../../domain/repositories/prosody-layer.repository.interface.js';
 import type { IProsodyTextReader } from '../../../domain/repositories/prosody-text.reader.interface.js';
 import type { ProsodyOwner } from '../../../domain/prosody-owner.js';
+import type { ILexiconStressSource } from '../../ports/lexicon-stress.source.js';
 import type {
   IPhraseMarksSuggester,
   PhraseMarksSuggestion,
@@ -59,7 +60,15 @@ function setup(suggestion: PhraseMarksSuggestion = SUGGESTED, storedNotation?: s
     remove,
   };
   const suggester: IPhraseMarksSuggester = { suggest };
-  return { suggest, save, remove, handler: new SuggestProsodyHandler(texts, layers, suggester) };
+  const lexicon: ILexiconStressSource = {
+    wordsOf: jest.fn().mockResolvedValue({ stresses: [], sounds: [], unresolved: [] }),
+  };
+  return {
+    suggest,
+    save,
+    remove,
+    handler: new SuggestProsodyHandler(texts, layers, suggester, lexicon),
+  };
 }
 
 describe('SuggestProsodyHandler', () => {
