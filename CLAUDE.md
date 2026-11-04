@@ -126,6 +126,8 @@ Database: `profiles_db`
 ### 3. Organization Service (NestJS)
 Schools as entities: creation, teacher invitations, groups/classes management.
 Internal roles (owner, admin, teacher). School subscriptions and plans.
+AI pre-check setting (`ai-precheck`, plan 84): `enabled`, `perExerciseLimit`, `perLearnerMonthlyCredits`
+(`null` = no limit); `GET/PUT /api/v1/schools/:id/ai-precheck`; internal read `GET internal/schools/:id/ai-precheck`.
 Follows Clean Architecture.
 Database: `organizations_db`
 
@@ -133,16 +135,26 @@ Database: `organizations_db`
 Learning material management: courses → modules → lessons → exercises.
 Follows Clean Architecture.
 Database: `content_db`
+Grammar atom catalog (plan 85): `GET internal/courses/:courseId/grammar-atom-catalog?language=` (`x-internal-token`,
+Redis 10 min per course + language). Atoms have no translations; `ruleTitle` only is localised.
 
 ### 5. Learning Service (NestJS)
 Material assignment, progress tracking, SRS, adaptive review queue.
 Follows Clean Architecture.
 Database: `learning_db`
+Consumes `exercise.feedback.atoms_flagged` (plan 85; queue `learning-service.atoms-flagged`, `processed_events`) and
+applies it to `GRAMMAR_ATOM` cards: `ai_precheck` / `ai_review` pull `dueAt` to at most +1 day, no FSRS rating;
+`teacher` outside the exercise targets → one `AGAIN` (lapse); table `atom_flags` dedups by (learner, exercise, atom,
+source, UTC day). Internal: `GET internal/learners/:userId/grammar-atoms?courseId=` (`x-service-token`).
+Learner adds a reached atom: `POST srs/atoms/:atomId/add { courseId }` (shadow card until plan 63 phase 7).
 
 ### 6. Exercise Engine Service (NestJS)
 Exercise generation and validation, scoring logic, LLM integration.
 Follows Clean Architecture.
 Database: `exercises_db`
+Publishes `exercise.feedback.atoms_flagged` (plan 85; direct publish after the write, no outbox, broker failure only logged)
+with sources `ai_precheck` (from `check`), `ai_review` (draft remarks the teacher took or rewrote) and `teacher` (the
+teacher's own rule mark on a verdict, `flaggedAtoms`). `POST …/check` also returns `courseId`.
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.
@@ -158,6 +170,9 @@ Database: `notifications_db`
 Analytics for schools/tutors and students. Aggregation, reports, export.
 Follows Clean Architecture.
 Database: `analytics_db`
+Weak grammar rules (plan 85): consumes `exercise.feedback.atoms_flagged` into `weak_rules_daily` (facts keyed by
+day, learner, exercise, atom, source). `GET analytics/groups/:groupId/weak-rules?window=7|30|course` and
+`GET analytics/students/:studentId/weak-rules?window=&courseId=`; learners selected by group membership + course, not by `group_id`.
 
 ### 10. API Gateway (nginx — exists)
 Request routing, rate limiting, CORS, SSL termination.
@@ -204,6 +219,19 @@ student that organization-service's `assistantAllowed` lets through (school sett
 `ai:assist:rl:<userId>` (rate limit 20 / 10 min, `AI_ASSIST_RATE_LIMIT`, `AI_ASSIST_RATE_WINDOW_MS`).
 Eval: `POST /api/v1/admin/ai/evals/student_assist/run { modelId, promptVersion? }` over the hand-written
 `assist-set@1` (20 cases).
+Pre-hand-in rehearsal "Проверить" (plan 84): `POST /api/v1/internal/precheck` (`x-internal-token`, synchronous, always 200)
+`{ schoolId, userId, exerciseId, attemptId, subject, limits }` → `ok { feedback }` / `refused { reason, detail }`
+(`unaskable`, `not_available`, `pool_empty`, `template_not_supported`, `exercise_limit`, `learner_limit`) /
+`failed { errorCode }`. Agents `practice` (text, `practice@1`) and `practice_voice` (speech, one call per passage,
+words only). Key `ai.practice`, surface `precheck`; `ai_calls.exercise_id` / `check_id`. Limits: school pool
+(`payer_id`), per learner per UTC month in credits, per (learner, exercise) by distinct `check_id` (the engine
+reads them from the school setting). Output is `AiFeedback` (`packages/contracts/src/dto/ai`). The rehearsal
+creates no `attempt.completed` and touches no progress or SRS cards. Entry point in exercise-engine:
+`POST /api/v1/exercises/:exerciseId/attempts/:attemptId/check` `{ draftAnswer }`, which takes the key first and
+calls the model only when the key does not settle the answer.
+Grammar atoms (plan 85): `practice@2` and `review_draft@3` get the learner's atoms ∩ the course catalog and may return an
+optional `atomRef` (`atomId` is not an enum — an unknown id becomes `null`); `review_draft@3` sends `atomRef` to the
+engine only when the request carried a catalog. Catalog from content-service; any failure = empty catalog.
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.
