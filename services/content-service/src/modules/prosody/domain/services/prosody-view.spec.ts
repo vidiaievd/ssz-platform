@@ -1,6 +1,12 @@
 import { parseProsodyNotation } from '@ssz/shared-kernel/prosody';
 import { MarkdownParagraphSplitterService } from '../../../lesson/domain/services/markdown-paragraph-splitter.service.js';
-import { isEmptyLayer, layerForText, splitLayer, studentLayer } from './prosody-view.js';
+import {
+  isEmptyLayer,
+  layerForText,
+  splitLayer,
+  studentLayer,
+  withSuggestedPhrases,
+} from './prosody-view.js';
 
 const at = (notation: string) => parseProsodyNotation(notation);
 
@@ -55,5 +61,29 @@ describe('splitLayer', () => {
     // «det _» joins two paragraphs — the reader cannot draw it.
     expect(layers[2]?.links).toEqual([]);
     expect(layers[3]?.links).toEqual([]);
+  });
+});
+
+describe('withSuggestedPhrases', () => {
+  it('keeps stresses and stress orphans, and takes every phrase mark from the suggestion', () => {
+    const authored = parseProsodyNotation("Jeg '1heter ^Anna \\ |").layer;
+    authored.orphans = [
+      {
+        kind: 'stress',
+        mark: { i: 9, w: 'borte', toneme: 2, vowel: { s: 1, e: 2, long: null }, source: 'teacher' },
+      },
+      { kind: 'accent', mark: { i: 9, w: 'borte', source: 'teacher' } },
+    ];
+    const layer = withSuggestedPhrases(authored, {
+      accents: [{ i: 1, w: 'heter', source: 'ai' }],
+      boundaries: [],
+      links: [{ i: 0, w: 'Jeg heter', source: 'ai' }],
+    });
+
+    expect(layer.stresses.map((s) => s.w)).toEqual(['heter']);
+    expect(layer.accents).toEqual([{ i: 1, w: 'heter', source: 'ai' }]);
+    expect(layer.boundaries).toEqual([]);
+    expect(layer.links).toHaveLength(1);
+    expect(layer.orphans.map((o) => o.kind)).toEqual(['stress']);
   });
 });

@@ -11,7 +11,12 @@ describe('prosody write routes', () => {
 
   it('finds the routes it claims to check', () => {
     expect(mutatingRoutes(ProsodyController)).toEqual(
-      expect.arrayContaining(['setLessonProsody', 'setExerciseProsody']),
+      expect.arrayContaining([
+        'setLessonProsody',
+        'setExerciseProsody',
+        'suggestLessonProsody',
+        'suggestExerciseProsody',
+      ]),
     );
   });
 });

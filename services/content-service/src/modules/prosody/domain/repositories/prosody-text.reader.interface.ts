@@ -9,11 +9,15 @@ export interface LessonBody {
   text: string;
   /** The lesson's `target_language` (`nb`). */
   language: string;
+  /** The school that owns the lesson, whose `ai.authoring` pays for a suggestion; null — none. */
+  ownerSchoolId: string | null;
 }
 
 export interface ReadAloudPassages {
   /** The exercise's `target_language` (`nb`). */
   language: string;
+  /** The school that owns the exercise; null — none. */
+  ownerSchoolId: string | null;
   /** `read`, `monologue` or `dialogue`; null when the document has none yet. */
   mode: string | null;
   /** Every prompt, in document order; `text` is '' when the prompt has no passage. */

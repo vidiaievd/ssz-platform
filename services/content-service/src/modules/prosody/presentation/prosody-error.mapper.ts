@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   NotFoundException,
   UnprocessableEntityException,
@@ -17,5 +18,10 @@ export function throwProsodyError(error: ProsodyError): never {
     case 'NOTATION_INVALID':
     case 'LAYER_INVALID':
       throw new BadRequestException({ message: error.code, issues: error.issues });
+    // The editor tells the author why by `reason` (e.g. `pool_empty` — the credits are spent).
+    case 'SUGGESTION_REFUSED':
+      throw new UnprocessableEntityException({ message: error.code, reason: error.reason });
+    case 'SUGGESTION_FAILED':
+      throw new BadGatewayException({ message: error.code, errorCode: error.errorCode });
   }
 }

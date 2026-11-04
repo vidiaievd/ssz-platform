@@ -1,6 +1,17 @@
-import { Body, Controller, Get, Param, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
+  ApiBadGatewayResponse,
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -32,6 +43,7 @@ import { GetExerciseProsodyQuery } from '../../application/queries/get-exercise-
 import type { ExerciseProsodyView } from '../../application/queries/get-exercise-prosody/get-exercise-prosody.handler.js';
 import { GetProsodyAuthoringQuery } from '../../application/queries/get-prosody-authoring/get-prosody-authoring.query.js';
 import { SetProsodyCommand } from '../../application/commands/set-prosody/set-prosody.command.js';
+import { SuggestProsodyCommand } from '../../application/commands/suggest-prosody/suggest-prosody.command.js';
 import { SetProsodyRequestDto } from '../dto/set-prosody.request.dto.js';
 import {
   ExerciseProsodyResponseDto,
@@ -43,7 +55,24 @@ import { throwProsodyError } from '../prosody-error.mapper.js';
 // Intonation marks beside lesson bodies and read_aloud passages (plan 86, step 5). The
 // student's layer is a request of its own, made when a prosody switch is turned on (§4a,
 // decision 3) — never part of the lesson or exercise payload. Authors read and write the
-// marks as notation; the lexicon's word stresses join the student's layer in step 5b.
+// marks as notation; the lexicon's word stresses join the student's layer in step 5b. A
+// suggestion of phrase marks (step 5c.2) is the authoring view of what the agent proposes,
+// never stored: the author saves it with the PUT.
+const SUGGESTION_DESCRIPTION =
+  'The authoring agent (ai-service `prosody_markup`, a language model) proposes group ends with ' +
+  'their pitch and pause, phrase accents and linkings, source `ai`, over the stored layer: the ' +
+  "teacher's word stresses stay, the stored phrase marks are replaced. Nothing is stored — the " +
+  'answer is the authoring view of the proposal, saved with the PUT. Spends `ai.authoring` ' +
+  "credits of the material's owner school, or of the author without one. Norwegian Bokmål only, " +
+  'at most 1 500 words.';
+
+const SUGGESTION_REFUSED_DESCRIPTION =
+  '`SUGGESTION_REFUSED` with `reason`: `language_not_supported`, `no_words`, `too_long`, ' +
+  '`not_available` (the agent is off or the plan has no `ai.authoring`), `pool_empty` (credits spent).';
+
+const SUGGESTION_FAILED_DESCRIPTION =
+  '`SUGGESTION_FAILED` with `errorCode` — the model or ai-service did not answer (`unreachable`).';
+
 @ApiTags('Prosody')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -115,6 +144,26 @@ export class ProsodyController {
     return this.save(user.userId, { kind: 'lesson', lessonId, variantId }, dto.notation);
   }
 
+  @Post('lessons/:id/variants/:variantId/prosody/suggestion')
+  @HttpCode(200)
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.LESSON })
+  @ApiOperation({
+    summary: 'Suggest the phrase marks of a TEXT lesson variant',
+    description: SUGGESTION_DESCRIPTION,
+  })
+  @ApiParam({ name: 'id', description: 'Lesson ID' })
+  @ApiOkResponse({ type: ProsodyAuthoringResponseDto })
+  @ApiUnprocessableEntityResponse({ description: SUGGESTION_REFUSED_DESCRIPTION })
+  @ApiBadGatewayResponse({ description: SUGGESTION_FAILED_DESCRIPTION })
+  async suggestLessonProsody(
+    @Param('id') lessonId: string,
+    @Param('variantId') variantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ProsodyAuthoringResponseDto> {
+    return this.suggest(user.userId, { kind: 'lesson', lessonId, variantId });
+  }
+
   // ── read_aloud exercises ──────────────────────────────────────────────────
 
   @Get('exercises/:id/prosody')
@@ -181,6 +230,27 @@ export class ProsodyController {
     return this.save(user.userId, { kind: 'exercise', exerciseId, promptId }, dto.notation);
   }
 
+  @Post('exercises/:id/prompts/:promptId/prosody/suggestion')
+  @HttpCode(200)
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.EXERCISE })
+  @ApiOperation({
+    summary: 'Suggest the phrase marks of one read_aloud prompt',
+    description: `${SUGGESTION_DESCRIPTION} Against the draft passage when there is one.`,
+  })
+  @ApiOkResponse({ type: ProsodyAuthoringResponseDto })
+  @ApiUnprocessableEntityResponse({
+    description: `${SUGGESTION_REFUSED_DESCRIPTION} Also \`NOT_READ_ALOUD\`, \`PROMPT_HAS_NO_TEXT\`.`,
+  })
+  @ApiBadGatewayResponse({ description: SUGGESTION_FAILED_DESCRIPTION })
+  async suggestExerciseProsody(
+    @Param('id') exerciseId: string,
+    @Param('promptId') promptId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ProsodyAuthoringResponseDto> {
+    return this.suggest(user.userId, { kind: 'exercise', exerciseId, promptId });
+  }
+
   // ── internals ─────────────────────────────────────────────────────────────
 
   private async authoring(owner: ProsodyOwner): Promise<ProsodyAuthoringResponseDto> {
@@ -201,6 +271,15 @@ export class ProsodyController {
       SetProsodyCommand,
       Result<ProsodyAuthoringView, ProsodyError>
     >(new SetProsodyCommand(userId, owner, notation));
+    if (result.isFail) throwProsodyError(result.error);
+    return ProsodyAuthoringResponseDto.from(result.value);
+  }
+
+  private async suggest(userId: string, owner: ProsodyOwner): Promise<ProsodyAuthoringResponseDto> {
+    const result = await this.commandBus.execute<
+      SuggestProsodyCommand,
+      Result<ProsodyAuthoringView, ProsodyError>
+    >(new SuggestProsodyCommand(userId, owner));
     if (result.isFail) throwProsodyError(result.error);
     return ProsodyAuthoringResponseDto.from(result.value);
   }

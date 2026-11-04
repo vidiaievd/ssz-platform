@@ -41,6 +41,25 @@ export function studentLayer(
   return withoutBroken(text, mergeProsody(lexicon, authored));
 }
 
+/**
+ * The authored layer with its phrase marks replaced by a suggestion (plan 86, step 5c.2): the
+ * teacher's word stresses stay, orphaned ones too; accents, group ends and linkings — placed
+ * or orphaned — are the suggestion's. The agent never sets word stress, so nothing of the
+ * teacher's is overwritten by it.
+ */
+export function withSuggestedPhrases(
+  authored: ProsodyLayer,
+  suggested: Pick<ProsodyLayer, 'accents' | 'boundaries' | 'links'>,
+): ProsodyLayer {
+  return layerOf(
+    [
+      ...authored.stresses.map((mark) => ({ kind: 'stress' as const, mark })),
+      ...elementsOf({ ...emptyProsodyLayer(), ...suggested }),
+    ],
+    authored.orphans.filter((orphan) => orphan.kind === 'stress'),
+  );
+}
+
 export function isEmptyLayer(layer: ProsodyLayer): boolean {
   return elementsOf(layer).length === 0 && layer.orphans.length === 0;
 }

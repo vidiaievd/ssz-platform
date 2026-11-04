@@ -22,7 +22,9 @@ export class PrismaProsodyTextReader implements IProsodyTextReader {
         lessonId: true,
         bodyMarkdown: true,
         deletedAt: true,
-        lesson: { select: { kind: true, deletedAt: true, targetLanguage: true } },
+        lesson: {
+          select: { kind: true, deletedAt: true, targetLanguage: true, ownerSchoolId: true },
+        },
       },
     });
     // A variant of another lesson is "not found": the guard checked `lessonId`, not it.
@@ -36,7 +38,11 @@ export class PrismaProsodyTextReader implements IProsodyTextReader {
     }
     // Prisma enums carry member names, not their @map values.
     if (variant.lesson.kind !== 'TEXT') return Result.fail({ code: 'NOT_A_TEXT_LESSON' });
-    return Result.ok({ text: variant.bodyMarkdown, language: variant.lesson.targetLanguage });
+    return Result.ok({
+      text: variant.bodyMarkdown,
+      language: variant.lesson.targetLanguage,
+      ownerSchoolId: variant.lesson.ownerSchoolId,
+    });
   }
 
   async readAloudPassages(
@@ -51,6 +57,7 @@ export class PrismaProsodyTextReader implements IProsodyTextReader {
         draftUpdatedAt: true,
         deletedAt: true,
         targetLanguage: true,
+        ownerSchoolId: true,
         template: { select: { code: true } },
       },
     });
@@ -62,12 +69,16 @@ export class PrismaProsodyTextReader implements IProsodyTextReader {
       scope === 'draft' && exercise.draftUpdatedAt !== null
         ? exercise.draftContent
         : exercise.content;
-    return Result.ok({ language: exercise.targetLanguage, ...passagesOf(content) });
+    return Result.ok({
+      language: exercise.targetLanguage,
+      ownerSchoolId: exercise.ownerSchoolId,
+      ...passagesOf(content),
+    });
   }
 }
 
 /** The prompts of a read_aloud document, read defensively — it is JSON a builder wrote. */
-function passagesOf(content: unknown): Omit<ReadAloudPassages, 'language'> {
+function passagesOf(content: unknown): Pick<ReadAloudPassages, 'mode' | 'prompts'> {
   const doc = (content ?? {}) as { mode?: unknown; prompts?: unknown };
   const prompts = Array.isArray(doc.prompts) ? doc.prompts : [];
   return {
