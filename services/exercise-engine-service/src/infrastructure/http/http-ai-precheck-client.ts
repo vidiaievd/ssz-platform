@@ -8,6 +8,8 @@ import {
   AiPrecheckClientError,
   type AiPrecheckOutcome,
   type AiPrecheckRequest,
+  type AiSentenceCheckOutcome,
+  type AiSentenceCheckRequest,
   type IAiPrecheckClient,
 } from '../../shared/application/ports/ai-precheck-client.port.js';
 import { Result } from '../../shared/kernel/result.js';
@@ -51,6 +53,26 @@ export class HttpAiPrecheckClient implements IAiPrecheckClient {
       const status = isAxiosError(err) ? (err.response?.status ?? 503) : 500;
       const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(`AiPrecheckClient [attempt ${request.attemptId}] → ${status}: ${message}`);
+      return Result.fail(new AiPrecheckClientError(status, message));
+    }
+  }
+
+  async sentenceCheck(request: AiSentenceCheckRequest): Promise<Result<AiSentenceCheckOutcome, AiPrecheckClientError>> {
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.post<AiSentenceCheckOutcome>(`${this.baseUrl}/api/v1/internal/sentence-checks`, request, {
+          headers: { 'x-internal-token': this.token },
+          timeout: this.timeout,
+        }),
+      );
+      if (!OUTCOMES.has((data as { status?: unknown } | null)?.status as string)) {
+        return Result.fail(new AiPrecheckClientError(502, 'ai-service answered without an outcome'));
+      }
+      return Result.ok(data);
+    } catch (err) {
+      const status = isAxiosError(err) ? (err.response?.status ?? 503) : 500;
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`AiPrecheckClient [sentence of ${request.exerciseId}] → ${status}: ${message}`);
       return Result.fail(new AiPrecheckClientError(status, message));
     }
   }

@@ -8,6 +8,7 @@ import { AbandonAttemptHandler } from './application/commands/abandon-attempt/ab
 import { SaveDraftHandler } from './application/commands/save-draft/save-draft.handler.js';
 import { RevealAnswersHandler } from './application/commands/reveal-answers/reveal-answers.handler.js';
 import { SelfCheckHandler } from './application/commands/self-check/self-check.handler.js';
+import { SentenceCheckHandler } from './application/commands/sentence-check/sentence-check.handler.js';
 import { CheckAttemptHandler } from './application/commands/check-attempt/check-attempt.handler.js';
 import { AnswerQuestionHandler } from './application/commands/answer-question/answer-question.handler.js';
 import { HandOutProbeHandler } from './application/commands/hand-out-probe/hand-out-probe.handler.js';
@@ -48,6 +49,7 @@ const CommandHandlers = [
   RevealAnswersHandler,
   SelfCheckHandler,
   CheckAttemptHandler,
+  SentenceCheckHandler,
   AnswerQuestionHandler,
   HandOutProbeHandler,
   CheckRowHandler,

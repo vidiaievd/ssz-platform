@@ -54,6 +54,12 @@ import type {
   CheckAttemptResult,
 } from '../../application/commands/check-attempt/check-attempt.handler.js';
 import { CheckAttemptRequestDto, CheckAttemptResponseDto } from '../dto/check-attempt.dto.js';
+import { SentenceCheckCommand } from '../../application/commands/sentence-check/sentence-check.command.js';
+import type {
+  SentenceCheckError,
+  SentenceCheckResult,
+} from '../../application/commands/sentence-check/sentence-check.handler.js';
+import { SentenceCheckRequestDto, SentenceCheckResponseDto } from '../dto/sentence-check.dto.js';
 import { AnswerQuestionCommand } from '../../application/commands/answer-question/answer-question.command.js';
 import { HandOutProbeCommand } from '../../application/commands/hand-out-probe/hand-out-probe.command.js';
 import type {
@@ -591,6 +597,80 @@ export class AttemptsController {
         });
     }
     throw new UnprocessableEntityException('Cannot check this attempt');
+  }
+
+  @Post(':attemptId/sentence-checks')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Hear one sentence of a reading on its own (plan 86, step 6g)',
+    description:
+      'read_aloud only, attempt in progress. The learner’s take of one sentence of a passage is heard by a ' +
+      'model (the school as payer, or the learner on their own plan) and comes back as the words heard with ' +
+      'scores and sound remarks. Outside the rehearsal’s limits; ai-service limits tries per sentence per ' +
+      'day. The school’s switch (ai-precheck) still holds. Nothing about the attempt moves. Once past access ' +
+      'every outcome of the model is a 200 — see `status`.',
+  })
+  @ApiResponse({ status: 200, type: SentenceCheckResponseDto })
+  @ApiResponse({ status: 403, description: 'Not your attempt; or `PRECHECK_NOT_AVAILABLE` — the school switched checks off' })
+  @ApiResponse({ status: 404, description: 'Attempt not found' })
+  @ApiResponse({ status: 409, description: '`NOT_IN_PROGRESS`' })
+  @ApiResponse({
+    status: 422,
+    description: 'Not a reading; `SENTENCE_NOT_IN_PASSAGE`; a take that does not stand up (RA_RECORDING_*, with itemIds)',
+  })
+  @ApiResponse({ status: 503, description: 'The school’s setting or the recordings could not be read' })
+  async sentenceCheck(
+    @Param('exerciseId') _exerciseId: string,
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Body() dto: SentenceCheckRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<SentenceCheckResult> {
+    const result: Result<SentenceCheckResult, SentenceCheckError> = await this.commandBus.execute(
+      new SentenceCheckCommand(
+        attemptId,
+        user.userId,
+        dto.itemId,
+        dto.sentence,
+        dto.recordingAssetId,
+        dto.explanationLanguage ?? null,
+      ),
+    );
+    if (result.isOk) return result.value;
+
+    const err = result.error;
+    if (isRecordingRefusal(err)) {
+      throw new UnprocessableEntityException({ code: err.code, message: err.message, itemIds: err.itemIds });
+    }
+    if (err instanceof ContentClientError) throw new UnprocessableEntityException(err.message);
+    switch (err.code) {
+      case 'ATTEMPT_NOT_FOUND':
+        throw new NotFoundException('Attempt not found');
+      case 'FORBIDDEN':
+        throw new ForbiddenException('Not your attempt');
+      case 'UNSUPPORTED_TEMPLATE':
+        throw new UnprocessableEntityException({ code: 'UNSUPPORTED_TEMPLATE', message: 'Only a reading aloud has sentences to hear' });
+      case 'NOT_IN_PROGRESS':
+        throw new ConflictException({ code: 'NOT_IN_PROGRESS', message: 'The work is already handed in' });
+      case 'SENTENCE_NOT_IN_PASSAGE':
+        throw new UnprocessableEntityException({ code: 'SENTENCE_NOT_IN_PASSAGE', message: 'That sentence is not in this passage' });
+      case 'PRECHECK_NOT_AVAILABLE':
+        throw new ForbiddenException({
+          code: 'PRECHECK_NOT_AVAILABLE',
+          reason: err.reason,
+          message: 'This school offers no check before hand-in',
+        });
+      case 'PRECHECK_ACCESS_UNKNOWN':
+        throw new ServiceUnavailableException({
+          code: 'PRECHECK_ACCESS_UNKNOWN',
+          message: 'Whether this school offers a check could not be read right now — try again',
+        });
+      case 'MEDIA_UNAVAILABLE':
+        throw new ServiceUnavailableException({
+          code: 'MEDIA_UNAVAILABLE',
+          message: 'The recording could not be checked right now — try again',
+        });
+    }
+    throw new UnprocessableEntityException('Cannot hear this sentence');
   }
 
   @Post(':attemptId/answers')

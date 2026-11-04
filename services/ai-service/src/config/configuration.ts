@@ -65,6 +65,8 @@ export const envSchema = z.object({
   // A learner's messages to the assistant per window (plan 83, step 5); 429 beyond.
   AI_ASSIST_RATE_LIMIT: z.coerce.number().int().positive().default(20),
   AI_ASSIST_RATE_WINDOW_MS: z.coerce.number().int().positive().default(600_000),
+  // Tries per learner per sentence per UTC day in the reading's sentence drill (plan 86, step 6g).
+  AI_SENTENCE_CHECK_DAILY_LIMIT: z.coerce.number().int().positive().default(10),
   // How often quota counters are raised to the ledger's sums (step 9b). A day by default.
   AI_QUOTA_RECONCILE_MS: z.coerce.number().int().positive().default(86_400_000),
 });
@@ -105,6 +107,7 @@ export interface AppConfig {
   pitchTrackerUrl: string;
   quotaReconcileMs: number;
   assistRateLimit: { messages: number; windowMs: number };
+  sentenceCheckDailyLimit: number;
   /** Shared secret for service-to-service routes (`x-internal-token`). */
   internalServiceToken: string;
 }
@@ -145,6 +148,7 @@ export default (): AppConfig => {
     pitchTrackerUrl: env.PITCH_TRACKER_URL,
     quotaReconcileMs: env.AI_QUOTA_RECONCILE_MS,
     assistRateLimit: { messages: env.AI_ASSIST_RATE_LIMIT, windowMs: env.AI_ASSIST_RATE_WINDOW_MS },
+    sentenceCheckDailyLimit: env.AI_SENTENCE_CHECK_DAILY_LIMIT,
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
 };

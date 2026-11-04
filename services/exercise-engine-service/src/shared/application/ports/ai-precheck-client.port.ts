@@ -51,6 +51,29 @@ export type AiPrecheckOutcome =
   | { status: 'refused'; reason: AiPrecheckRefusal; detail: string | null; remaining: PrecheckRemaining | null }
   | { status: 'failed'; errorCode: string; aiCallIds: string[]; remaining: PrecheckRemaining | null };
 
+/** A learner's take of one sentence of a reading, heard on its own (plan 86, step 6g). */
+export interface AiSentenceCheckRequest {
+  /** The school whose `ai.practice` pays; null — the learner's own plan. */
+  schoolId: string | null;
+  userId: string;
+  exerciseId: string;
+  language: string;
+  /** The language the sounds are explained in; null — ai-service picks the school's, else English. */
+  explanationLanguage: string | null;
+  sentence: string;
+  recordingAssetId: string;
+}
+
+/** ai-service `POST /api/v1/internal/sentence-checks` — every outcome is its 200. */
+export type AiSentenceCheckOutcome =
+  | { status: 'ok'; feedback: AiFeedback; aiCallIds: string[] }
+  | {
+      status: 'refused';
+      reason: 'language_not_supported' | 'attempt_limit' | 'pool_empty' | 'not_available';
+      retryAfterMs: number | null;
+    }
+  | { status: 'failed'; errorCode: string; aiCallIds: string[] };
+
 export class AiPrecheckClientError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -64,4 +87,6 @@ export class AiPrecheckClientError extends Error {
 /** A rehearsal before hand-in, asked of ai-service while the learner waits (plan 84, step 5). */
 export interface IAiPrecheckClient {
   precheck(request: AiPrecheckRequest): Promise<Result<AiPrecheckOutcome, AiPrecheckClientError>>;
+  /** One sentence of a reading, heard outside the rehearsal's limits (plan 86, step 6g). */
+  sentenceCheck(request: AiSentenceCheckRequest): Promise<Result<AiSentenceCheckOutcome, AiPrecheckClientError>>;
 }

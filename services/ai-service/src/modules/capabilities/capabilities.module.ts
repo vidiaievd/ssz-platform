@@ -9,6 +9,10 @@ import { AdminDiagnosticController } from './diagnostic/presentation/admin-diagn
 import { PRACTICE_USAGE_READER } from './practice/application/ports/practice-usage.reader.js';
 import { PrecheckHandler } from './practice/application/precheck/precheck.handler.js';
 import { PrismaPracticeUsageReader } from './practice/infrastructure/prisma-practice-usage.reader.js';
+import { SentenceCheckHandler } from './practice/application/sentence-check/sentence-check.handler.js';
+import { SENTENCE_CHECK_LIMITER } from './practice/application/ports/sentence-check.limiter.js';
+import { RedisSentenceCheckLimiter } from './practice/infrastructure/redis-sentence-check.limiter.js';
+import { InternalSentenceChecksController } from './practice/presentation/internal-sentence-checks.controller.js';
 import { InternalPrecheckController } from './practice/presentation/internal-precheck.controller.js';
 import { MakeReferenceClipHandler } from './reference-synthesis/application/make-reference-clip/make-reference-clip.handler.js';
 import { InternalReferenceClipsController } from './reference-synthesis/presentation/internal-reference-clips.controller.js';
@@ -108,6 +112,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     AdminAssistEvalsController,
     AssistController,
     InternalPrecheckController,
+    InternalSentenceChecksController,
     InternalReferenceClipsController,
     InternalTonemeChecksController,
     InternalPhraseMarksController,
@@ -194,6 +199,8 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     VoiceReviewHandler,
     // a rehearsal before hand-in, asked by exercise-engine (plan 84, step 2), and its limits (step 3)
     PrecheckHandler,
+    SentenceCheckHandler,
+    { provide: SENTENCE_CHECK_LIMITER, useClass: RedisSentenceCheckLimiter },
     MakeReferenceClipHandler,
     CheckTonemeHandler,
     // phrase marks suggested to the prosody editor (plan 86, step 5c)
