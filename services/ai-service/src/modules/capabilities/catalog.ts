@@ -1,6 +1,7 @@
 import { DIAGNOSTIC } from './diagnostic/diagnostic.capability.js';
 import type { CapabilityDefinition } from './domain/capability.js';
 import { PRACTICE, PRACTICE_VOICE } from './practice/practice.capability.js';
+import { PROSODY_MARKUP } from './prosody-markup/prosody-markup.capability.js';
 import { PRONUNCIATION_EXPLAIN, VOICE_REVIEW_EXPLAIN } from './pronunciation-explain/pronunciation-explain.capability.js';
 import { REFERENCE_CHECK, REFERENCE_SYNTHESIS } from './reference-synthesis/reference-synthesis.capability.js';
 import { REVIEW_DIRECT } from './review-direct/review-direct.capability.js';
@@ -27,6 +28,7 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   REFERENCE_SYNTHESIS,
   REFERENCE_CHECK,
   TONEME_CHECK,
+  PROSODY_MARKUP,
 ];
 
 export function findCapability(code: string): CapabilityDefinition | null {

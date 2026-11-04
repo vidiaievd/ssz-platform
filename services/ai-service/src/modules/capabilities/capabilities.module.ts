@@ -12,6 +12,8 @@ import { PrismaPracticeUsageReader } from './practice/infrastructure/prisma-prac
 import { InternalPrecheckController } from './practice/presentation/internal-precheck.controller.js';
 import { MakeReferenceClipHandler } from './reference-synthesis/application/make-reference-clip/make-reference-clip.handler.js';
 import { InternalReferenceClipsController } from './reference-synthesis/presentation/internal-reference-clips.controller.js';
+import { SuggestPhraseMarksHandler } from './prosody-markup/application/suggest-phrase-marks/suggest-phrase-marks.handler.js';
+import { InternalPhraseMarksController } from './prosody-markup/presentation/internal-phrase-marks.controller.js';
 import { CheckTonemeHandler } from './toneme-check/application/check-toneme/check-toneme.handler.js';
 import { InternalTonemeChecksController } from './toneme-check/presentation/internal-toneme-checks.controller.js';
 import { DirectReviewHandler } from './review-direct/application/direct-review/direct-review.handler.js';
@@ -108,6 +110,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     InternalPrecheckController,
     InternalReferenceClipsController,
     InternalTonemeChecksController,
+    InternalPhraseMarksController,
   ],
   providers: [
     // the learner's HTTP API of the assistant (plan 83, step 5)
@@ -193,6 +196,8 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     PrecheckHandler,
     MakeReferenceClipHandler,
     CheckTonemeHandler,
+    // phrase marks suggested to the prosody editor (plan 86, step 5c)
+    SuggestPhraseMarksHandler,
     { provide: PRACTICE_USAGE_READER, useClass: PrismaPracticeUsageReader },
     // the learner's grammar atoms a remark may name (plan 85, step 3)
     AtomCatalogResolver,

@@ -70,6 +70,11 @@ describe('quota pools (plan 84)', () => {
     expect(capabilitiesOfPool('voice_review_pronunciation')).toEqual(['voice_review_pronunciation', 'voice_review_explain']);
   });
 
+  it('sells the phrase marks suggested to the prosody editor under ai.authoring (plan 86, step 5c)', () => {
+    expect(featureKeyOf('prosody_markup')).toBe('ai.authoring');
+    expect(capabilitiesOfPool('authoring')).toEqual(['authoring', 'prosody_markup']);
+  });
+
   it('keeps every other agent its own key and pool', () => {
     expect(featureKeyOf('review_draft')).toBe('ai.review_draft');
     expect(capabilitiesOfPool('voice_review')).toEqual(['voice_review']);

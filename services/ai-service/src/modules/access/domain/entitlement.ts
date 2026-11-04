@@ -38,13 +38,16 @@ export interface PayerEntitlements {
  * a rehearsed reading's sounds (plan 88, step 5b) is part of the same check; on hand-in it is part
  * of the pronunciation-level voice review (step 5c.2) — the same prompts under a second code, so
  * each pool stays a static entry here. A word's toneme heard in a pronunciation drill (step 8.3, Q15) spends
- * the same `ai.practice`.
+ * the same `ai.practice`. The phrase marks suggested to the prosody editor (plan 86, step 5c) are
+ * the first agent of `ai.authoring`, a pool with no agent of its own name: authoring tools to come
+ * (exercise generation) join it here.
  */
 const SOLD_UNDER: Readonly<Record<string, string>> = {
   practice_voice: 'practice',
   pronunciation_explain: 'practice',
   voice_review_explain: 'voice_review_pronunciation',
   toneme_check: 'practice',
+  prosody_markup: 'authoring',
 };
 
 /**

@@ -42,7 +42,8 @@ export class InternalWordStressesController {
   }
 }
 
-function parseSpans(raw: unknown[], length: number): Span[] {
+/** The caller's words, checked: two integers each, inside the text. Shared with the phrase marks (step 5c). */
+export function parseSpans(raw: unknown[], length: number): Span[] {
   return raw.map((x, i) => {
     const ok =
       Array.isArray(x) &&
