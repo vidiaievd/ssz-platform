@@ -1,5 +1,8 @@
+import { emptyProsodyLayer } from '@ssz/shared-kernel/prosody';
+import { tokenize } from '@ssz/shared-kernel/text';
 import {
   sampleDocument,
+  setGuide,
   toContent,
   toExpectedAnswers,
   type ReadAloudContent,
@@ -80,5 +83,40 @@ describe('readAloudViolations', () => {
       recording: { ...doc.recording, takes: 1, chooseBest: true, micCheck: false },
     };
     expect(readAloudViolations(exercise(quiet))).toEqual([]);
+  });
+
+  // Plan 86, step 6h.2c: the pronunciation guide, judged from the layers and lexicon words beside it.
+  describe('with the pronunciation guide on', () => {
+    const guided = () => setGuide(sampleDocument(), { enabled: true });
+
+    it('blocks a word the lexicon left open until the author answers it', () => {
+      const doc = guided();
+      const first = doc.prompts[0]!;
+      const word = tokenize(first.text)[0]!;
+      const open = {
+        [first.id]: { layer: emptyProsodyLayer(), unresolved: [{ i: word.i, w: word.w }] },
+      };
+      expect(readAloudViolations(exercise(doc), open)).toEqual([
+        expect.objectContaining({
+          ruleCode: 'READALOUD_RA_GUIDE_WORD_UNCONFIRMED',
+          severity: 'blocker',
+        }),
+      ]);
+
+      const answered = {
+        [first.id]: {
+          layer: {
+            ...emptyProsodyLayer(),
+            unstressed: [{ i: word.i, w: word.w, source: 'teacher' as const }],
+          },
+          unresolved: [{ i: word.i, w: word.w }],
+        },
+      };
+      expect(readAloudViolations(exercise(doc), answered)).toEqual([]);
+    });
+
+    it('asks nothing beside the document when the caller could not read the guide', () => {
+      expect(readAloudViolations(exercise(guided()))).toEqual([]);
+    });
   });
 });

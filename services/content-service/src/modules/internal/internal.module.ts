@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { PrismaModule } from '../../infrastructure/database/prisma.module.js';
+import { ProsodyModule } from '../prosody/prosody.module.js';
 import { InternalController } from './presentation/controllers/internal.controller.js';
 import { GetExpandedModuleHandler } from './application/queries/get-expanded-module/get-expanded-module.handler.js';
 import { GetGlossarySuggestionsHandler } from './application/queries/get-glossary-suggestions/get-glossary-suggestions.handler.js';
@@ -26,7 +27,7 @@ import { PrismaLessonContentVariantRepository } from '../lesson/infrastructure/p
 // modules (ContentRelationModule, GrammarRuleModule, CanDoModule); handlers
 // exclusive to the internal aggregate view are registered here.
 @Module({
-  imports: [CqrsModule, PrismaModule],
+  imports: [CqrsModule, PrismaModule, ProsodyModule],
   controllers: [InternalController],
   providers: [
     GetExpandedModuleHandler,

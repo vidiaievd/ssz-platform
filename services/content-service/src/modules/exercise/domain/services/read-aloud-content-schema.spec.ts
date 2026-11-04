@@ -47,6 +47,15 @@ describe('read_aloud content/answer schema (seeded)', () => {
     expect(content(long)).toBe(false);
   });
 
+  it('accepts the pronunciation guide as the kernel persists it and refuses an unknown lens', () => {
+    const base = toContent(sampleDocument());
+    const guide = { enabled: true, sentenceDrill: false, lenses: ['melody', 'respell'] };
+    expect(content({ ...base, pronunciationGuide: guide })).toBe(true);
+    expect(content({ ...base, pronunciationGuide: { ...guide, lenses: [] } })).toBe(true);
+    expect(content({ ...base, pronunciationGuide: { ...guide, lenses: ['tone'] } })).toBe(false);
+    expect(content({ ...base, pronunciationGuide: { ...guide, enabled: 'yes' } })).toBe(false);
+  });
+
   it('refuses a criterion weight other than 1 or 2, and an id with the mark separator in it', () => {
     const base = toContent(sampleDocument());
     expect(content({ ...base, rubric: [{ ...base.rubric[0], weight: 3 }] })).toBe(false);

@@ -17,7 +17,16 @@ import { TEMPLATE_CODE as MULTIPLE_CHOICE_GROUP_TEMPLATE } from '@ssz/shared-ker
 import { TEMPLATE_CODE as SORT_INTO_BUCKETS_TEMPLATE } from '@ssz/shared-kernel/sort-into-buckets';
 import { TEMPLATE_CODE as HIGHLIGHT_IN_TEXT_TEMPLATE } from '@ssz/shared-kernel/highlight-in-text';
 import { TEMPLATE_CODE as DICTATION_TEMPLATE } from '@ssz/shared-kernel/dictation';
-import { TEMPLATE_CODE as READ_ALOUD_TEMPLATE } from '@ssz/shared-kernel/read-aloud';
+import {
+  fromPersisted as readAloudFromPersisted,
+  guideShown,
+  TEMPLATE_CODE as READ_ALOUD_TEMPLATE,
+  type GuidePrompt,
+} from '@ssz/shared-kernel/read-aloud';
+import {
+  READ_ALOUD_GUIDE_SOURCE,
+  type IReadAloudGuideSource,
+} from '../../../../prosody/application/ports/read-aloud-guide.source.js';
 import { TEMPLATE_CODE as INFORMATION_TRANSFER_TEMPLATE } from '@ssz/shared-kernel/information-transfer';
 import { TEMPLATE_CODE as MINIMAL_PAIRS_TEMPLATE } from '@ssz/shared-kernel/minimal-pairs';
 import { TEMPLATE_CODE as INFLECTION_TABLE_TEMPLATE } from '@ssz/shared-kernel/inflection-table';
@@ -67,6 +76,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
   constructor(
     private readonly prisma: PrismaService,
     @Inject(ORGANIZATION_CLIENT) private readonly organizationClient: IOrganizationClient,
+    @Inject(READ_ALOUD_GUIDE_SOURCE) private readonly readAloudGuide: IReadAloudGuideSource,
   ) {}
 
   async execute(query: GetPreflightQuery): Promise<PreflightResult> {
@@ -504,6 +514,23 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
     }
   }
 
+  /**
+   * The prosody layers and open lexicon words of a `read_aloud` with the pronunciation guide
+   * on (plan 86, step 6h.2c), against the prompt texts of the document being judged — the
+   * draft when there is one. Undefined for a guide that is off: nothing beside the document
+   * is then asked of the author, and nothing is read.
+   */
+  private async readAloudGuideOf(document: {
+    id: string;
+    content: unknown;
+    expectedAnswers: unknown;
+    language?: string | null;
+  }): Promise<Record<string, GuidePrompt> | undefined> {
+    const parsed = readAloudFromPersisted(document.content, document.expectedAnswers);
+    if (!guideShown(parsed) || !document.language) return undefined;
+    return this.readAloudGuide.guideOf(document.id, document.language, parsed.prompts);
+  }
+
   private async checkExercises(
     items: Array<{ itemType: string; itemId: string }>,
     blockers: RuleViolation[],
@@ -586,7 +613,11 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
         expectedAnswers: pending ? exercise.draftExpectedAnswers : exercise.expectedAnswers,
         language: exercise.targetLanguage,
       };
-      const violations = violationsFor(exercise.template.code, document);
+      const guide =
+        exercise.template.code === READ_ALOUD_TEMPLATE
+          ? await this.readAloudGuideOf(document)
+          : undefined;
+      const violations = violationsFor(exercise.template.code, document, guide);
 
       for (const violation of violations) {
         (violation.severity === 'blocker' ? blockers : warnings).push(violation);
@@ -648,6 +679,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
 function violationsFor(
   templateCode: string,
   document: { id: string; content: unknown; expectedAnswers: unknown; language?: string },
+  readAloudGuide?: Readonly<Record<string, GuidePrompt>>,
 ): RuleViolation[] {
   if (templateCode === MATCH_PAIRS_TEMPLATE) return matchPairsViolations(document);
   if (templateCode === WRITING_TASK_TEMPLATE) return writingTaskViolations(document);
@@ -661,7 +693,7 @@ function violationsFor(
   if (templateCode === HIGHLIGHT_IN_TEXT_TEMPLATE) return highlightInTextViolations(document);
   if (templateCode === DICTATION_TEMPLATE) return dictationViolations(document);
   if (templateCode === INFLECTION_TABLE_TEMPLATE) return inflectionTableViolations(document);
-  if (templateCode === READ_ALOUD_TEMPLATE) return readAloudViolations(document);
+  if (templateCode === READ_ALOUD_TEMPLATE) return readAloudViolations(document, readAloudGuide);
   if (templateCode === MINIMAL_PAIRS_TEMPLATE) return minimalPairsViolations(document);
   if (templateCode === INFORMATION_TRANSFER_TEMPLATE) return informationTransferViolations(document);
   return gapFillViolations(document);

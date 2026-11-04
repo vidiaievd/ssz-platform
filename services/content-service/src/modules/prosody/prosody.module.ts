@@ -9,6 +9,8 @@ import { LEXICON_STRESS_SOURCE } from './application/ports/lexicon-stress.source
 import { HttpLexiconStressSource } from './infrastructure/http/http-lexicon-stress.source.js';
 import { PHRASE_MARKS_SUGGESTER } from './application/ports/phrase-marks.suggester.js';
 import { HttpPhraseMarksSuggester } from './infrastructure/http/http-phrase-marks.suggester.js';
+import { READ_ALOUD_GUIDE_SOURCE } from './application/ports/read-aloud-guide.source.js';
+import { ReadAloudGuideService } from './application/read-aloud-guide.service.js';
 
 import { SetProsodyHandler } from './application/commands/set-prosody/set-prosody.handler.js';
 import { SuggestProsodyHandler } from './application/commands/suggest-prosody/suggest-prosody.handler.js';
@@ -28,7 +30,8 @@ const QueryHandlers = [
 
 // Intonation marks beside lesson bodies and read_aloud passages — plan 86, step 5; the
 // lexicon's word stresses under them from ai-service — step 5b; the authoring agent's phrase
-// marks for the editor — step 5c.2.
+// marks for the editor — step 5c.2; the pronunciation guide's inputs for the publication
+// preflight — step 6h.2c.
 @Module({
   imports: [CqrsModule],
   controllers: [ProsodyController],
@@ -37,8 +40,10 @@ const QueryHandlers = [
     { provide: PROSODY_TEXT_READER, useClass: PrismaProsodyTextReader },
     { provide: LEXICON_STRESS_SOURCE, useClass: HttpLexiconStressSource },
     { provide: PHRASE_MARKS_SUGGESTER, useClass: HttpPhraseMarksSuggester },
+    { provide: READ_ALOUD_GUIDE_SOURCE, useClass: ReadAloudGuideService },
     ...CommandHandlers,
     ...QueryHandlers,
   ],
+  exports: [READ_ALOUD_GUIDE_SOURCE],
 })
 export class ProsodyModule {}
