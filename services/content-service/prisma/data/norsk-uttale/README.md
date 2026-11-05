@@ -22,6 +22,6 @@ lesson, not this directory.
 
 ## Status (05.11, step 12.1)
 
-139 `read_aloud` (128 read, 11 dialogue; 625 prompts) and 16 `minimal_pairs`.
+139 `read_aloud` (128 read, 11 dialogue; 625 prompts) and 16 `minimal_pairs`. Seeded by `prisma/seed-norsk-uttale.ts` (step 12.2).
 `npx tsx prisma/tools/check-norsk-uttale.ts`: no blockers on `read_aloud`; every `minimal_pairs`
-lacks its clips (step 12.3) and is kept out of its module until it has them. Not yet seeded (12.2).
+lacks its clips (step 12.3) and is kept out of its module until it has them.
