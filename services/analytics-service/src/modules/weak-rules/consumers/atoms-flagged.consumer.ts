@@ -16,7 +16,7 @@ const BINDING_KEY = EXERCISE_ENGINE_EVENT_TYPES.FEEDBACK_ATOMS_FLAGGED;
 
 /**
  * Folds the rules checks named as the ground of a mistake into `weak_rules_daily` — plan 85,
- * step 10.
+ * step 10 — and, since plan 86 step 8.4, the sound families a voice check or a rehearsal named.
  *
  * Plan 85 §1 rule 3 holds here on its own: the row is keyed by (day, learner, exercise,
  * atom, source), so three rehearsals of one answer are one row. A repeat on the same day only

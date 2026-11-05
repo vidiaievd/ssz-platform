@@ -26,17 +26,21 @@ describe('flagRowsOf', () => {
     expect(rows[0]).toMatchObject({ day: '2026-11-01', schoolId: 's1', groupId: null, containerId: 'c1' });
   });
 
-  it('takes the voice check\'s source and drops its sound atoms (plan 88, step 5c.3)', () => {
+  it('takes the voice check\'s source and keeps its sound atoms beside the rules (plan 86, step 8.4)', () => {
     const rows = flagRowsOf({
       ...payload,
       source: 'ai_voice',
       atoms: [
         { atomType: 'sound', atomId: 'nb:kj', inExerciseTargets: false },
+        { atomType: 'sound', atomId: 'nb:kj', inExerciseTargets: false },
         { atomType: 'grammar_rule_atom', atomId: 'x1', inExerciseTargets: false },
       ],
     })!;
 
-    expect(rows.map((r) => [r.atomId, r.source])).toEqual([['x1', 'ai_voice']]);
+    expect(rows.map((r) => [r.atomType, r.atomId, r.source])).toEqual([
+      ['sound', 'nb:kj', 'ai_voice'],
+      ['grammar_rule_atom', 'x1', 'ai_voice'],
+    ]);
   });
 
   it('rejects a malformed event', () => {

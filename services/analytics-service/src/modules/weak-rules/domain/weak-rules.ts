@@ -1,6 +1,8 @@
 import type { ExerciseFeedbackAtomsFlaggedPayload, FlaggedAtomsSource } from '@ssz/contracts';
 
 export const GRAMMAR_RULE_ATOM = 'grammar_rule_atom';
+/** The atom types a flag is kept for: rules (plan 85) and sound families (plan 86, step 8.4). */
+const KEPT_ATOM_TYPES: ReadonlySet<string> = new Set([GRAMMAR_RULE_ATOM, 'sound']);
 const SOURCES: readonly FlaggedAtomsSource[] = ['ai_precheck', 'ai_review', 'teacher', 'ai_voice'];
 const MAX_ATOMS = 100;
 
@@ -24,9 +26,11 @@ const orNull = (v: unknown): string | null => (isString(v) ? v : null);
 /**
  * The rows one `atoms_flagged` event folds into, or null when the event is malformed.
  *
- * Only grammar rule atoms are kept — the one atom type the weak-rules screen can title. The
- * `sound` atoms a reading's voice check names (plan 88) are dropped until there is a screen for them. The day is the signal's own (`occurredAt`, UTC), so a
- * message that waited in the queue is still counted on the day it was made.
+ * Grammar rule atoms and `sound` families are kept (plan 86 §4y.1, Q20): the sounds have no
+ * screen yet, but a fact not written today cannot be rebuilt for the one session 7 brings, and
+ * the weak-rules reader asks for `grammar_rule_atom` only. Words are dropped. The day is the
+ * signal's own (`occurredAt`, UTC), so a message that waited in the queue is still counted on
+ * the day it was made.
  */
 export function flagRowsOf(p: Partial<ExerciseFeedbackAtomsFlaggedPayload> | undefined): FlagRow[] | null {
   if (!p) return null;
@@ -38,8 +42,8 @@ export function flagRowsOf(p: Partial<ExerciseFeedbackAtomsFlaggedPayload> | und
   const flaggedAt = new Date(p.occurredAt);
   const rows = new Map<string, FlagRow>();
   for (const atom of p.atoms.slice(0, MAX_ATOMS)) {
-    if (!atom || atom.atomType !== GRAMMAR_RULE_ATOM || !isString(atom.atomId)) continue;
-    rows.set(atom.atomId, {
+    if (!atom || !KEPT_ATOM_TYPES.has(atom.atomType) || !isString(atom.atomId)) continue;
+    rows.set(`${atom.atomType}:${atom.atomId}`, {
       day: flaggedAt.toISOString().slice(0, 10),
       userId: p.userId,
       exerciseId: p.exerciseId,
