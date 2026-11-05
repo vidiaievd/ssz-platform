@@ -3,7 +3,8 @@
 // `scored` families are exactly those ai-service may name (`soundAtomId` in its
 // pronunciation module: every family with a threshold in `nb-sounds.data.ts`, plus `tone`
 // from the toneme check). The rest are taught by the pronunciation course and never flagged.
-// The articulation base (description, how-to, common error, drill, carrier words) is step 9.1.
+// The articulation base (description, how-to, common error, drill, carrier words) is step 9.1,
+// in sound-atom-base.ts.
 
 export type SoundAtomLocale = 'en' | 'nb' | 'ru' | 'uk';
 
