@@ -29,6 +29,7 @@ import { PrecheckRequestDto } from './presentation/precheck.dto.js';
 import type { PassageSounds, WordSounds } from '../../pronunciation/application/passage-sounds.js';
 import { alignWord } from '../../pronunciation/domain/align-word.js';
 import { weakSounds } from '../../pronunciation/domain/weak-sounds.js';
+import { SoundExplainer } from '../pronunciation-explain/application/sound-explainer.js';
 
 // Plan 84, step 2.
 
@@ -350,7 +351,7 @@ describe('PrecheckHandler', () => {
         return audio;
       },
     };
-    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), schools, recordings, usageReader, atoms.resolver ?? NO_ATOMS, voice.sounds ?? NO_SOUNDS, [0, 0]);
+    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), schools, recordings, usageReader, atoms.resolver ?? NO_ATOMS, voice.sounds ?? NO_SOUNDS, new SoundExplainer(gateway, { base: async () => [] }), [0, 0]);
     const run = (subject: PracticeSubject) =>
       handler.execute(
         new PrecheckCommand({
@@ -728,6 +729,7 @@ describe('PrecheckHandler limits (step 3)', () => {
       },
       NO_ATOMS,
       NO_SOUNDS,
+      new SoundExplainer(gateway, { base: async () => [] }),
       [0],
     );
     const run = (limits: PrecheckLimits = LIMITS) =>

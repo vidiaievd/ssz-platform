@@ -137,6 +137,9 @@ Follows Clean Architecture.
 Database: `content_db`
 Grammar atom catalog (plan 85): `GET internal/courses/:courseId/grammar-atom-catalog?language=` (`x-internal-token`,
 Redis 10 min per course + language). Atoms have no translations; `ruleTitle` only is localised.
+Sound atoms (plan 86): natural keys `nb:kj`, catalogue + articulation base per locale (en/nb/ru/uk) —
+`GET internal/sound-atoms?language=&locale=` (`x-internal-token`, Redis 10 min); the learner's card of a sound
+`GET sound-atoms/:atomId?locale=` (JWT, a slice of the same cached catalogue; region dropped, unknown locale → `en`).
 
 ### 5. Learning Service (NestJS)
 Material assignment, progress tracking, SRS, adaptive review queue.
@@ -232,6 +235,10 @@ calls the model only when the key does not settle the answer.
 Grammar atoms (plan 85): `practice@2` and `review_draft@3` get the learner's atoms ∩ the course catalog and may return an
 optional `atomRef` (`atomId` is not an enum — an unknown id becomes `null`); `review_draft@3` sends `atomRef` to the
 engine only when the request carried a catalog. Catalog from content-service; any failure = empty catalog.
+Sound explanations (plan 86, step 9.2): `pronunciation_explain@2` (also `voice_review_explain`, same prompts) adds
+content-service's articulation base (`internal/sound-atoms`, in the explanation language) to the inventory notes;
+`commonError` only for ru/uk readers, `ukNote` only for uk; one `SoundExplainer` serves rehearsal, sentence drill and
+hand-in; any failure = inventory notes only.
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.

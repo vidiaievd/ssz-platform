@@ -51,6 +51,15 @@ export function pronunciationExplainRequestV1(input: ExplainSoundsInput): Gatewa
 
 /** The notes of every family asked about, each sound once; a length remark brings the vowel's other length. */
 function notes(input: ExplainSoundsInput): string[] {
+  const lines: string[] = [];
+  for (const [family, symbols] of familiesAsked(input)) {
+    lines.push(`- ${familyOf(family).title}`, ...inventoryLines(symbols));
+  }
+  return lines;
+}
+
+/** The families of the remarks in the order first met, each with the symbols to note (shared with v2). */
+export function familiesAsked(input: ExplainSoundsInput): Map<SoundFamily, Set<string>> {
   const symbolsOf = new Map<SoundFamily, Set<string>>();
   for (const sound of input.sounds) {
     const symbols = symbolsOf.get(sound.family) ?? new Set<string>();
@@ -61,13 +70,15 @@ function notes(input: ExplainSoundsInput): string[] {
     }
     symbolsOf.set(sound.family, symbols);
   }
+  return symbolsOf;
+}
+
+/** The inventory's one-line note of every symbol, indented under its family (shared with v2). */
+export function inventoryLines(symbols: Iterable<string>): string[] {
   const lines: string[] = [];
-  for (const [family, symbols] of symbolsOf) {
-    lines.push(`- ${familyOf(family).title}`);
-    for (const symbol of symbols) {
-      const sound = soundOf(symbol);
-      if (sound) lines.push(`  - [${sound.ipa}] ${sound.articulation}`);
-    }
+  for (const symbol of symbols) {
+    const sound = soundOf(symbol);
+    if (sound) lines.push(`  - [${sound.ipa}] ${sound.articulation}`);
   }
   return lines;
 }

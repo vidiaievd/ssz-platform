@@ -10,6 +10,7 @@ import type { RecordingAudio } from '../voice-review/application/ports/recording
 import type { ISentenceCheckLimiter, SentenceCheckDecision } from './application/ports/sentence-check.limiter.js';
 import { SentenceCheckCommand, type SentenceCheckRequest } from './application/sentence-check/sentence-check.command.js';
 import { SENTENCE_CHECK_SURFACE, SentenceCheckHandler } from './application/sentence-check/sentence-check.handler.js';
+import { SoundExplainer } from '../pronunciation-explain/application/sound-explainer.js';
 
 const SCHOOL = 'f3ced490-5f8b-4d04-bd05-45ab1a101ff8';
 const LEARNER = 'b0000000-0000-4000-8000-000000000002';
@@ -66,7 +67,7 @@ function setup(
     },
   };
   const sounds = over.sounds ?? ({ of: async () => null } as unknown as PassageSounds);
-  const handler = new SentenceCheckHandler(gateway, recordings, limiter, sounds, { explanationLanguage: async () => 'ru' } as ISchoolLanguageReader);
+  const handler = new SentenceCheckHandler(gateway, recordings, limiter, sounds, { explanationLanguage: async () => 'ru' } as ISchoolLanguageReader, new SoundExplainer(gateway, { base: async () => [] }));
   return { run: (req = request()) => handler.execute(new SentenceCheckCommand(req)), speech, taken };
 }
 

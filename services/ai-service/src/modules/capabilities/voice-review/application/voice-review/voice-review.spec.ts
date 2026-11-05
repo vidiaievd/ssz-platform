@@ -18,6 +18,7 @@ import type { IRecordingAudioSource, RecordingAudio } from '../ports/recording-a
 import type { IVoiceReviewAttemptsClient, ReadingToWrite } from '../ports/voice-review-attempts.client.js';
 import { VoiceReviewCommand } from './voice-review.command.js';
 import { VoiceReviewHandler } from './voice-review.handler.js';
+import { SoundExplainer } from '../../../pronunciation-explain/application/sound-explainer.js';
 
 // Plan 82, step 8.
 
@@ -176,6 +177,7 @@ function setup({
     {
       explanationLanguage: async () => (typeof schoolLanguage === 'function' ? schoolLanguage() : schoolLanguage),
     },
+    new SoundExplainer(gateway, { base: async () => [] }),
     0,
     [0, 0],
   );

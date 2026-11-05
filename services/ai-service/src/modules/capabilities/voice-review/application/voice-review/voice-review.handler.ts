@@ -3,10 +3,9 @@ import { Inject, Logger, Optional } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { AiGateway, type GatewayCallOf, type GatewaySpeechCall } from '../../../../gateway/application/ai-gateway.js';
 import type { CallContext } from '../../../../ledger/domain/ai-call.js';
-import { readExplanations, type SoundExplanations } from '../../../pronunciation-explain/domain/sound-explanations.js';
+import type { SoundExplanations } from '../../../pronunciation-explain/domain/sound-explanations.js';
 import { VOICE_REVIEW_EXPLAIN } from '../../../pronunciation-explain/pronunciation-explain.capability.js';
-import { pronunciationExplainRequest } from '../../../pronunciation-explain/prompts/prompts.js';
-import { languageName } from '../../../review-draft/domain/comment-language.js';
+import { SoundExplainer } from '../../../pronunciation-explain/application/sound-explainer.js';
 import type { DraftWriteMeta } from '../../../review-draft/application/ports/review-attempts.client.js';
 import { SCHOOL_LANGUAGE_READER, type ISchoolLanguageReader } from '../../../review-draft/application/ports/school-language.reader.js';
 import { REVIEW_QUEUE_SURFACE } from '../../../review-draft/application/draft-review/draft-review.handler.js';
@@ -103,6 +102,7 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
     @Inject(RECORDING_AUDIO_SOURCE) private readonly recordings: IRecordingAudioSource,
     private readonly passageSounds: PassageSounds,
     @Inject(SCHOOL_LANGUAGE_READER) private readonly schools: ISchoolLanguageReader,
+    private readonly explainer: SoundExplainer,
     @Optional() @Inject(VOICE_WRITE_RETRY_MS) private readonly writeRetryMs: number = 1_000,
     @Optional() @Inject(VOICE_RECORDING_WAITS_MS) private readonly recordingWaitsMs: number[] = DEFAULT_RECORDING_WAITS_MS,
   ) {}
@@ -199,8 +199,8 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
   }
 
   /**
-   * The weak sounds explained by a model (plan 88, step 5c.2), all in one call. Null explanations
-   * when it did not answer usably — off, refused, failed — and the inventory's notes stay.
+   * The weak sounds explained by a model (plan 88, step 5c.2; base of plan 86, step 9.2), all in
+   * one call, in the school's language — English, the inventory's, without one.
    */
   private async explainSounds(
     schoolId: string | null,
@@ -209,23 +209,14 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
     remarks: readonly ReadingSoundRemark[],
   ): Promise<{ call: GatewayCallOf<unknown>; explanations: SoundExplanations | null }> {
     const school = schoolId === null ? null : await this.schoolLanguage(schoolId);
-    const input = {
-      targetLanguage: languageName(targetLanguage),
-      // The inventory's notes are English: the language to fall back on.
-      explanationLanguage: languageName(school ?? 'en'),
+    return this.explainer.explain({
+      capability: VOICE_REVIEW_EXPLAIN.code,
+      context,
+      targetLanguage,
+      explanationLanguage: school ?? 'en',
       sounds: remarks.map((r) => r.finding),
-    };
-    const call = await this.gateway.call(VOICE_REVIEW_EXPLAIN.code, context, (promptVersion) =>
-      pronunciationExplainRequest(promptVersion, input),
-    );
-    if (call.routed.isFail) {
-      // Off is a choice (no binding yet), not a failure worth a line per reading.
-      if (call.routed.error.kind !== 'disabled') this.logger.warn(`Sounds of a handed-in reading not explained: ${call.routed.error.kind}`);
-      return { call, explanations: null };
-    }
-    const { output } = call.routed.value.result;
-    if (output.kind !== 'structured') return { call, explanations: null };
-    return { call, explanations: readExplanations(output.data, remarks.length) };
+      what: 'a handed-in reading',
+    });
   }
 
   private async schoolLanguage(schoolId: string): Promise<string | null> {

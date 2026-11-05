@@ -73,6 +73,9 @@ import {
   LEARNER_GRAMMAR_ATOMS_READER,
 } from './grammar-atoms/application/ports/grammar-atoms.readers.js';
 import { HttpCourseAtomCatalogReader, HttpLearnerGrammarAtomsReader } from './grammar-atoms/infrastructure/http-grammar-atoms.readers.js';
+import { SoundExplainer } from './pronunciation-explain/application/sound-explainer.js';
+import { SOUND_BASE_READER } from './pronunciation-explain/application/ports/sound-base.reader.js';
+import { HttpSoundBaseReader } from './pronunciation-explain/infrastructure/http-sound-base.reader.js';
 import { TryTranslateReviewHandler } from './review-draft/application/try-translate-review.handler.js';
 import { HttpReviewAttemptsClient } from './review-draft/infrastructure/http-review-attempts.client.js';
 import { HttpSchoolLanguageReader } from './review-draft/infrastructure/http-school-language.reader.js';
@@ -219,6 +222,14 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfig>) =>
         new HttpCourseAtomCatalogReader(config.get<string>('contentServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    // the articulation base an explanation of weak sounds quotes (plan 86, step 9.2)
+    SoundExplainer,
+    {
+      provide: SOUND_BASE_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpSoundBaseReader(config.get<string>('contentServiceUrl')!, config.get<string>('internalServiceToken')!),
     },
     // candidate models measured on the settled drafts (plan 79, step 1.6)
     RunReviewEvalHandler,

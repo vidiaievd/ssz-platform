@@ -7,6 +7,12 @@ import {
   type ExplainSoundsInput,
 } from './domain/sound-explanations.js';
 import { pronunciationExplainRequest, PRONUNCIATION_EXPLAIN_PROMPT_VERSIONS } from './prompts/prompts.js';
+import { soundBaseFor, type SoundBaseEntry } from './domain/sound-base.js';
+import { SoundExplainer } from './application/sound-explainer.js';
+import type { AiGateway } from '../../gateway/application/ai-gateway.js';
+import type { GatewayRequest } from '../../gateway/application/model-router.js';
+import type { CallContext } from '../../ledger/domain/ai-call.js';
+import { Result } from '../../../shared/kernel/result.js';
 
 // Plan 88, step 5b.
 
@@ -20,6 +26,18 @@ const input = (over: Partial<ExplainSoundsInput> = {}): ExplainSoundsInput => ({
   ],
   ...over,
 });
+
+const KJ_BASE: SoundBaseEntry = {
+  family: 'kj',
+  locale: 'uk',
+  title: 'Звук kj [ç]',
+  description: 'М’яке шипіння в середині рота.',
+  howTo: 'Підніміть середину язика до твердого піднебіння,\n кінчик тримайте внизу.',
+  commonError: 'Зазвичай вимовляють м’яке «хь».',
+  ukNote: 'Українське «х» перед «і» пом’якшується слабше.',
+  drill: 'Скажіть «й» без голосу.',
+  carrierWords: ['kjøkken', 'kino'],
+};
 
 describe('pronunciation_explain', () => {
   it('is an agent sold under the rehearsal’s key and pool', () => {
@@ -63,8 +81,14 @@ describe('pronunciation_explain', () => {
       expect(request.responseSchema!.schema).toEqual(explanationsSchema(3));
     });
 
+    it('ignores the articulation base', () => {
+      const withBase = pronunciationExplainRequest('pronunciation_explain@1', input({ base: soundBaseFor([KJ_BASE], 'uk') }));
+      expect(withBase.system).toBe(request.system);
+      expect(withBase.messages).toEqual(request.messages);
+    });
+
     it('knows no other version', () => {
-      expect(PRONUNCIATION_EXPLAIN_PROMPT_VERSIONS).toEqual(['pronunciation_explain@1']);
+      expect(PRONUNCIATION_EXPLAIN_PROMPT_VERSIONS).toEqual(['pronunciation_explain@1', 'pronunciation_explain@2']);
       expect(() => pronunciationExplainRequest('pronunciation_explain@9', input())).toThrow('no prompt version');
     });
   });
@@ -86,6 +110,100 @@ describe('pronunciation_explain', () => {
         explanations: ['А', 'Б'],
         summary: 'Підсумок',
       });
+    });
+  });
+
+  describe('pronunciation_explain@2 (plan 86, step 9.2)', () => {
+    const v2 = (over: Partial<ExplainSoundsInput> = {}) => pronunciationExplainRequest('pronunciation_explain@2', input(over));
+
+    it('joins the inventory note of a family with its base, one line per text, in the base’s language', () => {
+      const { system } = v2({ base: soundBaseFor([KJ_BASE], 'uk') });
+      const kj = system.slice(system.indexOf('- kj-sound [ç]'), system.indexOf('- Long and short vowels'));
+      expect(kj.split('\n')).toEqual([
+        '- kj-sound [ç]',
+        expect.stringMatching(/^ {2}- \[ç\] /),
+        '  (written in Ukrainian)',
+        '  What it is: М’яке шипіння в середині рота.',
+        '  How to say it: Підніміть середину язика до твердого піднебіння, кінчик тримайте внизу.',
+        '  Usual mistake of speakers of Russian and Ukrainian: Зазвичай вимовляють м’яке «хь».',
+        '  Where Ukrainian speakers differ: Українське «х» перед «і» пом’якшується слабше.',
+        '  Drill: Скажіть «й» без голосу.',
+        '  Practice words: kjøkken, kino',
+        '',
+      ]);
+      expect(system.match(/What it is:/g)).toHaveLength(1);
+    });
+
+    it('keeps the inventory notes alone for a family the base lacks, and for no base at all', () => {
+      const withBase = v2({ base: soundBaseFor([KJ_BASE], 'uk') }).system;
+      expect(withBase).toContain('- Long and short vowels\n  - [ɑː] Long open back a');
+      expect(withBase.slice(withBase.indexOf('- Long and short vowels'))).not.toContain('How to say it:');
+      expect(v2().system).not.toContain('How to say it:');
+    });
+
+    it('warns the model off turning the usual mistake into what the learner said', () => {
+      expect(v2().system).toContain('never as "you said"');
+      expect(v2().system).toContain('Never say or guess what the learner actually said');
+    });
+
+    it('asks the same remarks with the same schema as v1', () => {
+      const v1 = pronunciationExplainRequest('pronunciation_explain@1', input());
+      expect(v2().messages).toEqual(v1.messages);
+      expect(v2().responseSchema!.schema).toEqual(v1.responseSchema!.schema);
+    });
+  });
+
+  describe('the base as the learner is told it', () => {
+    it('offers the usual mistake to readers of Russian and Ukrainian, the Ukrainian note to Ukrainian only', () => {
+      expect(soundBaseFor([KJ_BASE], 'uk').get('kj')).toMatchObject({ commonError: KJ_BASE.commonError, ukNote: KJ_BASE.ukNote });
+      expect(soundBaseFor([KJ_BASE], 'ru').get('kj')).toMatchObject({ commonError: KJ_BASE.commonError, ukNote: null });
+      expect(soundBaseFor([KJ_BASE], 'en').get('kj')).toMatchObject({ commonError: null, ukNote: null, howTo: KJ_BASE.howTo });
+      expect(soundBaseFor([KJ_BASE], 'nb').get('kj')).toMatchObject({ commonError: null, ukNote: null });
+    });
+  });
+
+  describe('SoundExplainer', () => {
+    const context = { payer: { type: 'workspace', id: 's' }, actor: { userId: 'u', role: 'student' }, surface: 'precheck' } as CallContext;
+    const answer = { items: [0, 1, 2].map((index) => ({ index, explanation: `e${index}` })), summary: 'Почніть з kj.' };
+
+    function setup(base: () => Promise<SoundBaseEntry[]>) {
+      const asked: Array<{ capability: string; request: GatewayRequest }> = [];
+      const bases: Array<[string, string]> = [];
+      const gateway = {
+        call: async (capability: string, _context: CallContext, build: (version: string) => GatewayRequest) => {
+          asked.push({ capability, request: build('pronunciation_explain@2') });
+          return {
+            routed: Result.ok({ result: { output: { kind: 'structured', data: answer } } }),
+            recorded: { callId: 'c1', cost: null, credits: null },
+          };
+        },
+      } as unknown as AiGateway;
+      const explainer = new SoundExplainer(gateway, {
+        base: (language, locale) => (bases.push([language, locale]), base()),
+      });
+      const run = (explanationLanguage = 'uk-UA') =>
+        explainer.explain({ capability: 'voice_review_explain', context, targetLanguage: 'nb', explanationLanguage, sounds: input().sounds, what: 'a test' });
+      return { run, asked, bases };
+    }
+
+    it('reads the base of the language in the explanation locale and hands it to the prompt', async () => {
+      const { run, asked, bases } = setup(async () => [KJ_BASE]);
+      const { explanations } = await run();
+      expect(bases).toEqual([['nb', 'uk']]);
+      expect(asked[0]!.capability).toBe('voice_review_explain');
+      expect(asked[0]!.request.system).toContain('in Ukrainian');
+      expect(asked[0]!.request.system).toContain('Where Ukrainian speakers differ:');
+      expect(explanations).toEqual({ explanations: ['e0', 'e1', 'e2'], summary: 'Почніть з kj.' });
+    });
+
+    it('explains from the inventory when the base cannot be read', async () => {
+      const { run, asked } = setup(async () => {
+        throw new Error('content-service down');
+      });
+      const { explanations } = await run('ru');
+      expect(asked[0]!.request.system).not.toContain('How to say it:');
+      expect(asked[0]!.request.system).toContain('[ç] kj-sound');
+      expect(explanations?.summary).toBe('Почніть з kj.');
     });
   });
 });

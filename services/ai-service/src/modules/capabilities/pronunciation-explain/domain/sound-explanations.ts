@@ -1,4 +1,5 @@
 import type { SoundFamily } from '../../../pronunciation/domain/sound-inventory.js';
+import type { SoundBase } from './sound-base.js';
 
 /** One sound remark to explain: a word and the family of its weak sound (plan 88, step 5b). */
 export interface SoundToExplain {
@@ -19,6 +20,11 @@ export interface ExplainSoundsInput {
   /** The language the learner reads explanations in, spelled out. */
   explanationLanguage: string;
   sounds: SoundToExplain[];
+  /**
+   * The articulation base of content-service in the explanation language (plan 86, step 9.2),
+   * by family; absent or empty — the inventory's notes only. `pronunciation_explain@1` ignores it.
+   */
+  base?: SoundBase;
 }
 
 /** The model's answer, in the order of the remarks asked about. */

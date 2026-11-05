@@ -20,10 +20,9 @@ import type { SpeechResult } from '../../../../providers/domain/speech-result.js
 import { EMPTY_CATALOG, GRAMMAR_ASPECTS } from '../../../grammar-atoms/domain/atom-catalog.js';
 import { toAiFeedback } from '../../domain/practice-feedback.js';
 import { soundFindings, toVoiceFeedback, withSoundExplanations, type PassageHearing } from '../../domain/voice-feedback.js';
-import { readExplanations, type SoundExplanations, type SoundToExplain } from '../../../pronunciation-explain/domain/sound-explanations.js';
+import type { SoundExplanations, SoundToExplain } from '../../../pronunciation-explain/domain/sound-explanations.js';
 import { PRONUNCIATION_EXPLAIN } from '../../../pronunciation-explain/pronunciation-explain.capability.js';
-import { pronunciationExplainRequest } from '../../../pronunciation-explain/prompts/prompts.js';
-import { languageName } from '../../../review-draft/domain/comment-language.js';
+import { SoundExplainer } from '../../../pronunciation-explain/application/sound-explainer.js';
 import { PRACTICE, PRACTICE_VOICE } from '../../practice.capability.js';
 import { practiceRequest } from '../../prompts/prompts.js';
 import { PRACTICE_USAGE_READER, type IPracticeUsageReader, type PracticeUsage } from '../ports/practice-usage.reader.js';
@@ -121,6 +120,7 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
     @Inject(PRACTICE_USAGE_READER) private readonly usageReader: IPracticeUsageReader,
     private readonly atomCatalogs: AtomCatalogResolver,
     private readonly passageSounds: PassageSounds,
+    private readonly explainer: SoundExplainer,
     @Optional() @Inject(PRECHECK_RECORDING_WAITS_MS) private readonly recordingWaitsMs: number[] = DEFAULT_RECORDING_WAITS_MS,
   ) {}
 
@@ -202,8 +202,8 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
   }
 
   /**
-   * The weak sounds explained by a model (plan 88, step 5b), all in one call. Null explanations
-   * when it did not answer usably — off, refused, failed — and the inventory's notes stay.
+   * The weak sounds explained by a model (plan 88, step 5b; base of plan 86, step 9.2), all in one
+   * call, in the school's language — English, the inventory's, without one.
    */
   private async explainSounds(
     request: PrecheckRequest,
@@ -212,23 +212,14 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
     sounds: SoundToExplain[],
   ): Promise<{ call: GatewayCallOf<unknown>; explanations: SoundExplanations | null }> {
     const school = await this.schoolLanguage(request.schoolId);
-    const input = {
-      targetLanguage: languageName(targetLanguage),
-      // The inventory's notes are English: the language to fall back on.
-      explanationLanguage: languageName(school ?? 'en'),
+    return this.explainer.explain({
+      capability: PRONUNCIATION_EXPLAIN.code,
+      context,
+      targetLanguage,
+      explanationLanguage: school ?? 'en',
       sounds,
-    };
-    const call = await this.gateway.call(PRONUNCIATION_EXPLAIN.code, context, (promptVersion) =>
-      pronunciationExplainRequest(promptVersion, input),
-    );
-    if (call.routed.isFail) {
-      // Off is a choice (no binding yet), not a failure worth a line per rehearsal.
-      if (call.routed.error.kind !== 'disabled') this.logger.warn(`Sounds of a rehearsed reading not explained: ${call.routed.error.kind}`);
-      return { call, explanations: null };
-    }
-    const { output } = call.routed.value.result;
-    if (output.kind !== 'structured') return { call, explanations: null };
-    return { call, explanations: readExplanations(output.data, sounds.length) };
+      what: 'a rehearsed reading',
+    });
   }
 
   /**

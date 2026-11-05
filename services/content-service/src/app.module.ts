@@ -32,6 +32,7 @@ import { SkillsModule } from './shared/skills/skills.module.js';
 import { CoverageRecipeModule } from './modules/coverage-recipe/coverage-recipe.module.js';
 import { PersonalVocabularyModule } from './modules/personal-vocabulary/personal-vocabulary.module.js';
 import { ProsodyModule } from './modules/prosody/prosody.module.js';
+import { SoundAtomModule } from './modules/sound-atom/sound-atom.module.js';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { ProsodyModule } from './modules/prosody/prosody.module.js';
     CoverageRecipeModule,
     PersonalVocabularyModule,
     ProsodyModule,
+    SoundAtomModule,
     TagModule,
     ContentRelationModule,
     InternalModule,

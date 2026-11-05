@@ -16,7 +16,8 @@ import {
 } from '../../../review-draft/application/ports/school-language.reader.js';
 import { soundFindings, toVoiceFeedback, withSoundExplanations } from '../../domain/voice-feedback.js';
 import { PRACTICE_VOICE } from '../../practice.capability.js';
-import { explainSounds } from '../explain-sounds.js';
+import { SoundExplainer } from '../../../pronunciation-explain/application/sound-explainer.js';
+import { PRONUNCIATION_EXPLAIN } from '../../../pronunciation-explain/pronunciation-explain.capability.js';
 import { SENTENCE_CHECK_LIMITER, type ISentenceCheckLimiter } from '../ports/sentence-check.limiter.js';
 import { SentenceCheckCommand, type SentenceCheckRequest } from './sentence-check.command.js';
 
@@ -56,6 +57,7 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
     @Inject(SENTENCE_CHECK_LIMITER) private readonly limiter: ISentenceCheckLimiter,
     private readonly passageSounds: PassageSounds,
     @Inject(SCHOOL_LANGUAGE_READER) private readonly schools: ISchoolLanguageReader,
+    private readonly explainer: SoundExplainer,
   ) {}
 
   async execute({ request }: SentenceCheckCommand): Promise<SentenceCheckOutcome> {
@@ -88,7 +90,14 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
     let feedback = toVoiceFeedback(hearings, request.language);
     const weak = soundFindings(hearings, request.language);
     if (weak.length > 0) {
-      const explained = await explainSounds(this.gateway, this.logger, context, request.language, await this.explanationLanguage(request), weak);
+      const explained = await this.explainer.explain({
+        capability: PRONUNCIATION_EXPLAIN.code,
+        context,
+        targetLanguage: request.language,
+        explanationLanguage: await this.explanationLanguage(request),
+        sounds: weak,
+        what: 'a sentence',
+      });
       calls.push(explained.call);
       if (explained.explanations) feedback = withSoundExplanations(feedback, explained.explanations);
     }
