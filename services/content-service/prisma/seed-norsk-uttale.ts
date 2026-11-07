@@ -18,6 +18,12 @@
  * The clips are not in the data: prisma/tools/clip-norsk-uttale.ts writes them into the row
  * (step 12.3), and a reseed carries them over to the word they were made for.
  *
+ * Phrase layers (step 12.4): the data's `prosody` gives a `read_aloud` prompt its phrase marks in the
+ * kernel notation (`^` accent, `\ / ~` group end, `| ||` pause, `_` link), converted from the lesson
+ * notes. Each is parsed against its prompt's text and stored as the prompt's `exercise_prosody_layers`
+ * row — the row the editor's «Pronunciation» step writes, so a teacher sees the marks there. Word
+ * stress is not stored: the lexicon gives it on read.
+ *
  * Idempotent: ids are uuid v5 in a namespace of their own; writes upsert, version item/section
  * lists are rebuilt on every run, and the targets of a seeded exercise are the data's, nothing else.
  *
@@ -34,6 +40,7 @@ import { PrismaClient, Prisma } from '../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { v5 as uuidv5 } from 'uuid';
 import * as mp from '@ssz/shared-kernel/minimal-pairs';
+import { checkProsodyNotation } from '@ssz/shared-kernel/prosody';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: `${process.env.DATABASE_URL}` }),
@@ -73,6 +80,8 @@ interface ExerciseDef {
   content: Prisma.InputJsonValue;
   expectedAnswers: Prisma.InputJsonValue;
   targets: string[];
+  /** read_aloud: prompt id → its phrase layer in the kernel notation. */
+  prosody?: Record<string, string>;
 }
 
 const course = JSON.parse(readFileSync(join(DATA_DIR, 'course.json'), 'utf-8')) as { lessons: LessonMeta[] };
@@ -192,11 +201,13 @@ async function main(): Promise<void> {
   let placed = 0;
   let held = 0;
   let targetTotal = 0;
+  let layerTotal = 0;
   for (const lesson of course.lessons) {
     const r = await seedModule(lesson, templateByCode);
     placed += r.placed;
     held += r.held;
     targetTotal += r.targets;
+    layerTotal += r.layers;
     console.log(`  ✓ ${lesson.key} — ${lesson.title} (${r.placed} exercises${r.held ? `, ${r.held} held` : ''})`);
   }
 
@@ -218,7 +229,7 @@ async function main(): Promise<void> {
 
   console.log(
     `  ✓ ${placed} exercises in modules, ${held} minimal_pairs held (clips missing or waiting for native recordings), ` +
-      `${targetTotal} sound targets`,
+      `${targetTotal} sound targets, ${layerTotal} phrase layers`,
   );
   console.log('Done.');
 }
@@ -267,7 +278,7 @@ const moduleTitle = (l: LessonMeta): string => `${l.num} — ${l.title}`;
 async function seedModule(
   lesson: LessonMeta,
   templateByCode: Map<string, string>,
-): Promise<{ placed: number; held: number; targets: number }> {
+): Promise<{ placed: number; held: number; targets: number; layers: number }> {
   const moduleId = id('module-container', lesson.key);
   const pubId = id('module-version', lesson.key);
   const draftId = id('module-version-draft', lesson.key);
@@ -304,10 +315,12 @@ async function seedModule(
   await seedLesson(lesson);
   const defs = exercises[lesson.key] ?? [];
   let targets = 0;
+  let layers = 0;
   const shown: ExerciseDef[] = [];
   for (const ex of defs) {
     const content = await seedExercise(ex, lesson.level, templateByCode.get(ex.template)!);
     targets += await seedTargets(ex);
+    if (ex.template === 'read_aloud') layers += await seedProsody(ex);
     if (ex.template !== 'minimal_pairs' || isPlaceable(content, ex.expectedAnswers)) shown.push(ex);
   }
 
@@ -330,7 +343,7 @@ async function seedModule(
       }
     }
   }
-  return { placed: shown.length, held: defs.length - shown.length, targets };
+  return { placed: shown.length, held: defs.length - shown.length, targets, layers };
 }
 
 async function seedLesson(lesson: LessonMeta): Promise<void> {
@@ -453,6 +466,40 @@ async function seedTargets(ex: ExerciseDef): Promise<number> {
     });
   }
   await prisma.exerciseItemTarget.deleteMany({ where: { exerciseId, id: { notIn: kept } } });
+  return kept.length;
+}
+
+/**
+ * The phrase layers of the exercise's prompts, parsed from the data's notation against each
+ * prompt's text — exactly as `PUT …/prosody { notation }` stores them (source `teacher`). The
+ * exercise is the seed's, so its layers are the data's: a prompt whose notes lost their marks
+ * loses its row. A notation that is not its prompt's text stops the seed —
+ * prisma/tools/check-norsk-uttale.ts reports it first.
+ */
+async function seedProsody(ex: ExerciseDef): Promise<number> {
+  const exerciseId = id('exercise', ex.key);
+  const prompts = (ex.content as { prompts: { id: string; text: string }[] }).prompts;
+  const kept: string[] = [];
+  for (const [promptId, notation] of Object.entries(ex.prosody ?? {})) {
+    const prompt = prompts.find((p) => p.id === promptId);
+    if (!prompt) throw new Error(`${ex.key}: prosody of an unknown prompt ${promptId}`);
+    const parsed = checkProsodyNotation(prompt.text, notation);
+    if (parsed.issues.length > 0) {
+      throw new Error(`${ex.key} ${promptId}: notation issues ${JSON.stringify(parsed.issues)}`);
+    }
+    const data = {
+      sourceText: prompt.text,
+      layer: parsed.layer as unknown as Prisma.InputJsonValue,
+      updatedByUserId: TEACHER_ID,
+    };
+    await prisma.exerciseProsodyLayer.upsert({
+      where: { exerciseId_promptId: { exerciseId, promptId } },
+      create: { exerciseId, promptId, ...data },
+      update: data,
+    });
+    kept.push(promptId);
+  }
+  await prisma.exerciseProsodyLayer.deleteMany({ where: { exerciseId, promptId: { notIn: kept } } });
   return kept.length;
 }
 

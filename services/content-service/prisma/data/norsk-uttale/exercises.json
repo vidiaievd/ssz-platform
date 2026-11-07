@@ -484,7 +484,8 @@
       "targets": [
         "nb:vowel_length"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-01-3",
@@ -801,7 +802,8 @@
       "targets": [
         "nb:vowel_length"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-01-4",
@@ -1107,7 +1109,8 @@
       "targets": [
         "nb:vowel_length"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-01-5",
@@ -1378,7 +1381,8 @@
         "nb:y",
         "nb:oe"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "02": [
@@ -1608,7 +1612,8 @@
       "targets": [
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-02-2",
@@ -1920,7 +1925,8 @@
       "targets": [
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-02-3",
@@ -2221,7 +2227,8 @@
       "targets": [
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-02-4",
@@ -2507,7 +2514,8 @@
         "nb:kj",
         "nb:ae"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "03": [
@@ -2991,7 +2999,8 @@
       "targets": [
         "nb:y"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-03-3",
@@ -3298,7 +3307,8 @@
       "targets": [
         "nb:y"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-03-4",
@@ -3589,7 +3599,8 @@
       "targets": [
         "nb:y"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-03-5",
@@ -3865,7 +3876,8 @@
         "nb:sj",
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "04": [
@@ -4396,7 +4408,8 @@
       "targets": [
         "nb:uu"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-04-3",
@@ -4708,7 +4721,8 @@
       "targets": [
         "nb:uu"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-04-4",
@@ -5019,7 +5033,8 @@
       "targets": [
         "nb:uu"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-04-5",
@@ -5305,7 +5320,8 @@
         "nb:vowel_length",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "05": [
@@ -5800,7 +5816,8 @@
         "nb:oe",
         "nb:ae"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-05-3",
@@ -6123,7 +6140,8 @@
         "nb:oe",
         "nb:ae"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-05-4",
@@ -6425,7 +6443,8 @@
         "nb:oe",
         "nb:ae"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-05-5",
@@ -6701,7 +6720,8 @@
         "nb:kj",
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "06": [
@@ -7125,7 +7145,8 @@
       "targets": [
         "nb:kj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-06-3",
@@ -7417,7 +7438,8 @@
       "targets": [
         "nb:kj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-06-4",
@@ -7673,7 +7695,8 @@
       "targets": [
         "nb:kj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-06-5",
@@ -7949,7 +7972,8 @@
         "nb:sj",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "07": [
@@ -8393,7 +8417,8 @@
       "targets": [
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-07-3",
@@ -8680,7 +8705,8 @@
       "targets": [
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-07-4",
@@ -8971,7 +8997,8 @@
       "targets": [
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-07-5",
@@ -9282,7 +9309,8 @@
         "nb:schwa",
         "nb:y"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "08": [
@@ -9736,7 +9764,8 @@
       "targets": [
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-08-3",
@@ -10053,7 +10082,8 @@
       "targets": [
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-08-4",
@@ -10344,7 +10374,8 @@
       "targets": [
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-08-5",
@@ -10640,7 +10671,8 @@
         "nb:uu",
         "nb:kj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "09": [
@@ -10942,7 +10974,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": "Azure TTS с самопроверкой тонема (план 88, шаг 6b.2); слово без прошедшего эталона — запись носителя (`collect.sh`, w04–w20)"
+      "referenceSource": "Azure TTS с самопроверкой тонема (план 88, шаг 6b.2); слово без прошедшего эталона — запись носителя (`collect.sh`, w04–w20)",
+      "prosody": {}
     },
     {
       "key": "uttale-09-3",
@@ -11249,7 +11282,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-09-4",
@@ -11525,7 +11559,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-09-5",
@@ -11831,7 +11866,8 @@
         "nb:ae",
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "10": [
@@ -12383,7 +12419,8 @@
         "nb:sj",
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-10-3",
@@ -12714,7 +12751,8 @@
         "nb:r",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-10-4",
@@ -13034,7 +13072,8 @@
         "nb:r",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-10-5",
@@ -13385,7 +13424,8 @@
         "nb:r",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "11": [
@@ -13863,7 +13903,8 @@
       "targets": [
         "nb:vowel_length"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-11-3",
@@ -14215,7 +14256,8 @@
       "targets": [
         "nb:vowel_length"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-11-4",
@@ -14556,7 +14598,8 @@
       "targets": [
         "nb:vowel_length"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-11-5",
@@ -14832,7 +14875,8 @@
         "nb:oe",
         "nb:retroflex"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "12": [
@@ -15087,7 +15131,8 @@
       "targets": [
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-12-2",
@@ -15399,7 +15444,8 @@
       "targets": [
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-12-3",
@@ -15720,7 +15766,8 @@
       "targets": [
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-12-4",
@@ -16026,7 +16073,8 @@
         "nb:kj",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "13": [
@@ -16511,7 +16559,8 @@
         "nb:uu",
         "nb:y"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-13-3",
@@ -16874,7 +16923,8 @@
         "nb:uu",
         "nb:y"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-13-4",
@@ -17231,7 +17281,8 @@
         "nb:uu",
         "nb:y"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-13-5",
@@ -17536,7 +17587,14 @@
         "nb:ae",
         "nb:retroflex"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Her er ^kartet til ^barna.",
+        "p2": "Er det sterk ^kaffe der ^borte?",
+        "p3": "Lars er ^lærer på ^norskkurset.",
+        "p4": "Først skal vi være ^hjemme på ^torsdag.",
+        "p5": "^Barna er her i ^dag."
+      }
     }
   ],
   "14": [
@@ -18031,7 +18089,8 @@
         "nb:oe",
         "nb:ae"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-14-3",
@@ -18384,7 +18443,8 @@
         "nb:oe",
         "nb:ae"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-14-4",
@@ -18746,7 +18806,8 @@
         "nb:oe",
         "nb:ae"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-14-5",
@@ -19047,7 +19108,8 @@
         "nb:uu",
         "nb:kj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "15": [
@@ -19557,7 +19619,8 @@
         "nb:kj",
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-15-3",
@@ -19905,7 +19968,8 @@
         "nb:kj",
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-15-4",
@@ -20236,7 +20300,8 @@
         "nb:kj",
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-15-5",
@@ -20532,7 +20597,8 @@
         "nb:r",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "16": [
@@ -20982,7 +21048,8 @@
         "nb:retroflex",
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-16-3",
@@ -21310,7 +21377,8 @@
         "nb:retroflex",
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-16-4",
@@ -21627,7 +21695,8 @@
         "nb:retroflex",
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-16-5",
@@ -21923,7 +21992,8 @@
         "nb:y",
         "nb:kj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "17": [
@@ -22470,7 +22540,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": "рамка *«Nå sier jeg … igjen.»*; слово — запись носителя (`collect.sh` для *bønder, bønner, kaffe, jente*; `tone05–tone08` из `sets/minimal_pairs.tsv` — слова без рамки, для 17.2 записать в рамке) или Azure TTS с самопроверкой тонема (план 88, шаг 6b.2); слово без прошедшего эталона — запись носителя"
+      "referenceSource": "рамка *«Nå sier jeg … igjen.»*; слово — запись носителя (`collect.sh` для *bønder, bønner, kaffe, jente*; `tone05–tone08` из `sets/minimal_pairs.tsv` — слова без рамки, для 17.2 записать в рамке) или Azure TTS с самопроверкой тонема (план 88, шаг 6b.2); слово без прошедшего эталона — запись носителя",
+      "prosody": {}
     },
     {
       "key": "uttale-17-3",
@@ -22708,7 +22779,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": "Azure TTS с самопроверкой тонема; слово без прошедшего эталона — запись носителя"
+      "referenceSource": "Azure TTS с самопроверкой тонема; слово без прошедшего эталона — запись носителя",
+      "prosody": {}
     },
     {
       "key": "uttale-17-4",
@@ -23065,7 +23137,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-17-5",
@@ -23395,7 +23468,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-17-6",
@@ -23696,7 +23770,8 @@
         "nb:r",
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "18": [
@@ -24137,7 +24212,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": "Azure TTS с самопроверкой тонема (план 88, шаг 6b.2); форма без прошедшего эталона — запись носителя"
+      "referenceSource": "Azure TTS с самопроверкой тонема (план 88, шаг 6b.2); форма без прошедшего эталона — запись носителя",
+      "prosody": {}
     },
     {
       "key": "uttale-18-2",
@@ -24459,7 +24535,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": "рамка *«Nå sier jeg … igjen.»*; *hesten* — запись носителя (`collect.sh`, w06), остальное — Azure TTS с самопроверкой или запись носителя"
+      "referenceSource": "рамка *«Nå sier jeg … igjen.»*; *hesten* — запись носителя (`collect.sh`, w06), остальное — Azure TTS с самопроверкой или запись носителя",
+      "prosody": {}
     },
     {
       "key": "uttale-18-3",
@@ -24826,7 +24903,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-18-4",
@@ -25142,7 +25220,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-18-5",
@@ -25427,7 +25506,14 @@
         "nb:uu",
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Sjefen sitter ^ute i ^sola.",
+        "p2": "Du kan få ^sjokolade på ^turen.",
+        "p3": "Vil du ha sju ^skiver med ^ost?",
+        "p4": "^Huset ligger ved ^sjøen.",
+        "p5": "^Hunden sover på ^stasjonen."
+      }
     }
   ],
   "19": [
@@ -25613,7 +25699,12 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "^bok. en ^bok. en god ^bok. en god bok om ^Norge.",
+        "p2": "i ^dag. i ^morgen. på ^skolen. til ^byen. med ^bussen. hjem til ^mamma.",
+        "p3": "i ^dag | på ^skolen. i ^morgen | med ^bussen. hjem til ^mamma | med en god ^bok."
+      }
     },
     {
       "key": "uttale-19-2",
@@ -25913,7 +26004,15 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Jeg bor i ^Oslo | med ^familien min.",
+        "p2": "Vi spiser ^middag | klokka ^fem.",
+        "p3": "Hun går på ^skolen | hver ^dag.",
+        "p4": "Etter ^jobben | tar jeg ^bussen.",
+        "p5": "Kan du ^komme | på ^lørdag?",
+        "p6": "– Hva skal du ^gjøre | i ^helgen?\n– Jeg skal besøke ^onkel | på ^hytta.\n– Er det ^langt dit?\n– Nei, | en ^time | med ^bil."
+      }
     },
     {
       "key": "uttale-19-3",
@@ -26103,7 +26202,13 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "I morgen ^tidlig | står vi ^opp,\nog pappa ^drikker | ^kopp på kopp.\nSå går vi ^ut | i sol og ^vind,\nmed ^lue på | og røde ^kinn.",
+        "p2": "Vi går til ^butikken | på ^hjørnet der\nog kjøper ^brød | og ost og ^bær.\nSå går vi ^hjem | og lager ^mat —\nog alle ^sammen | er så ^glad!",
+        "p3": "Ved ^sjøen | sitter vi en ^stund\nog ^leker | med en liten ^hund.\nEn ^båt kommer inn | fra havet ^blått,\nog alle ^sier: | «Å, så ^flott!»",
+        "p4": "Om ^kvelden | er vi ^trøtte nok,\nog ^mamma | leser i en ^bok.\nVi sier «God ^natt» | til mor og ^far —\nnå er dagen ^over. | Ha det ^bra!"
+      }
     },
     {
       "key": "uttale-19-4",
@@ -26404,7 +26509,14 @@
         "nb:retroflex",
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "^Barna sover i ^hytta.",
+        "p2": "Først drikker vi ^kaffe med ^alle.",
+        "p3": "Mannen leser ^norsk på ^kvelden.",
+        "p4": "Jenta er ^ferdig på ^torsdag.",
+        "p5": "Gutten har ^kartet i ^lommen."
+      }
     }
   ],
   "20": [
@@ -26970,7 +27082,8 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-20-3",
@@ -27302,7 +27415,14 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Tusen takk for ^maten!",
+        "p2": "Vi skal på ^restaurant i ^påsken.",
+        "p3": "Hun synger en ^sang om ^sjøen.",
+        "p4": "Kjør ^forsiktig, | ^kjære!",
+        "p5": "Barna snakker ^norsk på ^torsdag."
+      }
     },
     {
       "key": "uttale-20-4",
@@ -27693,7 +27813,8 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-20-5",
@@ -28045,7 +28166,15 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Kjære ^Lars, | takk for ^kortet!",
+        "p2": "Vi skal på ^ski i ^påsken.",
+        "p3": "^Søsteren min bor ved ^sjøen.",
+        "p4": "Det er typisk ^norsk å gå på ^tur.",
+        "p5": "Hun er ^ferdig med ^leksene.",
+        "p6": "Gutten åpner ^døren for ^hesten."
+      }
     }
   ],
   "21": [
@@ -28265,7 +28394,8 @@
       "targets": [
         "nb:vowel_length"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-21-2",
@@ -28657,7 +28787,8 @@
       "targets": [
         "nb:vowel_length"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-21-3",
@@ -28990,7 +29121,8 @@
       "targets": [
         "nb:vowel_length"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-21-4",
@@ -29276,7 +29408,8 @@
         "nb:kj",
         "nb:retroflex"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-21-5",
@@ -29446,7 +29579,8 @@
       "targets": [
         "nb:vowel_length"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "22": [
@@ -29671,7 +29805,8 @@
       "targets": [
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-22-2",
@@ -29988,7 +30123,8 @@
       "targets": [
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-22-3",
@@ -30206,7 +30342,8 @@
       "targets": [
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-22-4",
@@ -30507,7 +30644,8 @@
         "nb:sj",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-22-5",
@@ -30677,7 +30815,8 @@
       "targets": [
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "23": [
@@ -31023,7 +31162,8 @@
         "nb:oe",
         "nb:ae"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-23-2",
@@ -31388,7 +31528,8 @@
         "nb:oe",
         "nb:ae"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-23-3",
@@ -31669,7 +31810,8 @@
         "nb:oe",
         "nb:ae"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-23-4",
@@ -31984,7 +32126,14 @@
         "nb:vowel_length",
         "nb:kj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Jeg kjøpte ^kjøtt til ^middag i går.",
+        "p2": "^Kjæresten min jobber på ^kjøkkenet.",
+        "p3": "Vi tjener ikke ^mye, men vi har det ^godt.",
+        "p4": "Sett deg ^ned og ta en kopp ^kaffe.",
+        "p5": "^Kinoen ligger midt i ^byen."
+      }
     },
     {
       "key": "uttale-23-5",
@@ -32157,7 +32306,8 @@
         "nb:oe",
         "nb:ae"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "24": [
@@ -32426,7 +32576,8 @@
         "nb:kj",
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-24-2",
@@ -32754,7 +32905,8 @@
         "nb:kj",
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-24-3",
@@ -33018,7 +33170,8 @@
         "nb:kj",
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-24-4",
@@ -33344,7 +33497,8 @@
         "nb:r",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-24-5",
@@ -33515,7 +33669,8 @@
         "nb:kj",
         "nb:sj"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "25": [
@@ -33790,7 +33945,8 @@
         "nb:retroflex",
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-25-2",
@@ -34078,7 +34234,8 @@
         "nb:retroflex",
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-25-3",
@@ -34332,7 +34489,8 @@
         "nb:retroflex",
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-25-4",
@@ -34647,7 +34805,14 @@
         "nb:uu",
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Hun bor i et lite ^hus ute på ^landet.",
+        "p2": "Gutten kjøper ^sukker i ^butikken.",
+        "p3": "Om ^sommeren bader vi ute hver ^uke.",
+        "p4": "Familien drakk ^kaffe ute i ^hagen.",
+        "p5": "^Bussen kommer klokka ^tolv hver dag."
+      }
     },
     {
       "key": "uttale-25-5",
@@ -34818,7 +34983,8 @@
         "nb:retroflex",
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "26": [
@@ -35106,7 +35272,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": "Azure TTS с самопроверкой тонема (план 88, шаг 6b.2); слово без прошедшего эталона — запись носителя"
+      "referenceSource": "Azure TTS с самопроверкой тонема (план 88, шаг 6b.2); слово без прошедшего эталона — запись носителя",
+      "prosody": {}
     },
     {
       "key": "uttale-26-2",
@@ -35375,7 +35542,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": "рамка *«Nå sier jeg … igjen.»*; Azure TTS с самопроверкой или запись носителя"
+      "referenceSource": "рамка *«Nå sier jeg … igjen.»*; Azure TTS с самопроверкой или запись носителя",
+      "prosody": {}
     },
     {
       "key": "uttale-26-3",
@@ -35732,7 +35900,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-26-4",
@@ -36080,7 +36249,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-26-5",
@@ -36406,7 +36576,8 @@
         "nb:retroflex",
         "nb:vowel_length"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-26-6",
@@ -36576,7 +36747,8 @@
       "targets": [
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "27": [
@@ -36895,7 +37067,14 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "^Anna kjøper en ny sykkel, | ikke ^Per.",
+        "p2": "Anna ^kjøper en ny sykkel | – hun ^leier den ikke.",
+        "p3": "Anna kjøper en ^ny sykkel, | ikke en ^brukt.",
+        "p4": "Anna kjøper en ny ^sykkel, | ikke en ^bil.",
+        "p5": "ikke i ^dag, | men i ^morgen. ikke ^kaffe, | men ^te. ikke ^Oslo, | men ^Bergen. ikke ^tirsdag, | men ^torsdag."
+      }
     },
     {
       "key": "uttale-27-2",
@@ -37189,7 +37368,13 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Hvem reiser til Bergen i morgen? – ^Kari reiser til Bergen i morgen.",
+        "p2": "Hvor reiser Kari i morgen? – Kari reiser til ^Bergen | i morgen.",
+        "p3": "Når reiser Kari til Bergen? – Kari reiser til Bergen | i ^morgen.",
+        "p4": "Hva skjer i morgen? – Kari reiser til ^Bergen."
+      }
     },
     {
       "key": "uttale-27-3",
@@ -37534,7 +37719,15 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Møtet er i ^morgen, | ikke i ^dag.",
+        "p2": "Jeg sa ^tirsdag, | ikke ^torsdag.",
+        "p3": "Vi tar ikke ^bussen | – vi ^sykler.",
+        "p4": "Hun har ikke ^én bror, | hun har ^tre.",
+        "p5": "Det er ^Kari | som har nøkkelen.",
+        "p6": "Hvem ringte? | – ^Sjefen ringte."
+      }
     },
     {
       "key": "uttale-27-4",
@@ -37708,7 +37901,12 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Kari ringer til Per på mandag. – Kommer du på møtet i ^morgen? – I ^morgen? sier Per. – Jeg trodde møtet var på ^torsdag. – Nei, ikke på ^torsdag, sier Kari. – På ^tirsdag. Det står i e-posten fra ^sjefen.",
+        "p2": "Per må endre ^planene. På tirsdag skulle han kjøre ^datteren | på trening. – Kan ^du kjøre henne? spør han kona. – ^Jeg? sier hun. – Jeg ^jobber på tirsdag. Men ^bestemor har tid. Bestemor sier ^ja med en gang.",
+        "p3": "På tirsdag kommer Per tidlig til kontoret. Men møterommet er ^tomt. Kari sender en melding: – Møtet er ^flyttet. Det er ikke i ^dag, | det er på ^torsdag! Per ler. – ^Ser du? skriver han. – Jeg sa jo ^torsdag!"
+      }
     },
     {
       "key": "uttale-27-5",
@@ -38024,7 +38222,8 @@
         "nb:kj",
         "nb:r"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-27-6",
@@ -38192,7 +38391,8 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "28": [
@@ -38376,7 +38576,8 @@
           "lenses": [
             "stress",
             "sounds",
-            "respell"
+            "respell",
+            "melody"
           ]
         }
       },
@@ -38513,7 +38714,15 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Du kommer i ^morgen. \\ Du kommer i ^morgen? / Kommer du i ^morgen? / Når kommer ^du? \\",
+        "p2": "Hva ^heter du? \\ Hvor ^bor du? \\ Når begynner ^kurset? \\ Hvordan ^går det? \\",
+        "p3": "Har du ^tid? / Er det ^ledig her? / Kan du ^hjelpe meg? / Skal vi ^gå? /",
+        "p4": "Det er kaldt i ^dag, \\ | ikke ^sant? / Vi tar ^bussen, \\ | eller? / Du er fra ^Bergen, \\ | ikke ^sant? /",
+        "p5": "Vil du ha kaffe eller ^te? / Vil du ha ^kaffe / | eller ^te? \\",
+        "p6": "^epler, ~ | ^pærer ~ | og ^bananer. \\ ^mandag, ~ | ^tirsdag ~ | og ^onsdag. \\"
+      }
     },
     {
       "key": "uttale-28-2",
@@ -38695,7 +38904,8 @@
           "lenses": [
             "stress",
             "sounds",
-            "respell"
+            "respell",
+            "melody"
           ]
         }
       },
@@ -38908,7 +39118,15 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Hvor mye ^koster billetten? \\",
+        "p2": "Er du ^ferdig snart? /",
+        "p3": "Du har ikke ^spist ennå? /",
+        "p4": "Vil du sitte ved ^vinduet / | eller ved ^døren? \\",
+        "p5": "Det var en fin ^tur, \\ | ikke ^sant? /",
+        "p6": "Kommer ^bussen snart? / | – ^Ja, \\ | om fem ^minutter. \\"
+      }
     },
     {
       "key": "uttale-28-3",
@@ -39091,7 +39309,12 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Mira står på stasjonen i Oslo. Hun skal til Lillehammer, men hun finner ikke toget. Hun spør en mann: – ^Unnskyld, ~ | går toget til Lillehammer ^herfra? / – Nei, \\ | ikke ^herfra, \\ sier mannen. – Fra spor fire. – Spor ^fire? / Hvor ^er det? \\ – Der ^borte, \\ | ved ^trappen. \\",
+        "p2": "Mira løper bort til trappen. En konduktør står der. – Er dette toget til ^Lillehammer? / spør hun. – Ja, det er det. Har du ^billett? / – Ja, på mobilen. Når ^går toget? \\ – Om to minutter. Du rekker det!",
+        "p3": "På toget setter Mira seg ved vinduet. En eldre dame smiler til henne. – Skal du også til ^Lillehammer? / – ^Ja. \\ Og ^du? / – Nei, jeg skal hjem til Hamar. Er du på ^ferie? / – Nei, jeg skal begynne i ny jobb på mandag. – Så ^spennende! \\ ^Lykke til! \\"
+      }
     },
     {
       "key": "uttale-28-4",
@@ -39407,7 +39630,8 @@
         "nb:sj",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-28-5",
@@ -39590,7 +39814,8 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "29": [
@@ -39832,7 +40057,15 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Vi ^reiser. \\ || I morgen ^reiser vi. \\ || I morgen ^tidlig ~ | reiser vi til ^hytta. \\ || I morgen ^tidlig ~ | reiser vi til hytta på ^fjellet ~ | med to gode ^venner. \\ ||",
+        "p2": "Etter ^jobben ~ | ^handler jeg. \\ || Når det ^regner, ~ | blir vi ^hjemme. \\ || Hvis du ^vil, ~ | kan du bli ^med. \\ ||",
+        "p3": "Jeg ville ^gå, ~ | men det ^regnet. \\ || Vi spiste ^middag, ~ | og så gikk vi en ^tur. \\ || Hun er ^trøtt ~ | fordi hun jobbet ^sent. \\ ||",
+        "p4": "en stor kopp ^kaffe, på kjøkkenet ^hjemme, for to år ^siden, klokka halv ^åtte, har _ du ^tid",
+        "p5": "^Anna, ~ | søsteren ^min, ~ | bor i ^Tromsø. \\ || ^Læreren vår, ~ | en hyggelig dame fra ^Bodø, ~ | snakker ^sakte. \\ ||",
+        "p6": "Jeg kom ^hjem. \\ || Jeg ^spiste. \\ || Jeg ^la meg. \\ || Jeg kom ^hjem, ~ | ^spiste ~ | og ^la meg. \\ ||"
+      }
     },
     {
       "key": "uttale-29-2",
@@ -40007,7 +40240,8 @@
           "lenses": [
             "stress",
             "sounds",
-            "respell"
+            "respell",
+            "melody"
           ]
         }
       },
@@ -40247,7 +40481,15 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Da jeg var ^liten, ~ | bodde vi i et gammelt ^hus ~ | ved ^sjøen. \\",
+        "p2": "Hvis det er fint vær i ^morgen, ~ | tar vi ^båten ~ | ut på ^fjorden. \\",
+        "p3": "^Broren min, ~ | som bor i ^Bergen, ~ | kommer på besøk i ^juli. \\",
+        "p4": "Jeg har lest boka _ du ^ga meg, ~ | og den var veldig ^spennende. \\",
+        "p5": "Vi kjøpte ^brød, ~ | ^ost, ~ | ^melk ~ | og ^egg, ~ | og så gikk vi ^hjem. \\",
+        "p6": "Hun ringte i ^går ~ | og sa at hun ikke kan komme på ^festen. \\"
+      }
     },
     {
       "key": "uttale-29-3",
@@ -40368,7 +40610,8 @@
           "lenses": [
             "stress",
             "sounds",
-            "respell"
+            "respell",
+            "melody"
           ]
         }
       },
@@ -40415,7 +40658,12 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Da jeg kom til ^Norge ~ | for tre år ^siden, ~ | kunne jeg nesten ikke ^norsk. \\ || Jeg bodde i en liten leilighet i ^Trondheim, ~ | og de første ^ukene | var jeg mest ^hjemme. \\ || Det var mørkt når jeg sto ^opp, ~ | og mørkt når jeg kom ^hjem. \\ ||",
+        "p2": "Så begynte jeg på et ^kurs. \\ || ^Læreren vår, ~ | en hyggelig dame fra ^Bodø, ~ | snakket sakte og ^tydelig. \\ || Etter hver ^time ~ | øvde vi på det vi hadde ^lært, ~ | og om ^kvelden ~ | hørte jeg på ^radio, ~ | selv om jeg ikke forsto ^alt. \\ ||",
+        "p3": "I ^februar, ~ | da sola kom ^tilbake, ~ | gikk jeg på ^ski ~ | for første ^gang. \\ || Jeg falt mange ^ganger, ~ | men jeg lo hele ^tiden. \\ || Nå er vinteren min ^beste tid. \\ ||"
+      }
     },
     {
       "key": "uttale-29-4",
@@ -40746,7 +40994,8 @@
         "nb:retroflex",
         "nb:schwa"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     },
     {
       "key": "uttale-29-5",
@@ -40914,7 +41163,8 @@
         }
       },
       "targets": [],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "30": [
@@ -41343,7 +41593,8 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": "Azure TTS с самопроверкой (план 88, шаг 6b.2); слово без прошедшего эталона — запись носителя"
+      "referenceSource": "Azure TTS с самопроверкой (план 88, шаг 6b.2); слово без прошедшего эталона — запись носителя",
+      "prosody": {}
     },
     {
       "key": "uttale-30-2",
@@ -41525,7 +41776,8 @@
           "lenses": [
             "stress",
             "sounds",
-            "respell"
+            "respell",
+            "melody"
           ]
         }
       },
@@ -41720,7 +41972,15 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Fra ^vinduet ~ | ser jeg ^kirketårnet ~ | og de høye ^husene. \\",
+        "p2": "^Skyene er _ ^tunge, ~ | og det blir _ snart ^regn. \\",
+        "p3": "Hun sitter ofte ved ^vinduet ~ | og ser ut på ^gata. \\",
+        "p4": "Etter ^regnet ~ | kom solen ^tilbake. \\",
+        "p5": "Det er _ så ^stille ~ | her om ^kvelden. \\",
+        "p6": "Jeg kjenner ^verden ~ | bare fra ^bøker. \\"
+      }
     },
     {
       "key": "uttale-30-3",
@@ -41848,7 +42108,8 @@
           "lenses": [
             "stress",
             "sounds",
-            "respell"
+            "respell",
+            "melody"
           ]
         }
       },
@@ -42028,7 +42289,12 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": "запись носителя (стих — в первую очередь, план 89 §4.2); до записи — Azure TTS со слоем пауз"
+      "referenceSource": "запись носителя (стих — в первую очередь, план 89 §4.2); до записи — Azure TTS со слоем пауз",
+      "prosody": {
+        "p1": "Jeg ser på den hvite ^himmel, ~ | jeg ser på de gråblå ^skyer, ~ | jeg ser på den blodige ^sol. \\ || Dette er altså ^verden. \\ || Dette er altså klodenes ^hjem. \\ || En ^regndråpe! \\ ||",
+        "p2": "Jeg ser på de høye ^hus, ~ | jeg ser på de tusende ^vinduer, ~ | jeg ser på det fjerne ^kirketårn. \\ || Dette er altså ^jorden. \\ || Dette er altså ^menneskenes hjem. \\ || De gråblå skyer _ ^samler seg. \\ || Solen ble ^borte. \\ ||",
+        "p3": "Jeg ser på de velkledde ^herrer, ~ | jeg ser på de smilende ^damer, ~ | jeg ser på de lutende ^hester. \\ || Hvor de gråblå skyer blir _ ^tunge. \\ || Jeg ^ser, ~ | jeg ^ser ~ || … Jeg er visst kommet på en ^feil klode! \\ || Her er _ så ^underlig ~ || …"
+      }
     },
     {
       "key": "uttale-30-4",
@@ -42192,7 +42458,8 @@
           "lenses": [
             "stress",
             "sounds",
-            "respell"
+            "respell",
+            "melody"
           ]
         }
       },
@@ -42362,7 +42629,14 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Kjæresten min ^synes ~ | at vinteren er ^lang. \\",
+        "p2": "^Sjefen ~ | ba oss sortere ^søppelet. \\",
+        "p3": "Vi tok en lang ^tur ~ | langs ^fjorden i går. \\",
+        "p4": "^Naboen min ~ | har en hytte ved ^sjøen. \\",
+        "p5": "^Rolig \\ || – du har god ^tid, ~ | og regningen kan ^vente. \\"
+      }
     },
     {
       "key": "uttale-30-5",
@@ -42557,7 +42831,8 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ],
   "31": [
@@ -43016,7 +43291,10 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": "Azure TTS с самопроверкой (план 88, шаг 6b.2); слово без прошедшего эталона — запись носителя"
+      "referenceSource": "Azure TTS с самопроверкой (план 88, шаг 6b.2); слово без прошедшего эталона — запись носителя",
+      "prosody": {
+        "p2": "jeg ^tror det, det er jo, har _ du ^tid, avtalen, støtte, regningene."
+      }
     },
     {
       "key": "uttale-31-2",
@@ -43198,7 +43476,8 @@
           "lenses": [
             "stress",
             "sounds",
-            "respell"
+            "respell",
+            "melody"
           ]
         }
       },
@@ -43363,7 +43642,15 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "– Har _ du ^tid i kveld? / || – ^Ja, ~ | etter ^middag. \\",
+        "p2": "– Skal vi ta ^bussen? / || – ^Nei, ~ | vi tar _ ^toget. \\",
+        "p3": "– Hvor ^bor _ du nå? \\ || – Rett ved ^stasjonen. \\",
+        "p4": "– Kjenner du ^sjefen min? / || – ^Nei, ~ | men jeg har hørt ^mye om henne. \\",
+        "p5": "– Er _ du ^ferdig med søknaden? / || – ^Nesten. \\ || Jeg mangler bare ^én ting. \\",
+        "p6": "– Hvordan ^går _ det med ^deg? \\ || – Takk, ~ | bare ^bra! \\ || Og med ^deg? /"
+      }
     },
     {
       "key": "uttale-31-3",
@@ -43686,7 +43973,12 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": "запись носителя (лучше двумя голосами, план 89 §4.2); до записи — Azure TTS со слоем пауз"
+      "referenceSource": "запись носителя (лучше двумя голосами, план 89 §4.2); до записи — Azure TTS со слоем пауз",
+      "prosody": {
+        "p1": "– Hei, Kari! Er det ^ledig her? / || – Ja, sett deg! Hvordan ^går det med deg? \\ || – Bare bra, takk. Men jeg er _ litt trøtt. Vi fikk ny sjef i går, og hun vil ha budsjettet ferdig før ^fredag. \\ || – Før ^fredag? / || Det er jo ^snart! \\ ||",
+        "p2": "– Har _ du funnet en ny ^leilighet? / || – ^Ja, ~ | ^endelig! \\ || Den ligger rett ved stasjonen, og husleia er ikke så ^høy. \\ || Men kjøkkenet er _ ^lite. \\ || – Det gjør ikke noe. Du spiser jo mest hos ^kjæresten din! \\ || – Det er _ ^sant. \\ ||",
+        "p3": "– Hva skal du gjøre i ^helgen? \\ || – Vi skal på tur i ^fjellet, ~ | hvis været er ^fint. \\ || Vil du være ^med? / || – ^Gjerne! \\ || Men jeg har ikke ^ski. \\ || – Ikke noe problem. Du kan låne av ^broren min. \\ ||"
+      }
     },
     {
       "key": "uttale-31-4",
@@ -43850,7 +44142,8 @@
           "lenses": [
             "stress",
             "sounds",
-            "respell"
+            "respell",
+            "melody"
           ]
         }
       },
@@ -44040,7 +44333,14 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {
+        "p1": "Kjæresten min tjener mer enn ^meg, ~ | men hun kjører en gammel ^bil. \\",
+        "p2": "^Sjefen sier ~ | at budsjettet til prosjektet er ^ferdig ~ | på ^torsdag. \\",
+        "p3": "^Naboen min synes ~ | at det er for mye ^søppel på gata. \\",
+        "p4": "Brunost til ^frokost ~ | er _ typisk ^norsk. \\",
+        "p5": "Er du ^rolig før en ^prøve, / | eller blir du ^nervøs? \\"
+      }
     },
     {
       "key": "uttale-31-5",
@@ -44257,7 +44557,8 @@
         "nb:retroflex",
         "nb:tone"
       ],
-      "referenceSource": ""
+      "referenceSource": "",
+      "prosody": {}
     }
   ]
 }

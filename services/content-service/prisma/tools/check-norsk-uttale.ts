@@ -12,7 +12,11 @@
  *     have none. A `minimal_pairs` is expected to report missing clips and nothing else (its
  *     clips come in step 12.3, and until then the seed keeps it out of the module);
  *   - no part of the key in the student projection: no listening note, no focus word, no level
- *     descriptor (`read_aloud`), no word text, gloss or IPA (`minimal_pairs`).
+ *     descriptor (`read_aloud`), no word text, gloss or IPA (`minimal_pairs`);
+ *   - the phrase layers (`prosody`, step 12.4): each notation is its prompt's text exactly
+ *     (`checkProsodyNotation`), its layer lies on the text (`prosodyIssues`), and the pronunciation
+ *     guide has no blocker with the layers in — so a `melody` lens is offered only where every
+ *     sentence ends a group with a pitch.
  *
  *   npx tsx prisma/tools/check-norsk-uttale.ts
  */
@@ -21,6 +25,7 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import * as ra from '@ssz/shared-kernel/read-aloud';
 import * as mp from '@ssz/shared-kernel/minimal-pairs';
+import { checkProsodyNotation, emptyProsodyLayer, prosodyIssues } from '@ssz/shared-kernel/prosody';
 import { ExerciseContentValidatorService as Validator } from '../../src/modules/exercise/domain/services/exercise-content-validator.service.js';
 import { readAloudTemplate } from '../templates/read-aloud.js';
 import { minimalPairsTemplate } from '../templates/minimal-pairs.js';
@@ -32,6 +37,8 @@ interface Exercise {
   content: Record<string, unknown>;
   expectedAnswers: Record<string, unknown>;
   targets: string[];
+  /** read_aloud: prompt id → its phrase layer in the kernel notation (step 12.4). */
+  prosody?: Record<string, string>;
 }
 
 const FILE = join(process.cwd(), 'prisma', 'data', 'norsk-uttale', 'exercises.json');
@@ -73,7 +80,13 @@ function main(): void {
     }
   }
 
-  console.log(`${seen} exercises checked`);
+  const layers = Object.values(data)
+    .flat()
+    .reduce((n, ex) => n + Object.keys(ex.prosody ?? {}).length, 0);
+  const melody = Object.values(data)
+    .flat()
+    .filter((ex) => JSON.stringify(ex.content).includes('"melody"')).length;
+  console.log(`${seen} exercises checked; ${layers} phrase layers, melody lens in ${melody}`);
   if (warnings.size > 0) {
     console.log('read_aloud warnings (not blockers):');
     for (const [code, n] of warnings) console.log(`  ${code} ×${n}`);
@@ -105,7 +118,26 @@ function checkReadAloud(
     if (issue.level === 'blocker') fail(ex, `blocker ${JSON.stringify(issue)}`);
     else warnings.set(issue.code, (warnings.get(issue.code) ?? 0) + 1);
   }
-  for (const issue of ra.guideIssues(doc, {})) {
+  // Every prompt is given to the guide — an unmarked one with an empty layer — so a melody lens
+  // over a prompt without phrase marks is the blocker it would be in the preflight.
+  const guide: Record<string, ra.GuidePrompt> = {};
+  for (const p of doc.prompts) guide[p.id] = { layer: emptyProsodyLayer(), unresolved: [] };
+  for (const [promptId, notation] of Object.entries(ex.prosody ?? {})) {
+    const prompt = doc.prompts.find((p) => p.id === promptId);
+    if (!prompt || doc.mode !== 'read') {
+      fail(ex, `prosody of ${promptId}: no such read prompt`);
+      continue;
+    }
+    const parsed = checkProsodyNotation(prompt.text, notation);
+    if (parsed.issues.length > 0) {
+      fail(ex, `prosody of ${promptId}: ${JSON.stringify(parsed.issues)}`);
+      continue;
+    }
+    const onText = prosodyIssues(prompt.text, parsed.layer).filter((x) => x.level === 'blocker');
+    if (onText.length > 0) fail(ex, `prosody of ${promptId}: ${JSON.stringify(onText)}`);
+    guide[promptId] = { layer: parsed.layer, unresolved: [] };
+  }
+  for (const issue of ra.guideIssues(doc, guide)) {
     if (issue.level === 'blocker') fail(ex, `guide blocker ${JSON.stringify(issue)}`);
   }
 

@@ -17,14 +17,20 @@ lesson, not this directory.
     (phrase melody) has no atom, so its exercises have none;
   - `instruction` — the Norwegian instruction of the lesson (the course has no ru/uk instructions);
   - `referenceSource` (`read_aloud`) — where the model reading should come from, as the lesson says;
+  - `prosody` (`read_aloud`, step 12.4) — prompt id → the prompt's phrase layer in the kernel notation
+    (`packages/shared-kernel/src/prosody/notation.ts`: `^` accent, `\ / ~` group end, `| ||` pause, `_` link),
+    from the italic fragments of the lesson notes (UPPER-CASE stressed syllable of a group's main word, `^` focus,
+    `↘ ↗ →`, `|` `||`, `‿`); the seed stores it as `exercise_prosody_layers`. Word stress is not written — the
+    lexicon gives it. The `melody` lens is offered only where every sentence of every prompt ends with a pitch;
   - `clipSources`, `clipDialect`, `clipPolicyNote` (`minimal_pairs`) — per word id, the native
     recording id in `recordings/step9/sets/minimal_pairs.tsv` (empty: synthesis is acceptable).
 
-## Status (07.11, step 12.3)
+## Status (07.11, step 12.4)
 
 139 `read_aloud` (128 read, 11 dialogue; 625 prompts) and 16 `minimal_pairs`. Seeded by `prisma/seed-norsk-uttale.ts` (step 12.2).
 `npx tsx prisma/tools/check-norsk-uttale.ts`: no blockers on `read_aloud`; the data's `minimal_pairs`
 carry no clips by design. Clips are made per environment by `prisma/tools/clip-norsk-uttale.ts`
 (piper, written into the seeded rows; the seed keeps them), after which a reseed places every set
-the kernel finds ready. The four sets of `tts: 'no'` contrasts (`uttale-06-1`, `uttale-15-1` kj/sj;
+the kernel finds ready. 126 prompts carry a phrase layer; the `melody` lens is on in 9 exercises
+(`uttale-28-1`, `28-2`, `29-2`, `29-3`, `30-2`, `30-3`, `30-4`, `31-2`, `31-4`). The four sets of `tts: 'no'` contrasts (`uttale-06-1`, `uttale-15-1` kj/sj;
 `uttale-09-1`, `uttale-17-1` tone) wait for native recordings and stay out of their modules.
