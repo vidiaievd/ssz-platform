@@ -39,6 +39,7 @@ import { GetContentMasteryHandler } from './application/queries/get-content-mast
 import { GetDueGrammarRulesHandler } from './application/queries/get-due-grammar-rules.handler.js';
 import { GetGrammarRuleReviewHandler } from './application/queries/get-grammar-rule-review.handler.js';
 import { GetLearnerGrammarAtomsHandler } from './application/queries/get-learner-grammar-atoms.handler.js';
+import { GetLearnerSoundAtomsHandler } from './application/queries/get-learner-sound-atoms.handler.js';
 
 // Services
 import { GrammarRuleMasteryService } from './application/services/grammar-rule-mastery.service.js';
@@ -71,6 +72,7 @@ const QueryHandlers = [
   GetDueGrammarRulesHandler,
   GetGrammarRuleReviewHandler,
   GetLearnerGrammarAtomsHandler,
+  GetLearnerSoundAtomsHandler,
 ];
 
 @Module({

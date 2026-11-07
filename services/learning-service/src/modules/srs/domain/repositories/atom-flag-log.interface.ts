@@ -36,6 +36,13 @@ export interface AtomFlagEntry {
   groupId: string | null;
 }
 
+/** One flag as the drill reads it back (plan 86, step 13.1): which atom, who named it, which day. */
+export interface AtomFlagDay {
+  atomId: string;
+  source: AtomFlagSource;
+  flaggedOn: Date;
+}
+
 export interface IAtomFlagLog {
   /**
    * Records the flag unless one for the same (learner, exercise, atom, source, day) is there
@@ -49,4 +56,11 @@ export interface IAtomFlagLog {
    * the same day does not count as repeating.
    */
   flaggedDays(userId: string, atomType: string, atomId: string, from: Date, before: Date): Promise<number>;
+
+  /**
+   * The learner's flags of one atom type since `from` (a UTC day, inclusive), restricted to the
+   * atom ids starting with `atomIdPrefix` (`nb:` — one language's sounds). Every row, not only
+   * distinct days: the caller folds them per atom (plan 86, step 13.1).
+   */
+  recentFlags(userId: string, atomType: string, atomIdPrefix: string, from: Date): Promise<AtomFlagDay[]>;
 }

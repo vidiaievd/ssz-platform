@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
-import type { AtomFlagEntry, IAtomFlagLog } from '../../domain/repositories/atom-flag-log.interface.js';
+import type { AtomFlagDay, AtomFlagEntry, AtomFlagSource, IAtomFlagLog } from '../../domain/repositories/atom-flag-log.interface.js';
 
 @Injectable()
 export class PrismaAtomFlagLog implements IAtomFlagLog {
@@ -21,5 +21,14 @@ export class PrismaAtomFlagLog implements IAtomFlagLog {
       select: { flaggedOn: true },
     });
     return days.length;
+  }
+
+  async recentFlags(userId: string, atomType: string, atomIdPrefix: string, from: Date): Promise<AtomFlagDay[]> {
+    const rows = await this.prisma.atomFlag.findMany({
+      where: { userId, atomType, atomId: { startsWith: atomIdPrefix }, flaggedOn: { gte: from } },
+      select: { atomId: true, source: true, flaggedOn: true },
+      orderBy: { flaggedOn: 'asc' },
+    });
+    return rows.map((r) => ({ atomId: r.atomId, source: r.source as AtomFlagSource, flaggedOn: r.flaggedOn }));
   }
 }

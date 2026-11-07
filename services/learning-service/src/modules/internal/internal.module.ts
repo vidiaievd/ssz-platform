@@ -5,6 +5,7 @@ import { AnalyticsSnapshotController } from './analytics-snapshot.controller.js'
 import { AssistEnrollmentController } from './assist-enrollment.controller.js';
 import { SrsAtomCardsController } from './srs-atom-cards.controller.js';
 import { LearnerGrammarAtomsController } from './learner-grammar-atoms.controller.js';
+import { LearnerSoundAtomsController } from './learner-sound-atoms.controller.js';
 
 @Module({
   imports: [CqrsModule],
@@ -13,6 +14,7 @@ import { LearnerGrammarAtomsController } from './learner-grammar-atoms.controlle
     SrsAtomCardsController,
     AssistEnrollmentController,
     LearnerGrammarAtomsController,
+    LearnerSoundAtomsController,
   ],
   providers: [InternalAuthGuard],
 })

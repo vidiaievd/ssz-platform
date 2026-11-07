@@ -52,6 +52,7 @@ function setup(cards: ReviewCard[], seen: string[] = [], earlierDays = 0) {
       return Promise.resolve('recorded' as const);
     }),
     flaggedDays: jest.fn((_u: string, _t: string, _a: string, _from: Date, _before: Date) => Promise.resolve(earlierDays)),
+    recentFlags: jest.fn(() => Promise.resolve([])),
   };
   const dueQueue = { upsert: jest.fn(() => Promise.resolve()) };
   const commandBus = { execute: jest.fn(() => Promise.resolve(Result.ok({}))) };
