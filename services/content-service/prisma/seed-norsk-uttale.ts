@@ -13,8 +13,10 @@
  * Exercises: `read_aloud` (read — the machine's reading check with the sound analysis; dialogue —
  * the teacher) and `minimal_pairs`. Each names its sound atoms as `SOUND` targets, which is what
  * the SRS and the analytics read (plan 86, step 8). A `minimal_pairs` is placed in its module only
- * once every word has a clip (step 12.3): without them the engine cannot deal a probe, and the
- * row exists so that the clips have somewhere to go.
+ * once the kernel finds no blocker in it — every word has a clip, and no synthesized clip stands
+ * in a `tts: 'no'` contrast (`kjsj`, `tone`): without clips the engine cannot deal a probe.
+ * The clips are not in the data: prisma/tools/clip-norsk-uttale.ts writes them into the row
+ * (step 12.3), and a reseed carries them over to the word they were made for.
  *
  * Idempotent: ids are uuid v5 in a namespace of their own; writes upsert, version item/section
  * lists are rebuilt on every run, and the targets of a seeded exercise are the data's, nothing else.
@@ -31,6 +33,7 @@ import { join } from 'node:path';
 import { PrismaClient, Prisma } from '../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { v5 as uuidv5 } from 'uuid';
+import * as mp from '@ssz/shared-kernel/minimal-pairs';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: `${process.env.DATABASE_URL}` }),
@@ -67,7 +70,7 @@ interface ExerciseDef {
   key: string;
   template: 'read_aloud' | 'minimal_pairs';
   instruction: string;
-  content: Prisma.InputJsonValue & { pairs?: { words: { clip?: { assetId?: string } }[] }[] };
+  content: Prisma.InputJsonValue;
   expectedAnswers: Prisma.InputJsonValue;
   targets: string[];
 }
@@ -96,9 +99,32 @@ const durationOf = (ex: ExerciseDef): number =>
     ? 60 * ((ex.content as { prompts?: unknown[] }).prompts?.length ?? 1)
     : 120;
 
-/** Every word of the set has a clip — the only state in which the engine can deal a probe. */
-const hasClips = (ex: ExerciseDef): boolean =>
-  (ex.content.pairs ?? []).every((p) => p.words.every((w) => !!w.clip?.assetId));
+/** A pair set the kernel finds nothing blocking in — every word has a clip the contrast allows. */
+const isPlaceable = (content: Prisma.InputJsonValue, expectedAnswers: Prisma.InputJsonValue): boolean =>
+  mp.isReady(mp.fromPersisted(content, expectedAnswers));
+
+/**
+ * The data's pair set with the clips the stored row already holds (clip-norsk-uttale.ts): a clip
+ * stays on its word as long as the word keeps its id and its text. A word rewritten in the lesson
+ * loses its clip and is synthesized again.
+ */
+function withStoredClips(
+  content: Prisma.InputJsonValue,
+  stored: unknown,
+  answers: Prisma.InputJsonValue,
+): Prisma.InputJsonValue {
+  if (stored === null || stored === undefined) return content;
+  let doc = mp.fromPersisted(content, answers);
+  const old = mp.fromPersisted(stored, answers);
+  for (const pair of old.pairs) {
+    for (const word of pair.words) {
+      if (!mp.hasClip(word.clip)) continue;
+      const now = doc.pairs.find((p) => p.id === pair.id)?.words.find((w) => w.id === word.id);
+      if (now && now.text === word.text) doc = mp.setClip(doc, pair.id, word.id, word.clip);
+    }
+  }
+  return mp.toContent(doc) as unknown as Prisma.InputJsonValue;
+}
 
 async function main(): Promise<void> {
   console.log(`Seeding «Norsk uttale» (${course.lessons.length} lessons)…`);
@@ -191,7 +217,7 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `  ✓ ${placed} exercises in modules, ${held} minimal_pairs held until their clips exist (step 12.3), ` +
+    `  ✓ ${placed} exercises in modules, ${held} minimal_pairs held (clips missing or waiting for native recordings), ` +
       `${targetTotal} sound targets`,
   );
   console.log('Done.');
@@ -278,11 +304,12 @@ async function seedModule(
   await seedLesson(lesson);
   const defs = exercises[lesson.key] ?? [];
   let targets = 0;
+  const shown: ExerciseDef[] = [];
   for (const ex of defs) {
-    await seedExercise(ex, lesson.level, templateByCode.get(ex.template)!);
+    const content = await seedExercise(ex, lesson.level, templateByCode.get(ex.template)!);
     targets += await seedTargets(ex);
+    if (ex.template !== 'minimal_pairs' || isPlaceable(content, ex.expectedAnswers)) shown.push(ex);
   }
-  const shown = defs.filter((ex) => ex.template !== 'minimal_pairs' || hasClips(ex));
 
   for (const versionId of [pubId, draftId]) {
     await prisma.containerItem.deleteMany({ where: { containerVersionId: versionId } });
@@ -350,9 +377,17 @@ async function seedLesson(lesson: LessonMeta): Promise<void> {
   }
 }
 
-async function seedExercise(ex: ExerciseDef, level: Level, templateId: string): Promise<void> {
+/** Writes the exercise and returns the content it now holds (with the stored clips of a pair set). */
+async function seedExercise(ex: ExerciseDef, level: Level, templateId: string): Promise<Prisma.InputJsonValue> {
   const exerciseId = id('exercise', ex.key);
-  const content = ex.content as Prisma.InputJsonValue;
+  const content =
+    ex.template === 'minimal_pairs'
+      ? withStoredClips(
+          ex.content,
+          (await prisma.exercise.findUnique({ where: { id: exerciseId }, select: { content: true } }))?.content,
+          ex.expectedAnswers,
+        )
+      : ex.content;
   await prisma.exercise.upsert({
     where: { id: exerciseId },
     update: {
@@ -390,6 +425,7 @@ async function seedExercise(ex: ExerciseDef, level: Level, templateId: string): 
       hintText: null,
     },
   });
+  return content;
 }
 
 /**

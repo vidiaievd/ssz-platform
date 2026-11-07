@@ -20,8 +20,11 @@ lesson, not this directory.
   - `clipSources`, `clipDialect`, `clipPolicyNote` (`minimal_pairs`) — per word id, the native
     recording id in `recordings/step9/sets/minimal_pairs.tsv` (empty: synthesis is acceptable).
 
-## Status (05.11, step 12.1)
+## Status (07.11, step 12.3)
 
 139 `read_aloud` (128 read, 11 dialogue; 625 prompts) and 16 `minimal_pairs`. Seeded by `prisma/seed-norsk-uttale.ts` (step 12.2).
-`npx tsx prisma/tools/check-norsk-uttale.ts`: no blockers on `read_aloud`; every `minimal_pairs`
-lacks its clips (step 12.3) and is kept out of its module until it has them.
+`npx tsx prisma/tools/check-norsk-uttale.ts`: no blockers on `read_aloud`; the data's `minimal_pairs`
+carry no clips by design. Clips are made per environment by `prisma/tools/clip-norsk-uttale.ts`
+(piper, written into the seeded rows; the seed keeps them), after which a reseed places every set
+the kernel finds ready. The four sets of `tts: 'no'` contrasts (`uttale-06-1`, `uttale-15-1` kj/sj;
+`uttale-09-1`, `uttale-17-1` tone) wait for native recordings and stay out of their modules.

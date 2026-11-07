@@ -36,7 +36,7 @@ interface Exercise {
 
 const FILE = join(process.cwd(), 'prisma', 'data', 'norsk-uttale', 'exercises.json');
 const SOUND_ATOM = /^nb:(vowel_length|schwa|y|uu|oe|ae|kj|sj|r|retroflex|tone)$/;
-// Clips are attached in step 12.3; until then these are the only issues a pair set may raise.
+// The data carries no clips (they live in the seeded rows, step 12.3): these are the only issues a pair set may raise.
 const MP_CLIP_CODES = new Set(['MP_NO_CLIP', 'MP_WORD_NO_CLIP', 'MP_CLIP_MISSING']);
 
 const templates = {
@@ -79,7 +79,7 @@ function main(): void {
     for (const [code, n] of warnings) console.log(`  ${code} ×${n}`);
   }
   if (mpCodes.size > 0) {
-    console.log('minimal_pairs issues (clips arrive in step 12.3):');
+    console.log('minimal_pairs issues of the data (clips live in the seeded rows, clip-norsk-uttale.ts):');
     for (const [code, n] of mpCodes) console.log(`  ${code} ×${n}`);
   }
   if (problems.length > 0) {

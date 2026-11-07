@@ -4,6 +4,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { AssetsModule } from '../assets/assets.module.js';
 
 import { PronunciationClipService } from './pronunciation-clip.service.js';
+import { InternalPronunciationController } from './internal-pronunciation.controller.js';
 import { PronunciationController } from './pronunciation.controller.js';
 import { PronunciationService } from './pronunciation.service.js';
 import { ReferenceClipService } from './reference-clip.service.js';
@@ -16,7 +17,7 @@ import { ReferenceClipService } from './reference-clip.service.js';
  */
 @Module({
   imports: [CqrsModule, AssetsModule],
-  controllers: [PronunciationController],
+  controllers: [PronunciationController, InternalPronunciationController],
   providers: [PronunciationService, PronunciationClipService, ReferenceClipService],
 })
 export class PronunciationModule {}

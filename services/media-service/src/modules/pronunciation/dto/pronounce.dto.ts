@@ -42,6 +42,15 @@ export class PronounceClipDto extends PronounceDto {
   exerciseId?: string;
 }
 
+export class InternalPronounceClipDto extends PronounceClipDto {
+  @ApiProperty({
+    example: '0b2f2404-854a-4ea5-9d33-816db353983f',
+    description: "Who owns the clip asset — the exercise's owner, as if they had asked themselves",
+  })
+  @IsUUID('all')
+  ownerId!: string;
+}
+
 export class PronounceClipResponseDto {
   @ApiProperty({ description: 'Asset id to put in the exercise document; READY once processing ends' })
   assetId!: string;
