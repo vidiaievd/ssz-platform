@@ -3,7 +3,7 @@ import type { ExerciseFeedbackAtomsFlaggedPayload, FlaggedAtomsSource } from '@s
 export const GRAMMAR_RULE_ATOM = 'grammar_rule_atom';
 /** The atom types a flag is kept for: rules (plan 85) and sound families (plan 86, step 8.4). */
 const KEPT_ATOM_TYPES: ReadonlySet<string> = new Set([GRAMMAR_RULE_ATOM, 'sound']);
-const SOURCES: readonly FlaggedAtomsSource[] = ['ai_precheck', 'ai_review', 'teacher', 'ai_voice'];
+const SOURCES: readonly FlaggedAtomsSource[] = ['ai_precheck', 'ai_review', 'teacher', 'ai_voice', 'ai_session'];
 const MAX_ATOMS = 100;
 
 export interface FlagRow {
@@ -103,7 +103,7 @@ export function aggregateWeakRules(facts: readonly FlagFact[]): WeakRule[] {
 
   return [...byAtom.entries()]
     .map(([atomId, { facts: list, users }]) => {
-      const bySource: Record<FlaggedAtomsSource, number> = { ai_precheck: 0, ai_review: 0, teacher: 0, ai_voice: 0 };
+      const bySource: Record<FlaggedAtomsSource, number> = { ai_precheck: 0, ai_review: 0, teacher: 0, ai_voice: 0, ai_session: 0 };
       let last = list[0].flaggedAt;
       for (const f of list) {
         bySource[f.source] += 1;

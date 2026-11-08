@@ -24,6 +24,7 @@ import { readSoundTake, readTonemeTake, type TakeReading } from '../../take-verd
 import {
   currentStep,
   nextState,
+  noteIncidental,
   stopSession,
   takeIndex,
   type CurrentStep,
@@ -137,7 +138,10 @@ export class RecordSoundTakeHandler implements ICommandHandler<RecordSoundTakeCo
     const judged = await this.judgeTake(session, step, command);
 
     let moved: { state: SessionState; events: StepEvent[] } | null = null;
-    if (judged.reading.kind === 'verdict') moved = nextState(plan, state, judged.reading.verdict);
+    if (judged.reading.kind === 'verdict') {
+      moved = nextState(plan, state, judged.reading.verdict);
+      moved = { ...moved, state: noteIncidental(moved.state, step.atomId, soundsNamed(judged.feedback)) };
+    }
     if (judged.reading.kind === 'stop') moved = stopSession(state, judged.reading.reason);
 
     if (moved) {
@@ -217,4 +221,11 @@ export class RecordSoundTakeHandler implements ICommandHandler<RecordSoundTakeCo
       session: sessionView({ ...session, state }, false),
     };
   }
+}
+
+/** The sounds a take's remarks named (`atomRef` of type `sound`), in their order. */
+function soundsNamed(feedback: AiFeedback | null): string[] {
+  return (feedback?.items ?? []).flatMap((item) =>
+    item.atomRef?.atomType === 'sound' && typeof item.atomRef.atomId === 'string' ? [item.atomRef.atomId] : [],
+  );
 }

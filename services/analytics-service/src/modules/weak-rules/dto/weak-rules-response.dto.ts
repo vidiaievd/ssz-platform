@@ -12,6 +12,9 @@ export class WeakRuleSourcesDto {
 
   @ApiProperty({ example: 0, description: 'Model, on a reading its voice check closed with no teacher (plan 88)' })
   aiVoice!: number;
+
+  @ApiProperty({ example: 0, description: 'A pronunciation session, on sounds it heard as weak and did not rate (plan 86)' })
+  aiSession!: number;
 }
 
 export class WeakRuleDto {

@@ -116,5 +116,6 @@ export class SubmitSoundSessionResponseDto {
   @ApiProperty({ enum: ['finished', 'take_limit', 'stopped', 'pool_empty', 'not_available'], nullable: true }) doneReason!: string | null;
   @ApiProperty({ description: '`[{ atomId, status, passes, fails, rating: GOOD | HARD | AGAIN | null }]`' }) sounds!: unknown[];
   @ApiProperty({ type: [String], description: 'Families the diagnostic heard as weak' }) diagnosticWeak!: string[];
+  @ApiProperty({ type: [String], description: 'Sounds flagged ai_session: weak, not rated by this session (step 13.5b)' }) flagged!: string[];
   @ApiProperty({ type: SoundSessionResponseDto }) session!: SoundSessionResponseDto;
 }

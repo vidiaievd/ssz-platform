@@ -215,6 +215,24 @@ describe('ApplyFlaggedAtomsHandler (plan 85, step 5)', () => {
       expect(recorded[0]).toEqual(expect.objectContaining({ outcome: 'introduced' }));
     });
 
+    it('never introduces a card on a pronunciation session’s flag, however often (plan 86, step 13.5b)', async () => {
+      const { run, commandBus, flags, recorded } = setup([], [], 5);
+
+      expect(await run({ ...payload('ai_session', []), atoms: [sound('nb:kj')] })).toEqual(['no_card']);
+      expect(flags.flaggedDays).not.toHaveBeenCalled();
+      expect(commandBus.execute).not.toHaveBeenCalled();
+      expect(recorded[0]).toEqual(expect.objectContaining({ source: 'ai_session', outcome: 'no_card' }));
+    });
+
+    it('pulls a sound card on a pronunciation session’s flag, never rating it', async () => {
+      const far = soundCard('nb:kj', 20);
+      const { run, commandBus } = setup([far]);
+
+      expect(await run({ ...payload('ai_session', []), atoms: [sound('nb:kj')] })).toEqual(['pulled']);
+      expect(far.dueAt).toEqual(new Date(NOW.getTime() + DAY));
+      expect(commandBus.execute).not.toHaveBeenCalled();
+    });
+
     it('wants a third day for the toneme', async () => {
       const once = setup([], [], 1);
       expect(await once.run({ ...payload('ai_voice', []), atoms: [sound('nb:tone')] })).toEqual(['no_card']);

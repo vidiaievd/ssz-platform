@@ -77,6 +77,11 @@ export interface SessionState {
   sounds: SoundProgress[];
   /** Takes of the drill so far, measured or not. */
   takes: number;
+  /**
+   * Other sounds the takes' remarks named as weak, in the order first named (plan 86, step 13.5b):
+   * flagged `ai_session` at hand-in, never rated (Q28). Absent in a state stored before 13.5b.
+   */
+  incidental?: string[];
 }
 
 export type StepEvent =
@@ -133,9 +138,10 @@ export function startState(plan: SessionPlan): SessionState {
       diagnostic: plan.diagnostic.map((d) => ({ atomId: d.atomId, takes: 0, status: 'open' })),
       sounds: [],
       takes: 0,
+      incidental: [],
     };
   }
-  return openDrill(plan.sounds, []);
+  return openDrill(plan.sounds, [], []);
 }
 
 /** The step in front of the learner; null once the session is done. */
@@ -343,6 +349,34 @@ export function diagnosticWeak(state: SessionState): string[] {
   return state.diagnostic.filter((d) => d.status === 'weak').map((d) => d.atomId);
 }
 
+/**
+ * The state with the sounds a take's remarks named beside its own target (plan 86, step 13.5b):
+ * the take was judged on `target` alone, the others are heard on the way. A sound already noted
+ * is not noted twice; the target never is — the session rates it, or it rated nothing (one miss).
+ */
+export function noteIncidental(state: SessionState, target: string, named: readonly string[]): SessionState {
+  const incidental = [...(state.incidental ?? [])];
+  for (const atomId of named) {
+    if (atomId && atomId !== target && !incidental.includes(atomId)) incidental.push(atomId);
+  }
+  return { ...state, incidental };
+}
+
+/**
+ * The sounds a handed-in session flags `ai_session` (plan 86, step 13.5b, Q28, Q31): the
+ * diagnostic's weak families, then the sounds heard on the way — less every sound the session
+ * rated, whose card has the measurement already; a flag too would pull a card just scheduled.
+ * A weak family the session never reached stays flagged: the next session plans it (Q31, 2).
+ */
+export function sessionFlags(state: SessionState): string[] {
+  const rated = new Set(soundOutcomes(state).filter((o) => o.rating !== null).map((o) => o.atomId));
+  const flags: string[] = [];
+  for (const atomId of [...diagnosticWeak(state), ...(state.incidental ?? [])]) {
+    if (!rated.has(atomId) && !flags.includes(atomId)) flags.push(atomId);
+  }
+  return flags;
+}
+
 function ratingOf(p: SoundProgress): SoundRating | null {
   if (p.status === 'failed') return 'AGAIN';
   if (p.passes > 0) return p.fails === 0 ? 'GOOD' : 'HARD';
@@ -379,11 +413,15 @@ function endDiagnostic(
   events.push({ kind: 'diagnostic_done', weak });
   const sounds = soundsAfterDiagnostic(plan, weak);
   if (sounds.length === 0) return finish(s, 'finished', events);
-  const drill = openDrill(sounds, s.diagnostic);
+  const drill = openDrill(sounds, s.diagnostic, s.incidental ?? []);
   return { state: drill, events };
 }
 
-function openDrill(sounds: readonly PlannedSound[], diagnostic: DiagnosticProgress[]): SessionState {
+function openDrill(
+  sounds: readonly PlannedSound[],
+  diagnostic: DiagnosticProgress[],
+  incidental: string[],
+): SessionState {
   const progress: SoundProgress[] = sounds.map((sound, i) => ({
     atomId: sound.atomId,
     at: 0,
@@ -398,6 +436,7 @@ function openDrill(sounds: readonly PlannedSound[], diagnostic: DiagnosticProgre
     diagnostic,
     sounds: progress,
     takes: 0,
+    incidental,
   };
 }
 

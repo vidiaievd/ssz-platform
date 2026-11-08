@@ -31,7 +31,7 @@ const TONE_REPEAT_DAYS = 3;
  * Rule atoms a check named as the ground of a mistake, applied to the learner's cards
  * (plan 85, step 5, §1).
  *
- * - **A model's signal** (`ai_precheck`, `ai_review`, `ai_voice`) only brings the card due within a day
+ * - **A model's signal** (`ai_precheck`, `ai_review`, `ai_voice`, `ai_session`) only brings the card due within a day
  *   (`min(dueAt, now + 1 day)`, rule 2). It never rates: a rehearsal may be pressed as often as
  *   the learner likes, and a rating from it could be farmed (rule 1).
  * - **A teacher's mark** outside the exercise's targets is a real failure — the card is rated
@@ -49,7 +49,9 @@ const TONE_REPEAT_DAYS = 3;
  * A sound differs in one place: with no card, a flag on a second distinct day of a fortnight
  * (the toneme: a third) introduces the card — reading aloud outside a course is how most
  * learners meet the check, and without this a weak sound would never come back. The flag
- * still never rates it.
+ * still never rates it. A pronunciation session's flag (`ai_session`, plan 86 step 13.5b) never
+ * introduces one: the session that heard the sound plans it next time and rates it itself (§5.5,
+ * Q31) — but its day still counts towards another source's repeat.
  *
  * Both card types are still shadow cards (plan 63 phase 5): a pulled due date changes no
  * queue a learner sees until phase 7, and that is the card that will carry it then.
@@ -78,7 +80,12 @@ export class ApplyFlaggedAtomsHandler implements ICommandHandler<ApplyFlaggedAto
 
       const card = await this.repo.findByUserAndContent(p.userId, contentType, atom.atomId);
       let outcome = decide(card, p.source, atom, now);
-      if (outcome === 'no_card' && contentType === 'SOUND_ATOM' && (await this.repeated(p.userId, atom, flaggedOn))) {
+      if (
+        outcome === 'no_card' &&
+        contentType === 'SOUND_ATOM' &&
+        p.source !== 'ai_session' &&
+        (await this.repeated(p.userId, atom, flaggedOn))
+      ) {
         outcome = 'introduced';
       }
       const recorded = await this.flags.record({

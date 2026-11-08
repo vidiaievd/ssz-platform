@@ -1,7 +1,7 @@
 export const ATOM_FLAG_LOG = Symbol('IAtomFlagLog');
 
 /** Who named the atom — `exercise.feedback.atoms_flagged` `source`. */
-export type AtomFlagSource = 'ai_precheck' | 'ai_review' | 'teacher' | 'ai_voice';
+export type AtomFlagSource = 'ai_precheck' | 'ai_review' | 'teacher' | 'ai_voice' | 'ai_session';
 
 /** What became of one flagged atom (plan 85, step 5). */
 export type AtomFlagOutcome =

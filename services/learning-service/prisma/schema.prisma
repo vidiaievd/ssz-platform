@@ -249,7 +249,7 @@ model AtomFlag {
   attemptId         String   @map("attempt_id")
   atomType          String   @map("atom_type")
   atomId            String   @map("atom_id")
-  // ai_precheck | ai_review | teacher | ai_voice
+  // ai_precheck | ai_review | teacher | ai_voice | ai_session
   source            String
   inExerciseTargets Boolean  @map("in_exercise_targets")
   // pulled | already_due | lapsed | in_targets | suspended | no_card

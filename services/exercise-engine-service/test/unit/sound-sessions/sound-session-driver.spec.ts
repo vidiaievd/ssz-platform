@@ -62,6 +62,9 @@ function attemptOf(probe: ProbeTask, state: SessionState, over: { status?: strin
     exerciseId: probe.id,
     userId: over.userId ?? USER,
     schoolId: null,
+    containerId: null,
+    groupId: null,
+    itemTargets: [],
     templateCode: 'sound_session',
     status: over.status ?? 'IN_PROGRESS',
     get sessionState() {
@@ -257,6 +260,26 @@ describe('RecordSoundTakeHandler — a take judged by its sound', () => {
   });
 });
 
+describe('RecordSoundTakeHandler — sounds heard on the way (step 13.5b)', () => {
+  const remark = (atomId: string) => ({ atomRef: { atomType: 'sound', atomId } });
+
+  it('the other sounds the remarks named are kept on the state; the target is not', async () => {
+    const outcome = passedTarget('nb:kj');
+    const s = setup({
+      plan: plans.kj(),
+      sounds: { ...outcome, feedback: { passages: [], items: [remark('nb:kj'), remark('nb:r'), { atomRef: null }] } as any },
+    });
+    await s.take.execute(takeOf());
+    expect((s.attempt.sessionState as SessionState).incidental).toEqual(['nb:r']);
+  });
+
+  it('a take that judged nothing notes nothing', async () => {
+    const s = setup({ plan: plans.kj(), sounds: 'down' });
+    await s.take.execute(takeOf());
+    expect(s.attempt.recordSessionState).not.toHaveBeenCalled();
+  });
+});
+
 describe('RecordSoundTakeHandler — nothing judged, or the session stops', () => {
   it.each([
     ['ai-service away', { sounds: 'down' as const }, 'ai_unavailable'],
@@ -427,9 +450,58 @@ describe('SubmitSoundSessionHandler', () => {
         throw new Error('unexpected command');
       }),
     };
-    const handler = new SubmitSoundSessionHandler(commandBus as any, new SoundSessionLoader(s.attempts as any, { findById: async () => s.probe } as any), s.attempts as any);
-    return { ...s, handler, commandBus };
+    const publisher = { publish: jest.fn(async () => undefined) };
+    const handler = new SubmitSoundSessionHandler(
+      commandBus as any,
+      new SoundSessionLoader(s.attempts as any, { findById: async () => s.probe } as any),
+      s.attempts as any,
+      publisher as any,
+    );
+    return { ...s, handler, commandBus, publisher };
   }
+
+  it('weak sounds the session did not rate go out as one ai_session letter after the hand-in', async () => {
+    const s = submitSetup({ ...startState(plans.kj()), incidental: ['nb:r', 'nb:y'] });
+    const result = await s.handler.execute(new SubmitSoundSessionCommand(ATTEMPT, USER, 'ru'));
+
+    expect(result.value).toMatchObject({ flagged: ['nb:r', 'nb:y'] });
+    expect(s.publisher.publish).toHaveBeenCalledTimes(1);
+    expect(s.publisher.publish).toHaveBeenCalledWith(
+      'exercise.feedback.atoms_flagged',
+      expect.objectContaining({
+        userId: USER,
+        attemptId: ATTEMPT,
+        templateCode: 'sound_session',
+        source: 'ai_session',
+        atoms: [
+          { atomType: 'sound', atomId: 'nb:r', inExerciseTargets: false },
+          { atomType: 'sound', atomId: 'nb:y', inExerciseTargets: false },
+        ],
+      }),
+    );
+  });
+
+  it('nothing weak and unrated — no letter', async () => {
+    const s = submitSetup();
+    const result = await s.handler.execute(new SubmitSoundSessionCommand(ATTEMPT, USER, 'ru'));
+    expect(result.value).toMatchObject({ flagged: [] });
+    expect(s.publisher.publish).not.toHaveBeenCalled();
+  });
+
+  it('a broker away loses the letter, not the hand-in', async () => {
+    const s = submitSetup({ ...startState(plans.kj()), incidental: ['nb:r'] });
+    s.publisher.publish.mockRejectedValueOnce(new Error('broker away') as never);
+    const result = await s.handler.execute(new SubmitSoundSessionCommand(ATTEMPT, USER, 'ru'));
+    expect(result.isOk).toBe(true);
+  });
+
+  it('a refused hand-in flags nothing', async () => {
+    const s = submitSetup({ ...startState(plans.kj()), incidental: ['nb:r'] });
+    s.commandBus.execute.mockImplementationOnce(async () => Result.fail({ code: 'PROBE_EXPIRED' }) as never);
+    const result = await s.handler.execute(new SubmitSoundSessionCommand(ATTEMPT, USER, 'ru'));
+    expect(result.error).toMatchObject({ code: 'SUBMIT_FAILED' });
+    expect(s.publisher.publish).not.toHaveBeenCalled();
+  });
 
   it('an open session is stopped where it stands, then handed in with the recorded state', async () => {
     const s = submitSetup();

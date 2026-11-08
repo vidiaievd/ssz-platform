@@ -43,6 +43,16 @@ describe('flagRowsOf', () => {
     ]);
   });
 
+  it('takes a pronunciation session\'s source (plan 86, step 13.5b)', () => {
+    const rows = flagRowsOf({
+      ...payload,
+      source: 'ai_session',
+      atoms: [{ atomType: 'sound', atomId: 'nb:sj', inExerciseTargets: false }],
+    })!;
+
+    expect(rows.map((r) => [r.atomType, r.atomId, r.source])).toEqual([['sound', 'nb:sj', 'ai_session']]);
+  });
+
   it('rejects a malformed event', () => {
     expect(flagRowsOf(undefined)).toBeNull();
     expect(flagRowsOf({ ...payload, source: 'robot' as never })).toBeNull();
@@ -77,16 +87,17 @@ describe('aggregateWeakRules', () => {
       { userId: 'u1', atomId: 'a', exerciseId: 'e2', source: 'ai_precheck', flaggedAt: at('11') },
       { userId: 'u1', atomId: 'b', exerciseId: 'e1', source: 'ai_review', flaggedAt: at('13') },
       { userId: 'u3', atomId: 'b', exerciseId: 'e1', source: 'ai_voice', flaggedAt: at('09') },
+      { userId: 'u3', atomId: 'b', exerciseId: 'e3', source: 'ai_session', flaggedAt: at('08') },
     ]);
 
     expect(rules.map((r) => r.atomId)).toEqual(['a', 'b']);
     expect(rules[0]).toMatchObject({
       flags: 3,
       learners: 2,
-      bySource: { ai_precheck: 2, ai_review: 0, teacher: 1, ai_voice: 0 },
+      bySource: { ai_precheck: 2, ai_review: 0, teacher: 1, ai_voice: 0, ai_session: 0 },
       lastFlaggedAt: at('12').toISOString(),
     });
-    expect(rules[1]!.bySource).toEqual({ ai_precheck: 0, ai_review: 1, teacher: 0, ai_voice: 1 });
+    expect(rules[1]!.bySource).toEqual({ ai_precheck: 0, ai_review: 1, teacher: 0, ai_voice: 1, ai_session: 1 });
   });
 
   it('is empty for no signals', () => {

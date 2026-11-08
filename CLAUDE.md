@@ -171,7 +171,9 @@ state in `attempts.session_state`): `POST sound-sessions { language, atomId? }` 
 Its `attempt.completed` (step 13.5a) carries one `gapResults` entry per rated sound — key = `atomId`, target `sound`/`focus`,
 `score` 90 / 70 / 0 for GOOD / HARD / AGAIN (Q28) — and no exercise-level target; learning rates shadow `SOUND_ATOM`
 cards by the gap's `score`. Kernel row `sound_session` `{ GOOD, AGAIN }` + `ratesAtomsItself`: the probe's `production`
-modality does not lift the lapse to HARD.
+modality does not lift the lapse to HARD. Step 13.5b: on hand-in the weak sounds the session did not rate (diagnostic's
+weak families + other sounds the takes' remarks named, kept in `session_state.incidental`) go out as one
+`atoms_flagged` with source `ai_session`; learning pulls a card on it but never introduces one.
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.

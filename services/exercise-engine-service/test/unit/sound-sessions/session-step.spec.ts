@@ -9,6 +9,8 @@ import {
   MAX_FAILS_PER_ELEMENT,
   MAX_TAKES,
   nextState,
+  noteIncidental,
+  sessionFlags,
   soundGapResults,
   soundOutcomes,
   startState,
@@ -335,5 +337,45 @@ describe('soundGapResults — what a session tells the memory (step 13.5)', () =
   it('one noisy miss and nothing else sends nothing', () => {
     const { state } = run(chosen('nb:kj'), [M]);
     expect(soundGapResults(soundOutcomes(stopSession(state, 'stopped').state))).toEqual([]);
+  });
+});
+
+describe('sessionFlags — weak sounds the session did not rate (step 13.5b)', () => {
+  const diag = planSession({ material: material(), learner: noRecord, rand: keep }) as SessionPlan;
+
+  it('a weak family the drill never reached is flagged; one it rated is not', () => {
+    // kj weak, sj strong, length unknown, tone weak, y strong; then kj passed in full, stopped.
+    const { state } = run(diag, [M, P, ...Array<Take>(MAX_DIAGNOSTIC_TAKES).fill(U), M, P, P, P, P]);
+    const stopped = stopSession(state, 'stopped').state;
+    expect(soundOutcomes(stopped).map((o) => [o.atomId, o.rating])).toEqual([
+      ['nb:kj', 'GOOD'],
+      ['nb:tone', null],
+    ]);
+    expect(sessionFlags(stopped)).toEqual(['nb:tone']);
+  });
+
+  it('sounds heard on the way are kept across the diagnostic into the drill, without the target', () => {
+    let state = startState(diag);
+    state = noteIncidental(state, 'nb:kj', ['nb:kj', 'nb:r', 'nb:r']);
+    state = nextState(diag, state, miss()).state; // kj weak
+    for (const t of [P, U, U, P, P]) state = nextState(diag, state, verdictOf(t)).state;
+    expect(state.phase).toBe('drill');
+    state = noteIncidental(state, 'nb:kj', ['nb:y', 'nb:r']);
+    expect(state.incidental).toEqual(['nb:r', 'nb:y']);
+    expect(sessionFlags(stopSession(state, 'stopped').state)).toEqual(['nb:kj', 'nb:r', 'nb:y']);
+  });
+
+  it('a sound heard on the way and then rated in the same session is not flagged', () => {
+    const plan = record(['nb:kj', 'nb:sj']);
+    let state = noteIncidental(startState(plan), 'nb:kj', ['nb:sj']);
+    for (const t of [P, P, P, M, M, M]) state = nextState(plan, state, verdictOf(t)).state;
+    expect(soundOutcomes(state).map((o) => o.rating)).toEqual(['GOOD', 'AGAIN']);
+    expect(sessionFlags(state)).toEqual([]);
+  });
+
+  it('a state stored before 13.5b has nothing heard on the way', () => {
+    const { incidental: _gone, ...old } = startState(chosen('nb:kj'));
+    expect(sessionFlags(old as SessionState)).toEqual([]);
+    expect(noteIncidental(old as SessionState, 'nb:kj', ['nb:sj']).incidental).toEqual(['nb:sj']);
   });
 });

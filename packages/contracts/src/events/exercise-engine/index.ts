@@ -546,7 +546,10 @@ export interface ExerciseFeedbackAtomsFlaggedPayload {
    * negative signal, §1 rule 1); `ai_review` — a model's remark on a hand-in that the teacher
    * kept (taken or reworded) with their verdict; `teacher` — the teacher themselves (step 9);
    * `ai_voice` — the weak sounds of a reading the voice check closed with no teacher in between
-   * (plan 88, step 5c.3), a model's signal like `ai_precheck`.
+   * (plan 88, step 5c.3), a model's signal like `ai_precheck`; `ai_session` — the sounds a
+   * pronunciation session heard as weak and did not rate: the diagnostic's weak families and the
+   * other sounds its takes named (plan 86, step 13.5b). Never introduces a card — the next
+   * session plans the sound and rates it.
    */
   source: FlaggedAtomsSource;
   /** Distinct atoms, in the order the check first named them. Never empty. */
@@ -558,7 +561,7 @@ export interface ExerciseFeedbackAtomsFlaggedPayload {
   occurredAt: string;
 }
 
-export type FlaggedAtomsSource = 'ai_precheck' | 'ai_review' | 'teacher' | 'ai_voice';
+export type FlaggedAtomsSource = 'ai_precheck' | 'ai_review' | 'teacher' | 'ai_voice' | 'ai_session';
 
 export interface FlaggedAtom {
   /** A string for the reason `AttemptTarget.atomType` is one: `grammar_rule_atom`, or `sound` (plan 88). */
