@@ -17,8 +17,11 @@ import {
   type IRecordingDiscarder,
   type ILearnerSoundsReader,
   type ISoundDrillReader,
+  type ISoundSessionAdmission,
   type ISoundTakeJudge,
+  type SessionAdmission,
   type SoundBaseText,
+  type TakePayer,
   type SoundTakeOutcome,
   type SoundTakeRequest,
   type TonemeTakeOutcome,
@@ -256,14 +259,16 @@ function wordOf(v: unknown): MaterialWord | null {
 
 const TAKE_OUTCOMES: ReadonlySet<string> = new Set(['ok', 'refused', 'failed']);
 const TONEME_OUTCOMES: ReadonlySet<string> = new Set(['ok', 'unheard', 'refused', 'failed']);
+const ADMISSION_OUTCOMES: ReadonlySet<string> = new Set(['admitted', 'refused', 'failed']);
 
 /**
  * ai-service for a take of a session: `internal/sentence-checks` with a target (step 13.3) and
  * `internal/toneme-checks` (plan 88, step 8.3). No retry — the learner is waiting and the call
- * may already be billed. The timeout is ai-service's (a speech call).
+ * may already be billed. The timeout is ai-service's (a speech call). Also the session's door,
+ * `internal/sound-sessions/admit` (step 14.1).
  */
 @Injectable()
-export class HttpSoundTakeJudge implements ISoundTakeJudge {
+export class HttpSoundTakeJudge implements ISoundTakeJudge, ISoundSessionAdmission {
   private readonly logger = new Logger(HttpSoundTakeJudge.name);
   private readonly baseUrl: string;
   private readonly token: string;
@@ -288,6 +293,10 @@ export class HttpSoundTakeJudge implements ISoundTakeJudge {
 
   async toneme(request: TonemeTakeRequest): Promise<Result<TonemeTakeOutcome, SoundSessionSourceError>> {
     return this.post<TonemeTakeOutcome>('toneme-checks', request, TONEME_OUTCOMES, request.word);
+  }
+
+  async admit(request: TakePayer & { resume: boolean }): Promise<Result<SessionAdmission, SoundSessionSourceError>> {
+    return this.post<SessionAdmission>('sound-sessions/admit', request, ADMISSION_OUTCOMES, request.userId);
   }
 
   private async post<T>(

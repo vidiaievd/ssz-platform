@@ -13,4 +13,6 @@ export interface QuotaKey {
 export interface QuotaInForce {
   key: QuotaKey;
   limitMicro: bigint;
+  /** What the counter held when the gate checked it — before this call. */
+  usedMicro: bigint;
 }

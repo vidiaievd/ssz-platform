@@ -7,8 +7,9 @@ import type { SoundTakeOutcome, TonemeTakeOutcome } from './ports/sound-session.
  *
  * - `verdict` — the take counts: measured (passed or missed) or not measured (§5.2: a take that
  *   was heard badly is not a miss);
- * - `stop` — the payer may not go on (`pool_empty`, `not_available`): the session closes with what
- *   it measured (§5.5a);
+ * - `stop` — the payer may not go on (`pool_empty`, `not_available`), or ai-service has heard all
+ *   the takes it hears for one session (`session_limit` → `take_limit`, step 14.1): the session
+ *   closes with what it measured (§5.5a);
  * - `retry` — nothing was spent and nothing judged (a provider away, a recording not ready, the
  *   daily limit of a sentence): the same step again, the take not counted.
  *
@@ -16,7 +17,7 @@ import type { SoundTakeOutcome, TonemeTakeOutcome } from './ports/sound-session.
  */
 export type TakeReading =
   | { kind: 'verdict'; verdict: TakeVerdict }
-  | { kind: 'stop'; reason: 'pool_empty' | 'not_available' }
+  | { kind: 'stop'; reason: 'pool_empty' | 'not_available' | 'take_limit' }
   | { kind: 'retry'; reason: string };
 
 const NOT_MEASURED: TakeReading = { kind: 'verdict', verdict: { measured: false } };
@@ -27,6 +28,7 @@ export function readSoundTake(outcome: SoundTakeOutcome): TakeReading {
     if (outcome.reason === 'pool_empty' || outcome.reason === 'not_available') {
       return { kind: 'stop', reason: outcome.reason };
     }
+    if (outcome.reason === 'session_limit') return { kind: 'stop', reason: 'take_limit' };
     // `target_not_*` and `language_not_supported` are the plan's own fault — the material was
     // checked against the same rules; the take is not the learner's miss.
     return { kind: 'retry', reason: outcome.reason };
@@ -57,6 +59,7 @@ export function readTonemeTake(outcome: TonemeTakeOutcome): TakeReading {
     if (outcome.reason === 'pool_empty' || outcome.reason === 'not_available') {
       return { kind: 'stop', reason: outcome.reason };
     }
+    if (outcome.reason === 'session_limit') return { kind: 'stop', reason: 'take_limit' };
     return { kind: 'retry', reason: outcome.reason };
   }
   if (outcome.status === 'failed') return failed(outcome.errorCode);

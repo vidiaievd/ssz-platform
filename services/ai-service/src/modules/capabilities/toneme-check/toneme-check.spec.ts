@@ -13,6 +13,8 @@ import type { IReferenceClipSource, ReferenceClipAudio } from './application/por
 import { CheckTonemeCommand, type TonemeCheckRequest } from './application/check-toneme/check-toneme.command.js';
 import { CheckTonemeHandler } from './application/check-toneme/check-toneme.handler.js';
 import type { StoredReference } from './domain/stored-reference.js';
+import type { ISoundSessionLimiter } from '../sound-session/application/ports/sound-session.limiter.js';
+import { SOUND_SESSION_SURFACE } from '../sound-session/domain/sound-session.js';
 
 const LEXICON: Record<string, LexiconVariant[]> = {
   bønner: [{ nofabet: 'B OEH2 N AX0 R' }],
@@ -89,6 +91,7 @@ interface Setup {
   recording?: RecordingAudio;
   speech?: unknown;
   pitchFails?: boolean;
+  sessionTakeAllowed?: boolean;
 }
 
 function setup(options: Setup = {}) {
@@ -131,7 +134,15 @@ function setup(options: Setup = {}) {
   const references: IReferenceClipSource = {
     fetch: jest.fn(async () => options.reference ?? { kind: 'ready' as const, wav: CLIP, reference: BONNER }),
   };
-  const handler = new CheckTonemeHandler(gateway as unknown as AiGateway, lexicon, pitch, recordings, references);
+  const sessionTakes: string[] = [];
+  const sessions: ISoundSessionLimiter = {
+    begin: async () => ({ allowed: true }),
+    take: async (sessionId) => {
+      sessionTakes.push(sessionId);
+      return options.sessionTakeAllowed ?? true;
+    },
+  };
+  const handler = new CheckTonemeHandler(gateway as unknown as AiGateway, lexicon, pitch, recordings, references, sessions);
   const check = (request: Partial<TonemeCheckRequest> = {}) =>
     handler.execute(
       new CheckTonemeCommand({
@@ -141,10 +152,11 @@ function setup(options: Setup = {}) {
         word: 'bønner',
         recordingAssetId: 'take-1',
         referenceAssetId: 'clip-1',
+        sessionId: null,
         ...request,
       }),
     );
-  return { check, gateway, pitch, contexts, spans };
+  return { check, gateway, pitch, contexts, spans, sessionTakes };
 }
 
 describe('toneme check (plan 88, step 8.3)', () => {
@@ -266,6 +278,24 @@ describe('toneme check (plan 88, step 8.3)', () => {
     expect(await off.check()).toEqual({ status: 'refused', reason: 'not_available' });
     const timeout = setup({ speech: Result.fail({ kind: 'error', error: { code: 'timeout' }, attempts: [] }) });
     expect(await timeout.check()).toEqual({ status: 'failed', errorCode: 'timeout', aiCallIds: ['heard-1'] });
+  });
+
+  it("a session's take: its own surface, counted against the session (plan 86, step 14.1)", async () => {
+    const { check, contexts, sessionTakes } = setup();
+    expect((await check({ sessionId: 'session-1' })).status).toBe('ok');
+    expect(contexts[0]!.surface).toBe(SOUND_SESSION_SURFACE);
+    expect(sessionTakes).toEqual(['session-1']);
+
+    const drill = setup();
+    await drill.check();
+    expect(drill.contexts[0]!.surface).toBe('pronunciation_drill');
+    expect(drill.sessionTakes).toEqual([]);
+  });
+
+  it("refuses a session's take past the session's takes before the paid call", async () => {
+    const { check, gateway } = setup({ sessionTakeAllowed: false });
+    expect(await check({ sessionId: 'session-1' })).toEqual({ status: 'refused', reason: 'session_limit' });
+    expect(gateway.callSpeech).not.toHaveBeenCalled();
   });
 
   it('fails with the paid call’s id when the tracker does not answer', async () => {

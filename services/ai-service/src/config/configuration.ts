@@ -67,6 +67,12 @@ export const envSchema = z.object({
   AI_ASSIST_RATE_WINDOW_MS: z.coerce.number().int().positive().default(600_000),
   // Tries per learner per sentence per UTC day in the reading's sentence drill (plan 86, step 6g).
   AI_SENTENCE_CHECK_DAILY_LIMIT: z.coerce.number().int().positive().default(10),
+  // Pronunciation sessions a learner may begin per UTC day (plan 86, step 14.1, §5.5a): abuse guard, not a tariff.
+  AI_SOUND_SESSION_DAILY_LIMIT: z.coerce.number().int().positive().default(3),
+  // Takes ai-service hears per session, diagnostic included — a backstop; the engine stops at 10 training takes.
+  AI_SOUND_SESSION_TAKE_LIMIT: z.coerce.number().int().positive().default(40),
+  // What a session is expected to cost, in credits: 10 takes and their explanations; the warning's yardstick.
+  AI_SOUND_SESSION_ESTIMATED_CREDITS: z.string().regex(/^\d+(\.\d{1,6})?$/).default('15'),
   // How often quota counters are raised to the ledger's sums (step 9b). A day by default.
   AI_QUOTA_RECONCILE_MS: z.coerce.number().int().positive().default(86_400_000),
 });
@@ -108,6 +114,7 @@ export interface AppConfig {
   quotaReconcileMs: number;
   assistRateLimit: { messages: number; windowMs: number };
   sentenceCheckDailyLimit: number;
+  soundSession: { dailyLimit: number; takeLimit: number; estimatedCredits: string };
   /** Shared secret for service-to-service routes (`x-internal-token`). */
   internalServiceToken: string;
 }
@@ -149,6 +156,11 @@ export default (): AppConfig => {
     quotaReconcileMs: env.AI_QUOTA_RECONCILE_MS,
     assistRateLimit: { messages: env.AI_ASSIST_RATE_LIMIT, windowMs: env.AI_ASSIST_RATE_WINDOW_MS },
     sentenceCheckDailyLimit: env.AI_SENTENCE_CHECK_DAILY_LIMIT,
+    soundSession: {
+      dailyLimit: env.AI_SOUND_SESSION_DAILY_LIMIT,
+      takeLimit: env.AI_SOUND_SESSION_TAKE_LIMIT,
+      estimatedCredits: env.AI_SOUND_SESSION_ESTIMATED_CREDITS,
+    },
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };
 };

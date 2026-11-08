@@ -11,7 +11,7 @@ import type { DrillMaterial, LearnerSounds } from '../../domain/session-plan.js'
 /** A service the session depends on did not answer usably; `statusCode` is its, or 503 when it was away. */
 export class SoundSessionSourceError extends Error {
   constructor(
-    public readonly source: 'learning' | 'content' | 'ai',
+    public readonly source: 'learning' | 'content' | 'ai' | 'organization',
     public readonly statusCode: number,
     message: string,
   ) {
@@ -58,8 +58,16 @@ export interface TakePayer {
   userId: string;
 }
 
+/**
+ * A take of a session (plan 86, step 14.1): the session's attempt id — ai-service pays it from
+ * surface `pronunciation_session` and counts it against the session's takes, not a sentence's.
+ */
+export interface SessionTake extends TakePayer {
+  sessionId: string;
+}
+
 /** A take judged on one sound by ai-service `internal/sentence-checks` with a `target` (step 13.3). */
-export interface SoundTakeRequest extends TakePayer {
+export interface SoundTakeRequest extends SessionTake {
   /** The probe the session runs on — the ledger's `exerciseId`. */
   exerciseId: string;
   language: string;
@@ -104,6 +112,7 @@ export type SoundTakeOutcome =
       reason:
         | 'language_not_supported'
         | 'attempt_limit'
+        | 'session_limit'
         | 'pool_empty'
         | 'not_available'
         | 'target_not_scored'
@@ -113,7 +122,7 @@ export type SoundTakeOutcome =
   | { status: 'failed'; errorCode: string; aiCallIds: string[] };
 
 /** A toneme take against the word's reference clip, ai-service `internal/toneme-checks` (plan 88, step 8.3). */
-export interface TonemeTakeRequest extends TakePayer {
+export interface TonemeTakeRequest extends SessionTake {
   language: string;
   word: string;
   recordingAssetId: string;
@@ -153,7 +162,8 @@ export type TonemeTakeOutcome =
         | 'no_toneme'
         | 'not_a_reference'
         | 'not_available'
-        | 'pool_empty';
+        | 'pool_empty'
+        | 'session_limit';
     }
   | { status: 'failed'; errorCode: string; aiCallIds: string[] };
 
@@ -163,6 +173,34 @@ export const SOUND_TAKE_JUDGE = Symbol('ISoundTakeJudge');
 export interface ISoundTakeJudge {
   sounds(request: SoundTakeRequest): Promise<Result<SoundTakeOutcome, SoundSessionSourceError>>;
   toneme(request: TonemeTakeRequest): Promise<Result<TonemeTakeOutcome, SoundSessionSourceError>>;
+}
+
+/** What a session may cost its payer (ai-service, step 14.1) — for the warning on its start (§5.5a). */
+export interface SessionBudget {
+  payer: 'school' | 'learner';
+  /** False — the payer's `ai.practice` has no monthly allowance. */
+  metered: boolean;
+  /** Credits left this period, six decimals; null when unmetered or unknown. */
+  remainingCredits: string | null;
+  /** What one session is expected to cost, six decimals. */
+  estimatedCredits: string;
+  periodEnd: string | null;
+}
+
+/** ai-service `POST internal/sound-sessions/admit` — every outcome is its 200. */
+export type SessionAdmission =
+  | { status: 'admitted'; budget: SessionBudget }
+  | { status: 'refused'; reason: 'session_limit' | 'not_available' | 'pool_empty'; retryAfterMs: number | null }
+  | { status: 'failed'; errorCode: string };
+
+export const SOUND_SESSION_ADMISSION = Symbol('ISoundSessionAdmission');
+
+/**
+ * Whether the learner may begin a session — the day's sessions and the payer's `ai.practice` —
+ * and what it may cost (step 14.1). `resume`: a session already begun, only the budget.
+ */
+export interface ISoundSessionAdmission {
+  admit(request: TakePayer & { resume: boolean }): Promise<Result<SessionAdmission, SoundSessionSourceError>>;
 }
 
 export const RECORDING_DISCARDER = Symbol('IRecordingDiscarder');

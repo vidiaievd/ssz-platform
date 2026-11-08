@@ -21,6 +21,10 @@ import { SuggestPhraseMarksHandler } from './prosody-markup/application/suggest-
 import { InternalPhraseMarksController } from './prosody-markup/presentation/internal-phrase-marks.controller.js';
 import { CheckTonemeHandler } from './toneme-check/application/check-toneme/check-toneme.handler.js';
 import { InternalTonemeChecksController } from './toneme-check/presentation/internal-toneme-checks.controller.js';
+import { AdmitSoundSessionHandler } from './sound-session/application/admit-sound-session/admit-sound-session.handler.js';
+import { SOUND_SESSION_LIMITER } from './sound-session/application/ports/sound-session.limiter.js';
+import { RedisSoundSessionLimiter } from './sound-session/infrastructure/redis-sound-session.limiter.js';
+import { InternalSoundSessionsController } from './sound-session/presentation/internal-sound-sessions.controller.js';
 import { DirectReviewHandler } from './review-direct/application/direct-review/direct-review.handler.js';
 import { LearnerPayerResolver } from './review-direct/application/learner-payer.resolver.js';
 import { DIRECT_REVIEW_ATTEMPTS_CLIENT } from './review-direct/application/ports/direct-review-attempts.client.js';
@@ -119,6 +123,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     InternalSentenceChecksController,
     InternalReferenceClipsController,
     InternalTonemeChecksController,
+    InternalSoundSessionsController,
     InternalPhraseMarksController,
   ],
   providers: [
@@ -208,6 +213,9 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     MakeReferenceClipHandler,
     CheckReferenceWordsHandler,
     CheckTonemeHandler,
+    // the pronunciation session's door and its limits (plan 86, step 14.1)
+    AdmitSoundSessionHandler,
+    { provide: SOUND_SESSION_LIMITER, useClass: RedisSoundSessionLimiter },
     // phrase marks suggested to the prosody editor (plan 86, step 5c)
     SuggestPhraseMarksHandler,
     { provide: PRACTICE_USAGE_READER, useClass: PrismaPracticeUsageReader },

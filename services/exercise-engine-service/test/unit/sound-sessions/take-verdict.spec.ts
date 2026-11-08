@@ -51,6 +51,10 @@ describe('readSoundTake', () => {
     expect(readSoundTake({ status: 'refused', reason, retryAfterMs: null })).toEqual({ kind: 'stop', reason });
   });
 
+  it("ai-service's take limit of the session (step 14.1) stops it as the take limit", () => {
+    expect(readSoundTake({ status: 'refused', reason: 'session_limit', retryAfterMs: null })).toEqual({ kind: 'stop', reason: 'take_limit' });
+  });
+
   it.each([
     ['the provider away', { status: 'failed', errorCode: 'unavailable', aiCallIds: [] }],
     ['a recording still uploading', { status: 'failed', errorCode: 'recording_not_ready', aiCallIds: [] }],
@@ -96,6 +100,10 @@ describe('readTonemeTake (plan 88 Q4)', () => {
 
   it('pool_empty stops the session', () => {
     expect(readTonemeTake({ status: 'refused', reason: 'pool_empty' })).toEqual({ kind: 'stop', reason: 'pool_empty' });
+  });
+
+  it('the take limit of the session stops it too', () => {
+    expect(readTonemeTake({ status: 'refused', reason: 'session_limit' })).toEqual({ kind: 'stop', reason: 'take_limit' });
   });
 
   it('a reference that is not one — the same step, no take', () => {

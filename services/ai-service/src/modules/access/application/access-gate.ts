@@ -122,7 +122,7 @@ export class AccessGate {
           await this.usage.microCreditsSpent(payer, key.capability, feature.periodStart, feature.periodEnd),
         );
       }
-      return used >= limitMicro ? 'exhausted' : { key, limitMicro };
+      return used >= limitMicro ? 'exhausted' : { key, limitMicro, usedMicro: used };
     } catch (err) {
       this.logger.warn({ err, capability, payer }, 'Quota counter unreadable; letting the call through uncounted');
       return null;

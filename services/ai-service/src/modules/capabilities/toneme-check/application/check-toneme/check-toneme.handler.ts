@@ -32,6 +32,8 @@ import type { StoredReference } from '../../domain/stored-reference.js';
 import type { TonemeCheckOutcome, TonemeCheckRefusal } from '../../domain/toneme-check.js';
 import { TONEME_CHECK } from '../../toneme-check.capability.js';
 import { REFERENCE_CLIP_SOURCE, type IReferenceClipSource } from '../ports/reference-clip.source.js';
+import { SOUND_SESSION_LIMITER, type ISoundSessionLimiter } from '../../../sound-session/application/ports/sound-session.limiter.js';
+import { SOUND_SESSION_SURFACE } from '../../../sound-session/domain/sound-session.js';
 import { CheckTonemeCommand, type TonemeCheckRequest } from './check-toneme.command.js';
 
 /** Where a toneme check is paid from: a pronunciation drill (plan 88, step 8.3, Q15). */
@@ -48,7 +50,9 @@ type Failed = Extract<TonemeCheckOutcome, { status: 'failed' }>;
  *
  * Everything that costs nothing is checked before the one paid call: the word, the lexicon, the
  * reference, the take and its level. Nothing is written but the ledger — no atom is marked here;
- * the drill marks `nb:tone` after several `other_tone` takes (Q4).
+ * the drill marks `nb:tone` after several `other_tone` takes (Q4). A pronunciation session's take
+ * (`sessionId`, plan 86 step 14.1) is paid from `pronunciation_session` and counted against the
+ * session's takes, just before the call.
  */
 @CommandHandler(CheckTonemeCommand)
 export class CheckTonemeHandler implements ICommandHandler<CheckTonemeCommand, TonemeCheckOutcome> {
@@ -60,6 +64,7 @@ export class CheckTonemeHandler implements ICommandHandler<CheckTonemeCommand, T
     @Inject(PITCH_TRACKER) private readonly pitch: IPitchTracker,
     @Inject(RECORDING_AUDIO_SOURCE) private readonly recordings: IRecordingAudioSource,
     @Inject(REFERENCE_CLIP_SOURCE) private readonly references: IReferenceClipSource,
+    @Inject(SOUND_SESSION_LIMITER) private readonly sessions: ISoundSessionLimiter,
   ) {}
 
   async execute({ request }: CheckTonemeCommand): Promise<TonemeCheckOutcome> {
@@ -86,10 +91,12 @@ export class CheckTonemeHandler implements ICommandHandler<CheckTonemeCommand, T
     const take = await this.take(request.recordingAssetId);
     if (!(take instanceof Uint8Array)) return take;
 
+    if (request.sessionId !== null && !(await this.sessions.take(request.sessionId))) return refused('session_limit');
+
     const context: CallContext = {
       payer: payerOf(request),
       actor: { userId: request.userId, role: 'student' },
-      surface: PRONUNCIATION_DRILL_SURFACE,
+      surface: request.sessionId !== null ? SOUND_SESSION_SURFACE : PRONUNCIATION_DRILL_SURFACE,
     };
     const heard = await this.gateway.callSpeech(TONEME_CHECK.code, context, {
       audio: { format: 'wav', data: take },

@@ -50,6 +50,28 @@ export class SoundSessionResponseDto {
   step!: unknown;
 }
 
+class SessionBudgetDto {
+  @ApiProperty({ enum: ['school', 'learner'], description: 'Who pays: the school, or the learner under their own plan' }) payer!: string;
+  @ApiProperty({ description: "False — the payer's `ai.practice` has no monthly allowance; nothing to warn about" }) metered!: boolean;
+  @ApiProperty({ type: String, nullable: true, example: '12.500000', description: 'Credits left this period; null when unmetered or unknown' })
+  remainingCredits!: string | null;
+  @ApiProperty({ example: '15.000000', description: 'What one session is expected to cost (10 takes and their explanations)' })
+  estimatedCredits!: string;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time', description: 'When the allowance renews' }) periodEnd!: string | null;
+}
+
+export class StartSoundSessionResponseDto extends SoundSessionResponseDto {
+  @ApiProperty({
+    type: SessionBudgetDto,
+    nullable: true,
+    description:
+      'What the session may cost (plan 86, step 14.1, §5.5a): warn when the learner pays and `remainingCredits` is ' +
+      'under `estimatedCredits` — the session is not blocked; a free plan is told by `subscriptions/me`. Null when ' +
+      'ai-service could not say (a resumed session)',
+  })
+  budget!: SessionBudgetDto | null;
+}
+
 export class SoundTakeRequestDto {
   @ApiProperty({ description: 'The take — a `submission_recording` uploaded for this attempt (entityId = attemptId)' })
   @IsUUID()

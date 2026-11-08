@@ -174,6 +174,10 @@ cards by the gap's `score`. Kernel row `sound_session` `{ GOOD, AGAIN }` + `rate
 modality does not lift the lapse to HARD. Step 13.5b: on hand-in the weak sounds the session did not rate (diagnostic's
 weak families + other sounds the takes' remarks named, kept in `session_state.incidental`) go out as one
 `atoms_flagged` with source `ai_session`; learning pulls a card on it but never introduces one.
+Step 14.1: a new session passes ai-service's door first (`internal/sound-sessions/admit`) — 422 `SESSION_LIMIT` /
+`POOL_EMPTY`, 403 `NOT_AVAILABLE`; the start answers `budget` (warning only, never a refusal). Payer (`SoundSessionPayer`,
+Q32): the learner's roster school when its `ai-precheck` is on, else the learner's own plan — at the door and on every
+take; takes carry `sessionId` = the attempt id.
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.
@@ -263,6 +267,12 @@ hand-in; any failure = inventory notes only.
 Reference words pre-check (plan 86, step 13.2c): `POST internal/reference-clips/check { language, words[] }` — the refusals a
 reference clip makes before synthesis (`not_in_lexicon`, `tone_ambiguous` by all variants, …), one lexicon read, nothing billed;
 content-service's `prisma/tools/sound-drill.ts` fails a drill word refused here.
+Pronunciation session door (plan 86, step 14.1): `POST internal/sound-sessions/admit { userId, schoolId, resume? }`
+(`x-internal-token`, always 200) — gate (`practice_voice` under `ai.practice`), then the learner's sessions per UTC day
+(`AI_SOUND_SESSION_DAILY_LIMIT` 3, Redis `ai:sound-session:day:`) → `admitted { budget { payer, metered, remainingCredits,
+estimatedCredits, periodEnd } }` / `refused { session_limit | not_available | pool_empty }`. `sentence-checks` and
+`toneme-checks` take an optional `sessionId`: surface `pronunciation_session`, the session's take cap
+(`AI_SOUND_SESSION_TAKE_LIMIT` 40, `ai:sound-session:takes:`) instead of the sentence's daily tries.
 Session verdict (plan 86, step 13.3): `internal/sentence-checks` takes an optional `target { atomId, words, context:
 'word'|'fluent', explained[] }` and answers `target { measured, reason?, passed, weakest { key, … }, explained }` — our
 verdict by the native thresholds on the target words only; a miss whose `key` is already in `explained` is not sent to the

@@ -32,6 +32,7 @@ import {
   type StepEvent,
 } from '../../../domain/session-step.js';
 import { sentenceOf, sessionView, type SoundSessionView } from '../../session-view.js';
+import { SoundSessionPayer } from '../../session-payer.js';
 
 export type RecordSoundTakeError =
   | LoadSessionError
@@ -57,7 +58,8 @@ export interface TakeVerdictView {
 export interface RecordSoundTakeResult {
   /**
    * - `judged` — the take counted (measured or not) and the session moved;
-   * - `stopped` — the payer may not go on (`pool_empty`, `not_available`): the session is done
+   * - `stopped` — the payer may not go on (`pool_empty`, `not_available`), or ai-service heard all
+   *   it hears for one session (`take_limit`): the session is done
    *   with what it measured, and is to be handed in;
    * - `retry` — nothing judged, nothing spent: the same step again (`reason` says why).
    */
@@ -107,6 +109,7 @@ export class RecordSoundTakeHandler implements ICommandHandler<RecordSoundTakeCo
     @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
     @Inject(SOUND_TAKE_JUDGE) private readonly judge: ISoundTakeJudge,
     @Inject(RECORDING_DISCARDER) private readonly discarder: IRecordingDiscarder,
+    private readonly payers: SoundSessionPayer,
     @Optional() @Inject(MEDIA_ASSETS) private readonly media: IMediaAssets | null = null,
   ) {}
 
@@ -159,7 +162,11 @@ export class RecordSoundTakeHandler implements ICommandHandler<RecordSoundTakeCo
 
   private async judgeTake(session: LoadedSession, step: CurrentStep, command: RecordSoundTakeCommand): Promise<Judged> {
     const { attempt, plan } = session;
-    const payer = { schoolId: attempt.schoolId, userId: attempt.userId };
+    // Paid as the door said it would be (Q32); the attempt is the session's id at ai-service —
+    // its own surface and take count (step 14.1). Unknown payer: nothing spent, the same step.
+    const school = await this.payers.ofSchool(attempt.schoolId);
+    if (school.isFail) return { reading: { kind: 'retry', reason: 'payer_unknown' }, feedback: null, toneme: null };
+    const payer = { schoolId: school.value, userId: attempt.userId, sessionId: attempt.id };
     if (step.judge === 'toneme') {
       const word = step.phase === 'diagnostic' ? step.word : step.say;
       if (!word) return { reading: { kind: 'retry', reason: 'nothing_to_say' }, feedback: null, toneme: null };

@@ -264,10 +264,13 @@ export function nextState(
   return { state: s, events };
 }
 
-/** The session ended from outside: the learner stopped, or the payer may not go on. */
+/**
+ * The session ended from outside: the learner stopped, the payer may not go on, or ai-service
+ * has heard all the takes it hears for one session (`take_limit`, its backstop — step 14.1).
+ */
 export function stopSession(
   state: SessionState,
-  reason: Extract<DoneReason, 'stopped' | 'pool_empty' | 'not_available'>,
+  reason: Extract<DoneReason, 'stopped' | 'pool_empty' | 'not_available' | 'take_limit'>,
 ): { state: SessionState; events: StepEvent[] } {
   const s = clone(state);
   if (s.phase === 'done') return { state: s, events: [] };

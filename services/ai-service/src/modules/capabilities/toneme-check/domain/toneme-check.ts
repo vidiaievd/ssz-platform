@@ -9,7 +9,8 @@ import type { TonemeComparison } from '../../../pronunciation/domain/toneme-comp
  * - `no_toneme` — the word carries none (a final stressed syllable), or its reference was kept unmeasured;
  * - `not_a_reference` — the reference asset is not a reference clip, or not one of this word;
  * - `not_available` — the agent is switched off, or the payer may not use it (policy, tariff);
- * - `pool_empty` — the payer's `ai.practice` credits for the period are spent.
+ * - `pool_empty` — the payer's `ai.practice` credits for the period are spent;
+ * - `session_limit` — a pronunciation session's takes are spent (plan 86, step 14.1).
  */
 export type TonemeCheckRefusal =
   | 'not_a_word'
@@ -19,7 +20,8 @@ export type TonemeCheckRefusal =
   | 'no_toneme'
   | 'not_a_reference'
   | 'not_available'
-  | 'pool_empty';
+  | 'pool_empty'
+  | 'session_limit';
 
 /**
  * The word was heard, but its toneme cannot be read off the take:

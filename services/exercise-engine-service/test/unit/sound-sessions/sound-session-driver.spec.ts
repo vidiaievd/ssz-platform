@@ -23,9 +23,11 @@ import { startState, type SessionState } from '../../../src/modules/sound-sessio
 import { toContent } from '../../../src/modules/sound-sessions/domain/sound-session-template.js';
 import type { MediaAssetDescription } from '../../../src/shared/application/ports/media-assets.port.js';
 import { first, material, noRecord } from './fixtures.js';
+import { SoundSessionPayer } from '../../../src/modules/sound-sessions/application/session-payer.js';
 
 const USER = '11111111-1111-4111-8111-111111111111';
 const ATTEMPT = 'attempt-1';
+const SCHOOL = 'f3ced490-5f8b-4d04-bd05-45ab1a101ff8';
 const TAKE = 'take-1';
 
 // Under `first` the shuffle puts kj's words as kino, kjøpe, kjenne; the diagnostic takes the
@@ -55,13 +57,13 @@ function probeOf(plan: SessionPlan, expired = false): ProbeTask {
   });
 }
 
-function attemptOf(probe: ProbeTask, state: SessionState, over: { status?: string; userId?: string } = {}) {
+function attemptOf(probe: ProbeTask, state: SessionState, over: { status?: string; userId?: string; schoolId?: string | null } = {}) {
   let stored: unknown = state;
   return {
     id: ATTEMPT,
     exerciseId: probe.id,
     userId: over.userId ?? USER,
-    schoolId: null,
+    schoolId: over.schoolId ?? null,
     containerId: null,
     groupId: null,
     itemTargets: [],
@@ -124,9 +126,11 @@ function setup(opts: {
   sounds?: SoundTakeOutcome | 'down';
   toneme?: TonemeTakeOutcome;
   base?: SoundBaseText[] | 'down';
+  schoolId?: string;
+  precheck?: { enabled: boolean } | 'down';
 }) {
   const probe = probeOf(opts.plan, opts.expired);
-  const attempt = attemptOf(probe, opts.state ?? startState(opts.plan), { status: opts.status });
+  const attempt = attemptOf(probe, opts.state ?? startState(opts.plan), { status: opts.status, schoolId: opts.schoolId });
   const attempts = {
     findById: jest.fn(async (id: string) => (id === ATTEMPT ? attempt : null)),
     save: jest.fn(async () => undefined),
@@ -158,7 +162,14 @@ function setup(opts: {
         : Result.ok(opts.base ?? [baseOf('nb:kj')]),
     ),
   };
-  const take = new RecordSoundTakeHandler(loader, attempts as any, judge as any, discarder, media as any);
+  const settings = {
+    schoolAiPrecheck: jest.fn(async () => {
+      if (opts.precheck === 'down') throw new Error('organization away');
+      return { enabled: opts.precheck?.enabled ?? true, perExerciseLimit: null, perLearnerMonthlyCredits: null };
+    }),
+  };
+  const payers = new SoundSessionPayer({} as any, settings as any);
+  const take = new RecordSoundTakeHandler(loader, attempts as any, judge as any, discarder, payers, media as any);
   const items = new GetSoundSessionItemsHandler(loader, drill as any, media as any);
   return { take, items, attempt, attempts, judge, discarder, media, drill, probe };
 }
@@ -186,6 +197,7 @@ describe('RecordSoundTakeHandler — a take judged by its sound', () => {
       expect.objectContaining({
         schoolId: null,
         userId: USER,
+        sessionId: ATTEMPT,
         language: 'nb',
         explanationLanguage: 'ru',
         sentence: 'Nå sier jeg kino igjen.',
@@ -280,6 +292,20 @@ describe('RecordSoundTakeHandler — sounds heard on the way (step 13.5b)', () =
   });
 });
 
+describe('RecordSoundTakeHandler — who pays (step 14.1, Q32)', () => {
+  it("the learner's school when its checks are on", async () => {
+    const s = setup({ plan: plans.kj(), schoolId: SCHOOL, precheck: { enabled: true } });
+    await s.take.execute(takeOf());
+    expect(s.judge.sounds).toHaveBeenCalledWith(expect.objectContaining({ schoolId: SCHOOL, sessionId: ATTEMPT }));
+  });
+
+  it('the learner on their own plan when the school switched its checks off', async () => {
+    const s = setup({ plan: plans.kj(), schoolId: SCHOOL, precheck: { enabled: false } });
+    await s.take.execute(takeOf());
+    expect(s.judge.sounds).toHaveBeenCalledWith(expect.objectContaining({ schoolId: null }));
+  });
+});
+
 describe('RecordSoundTakeHandler — nothing judged, or the session stops', () => {
   it.each([
     ['ai-service away', { sounds: 'down' as const }, 'ai_unavailable'],
@@ -301,6 +327,25 @@ describe('RecordSoundTakeHandler — nothing judged, or the session stops', () =
       reason: 'pool_empty',
       events: [{ kind: 'session_done', reason: 'pool_empty' }],
       session: { phase: 'done', doneReason: 'pool_empty', step: null },
+    });
+    expect(s.discarder.discard).toHaveBeenCalled();
+  });
+
+  it('organization-service away: who pays is unknown → retry, nothing judged (step 14.1)', async () => {
+    const s = setup({ plan: plans.kj(), schoolId: SCHOOL, precheck: 'down' });
+    const result = await s.take.execute(takeOf());
+    expect(result.value).toMatchObject({ outcome: 'retry', reason: 'payer_unknown' });
+    expect(s.judge.sounds).not.toHaveBeenCalled();
+    expect(s.discarder.discard).not.toHaveBeenCalled();
+  });
+
+  it("ai-service's take limit of a session (step 14.1) stops it as the take limit", async () => {
+    const s = setup({ plan: plans.kj(), sounds: { status: 'refused', reason: 'session_limit', retryAfterMs: null } });
+    const result = await s.take.execute(takeOf());
+    expect(result.value).toMatchObject({
+      outcome: 'stopped',
+      reason: 'take_limit',
+      session: { phase: 'done', doneReason: 'take_limit' },
     });
     expect(s.discarder.discard).toHaveBeenCalled();
   });
@@ -329,6 +374,7 @@ describe('RecordSoundTakeHandler — a toneme take', () => {
     expect(s.judge.toneme).toHaveBeenCalledWith({
       schoolId: null,
       userId: USER,
+      sessionId: ATTEMPT,
       language: 'nb',
       word: 'jente',
       recordingAssetId: TAKE,

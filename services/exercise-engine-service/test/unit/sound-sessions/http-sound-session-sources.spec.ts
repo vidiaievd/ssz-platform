@@ -160,6 +160,7 @@ describe('HttpSoundTakeJudge', () => {
   const take = {
     schoolId: null,
     userId: 'user-1',
+    sessionId: 'attempt-1',
     exerciseId: 'probe-1',
     language: 'nb',
     explanationLanguage: 'ru',
@@ -186,6 +187,7 @@ describe('HttpSoundTakeJudge', () => {
     const request = {
       schoolId: 'school-1',
       userId: 'user-1',
+      sessionId: 'attempt-1',
       language: 'nb',
       word: 'fiske',
       recordingAssetId: 'rec-1',
@@ -196,6 +198,19 @@ describe('HttpSoundTakeJudge', () => {
       'http://ai-service:3010/api/v1/internal/toneme-checks',
       request,
       expect.anything(),
+    );
+    expect(result.value).toEqual(answer);
+  });
+
+  it("asks ai-service's door of a session (step 14.1); a refusal is an outcome", async () => {
+    const answer = { status: 'refused', reason: 'session_limit', retryAfterMs: 1000 };
+    http.post.mockReturnValue(of({ data: answer }));
+    const request = { userId: 'user-1', schoolId: null, resume: false };
+    const result = await judge().admit(request);
+    expect(http.post).toHaveBeenCalledWith(
+      'http://ai-service:3010/api/v1/internal/sound-sessions/admit',
+      request,
+      expect.objectContaining({ headers: { 'x-internal-token': 'test-token' } }),
     );
     expect(result.value).toEqual(answer);
   });

@@ -29,6 +29,8 @@ export interface SentenceCheckRequest {
   recordingAssetId: string;
   /** A session's take: the sound to judge it on; null — a drill take, heard and remarked on only. */
   target: SentenceCheckTarget | null;
+  /** A pronunciation session's take (plan 86, step 14.1): its attempt id. Surface `pronunciation_session`, the session's take limit instead of the sentence's; null — not a session. */
+  sessionId: string | null;
 }
 
 export class SentenceCheckCommand {

@@ -40,6 +40,7 @@ export class InternalTonemeChecksController {
         word: body.word,
         recordingAssetId: body.recordingAssetId,
         referenceAssetId: body.referenceAssetId,
+        sessionId: body.sessionId ?? null,
       }),
     );
   }

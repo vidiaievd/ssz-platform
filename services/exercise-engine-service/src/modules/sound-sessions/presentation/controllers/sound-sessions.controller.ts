@@ -2,6 +2,7 @@ import {
   Body,
   ConflictException,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   InternalServerErrorException,
@@ -19,7 +20,10 @@ import { CurrentUser } from '../../../../common/decorators/current-user.decorato
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../../shared/kernel/result.js';
 import { StartSoundSessionCommand } from '../../application/commands/start-sound-session/start-sound-session.command.js';
-import type { StartSoundSessionError } from '../../application/commands/start-sound-session/start-sound-session.handler.js';
+import type {
+  StartedSoundSession,
+  StartSoundSessionError,
+} from '../../application/commands/start-sound-session/start-sound-session.handler.js';
 import { RecordSoundTakeCommand } from '../../application/commands/record-sound-take/record-sound-take.command.js';
 import type {
   RecordSoundTakeError,
@@ -33,12 +37,12 @@ import type {
 import { GetSoundSessionItemsQuery } from '../../application/queries/get-sound-session-items/get-sound-session-items.query.js';
 import type { SoundSessionItems } from '../../application/queries/get-sound-session-items/get-sound-session-items.handler.js';
 import type { LoadSessionError } from '../../application/session-loader.js';
-import type { SoundSessionView } from '../../application/session-view.js';
 import {
   SoundSessionItemsResponseDto,
   SoundSessionLocaleQueryDto,
   SoundSessionResponseDto,
   SoundTakeRequestDto,
+  StartSoundSessionResponseDto,
   SoundTakeResponseDto,
   StartSoundSessionRequestDto,
   SubmitSoundSessionResponseDto,
@@ -63,19 +67,27 @@ export class SoundSessionsController {
       'language, the same chosen sound); otherwise it is abandoned and a new one begins. The sounds: the chosen ' +
       'one, else due `SOUND_ATOM` cards, sounds flagged in 14 days, cards not yet due; with no record at all the ' +
       'session opens with a diagnostic, one word per family (plan 86 Q31, §5.5a). The session is a probe of the ' +
-      "engine's own template `sound_session`, answered by an ordinary attempt.",
+      "engine's own template `sound_session`, answered by an ordinary attempt. A new session passes ai-service's " +
+      "door first (plan 86, step 14.1): the learner's sessions of the UTC day (3) and the payer's `ai.practice`. " +
+      '`budget` — credits left and what a session is expected to cost — is for a warning, never a refusal (§5.5a).',
   })
-  @ApiResponse({ status: 200, type: SoundSessionResponseDto })
+  @ApiResponse({ status: 200, type: StartSoundSessionResponseDto })
   @ApiResponse({ status: 400, description: 'language or atomId malformed' })
-  @ApiResponse({ status: 422, description: '`SOUND_NOT_DRILLABLE` (the chosen sound has no material) or `NO_MATERIAL`' })
-  @ApiResponse({ status: 503, description: '`SOURCE_UNAVAILABLE`: learning-service or content-service did not answer' })
+  @ApiResponse({ status: 403, description: "`NOT_AVAILABLE` — the payer's plan has no `ai.practice` (or AI is switched off)" })
+  @ApiResponse({
+    status: 422,
+    description:
+      '`SOUND_NOT_DRILLABLE` (the chosen sound has no material), `NO_MATERIAL`, `SESSION_LIMIT` (the day’s sessions are ' +
+      'begun; `retryAfterMs` to the next UTC day) or `POOL_EMPTY` (the credits of the month are spent)',
+  })
+  @ApiResponse({ status: 503, description: '`SOURCE_UNAVAILABLE`: learning-, content- or ai-service did not answer' })
   async start(
     @Body() dto: StartSoundSessionRequestDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<SoundSessionView> {
+  ): Promise<StartedSoundSession> {
     const result = await this.commandBus.execute<
       StartSoundSessionCommand,
-      Result<SoundSessionView, StartSoundSessionError>
+      Result<StartedSoundSession, StartSoundSessionError>
     >(new StartSoundSessionCommand(user.userId, dto.language, dto.atomId ?? null));
     if (result.isOk) return result.value;
 
@@ -87,6 +99,16 @@ export class SoundSessionsController {
         throw new UnprocessableEntityException({ code: error.code, atomId: error.atomId, message: 'This sound cannot be drilled' });
       case 'NO_MATERIAL':
         throw new UnprocessableEntityException({ code: error.code, message: `No sound of ${error.language} can be drilled` });
+      case 'SESSION_LIMIT':
+        throw new UnprocessableEntityException({
+          code: error.code,
+          retryAfterMs: error.retryAfterMs,
+          message: "Today's pronunciation sessions are used up",
+        });
+      case 'POOL_EMPTY':
+        throw new UnprocessableEntityException({ code: error.code, message: "This month's AI credits are spent" });
+      case 'NOT_AVAILABLE':
+        throw new ForbiddenException({ code: error.code, message: 'Pronunciation sessions are not part of this plan' });
       case 'START_FAILED':
         throw new InternalServerErrorException({ code: error.code, message: 'The session could not be started' });
     }

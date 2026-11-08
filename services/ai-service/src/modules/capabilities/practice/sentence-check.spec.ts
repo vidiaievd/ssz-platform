@@ -11,6 +11,8 @@ import type { ISentenceCheckLimiter, SentenceCheckDecision } from './application
 import { SentenceCheckCommand, type SentenceCheckRequest } from './application/sentence-check/sentence-check.command.js';
 import { SENTENCE_CHECK_SURFACE, SentenceCheckHandler } from './application/sentence-check/sentence-check.handler.js';
 import { SoundExplainer } from '../pronunciation-explain/application/sound-explainer.js';
+import type { ISoundSessionLimiter } from '../sound-session/application/ports/sound-session.limiter.js';
+import { SOUND_SESSION_SURFACE } from '../sound-session/domain/sound-session.js';
 import type { SoundToExplain } from '../pronunciation-explain/domain/sound-explanations.js';
 import type { WordSounds } from '../../pronunciation/application/passage-sounds.js';
 import type { AlignedSound, WordAlignment } from '../../pronunciation/domain/align-word.js';
@@ -32,6 +34,7 @@ const request = (over: Partial<SentenceCheckRequest> = {}): SentenceCheckRequest
   sentence: SENTENCE,
   recordingAssetId: 'a0000000-0000-4000-8000-000000000001',
   target: null,
+  sessionId: null,
   ...over,
 });
 
@@ -45,6 +48,7 @@ function setup(
   over: {
     audio?: RecordingAudio | Error;
     limiter?: SentenceCheckDecision;
+    sessionTakeAllowed?: boolean;
     routed?: unknown;
     sounds?: PassageSounds;
     explainer?: SoundExplainer;
@@ -73,9 +77,17 @@ function setup(
       return over.limiter ?? { allowed: true };
     },
   };
+  const sessionTakes: string[] = [];
+  const sessions: ISoundSessionLimiter = {
+    begin: async () => ({ allowed: true }),
+    take: async (sessionId) => {
+      sessionTakes.push(sessionId);
+      return over.sessionTakeAllowed ?? true;
+    },
+  };
   const sounds = over.sounds ?? ({ of: async () => null } as unknown as PassageSounds);
-  const handler = new SentenceCheckHandler(gateway, recordings, limiter, sounds, { explanationLanguage: async () => 'ru' } as ISchoolLanguageReader, over.explainer ?? new SoundExplainer(gateway, { base: async () => [] }));
-  return { run: (req = request()) => handler.execute(new SentenceCheckCommand(req)), speech, taken };
+  const handler = new SentenceCheckHandler(gateway, recordings, limiter, sessions, sounds, { explanationLanguage: async () => 'ru' } as ISchoolLanguageReader, over.explainer ?? new SoundExplainer(gateway, { base: async () => [] }));
+  return { run: (req = request()) => handler.execute(new SentenceCheckCommand(req)), speech, taken, sessionTakes };
 }
 
 describe('SentenceCheckHandler (plan 86, step 6g)', () => {
@@ -110,6 +122,25 @@ describe('SentenceCheckHandler (plan 86, step 6g)', () => {
   it('refuses at the sentence limit without fetching or calling', async () => {
     const { run, speech } = setup({ limiter: { allowed: false, retryAfterMs: 5_000 }, audio: new Error('must not be fetched') });
     expect(await run()).toEqual({ status: 'refused', reason: 'attempt_limit', retryAfterMs: 5_000 });
+    expect(speech).toHaveLength(0);
+  });
+
+  it("a session's take: its own surface and take count, not the sentence's daily tries (step 14.1)", async () => {
+    const SESSION = 'd0000000-0000-4000-8000-000000000004';
+    const { run, speech, taken, sessionTakes } = setup({ limiter: { allowed: false, retryAfterMs: 5_000 } });
+    expect((await run(request({ sessionId: SESSION }))).status).toBe('ok');
+    expect(speech[0]!.context.surface).toBe(SOUND_SESSION_SURFACE);
+    expect(sessionTakes).toEqual([SESSION]);
+    expect(taken).toEqual([]);
+  });
+
+  it("refuses a session's take past the session's takes without fetching or calling", async () => {
+    const { run, speech } = setup({ sessionTakeAllowed: false, audio: new Error('must not be fetched') });
+    expect(await run(request({ sessionId: 'd0000000-0000-4000-8000-000000000004' }))).toEqual({
+      status: 'refused',
+      reason: 'session_limit',
+      retryAfterMs: null,
+    });
     expect(speech).toHaveLength(0);
   });
 

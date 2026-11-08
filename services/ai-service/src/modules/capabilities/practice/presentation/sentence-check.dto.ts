@@ -99,6 +99,15 @@ export class SentenceCheckRequestDto {
   @ValidateNested()
   @Type(() => SentenceCheckTargetDto)
   target?: SentenceCheckTargetDto;
+
+  @ApiPropertyOptional({
+    description:
+      "A pronunciation session's take (plan 86, step 14.1): the session's attempt id. Paid from surface " +
+      "`pronunciation_session` and counted against the session's takes instead of the sentence's daily tries",
+  })
+  @IsOptional()
+  @IsUUID()
+  sessionId?: string;
 }
 
 export class TargetSoundDto {
@@ -135,7 +144,15 @@ export class SentenceCheckResponseDto {
   @ApiPropertyOptional({ type: SentenceCheckTargetVerdictDto, description: 'When ok and a target was asked for (plan 86, step 13.3)' })
   target?: SentenceCheckTargetVerdictDto;
   @ApiPropertyOptional({
-    enum: ['language_not_supported', 'attempt_limit', 'pool_empty', 'not_available', 'target_not_scored', 'target_not_in_sentence'],
+    enum: [
+      'language_not_supported',
+      'attempt_limit',
+      'session_limit',
+      'pool_empty',
+      'not_available',
+      'target_not_scored',
+      'target_not_in_sentence',
+    ],
     description: 'When refused',
   })
   reason?: string;

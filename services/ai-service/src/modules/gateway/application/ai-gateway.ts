@@ -124,6 +124,15 @@ export class AiGateway {
     return (await this.admit(capability, payer)).map(() => undefined);
   }
 
+  /**
+   * `admits` with what the gate granted — the payer's entitlement and the counter it checked, so
+   * a caller can say what is left before the first call (plan 86, step 14.1: a session's budget).
+   * Neither a ledger row nor a charge.
+   */
+  async standing(capability: string, payer: CallContext['payer']): Promise<Result<GateGrant, AdmissionFailure>> {
+    return (await this.admit(capability, payer)).map((admitted) => admitted.grant);
+  }
+
   private async run<R>(
     capability: string,
     context: CallContext,

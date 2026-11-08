@@ -29,6 +29,8 @@ import { PRACTICE_VOICE } from '../../practice.capability.js';
 import { SoundExplainer } from '../../../pronunciation-explain/application/sound-explainer.js';
 import { PRONUNCIATION_EXPLAIN } from '../../../pronunciation-explain/pronunciation-explain.capability.js';
 import { SENTENCE_CHECK_LIMITER, type ISentenceCheckLimiter } from '../ports/sentence-check.limiter.js';
+import { SOUND_SESSION_LIMITER, type ISoundSessionLimiter } from '../../../sound-session/application/ports/sound-session.limiter.js';
+import { SOUND_SESSION_SURFACE } from '../../../sound-session/domain/sound-session.js';
 import { SentenceCheckCommand, type SentenceCheckRequest } from './sentence-check.command.js';
 
 /** Where a sentence try is paid from: the pronunciation drill, not the rehearsal (plan 86, step 6g). */
@@ -36,7 +38,8 @@ export const SENTENCE_CHECK_SURFACE = 'pronunciation_drill';
 
 /**
  * Why no try was made, on purpose: `language_not_supported` (no sound inventory), `attempt_limit`
- * (the learner's tries of this sentence today are spent), `pool_empty`, `not_available`; with a
+ * (the learner's tries of this sentence today are spent), `session_limit` (a session's takes are
+ * spent, step 14.1), `pool_empty`, `not_available`; with a
  * target (step 13.3) `target_not_scored` (not a sound atom of the language, or its family is not
  * scored in that context — the toneme is `toneme-checks`') and `target_not_in_sentence`.
  * A failure's `errorCode` is the provider's, `gate_unavailable` / `unavailable`, or
@@ -45,6 +48,7 @@ export const SENTENCE_CHECK_SURFACE = 'pronunciation_drill';
 export type SentenceCheckRefusal =
   | 'language_not_supported'
   | 'attempt_limit'
+  | 'session_limit'
   | 'pool_empty'
   | 'not_available'
   | SoundTargetRefusal;
@@ -72,7 +76,9 @@ export type SentenceCheckOutcome =
  * thresholds of the context, on the target words only (`judgeSoundTarget`). The model explains
  * every weak sound as before, except a miss of the target already explained on this element
  * (§5.5a: the same explanation twice is noise). The verdict is returned, not recorded — the
- * session rates the card.
+ * session rates the card. A session's take (`sessionId`, step 14.1) is paid from
+ * `pronunciation_session` and counted against the session's takes, not the sentence's tries: a
+ * word in its frame is said again on purpose.
  */
 @CommandHandler(SentenceCheckCommand)
 export class SentenceCheckHandler implements ICommandHandler<SentenceCheckCommand, SentenceCheckOutcome> {
@@ -82,6 +88,7 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
     private readonly gateway: AiGateway,
     @Inject(RECORDING_AUDIO_SOURCE) private readonly recordings: IRecordingAudioSource,
     @Inject(SENTENCE_CHECK_LIMITER) private readonly limiter: ISentenceCheckLimiter,
+    @Inject(SOUND_SESSION_LIMITER) private readonly sessions: ISoundSessionLimiter,
     private readonly passageSounds: PassageSounds,
     @Inject(SCHOOL_LANGUAGE_READER) private readonly schools: ISchoolLanguageReader,
     private readonly explainer: SoundExplainer,
@@ -92,8 +99,12 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
     const target = request.target ? soundTargetOf(request.language, request.sentence, request.target) : null;
     if (typeof target === 'string') return { status: 'refused', reason: target, retryAfterMs: null };
 
-    const turn = await this.limiter.take(request.userId, request.sentence);
-    if (!turn.allowed) return { status: 'refused', reason: 'attempt_limit', retryAfterMs: turn.retryAfterMs };
+    if (request.sessionId !== null) {
+      if (!(await this.sessions.take(request.sessionId))) return { status: 'refused', reason: 'session_limit', retryAfterMs: null };
+    } else {
+      const turn = await this.limiter.take(request.userId, request.sentence);
+      if (!turn.allowed) return { status: 'refused', reason: 'attempt_limit', retryAfterMs: turn.retryAfterMs };
+    }
 
     const take = await this.take(request.recordingAssetId);
     if (!(take instanceof Uint8Array)) return { status: 'failed', errorCode: take.errorCode, aiCallIds: [] };
@@ -101,7 +112,7 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
     const context: CallContext = {
       payer: payerOf(request),
       actor: { userId: request.userId, role: 'student' },
-      surface: SENTENCE_CHECK_SURFACE,
+      surface: request.sessionId !== null ? SOUND_SESSION_SURFACE : SENTENCE_CHECK_SURFACE,
       subject: request.exerciseId ? { exerciseId: request.exerciseId, checkId: randomUUID() } : null,
     };
     const call = await this.gateway.callSpeech(PRACTICE_VOICE.code, context, {

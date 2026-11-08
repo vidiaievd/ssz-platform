@@ -46,6 +46,7 @@ export class InternalSentenceChecksController {
         target: body.target
           ? { atomId: body.target.atomId, words: body.target.words, context: body.target.context, explained: body.target.explained ?? [] }
           : null,
+        sessionId: body.sessionId ?? null,
       }),
     ) as Promise<SentenceCheckResponseDto>;
   }

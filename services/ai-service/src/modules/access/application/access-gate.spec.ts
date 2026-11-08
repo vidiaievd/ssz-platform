@@ -185,7 +185,7 @@ describe('AccessGate', () => {
       const decision = await gate.check('diagnostic', SCHOOL);
       expect(decision.isOk).toBe(true);
       expect(decision.value.quota).toBeNull();
-      await expect(gate.charge({ ...decision.value, quota: { key: {} as QuotaKey, limitMicro: 1n } }, '1.0')).resolves.toBeUndefined();
+      await expect(gate.charge({ ...decision.value, quota: { key: {} as QuotaKey, limitMicro: 1n, usedMicro: 0n } }, '1.0')).resolves.toBeUndefined();
     });
 
     it('spends one pool for a voice and a text rehearsal, under ai.practice (plan 84)', async () => {

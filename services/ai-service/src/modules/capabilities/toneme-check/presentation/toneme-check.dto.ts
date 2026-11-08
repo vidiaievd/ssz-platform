@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsUUID, Length, MaxLength, ValidateIf } from 'class-validator';
+import { IsOptional, IsString, IsUUID, Length, MaxLength, ValidateIf } from 'class-validator';
 import { TonemeMeasureDto } from '../../reference-synthesis/presentation/reference-clip.dto.js';
 
 export class TonemeCheckRequestDto {
@@ -34,6 +34,15 @@ export class TonemeCheckRequestDto {
   @ApiProperty({ description: "The word's reference clip (media `reference_clip`)" })
   @IsUUID()
   referenceAssetId!: string;
+
+  @ApiPropertyOptional({
+    description:
+      "A pronunciation session's take (plan 86, step 14.1): the session's attempt id. Paid from surface " +
+      "`pronunciation_session` and counted against the session's takes instead of the sentence's daily tries",
+  })
+  @IsOptional()
+  @IsUUID()
+  sessionId?: string;
 }
 
 export class TonemeVerdictDto {
@@ -101,6 +110,7 @@ export class TonemeCheckResponseDto {
       'not_a_reference',
       'not_available',
       'pool_empty',
+      'session_limit',
     ],
     description: 'When unheard or refused',
   })
