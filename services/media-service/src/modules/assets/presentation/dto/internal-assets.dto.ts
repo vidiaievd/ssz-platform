@@ -142,3 +142,12 @@ export class AssetPlaybackDto {
   })
   peaks!: number[] | null;
 }
+
+export class DiscardAssetDto {
+  @ApiProperty({
+    example: 'student-uuid',
+    description: 'Whose file it must be; any other owner is answered as an unknown asset (404)',
+  })
+  @IsUUID()
+  ownerId!: string;
+}

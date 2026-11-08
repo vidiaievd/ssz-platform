@@ -14,9 +14,11 @@ import type {
 } from '../../domain/session-plan.js';
 import {
   SoundSessionSourceError,
+  type IRecordingDiscarder,
   type ILearnerSoundsReader,
   type ISoundDrillReader,
   type ISoundTakeJudge,
+  type SoundBaseText,
   type SoundTakeOutcome,
   type SoundTakeRequest,
   type TonemeTakeOutcome,
@@ -121,6 +123,79 @@ export class HttpSoundDrillReader implements ISoundDrillReader {
       const error = sourceError('content', err);
       this.logger.warn(`Sound drill (${language}) → ${error.statusCode}: ${error.message}`);
       return Result.fail(error);
+    }
+  }
+
+  async base(language: string, locale: string): Promise<Result<SoundBaseText[], SoundSessionSourceError>> {
+    try {
+      const { data } = await firstValueFrom(
+        this.http.get<unknown>(`${this.baseUrl}/api/v1/internal/sound-atoms`, {
+          params: { language, locale },
+          headers: { 'x-internal-token': this.token },
+          timeout: this.timeout,
+        }),
+      );
+      if (!isObject(data) || !Array.isArray(data.atoms)) {
+        return Result.fail(new SoundSessionSourceError('content', 502, 'content-service answered without a sound catalogue'));
+      }
+      const text = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v : null);
+      return Result.ok(
+        data.atoms.filter(isObject).map((a) => ({
+          atomId: String(a.atomId),
+          locale: String(a.locale ?? locale),
+          title: String(a.title ?? a.atomId),
+          description: text(a.description),
+          howTo: text(a.howTo),
+          drill: text(a.drill),
+          commonError: text(a.commonError),
+          ukNote: text(a.ukNote),
+        })),
+      );
+    } catch (err) {
+      const error = sourceError('content', err);
+      this.logger.warn(`Sound base (${language}, ${locale}) → ${error.statusCode}: ${error.message}`);
+      return Result.fail(error);
+    }
+  }
+}
+
+/**
+ * media-service `POST /api/v1/internal/media/assets/:assetId/discard` — the owner's take deleted
+ * as the owner would delete it. Already gone counts as done.
+ */
+@Injectable()
+export class HttpRecordingDiscarder implements IRecordingDiscarder {
+  private readonly logger = new Logger(HttpRecordingDiscarder.name);
+  private readonly baseUrl: string;
+  private readonly token: string;
+  private readonly timeout: number;
+
+  constructor(
+    private readonly http: HttpService,
+    config: ConfigService<AppConfig>,
+  ) {
+    const cfg = config.get<AppConfig['media']>('media')!;
+    this.baseUrl = cfg.baseUrl;
+    this.timeout = cfg.timeoutMs;
+    this.token = config.get<string>('internalServiceToken' as any)!;
+  }
+
+  async discard(assetId: string, ownerId: string): Promise<boolean> {
+    try {
+      await firstValueFrom(
+        this.http.post(
+          `${this.baseUrl}/api/v1/internal/media/assets/${encodeURIComponent(assetId)}/discard`,
+          { ownerId },
+          { headers: { 'x-internal-token': this.token }, timeout: this.timeout },
+        ),
+      );
+      return true;
+    } catch (err) {
+      // Already deleted is what was asked for.
+      const status = isAxiosError(err) ? (err.response?.status ?? 503) : 500;
+      if (status === 404) return true;
+      this.logger.warn(`Discarding take ${assetId} → ${status}: ${err instanceof Error ? err.message : String(err)}`);
+      return false;
     }
   }
 }

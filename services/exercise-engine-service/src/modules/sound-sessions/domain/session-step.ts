@@ -65,9 +65,10 @@ export interface DiagnosticProgress {
  * - `finished` — every sound closed, or a diagnostic that found nothing weak;
  * - `take_limit` — `MAX_TAKES` spent;
  * - `stopped` — the learner ended it;
- * - `pool_empty` — the payer's credits ran out mid-session; what was measured stands (§5.5a).
+ * - `pool_empty` — the payer's credits ran out mid-session; what was measured stands (§5.5a);
+ * - `not_available` — the payer lost access to the feature mid-session (plan, region); likewise.
  */
-export type DoneReason = 'finished' | 'take_limit' | 'stopped' | 'pool_empty';
+export type DoneReason = 'finished' | 'take_limit' | 'stopped' | 'pool_empty' | 'not_available';
 
 export interface SessionState {
   phase: 'diagnostic' | 'drill' | 'done';
@@ -257,14 +258,22 @@ export function nextState(
   return { state: s, events };
 }
 
-/** The session ended from outside: the learner stopped, or the payer's credits ran out. */
+/** The session ended from outside: the learner stopped, or the payer may not go on. */
 export function stopSession(
   state: SessionState,
-  reason: Extract<DoneReason, 'stopped' | 'pool_empty'>,
+  reason: Extract<DoneReason, 'stopped' | 'pool_empty' | 'not_available'>,
 ): { state: SessionState; events: StepEvent[] } {
   const s = clone(state);
   if (s.phase === 'done') return { state: s, events: [] };
   return finish(s, reason, []);
+}
+
+/**
+ * Every take recorded so far, the diagnostic's included: what a client echoes with a take, so
+ * that a take recorded for a step the session has already left is refused, not judged twice.
+ */
+export function takeIndex(state: SessionState): number {
+  return state.takes + state.diagnostic.reduce((n, d) => n + d.takes, 0);
 }
 
 export type SoundRating = 'GOOD' | 'HARD' | 'AGAIN';

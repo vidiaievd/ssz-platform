@@ -1,9 +1,12 @@
 import type { Attempt } from '../../attempts/domain/entities/attempt.entity.js';
 import type { ProbeTask } from '../../probes/domain/entities/probe-task.entity.js';
 import type { PlanBasis, SessionPlan } from '../domain/session-plan.js';
+import { carrierSentence } from '../domain/carrier.js';
 import {
   currentStep,
   MAX_TAKES,
+  takeIndex,
+  type CurrentStep,
   type DoneReason,
   type SessionState,
   type SoundProgress,
@@ -15,7 +18,16 @@ import {
  * them, and the learner says them.
  */
 export type StepView =
-  | { phase: 'diagnostic'; atomId: string; family: string; index: number; total: number; word: string }
+  | {
+      phase: 'diagnostic';
+      atomId: string;
+      family: string;
+      index: number;
+      total: number;
+      word: string;
+      /** What the learner says: the word in its carrier frame. */
+      sentence: string;
+    }
   | {
       phase: 'drill';
       atomId: string;
@@ -27,6 +39,8 @@ export type StepView =
         | { kind: 'phrase'; text: string; carriers: string[] };
       /** The word said in this take; null for a phrase. */
       say: string | null;
+      /** What the learner says: the word in its carrier frame, or the course line. */
+      sentence: string;
       fails: number;
     };
 
@@ -42,6 +56,8 @@ export interface SoundSessionView {
   doneReason: DoneReason | null;
   takes: number;
   maxTakes: number;
+  /** Every take recorded so far, the diagnostic's included; a take is sent with it (`/takes`). */
+  takeIndex: number;
   sounds: Array<{ atomId: string; family: string; status: SoundProgress['status'] }>;
   /** Null unless the session opened with the diagnostic. */
   diagnostic: { measured: number; total: number } | null;
@@ -67,6 +83,7 @@ export function sessionView(
     doneReason: state.doneReason,
     takes: state.takes,
     maxTakes: MAX_TAKES,
+    takeIndex: takeIndex(state),
     sounds: state.sounds.map((p) => ({ atomId: p.atomId, family: familyOf.get(p.atomId) ?? '', status: p.status })),
     diagnostic:
       plan.basis === 'diagnostic'
@@ -87,6 +104,7 @@ export function stepView(plan: SessionPlan, state: SessionState): StepView | nul
       index: step.index,
       total: step.total,
       word: step.word.word,
+      sentence: carrierSentence(plan.language, step.word.word) ?? step.word.word,
     };
   }
   const e = step.element;
@@ -102,6 +120,15 @@ export function stepView(plan: SessionPlan, state: SessionState): StepView | nul
           ? { kind: 'pair', words: [e.words[0].word, e.words[1].word], judged: [...e.judged] }
           : { kind: 'phrase', text: e.text, carriers: [...e.carriers] },
     say: step.say?.word ?? null,
+    sentence: sentenceOf(plan.language, step),
     fails: step.fails,
   };
+}
+
+/** The sentence a take of this step is: the course line, or the word in its carrier frame. */
+export function sentenceOf(language: string, step: CurrentStep): string {
+  if (step.phase === 'diagnostic') return carrierSentence(language, step.word.word) ?? step.word.word;
+  if (step.element.kind === 'phrase') return step.element.text;
+  const word = step.say?.word ?? '';
+  return carrierSentence(language, word) ?? word;
 }

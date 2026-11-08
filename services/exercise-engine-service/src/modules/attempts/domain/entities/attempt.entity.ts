@@ -25,6 +25,7 @@ import { AttemptCompletedUnscoredEvent } from '../events/attempt-completed-unsco
 import { AttemptRoutedForReviewEvent } from '../events/attempt-routed-for-review.event.js';
 import { AttemptReviewedEvent } from '../events/attempt-reviewed.event.js';
 import { AttemptReturnedEvent } from '../events/attempt-returned.event.js';
+import { TEMPLATE_CODE as SOUND_SESSION_TEMPLATE } from '../../../sound-sessions/domain/sound-session-template.js';
 
 export type AttemptStatus =
   | 'IN_PROGRESS'
@@ -1820,6 +1821,10 @@ export class Attempt extends AggregateRoot {
    * a template that grades as one, the score of the attempt *is* the verdict.
    */
   private wholeExerciseTargets(): AttemptTarget[] {
+    // A pronunciation session is rated sound by sound from what it measured (plan 86, Q28) —
+    // never by its score, which is how learning reads an exercise-level target whatever its
+    // role. Its event carries none; the per-sound evidence is step 13.5's.
+    if (this._templateCode === SOUND_SESSION_TEMPLATE) return [];
     return this._itemTargets
       .filter((target) => target.itemKey === null)
       .map(({ atomType, atomId, role }) => ({ atomType, atomId, role }));

@@ -164,6 +164,10 @@ Database: `exercises_db`
 Publishes `exercise.feedback.atoms_flagged` (plan 85; direct publish after the write, no outbox, broker failure only logged)
 with sources `ai_precheck` (from `check`), `ai_review` (draft remarks the teacher took or rewrote) and `teacher` (the
 teacher's own rule mark on a verdict, `flaggedAtoms`). `POST …/check` also returns `courseId`.
+Pronunciation session (plan 86, step 13.4; probe of the engine-owned template `sound_session`, plan on the probe,
+state in `attempts.session_state`): `POST sound-sessions { language, atomId? }` (start or resume), `GET sound-sessions/:id/items?locale=`
+(step + reference clip links + base instruction), `POST …/takes { recordingAssetId, takeIndex }` (judged by ai-service
+`sentence-checks` target / `toneme-checks`; the take is deleted once heard), `POST …/submit` (submission = the stored state).
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.
@@ -172,6 +176,8 @@ Database: `media_db`
 Reference clips of words (plan 88): `POST media/pronunciation/reference` (authors) and
 `POST internal/media/pronunciation/reference` (`x-internal-token`, plan 86 step 13.2c — drill scripts); refusals are 422
 with the code as `message`, `NOT_AVAILABLE` / `SYNTHESIS_FAILED` are 503.
+`POST internal/media/assets/:assetId/discard { ownerId }` (`x-internal-token`) — the engine deletes a pronunciation
+session's take once it is measured (plan 86, step 13.4d).
 
 ### 8. Notification Service (NestJS)
 Push (FCM), email, in-app notifications. Study reminders.

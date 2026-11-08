@@ -46,6 +46,7 @@ import {
   TEMPLATE_CODE as MINIMAL_PAIRS,
 } from '@ssz/shared-kernel/minimal-pairs';
 import { playbackOf } from '../../services/minimal-pairs-sitting.js';
+import { TEMPLATE_CODE as SOUND_SESSION } from '../../../../sound-sessions/domain/sound-session-template.js';
 import {
   TEMPLATE_CODE as INFORMATION_TRANSFER,
 } from '@ssz/shared-kernel/information-transfer';
@@ -387,6 +388,12 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     }
     const def = defResult.value;
 
+    // A pronunciation session is summed up once (plan 86, step 13.4d): its state is spent, and a
+    // second hand-in would publish its ratings twice.
+    if (attempt.templateCode === SOUND_SESSION && attempt.status !== 'IN_PROGRESS') {
+      return Result.fail(new InvalidAttemptTransitionError('A pronunciation session is handed in once'));
+    }
+
     // A practice attempt that has already been checked is reopened rather than
     // refused: the attempt is the thing being worked on. The entity decides whether
     // this one may be — graded attempts, revealed ones, and now ones whose budget is
@@ -427,6 +434,12 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       );
       if (!('recordings' in recordings)) return Result.fail(recordings);
       answer = recordings;
+    }
+
+    // `sound_session`: the submission is the state the engine recorded take by take — whatever
+    // the body says is not read (plan 86, step 13.4d), as a `minimal_pairs` sitting.
+    if (attempt.templateCode === SOUND_SESSION) {
+      answer = { state: attempt.sessionState };
     }
 
     // After the reopen, deliberately: the facts written over the submission include

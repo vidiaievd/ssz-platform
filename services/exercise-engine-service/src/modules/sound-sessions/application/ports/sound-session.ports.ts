@@ -29,9 +29,26 @@ export interface ILearnerSoundsReader {
 
 export const SOUND_DRILL_READER = Symbol('ISoundDrillReader');
 
-/** content-service `GET internal/sound-atoms/drill?language=&atomIds=` (step 13.2). Empty `atomIds` — every scored sound. */
+/** A sound's articulation base in one interface locale (plan 86, step 9.1) — what the session says without a model. */
+export interface SoundBaseText {
+  atomId: string;
+  /** The locale the texts are in: the asked one, or `en` when it has none. */
+  locale: string;
+  title: string;
+  description: string | null;
+  howTo: string | null;
+  drill: string | null;
+  /** The usual mistake of speakers of Russian and Ukrainian, written for them in every locale. */
+  commonError: string | null;
+  /** Where Ukrainian speakers differ; null — they do not. */
+  ukNote: string | null;
+}
+
 export interface ISoundDrillReader {
+  /** content-service `GET internal/sound-atoms/drill?language=&atomIds=` (step 13.2). Empty `atomIds` — every scored sound. */
   read(language: string, atomIds: readonly string[]): Promise<Result<DrillMaterial, SoundSessionSourceError>>;
+  /** content-service `GET internal/sound-atoms?language=&locale=` (steps 8.1, 9.1): every sound's base texts. */
+  base(language: string, locale: string): Promise<Result<SoundBaseText[], SoundSessionSourceError>>;
 }
 
 /** Who pays and whose take it is — as the sentence drill of 6g sends it. */
@@ -146,4 +163,16 @@ export const SOUND_TAKE_JUDGE = Symbol('ISoundTakeJudge');
 export interface ISoundTakeJudge {
   sounds(request: SoundTakeRequest): Promise<Result<SoundTakeOutcome, SoundSessionSourceError>>;
   toneme(request: TonemeTakeRequest): Promise<Result<TonemeTakeOutcome, SoundSessionSourceError>>;
+}
+
+export const RECORDING_DISCARDER = Symbol('IRecordingDiscarder');
+
+/**
+ * Deletes a take once it is measured (plan 86 §5.6, 13.4d): a session keeps no voice — the
+ * verdict is on the attempt, the recording is of no further use to anyone. media-service
+ * `POST internal/media/assets/:assetId/discard`. False when it could not; the orphan sweep
+ * (plan 71) is the net, since no submission ever names a session's take.
+ */
+export interface IRecordingDiscarder {
+  discard(assetId: string, ownerId: string): Promise<boolean>;
 }
