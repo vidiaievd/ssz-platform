@@ -140,6 +140,10 @@ Redis 10 min per course + language). Atoms have no translations; `ruleTitle` onl
 Sound atoms (plan 86): natural keys `nb:kj`, catalogue + articulation base per locale (en/nb/ru/uk) —
 `GET internal/sound-atoms?language=&locale=` (`x-internal-token`, Redis 10 min); the learner's card of a sound
 `GET sound-atoms/:atomId?locale=` (JWT, a slice of the same cached catalogue; region dropped, unknown locale → `en`).
+Sound drill (plan 86, step 13.2): `GET internal/sound-atoms/drill?language=&atomIds=` (`x-internal-token`, Redis 10 min
+per language) — carrier words and length/toneme pairs that have a reference clip (`sound_reference_clips`), the course's
+short lines with their carrier words, one cold-start word per scored family. Data `prisma/data/sound-atom-drill.ts`,
+checked against the lexicon and phrases picked by `prisma/tools/sound-drill.ts`.
 
 ### 5. Learning Service (NestJS)
 Material assignment, progress tracking, SRS, adaptive review queue.
