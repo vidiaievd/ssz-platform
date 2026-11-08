@@ -17,6 +17,11 @@ export class TonemeCheckRequestDto {
   @IsUUID()
   userId!: string;
 
+  @ApiPropertyOptional({ description: "The exercise the take belongs to (a session's probe), for the ledger only" })
+  @IsOptional()
+  @IsUUID()
+  exerciseId?: string;
+
   @ApiProperty({ example: 'nb', description: 'Course language; only `nb` has a carrier sentence and a lexicon' })
   @IsString()
   @Length(2, 8)

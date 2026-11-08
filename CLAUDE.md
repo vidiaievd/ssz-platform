@@ -178,6 +178,8 @@ Step 14.1: a new session passes ai-service's door first (`internal/sound-session
 `POOL_EMPTY`, 403 `NOT_AVAILABLE`; the start answers `budget` (warning only, never a refusal). Payer (`SoundSessionPayer`,
 Q32): the learner's roster school when its `ai-precheck` is on, else the learner's own plan — at the door and on every
 take; takes carry `sessionId` = the attempt id.
+Step 14.2: diagnostic takes go with `explain: false` (no model call); toneme takes carry the probe as `exerciseId`. Live
+end-to-end run on Azure dev: `infrastructure/scripts/plan-86-session-live.mts`.
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.
@@ -272,7 +274,9 @@ Pronunciation session door (plan 86, step 14.1): `POST internal/sound-sessions/a
 (`AI_SOUND_SESSION_DAILY_LIMIT` 3, Redis `ai:sound-session:day:`) → `admitted { budget { payer, metered, remainingCredits,
 estimatedCredits, periodEnd } }` / `refused { session_limit | not_available | pool_empty }`. `sentence-checks` and
 `toneme-checks` take an optional `sessionId`: surface `pronunciation_session`, the session's take cap
-(`AI_SOUND_SESSION_TAKE_LIMIT` 40, `ai:sound-session:takes:`) instead of the sentence's daily tries.
+(`AI_SOUND_SESSION_TAKE_LIMIT` 40, `ai:sound-session:takes:`) instead of the sentence's daily tries. `budget.estimatedCredits`
+= `AI_SOUND_SESSION_ESTIMATED_CREDITS` (35, step 14.2 ledger). `sentence-checks` `explain: false` measures without
+`pronunciation_explain` (a session's diagnostic); `toneme-checks` takes an optional `exerciseId` for the ledger.
 Session verdict (plan 86, step 13.3): `internal/sentence-checks` takes an optional `target { atomId, words, context:
 'word'|'fluent', explained[] }` and answers `target { measured, reason?, passed, weakest { key, … }, explained }` — our
 verdict by the native thresholds on the target words only; a miss whose `key` is already in `explained` is not sent to the

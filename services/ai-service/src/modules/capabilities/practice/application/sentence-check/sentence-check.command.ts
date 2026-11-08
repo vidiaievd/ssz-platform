@@ -31,6 +31,12 @@ export interface SentenceCheckRequest {
   target: SentenceCheckTarget | null;
   /** A pronunciation session's take (plan 86, step 14.1): its attempt id. Surface `pronunciation_session`, the session's take limit instead of the sentence's; null — not a session. */
   sessionId: string | null;
+  /**
+   * Whether weak sounds go to the model (`pronunciation_explain`). False for a session's
+   * diagnostic (plan 86, step 14.2): it measures without help, and the drill that follows
+   * explains the same sound on its first miss — two explanations of one sound, paid twice.
+   */
+  explain: boolean;
 }
 
 export class SentenceCheckCommand {

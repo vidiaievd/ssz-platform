@@ -203,6 +203,7 @@ describe('RecordSoundTakeHandler — a take judged by its sound', () => {
         sentence: 'Nå sier jeg kino igjen.',
         recordingAssetId: TAKE,
         target: { atomId: 'nb:kj', words: ['kino'], context: 'word', explained: [] },
+        explain: true,
       }),
     );
     expect(result.value).toMatchObject({
@@ -242,13 +243,14 @@ describe('RecordSoundTakeHandler — a take judged by its sound', () => {
     );
   });
 
-  it('the diagnostic: a word in its frame, judged by the `word` thresholds; no model explanation is remembered', async () => {
+  it('the diagnostic: a word in its frame, judged by the `word` thresholds, measured without the model (step 14.2)', async () => {
     const s = setup({ plan: plans.diagnostic(), sounds: missedTarget('nb:kj') });
     const result = await s.take.execute(takeOf());
     expect(s.judge.sounds).toHaveBeenCalledWith(
       expect.objectContaining({
         sentence: 'Nå sier jeg kjenne igjen.',
         target: { atomId: 'nb:kj', words: ['kjenne'], context: 'word', explained: [] },
+        explain: false,
       }),
     );
     expect(result.value).toMatchObject({
@@ -375,6 +377,7 @@ describe('RecordSoundTakeHandler — a toneme take', () => {
       schoolId: null,
       userId: USER,
       sessionId: ATTEMPT,
+      exerciseId: s.attempt.exerciseId,
       language: 'nb',
       word: 'jente',
       recordingAssetId: TAKE,

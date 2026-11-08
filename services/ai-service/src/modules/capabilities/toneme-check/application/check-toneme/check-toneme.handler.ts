@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Inject, Logger } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import type { Payer } from '../../../../access/domain/payer.js';
@@ -97,6 +98,7 @@ export class CheckTonemeHandler implements ICommandHandler<CheckTonemeCommand, T
       payer: payerOf(request),
       actor: { userId: request.userId, role: 'student' },
       surface: request.sessionId !== null ? SOUND_SESSION_SURFACE : PRONUNCIATION_DRILL_SURFACE,
+      subject: request.exerciseId ? { exerciseId: request.exerciseId, checkId: randomUUID() } : null,
     };
     const heard = await this.gateway.callSpeech(TONEME_CHECK.code, context, {
       audio: { format: 'wav', data: take },

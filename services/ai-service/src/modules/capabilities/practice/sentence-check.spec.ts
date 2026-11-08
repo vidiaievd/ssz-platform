@@ -35,6 +35,7 @@ const request = (over: Partial<SentenceCheckRequest> = {}): SentenceCheckRequest
   recordingAssetId: 'a0000000-0000-4000-8000-000000000001',
   target: null,
   sessionId: null,
+  explain: true,
   ...over,
 });
 
@@ -279,6 +280,20 @@ describe('SentenceCheckHandler — a session take with a target sound (plan 86, 
     const byWord = Object.fromEntries(outcome.feedback.items.map((i) => [i.original, i.explanation]));
     expect(byWord['igjen']).toBe('model on igjen');
     expect(byWord['kjenne']).toMatch(/^kj-sound/);
+  });
+
+  it("measures without the model when asked not to explain (a session's diagnostic, step 14.2)", async () => {
+    const { explainer, asked } = explaining();
+    const { run } = setup({ routed: Result.ok({ result: heardCarrier() }), sounds: carrierSounds(12, true), explainer });
+    const outcome = await run(request({ sentence: CARRIER, target: kjTarget(), explain: false }));
+    if (outcome.status !== 'ok') throw new Error(outcome.status);
+    expect(outcome.target).toMatchObject({ measured: true, passed: false, weakest: { key: 'KJ:major' }, explained: false });
+    expect(asked).toHaveLength(0);
+    expect(outcome.aiCallIds).toEqual(['speech-1']);
+    const byWord = Object.fromEntries(outcome.feedback.items.map((i) => [i.original, i.explanation]));
+    expect(byWord['kjenne']).toMatch(/^kj-sound/);
+    // The remarks still name the sounds heard on the way (step 13.5b reads them).
+    expect(outcome.feedback.items.map((i) => i.atomRef?.atomId)).toEqual(expect.arrayContaining(['nb:kj', 'nb:sj']));
   });
 
   it('explains again when the miss changed', async () => {

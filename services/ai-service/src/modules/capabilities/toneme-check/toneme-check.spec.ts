@@ -153,6 +153,7 @@ function setup(options: Setup = {}) {
         recordingAssetId: 'take-1',
         referenceAssetId: 'clip-1',
         sessionId: null,
+        exerciseId: null,
         ...request,
       }),
     );
@@ -190,6 +191,7 @@ describe('toneme check (plan 88, step 8.3)', () => {
         payer: { type: 'workspace', id: 'school-1' },
         actor: { userId: 'learner-1', role: 'student' },
         surface: 'pronunciation_drill',
+        subject: null,
       },
     ]);
   });
@@ -289,7 +291,14 @@ describe('toneme check (plan 88, step 8.3)', () => {
     const drill = setup();
     await drill.check();
     expect(drill.contexts[0]!.surface).toBe('pronunciation_drill');
+    expect(drill.contexts[0]!.subject).toBeNull();
     expect(drill.sessionTakes).toEqual([]);
+  });
+
+  it("puts a session's probe on the ledger when the take names it (plan 86, step 14.2)", async () => {
+    const { check, contexts } = setup();
+    await check({ sessionId: '6f15a6fe-8702-47de-b955-849c7235556d', exerciseId: '09995f07-5758-4dc4-ab6c-75564c10adfe' });
+    expect(contexts[0]!.subject).toEqual({ exerciseId: '09995f07-5758-4dc4-ab6c-75564c10adfe', checkId: expect.any(String) });
   });
 
   it("refuses a session's take past the session's takes before the paid call", async () => {

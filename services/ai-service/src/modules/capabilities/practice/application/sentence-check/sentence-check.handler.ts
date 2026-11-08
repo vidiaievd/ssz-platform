@@ -78,7 +78,8 @@ export type SentenceCheckOutcome =
  * (§5.5a: the same explanation twice is noise). The verdict is returned, not recorded — the
  * session rates the card. A session's take (`sessionId`, step 14.1) is paid from
  * `pronunciation_session` and counted against the session's takes, not the sentence's tries: a
- * word in its frame is said again on purpose.
+ * word in its frame is said again on purpose. `explain: false` (a session's diagnostic, step 14.2)
+ * measures and remarks without the model.
  */
 @CommandHandler(SentenceCheckCommand)
 export class SentenceCheckHandler implements ICommandHandler<SentenceCheckCommand, SentenceCheckOutcome> {
@@ -133,7 +134,7 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
     const weak = soundFindings(hearings, request.language);
     const asked = weak.map((finding) => !target || !verdict || worthExplaining(finding, target, verdict));
     let targetExplained = false;
-    if (asked.some(Boolean)) {
+    if (request.explain && asked.some(Boolean)) {
       const explained = await this.explainer.explain({
         capability: PRONUNCIATION_EXPLAIN.code,
         context,

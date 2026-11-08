@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsOptional,
   IsString,
@@ -108,6 +109,16 @@ export class SentenceCheckRequestDto {
   @IsOptional()
   @IsUUID()
   sessionId?: string;
+
+  @ApiPropertyOptional({
+    default: true,
+    description:
+      'Whether weak sounds are explained by the model (`pronunciation_explain`). `false` — measured only, the ' +
+      "remarks keep the inventory's notes and `target.explained` is false (a session's diagnostic, plan 86 step 14.2)",
+  })
+  @IsOptional()
+  @IsBoolean()
+  explain?: boolean;
 }
 
 export class TargetSoundDto {

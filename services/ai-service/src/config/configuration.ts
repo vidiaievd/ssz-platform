@@ -71,8 +71,10 @@ export const envSchema = z.object({
   AI_SOUND_SESSION_DAILY_LIMIT: z.coerce.number().int().positive().default(3),
   // Takes ai-service hears per session, diagnostic included — a backstop; the engine stops at 10 training takes.
   AI_SOUND_SESSION_TAKE_LIMIT: z.coerce.number().int().positive().default(40),
-  // What a session is expected to cost, in credits: 10 takes and their explanations; the warning's yardstick.
-  AI_SOUND_SESSION_ESTIMATED_CREDITS: z.string().regex(/^\d+(\.\d{1,6})?$/).default('15'),
+  // What a session is expected to cost, in credits; the warning's yardstick. By the dev ledger (plan 86,
+  // step 14.2): a take ≈ 0.7, a diagnostic of 8 words ≈ 5 (no model), one explanation ≈ 12 — 10 takes
+  // with two explained misses and the diagnostic ≈ 35.
+  AI_SOUND_SESSION_ESTIMATED_CREDITS: z.string().regex(/^\d+(\.\d{1,6})?$/).default('35'),
   // How often quota counters are raised to the ledger's sums (step 9b). A day by default.
   AI_QUOTA_RECONCILE_MS: z.coerce.number().int().positive().default(86_400_000),
 });

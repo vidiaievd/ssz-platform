@@ -36,6 +36,7 @@ export class InternalTonemeChecksController {
       new CheckTonemeCommand({
         schoolId: body.schoolId,
         userId: body.userId,
+        exerciseId: body.exerciseId ?? null,
         language: body.language,
         word: body.word,
         recordingAssetId: body.recordingAssetId,

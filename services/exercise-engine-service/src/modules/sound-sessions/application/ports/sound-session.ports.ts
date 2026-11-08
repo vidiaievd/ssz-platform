@@ -81,6 +81,11 @@ export interface SoundTakeRequest extends SessionTake {
     context: 'word' | 'fluent';
     explained: string[];
   };
+  /**
+   * Whether ai-service asks the model to explain weak sounds. False in the diagnostic (step 14.2):
+   * it measures without help, and the drill explains the same sound on its first miss.
+   */
+  explain: boolean;
 }
 
 export type TargetUnmeasured = 'no_sounds' | 'word_not_heard' | 'not_aligned' | 'family_not_heard';
@@ -123,6 +128,8 @@ export type SoundTakeOutcome =
 
 /** A toneme take against the word's reference clip, ai-service `internal/toneme-checks` (plan 88, step 8.3). */
 export interface TonemeTakeRequest extends SessionTake {
+  /** The probe the session runs on — the ledger's `exerciseId` (step 14.2). */
+  exerciseId: string;
   language: string;
   word: string;
   recordingAssetId: string;

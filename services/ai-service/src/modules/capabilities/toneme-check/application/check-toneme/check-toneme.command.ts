@@ -3,6 +3,8 @@ export interface TonemeCheckRequest {
   /** The school whose `ai.practice` pays; null — the learner's own plan. */
   schoolId: string | null;
   userId: string;
+  /** The exercise the take belongs to, for the ledger only (a session's probe, plan 86 step 14.2); null — none. */
+  exerciseId: string | null;
   /** The course language (`nb`). */
   language: string;
   /** One word as written; the learner said it in the language's carrier sentence (Q14). */

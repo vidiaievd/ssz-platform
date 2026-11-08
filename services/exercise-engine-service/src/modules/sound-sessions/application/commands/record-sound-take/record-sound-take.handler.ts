@@ -172,6 +172,7 @@ export class RecordSoundTakeHandler implements ICommandHandler<RecordSoundTakeCo
       if (!word) return { reading: { kind: 'retry', reason: 'nothing_to_say' }, feedback: null, toneme: null };
       const asked = await this.judge.toneme({
         ...payer,
+        exerciseId: attempt.exerciseId,
         language: plan.language,
         word: word.word,
         recordingAssetId: command.recordingAssetId,
@@ -200,6 +201,8 @@ export class RecordSoundTakeHandler implements ICommandHandler<RecordSoundTakeCo
         step.phase === 'diagnostic'
           ? { atomId: step.atomId, words: [step.word.word], context: 'word', explained: [] }
           : { atomId: step.atomId, words: step.targetWords, context: step.context, explained: step.explained },
+      // The diagnostic measures without help; the model's explanation belongs to the drill (step 14.2).
+      explain: step.phase !== 'diagnostic',
     });
     if (asked.isFail) return { reading: { kind: 'retry', reason: 'ai_unavailable' }, feedback: null, toneme: null };
     const outcome = asked.value;
