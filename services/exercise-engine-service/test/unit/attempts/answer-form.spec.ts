@@ -59,8 +59,8 @@ async function publishedPayload(
   templateCode: string,
   content: unknown,
   validationDetails: unknown = null,
+  attempt: Attempt = makeAttempt(templateCode),
 ) {
-  const attempt = makeAttempt(templateCode);
   const published: Array<{ type: string; payload: Record<string, unknown> }> = [];
 
   const handler = new SubmitAnswerHandler(
@@ -215,5 +215,71 @@ describe('the per-gap verdicts in the attempt completed event', () => {
     const payload = await publishedPayload('word_bank_gap_fill', gapFillContent(), null);
 
     expect(payload).not.toHaveProperty('gapResults');
+  });
+});
+
+// Plan 86, step 13.5. A pronunciation session rates each sound itself (Q28) and sends the
+// ratings as gaps: scored, addressed to the sound, and nothing at the exercise level — learning
+// rates an exercise-level target by the attempt's score, whatever its role.
+describe('a pronunciation session in the attempt completed event', () => {
+  const sessionAttempt = () =>
+    Attempt.reconstitute({
+      id: 'attempt-1',
+      userId: 'user-1',
+      exerciseId: 'probe-1',
+      assignmentId: null,
+      enrollmentId: null,
+      templateCode: 'sound_session',
+      targetLanguage: 'nb',
+      difficultyLevel: 'A1',
+      checkMode: 'PRACTICE',
+      practicedAtoms: [],
+      status: 'IN_PROGRESS',
+      score: null,
+      passed: null,
+      timeSpentSeconds: 0,
+      submittedAnswer: null,
+      validationDetails: null,
+      feedback: null,
+      answerHash: null,
+      revisionCount: 0,
+      answersRevealed: false,
+      startedAt: new Date(),
+      submittedAt: null,
+      scoredAt: null,
+      ephemeral: true,
+      // The probe's subject, as the session start writes it: context, at the exercise level.
+      itemTargets: [{ itemKey: null, atomType: 'sound', atomId: 'nb:kj', role: 'context' }],
+    });
+
+  const details = {
+    basis: 'record',
+    doneReason: 'stopped',
+    takes: 7,
+    sounds: [
+      { atomId: 'nb:kj', status: 'passed', passes: 3, fails: 0, rating: 'GOOD' },
+      { atomId: 'nb:sj', status: 'passed', passes: 3, fails: 1, rating: 'HARD' },
+      { atomId: 'nb:r', status: 'failed', passes: 0, fails: 3, rating: 'AGAIN' },
+      { atomId: 'nb:y', status: 'open', passes: 0, fails: 1, rating: null },
+    ],
+    diagnosticWeak: [],
+  };
+
+  it('sends a scored gap per rated sound, addressed to that sound alone', async () => {
+    const payload = await publishedPayload('sound_session', { version: 1 }, details, sessionAttempt());
+    const sound = (atomId: string) => [{ atomType: 'sound', atomId, role: 'focus' }];
+
+    expect(payload?.['gapResults']).toEqual([
+      { gapKey: 'nb:kj', correct: true, score: 90, targets: sound('nb:kj') },
+      { gapKey: 'nb:sj', correct: true, score: 70, targets: sound('nb:sj') },
+      { gapKey: 'nb:r', correct: false, score: 0, targets: sound('nb:r') },
+    ]);
+    expect(payload?.['ephemeral']).toBe(true);
+  });
+
+  it('carries no exercise-level target — the probe subject is not rated by the score', async () => {
+    const payload = await publishedPayload('sound_session', { version: 1 }, details, sessionAttempt());
+
+    expect(payload).not.toHaveProperty('targets');
   });
 });

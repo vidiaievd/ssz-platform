@@ -141,6 +141,18 @@ function ratingForAtom(
   );
 }
 
+/**
+ * How well one gap went, 0–100. A gap sends its own `score` where its verdict is finer than
+ * right or wrong — a pronunciation session's sound, rated GOOD / HARD / AGAIN by the session
+ * (plan 86, step 13.5, Q28); every other gap is 100 when right and 0 when not, as always. A score
+ * that is not a number in range is not believed and falls back to the verdict.
+ */
+function gapScore(gap: { correct: boolean; score?: number }): number {
+  const { score } = gap;
+  if (typeof score === 'number' && Number.isFinite(score) && score >= 0 && score <= 100) return score;
+  return gap.correct ? 100 : 0;
+}
+
 /** One atom, as one attempt saw it, once the attempt's several views are reconciled. */
 interface AtomObservation {
   atomType: string;
@@ -182,7 +194,7 @@ function collectAtomObservations(p: ExerciseAttemptCompletedPayload): AtomObserv
         atomType: target.atomType,
         atomId: target.atomId,
         role: target.role,
-        rating: ratingForAtom(p, gap.correct ? 100 : 0, target.role, position),
+        rating: ratingForAtom(p, gapScore(gap), target.role, position),
         itemKey: gap.gapKey,
         gapPosition: position,
         gapCount,
@@ -711,7 +723,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       // The gap's own verdict, not the exercise's score: right is a full recall of
       // this word, wrong is a lapse of it, and the form of the answer — narrowed by
       // how much of the bank was already spent — decides how much either is worth.
-      const rating = ratingForAttempt(p, gap.correct ? 100 : 0, position);
+      const rating = ratingForAttempt(p, gapScore(gap), position);
 
       const reviewResult = await this.commandBus.execute(
         new ReviewCardCommand(p.userId, card.id, rating, attemptedAtOf(p)),

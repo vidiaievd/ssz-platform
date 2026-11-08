@@ -168,6 +168,10 @@ Pronunciation session (plan 86, step 13.4; probe of the engine-owned template `s
 state in `attempts.session_state`): `POST sound-sessions { language, atomId? }` (start or resume), `GET sound-sessions/:id/items?locale=`
 (step + reference clip links + base instruction), `POST …/takes { recordingAssetId, takeIndex }` (judged by ai-service
 `sentence-checks` target / `toneme-checks`; the take is deleted once heard), `POST …/submit` (submission = the stored state).
+Its `attempt.completed` (step 13.5a) carries one `gapResults` entry per rated sound — key = `atomId`, target `sound`/`focus`,
+`score` 90 / 70 / 0 for GOOD / HARD / AGAIN (Q28) — and no exercise-level target; learning rates shadow `SOUND_ATOM`
+cards by the gap's `score`. Kernel row `sound_session` `{ GOOD, AGAIN }` + `ratesAtomsItself`: the probe's `production`
+modality does not lift the lapse to HARD.
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.

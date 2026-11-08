@@ -68,6 +68,14 @@ export interface ExerciseAttemptCompletedPayload {
     gapKey: string;
     correct: boolean;
     /**
+     * Additive (plan 86, step 13.5) — how well this gap went, 0–100, read on the same scale as
+     * the attempt's `score`. For a gap whose verdict is more than right or wrong: a pronunciation
+     * session sends each sound it rated as a gap, GOOD / HARD / AGAIN as 90 / 70 / 0 (Q28), so
+     * that «passed after misses» reaches the card as HARD. Absent — the gap scores 100 when
+     * `correct`, 0 when not, as every gap did before.
+     */
+    score?: number;
+    /**
      * Additive (plan 63 §2 D) — what this gap was about, snapshotted at attempt start.
      *
      * Carried beside the verdict rather than looked up later for the reason every other

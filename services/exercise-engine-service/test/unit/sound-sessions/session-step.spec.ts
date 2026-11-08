@@ -9,6 +9,7 @@ import {
   MAX_FAILS_PER_ELEMENT,
   MAX_TAKES,
   nextState,
+  soundGapResults,
   soundOutcomes,
   startState,
   stopSession,
@@ -303,5 +304,36 @@ describe('soundOutcomes — one rating per sound (Q28)', () => {
       ['nb:kj', 'GOOD'],
       ['nb:sj', null],
     ]);
+  });
+});
+
+describe('soundGapResults — what a session tells the memory (step 13.5)', () => {
+  it('a gap per rated sound, scored inside its rating band and addressed to the sound alone', () => {
+    const plan = record(['nb:kj', 'nb:sj', 'nb:y']);
+    // kj: passed with no miss; sj: closed as not passed; y: never reached.
+    const takes: Take[] = [P, P, P, M, M, M];
+    const { state } = run(plan, takes);
+    const outcomes = soundOutcomes(stopSession(state, 'stopped').state);
+    expect(outcomes.map((o) => [o.atomId, o.rating])).toEqual([
+      ['nb:kj', 'GOOD'],
+      ['nb:sj', 'AGAIN'],
+      ['nb:y', null],
+    ]);
+    expect(soundGapResults(outcomes)).toEqual([
+      { gapKey: 'nb:kj', correct: true, score: 90, targets: [{ atomType: 'sound', atomId: 'nb:kj', role: 'focus' }] },
+      { gapKey: 'nb:sj', correct: false, score: 0, targets: [{ atomType: 'sound', atomId: 'nb:sj', role: 'focus' }] },
+    ]);
+  });
+
+  it('HARD is a recall, not a lapse: correct, scored 70', () => {
+    const { state } = run(chosen('nb:kj'), [P, M, P, P]);
+    expect(soundGapResults(soundOutcomes(state))).toEqual([
+      expect.objectContaining({ gapKey: 'nb:kj', correct: true, score: 70 }),
+    ]);
+  });
+
+  it('one noisy miss and nothing else sends nothing', () => {
+    const { state } = run(chosen('nb:kj'), [M]);
+    expect(soundGapResults(soundOutcomes(stopSession(state, 'stopped').state))).toEqual([]);
   });
 });

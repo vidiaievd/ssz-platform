@@ -410,6 +410,18 @@ export interface PendingAiVerdict {
 /** Where a model's verdict landed: closing the attempt, or waiting for a teacher beside it. */
 export type AiVerdictLanding = 'final' | 'provisional';
 
+/**
+ * One gap's verdict as a template reports it. `score` (0–100) where the verdict is finer than
+ * right or wrong; `targets` where the template, not the start snapshot, knows what the gap was
+ * about — both only from a pronunciation session today (plan 86, step 13.5).
+ */
+export interface GapVerdict {
+  gapKey: string;
+  correct: boolean;
+  score?: number;
+  targets?: AttemptTarget[];
+}
+
 export class Attempt extends AggregateRoot {
   private constructor(
     id: string,
@@ -734,8 +746,11 @@ export class Attempt extends AggregateRoot {
     feedback: unknown,
     /** How the answer was produced; omitted by templates that cannot say. */
     answerForm?: AnswerForm,
-    /** Verdict per gap, in gap order; omitted by templates not graded gap by gap. */
-    gapResults?: Array<{ gapKey: string; correct: boolean }>,
+    /**
+     * Verdict per gap, in gap order; omitted by templates not graded gap by gap. `score` and
+     * `targets` only from a template that knows them better than the snapshot (plan 86, 13.5).
+     */
+    gapResults?: GapVerdict[],
     /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
     evidenceLowered?: boolean,
     /** When the verdict was reached — the server's time, or a replayed call's. */
@@ -1831,10 +1846,11 @@ export class Attempt extends AggregateRoot {
   }
 
   /** Each gap verdict with whatever this attempt snapshotted about that gap. */
-  private addressed(
-    gapResults: Array<{ gapKey: string; correct: boolean }>,
-  ): Array<{ gapKey: string; correct: boolean; targets?: AttemptTarget[] }> {
+  private addressed(gapResults: GapVerdict[]): GapVerdict[] {
     return gapResults.map((result) => {
+      // A template that named the gap's atoms itself (a pronunciation session's sound, plan 86
+      // step 13.5) is believed: nothing was snapshotted at start for a gap decided on the way.
+      if (result.targets !== undefined) return result;
       const targets = this._itemTargets
         .filter((target) => target.itemKey === result.gapKey)
         .map(({ atomType, atomId, role }) => ({ atomType, atomId, role }));

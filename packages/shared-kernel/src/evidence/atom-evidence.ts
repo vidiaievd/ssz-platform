@@ -1,5 +1,5 @@
 import type { EvidenceInput, EvidenceStrength, ReviewRatingValue } from './evidence-strength.js';
-import { evidenceStrength, ratingRank, weaker } from './evidence-strength.js';
+import { evidenceStrength, ratesAtomsItself, ratingRank, weaker } from './evidence-strength.js';
 
 /**
  * What an author said this piece of the exercise was doing with the atom (plan 63 §2 D).
@@ -82,6 +82,9 @@ export function atomEvidenceStrength(input: AtomEvidenceInput): EvidenceStrength
   if (input.role === 'context') return INCIDENTAL;
 
   const fromForm = evidenceStrength(input);
+  // The template rated the atom by rules of its own (a pronunciation session, plan 86 step
+  // 13.5): its row is the reading, and the modality has nothing left to add.
+  if (ratesAtomsItself(input.templateCode)) return fromForm;
   const fromModality = byModality(input.modality);
 
   return fromModality ? weaker(fromForm, fromModality) : fromForm;

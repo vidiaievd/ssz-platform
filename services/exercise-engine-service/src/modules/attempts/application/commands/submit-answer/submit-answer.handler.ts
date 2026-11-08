@@ -47,6 +47,7 @@ import {
 } from '@ssz/shared-kernel/minimal-pairs';
 import { playbackOf } from '../../services/minimal-pairs-sitting.js';
 import { TEMPLATE_CODE as SOUND_SESSION } from '../../../../sound-sessions/domain/sound-session-template.js';
+import { soundGapResults, type SoundOutcome } from '../../../../sound-sessions/domain/session-step.js';
 import {
   TEMPLATE_CODE as INFORMATION_TRANSFER,
 } from '@ssz/shared-kernel/information-transfer';
@@ -59,7 +60,7 @@ import { ANSWER_VALIDATOR, type IAnswerValidator, ValidationError } from '../../
 import { FEEDBACK_GENERATOR, type IFeedbackGenerator } from '../../../../../shared/application/ports/feedback-generator.port.js';
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
-import type { Attempt, AttemptReviewAiPolicy } from '../../../domain/entities/attempt.entity.js';
+import type { Attempt, AttemptReviewAiPolicy, GapVerdict } from '../../../domain/entities/attempt.entity.js';
 import { InvalidAttemptTransitionError } from '../../../domain/exceptions/attempt.errors.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
@@ -174,10 +175,11 @@ function describeAnswerForm(
  * the learner; the scheduler has no use for it, and events are not the place to put
  * text that nothing reads.
  */
-function describeGapResults(
-  templateCode: string,
-  details: unknown,
-): Array<{ gapKey: string; correct: boolean }> | undefined {
+function describeGapResults(templateCode: string, details: unknown): GapVerdict[] | undefined {
+  // A pronunciation session (plan 86, step 13.5): a gap per sound it rated, scored by the rating
+  // the session decided (Q28) and addressed to that sound — the only evidence it sends, since its
+  // score is a summary and its event carries no exercise-level target.
+  if (templateCode === SOUND_SESSION) return soundSessionGaps(details);
   // `inflection_table` reads the same: a cell is the item, keyed `rowId:slotId` (plan 69 §3.9).
   // The row verdict stays in the details — a second entry per row would turn one wrong cell
   // into two review cards.
@@ -202,6 +204,14 @@ function describeGapResults(
     const { gapKey, correct } = gap as { gapKey: string; correct: boolean };
     return { gapKey, correct };
   });
+}
+
+/** The sounds a session rated, off the validator's details (`SoundSessionDetails`). */
+function soundSessionGaps(details: unknown): GapVerdict[] | undefined {
+  if (typeof details !== 'object' || details === null) return undefined;
+  const { sounds } = details as { sounds?: unknown };
+  if (!Array.isArray(sounds)) return undefined;
+  return soundGapResults(sounds as SoundOutcome[]);
 }
 
 /**

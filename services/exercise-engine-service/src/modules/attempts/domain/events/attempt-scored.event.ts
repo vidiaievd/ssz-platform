@@ -41,7 +41,9 @@ export interface AttemptScoredPayload extends AttemptTiming {
   passed: boolean;
   // Per-gap verdicts, for templates graded gap by gap (plan 36 §C.1) — what lets the
   // scheduler hold a card per gap instead of one per exercise. Absent for the rest.
-  gapResults?: Array<{ gapKey: string; correct: boolean; targets?: AttemptTarget[] }>;
+  // `score` — how well the gap went, where the template knows more than right or wrong (plan 86,
+  // step 13.5: a pronunciation session's sound, GOOD / HARD / AGAIN as 90 / 70 / 0).
+  gapResults?: Array<{ gapKey: string; correct: boolean; score?: number; targets?: AttemptTarget[] }>;
   // What the exercise as a whole was about (plan 63 §2 D) — the addresses of the item
   // whose key is null, which is all a template that grades as one can carry. Absent
   // where nobody addressed it, which is most of the catalogue.

@@ -303,6 +303,41 @@ export function soundOutcomes(state: SessionState): SoundOutcome[] {
   }));
 }
 
+/**
+ * A rating on the 0–100 scale learning reads a gap's score by (`scoreToRating`: < 60 AGAIN,
+ * < 80 HARD, < 95 GOOD) — each in the middle of its own band, so that the rating the session
+ * decided is the rating that reaches the card (plan 86, step 13.5).
+ */
+export const RATING_SCORE: Readonly<Record<SoundRating, number>> = { GOOD: 90, HARD: 70, AGAIN: 0 };
+
+/** A sound's rating as the attempt's event carries it: one gap per rated sound. */
+export interface SoundGapResult {
+  gapKey: string;
+  correct: boolean;
+  score: number;
+  targets: Array<{ atomType: 'sound'; atomId: string; role: 'focus' }>;
+}
+
+/**
+ * What a session tells the learner's memory (plan 86, step 13.5, Q28): each sound it rated, as a
+ * gap keyed by the sound, about that sound alone (`focus`). A sound rated nothing — one miss, or
+ * never reached — is left out: absent, not «failed». The diagnostic is never here (§5.5).
+ */
+export function soundGapResults(sounds: readonly SoundOutcome[]): SoundGapResult[] {
+  return sounds.flatMap((sound) =>
+    sound.rating === null
+      ? []
+      : [
+          {
+            gapKey: sound.atomId,
+            correct: sound.rating !== 'AGAIN',
+            score: RATING_SCORE[sound.rating],
+            targets: [{ atomType: 'sound' as const, atomId: sound.atomId, role: 'focus' as const }],
+          },
+        ],
+  );
+}
+
 /** The families the diagnostic heard as weak — flagged `ai_session`, never rated (§5.5). */
 export function diagnosticWeak(state: SessionState): string[] {
   return state.diagnostic.filter((d) => d.status === 'weak').map((d) => d.atomId);
