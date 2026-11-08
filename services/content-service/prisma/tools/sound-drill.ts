@@ -218,6 +218,15 @@ function courseLines(): CourseLine[] {
   return [...seen.values()];
 }
 
+/** Endings of a noun, verb or adjective form: *kjæresten*, *byen*, *flyet*, *kysser*. */
+const FORM_ENDINGS = ['', 'e', 'n', 'en', 'et', 'a', 'er', 'ene', 'ne', 'r', 't', 's', 'te', 'es'];
+
+/** `word` is `lemma` or one of its inflected forms — the same stressed sound, not a compound. */
+export function isFormOf(word: string, lemma: string): boolean {
+  const w = word.toLowerCase();
+  return w.startsWith(lemma) && FORM_ENDINGS.includes(w.slice(lemma.length));
+}
+
 async function pickPhrases(): Promise<Record<string, DrillPhrase[]>> {
   const lines = courseLines();
   const read = new Map<string, LexiconWord[]>();
@@ -235,7 +244,8 @@ async function pickPhrases(): Promise<Record<string, DrillPhrase[]>> {
         const carriers = read
           .get(line.text)!
           .filter((w) => holds(w, drill.symbols.fluent))
-          .map((w) => w.word);
+          .map((w) => w.word)
+          .filter((w) => !drill.carriersFromWords || drill.words.some((d) => isFormOf(w, d)));
         return { line, carriers: [...new Set(carriers)] };
       })
       .filter((x) => x.carriers.length > 0)

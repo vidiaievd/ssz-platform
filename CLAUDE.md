@@ -144,6 +144,8 @@ Sound drill (plan 86, step 13.2): `GET internal/sound-atoms/drill?language=&atom
 per language) — carrier words and length/toneme pairs that have a reference clip (`sound_reference_clips`), the course's
 short lines with their carrier words, one cold-start word per scored family. Data `prisma/data/sound-atom-drill.ts`,
 checked against the lexicon and phrases picked by `prisma/tools/sound-drill.ts`.
+Step 14.3: `nb:kj` and `nb:y` keep only words on which Azure tells the sound from the learner's substitute
+(`infrastructure/scripts/plan-86-sound-blindspots.mts`); `carriersFromWords` judges their phrases on those words only.
 Reference clips (step 13.2c): `prisma/tools/reference-sound-atoms.ts` asks media-service for every drill word and writes
 `sound_reference_clips` (clip or refusal; 503 left for the next run; one word at a time — Azure F0 answers bursts with 429).
 

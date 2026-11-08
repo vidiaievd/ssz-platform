@@ -27,31 +27,27 @@ export interface SoundAtomDrill {
   words: string[];
   pairs: Array<[string, string]>;
   diagnostic: string;
+  /**
+   * Phrases judged only on `words` and their inflections (*kjæresten*, *byen*), not on every word
+   * holding the sound. For a family where Azure cannot tell the sound from the learner's substitute
+   * on most words (plan 86, step 14.3: `infrastructure/scripts/plan-86-sound-blindspots.mts`), `words`
+   * is cut to those it tells, and a phrase must not be passed on a word it does not.
+   */
+  carriersFromWords?: boolean;
 }
 
 /** Keyed by `soundAtomKey(language, family)`; exactly the scored atoms of sound-atoms.ts. */
 export const SOUND_ATOM_DRILL: Readonly<Record<string, SoundAtomDrill>> = {
   'nb:kj': {
     symbols: { word: ['KJ'], fluent: ['KJ'] },
-    words: [
-      'kjøre',
-      'kino',
-      'kirke',
-      'kjøkken',
-      'kyss',
-      'kjole',
-      'kjenne',
-      'kjæreste',
-      'kjøpe',
-      'kilo',
-      'kylling',
-      'kjøtt',
-      'kjekk',
-      'kinn',
-      'kjenning',
-    ],
+    // Only the words on which Azure tells kj from sj, said at two speeds (step 14.3, 08.11): «sj»
+    // scores 100 on kino, kirke, kilo, kjøkken, kjole, kjøpe; 80 on kjøtt; passes at one speed of
+    // two on kjøre, kjenne, kylling, kjenning. Back to fifteen when a local check (native
+    // recordings, recordings/step9/sets/sound_check.tsv) covers the rest.
+    words: ['kyss', 'kjæreste', 'kjekk', 'kinn'],
     pairs: [],
-    diagnostic: 'kjenne',
+    diagnostic: 'kjekk',
+    carriersFromWords: true,
   },
   'nb:sj': {
     symbols: { word: ['SJ'], fluent: ['SJ'] },
@@ -77,25 +73,13 @@ export const SOUND_ATOM_DRILL: Readonly<Record<string, SoundAtomDrill>> = {
   },
   'nb:y': {
     symbols: { word: ['YY', 'YH'], fluent: ['YY', 'YH'] },
-    words: [
-      'by',
-      'lys',
-      'syv',
-      'ny',
-      'fly',
-      'lykke',
-      'syk',
-      'lyd',
-      'dyr',
-      'hytte',
-      'lytte',
-      'sykkel',
-      'mye',
-      'tynn',
-      'flytte',
-    ],
+    // Only the words where Azure passes the right y and misses «i» and «u» at both speeds (step
+    // 14.3, 08.11). The reference clip itself misses the word threshold (90) on lys, syv, ny, lyd,
+    // dyr, sykkel, mye; «i» or «u» passes on lykke, syk, hytte, tynn, flytte.
+    words: ['by', 'fly'],
     pairs: [],
-    diagnostic: 'lys',
+    diagnostic: 'by',
+    carriersFromWords: true,
   },
   'nb:uu': {
     symbols: { word: ['UU', 'UH'], fluent: ['UU', 'UH'] },

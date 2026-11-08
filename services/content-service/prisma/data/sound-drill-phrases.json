@@ -1,157 +1,39 @@
 {
   "nb:kj": [
     {
-      "text": "Kjæresten min kjøper kjøtt og kylling på kjøpesenteret.",
-      "carriers": [
-        "Kjæresten",
-        "kjøper",
-        "kjøtt",
-        "kylling",
-        "kjøpesenteret"
-      ],
-      "source": "uttale-24-2:p2"
-    },
-    {
-      "text": "Kjør forsiktig, kjære!",
-      "carriers": [
-        "Kjør",
-        "kjære"
-      ],
-      "source": "uttale-20-3:p4"
-    },
-    {
-      "text": "Jenta kjøper en kjole.",
-      "carriers": [
-        "kjøper",
-        "kjole"
-      ],
-      "source": "uttale-05-5:p1"
-    },
-    {
-      "text": "Vi kjører til kirken.",
-      "carriers": [
-        "kjører",
-        "kirken"
-      ],
-      "source": "uttale-05-5:p2"
-    },
-    {
-      "text": "Vi skal kjøre til kino.",
-      "carriers": [
-        "kjøre",
-        "kino"
-      ],
-      "source": "uttale-02-4:p2"
-    },
-    {
-      "text": "Jeg vil kjøpe en kjole.",
-      "carriers": [
-        "kjøpe",
-        "kjole"
-      ],
-      "source": "uttale-06-3:p3"
-    },
-    {
       "text": "Kjæresten min jobber på kjøkkenet.",
       "carriers": [
-        "Kjæresten",
-        "kjøkkenet"
+        "Kjæresten"
       ],
       "source": "uttale-23-4:p2"
     },
     {
-      "text": "Du kan kjøpe kjøtt i butikken.",
-      "carriers": [
-        "kjøpe",
-        "kjøtt"
-      ],
-      "source": "uttale-14-5:p1"
-    },
-    {
       "text": "Kjæresten min kjører en ny bil.",
       "carriers": [
-        "Kjæresten",
-        "kjører"
+        "Kjæresten"
       ],
       "source": "uttale-27-5:p1"
     },
     {
-      "text": "Vi skal kjøpe kjøtt og grønnsaker til dugnaden.",
+      "text": "Kjæresten min synes at vinteren er lang.",
       "carriers": [
-        "kjøpe",
-        "kjøtt"
+        "Kjæresten"
       ],
-      "source": "uttale-21-4:p3"
+      "source": "uttale-30-4:p1"
     },
     {
-      "text": "Pappa kjører bil.",
+      "text": "Du spiser jo mest hos kjæresten din!",
       "carriers": [
-        "kjører"
+        "kjæresten"
       ],
-      "source": "uttale-06-3:p4"
+      "source": "uttale-31-3:p2"
     },
     {
-      "text": "Kom inn i kjøkkenet!",
+      "text": "Kjæresten min kjøper kjøtt og kylling på kjøpesenteret.",
       "carriers": [
-        "kjøkkenet"
+        "Kjæresten"
       ],
-      "source": "uttale-05-5:p4"
-    },
-    {
-      "text": "Vi går på kino.",
-      "carriers": [
-        "kino"
-      ],
-      "source": "uttale-06-3:p1"
-    },
-    {
-      "text": "Mamma er på kjøkkenet.",
-      "carriers": [
-        "kjøkkenet"
-      ],
-      "source": "uttale-06-3:p2"
-    },
-    {
-      "text": "Kyllingen koster tjue kroner.",
-      "carriers": [
-        "Kyllingen"
-      ],
-      "source": "uttale-06-3:p5"
-    },
-    {
-      "text": "Tusen takk for kyllingen!",
-      "carriers": [
-        "kyllingen"
-      ],
-      "source": "uttale-08-5:p3"
-    },
-    {
-      "text": "Lampen i kjøkkenet lyser.",
-      "carriers": [
-        "kjøkkenet"
-      ],
-      "source": "uttale-12-4:p3"
-    },
-    {
-      "text": "Skjorta ligger på kjøkkenet.",
-      "carriers": [
-        "kjøkkenet"
-      ],
-      "source": "uttale-15-3:p3"
-    },
-    {
-      "text": "Kinoen ligger ved sjøen.",
-      "carriers": [
-        "Kinoen"
-      ],
-      "source": "uttale-15-3:p5"
-    },
-    {
-      "text": "Da kjører vi dit.",
-      "carriers": [
-        "kjører"
-      ],
-      "source": "uttale-15-3:p6"
+      "source": "uttale-24-2:p2"
     }
   ],
   "nb:sj": [
@@ -308,158 +190,39 @@
   ],
   "nb:y": [
     {
-      "text": "Vi skal flytte til en ny by.",
-      "carriers": [
-        "flytte",
-        "ny",
-        "by"
-      ],
-      "source": "uttale-13-3:p2"
-    },
-    {
-      "text": "En ny sykkel.",
-      "carriers": [
-        "ny",
-        "sykkel"
-      ],
-      "source": "uttale-03-3:p1"
-    },
-    {
       "text": "Syv fly over byen.",
       "carriers": [
-        "Syv",
         "fly"
       ],
       "source": "uttale-03-3:p2"
     },
     {
-      "text": "Jenta har en ny sykkel.",
+      "text": "Tjue fly lander hver time.",
       "carriers": [
-        "ny",
-        "sykkel"
+        "fly"
       ],
-      "source": "uttale-01-5:p2"
-    },
-    {
-      "text": "Her er en ny sykkel.",
-      "carriers": [
-        "ny",
-        "sykkel"
-      ],
-      "source": "uttale-07-5:p1"
-    },
-    {
-      "text": "Vi kjøpte en ny sykkel.",
-      "carriers": [
-        "ny",
-        "sykkel"
-      ],
-      "source": "uttale-16-5:p1"
-    },
-    {
-      "text": "Det er mye lys i dag.",
-      "carriers": [
-        "mye",
-        "lys"
-      ],
-      "source": "uttale-03-3:p3"
-    },
-    {
-      "text": "Dyret er stort, og det er dyrt.",
-      "carriers": [
-        "Dyret",
-        "dyrt"
-      ],
-      "source": "uttale-03-3:p5"
-    },
-    {
-      "text": "Alle har en hytte og en sykkel.",
-      "carriers": [
-        "hytte",
-        "sykkel"
-      ],
-      "source": "uttale-04-5:p5"
+      "source": "uttale-16-5:p4"
     },
     {
       "text": "Alle skal fly til Syden i morgen.",
       "carriers": [
-        "fly",
-        "Syden"
+        "fly"
       ],
       "source": "uttale-12-4:p2"
     },
     {
-      "text": "Kjøkkenet i hytta er fullt av lys.",
+      "text": "Vi skal flytte til en ny by.",
       "carriers": [
-        "hytta",
-        "lys"
+        "by"
       ],
-      "source": "uttale-16-5:p5"
+      "source": "uttale-13-3:p2"
     },
     {
-      "text": "Sjefen kjøpte en ny sykkel på mandag.",
+      "text": "Vi tar et fly til byen i morgen.",
       "carriers": [
-        "ny",
-        "sykkel"
+        "fly"
       ],
-      "source": "uttale-22-4:p2"
-    },
-    {
-      "text": "Nyheten om den nye regelen kom i går.",
-      "carriers": [
-        "Nyheten",
-        "nye"
-      ],
-      "source": "uttale-27-5:p4"
-    },
-    {
-      "text": "Ni eller ny?",
-      "carriers": [
-        "ny"
-      ],
-      "source": "uttale-03-3:p4"
-    },
-    {
-      "text": "Kan du sy?",
-      "carriers": [
-        "sy"
-      ],
-      "source": "uttale-03-3:p6"
-    },
-    {
-      "text": "Læreren leser mye.",
-      "carriers": [
-        "mye"
-      ],
-      "source": "uttale-07-5:p4"
-    },
-    {
-      "text": "Lampen i kjøkkenet lyser.",
-      "carriers": [
-        "lyser"
-      ],
-      "source": "uttale-12-4:p3"
-    },
-    {
-      "text": "Til lykke med dagen!",
-      "carriers": [
-        "lykke"
-      ],
-      "source": "uttale-13-3:p1"
-    },
-    {
-      "text": "Lyset er på i huset.",
-      "carriers": [
-        "Lyset"
-      ],
-      "source": "uttale-01-5:p3"
-    },
-    {
-      "text": "Byen er ny og fin.",
-      "carriers": [
-        "ny"
-      ],
-      "source": "uttale-04-5:p1"
+      "source": "uttale-01-5:p4"
     }
   ],
   "nb:uu": [
