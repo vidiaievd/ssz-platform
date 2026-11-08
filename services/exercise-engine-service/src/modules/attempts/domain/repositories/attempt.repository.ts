@@ -122,6 +122,11 @@ export interface IAttemptRepository {
   findById(id: string): Promise<Attempt | null>;
   findInProgress(userId: string, exerciseId: string): Promise<Attempt | null>;
   /**
+   * A learner's open attempts on one template, newest first — for a template whose attempts are
+   * not tied to one exercise: each pronunciation session is a probe of its own (plan 86, step 13.4c).
+   */
+  findInProgressByTemplate(userId: string, templateCode: string): Promise<Attempt[]>;
+  /**
    * The learner's newest attempt at this exercise when it is a whole-board check that has been
    * scored but not closed — checks left, nothing finished (plan 69, phase 9).
    *

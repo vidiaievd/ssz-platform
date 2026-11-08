@@ -16,6 +16,7 @@ import { FeedbackModule } from './infrastructure/feedback/feedback.module.js';
 import { AttemptsModule } from './modules/attempts/attempts.module.js';
 import { ProbesModule } from './modules/probes/probes.module.js';
 import { AiDraftsModule } from './modules/ai-drafts/ai-drafts.module.js';
+import { SoundSessionsModule } from './modules/sound-sessions/sound-sessions.module.js';
 import { EventsModule } from './modules/events/events.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 
@@ -50,6 +51,7 @@ import { HealthModule } from './modules/health/health.module.js';
     AttemptsModule,
     ProbesModule,
     AiDraftsModule,
+    SoundSessionsModule,
     EventsModule,
     HealthModule,
   ],

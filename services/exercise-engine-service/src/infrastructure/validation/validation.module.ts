@@ -20,6 +20,7 @@ import { WritingTaskValidator } from './validators/writing-task.validator.js';
 import { ReadAloudValidator } from './validators/read-aloud.validator.js';
 import { MinimalPairsValidator } from './validators/minimal-pairs.validator.js';
 import { InformationTransferValidator } from './validators/information-transfer.validator.js';
+import { SoundSessionValidator } from './validators/sound-session.validator.js';
 
 @Global()
 @Module({
@@ -43,6 +44,7 @@ import { InformationTransferValidator } from './validators/information-transfer.
     ReadAloudValidator,
     MinimalPairsValidator,
     InformationTransferValidator,
+    SoundSessionValidator,
     SchemaBasedAnswerValidator,
     { provide: ANSWER_VALIDATOR, useExisting: SchemaBasedAnswerValidator },
   ],

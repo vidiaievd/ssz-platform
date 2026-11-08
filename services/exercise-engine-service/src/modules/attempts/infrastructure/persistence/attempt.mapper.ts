@@ -193,6 +193,8 @@ export class AttemptMapper {
       provisionalAiVerdict: readProvisionalAiVerdict(row.reviewAiVerdict),
       reviewStartedAt: row.reviewStartedAt,
       reviewHandlingSeconds: row.reviewHandlingSeconds,
+      // Left as it is: the session domain reads it and refuses what it cannot read.
+      sessionState: row.sessionState,
     });
   }
 
@@ -260,6 +262,7 @@ export class AttemptMapper {
       reviewAiVerdict: attempt.provisionalAiVerdict as unknown as AttemptModel['reviewAiVerdict'],
       reviewStartedAt: attempt.reviewStartedAt,
       reviewHandlingSeconds: attempt.reviewHandlingSeconds,
+      sessionState: (attempt.sessionState ?? null) as AttemptModel['sessionState'],
     };
   }
 }

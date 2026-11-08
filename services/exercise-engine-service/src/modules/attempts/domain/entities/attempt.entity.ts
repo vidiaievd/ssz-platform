@@ -246,6 +246,8 @@ export interface AttemptPersistenceProps {
   provisionalAiVerdict?: ProvisionalAiVerdict | null;
   reviewStartedAt?: Date | null;
   reviewHandlingSeconds?: number | null;
+  /** `sound_session`: where the session stands (plan 86, step 13.4c). */
+  sessionState?: unknown;
 }
 
 /**
@@ -469,6 +471,7 @@ export class Attempt extends AggregateRoot {
     private _provisionalAiVerdict: ProvisionalAiVerdict | null = null,
     private _reviewStartedAt: Date | null = null,
     private _reviewHandlingSeconds: number | null = null,
+    private _sessionState: unknown = null,
   ) {
     super(id);
   }
@@ -591,6 +594,7 @@ export class Attempt extends AggregateRoot {
       props.provisionalAiVerdict ?? null,
       props.reviewStartedAt ?? null,
       props.reviewHandlingSeconds ?? null,
+      props.sessionState ?? null,
     );
   }
 
@@ -1964,6 +1968,22 @@ export class Attempt extends AggregateRoot {
   get reviewStartedAt(): Date | null { return this._reviewStartedAt; }
   /** Set by a person's verdict when they held the card — see `handlingSeconds`. */
   get reviewHandlingSeconds(): number | null { return this._reviewHandlingSeconds; }
+  get sessionState(): unknown { return this._sessionState; }
+
+  /**
+   * Where a pronunciation session stands (plan 86, step 13.4): written once when it begins and
+   * then after every take, by the engine alone. Like the draw of a `minimal_pairs` sitting it is
+   * answer-bearing — which takes missed is the rating of the sound — so it is the server's, never
+   * the client's, and it moves only on an open attempt. What it means is the session domain's
+   * (`sound-sessions/domain`); the attempt only keeps it.
+   */
+  recordSessionState(state: unknown): Result<void, InvalidAttemptTransitionError> {
+    if (this._status !== 'IN_PROGRESS') {
+      return Result.fail(new InvalidAttemptTransitionError('A session moves only while its attempt is open'));
+    }
+    this._sessionState = state;
+    return Result.ok();
+  }
   get previousAttemptId(): string | null { return this._previousAttemptId; }
   get autoPassedItems(): number | null { return this._autoPassedItems; }
   get totalItems(): number | null { return this._totalItems; }
