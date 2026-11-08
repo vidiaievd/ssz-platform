@@ -144,6 +144,8 @@ Sound drill (plan 86, step 13.2): `GET internal/sound-atoms/drill?language=&atom
 per language) — carrier words and length/toneme pairs that have a reference clip (`sound_reference_clips`), the course's
 short lines with their carrier words, one cold-start word per scored family. Data `prisma/data/sound-atom-drill.ts`,
 checked against the lexicon and phrases picked by `prisma/tools/sound-drill.ts`.
+Reference clips (step 13.2c): `prisma/tools/reference-sound-atoms.ts` asks media-service for every drill word and writes
+`sound_reference_clips` (clip or refusal; 503 left for the next run; one word at a time — Azure F0 answers bursts with 429).
 
 ### 5. Learning Service (NestJS)
 Material assignment, progress tracking, SRS, adaptive review queue.
@@ -167,6 +169,9 @@ teacher's own rule mark on a verdict, `flaggedAtoms`). `POST …/check` also ret
 Upload, storage, processing of media files. S3-compatible storage.
 Simplified structure acceptable.
 Database: `media_db`
+Reference clips of words (plan 88): `POST media/pronunciation/reference` (authors) and
+`POST internal/media/pronunciation/reference` (`x-internal-token`, plan 86 step 13.2c — drill scripts); refusals are 422
+with the code as `message`, `NOT_AVAILABLE` / `SYNTHESIS_FAILED` are 503.
 
 ### 8. Notification Service (NestJS)
 Push (FCM), email, in-app notifications. Study reminders.
