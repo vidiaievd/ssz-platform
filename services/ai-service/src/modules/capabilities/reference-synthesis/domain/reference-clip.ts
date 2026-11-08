@@ -1,5 +1,7 @@
 import { lexicalWords } from '../../../providers/domain/lexical.js';
 import type { PronouncedWord } from '../../../providers/domain/speech-result.js';
+import { tonemeOfVariants, type LexiconVariant } from '../../../pronunciation/domain/align-word.js';
+import { hasSoundInventory } from '../../../pronunciation/domain/sound-inventory.js';
 import type { TonemeMeasure } from '../../../pronunciation/domain/toneme-feature.js';
 
 /**
@@ -94,3 +96,40 @@ export type ReferenceClipOutcome =
   | { status: 'refused'; reason: ReferenceRefusal }
   /** A model or the pitch tracker did not answer; nothing is known about the word. */
   | { status: 'failed'; errorCode: string; tries: ReferenceTry[]; aiCallIds: string[] };
+
+/** What is refused before anything is synthesized: decided by the text and the lexicon alone. */
+export type ReferenceWordRefusal = Exclude<ReferenceRefusal, 'not_available'>;
+
+/**
+ * The word a reference is made of, or why none can be: one lexical word, of a language with a
+ * carrier sentence and a sound inventory. The first half of the check before synthesis.
+ */
+export function referenceWordOf(
+  language: string,
+  raw: string,
+): { word: string; carrier: Carrier } | { refusal: 'not_a_word' | 'language_not_supported' } {
+  const words = lexicalWords(raw);
+  if (words.length !== 1) return { refusal: 'not_a_word' };
+  const word = words[0]!;
+  const carrier = carrierOf(language, word);
+  if (!carrier || !hasSoundInventory(language)) return { refusal: 'language_not_supported' };
+  return { word, carrier };
+}
+
+/**
+ * The toneme a reference clip is checked against, or why it cannot be: no variant in the lexicon,
+ * or variants that differ in toneme (a homograph — which one a voice says is chance). The second
+ * half of the check; plan 86, step 13.2c, runs both for drill words without paying for anything.
+ */
+export function referenceToneOf(
+  variants: readonly LexiconVariant[],
+): { tone: 1 | 2 | null } | { refusal: 'not_in_lexicon' | 'tone_ambiguous' } {
+  if (variants.length === 0) return { refusal: 'not_in_lexicon' };
+  const tone = tonemeOfVariants(variants);
+  return tone === 'ambiguous' ? { refusal: 'tone_ambiguous' } : { tone };
+}
+
+/** One word as the pre-synthesis check sees it (`POST internal/reference-clips/check`). */
+export type ReferenceWordCheck =
+  | { word: string; status: 'ok'; tone: 1 | 2 | null }
+  | { word: string; status: 'refused'; reason: ReferenceWordRefusal };

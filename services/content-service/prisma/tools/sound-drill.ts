@@ -6,7 +6,12 @@
  *    (`POST internal/prosody/word-stresses`) inside the reference frame «Nå sier jeg … igjen.»: it must be there and hold a sound its family is scored
  *    on in a single word — on a stressed vowel, or a consonant anywhere. Pairs: a length pair is a
  *    long scored vowel against a short one; a toneme pair is toneme 1 against toneme 2. The
- *    diagnostic word must pass the same check. Any miss fails the run (exit 1) and names the word.
+ *    diagnostic word must pass the same check. Then every word is asked of the checks a reference
+ *    clip makes before synthesis (`POST internal/reference-clips/check`, step 13.2c): the frame
+ *    narrows a homograph to one reading, but the clip is made of the word alone, by all its variants,
+ *    so a word whose variants differ in toneme (*sola*, *huset*) gets no clip and is refused here.
+ *    Any miss fails the run (exit 1) and names the word. Whether a voice passes the clip's
+ *    self-check (`REFERENCE_REJECTED`) shows only when reference-sound-atoms.ts synthesizes it.
  * 2. Phrases: the sentences of the «Norsk uttale» `read_aloud` prompts (mode `read`) of the
  *    exercises that target the family, 3–8 words, starting with a capital. A line is kept when the
  *    lexicon finds in it a sound the family is scored on in running speech; those words are its
@@ -88,6 +93,25 @@ async function lexicon(text: string): Promise<LexiconWord[]> {
   }));
 }
 
+interface ReferenceCheck {
+  word: string;
+  status: 'ok' | 'refused';
+  reason?: string;
+}
+
+/** The reference clip's checks before synthesis, by word (lower case, as the clip is keyed). */
+async function referenceChecks(words: readonly string[]): Promise<Map<string, ReferenceCheck>> {
+  const asked = [...new Set(words.map((w) => w.toLowerCase()))];
+  const res = await fetch(`${AI_URL}/api/v1/internal/reference-clips/check`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-internal-token': TOKEN },
+    body: JSON.stringify({ language: 'nb', words: asked }),
+  });
+  if (!res.ok) throw new Error(`ai-service answered HTTP ${res.status} for the reference check`);
+  const body = (await res.json()) as { words: ReferenceCheck[] };
+  return new Map(body.words.map((c) => [c.word, c]));
+}
+
 /** A segment the family is scored on: a listed symbol, on a stressed vowel or on a consonant. */
 function scoredHere(seg: Seg, symbols: readonly string[]): boolean {
   if (seg.kind === 'silent') return false;
@@ -137,6 +161,12 @@ async function checkWords(atomId: string, drill: SoundAtomDrill): Promise<string
     }
   }
   if (!all.includes(drill.diagnostic)) miss(drill.diagnostic, 'diagnostic word missing');
+
+  const references = await referenceChecks(all);
+  for (const word of all) {
+    const checked = references.get(word.toLowerCase());
+    if (checked?.status === 'refused') miss(word, `can get no reference clip: ${checked.reason}`);
+  }
   return misses;
 }
 

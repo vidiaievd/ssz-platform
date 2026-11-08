@@ -5,6 +5,8 @@ import type { IPronunciationLexiconReader } from '../../pronunciation/applicatio
 import type { LexiconVariant } from '../../pronunciation/domain/align-word.js';
 import type { PronouncedWord } from '../../providers/domain/speech-result.js';
 import { Result } from '../../../shared/kernel/result.js';
+import { CheckReferenceWordsHandler } from './application/check-reference-words/check-reference-words.handler.js';
+import { CheckReferenceWordsQuery } from './application/check-reference-words/check-reference-words.query.js';
 import { MakeReferenceClipCommand } from './application/make-reference-clip/make-reference-clip.command.js';
 import { MakeReferenceClipHandler } from './application/make-reference-clip/make-reference-clip.handler.js';
 import { carrierOf, wordAt } from './domain/reference-clip.js';
@@ -251,5 +253,47 @@ describe('reference clips (plan 88, step 6b.2)', () => {
       status: 'failed',
       errorCode: 'lexicon_unavailable',
     });
+  });
+});
+
+describe('reference words checked before synthesis (plan 86, step 13.2c)', () => {
+  const variantsOf = jest.fn(async (_l: string, words: readonly string[]) => {
+    const out = new Map<string, LexiconVariant[]>();
+    for (const w of words) if (LEXICON[w]) out.set(w, LEXICON[w]!);
+    return out;
+  });
+  const handler = new CheckReferenceWordsHandler({ variantsOf } as IPronunciationLexiconReader);
+  const check = (words: string[], language = 'nb') =>
+    handler.execute(new CheckReferenceWordsQuery({ language, words }));
+
+  beforeEach(() => variantsOf.mockClear());
+
+  it('refuses what synthesis would refuse, from one lexicon read and in the order asked', async () => {
+    expect(await check(['bønner', 'hus', 'tømmer', 'finger', 'xyzzy', 'to ord', 'bønner'])).toEqual([
+      { word: 'bønner', status: 'ok', tone: 2 },
+      { word: 'hus', status: 'ok', tone: null },
+      { word: 'tømmer', status: 'refused', reason: 'tone_ambiguous' },
+      { word: 'finger', status: 'ok', tone: 1 },
+      { word: 'xyzzy', status: 'refused', reason: 'not_in_lexicon' },
+      { word: 'to ord', status: 'refused', reason: 'not_a_word' },
+      { word: 'bønner', status: 'ok', tone: 2 },
+    ]);
+    expect(variantsOf).toHaveBeenCalledTimes(1);
+    expect(variantsOf.mock.calls[0]![1]).toEqual(['bønner', 'hus', 'tømmer', 'finger', 'xyzzy']);
+  });
+
+  it('asks no lexicon for a language without a carrier sentence', async () => {
+    expect(await check(['house'], 'en')).toEqual([
+      { word: 'house', status: 'refused', reason: 'language_not_supported' },
+    ]);
+    expect(variantsOf).not.toHaveBeenCalled();
+  });
+
+  it('agrees with what synthesis refuses', async () => {
+    const { make } = setup();
+    for (const word of ['tømmer', 'xyzzy']) {
+      const [checked] = await check([word]);
+      expect(await make(word)).toEqual({ status: 'refused', reason: (checked as { reason: string }).reason });
+    }
   });
 });

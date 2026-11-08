@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, Length, MaxLength } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsString, Length, MaxLength } from 'class-validator';
 import type { ReferenceClipOutcome } from '../domain/reference-clip.js';
 
 export class ReferenceClipRequestDto {
@@ -78,4 +78,41 @@ export function toResponse(outcome: ReferenceClipOutcome): ReferenceClipResponse
   if (outcome.status !== 'ok') return outcome;
   const { audio, ...clip } = outcome.clip;
   return { ...outcome, clip: { ...clip, wav: Buffer.from(audio).toString('base64') } };
+}
+
+export class ReferenceWordsCheckRequestDto {
+  @ApiProperty({ example: 'nb', description: 'Course language' })
+  @IsString()
+  @Length(2, 8)
+  language!: string;
+
+  @ApiProperty({ type: [String], example: ['kjenne', 'sola'], description: 'Words as written, up to 500' })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  words!: string[];
+}
+
+export class ReferenceWordCheckDto {
+  @ApiProperty({ example: 'sola', description: 'The word as the caller wrote it' }) word!: string;
+  @ApiProperty({ enum: ['ok', 'refused'] }) status!: 'ok' | 'refused';
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    enum: [1, 2],
+    description: "`ok`: the lexicon's toneme the clip would be checked against; null when the word carries none",
+  })
+  tone?: 1 | 2 | null;
+  @ApiPropertyOptional({
+    enum: ['not_a_word', 'language_not_supported', 'not_in_lexicon', 'tone_ambiguous'],
+    description: '`refused`: why no clip can be made',
+  })
+  reason?: string;
+}
+
+export class ReferenceWordsCheckResponseDto {
+  @ApiProperty({ type: [ReferenceWordCheckDto], description: 'One per word asked, in order' })
+  words!: ReferenceWordCheckDto[];
 }

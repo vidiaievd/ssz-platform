@@ -248,6 +248,9 @@ Sound explanations (plan 86, step 9.2): `pronunciation_explain@2` (also `voice_r
 content-service's articulation base (`internal/sound-atoms`, in the explanation language) to the inventory notes;
 `commonError` only for ru/uk readers, `ukNote` only for uk; one `SoundExplainer` serves rehearsal, sentence drill and
 hand-in; any failure = inventory notes only.
+Reference words pre-check (plan 86, step 13.2c): `POST internal/reference-clips/check { language, words[] }` — the refusals a
+reference clip makes before synthesis (`not_in_lexicon`, `tone_ambiguous` by all variants, …), one lexicon read, nothing billed;
+content-service's `prisma/tools/sound-drill.ts` fails a drill word refused here.
 Session verdict (plan 86, step 13.3): `internal/sentence-checks` takes an optional `target { atomId, words, context:
 'word'|'fluent', explained[] }` and answers `target { measured, reason?, passed, weakest { key, … }, explained }` — our
 verdict by the native thresholds on the target words only; a miss whose `key` is already in `explained` is not sent to the

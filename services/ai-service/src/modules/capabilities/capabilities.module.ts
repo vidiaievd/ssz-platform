@@ -14,6 +14,7 @@ import { SENTENCE_CHECK_LIMITER } from './practice/application/ports/sentence-ch
 import { RedisSentenceCheckLimiter } from './practice/infrastructure/redis-sentence-check.limiter.js';
 import { InternalSentenceChecksController } from './practice/presentation/internal-sentence-checks.controller.js';
 import { InternalPrecheckController } from './practice/presentation/internal-precheck.controller.js';
+import { CheckReferenceWordsHandler } from './reference-synthesis/application/check-reference-words/check-reference-words.handler.js';
 import { MakeReferenceClipHandler } from './reference-synthesis/application/make-reference-clip/make-reference-clip.handler.js';
 import { InternalReferenceClipsController } from './reference-synthesis/presentation/internal-reference-clips.controller.js';
 import { SuggestPhraseMarksHandler } from './prosody-markup/application/suggest-phrase-marks/suggest-phrase-marks.handler.js';
@@ -205,6 +206,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     SentenceCheckHandler,
     { provide: SENTENCE_CHECK_LIMITER, useClass: RedisSentenceCheckLimiter },
     MakeReferenceClipHandler,
+    CheckReferenceWordsHandler,
     CheckTonemeHandler,
     // phrase marks suggested to the prosody editor (plan 86, step 5c)
     SuggestPhraseMarksHandler,

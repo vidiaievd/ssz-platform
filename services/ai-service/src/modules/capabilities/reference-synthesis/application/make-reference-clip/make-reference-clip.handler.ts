@@ -8,14 +8,13 @@ import {
   PRONUNCIATION_LEXICON_READER,
   type IPronunciationLexiconReader,
 } from '../../../../pronunciation/application/ports/pronunciation-lexicon.reader.js';
-import { alignWord, tonemeOfVariants, type LexiconVariant } from '../../../../pronunciation/domain/align-word.js';
-import { hasSoundInventory } from '../../../../pronunciation/domain/sound-inventory.js';
+import { alignWord, type LexiconVariant } from '../../../../pronunciation/domain/align-word.js';
 import { measureToneme, tonemeWindow } from '../../../../pronunciation/domain/toneme-feature.js';
-import { lexicalWords } from '../../../../providers/domain/lexical.js';
 import type { SynthesisResult } from '../../../../providers/domain/synthesis-result.js';
 import {
-  carrierOf,
   MIN_WORD_ACCURACY,
+  referenceToneOf,
+  referenceWordOf,
   wordAt,
   type Carrier,
   type ReferenceClip,
@@ -54,12 +53,9 @@ export class MakeReferenceClipHandler implements ICommandHandler<MakeReferenceCl
   ) {}
 
   async execute({ request }: MakeReferenceClipCommand): Promise<ReferenceClipOutcome> {
-    const words = lexicalWords(request.word);
-    if (words.length !== 1) return { status: 'refused', reason: 'not_a_word' };
-    const word = words[0]!;
-    const carrier = carrierOf(request.language, word);
-    if (!carrier || !hasSoundInventory(request.language))
-      return { status: 'refused', reason: 'language_not_supported' };
+    const named = referenceWordOf(request.language, request.word);
+    if ('refusal' in named) return { status: 'refused', reason: named.refusal };
+    const { word, carrier } = named;
 
     let variants: LexiconVariant[];
     try {
@@ -70,9 +66,9 @@ export class MakeReferenceClipHandler implements ICommandHandler<MakeReferenceCl
       );
       return { status: 'failed', errorCode: 'lexicon_unavailable', tries: [], aiCallIds: [] };
     }
-    if (variants.length === 0) return { status: 'refused', reason: 'not_in_lexicon' };
-    const tone = tonemeOfVariants(variants);
-    if (tone === 'ambiguous') return { status: 'refused', reason: 'tone_ambiguous' };
+    const toned = referenceToneOf(variants);
+    if ('refusal' in toned) return { status: 'refused', reason: toned.refusal };
+    const { tone } = toned;
 
     const voices = await this.gateway.voicesOf(REFERENCE_SYNTHESIS.code, request.language);
     if (voices.length === 0) return { status: 'refused', reason: 'not_available' };

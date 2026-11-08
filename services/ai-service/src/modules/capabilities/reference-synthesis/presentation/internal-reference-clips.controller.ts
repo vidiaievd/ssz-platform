@@ -1,11 +1,25 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
-import { CommandBus } from '@nestjs/cqrs';
-import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { Body, Controller, HttpCode, Logger, Post, ServiceUnavailableException, UseGuards } from '@nestjs/common';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import {
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { Public } from '../../../../common/decorators/public.decorator.js';
 import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard.js';
 import { MakeReferenceClipCommand } from '../application/make-reference-clip/make-reference-clip.command.js';
-import type { ReferenceClipOutcome } from '../domain/reference-clip.js';
-import { ReferenceClipRequestDto, ReferenceClipResponseDto, toResponse } from './reference-clip.dto.js';
+import { CheckReferenceWordsQuery } from '../application/check-reference-words/check-reference-words.query.js';
+import type { ReferenceClipOutcome, ReferenceWordCheck } from '../domain/reference-clip.js';
+import {
+  ReferenceClipRequestDto,
+  ReferenceClipResponseDto,
+  ReferenceWordsCheckRequestDto,
+  ReferenceWordsCheckResponseDto,
+  toResponse,
+} from './reference-clip.dto.js';
 
 /** media-service's door to a self-checked reference clip (plan 88, step 6b.2). Not routed by the gateway. */
 @ApiTags('Internal — reference clips')
@@ -15,7 +29,12 @@ import { ReferenceClipRequestDto, ReferenceClipResponseDto, toResponse } from '.
 @UseGuards(InternalAuthGuard)
 @Controller('internal/reference-clips')
 export class InternalReferenceClipsController {
-  constructor(private readonly commandBus: CommandBus) {}
+  private readonly logger = new Logger(InternalReferenceClipsController.name);
+
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+  ) {}
 
   @Post()
   @HttpCode(200)
@@ -35,5 +54,30 @@ export class InternalReferenceClipsController {
       new MakeReferenceClipCommand({ language: body.language, word: body.word }),
     );
     return toResponse(outcome);
+  }
+
+  @Post('check')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Which words could get a reference clip, without synthesizing anything',
+    description:
+      'The refusals made before synthesis, for many words from one lexicon read (plan 86, step 13.2c): `not_a_word`, ' +
+      '`language_not_supported`, `not_in_lexicon`, `tone_ambiguous` (variants differ in toneme — the context-free ' +
+      'reading of the lexicon, unlike word-stresses). `ok` does not promise a clip: whether a voice passes the ' +
+      'self-check shows only when synthesized. No model is called, nothing is billed.',
+  })
+  @ApiOkResponse({ type: ReferenceWordsCheckResponseDto })
+  @ApiServiceUnavailableResponse({ description: 'The lexicon could not be read' })
+  async check(@Body() body: ReferenceWordsCheckRequestDto): Promise<ReferenceWordsCheckResponseDto> {
+    let words: ReferenceWordCheck[];
+    try {
+      words = await this.queryBus.execute<CheckReferenceWordsQuery, ReferenceWordCheck[]>(
+        new CheckReferenceWordsQuery({ language: body.language, words: body.words }),
+      );
+    } catch (err) {
+      this.logger.warn(`Reference words not checked: ${err instanceof Error ? err.message : String(err)}`);
+      throw new ServiceUnavailableException('lexicon_unavailable');
+    }
+    return { words };
   }
 }
