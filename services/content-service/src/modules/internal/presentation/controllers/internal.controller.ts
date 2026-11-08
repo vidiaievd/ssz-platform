@@ -60,6 +60,8 @@ import { GetGrammarAtomCatalogQuery } from '../../application/queries/grammar-at
 import type { GrammarAtomCatalog } from '../../application/queries/grammar-atom-catalog/grammar-atom-catalog.handler.js';
 import { GetSoundAtomCatalogQuery } from '../../application/queries/sound-atom-catalog/sound-atom-catalog.query.js';
 import type { SoundAtomCatalog } from '../../application/queries/sound-atom-catalog/sound-atom-catalog.handler.js';
+import { GetSoundAtomDrillQuery } from '../../application/queries/sound-atom-drill/sound-atom-drill.query.js';
+import type { SoundAtomDrillSet } from '../../application/queries/sound-atom-drill/sound-atom-drill.handler.js';
 import type { AtomCoverageResult } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.handler.js';
 import type { AtomDescriptor } from '../../../exercise/domain/repositories/exercise-item-target.repository.interface.js';
 import type { ExerciseEnvelope } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.handler.js';
@@ -803,6 +805,23 @@ export class InternalController {
   ): Promise<SoundAtomCatalog> {
     return this.queryBus.execute<GetSoundAtomCatalogQuery, SoundAtomCatalog>(
       new GetSoundAtomCatalogQuery(language, locale),
+    );
+  }
+
+  // What the pronunciation session drills scored sounds with (plan 86, step 13.2): carrier words
+  // and pairs that have a reference clip, the course's short lines, the cold-start list.
+  // `atomIds` — comma-separated (`nb:kj,nb:sj`); omitted = every scored atom of the language.
+  @Get('sound-atoms/drill')
+  async getSoundAtomDrill(
+    @Query('language') language = 'nb',
+    @Query('atomIds') atomIds?: string,
+  ): Promise<SoundAtomDrillSet> {
+    const ids = (atomIds ?? '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0);
+    return this.queryBus.execute<GetSoundAtomDrillQuery, SoundAtomDrillSet>(
+      new GetSoundAtomDrillQuery(language, ids),
     );
   }
 

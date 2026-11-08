@@ -932,6 +932,7 @@ model SoundAtom {
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   texts SoundAtomText[]
+  drill SoundAtomDrill?
 
   @@unique([language, family])
   @@index([language, position])
@@ -956,6 +957,39 @@ model SoundAtomText {
 
   @@id([soundAtomId, locale])
   @@map("sound_atom_texts")
+}
+
+// What the pronunciation session drills a scored sound with (plan 86, step 13.2): carrier words,
+// contrast pairs (length, toneme), the cold-start word and the course's short lines. Seeded from
+// prisma/data/sound-atom-drill.ts and sound-drill-phrases.json; no screen edits it.
+model SoundAtomDrill {
+  soundAtomId String   @id @map("sound_atom_id") @db.VarChar(40)
+  words       String[] @default([])
+  // [[first, second], …] — long/short or toneme 1/toneme 2; empty for the other families.
+  pairs       Json     @default("[]")
+  diagnostic  String   @db.VarChar(64)
+  // [{ text, carriers: string[], source }] — `carriers` are the words holding the sound.
+  phrases     Json     @default("[]")
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  soundAtom SoundAtom @relation(fields: [soundAtomId], references: [id], onDelete: Cascade)
+
+  @@map("sound_atom_drills")
+}
+
+// The platform's reference clip of a drill word as media-service made it (plan 86, step 13.2,
+// Q30 A): written by prisma/tools/reference-sound-atoms.ts, read by the drill. `assetId` null with
+// a `refusal` = no clip can be made (TONE_AMBIGUOUS, REFERENCE_REJECTED, …) and the word is left out.
+model SoundReferenceClip {
+  language  String   @db.VarChar(8)
+  word      String   @db.VarChar(64)
+  assetId   String?  @map("asset_id") @db.Uuid
+  tone      Int?     @db.SmallInt
+  refusal   String?  @db.VarChar(32)
+  checkedAt DateTime @map("checked_at") @db.Timestamptz
+
+  @@id([language, word])
+  @@map("sound_reference_clips")
 }
 
 // Per-language instruction for an exercise.
