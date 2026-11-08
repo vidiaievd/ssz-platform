@@ -11,6 +11,11 @@ import type { ISentenceCheckLimiter, SentenceCheckDecision } from './application
 import { SentenceCheckCommand, type SentenceCheckRequest } from './application/sentence-check/sentence-check.command.js';
 import { SENTENCE_CHECK_SURFACE, SentenceCheckHandler } from './application/sentence-check/sentence-check.handler.js';
 import { SoundExplainer } from '../pronunciation-explain/application/sound-explainer.js';
+import type { SoundToExplain } from '../pronunciation-explain/domain/sound-explanations.js';
+import type { WordSounds } from '../../pronunciation/application/passage-sounds.js';
+import type { AlignedSound, WordAlignment } from '../../pronunciation/domain/align-word.js';
+import type { SpeechContext } from '../../pronunciation/domain/sound-inventory.js';
+import { weakSounds } from '../../pronunciation/domain/weak-sounds.js';
 
 const SCHOOL = 'f3ced490-5f8b-4d04-bd05-45ab1a101ff8';
 const LEARNER = 'b0000000-0000-4000-8000-000000000002';
@@ -26,6 +31,7 @@ const request = (over: Partial<SentenceCheckRequest> = {}): SentenceCheckRequest
   explanationLanguage: 'ru',
   sentence: SENTENCE,
   recordingAssetId: 'a0000000-0000-4000-8000-000000000001',
+  target: null,
   ...over,
 });
 
@@ -41,6 +47,7 @@ function setup(
     limiter?: SentenceCheckDecision;
     routed?: unknown;
     sounds?: PassageSounds;
+    explainer?: SoundExplainer;
   } = {},
 ) {
   const speech: Array<{ capability: string; context: CallContext; request: SpeechGatewayRequest }> = [];
@@ -67,7 +74,7 @@ function setup(
     },
   };
   const sounds = over.sounds ?? ({ of: async () => null } as unknown as PassageSounds);
-  const handler = new SentenceCheckHandler(gateway, recordings, limiter, sounds, { explanationLanguage: async () => 'ru' } as ISchoolLanguageReader, new SoundExplainer(gateway, { base: async () => [] }));
+  const handler = new SentenceCheckHandler(gateway, recordings, limiter, sounds, { explanationLanguage: async () => 'ru' } as ISchoolLanguageReader, over.explainer ?? new SoundExplainer(gateway, { base: async () => [] }));
   return { run: (req = request()) => handler.execute(new SentenceCheckCommand(req)), speech, taken };
 }
 
@@ -128,5 +135,152 @@ describe('SentenceCheckHandler (plan 86, step 6g)', () => {
     const sounds = { of: async () => { throw new Error('lexicon down'); } } as unknown as PassageSounds;
     const outcome = await setup({ sounds }).run();
     expect(outcome.status).toBe('ok');
+  });
+});
+
+const CARRIER = 'Nå sier jeg kjenne igjen.';
+const CARRIER_WORDS = ['Nå', 'sier', 'jeg', 'kjenne', 'igjen'];
+
+/** The carrier frame heard, every word scored. */
+const heardCarrier = (): SpeechResult =>
+  ({
+    words: CARRIER_WORDS.map((text, i) => ({ text, startMs: i * 300, endMs: i * 300 + 250, confidence: 0.9 })),
+    pronunciation: {
+      accuracy: 80,
+      fluency: 0,
+      completeness: 100,
+      prosody: null,
+      words: CARRIER_WORDS.map((text) => ({ text, accuracy: 80, error: 'none', phonemes: [{ startMs: 0, durationMs: 80, accuracy: 80 }] })),
+    },
+  }) as unknown as SpeechResult;
+
+const named = (symbol: string, accuracy: number): AlignedSound => ({
+  symbol,
+  symbols: [symbol],
+  ipa: symbol.toLowerCase(),
+  family: null,
+  stress: null,
+  primary: false,
+  startMs: 0,
+  durationMs: 80,
+  accuracy,
+});
+
+/**
+ * Sounds of the carrier as PassageSounds reads it in running speech: *kjenne*'s kj scored `kj`,
+ * and *igjen*'s J weak by the fluent reading (an incidental remark: J is not scored, so the weak
+ * list is set by hand).
+ */
+function carrierSounds(kj: number, incidental = false): PassageSounds {
+  return {
+    of: async (_language: string, _passage: string, _scored: unknown, context: SpeechContext) => {
+      expect(context).toBe('fluent');
+      return CARRIER_WORDS.map((text): WordSounds => {
+        const sounds = text === 'kjenne' ? [named('KJ', kj), named('EH', 90), named('N', 90), named('AX', 90)] : [named('N', 90)];
+        const of = (s: AlignedSound[]): WordAlignment => ({ status: 'aligned', text, sounds: s, primaryIndex: null, tone: null, variants: [] });
+        const alignment = of(sounds);
+        // As if fluent scoring had passed kj: the word context must re-read it.
+        const weak = incidental && text === 'igjen' ? weakSounds(of([named('SJ', 5)]), 'fluent', false) : [];
+        return { alignment, weak };
+      });
+    },
+  } as unknown as PassageSounds;
+}
+
+/** An explainer that explains whatever it is asked, and keeps what it was asked. */
+function explaining() {
+  const asked: SoundToExplain[][] = [];
+  const explainer = {
+    explain: async (ask: { sounds: SoundToExplain[] }) => {
+      asked.push(ask.sounds);
+      return {
+        call: { recorded: { callId: `explain-${asked.length}` } },
+        explanations: { explanations: ask.sounds.map((f) => `model on ${f.word}`), summary: 'summary' },
+      };
+    },
+  } as unknown as SoundExplainer;
+  return { explainer, asked };
+}
+
+const kjTarget = (explained: string[] = []): SentenceCheckRequest['target'] => ({
+  atomId: 'nb:kj',
+  words: ['kjenne'],
+  context: 'word',
+  explained,
+});
+
+describe('SentenceCheckHandler — a session take with a target sound (plan 86, step 13.3)', () => {
+  it.each([
+    ['the toneme', { atomId: 'nb:tone', words: ['kjenne'], context: 'word' as const, explained: [] }, 'target_not_scored'],
+    ['a word not in the sentence', { atomId: 'nb:kj', words: ['kino'], context: 'word' as const, explained: [] }, 'target_not_in_sentence'],
+  ])('refuses %s before counting a try or calling', async (_name, target, reason) => {
+    const { run, speech, taken } = setup();
+    expect(await run(request({ sentence: CARRIER, target }))).toEqual({ status: 'refused', reason, retryAfterMs: null });
+    expect(speech).toHaveLength(0);
+    expect(taken).toHaveLength(0);
+  });
+
+  it('fails the target by the single-word threshold and has the model explain the miss', async () => {
+    const { explainer, asked } = explaining();
+    const { run } = setup({ routed: Result.ok({ result: heardCarrier() }), sounds: carrierSounds(12), explainer });
+    const outcome = await run(request({ sentence: CARRIER, target: kjTarget() }));
+    expect(outcome.status).toBe('ok');
+    if (outcome.status !== 'ok') return;
+    expect(outcome.target).toMatchObject({
+      atomId: 'nb:kj',
+      measured: true,
+      passed: false,
+      weakest: { word: 'kjenne', accuracy: 12, threshold: 53, severity: 'major', key: 'KJ:major' },
+      explained: true,
+    });
+    expect(asked).toEqual([[expect.objectContaining({ word: 'kjenne', family: 'kj' })]]);
+    expect(outcome.feedback.items.find((i) => i.original === 'kjenne')?.explanation).toBe('model on kjenne');
+    expect(outcome.aiCallIds).toEqual(['speech-1', 'explain-1']);
+  });
+
+  it('does not explain the same miss twice on an element, but still explains a sound beside the target', async () => {
+    const { explainer, asked } = explaining();
+    const { run } = setup({ routed: Result.ok({ result: heardCarrier() }), sounds: carrierSounds(12, true), explainer });
+    const outcome = await run(request({ sentence: CARRIER, target: kjTarget(['KJ:major']) }));
+    if (outcome.status !== 'ok') throw new Error(outcome.status);
+    expect(outcome.target).toMatchObject({ passed: false, weakest: { key: 'KJ:major' }, explained: false });
+    expect(asked).toEqual([[expect.objectContaining({ word: 'igjen', family: 'sj' })]]);
+    const byWord = Object.fromEntries(outcome.feedback.items.map((i) => [i.original, i.explanation]));
+    expect(byWord['igjen']).toBe('model on igjen');
+    expect(byWord['kjenne']).toMatch(/^kj-sound/);
+  });
+
+  it('explains again when the miss changed', async () => {
+    const { explainer, asked } = explaining();
+    const { run } = setup({ routed: Result.ok({ result: heardCarrier() }), sounds: carrierSounds(40), explainer });
+    const outcome = await run(request({ sentence: CARRIER, target: kjTarget(['KJ:major']) }));
+    if (outcome.status !== 'ok') throw new Error(outcome.status);
+    expect(outcome.target).toMatchObject({ weakest: { key: 'KJ:minor' }, explained: true });
+    expect(asked).toHaveLength(1);
+  });
+
+  it('passes the target with no model call when nothing is weak', async () => {
+    const { explainer, asked } = explaining();
+    const { run } = setup({ routed: Result.ok({ result: heardCarrier() }), sounds: carrierSounds(70), explainer });
+    const outcome = await run(request({ sentence: CARRIER, target: kjTarget() }));
+    if (outcome.status !== 'ok') throw new Error(outcome.status);
+    expect(outcome.target).toMatchObject({ measured: true, passed: true, weakest: { severity: null, key: null }, explained: false });
+    expect(asked).toHaveLength(0);
+    expect(outcome.aiCallIds).toEqual(['speech-1']);
+  });
+
+  it('answers «not measured» when the sounds could not be read, and no target remark is made', async () => {
+    const down = { of: async () => { throw new Error('lexicon down'); } } as unknown as PassageSounds;
+    const { run } = setup({ routed: Result.ok({ result: heardCarrier() }), sounds: down });
+    const outcome = await run(request({ sentence: CARRIER, target: kjTarget() }));
+    if (outcome.status !== 'ok') throw new Error(outcome.status);
+    expect(outcome.target).toEqual({ atomId: 'nb:kj', measured: false, reason: 'no_sounds', passed: false, weakest: null, explained: false });
+  });
+
+  it('a drill take without a target answers no verdict', async () => {
+    const { run } = setup({ routed: Result.ok({ result: heardCarrier() }), sounds: carrierSounds(12) });
+    const outcome = await run(request({ sentence: CARRIER }));
+    if (outcome.status !== 'ok') throw new Error(outcome.status);
+    expect(outcome.target).toBeUndefined();
   });
 });

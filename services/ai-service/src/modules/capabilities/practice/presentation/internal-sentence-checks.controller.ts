@@ -27,7 +27,10 @@ export class InternalSentenceChecksController {
       '`AiFeedback` shape — passage 0 is the sentence. Sold under `ai.practice` (the school pays, or the learner ' +
       'without one; surface `pronunciation_drill`). Outside the per-exercise and monthly-learner limits of the ' +
       'rehearsal; its own limit is tries per sentence per UTC day. Every outcome is a 200: `ok`, `refused` or ' +
-      '`failed`. Nothing is written but the ledger.',
+      '`failed`. Nothing is written but the ledger. ' +
+      "A pronunciation session's take (plan 86, step 13.3) adds `target { atomId, words, context, explained }`: the " +
+      'answer then carries `target { measured, passed, weakest, explained }` — our verdict by the native thresholds ' +
+      'on the target words only; a miss whose `weakest.key` is in `explained` is not sent to the model again.',
   })
   @ApiOkResponse({ type: SentenceCheckResponseDto })
   async check(@Body() body: SentenceCheckRequestDto): Promise<SentenceCheckResponseDto> {
@@ -40,6 +43,9 @@ export class InternalSentenceChecksController {
         explanationLanguage: body.explanationLanguage ?? null,
         sentence: body.sentence,
         recordingAssetId: body.recordingAssetId,
+        target: body.target
+          ? { atomId: body.target.atomId, words: body.target.words, context: body.target.context, explained: body.target.explained ?? [] }
+          : null,
       }),
     ) as Promise<SentenceCheckResponseDto>;
   }

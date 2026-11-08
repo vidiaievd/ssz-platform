@@ -1,4 +1,4 @@
-import type { LexiconVariant, WordAlignment } from './align-word.js';
+import type { AlignedSound, LexiconVariant, WordAlignment } from './align-word.js';
 import { assessmentOf, soundOf, type SoundFamily, type SpeechContext } from './sound-inventory.js';
 
 /** A sound of one word Azure scored below the native threshold of that sound (plan 88, step 5). */
@@ -34,6 +34,23 @@ export function isFunctionWord(upos: string | null, variants: readonly LexiconVa
 }
 
 /**
+ * Whether an aligned sound is scored in this context, and how: the family it is filed under and
+ * the score below which it is weak. Where the variants differ in the symbol but not the family,
+ * the softer threshold of the two; where they differ in family, or one of them is not scored
+ * here — null. Pure.
+ */
+export function assessedSound(
+  sound: Pick<AlignedSound, 'symbols'>,
+  context: SpeechContext,
+): { family: SoundFamily; threshold: number } | null {
+  if (sound.symbols.length === 0) return null;
+  const assessments = sound.symbols.map((s) => assessmentOf(s, context));
+  const family = assessments[0]?.family;
+  if (!family || assessments.some((a) => a === null || a.family !== family)) return null;
+  return { family, threshold: Math.min(...assessments.map((a) => a!.threshold)) };
+}
+
+/**
  * The sounds of an aligned word worth a remark (plan 88 §1, Q3): of a family scored in this
  * context, below that sound's native threshold. Where the variants differ in the symbol but not
  * the family, the softer threshold of the two counts; where they differ in family, or one of
@@ -45,12 +62,10 @@ export function weakSounds(alignment: WordAlignment, context: SpeechContext, fun
   if (alignment.status !== 'aligned') return [];
   const out: WeakSound[] = [];
   alignment.sounds.forEach((sound, soundIndex) => {
-    if (sound.symbols.length === 0) return;
     if (functionWord && context === 'fluent' && sound.symbols.some((s) => soundOf(s)!.kind !== 'consonant')) return;
-    const assessments = sound.symbols.map((s) => assessmentOf(s, context));
-    const family = assessments[0]?.family;
-    if (!family || assessments.some((a) => a === null || a.family !== family)) return;
-    const threshold = Math.min(...assessments.map((a) => a!.threshold));
+    const assessed = assessedSound(sound, context);
+    if (!assessed) return;
+    const { family, threshold } = assessed;
     if (sound.accuracy >= threshold) return;
     out.push({
       soundIndex,

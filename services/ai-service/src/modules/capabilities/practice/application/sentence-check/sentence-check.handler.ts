@@ -7,6 +7,8 @@ import { AiGateway, type GatewayCallOf, type GatewayFailureOf } from '../../../.
 import type { CallContext } from '../../../../ledger/domain/ai-call.js';
 import { PassageSounds, type WordSounds } from '../../../../pronunciation/application/passage-sounds.js';
 import { hasSoundInventory } from '../../../../pronunciation/domain/sound-inventory.js';
+import { weakSounds } from '../../../../pronunciation/domain/weak-sounds.js';
+import { lexicalWord } from '../../../../providers/domain/lexical.js';
 import { audible, recordingLevel } from '../../../../providers/domain/recording-level.js';
 import type { SpeechResult } from '../../../../providers/domain/speech-result.js';
 import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from '../../../voice-review/application/ports/recording-audio.source.js';
@@ -14,7 +16,15 @@ import {
   SCHOOL_LANGUAGE_READER,
   type ISchoolLanguageReader,
 } from '../../../review-draft/application/ports/school-language.reader.js';
-import { soundFindings, toVoiceFeedback, withSoundExplanations } from '../../domain/voice-feedback.js';
+import {
+  judgeSoundTarget,
+  soundTargetOf,
+  type SoundTarget,
+  type SoundTargetRefusal,
+  type TargetVerdict,
+} from '../../domain/sound-target.js';
+import { soundFindings, toVoiceFeedback, withSoundExplanations, type PassageHearing } from '../../domain/voice-feedback.js';
+import type { SoundToExplain } from '../../../pronunciation-explain/domain/sound-explanations.js';
 import { PRACTICE_VOICE } from '../../practice.capability.js';
 import { SoundExplainer } from '../../../pronunciation-explain/application/sound-explainer.js';
 import { PRONUNCIATION_EXPLAIN } from '../../../pronunciation-explain/pronunciation-explain.capability.js';
@@ -26,14 +36,25 @@ export const SENTENCE_CHECK_SURFACE = 'pronunciation_drill';
 
 /**
  * Why no try was made, on purpose: `language_not_supported` (no sound inventory), `attempt_limit`
- * (the learner's tries of this sentence today are spent), `pool_empty`, `not_available`.
+ * (the learner's tries of this sentence today are spent), `pool_empty`, `not_available`; with a
+ * target (step 13.3) `target_not_scored` (not a sound atom of the language, or its family is not
+ * scored in that context — the toneme is `toneme-checks`') and `target_not_in_sentence`.
  * A failure's `errorCode` is the provider's, `gate_unavailable` / `unavailable`, or
  * `recording_missing` / `recording_not_ready` / `recording_unreadable` / `recording_inaudible`.
  */
-export type SentenceCheckRefusal = 'language_not_supported' | 'attempt_limit' | 'pool_empty' | 'not_available';
+export type SentenceCheckRefusal =
+  | 'language_not_supported'
+  | 'attempt_limit'
+  | 'pool_empty'
+  | 'not_available'
+  | SoundTargetRefusal;
+
+/** The verdict on the target sound, and whether this take's feedback carries the model's explanation of its miss. */
+export type SentenceCheckTargetOutcome = TargetVerdict & { explained: boolean };
 
 export type SentenceCheckOutcome =
-  | { status: 'ok'; feedback: AiFeedback; aiCallIds: string[] }
+  /** `target` only when one was asked for. */
+  | { status: 'ok'; feedback: AiFeedback; target?: SentenceCheckTargetOutcome; aiCallIds: string[] }
   | { status: 'refused'; reason: SentenceCheckRefusal; retryAfterMs: number | null }
   | { status: 'failed'; errorCode: string; aiCallIds: string[] };
 
@@ -46,6 +67,12 @@ export type SentenceCheckOutcome =
  * Outside the school's per-exercise limit and monthly learner credits (a drill would burn them in
  * a minute); its own limit is tries per sentence per UTC day. The gate's pool still holds the
  * spend. Nothing is written but the ledger: no attempt, no verdict, no atom.
+ *
+ * A session's take (step 13.3) names a target sound: the verdict is ours, by the native
+ * thresholds of the context, on the target words only (`judgeSoundTarget`). The model explains
+ * every weak sound as before, except a miss of the target already explained on this element
+ * (§5.5a: the same explanation twice is noise). The verdict is returned, not recorded — the
+ * session rates the card.
  */
 @CommandHandler(SentenceCheckCommand)
 export class SentenceCheckHandler implements ICommandHandler<SentenceCheckCommand, SentenceCheckOutcome> {
@@ -62,6 +89,8 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
 
   async execute({ request }: SentenceCheckCommand): Promise<SentenceCheckOutcome> {
     if (!hasSoundInventory(request.language)) return { status: 'refused', reason: 'language_not_supported', retryAfterMs: null };
+    const target = request.target ? soundTargetOf(request.language, request.sentence, request.target) : null;
+    if (typeof target === 'string') return { status: 'refused', reason: target, retryAfterMs: null };
 
     const turn = await this.limiter.take(request.userId, request.sentence);
     if (!turn.allowed) return { status: 'refused', reason: 'attempt_limit', retryAfterMs: turn.retryAfterMs };
@@ -85,23 +114,35 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
     if (call.routed.isFail) return notAnswered(call.routed.error, [call.recorded.callId]);
 
     const heard = call.routed.value.result;
-    const sounds = await this.soundsOf(request, heard);
-    const hearings = [{ passageIndex: 0, heard, sounds }];
+    const scored = heard.pronunciation?.words ?? [];
+    const sounds = target ? inContext(target, scored, await this.soundsOf(request, heard)) : await this.soundsOf(request, heard);
+    const verdict = target ? judgeSoundTarget(request.language, target, scored, sounds) : null;
+    const hearings: PassageHearing[] = [{ passageIndex: 0, heard, sounds }];
     let feedback = toVoiceFeedback(hearings, request.language);
     const weak = soundFindings(hearings, request.language);
-    if (weak.length > 0) {
+    const asked = weak.map((finding) => !target || !verdict || worthExplaining(finding, target, verdict));
+    let targetExplained = false;
+    if (asked.some(Boolean)) {
       const explained = await this.explainer.explain({
         capability: PRONUNCIATION_EXPLAIN.code,
         context,
         targetLanguage: request.language,
         explanationLanguage: await this.explanationLanguage(request),
-        sounds: weak,
+        sounds: weak.filter((_, i) => asked[i]),
         what: 'a sentence',
       });
       calls.push(explained.call);
-      if (explained.explanations) feedback = withSoundExplanations(feedback, explained.explanations);
+      if (explained.explanations) {
+        feedback = withSoundExplanations(feedback, explained.explanations, asked);
+        targetExplained = target !== null && weak.some((f, i) => asked[i] && isOfTarget(f, target));
+      }
     }
-    return { status: 'ok', feedback, aiCallIds: calls.map((c) => c.recorded.callId) };
+    return {
+      status: 'ok',
+      feedback,
+      ...(verdict ? { target: { ...verdict, explained: targetExplained } } : {}),
+      aiCallIds: calls.map((c) => c.recorded.callId),
+    };
   }
 
   /** The caller's language, else the school's, else English — a nicety, so an unreadable school is not a failure. */
@@ -145,6 +186,35 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
     }
     return audio.wav;
   }
+}
+
+/**
+ * The sounds with the target words' weak ones read in the target's context: a word in its carrier
+ * frame is held to the single-word thresholds (§5.5a), the frame around it to running speech's.
+ */
+function inContext(
+  target: SoundTarget,
+  scored: readonly { text: string }[],
+  sounds: WordSounds[] | null,
+): WordSounds[] | null {
+  if (!sounds || target.context === 'fluent') return sounds;
+  return sounds.map((s, j) =>
+    target.words.includes(lexicalWord(scored[j]?.text ?? '')) ? { ...s, weak: weakSounds(s.alignment, target.context, false) } : s,
+  );
+}
+
+/** A remark on the target's family in a target word. */
+function isOfTarget(finding: SoundToExplain, target: SoundTarget): boolean {
+  return finding.family === target.family && target.words.includes(lexicalWord(finding.word));
+}
+
+/**
+ * Whether a remark goes to the model: any remark beside the target, as in the drill; the target's
+ * miss once per kind of miss on the element (§5.5a).
+ */
+function worthExplaining(finding: SoundToExplain, target: SoundTarget, verdict: TargetVerdict): boolean {
+  if (!isOfTarget(finding, target)) return true;
+  return verdict.measured && !verdict.passed && !target.explained.includes(verdict.weakest.key!);
 }
 
 /** The school when there is one, else the learner under their own plan. */

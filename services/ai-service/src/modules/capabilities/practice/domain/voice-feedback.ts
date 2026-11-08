@@ -43,14 +43,23 @@ export function soundFindings(hearings: readonly PassageHearing[], language: str
 /**
  * The feedback with the model's explanations on its sound remarks, in their order, and its
  * summary (step 5b). The remarks stay where they were and what they point at; only the words change.
+ *
+ * `asked` — when only some remarks went to the model (plan 86, step 13.3: a miss already explained
+ * on this element is not explained again), which of them, by their order among the sound remarks;
+ * the others keep the inventory's note.
  */
-export function withSoundExplanations(feedback: AiFeedback, explained: SoundExplanations): AiFeedback {
+export function withSoundExplanations(
+  feedback: AiFeedback,
+  explained: SoundExplanations,
+  asked?: readonly boolean[],
+): AiFeedback {
+  let remark = 0;
   let next = 0;
-  const items = feedback.items.map((item) =>
-    item.atomRef?.atomType === 'sound'
-      ? { ...item, explanation: explained.explanations[next++] ?? item.explanation }
-      : item,
-  );
+  const items = feedback.items.map((item) => {
+    if (item.atomRef?.atomType !== 'sound') return item;
+    if (asked && !asked[remark++]) return item;
+    return { ...item, explanation: explained.explanations[next++] ?? item.explanation };
+  });
   return { ...feedback, summary: explained.summary, items };
 }
 

@@ -243,6 +243,10 @@ Sound explanations (plan 86, step 9.2): `pronunciation_explain@2` (also `voice_r
 content-service's articulation base (`internal/sound-atoms`, in the explanation language) to the inventory notes;
 `commonError` only for ru/uk readers, `ukNote` only for uk; one `SoundExplainer` serves rehearsal, sentence drill and
 hand-in; any failure = inventory notes only.
+Session verdict (plan 86, step 13.3): `internal/sentence-checks` takes an optional `target { atomId, words, context:
+'word'|'fluent', explained[] }` and answers `target { measured, reason?, passed, weakest { key, … }, explained }` — our
+verdict by the native thresholds on the target words only; a miss whose `key` is already in `explained` is not sent to the
+model again. Refusals before any call: `target_not_scored` (the toneme stays with `toneme-checks`), `target_not_in_sentence`.
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.
