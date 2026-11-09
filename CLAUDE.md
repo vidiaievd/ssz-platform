@@ -158,6 +158,9 @@ applies it to `GRAMMAR_ATOM` cards: `ai_precheck` / `ai_review` pull `dueAt` to 
 `teacher` outside the exercise targets → one `AGAIN` (lapse); table `atom_flags` dedups by (learner, exercise, atom,
 source, UTC day). Internal: `GET internal/learners/:userId/grammar-atoms?courseId=` (`x-service-token`).
 Learner adds a reached atom: `POST srs/atoms/:atomId/add { courseId }` (shadow card until plan 63 phase 7).
+Sound atoms (plan 86, step 8.3): `SOUND_ATOM` shadow cards, introduced on day 2 of 14; a pronunciation session's ratings
+(`gapResults`, GOOD/HARD/AGAIN → 90/70/0) rate them by the gap's `score`. `atoms_flagged` with source `ai_session` pulls a
+card but never introduces one. Internal: `GET internal/learners/:userId/sound-atoms?language=` (`x-service-token`).
 
 ### 6. Exercise Engine Service (NestJS)
 Exercise generation and validation, scoring logic, LLM integration.
@@ -283,6 +286,11 @@ Session verdict (plan 86, step 13.3): `internal/sentence-checks` takes an option
 'word'|'fluent', explained[] }` and answers `target { measured, reason?, passed, weakest { key, … }, explained }` — our
 verdict by the native thresholds on the target words only; a miss whose `key` is already in `explained` is not sent to the
 model again. Refusals before any call: `target_not_scored` (the toneme stays with `toneme-checks`), `target_not_in_sentence`.
+Pronunciation analysis (plan 86, steps 4–5c, 9): `prosody_markup` (`ai.authoring`, prompt `@1`) marks a phrase's prosody
+layer via `internal/prosody/phrase-marks`; `internal/prosody/word-stresses` (lexicon + spaCy, Redis 7 days) returns word
+stresses and per-word `sounds`. The sound atoms `nb:<family>` / `nb:tone` are the analysis vocabulary; `pronunciation_explain@2`
+explains a mistake with the articulation base from content-service. Pitch (F0) and sex-of-voice handling run in the
+`whisper` sidecar (`infrastructure/whisper`).
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.
