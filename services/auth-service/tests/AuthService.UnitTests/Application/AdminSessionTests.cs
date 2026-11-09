@@ -3,6 +3,7 @@ using AuthService.Application.Interfaces;
 using AuthService.Application.Options;
 using AuthService.Application.Services;
 using AuthService.Domain.Entities;
+using AuthService.Domain.Events;
 using AuthService.Domain.Exceptions;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
@@ -29,6 +30,7 @@ public sealed class AdminSessionTests
     private readonly IDomainEventPublisher _publisher = Substitute.For<IDomainEventPublisher>();
     private readonly IRateLimitStore _rateLimitStore = Substitute.For<IRateLimitStore>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly IAdminAuditTrail _trail = Substitute.For<IAdminAuditTrail>();
     private readonly IRefreshTokenLifetimeResolver _lifetimes = Substitute.For<IRefreshTokenLifetimeResolver>();
 
     private readonly IOptions<AuthOptions> _opts = Options.Create(new AuthOptions
@@ -539,7 +541,7 @@ public sealed class AdminSessionTests
     // ── Bootstrap ─────────────────────────────────────────────────────────────
 
     private BootstrapSuperAdminCommandHandler BootstrapHandler() =>
-        new(_userRepo, _roleRepo, _levels, _unitOfWork);
+        new(_userRepo, _roleRepo, _levels, _trail, _unitOfWork);
 
     [Fact]
     public async Task Bootstrap_MakesTheAccountASuperAdministrator()
@@ -558,6 +560,8 @@ public sealed class AdminSessionTests
         user.Roles.Should().ContainSingle(r => r.RoleId == role.Id);
         added!.Level.Should().Be(AdminLevels.Super);
         added.GrantedBy.Should().BeNull();
+        _trail.Received(1).Stage(Arg.Is<AdminActionPerformedEvent>(e =>
+            e.Action == AdminActions.Granted && e.ActorId == null && e.Before == null));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

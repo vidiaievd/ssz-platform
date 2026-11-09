@@ -1,5 +1,7 @@
 using AuthService.Application.Interfaces;
+using AuthService.Application.Services;
 using AuthService.Domain.Entities;
+using AuthService.Domain.Events;
 using AuthService.Domain.Exceptions;
 using MediatR;
 
@@ -21,6 +23,7 @@ public sealed class BootstrapSuperAdminCommandHandler(
     IUserRepository userRepository,
     IRoleRepository roleRepository,
     IAdminLevelRepository adminLevels,
+    IAdminAuditTrail trail,
     IUnitOfWork unitOfWork)
     : IRequestHandler<BootstrapSuperAdminCommand, BootstrapSuperAdminResult>
 {
@@ -41,6 +44,7 @@ public sealed class BootstrapSuperAdminCommandHandler(
         var now = DateTimeOffset.UtcNow;
         var assignment = await adminLevels.FindAsync(user.Id, ct);
         var hadSuper = assignment?.Level == AdminLevels.Super;
+        var levelBefore = assignment?.Level;
 
         if (assignment is null)
             adminLevels.Add(AdminLevelAssignment.Create(user.Id, AdminLevels.Super, now));
@@ -48,8 +52,23 @@ public sealed class BootstrapSuperAdminCommandHandler(
             assignment.ChangeTo(AdminLevels.Super, now);
 
         var changed = !hadRole || !hadSuper;
-        if (changed)
-            await unitOfWork.SaveChangesAsync(ct);
+        if (!changed)
+            return new BootstrapSuperAdminResult(user.Id, user.Email, false);
+
+        // No actor: the command line is the authority, and the trail says so.
+        var action = new AdminActionPerformedEvent(
+            null,
+            null,
+            levelBefore is null ? AdminActions.Granted : AdminActions.LevelChanged,
+            AdminActions.TargetType,
+            user.Id.ToString(),
+            "admin bootstrap (command line)",
+            levelBefore is null ? null : AdminMapping.Snapshot(user.Email, levelBefore),
+            AdminMapping.Snapshot(user.Email, AdminLevels.Super));
+
+        trail.Stage(action);
+        await unitOfWork.SaveChangesAsync(ct);
+        await trail.PublishAsync(action, ct);
 
         return new BootstrapSuperAdminResult(user.Id, user.Email, changed);
     }

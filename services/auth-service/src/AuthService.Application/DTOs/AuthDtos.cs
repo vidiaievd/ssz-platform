@@ -147,3 +147,20 @@ public sealed record AdminMfaSetupConfirmedResponse(
     string AccessToken,
     DateTimeOffset AccessTokenExpiresAt,
     DateTimeOffset SessionExpiresAt);
+
+
+// ── Administrators (plan 90) ──────────────────────────────────────────────────
+
+/// <param name="Level">support, admin or super.</param>
+/// <param name="Reason">Why — kept in the admin trail.</param>
+public sealed record SetAdminLevelRequest(string Level, string Reason);
+
+public sealed record AdminResponse(
+    Guid UserId,
+    string Email,
+    string Level,
+    DateTimeOffset GrantedAt,
+    Guid? GrantedBy,
+    bool TwoFactorEnabled);
+
+public sealed record AdminListResponse(IReadOnlyList<AdminResponse> Items);

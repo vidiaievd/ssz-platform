@@ -1,5 +1,6 @@
 using AuthService.Application.Interfaces;
 using AuthService.Application.Options;
+using AuthService.Application.Services;
 using AuthService.Infrastructure.Jobs;
 using AuthService.Infrastructure.Messaging;
 using AuthService.Infrastructure.Persistence;
@@ -89,6 +90,8 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ITokenLifetimePolicyRepository, TokenLifetimePolicyRepository>();
         services.AddScoped<IAdminLevelRepository, AdminLevelRepository>();
+        services.AddScoped<IAdminAuditRepository, AdminAuditRepository>();
+        services.AddScoped<IAdminAuditTrail, AdminAuditTrail>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

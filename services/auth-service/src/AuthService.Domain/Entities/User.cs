@@ -176,6 +176,20 @@ public sealed class User : AggregateRoot
         SetUpdated();
     }
 
+    public void RemoveRole(Guid roleId)
+    {
+        if (_roles.RemoveAll(r => r.RoleId == roleId) > 0)
+            SetUpdated();
+    }
+
+    /// <summary>Ends the sessions opened from one kind of client; the others stay.</summary>
+    public void RevokeRefreshTokens(string clientType)
+    {
+        foreach (var token in _refreshTokens.Where(t => !t.IsRevoked && t.ClientType == clientType))
+            token.Revoke();
+        SetUpdated();
+    }
+
     public void VerifyEmail()
     {
         EmailVerified = true;

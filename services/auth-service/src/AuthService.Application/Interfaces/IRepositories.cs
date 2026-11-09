@@ -63,6 +63,27 @@ public interface IAdminLevelRepository
     Task<AdminLevelAssignment?> FindAsync(Guid userId, CancellationToken ct = default);
 
     void Add(AdminLevelAssignment assignment);
+    void Remove(AdminLevelAssignment assignment);
+
+    /// <summary>How many administrators hold exactly this level.</summary>
+    Task<int> CountAtLevelAsync(string level, CancellationToken ct = default);
+
+    /// <summary>Every administrator with their account, highest level first, then by email.</summary>
+    Task<List<AdminListItem>> ListAsync(CancellationToken ct = default);
+}
+
+public sealed record AdminListItem(
+    Guid UserId,
+    string Email,
+    string Level,
+    DateTimeOffset GrantedAt,
+    Guid? GrantedBy,
+    bool TwoFactorEnabled);
+
+/// <summary>The admin trail (plan 90), written in the transaction of the change it records.</summary>
+public interface IAdminAuditRepository
+{
+    void Add(AdminAuditEntry entry);
 }
 
 public interface IUnitOfWork
