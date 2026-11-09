@@ -74,6 +74,7 @@
       ".ts"
     ],
     "moduleNameMapper": {
+      "^@ssz/contracts$": "<rootDir>/../../../packages/contracts/src/index.ts",
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "transform": {

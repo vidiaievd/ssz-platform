@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { parseAdminLevel, type AdminLevel } from '@ssz/contracts';
 import jwt from 'jsonwebtoken';
 import type { Env } from '../../config/configuration.js';
 
@@ -9,6 +10,9 @@ export interface JwtPayload {
   sub: string;
   email: string;
   roles: string[]; // normalized — always an array regardless of token format
+  isPlatformAdmin: boolean;
+  /** Only in admin-panel tokens of a platform_admin (plan 90); null in every web and mobile session. */
+  adminLevel: AdminLevel | null;
   iat: number;
   exp: number;
 }
@@ -35,6 +39,8 @@ export class JwtVerifierService {
         sub: raw['sub'] as string,
         email: raw['email'] as string,
         roles: roles as string[],
+        isPlatformAdmin: roles.includes('platform_admin'),
+        adminLevel: parseAdminLevel(raw['admin_level']),
         iat: raw['iat'] as number,
         exp: raw['exp'] as number,
       };
