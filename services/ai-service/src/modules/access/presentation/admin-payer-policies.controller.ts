@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Put, UseGuards } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBadRequestResponse,
@@ -17,18 +17,8 @@ import type { AdminActor } from '../../../shared/application/admin-audit.js';
 import { PutPayerPolicyCommand } from '../application/commands/put-payer-policy/put-payer-policy.command.js';
 import type { EffectivePayerPolicy } from '../application/queries/get-payer-policy/get-payer-policy.handler.js';
 import { GetPayerPolicyQuery } from '../application/queries/get-payer-policy/get-payer-policy.query.js';
-import { BILLED_PAYER_TYPES, type BilledPayerType } from '../domain/payer.js';
+import { PAYER_ID_PARAM, PAYER_TYPE_PARAM, payerType } from './payer-param.js';
 import { PayerPolicyResponseDto, PutPayerPolicyDto } from './payer-policy.dto.js';
-
-const PAYER_TYPE_PARAM = { name: 'payerType', enum: BILLED_PAYER_TYPES, description: 'workspace (school, incl. SOLO) or user' };
-const PAYER_ID_PARAM = { name: 'payerId', format: 'uuid', description: 'schoolId or userId' };
-
-function payerType(value: string): BilledPayerType {
-  if (!(BILLED_PAYER_TYPES as readonly string[]).includes(value)) {
-    throw new BadRequestException(`payerType must be one of: ${BILLED_PAYER_TYPES.join(', ')}`);
-  }
-  return value as BilledPayerType;
-}
 
 /**
  * A payer's own AI rules, until a school's settings screen writes them. The gate reads them
