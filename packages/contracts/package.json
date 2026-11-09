@@ -29,7 +29,8 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc && node --test test/*.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

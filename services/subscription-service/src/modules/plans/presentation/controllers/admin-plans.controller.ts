@@ -15,7 +15,8 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import { BusinessErrorDto } from '../../../../common/errors/business-error.dto.js';
-import { PlatformAdminGuard } from '../../../../common/guards/platform-admin.guard.js';
+import { RequireAdminLevel } from '../../../../common/decorators/require-admin-level.decorator.js';
+import { AdminLevelGuard } from '../../../../common/guards/admin-level.guard.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { ArchivePlanCommand } from '../../application/commands/archive-plan/archive-plan.command.js';
 import { CreatePlanCommand } from '../../application/commands/create-plan/create-plan.command.js';
@@ -38,8 +39,9 @@ const CODE_PARAM = { name: 'code', example: 'tutor_pro', description: 'Plan code
 @ApiTags('Admin — plans')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
-@ApiForbiddenResponse({ description: 'Caller is not platform_admin' })
-@UseGuards(PlatformAdminGuard)
+@ApiForbiddenResponse({ description: 'Caller is not platform_admin of the route\'s admin level (admin-panel session)' })
+@UseGuards(AdminLevelGuard)
+@RequireAdminLevel('support')
 @Controller('admin/subscriptions/plans')
 export class AdminPlansController {
   constructor(
@@ -63,6 +65,7 @@ export class AdminPlansController {
     return this.queryBus.execute(new GetPlanQuery(code));
   }
 
+  @RequireAdminLevel('super')
   @Post()
   @ApiOperation({ summary: 'Create a plan at version 1' })
   @ApiCreatedResponse({ type: PlanResponseDto })
@@ -74,6 +77,7 @@ export class AdminPlansController {
     );
   }
 
+  @RequireAdminLevel('super')
   @Patch(':code')
   @ApiOperation({ summary: 'Rename', description: 'Display name only; does not create a version' })
   @ApiParam(CODE_PARAM)
@@ -84,6 +88,7 @@ export class AdminPlansController {
     return this.commandBus.execute(new RenamePlanCommand(code, body.name));
   }
 
+  @RequireAdminLevel('super')
   @Post(':code/versions')
   @ApiOperation({
     summary: 'Revise: new feature list = new version',
@@ -106,6 +111,7 @@ export class AdminPlansController {
     );
   }
 
+  @RequireAdminLevel('super')
   @Post(':code/archive')
   @HttpCode(200)
   @ApiOperation({ summary: 'Archive', description: 'No new assignments; accounts already on it keep their version' })

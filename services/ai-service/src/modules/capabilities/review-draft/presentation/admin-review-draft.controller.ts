@@ -10,7 +10,8 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
-import { PlatformAdminGuard } from '../../../../common/guards/platform-admin.guard.js';
+import { RequireAdminLevel } from '../../../../common/decorators/require-admin-level.decorator.js';
+import { AdminLevelGuard } from '../../../../common/guards/admin-level.guard.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { enabledAspects } from '../domain/review-aspect.js';
 import { TryTranslateReviewCommand } from '../application/try-translate-review.command.js';
@@ -20,12 +21,14 @@ import { TryReviewResponseDto, TryTranslateReviewDto } from './try-review.dto.js
 @ApiTags('Admin — review draft')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
-@ApiForbiddenResponse({ description: 'Caller is not platform_admin' })
-@UseGuards(PlatformAdminGuard)
+@ApiForbiddenResponse({ description: 'Caller is not platform_admin of the route\'s admin level (admin-panel session)' })
+@UseGuards(AdminLevelGuard)
+@RequireAdminLevel('support')
 @Controller('admin/ai/review-draft')
 export class AdminReviewDraftController {
   constructor(private readonly commandBus: CommandBus) {}
 
+  @RequireAdminLevel('admin')
   @Post('translate/try')
   @HttpCode(200)
   @ApiOperation({

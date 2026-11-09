@@ -14,7 +14,8 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import { BusinessErrorDto } from '../../../../common/errors/business-error.dto.js';
-import { PlatformAdminGuard } from '../../../../common/guards/platform-admin.guard.js';
+import { RequireAdminLevel } from '../../../../common/decorators/require-admin-level.decorator.js';
+import { AdminLevelGuard } from '../../../../common/guards/admin-level.guard.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { AccountHistory, AccountOverview } from '../../application/account-views.js';
 import { AssignPlanCommand } from '../../application/commands/assign-plan/assign-plan.command.js';
@@ -39,8 +40,9 @@ import {
 @ApiTags('Admin — accounts')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
-@ApiForbiddenResponse({ description: 'Caller is not platform_admin' })
-@UseGuards(PlatformAdminGuard)
+@ApiForbiddenResponse({ description: 'Caller is not platform_admin of the route\'s admin level (admin-panel session)' })
+@UseGuards(AdminLevelGuard)
+@RequireAdminLevel('support')
 @Controller('admin/subscriptions/accounts/:type/:externalId')
 export class AdminAccountsController {
   constructor(
@@ -64,6 +66,7 @@ export class AdminAccountsController {
     return this.queryBus.execute(new GetAccountHistoryQuery(p.type, p.externalId));
   }
 
+  @RequireAdminLevel('admin')
   @Put('subscription')
   @ApiOperation({
     summary: 'Assign a plan',
@@ -85,6 +88,7 @@ export class AdminAccountsController {
     );
   }
 
+  @RequireAdminLevel('admin')
   @Delete('subscription')
   @ApiOperation({ summary: 'Cancel the current subscription', description: "The account falls back to its audience's free plan" })
   @ApiOkResponse({ type: AccountOverviewResponseDto })
@@ -95,6 +99,7 @@ export class AdminAccountsController {
     return this.commandBus.execute(new CancelSubscriptionCommand(p.type, p.externalId, user.userId));
   }
 
+  @RequireAdminLevel('admin')
   @Post('grants')
   @ApiOperation({
     summary: 'Grant a key or credits on top of the plan',
@@ -124,6 +129,7 @@ export class AdminAccountsController {
     );
   }
 
+  @RequireAdminLevel('admin')
   @Post('grants/:grantId/revoke')
   @HttpCode(200)
   @ApiOperation({ summary: 'Revoke a grant now' })

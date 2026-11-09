@@ -10,3 +10,4 @@ export * from './analytics/index.js';
 export * from './scheduling/index.js';
 export * from './ai/index.js';
 export * from './subscription/index.js';
+export * from './admin/index.js';

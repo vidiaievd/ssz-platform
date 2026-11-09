@@ -9,7 +9,8 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
-import { PlatformAdminGuard } from '../../../../common/guards/platform-admin.guard.js';
+import { RequireAdminLevel } from '../../../../common/decorators/require-admin-level.decorator.js';
+import { AdminLevelGuard } from '../../../../common/guards/admin-level.guard.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { RunDiagnosticCommand } from '../application/run-diagnostic.command.js';
 import type { DiagnosticResult } from '../application/run-diagnostic.handler.js';
@@ -18,12 +19,14 @@ import { DiagnosticResponseDto, RunDiagnosticDto } from './diagnostic.dto.js';
 @ApiTags('Admin — bindings')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
-@ApiForbiddenResponse({ description: 'Caller is not platform_admin' })
-@UseGuards(PlatformAdminGuard)
+@ApiForbiddenResponse({ description: 'Caller is not platform_admin of the route\'s admin level (admin-panel session)' })
+@UseGuards(AdminLevelGuard)
+@RequireAdminLevel('support')
 @Controller('admin/ai/diagnostic')
 export class AdminDiagnosticController {
   constructor(private readonly commandBus: CommandBus) {}
 
+  @RequireAdminLevel('admin')
   @Post()
   @HttpCode(200)
   @ApiOperation({
