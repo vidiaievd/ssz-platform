@@ -95,13 +95,30 @@ export interface AlertAcknowledgedPayload {
   acknowledgedBy: string;
 }
 
+/**
+ * A lesson its learners can see changed when or whether it happens (VoxOrd mobile redesign
+ * 06, step 6c): moved to another day or time, cancelled, or a cancellation undone
+ * (`scheduled`). Raised for lessons not yet in the past; a retopic, a room or a mark is not
+ * this event.
+ */
 export interface LessonStatusChangedPayload {
   lessonId: string;
   schoolId: string;
   groupId: string;
   newStatus: 'scheduled' | 'moved' | 'cancelled';
-  teacherId: string;
+  /** null when nobody is set to teach it. */
+  teacherId: string | null;
+  /** YYYY-MM-DD — the day it is on now (the day it was on, when cancelled). */
   date: string;
+  /** Additive (step 6c): HH:MM, as now. */
+  startTime?: string;
+  endTime?: string;
+  /** Additive (step 6c): `lesson` | `exam` | `make_up` | `review`. */
+  lessonType?: string;
+  /** Additive (step 6c): when it was before a move; absent on a cancellation or a restore. */
+  previousDate?: string;
+  previousStartTime?: string;
+  previousEndTime?: string;
 }
 
 // ─── Typed event interfaces ───────────────────────────────────────────────────

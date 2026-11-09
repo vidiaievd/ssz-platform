@@ -551,6 +551,7 @@ describe('StartAttemptHandler', () => {
         course: 'Ny i Norge A2',
         module: 'Leksjon 7',
         exercise: 'Perfektum',
+        moduleId: 'module-1',
       });
     });
 

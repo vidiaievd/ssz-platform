@@ -64,6 +64,7 @@ const makeHandler = (
   return {
     handler: new CreateGroupAssignmentHandler(repo, contentClient, orgClient, publisher, clock),
     repo,
+    publisher,
   };
 };
 
@@ -87,6 +88,22 @@ describe('CreateGroupAssignmentHandler', () => {
     expect(result.isOk).toBe(true);
     expect(result.value).toHaveLength(2);
     expect(repo.save).toHaveBeenCalledTimes(2);
+  });
+
+  it('names the content and the group on every learner\'s created event (VoxOrd plan 06, step 6b)', async () => {
+    const { handler, publisher } = makeHandler({
+      visibility: Result.ok({ isVisible: true, title: 'Familien' }),
+    });
+
+    await handler.execute(command());
+
+    const created = (publisher.publish as jest.Mock).mock.calls.filter(
+      ([type]) => type === 'learning.assignment.created',
+    );
+    expect(created).toHaveLength(2);
+    for (const [, payload] of created) {
+      expect(payload).toMatchObject({ contentTitle: 'Familien', groupId: GROUP_ID });
+    }
   });
 
   // The owner of a school is not on its roster — ownership lives on the school itself —

@@ -71,8 +71,29 @@ export class NotificationsRepository {
     });
   }
 
+  /**
+   * One page of the feed, newest first. The cursor is the last row's id, as before; the page
+   * after it is read by (createdAt, id), the order the feed is in. Paging by `id < cursor`
+   * alone (until VoxOrd plan 06, step 6e) compared random uuids and skipped or repeated rows.
+   * A cursor that is not one of the reader's rows — deleted since, or someone else's — ends
+   * the feed rather than restarting it.
+   */
   async listInApp(opts: InAppFeedOptions) {
     const filter = opts.filter ?? 'all';
+    let after = {};
+    if (opts.cursor) {
+      const last = await this.prisma.notification.findFirst({
+        where: { id: opts.cursor, recipientId: opts.recipientId },
+        select: { id: true, createdAt: true },
+      });
+      if (!last) return [];
+      after = {
+        OR: [
+          { createdAt: { lt: last.createdAt } },
+          { createdAt: last.createdAt, id: { lt: last.id } },
+        ],
+      };
+    }
     return this.prisma.notification.findMany({
       where: {
         recipientId: opts.recipientId,
@@ -80,9 +101,9 @@ export class NotificationsRepository {
         ...(filter === 'archived' ? { archivedAt: { not: null } } : { archivedAt: null }),
         ...(filter === 'unread' ? { isRead: false } : {}),
         ...(opts.type ? { type: opts.type } : {}),
-        ...(opts.cursor ? { id: { lt: opts.cursor } } : {}),
+        ...after,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: opts.limit,
       select: {
         id: true,
@@ -108,9 +129,16 @@ export class NotificationsRepository {
     });
   }
 
-  async markAllRead(recipientId: string): Promise<void> {
+  /** `before`: only what was created at or before it, so a later arrival stays unread. */
+  async markAllRead(recipientId: string, before?: Date): Promise<void> {
     await this.prisma.notification.updateMany({
-      where: { recipientId, channel: 'IN_APP', isRead: false, archivedAt: null },
+      where: {
+        recipientId,
+        channel: 'IN_APP',
+        isRead: false,
+        archivedAt: null,
+        ...(before ? { createdAt: { lte: before } } : {}),
+      },
       data: { isRead: true, readAt: new Date(), updatedAt: new Date() },
     });
   }
@@ -147,6 +175,24 @@ export class NotificationsRepository {
       },
       data: { archivedAt: now, isRead: true, readAt: now, updatedAt: now },
     });
+  }
+
+  /**
+   * Everything kept about a deleted account (VoxOrd plan 07, step 3c): its feed and e-mail log —
+   * also mail sent to the address before it had an account, e.g. an invitation — and the
+   * bookkeeping rows of the reminder, digest and term-warning jobs. One transaction.
+   */
+  async eraseUser(userId: string, email: string | null): Promise<{ notifications: number }> {
+    const recipient = email
+      ? { OR: [{ recipientId: userId }, { recipientEmail: { equals: email, mode: 'insensitive' as const } }] }
+      : { recipientId: userId };
+    const [notifications] = await this.prisma.$transaction([
+      this.prisma.notification.deleteMany({ where: recipient }),
+      this.prisma.reviewDigestState.deleteMany({ where: { userId } }),
+      this.prisma.lessonReminder.deleteMany({ where: { userId } }),
+      this.prisma.reviewTermWarning.deleteMany({ where: { userId } }),
+    ]);
+    return { notifications: notifications.count };
   }
 
   async delete(id: string, recipientId: string): Promise<void> {

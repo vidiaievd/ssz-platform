@@ -11,4 +11,10 @@ export interface AccessibleEntity {
   deletedAt: Date | null;
   /** Present only for containers. */
   accessTier?: AccessTier;
+  /**
+   * What the entity is called, for a caller that asks about it from outside — the internal
+   * visibility check hands it back so a new assignment can be named in the learner's
+   * notification (VoxOrd plan 06, step 6b). Access decisions never read it.
+   */
+  title?: string | null;
 }

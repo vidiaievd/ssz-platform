@@ -28,6 +28,7 @@ import { ListReviewTermsAheadHandler } from './application/queries/list-review-t
 import { GetReviewEffortHandler } from './application/queries/get-review-effort/get-review-effort.handler.js';
 import { ListReviewDecisionsHandler } from './application/queries/list-review-decisions/list-review-decisions.handler.js';
 import { ListMySubmissionsHandler } from './application/queries/list-my-submissions/list-my-submissions.handler.js';
+import { ListMyMistakesHandler } from './application/queries/list-my-mistakes/list-my-mistakes.handler.js';
 import { GetSubmissionForReviewHandler } from './application/queries/get-submission-for-review/get-submission-for-review.handler.js';
 import { ReviewScoring } from './application/services/review-scoring.js';
 import { ReviewContextResolver } from './application/services/review-context-resolver.js';
@@ -67,6 +68,7 @@ const QueryHandlers = [
   GetReviewEffortHandler,
   ListReviewDecisionsHandler,
   ListMySubmissionsHandler,
+  ListMyMistakesHandler,
 ];
 
 @Module({

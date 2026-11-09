@@ -92,6 +92,15 @@ export class MySubmissionDto {
   @ApiPropertyOptional({
     nullable: true,
     format: 'uuid',
+    description:
+      'The module (unit) the exercise sat in when the work was started — where a rewrite opens. ' +
+      'Null on older work and on exercises in no course.',
+  })
+  unitId!: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    format: 'uuid',
     description: 'The school it was handed in under; null for a learner without one.',
   })
   schoolId!: string | null;

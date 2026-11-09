@@ -9,6 +9,7 @@ import { TeacherAbsenceHandler } from '../../modules/notifications/handlers/teac
 import { SubstituteRequestHandler } from '../../modules/notifications/handlers/substitute-request.handler.js';
 import { SubstituteAssignedHandler } from '../../modules/notifications/handlers/substitute-assigned.handler.js';
 import { AlertRaisedHandler } from '../../modules/notifications/handlers/alert-raised.handler.js';
+import { LessonChangedHandler } from '../../modules/notifications/handlers/lesson-changed.handler.js';
 import type { IMessageHandler } from './message-handler.interface.js';
 
 const QUEUE = 'notification-service.scheduling';
@@ -28,12 +29,14 @@ export class SchedulingConsumerService implements OnModuleInit, OnModuleDestroy 
     private readonly substituteRequestHandler: SubstituteRequestHandler,
     private readonly substituteAssignedHandler: SubstituteAssignedHandler,
     private readonly alertRaisedHandler: AlertRaisedHandler,
+    private readonly lessonChangedHandler: LessonChangedHandler,
   ) {
     this.handlers = [
       teacherAbsenceHandler,
       substituteRequestHandler,
       substituteAssignedHandler,
       alertRaisedHandler,
+      lessonChangedHandler,
     ];
   }
 

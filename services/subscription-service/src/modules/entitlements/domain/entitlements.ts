@@ -34,6 +34,11 @@ export interface Entitlements {
   subscription: { id: string; status: SubscriptionStatus; periodStart: Date; periodEnd: Date | null } | null;
   /** Keys the plan or a grant mentions. A key absent here is not sold to this payer. */
   features: Record<string, FeatureEntitlement>;
+  /**
+   * The grants counting now, soonest to end first — so a screen can tell a key given for a
+   * term apart from one the plan carries (mobile redesign 07, G1).
+   */
+  grants: { featureKey: string; endsAt: Date }[];
   /** The credit period monthly allowances are counted in. */
   periodStart: Date;
   periodEnd: Date;
@@ -92,12 +97,14 @@ export function resolveEntitlements(input: EntitlementInputs): Entitlements {
   const plan = subscription?.plan ?? input.freePlan;
 
   const features: Record<string, FeatureEntitlement> = {};
+  const active: { featureKey: string; endsAt: Date }[] = [];
   for (const f of plan?.features ?? []) {
     features[f.featureKey] = { enabled: f.enabled, monthlyCredits: f.monthlyCredits, limits: { ...f.limits } };
   }
 
   for (const g of input.grants) {
     if (grantState(g, now) !== 'active') continue;
+    active.push({ featureKey: g.featureKey, endsAt: g.endsAt });
     const base = features[g.featureKey];
     const baseOn = base?.enabled === true;
 
@@ -127,6 +134,7 @@ export function resolveEntitlements(input: EntitlementInputs): Entitlements {
       ? { id: subscription.id, status: subscription.status, periodStart: subscription.periodStart, periodEnd: subscription.periodEnd }
       : null,
     features,
+    grants: active.sort((a, b) => a.endsAt.getTime() - b.endsAt.getTime()),
     periodStart: period.start,
     periodEnd: period.end,
     validUntil: nextChange(input, period.end),

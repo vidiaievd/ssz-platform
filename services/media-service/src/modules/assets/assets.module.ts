@@ -8,6 +8,8 @@ import { FinalizeUploadHandler } from './application/commands/finalize-upload/fi
 import { StoreSynthesizedAudioHandler } from './application/commands/store-synthesized-audio/store-synthesized-audio.handler.js';
 import { SupersedeAssetHandler } from './application/commands/supersede-asset/supersede-asset.handler.js';
 import { DeleteAssetHandler } from './application/commands/delete-asset/delete-asset.handler.js';
+import { EraseOwnerAssetsHandler } from './application/commands/erase-owner-assets/erase-owner-assets.handler.js';
+import { UserDeletedConsumer } from './infrastructure/events/user-deleted.consumer.js';
 import { GetAssetHandler } from './application/queries/get-asset/get-asset.handler.js';
 import { ListUserAssetsHandler } from './application/queries/list-user-assets/list-user-assets.handler.js';
 import { DescribeAssetsHandler } from './application/queries/describe-assets/describe-assets.handler.js';
@@ -53,6 +55,8 @@ import { QUEUE_AUDIO_PROCESSING, QUEUE_IMAGE_PROCESSING } from '../../infrastruc
     { provide: RECORDING_USAGE, useClass: HttpRecordingUsageClient },
     { provide: LESSON_MEDIA_USAGE, useClass: HttpLessonMediaUsageClient },
     DeleteAssetHandler,
+    EraseOwnerAssetsHandler,
+    UserDeletedConsumer,
     GetAssetHandler,
     ListUserAssetsHandler,
     DescribeAssetsHandler,

@@ -14,6 +14,11 @@ import type { IContainerItemRepository } from '../../../domain/repositories/cont
 export interface VersionItemsResult {
   items: ContainerItemEntity[];
   titles: Map<string, string | null>;
+  /**
+   * The learning goals of the nested containers (a course's units), keyed by container id —
+   * the programme of a course in the catalogue lists them under each unit (VoxOrd plan 04, 9b).
+   */
+  learningGoals: Map<string, string[]>;
 }
 
 @QueryHandler(GetVersionItemsQuery)
@@ -38,14 +43,18 @@ export class GetVersionItemsHandler implements IQueryHandler<
     }
 
     const items = await this.itemRepo.findByVersionId(query.versionId);
-    const titles = await this.resolveTitles(items);
-    return Result.ok({ items, titles });
+    const learningGoals = new Map<string, string[]>();
+    const titles = await this.resolveTitles(items, learningGoals);
+    return Result.ok({ items, titles, learningGoals });
   }
 
   // Read-side denormalization: items reference reusable content (lessons,
   // vocabulary lists, grammar rules, exercises) by id only — the frontend
   // needs a display title without an extra round-trip per item.
-  private async resolveTitles(items: ContainerItemEntity[]): Promise<Map<string, string | null>> {
+  private async resolveTitles(
+    items: ContainerItemEntity[],
+    learningGoals: Map<string, string[]>,
+  ): Promise<Map<string, string | null>> {
     const titles = new Map<string, string | null>();
     const idsByType = new Map<ContainerItemType, string[]>();
     for (const item of items) {
@@ -95,9 +104,12 @@ export class GetVersionItemsHandler implements IQueryHandler<
     if (containerIds.length > 0) {
       const rows = await this.prisma.container.findMany({
         where: { id: { in: containerIds } },
-        select: { id: true, title: true },
+        select: { id: true, title: true, learningGoals: true },
       });
-      rows.forEach((r) => titles.set(r.id, r.title));
+      rows.forEach((r) => {
+        titles.set(r.id, r.title);
+        learningGoals.set(r.id, r.learningGoals);
+      });
     }
 
     return titles;

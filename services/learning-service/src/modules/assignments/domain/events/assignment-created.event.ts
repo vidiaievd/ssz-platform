@@ -10,6 +10,8 @@ export interface AssignmentCreatedPayload {
   contentType: string;
   contentId: string;
   dueAt: string | null;
+  /** What was assigned, as it was called then — the learner's notification names it. */
+  contentTitle: string | null;
 }
 
 export class AssignmentCreatedEvent implements IDomainEvent {

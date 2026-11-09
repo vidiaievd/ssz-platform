@@ -6,6 +6,8 @@ export type PrismaStudentProfile = {
   id: string;
   profileId: string;
   nativeLanguage: string | null;
+  dailyGoalMin: number | null;
+  translationLanguage: string | null;
   createdAt: Date;
   updatedAt: Date;
   targetLanguages: Array<{
@@ -23,6 +25,8 @@ export class StudentProfileMapper {
       id: raw.id,
       profileId: raw.profileId,
       nativeLanguage: raw.nativeLanguage ?? undefined,
+      dailyGoalMin: raw.dailyGoalMin ?? undefined,
+      translationLanguage: raw.translationLanguage ?? undefined,
       targetLanguages: raw.targetLanguages.map((l) => ({
         languageCode: l.languageCode,
         level: (l.level ?? undefined) as CefrLevel | undefined,

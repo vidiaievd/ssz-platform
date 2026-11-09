@@ -5,7 +5,9 @@ import { ProfilePrismaRepository } from '../profiles/infrastructure/persistence/
 import { AddTargetLanguageHandler } from './application/commands/add-target-language/add-target-language.handler.js';
 import { CreateStudentProfileHandler } from './application/commands/create-student-profile/create-student-profile.handler.js';
 import { RemoveTargetLanguageHandler } from './application/commands/remove-target-language/remove-target-language.handler.js';
+import { UpdateStudentPreferencesHandler } from './application/commands/update-student-preferences/update-student-preferences.handler.js';
 import { UpdateStudentProfileHandler } from './application/commands/update-student-profile/update-student-profile.handler.js';
+import { GetStudentPreferencesHandler } from './application/queries/get-student-preferences/get-student-preferences.handler.js';
 import { GetStudentProfileHandler } from './application/queries/get-student-profile/get-student-profile.handler.js';
 import { STUDENT_PROFILE_REPOSITORY } from './domain/repositories/student-profile.repository.interface.js';
 import { StudentProfilePrismaRepository } from './infrastructure/persistence/student-profile.prisma.repository.js';
@@ -16,9 +18,10 @@ const CommandHandlers = [
   UpdateStudentProfileHandler,
   AddTargetLanguageHandler,
   RemoveTargetLanguageHandler,
+  UpdateStudentPreferencesHandler,
 ];
 
-const QueryHandlers = [GetStudentProfileHandler];
+const QueryHandlers = [GetStudentProfileHandler, GetStudentPreferencesHandler];
 
 @Module({
   imports: [CqrsModule],

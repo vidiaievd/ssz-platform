@@ -489,6 +489,14 @@ export interface ExerciseAttemptAiReviewedPayload {
   groupId?: string | null;
   containerId?: string | null;
   /**
+   * Additive (VoxOrd mobile redesign 06, step 6a) — what the learner's notification names
+   * and marks, as on `exercise.attempt.reviewed`: course · module · exercise as they read at
+   * attempt start, and the score on the same 0–100 scale. Names only — the review's text
+   * never travels. Absent on older events.
+   */
+  exercisePath?: { course: string; module: string | null; exercise: string | null } | null;
+  score?: number | null;
+  /**
    * Additive (plan 80, step 6a) — the verdict counted by itself at the school's term because
    * no teacher answered: the row the auto-acceptance journal is built from. Absent on a
    * verdict that closed the work at once.

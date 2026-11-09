@@ -67,13 +67,16 @@ import { GetContainerActivityHandler } from './application/queries/get-container
 import { GetContainerCoverageHandler } from './application/queries/get-container-coverage/get-container-coverage.handler.js';
 import { GetAtomCoverageHandler } from './application/queries/get-atom-coverage/get-atom-coverage.handler.js';
 import { GetPublishStatesHandler } from './application/queries/get-publish-states/get-publish-states.handler.js';
+import { GetContainerTagsHandler } from './application/queries/get-container-tags/get-container-tags.handler.js';
 import { PublishStateReader } from './application/services/publish-state.reader.js';
 import { EXERCISE_DRAFT_PROMOTER } from './application/ports/exercise-draft-promoter.port.js';
 import { CONTAINER_ITEM_DUPLICATOR } from './application/ports/container-item-duplicator.port.js';
 import { CONTAINER_ITEM_MOVER } from './application/ports/container-item-mover.port.js';
+import { CONTAINER_TAG_READER } from './application/ports/container-tag-reader.port.js';
 import { PrismaExerciseDraftPromoter } from './infrastructure/persistence/prisma-exercise-draft-promoter.js';
 import { PrismaContainerItemDuplicator } from './infrastructure/persistence/prisma-container-item-duplicator.js';
 import { PrismaContainerItemMover } from './infrastructure/persistence/prisma-container-item-mover.js';
+import { PrismaContainerTagReader } from './infrastructure/persistence/prisma-container-tag-reader.js';
 
 // Controllers
 import { ContainerController } from './presentation/controllers/container.controller.js';
@@ -128,6 +131,7 @@ const QueryHandlers = [
   GetContainerActivityHandler,
   GetContainerCoverageHandler,
   GetAtomCoverageHandler,
+  GetContainerTagsHandler,
 ];
 
 @Module({
@@ -148,6 +152,7 @@ const QueryHandlers = [
     { provide: EXERCISE_DRAFT_PROMOTER, useClass: PrismaExerciseDraftPromoter },
     { provide: CONTAINER_ITEM_DUPLICATOR, useClass: PrismaContainerItemDuplicator },
     { provide: CONTAINER_ITEM_MOVER, useClass: PrismaContainerItemMover },
+    { provide: CONTAINER_TAG_READER, useClass: PrismaContainerTagReader },
 
     // Read-model services
     PublishStateReader,
@@ -175,6 +180,7 @@ export class ContainerModule implements OnModuleInit {
         ownerSchoolId: container.ownerSchoolId,
         visibility: container.visibility,
         deletedAt: container.deletedAt,
+        title: container.title,
         accessTier: container.accessTier,
       };
     });

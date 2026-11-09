@@ -62,6 +62,7 @@ export class ReviewContextResolver {
         course: placement.containerTitle,
         module: placement.moduleTitle,
         exercise: placement.exerciseTitle,
+        moduleId: placement.moduleId,
       };
     } else if (placementResult.error.statusCode === 404) {
       /*

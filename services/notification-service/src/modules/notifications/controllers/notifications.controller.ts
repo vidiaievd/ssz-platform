@@ -22,6 +22,7 @@ import type { JwtPayload } from '../../../infrastructure/auth/jwt-verifier.servi
 import { NotificationsRepository, type InAppFeedFilter } from '../notifications.repository.js';
 import type { NotificationType } from '../../../../generated/prisma/enums.js';
 import { BulkNotificationActionDto } from './bulk-notification-action.dto.js';
+import { ReadAllDto } from './read-all.dto.js';
 
 @ApiTags('notifications')
 @ApiBearerAuth('JWT')
@@ -96,11 +97,15 @@ export class NotificationsController {
 
   @Post('read-all')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Mark all in-app notifications as read' })
+  @ApiOperation({
+    summary: 'Mark all in-app notifications as read',
+    description: 'With `before`, only those created at or before it — later arrivals stay unread.',
+  })
   @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 400, description: '`before` is not an ISO 8601 instant' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async markAllRead(@CurrentUser() user: JwtPayload): Promise<void> {
-    await this.repo.markAllRead(user.sub);
+  async markAllRead(@CurrentUser() user: JwtPayload, @Body() body: ReadAllDto = {}): Promise<void> {
+    await this.repo.markAllRead(user.sub, body?.before ? new Date(body.before) : undefined);
   }
 
   @Post(':id/archive')

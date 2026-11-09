@@ -41,10 +41,22 @@ export class ContainerItemResponseDto {
   })
   title: string | null;
 
+  @ApiPropertyOptional({
+    example: ['Tell a doctor where it hurts'],
+    type: [String],
+    description:
+      'Nested containers only (a course’s units): the unit’s learning goals, empty when unset. Absent on other items.',
+  })
+  learningGoals?: string[];
+
   @ApiProperty()
   addedAt: Date;
 
-  static from(entity: ContainerItemEntity, title: string | null = null): ContainerItemResponseDto {
+  static from(
+    entity: ContainerItemEntity,
+    title: string | null = null,
+    learningGoals?: string[],
+  ): ContainerItemResponseDto {
     const dto = new ContainerItemResponseDto();
     dto.id = entity.id;
     dto.containerVersionId = entity.containerVersionId;
@@ -56,6 +68,7 @@ export class ContainerItemResponseDto {
     dto.sectionLabel = entity.sectionLabel;
     dto.xpReward = entity.xpReward;
     dto.title = title;
+    if (learningGoals !== undefined) dto.learningGoals = learningGoals;
     dto.addedAt = entity.addedAt;
     return dto;
   }

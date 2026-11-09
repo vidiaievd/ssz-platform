@@ -103,7 +103,7 @@ public sealed class LoginCommandHandler(
         var accessToken = tokenService.GenerateAccessToken(user.Id, user.Email, roles);
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
 
-        user.RecordSuccessfulLogin();
+        var deletionCancelled = user.RecordSuccessfulLogin();
         var refreshToken = user.AddRefreshToken(
             tokenHash,
             familyId,
@@ -122,7 +122,8 @@ public sealed class LoginCommandHandler(
             accessToken,
             rawRefreshToken,
             DateTimeOffset.UtcNow.Add(opts.AccessTokenLifetime),
-            refreshExpiresAt));
+            refreshExpiresAt,
+            deletionCancelled));
     }
 }
 
@@ -182,7 +183,7 @@ public sealed class CompleteMfaLoginCommandHandler(
         var accessToken = tokenService.GenerateAccessToken(userId, user.Email, roles);
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
 
-        user.RecordSuccessfulLogin();
+        var deletionCancelled = user.RecordSuccessfulLogin();
         var refreshToken = user.AddRefreshToken(
             tokenHash,
             familyId,
@@ -201,7 +202,8 @@ public sealed class CompleteMfaLoginCommandHandler(
             accessToken,
             rawRefreshToken,
             DateTimeOffset.UtcNow.Add(opts.AccessTokenLifetime),
-            refreshExpiresAt);
+            refreshExpiresAt,
+            deletionCancelled);
     }
 }
 
@@ -253,7 +255,7 @@ public sealed class LoginWithBackupCodeCommandHandler(
         var accessToken = tokenService.GenerateAccessToken(userId, user.Email, roles);
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
 
-        user.RecordSuccessfulLogin();
+        var deletionCancelled = user.RecordSuccessfulLogin();
         var refreshToken = user.AddRefreshToken(
             tokenHash,
             familyId,
@@ -272,7 +274,8 @@ public sealed class LoginWithBackupCodeCommandHandler(
             accessToken,
             rawRefreshToken,
             DateTimeOffset.UtcNow.Add(opts.AccessTokenLifetime),
-            refreshExpiresAt);
+            refreshExpiresAt,
+            deletionCancelled);
     }
 }
 
@@ -512,7 +515,7 @@ public sealed class VerifyEmailCommandHandler(
         var accessToken = tokenService.GenerateAccessToken(user.Id, user.Email, roles);
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
 
-        user.RecordSuccessfulLogin();
+        var deletionCancelled = user.RecordSuccessfulLogin();
         var refreshToken = user.AddRefreshToken(
             tokenHash,
             familyId,
@@ -529,6 +532,7 @@ public sealed class VerifyEmailCommandHandler(
             accessToken,
             rawRefreshToken,
             DateTimeOffset.UtcNow.Add(opts.AccessTokenLifetime),
-            refreshExpiresAt);
+            refreshExpiresAt,
+            deletionCancelled);
     }
 }

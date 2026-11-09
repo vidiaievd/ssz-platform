@@ -159,4 +159,36 @@ public sealed class LoginCommandHandlerTests
         var mfa = (MfaRequiredResult)result;
         mfa.Challenge.MfaChallengeToken.Should().Be("mfa-challenge-token");
     }
+
+    [Fact]
+    public async Task Handle_DeletionPending_SignInCancelsItAndSaysSo()
+    {
+        var user = CreateUser();
+        user.RequestDeletion([RoleNames.Student]);
+        _userRepo.FindByEmailAsync("test@example.com", default).Returns(user);
+        _hasher.Verify("Password1!", "hash").Returns(true);
+        _roleRepo.GetRoleNamesForUserAsync(user.Id, default).Returns([RoleNames.Student]);
+        _tokenService.GenerateRefreshToken().Returns(("raw-token", "token-hash", "family-id"));
+
+        var result = (LoginSuccessResult)await CreateHandler().Handle(
+            new LoginCommand("test@example.com", "Password1!"), default);
+
+        result.Tokens.DeletionCancelled.Should().BeTrue();
+        user.DeletionRequestedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_NothingPending_DeletionCancelledIsFalse()
+    {
+        var user = CreateUser();
+        _userRepo.FindByEmailAsync("test@example.com", default).Returns(user);
+        _hasher.Verify("Password1!", "hash").Returns(true);
+        _roleRepo.GetRoleNamesForUserAsync(user.Id, default).Returns([RoleNames.Student]);
+        _tokenService.GenerateRefreshToken().Returns(("raw-token", "token-hash", "family-id"));
+
+        var result = (LoginSuccessResult)await CreateHandler().Handle(
+            new LoginCommand("test@example.com", "Password1!"), default);
+
+        result.Tokens.DeletionCancelled.Should().BeFalse();
+    }
 }

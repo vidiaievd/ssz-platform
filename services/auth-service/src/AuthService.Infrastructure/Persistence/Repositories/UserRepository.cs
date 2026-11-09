@@ -36,7 +36,19 @@ public sealed class UserRepository(AuthDbContext db) : IUserRepository
         await db.Users
             .AnyAsync(u => u.NormalizedEmail == email.ToUpperInvariant(), ct);
 
+    public async Task<List<Guid>> ListDueForPurgeAsync(
+        DateTimeOffset requestedBefore,
+        int limit,
+        CancellationToken ct = default) =>
+        await db.Users
+            .Where(u => u.DeletionRequestedAt != null && u.DeletionRequestedAt <= requestedBefore)
+            .OrderBy(u => u.DeletionRequestedAt)
+            .Select(u => u.Id)
+            .Take(limit)
+            .ToListAsync(ct);
+
     public void Add(User user) => db.Users.Add(user);
+    public void Remove(User user) => db.Users.Remove(user);
     public void AddRefreshToken(Domain.Entities.RefreshToken token) =>
         db.RefreshTokens.Add(token);
     public void AddBackupCode(Domain.Entities.BackupCode backupCode) =>

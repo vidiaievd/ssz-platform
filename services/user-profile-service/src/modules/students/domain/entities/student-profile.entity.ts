@@ -10,14 +10,27 @@ export interface CreateStudentProfileProps {
 }
 
 export interface RehydrateStudentProfileProps extends CreateStudentProfileProps {
+  dailyGoalMin?: number;
+  translationLanguage?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * Account-level learning preferences. `undefined` leaves a field as it is, `null` clears it
+ * (back to the app's default).
+ */
+export interface StudentPreferencesPatch {
+  dailyGoalMin?: number | null;
+  translationLanguage?: string | null;
 }
 
 export class StudentProfile extends BaseEntity {
   private _profileId: string;
   private _nativeLanguage: string | undefined;
   private _targetLanguages: TargetLanguage[];
+  private _dailyGoalMin: number | undefined;
+  private _translationLanguage: string | undefined;
 
   private constructor(
     id: string,
@@ -26,11 +39,15 @@ export class StudentProfile extends BaseEntity {
     targetLanguages: TargetLanguage[],
     createdAt: Date,
     updatedAt: Date,
+    dailyGoalMin?: number,
+    translationLanguage?: string,
   ) {
     super(id, createdAt, updatedAt);
     this._profileId = profileId;
     this._nativeLanguage = nativeLanguage;
     this._targetLanguages = targetLanguages;
+    this._dailyGoalMin = dailyGoalMin;
+    this._translationLanguage = translationLanguage;
   }
 
   static create(
@@ -52,6 +69,20 @@ export class StudentProfile extends BaseEntity {
     return entity;
   }
 
+  // Starts an empty student part for a learner who saves a preference before ever filling
+  // the profile in. Raises no «profile completed» event — nothing was completed.
+  static start(props: { id: string; profileId: string }): StudentProfile {
+    const now = new Date();
+    return new StudentProfile(
+      props.id,
+      props.profileId,
+      undefined,
+      [],
+      now,
+      now,
+    );
+  }
+
   static rehydrate(props: RehydrateStudentProfileProps): StudentProfile {
     return new StudentProfile(
       props.id,
@@ -60,7 +91,19 @@ export class StudentProfile extends BaseEntity {
       props.targetLanguages ?? [],
       props.createdAt,
       props.updatedAt,
+      props.dailyGoalMin,
+      props.translationLanguage,
     );
+  }
+
+  setPreferences(patch: StudentPreferencesPatch): void {
+    if (patch.dailyGoalMin !== undefined) {
+      this._dailyGoalMin = patch.dailyGoalMin ?? undefined;
+    }
+    if (patch.translationLanguage !== undefined) {
+      this._translationLanguage = patch.translationLanguage ?? undefined;
+    }
+    this._updatedAt = new Date();
   }
 
   // Updates mutable scalar fields. Pass undefined to leave a field unchanged.
@@ -102,5 +145,11 @@ export class StudentProfile extends BaseEntity {
   }
   get targetLanguages(): TargetLanguage[] {
     return [...this._targetLanguages];
+  }
+  get dailyGoalMin(): number | undefined {
+    return this._dailyGoalMin;
+  }
+  get translationLanguage(): string | undefined {
+    return this._translationLanguage;
   }
 }

@@ -15,6 +15,11 @@ export class PrismaGrantRepository implements IGrantRepository {
     return row ? toGrant(row) : null;
   }
 
+  async listLive(accountId: string, now: Date): Promise<Grant[]> {
+    const rows = await this.prisma.grant.findMany({ where: { accountId, revokedAt: null, endsAt: { gt: now } } });
+    return rows.map(toGrant);
+  }
+
   // Both writes bump the account's revision: it is the version of the account's
   // entitlements, and a grant changes them as much as a subscription does.
 

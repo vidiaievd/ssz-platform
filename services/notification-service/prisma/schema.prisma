@@ -34,6 +34,9 @@ enum NotificationType {
   REVIEW_SCHOOL_SUMMARY
   LESSON_REMINDER
   REVIEW_TERM_WARNING
+  AI_REVIEWED
+  ASSIGNMENT_NEW
+  LESSON_CHANGED
 
   @@map("notification_type")
 }

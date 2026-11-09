@@ -105,6 +105,7 @@ export class ExerciseModule implements OnModuleInit {
         ownerSchoolId: exercise.ownerSchoolId,
         visibility: exercise.visibility,
         deletedAt: exercise.deletedAt,
+        title: exercise.title,
       };
     });
   }

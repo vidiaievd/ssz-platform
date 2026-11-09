@@ -15,8 +15,15 @@ public interface IUserRepository
 
     Task<bool> ExistsByEmailAsync(string email, CancellationToken ct = default);
 
+    /// <summary>Users who asked to be deleted before this instant, oldest request first.</summary>
+    Task<List<Guid>> ListDueForPurgeAsync(
+        DateTimeOffset requestedBefore,
+        int limit,
+        CancellationToken ct = default);
+
     void Add(User user);
-    
+    void Remove(User user);
+
     void AddRefreshToken(Domain.Entities.RefreshToken token);
     void AddBackupCode(Domain.Entities.BackupCode backupCode);
     void RemoveBackupCodesForUser(Guid userId);

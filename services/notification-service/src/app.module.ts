@@ -17,6 +17,7 @@ import type { IMessageHandler } from './infrastructure/messaging/message-handler
 import { UserRegisteredHandler } from './modules/notifications/handlers/user-registered.handler.js';
 import { EmailVerificationHandler } from './modules/notifications/handlers/email-verification.handler.js';
 import { PasswordResetHandler } from './modules/notifications/handlers/password-reset.handler.js';
+import { UserDeletedHandler } from './modules/notifications/handlers/user-deleted.handler.js';
 
 @Module({
   imports: [
@@ -55,8 +56,13 @@ import { PasswordResetHandler } from './modules/notifications/handlers/password-
     },
     {
       provide: RABBITMQ_HANDLERS,
-      useFactory: (h1: UserRegisteredHandler, h2: EmailVerificationHandler, h3: PasswordResetHandler): IMessageHandler[] => [h1, h2, h3],
-      inject: [UserRegisteredHandler, EmailVerificationHandler, PasswordResetHandler],
+      useFactory: (
+        h1: UserRegisteredHandler,
+        h2: EmailVerificationHandler,
+        h3: PasswordResetHandler,
+        h4: UserDeletedHandler,
+      ): IMessageHandler[] => [h1, h2, h3, h4],
+      inject: [UserRegisteredHandler, EmailVerificationHandler, PasswordResetHandler, UserDeletedHandler],
     },
   ],
 })

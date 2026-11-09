@@ -127,6 +127,30 @@ public sealed class AuthController(
     }
 
     /// <summary>
+    /// Ask to delete the authenticated account. Every session ends now; the account is erased
+    /// after the grace period (30 days) unless the user signs in before that, which cancels it.
+    /// Only an account whose sole role is student may do this — anyone else gets 409
+    /// CONTACT_SUPPORT. A wrong password is 403 INVALID_PASSWORD (not 401, which clients read
+    /// as an expired session). Asking again returns the first request's dates.
+    /// </summary>
+    [HttpDelete("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(AccountDeletionResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status423Locked)]
+    public async Task<IActionResult> DeleteMe(
+        [FromBody] DeleteAccountRequest request,
+        CancellationToken ct)
+    {
+        var userId = User.GetUserId();
+        var result = await mediator.Send(
+            new RequestAccountDeletionCommand(userId, request.Password), ct);
+
+        return Accepted(result);
+    }
+
+    /// <summary>
     /// Assign a role to the authenticated user.
     /// Student and Tutor can be self-assigned. Admin and Premium require the Admin role.
     /// Idempotent — returns 200 OK if the role is already assigned.

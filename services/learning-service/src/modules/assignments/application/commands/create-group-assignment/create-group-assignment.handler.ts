@@ -115,6 +115,7 @@ export class CreateGroupAssignmentHandler
           contentRef,
           dueAt: cmd.dueAt,
           notes: cmd.notes,
+          contentTitle: visibilityResult.value.title ?? null,
         },
         this.clock,
       );

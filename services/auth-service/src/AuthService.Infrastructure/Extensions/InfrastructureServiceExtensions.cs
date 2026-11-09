@@ -1,5 +1,6 @@
 using AuthService.Application.Interfaces;
 using AuthService.Application.Options;
+using AuthService.Infrastructure.Jobs;
 using AuthService.Infrastructure.Messaging;
 using AuthService.Infrastructure.Persistence;
 using AuthService.Infrastructure.Persistence.Repositories;
@@ -116,6 +117,9 @@ public static class InfrastructureServiceExtensions
 
         // Background consumer — listens for platform role assignments from Organization Service
         services.AddHostedService<UserPlatformRoleAssignedConsumer>();
+
+        // Erases accounts whose deletion grace period is over
+        services.AddHostedService<AccountPurgeService>();
 
         return services;
     }

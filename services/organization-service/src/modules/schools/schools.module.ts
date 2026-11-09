@@ -32,6 +32,9 @@ import { UpdateStudentHandler } from './application/commands/update-student/upda
 import { TransferStudentHandler } from './application/commands/transfer-student/transfer-student.handler.js';
 import { UpdateGroupMemberRoleHandler } from './application/commands/update-group-member-role/update-group-member-role.handler.js';
 import { RemoveStudentHandler } from './application/commands/remove-student/remove-student.handler.js';
+import { EraseDeletedUserHandler } from './application/commands/erase-deleted-user/erase-deleted-user.handler.js';
+import { DELETED_USER_ERASER } from './application/ports/deleted-user-eraser.interface.js';
+import { DeletedUserPrismaEraser } from './infrastructure/persistence/deleted-user.prisma.eraser.js';
 import { NudgeStudentHandler } from './application/commands/nudge-student/nudge-student.handler.js';
 import { RemindReviewerHandler } from './application/commands/remind-reviewer/remind-reviewer.handler.js';
 import { SendInvitationHandler } from './application/commands/send-invitation/send-invitation.handler.js';
@@ -111,6 +114,7 @@ import { EnrollmentController } from './presentation/controllers/enrollment.cont
 import { CapabilityResolverService } from './application/services/capability-resolver.service.js';
 import { ProfileUpdatedConsumer } from './infrastructure/events/profile-updated.consumer.js';
 import { UserRegisteredConsumer } from './infrastructure/events/user-registered.consumer.js';
+import { UserDeletedConsumer } from './infrastructure/events/user-deleted.consumer.js';
 import { ProvisionSoloWorkspaceHandler } from './application/commands/provision-solo-workspace/provision-solo-workspace.handler.js';
 import { GetSoloWorkspaceHandler } from './application/queries/get-solo-workspace/get-solo-workspace.handler.js';
 
@@ -129,6 +133,7 @@ const CommandHandlers = [
   TransferStudentHandler,
   UpdateGroupMemberRoleHandler,
   RemoveStudentHandler,
+  EraseDeletedUserHandler,
   NudgeStudentHandler,
   RemindReviewerHandler,
   SendInvitationHandler,
@@ -216,7 +221,12 @@ const QueryHandlers = [
     CapabilityResolverService,
     ProfileUpdatedConsumer,
     UserRegisteredConsumer,
+    UserDeletedConsumer,
     ProfileServiceHttpClient,
+    {
+      provide: DELETED_USER_ERASER,
+      useClass: DeletedUserPrismaEraser,
+    },
     SchedulingServiceHttpClient,
     {
       provide: SCHOOL_REPOSITORY,

@@ -36,6 +36,9 @@ model StudentProfile {
   profileId       String                  @unique
   profile         Profile                 @relation(fields: [profileId], references: [id])
   nativeLanguage  String?
+  // Account-level learning preferences (VoxOrd plan 07, step 8); null = not chosen yet
+  dailyGoalMin        Int?                    @map("daily_goal_min")
+  translationLanguage String?                 @map("translation_language")
   targetLanguages StudentTargetLanguage[]
   createdAt       DateTime                @default(now())
   updatedAt       DateTime                @updatedAt

@@ -13,6 +13,7 @@ import { CapabilitiesModule } from './modules/capabilities/capabilities.module.j
 import { GatewayModule } from './modules/gateway/gateway.module.js';
 import { ProvidersModule } from './modules/providers/providers.module.js';
 import { RegistryModule } from './modules/registry/registry.module.js';
+import { UserErasureModule } from './modules/user-erasure/user-erasure.module.js';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { RegistryModule } from './modules/registry/registry.module.js';
     AccessModule,
     GatewayModule,
     CapabilitiesModule,
+    UserErasureModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

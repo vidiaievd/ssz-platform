@@ -12,6 +12,7 @@ export const AUTH_EVENT_TYPES = {
   PASSWORD_CHANGED: 'auth.password_changed',
   EMAIL_VERIFICATION_REQUESTED: 'auth.email_verification_requested',
   EMAIL_VERIFIED: 'auth.email_verified',
+  USER_DELETED: 'auth.user.deleted',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -65,6 +66,17 @@ export interface EmailVerifiedPayload {
   email: string;
 }
 
+/**
+ * The account is erased for good, after its 30-day deletion grace period. Every service drops
+ * (not anonymises) what it holds about the user; money ledgers only lose the link. Never
+ * published while the deletion is merely requested. May arrive more than once.
+ */
+export interface UserDeletedPayload {
+  userId: string;
+  /** The account's address, for what is keyed by it (invitations); auth no longer has it. */
+  email: string;
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type UserRegisteredEvent = BaseEvent<UserRegisteredPayload>;
@@ -76,6 +88,7 @@ export type PasswordResetRequestedEvent = BaseEvent<PasswordResetRequestedPayloa
 export type PasswordChangedEvent = BaseEvent<PasswordChangedPayload>;
 export type EmailVerificationRequestedEvent = BaseEvent<EmailVerificationRequestedPayload>;
 export type EmailVerifiedEvent = BaseEvent<EmailVerifiedPayload>;
+export type UserDeletedEvent = BaseEvent<UserDeletedPayload>;
 
 export type AnyAuthEvent =
   | UserRegisteredEvent
@@ -86,4 +99,5 @@ export type AnyAuthEvent =
   | PasswordResetRequestedEvent
   | PasswordChangedEvent
   | EmailVerificationRequestedEvent
-  | EmailVerifiedEvent;
+  | EmailVerifiedEvent
+  | UserDeletedEvent;

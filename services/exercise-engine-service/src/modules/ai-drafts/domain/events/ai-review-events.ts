@@ -33,6 +33,9 @@ export function aiReviewedPayload(
     schoolId: attempt.schoolId,
     groupId: attempt.groupId,
     containerId: attempt.containerId,
+    // What the learner's notification names and marks (VoxOrd plan 06, step 6a).
+    exercisePath: attempt.exercisePath,
+    score: attempt.scoreValue,
     ...(attempt.acceptedAtTerm ? { acceptedAtTerm: true as const } : {}),
     occurredAt: at.toISOString(),
   };
@@ -52,6 +55,8 @@ export function aiReviewDisputedPayload(
     schoolId: _school,
     groupId: _group,
     containerId: _container,
+    exercisePath: _path,
+    score: _score,
     acceptedAtTerm: _term,
     ...axes
   } = aiReviewedPayload(attempt, review, at);

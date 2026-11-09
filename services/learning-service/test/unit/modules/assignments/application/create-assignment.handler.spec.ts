@@ -91,6 +91,28 @@ describe('CreateAssignmentHandler', () => {
     expect(publisher.publish).toHaveBeenCalledWith('learning.assignment.created', expect.any(Object));
   });
 
+  // The learner's notification names what was assigned (VoxOrd plan 06, step 6b): the title
+  // comes back with the visibility check, and an older content-service without it is null.
+  it('names the content on the created event from the visibility answer', async () => {
+    const titled = makeHandler({
+      contentClient: {
+        checkVisibilityForUser: mockFn().mockResolvedValue(Result.ok({ isVisible: true, title: 'Familien' })),
+      } as any,
+    });
+    await titled.handler.execute(makeCommand());
+    expect(titled.publisher.publish).toHaveBeenCalledWith(
+      'learning.assignment.created',
+      expect.objectContaining({ contentTitle: 'Familien' }),
+    );
+
+    const untitled = makeHandler();
+    await untitled.handler.execute(makeCommand());
+    expect(untitled.publisher.publish).toHaveBeenCalledWith(
+      'learning.assignment.created',
+      expect.objectContaining({ contentTitle: null }),
+    );
+  });
+
   it('fails on invalid content ref type', async () => {
     const { handler } = makeHandler();
     const cmd = new CreateAssignmentCommand(ASSIGNER_ID, ASSIGNEE_ID, SCHOOL_ID, 'INVALID_TYPE', CONTENT_ID, FUTURE);

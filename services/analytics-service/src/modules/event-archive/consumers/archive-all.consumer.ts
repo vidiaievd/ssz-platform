@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { ConfigService } from '@nestjs/config';
 import amqp from 'amqp-connection-manager';
 import type { ConfirmChannel, ConsumeMessage } from 'amqplib';
-import { EXCHANGES } from '@ssz/contracts';
+import { AUTH_EVENT_TYPES, EXCHANGES } from '@ssz/contracts';
 import type { BaseEvent } from '@ssz/contracts';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
@@ -89,7 +89,7 @@ export class ArchiveAllConsumer implements OnModuleInit, OnModuleDestroy {
           exchange,
           routingKey: msg.fields.routingKey,
           source: source ?? 'unknown',
-          payload: (payload ?? {}) as object,
+          payload: archivedPayload(msg.fields.routingKey, payload),
           occurredAt: occurredAt ? new Date(occurredAt) : new Date(),
         },
         update: {},
@@ -110,4 +110,15 @@ export class ArchiveAllConsumer implements OnModuleInit, OnModuleDestroy {
     await this.channelWrapper?.close();
     await this.connection?.close();
   }
+}
+
+/**
+ * The deletion event carries the address only so organization can drop invitations by it
+ * (VoxOrd plan 07, step 3c); kept here it would outlive the account it announces the end of.
+ */
+export function archivedPayload(routingKey: string, payload: unknown): object {
+  const p = (payload ?? {}) as Record<string, unknown>;
+  if (routingKey !== AUTH_EVENT_TYPES.USER_DELETED) return p;
+  const { email: _email, ...rest } = p;
+  return rest;
 }

@@ -7,7 +7,13 @@ import type { Result } from '../../../shared/kernel/result.js';
 import type { ContentClientError } from '../../../shared/application/ports/content-client.port.js';
 import type { RelatableEntityType } from '../../../shared/application/ports/content-client.port.js';
 import { GetGrammarRuleMasteryQuery } from '../application/queries/get-grammar-rule-mastery.query.js';
-import type { GrammarRuleMasteryDto } from '../application/services/grammar-rule-mastery.service.js';
+import type {
+  DueGrammarRulesDto,
+  GrammarRuleMasteryDto,
+  GrammarRuleReviewDto,
+} from '../application/services/grammar-rule-mastery.service.js';
+import { GetDueGrammarRulesQuery } from '../application/queries/get-due-grammar-rules.query.js';
+import { GetGrammarRuleReviewQuery } from '../application/queries/get-grammar-rule-review.query.js';
 import { GetContentMasteryQuery } from '../application/queries/get-content-mastery.query.js';
 import type { ContentMasteryDto } from '../application/queries/get-content-mastery.handler.js';
 import { GetCourseMasteryQuery } from '../application/queries/get-course-mastery.query.js';
@@ -20,6 +26,45 @@ import type { CourseMasteryDto } from '../application/queries/get-course-mastery
 @Controller('mastery')
 export class MasteryController {
   constructor(private readonly queryBus: QueryBus) {}
+
+  // Declared before `grammar-rules/:id`, which would otherwise take «due» for an id.
+  @Get('grammar-rules/due')
+  @ApiOperation({
+    summary: "The course's grammar rules the current user should review",
+    description:
+      'A rule is due when its mastery is under 70 % and its pool has not been practised for ' +
+      'seven days, or when at least two of its pool cards lapsed on their last review. ' +
+      'Rules never practised are not listed. Lowest mastery first (VoxOrd plan 05 step 7).',
+  })
+  @ApiQuery({ name: 'courseId', required: true, format: 'uuid' })
+  async getDueGrammarRules(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('courseId') courseId?: string,
+  ): Promise<DueGrammarRulesDto> {
+    if (!courseId) throw new BadRequestException('courseId is required');
+    const result: Result<DueGrammarRulesDto, ContentClientError> = await this.queryBus.execute(
+      new GetDueGrammarRulesQuery(user.userId, courseId),
+    );
+    return this.unwrap(result);
+  }
+
+  @Get('grammar-rules/:id/review')
+  @ApiOperation({
+    summary: "A grammar rule's review state and the exercises its review runs",
+    description:
+      'Mastery, last practice and lapsed cards of the rule, plus up to eight pool exercises: ' +
+      'lapsed first, then the longest unpractised.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  async getGrammarRuleReview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<GrammarRuleReviewDto> {
+    const result: Result<GrammarRuleReviewDto, ContentClientError> = await this.queryBus.execute(
+      new GetGrammarRuleReviewQuery(user.userId, id),
+    );
+    return this.unwrap(result);
+  }
 
   @Get('grammar-rules/:id')
   @ApiOperation({

@@ -138,6 +138,7 @@ export class GrammarRuleModule implements OnModuleInit {
         ownerSchoolId: rule.ownerSchoolId,
         visibility: rule.visibility,
         deletedAt: rule.deletedAt,
+        title: rule.title,
       };
     });
   }
