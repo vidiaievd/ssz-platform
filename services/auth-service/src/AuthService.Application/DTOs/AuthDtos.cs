@@ -105,3 +105,45 @@ public sealed record TokenLifetimeChange(
 
 public sealed record UpdateTokenLifetimesRequest(
     IReadOnlyList<TokenLifetimeChange> Policies);
+
+// ── Admin panel session (plan 90) ─────────────────────────────────────────────
+
+/// <param name="MfaSetupToken">Lets the administrator set MFA up, and nothing else.</param>
+public sealed record MfaSetupChallengeResponse(
+    string MfaSetupToken,
+    DateTimeOffset ExpiresAt);
+
+public sealed record AdminLoginRequest(
+    string Email,
+    string Password);
+
+public sealed record AdminMfaRequest(
+    string MfaChallengeToken,
+    string Code);
+
+public sealed record AdminBackupCodeRequest(
+    string MfaChallengeToken,
+    string BackupCode);
+
+public sealed record AdminMfaSetupRequest(
+    string MfaSetupToken);
+
+public sealed record AdminMfaSetupConfirmRequest(
+    string MfaSetupToken,
+    string Code);
+
+/// <summary>
+/// An admin-panel session. The refresh token is not here: it lives only in an httpOnly cookie
+/// scoped to <c>/api/v1/auth/admin/session</c>.
+/// </summary>
+public sealed record AdminSessionResponse(
+    string AccessToken,
+    DateTimeOffset AccessTokenExpiresAt,
+    DateTimeOffset SessionExpiresAt);
+
+/// <param name="BackupCodes">Shown once; the panel must make the administrator keep them.</param>
+public sealed record AdminMfaSetupConfirmedResponse(
+    string[] BackupCodes,
+    string AccessToken,
+    DateTimeOffset AccessTokenExpiresAt,
+    DateTimeOffset SessionExpiresAt);

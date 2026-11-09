@@ -25,6 +25,11 @@ public sealed record LoginCommand(
 public abstract record LoginResult;
 public sealed record LoginSuccessResult(AuthTokensResponse Tokens) : LoginResult;
 public sealed record MfaRequiredResult(MfaChallengeResponse Challenge) : LoginResult;
+/// <summary>
+/// Plan 90: an administrator without MFA signing in to the admin panel. The token only lets
+/// them set MFA up; it opens no session.
+/// </summary>
+public sealed record MfaSetupRequiredResult(MfaSetupChallengeResponse Setup) : LoginResult;
 
 public sealed class LoginCommandHandler(
     IUserRepository userRepository,
@@ -80,11 +85,17 @@ public sealed class LoginCommandHandler(
         var clientType = ClientTypes.Normalize(command.ClientType);
 
         // The admin panel (plan 90) is for administrators with a level, and only through MFA:
-        // the gate refuses anyone else, and an administrator without MFA gets no tokens here.
+        // the gate refuses anyone else, and an administrator without MFA gets no session —
+        // only a short-lived token to set MFA up with.
         if (clientType == ClientTypes.Admin)
         {
             var roles = await roleRepository.GetRoleNamesForUserAsync(user.Id, ct);
-            await adminGate.AdmitAsync(user, roles, ct);
+            await adminGate.RequireLevelAsync(user, roles, ct);
+
+            if (!user.TwoFactorEnabled)
+                return new MfaSetupRequiredResult(new MfaSetupChallengeResponse(
+                    tokenService.GenerateMfaSetupToken(user.Id),
+                    DateTimeOffset.UtcNow.Add(opts.MfaSetupLifetime)));
         }
 
         // Password valid — check if 2FA is required
@@ -163,7 +174,8 @@ public sealed class CompleteMfaLoginCommandHandler(
     IUnitOfWork unitOfWork,
     IOptions<AuthOptions> authOptions,
     IRefreshTokenLifetimeResolver lifetimes,
-    IAdminSessionGate adminGate)
+    IAdminSessionGate adminGate,
+    IRateLimitStore rateLimitStore)
     : IRequestHandler<CompleteMfaLoginCommand, AuthTokensResponse>
 {
     public async Task<AuthTokensResponse> Handle(
@@ -179,16 +191,21 @@ public sealed class CompleteMfaLoginCommandHandler(
         if (!user.TwoFactorEnabled || user.TotpSecretEncrypted is null)
             throw new DomainException("2FA is not configured.", "MFA_NOT_CONFIGURED");
 
+        var attempts = new AdminMfaAttempts(
+            rateLimitStore, authOptions.Value, userId, ClientTypes.Normalize(command.ClientType));
+        await attempts.EnsureNotLockedAsync(ct);
+
         // Replay protection — same code cannot be used twice
         var isReplay = await replayGuard.HasBeenUsedAsync(userId.ToString(), command.Code, ct);
-        if (isReplay)
-            throw new InvalidTotpCodeException();
-
         var secret = encryptionService.Decrypt(user.TotpSecretEncrypted);
-        if (!totpService.ValidateCode(secret, command.Code))
+        if (isReplay || !totpService.ValidateCode(secret, command.Code))
+        {
+            await attempts.RecordFailureAsync(ct);
             throw new InvalidTotpCodeException();
+        }
 
         await replayGuard.MarkAsUsedAsync(userId.ToString(), command.Code, ct);
+        await attempts.ResetAsync(ct);
 
         var roles = await roleRepository.GetRoleNamesForUserAsync(userId, ct);
         var opts = authOptions.Value;
@@ -247,7 +264,8 @@ public sealed class LoginWithBackupCodeCommandHandler(
     IUnitOfWork unitOfWork,
     IOptions<AuthOptions> authOptions,
     IRefreshTokenLifetimeResolver lifetimes,
-    IAdminSessionGate adminGate)
+    IAdminSessionGate adminGate,
+    IRateLimitStore rateLimitStore)
     : IRequestHandler<LoginWithBackupCodeCommand, AuthTokensResponse>
 {
     public async Task<AuthTokensResponse> Handle(
@@ -260,11 +278,21 @@ public sealed class LoginWithBackupCodeCommandHandler(
         var user = await userRepository.FindByIdWithBackupCodesAsync(userId, ct)
             ?? throw new UserNotFoundException();
 
+        var attempts = new AdminMfaAttempts(
+            rateLimitStore, authOptions.Value, userId, ClientTypes.Normalize(command.ClientType));
+        await attempts.EnsureNotLockedAsync(ct);
+
         // Find matching unused backup code
         var matchingCode = user.BackupCodes
             .Where(c => !c.IsUsed)
-            .FirstOrDefault(c => backupCodeService.VerifyCode(command.BackupCode, c.CodeHash))
-            ?? throw new InvalidTotpCodeException();
+            .FirstOrDefault(c => backupCodeService.VerifyCode(command.BackupCode, c.CodeHash));
+        if (matchingCode is null)
+        {
+            await attempts.RecordFailureAsync(ct);
+            throw new InvalidTotpCodeException();
+        }
+
+        await attempts.ResetAsync(ct);
 
         user.ConsumeBackupCode(matchingCode.Id);
 
@@ -308,8 +336,13 @@ public sealed class LoginWithBackupCodeCommandHandler(
 
 // ── Refresh token ─────────────────────────────────────────────────────────────
 
+/// <param name="AdminSession">
+/// True on the admin panel's cookie route (plan 90). An admin session refreshes only there,
+/// and every other session only on the body route — a token never crosses over.
+/// </param>
 public sealed record RefreshTokenCommand(
-    string RefreshToken
+    string RefreshToken,
+    bool AdminSession = false
 ) : IRequest<AuthTokensResponse>;
 
 public sealed class RefreshTokenCommandHandler(
@@ -335,6 +368,9 @@ public sealed class RefreshTokenCommandHandler(
         var existingToken = await refreshTokenRepository
             .FindActiveByHashAsync(incomingHash, ct)
             ?? throw new InvalidTokenException();
+
+        if ((existingToken.ClientType == ClientTypes.Admin) != command.AdminSession)
+            throw new InvalidTokenException();
 
         var user = await userRepository
             .FindByIdWithTokensAsync(existingToken.UserId, ct)

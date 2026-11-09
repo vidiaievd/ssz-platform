@@ -141,18 +141,21 @@ public sealed class AdminSessionTests
     }
 
     [Fact]
-    public async Task Login_AdminClient_WithoutMfa_IsRefused()
+    public async Task Login_AdminClient_WithoutMfa_GetsOnlyASetupToken()
     {
         var user = CreateUser(withMfa: false);
         _userRepo.FindByEmailAsync("admin@example.com", Arg.Any<CancellationToken>()).Returns(user);
         GivenRoles(user, RoleNames.PlatformAdmin);
         GivenLevel(user, AdminLevels.Super);
+        _tokenService.GenerateMfaSetupToken(user.Id).Returns("setup-token");
 
-        var act = () => LoginHandler().Handle(
+        var result = await LoginHandler().Handle(
             new LoginCommand("admin@example.com", "Password1!", ClientType: ClientTypes.Admin), default);
 
-        await act.Should().ThrowAsync<MfaSetupRequiredException>();
+        result.Should().BeOfType<MfaSetupRequiredResult>()
+            .Which.Setup.MfaSetupToken.Should().Be("setup-token");
         _userRepo.DidNotReceiveWithAnyArgs().AddRefreshToken(default!);
+        _tokenService.DidNotReceiveWithAnyArgs().GenerateAccessToken(default, default!, default!, default);
     }
 
     [Fact]
@@ -186,7 +189,7 @@ public sealed class AdminSessionTests
 
     private CompleteMfaLoginCommandHandler MfaHandler() => new(
         _userRepo, _roleRepo, _tokenService, _totp, _encryption, _publisher, _replayGuard,
-        _unitOfWork, _opts, _lifetimes, Gate);
+        _unitOfWork, _opts, _lifetimes, Gate, _rateLimitStore);
 
     private User GivenMfaChallenge()
     {
@@ -229,10 +232,50 @@ public sealed class AdminSessionTests
         _userRepo.DidNotReceiveWithAnyArgs().AddRefreshToken(default!);
     }
 
+    [Fact]
+    public async Task Mfa_AdminClient_WrongCode_IsCounted()
+    {
+        GivenMfaChallenge();
+
+        var act = () => MfaHandler().Handle(
+            new CompleteMfaLoginCommand("mfa-challenge", "000000", ClientType: ClientTypes.Admin), default);
+
+        await act.Should().ThrowAsync<InvalidTotpCodeException>();
+        await _rateLimitStore.Received(1).RecordAttemptAsync(
+            Arg.Is<string>(k => k.StartsWith("admin-mfa:")), 5, TimeSpan.FromMinutes(15), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Mfa_AdminClient_TooManyWrongCodes_TakesNoMore()
+    {
+        var user = GivenMfaChallenge();
+        _rateLimitStore.IsLockedOutAsync($"admin-mfa:{user.Id}", Arg.Any<CancellationToken>()).Returns(true);
+
+        var act = () => MfaHandler().Handle(
+            new CompleteMfaLoginCommand("mfa-challenge", "123456", ClientType: ClientTypes.Admin), default);
+
+        await act.Should().ThrowAsync<AccountLockedException>();
+        _totp.DidNotReceiveWithAnyArgs().ValidateCode(default!, default!);
+    }
+
+    [Fact]
+    public async Task Mfa_WebClient_WrongCode_IsNotCountedByThePanel()
+    {
+        GivenMfaChallenge();
+
+        var act = () => MfaHandler().Handle(
+            new CompleteMfaLoginCommand("mfa-challenge", "000000"), default);
+
+        await act.Should().ThrowAsync<InvalidTotpCodeException>();
+        await _rateLimitStore.DidNotReceiveWithAnyArgs().RecordAttemptAsync(default!, default, default, default);
+    }
+
     // ── Refresh ───────────────────────────────────────────────────────────────
 
     private RefreshTokenCommandHandler RefreshHandler() => new(
         _userRepo, _roleRepo, _refreshTokens, _tokenService, _unitOfWork, _opts, _lifetimes, Gate);
+
+    private static readonly RefreshTokenCommand AdminRefresh = new("raw", AdminSession: true);
 
     private User GivenAdminSession(bool withMfa = true)
     {
@@ -251,7 +294,7 @@ public sealed class AdminSessionTests
         GivenRoles(user, RoleNames.PlatformAdmin);
         GivenLevel(user, AdminLevels.Super);
 
-        await RefreshHandler().Handle(new RefreshTokenCommand("raw"), default);
+        await RefreshHandler().Handle(AdminRefresh, default);
 
         _tokenService.Received(1).GenerateAccessToken(
             user.Id, user.Email, Arg.Any<IEnumerable<string>>(), AdminLevels.Super);
@@ -263,7 +306,7 @@ public sealed class AdminSessionTests
         var user = GivenAdminSession();
         GivenRoles(user, RoleNames.PlatformAdmin);
 
-        var act = () => RefreshHandler().Handle(new RefreshTokenCommand("raw"), default);
+        var act = () => RefreshHandler().Handle(AdminRefresh, default);
 
         await act.Should().ThrowAsync<AdminAccessDeniedException>();
         user.RefreshTokens.Should().OnlyContain(t => t.IsRevoked);
@@ -278,10 +321,172 @@ public sealed class AdminSessionTests
         GivenRoles(user, RoleNames.PlatformAdmin);
         GivenLevel(user, AdminLevels.Admin);
 
-        var act = () => RefreshHandler().Handle(new RefreshTokenCommand("raw"), default);
+        var act = () => RefreshHandler().Handle(AdminRefresh, default);
 
         await act.Should().ThrowAsync<MfaSetupRequiredException>();
         user.RefreshTokens.Should().OnlyContain(t => t.IsRevoked);
+    }
+
+    [Fact]
+    public async Task Refresh_AdminSession_OnTheBodyRoute_IsRefused()
+    {
+        var user = GivenAdminSession();
+        GivenRoles(user, RoleNames.PlatformAdmin);
+        GivenLevel(user, AdminLevels.Super);
+
+        var act = () => RefreshHandler().Handle(new RefreshTokenCommand("raw"), default);
+
+        await act.Should().ThrowAsync<InvalidTokenException>();
+        _tokenService.DidNotReceiveWithAnyArgs().GenerateAccessToken(default, default!, default!, default);
+    }
+
+    [Fact]
+    public async Task Refresh_WebSession_OnTheAdminRoute_IsRefused()
+    {
+        var user = CreateUser(withMfa: true);
+        var token = user.AddRefreshToken("stored-hash", "family-1", DateTimeOffset.UtcNow.AddDays(7));
+        _refreshTokens.FindActiveByHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(token);
+
+        var act = () => RefreshHandler().Handle(AdminRefresh, default);
+
+        await act.Should().ThrowAsync<InvalidTokenException>();
+    }
+
+    // ── MFA setup from the panel ──────────────────────────────────────────────
+
+    private readonly MediatR.ISender _sender = Substitute.For<MediatR.ISender>();
+
+    private User GivenSetupToken(bool withMfa = false, string role = RoleNames.PlatformAdmin)
+    {
+        var user = CreateUser(withMfa);
+        _tokenService.ValidateMfaSetupToken("setup-token").Returns(user.Id);
+        _userRepo.FindByIdWithTokensAsync(user.Id, Arg.Any<CancellationToken>()).Returns(user);
+        GivenRoles(user, role);
+        GivenLevel(user, AdminLevels.Admin);
+        return user;
+    }
+
+    private StartAdminMfaSetupCommandHandler StartSetupHandler() =>
+        new(_userRepo, _roleRepo, _tokenService, Gate, _sender);
+
+    private ConfirmAdminMfaSetupCommandHandler ConfirmSetupHandler() => new(
+        _userRepo, _roleRepo, _tokenService, Gate, _replayGuard, _rateLimitStore, _publisher,
+        _unitOfWork, _opts, _lifetimes, _sender);
+
+    [Fact]
+    public async Task SetupStart_HandsOutTheSecret()
+    {
+        var user = GivenSetupToken();
+        var setup = new AuthService.Application.DTOs.TotpSetupResponse("secret", "otpauth://x", [1]);
+        _sender.Send(Arg.Is<SetupTotpCommand>(c => c.UserId == user.Id), Arg.Any<CancellationToken>())
+            .Returns(setup);
+
+        var result = await StartSetupHandler().Handle(new StartAdminMfaSetupCommand("setup-token"), default);
+
+        result.Should().BeSameAs(setup);
+    }
+
+    [Fact]
+    public async Task SetupStart_MfaAlreadyOn_IsRefused()
+    {
+        // A setup token must not re-enrol someone who has a second factor already.
+        GivenSetupToken(withMfa: true);
+
+        var act = () => StartSetupHandler().Handle(new StartAdminMfaSetupCommand("setup-token"), default);
+
+        (await act.Should().ThrowAsync<DomainException>()).Which.Code.Should().Be("MFA_ALREADY_ENABLED");
+        await _sender.DidNotReceiveWithAnyArgs().Send(default(SetupTotpCommand)!, default);
+    }
+
+    [Fact]
+    public async Task SetupStart_NotAnAdministrator_IsRefused()
+    {
+        GivenSetupToken(role: RoleNames.Teacher);
+
+        var act = () => StartSetupHandler().Handle(new StartAdminMfaSetupCommand("setup-token"), default);
+
+        await act.Should().ThrowAsync<AdminAccessDeniedException>();
+    }
+
+    [Fact]
+    public async Task SetupStart_BadToken_IsRefused()
+    {
+        var act = () => StartSetupHandler().Handle(new StartAdminMfaSetupCommand("forged"), default);
+
+        await act.Should().ThrowAsync<InvalidTokenException>();
+    }
+
+    [Fact]
+    public async Task SetupConfirm_TurnsMfaOn_AndOpensTheAdminSession()
+    {
+        var user = GivenSetupToken();
+        _sender.Send(Arg.Any<VerifyAndEnableTotpCommand>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                user.SetTotpSecret("encrypted-secret");
+                user.ConfirmTotpVerification();
+                user.EnableTwoFactor([]);
+                return new AuthService.Application.DTOs.Enable2FAResponse(["b1", "b2"]);
+            });
+        RefreshToken? issued = null;
+        _userRepo.AddRefreshToken(Arg.Do<RefreshToken>(t => issued = t));
+
+        var result = await ConfirmSetupHandler().Handle(
+            new ConfirmAdminMfaSetupCommand("setup-token", "123456"), default);
+
+        result.BackupCodes.Should().Equal("b1", "b2");
+        issued!.ClientType.Should().Be(ClientTypes.Admin);
+        _tokenService.Received(1).GenerateAccessToken(
+            user.Id, user.Email, Arg.Any<IEnumerable<string>>(), AdminLevels.Admin);
+        await _replayGuard.Received(1).MarkAsUsedAsync(user.Id.ToString(), "123456", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetupConfirm_WrongCode_IsCounted_AndOpensNothing()
+    {
+        GivenSetupToken();
+        _sender.Send(Arg.Any<VerifyAndEnableTotpCommand>(), Arg.Any<CancellationToken>())
+            .Returns<AuthService.Application.DTOs.Enable2FAResponse>(_ => throw new InvalidTotpCodeException());
+
+        var act = () => ConfirmSetupHandler().Handle(
+            new ConfirmAdminMfaSetupCommand("setup-token", "000000"), default);
+
+        await act.Should().ThrowAsync<InvalidTotpCodeException>();
+        await _rateLimitStore.Received(1).RecordAttemptAsync(
+            Arg.Is<string>(k => k.StartsWith("admin-mfa:")), 5, TimeSpan.FromMinutes(15), Arg.Any<CancellationToken>());
+        _userRepo.DidNotReceiveWithAnyArgs().AddRefreshToken(default!);
+    }
+
+    // ── Sign-out ──────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task EndSession_RevokesOnlyThatAdminSession()
+    {
+        var user = CreateUser(withMfa: true);
+        var admin = user.AddRefreshToken("h1", "family-admin", DateTimeOffset.UtcNow.AddHours(12), clientType: ClientTypes.Admin);
+        var web = user.AddRefreshToken("h2", "family-web", DateTimeOffset.UtcNow.AddDays(7));
+        _refreshTokens.FindActiveByHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(admin);
+        _userRepo.FindByIdWithTokensAsync(user.Id, Arg.Any<CancellationToken>()).Returns(user);
+
+        await new EndAdminSessionCommandHandler(_refreshTokens, _userRepo, _unitOfWork)
+            .Handle(new EndAdminSessionCommand("raw"), default);
+
+        admin.IsRevoked.Should().BeTrue();
+        web.IsRevoked.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task EndSession_IgnoresAWebToken()
+    {
+        var user = CreateUser(withMfa: true);
+        var web = user.AddRefreshToken("h2", "family-web", DateTimeOffset.UtcNow.AddDays(7));
+        _refreshTokens.FindActiveByHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(web);
+
+        await new EndAdminSessionCommandHandler(_refreshTokens, _userRepo, _unitOfWork)
+            .Handle(new EndAdminSessionCommand("raw"), default);
+
+        web.IsRevoked.Should().BeFalse();
+        await _unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
     }
 
     // ── Bootstrap ─────────────────────────────────────────────────────────────

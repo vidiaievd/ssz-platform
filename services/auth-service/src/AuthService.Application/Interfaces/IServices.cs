@@ -26,6 +26,13 @@ public interface ITokenService
     string GenerateMfaChallengeToken(Guid userId);
     Guid? ValidateMfaChallengeToken(string token);
 
+    /// <summary>
+    /// Plan 90: a short-lived token that only lets a platform administrator without MFA set it
+    /// up from the admin panel — it opens no session.
+    /// </summary>
+    string GenerateMfaSetupToken(Guid userId);
+    Guid? ValidateMfaSetupToken(string token);
+
     string GeneratePasswordResetToken(Guid userId);
     Guid? ValidatePasswordResetToken(string token);
 

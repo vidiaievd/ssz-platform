@@ -117,6 +117,12 @@ public sealed class JwtTokenService : ITokenService
     public Guid? ValidateMfaChallengeToken(string token)
         => ValidateShortLivedToken(token, "mfa_challenge");
 
+    public string GenerateMfaSetupToken(Guid userId)
+        => GenerateShortLivedToken(userId, "mfa_setup", _opts.MfaSetupLifetime);
+
+    public Guid? ValidateMfaSetupToken(string token)
+        => ValidateShortLivedToken(token, "mfa_setup");
+
     public string GeneratePasswordResetToken(Guid userId)
         => GenerateShortLivedToken(userId, "password_reset", _opts.PasswordResetTokenLifetime);
 
