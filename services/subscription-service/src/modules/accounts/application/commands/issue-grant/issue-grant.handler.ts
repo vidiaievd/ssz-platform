@@ -29,6 +29,7 @@ export class IssueGrantHandler implements ICommandHandler<IssueGrantCommand, Acc
       id: randomUUID(),
       accountId: account.id,
       featureKey: g.featureKey,
+      enabled: g.enabled,
       monthlyCredits: g.monthlyCredits,
       limits: g.limits,
       startsAt: g.startsAt ?? now,

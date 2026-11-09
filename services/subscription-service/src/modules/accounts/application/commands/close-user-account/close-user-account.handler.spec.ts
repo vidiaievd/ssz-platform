@@ -31,6 +31,7 @@ const grant = () =>
     id: 'g1',
     accountId: 'acc',
     featureKey: 'ai.student_assist',
+    enabled: true,
     monthlyCredits: null,
     limits: {},
     startsAt: past,

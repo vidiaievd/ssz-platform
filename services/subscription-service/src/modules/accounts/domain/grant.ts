@@ -15,8 +15,13 @@ export interface GrantProps {
   accountId: string;
   featureKey: string;
   /**
+   * true — switches the key on for the term, even where the plan has it off; false — switches
+   * it off for the term, even where the plan or another grant has it on (plan 90, phase 3).
+   */
+  enabled: boolean;
+  /**
    * Credits per month on top of the plan's for this key; null = unmetered while the grant
-   * runs. A grant always switches its key on, even where the plan has it off.
+   * runs. Always null on a grant that switches the key off.
    */
   monthlyCredits: string | null;
   limits: Record<string, number>;
@@ -30,7 +35,10 @@ export interface GrantProps {
   revokedBy: string | null;
 }
 
-/** A manual key or credit allowance on top of the plan, with a term and an author. */
+/**
+ * A manual change on top of the plan for a term, with an author: a key or credit allowance,
+ * or a key switched off.
+ */
 export class Grant {
   private constructor(private props: GrantProps) {}
 
@@ -38,6 +46,8 @@ export class Grant {
     id: string;
     accountId: string;
     featureKey: string;
+    /** Omitted = true (switches the key on). */
+    enabled?: boolean;
     monthlyCredits: string | null;
     limits: Record<string, number>;
     startsAt: Date;
@@ -51,6 +61,11 @@ export class Grant {
       { featureKey: input.featureKey, enabled: true, monthlyCredits: input.monthlyCredits, limits: input.limits },
     ]);
     if (checked.isFail) return Result.fail(checked.error);
+    const enabled = input.enabled ?? true;
+    // Switching a key off gives nothing: credits or limits on it would read as an allowance.
+    if (!enabled && (input.monthlyCredits !== null || Object.keys(input.limits).length > 0)) {
+      return Result.fail({ code: 'grant_disable_with_allowance', featureKey: input.featureKey });
+    }
     const reason = input.reason.trim();
     if (!reason) return Result.fail({ code: 'grant_reason_required' });
     if (input.endsAt <= input.startsAt || input.endsAt <= input.now) return Result.fail({ code: 'invalid_grant_period' });
@@ -61,6 +76,7 @@ export class Grant {
         id: input.id,
         accountId: input.accountId,
         featureKey: feature.featureKey,
+        enabled,
         monthlyCredits: feature.monthlyCredits,
         limits: feature.limits,
         startsAt: input.startsAt,

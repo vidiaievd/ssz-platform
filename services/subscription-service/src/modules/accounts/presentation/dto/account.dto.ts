@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsDate,
   IsIn,
   IsObject,
@@ -66,6 +67,14 @@ export class IssueGrantDto {
   @ApiProperty({ example: 'ai.review_direct', description: `One of: ${KEY_LIST}` })
   @IsString()
   featureKey!: string;
+
+  @ApiPropertyOptional({
+    default: true,
+    description: 'false = switch the key off for the term (no credits, no limits); revoking the grant gives it back to the plan',
+  })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
 
   @ApiPropertyOptional({
     type: String,
@@ -153,6 +162,9 @@ export class GrantResponseDto {
 
   @ApiProperty({ example: 'ai.review_direct' })
   featureKey!: string;
+
+  @ApiProperty({ description: 'false = the grant switches the key off' })
+  enabled!: boolean;
 
   @ApiProperty({ type: String, nullable: true, example: '50' })
   monthlyCredits!: string | null;

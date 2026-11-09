@@ -35,8 +35,9 @@ export interface Entitlements {
   /** Keys the plan or a grant mentions. A key absent here is not sold to this payer. */
   features: Record<string, FeatureEntitlement>;
   /**
-   * The grants counting now, soonest to end first — so a screen can tell a key given for a
-   * term apart from one the plan carries (mobile redesign 07, G1).
+   * The grants switching a key on now, soonest to end first — so a screen can tell a key
+   * given for a term apart from one the plan carries (mobile redesign 07, G1). Grants that
+   * switch a key off are not listed: the key simply reads as off in `features`.
    */
   grants: { featureKey: string; endsAt: Date }[];
   /** The credit period monthly allowances are counted in. */
@@ -79,7 +80,7 @@ export interface EntitlementInputs {
    * Grants of the account; any state — the resolver keeps only the active ones, and looks
    * at scheduled ones for when they start.
    */
-  grants: readonly Pick<GrantProps, 'featureKey' | 'monthlyCredits' | 'limits' | 'startsAt' | 'endsAt' | 'revokedAt'>[];
+  grants: readonly Pick<GrantProps, 'featureKey' | 'enabled' | 'monthlyCredits' | 'limits' | 'startsAt' | 'endsAt' | 'revokedAt'>[];
   now: Date;
 }
 
@@ -91,6 +92,9 @@ export interface EntitlementInputs {
  * is off contributes nothing and one that is on but unmetered stays unmetered; a grant
  * without credits makes the key unmetered while it runs. Grant limits can only raise the
  * plan's — a grant is "on top", never a cut.
+ *
+ * A grant that switches its key off (plan 90, phase 3) wins over everything else: the plan
+ * and any grant switching the same key on. It is applied last, whatever the order of rows.
  */
 export function resolveEntitlements(input: EntitlementInputs): Entitlements {
   const { subscription, now } = input;
@@ -102,8 +106,13 @@ export function resolveEntitlements(input: EntitlementInputs): Entitlements {
     features[f.featureKey] = { enabled: f.enabled, monthlyCredits: f.monthlyCredits, limits: { ...f.limits } };
   }
 
+  const switchedOff: string[] = [];
   for (const g of input.grants) {
     if (grantState(g, now) !== 'active') continue;
+    if (!g.enabled) {
+      switchedOff.push(g.featureKey);
+      continue;
+    }
     active.push({ featureKey: g.featureKey, endsAt: g.endsAt });
     const base = features[g.featureKey];
     const baseOn = base?.enabled === true;
@@ -120,6 +129,9 @@ export function resolveEntitlements(input: EntitlementInputs): Entitlements {
     }
 
     features[g.featureKey] = { enabled: true, monthlyCredits: credits, limits };
+  }
+  for (const key of switchedOff) {
+    features[key] = { enabled: false, monthlyCredits: null, limits: {} };
   }
 
   const period = subscription

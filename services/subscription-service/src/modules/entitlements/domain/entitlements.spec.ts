@@ -47,6 +47,7 @@ function onTutorPro(periodEnd: Date | null = null): EntitlementInputs['subscript
 function grant(featureKey: string, monthlyCredits: string | null, over: Partial<EntitlementInputs['grants'][number]> = {}) {
   return {
     featureKey,
+    enabled: true,
     monthlyCredits,
     limits: {},
     startsAt: new Date(NOW.getTime() - DAY),
@@ -207,6 +208,51 @@ describe('resolveEntitlements', () => {
     it('is the end of a subscription cut short inside its cycle', () => {
       const end = new Date('2026-10-25T00:00:00Z');
       expect(resolveEntitlements(inputs({ subscription: onTutorPro(end) })).validUntil).toEqual(end);
+    });
+  });
+
+  describe('a grant switching a key off (plan 90, phase 3)', () => {
+    const off = (featureKey: string, over: Partial<EntitlementInputs['grants'][number]> = {}) =>
+      grant(featureKey, null, { enabled: false, ...over });
+
+    it('switches off a key the plan carries, credits and limits gone', () => {
+      const e = resolveEntitlements(inputs({ subscription: onTutorPro(), grants: [off('ai.student_assist')] }));
+      expect(e.features['ai.student_assist']).toEqual({ enabled: false, monthlyCredits: null, limits: {} });
+      expect(e.features['ai.review_draft']).toEqual({ enabled: true, monthlyCredits: '1000', limits: {} });
+    });
+
+    it('wins over a grant switching the same key on, in either order', () => {
+      for (const grants of [
+        [grant('ai.review_direct', '50'), off('ai.review_direct')],
+        [off('ai.review_direct'), grant('ai.review_direct', '50')],
+      ]) {
+        expect(resolveEntitlements(inputs({ grants })).features['ai.review_direct']).toEqual({
+          enabled: false,
+          monthlyCredits: null,
+          limits: {},
+        });
+      }
+    });
+
+    it('is not listed among the grants that give a key', () => {
+      const e = resolveEntitlements(inputs({ grants: [off('ai.review_draft'), grant('ai.practice', '5')] }));
+      expect(e.grants.map((g) => g.featureKey)).toEqual(['ai.practice']);
+    });
+
+    it('counts only while active: scheduled, revoked or ended leave the plan alone', () => {
+      for (const over of [
+        { startsAt: new Date(NOW.getTime() + DAY) },
+        { revokedAt: new Date(NOW.getTime() - 1) },
+        { endsAt: NOW },
+      ]) {
+        const e = resolveEntitlements(inputs({ grants: [off('ai.review_draft', over)] }));
+        expect(e.features['ai.review_draft']).toEqual({ enabled: true, monthlyCredits: '50', limits: {} });
+      }
+    });
+
+    it('moves validUntil to its end, when the plan comes back', () => {
+      const ends = new Date(NOW.getTime() + 2 * DAY);
+      expect(resolveEntitlements(inputs({ grants: [off('ai.review_draft', { endsAt: ends })] })).validUntil).toEqual(ends);
     });
   });
 });
