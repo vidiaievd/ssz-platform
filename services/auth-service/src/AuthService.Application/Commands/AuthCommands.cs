@@ -191,8 +191,7 @@ public sealed class CompleteMfaLoginCommandHandler(
         if (!user.TwoFactorEnabled || user.TotpSecretEncrypted is null)
             throw new DomainException("2FA is not configured.", "MFA_NOT_CONFIGURED");
 
-        var attempts = new AdminMfaAttempts(
-            rateLimitStore, authOptions.Value, userId, ClientTypes.Normalize(command.ClientType));
+        var attempts = new MfaAttempts(rateLimitStore, authOptions.Value, userId);
         await attempts.EnsureNotLockedAsync(ct);
 
         // Replay protection — same code cannot be used twice
@@ -278,8 +277,7 @@ public sealed class LoginWithBackupCodeCommandHandler(
         var user = await userRepository.FindByIdWithBackupCodesAsync(userId, ct)
             ?? throw new UserNotFoundException();
 
-        var attempts = new AdminMfaAttempts(
-            rateLimitStore, authOptions.Value, userId, ClientTypes.Normalize(command.ClientType));
+        var attempts = new MfaAttempts(rateLimitStore, authOptions.Value, userId);
         await attempts.EnsureNotLockedAsync(ct);
 
         // Find matching unused backup code

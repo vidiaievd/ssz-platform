@@ -17,9 +17,9 @@ public sealed class AuthOptions
     public int MfaChallengeLifetimeMinutes { get; set; } = 5;
     /// <summary>Plan 90: how long an administrator without MFA has to set it up after the password.</summary>
     public int MfaSetupLifetimeMinutes { get; set; } = 10;
-    /// <summary>Plan 90: wrong MFA codes on the admin panel before the account is held off.</summary>
-    public int AdminMfaMaxAttempts { get; set; } = 5;
-    public int AdminMfaWindowMinutes { get; set; } = 15;
+    /// <summary>Wrong two-factor codes, on any client, before the account takes no more for a while.</summary>
+    public int MfaMaxAttempts { get; set; } = 5;
+    public int MfaWindowMinutes { get; set; } = 15;
     public int MaxFailedLoginAttempts { get; set; } = 5;
     public int LockoutDurationMinutes { get; set; } = 15;
     public int PasswordResetTokenLifetimeMinutes { get; set; } = 30;
@@ -40,8 +40,8 @@ public sealed class AuthOptions
         TimeSpan.FromMinutes(MfaChallengeLifetimeMinutes);
     public TimeSpan MfaSetupLifetime =>
         TimeSpan.FromMinutes(MfaSetupLifetimeMinutes);
-    public TimeSpan AdminMfaWindow =>
-        TimeSpan.FromMinutes(AdminMfaWindowMinutes);
+    public TimeSpan MfaWindow =>
+        TimeSpan.FromMinutes(MfaWindowMinutes);
     public TimeSpan PasswordResetTokenLifetime =>
         TimeSpan.FromMinutes(PasswordResetTokenLifetimeMinutes);
     public TimeSpan EmailVerificationTokenLifetime =>

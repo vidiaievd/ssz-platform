@@ -242,14 +242,14 @@ public sealed class AdminSessionTests
 
         await act.Should().ThrowAsync<InvalidTotpCodeException>();
         await _rateLimitStore.Received(1).RecordAttemptAsync(
-            Arg.Is<string>(k => k.StartsWith("admin-mfa:")), 5, TimeSpan.FromMinutes(15), Arg.Any<CancellationToken>());
+            Arg.Is<string>(k => k.StartsWith("mfa:attempts:")), 5, TimeSpan.FromMinutes(15), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Mfa_AdminClient_TooManyWrongCodes_TakesNoMore()
     {
         var user = GivenMfaChallenge();
-        _rateLimitStore.IsLockedOutAsync($"admin-mfa:{user.Id}", Arg.Any<CancellationToken>()).Returns(true);
+        _rateLimitStore.IsLockedOutAsync($"mfa:attempts:{user.Id}", Arg.Any<CancellationToken>()).Returns(true);
 
         var act = () => MfaHandler().Handle(
             new CompleteMfaLoginCommand("mfa-challenge", "123456", ClientType: ClientTypes.Admin), default);
@@ -259,15 +259,62 @@ public sealed class AdminSessionTests
     }
 
     [Fact]
-    public async Task Mfa_WebClient_WrongCode_IsNotCountedByThePanel()
+    public async Task Mfa_WebClient_WrongCode_IsCountedToo()
     {
-        GivenMfaChallenge();
+        // One count per account across clients: guesses cannot be spread between web and panel.
+        var user = GivenMfaChallenge();
 
         var act = () => MfaHandler().Handle(
             new CompleteMfaLoginCommand("mfa-challenge", "000000"), default);
 
         await act.Should().ThrowAsync<InvalidTotpCodeException>();
-        await _rateLimitStore.DidNotReceiveWithAnyArgs().RecordAttemptAsync(default!, default, default, default);
+        await _rateLimitStore.Received(1).RecordAttemptAsync(
+            $"mfa:attempts:{user.Id}", 5, TimeSpan.FromMinutes(15), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Mfa_MobileClient_Locked_TakesNoCode()
+    {
+        var user = GivenMfaChallenge();
+        _rateLimitStore.IsLockedOutAsync($"mfa:attempts:{user.Id}", Arg.Any<CancellationToken>()).Returns(true);
+
+        var act = () => MfaHandler().Handle(
+            new CompleteMfaLoginCommand("mfa-challenge", "123456", ClientType: ClientTypes.Mobile), default);
+
+        await act.Should().ThrowAsync<AccountLockedException>();
+        _userRepo.DidNotReceiveWithAnyArgs().AddRefreshToken(default!);
+    }
+
+    [Fact]
+    public async Task Mfa_RightCode_ClearsTheCount()
+    {
+        var user = GivenMfaChallenge();
+        GivenRoles(user, RoleNames.Student);
+
+        await MfaHandler().Handle(new CompleteMfaLoginCommand("mfa-challenge", "123456"), default);
+
+        await _rateLimitStore.Received(1).ResetAsync($"mfa:attempts:{user.Id}", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DisableMfa_WrongCode_IsCounted_AndLockedTakesNoMore()
+    {
+        var user = CreateUser(withMfa: true);
+        _userRepo.FindByIdAsync(user.Id, Arg.Any<CancellationToken>()).Returns(user);
+        _encryption.Decrypt("encrypted-secret").Returns("secret");
+        var handler = new DisableTwoFactorCommandHandler(
+            _userRepo, _totp, _encryption, _publisher, _unitOfWork, _rateLimitStore, _opts);
+
+        var wrong = () => handler.Handle(new DisableTwoFactorCommand(user.Id, "000000"), default);
+        await wrong.Should().ThrowAsync<InvalidTotpCodeException>();
+        await _rateLimitStore.Received(1).RecordAttemptAsync(
+            $"mfa:attempts:{user.Id}", 5, TimeSpan.FromMinutes(15), Arg.Any<CancellationToken>());
+
+        _rateLimitStore.IsLockedOutAsync($"mfa:attempts:{user.Id}", Arg.Any<CancellationToken>()).Returns(true);
+        _totp.ValidateCode("secret", "123456").Returns(true);
+        var locked = () => handler.Handle(new DisableTwoFactorCommand(user.Id, "123456"), default);
+        await locked.Should().ThrowAsync<AccountLockedException>();
+        user.TwoFactorEnabled.Should().BeTrue();
     }
 
     // ── Refresh ───────────────────────────────────────────────────────────────
@@ -453,7 +500,7 @@ public sealed class AdminSessionTests
 
         await act.Should().ThrowAsync<InvalidTotpCodeException>();
         await _rateLimitStore.Received(1).RecordAttemptAsync(
-            Arg.Is<string>(k => k.StartsWith("admin-mfa:")), 5, TimeSpan.FromMinutes(15), Arg.Any<CancellationToken>());
+            Arg.Is<string>(k => k.StartsWith("mfa:attempts:")), 5, TimeSpan.FromMinutes(15), Arg.Any<CancellationToken>());
         _userRepo.DidNotReceiveWithAnyArgs().AddRefreshToken(default!);
     }
 

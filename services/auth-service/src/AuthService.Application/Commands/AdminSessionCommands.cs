@@ -68,7 +68,7 @@ public sealed class ConfirmAdminMfaSetupCommandHandler(
         var user = await AdminMfaSetup.ResolveAsync(
             command.MfaSetupToken, tokenService, userRepository, roleRepository, adminGate, ct);
 
-        var attempts = new AdminMfaAttempts(rateLimitStore, opts, user.Id, ClientTypes.Admin);
+        var attempts = new MfaAttempts(rateLimitStore, opts, user.Id);
         await attempts.EnsureNotLockedAsync(ct);
 
         if (await replayGuard.HasBeenUsedAsync(user.Id.ToString(), command.Code, ct))
