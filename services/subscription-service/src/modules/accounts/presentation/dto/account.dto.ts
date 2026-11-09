@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDate, IsIn, IsObject, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
+import { IsDate, IsIn, IsObject, IsOptional, IsString, IsUUID, ValidateIf } from 'class-validator';
+import { IsAdminReason } from '../../../../common/dto/admin-reason.js';
 import { FEATURE_KEYS } from '../../../plans/domain/feature-key.js';
 import { BILLING_ACCOUNT_TYPES, type BillingAccountType } from '../../domain/billing-account.js';
 
@@ -45,6 +46,9 @@ export class AssignPlanDto {
   @Type(() => Date)
   @IsDate()
   periodEnd?: Date | null;
+
+  @IsAdminReason('Signed contract, school plan from November')
+  reason!: string;
 }
 
 export class IssueGrantDto {
@@ -79,9 +83,7 @@ export class IssueGrantDto {
   @IsDate()
   endsAt!: Date;
 
-  @ApiProperty({ example: 'Paid pilot, 30 days, discount agreed with the school' })
-  @IsString()
-  @MaxLength(500)
+  @IsAdminReason('Paid pilot, 30 days, discount agreed with the school')
   reason!: string;
 }
 

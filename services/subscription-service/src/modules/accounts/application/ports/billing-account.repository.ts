@@ -1,3 +1,4 @@
+import type { AdminAuditEntry } from '../../../../shared/application/admin-audit.js';
 import type { Result } from '../../../../shared/kernel/result.js';
 import type { BillingAccount, BillingAccountType } from '../../domain/billing-account.js';
 
@@ -17,9 +18,10 @@ export interface IBillingAccountRepository {
   dueForRefresh(now: Date, limit: number): Promise<{ type: BillingAccountType; externalId: string }[]>;
   /**
    * Writes the changed subscriptions if the account's revision is still the loaded one,
-   * bumping it — also with nothing changed, which is how a refresh announces itself.
+   * bumping it — also with nothing changed, which is how a refresh announces itself. An admin's
+   * change passes its trail entry, written in the same transaction; system changes pass none.
    */
-  save(account: BillingAccount): Promise<Result<void, 'version_conflict'>>;
+  save(account: BillingAccount, audit?: AdminAuditEntry): Promise<Result<void, 'version_conflict'>>;
 }
 
 export const BILLING_ACCOUNT_REPOSITORY = Symbol('BILLING_ACCOUNT_REPOSITORY');

@@ -1,7 +1,9 @@
 import { ConflictException, Inject } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { businessError } from '../../../../../common/errors/business-error.js';
+import { adminAuditEntry } from '../../../../../shared/application/admin-audit.js';
 import { describePlanError } from '../../../domain/plan-errors.js';
+import { planVersionSnapshot } from '../../audit-snapshots.js';
 import { loadPlanOr404 } from '../../load-plan.js';
 import { toPlanView, type PlanView } from '../../plan-view.js';
 import { PLAN_REPOSITORY, type IPlanRepository } from '../../ports/plan.repository.js';
@@ -21,10 +23,22 @@ export class RevisePlanHandler implements ICommandHandler<RevisePlanCommand, Pla
     if (command.expectedVersion !== undefined && command.expectedVersion !== base) {
       throw conflict(command.code, command.expectedVersion);
     }
-    const revised = plan.revise(command.features, command.actorUserId, new Date());
+    const before = planVersionSnapshot(plan.current);
+    const now = new Date();
+    const revised = plan.revise(command.features, command.actor.userId, now);
     if (revised.isFail) throw businessError(revised.error, describePlanError(revised.error));
 
-    const saved = await this.plans.save(plan, base);
+    const audit = adminAuditEntry({
+      actor: command.actor,
+      action: 'plan.revised',
+      targetType: 'plan',
+      targetId: plan.code,
+      reason: command.reason,
+      before,
+      after: planVersionSnapshot(revised.value),
+      now,
+    });
+    const saved = await this.plans.save(plan, base, audit);
     if (saved.isFail) throw conflict(command.code, base);
     return toPlanView(plan);
   }

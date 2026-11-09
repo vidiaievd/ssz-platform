@@ -1,3 +1,4 @@
+import type { AdminActor } from '../../../../../shared/application/admin-audit.js';
 import type { PlanAudience, PlanFeature } from '../../../domain/plan.js';
 
 export class CreatePlanCommand {
@@ -6,6 +7,7 @@ export class CreatePlanCommand {
     readonly name: string,
     readonly audience: PlanAudience,
     readonly features: PlanFeature[],
-    readonly actorUserId: string,
+    readonly actor: AdminActor,
+    readonly reason: string,
   ) {}
 }

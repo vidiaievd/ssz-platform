@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../../generated/prisma/client.js';
+import { recordAdminAction } from '../../../../infrastructure/audit/record-admin-action.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import type { AdminAuditEntry } from '../../../../shared/application/admin-audit.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import type { IPlanRepository } from '../../application/ports/plan.repository.js';
 import type { Plan, PlanVersion } from '../../domain/plan.js';
@@ -34,25 +36,28 @@ export class PrismaPlanRepository implements IPlanRepository {
     return rows.map(toVersion);
   }
 
-  async create(plan: Plan): Promise<Result<void, 'code_taken'>> {
+  async create(plan: Plan, audit: AdminAuditEntry): Promise<Result<void, 'code_taken'>> {
     try {
-      await this.prisma.plan.create({
-        data: {
-          id: plan.id,
-          code: plan.code,
-          name: plan.name,
-          audience: plan.audience,
-          status: plan.status,
-          currentVersion: plan.current.version,
-          versions: {
-            create: {
-              version: plan.current.version,
-              createdBy: plan.current.createdBy,
-              createdAt: plan.current.createdAt,
-              features: { create: featureRows(plan.current.features) },
+      await this.prisma.$transaction(async (tx) => {
+        await tx.plan.create({
+          data: {
+            id: plan.id,
+            code: plan.code,
+            name: plan.name,
+            audience: plan.audience,
+            status: plan.status,
+            currentVersion: plan.current.version,
+            versions: {
+              create: {
+                version: plan.current.version,
+                createdBy: plan.current.createdBy,
+                createdAt: plan.current.createdAt,
+                features: { create: featureRows(plan.current.features) },
+              },
             },
           },
-        },
+        });
+        await recordAdminAction(tx, audit);
       });
       return Result.ok();
     } catch (err) {
@@ -61,7 +66,7 @@ export class PrismaPlanRepository implements IPlanRepository {
     }
   }
 
-  async save(plan: Plan, baseVersion: number): Promise<Result<void, 'version_conflict'>> {
+  async save(plan: Plan, baseVersion: number, audit: AdminAuditEntry): Promise<Result<void, 'version_conflict'>> {
     try {
       await this.prisma.$transaction(async (tx) => {
         const updated = await tx.plan.updateMany({
@@ -80,6 +85,7 @@ export class PrismaPlanRepository implements IPlanRepository {
             },
           });
         }
+        await recordAdminAction(tx, audit);
       });
       return Result.ok();
     } catch (err) {

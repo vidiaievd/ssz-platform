@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
@@ -12,11 +13,12 @@ import {
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
+import { CurrentAdmin } from '../../../../common/decorators/current-admin.decorator.js';
+import { AdminReasonDto } from '../../../../common/dto/admin-reason.js';
 import { BusinessErrorDto } from '../../../../common/errors/business-error.dto.js';
 import { RequireAdminLevel } from '../../../../common/decorators/require-admin-level.decorator.js';
 import { AdminLevelGuard } from '../../../../common/guards/admin-level.guard.js';
-import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
+import type { AdminActor } from '../../../../shared/application/admin-audit.js';
 import type { AccountHistory, AccountOverview } from '../../application/account-views.js';
 import { AssignPlanCommand } from '../../application/commands/assign-plan/assign-plan.command.js';
 import { CancelSubscriptionCommand } from '../../application/commands/cancel-subscription/cancel-subscription.command.js';
@@ -40,6 +42,7 @@ import {
 @ApiTags('Admin — accounts')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+@ApiBadRequestResponse({ description: 'Validation failed — e.g. a change without a reason or with a blank one' })
 @ApiForbiddenResponse({ description: 'Caller is not platform_admin of the route\'s admin level (admin-panel session)' })
 @UseGuards(AdminLevelGuard)
 @RequireAdminLevel('support')
@@ -81,22 +84,29 @@ export class AdminAccountsController {
   assign(
     @Param() p: AccountParams,
     @Body() body: AssignPlanDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentAdmin() admin: AdminActor,
   ): Promise<AccountOverview> {
     return this.commandBus.execute(
-      new AssignPlanCommand(p.type, p.externalId, body.planCode, body.status ?? 'active', body.periodEnd ?? null, user.userId),
+      new AssignPlanCommand(p.type, p.externalId, body.planCode, body.status ?? 'active', body.periodEnd ?? null, admin, body.reason),
     );
   }
 
   @RequireAdminLevel('admin')
   @Delete('subscription')
-  @ApiOperation({ summary: 'Cancel the current subscription', description: "The account falls back to its audience's free plan" })
+  @ApiOperation({
+    summary: 'Cancel the current subscription',
+    description: "The account falls back to its audience's free plan. The reason goes as `?reason=`",
+  })
   @ApiOkResponse({ type: AccountOverviewResponseDto })
   @ApiNotFoundResponse({ description: 'The payer has no billing account yet' })
   @ApiConflictResponse({ description: 'The account changed meanwhile' })
   @ApiUnprocessableEntityResponse({ type: BusinessErrorDto, description: 'No current subscription' })
-  cancel(@Param() p: AccountParams, @CurrentUser() user: AuthenticatedUser): Promise<AccountOverview> {
-    return this.commandBus.execute(new CancelSubscriptionCommand(p.type, p.externalId, user.userId));
+  cancel(
+    @Param() p: AccountParams,
+    @Query() q: AdminReasonDto,
+    @CurrentAdmin() admin: AdminActor,
+  ): Promise<AccountOverview> {
+    return this.commandBus.execute(new CancelSubscriptionCommand(p.type, p.externalId, admin, q.reason));
   }
 
   @RequireAdminLevel('admin')
@@ -110,7 +120,7 @@ export class AdminAccountsController {
   issueGrant(
     @Param() p: AccountParams,
     @Body() body: IssueGrantDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentAdmin() admin: AdminActor,
   ): Promise<AccountOverview> {
     return this.commandBus.execute(
       new IssueGrantCommand(
@@ -124,7 +134,7 @@ export class AdminAccountsController {
           endsAt: body.endsAt,
           reason: body.reason,
         },
-        user.userId,
+        admin,
       ),
     );
   }
@@ -137,7 +147,11 @@ export class AdminAccountsController {
   @ApiNotFoundResponse({ description: 'No such account or grant' })
   @ApiConflictResponse({ description: 'Revoked by someone else meanwhile' })
   @ApiUnprocessableEntityResponse({ type: BusinessErrorDto, description: 'Already revoked or already ended' })
-  revokeGrant(@Param() p: GrantParams, @CurrentUser() user: AuthenticatedUser): Promise<AccountOverview> {
-    return this.commandBus.execute(new RevokeGrantCommand(p.type, p.externalId, p.grantId, user.userId));
+  revokeGrant(
+    @Param() p: GrantParams,
+    @Body() body: AdminReasonDto,
+    @CurrentAdmin() admin: AdminActor,
+  ): Promise<AccountOverview> {
+    return this.commandBus.execute(new RevokeGrantCommand(p.type, p.externalId, p.grantId, admin, body.reason));
   }
 }

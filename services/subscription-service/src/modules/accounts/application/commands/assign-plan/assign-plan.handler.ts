@@ -4,7 +4,9 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { businessError } from '../../../../../common/errors/business-error.js';
 import { loadPlanOr404 } from '../../../../plans/application/load-plan.js';
 import { PLAN_REPOSITORY, type IPlanRepository } from '../../../../plans/application/ports/plan.repository.js';
+import { adminAuditEntry } from '../../../../../shared/application/admin-audit.js';
 import { describeAccountError } from '../../../domain/account-errors.js';
+import { accountTarget, subscriptionSnapshot } from '../../audit-snapshots.js';
 import type { AccountOverview } from '../../account-views.js';
 import { ACCOUNT_READER, type IAccountReader } from '../../ports/account.reader.js';
 import { BILLING_ACCOUNT_REPOSITORY, type IBillingAccountRepository } from '../../ports/billing-account.repository.js';
@@ -26,17 +28,27 @@ export class AssignPlanHandler implements ICommandHandler<AssignPlanCommand, Acc
     const plan = await loadPlanOr404(this.plans, command.planCode);
     const account = await this.accounts.ensure(command.type, command.externalId);
     const now = new Date();
+    const before = account.current(now);
 
     const assigned = account.assignPlan(plan, {
       subscriptionId: randomUUID(),
       status: command.status,
       periodEnd: command.periodEnd,
-      by: command.actorUserId,
+      by: command.actor.userId,
       now,
     });
     if (assigned.isFail) throw businessError(assigned.error, describeAccountError(assigned.error));
 
-    const saved = await this.accounts.save(account);
+    const audit = adminAuditEntry({
+      actor: command.actor,
+      action: 'subscription.assigned',
+      ...accountTarget(command.type, command.externalId),
+      reason: command.reason,
+      before: before && subscriptionSnapshot(before),
+      after: subscriptionSnapshot(assigned.value),
+      now,
+    });
+    const saved = await this.accounts.save(account, audit);
     if (saved.isFail) throw new ConflictException('The account changed meanwhile; reload and retry');
     return (await this.reader.overview(command.type, command.externalId, now))!;
   }

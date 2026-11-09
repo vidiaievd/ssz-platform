@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../../../../generated/prisma/client.js';
+import { recordAdminAction } from '../../../../infrastructure/audit/record-admin-action.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import type { AdminAuditEntry } from '../../../../shared/application/admin-audit.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import type { IGrantRepository } from '../../application/ports/grant.repository.js';
 import type { Grant } from '../../domain/grant.js';
@@ -23,10 +25,10 @@ export class PrismaGrantRepository implements IGrantRepository {
   // Both writes bump the account's revision: it is the version of the account's
   // entitlements, and a grant changes them as much as a subscription does.
 
-  async insert(grant: Grant): Promise<void> {
+  async insert(grant: Grant, audit: AdminAuditEntry): Promise<void> {
     const g = grant.snapshot;
-    await this.prisma.$transaction([
-      this.prisma.grant.create({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.grant.create({
         data: {
           id: g.id,
           accountId: g.accountId,
@@ -39,12 +41,13 @@ export class PrismaGrantRepository implements IGrantRepository {
           createdBy: g.createdBy,
           createdAt: g.createdAt,
         },
-      }),
-      this.bumpRevision(g.accountId),
-    ]);
+      });
+      await tx.billingAccount.update({ where: { id: g.accountId }, data: { revision: { increment: 1 } } });
+      await recordAdminAction(tx, audit);
+    });
   }
 
-  async saveRevocation(grant: Grant): Promise<Result<void, 'version_conflict'>> {
+  async saveRevocation(grant: Grant, audit?: AdminAuditEntry): Promise<Result<void, 'version_conflict'>> {
     const g = grant.snapshot;
     const revoked = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.grant.updateMany({
@@ -53,12 +56,9 @@ export class PrismaGrantRepository implements IGrantRepository {
       });
       if (updated.count === 0) return false;
       await tx.billingAccount.update({ where: { id: g.accountId }, data: { revision: { increment: 1 } } });
+      if (audit) await recordAdminAction(tx, audit);
       return true;
     });
     return revoked ? Result.ok() : Result.fail('version_conflict');
-  }
-
-  private bumpRevision(accountId: string) {
-    return this.prisma.billingAccount.update({ where: { id: accountId }, data: { revision: { increment: 1 } } });
   }
 }
