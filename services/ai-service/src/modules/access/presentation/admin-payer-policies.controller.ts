@@ -10,10 +10,10 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
+import { CurrentAdmin } from '../../../common/decorators/current-admin.decorator.js';
 import { RequireAdminLevel } from '../../../common/decorators/require-admin-level.decorator.js';
 import { AdminLevelGuard } from '../../../common/guards/admin-level.guard.js';
-import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
+import type { AdminActor } from '../../../shared/application/admin-audit.js';
 import { PutPayerPolicyCommand } from '../application/commands/put-payer-policy/put-payer-policy.command.js';
 import type { EffectivePayerPolicy } from '../application/queries/get-payer-policy/get-payer-policy.handler.js';
 import { GetPayerPolicyQuery } from '../application/queries/get-payer-policy/get-payer-policy.query.js';
@@ -66,20 +66,27 @@ export class AdminPayerPoliciesController {
     summary: "Set a payer's policy",
     description:
       'aiEnabled: false refuses every agent for the payer. allowedRegions limits which providers its data may reach: ' +
-      'the router steps over models outside them, and a binding with no allowed model is refused (refused_policy).',
+      'the router steps over models outside them, and a binding with no allowed model is refused (refused_policy). ' +
+      '`reason` is required; the change goes to the admin trail as `payer_policy.changed` (before/after).',
   })
   @ApiParam(PAYER_TYPE_PARAM)
   @ApiParam(PAYER_ID_PARAM)
   @ApiOkResponse({ type: PayerPolicyResponseDto })
-  @ApiBadRequestResponse({ description: 'Unknown payer type, malformed id, or an invalid body (empty region list included)' })
+  @ApiBadRequestResponse({ description: 'Unknown payer type, malformed id, or an invalid body (empty region list, missing or blank reason included)' })
   async put(
     @Param('payerType') type: string,
     @Param('payerId', ParseUUIDPipe) id: string,
     @Body() body: PutPayerPolicyDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentAdmin() admin: AdminActor,
   ): Promise<EffectivePayerPolicy> {
     const saved = await this.commandBus.execute(
-      new PutPayerPolicyCommand(payerType(type), id, { aiEnabled: body.aiEnabled, allowedRegions: body.allowedRegions }, user.userId),
+      new PutPayerPolicyCommand(
+        payerType(type),
+        id,
+        { aiEnabled: body.aiEnabled, allowedRegions: body.allowedRegions },
+        admin,
+        body.reason,
+      ),
     );
     return { ...saved, stored: true };
   }

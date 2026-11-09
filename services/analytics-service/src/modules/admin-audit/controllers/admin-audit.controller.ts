@@ -29,7 +29,7 @@ export class AdminAuditController {
   @ApiOperation({
     summary: 'What platform admins changed, newest first',
     description:
-      'Collected from `admin.action.performed` of every service that writes an admin trail (auth, subscription). ' +
+      'Collected from `admin.action.performed` of every service that writes an admin trail (auth, subscription, ai). ' +
       'Filters combine with AND; `from` is inclusive, `to` exclusive. Admin-panel token, level `support` or higher.',
   })
   @ApiOkResponse({ type: AdminAuditPageDto })
