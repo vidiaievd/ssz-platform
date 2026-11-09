@@ -1,6 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDate, IsIn, IsObject, IsOptional, IsString, IsUUID, ValidateIf } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsDate,
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateIf,
+} from 'class-validator';
 import { IsAdminReason } from '../../../../common/dto/admin-reason.js';
 import { FEATURE_KEYS } from '../../../plans/domain/feature-key.js';
 import { BILLING_ACCOUNT_TYPES, type BillingAccountType } from '../../domain/billing-account.js';
@@ -194,4 +205,79 @@ export class AccountHistoryResponseDto {
 
   @ApiProperty({ type: [GrantResponseDto], description: 'Newest first' })
   grants!: GrantResponseDto[];
+}
+
+export const LOOKUP_MAX_IDS = 200;
+
+export class LookupAccountsDto {
+  @ApiProperty({ enum: BILLING_ACCOUNT_TYPES, description: 'workspace = schools (SOLO included); user = self-taught learners' })
+  @IsIn(BILLING_ACCOUNT_TYPES)
+  type!: BillingAccountType;
+
+  // Any UUID version: seeded ids are v5.
+  @ApiProperty({
+    type: [String],
+    format: 'uuid',
+    minItems: 1,
+    maxItems: LOOKUP_MAX_IDS,
+    description: 'schoolIds for workspace, userIds for user; duplicates are answered once',
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(LOOKUP_MAX_IDS)
+  @IsUUID(undefined, { each: true })
+  ids!: string[];
+}
+
+export class LookupPlanDto {
+  @ApiProperty({ example: 'school' })
+  code!: string;
+
+  @ApiProperty({ example: 'School' })
+  name!: string;
+
+  @ApiProperty({ example: 1 })
+  version!: number;
+}
+
+export class LookupSubscriptionDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ enum: ['trial', 'active'] })
+  status!: string;
+
+  @ApiProperty()
+  periodStart!: Date;
+
+  @ApiProperty({ type: Date, nullable: true, description: 'Null = open-ended' })
+  periodEnd!: Date | null;
+}
+
+export class AccountLookupItemDto {
+  @ApiProperty({ format: 'uuid' })
+  externalId!: string;
+
+  @ApiProperty({ description: "False = never seen by this service; it is on its audience's free plan all the same" })
+  hasAccount!: boolean;
+
+  @ApiProperty({ enum: ['subscription', 'free_plan'] })
+  source!: string;
+
+  @ApiProperty({ type: LookupPlanDto, nullable: true, description: 'Null only when the free plan is not seeded' })
+  plan!: LookupPlanDto | null;
+
+  @ApiProperty({ type: LookupSubscriptionDto, nullable: true, description: 'Null = on the free plan without a subscription' })
+  subscription!: LookupSubscriptionDto | null;
+
+  @ApiProperty({ example: 1, description: 'Grants counting now' })
+  activeGrants!: number;
+
+  @ApiProperty({ example: 0, description: 'Grants that start later' })
+  scheduledGrants!: number;
+}
+
+export class AccountLookupResponseDto {
+  @ApiProperty({ type: [AccountLookupItemDto], description: 'One per distinct id, in the order asked' })
+  items!: AccountLookupItemDto[];
 }
