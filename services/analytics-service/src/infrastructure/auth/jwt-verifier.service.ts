@@ -1,5 +1,6 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { parseAdminLevel, type AdminLevel } from '@ssz/contracts';
 import jwt from 'jsonwebtoken';
 import type { AppConfig } from '../../config/configuration.js';
 
@@ -8,6 +9,8 @@ export interface AuthenticatedUser {
   email?: string;
   roles: string[];
   isPlatformAdmin: boolean;
+  /** Only in admin-panel tokens of a platform_admin; null in every web and mobile session. */
+  adminLevel: AdminLevel | null;
 }
 
 const { verify, decode } = jwt;
@@ -50,6 +53,7 @@ export class JwtVerifierService {
         email: raw['email'] as string | undefined,
         roles,
         isPlatformAdmin: roles.includes('platform_admin'),
+        adminLevel: parseAdminLevel(raw['admin_level']),
       };
     } catch (err) {
       throw new UnauthorizedException(`Token verification failed: ${err instanceof Error ? err.message : String(err)}`);
