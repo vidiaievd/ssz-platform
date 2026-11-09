@@ -119,6 +119,36 @@ var app = builder.Build();
 // Apply EF Core migrations on startup
 await app.Services.ApplyMigrationsAsync();
 
+// ── Command line: `admin bootstrap <email>` (plan 90) ─────────────────────────
+// Makes an existing account a super administrator of the admin panel, then exits.
+// Shell access to the container is the authority here — there is no HTTP route for it.
+if (args is ["admin", "bootstrap", var bootstrapEmail])
+{
+    using var scope = app.Services.CreateScope();
+    var sender = scope.ServiceProvider.GetRequiredService<MediatR.ISender>();
+    AuthService.Application.Commands.BootstrapSuperAdminResult result;
+    try
+    {
+        result = await sender.Send(
+            new AuthService.Application.Commands.BootstrapSuperAdminCommand(bootstrapEmail));
+    }
+    catch (AuthService.Domain.Exceptions.DomainException ex)
+    {
+        Console.Error.WriteLine($"Admin bootstrap failed: {ex.Code} — {ex.Message}");
+        Environment.ExitCode = 1;
+        return;
+    }
+    Log.Information(
+        result.Changed
+            ? "Admin bootstrap: {Email} ({UserId}) is now a super administrator"
+            : "Admin bootstrap: {Email} ({UserId}) already was a super administrator",
+        result.Email,
+        result.UserId);
+    Console.WriteLine(
+        "Remember: the admin panel admits a super administrator only with two-factor authentication on.");
+    return;
+}
+
 // ── Middleware pipeline ───────────────────────────────────────────────────────
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();

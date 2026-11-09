@@ -8,19 +8,19 @@ public sealed record RegisterRequest(
 public sealed record LoginRequest(
     string Email,
     string Password,
-    /// <summary>`web` (default) or `mobile` — decides the refresh-token lifetime (ADR-012).</summary>
+    /// <summary>`web` (default), `mobile` or `admin` (admin panel, plan 90) — decides the refresh-token lifetime (ADR-012).</summary>
     string? ClientType = null);
 
 public sealed record MfaChallengeRequest(
     string MfaChallengeToken,
     string Code,
-    /// <summary>`web` (default) or `mobile` — decides the refresh-token lifetime (ADR-012).</summary>
+    /// <summary>`web` (default), `mobile` or `admin` (admin panel, plan 90) — decides the refresh-token lifetime (ADR-012).</summary>
     string? ClientType = null);
 
 public sealed record BackupCodeLoginRequest(
     string MfaChallengeToken,
     string BackupCode,
-    /// <summary>`web` (default) or `mobile` — decides the refresh-token lifetime (ADR-012).</summary>
+    /// <summary>`web` (default), `mobile` or `admin` (admin panel, plan 90) — decides the refresh-token lifetime (ADR-012).</summary>
     string? ClientType = null);
 
 public sealed record RefreshTokenRequest(

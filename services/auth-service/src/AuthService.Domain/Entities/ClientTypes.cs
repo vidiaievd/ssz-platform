@@ -10,8 +10,14 @@ public static class ClientTypes
     public const string Web    = "web";
     public const string Mobile = "mobile";
 
+    /// <summary>
+    /// The platform admin panel (plan 90). Opened only through MFA and only by a platform
+    /// administrator with an admin level; its access tokens alone carry <c>admin_level</c>.
+    /// </summary>
+    public const string Admin  = "admin";
+
     public static readonly IReadOnlySet<string> All =
-        new HashSet<string>(StringComparer.Ordinal) { Web, Mobile };
+        new HashSet<string>(StringComparer.Ordinal) { Web, Mobile, Admin };
 
     /// <summary>The client named, or <see cref="Web"/> when it named none or an unknown one.</summary>
     public static string Normalize(string? clientType) =>

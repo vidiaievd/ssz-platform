@@ -17,7 +17,7 @@ public sealed record LoginCommand(
     string Password,
     string? DeviceInfo = null,
     string? ClientIp = null,
-    /// <summary>`web` or `mobile` (ADR-012); anything else is `web`.</summary>
+    /// <summary>`web`, `mobile` or `admin` (ADR-012, plan 90); anything else is `web`.</summary>
     string? ClientType = null
 ) : IRequest<LoginResult>;
 
@@ -35,7 +35,8 @@ public sealed class LoginCommandHandler(
     IRateLimitStore rateLimitStore,
     IUnitOfWork unitOfWork,
     IOptions<AuthOptions> authOptions,
-    IRefreshTokenLifetimeResolver lifetimes)
+    IRefreshTokenLifetimeResolver lifetimes,
+    IAdminSessionGate adminGate)
     : IRequestHandler<LoginCommand, LoginResult>
 {
     public async Task<LoginResult> Handle(LoginCommand command, CancellationToken ct)
@@ -76,6 +77,16 @@ public sealed class LoginCommandHandler(
         if (!user.EmailVerified)
             throw new EmailNotVerifiedException();
 
+        var clientType = ClientTypes.Normalize(command.ClientType);
+
+        // The admin panel (plan 90) is for administrators with a level, and only through MFA:
+        // the gate refuses anyone else, and an administrator without MFA gets no tokens here.
+        if (clientType == ClientTypes.Admin)
+        {
+            var roles = await roleRepository.GetRoleNamesForUserAsync(user.Id, ct);
+            await adminGate.AdmitAsync(user, roles, ct);
+        }
+
         // Password valid — check if 2FA is required
         if (user.TwoFactorEnabled)
         {
@@ -85,8 +96,12 @@ public sealed class LoginCommandHandler(
                 DateTimeOffset.UtcNow.AddMinutes(5)));
         }
 
-        return await IssueTokensAsync(
-            user, command.DeviceInfo, ClientTypes.Normalize(command.ClientType), ct);
+        // Unreachable for the admin client — the gate above demands MFA — but never let a
+        // password alone open an admin session.
+        if (clientType == ClientTypes.Admin)
+            throw new MfaSetupRequiredException();
+
+        return await IssueTokensAsync(user, command.DeviceInfo, clientType, ct);
     }
 
     private async Task<LoginSuccessResult> IssueTokensAsync(
@@ -133,7 +148,7 @@ public sealed record CompleteMfaLoginCommand(
     string MfaChallengeToken,
     string Code,
     string? DeviceInfo = null,
-    /// <summary>`web` or `mobile` (ADR-012); anything else is `web`.</summary>
+    /// <summary>`web`, `mobile` or `admin` (ADR-012, plan 90); anything else is `web`.</summary>
     string? ClientType = null
 ) : IRequest<AuthTokensResponse>;
 
@@ -147,7 +162,8 @@ public sealed class CompleteMfaLoginCommandHandler(
     IOtpReplayGuard replayGuard,
     IUnitOfWork unitOfWork,
     IOptions<AuthOptions> authOptions,
-    IRefreshTokenLifetimeResolver lifetimes)
+    IRefreshTokenLifetimeResolver lifetimes,
+    IAdminSessionGate adminGate)
     : IRequestHandler<CompleteMfaLoginCommand, AuthTokensResponse>
 {
     public async Task<AuthTokensResponse> Handle(
@@ -177,10 +193,15 @@ public sealed class CompleteMfaLoginCommandHandler(
         var roles = await roleRepository.GetRoleNamesForUserAsync(userId, ct);
         var opts = authOptions.Value;
         var clientType = ClientTypes.Normalize(command.ClientType);
+        // The challenge does not remember the client it was asked from, so the gate runs here
+        // again: a challenge from a web sign-in cannot be turned into an admin session.
+        var adminLevel = clientType == ClientTypes.Admin
+            ? await adminGate.AdmitAsync(user, roles, ct)
+            : null;
         var refreshExpiresAt = DateTimeOffset.UtcNow.Add(
             await lifetimes.ResolveAsync(roles, clientType, ct));
 
-        var accessToken = tokenService.GenerateAccessToken(userId, user.Email, roles);
+        var accessToken = tokenService.GenerateAccessToken(userId, user.Email, roles, adminLevel);
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
 
         var deletionCancelled = user.RecordSuccessfulLogin();
@@ -213,7 +234,7 @@ public sealed record LoginWithBackupCodeCommand(
     string MfaChallengeToken,
     string BackupCode,
     string? DeviceInfo = null,
-    /// <summary>`web` or `mobile` (ADR-012); anything else is `web`.</summary>
+    /// <summary>`web`, `mobile` or `admin` (ADR-012, plan 90); anything else is `web`.</summary>
     string? ClientType = null
 ) : IRequest<AuthTokensResponse>;
 
@@ -225,7 +246,8 @@ public sealed class LoginWithBackupCodeCommandHandler(
     IDomainEventPublisher eventPublisher,
     IUnitOfWork unitOfWork,
     IOptions<AuthOptions> authOptions,
-    IRefreshTokenLifetimeResolver lifetimes)
+    IRefreshTokenLifetimeResolver lifetimes,
+    IAdminSessionGate adminGate)
     : IRequestHandler<LoginWithBackupCodeCommand, AuthTokensResponse>
 {
     public async Task<AuthTokensResponse> Handle(
@@ -249,10 +271,15 @@ public sealed class LoginWithBackupCodeCommandHandler(
         var roles = await roleRepository.GetRoleNamesForUserAsync(userId, ct);
         var opts = authOptions.Value;
         var clientType = ClientTypes.Normalize(command.ClientType);
+        // The challenge does not remember the client it was asked from, so the gate runs here
+        // again: a challenge from a web sign-in cannot be turned into an admin session.
+        var adminLevel = clientType == ClientTypes.Admin
+            ? await adminGate.AdmitAsync(user, roles, ct)
+            : null;
         var refreshExpiresAt = DateTimeOffset.UtcNow.Add(
             await lifetimes.ResolveAsync(roles, clientType, ct));
 
-        var accessToken = tokenService.GenerateAccessToken(userId, user.Email, roles);
+        var accessToken = tokenService.GenerateAccessToken(userId, user.Email, roles, adminLevel);
         var (rawRefreshToken, tokenHash, familyId) = tokenService.GenerateRefreshToken();
 
         var deletionCancelled = user.RecordSuccessfulLogin();
@@ -292,7 +319,8 @@ public sealed class RefreshTokenCommandHandler(
     ITokenService tokenService,
     IUnitOfWork unitOfWork,
     IOptions<AuthOptions> authOptions,
-    IRefreshTokenLifetimeResolver lifetimes)
+    IRefreshTokenLifetimeResolver lifetimes,
+    IAdminSessionGate adminGate)
     : IRequestHandler<RefreshTokenCommand, AuthTokensResponse>
 {
     public async Task<AuthTokensResponse> Handle(
@@ -324,6 +352,24 @@ public sealed class RefreshTokenCommandHandler(
             throw new InvalidTokenException();
 
         var roles = await roleRepository.GetRoleNamesForUserAsync(user.Id, ct);
+
+        // An admin session (plan 90) lives only while its holder is still an administrator
+        // with a level and MFA; otherwise the whole session ends here.
+        string? adminLevel = null;
+        if (existingToken.ClientType == ClientTypes.Admin)
+        {
+            try
+            {
+                adminLevel = await adminGate.AdmitAsync(user, roles, ct);
+            }
+            catch (DomainException)
+            {
+                user.RevokeRefreshTokenFamily(existingToken.FamilyId);
+                await unitOfWork.SaveChangesAsync(ct);
+                throw;
+            }
+        }
+
         var opts = authOptions.Value;
         // Recomputed on every rotation, from the roles as they are now and the client the
         // session was opened from (ADR-012): a withdrawn role or a changed policy applies at
@@ -342,7 +388,7 @@ public sealed class RefreshTokenCommandHandler(
             existingToken.ClientType);
 
         userRepository.AddRefreshToken(refreshToken);
-        var accessToken = tokenService.GenerateAccessToken(user.Id, user.Email, roles);
+        var accessToken = tokenService.GenerateAccessToken(user.Id, user.Email, roles, adminLevel);
 
         await unitOfWork.SaveChangesAsync(ct);
 

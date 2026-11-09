@@ -24,7 +24,7 @@ public sealed class UpdateTokenLifetimesCommandValidator
 
             change.RuleFor(c => c.ClientType)
                 .Must(c => c is not null && ClientTypes.All.Contains(c.Trim().ToLowerInvariant()))
-                .WithMessage("Client type must be 'web' or 'mobile'.");
+                .WithMessage("Client type must be 'web', 'mobile' or 'admin'.");
 
             change.RuleFor(c => c.RefreshLifetimeHours)
                 .InclusiveBetween(TokenLifetimePolicy.MinHours, TokenLifetimePolicy.MaxHours)

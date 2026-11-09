@@ -56,6 +56,15 @@ public interface ITokenLifetimePolicyRepository
     void Add(TokenLifetimePolicy policy);
 }
 
+/// <summary>Admin levels of platform administrators (plan 90).</summary>
+public interface IAdminLevelRepository
+{
+    /// <summary>Tracked, so a change is saved.</summary>
+    Task<AdminLevelAssignment?> FindAsync(Guid userId, CancellationToken ct = default);
+
+    void Add(AdminLevelAssignment assignment);
+}
+
 public interface IUnitOfWork
 {
     Task<int> SaveChangesAsync(CancellationToken ct = default);

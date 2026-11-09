@@ -77,3 +77,23 @@ public sealed class PasswordMismatchException : DomainException
     public PasswordMismatchException()
         : base("The password is incorrect.", "INVALID_PASSWORD") { }
 }
+
+/// <summary>
+/// An admin-panel session asked for by someone who is not a platform administrator with an
+/// admin level (plan 90) — or who has stopped being one since the session was opened.
+/// </summary>
+public sealed class AdminAccessDeniedException : DomainException
+{
+    public AdminAccessDeniedException()
+        : base("This account may not use the admin panel.", "ADMIN_ACCESS_DENIED") { }
+}
+
+/// <summary>
+/// An admin-panel session is opened only through MFA (plan 90); this administrator has not
+/// set it up yet.
+/// </summary>
+public sealed class MfaSetupRequiredException : DomainException
+{
+    public MfaSetupRequiredException()
+        : base("Two-factor authentication must be set up before using the admin panel.", "MFA_SETUP_REQUIRED") { }
+}

@@ -32,7 +32,11 @@ public sealed class JwtTokenService : ITokenService
         _publicKey = new RsaSecurityKey(publicRsa) { KeyId = "auth-v1" };
     }
 
-    public string GenerateAccessToken(Guid userId, string email, IEnumerable<string> roles)
+    public string GenerateAccessToken(
+        Guid userId,
+        string email,
+        IEnumerable<string> roles,
+        string? adminLevel = null)
     {
         var claims = new List<Claim>
         {
@@ -48,6 +52,11 @@ public sealed class JwtTokenService : ITokenService
         // Add each role as a separate claim
         foreach (var role in roles)
             claims.Add(new Claim(ClaimTypes.Role, role));
+
+        // Plan 90: only an admin-panel session carries the level; services read it to decide
+        // what a platform administrator may change.
+        if (adminLevel is not null)
+            claims.Add(new Claim("admin_level", adminLevel));
 
         var descriptor = new SecurityTokenDescriptor
         {

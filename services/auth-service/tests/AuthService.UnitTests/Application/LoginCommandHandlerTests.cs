@@ -22,6 +22,7 @@ public sealed class LoginCommandHandlerTests
     private readonly IRateLimitStore _rateLimitStore = Substitute.For<IRateLimitStore>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IRefreshTokenLifetimeResolver _lifetimes = Substitute.For<IRefreshTokenLifetimeResolver>();
+    private readonly IAdminSessionGate _adminGate = Substitute.For<IAdminSessionGate>();
 
     private readonly IOptions<AuthOptions> _opts = Options.Create(new AuthOptions
     {
@@ -35,7 +36,7 @@ public sealed class LoginCommandHandlerTests
 
     private LoginCommandHandler CreateHandler() => new(
         _userRepo, _roleRepo, _hasher, _tokenService,
-        _publisher, _rateLimitStore, _unitOfWork, _opts, _lifetimes);
+        _publisher, _rateLimitStore, _unitOfWork, _opts, _lifetimes, _adminGate);
 
     private User CreateUser(string email = "test@example.com", string hash = "hash")
     {

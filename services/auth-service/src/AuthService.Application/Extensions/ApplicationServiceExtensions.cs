@@ -30,6 +30,7 @@ public static class ApplicationServiceExtensions
 
         // Refresh-token lifetime by role and client (ADR-012)
         services.AddScoped<IRefreshTokenLifetimeResolver, RefreshTokenLifetimeResolver>();
+        services.AddScoped<IAdminSessionGate, AdminSessionGate>();
 
         return services;
     }

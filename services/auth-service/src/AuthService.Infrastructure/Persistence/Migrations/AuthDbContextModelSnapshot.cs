@@ -22,6 +22,34 @@ namespace AuthService.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("AuthService.Domain.Entities.AdminLevelAssignment", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("GrantedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("granted_at");
+
+                    b.Property<Guid?>("GrantedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("granted_by");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("level");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("admin_levels", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_admin_levels_level", "level IN ('support', 'admin', 'super')");
+                        });
+                });
+
             modelBuilder.Entity("AuthService.Domain.Entities.BackupCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -279,6 +307,13 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Role = "platform_admin",
+                            ClientType = "admin",
+                            RefreshLifetimeHours = 12,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
                             Role = "manager_platform",
                             ClientType = "web",
                             RefreshLifetimeHours = 24,
@@ -472,6 +507,15 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("user_roles", (string)null);
+                });
+
+            modelBuilder.Entity("AuthService.Domain.Entities.AdminLevelAssignment", b =>
+                {
+                    b.HasOne("AuthService.Domain.Entities.User", null)
+                        .WithOne()
+                        .HasForeignKey("AuthService.Domain.Entities.AdminLevelAssignment", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("AuthService.Domain.Entities.BackupCode", b =>
