@@ -13,6 +13,7 @@ function row(id: string): AiCallRecord {
     promptVersion: null,
     usage: { input: 10, output: 2, cacheRead: 0, cacheWrite: 0 },
     audioMs: null,
+    characters: null,
     cost: { micros: 60, currency: 'USD' },
     credits: '0.060000',
     latencyMs: 12,

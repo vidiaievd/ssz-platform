@@ -3,6 +3,7 @@ import type { ReviewSettings } from '../value-objects/review-settings.vo.js';
 import type { ReviewAiPolicy } from '../value-objects/review-ai-policy.vo.js';
 import type { ReviewEffortMinutes } from '../value-objects/review-effort-minutes.vo.js';
 import type { AssistantAccess } from '../value-objects/assistant-access.vo.js';
+import type { AiPrecheckSettings } from '../value-objects/ai-precheck-settings.vo.js';
 
 export interface PublicSchoolFilter {
   q?: string;
@@ -73,6 +74,10 @@ export interface ISchoolRepository {
     groupIds: readonly string[],
     studentIds: readonly string[],
   ): Promise<{ groupIds: string[]; studentIds: string[] }>;
+  /** Whether learners may rehearse with a model, and the school's limits (plan 84), or null for no such school. */
+  findAiPrecheckSettings(schoolId: string): Promise<AiPrecheckSettings | null>;
+  /** Writes only the rehearsal settings, for the same reason as `saveReviewSettings`. */
+  saveAiPrecheckSettings(schoolId: string, settings: AiPrecheckSettings): Promise<void>;
 }
 
 export const SCHOOL_REPOSITORY = Symbol('SCHOOL_REPOSITORY');

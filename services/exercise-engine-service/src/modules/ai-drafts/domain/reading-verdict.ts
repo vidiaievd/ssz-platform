@@ -25,6 +25,17 @@ export interface PronouncedWord {
   /** 0–100. */
   accuracy: number;
   error: 'none' | 'mispronunciation' | 'omission' | 'insertion';
+  /**
+   * The word's sounds named against ai-service's lexicon (plan 88, step 5c): IPA, `''` where
+   * its readings differ, and the score. Absent where they could not be named.
+   */
+  phonemes?: PronouncedPhoneme[];
+}
+
+/** One sound of a word read aloud, 0–100. */
+export interface PronouncedPhoneme {
+  symbol: string;
+  accuracy: number;
 }
 
 /** Pronunciation scores, 0–100 — feedback only, never part of the verdict (plan 82 §2.3). */

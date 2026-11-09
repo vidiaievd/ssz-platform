@@ -1,4 +1,5 @@
 import { IQuery } from '@nestjs/cqrs';
+import type { ReferenceCheck } from '../../../domain/entities/media-asset.entity.js';
 
 // What the engine needs to decide whether a recording may be submitted (plan 70 §3.5):
 // whose it is, which attempt it belongs to, whether it survived ingest and how long it is.
@@ -22,6 +23,12 @@ export interface AssetDescription {
   voiceId: string | null;
   /** Speaker → voice of a synthesized narration's dialogue. */
   speakerVoices: Record<string, string> | null;
+  /**
+   * A reference clip's self-check (plan 88, step 8.2): the toneme it was kept for, where the word
+   * and its stressed vowel are and the voices tried — what a learner's toneme is compared with.
+   * Null on every other asset.
+   */
+  reference: ReferenceCheck | null;
 }
 
 export class DescribeAssetsQuery implements IQuery {

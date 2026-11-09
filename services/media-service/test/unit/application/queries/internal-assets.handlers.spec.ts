@@ -66,9 +66,46 @@ describe('DescribeAssetsHandler', () => {
         pauseScale: null,
         voiceId: null,
         speakerVoices: null,
+        reference: null,
       },
       expect.objectContaining({ id: failed.id, status: 'FAILED', durationMs: null }),
     ]);
+  });
+
+  it('gives a reference clip its self-check (plan 88, step 8.2)', async () => {
+    const reference = {
+      word: 'bønner',
+      sentence: 'Nå sier jeg bønner igjen.',
+      tone: 2 as const,
+      wordSpan: { startMs: 820, endMs: 1240 },
+      stressedVowel: { startMs: 870, endMs: 940 },
+      tries: [
+        {
+          voice: 'nb-NO-PernilleNeural',
+          outcome: 'kept',
+          accuracy: 98,
+          measure: { onset: 2.1, post: -1.2, score: 3.3, tone: 2 as const },
+        },
+      ],
+    };
+    const clip = MediaAssetEntity.create({
+      ownerId: '00000000-0000-0000-0000-000000000000',
+      mimeType: 'audio/wav',
+      sizeBytes: 1,
+      entityType: 'reference_clip',
+      entityId: 'nb:bønner',
+      origin: 'SYNTHESIZED',
+      sizeLimits: SIZE_LIMITS,
+    }).value;
+    clip.attachSynthesis(
+      { provider: 'ai-service', voice: 'nb-NO-PernilleNeural', lang: 'nb', textHash: 'a'.repeat(64), segments: 1, reference },
+      72_000n,
+    );
+
+    const handler = new DescribeAssetsHandler(repoWith([clip]) as any);
+    const [out] = await handler.execute(new DescribeAssetsQuery([clip.id]));
+
+    expect(out).toMatchObject({ origin: 'SYNTHESIZED', entityType: 'reference_clip', reference });
   });
 });
 

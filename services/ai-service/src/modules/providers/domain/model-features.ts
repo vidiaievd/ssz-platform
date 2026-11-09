@@ -38,8 +38,21 @@ export interface SpeechFeatures {
   maxAudioSeconds: number;
 }
 
-/** `llm` — text in, text or structure out; `speech` — audio in, words out. */
-export type ModelModality = 'llm' | 'speech';
+/**
+ * What a speech synthesizer can do (plan 88, step 6b) — the registry's `features` of a model
+ * whose modality is `tts`.
+ */
+export interface TtsFeatures {
+  /** Languages it speaks, as the course names them (`nb`). */
+  languages: string[];
+  /** The provider's voice names per language, first = the default (`nb-NO-PernilleNeural`). */
+  voices: Record<string, string[]>;
+  /** Longest text one call takes, in characters; longer is refused before the call. */
+  maxCharacters: number;
+}
+
+/** `llm` — text in, text or structure out; `speech` — audio in, words out; `tts` — text in, audio out. */
+export type ModelModality = 'llm' | 'speech' | 'tts';
 
 export type ProviderKind =
   | 'anthropic'
@@ -51,7 +64,8 @@ export type ProviderKind =
   | 'whisper_local'
   /**
    * Azure AI Speech with Pronunciation Assessment (plan 82, step 9): speech only; `baseUrl` is
-   * the resource's speech endpoint (`https://<region>.stt.speech.microsoft.com`).
+   * the resource's speech endpoint (`https://<region>.stt.speech.microsoft.com`); a synthesis
+   * provider of the same kind (plan 88, step 6b) points at `https://<region>.tts.speech.microsoft.com`.
    */
   | 'azure_speech'
   | 'fake';
@@ -77,5 +91,12 @@ export interface LlmModelRef {
 export interface SpeechModelRef {
   providerModelId: string;
   features: SpeechFeatures;
+  provider: ProviderConnection;
+}
+
+/** The synthesis model as an adapter needs it. */
+export interface TtsModelRef {
+  providerModelId: string;
+  features: TtsFeatures;
   provider: ProviderConnection;
 }

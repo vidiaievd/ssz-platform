@@ -11,6 +11,7 @@ import type {
 import { ContentClientError } from '../../../../shared/application/ports/content-client.port.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import type { ProbeTask } from '../../domain/entities/probe-task.entity.js';
+import { engineOwnedTemplate } from './engine-owned-templates.js';
 import {
   PROBE_TASK_REPOSITORY,
   type IProbeTaskRepository,
@@ -83,6 +84,10 @@ export class ProbeAwareContentClient implements IContentClient {
       `error_correction`), so taking it away here would leave it with nothing to work
       from and a probe would be masked *less* than a catalogue exercise, not more.
     */
+    // An engine-owned template (`sound_session`) has no catalogue row to ask for.
+    const owned = engineOwnedTemplate(probe.definition.templateCode);
+    if (owned) return Result.ok(toDefinition(probe, owned));
+
     const template = await this.catalogue.getTemplateByCode(probe.definition.templateCode);
     if (template.isFail) {
       this.logger.warn(
@@ -132,6 +137,8 @@ export class ProbeAwareContentClient implements IContentClient {
   async getTemplateByCode(
     code: string,
   ): Promise<Result<ExerciseTemplateDefinition, ContentClientError>> {
+    const owned = engineOwnedTemplate(code);
+    if (owned) return Result.ok(owned);
     return this.catalogue.getTemplateByCode(code);
   }
 

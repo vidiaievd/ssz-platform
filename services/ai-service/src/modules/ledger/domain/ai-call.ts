@@ -9,6 +9,11 @@ export interface CallContext {
   actor: { userId: string; role: string | null } | null;
   /** Where the call came from: `admin_diagnostic`, `admin_model_test`, an agent's screen. */
   surface: string;
+  /**
+   * What a rehearsal was about (plan 84, step 3) — the exercise, and the check its calls
+   * belong to — so its limits can be counted from the ledger. Absent for every other call.
+   */
+  subject?: { exerciseId: string; checkId: string } | null;
 }
 
 /** The model a call reached; null on the record when none was called. */
@@ -37,6 +42,8 @@ export interface AiCallRecord {
   usage: LlmUsage | null;
   /** Audio a speech model took, in ms; null for language models (plan 82, step 3). */
   audioMs: number | null;
+  /** Characters a synthesizer spoke; null for every other model (plan 88, step 6b). */
+  characters: number | null;
   /** Null when the model had no price in effect (or nothing was called — then 0). */
   cost: { micros: number; currency: string } | null;
   /** Decimal string; null when the cost is unknown. */

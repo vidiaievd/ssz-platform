@@ -550,6 +550,46 @@ describe('PutAiReviewHandler — read_aloud', () => {
     expect(reviewed).toMatchObject({ capability: 'voice_review', outcome: 'approved' });
   });
 
+  it('flags the sound atoms of its remarks as the voice check’s once it closes the work', async () => {
+    const attempt = reading();
+    const { handler, publisher } = setup(attempt, DETAILS, exerciseOf(readingDoc()));
+    const remark = (fragment: string, atomId: string, wordIndex: number) => ({
+      itemId: P1,
+      sentenceIndex: 1,
+      aspect: 'pronunciation',
+      fragment,
+      comment: 'Round the lips.',
+      suggestion: null,
+      atomRef: { atomType: 'sound' as const, atomId },
+      wordIndex,
+    });
+
+    await putReading(handler, attempt, heardAll(), {
+      items: [remark('bruk', 'nb:uu', 2), remark('ut', 'nb:uu', 5), remark('kjøre', 'nb:kj', 7)],
+    });
+
+    const flagged = published(publisher).filter((e) => e.type === 'exercise.feedback.atoms_flagged');
+    expect(flagged).toHaveLength(1);
+    expect(flagged[0]!.payload).toMatchObject({
+      attemptId: attempt.id,
+      source: 'ai_voice',
+      schoolId: null,
+      atoms: [
+        { atomType: 'sound', atomId: 'nb:uu', inExerciseTargets: false },
+        { atomType: 'sound', atomId: 'nb:kj', inExerciseTargets: false },
+      ],
+    });
+  });
+
+  it('flags nothing for a reading with no sound remarks', async () => {
+    const attempt = reading();
+    const { handler, publisher } = setup(attempt, DETAILS, exerciseOf(readingDoc()));
+
+    await putReading(handler, attempt, heardAll());
+
+    expect(published(publisher).map((e) => e.type)).not.toContain('exercise.feedback.atoms_flagged');
+  });
+
   it('returns the work when a prompt falls short of the mark, with the check as its word', async () => {
     const attempt = reading();
     const { handler, publisher } = setup(attempt, DETAILS, exerciseOf(readingDoc()));

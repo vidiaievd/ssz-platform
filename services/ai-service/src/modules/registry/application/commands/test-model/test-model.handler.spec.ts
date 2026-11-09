@@ -53,6 +53,7 @@ function found(over: { kind?: any; providerModelId?: string; credentialRef?: str
             cacheReadPerMtok: '0',
             cacheWritePerMtok: '0',
             audioPerHour: '0',
+            charsPerMillion: '0',
             currency: 'USD',
           },
   };

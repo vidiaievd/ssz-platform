@@ -135,6 +135,22 @@ export function readAloudTemplate(audioSchema: object) {
             readingPassPercent: { type: 'integer', minimum: 50, maximum: 100 },
           },
         },
+        // The pronunciation guide of `read` (plan 86, step 6h.1): off by default. The marks are
+        // not here — each prompt's prosody layer is a row of its own (`exercise_prosody_layers`).
+        // No `minItems` on the lenses: none switched on is a blocker (`RA_GUIDE_NO_LENS`) at
+        // publication, not a refused keystroke.
+        pronunciationGuide: {
+          type: 'object',
+          properties: {
+            enabled: { type: 'boolean' },
+            sentenceDrill: { type: 'boolean' },
+            lenses: {
+              type: 'array',
+              uniqueItems: true,
+              items: { type: 'string', enum: ['stress', 'sounds', 'melody', 'respell'] },
+            },
+          },
+        },
       },
     },
     // The author's key. Not the learner's submission schema: `read_aloud` is in

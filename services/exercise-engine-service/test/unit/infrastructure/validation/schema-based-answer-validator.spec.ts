@@ -19,6 +19,7 @@ import { InflectionTableValidator } from '../../../../src/infrastructure/validat
 import { ReadAloudValidator } from '../../../../src/infrastructure/validation/validators/read-aloud.validator.js';
 import { MinimalPairsValidator } from '../../../../src/infrastructure/validation/validators/minimal-pairs.validator.js';
 import { InformationTransferValidator } from '../../../../src/infrastructure/validation/validators/information-transfer.validator.js';
+import { SoundSessionValidator } from '../../../../src/infrastructure/validation/validators/sound-session.validator.js';
 import {
   sampleContent as infSampleContent,
   SAMPLE_ANSWERS as INF_SAMPLE_ANSWERS,
@@ -70,6 +71,7 @@ const makeValidator = () =>
     new ReadAloudValidator(),
     new MinimalPairsValidator(),
     new InformationTransferValidator(),
+    new SoundSessionValidator(),
   );
 
 describe('SchemaBasedAnswerValidator', () => {

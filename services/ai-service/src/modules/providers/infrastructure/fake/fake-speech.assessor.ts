@@ -104,8 +104,8 @@ export class FakeSpeechAssessor implements SpeechAssessor {
 function pronunciation(reference: string[], heardAt: (i: number) => boolean): PronunciationScores {
   const words = reference.map((text, i) =>
     heardAt(i)
-      ? { text, accuracy: 90 - (i % 3) * 5, error: 'none' as const }
-      : { text, accuracy: 0, error: 'omission' as const },
+      ? { text, accuracy: 90 - (i % 3) * 5, error: 'none' as const, phonemes: [] }
+      : { text, accuracy: 0, error: 'omission' as const, phonemes: [] },
   );
   const spoken = words.filter((w) => w.error === 'none');
   return {

@@ -265,7 +265,31 @@ const BY_TEMPLATE: Readonly<Record<string, EvidenceStrength>> = {
   // nearest reading that still tells the two apart (decision Q1-A) — the pair `translate_from_target`
   // already holds. No `answerForm` and no `lowered`: nothing about the delivery hands an answer over.
   information_transfer: { successCap: 'GOOD', failureFloor: 'HARD' },
+
+  // Plan 86, step 13.5. A pronunciation session — a probe the engine builds from the learner's
+  // weak sounds — rates each sound itself, from takes measured by native thresholds, and sends
+  // the rating as the sound's gap (Q28). Success stops at GOOD: the best a session says is
+  // «passed on the first measured take», and a machine nobody checks does not get to call a
+  // sound effortless. Failure may reach AGAIN, because the doubt the floor exists for — one
+  // noisy take, a slip — is already taken out before the verdict: the session calls a sound
+  // AGAIN only after two measured misses, and a take it could not measure is no miss at all.
+  // See `ratesAtomsItself` — the modality does not lift this floor back to HARD.
+  sound_session: { successCap: 'GOOD', failureFloor: 'AGAIN' },
 };
+
+/**
+ * Templates whose per-atom verdicts already carry their own evidence rules (plan 86, step 13.5).
+ *
+ * For these the row above is the whole reading of an atom in `focus`: the modality's floor
+ * («a wrong string may be a misspelling») restates a doubt the template settled before it
+ * named the verdict, and applying it again would turn every lapse the template measured into a
+ * HARD. A `context` atom is still flattened — the role is not the template's to overrule.
+ */
+const RATES_ATOMS_ITSELF: ReadonlySet<string> = new Set(['sound_session']);
+
+export function ratesAtomsItself(templateCode: string | null | undefined): boolean {
+  return typeof templateCode === 'string' && RATES_ATOMS_ITSELF.has(templateCode);
+}
 
 /**
  * A model read the answer and ruled on it, and no person did (plan 79 §2.1, decision Q1).

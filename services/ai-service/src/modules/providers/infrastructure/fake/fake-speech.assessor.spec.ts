@@ -78,7 +78,7 @@ describe('FakeSpeechAssessor', () => {
     expect((await fake.assess(request({ pronunciation: true }), model('fake-speech', { pronunciation: false }))).pronunciation).toBeNull();
     const { pronunciation } = await fake.assess(request({ pronunciation: true }), model());
     expect(pronunciation!.words).toHaveLength(WORDS.length);
-    expect(pronunciation!.words[7]).toEqual({ text: 'bergen', accuracy: 0, error: 'omission' });
+    expect(pronunciation!.words[7]).toEqual({ text: 'bergen', accuracy: 0, error: 'omission', phonemes: [] });
     expect(pronunciation!.completeness).toBe(Math.round((14 * 100) / 15));
     expect(pronunciation!.prosody).toBeNull();
   });

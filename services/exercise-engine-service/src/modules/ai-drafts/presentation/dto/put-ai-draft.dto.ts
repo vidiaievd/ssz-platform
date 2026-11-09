@@ -7,13 +7,46 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  isUUID,
   MaxLength,
   Min,
   MinLength,
+  ValidateBy,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import type { ProposedDraft } from '../../domain/entities/attempt-ai-draft.entity.js';
+
+/**
+ * The atom a remark is about: a grammar rule (plan 85, step 3b; ai-service names only atoms the
+ * learner reached) or a sound family of a reading aloud (plan 88, step 5c; `nb:kj`).
+ */
+export class AiDraftAtomRefDto {
+  @IsIn(['grammar_rule_atom', 'sound'])
+  atomType!: 'grammar_rule_atom' | 'sound';
+
+  @IsAtomIdOfItsType()
+  atomId!: string;
+}
+
+/** `<language>:<family>` — the sound atom has no catalogue row yet (plan 86, step 8). */
+const SOUND_ATOM_ID = /^[a-z]{2,3}:[a-z_]{1,32}$/;
+
+/**
+ * A grammar atom's id is a UUID of any version (seeded content ids are uuidv5); a sound's is
+ * `SOUND_ATOM_ID`. One validator rather than two `ValidateIf`s: those combine with "and".
+ */
+function IsAtomIdOfItsType() {
+  return ValidateBy({
+    name: 'isAtomIdOfItsType',
+    validator: {
+      validate: (value: unknown, args) =>
+        typeof value === 'string' &&
+        ((args?.object as AiDraftAtomRefDto).atomType === 'sound' ? SOUND_ATOM_ID.test(value) : isUUID(value)),
+      defaultMessage: () => 'atomId must be a UUID for a grammar_rule_atom, `<language>:<family>` for a sound',
+    },
+  });
+}
 
 /** A suggested mark on one rubric criterion (step 1.7c), keyed by the attempt's rubric snapshot. */
 export class AiDraftMarkDto {
@@ -45,7 +78,8 @@ export class AiDraftRemarkDto {
   // or a key point said in words the phrase match missed (short_answer).
   // `task`, `structure`: about an essay as a whole (writing_task).
   // `content`: a key point an answer leaves out or gets wrong (short_answer).
-  @IsIn(['grammar', 'order', 'lexis', 'register', 'alternative', 'task', 'structure', 'content'])
+  // `pronunciation`: a weak sound of one word of a reading aloud (read_aloud, plan 88 step 5c).
+  @IsIn(['grammar', 'order', 'lexis', 'register', 'alternative', 'task', 'structure', 'content', 'pronunciation'])
   aspect!: string;
 
   /** Null only for a remark about the text as a whole; ai-service decides which aspects may. */
@@ -64,6 +98,18 @@ export class AiDraftRemarkDto {
   @IsString()
   @MaxLength(2000)
   suggestion!: string | null;
+
+  /** Absent or null when the remark names no atom. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AiDraftAtomRefDto)
+  atomRef?: AiDraftAtomRefDto | null;
+
+  /** A `pronunciation` remark's word: its index in the prompt's `reading.prompts[].pronunciation.words`. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  wordIndex?: number | null;
 }
 
 /**

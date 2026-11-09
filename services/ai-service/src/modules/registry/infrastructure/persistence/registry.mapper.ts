@@ -3,7 +3,7 @@ import type {
   AiModelPrice as PrismaPrice,
   AiProvider as PrismaProvider,
 } from '../../../../../generated/prisma/client.js';
-import type { ModelFeatures, SpeechFeatures } from '../../../providers/domain/model-features.js';
+import type { ModelFeatures, SpeechFeatures, TtsFeatures } from '../../../providers/domain/model-features.js';
 import type { AiModel, AiModelPrice, AiProvider } from '../../domain/registry.types.js';
 
 // Enum members are declared in their wire form in schema.prisma, so the generated
@@ -32,9 +32,14 @@ export function toModel(row: PrismaModel & { provider: { code: string } }): AiMo
     displayName: row.displayName,
     status: row.status,
   };
-  return row.modality === 'speech'
-    ? { ...base, modality: 'speech', features: row.features as unknown as SpeechFeatures }
-    : { ...base, modality: 'llm', features: row.features as unknown as ModelFeatures };
+  switch (row.modality) {
+    case 'speech':
+      return { ...base, modality: 'speech', features: row.features as unknown as SpeechFeatures };
+    case 'tts':
+      return { ...base, modality: 'tts', features: row.features as unknown as TtsFeatures };
+    default:
+      return { ...base, modality: 'llm', features: row.features as unknown as ModelFeatures };
+  }
 }
 
 export function toPrice(row: PrismaPrice): AiModelPrice {
@@ -45,6 +50,7 @@ export function toPrice(row: PrismaPrice): AiModelPrice {
     cacheReadPerMtok: row.cacheReadPerMtok.toString(),
     cacheWritePerMtok: row.cacheWritePerMtok.toString(),
     audioPerHour: row.audioPerHour.toString(),
+    charsPerMillion: row.charsPerMillion.toString(),
     currency: row.currency,
   };
 }

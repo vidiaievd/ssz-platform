@@ -150,6 +150,12 @@ model School {
   assistantMode       AssistantMode @default(all_students) @map("assistant_mode")
   assistantGroupIds   String[]      @default([]) @map("assistant_group_ids") @db.Uuid
   assistantStudentIds String[]      @default([]) @map("assistant_student_ids")
+  // Whether learners may have a model check their work before they hand it in (plan 84),
+  // and the school's limits on it; null = no limit of the school's own. The plan's
+  // `ai.practice` stays the ceiling and the pool. Off for a new school.
+  aiPrecheckEnabled                  Boolean @default(false) @map("ai_precheck_enabled")
+  aiPrecheckPerExerciseLimit         Int?    @default(3) @map("ai_precheck_per_exercise_limit")
+  aiPrecheckPerLearnerMonthlyCredits Int?    @map("ai_precheck_per_learner_monthly_credits")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?

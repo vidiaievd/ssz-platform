@@ -9,6 +9,9 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service.j
 import type { AtomEvidenceCreateManyInput } from '../../../../generated/prisma/models/AtomEvidence.js';
 import { SkillMasteryProjector } from '../mastery/skill-mastery.projector.js';
 
+/** Ratings of an atom's own card rather than of an exercise (plans 21, 63 phase 5, 86 step 8.3). */
+const ATOM_CARD_TYPES = new Set(['VOCABULARY_WORD', 'GRAMMAR_ATOM', 'SOUND_ATOM']);
+
 const PROCESSOR_ID = 'attempt-evidence';
 const QUEUE = 'analytics-service.metrics.attempt-evidence';
 const EXCHANGE = EXCHANGES.LEARNING;
@@ -126,8 +129,8 @@ export class AttemptEvidenceConsumer implements OnModuleInit, OnModuleDestroy {
   ): Promise<void> {
     // A word coming back through the fan-out is not an attempt at an exercise, and this
     // table's rows are counted as attempts in five places (plan 63 phase 3). It belongs
-    // in `atom_evidence` and nowhere else.
-    if (p.contentType === 'VOCABULARY_WORD' || p.contentType === 'GRAMMAR_ATOM') return;
+    // in `atom_evidence` and nowhere else. So does a sound family's card (plan 86, step 8.3).
+    if (ATOM_CARD_TYPES.has(p.contentType ?? '')) return;
 
     const form = p.answerForm ?? null;
 

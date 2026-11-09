@@ -1333,6 +1333,32 @@ describe('ExerciseAttemptedConsumer — grammar atom cards, in shadow', () => {
     });
   });
 
+  it('opens and rates a SOUND_ATOM card for a sound the exercise targets (plan 86, step 8.3)', async () => {
+    const { consumer, commandBus, publisher } = makeConsumer();
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        envelope(
+          attempt({
+            templateCode: 'read_aloud',
+            score: 40,
+            targets: [{ atomType: 'sound', atomId: 'nb:kj', role: 'focus' }],
+          }),
+        ),
+      ),
+    );
+
+    const introduced = commandsOf<any>(commandBus, IntroduceCardCommand).find(
+      (c) => c.contentType === 'SOUND_ATOM',
+    );
+    expect(introduced).toMatchObject({ contentId: 'nb:kj', shadow: true });
+    expect(commandsOf<any>(commandBus, ReviewCardCommand).at(-1)).toMatchObject({ shadow: true });
+    expect(allRated(publisher).at(-1)).toMatchObject({
+      contentType: 'SOUND_ATOM',
+      targets: [{ atomType: 'sound', atomId: 'nb:kj', role: 'focus' }],
+    });
+  });
+
   it('rates an atom once for an attempt that addressed it twice, keeping the lapse', async () => {
     // Two gaps, one right and one wrong, both pointing at the same rule. One answer must
     // move a card once, and the informative half of it is the failure.
@@ -1568,6 +1594,136 @@ describe('ExerciseAttemptedConsumer — work done on a disposable probe', () => 
         .filter((c: unknown): c is IntroduceCardCommand => c instanceof IntroduceCardCommand)
         .some((c) => c.contentType === 'EXERCISE'),
     ).toBe(true);
+  });
+});
+
+/**
+ * Plan 86, step 13.5 — the end-to-end check by a synthetic event. A pronunciation session is a
+ * probe (`ephemeral`) whose event carries one scored gap per sound it rated and no exercise-level
+ * target; the probe was opened as spoken production. What must come out: one shadow SOUND_ATOM
+ * rating per sound, exactly the session's (Q28) — the lapse included, which the production
+ * modality alone would have lifted to HARD — and nothing keyed by the probe.
+ */
+describe('ExerciseAttemptedConsumer — a pronunciation session (plan 86, step 13.5)', () => {
+  const sound = (atomId: string) => [{ atomType: 'sound', atomId, role: 'focus' }];
+
+  function sessionEvent(overrides: Record<string, unknown> = {}) {
+    return envelope({
+      userId: USER_ID,
+      exerciseId: EXERCISE_ID,
+      score: 67,
+      timeSpentSeconds: 120,
+      completed: true,
+      passed: false,
+      ephemeral: true,
+      modality: 'production',
+      templateCode: 'sound_session',
+      practicedAtoms: [],
+      gapResults: [
+        { gapKey: 'nb:kj', correct: true, score: 90, targets: sound('nb:kj') },
+        { gapKey: 'nb:sj', correct: true, score: 70, targets: sound('nb:sj') },
+        { gapKey: 'nb:r', correct: false, score: 0, targets: sound('nb:r') },
+      ],
+      ...overrides,
+    });
+  }
+
+  /** A card per atom, so that each review can be read back to its sound. */
+  function cardPerAtom() {
+    return makeConsumer({
+      commandBusExecute: (cmd: unknown) => {
+        if (cmd instanceof IntroduceCardCommand) {
+          return Promise.resolve(
+            Result.ok({ id: `card:${cmd.contentId}`, state: 'NEW', userId: USER_ID, reps: 0, lastReviewedAt: null }),
+          );
+        }
+        if (cmd instanceof ReviewCardCommand) {
+          return Promise.resolve(Result.ok({ id: cmd.cardId, state: 'REVIEW', userId: USER_ID }));
+        }
+        return Promise.resolve(Result.ok({}));
+      },
+    });
+  }
+
+  it('rates each sound by the session’s own rating — GOOD, HARD and the AGAIN as well', async () => {
+    const { consumer, commandBus } = cardPerAtom();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(sessionEvent()));
+
+    const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+    const introduced = calls.filter((c: unknown): c is IntroduceCardCommand => c instanceof IntroduceCardCommand);
+    const reviews = calls.filter((c: unknown): c is ReviewCardCommand => c instanceof ReviewCardCommand);
+
+    expect(introduced.map((c) => [c.contentType, c.contentId])).toEqual([
+      ['SOUND_ATOM', 'nb:kj'],
+      ['SOUND_ATOM', 'nb:sj'],
+      ['SOUND_ATOM', 'nb:r'],
+    ]);
+    expect(reviews.map((c) => [c.cardId, c.rating])).toEqual([
+      ['card:nb:kj', 'GOOD'],
+      ['card:nb:sj', 'HARD'],
+      ['card:nb:r', 'AGAIN'],
+    ]);
+  });
+
+  it('writes nothing keyed by the probe: no progress, no exercise card, no gap card', async () => {
+    const { consumer, commandBus } = cardPerAtom();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(sessionEvent()));
+
+    const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+    expect(calls.some((c) => c instanceof UpsertProgressCommand)).toBe(false);
+    expect(
+      calls
+        .filter((c: unknown): c is IntroduceCardCommand => c instanceof IntroduceCardCommand)
+        .some((c) => c.contentType === 'EXERCISE' || c.contentType === 'EXERCISE_GAP'),
+    ).toBe(false);
+  });
+
+  it('records each rating as a SOUND_ATOM rating of its sound', async () => {
+    const { consumer, publisher } = cardPerAtom();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(sessionEvent()));
+
+    const rated = publisher.publish.mock.calls
+      .filter((c: unknown[]) => c[0] === 'learning.attempt.rated')
+      .map((c: unknown[]) => c[1] as Record<string, unknown>);
+    expect(rated.map((r) => [r['contentType'], r['itemKey'], r['ratingApplied']])).toEqual([
+      ['SOUND_ATOM', 'nb:kj', 'GOOD'],
+      ['SOUND_ATOM', 'nb:sj', 'HARD'],
+      ['SOUND_ATOM', 'nb:r', 'AGAIN'],
+    ]);
+  });
+
+  it('a session with nothing rated changes no card', async () => {
+    const { consumer, commandBus } = cardPerAtom();
+
+    await (consumer as any).handleMessage(makeChannel(), makeMsg(sessionEvent({ gapResults: [] })));
+
+    const calls = commandBus.execute.mock.calls.map((c: unknown[]) => c[0]);
+    expect(calls.some((c) => c instanceof ReviewCardCommand)).toBe(false);
+  });
+
+  it('a gap with no score, or one out of range, is read by its verdict as before', async () => {
+    const { consumer, commandBus } = cardPerAtom();
+
+    await (consumer as any).handleMessage(
+      makeChannel(),
+      makeMsg(
+        sessionEvent({
+          gapResults: [
+            { gapKey: 'nb:kj', correct: true, targets: sound('nb:kj') },
+            { gapKey: 'nb:sj', correct: false, score: 140, targets: sound('nb:sj') },
+          ],
+        }),
+      ),
+    );
+
+    const reviews = commandBus.execute.mock.calls
+      .map((c: unknown[]) => c[0])
+      .filter((c: unknown): c is ReviewCardCommand => c instanceof ReviewCardCommand);
+    // 100 → EASY, capped at GOOD by the session's row; 0 → AGAIN.
+    expect(reviews.map((c) => c.rating)).toEqual(['GOOD', 'AGAIN']);
   });
 });
 

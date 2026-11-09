@@ -58,7 +58,8 @@ export function isPublicEntityType(entityType: string | null): boolean {
 // this assetId already means content-service/BFF let them see the lesson
 // that references it, so read access here only needs to widen past the
 // uploader (the school/teacher who authored it) to any authenticated user.
-const CONTENT_ENTITY_TYPES = new Set(['lesson_asset', 'exercise_asset']);
+// A reference clip (plan 88) is read the same way: made for every course, owned by the platform.
+const CONTENT_ENTITY_TYPES = new Set(['lesson_asset', 'exercise_asset', 'reference_clip']);
 
 export function isContentEntityType(entityType: string | null): boolean {
   return entityType !== null && CONTENT_ENTITY_TYPES.has(entityType);

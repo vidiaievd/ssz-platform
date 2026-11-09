@@ -1,15 +1,29 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Inject, Logger, Optional } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { AiGateway, type GatewaySpeechCall } from '../../../../gateway/application/ai-gateway.js';
+import { AiGateway, type GatewayCallOf, type GatewaySpeechCall } from '../../../../gateway/application/ai-gateway.js';
 import type { CallContext } from '../../../../ledger/domain/ai-call.js';
+import type { SoundExplanations } from '../../../pronunciation-explain/domain/sound-explanations.js';
+import { VOICE_REVIEW_EXPLAIN } from '../../../pronunciation-explain/pronunciation-explain.capability.js';
+import { SoundExplainer } from '../../../pronunciation-explain/application/sound-explainer.js';
 import type { DraftWriteMeta } from '../../../review-draft/application/ports/review-attempts.client.js';
+import { SCHOOL_LANGUAGE_READER, type ISchoolLanguageReader } from '../../../review-draft/application/ports/school-language.reader.js';
 import { REVIEW_QUEUE_SURFACE } from '../../../review-draft/application/draft-review/draft-review.handler.js';
 import { SchoolPayerResolver } from '../../../review-draft/application/school-payer.resolver.js';
 import { SELF_STUDY_SURFACE } from '../../../review-direct/application/direct-review/direct-review.handler.js';
 import { LearnerPayerResolver } from '../../../review-direct/application/learner-payer.resolver.js';
 import type { GiveUpReason } from '../../../review-direct/application/ports/direct-review-attempts.client.js';
+import { audible, recordingLevel } from '../../../../providers/domain/recording-level.js';
+import type { SpeechResult } from '../../../../providers/domain/speech-result.js';
+import { PassageSounds, type WordSounds } from '../../../../pronunciation/application/passage-sounds.js';
 import type { ReadAloudSubject } from '../../domain/read-aloud-subject.js';
+import {
+  explainedRemarks,
+  namedSoundsOfPrompt,
+  readingSoundRemarks,
+  type MeasuredPrompt,
+  type ReadingSoundRemark,
+} from '../../domain/reading-sounds.js';
 import { VOICE_REVIEW, VOICE_REVIEW_PRONUNCIATION } from '../../voice-review.capability.js';
 import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from '../ports/recording-audio.source.js';
 import {
@@ -66,8 +80,15 @@ type Heard =
  * the first — its credits spent — drops to the second rather than leave the reading unheard.
  *
  * Every take is fetched before the first call: a reading missing one cannot be ruled, and
- * nothing is paid for it. Then, as for a learner's text review, every way out without a
+ * nothing is paid for it — nor for one with a take no voice can be heard in (plan 88, step 4). Then, as for a learner's text review, every way out without a
  * verdict closes the attempt as `NO_REVIEWER`; at a school (plan 80) it is left to the teacher.
+ *
+ * Sounds (plan 88, step 5c): where the model scored them, every prompt's words are named against
+ * the lexicon at fluent-speech thresholds; the engine gets each word's sounds and a remark per
+ * word and family that fell short — the draft's only remarks, never part of the verdict.
+ * `voice_review_explain` explains them all in one call (step 5c.2), in the school's explanation
+ * language — English without a school, the inventory's own — under the pronunciation level's key;
+ * when it does not answer, the remarks keep the inventory's note and the reading is written as is.
  */
 @CommandHandler(VoiceReviewCommand)
 export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, VoiceReviewOutcome> {
@@ -79,6 +100,9 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
     private readonly schoolPayers: SchoolPayerResolver,
     @Inject(VOICE_REVIEW_ATTEMPTS_CLIENT) private readonly attempts: IVoiceReviewAttemptsClient,
     @Inject(RECORDING_AUDIO_SOURCE) private readonly recordings: IRecordingAudioSource,
+    private readonly passageSounds: PassageSounds,
+    @Inject(SCHOOL_LANGUAGE_READER) private readonly schools: ISchoolLanguageReader,
+    private readonly explainer: SoundExplainer,
     @Optional() @Inject(VOICE_WRITE_RETRY_MS) private readonly writeRetryMs: number = 1_000,
     @Optional() @Inject(VOICE_RECORDING_WAITS_MS) private readonly recordingWaitsMs: number[] = DEFAULT_RECORDING_WAITS_MS,
   ) {}
@@ -124,6 +148,7 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
         : VOICE_REVIEW.code;
 
     const hearings: PromptHearing[] = [];
+    const measured: MeasuredPrompt[] = [];
     const calls: GatewaySpeechCall[] = [];
     for (const prompt of subject.prompts) {
       let heard = await this.hear(capability, context, subject, prompt.itemId, prompt.text, takes.wavs.get(prompt.itemId)!);
@@ -138,15 +163,28 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
         await this.write(command.attemptId, { status: 'failed', errorCode: heard.errorCode }, metaOf(heard.call));
         return this.giveUp(command.attemptId, schoolId, 'failed', heard.errorCode, heard.call.recorded.callId);
       }
-      hearings.push(heard.hearing);
+      const sounds = await this.soundsOf(subject.targetLanguage, prompt.text, heard.hearing);
+      hearings.push({ ...heard.hearing, sounds: namedSoundsOfPrompt(sounds) });
+      measured.push({ itemId: prompt.itemId, scored: heard.hearing.pronunciation?.words ?? [], sounds });
       calls.push(heard.call);
+    }
+    let remarks = readingSoundRemarks(subject.targetLanguage, measured);
+    let summary: string | null = null;
+    let explainCallId: string | null = null;
+    if (remarks.length > 0) {
+      const explained = await this.explainSounds(schoolId, context, subject.targetLanguage, remarks);
+      explainCallId = explained.call.recorded.callId;
+      if (explained.explanations) {
+        remarks = explainedRemarks(remarks, explained.explanations);
+        summary = explained.explanations.summary;
+      }
     }
 
     // The first prompt's call stands for the review — its key at the engine; every prompt
     // carries its own call in what was heard.
     const meta = metaOf(calls[0]!);
     const lastCallId = calls[calls.length - 1]!.recorded.callId;
-    const written = await this.write(command.attemptId, { status: 'ready', prompts: hearings }, meta);
+    const written = await this.write(command.attemptId, { status: 'ready', prompts: hearings, remarks, summary }, meta);
     if (written === null) return this.giveUp(command.attemptId, schoolId, 'failed', 'reading_write_lost', lastCallId);
     if (!written.written) {
       return this.giveUp(command.attemptId, schoolId, 'failed', `engine_${written.code.toLowerCase()}`, lastCallId);
@@ -156,8 +194,38 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
       attemptStatus: written.attemptStatus,
       provisional: written.provisional,
       capability,
-      aiCallIds: calls.map((c) => c.recorded.callId),
+      aiCallIds: [...calls.map((c) => c.recorded.callId), ...(explainCallId === null ? [] : [explainCallId])],
     };
+  }
+
+  /**
+   * The weak sounds explained by a model (plan 88, step 5c.2; base of plan 86, step 9.2), all in
+   * one call, in the school's language — English, the inventory's, without one.
+   */
+  private async explainSounds(
+    schoolId: string | null,
+    context: CallContext,
+    targetLanguage: string,
+    remarks: readonly ReadingSoundRemark[],
+  ): Promise<{ call: GatewayCallOf<unknown>; explanations: SoundExplanations | null }> {
+    const school = schoolId === null ? null : await this.schoolLanguage(schoolId);
+    return this.explainer.explain({
+      capability: VOICE_REVIEW_EXPLAIN.code,
+      context,
+      targetLanguage,
+      explanationLanguage: school ?? 'en',
+      sounds: remarks.map((r) => r.finding),
+      what: 'a handed-in reading',
+    });
+  }
+
+  private async schoolLanguage(schoolId: string): Promise<string | null> {
+    try {
+      return await this.schools.explanationLanguage(schoolId);
+    } catch (err) {
+      this.logger.warn(`Explanation language of school ${schoolId} unreadable: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
   }
 
   private async hear(
@@ -198,12 +266,30 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
   }
 
   /**
+   * The prompt's sounds, as a nicety: the reading is ruled on its words, and a lexicon that
+   * cannot be read leaves them without sounds rather than lose the paid call.
+   */
+  private async soundsOf(
+    language: string,
+    passage: string,
+    heard: Pick<SpeechResult, 'pronunciation'>,
+  ): Promise<WordSounds[] | null> {
+    if (!heard.pronunciation) return null;
+    try {
+      return await this.passageSounds.of(language, passage, heard.pronunciation.words, 'fluent');
+    } catch (err) {
+      this.logger.warn(`Sounds of a handed-in passage not measured: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
+  }
+
+  /**
    * Every prompt's speech WAV, asking again while media is still converting a take. Throws when
    * media cannot answer — before any model call, so the event's redelivery is the retry.
    */
   private async takes(
     subject: ReadAloudSubject,
-  ): Promise<{ kind: 'ready'; wavs: Map<string, Uint8Array> } | { kind: 'missing' | 'not_ready' }> {
+  ): Promise<{ kind: 'ready'; wavs: Map<string, Uint8Array> } | { kind: 'missing' | 'not_ready' | 'inaudible' }> {
     const wavs = new Map<string, Uint8Array>();
     for (let round = 0; ; round++) {
       let pending = false;
@@ -214,10 +300,29 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
         if (audio.kind === 'pending') pending = true;
         else wavs.set(prompt.itemId, audio.wav);
       }
-      if (!pending) return { kind: 'ready', wavs };
+      if (!pending) return this.audibleTakes(subject, wavs);
       if (round >= this.recordingWaitsMs.length) return { kind: 'not_ready' };
       await sleep(this.recordingWaitsMs[round]);
     }
+  }
+  /**
+   * The takes, unless one is too quiet or too noisy for a voice to be heard in it (plan 88,
+   * step 4): Azure would hear nothing and be paid for it, and the reading would read as not read.
+   */
+  private audibleTakes(
+    subject: ReadAloudSubject,
+    wavs: Map<string, Uint8Array>,
+  ): { kind: 'ready'; wavs: Map<string, Uint8Array> } | { kind: 'inaudible' } {
+    for (const prompt of subject.prompts) {
+      const level = recordingLevel(wavs.get(prompt.itemId)!);
+      if (!audible(level)) {
+        this.logger.warn(
+          `Take ${prompt.assetId} inaudible: voice ${level!.speechDb} dBFS, ${level!.contrastDb} dB over its noise`,
+        );
+        return { kind: 'inaudible' };
+      }
+    }
+    return { kind: 'ready', wavs };
   }
 
   /**

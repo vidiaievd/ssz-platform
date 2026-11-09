@@ -5,20 +5,23 @@ import {
   IsEnum,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   MinLength,
   ValidateNested,
 } from 'class-validator';
 import { AtomType, TargetRole } from '../../../domain/value-objects/atom-type.vo.js';
+import { IsAtomIdOfItsType } from '../../utils/is-atom-id-of-its-type.js';
 
 export class ItemTargetDto {
   @ApiProperty({ enum: AtomType, example: AtomType.GRAMMAR_RULE_ATOM })
   @IsEnum(AtomType)
   atomType!: AtomType;
 
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
+  @ApiProperty({
+    description: 'A uuid for a word or a grammar atom; `<language>:<family>` for a sound.',
+    examples: ['3f1c2a9e-0b7d-4e5a-9c61-2d8f4b7a1e03', 'nb:kj'],
+  })
+  @IsAtomIdOfItsType()
   atomId!: string;
 
   @ApiProperty({

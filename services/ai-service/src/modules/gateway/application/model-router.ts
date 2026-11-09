@@ -9,11 +9,14 @@ import type { ModelModality } from '../../providers/domain/model-features.js';
 import { SPEECH_ASSESSORS, type SpeechAssessor } from '../../providers/domain/speech-assessor.port.js';
 import type { SpeechRequest } from '../../providers/domain/speech-request.js';
 import type { SpeechResult } from '../../providers/domain/speech-result.js';
+import { SPEECH_SYNTHESIZERS, type SpeechSynthesizer } from '../../providers/domain/speech-synthesizer.port.js';
+import { billedCharacters, voiceOf, type SynthesisRequest } from '../../providers/domain/synthesis-request.js';
+import type { SynthesisResult } from '../../providers/domain/synthesis-result.js';
 import { wavDurationMs } from '../../providers/domain/wav.js';
 import { BINDING_SOURCE, type IBindingSource } from '../../registry/application/ports/binding.source.js';
 import { CREDENTIAL_PRESENCE, type ICredentialPresence } from '../../registry/application/ports/credential-presence.js';
 import { REGISTRY_READER, type IRegistryReader, type ModelForCall } from '../../registry/application/ports/registry.reader.js';
-import { llmModelRef, speechModelRef } from '../../registry/application/model-ref.js';
+import { llmModelRef, speechModelRef, ttsModelRef } from '../../registry/application/model-ref.js';
 import { providerReadiness } from '../../registry/application/provider-readiness.js';
 import type { AiBinding } from '../../registry/domain/binding.js';
 import type { AiRegion } from '../../registry/domain/registry.types.js';
@@ -32,6 +35,9 @@ export type GatewayInput = GatewayRequest | ((promptVersion: string) => GatewayR
 
 /** A recording as a voice capability states it; the timeout comes from the binding (plan 82, step 8). */
 export type SpeechGatewayRequest = Omit<SpeechRequest, 'timeoutMs'>;
+
+/** A text to speak as a synthesis capability states it; the timeout comes from the binding (plan 88, step 6b). */
+export type SynthesisGatewayRequest = Omit<SynthesisRequest, 'timeoutMs'>;
 
 /**
  * Hears an answer as the model writes it (plan 83, step 9): `text` gets each piece, raw and
@@ -62,6 +68,10 @@ export type SkipReason =
   | 'language_not_supported'
   /** A speech model whose `maxAudioSeconds` is shorter than the recording (Azure REST: 30 s, step 9). */
   | 'audio_too_long'
+  /** A synthesizer without the voice asked for (plan 88, step 6b). */
+  | 'voice_not_supported'
+  /** A synthesizer whose `maxCharacters` is shorter than the text. */
+  | 'text_too_long'
   /** The provider's region is not one the payer allows. */
   | 'region_not_allowed'
   | 'model_disabled'
@@ -113,13 +123,15 @@ export type RoutedCall = Routed<LlmResult>;
 export type RouteFailure = RouteFailureOf<LlmResult>;
 export type RoutedSpeech = Routed<SpeechResult>;
 export type SpeechRouteFailure = RouteFailureOf<SpeechResult>;
+export type RoutedSynthesis = Routed<SynthesisResult>;
+export type SynthesisRouteFailure = RouteFailureOf<SynthesisResult>;
 
-/** One model of the route, called: the answer, or a refused answer as an error beside it. */
-/** What a speech model must take for a recording; `audioMs` null = not a readable WAV (the adapter refuses it). */
-interface RecordingFit {
-  language: string;
-  audioMs: number | null;
-}
+/**
+ * Why this model cannot take this input although it is of the right modality — a recording's
+ * language or length, a text's voice or length — or null. Such a model is stepped over to the
+ * fallback like a switched-off one.
+ */
+type InputFit = (model: ModelForCall) => SkipReason | null;
 
 type Invoke<R> = (model: ModelForCall) => (() => Promise<Result<R, { error: LlmError; raw: R }>>) | null;
 
@@ -141,6 +153,10 @@ type Invoke<R> = (model: ModelForCall) => (() => Promise<Result<R, { error: LlmE
  * only speech models, through the speech adapters, and a model that does not list the
  * recording's language, or takes less audio than the recording is long, is stepped over to the
  * fallback like a switched-off one.
+ *
+ * A synthesis capability (plan 88, step 6b) takes it with a text — `callSynthesis`: only `tts`
+ * models; one without the language or the voice asked for, or that takes fewer characters than
+ * the text has, is stepped over the same way.
  */
 @Injectable()
 export class ModelRouter {
@@ -152,6 +168,7 @@ export class ModelRouter {
     @Inject(CIRCUIT_BREAKER) private readonly breaker: ICircuitBreaker,
     private readonly guard: SchemaGuard,
     @Inject(SPEECH_ASSESSORS) private readonly assessors: SpeechAssessor[] = [],
+    @Inject(SPEECH_SYNTHESIZERS) private readonly synthesizers: SpeechSynthesizer[] = [],
   ) {}
 
   /** With a `listener`, each model is asked through its adapter's `stream` and the answer's text is passed on as it comes. */
@@ -200,8 +217,60 @@ export class ModelRouter {
       if (!adapter || !ref) return null;
       return async () => Result.ok(await adapter.assess(request, ref));
     };
-    const recording: RecordingFit = { language: request.language, audioMs: wavDurationMs(request.audio.data) };
-    return this.route(binding, 'speech', constraints, invoke, recording);
+    // Null = not a readable WAV: the adapter refuses it.
+    const audioMs = wavDurationMs(request.audio.data);
+    const fit: InputFit = ({ model }) => {
+      if (model.modality !== 'speech') return null;
+      if (!model.features.languages.includes(request.language)) return 'language_not_supported';
+      if (audioMs !== null && audioMs > model.features.maxAudioSeconds * 1000) return 'audio_too_long';
+      return null;
+    };
+    return this.route(binding, 'speech', constraints, invoke, fit);
+  }
+
+  /** A text to a synthesis capability's synthesizers (plan 88, step 6b). */
+  async callSynthesis(
+    capability: string,
+    input: SynthesisGatewayRequest,
+    constraints: RouteConstraints = NO_CONSTRAINTS,
+  ): Promise<Result<RoutedSynthesis, SynthesisRouteFailure>> {
+    const binding = await this.bindings.get(capability);
+    if (!binding || !binding.enabled) return Result.fail({ kind: 'disabled', binding, attempts: [] });
+
+    const request: SynthesisRequest = { ...input, timeoutMs: binding.timeoutMs };
+    const invoke: Invoke<SynthesisResult> = (model) => {
+      const adapter = this.synthesizers.find((s) => s.kind === model.provider.kind);
+      const ref = ttsModelRef(model);
+      if (!adapter || !ref) return null;
+      return async () => Result.ok(await adapter.synthesize(request, ref));
+    };
+    const characters = billedCharacters(request.text);
+    const fit: InputFit = ({ model }) => {
+      if (model.modality !== 'tts') return null;
+      if (!model.features.languages.includes(request.language)) return 'language_not_supported';
+      if (!voiceOf(model.features, request.language, request.voice)) return 'voice_not_supported';
+      if (characters > model.features.maxCharacters) return 'text_too_long';
+      return null;
+    };
+    return this.route(binding, 'tts', constraints, invoke, fit);
+  }
+
+  /**
+   * The voices a synthesis capability's models speak `language` with, the primary's first, each
+   * once (plan 88, step 6b.2): what a caller may try one after another. Empty when the capability
+   * is unbound or off, or no model of it has the language.
+   */
+  async voicesOf(capability: string, language: string): Promise<string[]> {
+    const binding = await this.bindings.get(capability);
+    if (!binding || !binding.enabled) return [];
+    const voices: string[] = [];
+    for (const modelId of [binding.primaryModelId, binding.fallbackModelId]) {
+      if (!modelId) continue;
+      const model = (await this.registry.getModelForCall(modelId, new Date()))?.model;
+      if (model?.modality !== 'tts' || !model.features.languages.includes(language)) continue;
+      for (const voice of model.features.voices[language] ?? []) if (!voices.includes(voice)) voices.push(voice);
+    }
+    return voices;
   }
 
   /**
@@ -214,7 +283,7 @@ export class ModelRouter {
     modality: ModelModality,
     constraints: RouteConstraints,
     invoke: Invoke<R>,
-    recording: RecordingFit | null = null,
+    fit: InputFit | null = null,
   ): Promise<Result<Routed<R>, RouteFailureOf<R>>> {
     const candidates: Array<{ role: ModelRole; modelId: string }> = [{ role: 'primary', modelId: binding.primaryModelId }];
     if (binding.fallbackModelId) candidates.push({ role: 'fallback', modelId: binding.fallbackModelId });
@@ -224,7 +293,7 @@ export class ModelRouter {
 
     for (const { role, modelId } of candidates) {
       const model = await this.registry.getModelForCall(modelId, new Date());
-      const skip = await this.skipReason(model, modality, constraints, recording);
+      const skip = await this.skipReason(model, modality, constraints, fit);
       const called = !skip && model ? invoke(model) : null;
       if (!model || !called) {
         attempts.push({ role, modelId, outcome: 'skipped', reason: skip ?? 'no_adapter' });
@@ -263,7 +332,7 @@ export class ModelRouter {
     model: ModelForCall | null,
     modality: ModelModality,
     constraints: RouteConstraints,
-    recording: RecordingFit | null,
+    fit: InputFit | null,
   ): Promise<SkipReason | null> {
     if (!model) return 'model_missing';
     if (model.model.modality !== modality) return 'wrong_modality';
@@ -271,11 +340,8 @@ export class ModelRouter {
     if (model.model.status === 'disabled') return 'model_disabled';
     if (!model.provider.enabled) return 'provider_disabled';
     if (!providerReadiness(model.provider, this.credentials).configured) return 'provider_not_configured';
-    if (recording && model.model.modality === 'speech') {
-      const { features } = model.model;
-      if (!features.languages.includes(recording.language)) return 'language_not_supported';
-      if (recording.audioMs !== null && recording.audioMs > features.maxAudioSeconds * 1000) return 'audio_too_long';
-    }
+    const unfit = fit?.(model) ?? null;
+    if (unfit) return unfit;
     if (await this.breaker.isOpen(model.model.id)) return 'breaker_open';
     return null;
   }

@@ -94,6 +94,8 @@ export interface ReviewSubjectResult {
   attemptId: string;
   userId: string;
   schoolId: string | null;
+  /** The course the attempt sits in; null outside one. Absent from an engine before plan 85 (step 3b). */
+  courseId?: string | null;
   templateCode: string;
   /** `ATTEMPT_NOT_IN_REVIEW`, `NO_TEACHER_REVIEW`, `DRAFT_EXISTS`, `TEMPLATE_NOT_SUPPORTED`, `EXERCISE_GONE`. */
   skip: string | null;

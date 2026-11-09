@@ -2,9 +2,29 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/configuration.js';
 import { GatewayModule } from '../gateway/gateway.module.js';
+import { PronunciationModule } from '../pronunciation/pronunciation.module.js';
 import { AdminPayerResolver } from './application/admin-payer.resolver.js';
 import { RunDiagnosticHandler } from './diagnostic/application/run-diagnostic.handler.js';
 import { AdminDiagnosticController } from './diagnostic/presentation/admin-diagnostic.controller.js';
+import { PRACTICE_USAGE_READER } from './practice/application/ports/practice-usage.reader.js';
+import { PrecheckHandler } from './practice/application/precheck/precheck.handler.js';
+import { PrismaPracticeUsageReader } from './practice/infrastructure/prisma-practice-usage.reader.js';
+import { SentenceCheckHandler } from './practice/application/sentence-check/sentence-check.handler.js';
+import { SENTENCE_CHECK_LIMITER } from './practice/application/ports/sentence-check.limiter.js';
+import { RedisSentenceCheckLimiter } from './practice/infrastructure/redis-sentence-check.limiter.js';
+import { InternalSentenceChecksController } from './practice/presentation/internal-sentence-checks.controller.js';
+import { InternalPrecheckController } from './practice/presentation/internal-precheck.controller.js';
+import { CheckReferenceWordsHandler } from './reference-synthesis/application/check-reference-words/check-reference-words.handler.js';
+import { MakeReferenceClipHandler } from './reference-synthesis/application/make-reference-clip/make-reference-clip.handler.js';
+import { InternalReferenceClipsController } from './reference-synthesis/presentation/internal-reference-clips.controller.js';
+import { SuggestPhraseMarksHandler } from './prosody-markup/application/suggest-phrase-marks/suggest-phrase-marks.handler.js';
+import { InternalPhraseMarksController } from './prosody-markup/presentation/internal-phrase-marks.controller.js';
+import { CheckTonemeHandler } from './toneme-check/application/check-toneme/check-toneme.handler.js';
+import { InternalTonemeChecksController } from './toneme-check/presentation/internal-toneme-checks.controller.js';
+import { AdmitSoundSessionHandler } from './sound-session/application/admit-sound-session/admit-sound-session.handler.js';
+import { SOUND_SESSION_LIMITER } from './sound-session/application/ports/sound-session.limiter.js';
+import { RedisSoundSessionLimiter } from './sound-session/infrastructure/redis-sound-session.limiter.js';
+import { InternalSoundSessionsController } from './sound-session/presentation/internal-sound-sessions.controller.js';
 import { DirectReviewHandler } from './review-direct/application/direct-review/direct-review.handler.js';
 import { LearnerPayerResolver } from './review-direct/application/learner-payer.resolver.js';
 import { DIRECT_REVIEW_ATTEMPTS_CLIENT } from './review-direct/application/ports/direct-review-attempts.client.js';
@@ -52,6 +72,15 @@ import { DraftReviewHandler } from './review-draft/application/draft-review/draf
 import { REVIEW_ATTEMPTS_CLIENT } from './review-draft/application/ports/review-attempts.client.js';
 import { SCHOOL_LANGUAGE_READER } from './review-draft/application/ports/school-language.reader.js';
 import { SchoolPayerResolver } from './review-draft/application/school-payer.resolver.js';
+import { AtomCatalogResolver } from './grammar-atoms/application/atom-catalog.resolver.js';
+import {
+  COURSE_ATOM_CATALOG_READER,
+  LEARNER_GRAMMAR_ATOMS_READER,
+} from './grammar-atoms/application/ports/grammar-atoms.readers.js';
+import { HttpCourseAtomCatalogReader, HttpLearnerGrammarAtomsReader } from './grammar-atoms/infrastructure/http-grammar-atoms.readers.js';
+import { SoundExplainer } from './pronunciation-explain/application/sound-explainer.js';
+import { SOUND_BASE_READER } from './pronunciation-explain/application/ports/sound-base.reader.js';
+import { HttpSoundBaseReader } from './pronunciation-explain/infrastructure/http-sound-base.reader.js';
 import { TryTranslateReviewHandler } from './review-draft/application/try-translate-review.handler.js';
 import { HttpReviewAttemptsClient } from './review-draft/infrastructure/http-review-attempts.client.js';
 import { HttpSchoolLanguageReader } from './review-draft/infrastructure/http-school-language.reader.js';
@@ -63,7 +92,9 @@ import { ReviewEvalRunner } from './review-draft/eval/application/review-eval-ru
 import { RunReviewEvalHandler } from './review-draft/eval/application/run-review-eval.handler.js';
 import { PrismaEvalRunRepository } from './review-draft/eval/infrastructure/prisma-eval-run.repository.js';
 import { AdminReviewEvalsController } from './review-draft/eval/presentation/admin-review-evals.controller.js';
-import { RECORDING_AUDIO_SOURCE } from './voice-review/application/ports/recording-audio.source.js';
+import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from './voice-review/application/ports/recording-audio.source.js';
+import { REFERENCE_CLIP_SOURCE } from './toneme-check/application/ports/reference-clip.source.js';
+import { HttpReferenceClipSource } from './toneme-check/infrastructure/http-reference-clip.source.js';
 import { VOICE_REVIEW_ATTEMPTS_CLIENT } from './voice-review/application/ports/voice-review-attempts.client.js';
 import { VoiceReviewHandler } from './voice-review/application/voice-review/voice-review.handler.js';
 import { HttpRecordingAudioSource } from './voice-review/infrastructure/http-recording-audio.source.js';
@@ -77,10 +108,10 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
 
 /**
  * Agents: `diagnostic` (plan 77), `review_draft` and `review_direct` (plan 79), `voice_review`
- * (plan 82); each agent plan adds its own folder here.
+ * (plan 82), `practice` (plan 84); each agent plan adds its own folder here.
  */
 @Module({
-  imports: [GatewayModule],
+  imports: [GatewayModule, PronunciationModule],
   controllers: [
     AdminDiagnosticController,
     AdminReviewDraftController,
@@ -88,6 +119,12 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     AdminVoiceEvalsController,
     AdminAssistEvalsController,
     AssistController,
+    InternalPrecheckController,
+    InternalSentenceChecksController,
+    InternalReferenceClipsController,
+    InternalTonemeChecksController,
+    InternalSoundSessionsController,
+    InternalPhraseMarksController,
   ],
   providers: [
     // the learner's HTTP API of the assistant (plan 83, step 5)
@@ -169,6 +206,41 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     LearnerPayerResolver,
     // voice_review of a reading aloud, from the same event (plan 82, step 8)
     VoiceReviewHandler,
+    // a rehearsal before hand-in, asked by exercise-engine (plan 84, step 2), and its limits (step 3)
+    PrecheckHandler,
+    SentenceCheckHandler,
+    { provide: SENTENCE_CHECK_LIMITER, useClass: RedisSentenceCheckLimiter },
+    MakeReferenceClipHandler,
+    CheckReferenceWordsHandler,
+    CheckTonemeHandler,
+    // the pronunciation session's door and its limits (plan 86, step 14.1)
+    AdmitSoundSessionHandler,
+    { provide: SOUND_SESSION_LIMITER, useClass: RedisSoundSessionLimiter },
+    // phrase marks suggested to the prosody editor (plan 86, step 5c)
+    SuggestPhraseMarksHandler,
+    { provide: PRACTICE_USAGE_READER, useClass: PrismaPracticeUsageReader },
+    // the learner's grammar atoms a remark may name (plan 85, step 3)
+    AtomCatalogResolver,
+    {
+      provide: LEARNER_GRAMMAR_ATOMS_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpLearnerGrammarAtomsReader(config.get<string>('learningServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: COURSE_ATOM_CATALOG_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpCourseAtomCatalogReader(config.get<string>('contentServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    // the articulation base an explanation of weak sounds quotes (plan 86, step 9.2)
+    SoundExplainer,
+    {
+      provide: SOUND_BASE_READER,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig>) =>
+        new HttpSoundBaseReader(config.get<string>('contentServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
     // candidate models measured on the settled drafts (plan 79, step 1.6)
     RunReviewEvalHandler,
     ListReviewEvalRunsHandler,
@@ -214,6 +286,12 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfig>) =>
         new HttpRecordingAudioSource(config.get<string>('mediaServiceUrl')!, config.get<string>('internalServiceToken')!),
+    },
+    {
+      provide: REFERENCE_CLIP_SOURCE,
+      inject: [ConfigService, RECORDING_AUDIO_SOURCE],
+      useFactory: (config: ConfigService<AppConfig>, recordings: IRecordingAudioSource) =>
+        new HttpReferenceClipSource(config.get<string>('mediaServiceUrl')!, config.get<string>('internalServiceToken')!, recordings),
     },
     {
       provide: LEARNER_LANGUAGE_READER,

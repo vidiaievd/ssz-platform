@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsUUID } from 'class-validator';
+import type { ReferenceCheck } from '../../domain/entities/media-asset.entity.js';
 
 export class AssetVariantResponseDto {
   @ApiProperty({ example: 'thumb_256' })
@@ -56,6 +57,14 @@ export class AssetSynthesisResponseDto {
 
   @ApiPropertyOptional({ example: 'KON', description: 'The speaker inside a multi-speaker voice model' })
   speaker?: string;
+
+  @ApiPropertyOptional({
+    type: Object,
+    description:
+      'A reference clip only (plan 88): `{ word, sentence, tone, wordSpan, stressedVowel, tries }` — the toneme the ' +
+      'clip was checked against, where the word and its stressed vowel are, and every voice ai-service tried',
+  })
+  reference?: ReferenceCheck;
 }
 
 export class AssetResponseDto {

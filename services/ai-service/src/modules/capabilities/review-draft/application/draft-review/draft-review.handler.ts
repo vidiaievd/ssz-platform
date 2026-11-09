@@ -16,6 +16,8 @@ import { toReviewSubject, unaskable } from '../review-input.js';
 import { SCHOOL_LANGUAGE_READER, type ISchoolLanguageReader } from '../ports/school-language.reader.js';
 import { SchoolPayerResolver } from '../school-payer.resolver.js';
 import { DraftReviewCommand } from './draft-review.command.js';
+import { AtomCatalogResolver } from '../../../grammar-atoms/application/atom-catalog.resolver.js';
+import { EMPTY_CATALOG, GRAMMAR_ASPECTS } from '../../../grammar-atoms/domain/atom-catalog.js';
 
 /** Templates with a review prompt: the first wave, then `error_correction` (1.7a), `writing_task` (1.7b) and `short_answer` (1.7e). */
 const FIRST_WAVE = ['translate_to_target', 'translate_from_target', 'error_correction', 'writing_task', 'short_answer'];
@@ -56,6 +58,7 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
     private readonly payers: SchoolPayerResolver,
     @Inject(REVIEW_ATTEMPTS_CLIENT) private readonly attempts: IReviewAttemptsClient,
     @Inject(SCHOOL_LANGUAGE_READER) private readonly schools: ISchoolLanguageReader,
+    private readonly atomCatalogs: AtomCatalogResolver,
     @Optional() @Inject(DRAFT_WRITE_RETRY_MS) private readonly writeRetryMs: number = 1_000,
   ) {}
 
@@ -73,7 +76,12 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
     const unasked = unaskable(found.subject);
     if (unasked) return { kind: 'skipped', reason: unasked };
 
-    const subject = toReviewSubject(found.subject, await this.schoolLanguage(found.schoolId));
+    const language = await this.schoolLanguage(found.schoolId);
+    const subject = toReviewSubject(found.subject, language);
+    // Only worth reading when a grammar aspect is checked: no other remark names an atom.
+    const catalog = subject.input.aspects.some((aspect) => GRAMMAR_ASPECTS.has(aspect))
+      ? await this.atomCatalogs.forLearner({ userId: found.userId, courseId: found.courseId ?? null, language: language ?? 'en' })
+      : EMPTY_CATALOG;
 
     const context: CallContext = {
       payer: await this.payers.resolve({ schoolId: found.schoolId }),
@@ -81,7 +89,7 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
       surface: REVIEW_QUEUE_SURFACE,
     };
     const call = await this.gateway.call(REVIEW_DRAFT.code, context, (promptVersion) =>
-      reviewRequest(promptVersion, subject),
+      reviewRequest(promptVersion, subject, catalog),
     );
     const report = describeCall(REVIEW_DRAFT.code, context, call);
 
@@ -92,7 +100,7 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
 
     const draft: DraftToWrite =
       report.outcome === 'ok' && report.output?.kind === 'structured'
-        ? { status: 'ready', ...toReviewDraft(report.output.data, subject.input) }
+        ? { status: 'ready', ...toReviewDraft(report.output.data, subject.input, catalog) }
         : { status: 'failed', errorCode: report.errorCode ?? 'invalid_response' };
     const meta = {
       aiCallId: report.callId,

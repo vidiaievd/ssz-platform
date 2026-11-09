@@ -4,3 +4,4 @@ export * from './enums/index.js';
 export * from './utils/index.js';
 export * from './dto/internal/index.js';
 export * from './dto/notification/index.js';
+export * from './dto/ai/index.js';

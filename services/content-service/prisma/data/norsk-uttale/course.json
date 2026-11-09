@@ -1,0 +1,355 @@
+{
+  "lessons": [
+    {
+      "key": "01",
+      "num": 1,
+      "level": "A1",
+      "title": "Lang og kort",
+      "sound": "nb:vowel_length",
+      "atoms": [
+        "nb:vowel_length"
+      ]
+    },
+    {
+      "key": "02",
+      "num": 2,
+      "level": "A1",
+      "title": "Trykk og trykklett e",
+      "sound": "nb:schwa",
+      "atoms": [
+        "nb:schwa"
+      ]
+    },
+    {
+      "key": "03",
+      "num": 3,
+      "level": "A1",
+      "title": "Y",
+      "sound": "nb:y",
+      "atoms": [
+        "nb:y"
+      ]
+    },
+    {
+      "key": "04",
+      "num": 4,
+      "level": "A1",
+      "title": "U og o",
+      "sound": "nb:uu",
+      "atoms": [
+        "nb:uu"
+      ]
+    },
+    {
+      "key": "05",
+      "num": 5,
+      "level": "A1",
+      "title": "Ø og æ",
+      "sound": "nb:oe, nb:ae",
+      "atoms": [
+        "nb:oe",
+        "nb:ae"
+      ]
+    },
+    {
+      "key": "06",
+      "num": 6,
+      "level": "A1",
+      "title": "Kj-lyden",
+      "sound": "nb:kj",
+      "atoms": [
+        "nb:kj"
+      ]
+    },
+    {
+      "key": "07",
+      "num": 7,
+      "level": "A1",
+      "title": "Sj og skj",
+      "sound": "nb:sj",
+      "atoms": [
+        "nb:sj"
+      ]
+    },
+    {
+      "key": "08",
+      "num": 8,
+      "level": "A1",
+      "title": "R",
+      "sound": "nb:r",
+      "atoms": [
+        "nb:r"
+      ]
+    },
+    {
+      "key": "09",
+      "num": 9,
+      "level": "A1",
+      "title": "Hør melodien",
+      "sound": "nb:tone (на слух)",
+      "atoms": [
+        "nb:tone"
+      ]
+    },
+    {
+      "key": "10",
+      "num": 10,
+      "level": "A1",
+      "title": "Repetisjon A1",
+      "sound": "все A1",
+      "atoms": [
+        "nb:vowel_length",
+        "nb:schwa",
+        "nb:y",
+        "nb:uu",
+        "nb:oe",
+        "nb:ae",
+        "nb:kj",
+        "nb:sj",
+        "nb:r",
+        "nb:tone"
+      ]
+    },
+    {
+      "key": "11",
+      "num": 11,
+      "level": "A2",
+      "title": "Lang og kort i fraser",
+      "sound": "nb:vowel_length",
+      "atoms": [
+        "nb:vowel_length"
+      ]
+    },
+    {
+      "key": "12",
+      "num": 12,
+      "level": "A2",
+      "title": "Trykk i lånord og fraser",
+      "sound": "nb:schwa",
+      "atoms": [
+        "nb:schwa"
+      ]
+    },
+    {
+      "key": "13",
+      "num": 13,
+      "level": "A2",
+      "title": "U, o og y",
+      "sound": "nb:uu, nb:y",
+      "atoms": [
+        "nb:uu",
+        "nb:y"
+      ]
+    },
+    {
+      "key": "14",
+      "num": 14,
+      "level": "A2",
+      "title": "E, ø og æ",
+      "sound": "nb:oe, nb:ae",
+      "atoms": [
+        "nb:oe",
+        "nb:ae"
+      ]
+    },
+    {
+      "key": "15",
+      "num": 15,
+      "level": "A2",
+      "title": "Kj eller sj?",
+      "sound": "nb:kj, nb:sj",
+      "atoms": [
+        "nb:kj",
+        "nb:sj"
+      ]
+    },
+    {
+      "key": "16",
+      "num": 16,
+      "level": "A2",
+      "title": "Retroflekser",
+      "sound": "nb:retroflex, nb:r",
+      "atoms": [
+        "nb:retroflex",
+        "nb:r"
+      ]
+    },
+    {
+      "key": "17",
+      "num": 17,
+      "level": "A2",
+      "title": "Tonem 1 og 2 i ord",
+      "sound": "nb:tone",
+      "atoms": [
+        "nb:tone"
+      ]
+    },
+    {
+      "key": "18",
+      "num": 18,
+      "level": "A2",
+      "title": "Tonem i bøyde former",
+      "sound": "nb:tone",
+      "atoms": [
+        "nb:tone"
+      ]
+    },
+    {
+      "key": "19",
+      "num": 19,
+      "level": "A2",
+      "title": "Setningsmelodi: grupper og trykk",
+      "sound": "G12 (слой)",
+      "atoms": []
+    },
+    {
+      "key": "20",
+      "num": 20,
+      "level": "A2",
+      "title": "Repetisjon A2",
+      "sound": "все A2",
+      "atoms": [
+        "nb:vowel_length",
+        "nb:schwa",
+        "nb:y",
+        "nb:uu",
+        "nb:oe",
+        "nb:ae",
+        "nb:kj",
+        "nb:sj",
+        "nb:r",
+        "nb:retroflex",
+        "nb:tone"
+      ]
+    },
+    {
+      "key": "21",
+      "num": 21,
+      "level": "B1",
+      "title": "Lengde i flytende tale",
+      "sound": "nb:vowel_length",
+      "atoms": [
+        "nb:vowel_length"
+      ]
+    },
+    {
+      "key": "22",
+      "num": 22,
+      "level": "B1",
+      "title": "Små ord som blir borte (jeg, det, er)",
+      "sound": "nb:schwa",
+      "atoms": [
+        "nb:schwa"
+      ]
+    },
+    {
+      "key": "23",
+      "num": 23,
+      "level": "B1",
+      "title": "Vokalene i sammenheng",
+      "sound": "nb:y, nb:uu, nb:oe, nb:ae",
+      "atoms": [
+        "nb:y",
+        "nb:uu",
+        "nb:oe",
+        "nb:ae"
+      ]
+    },
+    {
+      "key": "24",
+      "num": 24,
+      "level": "B1",
+      "title": "Kj, sj og -sjon i flyt",
+      "sound": "nb:kj, nb:sj",
+      "atoms": [
+        "nb:kj",
+        "nb:sj"
+      ]
+    },
+    {
+      "key": "25",
+      "num": 25,
+      "level": "B1",
+      "title": "Over ordgrensen (har du, er det)",
+      "sound": "nb:retroflex, nb:r",
+      "atoms": [
+        "nb:retroflex",
+        "nb:r"
+      ]
+    },
+    {
+      "key": "26",
+      "num": 26,
+      "level": "B1",
+      "title": "Tonemer i setningen",
+      "sound": "nb:tone",
+      "atoms": [
+        "nb:tone"
+      ]
+    },
+    {
+      "key": "27",
+      "num": 27,
+      "level": "B1",
+      "title": "Fokus: det viktige ordet",
+      "sound": "G12",
+      "atoms": []
+    },
+    {
+      "key": "28",
+      "num": 28,
+      "level": "B1",
+      "title": "Spørsmål og svar: ↗ og ↘",
+      "sound": "G12",
+      "atoms": []
+    },
+    {
+      "key": "29",
+      "num": 29,
+      "level": "B1",
+      "title": "Pauser og grupper i lengre tekst",
+      "sound": "G12",
+      "atoms": []
+    },
+    {
+      "key": "30",
+      "num": 30,
+      "level": "B1",
+      "title": "Et dikt",
+      "sound": "все B1",
+      "atoms": [
+        "nb:vowel_length",
+        "nb:schwa",
+        "nb:y",
+        "nb:uu",
+        "nb:oe",
+        "nb:ae",
+        "nb:kj",
+        "nb:sj",
+        "nb:r",
+        "nb:retroflex",
+        "nb:tone"
+      ]
+    },
+    {
+      "key": "31",
+      "num": 31,
+      "level": "B1",
+      "title": "Repetisjon B1: samtale",
+      "sound": "все B1",
+      "atoms": [
+        "nb:vowel_length",
+        "nb:schwa",
+        "nb:y",
+        "nb:uu",
+        "nb:oe",
+        "nb:ae",
+        "nb:kj",
+        "nb:sj",
+        "nb:r",
+        "nb:retroflex",
+        "nb:tone"
+      ]
+    }
+  ]
+}

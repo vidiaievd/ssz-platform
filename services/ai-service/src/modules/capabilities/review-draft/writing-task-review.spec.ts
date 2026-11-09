@@ -199,7 +199,7 @@ describe('DraftReviewHandler — writing_task', () => {
       },
       listCases: async () => ({ cases: [], skipped: {} }),
     };
-    const handler = new DraftReviewHandler(gateway, new SchoolPayerResolver(), attempts, { explanationLanguage: async () => 'uk' }, 0);
+    const handler = new DraftReviewHandler(gateway, new SchoolPayerResolver(), attempts, { explanationLanguage: async () => 'uk' }, { forLearner: async () => [] } as never, 0);
 
     const outcome = await handler.execute(new DraftReviewCommand('a1', 'learner-1', 'writing_task', 'school-1'));
 

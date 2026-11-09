@@ -517,6 +517,7 @@ export class InternalReviewController {
         dto.sentenceComments ?? {},
         dto.rubricMarks ?? null,
         readReviewerOutcomes(dto.aiOutcomes),
+        dto.flaggedAtoms ?? [],
       ),
     );
 

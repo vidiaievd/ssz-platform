@@ -731,6 +731,102 @@ describe('ReviewAttemptHandler', () => {
       expect(letterOf(publisher).aiDraft).toMatchObject({ accepted: 1 });
     });
 
+    describe('rule atoms of the remarks the teacher kept (plan 85, step 4)', () => {
+      const ATOM = (atomId: string) => ({ atomType: 'grammar_rule_atom', atomId });
+      const ATOM_DRAFT = {
+        ...DRAFT,
+        items: [
+          { ...DRAFT.items[0], atomRef: ATOM('atom-a') },
+          { ...DRAFT.items[1], atomRef: ATOM('atom-b') },
+          { ...DRAFT.items[2], atomRef: ATOM('atom-c') },
+        ],
+      };
+      const flaggedOf = (publisher: { publish: jest.Mock }) =>
+        (publisher.publish.mock.calls as unknown as [string, Record<string, unknown>][]).filter(
+          ([type]) => type === 'exercise.feedback.atoms_flagged',
+        );
+
+      it('publishes the atoms of taken and reworded remarks as ai_review, after the verdict', async () => {
+        const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, ATOM_DRAFT);
+
+        await handler.execute(withOutcomes({ '0': 'accepted', '1': 'discarded', '2': 'edited' }));
+
+        const flagged = flaggedOf(publisher);
+        expect(flagged).toHaveLength(1);
+        expect(flagged[0]![1]).toMatchObject({
+          userId: 'user-1',
+          exerciseId: 'ex-1',
+          source: 'ai_review',
+          atoms: [
+            { atomType: 'grammar_rule_atom', atomId: 'atom-a', inExerciseTargets: false },
+            { atomType: 'grammar_rule_atom', atomId: 'atom-c', inExerciseTargets: false },
+          ],
+          schoolId: 'school-1',
+          containerId: 'course-1',
+          groupId: 'group-1',
+        });
+        const types = (publisher.publish.mock.calls as unknown as [string][]).map(([type]) => type);
+        expect(types.indexOf('exercise.feedback.atoms_flagged')).toBe(types.length - 1);
+      });
+
+      it('publishes nothing for a dropped draft, or remarks left alone', async () => {
+        const dropped = makeHandler(routedAttempt(), DETAILS, ATOM_DRAFT);
+        await dropped.handler.execute(withOutcomes({ draft: 'discarded' }));
+        expect(flaggedOf(dropped.publisher)).toHaveLength(0);
+
+        const untouched = makeHandler(routedAttempt(), DETAILS, ATOM_DRAFT);
+        await untouched.handler.execute(withOutcomes({}));
+        expect(flaggedOf(untouched.publisher)).toHaveLength(0);
+      });
+
+      it('publishes nothing for a draft whose remarks name no atom', async () => {
+        const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, DRAFT);
+
+        await handler.execute(withOutcomes({ '0': 'accepted' }));
+
+        expect(flaggedOf(publisher)).toHaveLength(0);
+      });
+
+      describe('rules the teacher marked (plan 85, step 9)', () => {
+        const marked = (atoms: Array<{ atomType: string; atomId: string }>) =>
+          new ReviewAttemptCommand('att-1', 'teacher-1', 'approved', [], null, {}, null, null, atoms);
+
+        it('publishes them as teacher, apart from the model\'s letter', async () => {
+          const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, ATOM_DRAFT);
+
+          await handler.execute(
+            new ReviewAttemptCommand('att-1', 'teacher-1', 'approved', [], null, {}, null, { '0': 'accepted' }, [
+              ATOM('atom-z'),
+              ATOM('atom-z'),
+            ]),
+          );
+
+          const flagged = flaggedOf(publisher);
+          expect(flagged.map(([, letter]) => letter.source)).toEqual(['ai_review', 'teacher']);
+          expect(flagged[1]![1]).toMatchObject({
+            userId: 'user-1',
+            atoms: [{ atomType: 'grammar_rule_atom', atomId: 'atom-z', inExerciseTargets: false }],
+          });
+        });
+
+        it('publishes them without any draft on the card', async () => {
+          const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, null);
+
+          await handler.execute(marked([ATOM('atom-z')]));
+
+          expect(flaggedOf(publisher).map(([, letter]) => letter.source)).toEqual(['teacher']);
+        });
+
+        it('publishes nothing when the teacher marked no rule', async () => {
+          const { handler, publisher } = makeHandler(routedAttempt(), DETAILS, null);
+
+          await handler.execute(marked([]));
+
+          expect(flaggedOf(publisher)).toHaveLength(0);
+        });
+      });
+    });
+
     // Plan 79, step 1.7d.
     it('counts suggested rubric marks against the marks the verdict gives an essay', async () => {
       const essayDraft = {

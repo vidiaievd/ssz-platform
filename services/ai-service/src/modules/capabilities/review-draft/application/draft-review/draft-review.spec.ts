@@ -14,6 +14,8 @@ import type { ISchoolLanguageReader } from '../ports/school-language.reader.js';
 import { SchoolPayerResolver } from '../school-payer.resolver.js';
 import { DraftReviewCommand } from './draft-review.command.js';
 import { DraftReviewHandler, REVIEW_QUEUE_SURFACE } from './draft-review.handler.js';
+import type { AtomCatalogResolver } from '../../../grammar-atoms/application/atom-catalog.resolver.js';
+import type { AtomCatalog } from '../../../grammar-atoms/domain/atom-catalog.js';
 
 // Plan 79, step 1.3.
 
@@ -73,13 +75,30 @@ interface Setup {
   call?: GatewayCall;
   language?: string | null | 'throws';
   put?: Array<'ok' | 'throws' | { code: string }>;
+  /** The learner's grammar atoms (plan 85, step 3b); none by default. */
+  atoms?: AtomCatalog;
+  promptVersion?: string;
 }
 
-function setup({ subject = subjectResult(), call = answered({ items: [], summary: null }), language = null, put = ['ok'] }: Setup = {}) {
+function setup({
+  subject = subjectResult(),
+  call = answered({ items: [], summary: null }),
+  language = null,
+  put = ['ok'],
+  atoms: catalog = [],
+  promptVersion = 'review_draft@1',
+}: Setup = {}) {
+  const atomsAsked: unknown[] = [];
+  const atoms = {
+    forLearner: async (input: unknown) => {
+      atomsAsked.push(input);
+      return catalog;
+    },
+  } as unknown as AtomCatalogResolver;
   const calls: Array<{ capability: string; context: CallContext; request: ReturnType<Extract<GatewayInput, Function>> }> = [];
   const gateway = {
     call: async (capability: string, context: CallContext, input: GatewayInput) => {
-      calls.push({ capability, context, request: typeof input === 'function' ? input('review_draft@1') : input });
+      calls.push({ capability, context, request: typeof input === 'function' ? input(promptVersion) : input });
       return call;
     },
   } as unknown as AiGateway;
@@ -106,12 +125,58 @@ function setup({ subject = subjectResult(), call = answered({ items: [], summary
       return language;
     },
   };
-  const handler = new DraftReviewHandler(gateway, new SchoolPayerResolver(), attempts, schools, 0);
-  return { handler, calls, writes, reads: () => reads };
+  const handler = new DraftReviewHandler(gateway, new SchoolPayerResolver(), attempts, schools, atoms, 0);
+  return { handler, calls, writes, reads: () => reads, atomsAsked };
 }
 
 const command = (over: Partial<{ templateCode: string; schoolId: string | null }> = {}) =>
   new DraftReviewCommand(ATTEMPT, 'learner-1', over.templateCode ?? 'translate_to_target', over.schoolId === undefined ? SCHOOL : over.schoolId);
+
+describe('DraftReviewHandler — grammar atoms (plan 85, step 3b)', () => {
+  const ATOM = 'e0000000-0000-5000-8000-000000000005';
+  const CATALOG: AtomCatalog = [{ atomId: ATOM, status: 'covered', ruleTitle: 'Времена', title: 'Perfektum', description: null }];
+  const remark = (atomId: string | null) => ({ sentenceIndex: 1, aspect: 'grammar', fragment: 'bor', comment: 'Perfektum.', suggestion: 'har bodd', atomId });
+
+  it('asks for the learner’s atoms in the attempt’s course and writes the named one onto the draft', async () => {
+    const { handler, calls, writes, atomsAsked } = setup({
+      subject: subjectResult({ courseId: 'course-1' }),
+      call: answered({ items: [remark(ATOM), remark('invented')], summary: null }),
+      language: 'ru',
+      atoms: CATALOG,
+      promptVersion: 'review_draft@3',
+    });
+
+    await handler.execute(command());
+
+    expect(atomsAsked).toEqual([{ userId: 'learner-1', courseId: 'course-1', language: 'ru' }]);
+    expect(calls[0]!.request.system).toContain(`- ${ATOM} — Времена: Perfektum`);
+    const draft = writes[0]!.draft;
+    expect(draft.status === 'ready' && draft.items.map((item) => item.atomRef)).toEqual([
+      { atomType: 'grammar_rule_atom', atomId: ATOM },
+      null,
+    ]);
+  });
+
+  it('sends no atomRef at all when the learner has reached nothing — an older engine refuses the field', async () => {
+    const { handler, writes } = setup({
+      call: answered({ items: [remark(null)], summary: null }),
+      promptVersion: 'review_draft@3',
+    });
+    await handler.execute(command());
+    const draft = writes[0]!.draft;
+    expect(draft.status === 'ready' && 'atomRef' in draft.items[0]!).toBe(false);
+  });
+
+  it('does not read the atoms when no grammar aspect is checked', async () => {
+    const { handler, atomsAsked } = setup({
+      subject: subjectResult({}, { on: true, checks: { grammar: false, order: false, lexis: true } }),
+      atoms: CATALOG,
+      promptVersion: 'review_draft@3',
+    });
+    await handler.execute(command());
+    expect(atomsAsked).toEqual([]);
+  });
+});
 
 describe('DraftReviewHandler', () => {
   it('drafts a school submission under the school as payer, on the review_queue surface', async () => {

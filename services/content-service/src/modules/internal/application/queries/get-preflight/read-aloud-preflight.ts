@@ -1,5 +1,5 @@
 import { audioOn } from '@ssz/shared-kernel/audio';
-import { fromPersisted, issues, type Issue } from '@ssz/shared-kernel/read-aloud';
+import { fromPersisted, issues, type GuidePrompt, type Issue } from '@ssz/shared-kernel/read-aloud';
 
 export interface ReadAloudPreflightViolation {
   ruleCode: string;
@@ -24,18 +24,22 @@ export interface ReadAloudPreflightViolation {
  * the kernel because the model does not hold the block. `info` is dropped («one take», «no mic
  * check»): it belongs on the card the author is editing, not in a report about a container.
  * The clip's own rules are the audio layer's (`audio-preflight.ts`), none silenced for this type.
+ *
+ * The pronunciation guide (plan 86, step 6h.2c) is judged from what lives beside the document —
+ * each prompt's prosody layer and the words the lexicon left open — which the caller reads
+ * (`guide`) only for a document with the guide on. Without it the kernel reports what the
+ * document alone shows (`RA_GUIDE_NO_LENS`).
  */
-export function readAloudViolations(exercise: {
-  id: string;
-  content: unknown;
-  expectedAnswers: unknown;
-}): ReadAloudPreflightViolation[] {
+export function readAloudViolations(
+  exercise: { id: string; content: unknown; expectedAnswers: unknown },
+  guide?: Readonly<Record<string, GuidePrompt>>,
+): ReadAloudPreflightViolation[] {
   const document = fromPersisted(exercise.content, exercise.expectedAnswers);
 
   // One violation per code, not per prompt: the builder puts each message on the prompt it
   // belongs to; a version report doing the same would bury the container under one exercise.
   const counted = new Map<string, { level: 'blocker' | 'warning'; count: number; first: Issue }>();
-  for (const issue of issues(document, { audio: audioOn(exercise.content) })) {
+  for (const issue of issues(document, { audio: audioOn(exercise.content), guide })) {
     if (issue.level === 'info') continue;
     const seen = counted.get(issue.code);
     if (seen) seen.count += 1;
@@ -116,5 +120,15 @@ export function describeReadAloudIssue(issue: Issue, count: number): string {
       return 'The AI stage is on without the reading check, so the machine has nothing to decide';
     case 'RA_AI_READ_ONLY':
       return 'The machine checks only a text read aloud, so the AI stage does nothing in this mode';
+    case 'RA_GUIDE_NO_LENS':
+      return 'The pronunciation guide is on with no view offered to the student';
+    case 'RA_GUIDE_LAYER_INVALID':
+      return `${prompts(count)} ${have(count)} pronunciation marks that no longer lie on the text`;
+    case 'RA_GUIDE_WORD_UNCONFIRMED':
+      return `${n(count, 'word')} ${have(count)} no stress the pronunciation dictionary could settle; set one or mark the word unstressed`;
+    case 'RA_GUIDE_SENTENCE_NO_END':
+      return `${n(count, 'sentence')} ${have(count)} no group end with a pitch on the last word, which the melody view needs`;
+    case 'RA_GUIDE_ORPHANS':
+      return `${prompts(count)} ${have(count)} pronunciation marks whose words were edited away`;
   }
 }

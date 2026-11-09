@@ -194,6 +194,27 @@ export interface IContentClient {
   describeAtoms(
     refs: Array<{ atomType: string; atomId: string }>,
   ): Promise<Result<AtomDescriptorRef[], ContentClientError>>;
+
+  // The atoms a container's published version teaches or practises (plan 63 phase 4.2),
+  // trimmed to what "which rules has this learner reached" needs (plan 85, step 1).
+  // Calls GET /api/v1/internal/containers/{id}/atom-coverage on Content Service.
+  getContainerAtomCoverage(
+    containerId: string,
+  ): Promise<Result<ContainerAtomCoverageRef, ContentClientError>>;
+}
+
+/** Mirrors content-service's internal atom-coverage answer, trimmed. */
+export interface ContainerAtomCoverageRef {
+  /** False when the container has no published version — not a container teaching nothing. */
+  available: boolean;
+  atoms: Array<{
+    atomType: string;
+    atomId: string;
+    /** The rule a grammar atom belongs to; null for a word. */
+    parentId: string | null;
+    /** Empty for an atom this scope only practises, introduced somewhere else. */
+    introducedBy: string[];
+  }>;
 }
 
 /** Mirrors content-service's AtomDescriptor over the wire. */

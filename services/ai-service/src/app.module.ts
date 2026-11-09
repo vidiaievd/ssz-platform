@@ -12,6 +12,7 @@ import { AccessModule } from './modules/access/access.module.js';
 import { CapabilitiesModule } from './modules/capabilities/capabilities.module.js';
 import { GatewayModule } from './modules/gateway/gateway.module.js';
 import { ProvidersModule } from './modules/providers/providers.module.js';
+import { PronunciationModule } from './modules/pronunciation/pronunciation.module.js';
 import { RegistryModule } from './modules/registry/registry.module.js';
 import { UserErasureModule } from './modules/user-erasure/user-erasure.module.js';
 
@@ -35,6 +36,7 @@ import { UserErasureModule } from './modules/user-erasure/user-erasure.module.js
     AccessModule,
     GatewayModule,
     CapabilitiesModule,
+    PronunciationModule,
     UserErasureModule,
   ],
   providers: [

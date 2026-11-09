@@ -89,6 +89,8 @@ import { GetReviewEffortMinutesHandler } from './application/queries/get-review-
 import { UpdateReviewEffortMinutesHandler } from './application/commands/update-review-effort-minutes/update-review-effort-minutes.handler.js';
 import { GetAssistantAccessHandler } from './application/queries/get-assistant-access/get-assistant-access.handler.js';
 import { UpdateAssistantAccessHandler } from './application/commands/update-assistant-access/update-assistant-access.handler.js';
+import { GetAiPrecheckSettingsHandler } from './application/queries/get-ai-precheck-settings/get-ai-precheck-settings.handler.js';
+import { UpdateAiPrecheckSettingsHandler } from './application/commands/update-ai-precheck-settings/update-ai-precheck-settings.handler.js';
 import { GetOnboardingSettingsHandler } from './application/queries/get-onboarding-settings/get-onboarding-settings.handler.js';
 import { ListMembershipsHandler } from './application/queries/list-memberships/list-memberships.handler.js';
 import { GetMyMembershipHandler } from './application/queries/get-my-membership/get-my-membership.handler.js';
@@ -123,6 +125,7 @@ const CommandHandlers = [
   UpdateReviewAiPolicyHandler,
   UpdateReviewEffortMinutesHandler,
   UpdateAssistantAccessHandler,
+  UpdateAiPrecheckSettingsHandler,
   CreateSchoolHandler,
   ProvisionSoloWorkspaceHandler,
   UpdateSchoolHandler,
@@ -188,6 +191,7 @@ const QueryHandlers = [
   GetReviewAiPolicyHandler,
   GetReviewEffortMinutesHandler,
   GetAssistantAccessHandler,
+  GetAiPrecheckSettingsHandler,
   ListMembershipsHandler,
   GetMyMembershipHandler,
   GetPublicSchoolHandler,

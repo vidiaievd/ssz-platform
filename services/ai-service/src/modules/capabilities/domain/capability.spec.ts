@@ -1,6 +1,12 @@
-import type { ModelFeatures, SpeechFeatures } from '../../providers/domain/model-features.js';
+import type { ModelFeatures, SpeechFeatures, TtsFeatures } from '../../providers/domain/model-features.js';
 import type { AiModel } from '../../registry/domain/registry.types.js';
-import { capabilityGaps, missingFeatures, missingSpeechFeatures, type CapabilityDefinition } from './capability.js';
+import {
+  capabilityGaps,
+  missingFeatures,
+  missingSpeechFeatures,
+  missingTtsFeatures,
+  type CapabilityDefinition,
+} from './capability.js';
 
 const base: ModelFeatures = {
   structuredOutput: 'json_mode',
@@ -61,5 +67,27 @@ describe('capabilityGaps', () => {
   it('checks the features of its own modality', () => {
     expect(capabilityGaps(llm, agent)).toEqual(['tools']);
     expect(capabilityGaps(recognizer, voice)).toEqual(['pronunciation']);
+  });
+});
+
+describe('missingTtsFeatures (plan 88, step 6b)', () => {
+  const tts: TtsFeatures = { languages: ['nb', 'en'], voices: { nb: ['nb-NO-PernilleNeural'], en: [] }, maxCharacters: 400 };
+
+  it('wants a voice in every language and enough characters', () => {
+    expect(missingTtsFeatures(tts, { languages: ['nb'], minCharacters: 400 })).toEqual([]);
+    expect(missingTtsFeatures(tts, { languages: ['nb', 'en', 'sv'], minCharacters: 1_000 })).toEqual([
+      'voice for en',
+      'voice for sv',
+      'maxCharacters ≥ 1000 (has 400)',
+    ]);
+  });
+
+  it('is what capabilityGaps checks for a synthesis capability, and a synthesizer serves nothing else', () => {
+    const ids = { id: 'm', providerId: 'p', providerCode: 'fake', providerModelId: 'm', displayName: 'm', status: 'active' as const };
+    const synthesizer: AiModel = { ...ids, modality: 'tts', features: tts };
+    const synthesis: CapabilityDefinition = { code: 's', description: '', modality: 'tts', requiredFeatures: { languages: ['sv'] } };
+    const agent: CapabilityDefinition = { code: 'agent', description: '', requiredFeatures: {} };
+    expect(capabilityGaps(synthesizer, synthesis)).toEqual(['voice for sv']);
+    expect(capabilityGaps(synthesizer, agent)).toEqual(['modality llm (is tts)']);
   });
 });

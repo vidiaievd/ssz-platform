@@ -72,6 +72,27 @@ describe('atomEvidenceStrength', () => {
   });
 });
 
+describe('a pronunciation session rates its sounds itself (plan 86, step 13.5)', () => {
+  it('lets a measured lapse through though the probe is spoken production', () => {
+    expect(
+      atomEvidenceStrength({ role: 'focus', templateCode: 'sound_session', modality: 'production' }),
+    ).toEqual({ successCap: 'GOOD', failureFloor: 'AGAIN' });
+  });
+
+  it('still holds a production atom of any other template off the floor', () => {
+    expect(
+      atomEvidenceStrength({ role: 'focus', templateCode: 'read_aloud', modality: 'production' })
+        .failureFloor,
+    ).toBe('HARD');
+  });
+
+  it('still flattens a context atom — the role is not the template’s to overrule', () => {
+    expect(
+      atomEvidenceStrength({ role: 'context', templateCode: 'sound_session', modality: 'production' }),
+    ).toEqual({ successCap: 'HARD', failureFloor: 'HARD' });
+  });
+});
+
 describe('a lowered delivery reaches the atom (plan 66, Q2-B)', () => {
   it('caps a focus atom one step lower', () => {
     expect(

@@ -29,6 +29,15 @@ export function speechCostMicros(audioMs: number, usage: LlmUsage | null, price:
   return Number((numerator + denominator / 2n) / denominator);
 }
 
+/**
+ * Cost of a call to a synthesizer (plan 88, step 6b): characters at the price per 1M —
+ * `characters × scaled price / 1M` in micro-units, the same sum as tokens, rounded half up.
+ */
+export function synthesisCostMicros(characters: number, price: AiModelPrice): number {
+  if (!Number.isSafeInteger(characters) || characters < 0) throw new Error(`Not a character count: ${characters}`);
+  return Number((BigInt(characters) * toScaled(price.charsPerMillion) + SCALE / 2n) / SCALE);
+}
+
 /** Token cost in 1e-12 of the currency: tokens × scaled price per 1M. */
 function tokensScaled(usage: LlmUsage, price: AiModelPrice): bigint {
   return (

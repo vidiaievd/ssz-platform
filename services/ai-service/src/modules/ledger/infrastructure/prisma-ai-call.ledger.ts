@@ -52,6 +52,7 @@ export class PrismaAiCallLedger implements IAiCallLedger {
           cacheReadTokens: call.usage?.cacheRead ?? null,
           cacheWriteTokens: call.usage?.cacheWrite ?? null,
           audioMs: call.audioMs,
+          characters: call.characters,
           costMicros: call.cost ? BigInt(call.cost.micros) : null,
           currency: call.cost?.currency ?? null,
           credits: call.credits,
@@ -60,6 +61,9 @@ export class PrismaAiCallLedger implements IAiCallLedger {
           errorCode: call.errorCode,
           fallbackUsed: call.fallbackUsed,
           attempts: call.attempts as object[],
+          // A row spooled before plan 84 has no subject.
+          exerciseId: call.context.subject?.exerciseId ?? null,
+          checkId: call.context.subject?.checkId ?? null,
           createdAt: call.createdAt,
         },
       }),

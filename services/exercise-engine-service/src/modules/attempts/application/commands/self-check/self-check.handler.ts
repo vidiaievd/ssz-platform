@@ -1,20 +1,8 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
-import {
-  fromPersisted,
-  readEdits,
-  selfCheckFeedback,
-  TEMPLATE_CODE,
-} from '@ssz/shared-kernel/error-correction';
-import type { SelfCheckItem, StudentEdits } from '@ssz/shared-kernel/error-correction';
-import {
-  fromPersisted as trFromPersisted,
-  isTranslateCode,
-  readSubmission as trReadSubmission,
-  runItems as trRunItems,
-  selfCheckFeedback as trSelfCheckFeedback,
-} from '@ssz/shared-kernel/translate';
-import type { SelfCheckItem as TrSelfCheckItem } from '@ssz/shared-kernel/translate';
+import { TEMPLATE_CODE } from '@ssz/shared-kernel/error-correction';
+import type { StudentEdits } from '@ssz/shared-kernel/error-correction';
+import { isTranslateCode } from '@ssz/shared-kernel/translate';
 import { SelfCheckCommand } from './self-check.command.js';
 import {
   ATTEMPT_REPOSITORY,
@@ -27,6 +15,15 @@ import {
 } from '../../../../../shared/application/ports/content-client.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
+import {
+  gradeErrorCorrection,
+  gradeTranslate,
+  readEcDraft,
+  readTrDraft,
+  type SelfCheckPayload,
+} from '../../services/self-check-grading.js';
+
+export type { SelfCheckPayload };
 
 export type SelfCheckError =
   | { code: 'ATTEMPT_NOT_FOUND' }
@@ -35,25 +32,6 @@ export type SelfCheckError =
   | { code: 'SCHEMA_MISMATCH' }
   | ContentClientError
   | AttemptDomainError;
-
-/**
- * What one self-check reports, which is template-specific: error correction counts
- * mistakes reached, translate scores each sentence against the key it must not show.
- * The envelope — whose attempt, and how many checks are left — is common.
- */
-export type SelfCheckPayload =
-  | {
-      templateCode: typeof TEMPLATE_CODE;
-      items: SelfCheckItem[];
-      fixedCount: number;
-      spanCount: number;
-    }
-  | {
-      templateCode: 'translate_to_target' | 'translate_from_target';
-      items: TrSelfCheckItem[];
-      /** Sentences a hit on the key would close on its own, as things stand. */
-      passing: number;
-    };
 
 export type SelfCheckResult = {
   attemptId: string;
@@ -157,98 +135,4 @@ export class SelfCheckHandler implements ICommandHandler<SelfCheckCommand> {
       ...graded.payload,
     });
   }
-}
-
-/** The budget for this exercise, and what the check has to say. */
-interface Graded {
-  budget: number;
-  payload: SelfCheckPayload;
-}
-
-function gradeErrorCorrection(
-  envelope: {
-    id: string;
-    moduleId: string;
-    title: string;
-    instructions: string;
-    updatedAt: string;
-  },
-  content: unknown,
-  expectedAnswers: unknown,
-  edits: Record<string, StudentEdits>,
-): Graded {
-  const document = fromPersisted(envelope, content, expectedAnswers);
-  const items = document.items.filter((item) => item.wrong.trim() !== '');
-  const feedback = selfCheckFeedback(
-    { items, check: document.check, hints: document.hints },
-    edits,
-  );
-
-  return {
-    // `check.on` off means the author wanted no machine reading of this exercise at all.
-    // A self-check would be exactly that, one item at a time.
-    budget: document.check.on ? document.flow.selfCheck : 0,
-    payload: {
-      templateCode: TEMPLATE_CODE,
-      items: feedback.items,
-      fixedCount: feedback.fixedCount,
-      spanCount: feedback.spanCount,
-    },
-  };
-}
-
-function gradeTranslate(
-  templateCode: 'translate_to_target' | 'translate_from_target',
-  envelope: {
-    id: string;
-    moduleId: string;
-    title: string;
-    instructions: string;
-    updatedAt: string;
-  },
-  content: unknown,
-  expectedAnswers: unknown,
-  answers: Record<string, string>,
-): Graded {
-  const document = trFromPersisted(envelope, templateCode, content, expectedAnswers);
-  const items = trRunItems(document);
-  const feedback = trSelfCheckFeedback(
-    { items, check: document.check, flow: document.flow },
-    answers,
-  );
-
-  return {
-    budget: document.check.on ? document.flow.selfCheck : 0,
-    payload: { templateCode, items: feedback.items, passing: feedback.passing },
-  };
-}
-
-/**
- * The draft arrives in the shape a submission uses, because it is one — the same edits,
- * asked about early. Kept lenient about the edits themselves (`readEdits` coerces) and
- * strict about the envelope, where a bad shape is a client bug rather than a bad answer.
- */
-function readEcDraft(draft: unknown): Record<string, StudentEdits> | null {
-  if (typeof draft !== 'object' || draft === null || Array.isArray(draft)) return null;
-
-  const { items } = draft as { items?: unknown };
-  if (typeof items !== 'object' || items === null || Array.isArray(items)) return null;
-
-  const out: Record<string, StudentEdits> = {};
-  for (const [itemId, raw] of Object.entries(items)) {
-    out[itemId] = readEdits(raw);
-  }
-  return out;
-}
-
-/** The same, for translate: the sentences typed so far, in the shape a submission uses. */
-function readTrDraft(draft: unknown): Record<string, string> | null {
-  const list = Array.isArray(draft)
-    ? draft
-    : typeof draft === 'object' && draft !== null
-      ? (draft as { answers?: unknown }).answers
-      : undefined;
-
-  if (!Array.isArray(list)) return null;
-  return trReadSubmission(list);
 }

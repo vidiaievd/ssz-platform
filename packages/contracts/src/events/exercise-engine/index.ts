@@ -9,6 +9,7 @@ export const EXERCISE_ENGINE_EVENT_TYPES = {
   ATTEMPT_REVIEWED: 'exercise.attempt.reviewed',
   ATTEMPT_AI_REVIEWED: 'exercise.attempt.ai_reviewed',
   ATTEMPT_AI_REVIEW_DISPUTED: 'exercise.attempt.ai_review_disputed',
+  FEEDBACK_ATOMS_FLAGGED: 'exercise.feedback.atoms_flagged',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -66,6 +67,14 @@ export interface ExerciseAttemptCompletedPayload {
   gapResults?: Array<{
     gapKey: string;
     correct: boolean;
+    /**
+     * Additive (plan 86, step 13.5) — how well this gap went, 0–100, read on the same scale as
+     * the attempt's `score`. For a gap whose verdict is more than right or wrong: a pronunciation
+     * session sends each sound it rated as a gap, GOOD / HARD / AGAIN as 90 / 70 / 0 (Q28), so
+     * that «passed after misses» reaches the card as HARD. Absent — the gap scores 100 when
+     * `correct`, 0 when not, as every gap did before.
+     */
+    score?: number;
     /**
      * Additive (plan 63 §2 D) — what this gap was about, snapshotted at attempt start.
      *
@@ -518,6 +527,54 @@ export interface ExerciseAttemptAiReviewDisputedPayload
   occurredAt: string;
 }
 
+/**
+ * Rule atoms a check of the learner's work named as the ground of a mistake (plan 85, step 4).
+ *
+ * Not a verdict and not progress: `attempt.completed` stays the only evidence the SRS rates
+ * by. This one only says "this rule went wrong here", and what follows is the consumer's —
+ * pull a card's due date closer, offer the rule for repetition, or nothing (plan 85 §0–§1).
+ * A rehearsal publishes it on every check that named an atom, however often; one signal per
+ * (learner, exercise, atom) a day is the consumer's to keep.
+ */
+export interface ExerciseFeedbackAtomsFlaggedPayload {
+  userId: string;
+  exerciseId: string;
+  attemptId: string;
+  templateCode: string;
+  /**
+   * Who named the atoms. `ai_precheck` — a model, on a draft before hand-in (only ever a
+   * negative signal, §1 rule 1); `ai_review` — a model's remark on a hand-in that the teacher
+   * kept (taken or reworded) with their verdict; `teacher` — the teacher themselves (step 9);
+   * `ai_voice` — the weak sounds of a reading the voice check closed with no teacher in between
+   * (plan 88, step 5c.3), a model's signal like `ai_precheck`; `ai_session` — the sounds a
+   * pronunciation session heard as weak and did not rate: the diagnostic's weak families and the
+   * other sounds its takes named (plan 86, step 13.5b). Never introduces a card — the next
+   * session plans the sound and rates it.
+   */
+  source: FlaggedAtomsSource;
+  /** Distinct atoms, in the order the check first named them. Never empty. */
+  atoms: FlaggedAtom[];
+  /** Snapshotted at attempt start, as on `attempt.completed`; null when there was none. */
+  schoolId: string | null;
+  containerId: string | null;
+  groupId: string | null;
+  occurredAt: string;
+}
+
+export type FlaggedAtomsSource = 'ai_precheck' | 'ai_review' | 'teacher' | 'ai_voice' | 'ai_session';
+
+export interface FlaggedAtom {
+  /** A string for the reason `AttemptTarget.atomType` is one: `grammar_rule_atom`, or `sound` (plan 88). */
+  atomType: string;
+  atomId: string;
+  /**
+   * The atom is one of the exercise's own targets (snapshotted at attempt start), which the
+   * hand-in's `attempt.completed` rates already. A consumer must not count a hand-in's
+   * mistake on it a second time (§1 rule 5).
+   */
+  inExerciseTargets: boolean;
+}
+
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
 export type ExerciseAttemptStartedEvent = BaseEvent<ExerciseAttemptStartedPayload>;
@@ -525,5 +582,6 @@ export type ExerciseAttemptCompletedEvent = BaseEvent<ExerciseAttemptCompletedPa
 export type ExerciseAttemptReviewedEvent = BaseEvent<ExerciseAttemptReviewedPayload>;
 export type ExerciseAttemptAiReviewedEvent = BaseEvent<ExerciseAttemptAiReviewedPayload>;
 export type ExerciseAttemptAiReviewDisputedEvent = BaseEvent<ExerciseAttemptAiReviewDisputedPayload>;
+export type ExerciseFeedbackAtomsFlaggedEvent = BaseEvent<ExerciseFeedbackAtomsFlaggedPayload>;
 export type ExerciseAttemptRoutedForReviewEvent =
   BaseEvent<ExerciseAttemptRoutedForReviewPayload>;

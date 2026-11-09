@@ -1,4 +1,4 @@
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { readSubmission } from '@ssz/shared-kernel/read-aloud';
 import {
@@ -10,6 +10,7 @@ import {
   type IEventPublisher,
 } from '../../../../../shared/application/ports/event-publisher.port.js';
 import { Result } from '../../../../../shared/kernel/result.js';
+import { atomsFlagged, publishAtomsFlagged } from '../../../../attempts/application/services/flagged-atoms.js';
 import { ReviewScoring } from '../../../../attempts/application/services/review-scoring.js';
 import { publishAttemptEvents } from '../../../../attempts/application/services/review-verdict.js';
 import type {
@@ -114,7 +115,9 @@ interface Ruled {
  * sends what the recognizer heard in each prompt and no verdict at all — the engine checks it
  * against the passages with the kernel's reading check and rules from that (`readingRuling`),
  * the machine deciding in full, by the same spirit as Q4-C. The check is kept on the review
- * for the learner's panel and the teacher's card.
+ * for the learner's panel and the teacher's card. When such a verdict closes the work, the sound
+ * atoms of its remarks go out as `ai_voice` (plan 88, step 5c.3): no teacher sorted them, so
+ * they are a model's signal. A provisional one waits — what the teacher keeps leaves as `ai_review`.
  *
  * Idempotent on `aiCallId`. The review is saved before the attempt, so a write cut off
  * between the two is finished by its retry rather than refused as a duplicate. A `FAILED`
@@ -122,6 +125,8 @@ interface Ruled {
  */
 @CommandHandler(PutAiReviewCommand)
 export class PutAiReviewHandler implements ICommandHandler<PutAiReviewCommand> {
+  private readonly logger = new Logger(PutAiReviewHandler.name);
+
   constructor(
     @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
     @Inject(ATTEMPT_AI_DRAFT_REPOSITORY) private readonly drafts: IAttemptAiDraftRepository,
@@ -186,6 +191,13 @@ export class PutAiReviewHandler implements ICommandHandler<PutAiReviewCommand> {
         // The count a dispute rate is read against (2.3b), once the verdict has landed. A
         // provisional one cannot be disputed — a teacher is going to read the work anyway.
         await this.publisher.publish(ATTEMPT_AI_REVIEWED, aiReviewedPayload(attempt, draft, new Date()));
+        if (ruled.reading !== null) {
+          await publishAtomsFlagged(
+            this.publisher,
+            this.logger,
+            atomsFlagged(attempt, 'ai_voice', draft.items.map((item) => item.atomRef), new Date()),
+          );
+        }
       }
     }
     return Result.ok(view(draft, attempt));

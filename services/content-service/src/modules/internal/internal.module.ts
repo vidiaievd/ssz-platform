@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { PrismaModule } from '../../infrastructure/database/prisma.module.js';
+import { ProsodyModule } from '../prosody/prosody.module.js';
 import { InternalController } from './presentation/controllers/internal.controller.js';
 import { GetExpandedModuleHandler } from './application/queries/get-expanded-module/get-expanded-module.handler.js';
 import { GetGlossarySuggestionsHandler } from './application/queries/get-glossary-suggestions/get-glossary-suggestions.handler.js';
@@ -14,6 +15,9 @@ import {
   GetAssistUnitMaterialHandler,
   LookupAssistWordHandler,
 } from './application/queries/assist-material/assist-material.handler.js';
+import { GetGrammarAtomCatalogHandler } from './application/queries/grammar-atom-catalog/grammar-atom-catalog.handler.js';
+import { GetSoundAtomCatalogHandler } from './application/queries/sound-atom-catalog/sound-atom-catalog.handler.js';
+import { GetSoundAtomDrillHandler } from './application/queries/sound-atom-drill/sound-atom-drill.handler.js';
 import { CourseNarrationService } from './application/narration/course-narration.service.js';
 import { MEDIA_NARRATION_CLIENT } from './application/narration/media-narration.port.js';
 import { HttpMediaNarrationClient } from './infrastructure/http-media-narration.client.js';
@@ -25,7 +29,7 @@ import { PrismaLessonContentVariantRepository } from '../lesson/infrastructure/p
 // modules (ContentRelationModule, GrammarRuleModule, CanDoModule); handlers
 // exclusive to the internal aggregate view are registered here.
 @Module({
-  imports: [CqrsModule, PrismaModule],
+  imports: [CqrsModule, PrismaModule, ProsodyModule],
   controllers: [InternalController],
   providers: [
     GetExpandedModuleHandler,
@@ -38,6 +42,9 @@ import { PrismaLessonContentVariantRepository } from '../lesson/infrastructure/p
     GetAssistUnitMaterialHandler,
     GetAssistGrammarRuleHandler,
     LookupAssistWordHandler,
+    GetGrammarAtomCatalogHandler,
+    GetSoundAtomCatalogHandler,
+    GetSoundAtomDrillHandler,
     CourseNarrationService,
     { provide: MEDIA_NARRATION_CLIENT, useClass: HttpMediaNarrationClient },
     { provide: LESSON_CONTENT_VARIANT_REPOSITORY, useClass: PrismaLessonContentVariantRepository },

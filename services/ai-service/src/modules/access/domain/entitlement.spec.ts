@@ -1,4 +1,4 @@
-import { featureOf, isStale, supersedes, type PayerEntitlements } from './entitlement.js';
+import { capabilitiesOfPool, featureKeyOf, featureOf, isStale, quotaPoolOf, supersedes, type PayerEntitlements } from './entitlement.js';
 
 const snap = (version: number, validUntil: string, features: PayerEntitlements['features'] = {}): PayerEntitlements => ({
   features,
@@ -45,5 +45,38 @@ describe('featureOf', () => {
       periodEnd: s.periodEnd,
     });
     expect(featureOf(s, 'ai.practice')).toBeNull();
+  });
+});
+
+describe('quota pools (plan 84)', () => {
+  it('sells a voice rehearsal under the text rehearsal’s key and pool', () => {
+    expect(featureKeyOf('practice_voice')).toBe('ai.practice');
+    expect(quotaPoolOf('practice_voice')).toBe('practice');
+    expect(capabilitiesOfPool('practice')).toEqual([
+      'practice',
+      'practice_voice',
+      'pronunciation_explain',
+      'toneme_check',
+    ]);
+  });
+
+  it('sells a toneme check of a pronunciation drill under the rehearsal’s key (plan 88, step 8.3)', () => {
+    expect(featureKeyOf('toneme_check')).toBe('ai.practice');
+    expect(quotaPoolOf('toneme_check')).toBe('practice');
+  });
+
+  it('sells the explanation of a handed-in reading’s sounds under the pronunciation level (plan 88, step 5c.2)', () => {
+    expect(featureKeyOf('voice_review_explain')).toBe('ai.voice_review_pronunciation');
+    expect(capabilitiesOfPool('voice_review_pronunciation')).toEqual(['voice_review_pronunciation', 'voice_review_explain']);
+  });
+
+  it('sells the phrase marks suggested to the prosody editor under ai.authoring (plan 86, step 5c)', () => {
+    expect(featureKeyOf('prosody_markup')).toBe('ai.authoring');
+    expect(capabilitiesOfPool('authoring')).toEqual(['authoring', 'prosody_markup']);
+  });
+
+  it('keeps every other agent its own key and pool', () => {
+    expect(featureKeyOf('review_draft')).toBe('ai.review_draft');
+    expect(capabilitiesOfPool('voice_review')).toEqual(['voice_review']);
   });
 });

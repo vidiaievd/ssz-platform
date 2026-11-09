@@ -173,6 +173,9 @@ enum SrsContentType {
   // Written in shadow beside the types above: rated by the same attempts, shown to
   // nobody and counted into no daily budget until the two models are compared.
   GRAMMAR_ATOM    @map("grammar_atom")
+  // One sound family (plan 86, step 8.3). contentId is its natural key in content-service's
+  // `sound_atoms` (`nb:kj`). Shadow, like GRAMMAR_ATOM.
+  SOUND_ATOM      @map("sound_atom")
 
   @@map("srs_content_type")
 }
@@ -232,6 +235,34 @@ model SrsReviewCard {
   @@index([userId, track, dueAt, state])
   @@unique([userId, contentType, contentId])
   @@map("srs_review_cards")
+}
+
+// ─── Atom flags (plan 85, step 5) ────────────────────────────────────────────
+// Rule atoms a check of the learner's work named (`exercise.feedback.atoms_flagged`), one row
+// per (learner, exercise, atom, source, UTC day): what keeps a rehearsal pressed ten times to
+// one signal (§1 rule 3), and what was done with it. Strings rather than enums — the engine's
+// vocabulary (source, atom type) grows without a migration here.
+model AtomFlag {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  exerciseId        String   @map("exercise_id")
+  attemptId         String   @map("attempt_id")
+  atomType          String   @map("atom_type")
+  atomId            String   @map("atom_id")
+  // ai_precheck | ai_review | teacher | ai_voice | ai_session
+  source            String
+  inExerciseTargets Boolean  @map("in_exercise_targets")
+  // pulled | already_due | lapsed | in_targets | suspended | no_card
+  outcome           String
+  flaggedOn         DateTime @map("flagged_on") @db.Date
+  schoolId          String?  @map("school_id")
+  containerId       String?  @map("container_id")
+  groupId           String?  @map("group_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, exerciseId, atomType, atomId, source, flaggedOn], map: "atom_flags_dedup_key")
+  @@index([userId, atomId])
+  @@map("atom_flags")
 }
 
 // ─── Can-do progress (Plan 23 B1.4) ──────────────────────────────────────────

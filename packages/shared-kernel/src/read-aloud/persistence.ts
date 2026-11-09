@@ -2,8 +2,9 @@
 //
 //   content          → title, instruction, language, mode; per prompt its id, label, the material
 //                       of every mode and the three numbers; per criterion its id, name,
-//                       description, weight and visibility; the recording dials, settings and the
-//                       AI stage
+//                       description, weight and visibility; the recording dials, settings, the
+//                       AI stage and the pronunciation guide's switches (plan 86, step 6h) — not
+//                       its marks, which live in the prosody layer tables
 //   expected_answers → per prompt, by id: the listening note and the focus words; per criterion,
 //                       by id: the four level descriptors
 //
@@ -21,6 +22,7 @@ import type {
   Mode,
   PlanPoint,
   Prompt,
+  PronunciationGuide,
   ReadAloudContent,
   Recording,
   RevisionPolicy,
@@ -31,11 +33,14 @@ import type {
 } from './model.js';
 import {
   AI_VISIBILITIES,
+  DEFAULT_PRONUNCIATION_GUIDE,
   DEFAULT_RECORDING,
   DEFAULT_REVIEW,
   DEFAULT_SETTINGS,
   isMode,
+  isPronunciationLens,
   LEN,
+  PRONUNCIATION_LENSES,
   RA_MAX_PREP_SECONDS,
   RA_MAX_TAKES,
   REVISIONS,
@@ -77,6 +82,7 @@ export interface PersistedContent {
   recording: Recording;
   settings: Settings;
   review: Review;
+  pronunciationGuide: PronunciationGuide;
 }
 
 export interface PersistedPromptKey {
@@ -117,6 +123,7 @@ export function toContent(ex: ReadAloudContent): PersistedContent {
     recording: { ...ex.recording },
     settings: { ...ex.settings },
     review: { ...ex.review, ai: { ...ex.review.ai } },
+    pronunciationGuide: { ...ex.pronunciationGuide, lenses: [...ex.pronunciationGuide.lenses] },
   };
 }
 
@@ -154,6 +161,7 @@ export function fromPersisted(content: unknown, expectedAnswers: unknown): ReadA
     recording: c.recording,
     settings: c.settings,
     review: c.review,
+    pronunciationGuide: c.pronunciationGuide,
   };
 }
 
@@ -239,6 +247,7 @@ export function readContent(content: unknown): PersistedContent {
   const settings = rec(c['settings']);
   const review = rec(c['review']);
   const ai = rec(review['ai']);
+  const guide = rec(c['pronunciationGuide']);
   return {
     title: str(c['title']),
     instruction: str(c['instruction']),
@@ -271,7 +280,23 @@ export function readContent(content: unknown): PersistedContent {
       aiVisibility: oneOf<AiVisibility>(review['aiVisibility'], AI_VISIBILITIES, DEFAULT_REVIEW.aiVisibility),
       readingPassPercent: clampPassPercent(num(review['readingPassPercent'], DEFAULT_REVIEW.readingPassPercent)),
     },
+    pronunciationGuide: {
+      enabled: bool(guide['enabled'], DEFAULT_PRONUNCIATION_GUIDE.enabled),
+      sentenceDrill: bool(guide['sentenceDrill'], DEFAULT_PRONUNCIATION_GUIDE.sentenceDrill),
+      lenses: readLenses(guide['lenses']),
+    },
   };
+}
+
+/**
+ * The offered lenses, deduplicated and in the switch's order. A document written before the
+ * guide existed has no list and gets the default one; an explicit empty list stays empty — the
+ * author took every lens away, which `issues` reports.
+ */
+function readLenses(value: unknown): PronunciationGuide['lenses'] {
+  if (!Array.isArray(value)) return [...DEFAULT_PRONUNCIATION_GUIDE.lenses];
+  const given = new Set(value.filter(isPronunciationLens));
+  return PRONUNCIATION_LENSES.filter((l) => given.has(l));
 }
 
 export function readAnswers(expectedAnswers: unknown): PersistedAnswers {

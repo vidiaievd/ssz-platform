@@ -93,6 +93,7 @@ describe('DeletedUserPrismaEraser', () => {
     'itemProgress',
     'schoolActivity',
     'reviewTermAcceptance',
+    'weakRuleDaily',
   ] as const;
 
   function setup() {
@@ -113,7 +114,7 @@ describe('DeletedUserPrismaEraser', () => {
 
     const erased = await eraser.erase('u1');
 
-    expect(erased).toEqual({ directory: 3, learning: 7, schoolRecords: 2, archivedEvents: 9, archivedCallsUnlinked: 2 });
+    expect(erased).toEqual({ directory: 3, learning: 7, schoolRecords: 3, archivedEvents: 9, archivedCallsUnlinked: 2 });
     expect(tx.attemptEvidence.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
     // The feed row the learner acted in, not a teacher's row about their work.
     expect(tx.schoolActivity.deleteMany).toHaveBeenCalledWith({ where: { actorId: 'u1' } });

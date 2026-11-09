@@ -1,7 +1,12 @@
 import type { DraftWriteMeta } from '../../review-draft/application/ports/review-attempts.client.js';
 import type { GiveUpReason } from '../../review-direct/application/ports/direct-review-attempts.client.js';
-import type { IVoiceReviewAttemptsClient, ReadingToWrite } from '../application/ports/voice-review-attempts.client.js';
+import type {
+  IVoiceReviewAttemptsClient,
+  PromptHearing,
+  ReadingToWrite,
+} from '../application/ports/voice-review-attempts.client.js';
 import type { VoiceSubjectResult } from '../domain/read-aloud-subject.js';
+import type { ReadingSoundRemark } from '../domain/reading-sounds.js';
 
 /**
  * exercise-engine's internal routes for a voice review (`x-internal-token`). Every path carries
@@ -28,10 +33,18 @@ export class HttpVoiceReviewAttemptsClient implements IVoiceReviewAttemptsClient
     reading: ReadingToWrite,
     meta: DraftWriteMeta,
   ): Promise<{ written: true; attemptStatus: string; provisional: boolean } | { written: false; code: string }> {
-    // No remarks: the engine reads the verdict off what was heard (step 7), the panel draws the words.
+    // The engine reads the verdict off what was heard (step 7); the remarks are the weak sounds only (plan 88,
+    // step 5c), the summary a model's word on them — the verdict's comment at the engine.
     const body =
       reading.status === 'ready'
-        ? { status: 'ready', items: [], summary: null, marks: null, reading: { prompts: reading.prompts }, ...meta }
+        ? {
+            status: 'ready',
+            items: reading.remarks.map(remarkOnTheWire),
+            summary: reading.summary,
+            marks: null,
+            reading: { prompts: reading.prompts.map(onTheWire) },
+            ...meta,
+          }
         : { status: 'failed', items: [], errorCode: reading.errorCode, ...meta };
     const res = await this.put(`/api/v1/internal/attempts/${attemptId}/ai-review`, body);
     if (res.ok) {
@@ -75,4 +88,22 @@ export class HttpVoiceReviewAttemptsClient implements IVoiceReviewAttemptsClient
 async function refusalCode(res: Response): Promise<string> {
   const answer = (await res.json().catch(() => ({}))) as { code?: unknown };
   return typeof answer.code === 'string' ? answer.code : `HTTP_${res.status}`;
+}
+
+/**
+ * A prompt's hearing as the engine stores it. Azure's phonemes stay here (plan 88, step 4); the
+ * sounds named against the lexicon go in their place, where there are any (step 5c).
+ */
+function onTheWire({ sounds, ...prompt }: PromptHearing) {
+  if (!prompt.pronunciation) return prompt;
+  const words = prompt.pronunciation.words.map(({ phonemes: _phonemes, ...word }, j) => {
+    const named = sounds?.[j];
+    return named ? { ...word, phonemes: named } : word;
+  });
+  return { ...prompt, pronunciation: { ...prompt.pronunciation, words } };
+}
+
+/** A weak sound as a remark of the draft, in the engine's shape. */
+function remarkOnTheWire({ itemId, sentenceIndex, wordIndex, word, comment, atomRef }: ReadingSoundRemark) {
+  return { itemId, sentenceIndex, aspect: 'pronunciation', fragment: word, comment, suggestion: null, wordIndex, atomRef };
 }

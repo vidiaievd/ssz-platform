@@ -187,6 +187,37 @@ export interface Review {
   readingPassPercent: number;
 }
 
+/**
+ * One way of drawing a passage's pronunciation (plan 86, §4i.2) — the learner sees exactly one
+ * at a time. `melody` needs phrase marks, which only an author or the authoring agent sets.
+ */
+export type PronunciationLens = 'stress' | 'sounds' | 'melody' | 'respell';
+
+/** In the order the learner's switch lists them. */
+export const PRONUNCIATION_LENSES: readonly PronunciationLens[] = ['stress', 'sounds', 'respell', 'melody'];
+
+export function isPronunciationLens(value: unknown): value is PronunciationLens {
+  return (PRONUNCIATION_LENSES as readonly unknown[]).includes(value);
+}
+
+/**
+ * «Reading with a pronunciation guide» (plan 86, §4i.2 Q-i11 and §4i.4): a `read` exercise
+ * whose author promises the marks under the passage are right. Only then does the builder show
+ * the «Pronunciation» step and do the marks block publishing (`guideIssues`) — and only for the
+ * lenses offered. The marks themselves live beside the document (`*_prosody_layers`), shared by
+ * the draft and the published version; this flag is versioned with the document, so a learner
+ * sees no lens before an exercise carrying it is published.
+ *
+ * Read by `read` only; kept on the document under another mode, like the other modes' material.
+ */
+export interface PronunciationGuide {
+  enabled: boolean;
+  /** The passage is gone through sentence by sentence before the recording (a rehearsal). */
+  sentenceDrill: boolean;
+  /** The lenses the learner may switch between, in `PRONUNCIATION_LENSES` order. */
+  lenses: PronunciationLens[];
+}
+
 export interface ReadAloudContent {
   title: string;
   /** One line, in the course language. The recording rules are the runner's to state. */
@@ -199,6 +230,7 @@ export interface ReadAloudContent {
   recording: Recording;
   settings: Settings;
   review: Review;
+  pronunciationGuide: PronunciationGuide;
 }
 
 export const DEFAULT_RECORDING: Recording = {
@@ -222,6 +254,13 @@ export const DEFAULT_REVIEW: Review = {
   ai: { transcript: true, pronunciation: true, fluency: false, draft: false },
   aiVisibility: 'teacher',
   readingPassPercent: 85,
+};
+
+/** `melody` is left out: a passage nobody marked has nothing to draw in it. */
+export const DEFAULT_PRONUNCIATION_GUIDE: PronunciationGuide = {
+  enabled: false,
+  sentenceDrill: true,
+  lenses: ['stress', 'sounds', 'respell'],
 };
 
 export const SHOW_RUBRIC: readonly ShowRubricPolicy[] = ['always', 'afterGraded', 'never'];
@@ -330,5 +369,9 @@ export function emptyContent(language = ''): ReadAloudContent {
     recording: { ...DEFAULT_RECORDING },
     settings: { ...DEFAULT_SETTINGS },
     review: { ...DEFAULT_REVIEW, ai: { ...DEFAULT_REVIEW.ai } },
+    pronunciationGuide: {
+      ...DEFAULT_PRONUNCIATION_GUIDE,
+      lenses: [...DEFAULT_PRONUNCIATION_GUIDE.lenses],
+    },
   };
 }

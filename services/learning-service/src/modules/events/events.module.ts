@@ -10,6 +10,7 @@ import { VocabularyEnrollmentConsumer } from './consumers/vocabulary-enrollment.
 import { GroupEnrollmentConsumer } from './consumers/group-enrollment.consumer.js';
 import { ExerciseReleasedConsumer } from './consumers/exercise-released.consumer.js';
 import { UserDeletedConsumer } from './consumers/user-deleted.consumer.js';
+import { AtomsFlaggedConsumer } from './consumers/atoms-flagged.consumer.js';
 import { UserErasureModule } from '../user-erasure/user-erasure.module.js';
 
 @Module({
@@ -22,6 +23,7 @@ import { UserErasureModule } from '../user-erasure/user-erasure.module.js';
     GroupEnrollmentConsumer,
     ExerciseReleasedConsumer,
     UserDeletedConsumer,
+    AtomsFlaggedConsumer,
   ],
 })
 export class EventsModule {}

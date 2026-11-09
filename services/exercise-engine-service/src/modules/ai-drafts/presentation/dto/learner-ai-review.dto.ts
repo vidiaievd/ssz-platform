@@ -12,7 +12,7 @@ export class LearnerAiRemarkDto {
     example: 'grammar',
     description:
       'What the remark is about: `grammar`, `lexis`, `meaning`, `alternative` (your wording is right too), ' +
-      '`task`, `structure`, `content` — the set depends on the template.',
+      '`task`, `structure`, `content`, `pronunciation` (a weak sound of a reading aloud) — the set depends on the template.',
   })
   aspect!: string;
 
@@ -28,6 +28,20 @@ export class LearnerAiRemarkDto {
 
   @ApiPropertyOptional({ nullable: true, example: 'har gått', description: 'What to write instead, when there is one.' })
   suggestion!: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    example: { atomType: 'sound', atomId: 'nb:kj' },
+    description: 'The atom the remark is about: `grammar_rule_atom` (a rule of the course) or `sound` (`<language>:<family>`).',
+  })
+  atomRef?: { atomType: 'grammar_rule_atom' | 'sound'; atomId: string } | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    example: 3,
+    description: 'A `pronunciation` remark: the word, as its index in that prompt’s `reading.prompts[].pronunciation.words`.',
+  })
+  wordIndex?: number | null;
 }
 
 export class LearnerAiMarkDto {
@@ -63,7 +77,8 @@ export class LearnerReadingPromptDto {
     nullable: true,
     additionalProperties: true,
     description:
-      'Pronunciation scores 0–100 `{ accuracy, fluency, completeness, prosody, words: [{ text, accuracy, error }] }` — ' +
+      'Pronunciation scores 0–100 `{ accuracy, fluency, completeness, prosody, words: [{ text, accuracy, error, phonemes? }] }` — ' +
+      '`phonemes` `[{ symbol (IPA, empty where unnamed), accuracy }]` where the sounds were named (plan 88); ' +
       'feedback only, never part of the verdict. Null unless the plan has the pronunciation level.',
   })
   pronunciation!: unknown;

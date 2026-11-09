@@ -8,8 +8,10 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
+  ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
@@ -25,6 +27,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator.j
 import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Result } from '../../../shared/kernel/result.js';
 import { IntroduceCardCommand } from '../application/commands/introduce-card.command.js';
+import { AddReachedAtomCommand } from '../application/commands/add-reached-atom.command.js';
 import {
   BulkIntroduceFromVocabularyListCommand,
 } from '../application/commands/bulk-introduce-from-vocabulary-list.command.js';
@@ -45,6 +48,7 @@ import type {
   VocabularyReplicaEnvelope,
 } from '../application/dto/srs.dto.js';
 import {
+  SrsAtomCoverageUnavailableError,
   SrsCardNotFoundError,
   SrsCardUnauthorizedError,
   SrsCardSuspendedError,
@@ -56,6 +60,7 @@ import {
   GetDueCardsRequest,
   IntroduceCardRequest,
   BulkIntroduceRequest,
+  AddReachedAtomRequest,
 } from './dto/review-card.request.js';
 import {
   ReviewCardResponse,
@@ -305,6 +310,38 @@ export class SrsController {
     return result.value;
   }
 
+  // ─── Grammar atoms (plan 85) ─────────────────────────────────────────────────
+
+  @Post('atoms/:atomId/add')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Add a reached grammar atom to review',
+    description:
+      'The "worth repeating — add to review?" offer after a check (plan 85, step 6). Only an ' +
+      'atom the learner has reached in `courseId` may be added — the same reading that ' +
+      'builds the catalogue a model may point a mistake at. Idempotent: an existing card, ' +
+      'suspended included, is returned unchanged. The card is a shadow card until plan 63 ' +
+      'phase 7: it is scheduled, flags pull it in, but `GET srs/due` does not list it yet, ' +
+      'and it is not charged to the daily new-card budget.',
+  })
+  @ApiParam({ name: 'atomId', format: 'uuid', description: 'grammar_rule_atom id' })
+  @ApiResponse({ status: 200, type: ReviewCardResponse })
+  @ApiResponse({ status: 422, description: 'The learner has not reached this atom in the course' })
+  @ApiResponse({
+    status: 503,
+    description: 'Course coverage unavailable for part of the course — retry later',
+  })
+  async addReachedAtom(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('atomId', new ParseUUIDPipe()) atomId: string,
+    @Body() body: AddReachedAtomRequest,
+  ): Promise<ReviewCardResponse> {
+    const result: Result<ReviewCardDto, SrsApplicationError> = await this.commandBus.execute(
+      new AddReachedAtomCommand(user.userId, atomId, body.courseId),
+    );
+    return this.unwrap(result);
+  }
+
   @Post('placement/apply')
   @HttpCode(200)
   @ApiOperation({
@@ -336,6 +373,9 @@ export class SrsController {
     if (err instanceof SrsCardNotFoundError) throw new NotFoundException(err.message);
     if (err instanceof SrsCardUnauthorizedError) throw new ForbiddenException(err.message);
     if (err instanceof SrsCardSuspendedError) throw new UnprocessableEntityException(err.message);
+    if (err instanceof SrsAtomCoverageUnavailableError) {
+      throw new ServiceUnavailableException(err.message);
+    }
     if (err instanceof SrsReviewLimitError) {
       throw new HttpException(err.message, HttpStatus.TOO_MANY_REQUESTS);
     }

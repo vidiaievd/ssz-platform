@@ -67,6 +67,19 @@ export class HeardWordDto {
   confidence?: number | null;
 }
 
+/** One sound of a word, named against ai-service's lexicon (plan 88, step 5c). */
+export class PronouncedPhonemeDto {
+  /** IPA; empty where the word's readings differ in it. */
+  @IsString()
+  @MaxLength(8)
+  symbol!: string;
+
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  accuracy!: number;
+}
+
 export class PronouncedWordDto {
   @IsString()
   @MaxLength(200)
@@ -79,6 +92,14 @@ export class PronouncedWordDto {
 
   @IsIn(['none', 'mispronunciation', 'omission', 'insertion'])
   error!: 'none' | 'mispronunciation' | 'omission' | 'insertion';
+
+  /** Absent where ai-service could not name the word's sounds. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(64)
+  @ValidateNested({ each: true })
+  @Type(() => PronouncedPhonemeDto)
+  phonemes?: PronouncedPhonemeDto[];
 }
 
 /** Pronunciation scores, 0–100 — feedback only (plan 82 §2.3). */
@@ -175,7 +196,12 @@ export function toHearings(dto: ReadingHearingDto): PromptHearing[] {
           fluency: p.pronunciation.fluency,
           completeness: p.pronunciation.completeness,
           prosody: p.pronunciation.prosody ?? null,
-          words: p.pronunciation.words.map((w) => ({ text: w.text, accuracy: w.accuracy, error: w.error })),
+          words: p.pronunciation.words.map((w) => ({
+            text: w.text,
+            accuracy: w.accuracy,
+            error: w.error,
+            ...(w.phonemes ? { phonemes: w.phonemes.map((ph) => ({ symbol: ph.symbol, accuracy: ph.accuracy })) } : {}),
+          })),
         }
       : null,
     aiCallId: p.aiCallId ?? null,

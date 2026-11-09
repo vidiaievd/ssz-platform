@@ -32,6 +32,12 @@ export interface ISrsRepository {
    * a client keeps to schedule offline (VoxOrd offline plan, B1). Never shadow cards.
    */
   findByUserAndType(userId: string, contentType: SrsContentType): Promise<ReviewCard[]>;
+  /**
+   * Every card of one content type, suspended and shadow types included. For
+   * service-to-service readers that decide what to schedule (plan 85), never for a
+   * screen: a shadow card is still invisible to the learner.
+   */
+  findAllByUserAndTypeIncludingShadow(userId: string, contentType: SrsContentType): Promise<ReviewCard[]>;
   /** Due cards, narrowed to one memory when the caller names a track (plan 63 phase 6). */
   findDueCards(
     userId: string,

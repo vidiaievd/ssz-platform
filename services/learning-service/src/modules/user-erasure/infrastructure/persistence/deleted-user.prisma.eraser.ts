@@ -18,6 +18,7 @@ export class DeletedUserPrismaEraser implements IDeletedUserEraser {
       const progress = await tx.userProgress.deleteMany({ where: { userId } });
       const srsCards = await tx.srsReviewCard.deleteMany({ where: { userId } });
       const canDo = await tx.canDoProgress.deleteMany({ where: { userId } });
+      const atomFlags = await tx.atomFlag.deleteMany({ where: { userId } });
 
       return {
         enrollments: enrollments.count,
@@ -25,6 +26,7 @@ export class DeletedUserPrismaEraser implements IDeletedUserEraser {
         progress: progress.count,
         srsCards: srsCards.count,
         canDo: canDo.count,
+        atomFlags: atomFlags.count,
       };
     });
   }

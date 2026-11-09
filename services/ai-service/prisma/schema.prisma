@@ -39,11 +39,13 @@ enum AiRegion {
 }
 
 /// What a model takes and gives (plan 82, step 3): `llm` — text in, text or structure out,
-/// priced per token; `speech` — audio and a reference text in, words out, priced per audio hour.
+/// priced per token; `speech` — audio and a reference text in, words out, priced per audio hour;
+/// `tts` — text in, audio out, priced per million characters (plan 88, step 6b).
 /// A capability binds only models of its own modality.
 enum AiModelModality {
   llm
   speech
+  tts
 
   @@map("ai_model_modality")
 }
@@ -86,7 +88,7 @@ model AiModel {
   providerModelId String        @map("provider_model_id")
   displayName     String        @map("display_name")
   modality        AiModelModality @default(llm)
-  /// `ModelFeatures` for `llm`, `SpeechFeatures` for `speech`
+  /// `ModelFeatures` for `llm`, `SpeechFeatures` for `speech`, `TtsFeatures` for `tts`
   /// (src/modules/providers/domain/model-features.ts).
   features        Json
   status          AiModelStatus @default(active)
@@ -117,6 +119,8 @@ model AiModelPrice {
   /// Per hour of audio in, in `currency` — speech models (plan 82, step 3). Per hour, not per
   /// second: providers list it so ($1/h), and per second it would not fit six decimals.
   audioPerHour      Decimal  @default(0) @map("audio_per_hour") @db.Decimal(12, 6)
+  /// Per one million characters spoken, in `currency` — synthesizers (plan 88, step 6b).
+  charsPerMillion   Decimal  @default(0) @map("chars_per_million") @db.Decimal(12, 6)
   currency          String   @default("USD")
   createdAt         DateTime @default(now()) @map("created_at")
 
@@ -215,6 +219,8 @@ model AiCall {
   cacheWriteTokens Int?          @map("cache_write_tokens")
   /// Audio a speech model was given, in milliseconds; null for language models.
   audioMs          Int?          @map("audio_ms")
+  /// Characters a synthesizer spoke (plan 88, step 6b); null for every other model.
+  characters       Int?
   /// In 1e-6 of `currency`. Null when the model had no price in effect.
   costMicros       BigInt?       @map("cost_micros")
   currency         String?
@@ -226,10 +232,16 @@ model AiCall {
   fallbackUsed     Boolean       @map("fallback_used")
   /// The router's route: role, model, outcome, reason per model considered. No text.
   attempts         Json
+  /// The exercise a rehearsal was about (plan 84, step 3); null for every other call.
+  exerciseId       String?       @map("exercise_id")
+  /// One rehearsal: every call it made (a reading — one per passage) shares it. Null elsewhere.
+  checkId          String?       @map("check_id")
   createdAt        DateTime      @default(now()) @map("created_at")
 
   @@index([createdAt])
   @@index([payerType, payerId, capability, createdAt])
+  /// A rehearsal's limits: checks per (learner, exercise), credits per learner per month.
+  @@index([payerId, actorUserId, surface, createdAt])
   @@map("ai_calls")
 }
 
@@ -344,4 +356,44 @@ model AssistFeedback {
 
   @@index([createdAt])
   @@map("assist_feedback")
+}
+
+// ─── Pronunciation lexicon (plan 88, step 1) ─────────────────────────────────
+
+/// One transcription of one word form from a pronunciation lexicon — today NB Uttale
+/// (Språkbanken, CC0), østnorsk. Azure scores the sounds of a word but leaves their symbols
+/// empty; this table names them and gives the toneme. Written and spoken norms share a row
+/// when they agree (they differ in ~3 % of forms), so a word's candidates are all its rows.
+/// Loaded by `prisma/lexicon/import-nb-uttale.ts`, which replaces a (language, dialect,
+/// source) slice in one transaction; the app only reads.
+model PronunciationEntry {
+  id        BigInt  @id @default(autoincrement())
+  /// ISO 639-1 of the spoken language: `nb`.
+  language  String
+  /// The source's own dialect code; NB Uttale `e` = østnorsk.
+  dialect   String
+  /// The lookup key: the word form lowercased (Azure's words come back lowercased).
+  wordKey   String  @map("word_key")
+  /// The form as the lexicon writes it (case kept, proper names capitalised).
+  wordform  String
+  /// Part of speech and features as the source writes them (`NN`, `PLU|IND|NOM|MAS`) —
+  /// homographs differ in toneme by them (*tømmer* noun 1 / verb 2).
+  pos       String
+  feats     String
+  /// Space-separated NoFAbet symbols; a digit on a vowel is its stress: 0 unstressed,
+  /// 1 / 2 primary with toneme 1 / 2, 3 secondary.
+  nofabet   String
+  ipa       String
+  /// Toneme of the primary stress, 1 or 2; null when the form has no or several primary
+  /// stresses. A one-syllable word carries 1 by the lexicon's convention — not a contrast.
+  tone      Int?    @db.SmallInt
+  /// In the written-norm (`e_written`) and the spoken-norm (`e_spoken`) lexicon.
+  inWritten Boolean @map("in_written")
+  inSpoken  Boolean @map("in_spoken")
+  /// `nb_uttale`.
+  source    String
+
+  @@unique([language, dialect, source, wordform, pos, feats, nofabet], map: "pronunciation_lexicon_entry_key")
+  @@index([language, dialect, wordKey])
+  @@map("pronunciation_lexicon")
 }

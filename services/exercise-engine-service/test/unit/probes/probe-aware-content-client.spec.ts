@@ -190,4 +190,43 @@ describe('ProbeAwareContentClient', () => {
     expect(result.isFail).toBe(true);
     expect((result.error as ContentClientError).statusCode).toBe(503);
   });
+
+  // Plan 86, step 13.4c: a template the engine owns has no catalogue row to ask for.
+  describe('an engine-owned template (`sound_session`)', () => {
+    const sessionProbe = () =>
+      ProbeTask.create({
+        userId: 'learner-1',
+        subject: { atomType: 'sound', atomId: 'nb:kj' },
+        requiredModality: 'production',
+        definition: {
+          templateCode: 'sound_session',
+          targetLanguage: 'nb',
+          difficultyLevel: 'A1',
+          content: { version: 1, plan: {} },
+          expectedAnswers: null,
+          answerCheckSettings: null,
+          instruction: null,
+        },
+        ttlSeconds: 3600,
+      });
+
+    it('is answered without asking content-service', async () => {
+      const probe = sessionProbe();
+      const { client, catalogue } = makeClient(probe);
+
+      const result = await client.getExerciseForAttempt(probe.id, 'en', 'PRACTICE');
+
+      expect(result.isOk).toBe(true);
+      expect(result.value.template).toMatchObject({ code: 'sound_session', answerSchema: {} });
+      expect(result.value.ephemeral).toBe(true);
+      expect(catalogue.getTemplateByCode).not.toHaveBeenCalled();
+    });
+
+    it('is answered by code as well', async () => {
+      const { client, catalogue } = makeClient(null);
+      const result = await client.getTemplateByCode('sound_session');
+      expect(result.value.code).toBe('sound_session');
+      expect(catalogue.getTemplateByCode).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -8,6 +8,7 @@ import { BINDING_SOURCE, type IBindingSource } from '../../registry/application/
 import type { AiBinding } from '../../registry/domain/binding.js';
 import { Result } from '../../../shared/kernel/result.js';
 import type { SpeechResult } from '../../providers/domain/speech-result.js';
+import type { SynthesisResult } from '../../providers/domain/synthesis-result.js';
 import {
   ModelRouter,
   type AnswerListener,
@@ -17,6 +18,7 @@ import {
   type Routed,
   type RouteFailureOf,
   type SpeechGatewayRequest,
+  type SynthesisGatewayRequest,
 } from './model-router.js';
 
 export type GatewayFailureOf<R> =
@@ -44,6 +46,8 @@ export interface GatewayCallOf<R> {
 export type GatewayCall = GatewayCallOf<LlmResult>;
 /** A voice capability's call (plan 82, step 8): a recording in, the words heard out. */
 export type GatewaySpeechCall = GatewayCallOf<SpeechResult>;
+/** A synthesis capability's call (plan 88, step 6b): a text in, a WAV out. */
+export type GatewaySynthesisCall = GatewayCallOf<SynthesisResult>;
 
 /**
  * The one path from an agent to a model: the agent's switch → the access gate → route
@@ -57,7 +61,8 @@ export type GatewaySpeechCall = GatewayCallOf<SpeechResult>;
  * ledger is the truth the counter is rebuilt from, so it goes first.
  *
  * A voice capability (plan 82, step 8) goes the same way with a recording (`callSpeech`); its
- * ledger row carries the audio it is priced by instead of tokens.
+ * ledger row carries the audio it is priced by instead of tokens. A synthesis capability (plan
+ * 88, step 6b) goes the same way with a text (`callSynthesis`), priced by its characters.
  */
 @Injectable()
 export class AiGateway {
@@ -80,6 +85,24 @@ export class AiGateway {
     return this.run(capability, context, (constraints) => this.router.callSpeech(capability, request, constraints), byAudio);
   }
 
+  async callSynthesis(
+    capability: string,
+    context: CallContext,
+    request: SynthesisGatewayRequest,
+  ): Promise<GatewaySynthesisCall> {
+    return this.run(
+      capability,
+      context,
+      (constraints) => this.router.callSynthesis(capability, request, constraints),
+      byCharacters,
+    );
+  }
+
+  /** The voices a synthesis capability may be asked to speak `language` with (plan 88, step 6b.2); a read, no ledger row. */
+  voicesOf(capability: string, language: string): Promise<string[]> {
+    return this.router.voicesOf(capability, language);
+  }
+
   /**
    * Whether a call to this capability would get past its switch and the gate for this payer —
    * a read, no ledger row: a voice review picks its level by it (plan 82, step 8). The quota
@@ -99,6 +122,15 @@ export class AiGateway {
    */
   async admits(capability: string, payer: CallContext['payer']): Promise<Result<void, AdmissionFailure>> {
     return (await this.admit(capability, payer)).map(() => undefined);
+  }
+
+  /**
+   * `admits` with what the gate granted — the payer's entitlement and the counter it checked, so
+   * a caller can say what is left before the first call (plan 86, step 14.1: a session's budget).
+   * Neither a ledger row nor a charge.
+   */
+  async standing(capability: string, payer: CallContext['payer']): Promise<Result<GateGrant, AdmissionFailure>> {
+    return (await this.admit(capability, payer)).map((admitted) => admitted.grant);
   }
 
   private async run<R>(
@@ -144,14 +176,17 @@ export class AiGateway {
   }
 }
 
-/** What an answer is priced by: a language model's tokens, a speech model's audio. */
+/** What an answer is priced by: a language model's tokens, a speech model's audio, a synthesizer's characters. */
 interface Metered {
   usage: LlmUsage | null;
   audioMs: number | null;
+  characters?: number | null;
 }
 
 const byTokens = (result: LlmResult): Metered => ({ usage: result.usage, audioMs: null });
 const byAudio = (result: SpeechResult): Metered => ({ usage: null, audioMs: result.audioMs });
+// The clip's length is not what a synthesis is priced by: it goes on the ledger as characters only.
+const byCharacters = (result: SynthesisResult): Metered => ({ usage: null, audioMs: null, characters: result.characters });
 
 /** What the ledger keeps of a routed call to a language model. Exported for tests. */
 export function toRecord(

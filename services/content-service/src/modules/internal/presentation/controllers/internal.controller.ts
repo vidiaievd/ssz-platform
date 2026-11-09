@@ -56,6 +56,12 @@ import type { ExerciseTemplateEntity } from '../../../exercise-template/domain/e
 import type { ExerciseTemplateDomainError } from '../../../exercise-template/domain/exceptions/exercise-template-domain.exceptions.js';
 import { DescribeAtomsQuery } from '../../../exercise/application/queries/describe-atoms/describe-atoms.query.js';
 import { GetAtomCoverageQuery } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.query.js';
+import { GetGrammarAtomCatalogQuery } from '../../application/queries/grammar-atom-catalog/grammar-atom-catalog.query.js';
+import type { GrammarAtomCatalog } from '../../application/queries/grammar-atom-catalog/grammar-atom-catalog.handler.js';
+import { GetSoundAtomCatalogQuery } from '../../application/queries/sound-atom-catalog/sound-atom-catalog.query.js';
+import type { SoundAtomCatalog } from '../../application/queries/sound-atom-catalog/sound-atom-catalog.handler.js';
+import { GetSoundAtomDrillQuery } from '../../application/queries/sound-atom-drill/sound-atom-drill.query.js';
+import type { SoundAtomDrillSet } from '../../application/queries/sound-atom-drill/sound-atom-drill.handler.js';
 import type { AtomCoverageResult } from '../../../container/application/queries/get-atom-coverage/get-atom-coverage.handler.js';
 import type { AtomDescriptor } from '../../../exercise/domain/repositories/exercise-item-target.repository.interface.js';
 import type { ExerciseEnvelope } from '../../../exercise/application/queries/get-exercise-envelope/get-exercise-envelope.handler.js';
@@ -775,6 +781,48 @@ export class InternalController {
 
     if (result.isFail) throw new NotFoundException(`Course ${courseId} not found`);
     return { courseId, targetLanguage: result.value.container.targetLanguage };
+  }
+
+  // The grammar atoms a model may point a mistake at (plan 85, step 2): every atom of the
+  // course's published version, with the rule's title in the school's explanation language.
+  // Which of them a learner has reached is learning-service's answer; ai-service intersects.
+  @Get('courses/:courseId/grammar-atom-catalog')
+  async getGrammarAtomCatalog(
+    @Param('courseId') courseId: string,
+    @Query('language') language = 'en',
+  ): Promise<GrammarAtomCatalog> {
+    return this.queryBus.execute<GetGrammarAtomCatalogQuery, GrammarAtomCatalog>(
+      new GetGrammarAtomCatalogQuery(courseId, language),
+    );
+  }
+
+  // The `sound` atoms of a language (plan 86, step 8.1): ids as ai-service flags them
+  // (`nb:kj`), texts in the asked interface locale, English where it has none.
+  @Get('sound-atoms')
+  async getSoundAtomCatalog(
+    @Query('language') language = 'nb',
+    @Query('locale') locale = 'en',
+  ): Promise<SoundAtomCatalog> {
+    return this.queryBus.execute<GetSoundAtomCatalogQuery, SoundAtomCatalog>(
+      new GetSoundAtomCatalogQuery(language, locale),
+    );
+  }
+
+  // What the pronunciation session drills scored sounds with (plan 86, step 13.2): carrier words
+  // and pairs that have a reference clip, the course's short lines, the cold-start list.
+  // `atomIds` — comma-separated (`nb:kj,nb:sj`); omitted = every scored atom of the language.
+  @Get('sound-atoms/drill')
+  async getSoundAtomDrill(
+    @Query('language') language = 'nb',
+    @Query('atomIds') atomIds?: string,
+  ): Promise<SoundAtomDrillSet> {
+    const ids = (atomIds ?? '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0);
+    return this.queryBus.execute<GetSoundAtomDrillQuery, SoundAtomDrillSet>(
+      new GetSoundAtomDrillQuery(language, ids),
+    );
   }
 
   @Get('assist/courses/:courseId/units/:unitId')

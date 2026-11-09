@@ -48,6 +48,18 @@ import { SaveDraftCommand } from '../../application/commands/save-draft/save-dra
 import type { SaveDraftError, SaveDraftResult } from '../../application/commands/save-draft/save-draft.handler.js';
 import { SaveDraftRequestDto, SaveDraftResponseDto } from '../dto/save-draft.dto.js';
 import { SelfCheckCommand } from '../../application/commands/self-check/self-check.command.js';
+import { CheckAttemptCommand } from '../../application/commands/check-attempt/check-attempt.command.js';
+import type {
+  CheckAttemptError,
+  CheckAttemptResult,
+} from '../../application/commands/check-attempt/check-attempt.handler.js';
+import { CheckAttemptRequestDto, CheckAttemptResponseDto } from '../dto/check-attempt.dto.js';
+import { SentenceCheckCommand } from '../../application/commands/sentence-check/sentence-check.command.js';
+import type {
+  SentenceCheckError,
+  SentenceCheckResult,
+} from '../../application/commands/sentence-check/sentence-check.handler.js';
+import { SentenceCheckRequestDto, SentenceCheckResponseDto } from '../dto/sentence-check.dto.js';
 import { AnswerQuestionCommand } from '../../application/commands/answer-question/answer-question.command.js';
 import { HandOutProbeCommand } from '../../application/commands/hand-out-probe/hand-out-probe.command.js';
 import type {
@@ -456,7 +468,9 @@ export class AttemptsController {
   @ApiExtraModels(SelfCheckItemDto, TranslateSelfCheckItemDto)
   @ApiOperation({
     summary: 'Ask how the work is going without handing it in (error correction, translate)',
+    deprecated: true,
     description:
+      'Superseded by `check` (plan 84), which runs this same check first; kept while clients move. ' +
       'error_correction: how many mistakes are corrected so far, never which words are ' +
       'wrong. translate_*: how close each sentence is to the key, with the key\'s own ' +
       'words masked. Each call spends one of the exercise\'s self-checks ' +
@@ -504,6 +518,159 @@ export class AttemptsController {
     }
 
     return result.value;
+  }
+
+  @Post(':attemptId/check')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Check the work before handing it in — the key first, then a model (plan 84)',
+    description:
+      'error_correction / translate_*: the deterministic self-check first, on the author’s budget ' +
+      '(flow.selfCheck); when the key alone settles the draft no model is asked. Otherwise — and for ' +
+      'writing_task, short_answer and read_aloud (mode read) — a model rehearses the draft with the ' +
+      'school as payer, if the school switched it on (ai-precheck) and its plan has ai.practice, within ' +
+      'the school’s limits. Hints only, never the fix or the key. The attempt stays in progress: no ' +
+      'event, no progress, no review card. Once past access every outcome of the model is a 200 — ' +
+      'see ai.status.',
+  })
+  @ApiResponse({ status: 200, type: CheckAttemptResponseDto })
+  @ApiResponse({ status: 400, description: 'Draft answer does not match the template’s shape' })
+  @ApiResponse({
+    status: 403,
+    description:
+      'Not your attempt; or `PRECHECK_NOT_AVAILABLE` — the template has no self-check and the school ' +
+      'offers no model check (reason: no_school | disabled | not_entitled)',
+  })
+  @ApiResponse({ status: 404, description: 'Attempt not found' })
+  @ApiResponse({ status: 409, description: '`NOT_IN_PROGRESS` — handed in, returned or abandoned' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'Template has no check; no self-checks left and no model to ask; a read_aloud take that does not ' +
+      'stand up (RA_RECORDING_*, with itemIds)',
+  })
+  @ApiResponse({ status: 503, description: 'The school’s setting, its plan or the recordings could not be read' })
+  async check(
+    @Param('exerciseId') _exerciseId: string,
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Body() dto: CheckAttemptRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<CheckAttemptResult> {
+    const result: Result<CheckAttemptResult, CheckAttemptError> = await this.commandBus.execute(
+      new CheckAttemptCommand(attemptId, user.userId, dto.draftAnswer),
+    );
+    if (result.isOk) return result.value;
+
+    const err = result.error;
+    if (isRecordingRefusal(err)) {
+      throw new UnprocessableEntityException({ code: err.code, message: err.message, itemIds: err.itemIds });
+    }
+    if (err instanceof ContentClientError) throw new UnprocessableEntityException(err.message);
+    // The domain's own words: the author's self-checks are spent and no model may be asked.
+    if (err instanceof DomainError) throw new UnprocessableEntityException(err.message);
+    switch (err.code) {
+      case 'ATTEMPT_NOT_FOUND':
+        throw new NotFoundException('Attempt not found');
+      case 'FORBIDDEN':
+        throw new ForbiddenException('Not your attempt');
+      case 'UNSUPPORTED_TEMPLATE':
+        throw new UnprocessableEntityException({ code: 'UNSUPPORTED_TEMPLATE', message: 'This exercise type has no check' });
+      case 'NOT_IN_PROGRESS':
+        throw new ConflictException({ code: 'NOT_IN_PROGRESS', message: 'The work is already handed in' });
+      case 'SCHEMA_MISMATCH':
+        throw new BadRequestException('Draft answer must carry the work so far in this template’s shape');
+      case 'PRECHECK_NOT_AVAILABLE':
+        throw new ForbiddenException({
+          code: 'PRECHECK_NOT_AVAILABLE',
+          reason: err.reason,
+          message: 'This school offers no check before hand-in',
+        });
+      case 'PRECHECK_ACCESS_UNKNOWN':
+        throw new ServiceUnavailableException({
+          code: 'PRECHECK_ACCESS_UNKNOWN',
+          message: 'Whether this school offers a check could not be read right now — try again',
+        });
+      case 'MEDIA_UNAVAILABLE':
+        throw new ServiceUnavailableException({
+          code: 'MEDIA_UNAVAILABLE',
+          message: 'The recordings could not be checked right now — try again',
+        });
+    }
+    throw new UnprocessableEntityException('Cannot check this attempt');
+  }
+
+  @Post(':attemptId/sentence-checks')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Hear one sentence of a reading on its own (plan 86, step 6g)',
+    description:
+      'read_aloud only, attempt in progress. The learner’s take of one sentence of a passage is heard by a ' +
+      'model (the school as payer, or the learner on their own plan) and comes back as the words heard with ' +
+      'scores and sound remarks. Outside the rehearsal’s limits; ai-service limits tries per sentence per ' +
+      'day. The school’s switch (ai-precheck) still holds. Nothing about the attempt moves. Once past access ' +
+      'every outcome of the model is a 200 — see `status`.',
+  })
+  @ApiResponse({ status: 200, type: SentenceCheckResponseDto })
+  @ApiResponse({ status: 403, description: 'Not your attempt; or `PRECHECK_NOT_AVAILABLE` — the school switched checks off' })
+  @ApiResponse({ status: 404, description: 'Attempt not found' })
+  @ApiResponse({ status: 409, description: '`NOT_IN_PROGRESS`' })
+  @ApiResponse({
+    status: 422,
+    description: 'Not a reading; `SENTENCE_NOT_IN_PASSAGE`; a take that does not stand up (RA_RECORDING_*, with itemIds)',
+  })
+  @ApiResponse({ status: 503, description: 'The school’s setting or the recordings could not be read' })
+  async sentenceCheck(
+    @Param('exerciseId') _exerciseId: string,
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Body() dto: SentenceCheckRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<SentenceCheckResult> {
+    const result: Result<SentenceCheckResult, SentenceCheckError> = await this.commandBus.execute(
+      new SentenceCheckCommand(
+        attemptId,
+        user.userId,
+        dto.itemId,
+        dto.sentence,
+        dto.recordingAssetId,
+        dto.explanationLanguage ?? null,
+      ),
+    );
+    if (result.isOk) return result.value;
+
+    const err = result.error;
+    if (isRecordingRefusal(err)) {
+      throw new UnprocessableEntityException({ code: err.code, message: err.message, itemIds: err.itemIds });
+    }
+    if (err instanceof ContentClientError) throw new UnprocessableEntityException(err.message);
+    switch (err.code) {
+      case 'ATTEMPT_NOT_FOUND':
+        throw new NotFoundException('Attempt not found');
+      case 'FORBIDDEN':
+        throw new ForbiddenException('Not your attempt');
+      case 'UNSUPPORTED_TEMPLATE':
+        throw new UnprocessableEntityException({ code: 'UNSUPPORTED_TEMPLATE', message: 'Only a reading aloud has sentences to hear' });
+      case 'NOT_IN_PROGRESS':
+        throw new ConflictException({ code: 'NOT_IN_PROGRESS', message: 'The work is already handed in' });
+      case 'SENTENCE_NOT_IN_PASSAGE':
+        throw new UnprocessableEntityException({ code: 'SENTENCE_NOT_IN_PASSAGE', message: 'That sentence is not in this passage' });
+      case 'PRECHECK_NOT_AVAILABLE':
+        throw new ForbiddenException({
+          code: 'PRECHECK_NOT_AVAILABLE',
+          reason: err.reason,
+          message: 'This school offers no check before hand-in',
+        });
+      case 'PRECHECK_ACCESS_UNKNOWN':
+        throw new ServiceUnavailableException({
+          code: 'PRECHECK_ACCESS_UNKNOWN',
+          message: 'Whether this school offers a check could not be read right now — try again',
+        });
+      case 'MEDIA_UNAVAILABLE':
+        throw new ServiceUnavailableException({
+          code: 'MEDIA_UNAVAILABLE',
+          message: 'The recording could not be checked right now — try again',
+        });
+    }
+    throw new UnprocessableEntityException('Cannot hear this sentence');
   }
 
   @Post(':attemptId/answers')

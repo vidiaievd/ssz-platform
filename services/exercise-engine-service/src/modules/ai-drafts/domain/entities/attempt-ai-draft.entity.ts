@@ -48,6 +48,17 @@ export interface AiDraftRemark {
   fragment: string | null;
   comment: string;
   suggestion: string | null;
+  /**
+   * The atom the remark is about: a grammar atom from those the learner had reached in the
+   * course (plan 85, step 3b), or the sound family of a reading's weak sound (plan 88, step 5c).
+   * Absent on a draft written before them, or by a prompt that named none.
+   */
+  atomRef?: { atomType: 'grammar_rule_atom' | 'sound'; atomId: string } | null;
+  /**
+   * A `pronunciation` remark's word (plan 88, step 5c): its index in the prompt's
+   * `reading.prompts[].pronunciation.words`. Absent on every other remark.
+   */
+  wordIndex?: number | null;
 }
 
 /**

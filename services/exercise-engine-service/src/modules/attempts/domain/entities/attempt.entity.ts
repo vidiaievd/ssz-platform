@@ -25,6 +25,7 @@ import { AttemptCompletedUnscoredEvent } from '../events/attempt-completed-unsco
 import { AttemptRoutedForReviewEvent } from '../events/attempt-routed-for-review.event.js';
 import { AttemptReviewedEvent } from '../events/attempt-reviewed.event.js';
 import { AttemptReturnedEvent } from '../events/attempt-returned.event.js';
+import { TEMPLATE_CODE as SOUND_SESSION_TEMPLATE } from '../../../sound-sessions/domain/sound-session-template.js';
 
 export type AttemptStatus =
   | 'IN_PROGRESS'
@@ -246,6 +247,8 @@ export interface AttemptPersistenceProps {
   provisionalAiVerdict?: ProvisionalAiVerdict | null;
   reviewStartedAt?: Date | null;
   reviewHandlingSeconds?: number | null;
+  /** `sound_session`: where the session stands (plan 86, step 13.4c). */
+  sessionState?: unknown;
 }
 
 /**
@@ -407,6 +410,18 @@ export interface PendingAiVerdict {
 /** Where a model's verdict landed: closing the attempt, or waiting for a teacher beside it. */
 export type AiVerdictLanding = 'final' | 'provisional';
 
+/**
+ * One gap's verdict as a template reports it. `score` (0–100) where the verdict is finer than
+ * right or wrong; `targets` where the template, not the start snapshot, knows what the gap was
+ * about — both only from a pronunciation session today (plan 86, step 13.5).
+ */
+export interface GapVerdict {
+  gapKey: string;
+  correct: boolean;
+  score?: number;
+  targets?: AttemptTarget[];
+}
+
 export class Attempt extends AggregateRoot {
   private constructor(
     id: string,
@@ -469,6 +484,7 @@ export class Attempt extends AggregateRoot {
     private _provisionalAiVerdict: ProvisionalAiVerdict | null = null,
     private _reviewStartedAt: Date | null = null,
     private _reviewHandlingSeconds: number | null = null,
+    private _sessionState: unknown = null,
   ) {
     super(id);
   }
@@ -591,6 +607,7 @@ export class Attempt extends AggregateRoot {
       props.provisionalAiVerdict ?? null,
       props.reviewStartedAt ?? null,
       props.reviewHandlingSeconds ?? null,
+      props.sessionState ?? null,
     );
   }
 
@@ -729,8 +746,11 @@ export class Attempt extends AggregateRoot {
     feedback: unknown,
     /** How the answer was produced; omitted by templates that cannot say. */
     answerForm?: AnswerForm,
-    /** Verdict per gap, in gap order; omitted by templates not graded gap by gap. */
-    gapResults?: Array<{ gapKey: string; correct: boolean }>,
+    /**
+     * Verdict per gap, in gap order; omitted by templates not graded gap by gap. `score` and
+     * `targets` only from a template that knows them better than the snapshot (plan 86, 13.5).
+     */
+    gapResults?: GapVerdict[],
     /** The delivery handed part of the answer over — see `AttemptScoredPayload`. */
     evidenceLowered?: boolean,
     /** When the verdict was reached — the server's time, or a replayed call's. */
@@ -1816,16 +1836,21 @@ export class Attempt extends AggregateRoot {
    * a template that grades as one, the score of the attempt *is* the verdict.
    */
   private wholeExerciseTargets(): AttemptTarget[] {
+    // A pronunciation session is rated sound by sound from what it measured (plan 86, Q28) —
+    // never by its score, which is how learning reads an exercise-level target whatever its
+    // role. Its event carries none; the per-sound evidence is step 13.5's.
+    if (this._templateCode === SOUND_SESSION_TEMPLATE) return [];
     return this._itemTargets
       .filter((target) => target.itemKey === null)
       .map(({ atomType, atomId, role }) => ({ atomType, atomId, role }));
   }
 
   /** Each gap verdict with whatever this attempt snapshotted about that gap. */
-  private addressed(
-    gapResults: Array<{ gapKey: string; correct: boolean }>,
-  ): Array<{ gapKey: string; correct: boolean; targets?: AttemptTarget[] }> {
+  private addressed(gapResults: GapVerdict[]): GapVerdict[] {
     return gapResults.map((result) => {
+      // A template that named the gap's atoms itself (a pronunciation session's sound, plan 86
+      // step 13.5) is believed: nothing was snapshotted at start for a gap decided on the way.
+      if (result.targets !== undefined) return result;
       const targets = this._itemTargets
         .filter((target) => target.itemKey === result.gapKey)
         .map(({ atomType, atomId, role }) => ({ atomType, atomId, role }));
@@ -1964,6 +1989,22 @@ export class Attempt extends AggregateRoot {
   get reviewStartedAt(): Date | null { return this._reviewStartedAt; }
   /** Set by a person's verdict when they held the card — see `handlingSeconds`. */
   get reviewHandlingSeconds(): number | null { return this._reviewHandlingSeconds; }
+  get sessionState(): unknown { return this._sessionState; }
+
+  /**
+   * Where a pronunciation session stands (plan 86, step 13.4): written once when it begins and
+   * then after every take, by the engine alone. Like the draw of a `minimal_pairs` sitting it is
+   * answer-bearing — which takes missed is the rating of the sound — so it is the server's, never
+   * the client's, and it moves only on an open attempt. What it means is the session domain's
+   * (`sound-sessions/domain`); the attempt only keeps it.
+   */
+  recordSessionState(state: unknown): Result<void, InvalidAttemptTransitionError> {
+    if (this._status !== 'IN_PROGRESS') {
+      return Result.fail(new InvalidAttemptTransitionError('A session moves only while its attempt is open'));
+    }
+    this._sessionState = state;
+    return Result.ok();
+  }
   get previousAttemptId(): string | null { return this._previousAttemptId; }
   get autoPassedItems(): number | null { return this._autoPassedItems; }
   get totalItems(): number | null { return this._totalItems; }

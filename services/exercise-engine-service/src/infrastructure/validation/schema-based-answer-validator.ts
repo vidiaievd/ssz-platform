@@ -27,6 +27,7 @@ import { InflectionTableValidator } from './validators/inflection-table.validato
 import { ReadAloudValidator } from './validators/read-aloud.validator.js';
 import { MinimalPairsValidator } from './validators/minimal-pairs.validator.js';
 import { InformationTransferValidator } from './validators/information-transfer.validator.js';
+import { SoundSessionValidator } from './validators/sound-session.validator.js';
 import type { IPerTypeValidator } from './validators/per-type-validator.interface.js';
 
 /**
@@ -113,6 +114,9 @@ const OWN_SUBMISSION_SHAPE = new Set([
   // reason per field; its submission is the value typed in each cell. One form only, so its
   // shape is checked in the validator and nowhere else.
   'information_transfer',
+  // And `sound_session` (plan 86, step 13.4): an engine-owned template with no schema at all —
+  // its content is the plan and its submission the state the engine recorded.
+  'sound_session',
 ]);
 
 @Injectable()
@@ -143,6 +147,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
     raValidator: ReadAloudValidator,
     mpsValidator: MinimalPairsValidator,
     infValidator: InformationTransferValidator,
+    ssnValidator: SoundSessionValidator,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     this.ajv = new (Ajv as any)({ allErrors: true, strict: false });
@@ -170,6 +175,7 @@ export class SchemaBasedAnswerValidator implements IAnswerValidator {
       ['read_aloud', raValidator],
       ['minimal_pairs', mpsValidator],
       ['information_transfer', infValidator],
+      ['sound_session', ssnValidator],
     ]);
   }
 

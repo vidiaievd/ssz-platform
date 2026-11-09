@@ -247,6 +247,14 @@ model Attempt {
   // time by `POST /attempts/:id/items`, and the picks go into `picked_options` above.
   probeDraw Json? @map("probe_draw")
 
+  // ── A pronunciation session's progress ──────────────────────────────────
+  // `sound_session` (plan 86, step 13.4): the plan of the session is the probe's content and
+  // never changes; this is where the learner stands in it — the diagnostic, each sound's
+  // ladder, the misses and the takes. Rewritten after every take by the engine, never by the
+  // client: which takes missed *is* the rating of the sound. Untyped like the columns above —
+  // its shape is the session domain's.
+  sessionState Json? @map("session_state")
+
   // Worked on a phone with no network and replayed from its offline journal (VoxOrd offline
   // plan, B4): at least one call arrived dated by the phone. Kept to measure how much offline
   // practice there is, and to explain an attempt whose times precede its arrival.

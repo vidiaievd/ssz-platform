@@ -26,6 +26,7 @@ import { MembershipNotFoundException } from '../../modules/schools/domain/except
 import { InvalidMembershipTransitionException } from '../../modules/schools/domain/exceptions/invalid-membership-transition.exception.js';
 import { InvalidReviewSettingsException } from '../../modules/schools/domain/exceptions/invalid-review-settings.exception.js';
 import { InvalidAssistantAccessException } from '../../modules/schools/domain/exceptions/invalid-assistant-access.exception.js';
+import { InvalidAiPrecheckSettingsException } from '../../modules/schools/domain/exceptions/invalid-ai-precheck-settings.exception.js';
 import { FeatureNotEntitledException } from '../../modules/schools/domain/exceptions/feature-not-entitled.exception.js';
 
 @Catch(
@@ -35,6 +36,7 @@ import { FeatureNotEntitledException } from '../../modules/schools/domain/except
   InvalidMembershipTransitionException,
   InvalidReviewSettingsException,
   InvalidAssistantAccessException,
+  InvalidAiPrecheckSettingsException,
   FeatureNotEntitledException,
   SchoolAlreadyExistsException,
   ForbiddenOperationException,
@@ -85,6 +87,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
     if (exception instanceof InvalidAssistantAccessException) {
       return { status: HttpStatus.UNPROCESSABLE_ENTITY, code: 'INVALID_ASSISTANT_ACCESS' };
+    }
+    if (exception instanceof InvalidAiPrecheckSettingsException) {
+      return { status: HttpStatus.UNPROCESSABLE_ENTITY, code: 'INVALID_AI_PRECHECK_SETTINGS' };
     }
     if (exception instanceof FeatureNotEntitledException) {
       return { status: HttpStatus.FORBIDDEN, code: 'FEATURE_NOT_ENTITLED' };

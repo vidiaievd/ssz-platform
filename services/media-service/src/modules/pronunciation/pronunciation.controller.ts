@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   HttpCode,
   HttpStatus,
   Post,
@@ -9,11 +10,20 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+import { isAuthor } from '../../common/authoring-roles.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../infrastructure/auth/jwt-verifier.service.js';
-import { PronounceClipDto, PronounceClipResponseDto, PronounceDto, PronounceResponseDto } from './dto/pronounce.dto.js';
+import {
+  PronounceClipDto,
+  PronounceClipResponseDto,
+  PronounceDto,
+  PronounceResponseDto,
+  ReferenceClipDto,
+  ReferenceClipResponseDto,
+} from './dto/pronounce.dto.js';
 import { PronunciationClipService } from './pronunciation-clip.service.js';
 import { PronunciationService } from './pronunciation.service.js';
+import { ReferenceClipService } from './reference-clip.service.js';
 
 @ApiTags('pronunciation')
 @ApiBearerAuth()
@@ -22,6 +32,7 @@ export class PronunciationController {
   constructor(
     private readonly pronunciation: PronunciationService,
     private readonly clips: PronunciationClipService,
+    private readonly references: ReferenceClipService,
   ) {}
 
   @Post()
@@ -71,6 +82,42 @@ export class PronunciationController {
     if (result.isFail) {
       if (result.error === 'SYNTHESIS_FAILED') {
         throw new ServiceUnavailableException('Speech synthesis is unavailable');
+      }
+      throw new UnprocessableEntityException(result.error);
+    }
+
+    return result.value;
+  }
+
+  @Post('reference')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get the self-checked reference clip of a word',
+    description:
+      'A cloud voice says the word in a carrier sentence and ai-service checks the toneme it spoke against the ' +
+      'pronunciation lexicon, voice by voice (plan 88). The first clip that agrees becomes a `reference_clip` asset ' +
+      'of the platform, kept for good and shared by every course; later requests get the same asset. The check ' +
+      "stays on the asset as `synthesis.reference`. Authors only: the platform pays for the synthesis.",
+  })
+  @ApiResponse({ status: 200, type: ReferenceClipResponseDto })
+  @ApiResponse({ status: 403, description: 'Not an author' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'EMPTY_TEXT, NOT_A_WORD, LANGUAGE_NOT_SUPPORTED, NOT_IN_LEXICON, TONE_AMBIGUOUS (a homograph whose meanings ' +
+      'differ in toneme), REFERENCE_REJECTED (no voice passed the check) or ASSET_REJECTED',
+  })
+  @ApiResponse({ status: 503, description: 'Reference synthesis is switched off or unavailable' })
+  async reference(
+    @Body() dto: ReferenceClipDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ReferenceClipResponseDto> {
+    if (!isAuthor(user.roles)) throw new ForbiddenException('Only authors can ask for a reference clip');
+    const result = await this.references.getOrCreate(dto.text, dto.lang ?? 'nb');
+
+    if (result.isFail) {
+      if (result.error === 'SYNTHESIS_FAILED' || result.error === 'NOT_AVAILABLE') {
+        throw new ServiceUnavailableException(result.error);
       }
       throw new UnprocessableEntityException(result.error);
     }

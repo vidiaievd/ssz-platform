@@ -1,0 +1,685 @@
+{
+  "nb:kj": [
+    {
+      "text": "Kjæresten min jobber på kjøkkenet.",
+      "carriers": [
+        "Kjæresten"
+      ],
+      "source": "uttale-23-4:p2"
+    },
+    {
+      "text": "Kjæresten min kjører en ny bil.",
+      "carriers": [
+        "Kjæresten"
+      ],
+      "source": "uttale-27-5:p1"
+    },
+    {
+      "text": "Kjæresten min synes at vinteren er lang.",
+      "carriers": [
+        "Kjæresten"
+      ],
+      "source": "uttale-30-4:p1"
+    },
+    {
+      "text": "Du spiser jo mest hos kjæresten din!",
+      "carriers": [
+        "kjæresten"
+      ],
+      "source": "uttale-31-3:p2"
+    },
+    {
+      "text": "Kjæresten min kjøper kjøtt og kylling på kjøpesenteret.",
+      "carriers": [
+        "Kjæresten"
+      ],
+      "source": "uttale-24-2:p2"
+    }
+  ],
+  "nb:sj": [
+    {
+      "text": "Sjefen vil ha mer informasjon om prosjektet.",
+      "carriers": [
+        "Sjefen",
+        "informasjon",
+        "prosjektet"
+      ],
+      "source": "uttale-24-2:p1"
+    },
+    {
+      "text": "Du har sju skjorter.",
+      "carriers": [
+        "sju",
+        "skjorter"
+      ],
+      "source": "uttale-03-5:p1"
+    },
+    {
+      "text": "Sjefen er på stasjonen.",
+      "carriers": [
+        "Sjefen",
+        "stasjonen"
+      ],
+      "source": "uttale-17-6:p2"
+    },
+    {
+      "text": "Sju gutter går på ski.",
+      "carriers": [
+        "Sju",
+        "ski"
+      ],
+      "source": "uttale-06-5:p1"
+    },
+    {
+      "text": "En skive med skinke, takk.",
+      "carriers": [
+        "skive",
+        "skinke"
+      ],
+      "source": "uttale-07-3:p5"
+    },
+    {
+      "text": "Det er skyer over sjøen.",
+      "carriers": [
+        "skyer",
+        "sjøen"
+      ],
+      "source": "uttale-07-3:p6"
+    },
+    {
+      "text": "Kan vi kjøpe sjokolade på stasjonen?",
+      "carriers": [
+        "sjokolade",
+        "stasjonen"
+      ],
+      "source": "uttale-15-3:p4"
+    },
+    {
+      "text": "Kari er glad i sjokolade og skinke.",
+      "carriers": [
+        "sjokolade",
+        "skinke"
+      ],
+      "source": "uttale-17-6:p5"
+    },
+    {
+      "text": "Vil du ha sju skiver med ost?",
+      "carriers": [
+        "sju",
+        "skiver"
+      ],
+      "source": "uttale-18-5:p3"
+    },
+    {
+      "text": "Du får sjokolade.",
+      "carriers": [
+        "sjokolade"
+      ],
+      "source": "uttale-06-5:p3"
+    },
+    {
+      "text": "Bussen står på stasjonen.",
+      "carriers": [
+        "stasjonen"
+      ],
+      "source": "uttale-03-5:p4"
+    },
+    {
+      "text": "Vi går på ski.",
+      "carriers": [
+        "ski"
+      ],
+      "source": "uttale-07-3:p1"
+    },
+    {
+      "text": "Toget står på stasjonen.",
+      "carriers": [
+        "stasjonen"
+      ],
+      "source": "uttale-07-3:p3"
+    },
+    {
+      "text": "Jeg vil ha sjokolade.",
+      "carriers": [
+        "sjokolade"
+      ],
+      "source": "uttale-07-3:p4"
+    },
+    {
+      "text": "Skjorta ligger på kjøkkenet.",
+      "carriers": [
+        "Skjorta"
+      ],
+      "source": "uttale-15-3:p3"
+    },
+    {
+      "text": "Kinoen ligger ved sjøen.",
+      "carriers": [
+        "sjøen"
+      ],
+      "source": "uttale-15-3:p5"
+    },
+    {
+      "text": "Det regner på sjøen.",
+      "carriers": [
+        "sjøen"
+      ],
+      "source": "uttale-17-6:p3"
+    },
+    {
+      "text": "Huset ligger ved sjøen.",
+      "carriers": [
+        "sjøen"
+      ],
+      "source": "uttale-18-5:p4"
+    },
+    {
+      "text": "Hunden sover på stasjonen.",
+      "carriers": [
+        "stasjonen"
+      ],
+      "source": "uttale-18-5:p5"
+    },
+    {
+      "text": "Og sjøen er fantastisk!",
+      "carriers": [
+        "sjøen"
+      ],
+      "source": "uttale-20-3:p6"
+    }
+  ],
+  "nb:y": [
+    {
+      "text": "Syv fly over byen.",
+      "carriers": [
+        "fly"
+      ],
+      "source": "uttale-03-3:p2"
+    },
+    {
+      "text": "Tjue fly lander hver time.",
+      "carriers": [
+        "fly"
+      ],
+      "source": "uttale-16-5:p4"
+    },
+    {
+      "text": "Alle skal fly til Syden i morgen.",
+      "carriers": [
+        "fly"
+      ],
+      "source": "uttale-12-4:p2"
+    },
+    {
+      "text": "Vi skal flytte til en ny by.",
+      "carriers": [
+        "by"
+      ],
+      "source": "uttale-13-3:p2"
+    },
+    {
+      "text": "Vi tar et fly til byen i morgen.",
+      "carriers": [
+        "fly"
+      ],
+      "source": "uttale-01-5:p4"
+    }
+  ],
+  "nb:uu": [
+    {
+      "text": "Sju gutter går ut.",
+      "carriers": [
+        "Sju",
+        "gutter",
+        "ut"
+      ],
+      "source": "uttale-04-3:p5"
+    },
+    {
+      "text": "Hun drikker kaffe og tar en tur ut.",
+      "carriers": [
+        "Hun",
+        "tur",
+        "ut"
+      ],
+      "source": "uttale-14-5:p3"
+    },
+    {
+      "text": "Musen bor i huset.",
+      "carriers": [
+        "Musen",
+        "huset"
+      ],
+      "source": "uttale-04-3:p2"
+    },
+    {
+      "text": "Sju gutter går på ski.",
+      "carriers": [
+        "Sju",
+        "gutter"
+      ],
+      "source": "uttale-06-5:p1"
+    },
+    {
+      "text": "Gutten kjøper sukker i butikken.",
+      "carriers": [
+        "Gutten",
+        "sukker"
+      ],
+      "source": "uttale-25-4:p2"
+    },
+    {
+      "text": "Sju uker i Syden — så godt!",
+      "carriers": [
+        "Sju",
+        "uker"
+      ],
+      "source": "uttale-13-3:p5"
+    },
+    {
+      "text": "Hun kjøper sukker og ost i butikken.",
+      "carriers": [
+        "Hun",
+        "sukker"
+      ],
+      "source": "uttale-13-3:p3"
+    },
+    {
+      "text": "Brunost og bunad er typisk norske symboler.",
+      "carriers": [
+        "Brunost",
+        "bunad"
+      ],
+      "source": "uttale-23-2:p4"
+    },
+    {
+      "text": "Tar du sukker?",
+      "carriers": [
+        "sukker"
+      ],
+      "source": "uttale-04-3:p4"
+    },
+    {
+      "text": "Du har sju skjorter.",
+      "carriers": [
+        "sju"
+      ],
+      "source": "uttale-03-5:p1"
+    },
+    {
+      "text": "Tusen takk for kyllingen!",
+      "carriers": [
+        "Tusen"
+      ],
+      "source": "uttale-08-5:p3"
+    },
+    {
+      "text": "Tusen takk for maten!",
+      "carriers": [
+        "Tusen"
+      ],
+      "source": "uttale-11-3:p1"
+    },
+    {
+      "text": "Huset ligger ved sjøen.",
+      "carriers": [
+        "Huset"
+      ],
+      "source": "uttale-18-5:p4"
+    },
+    {
+      "text": "Huset har et fint kjøkken.",
+      "carriers": [
+        "Huset"
+      ],
+      "source": "uttale-08-5:p2"
+    },
+    {
+      "text": "Gutten tar bussen til kino.",
+      "carriers": [
+        "Gutten"
+      ],
+      "source": "uttale-08-5:p4"
+    },
+    {
+      "text": "Mamma kjører ut i kveld.",
+      "carriers": [
+        "ut"
+      ],
+      "source": "uttale-08-5:p5"
+    },
+    {
+      "text": "Tusen takk for maten, mor!",
+      "carriers": [
+        "Tusen"
+      ],
+      "source": "uttale-20-4:p1"
+    },
+    {
+      "text": "Hun er ferdig med leksene.",
+      "carriers": [
+        "Hun"
+      ],
+      "source": "uttale-20-5:p5"
+    },
+    {
+      "text": "Gutten åpner døren for hesten.",
+      "carriers": [
+        "Gutten"
+      ],
+      "source": "uttale-20-5:p6"
+    },
+    {
+      "text": "Vi går en tur med hunden.",
+      "carriers": [
+        "tur"
+      ],
+      "source": "uttale-04-3:p3"
+    }
+  ],
+  "nb:oe": [
+    {
+      "text": "Søsteren min har brød og øl.",
+      "carriers": [
+        "Søsteren",
+        "brød",
+        "øl"
+      ],
+      "source": "uttale-01-5:p5"
+    },
+    {
+      "text": "Lampen er rød, og døren er grønn.",
+      "carriers": [
+        "rød",
+        "døren",
+        "grønn"
+      ],
+      "source": "uttale-15-5:p5"
+    },
+    {
+      "text": "Døren er grønn.",
+      "carriers": [
+        "Døren",
+        "grønn"
+      ],
+      "source": "uttale-05-3:p5"
+    },
+    {
+      "text": "Hør her, søster!",
+      "carriers": [
+        "Hør",
+        "søster"
+      ],
+      "source": "uttale-10-3:p3"
+    },
+    {
+      "text": "Hører du døren?",
+      "carriers": [
+        "Hører",
+        "døren"
+      ],
+      "source": "uttale-11-5:p4"
+    },
+    {
+      "text": "Brød og øl, takk.",
+      "carriers": [
+        "Brød",
+        "øl"
+      ],
+      "source": "uttale-05-3:p4"
+    },
+    {
+      "text": "Har du brød og smør?",
+      "carriers": [
+        "brød",
+        "smør"
+      ],
+      "source": "uttale-11-5:p2"
+    },
+    {
+      "text": "Søsteren min bor ved sjøen.",
+      "carriers": [
+        "Søsteren",
+        "sjøen"
+      ],
+      "source": "uttale-20-5:p3"
+    },
+    {
+      "text": "Vi sorterer søppel for miljøets skyld.",
+      "carriers": [
+        "søppel",
+        "miljøets"
+      ],
+      "source": "uttale-23-2:p3"
+    },
+    {
+      "text": "Først hørte vi fuglene i hagen.",
+      "carriers": [
+        "Først",
+        "hørte"
+      ],
+      "source": "uttale-26-5:p1"
+    },
+    {
+      "text": "Vi møtes ved døra om ti minutter.",
+      "carriers": [
+        "møtes",
+        "døra"
+      ],
+      "source": "uttale-14-3:p6"
+    },
+    {
+      "text": "Vi kjørte forbi gården med røde dører.",
+      "carriers": [
+        "kjørte",
+        "dører"
+      ],
+      "source": "uttale-26-5:p5"
+    },
+    {
+      "text": "Vi skal kjøpe kjøtt og grønnsaker til dugnaden.",
+      "carriers": [
+        "kjøpe",
+        "kjøtt"
+      ],
+      "source": "uttale-21-4:p3"
+    },
+    {
+      "text": "Drømmen min er å bestå den muntlige prøven.",
+      "carriers": [
+        "Drømmen",
+        "prøven"
+      ],
+      "source": "uttale-23-2:p5"
+    },
+    {
+      "text": "Søsteren min har et kort møte på torsdag.",
+      "carriers": [
+        "Søsteren",
+        "møte"
+      ],
+      "source": "uttale-26-5:p2"
+    },
+    {
+      "text": "Skjorten er grønn.",
+      "carriers": [
+        "grønn"
+      ],
+      "source": "uttale-09-5:p3"
+    },
+    {
+      "text": "Kjør forsiktig, kjære!",
+      "carriers": [
+        "Kjør"
+      ],
+      "source": "uttale-20-3:p4"
+    },
+    {
+      "text": "Søsteren min er lærer.",
+      "carriers": [
+        "Søsteren"
+      ],
+      "source": "uttale-05-3:p2"
+    },
+    {
+      "text": "Sønnen min er sterk.",
+      "carriers": [
+        "Sønnen"
+      ],
+      "source": "uttale-05-3:p3"
+    },
+    {
+      "text": "Søsteren min spiser ris.",
+      "carriers": [
+        "Søsteren"
+      ],
+      "source": "uttale-10-5:p4"
+    }
+  ],
+  "nb:ae": [
+    {
+      "text": "Læreren er her.",
+      "carriers": [
+        "Læreren",
+        "her"
+      ],
+      "source": "uttale-02-4:p5"
+    },
+    {
+      "text": "Læreren er her hver mandag.",
+      "carriers": [
+        "Læreren",
+        "her"
+      ],
+      "source": "uttale-24-4:p1"
+    },
+    {
+      "text": "Læreren leser mye.",
+      "carriers": [
+        "Læreren"
+      ],
+      "source": "uttale-07-5:p4"
+    },
+    {
+      "text": "Hør her, søster!",
+      "carriers": [
+        "her"
+      ],
+      "source": "uttale-10-3:p3"
+    },
+    {
+      "text": "Kjør forsiktig, kjære!",
+      "carriers": [
+        "kjære"
+      ],
+      "source": "uttale-20-3:p4"
+    },
+    {
+      "text": "Søsteren min er lærer.",
+      "carriers": [
+        "lærer"
+      ],
+      "source": "uttale-05-3:p2"
+    },
+    {
+      "text": "Det er bær der.",
+      "carriers": [
+        "bær"
+      ],
+      "source": "uttale-05-3:p6"
+    },
+    {
+      "text": "Er det ledig her?",
+      "carriers": [
+        "her"
+      ],
+      "source": "uttale-28-1:p3"
+    },
+    {
+      "text": "Vil du være med?",
+      "carriers": [
+        "være"
+      ],
+      "source": "uttale-31-3:p3"
+    },
+    {
+      "text": "Her er en ny sykkel.",
+      "carriers": [
+        "Her"
+      ],
+      "source": "uttale-07-5:p1"
+    },
+    {
+      "text": "Jenter og gutter er her.",
+      "carriers": [
+        "her"
+      ],
+      "source": "uttale-07-5:p2"
+    },
+    {
+      "text": "Her er brød og sjokolade.",
+      "carriers": [
+        "Her"
+      ],
+      "source": "uttale-09-5:p2"
+    },
+    {
+      "text": "Det er sju bær der.",
+      "carriers": [
+        "bær"
+      ],
+      "source": "uttale-09-5:p4"
+    },
+    {
+      "text": "Hør, læreren er på stasjonen!",
+      "carriers": [
+        "læreren"
+      ],
+      "source": "uttale-09-5:p5"
+    },
+    {
+      "text": "Her er kartet til barna.",
+      "carriers": [
+        "Her"
+      ],
+      "source": "uttale-13-5:p1"
+    },
+    {
+      "text": "Lars er lærer på norskkurset.",
+      "carriers": [
+        "lærer"
+      ],
+      "source": "uttale-13-5:p3"
+    },
+    {
+      "text": "Barna er her i dag.",
+      "carriers": [
+        "her"
+      ],
+      "source": "uttale-13-5:p5"
+    },
+    {
+      "text": "Rita, her er en skje.",
+      "carriers": [
+        "her"
+      ],
+      "source": "uttale-17-6:p1"
+    },
+    {
+      "text": "Kjære Lars, takk for kortet!",
+      "carriers": [
+        "Kjære"
+      ],
+      "source": "uttale-20-5:p1"
+    },
+    {
+      "text": "Sjefen er her hver mandag.",
+      "carriers": [
+        "her"
+      ],
+      "source": "uttale-28-4:p1"
+    }
+  ],
+  "nb:vowel_length": [],
+  "nb:tone": []
+}

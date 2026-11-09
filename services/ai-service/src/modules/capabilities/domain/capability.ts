@@ -1,4 +1,9 @@
-import type { ModelFeatures, ModelModality, SpeechFeatures } from '../../providers/domain/model-features.js';
+import type {
+  ModelFeatures,
+  ModelModality,
+  SpeechFeatures,
+  TtsFeatures,
+} from '../../providers/domain/model-features.js';
 import type { AiModel } from '../../registry/domain/registry.types.js';
 
 /**
@@ -27,6 +32,13 @@ export interface RequiredSpeechFeatures {
   minAudioSeconds?: number;
 }
 
+/** What a synthesis capability needs from a synthesizer (plan 88, step 6b). Floors, like the above. */
+export interface RequiredTtsFeatures {
+  /** Every one of these languages, with at least one voice each. */
+  languages?: readonly string[];
+  minCharacters?: number;
+}
+
 interface CapabilityBase {
   /** Stable code: the binding key, the ledger's `capability`, the subscription key's suffix. */
   code: string;
@@ -39,12 +51,14 @@ interface CapabilityBase {
 }
 
 /**
- * An agent over a language model (absent `modality`), or a voice capability over a speech
- * model. Its models must be of its modality: a recognizer cannot answer a prompt.
+ * An agent over a language model (absent `modality`), a voice capability over a speech
+ * model, or a synthesis one over a synthesizer. Its models must be of its modality: a
+ * recognizer cannot answer a prompt.
  */
 export type CapabilityDefinition =
   | (CapabilityBase & { modality?: 'llm'; requiredFeatures: RequiredFeatures })
-  | (CapabilityBase & { modality: 'speech'; requiredFeatures: RequiredSpeechFeatures });
+  | (CapabilityBase & { modality: 'speech'; requiredFeatures: RequiredSpeechFeatures })
+  | (CapabilityBase & { modality: 'tts'; requiredFeatures: RequiredTtsFeatures });
 
 export function capabilityModality(capability: CapabilityDefinition): ModelModality {
   return capability.modality ?? 'llm';
@@ -57,8 +71,11 @@ export function capabilityGaps(model: AiModel, capability: CapabilityDefinition)
   if (model.modality === 'speech' && capability.modality === 'speech') {
     return missingSpeechFeatures(model.features, capability.requiredFeatures);
   }
-  if (model.modality === 'llm' && capability.modality !== 'speech') {
-    return missingFeatures(model.features, capability.requiredFeatures);
+  if (model.modality === 'tts' && capability.modality === 'tts') {
+    return missingTtsFeatures(model.features, capability.requiredFeatures);
+  }
+  if (model.modality === 'llm' && (capability.modality ?? 'llm') === 'llm') {
+    return missingFeatures(model.features, capability.requiredFeatures as RequiredFeatures);
   }
   return [];
 }
@@ -96,6 +113,18 @@ export function missingSpeechFeatures(features: SpeechFeatures, required: Requir
   if (required.pronunciation && !features.pronunciation) missing.push('pronunciation');
   if (required.minAudioSeconds && features.maxAudioSeconds < required.minAudioSeconds) {
     missing.push(`maxAudioSeconds ≥ ${required.minAudioSeconds} (has ${features.maxAudioSeconds})`);
+  }
+  return missing;
+}
+
+export function missingTtsFeatures(features: TtsFeatures, required: RequiredTtsFeatures): string[] {
+  const missing: string[] = [];
+  for (const language of required.languages ?? []) {
+    if (!features.languages.includes(language) || !features.voices[language]?.length)
+      missing.push(`voice for ${language}`);
+  }
+  if (required.minCharacters && features.maxCharacters < required.minCharacters) {
+    missing.push(`maxCharacters ≥ ${required.minCharacters} (has ${features.maxCharacters})`);
   }
   return missing;
 }

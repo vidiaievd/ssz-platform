@@ -8,8 +8,19 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
+const STANDARD_FIELDS = new Set([
+  'statusCode',
+  'error',
+  'message',
+  'path',
+  'timestamp',
+  'correlationId',
+]);
+
 // Global exception filter — catches everything and returns a consistent RFC 7807-style body.
-// HttpException: status and message are passed through as-is.
+// HttpException: status and message are passed through as-is, and so are any other fields a
+// handler put in the body on purpose (`currentUpdatedAt` of a 409, `issues` of a refused
+// notation) — the standard fields below always win over them.
 // Anything else: logged as an unexpected error and returned as 500.
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -27,6 +38,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let statusCode: number;
     let error: string;
     let message: string;
+    let extra: Record<string, unknown> = {};
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
@@ -38,6 +50,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       } else if (typeof responseBody === 'object' && responseBody !== null) {
         const body = responseBody as Record<string, unknown>;
         const raw = body['message'];
+        extra = Object.fromEntries(
+          Object.entries(body).filter(([key]) => !STANDARD_FIELDS.has(key)),
+        );
         // eslint-disable-next-line @typescript-eslint/no-base-to-string
         message = Array.isArray(raw) ? raw.join('; ') : String(raw ?? exception.message);
       } else {
@@ -62,6 +77,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     response.status(statusCode).json({
+      ...extra,
       statusCode,
       error,
       message,

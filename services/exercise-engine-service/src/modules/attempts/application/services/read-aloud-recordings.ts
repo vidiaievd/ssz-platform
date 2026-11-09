@@ -249,7 +249,7 @@ export function checkAssets(
   return null;
 }
 
-function isTheirs(asset: MediaAssetDescription, attempt: { id: string; userId: string }): boolean {
+export function isTheirs(asset: MediaAssetDescription, attempt: { id: string; userId: string }): boolean {
   return (
     asset.entityType === SUBMISSION_RECORDING &&
     asset.entityId === attempt.id &&

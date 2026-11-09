@@ -1,5 +1,5 @@
 import { lexicalWord, lexicalWords } from '../../domain/lexical.js';
-import type { HeardWord, PronouncedWord, PronunciationScores } from '../../domain/speech-result.js';
+import type { HeardWord, PronouncedPhoneme, PronouncedWord, PronunciationScores } from '../../domain/speech-result.js';
 
 /**
  * Azure's recognition JSON, as both the REST endpoint and the Speech SDK give it (plan 82,
@@ -15,11 +15,20 @@ export interface AzureScored {
   PronunciationAssessment?: Omit<AzureScored, 'PronunciationAssessment'>;
 }
 
+export interface AzurePhoneme extends AzureScored {
+  /** Empty for `nb-NO`. */
+  Phoneme?: string;
+  Offset?: number | string;
+  Duration?: number | string;
+}
+
 export interface AzureWord extends AzureScored {
   Word: string;
   Offset?: number | string;
   Duration?: number | string;
   Confidence?: number | string;
+  /** With `Granularity: Phoneme` only. */
+  Phonemes?: AzurePhoneme[];
 }
 
 export interface AzureBest extends AzureScored {
@@ -125,19 +134,32 @@ function alignWithPassage(passage: string[], recognized: AzureWord[]): Pronounce
   let j = 0;
   while (i < n || j < m) {
     if (i < n && j < m && passage[i] === heard[j]) {
-      const error = errorOf(recognized[j]!) === 'mispronunciation' ? 'mispronunciation' : 'none';
-      out.push({ text: heard[j]!, accuracy: score(recognized[j]!, 'AccuracyScore') ?? 0, error });
+      const word = recognized[j]!;
+      const error = errorOf(word) === 'mispronunciation' ? 'mispronunciation' : 'none';
+      out.push({ text: heard[j]!, accuracy: score(word, 'AccuracyScore') ?? 0, error, phonemes: phonemesOf(word) });
       i++;
       j++;
     } else if (j < m && (i === n || lcs[i]![j + 1]! >= lcs[i + 1]![j]!)) {
-      out.push({ text: heard[j]!, accuracy: score(recognized[j]!, 'AccuracyScore') ?? 0, error: 'insertion' });
+      const word = recognized[j]!;
+      out.push({ text: heard[j]!, accuracy: score(word, 'AccuracyScore') ?? 0, error: 'insertion', phonemes: phonemesOf(word) });
       j++;
     } else {
-      out.push({ text: passage[i]!, accuracy: 0, error: 'omission' });
+      out.push({ text: passage[i]!, accuracy: 0, error: 'omission', phonemes: [] });
       i++;
     }
   }
   return out;
+}
+
+/**
+ * The sounds of a word with their times and scores, in order; empty without `Granularity: Phoneme`.
+ * Offsets are from the start of the recording, as the word's are — in a continuous recognition too.
+ */
+export function phonemesOf(word: AzureWord): PronouncedPhoneme[] {
+  return (word.Phonemes ?? []).map((p) => {
+    const startMs = ticksToMs(p.Offset);
+    return { startMs, durationMs: ticksToMs(p.Duration), accuracy: score(p, 'AccuracyScore') ?? 0 };
+  });
 }
 
 function heardWords(aligned: AzureWord[]): HeardWord[] {
@@ -152,7 +174,9 @@ function heardWords(aligned: AzureWord[]): HeardWord[] {
 function scoresOf(best: AzureBest, aligned: AzureWord[]): PronunciationScores {
   const words: PronouncedWord[] = aligned.flatMap((w) => {
     const text = lexicalWord(w.Word);
-    return text ? [{ text, accuracy: score(w, 'AccuracyScore') ?? 0, error: errorOf(w) }] : [];
+    if (!text) return [];
+    const error = errorOf(w);
+    return [{ text, accuracy: score(w, 'AccuracyScore') ?? 0, error, phonemes: error === 'omission' ? [] : phonemesOf(w) }];
   });
   return {
     accuracy: score(best, 'AccuracyScore') ?? 0,
@@ -186,7 +210,7 @@ function score(scored: AzureScored, field: 'AccuracyScore' | 'FluencyScore' | 'C
 }
 
 /** Azure's own error types; the prosody ones (breaks, monotone) are not reading errors. */
-function errorOf(word: AzureScored): PronouncedWord['error'] {
+export function errorOf(word: AzureScored): PronouncedWord['error'] {
   switch (word.PronunciationAssessment?.ErrorType ?? word.ErrorType) {
     case 'Mispronunciation':
       return 'mispronunciation';

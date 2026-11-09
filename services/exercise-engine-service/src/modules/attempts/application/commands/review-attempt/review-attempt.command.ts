@@ -41,5 +41,10 @@ export class ReviewAttemptCommand {
      * leaves the draft unlabelled rather than reading the silence as "all ignored".
      */
     public readonly aiOutcomes: ReviewerOutcomes | null = null,
+    /**
+     * Rule atoms the teacher marked themselves (plan 85, step 9) — published as `teacher`,
+     * the only source that gives a card a real lapse.
+     */
+    public readonly flaggedAtoms: Array<{ atomType: string; atomId: string }> = [],
   ) {}
 }

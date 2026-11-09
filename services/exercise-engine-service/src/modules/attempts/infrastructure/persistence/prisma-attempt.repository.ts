@@ -51,6 +51,14 @@ export class PrismaAttemptRepository implements IAttemptRepository {
     return row ? AttemptMapper.toDomain(row) : null;
   }
 
+  async findInProgressByTemplate(userId: string, templateCode: string): Promise<Attempt[]> {
+    const rows = await this.prisma.attempt.findMany({
+      where: { userId, templateCode, status: 'IN_PROGRESS' },
+      orderBy: { startedAt: 'desc' },
+    });
+    return rows.map((row) => AttemptMapper.toDomain(row));
+  }
+
   async findOpenBoard(userId: string, exerciseId: string): Promise<Attempt | null> {
     const row = await this.prisma.attempt.findFirst({
       where: { userId, exerciseId, status: { not: 'IN_PROGRESS' } },

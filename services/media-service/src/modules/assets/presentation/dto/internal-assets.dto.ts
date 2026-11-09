@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsOptional, IsUUID } from 'class-validator';
+import type { ReferenceCheck } from '../../domain/entities/media-asset.entity.js';
 import type { PlaybackVariant } from '../../application/queries/get-playback/get-playback.query.js';
 
 // A submission has at most six prompts; with kept discarded takes a few dozen ids at most.
@@ -88,6 +89,31 @@ export class AssetDescriptionDto {
     description: 'Speaker → catalog voice id of a synthesized narration\'s dialogue',
   })
   speakerVoices!: Record<string, string> | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: Object,
+    example: {
+      word: 'bønner',
+      sentence: 'Nå sier jeg bønner igjen.',
+      tone: 2,
+      wordSpan: { startMs: 820, endMs: 1240 },
+      stressedVowel: { startMs: 870, endMs: 940 },
+      tries: [
+        {
+          voice: 'nb-NO-PernilleNeural',
+          outcome: 'kept',
+          accuracy: 98,
+          measure: { onset: 2.1, post: -1.2, score: 3.3, tone: 2 },
+        },
+      ],
+    },
+    description:
+      'A reference clip only (plan 88, step 8.2): the self-check ai-service ran before the clip was kept — the ' +
+      'toneme, where the word and its stressed vowel are, every voice tried (the kept one last, with its measure). ' +
+      'What ai-service compares a learner\'s toneme with.',
+  })
+  reference!: ReferenceCheck | null;
 }
 
 export class AssetPlaybackDto {
@@ -115,4 +141,13 @@ export class AssetPlaybackDto {
     description: '100 maxima normalised to 0..1; null until processing has drawn them',
   })
   peaks!: number[] | null;
+}
+
+export class DiscardAssetDto {
+  @ApiProperty({
+    example: 'student-uuid',
+    description: 'Whose file it must be; any other owner is answered as an unknown asset (404)',
+  })
+  @IsUUID()
+  ownerId!: string;
 }

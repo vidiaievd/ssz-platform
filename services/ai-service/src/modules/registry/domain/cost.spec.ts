@@ -1,4 +1,4 @@
-import { costMicros, speechCostMicros } from './cost.js';
+import { costMicros, speechCostMicros, synthesisCostMicros } from './cost.js';
 
 const price = (input: string, output: string, cacheRead = '0', cacheWrite = '0', audioPerHour = '0') => ({
   effectiveFrom: new Date(),
@@ -7,6 +7,7 @@ const price = (input: string, output: string, cacheRead = '0', cacheWrite = '0',
   cacheReadPerMtok: cacheRead,
   cacheWritePerMtok: cacheWrite,
   audioPerHour,
+  charsPerMillion: '0',
   currency: 'USD',
 });
 
@@ -64,5 +65,25 @@ describe('speechCostMicros', () => {
     expect(speechCostMicros(42_000, null, audio('0'))).toBe(0);
     expect(() => speechCostMicros(-1, null, audio('1'))).toThrow('Not an audio length');
     expect(() => speechCostMicros(1.5, null, audio('1'))).toThrow('Not an audio length');
+  });
+});
+
+describe('synthesisCostMicros', () => {
+  const tts = (perMillion: string) => ({ ...price('0', '0'), charsPerMillion: perMillion });
+
+  it('is characters × price per 1M, in micro-units', () => {
+    // 1M characters at $16/M is $16; a 25-character carrier sentence is $0.0004.
+    expect(synthesisCostMicros(1_000_000, tts('16'))).toBe(16_000_000);
+    expect(synthesisCostMicros(25, tts('16'))).toBe(400);
+  });
+
+  it('rounds half up', () => {
+    expect(synthesisCostMicros(1, tts('0.5'))).toBe(1);
+    expect(synthesisCostMicros(1, tts('0.499999'))).toBe(0);
+  });
+
+  it('refuses a count that is not one', () => {
+    expect(() => synthesisCostMicros(-1, tts('16'))).toThrow('Not a character count');
+    expect(() => synthesisCostMicros(1.5, tts('16'))).toThrow('Not a character count');
   });
 });

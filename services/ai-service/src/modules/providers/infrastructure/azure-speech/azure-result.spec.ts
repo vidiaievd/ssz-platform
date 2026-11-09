@@ -36,10 +36,10 @@ describe('mergeSegments', () => {
       completeness: 100,
       prosody: null,
       words: [
-        { text: 'jeg', accuracy: 90, error: 'none' },
-        { text: 'bor', accuracy: 70, error: 'mispronunciation' },
-        { text: 'i', accuracy: 100, error: 'none' },
-        { text: 'bergen', accuracy: 100, error: 'none' },
+        { text: 'jeg', accuracy: 90, error: 'none', phonemes: [] },
+        { text: 'bor', accuracy: 70, error: 'mispronunciation', phonemes: [] },
+        { text: 'i', accuracy: 100, error: 'none', phonemes: [] },
+        { text: 'bergen', accuracy: 100, error: 'none', phonemes: [] },
       ],
     });
   });
@@ -51,11 +51,11 @@ describe('mergeSegments', () => {
     );
 
     expect(result.pronunciation?.words).toEqual([
-      { text: 'jeg', accuracy: 100, error: 'none' },
-      { text: 'jeg', accuracy: 90, error: 'insertion' },
-      { text: 'bor', accuracy: 80, error: 'none' },
-      { text: 'i', accuracy: 0, error: 'omission' },
-      { text: 'bergen', accuracy: 60, error: 'none' },
+      { text: 'jeg', accuracy: 100, error: 'none', phonemes: [] },
+      { text: 'jeg', accuracy: 90, error: 'insertion', phonemes: [] },
+      { text: 'bor', accuracy: 80, error: 'none', phonemes: [] },
+      { text: 'i', accuracy: 0, error: 'omission', phonemes: [] },
+      { text: 'bergen', accuracy: 60, error: 'none', phonemes: [] },
     ]);
     // Omission counts as 0, the insertion not at all: (100 + 80 + 0 + 60) / 4.
     expect(result.pronunciation).toMatchObject({ accuracy: 60, completeness: 75 });
@@ -72,6 +72,33 @@ describe('mergeSegments', () => {
     ]);
     // No phrase had a fluency score.
     expect(result.pronunciation?.fluency).toBe(0);
+  });
+
+  it('keeps each word its sounds, timed from the start of the recording — an omission has none', () => {
+    const sound = (offsetMs: number, accuracy: number) => ({
+      Phoneme: '',
+      Offset: offsetMs * 10_000,
+      Duration: 500_000,
+      PronunciationAssessment: { AccuracyScore: accuracy },
+    });
+    const bor = { ...word('bor', 70, 'None', 31_000), Phonemes: [sound(31_000, 90), sound(31_050, 40), sound(31_100, 80)] };
+    const extra = { ...word('og', 60, 'None', 31_300), Phonemes: [sound(31_300, 60), sound(31_350, 55)] };
+    const result = mergeSegments([segment([bor, extra], 2_000)], 'bor i');
+
+    expect(result.pronunciation?.words).toEqual([
+      {
+        text: 'bor',
+        accuracy: 70,
+        error: 'none',
+        phonemes: [
+          { startMs: 31_000, durationMs: 50, accuracy: 90 },
+          { startMs: 31_050, durationMs: 50, accuracy: 40 },
+          { startMs: 31_100, durationMs: 50, accuracy: 80 },
+        ],
+      },
+      expect.objectContaining({ text: 'og', error: 'insertion', phonemes: [expect.anything(), expect.anything()] }),
+      { text: 'i', accuracy: 0, error: 'omission', phonemes: [] },
+    ]);
   });
 
   it('weights prosody too, and keeps it null when no phrase has it', () => {

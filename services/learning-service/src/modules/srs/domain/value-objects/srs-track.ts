@@ -35,5 +35,10 @@ export function trackForContentType(contentType: SrsContentType): SrsTrack | nul
     case 'EXERCISE_GAP':
     case 'VOCABULARY_WORD':
       return 'lexis';
+    // A sound is learned the way a word is — on concrete words, by practice — not derived
+    // from a rule. Only a placeholder while the card is shadow and charges no budget; whether
+    // pronunciation gets a budget of its own is plan 63 phase 7's to settle (plan 86, step 8.3).
+    case 'SOUND_ATOM':
+      return 'lexis';
   }
 }

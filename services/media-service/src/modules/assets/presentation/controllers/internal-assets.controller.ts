@@ -5,6 +5,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
   UnprocessableEntityException,
@@ -41,9 +42,11 @@ import {
   type SupersedeAssetResult,
 } from '../../application/commands/supersede-asset/supersede-asset.command.js';
 import { SupersedeAssetDto, SupersedeAssetResponseDto } from '../dto/asset-response.dto.js';
+import { DeleteAssetCommand, type DeleteAssetResult } from '../../application/commands/delete-asset/delete-asset.command.js';
 import {
   AssetDescriptionDto,
   AssetIdsDto,
+  DiscardAssetDto,
   AssetPlaybackDto,
   PlaybackRequestDto,
 } from '../dto/internal-assets.dto.js';
@@ -123,6 +126,24 @@ export class InternalAssetsController {
       throw new UnprocessableEntityException(result.error);
     }
     return result.value;
+  }
+
+  @Post(':assetId/discard')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: "Delete a learner's take once it is measured (engine)",
+    description:
+      'A pronunciation session (plan 86, step 13.4d) keeps no voice: the engine deletes each take after ai-service ' +
+      'has heard it, as the owner would delete it themselves (`DELETE media/:assetId`). Already deleted is a 204.',
+  })
+  @ApiResponse({ status: 204, description: 'Deleted, or already gone' })
+  @ApiResponse({ status: 404, description: 'No such asset of that owner' })
+  async discard(
+    @Param('assetId', ParseUUIDPipe) assetId: string,
+    @Body() dto: DiscardAssetDto,
+  ): Promise<void> {
+    const result: DeleteAssetResult = await this.commandBus.execute(new DeleteAssetCommand(assetId, dto.ownerId));
+    if (result.isFail && result.error === 'ASSET_NOT_FOUND') throw new NotFoundException('Asset not found');
   }
 
   @Post('sweep-orphans')

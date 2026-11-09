@@ -14,7 +14,7 @@ import type { SrsTrack } from '../value-objects/srs-track.js';
  * under `EXERCISE`, so that code taking an `EXERCISE` card's `contentId` for an
  * exercise UUID keeps being right.
  */
-export type SrsContentType = 'EXERCISE' | 'EXERCISE_GAP' | 'VOCABULARY_WORD' | 'GRAMMAR_ATOM';
+export type SrsContentType = 'EXERCISE' | 'EXERCISE_GAP' | 'VOCABULARY_WORD' | 'GRAMMAR_ATOM' | 'SOUND_ATOM';
 
 /**
  * Card types written in shadow (plan 63 phase 5).
@@ -31,7 +31,17 @@ export type SrsContentType = 'EXERCISE' | 'EXERCISE_GAP' | 'VOCABULARY_WORD' | '
  * `PrismaSrsRepository`. It empties in phase 7, when the comparison is settled and the
  * old types are the ones suspended.
  */
-export const SHADOW_CONTENT_TYPES: readonly SrsContentType[] = ['GRAMMAR_ATOM'];
+export const SHADOW_CONTENT_TYPES: readonly SrsContentType[] = ['GRAMMAR_ATOM', 'SOUND_ATOM'];
+
+/**
+ * The card type of an atom the engine names (`atomType` of its targets and flags), for the
+ * atoms that have a card of their own beside the exercise's: grammar atoms (plan 63 phase 5)
+ * and sound families (plan 86, step 8.3). Words keep their own fan-out.
+ */
+export const ATOM_CARD_TYPES: Readonly<Record<string, SrsContentType>> = {
+  grammar_rule_atom: 'GRAMMAR_ATOM',
+  sound: 'SOUND_ATOM',
+};
 
 // Mirrors FSRS State enum (New=0, Learning=1, Review=2, Relearning=3) plus our own Suspended.
 export type ReviewCardState = 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING' | 'SUSPENDED';
@@ -261,6 +271,20 @@ export class ReviewCard extends AggregateRoot {
     }));
 
     return Result.ok();
+  }
+
+  /**
+   * Brings the card due no later than `latest` (plan 85, §1 rule 2): a mistake on the rule was
+   * seen, so it comes back sooner. Not a review — no rating, no FSRS state, no reps; the next
+   * review decides what the card is worth. A suspended card is the learner's decision and stays
+   * as it is. Answers whether anything moved.
+   */
+  pullDueTo(latest: Date, now: Date): boolean {
+    if (this._state === 'SUSPENDED') return false;
+    if (this._dueAt.getTime() <= latest.getTime()) return false;
+    this._dueAt = latest;
+    this._updatedAt = now;
+    return true;
   }
 
   suspend(now: Date): void {

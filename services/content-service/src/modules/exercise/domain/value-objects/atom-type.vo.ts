@@ -1,7 +1,8 @@
-/** Which table an atom id points into — plan 63 §2 D. */
+/** Which table an atom id points into — plan 63 §2 D; `sound` since plan 86, step 8.2. */
 export enum AtomType {
   VOCABULARY_ITEM = 'vocabulary_item',
   GRAMMAR_RULE_ATOM = 'grammar_rule_atom',
+  SOUND = 'sound',
 }
 
 /**
@@ -20,6 +21,13 @@ export enum TargetRole {
 export const ATOM_TYPES: readonly AtomType[] = [
   AtomType.VOCABULARY_ITEM,
   AtomType.GRAMMAR_RULE_ATOM,
+  AtomType.SOUND,
 ];
+
+/**
+ * `<language>:<family>` — the id of a `sound` atom (`nb:kj`), as ai-service names it. Words
+ * and grammar atoms are uuids (of any version: seeded content is uuidv5).
+ */
+export const SOUND_ATOM_ID = /^[a-z]{2,3}:[a-z_]{1,32}$/;
 
 export const TARGET_ROLES: readonly TargetRole[] = [TargetRole.FOCUS, TargetRole.CONTEXT];

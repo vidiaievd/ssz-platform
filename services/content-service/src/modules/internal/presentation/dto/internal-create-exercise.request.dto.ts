@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import { DifficultyLevel } from '../../../container/domain/value-objects/difficulty-level.vo.js';
 import { AtomType, TargetRole } from '../../../exercise/domain/value-objects/atom-type.vo.js';
+import { IsAtomIdOfItsType } from '../../../exercise/presentation/utils/is-atom-id-of-its-type.js';
 
 /** One address to write onto the new exercise — see `ExerciseItemTarget`. */
 export class InternalExerciseTargetDto {
@@ -29,9 +30,10 @@ export class InternalExerciseTargetDto {
   @IsEnum(AtomType)
   atomType!: AtomType;
 
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
+  @ApiProperty({
+    description: 'A uuid for a word or a grammar atom; `<language>:<family>` for a sound.',
+  })
+  @IsAtomIdOfItsType()
   atomId!: string;
 
   @ApiProperty({ enum: TargetRole })

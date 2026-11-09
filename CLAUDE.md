@@ -126,6 +126,8 @@ Database: `profiles_db`
 ### 3. Organization Service (NestJS)
 Schools as entities: creation, teacher invitations, groups/classes management.
 Internal roles (owner, admin, teacher). School subscriptions and plans.
+AI pre-check setting (`ai-precheck`, plan 84): `enabled`, `perExerciseLimit`, `perLearnerMonthlyCredits`
+(`null` = no limit); `GET/PUT /api/v1/schools/:id/ai-precheck`; internal read `GET internal/schools/:id/ai-precheck`.
 Follows Clean Architecture.
 Database: `organizations_db`
 
@@ -133,21 +135,66 @@ Database: `organizations_db`
 Learning material management: courses → modules → lessons → exercises.
 Follows Clean Architecture.
 Database: `content_db`
+Grammar atom catalog (plan 85): `GET internal/courses/:courseId/grammar-atom-catalog?language=` (`x-internal-token`,
+Redis 10 min per course + language). Atoms have no translations; `ruleTitle` only is localised.
+Sound atoms (plan 86): natural keys `nb:kj`, catalogue + articulation base per locale (en/nb/ru/uk) —
+`GET internal/sound-atoms?language=&locale=` (`x-internal-token`, Redis 10 min); the learner's card of a sound
+`GET sound-atoms/:atomId?locale=` (JWT, a slice of the same cached catalogue; region dropped, unknown locale → `en`).
+Sound drill (plan 86, step 13.2): `GET internal/sound-atoms/drill?language=&atomIds=` (`x-internal-token`, Redis 10 min
+per language) — carrier words and length/toneme pairs that have a reference clip (`sound_reference_clips`), the course's
+short lines with their carrier words, one cold-start word per scored family. Data `prisma/data/sound-atom-drill.ts`,
+checked against the lexicon and phrases picked by `prisma/tools/sound-drill.ts`.
+Step 14.3: `nb:kj` and `nb:y` keep only words on which Azure tells the sound from the learner's substitute
+(`infrastructure/scripts/plan-86-sound-blindspots.mts`); `carriersFromWords` judges their phrases on those words only.
+Reference clips (step 13.2c): `prisma/tools/reference-sound-atoms.ts` asks media-service for every drill word and writes
+`sound_reference_clips` (clip or refusal; 503 left for the next run; one word at a time — Azure F0 answers bursts with 429).
 
 ### 5. Learning Service (NestJS)
 Material assignment, progress tracking, SRS, adaptive review queue.
 Follows Clean Architecture.
 Database: `learning_db`
+Consumes `exercise.feedback.atoms_flagged` (plan 85; queue `learning-service.atoms-flagged`, `processed_events`) and
+applies it to `GRAMMAR_ATOM` cards: `ai_precheck` / `ai_review` pull `dueAt` to at most +1 day, no FSRS rating;
+`teacher` outside the exercise targets → one `AGAIN` (lapse); table `atom_flags` dedups by (learner, exercise, atom,
+source, UTC day). Internal: `GET internal/learners/:userId/grammar-atoms?courseId=` (`x-service-token`).
+Learner adds a reached atom: `POST srs/atoms/:atomId/add { courseId }` (shadow card until plan 63 phase 7).
+Sound atoms (plan 86, step 8.3): `SOUND_ATOM` shadow cards, introduced on day 2 of 14; a pronunciation session's ratings
+(`gapResults`, GOOD/HARD/AGAIN → 90/70/0) rate them by the gap's `score`. `atoms_flagged` with source `ai_session` pulls a
+card but never introduces one. Internal: `GET internal/learners/:userId/sound-atoms?language=` (`x-service-token`).
 
 ### 6. Exercise Engine Service (NestJS)
 Exercise generation and validation, scoring logic, LLM integration.
 Follows Clean Architecture.
 Database: `exercises_db`
+Publishes `exercise.feedback.atoms_flagged` (plan 85; direct publish after the write, no outbox, broker failure only logged)
+with sources `ai_precheck` (from `check`), `ai_review` (draft remarks the teacher took or rewrote) and `teacher` (the
+teacher's own rule mark on a verdict, `flaggedAtoms`). `POST …/check` also returns `courseId`.
+Pronunciation session (plan 86, step 13.4; probe of the engine-owned template `sound_session`, plan on the probe,
+state in `attempts.session_state`): `POST sound-sessions { language, atomId? }` (start or resume), `GET sound-sessions/:id/items?locale=`
+(step + reference clip links + base instruction), `POST …/takes { recordingAssetId, takeIndex }` (judged by ai-service
+`sentence-checks` target / `toneme-checks`; the take is deleted once heard), `POST …/submit` (submission = the stored state).
+Its `attempt.completed` (step 13.5a) carries one `gapResults` entry per rated sound — key = `atomId`, target `sound`/`focus`,
+`score` 90 / 70 / 0 for GOOD / HARD / AGAIN (Q28) — and no exercise-level target; learning rates shadow `SOUND_ATOM`
+cards by the gap's `score`. Kernel row `sound_session` `{ GOOD, AGAIN }` + `ratesAtomsItself`: the probe's `production`
+modality does not lift the lapse to HARD. Step 13.5b: on hand-in the weak sounds the session did not rate (diagnostic's
+weak families + other sounds the takes' remarks named, kept in `session_state.incidental`) go out as one
+`atoms_flagged` with source `ai_session`; learning pulls a card on it but never introduces one.
+Step 14.1: a new session passes ai-service's door first (`internal/sound-sessions/admit`) — 422 `SESSION_LIMIT` /
+`POOL_EMPTY`, 403 `NOT_AVAILABLE`; the start answers `budget` (warning only, never a refusal). Payer (`SoundSessionPayer`,
+Q32): the learner's roster school when its `ai-precheck` is on, else the learner's own plan — at the door and on every
+take; takes carry `sessionId` = the attempt id.
+Step 14.2: diagnostic takes go with `explain: false` (no model call); toneme takes carry the probe as `exerciseId`. Live
+end-to-end run on Azure dev: `infrastructure/scripts/plan-86-session-live.mts`.
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.
 Simplified structure acceptable.
 Database: `media_db`
+Reference clips of words (plan 88): `POST media/pronunciation/reference` (authors) and
+`POST internal/media/pronunciation/reference` (`x-internal-token`, plan 86 step 13.2c — drill scripts); refusals are 422
+with the code as `message`, `NOT_AVAILABLE` / `SYNTHESIS_FAILED` are 503.
+`POST internal/media/assets/:assetId/discard { ownerId }` (`x-internal-token`) — the engine deletes a pronunciation
+session's take once it is measured (plan 86, step 13.4d).
 
 ### 8. Notification Service (NestJS)
 Push (FCM), email, in-app notifications. Study reminders.
@@ -158,6 +205,9 @@ Database: `notifications_db`
 Analytics for schools/tutors and students. Aggregation, reports, export.
 Follows Clean Architecture.
 Database: `analytics_db`
+Weak grammar rules (plan 85): consumes `exercise.feedback.atoms_flagged` into `weak_rules_daily` (facts keyed by
+day, learner, exercise, atom, source). `GET analytics/groups/:groupId/weak-rules?window=7|30|course` and
+`GET analytics/students/:studentId/weak-rules?window=&courseId=`; learners selected by group membership + course, not by `group_id`.
 
 ### 10. API Gateway (nginx — exists)
 Request routing, rate limiting, CORS, SSL termination.
@@ -204,6 +254,43 @@ student that organization-service's `assistantAllowed` lets through (school sett
 `ai:assist:rl:<userId>` (rate limit 20 / 10 min, `AI_ASSIST_RATE_LIMIT`, `AI_ASSIST_RATE_WINDOW_MS`).
 Eval: `POST /api/v1/admin/ai/evals/student_assist/run { modelId, promptVersion? }` over the hand-written
 `assist-set@1` (20 cases).
+Pre-hand-in rehearsal "Проверить" (plan 84): `POST /api/v1/internal/precheck` (`x-internal-token`, synchronous, always 200)
+`{ schoolId, userId, exerciseId, attemptId, subject, limits }` → `ok { feedback }` / `refused { reason, detail }`
+(`unaskable`, `not_available`, `pool_empty`, `template_not_supported`, `exercise_limit`, `learner_limit`) /
+`failed { errorCode }`. Agents `practice` (text, `practice@1`) and `practice_voice` (speech, one call per passage,
+words only). Key `ai.practice`, surface `precheck`; `ai_calls.exercise_id` / `check_id`. Limits: school pool
+(`payer_id`), per learner per UTC month in credits, per (learner, exercise) by distinct `check_id` (the engine
+reads them from the school setting). Output is `AiFeedback` (`packages/contracts/src/dto/ai`). The rehearsal
+creates no `attempt.completed` and touches no progress or SRS cards. Entry point in exercise-engine:
+`POST /api/v1/exercises/:exerciseId/attempts/:attemptId/check` `{ draftAnswer }`, which takes the key first and
+calls the model only when the key does not settle the answer.
+Grammar atoms (plan 85): `practice@2` and `review_draft@3` get the learner's atoms ∩ the course catalog and may return an
+optional `atomRef` (`atomId` is not an enum — an unknown id becomes `null`); `review_draft@3` sends `atomRef` to the
+engine only when the request carried a catalog. Catalog from content-service; any failure = empty catalog.
+Sound explanations (plan 86, step 9.2): `pronunciation_explain@2` (also `voice_review_explain`, same prompts) adds
+content-service's articulation base (`internal/sound-atoms`, in the explanation language) to the inventory notes;
+`commonError` only for ru/uk readers, `ukNote` only for uk; one `SoundExplainer` serves rehearsal, sentence drill and
+hand-in; any failure = inventory notes only.
+Reference words pre-check (plan 86, step 13.2c): `POST internal/reference-clips/check { language, words[] }` — the refusals a
+reference clip makes before synthesis (`not_in_lexicon`, `tone_ambiguous` by all variants, …), one lexicon read, nothing billed;
+content-service's `prisma/tools/sound-drill.ts` fails a drill word refused here.
+Pronunciation session door (plan 86, step 14.1): `POST internal/sound-sessions/admit { userId, schoolId, resume? }`
+(`x-internal-token`, always 200) — gate (`practice_voice` under `ai.practice`), then the learner's sessions per UTC day
+(`AI_SOUND_SESSION_DAILY_LIMIT` 3, Redis `ai:sound-session:day:`) → `admitted { budget { payer, metered, remainingCredits,
+estimatedCredits, periodEnd } }` / `refused { session_limit | not_available | pool_empty }`. `sentence-checks` and
+`toneme-checks` take an optional `sessionId`: surface `pronunciation_session`, the session's take cap
+(`AI_SOUND_SESSION_TAKE_LIMIT` 40, `ai:sound-session:takes:`) instead of the sentence's daily tries. `budget.estimatedCredits`
+= `AI_SOUND_SESSION_ESTIMATED_CREDITS` (35, step 14.2 ledger). `sentence-checks` `explain: false` measures without
+`pronunciation_explain` (a session's diagnostic); `toneme-checks` takes an optional `exerciseId` for the ledger.
+Session verdict (plan 86, step 13.3): `internal/sentence-checks` takes an optional `target { atomId, words, context:
+'word'|'fluent', explained[] }` and answers `target { measured, reason?, passed, weakest { key, … }, explained }` — our
+verdict by the native thresholds on the target words only; a miss whose `key` is already in `explained` is not sent to the
+model again. Refusals before any call: `target_not_scored` (the toneme stays with `toneme-checks`), `target_not_in_sentence`.
+Pronunciation analysis (plan 86, steps 4–5c, 9): `prosody_markup` (`ai.authoring`, prompt `@1`) marks a phrase's prosody
+layer via `internal/prosody/phrase-marks`; `internal/prosody/word-stresses` (lexicon + spaCy, Redis 7 days) returns word
+stresses and per-word `sounds`. The sound atoms `nb:<family>` / `nb:tone` are the analysis vocabulary; `pronunciation_explain@2`
+explains a mistake with the articulation base from content-service. Pitch (F0) and sex-of-voice handling run in the
+`whisper` sidecar (`infrastructure/whisper`).
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.

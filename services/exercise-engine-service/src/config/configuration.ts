@@ -38,6 +38,15 @@ export const envSchema = z.object({
   SUBSCRIPTION_SERVICE_BASE_URL: z.string().min(1, 'SUBSCRIPTION_SERVICE_BASE_URL is required'),
   SUBSCRIPTION_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
 
+  // Plan 84, step 5: a learner's check before hand-in asks ai-service while they wait. A
+  // reading is one speech call per passage, so the timeout is the gateway's 120 s less a margin.
+  AI_SERVICE_BASE_URL: z.string().min(1, 'AI_SERVICE_BASE_URL is required'),
+  AI_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(110_000),
+
+  // Plan 86, step 13.4b: a pronunciation session reads the learner's weak sounds. Same secret as
+  // INTERNAL_SERVICE_TOKEN, sent as `x-service-token` — learning's header.
+  LEARNING_SERVICE_BASE_URL: z.string().min(1, 'LEARNING_SERVICE_BASE_URL is required'),
+  LEARNING_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
 
   INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
 
@@ -120,6 +129,14 @@ export interface AppConfig {
     baseUrl: string;
     timeoutMs: number;
   };
+  ai: {
+    baseUrl: string;
+    timeoutMs: number;
+  };
+  learning: {
+    baseUrl: string;
+    timeoutMs: number;
+  };
   cache: {
     exerciseDefinitionTtlSeconds: number;
     exercisePlacementTtlSeconds: number;
@@ -182,6 +199,14 @@ export default (): AppConfig => {
     subscription: {
       baseUrl: env.SUBSCRIPTION_SERVICE_BASE_URL,
       timeoutMs: env.SUBSCRIPTION_SERVICE_TIMEOUT_MS,
+    },
+    ai: {
+      baseUrl: env.AI_SERVICE_BASE_URL,
+      timeoutMs: env.AI_SERVICE_TIMEOUT_MS,
+    },
+    learning: {
+      baseUrl: env.LEARNING_SERVICE_BASE_URL,
+      timeoutMs: env.LEARNING_SERVICE_TIMEOUT_MS,
     },
     cache: {
       exerciseDefinitionTtlSeconds: env.EXERCISE_DEFINITION_CACHE_TTL_SECONDS,

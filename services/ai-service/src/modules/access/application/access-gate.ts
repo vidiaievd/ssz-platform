@@ -3,7 +3,7 @@ import { microCredits } from '../../ledger/domain/credits.js';
 import { LEDGER_USAGE_READER, type ILedgerUsageReader } from '../../ledger/application/ports/ledger-usage.reader.js';
 import type { AiRegion } from '../../registry/domain/registry.types.js';
 import { Result } from '../../../shared/kernel/result.js';
-import { featureKeyOf, type FeatureEntitlement } from '../domain/entitlement.js';
+import { featureKeyOf, quotaPoolOf, type FeatureEntitlement } from '../domain/entitlement.js';
 import type { Payer } from '../domain/payer.js';
 import { DEFAULT_POLICY } from '../domain/payer-policy.js';
 import type { QuotaInForce } from '../domain/quota.js';
@@ -113,16 +113,16 @@ export class AccessGate {
   ): Promise<QuotaInForce | 'exhausted' | null> {
     if (feature.monthlyCredits === null) return null;
     const limitMicro = microCredits(feature.monthlyCredits);
-    const key = { payer, capability, periodStart: feature.periodStart, periodEnd: feature.periodEnd };
+    const key = { payer, capability: quotaPoolOf(capability), periodStart: feature.periodStart, periodEnd: feature.periodEnd };
     try {
       let used = await this.counter.get(key);
       if (used === null) {
         used = await this.counter.init(
           key,
-          await this.usage.microCreditsSpent(payer, capability, feature.periodStart, feature.periodEnd),
+          await this.usage.microCreditsSpent(payer, key.capability, feature.periodStart, feature.periodEnd),
         );
       }
-      return used >= limitMicro ? 'exhausted' : { key, limitMicro };
+      return used >= limitMicro ? 'exhausted' : { key, limitMicro, usedMicro: used };
     } catch (err) {
       this.logger.warn({ err, capability, payer }, 'Quota counter unreadable; letting the call through uncounted');
       return null;

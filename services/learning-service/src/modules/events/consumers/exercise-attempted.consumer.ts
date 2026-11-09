@@ -11,6 +11,7 @@ import {
 } from '../../progress/application/commands/upsert-progress.command.js';
 import { IntroduceCardCommand } from '../../srs/application/commands/introduce-card.command.js';
 import { ReviewCardCommand } from '../../srs/application/commands/review-card.command.js';
+import { ATOM_CARD_TYPES } from '../../srs/domain/entities/review-card.entity.js';
 import type { ReviewRatingValue } from '../../srs/domain/value-objects/review-rating.vo.js';
 // The table lives in the kernel (plan 55 §3.9): analytics weighs the same attempt into
 // the mastery profile, and a second copy of that judgement would drift from this one.
@@ -140,6 +141,18 @@ function ratingForAtom(
   );
 }
 
+/**
+ * How well one gap went, 0–100. A gap sends its own `score` where its verdict is finer than
+ * right or wrong — a pronunciation session's sound, rated GOOD / HARD / AGAIN by the session
+ * (plan 86, step 13.5, Q28); every other gap is 100 when right and 0 when not, as always. A score
+ * that is not a number in range is not believed and falls back to the verdict.
+ */
+function gapScore(gap: { correct: boolean; score?: number }): number {
+  const { score } = gap;
+  if (typeof score === 'number' && Number.isFinite(score) && score >= 0 && score <= 100) return score;
+  return gap.correct ? 100 : 0;
+}
+
 /** One atom, as one attempt saw it, once the attempt's several views are reconciled. */
 interface AtomObservation {
   atomType: string;
@@ -181,7 +194,7 @@ function collectAtomObservations(p: ExerciseAttemptCompletedPayload): AtomObserv
         atomType: target.atomType,
         atomId: target.atomId,
         role: target.role,
-        rating: ratingForAtom(p, gap.correct ? 100 : 0, target.role, position),
+        rating: ratingForAtom(p, gapScore(gap), target.role, position),
         itemKey: gap.gapKey,
         gapPosition: position,
         gapCount,
@@ -532,8 +545,9 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
         }
 
         // 4b. The shadow half of the same fan-out (plan 63 phase 5) — a card per
-        //     grammar atom this exercise addressed, rated by the same answer.
-        await this.reviewGrammarAtomCards(p, observations);
+        //     grammar atom and sound family (plan 86, step 8.3) this exercise
+        //     addressed, rated by the same answer.
+        await this.reviewAtomCards(p, observations);
       }
 
       // 5. Can-do progress evaluation — recompute descriptor achievement
@@ -604,18 +618,22 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
    * side by side so that their divergence is something to read in a fortnight rather
    * than a surprise on the day the old ones are switched off in phase 7.
    *
+   * A sound family the exercise targets (plan 86, step 8.3 — the pronunciation course's
+   * exercises) is the same kind of atom with a card type of its own: `ATOM_CARD_TYPES`.
+   *
    * Non-fatal throughout, like the fan-out above it: nothing that only measures may nack
    * an attempt whose progress and real schedules are already written.
    */
-  private async reviewGrammarAtomCards(
+  private async reviewAtomCards(
     p: ExerciseAttemptCompletedPayload,
     observations: AtomObservation[],
   ): Promise<void> {
     for (const observation of observations) {
-      if (observation.atomType !== 'grammar_rule_atom') continue;
+      const contentType = ATOM_CARD_TYPES[observation.atomType];
+      if (!contentType) continue;
 
       const introduceResult = await this.commandBus.execute(
-        new IntroduceCardCommand(p.userId, 'GRAMMAR_ATOM', observation.atomId, undefined, true),
+        new IntroduceCardCommand(p.userId, contentType, observation.atomId, undefined, true),
       );
       if (introduceResult.isFail) {
         this.logger.debug(
@@ -643,7 +661,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
         continue;
       }
 
-      // Recorded like every other rating, and marked `GRAMMAR_ATOM` so that analytics
+      // Recorded like every other rating, and marked with the card's type so that analytics
       // keeps it out of `attempt_evidence` — where five readers count rows as attempts
       // — and counts it card-side in the modality gap (plan 63 phases 3 and 4).
       await this.publishRatingRecord(
@@ -654,7 +672,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
         observation.gapCount,
         stabilityOf(reviewResult.value),
         {
-          contentType: 'GRAMMAR_ATOM',
+          contentType,
           itemKey: observation.itemKey,
           targets: [
             {
@@ -705,7 +723,7 @@ export class ExerciseAttemptedConsumer implements OnModuleInit, OnModuleDestroy 
       // The gap's own verdict, not the exercise's score: right is a full recall of
       // this word, wrong is a lapse of it, and the form of the answer — narrowed by
       // how much of the bank was already spent — decides how much either is worth.
-      const rating = ratingForAttempt(p, gap.correct ? 100 : 0, position);
+      const rating = ratingForAttempt(p, gapScore(gap), position);
 
       const reviewResult = await this.commandBus.execute(
         new ReviewCardCommand(p.userId, card.id, rating, attemptedAtOf(p)),

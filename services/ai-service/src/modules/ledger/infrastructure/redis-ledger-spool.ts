@@ -66,7 +66,13 @@ export function parseRecord(raw: string): AiCallRecord | null {
     const createdAt = new Date(value.createdAt);
     if (Number.isNaN(createdAt.getTime())) return null;
     // Rows spooled before speech models (plan 82, step 3) have no `audioMs`.
-    return { ...(value as AiCallRecord), audioMs: value.audioMs ?? null, createdAt };
+    // …and before synthesizers (plan 88, step 6b) no `characters`.
+    return {
+      ...(value as AiCallRecord),
+      audioMs: value.audioMs ?? null,
+      characters: value.characters ?? null,
+      createdAt,
+    };
   } catch {
     return null;
   }
