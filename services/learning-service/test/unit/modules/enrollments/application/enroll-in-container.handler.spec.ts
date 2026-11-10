@@ -5,6 +5,7 @@ import {
   EnrollmentAlreadyExistsError,
   AccessDeniedForContainerError,
   ContentServiceUnavailableError,
+  CourseObsoleteError,
   OrganizationServiceUnavailableError,
 } from '../../../../../src/modules/enrollments/application/errors/enrollment-application.errors.js';
 import { Result } from '../../../../../src/shared/kernel/result.js';
@@ -31,6 +32,7 @@ const LEARNER_WORKSPACE_ID = 'eeeeeeee-0000-4000-8000-000000000005';
 const makeHandler = (overrides: Partial<{
   existingEnrollment: Enrollment | null;
   accessTier: string;
+  maintenanceStatus: string;
   tierError: boolean;
   memberRole: string | null;
   orgError: boolean;
@@ -41,6 +43,7 @@ const makeHandler = (overrides: Partial<{
   const {
     existingEnrollment = null,
     accessTier = 'PUBLIC_FREE',
+    maintenanceStatus = 'maintained',
     tierError = false,
     memberRole = 'STUDENT',
     orgError = false,
@@ -62,7 +65,7 @@ const makeHandler = (overrides: Partial<{
     checkVisibilityForUser: jest.fn(),
     getAccessTier: tierError
       ? mockFn().mockResolvedValue(Result.fail(new ContentClientError('timeout')))
-      : mockFn().mockResolvedValue(Result.ok(accessTier)),
+      : mockFn().mockResolvedValue(Result.ok({ accessTier, maintenanceStatus })),
     getContainerLeafItems: jest.fn(),
     getContainerOwner: ownerLookupError
       ? mockFn().mockResolvedValue(Result.fail(new ContentClientError('timeout')))
@@ -268,6 +271,69 @@ describe('EnrollInContainerHandler', () => {
 
       expect(result.isOk).toBe(true);
       expect(result.value.schoolId).toBeNull();
+    });
+  });
+
+  // Plan 90, Q5: an obsolete course takes no new learners; an unmaintained one still does.
+  describe('course maintenance status', () => {
+    it('refuses an obsolete course with COURSE_OBSOLETE, saving nothing', async () => {
+      const { handler, repo, publisher } = makeHandler({ maintenanceStatus: 'obsolete' });
+
+      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(CourseObsoleteError);
+      expect(result.error.message).toBe('COURSE_OBSOLETE');
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(publisher.publish).not.toHaveBeenCalled();
+    });
+
+    it('refuses before asking organization, whatever the tier', async () => {
+      const { handler, orgClient } = makeHandler({
+        accessTier: 'FREE_WITHIN_SCHOOL',
+        maintenanceStatus: 'obsolete',
+      });
+
+      const result = await handler.execute(
+        new EnrollInContainerCommand(USER_ID, CONTAINER_ID, SCHOOL_ID),
+      );
+
+      expect(result.error).toBeInstanceOf(CourseObsoleteError);
+      expect(orgClient.getMemberRole).not.toHaveBeenCalled();
+    });
+
+    it('does not let a learner who left come back to an obsolete course', async () => {
+      const existing = Enrollment.create({ userId: USER_ID, containerId: CONTAINER_ID }, NOW);
+      existing.unenroll();
+      const { handler, repo } = makeHandler({
+        existingEnrollment: existing,
+        maintenanceStatus: 'obsolete',
+      });
+
+      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
+
+      expect(result.error).toBeInstanceOf(CourseObsoleteError);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('still tells an enrolled learner they are enrolled rather than obsolete', async () => {
+      const existing = Enrollment.create({ userId: USER_ID, containerId: CONTAINER_ID }, NOW);
+      const { handler } = makeHandler({
+        existingEnrollment: existing,
+        maintenanceStatus: 'obsolete',
+      });
+
+      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
+
+      expect(result.error).toBeInstanceOf(EnrollmentAlreadyExistsError);
+    });
+
+    it('enrols in an unmaintained course', async () => {
+      const { handler } = makeHandler({ maintenanceStatus: 'unmaintained' });
+
+      const result = await handler.execute(new EnrollInContainerCommand(USER_ID, CONTAINER_ID));
+
+      expect(result.isOk).toBe(true);
     });
   });
 

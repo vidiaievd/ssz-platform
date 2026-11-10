@@ -703,15 +703,24 @@ export class InternalController {
     return result.value;
   }
 
+  // `maintenanceStatus` rides along (plan 90, Q5): an obsolete course takes no new
+  // enrolments, and learning refuses one with 409 COURSE_OBSOLETE. Lowercase, as the
+  // public course answers carry it.
   @Get('containers/:id/access-tier')
-  async getContainerAccessTier(@Param('id') id: string): Promise<{ accessTier: string }> {
+  async getContainerAccessTier(
+    @Param('id') id: string,
+  ): Promise<{ accessTier: string; maintenanceStatus: string }> {
     const result = await this.queryBus.execute<
       GetContainerQuery,
       Result<GetContainerResult, ContainerDomainError>
     >(new GetContainerQuery(id, ''));
 
     if (result.isFail) throw new NotFoundException(`Container ${id} not found`);
-    return { accessTier: result.value.container.accessTier.toUpperCase() };
+    const { container } = result.value;
+    return {
+      accessTier: container.accessTier.toUpperCase(),
+      maintenanceStatus: container.maintenanceStatus,
+    };
   }
 
   // The author's course list needs to tell "published" from "published, with

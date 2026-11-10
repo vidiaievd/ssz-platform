@@ -21,6 +21,7 @@ import { CONTAINER_SECTION_REPOSITORY } from './domain/repositories/container-se
 // Command handlers
 import { CreateContainerHandler } from './application/commands/create-container/create-container.handler.js';
 import { SetContainerReviewSettingsHandler } from './application/commands/set-review-settings/set-container-review-settings.handler.js';
+import { SetContainerMaintenanceStatusHandler } from './application/commands/set-maintenance-status/set-container-maintenance-status.handler.js';
 import { GetContainerReviewSettingsHandler } from './application/queries/get-review-settings/get-container-review-settings.handler.js';
 import { SetContainerReviewAiPolicyHandler } from './application/commands/set-review-ai-policy/set-container-review-ai-policy.handler.js';
 import { GetContainerReviewAiPolicyHandler } from './application/queries/get-review-ai-policy/get-container-review-ai-policy.handler.js';
@@ -88,6 +89,7 @@ const CommandHandlers = [
   CreateContainerHandler,
   UpdateContainerHandler,
   SetContainerReviewSettingsHandler,
+  SetContainerMaintenanceStatusHandler,
   SetContainerReviewAiPolicyHandler,
   SetContainerCoverageRecipeHandler,
   DeleteContainerHandler,

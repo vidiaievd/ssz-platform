@@ -40,6 +40,7 @@ import {
   EnrollmentDomainValidationError,
   AccessDeniedForContainerError,
   ContentServiceUnavailableError,
+  CourseObsoleteError,
   OrganizationServiceUnavailableError,
 } from '../application/errors/enrollment-application.errors.js';
 import { EnrollInContainerRequest } from './dto/enroll-in-container.request.js';
@@ -60,7 +61,9 @@ export class EnrollmentsController {
   @Post()
   @ApiOperation({ summary: 'Enroll the current user in a container' })
   @ApiResponse({ status: 201, type: EnrollmentResponse })
-  @ApiConflictResponse({ description: 'Already enrolled in this container' })
+  @ApiConflictResponse({
+    description: 'Already enrolled in this container, or COURSE_OBSOLETE — the course takes no new enrolments',
+  })
   @ApiResponse({ status: 403, description: 'Access denied for this content tier' })
   @ApiResponse({ status: 502, description: 'Upstream service unavailable' })
   async enroll(
@@ -165,6 +168,7 @@ export class EnrollmentsController {
     if (err instanceof EnrollmentAlreadyExistsError) throw new ConflictException(err.message);
     if (err instanceof EnrollmentDomainValidationError) throw new UnprocessableEntityException(err.message);
     if (err instanceof AccessDeniedForContainerError) throw new ForbiddenException(err.message);
+    if (err instanceof CourseObsoleteError) throw new ConflictException(err.message);
     if (err instanceof ContentServiceUnavailableError) throw new BadGatewayException(err.message);
     if (err instanceof OrganizationServiceUnavailableError) throw new BadGatewayException(err.message);
 

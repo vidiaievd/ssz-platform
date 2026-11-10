@@ -69,6 +69,13 @@ export class GetContainersHandler implements IQueryHandler<
     if (dto.accessTier) {
       and.push({ accessTier: domainAccessTierToPrisma(dto.accessTier) });
     }
+    // Obsolete courses leave the catalogue and search (plan 90, Q5). Their author still
+    // lists them — it is the only way back to `maintained`.
+    if (!dto.includeObsolete) {
+      and.push({
+        OR: [{ maintenanceStatus: { not: 'OBSOLETE' } }, { ownerUserId: user.userId }],
+      });
+    }
 
     const where = { ...baseWhere, AND: and } as Prisma.ContainerWhereInput;
 

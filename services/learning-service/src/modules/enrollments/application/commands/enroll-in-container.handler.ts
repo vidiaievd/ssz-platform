@@ -12,6 +12,7 @@ import {
   EnrollmentAlreadyExistsError,
   AccessDeniedForContainerError,
   ContentServiceUnavailableError,
+  CourseObsoleteError,
   OrganizationServiceUnavailableError,
   type EnrollmentApplicationError,
 } from '../errors/enrollment-application.errors.js';
@@ -46,7 +47,13 @@ export class EnrollInContainerHandler
       return Result.fail(new ContentServiceUnavailableError(tierResult.error.message));
     }
 
-    const tier = tierResult.value;
+    const { accessTier: tier, maintenanceStatus } = tierResult.value;
+
+    // An obsolete course takes no new learners, whatever its tier; one who left it does
+    // not come back either — the course is on its way out (plan 90, Q5).
+    if (maintenanceStatus === 'obsolete') {
+      return Result.fail(new CourseObsoleteError());
+    }
 
     if (tier === 'ASSIGNED_ONLY') {
       return Result.fail(new AccessDeniedForContainerError(tier));
