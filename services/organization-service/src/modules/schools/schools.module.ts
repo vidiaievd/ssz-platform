@@ -87,6 +87,7 @@ import { GetReviewAiPolicyHandler } from './application/queries/get-review-ai-po
 import { UpdateReviewAiPolicyHandler } from './application/commands/update-review-ai-policy/update-review-ai-policy.handler.js';
 import { GetReviewEffortMinutesHandler } from './application/queries/get-review-effort-minutes/get-review-effort-minutes.handler.js';
 import { UpdateReviewEffortMinutesHandler } from './application/commands/update-review-effort-minutes/update-review-effort-minutes.handler.js';
+import { GetSchoolSeatsHandler } from './application/queries/get-school-seats/get-school-seats.handler.js';
 import { GetAssistantAccessHandler } from './application/queries/get-assistant-access/get-assistant-access.handler.js';
 import { UpdateAssistantAccessHandler } from './application/commands/update-assistant-access/update-assistant-access.handler.js';
 import { GetAiPrecheckSettingsHandler } from './application/queries/get-ai-precheck-settings/get-ai-precheck-settings.handler.js';
@@ -204,6 +205,7 @@ const QueryHandlers = [
   GetReviewAiPolicyHandler,
   GetReviewEffortMinutesHandler,
   GetAssistantAccessHandler,
+  GetSchoolSeatsHandler,
   GetAiPrecheckSettingsHandler,
   ListMembershipsHandler,
   GetMyMembershipHandler,

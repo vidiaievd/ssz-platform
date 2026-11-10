@@ -45,6 +45,32 @@ export class AdminStatsDayDto {
   teachers!: number;
 }
 
+export class AdminSeatsAttentionItemDto {
+  @ApiProperty({ format: 'uuid' }) schoolId!: string;
+  @ApiProperty({ example: 'Nordick' }) name!: string;
+  @ApiProperty({ example: 'nordick' }) slug!: string;
+  @ApiProperty({ example: 97 }) used!: number;
+  @ApiProperty({ example: 100 }) limit!: number;
+}
+
+export class AdminSeatsAttentionDto {
+  @ApiProperty({ description: 'Schools in this state, all of them', example: 4 }) total!: number;
+  @ApiProperty({ type: [AdminSeatsAttentionItemDto], description: 'Up to 100, the most crowded first' })
+  items!: AdminSeatsAttentionItemDto[];
+  @ApiProperty({ description: 'More schools than `items` holds' }) truncated!: boolean;
+}
+
+export class AdminSeatsStatsDto {
+  @ApiProperty({ description: 'Active students of schools (not deleted) with a numeric limit', example: 640 })
+  used!: number;
+  @ApiProperty({ description: 'Their limits summed', example: 900 }) limit!: number;
+  @ApiProperty({ example: 14 }) schoolsLimited!: number;
+  @ApiProperty({ type: AdminSeatsAttentionDto, description: '90 % of the limit or more, not over it' })
+  near!: AdminSeatsAttentionDto;
+  @ApiProperty({ type: AdminSeatsAttentionDto, description: 'More active students than the limit' })
+  over!: AdminSeatsAttentionDto;
+}
+
 export class AdminStatsDto {
   @ApiProperty({ example: '2026-10-11' }) from!: string;
   @ApiProperty({ example: '2026-11-09' }) to!: string;
@@ -54,4 +80,6 @@ export class AdminStatsDto {
   teachers!: AdminStatsPeopleDto;
   @ApiProperty({ type: [AdminStatsDayDto], description: 'Every day of the period, zeros included' })
   daily!: AdminStatsDayDto[];
+  @ApiProperty({ type: AdminSeatsStatsDto, description: 'Student seats against the projected plan limits' })
+  seats!: AdminSeatsStatsDto;
 }

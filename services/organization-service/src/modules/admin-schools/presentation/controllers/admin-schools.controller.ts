@@ -56,11 +56,11 @@ export class AdminSchoolsController {
       'students, teachers); the owner is in none of them. Admin-panel token, level `support` or higher.',
   })
   @ApiOkResponse({ type: AdminSchoolPageDto })
-  @ApiBadRequestResponse({ description: 'Unknown kind, status or sort; page or limit out of range' })
+  @ApiBadRequestResponse({ description: 'Unknown kind, status, seats or sort; page or limit out of range' })
   list(@Query() query: ListAdminSchoolsQueryDto): Promise<AdminSchoolPage> {
     return this.queryBus.execute(
       new ListAdminSchoolsQuery(
-        { search: query.search, kind: query.kind, status: query.status },
+        { search: query.search, kind: query.kind, status: query.status, seats: query.seats },
         query.sort ?? ADMIN_SCHOOL_SORT_DEFAULT,
         query.page ?? 1,
         query.limit ?? ADMIN_SCHOOLS_PAGE_DEFAULT,

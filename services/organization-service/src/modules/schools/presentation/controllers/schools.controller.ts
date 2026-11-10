@@ -93,7 +93,8 @@ import {
 } from '../dto/ai-precheck-settings.dto.js';
 import { GetReviewAiPolicyQuery } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.query.js';
 import { UpdateReviewAiPolicyCommand } from '../../application/commands/update-review-ai-policy/update-review-ai-policy.command.js';
-import { SeatsExhaustedErrorDto, SeatsResultResponseDto } from '../dto/seats.response.dto.js';
+import { GetSchoolSeatsQuery } from '../../application/queries/get-school-seats/get-school-seats.query.js';
+import { SeatUsageResponseDto, SeatsExhaustedErrorDto, SeatsResultResponseDto } from '../dto/seats.response.dto.js';
 
 @ApiTags('Schools')
 @ApiBearerAuth('JWT')
@@ -556,6 +557,23 @@ export class SchoolsController {
     return this.commandBus.execute(
       new UpdateReviewEffortMinutesCommand(schoolId, user.sub, dto.templates, dto.other ?? null),
     );
+  }
+
+  @Get(':id/seats')
+  @ApiOperation({
+    summary: 'Student seats of the school: used, limit, ceiling, state (plan 90, owner/admin/manager)',
+    description:
+      'Used = active STUDENT rows. `limit` / `ceiling` null = no limit (or the plan could not be read). ' +
+      'State `warning` = over the limit within the 10 % grace, `full` = new learners are refused.',
+  })
+  @ApiResponse({ status: 200, type: SeatUsageResponseDto })
+  @ApiResponse({ status: 403, description: 'Only owner, admin or manager' })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async getSeats(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) schoolId: string,
+  ): Promise<SeatUsageResponseDto> {
+    return this.queryBus.execute(new GetSchoolSeatsQuery(schoolId, user.sub));
   }
 
   @Get(':id/assistant-access')

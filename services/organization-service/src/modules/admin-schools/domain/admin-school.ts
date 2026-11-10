@@ -4,6 +4,8 @@
  * commands with a reason (later phases).
  */
 
+import type { SeatUsage } from '../../schools/domain/value-objects/seat-policy.vo.js';
+
 export type SchoolKindValue = 'SCHOOL' | 'SOLO';
 
 /**
@@ -33,7 +35,19 @@ export interface AdminSchoolFilter {
   kind?: SchoolKindValue;
   /** No status = every row, soft-deleted ones included: the admin sees what is there. */
   status?: AdminSchoolStatus;
+  seats?: AdminSchoolSeatsFilter;
 }
+
+/**
+ * Seat filter of the list (plan 90, phase 4). `near` = at 90 % of the limit or more, not yet
+ * over it; `over` = more active learners than the limit. Schools without a numeric limit
+ * (none stated, or not projected yet) match neither.
+ */
+export type AdminSchoolSeatsFilter = 'near' | 'over';
+export const ADMIN_SCHOOL_SEATS_FILTERS: readonly AdminSchoolSeatsFilter[] = ['near', 'over'];
+
+/** Share of the limit from which a school counts as `near`. */
+export const SEATS_NEAR_RATIO = 0.9;
 
 /** Head counts on the roster; the owner is not a roster row and counts in none of them. */
 export interface AdminSchoolCounts {
@@ -52,6 +66,8 @@ export interface AdminSchoolListItem {
   city: string | null;
   createdAt: Date;
   counts: AdminSchoolCounts;
+  /** `used` = `counts.students`; `limit` null = no limit stated or not projected yet. */
+  seats: { used: number; limit: number | null };
 }
 
 export interface AdminSchoolPage {
@@ -95,6 +111,8 @@ export interface AdminSchoolDetail {
     pendingApplications: number;
     pendingInvitations: number;
   };
+  /** From the local projection of the plan's limit, so a school never seen by the projection shows no limit. */
+  seats: SeatUsage;
   /** Groups not deleted, newest first. */
   groups: AdminSchoolGroup[];
   /** Distinct courses the groups teach — main material and additional ones; names live in content-service. */

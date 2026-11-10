@@ -2,9 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import {
+  ADMIN_SCHOOL_SEATS_FILTERS,
   ADMIN_SCHOOL_SORTS,
   ADMIN_SCHOOL_STATUSES,
   ADMIN_SCHOOLS_PAGE_MAX,
+  type AdminSchoolSeatsFilter,
   type AdminSchoolSort,
   type AdminSchoolStatus,
   type SchoolKindValue,
@@ -28,6 +30,16 @@ export class ListAdminSchoolsQueryDto {
   @IsOptional()
   @IsIn(ADMIN_SCHOOL_STATUSES)
   status?: AdminSchoolStatus;
+
+  @ApiPropertyOptional({
+    enum: ADMIN_SCHOOL_SEATS_FILTERS,
+    description:
+      '`near` = 90 % of the student limit or more, not over it; `over` = more active students than the limit. ' +
+      'Schools without a numeric limit match neither.',
+  })
+  @IsOptional()
+  @IsIn(ADMIN_SCHOOL_SEATS_FILTERS)
+  seats?: AdminSchoolSeatsFilter;
 
   @ApiPropertyOptional({ enum: ADMIN_SCHOOL_SORTS, default: '-createdAt', description: '`-` = descending' })
   @IsOptional()
@@ -56,6 +68,18 @@ export class AdminSchoolCountsDto {
   teachers!: number;
 }
 
+export class AdminSchoolListSeatsDto {
+  @ApiProperty({ description: 'Active students (= counts.students)', example: 87 }) used!: number;
+  @ApiProperty({ type: Number, nullable: true, example: 100, description: 'null = no limit stated or not projected yet' })
+  limit!: number | null;
+}
+
+export class AdminSchoolSeatsDto extends AdminSchoolListSeatsDto {
+  @ApiProperty({ type: Number, nullable: true, example: 110, description: 'limit + 10 % grace; null = no limit' })
+  ceiling!: number | null;
+  @ApiProperty({ enum: ['ok', 'warning', 'full'] }) state!: string;
+}
+
 export class AdminSchoolListItemDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ example: 'Nordick' }) name!: string;
@@ -66,6 +90,7 @@ export class AdminSchoolListItemDto {
   @ApiProperty({ type: String, nullable: true, example: 'Oslo' }) city!: string | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ type: AdminSchoolCountsDto }) counts!: AdminSchoolCountsDto;
+  @ApiProperty({ type: AdminSchoolListSeatsDto }) seats!: AdminSchoolListSeatsDto;
 }
 
 export class AdminSchoolPageDto {
@@ -126,6 +151,8 @@ export class AdminSchoolDetailDto {
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
   @ApiProperty({ type: Date, nullable: true, format: 'date-time' }) deletedAt!: Date | null;
   @ApiProperty({ type: AdminSchoolDetailCountsDto }) counts!: AdminSchoolDetailCountsDto;
+  @ApiProperty({ type: AdminSchoolSeatsDto, description: 'Student seats against the projected plan limit' })
+  seats!: AdminSchoolSeatsDto;
   @ApiProperty({ type: [AdminSchoolGroupDto], description: 'Groups not deleted, newest first' })
   groups!: AdminSchoolGroupDto[];
   @ApiProperty({ type: AdminSchoolCoursesDto }) courses!: AdminSchoolCoursesDto;
