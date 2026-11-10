@@ -1,11 +1,18 @@
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import { GetLearnerReviewContextQuery } from './get-learner-review-context.query.js';
+import type { SchoolStatus } from '../../../domain/school-access.policy.js';
 
 export interface LearnerReviewContextResult {
   schoolId: string | null;
   groupId: string | null;
   groupName: string | null;
+  /**
+   * The school's lifecycle status (plan 90, phase 5), null without a school. Only `active` or
+   * `suspended` — a closed school is never the learner's context. A suspended one is read only:
+   * the engine refuses new attempts and hand-ins on it.
+   */
+  schoolStatus: SchoolStatus | null;
 }
 
 /**
@@ -35,7 +42,11 @@ export class GetLearnerReviewContextHandler
         status: 'active',
         group: { deletedAt: null, school: { deletedAt: null } },
       },
-      include: { group: { select: { id: true, name: true, courseId: true, schoolId: true } } },
+      include: {
+        group: {
+          select: { id: true, name: true, courseId: true, schoolId: true, school: { select: { status: true } } },
+        },
+      },
     });
 
     if (memberships.length > 0) {
@@ -44,6 +55,7 @@ export class GetLearnerReviewContextHandler
         schoolId: chosen.group.schoolId,
         groupId: chosen.group.id,
         groupName: chosen.group.name,
+        schoolStatus: chosen.group.school.status as SchoolStatus,
       };
     }
 
@@ -57,10 +69,10 @@ export class GetLearnerReviewContextHandler
         status: 'active',
         school: { deletedAt: null },
       },
-      select: { schoolId: true, joinedAt: true },
+      select: { schoolId: true, joinedAt: true, school: { select: { status: true } } },
     });
 
-    if (rosterRows.length === 0) return { schoolId: null, groupId: null, groupName: null };
+    if (rosterRows.length === 0) return { schoolId: null, groupId: null, groupName: null, schoolStatus: null };
 
     const preferred = query.preferredSchoolId
       ? rosterRows.find((r: any) => r.schoolId === query.preferredSchoolId)
@@ -69,7 +81,7 @@ export class GetLearnerReviewContextHandler
       preferred ??
       rosterRows.reduce((latest: any, r: any) => (r.joinedAt > latest.joinedAt ? r : latest));
 
-    return { schoolId: chosen.schoolId, groupId: null, groupName: null };
+    return { schoolId: chosen.schoolId, groupId: null, groupName: null, schoolStatus: chosen.school.status as SchoolStatus };
   }
 
   /**

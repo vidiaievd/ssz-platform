@@ -93,6 +93,8 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
 
     const school = await this.schoolRepository.findById(invitation.schoolId);
     if (!school) throw new SchoolNotFoundException(invitation.schoolId);
+    // Read only unless active (plan 90, phase 5) — reached by token or from the tutor's routes too.
+    school.assertWritable();
 
     // Snapshot the display name/avatar once at creation time — kept in sync
     // afterwards via profile.updated events (see ProfileUpdatedConsumer). Falls

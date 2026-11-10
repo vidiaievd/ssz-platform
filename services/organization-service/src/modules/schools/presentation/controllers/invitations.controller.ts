@@ -9,7 +9,9 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { ActiveSchoolGuard } from '../guards/active-school.guard.js';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
@@ -43,6 +45,8 @@ import { SeatsExhaustedErrorDto, SeatsResultResponseDto } from '../dto/seats.res
 
 @ApiTags('Invitations')
 @ApiBearerAuth('JWT')
+// Writes refused while the school is not active (plan 90, phase 5, step 3).
+@UseGuards(ActiveSchoolGuard)
 @Controller('schools')
 export class InvitationsController {
   constructor(

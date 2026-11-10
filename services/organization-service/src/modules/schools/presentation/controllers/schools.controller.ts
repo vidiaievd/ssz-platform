@@ -12,7 +12,9 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { ActiveSchoolGuard, AllowInactiveSchool } from '../guards/active-school.guard.js';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
@@ -98,6 +100,8 @@ import { SeatUsageResponseDto, SeatsExhaustedErrorDto, SeatsResultResponseDto } 
 
 @ApiTags('Schools')
 @ApiBearerAuth('JWT')
+// Writes refused while the school is not active (plan 90, phase 5, step 3).
+@UseGuards(ActiveSchoolGuard)
 @Controller('schools')
 export class SchoolsController {
   constructor(
@@ -240,6 +244,8 @@ export class SchoolsController {
   }
 
   @Delete(':schoolId')
+  // The owner may archive a suspended school too; the lifecycle table decides.
+  @AllowInactiveSchool()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete a school (owner only): it is archived',

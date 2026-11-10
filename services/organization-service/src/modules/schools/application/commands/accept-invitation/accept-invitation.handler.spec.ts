@@ -10,6 +10,8 @@ import { GroupAssignedEvent } from '../../../domain/events/group-assigned.event.
 import { GroupMemberAddedEvent } from '../../../domain/events/group-member-added.event.js';
 import { SeatsExhaustedException } from '../../../domain/exceptions/seats-exhausted.exception.js';
 import type { SeatUsage } from '../../../domain/value-objects/seat-policy.vo.js';
+import { SchoolNotActiveException } from '../../../domain/exceptions/school-not-active.exception.js';
+import { SchoolType } from '../../../domain/value-objects/school-type.vo.js';
 
 function makeSchool(): School {
   return School.create({ id: 's-1', name: 'Test School', slug: 'test-school', ownerId: 'owner-1' }, 'evt-1');
@@ -86,6 +88,26 @@ describe('AcceptInvitationHandler', () => {
       prisma as never,
       seatGate as never,
     );
+  });
+
+  // Plan 90, phase 5: accepted by token, so no path guard sees the school — the aggregate refuses.
+  it.each(['suspended', 'closed'] as const)('a %s school takes nobody in by invitation', async (status) => {
+    const now = new Date();
+    schoolRepo.findById.mockResolvedValue(
+      School.rehydrate({
+        id: 's-1', name: 'Test School', slug: 'test-school', ownerId: 'owner-1', type: SchoolType.ONLINE,
+        isActive: false, createdAt: now, updatedAt: now, members: [], requireTutorReviewForSelfPaced: false,
+        lifecycle: { status, closesAt: null, purgeAt: null },
+      }),
+    );
+    invitationRepo.findByToken.mockResolvedValue(makeInvitation({ targetGroupId: 'g-1' }));
+
+    await expect(
+      handler.execute(new AcceptInvitationCommand('student-1', 'student@example.com', 'tok-1')),
+    ).rejects.toMatchObject({ constructor: SchoolNotActiveException, status });
+    expect(seatGate.claim).not.toHaveBeenCalled();
+    expect(invitationRepo.save).not.toHaveBeenCalled();
+    expect(schoolRepo.save).not.toHaveBeenCalled();
   });
 
   it('skips the new membership straight to active when the invite carries a target group', async () => {

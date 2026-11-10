@@ -17,7 +17,8 @@ export class GetSchoolHandler implements IQueryHandler<GetSchoolQuery> {
 
   async execute(query: GetSchoolQuery): Promise<SchoolDto> {
     const school = await this.schoolRepository.findById(query.schoolId);
-    if (!school || school.isDeleted) throw new SchoolNotFoundException(query.schoolId);
+    // A closed school is its owner's to see until the purge, nobody else's (plan 90, phase 5).
+    if (!school || !school.isReadableBy(query.actorId)) throw new SchoolNotFoundException(query.schoolId);
 
     if (!school.isMember(query.actorId) && school.ownerId !== query.actorId) {
       throw new ForbiddenOperationException('You are not a member of this school');
@@ -35,6 +36,9 @@ export class GetSchoolHandler implements IQueryHandler<GetSchoolQuery> {
       city: school.city,
       type: school.type,
       isActive: school.isActive,
+      status: school.status,
+      closesAt: school.closesAt,
+      purgeAt: school.purgeAt,
       requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
       showGroupPositionToStudents: school.showGroupPositionToStudents,
       defaultExplanationLanguage: school.defaultExplanationLanguage,

@@ -11,6 +11,19 @@ import { ReviewSettings } from '../value-objects/review-settings.vo.js';
 import { ReviewAiPolicy } from '../value-objects/review-ai-policy.vo.js';
 import { InvalidReviewSettingsException } from '../exceptions/invalid-review-settings.exception.js';
 import type { SchoolMember } from './school-member.entity.js';
+import {
+  assertSchoolWritable,
+  schoolHoldsRoles,
+  schoolReadableBy,
+  type SchoolStatus,
+} from '../school-access.policy.js';
+
+/** Where the school stands in its lifecycle (plan 90, phase 5); the lifecycle module writes it. */
+export interface SchoolLifecycleView {
+  status: SchoolStatus;
+  closesAt: Date | null;
+  purgeAt: Date | null;
+}
 
 export interface CreateSchoolProps {
   id: string;
@@ -44,6 +57,8 @@ export interface RehydrateSchoolProps extends CreateSchoolProps {
   showGroupPositionToStudents?: boolean;
   /** Absent for a row written before plan 80 — the teacher answers alone. */
   reviewAiPolicy?: ReviewAiPolicy;
+  /** Absent from a narrower read: the mirror (`deletedAt`) stands in — closed, else active. */
+  lifecycle?: SchoolLifecycleView;
 }
 
 export class School extends BaseEntity {
@@ -73,6 +88,7 @@ export class School extends BaseEntity {
   private _reviewSettings: ReviewSettings;
   private _showGroupPositionToStudents: boolean;
   private _reviewAiPolicy: ReviewAiPolicy;
+  private _lifecycle: SchoolLifecycleView = { status: 'active', closesAt: null, purgeAt: null };
 
   private constructor(
     id: string,
@@ -158,7 +174,7 @@ export class School extends BaseEntity {
   }
 
   static rehydrate(props: RehydrateSchoolProps): School {
-    return new School(
+    const school = new School(
       props.id,
       props.name,
       props.slug,
@@ -181,6 +197,25 @@ export class School extends BaseEntity {
       props.showGroupPositionToStudents ?? true,
       props.reviewAiPolicy ?? ReviewAiPolicy.default(),
     );
+    school._lifecycle = props.lifecycle ?? {
+      status: props.deletedAt ? 'closed' : 'active',
+      closesAt: null,
+      purgeAt: null,
+    };
+    return school;
+  }
+
+  /**
+   * Refuses any change to a school that is not `active` (plan 90, phase 5, step 3) — the one
+   * rule every write path goes by; see `school-access.policy.ts`.
+   */
+  assertWritable(): void {
+    assertSchoolWritable(this._id, this._lifecycle.status);
+  }
+
+  /** Whether this user may still see the school: members while it holds roles, the owner of a closed one. */
+  isReadableBy(userId: string): boolean {
+    return schoolReadableBy(this._lifecycle.status, { isOwner: userId === this._ownerId });
   }
 
   update(props: {
@@ -314,6 +349,13 @@ export class School extends BaseEntity {
   get isActive(): boolean { return this._isActive; }
   get deletedAt(): Date | undefined { return this._deletedAt; }
   get isDeleted(): boolean { return this._deletedAt !== undefined; }
+  get status(): SchoolStatus { return this._lifecycle.status; }
+  /** When a suspended school closes by itself; null otherwise. */
+  get closesAt(): Date | null { return this._lifecycle.closesAt; }
+  /** When a closed school is purged; null otherwise. */
+  get purgeAt(): Date | null { return this._lifecycle.purgeAt; }
+  /** Whether people keep their roles here (active or suspended). */
+  get holdsRoles(): boolean { return schoolHoldsRoles(this._lifecycle.status); }
   get members(): SchoolMember[] { return [...this._members]; }
   /** Members added through this instance (not yet stored). */
   get addedMembers(): SchoolMember[] { return this._members.filter((m) => this._addedMemberUserIds.has(m.userId)); }

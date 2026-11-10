@@ -24,10 +24,17 @@ import {
 } from '../../domain/repositories/school-group.repository.interface.js';
 import type { SchoolDto, SchoolTeacherDto } from '../../application/dto/school.dto.js';
 
+import { schoolHoldsRoles, type SchoolStatus } from '../../domain/school-access.policy.js';
+
 interface MemberRoleResponse {
   schoolId: string;
   userId: string;
   role: string;
+  /**
+   * Where the school stands (plan 90, phase 5): `active`, or `suspended` — read only, the caller
+   * refuses changes. A closed or purged school has no members to answer for (404).
+   */
+  schoolStatus: SchoolStatus;
 }
 
 interface BatchMemberRoleResponse {
@@ -57,7 +64,9 @@ export class InternalController {
    * live: an owner assigning homework to their own group got a 403 saying they were not
    * a teacher of their own school.
    *
-   * Returns 404 only when the user is neither a member nor the owner.
+   * Returns 404 when the user is neither a member nor the owner, and for everyone once the
+   * school is closed or purged (plan 90, phase 5): nobody holds a role in an archive.
+   * `schoolStatus` tells a caller a suspended school is read only.
    */
   @Get(':schoolId/members/:userId/role')
   async getMemberRole(
@@ -69,15 +78,12 @@ export class InternalController {
       new GetSchoolQuery(schoolId, userId),
     );
 
-    // A roster row wins over ownership: an owner who also sits on the roster has whatever
-    // role was written there, and nothing here should quietly promote them.
-    const member = school.members.find((m) => m.userId === userId);
-    const role = member?.role ?? (school.ownerId === userId ? 'OWNER' : null);
+    const role = roleIn(school, userId);
     if (!role) {
       throw new NotFoundException(`User ${userId} is not a member of school ${schoolId}`);
     }
 
-    return { schoolId, userId, role };
+    return { schoolId, userId, role, schoolStatus: school.status };
   }
 
   /**
@@ -235,9 +241,8 @@ export class InternalController {
         const school: SchoolDto = await this.queryBus.execute(
           new GetSchoolQuery(schoolId, userId),
         );
-        const member = school.members.find((m) => m.userId === userId);
-        const role = member?.role ?? (school.ownerId === userId ? 'OWNER' : null);
-        if (role) results.push({ schoolId, userId, role });
+        const role = roleIn(school, userId);
+        if (role) results.push({ schoolId, userId, role, schoolStatus: school.status });
       } catch {
         // School not found or user not a member — skip
       }
@@ -245,4 +250,16 @@ export class InternalController {
 
     return { results };
   }
+}
+
+/**
+ * The user's role in the school, owner included, or null — for a stranger, and for everyone in a
+ * school that holds no roles any more (closed or purged, plan 90, phase 5).
+ */
+function roleIn(school: SchoolDto, userId: string): string | null {
+  if (!schoolHoldsRoles(school.status)) return null;
+  // A roster row wins over ownership: an owner who also sits on the roster has whatever
+  // role was written there, and nothing here should quietly promote them.
+  const member = school.members.find((m) => m.userId === userId);
+  return member?.role ?? (school.ownerId === userId ? 'OWNER' : null);
 }
