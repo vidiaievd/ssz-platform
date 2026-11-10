@@ -39,6 +39,7 @@ import {
 import type { SchoolInvitation } from '../../domain/entities/school-invitation.entity.js';
 import type { MemberRole } from '../../domain/value-objects/member-role.vo.js';
 import type { InvitationStatus } from '../../domain/value-objects/invitation-status.vo.js';
+import { SeatsExhaustedErrorDto, SeatsResultResponseDto } from '../dto/seats.response.dto.js';
 
 @ApiTags('Invitations')
 @ApiBearerAuth('JWT')
@@ -100,6 +101,7 @@ export class InvitationsController {
   @ApiResponse({ status: 409, description: 'Pending invitation for this email+role already exists' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'School not found' })
+  @ApiResponse({ status: 409, type: SeatsExhaustedErrorDto, description: 'SEATS_EXHAUSTED — a student invitation at the seat ceiling' })
   async sendInvitation(
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,
@@ -165,19 +167,21 @@ export class InvitationsController {
   }
 
   @Post('invitations/:token/accept')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Accept an invitation by token' })
-  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 200, type: SeatsResultResponseDto, description: 'Seats after a learner joined (null for staff)' })
   @ApiResponse({ status: 403, description: 'Token invalid or email mismatch' })
   @ApiResponse({ status: 410, description: 'Invitation expired or revoked' })
   @ApiResponse({ status: 404, description: 'Invitation not found' })
+  @ApiResponse({ status: 409, type: SeatsExhaustedErrorDto, description: 'SEATS_EXHAUSTED — the invitation stays pending' })
   async acceptInvitation(
     @CurrentUser() user: JwtPayload,
     @Param('token') token: string,
-  ): Promise<void> {
-    await this.commandBus.execute(
+  ): Promise<SeatsResultResponseDto> {
+    const { seats } = await this.commandBus.execute(
       new AcceptInvitationCommand(user.sub, user.email, token),
     );
+    return { seats };
   }
 
   private toDto(inv: SchoolInvitation): InvitationResponseDto {

@@ -466,6 +466,8 @@ model SchoolMembership {
   availability Json?
   ageBand      AgeBand?         @map("age_band")
   groupAssignedSeenAt DateTime? @map("group_assigned_seen_at")
+  // Why a pending application was not auto-approved: 'no_seats' (plan 90, phase 4). Null otherwise.
+  blockedReason String?       @map("blocked_reason") @db.VarChar(32)
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 

@@ -10,15 +10,19 @@ import { MemberNotFoundException } from '../../../domain/exceptions/member-not-f
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
+import { StudentSeatGate } from '../../services/student-seat-gate.service.js';
+import type { AddMemberResult } from '../add-member/add-member.handler.js';
+import type { SeatUsage } from '../../../domain/value-objects/seat-policy.vo.js';
 
 @CommandHandler(UpdateStudentCommand)
-export class UpdateStudentHandler implements ICommandHandler<UpdateStudentCommand> {
+export class UpdateStudentHandler implements ICommandHandler<UpdateStudentCommand, AddMemberResult> {
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
     private readonly prisma: PrismaService,
+    private readonly seatGate: StudentSeatGate,
   ) {}
 
-  async execute(command: UpdateStudentCommand): Promise<void> {
+  async execute(command: UpdateStudentCommand): Promise<AddMemberResult> {
     const { actorId, schoolId, studentUserId, status, level } = command;
 
     const school = await this.schoolRepository.findById(schoolId);
@@ -57,14 +61,23 @@ export class UpdateStudentHandler implements ICommandHandler<UpdateStudentComman
     });
     if (!member) throw new MemberNotFoundException(studentUserId);
 
+    // Back from the archive = a seat taken again (plan 90, phase 4): the status flips under the
+    // school's seat lock, or SEATS_EXHAUSTED goes back and nothing changes — the level included.
+    let seats: SeatUsage | null = null;
+    const reactivating = status === 'active' && member.status === 'archived';
+    if (reactivating) {
+      seats = await this.seatGate.claim(schoolId, { kind: 'reactivate', userId: studentUserId });
+    }
+    const statusToWrite = reactivating ? undefined : status;
+
     const ops: unknown[] = [];
 
-    if (status !== undefined || (level !== undefined && level !== member.level)) {
+    if (statusToWrite !== undefined || (level !== undefined && level !== member.level)) {
       ops.push(
         (this.prisma as any).schoolMember.update({
           where: { schoolId_userId: { schoolId, userId: studentUserId } },
           data: {
-            ...(status !== undefined ? { status } : {}),
+            ...(statusToWrite !== undefined ? { status: statusToWrite } : {}),
             ...(level !== undefined ? { level } : {}),
           },
         }),
@@ -93,5 +106,7 @@ export class UpdateStudentHandler implements ICommandHandler<UpdateStudentComman
     if (ops.length > 0) {
       await this.prisma.$transaction(ops as any);
     }
+
+    return { seats };
   }
 }

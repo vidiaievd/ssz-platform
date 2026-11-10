@@ -88,6 +88,7 @@ export class TutoringInvitationsController {
   @ApiResponse({ status: 201, type: SendTutoringInvitationResponseDto })
   @ApiResponse({ status: 403, description: 'Requires tutor platform role or pending invite exists' })
   @ApiResponse({ status: 404, description: 'Tutoring group not found' })
+  @ApiResponse({ status: 409, description: 'SEATS_EXHAUSTED — the workspace is at its student seat ceiling (plan 90, phase 4)' })
   async sendInvitation(
     @CurrentUser() user: JwtPayload,
     @Body() dto: SendTutoringInvitationRequestDto,

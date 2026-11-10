@@ -8,6 +8,8 @@ import { InvitationStatus } from '../../../domain/value-objects/invitation-statu
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { GroupAssignedEvent } from '../../../domain/events/group-assigned.event.js';
 import { GroupMemberAddedEvent } from '../../../domain/events/group-member-added.event.js';
+import { SeatsExhaustedException } from '../../../domain/exceptions/seats-exhausted.exception.js';
+import type { SeatUsage } from '../../../domain/value-objects/seat-policy.vo.js';
 
 function makeSchool(): School {
   return School.create({ id: 's-1', name: 'Test School', slug: 'test-school', ownerId: 'owner-1' }, 'evt-1');
@@ -49,6 +51,7 @@ describe('AcceptInvitationHandler', () => {
   let profileService: { getProfileSummary: jest.Mock<() => Promise<null>> };
   let tokenService: { verify: jest.Mock<() => { email: string }> };
   let prisma: { schoolMember: { findUnique: jest.Mock }; schoolTeacher: { upsert: jest.Mock }; schoolMemberPermission: { upsert: jest.Mock } };
+  let seatGate: { claim: jest.Mock<() => Promise<SeatUsage | null>> };
   let handler: AcceptInvitationHandler;
 
   beforeEach(() => {
@@ -59,6 +62,8 @@ describe('AcceptInvitationHandler', () => {
     eventPublisher = { publish: jest.fn() };
     profileService = { getProfileSummary: jest.fn() };
     tokenService = { verify: jest.fn() };
+    seatGate = { claim: jest.fn<() => Promise<SeatUsage | null>>() };
+    seatGate.claim.mockResolvedValue({ used: 5, limit: 5, ceiling: 6, state: 'ok' });
     prisma = {
       schoolMember: { findUnique: jest.fn() },
       schoolTeacher: { upsert: jest.fn() },
@@ -79,6 +84,7 @@ describe('AcceptInvitationHandler', () => {
       profileService as never,
       tokenService as never,
       prisma as never,
+      seatGate as never,
     );
   });
 
@@ -131,5 +137,59 @@ describe('AcceptInvitationHandler', () => {
 
     expect(groupRepo.saveWithMember).not.toHaveBeenCalled();
     expect(membershipRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'onboarding' }));
+  });
+
+  describe('student seats (plan 90, phase 4)', () => {
+    it('a learner takes a seat and the answer carries it', async () => {
+      invitationRepo.findByToken.mockResolvedValue(makeInvitation());
+
+      await expect(
+        handler.execute(new AcceptInvitationCommand('student-1', 'student@example.com', 'tok-1')),
+      ).resolves.toEqual({ seats: { used: 5, limit: 5, ceiling: 6, state: 'ok' } });
+      expect(seatGate.claim).toHaveBeenCalledWith('s-1', expect.objectContaining({ kind: 'insert', userId: 'student-1' }));
+    });
+
+    it('no seat → SEATS_EXHAUSTED, the invitation stays pending and nothing is written', async () => {
+      const invitation = makeInvitation({ targetGroupId: 'g-1' });
+      invitationRepo.findByToken.mockResolvedValue(invitation);
+      groupRepo.findById.mockResolvedValue(makeGroup());
+      seatGate.claim.mockRejectedValue(
+        new SeatsExhaustedException('s-1', { used: 6, limit: 5, ceiling: 6, state: 'full' }),
+      );
+
+      await expect(
+        handler.execute(new AcceptInvitationCommand('student-1', 'student@example.com', 'tok-1')),
+      ).rejects.toBeInstanceOf(SeatsExhaustedException);
+      expect(invitation.isPending()).toBe(true);
+      expect(invitationRepo.save).not.toHaveBeenCalled();
+      expect(schoolRepo.save).not.toHaveBeenCalled();
+      expect(groupRepo.saveWithMember).not.toHaveBeenCalled();
+      expect(membershipRepo.save).not.toHaveBeenCalled();
+      expect(eventPublisher.publish).not.toHaveBeenCalled();
+    });
+
+    it('staff take no seat', async () => {
+      const invitation = SchoolInvitation.create({
+        id: 'inv-2',
+        schoolId: 's-1',
+        email: 'student@example.com',
+        role: MemberRole.SCHEDULER,
+        kind: 'register',
+        targetGroupId: null,
+        token: 'tok-1',
+        status: InvitationStatus.PENDING,
+        expiresAt: new Date(Date.now() + 60_000),
+        lastSentAt: new Date(),
+        resendCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      invitationRepo.findByToken.mockResolvedValue(invitation);
+
+      await expect(
+        handler.execute(new AcceptInvitationCommand('staff-1', 'student@example.com', 'tok-1')),
+      ).resolves.toEqual({ seats: null });
+      expect(seatGate.claim).not.toHaveBeenCalled();
+    });
   });
 });

@@ -93,6 +93,7 @@ import {
 } from '../dto/ai-precheck-settings.dto.js';
 import { GetReviewAiPolicyQuery } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.query.js';
 import { UpdateReviewAiPolicyCommand } from '../../application/commands/update-review-ai-policy/update-review-ai-policy.command.js';
+import { SeatsExhaustedErrorDto, SeatsResultResponseDto } from '../dto/seats.response.dto.js';
 
 @ApiTags('Schools')
 @ApiBearerAuth('JWT')
@@ -251,20 +252,21 @@ export class SchoolsController {
   }
 
   @Post(':schoolId/members')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Add a member directly (owner/admin only)' })
-  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 200, type: SeatsResultResponseDto, description: 'Seats after a learner joined (null for staff)' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'School not found' })
-  @ApiResponse({ status: 409, description: 'Member already exists' })
+  @ApiResponse({ status: 409, description: 'MEMBER_ALREADY_EXISTS, or SEATS_EXHAUSTED (body as SeatsExhaustedErrorDto)' })
   async addMember(
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,
     @Body() dto: AddMemberRequestDto,
-  ): Promise<void> {
-    await this.commandBus.execute(
+  ): Promise<SeatsResultResponseDto> {
+    const { seats } = await this.commandBus.execute(
       new AddMemberCommand(user.sub, schoolId, dto.userId, dto.role),
     );
+    return { seats };
   }
 
   @Delete(':schoolId/members/:userId')
@@ -358,24 +360,26 @@ export class SchoolsController {
   }
 
   @Patch(':schoolId/students/:userId')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Archive/reactivate a student and/or change their CEFR level',
     description:
       'OWNER/ADMIN can change status and/or level. TEACHER can only change level, only for their own students.',
   })
-  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 200, type: SeatsResultResponseDto, description: 'seats is set when the student came back from the archive' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'School not found or userId is not a student of this school' })
+  @ApiResponse({ status: 409, type: SeatsExhaustedErrorDto, description: 'SEATS_EXHAUSTED — no seat to bring the student back' })
   async updateStudent(
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: UpdateStudentRequestDto,
-  ): Promise<void> {
-    await this.commandBus.execute(
+  ): Promise<SeatsResultResponseDto> {
+    const { seats } = await this.commandBus.execute(
       new UpdateStudentCommand(user.sub, schoolId, userId, dto.status, dto.level),
     );
+    return { seats };
   }
 
   @Post(':schoolId/students/:userId/transfer')

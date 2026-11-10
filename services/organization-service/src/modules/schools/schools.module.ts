@@ -119,6 +119,9 @@ import { UserRegisteredConsumer } from './infrastructure/events/user-registered.
 import { UserDeletedConsumer } from './infrastructure/events/user-deleted.consumer.js';
 import { EntitlementsChangedConsumer } from './infrastructure/events/entitlements-changed.consumer.js';
 import { ProjectedSeatLimitReader } from './application/services/projected-seat-limit.reader.js';
+import { StudentSeatGate } from './application/services/student-seat-gate.service.js';
+import { StudentSeatPrismaRepository } from './infrastructure/persistence/student-seat.prisma.repository.js';
+import { STUDENT_SEAT_REPOSITORY } from './domain/repositories/student-seat.repository.interface.js';
 import { SeatLimitPrismaProjection } from '../../infrastructure/persistence/seat-limit.prisma.projection.js';
 import {
   SEAT_LIMIT_PROJECTION,
@@ -289,6 +292,9 @@ const QueryHandlers = [
         new ProjectedSeatLimitReader(projection, source),
       inject: [SEAT_LIMIT_PROJECTION, SEAT_LIMIT_SOURCE],
     },
+    // Step 3: the roster's seat check, counted and written under one lock per school.
+    { provide: STUDENT_SEAT_REPOSITORY, useClass: StudentSeatPrismaRepository },
+    StudentSeatGate,
   ],
 })
 export class SchoolsModule {}

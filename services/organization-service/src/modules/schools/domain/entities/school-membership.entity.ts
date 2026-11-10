@@ -2,6 +2,11 @@ import type { AgeBand } from './school-group.entity.js';
 
 export type MembershipStatus = 'pending' | 'onboarding' | 'placement-review' | 'active' | 'rejected' | 'left';
 export type MembershipSource = 'public-apply' | 'invite' | 'direct';
+/**
+ * Why an application sits in the manual queue instead of having been auto-approved.
+ * `no_seats` — the school had no student seat left at the time (plan 90, phase 4).
+ */
+export type MembershipBlockedReason = 'no_seats';
 
 export interface CreateMembershipProps {
   id: string;
@@ -18,6 +23,7 @@ export interface RehydrateMembershipProps extends CreateMembershipProps {
   availability: AvailabilitySlot[] | undefined;
   ageBand: AgeBand | undefined;
   groupAssignedSeenAt: Date | undefined;
+  blockedReason?: MembershipBlockedReason;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +56,7 @@ export class SchoolMembership {
   private _availability: AvailabilitySlot[] | undefined;
   private _ageBand: AgeBand | undefined;
   private _groupAssignedSeenAt: Date | undefined;
+  private _blockedReason: MembershipBlockedReason | undefined;
   private _updatedAt: Date;
 
   private constructor(props: RehydrateMembershipProps) {
@@ -63,6 +70,7 @@ export class SchoolMembership {
     this._availability = props.availability;
     this._ageBand = props.ageBand;
     this._groupAssignedSeenAt = props.groupAssignedSeenAt;
+    this._blockedReason = props.blockedReason;
     this.createdAt = props.createdAt;
     this._updatedAt = props.updatedAt;
   }
@@ -113,6 +121,17 @@ export class SchoolMembership {
       throw new Error(`Invalid transition: ${this._status} → ${next}`);
     }
     this._status = next;
+    // Moving on means whatever held the application back is over.
+    this._blockedReason = undefined;
+    this._updatedAt = new Date();
+  }
+
+  /** Keeps a pending application in the manual queue, marked with why it was not auto-approved. */
+  markBlocked(reason: MembershipBlockedReason): void {
+    if (this._status !== 'pending') {
+      throw new Error(`Only a pending membership can be blocked (is ${this._status})`);
+    }
+    this._blockedReason = reason;
     this._updatedAt = new Date();
   }
 
@@ -135,5 +154,6 @@ export class SchoolMembership {
   get availability(): AvailabilitySlot[] | undefined { return this._availability; }
   get ageBand(): AgeBand | undefined { return this._ageBand; }
   get groupAssignedSeenAt(): Date | undefined { return this._groupAssignedSeenAt; }
+  get blockedReason(): MembershipBlockedReason | undefined { return this._blockedReason; }
   get updatedAt(): Date { return this._updatedAt; }
 }

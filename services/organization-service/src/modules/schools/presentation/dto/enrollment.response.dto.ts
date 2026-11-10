@@ -74,6 +74,12 @@ export class MembershipResponseDto {
   @ApiPropertyOptional({ description: 'When the student dismissed the one-time group-assigned banner' })
   groupAssignedSeenAt?: Date;
 
+  @ApiPropertyOptional({
+    enum: ['no_seats'],
+    description: 'Why a pending application was not auto-approved: no_seats — the school had no student seat left (plan 90, phase 4)',
+  })
+  blockedReason?: string;
+
   @ApiProperty()
   createdAt: Date;
 
