@@ -46,6 +46,13 @@ export const envSchema = z.object({
   // A suggestion of phrase marks waits on a model (plan 86, step 5c.2); under the gateway's 120 s.
   AI_SERVICE_SUGGESTION_TIMEOUT_MS: z.coerce.number().int().positive().default(110_000),
 
+  // A purged school's materials stay while learning-service counts active learners on them
+  // (plan 90, phase 5, step 4b). Learning wants `x-service-token` and the /api/v1 prefix.
+  LEARNING_SERVICE_URL: z.string().default('http://learning-service:3007'),
+  LEARNING_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  // A learner who did nothing in a course for longer no longer keeps it alive (Q5).
+  CONTENT_OBSOLETE_ACTIVE_DAYS: z.coerce.number().int().positive().default(90),
+
   // Discovery / catalog pagination
   DISCOVERY_DEFAULT_LIMIT: z.coerce.number().int().min(1).max(100).default(20),
   DISCOVERY_MAX_LIMIT: z.coerce.number().int().min(1).max(500).default(100),
@@ -113,6 +120,13 @@ export interface AppConfig {
     timeoutMs: number;
     suggestionTimeoutMs: number;
   };
+  learning: {
+    baseUrl: string;
+    timeoutMs: number;
+  };
+  schoolPurge: {
+    activeDays: number;
+  };
   discovery: {
     pagination: {
       defaultLimit: number;
@@ -166,6 +180,13 @@ export default (): AppConfig => {
       baseUrl: env.AI_SERVICE_URL,
       timeoutMs: env.AI_SERVICE_TIMEOUT_MS,
       suggestionTimeoutMs: env.AI_SERVICE_SUGGESTION_TIMEOUT_MS,
+    },
+    learning: {
+      baseUrl: env.LEARNING_SERVICE_URL,
+      timeoutMs: env.LEARNING_SERVICE_TIMEOUT_MS,
+    },
+    schoolPurge: {
+      activeDays: env.CONTENT_OBSOLETE_ACTIVE_DAYS,
     },
     discovery: {
       pagination: {

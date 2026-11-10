@@ -28,6 +28,7 @@ import { InternalModule } from './modules/internal/internal.module.js';
 import { GroupEntitlementModule } from './infrastructure/messaging/group-entitlement.module.js';
 import { CanDoModule } from './modules/can-do/can-do.module.js';
 import { UserErasureModule } from './modules/user-erasure/user-erasure.module.js';
+import { SchoolLifecycleModule } from './modules/school-lifecycle/school-lifecycle.module.js';
 import { SkillsModule } from './shared/skills/skills.module.js';
 import { CoverageRecipeModule } from './modules/coverage-recipe/coverage-recipe.module.js';
 import { PersonalVocabularyModule } from './modules/personal-vocabulary/personal-vocabulary.module.js';
@@ -87,6 +88,7 @@ import { SoundAtomModule } from './modules/sound-atom/sound-atom.module.js';
     GroupEntitlementModule,
     CanDoModule,
     UserErasureModule,
+    SchoolLifecycleModule,
   ],
   controllers: [],
   providers: [
