@@ -5,6 +5,33 @@ import { EXCHANGES } from '@ssz/contracts';
 import type { IEventPublisher } from '../../shared/application/ports/event-publisher.port.js';
 import { PrismaOutboxStore } from './prisma-outbox.store.js';
 
+interface DomainEventLike {
+  eventId: string;
+  eventType: string;
+  payload: unknown;
+}
+
+/**
+ * Callers hand over either the event's data or the whole domain event (`publish(event.eventType,
+ * event)` — every repository does). The envelope's `payload` is always the data: until plan 90,
+ * phase 5, step 4b-fix the domain event itself went out, so every consumer reading
+ * `payload.containerId` read `undefined` — and Prisma drops an undefined filter.
+ */
+export function toEnvelopeData(value: unknown): unknown {
+  const event = value as Partial<DomainEventLike> | null;
+  if (
+    event !== null &&
+    typeof event === 'object' &&
+    typeof event.eventId === 'string' &&
+    typeof event.eventType === 'string' &&
+    event.payload !== null &&
+    typeof event.payload === 'object'
+  ) {
+    return event.payload;
+  }
+  return value;
+}
+
 @Injectable()
 export class OutboxEventPublisher implements IEventPublisher {
   private readonly exchange = EXCHANGES.CONTENT;
@@ -16,17 +43,18 @@ export class OutboxEventPublisher implements IEventPublisher {
     payload: T,
     options?: { correlationId?: string },
   ): Promise<void> {
+    const data = toEnvelopeData(payload);
     const eventId = randomUUID();
     const occurredAt = new Date();
 
-    const envelope: BaseEvent<T> = {
+    const envelope: BaseEvent<unknown> = {
       eventId,
       eventType,
       eventVersion: '1.0',
       occurredAt: occurredAt.toISOString(),
       source: 'content-service',
       correlationId: options?.correlationId,
-      payload,
+      payload: data,
     };
 
     await this.outboxStore.insertPending({

@@ -127,6 +127,8 @@ export class PublishVersionHandler implements ICommandHandler<
         newVersionId: command.versionId,
         previousVersionId,
         versionNumber: version.versionNumber,
+        publishedBy: command.userId,
+        publishedAt: new Date().toISOString(),
       }),
     );
 
