@@ -63,7 +63,7 @@ describe('RedisContainerItemListCache', () => {
     });
 
     it('returns null on Redis error (does not throw)', async () => {
-      const client = makeRedisClient({ get: jest.fn().mockRejectedValue(new Error('connection refused')) });
+      const client = makeRedisClient({ get: jest.fn<() => Promise<never>>().mockRejectedValue(new Error('connection refused')) });
       const cache = makeService(client);
 
       expect(await cache.get(CONTAINER_ID)).toBeNull();
@@ -108,7 +108,7 @@ describe('RedisContainerItemListCache', () => {
     });
 
     it('does not throw on Redis error', async () => {
-      const client = makeRedisClient({ set: jest.fn().mockRejectedValue(new Error('timeout')) });
+      const client = makeRedisClient({ set: jest.fn<() => Promise<never>>().mockRejectedValue(new Error('timeout')) });
       const cache = makeService(client);
 
       await expect(cache.set(CONTAINER_ID, [ref1])).resolves.toBeUndefined();
@@ -131,7 +131,7 @@ describe('RedisContainerItemListCache', () => {
     });
 
     it('does not throw on Redis error', async () => {
-      const client = makeRedisClient({ del: jest.fn().mockRejectedValue(new Error('timeout')) });
+      const client = makeRedisClient({ del: jest.fn<() => Promise<never>>().mockRejectedValue(new Error('timeout')) });
       const cache = makeService(client);
 
       await expect(cache.invalidate(CONTAINER_ID)).resolves.toBeUndefined();

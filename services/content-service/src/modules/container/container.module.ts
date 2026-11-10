@@ -6,6 +6,8 @@ import type { IContainerRepository } from './domain/repositories/container.repos
 
 // Infrastructure — Prisma repositories
 import { PrismaContainerRepository } from './infrastructure/persistence/prisma-container.repository.js';
+import { PrismaContainerCatalogReader } from './infrastructure/persistence/prisma-container-catalog.reader.js';
+import { CONTAINER_CATALOG_READER } from './domain/repositories/container-catalog.reader.interface.js';
 import { PrismaContainerVersionRepository } from './infrastructure/persistence/prisma-container-version.repository.js';
 import { PrismaContainerItemRepository } from './infrastructure/persistence/prisma-container-item.repository.js';
 import { PrismaContainerLocalizationRepository } from './infrastructure/persistence/prisma-container-localization.repository.js';
@@ -147,6 +149,7 @@ const QueryHandlers = [
   providers: [
     // Repository bindings
     { provide: CONTAINER_REPOSITORY, useClass: PrismaContainerRepository },
+    { provide: CONTAINER_CATALOG_READER, useClass: PrismaContainerCatalogReader },
     { provide: CONTAINER_VERSION_REPOSITORY, useClass: PrismaContainerVersionRepository },
     { provide: CONTAINER_ITEM_REPOSITORY, useClass: PrismaContainerItemRepository },
     { provide: CONTAINER_LOCALIZATION_REPOSITORY, useClass: PrismaContainerLocalizationRepository },

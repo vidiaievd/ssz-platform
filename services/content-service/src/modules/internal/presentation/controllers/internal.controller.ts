@@ -682,11 +682,6 @@ export class InternalController {
     };
   }
 
-  // Learning Service's EnrollInContainerHandler reads this before creating an
-  // enrollment (content-client.ts's getAccessTier); it compares the result
-  // against uppercase literals ('ASSIGNED_ONLY', 'FREE_WITHIN_SCHOOL', ...),
-  // so the domain's lowercase AccessTier enum value is upper-cased on the wire
-  // here rather than passed through raw.
   /**
    * A course's review policy with the school's terms resolved (plan 80), for
    * exercise-engine deciding whether a model's verdict stands, waits or goes to a teacher.
@@ -703,6 +698,11 @@ export class InternalController {
     return result.value;
   }
 
+  // Learning Service's EnrollInContainerHandler reads this before creating an
+  // enrollment (content-client.ts's getAccessTier); it compares the result
+  // against uppercase literals ('ASSIGNED_ONLY', 'FREE_WITHIN_SCHOOL', ...),
+  // so the domain's lowercase AccessTier enum value is upper-cased on the wire
+  // here rather than passed through raw.
   // `maintenanceStatus` rides along (plan 90, Q5): an obsolete course takes no new
   // enrolments, and learning refuses one with 409 COURSE_OBSOLETE. Lowercase, as the
   // public course answers carry it.

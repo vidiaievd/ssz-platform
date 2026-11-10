@@ -1,75 +1,67 @@
-// The handler takes PrismaService by value for DI and maps rows with the generated
-// client's helpers; neither may load the real client under jest.
-jest.mock('../../../../../infrastructure/database/prisma.service.js', () => ({
-  PrismaService: class {},
-}));
-jest.mock('../../../../../../generated/prisma/client.js', () => ({
-  Prisma: { DbNull: null },
-  $Enums: {},
-}));
-
+import { jest } from '@jest/globals';
 import { GetContainersHandler } from './get-containers.handler.js';
 import { GetContainersQuery } from './get-containers.query.js';
 import { PaginationService } from '../../../../../shared/discovery/application/services/pagination.service.js';
 import { SortParserService } from '../../../../../shared/discovery/application/services/sort-parser.service.js';
+import type {
+  ContainerCatalogCriteria,
+  IContainerCatalogReader,
+} from '../../../domain/repositories/container-catalog.reader.interface.js';
 import type { ContainerListQueryDto } from '../../../presentation/dto/requests/container-list-query.dto.js';
 import type { AuthenticatedUser } from '../../../../../infrastructure/auth/jwt-verifier.service.js';
 
 const USER = { userId: 'user-1' } as AuthenticatedUser;
-const OBSOLETE_UNLESS_OWN = {
-  OR: [{ maintenanceStatus: { not: 'OBSOLETE' } }, { ownerUserId: 'user-1' }],
-};
 
 function makeHandler() {
-  const prisma = {
-    container: {
-      findMany: jest.fn(() => Promise.resolve([])),
-      count: jest.fn(() => Promise.resolve(0)),
-    },
-  };
-  const catalogBuilder = {
-    build: jest.fn(() =>
-      Promise.resolve({ where: { deletedAt: null, AND: [{ OR: [{ visibility: 'PUBLIC' }] }] } }),
-    ),
-  };
-  const handler = new GetContainersHandler(
-    prisma as never,
-    new PaginationService(),
-    new SortParserService(),
-    catalogBuilder as never,
-  );
-  const whereOf = () =>
-    (prisma.container.findMany.mock.calls[0] as unknown as [{ where: { AND: unknown[] } }])[0]
-      .where;
-  return { handler, prisma, whereOf };
+  const findPage = jest.fn<IContainerCatalogReader['findPage']>().mockResolvedValue({
+    items: [],
+    total: 0,
+  });
+  const handler = new GetContainersHandler({ findPage }, new PaginationService(), new SortParserService());
+  const criteria = (): ContainerCatalogCriteria => findPage.mock.calls[0]![0];
+  return { handler, findPage, criteria };
 }
 
-describe('GetContainersHandler — obsolete courses (plan 90, Q5)', () => {
-  it('leaves obsolete courses out of the list, except the caller’s own', async () => {
-    const { handler, whereOf } = makeHandler();
+const run = (handler: GetContainersHandler, dto: Partial<ContainerListQueryDto> = {}) =>
+  handler.execute(new GetContainersQuery(dto as ContainerListQueryDto, USER));
 
-    await handler.execute(new GetContainersQuery({} as ContainerListQueryDto, USER));
+describe('GetContainersHandler', () => {
+  it('hides obsolete and archived courses by default', async () => {
+    const { handler, criteria } = makeHandler();
 
-    expect(whereOf().AND).toContainEqual(OBSOLETE_UNLESS_OWN);
-  });
+    await run(handler);
 
-  it('applies the same filter to the count', async () => {
-    const { handler, prisma } = makeHandler();
-
-    await handler.execute(new GetContainersQuery({} as ContainerListQueryDto, USER));
-
-    const countWhere = (prisma.container.count.mock.calls[0] as unknown as [{ where: { AND: unknown[] } }])[0]
-      .where;
-    expect(countWhere.AND).toContainEqual(OBSOLETE_UNLESS_OWN);
+    expect(criteria().includeHidden).toBe(false);
+    expect(criteria().userId).toBe('user-1');
   });
 
   it('lists them when asked with includeObsolete', async () => {
-    const { handler, whereOf } = makeHandler();
+    const { handler, criteria } = makeHandler();
 
-    await handler.execute(
-      new GetContainersQuery({ includeObsolete: true } as ContainerListQueryDto, USER),
-    );
+    await run(handler, { includeObsolete: true });
 
-    expect(whereOf().AND).not.toContainEqual(OBSOLETE_UNLESS_OWN);
+    expect(criteria().includeHidden).toBe(true);
+  });
+
+  it('hands filters, paging and sort to the reader', async () => {
+    const { handler, criteria } = makeHandler();
+
+    await run(handler, { targetLanguage: 'nb', search: 'norsk', page: 3, limit: 10, sort: 'title_asc' });
+
+    expect(criteria()).toMatchObject({
+      filters: { targetLanguage: 'nb', search: 'norsk' },
+      skip: 20,
+      take: 10,
+      sort: [{ field: 'title', direction: 'asc' }],
+    });
+  });
+
+  it('wraps the reader page into a paginated result', async () => {
+    const { handler, findPage } = makeHandler();
+    findPage.mockResolvedValue({ items: [], total: 25 });
+
+    const result = await run(handler, { page: 2, limit: 10 });
+
+    expect(result).toMatchObject({ total: 25, page: 2, limit: 10, totalPages: 3 });
   });
 });

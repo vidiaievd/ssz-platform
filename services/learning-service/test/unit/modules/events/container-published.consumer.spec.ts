@@ -32,8 +32,8 @@ function makeConsumer(overrides: {
   } as any;
 
   const cache: IContainerItemListCache = {
-    get: jest.fn(),
-    set: jest.fn(),
+    get: jest.fn<() => Promise<null>>().mockResolvedValue(null),
+    set: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     invalidate: overrides.cache?.invalidate ?? jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     ...overrides.cache,
   };
@@ -93,7 +93,7 @@ describe('ContainerPublishedConsumer', () => {
     it('nacks without requeue when an unexpected error occurs', async () => {
       const { consumer } = makeConsumer({
         cache: {
-          invalidate: jest.fn().mockRejectedValue(new Error('Redis down')) as any,
+          invalidate: jest.fn<() => Promise<never>>().mockRejectedValue(new Error('Redis down')) as any,
         },
       });
       const channel = makeChannel();

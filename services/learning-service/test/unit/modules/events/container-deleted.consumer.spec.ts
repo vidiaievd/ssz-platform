@@ -34,6 +34,7 @@ function activeAssignment(): Assignment {
     cancelledReason: null,
     notes: null,
     deletedAt: null,
+    groupId: null,
   });
 }
 
@@ -95,8 +96,8 @@ function makeConsumer(overrides: {
   };
 
   const cache: IContainerItemListCache = {
-    get: jest.fn(),
-    set: jest.fn(),
+    get: jest.fn<() => Promise<null>>().mockResolvedValue(null),
+    set: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     invalidate: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     ...overrides.cache,
   };

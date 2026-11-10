@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, RequestMethod } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
@@ -30,6 +30,8 @@ import { TutoringModule } from './modules/tutoring/tutoring.module.js';
       useFactory: (config: ConfigService<Env>) => {
         const isDev = config.get('NODE_ENV') !== 'production';
         return {
+          // Nest 11 / path-to-regexp 8 rejects the library's default '*' route.
+          forRoutes: [{ path: '*path', method: RequestMethod.ALL }],
           pinoHttp: {
             transport: isDev
               ? { target: 'pino-pretty', options: { colorize: true, singleLine: false } }

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, RequestMethod } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -44,6 +44,8 @@ import { SoundAtomModule } from './modules/sound-atom/sound-atom.module.js';
         const level = config.get<AppConfig['app']>('app')?.logLevel ?? 'debug';
 
         return {
+          // Nest 11 / path-to-regexp 8 rejects the library's default '*' route.
+          forRoutes: [{ path: '*path', method: RequestMethod.ALL }],
           pinoHttp: {
             transport: isDev
               ? {

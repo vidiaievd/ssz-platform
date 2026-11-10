@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, RequestMethod } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
@@ -20,6 +20,8 @@ import { UserErasureModule } from './modules/user-erasure/user-erasure.module.js
   imports: [
     AppConfigModule,
     LoggerModule.forRoot({
+      // Nest 11 / path-to-regexp 8 rejects the library's default '*' route.
+      forRoutes: [{ path: '*path', method: RequestMethod.ALL }],
       pinoHttp: {
         level: process.env['NODE_ENV'] === 'production' ? 'info' : 'debug',
         // Learners' tokens reach this service since the assistant's routes (plan 83, step 5).

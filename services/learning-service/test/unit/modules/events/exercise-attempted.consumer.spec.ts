@@ -654,7 +654,7 @@ describe('ExerciseAttemptedConsumer', () => {
         ),
       );
 
-      const payload = ratedPayload(publisher);
+      const payload = ratedPayload(publisher)!;
       expect(payload.skills).toEqual(['reading']);
       expect(payload.focus).toEqual(['grammar']);
       // After the review, not before: this is what tells "forgets quickly" from
