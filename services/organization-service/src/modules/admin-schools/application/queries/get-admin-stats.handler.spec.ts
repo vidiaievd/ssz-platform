@@ -35,6 +35,16 @@ const snapshot: AdminStatsSnapshot = {
       { schoolId: 'c', name: 'C', slug: 'c', used: 9, limit: 10, over: false },
     ],
   },
+  lifecycle: {
+    closingSoon: [{ schoolId: 'd', name: 'D', slug: 'd', kind: 'SCHOOL', at: new Date('2026-11-05') }],
+    purgingSoon: Array.from({ length: 101 }, (_, i) => ({
+      schoolId: `p${i}`,
+      name: `P${i}`,
+      slug: `p${i}`,
+      kind: 'SOLO' as const,
+      at: new Date('2026-11-06'),
+    })),
+  },
 };
 
 describe('GetAdminStatsHandler', () => {
@@ -46,6 +56,7 @@ describe('GetAdminStatsHandler', () => {
     expect(reader.snapshot).toHaveBeenCalledWith(
       new Date('2026-11-01T00:00:00.000Z'),
       new Date('2026-11-04T00:00:00.000Z'),
+      expect.any(Date),
     );
   });
 
@@ -57,6 +68,15 @@ describe('GetAdminStatsHandler', () => {
       byKind: { SCHOOL: 6, SOLO: 3 },
       createdInPeriod: 2,
     });
+  });
+
+  it('caps the lifecycle lists at 100, soonest first as read, with the full total', async () => {
+    const { lifecycle } = await handler.execute(new GetAdminStatsQuery(period));
+    expect(lifecycle.closingSoon).toEqual({ total: 1, items: snapshot.lifecycle.closingSoon, truncated: false });
+    expect(lifecycle.purgingSoon.total).toBe(101);
+    expect(lifecycle.purgingSoon.items).toHaveLength(100);
+    expect(lifecycle.purgingSoon.items[0].schoolId).toBe('p0');
+    expect(lifecycle.purgingSoon.truncated).toBe(true);
   });
 
   it('sums the period from the same daily series it answers', async () => {

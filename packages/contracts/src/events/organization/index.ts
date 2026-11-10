@@ -27,6 +27,8 @@ export const ORGANIZATION_EVENT_TYPES = {
   SCHOOL_REACTIVATED: 'school.reactivated',
   SCHOOL_CLOSED: 'school.closed',
   SCHOOL_RESTORED: 'school.restored',
+  SCHOOL_PURGED: 'school.purged',
+  SCHOOL_PURGE_REMINDER: 'school.purge.reminder',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -221,6 +223,31 @@ export interface SchoolLifecyclePayload {
   purgeAt: string | null;
 }
 
+/**
+ * `school.purged` — everything of the school is gone from organization-service; the row stays as a
+ * tombstone (name, owner, dates). Other services delete what they hold of the school (content's
+ * materials, scheduling's slots…) and never a learner's own history (attempts, progress, SRS).
+ */
+export interface SchoolPurgedPayload {
+  schoolId: string;
+  ownerId: string;
+  name: string;
+  kind: 'SCHOOL' | 'SOLO';
+  /** ISO 8601. */
+  purgedAt: string;
+}
+
+/** `school.purge.reminder` — tells the owner a closed school will be purged; sent once at 30 and once at 7 days. */
+export interface SchoolPurgeReminderPayload {
+  schoolId: string;
+  ownerId: string;
+  name: string;
+  kind: 'SCHOOL' | 'SOLO';
+  daysLeft: 30 | 7;
+  /** ISO 8601. */
+  purgeAt: string;
+}
+
 export type SchoolCreatedEvent = BaseEvent<SchoolCreatedPayload>;
 export type SchoolMemberAddedEvent = BaseEvent<SchoolMemberAddedPayload>;
 export type SchoolMemberRemovedEvent = BaseEvent<SchoolMemberRemovedPayload>;
@@ -240,6 +267,8 @@ export type StudentRemovedEvent = BaseEvent<StudentRemovedPayload>;
 export type StudentNudgedEvent = BaseEvent<StudentNudgedPayload>;
 export type TutoringInvitationSentEvent = BaseEvent<TutoringInvitationSentPayload>;
 export type SchoolLifecycleEvent = BaseEvent<SchoolLifecyclePayload>;
+export type SchoolPurgedEvent = BaseEvent<SchoolPurgedPayload>;
+export type SchoolPurgeReminderEvent = BaseEvent<SchoolPurgeReminderPayload>;
 
 export type AnyOrganizationEvent =
   | SchoolCreatedEvent
@@ -260,4 +289,6 @@ export type AnyOrganizationEvent =
   | StudentRemovedEvent
   | StudentNudgedEvent
   | TutoringInvitationSentEvent
-  | SchoolLifecycleEvent;
+  | SchoolLifecycleEvent
+  | SchoolPurgedEvent
+  | SchoolPurgeReminderEvent;

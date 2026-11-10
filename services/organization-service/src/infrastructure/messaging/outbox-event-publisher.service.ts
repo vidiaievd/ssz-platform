@@ -39,6 +39,8 @@ const ROUTING_KEYS: Record<string, string> = {
   'school.reactivated': 'school.reactivated',
   'school.closed': 'school.closed',
   'school.restored': 'school.restored',
+  'school.purged': 'school.purged',
+  'school.purge.reminder': 'school.purge.reminder',
 };
 
 /**

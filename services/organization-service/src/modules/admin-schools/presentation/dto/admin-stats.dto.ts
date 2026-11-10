@@ -72,6 +72,29 @@ export class AdminSeatsStatsDto {
   over!: AdminSeatsAttentionDto;
 }
 
+export class AdminLifecycleAttentionItemDto {
+  @ApiProperty({ format: 'uuid' }) schoolId!: string;
+  @ApiProperty({ example: 'Nordick' }) name!: string;
+  @ApiProperty({ example: 'nordick' }) slug!: string;
+  @ApiProperty({ enum: ['SCHOOL', 'SOLO'] }) kind!: string;
+  @ApiProperty({ format: 'date-time', description: 'When it closes / is purged; may be past — the timer is next' })
+  at!: Date;
+}
+
+export class AdminLifecycleAttentionDto {
+  @ApiProperty({ description: 'Schools in this list, all of them', example: 2 }) total!: number;
+  @ApiProperty({ type: [AdminLifecycleAttentionItemDto], description: 'Up to 100, soonest first' })
+  items!: AdminLifecycleAttentionItemDto[];
+  @ApiProperty({ description: 'More schools than `items` holds' }) truncated!: boolean;
+}
+
+export class AdminLifecycleStatsDto {
+  @ApiProperty({ type: AdminLifecycleAttentionDto, description: 'Suspended schools closing within 7 days' })
+  closingSoon!: AdminLifecycleAttentionDto;
+  @ApiProperty({ type: AdminLifecycleAttentionDto, description: 'Closed schools purged within 7 days' })
+  purgingSoon!: AdminLifecycleAttentionDto;
+}
+
 export class AdminStatsDto {
   @ApiProperty({ example: '2026-10-11' }) from!: string;
   @ApiProperty({ example: '2026-11-09' }) to!: string;
@@ -83,4 +106,6 @@ export class AdminStatsDto {
   daily!: AdminStatsDayDto[];
   @ApiProperty({ type: AdminSeatsStatsDto, description: 'Student seats against the projected plan limits' })
   seats!: AdminSeatsStatsDto;
+  @ApiProperty({ type: AdminLifecycleStatsDto, description: 'Schools about to close or be purged (plan 90, phase 5)' })
+  lifecycle!: AdminLifecycleStatsDto;
 }

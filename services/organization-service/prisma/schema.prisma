@@ -144,6 +144,10 @@ model School {
   // When a closed school is purged; null unless closed (an early purge sets it to now).
   purgeAt         DateTime?    @map("purge_at")
   statusReason    String?      @map("status_reason") @db.VarChar(500)
+  // When the owner was told the purge is 30 / 7 days away; each is sent once per closure and
+  // cleared by any move out of `closed` (and by a new closure).
+  purgeReminded30At DateTime? @map("purge_reminded_30_at")
+  purgeReminded7At  DateTime? @map("purge_reminded_7_at")
   // School policies
   requireTutorReviewForSelfPaced Boolean @default(false)
   defaultExplanationLanguage     String?

@@ -236,3 +236,38 @@ export function auditSnapshot(state: SchoolLifecycleState): Record<string, unkno
     purgeAt: state.purgeAt?.toISOString() ?? null,
   };
 }
+
+// ─── The timer's own moves (plan 90, phase 5, step 2) ──────────────────────────
+
+/**
+ * A closed school whose purge date has come becomes a tombstone. Not in the transition table: nobody
+ * asks for it — an admin's early purge only moves `purgeAt` to now, and this runs on the timer.
+ */
+export function purgeSchool(
+  state: SchoolLifecycleState,
+  now: Date,
+): Result<SchoolLifecycleState, SchoolTransitionNotAllowedException> {
+  if (state.status !== 'closed' || state.purgeAt === null || state.purgeAt.getTime() > now.getTime()) {
+    return Result.err(new SchoolTransitionNotAllowedException(state.schoolId, 'purge', state.status));
+  }
+  return Result.ok({ ...state, status: 'purged', statusChangedAt: now, closesAt: null });
+}
+
+export type PurgeReminder = 30 | 7;
+
+/**
+ * Which reminder a closed school's owner is due, if any: 30 days before the purge, then 7. Each goes
+ * once; a school found inside 7 days without the 30-day one (closed late, or an archive shorter
+ * than 30 days) gets only the 7-day one. Nothing once the date has passed — the purge is next.
+ */
+export function purgeReminderDue(
+  purgeAt: Date,
+  sent: { thirty: boolean; seven: boolean },
+  now: Date,
+): PurgeReminder | null {
+  const left = purgeAt.getTime() - now.getTime();
+  if (left <= 0) return null;
+  if (left <= 7 * DAY_MS) return sent.seven ? null : 7;
+  if (left <= 30 * DAY_MS) return sent.thirty ? null : 30;
+  return null;
+}

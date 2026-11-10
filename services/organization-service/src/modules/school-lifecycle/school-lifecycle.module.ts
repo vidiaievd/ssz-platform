@@ -9,17 +9,26 @@ import {
   type LifecycleClock,
 } from './application/commands/change-school-status.handler.js';
 import type { LifecycleTerms } from './domain/school-lifecycle.js';
-import { SCHOOL_LIFECYCLE_REPOSITORY } from './domain/school-lifecycle.repository.js';
+import {
+  SCHOOL_LIFECYCLE_REPOSITORY,
+  SCHOOL_LIFECYCLE_TIMER_REPOSITORY,
+} from './domain/school-lifecycle.repository.js';
+import { RunSchoolLifecycleHandler } from './application/commands/run-school-lifecycle.handler.js';
+import { SchoolLifecycleJob } from './presentation/jobs/school-lifecycle.job.js';
 import { SchoolLifecyclePrismaRepository } from './infrastructure/school-lifecycle.prisma.repository.js';
 import { AdminSchoolLifecycleController } from './presentation/admin-school-lifecycle.controller.js';
 
-/** A school's lifecycle: status, moves, trail (plan 90, phase 5). */
+/** A school's lifecycle: status, moves, trail, the timer that closes and purges (plan 90, phase 5). */
 @Module({
   imports: [CqrsModule],
   controllers: [AdminSchoolLifecycleController],
   providers: [
     ChangeSchoolStatusHandler,
-    { provide: SCHOOL_LIFECYCLE_REPOSITORY, useClass: SchoolLifecyclePrismaRepository },
+    RunSchoolLifecycleHandler,
+    SchoolLifecycleJob,
+    SchoolLifecyclePrismaRepository,
+    { provide: SCHOOL_LIFECYCLE_REPOSITORY, useExisting: SchoolLifecyclePrismaRepository },
+    { provide: SCHOOL_LIFECYCLE_TIMER_REPOSITORY, useExisting: SchoolLifecyclePrismaRepository },
     {
       provide: LIFECYCLE_TERMS,
       inject: [ConfigService],

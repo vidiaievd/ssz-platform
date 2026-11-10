@@ -4,6 +4,8 @@ import {
   changeSchoolStatus,
   isActiveStatus,
   LifecycleActorNotAllowedError,
+  purgeReminderDue,
+  purgeSchool,
   SCHOOL_TRANSITIONS,
   type LifecycleActor,
   type SchoolLifecycleState,
@@ -177,5 +179,46 @@ describe('auditSnapshot', () => {
       closesAt: new Date(NOW.getTime() + 10 * DAY).toISOString(),
       purgeAt: null,
     });
+  });
+});
+
+describe('purgeSchool', () => {
+  it('purges a closed school whose date has come, keeping name, owner and the closure date', () => {
+    const before = school('closed', { purgeAt: NOW });
+    const after = purgeSchool(before, NOW).value;
+    expect(after).toEqual({ ...before, status: 'purged', statusChangedAt: NOW, closesAt: null });
+  });
+
+  it('refuses before the date, and from any other status', () => {
+    expect(purgeSchool(school('closed'), NOW).error).toBeInstanceOf(SchoolTransitionNotAllowedException);
+    for (const status of ['active', 'suspended', 'purged'] as const) {
+      expect(purgeSchool(school(status, { purgeAt: NOW }), NOW).isErr).toBe(true);
+    }
+  });
+});
+
+describe('purgeReminderDue', () => {
+  const at = (days: number) => new Date(NOW.getTime() + days * DAY);
+  const none = { thirty: false, seven: false };
+
+  it('says nothing more than 30 days ahead', () => {
+    expect(purgeReminderDue(at(31), none, NOW)).toBeNull();
+  });
+
+  it('sends the 30-day reminder once, from 30 days down to 7', () => {
+    expect(purgeReminderDue(at(30), none, NOW)).toBe(30);
+    expect(purgeReminderDue(at(8), none, NOW)).toBe(30);
+    expect(purgeReminderDue(at(20), { thirty: true, seven: false }, NOW)).toBeNull();
+  });
+
+  it('sends the 7-day reminder once, even when the 30-day one was never sent', () => {
+    expect(purgeReminderDue(at(7), { thirty: true, seven: false }, NOW)).toBe(7);
+    expect(purgeReminderDue(at(3), none, NOW)).toBe(7);
+    expect(purgeReminderDue(at(3), { thirty: true, seven: true }, NOW)).toBeNull();
+  });
+
+  it('says nothing once the date has passed — the purge is next', () => {
+    expect(purgeReminderDue(NOW, none, NOW)).toBeNull();
+    expect(purgeReminderDue(at(-1), none, NOW)).toBeNull();
   });
 });
