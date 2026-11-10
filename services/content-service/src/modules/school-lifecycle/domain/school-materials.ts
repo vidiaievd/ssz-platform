@@ -1,5 +1,6 @@
 /**
- * What a purged school leaves behind in content (plan 90, phase 5, step 4b, Q5).
+ * What a purged school leaves behind in content (plan 90, phase 5, step 4b, Q5), and what a
+ * cleanup of obsolete courses deletes (step 4c) — the same rule over a smaller set.
  *
  * Everything the school owns (`owner_school_id`) is deleted unless somebody else still uses it.
  * "Uses" is a hold, and a hold spreads to everything the held material needs to work:
@@ -48,7 +49,29 @@ export interface MaterialEdge {
   to: MaterialRef;
 }
 
-export type HoldReason = 'active_learner' | 'share' | 'foreign_reference' | 'personal_word';
+export type HoldReason =
+  | 'active_learner'
+  | 'share'
+  | 'foreign_reference'
+  | 'personal_word'
+  // Another material of the same owner, outside what a cleanup deletes, needs it (step 4c).
+  | 'owner_reference';
+
+/**
+ * Whose materials a graph covers: a school (`owner_school_id`), or an author on their own
+ * (`owner_school_id IS NULL`, `owner_user_id`). Tags and can-do descriptors belong to schools only.
+ */
+export type MaterialOwner = { kind: 'school'; schoolId: string } | { kind: 'user'; userId: string };
+
+export function ownerOf(row: { ownerSchoolId: string | null; ownerUserId: string }): MaterialOwner {
+  return row.ownerSchoolId
+    ? { kind: 'school', schoolId: row.ownerSchoolId }
+    : { kind: 'user', userId: row.ownerUserId };
+}
+
+export function ownerKey(owner: MaterialOwner): string {
+  return owner.kind === 'school' ? `school:${owner.schoolId}` : `user:${owner.userId}`;
+}
 
 export interface MaterialHold {
   to: MaterialRef;
@@ -80,15 +103,7 @@ export function planSchoolPurge(
   learnerHolds: readonly MaterialHold[],
 ): PurgePlan {
   const own = new Map(graph.materials.map((m) => [materialKey(m), m]));
-  const next = new Map<string, string[]>();
-  for (const edge of graph.edges) {
-    const from = materialKey(edge.from);
-    const to = materialKey(edge.to);
-    if (!own.has(from) || !own.has(to)) continue;
-    const list = next.get(from);
-    if (list) list.push(to);
-    else next.set(from, [to]);
-  }
+  const next = ownEdges(graph, own);
 
   const held = new Set<string>();
   const queue = [...graph.holds, ...learnerHolds]
@@ -108,6 +123,69 @@ export function planSchoolPurge(
     .filter((m) => m.kind === 'container' && m.containerType === 'course')
     .map((m) => m.id);
   return { kept, keptCourseIds, deleted };
+}
+
+/**
+ * What a cleanup of obsolete courses may delete (plan 90, phase 5, step 4c): the courses and
+ * everything of the owner that only they reach. `graph` covers the whole owner, so the owner's
+ * other materials are there to hold what they still need.
+ */
+export function cleanupCandidates(
+  graph: SchoolMaterialsGraph,
+  courseIds: readonly string[],
+): SchoolMaterial[] {
+  const own = new Map(graph.materials.map((m) => [materialKey(m), m]));
+  const next = ownEdges(graph, own);
+  const inside = new Set<string>();
+  const queue = courseIds
+    .map((id) => materialKey({ kind: 'container', id }))
+    .filter((k) => own.has(k));
+  while (queue.length > 0) {
+    const key = queue.pop()!;
+    if (inside.has(key)) continue;
+    inside.add(key);
+    for (const to of next.get(key) ?? []) if (!inside.has(to)) queue.push(to);
+  }
+  return [...inside].map((k) => own.get(k)!);
+}
+
+/**
+ * Splits obsolete courses and their contents into what stays and what goes. The same rule as a
+ * school's purge, over the candidates only: any material of the owner outside them that points
+ * in holds the target, as a foreign row would. A held course stays `obsolete` and is asked
+ * about again on the next run.
+ */
+export function planObsoleteCleanup(
+  graph: SchoolMaterialsGraph,
+  courseIds: readonly string[],
+  learnerHolds: readonly MaterialHold[],
+): PurgePlan {
+  const candidates = cleanupCandidates(graph, courseIds);
+  const inside = new Set(candidates.map(materialKey));
+  const own = new Set(graph.materials.map(materialKey));
+  const holds: MaterialHold[] = [...graph.holds];
+  for (const edge of graph.edges) {
+    const from = materialKey(edge.from);
+    if (own.has(from) && !inside.has(from) && inside.has(materialKey(edge.to)))
+      holds.push({ to: edge.to, reason: 'owner_reference' });
+  }
+  return planSchoolPurge({ materials: candidates, edges: graph.edges, holds }, learnerHolds);
+}
+
+function ownEdges(
+  graph: SchoolMaterialsGraph,
+  own: { has(key: string): boolean },
+): Map<string, string[]> {
+  const next = new Map<string, string[]>();
+  for (const edge of graph.edges) {
+    const from = materialKey(edge.from);
+    const to = materialKey(edge.to);
+    if (!own.has(from) || !own.has(to)) continue;
+    const list = next.get(from);
+    if (list) list.push(to);
+    else next.set(from, [to]);
+  }
+  return next;
 }
 
 /**

@@ -1,5 +1,7 @@
 import {
+  cleanupCandidates,
   leafIdsOf,
+  planObsoleteCleanup,
   planSchoolPurge,
   type MaterialHold,
   type SchoolMaterialsGraph,
@@ -134,5 +136,80 @@ describe('leafIdsOf', () => {
 
   it('does not count tags as leaves', () => {
     expect(leafIdsOf('C2', graph())).not.toContain('T2');
+  });
+});
+
+describe('planObsoleteCleanup', () => {
+  /** Owner: obsolete O → OL, O → SL; live course K → SL; module MO only in O → ML. */
+  function owner(holds: MaterialHold[] = []): SchoolMaterialsGraph {
+    return {
+      materials: [
+        course('O'),
+        lesson('OL'),
+        lesson('SL'),
+        course('K'),
+        module_('MO'),
+        lesson('ML'),
+        lesson('LOOSE'),
+      ],
+      edges: [
+        { from: course('O'), to: lesson('OL') },
+        { from: course('O'), to: lesson('SL') },
+        { from: course('O'), to: module_('MO') },
+        { from: module_('MO'), to: lesson('ML') },
+        { from: course('K'), to: lesson('SL') },
+      ],
+      holds,
+    };
+  }
+  const keys = (ms: { kind: string; id: string }[]) => ms.map((m) => `${m.kind}:${m.id}`).sort();
+
+  it("candidates are the courses and what they reach; the owner's other materials are not", () => {
+    expect(keys(cleanupCandidates(owner(), ['O']))).toEqual([
+      'container:MO',
+      'container:O',
+      'lesson:ML',
+      'lesson:OL',
+      'lesson:SL',
+    ]);
+  });
+
+  it("the owner's live course holds what it shares with the obsolete one", () => {
+    const plan = planObsoleteCleanup(owner(), ['O'], []);
+    expect(keys(plan.deleted)).toEqual(['container:MO', 'container:O', 'lesson:ML', 'lesson:OL']);
+    expect(keys(plan.kept)).toEqual(['lesson:SL']);
+    expect(plan.keptCourseIds).toEqual([]);
+  });
+
+  it('an active learner keeps the course whole', () => {
+    const plan = planObsoleteCleanup(owner(), ['O'], [learner(course('O'))]);
+    expect(plan.deleted).toEqual([]);
+    expect(plan.keptCourseIds).toEqual(['O']);
+  });
+
+  it('a foreign hold inside keeps only that part', () => {
+    const plan = planObsoleteCleanup(
+      owner([{ to: module_('MO'), reason: 'foreign_reference' }]),
+      ['O'],
+      [],
+    );
+    expect(keys(plan.kept)).toEqual(['container:MO', 'lesson:ML', 'lesson:SL']);
+    expect(keys(plan.deleted)).toEqual(['container:O', 'lesson:OL']);
+  });
+
+  it('a course that is not in the graph (already gone) yields nothing', () => {
+    expect(planObsoleteCleanup(owner(), ['GONE'], [])).toEqual({
+      kept: [],
+      keptCourseIds: [],
+      deleted: [],
+    });
+  });
+
+  it('two obsolete courses sharing a lesson delete it together', () => {
+    const g = owner();
+    const plan = planObsoleteCleanup(g, ['O', 'K'], []);
+    expect(keys(plan.kept)).toEqual([]);
+    expect(keys(plan.deleted)).not.toContain('lesson:LOOSE');
+    expect(keys(plan.deleted)).toContain('lesson:SL');
   });
 });

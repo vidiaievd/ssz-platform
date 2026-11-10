@@ -15,9 +15,11 @@ import {
 import type { MaintenanceChange } from '../../domain/school-course-maintenance.js';
 import {
   materialKey,
+  ownerOf,
   type MaterialEdge,
   type MaterialHold,
   type MaterialKind,
+  type MaterialOwner,
   type MaterialRef,
   type SchoolMaterial,
   type SchoolMaterialsGraph,
@@ -26,6 +28,7 @@ import {
 import type {
   DeletedMaterials,
   ISchoolMaterialsStore,
+  ObsoleteCourse,
   SchoolCourse,
 } from '../../application/ports/school-materials.store.port.js';
 
@@ -68,8 +71,22 @@ async function readChunked<T>(
   return out;
 }
 
+/** The owner's rows: a school's, or an author's own (no school). */
+function ownedWhere(owner: MaterialOwner) {
+  return owner.kind === 'school'
+    ? { ownerSchoolId: owner.schoolId }
+    : { ownerSchoolId: null, ownerUserId: owner.userId };
+}
+
+/** A container that is not the owner's. */
+function notOwnedWhere(owner: MaterialOwner) {
+  return owner.kind === 'school'
+    ? { OR: [{ ownerSchoolId: null }, { ownerSchoolId: { not: owner.schoolId } }] }
+    : { NOT: [{ ownerSchoolId: null, ownerUserId: owner.userId }] };
+}
+
 /**
- * The Prisma side of a school's lifecycle in content (plan 90, phase 5, step 4b). What is kept and
+ * The Prisma side of a school's lifecycle in content (plan 90, phase 5, steps 4b–4c). What is kept and
  * why is decided in `domain/school-materials.ts`; this class only reads the graph and deletes.
  */
 @Injectable()
@@ -115,16 +132,32 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
     });
   }
 
-  async loadGraph(schoolId: string, now: Date): Promise<SchoolMaterialsGraph> {
-    const owned = { ownerSchoolId: schoolId };
+  async findObsoleteCourses(changedBefore: Date): Promise<ObsoleteCourse[]> {
+    const rows = await this.prisma.container.findMany({
+      where: {
+        containerType: 'COURSE',
+        maintenanceStatus: 'OBSOLETE',
+        OR: [{ maintenanceChangedAt: null }, { maintenanceChangedAt: { lt: changedBefore } }],
+      },
+      select: { id: true, ownerSchoolId: true, ownerUserId: true },
+      orderBy: { maintenanceChangedAt: 'asc' },
+    });
+    return rows.map((r) => ({ id: r.id, owner: ownerOf(r) }));
+  }
+
+  async loadGraph(owner: MaterialOwner, now: Date): Promise<SchoolMaterialsGraph> {
+    const owned = ownedWhere(owner);
+    // Tags and can-do descriptors have no author of their own: a school's, or nobody's.
+    const schoolOwned =
+      owner.kind === 'school' ? { ownerSchoolId: owner.schoolId } : { id: { in: [] } };
     const [containers, lessons, lists, rules, exercises, tags, canDo] = await Promise.all([
       this.prisma.container.findMany({ where: owned, select: { id: true, containerType: true } }),
       this.prisma.lesson.findMany({ where: owned, select: { id: true } }),
       this.prisma.vocabularyList.findMany({ where: owned, select: { id: true } }),
       this.prisma.grammarRule.findMany({ where: owned, select: { id: true } }),
       this.prisma.exercise.findMany({ where: owned, select: { id: true } }),
-      this.prisma.tag.findMany({ where: owned, select: { id: true } }),
-      this.prisma.canDoDescriptor.findMany({ where: owned, select: { id: true } }),
+      this.prisma.tag.findMany({ where: schoolOwned, select: { id: true } }),
+      this.prisma.canDoDescriptor.findMany({ where: schoolOwned, select: { id: true } }),
     ]);
 
     const materials: SchoolMaterial[] = [
@@ -196,10 +229,7 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
         where: {
           itemId: { in: chunk },
           containerVersion: {
-            container: {
-              deletedAt: null,
-              OR: [{ ownerSchoolId: null }, { ownerSchoolId: { not: schoolId } }],
-            },
+            container: { deletedAt: null, ...notOwnedWhere(owner) },
           },
         },
         select: { itemType: true, itemId: true },
@@ -361,9 +391,10 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
   }
 
   async deleteMaterials(
-    schoolId: string,
+    owner: MaterialOwner,
     materials: readonly SchoolMaterial[],
   ): Promise<DeletedMaterials> {
+    const owned = ownedWhere(owner);
     const byKind = (kind: MaterialKind) =>
       materials.filter((m) => m.kind === kind).map((m) => m.id);
     const deleted: DeletedMaterials = {
@@ -379,7 +410,7 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
     // Containers first: their versions name the rest, and learning has to hear about them.
     for (const batch of chunks(byKind('container'), PURGE_BATCH)) {
       const rows = await this.prisma.container.findMany({
-        where: { id: { in: batch }, ownerSchoolId: schoolId },
+        where: { id: { in: batch }, ...owned },
         select: { id: true, ownerUserId: true },
       });
       if (rows.length === 0) continue;
@@ -399,17 +430,17 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
         await tx.containerVersion.deleteMany({ where: { containerId: { in: batchIds } } });
         return (
           await tx.container.deleteMany({
-            where: { id: { in: batchIds }, ownerSchoolId: schoolId },
+            where: { id: { in: batchIds }, ...owned },
           })
         ).count;
       });
     }
 
     deleted.lessons = await this.deleteStudied('lesson', byKind('lesson'), (tx, b) =>
-      tx.lesson.deleteMany({ where: { id: { in: b }, ownerSchoolId: schoolId } }),
+      tx.lesson.deleteMany({ where: { id: { in: b }, ...owned } }),
     );
     deleted.exercises = await this.deleteStudied('exercise', byKind('exercise'), (tx, b) =>
-      tx.exercise.deleteMany({ where: { id: { in: b }, ownerSchoolId: schoolId } }),
+      tx.exercise.deleteMany({ where: { id: { in: b }, ...owned } }),
     );
     deleted.vocabularyLists = await this.deleteStudied(
       'vocabulary_list',
@@ -427,15 +458,18 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
             ],
           },
         });
-        return tx.vocabularyList.deleteMany({ where: { id: { in: b }, ownerSchoolId: schoolId } });
+        return tx.vocabularyList.deleteMany({ where: { id: { in: b }, ...owned } });
       },
     );
     deleted.grammarRules = await this.deleteStudied(
       'grammar_rule',
       byKind('grammar_rule'),
-      (tx, b) => tx.grammarRule.deleteMany({ where: { id: { in: b }, ownerSchoolId: schoolId } }),
+      (tx, b) => tx.grammarRule.deleteMany({ where: { id: { in: b }, ...owned } }),
     );
 
+    // Tags and can-do descriptors are a school's only.
+    if (owner.kind !== 'school') return deleted;
+    const schoolId = owner.schoolId;
     for (const batch of chunks(byKind('tag'), PURGE_BATCH)) {
       // Assignments go with the tag (cascade).
       deleted.tags += (

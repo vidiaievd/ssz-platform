@@ -1,16 +1,9 @@
 import { Inject, Logger } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { onSchoolPurgedKept } from '../../domain/school-course-maintenance.js';
-import {
-  leafIdsOf,
-  materialKey,
-  planSchoolPurge,
-  type MaterialHold,
-  type StudiedKind,
-} from '../../domain/school-materials.js';
+import { planSchoolPurge } from '../../domain/school-materials.js';
 import {
   ACTIVE_LEARNERS_READER,
-  type ActiveLearnersQuestion,
   type IActiveLearnersReader,
 } from '../ports/active-learners.reader.port.js';
 import {
@@ -18,21 +11,14 @@ import {
   type DeletedMaterials,
   type ISchoolMaterialsStore,
 } from '../ports/school-materials.store.port.js';
+import { SCHOOL_PURGE_LEDGER, type ISchoolPurgeLedger } from '../ports/school-purge.ledger.port.js';
+import { countByReason, learnerHoldsOn } from './learner-holds.js';
 import {
   PurgeSchoolMaterialsCommand,
   SCHOOL_PURGE_SETTINGS,
   type SchoolPurgeSettings,
 } from './school-lifecycle.commands.js';
 import { applyMaintenanceRule } from './school-maintenance.handlers.js';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const STUDIED: ReadonlySet<string> = new Set<StudiedKind>([
-  'container',
-  'lesson',
-  'vocabulary_list',
-  'grammar_rule',
-  'exercise',
-]);
 
 export interface PurgeSchoolMaterialsResult {
   kept: number;
@@ -43,7 +29,8 @@ export interface PurgeSchoolMaterialsResult {
 /**
  * The school is gone from organization; content keeps what others still use and deletes the rest
  * (plan 90, phase 5, step 4b). Safe to run again: the graph is read afresh, deleted rows are gone,
- * kept courses already `obsolete` are not written twice.
+ * kept courses already `obsolete` are not written twice. Every attempt is written to the purge
+ * ledger, so a purge that fails past the consumer's retry is finished by the cleanup job (4c).
  */
 @CommandHandler(PurgeSchoolMaterialsCommand)
 export class PurgeSchoolMaterialsHandler implements ICommandHandler<
@@ -55,6 +42,7 @@ export class PurgeSchoolMaterialsHandler implements ICommandHandler<
   constructor(
     @Inject(SCHOOL_MATERIALS_STORE) private readonly store: ISchoolMaterialsStore,
     @Inject(ACTIVE_LEARNERS_READER) private readonly learners: IActiveLearnersReader,
+    @Inject(SCHOOL_PURGE_LEDGER) private readonly ledger: ISchoolPurgeLedger,
     @Inject(SCHOOL_PURGE_SETTINGS) private readonly settings: SchoolPurgeSettings,
   ) {}
 
@@ -63,23 +51,38 @@ export class PurgeSchoolMaterialsHandler implements ICommandHandler<
     schoolName,
   }: PurgeSchoolMaterialsCommand): Promise<PurgeSchoolMaterialsResult> {
     const now = new Date();
-    const graph = await this.store.loadGraph(schoolId, now);
+    await this.ledger.started(schoolId, schoolName, now);
+    try {
+      const result = await this.purge(schoolId, schoolName, now);
+      await this.ledger.completed(schoolId, new Date());
+      return result;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // The ledger row stays unfinished either way; a failed write only loses the message.
+      await this.ledger
+        .failed(schoolId, message)
+        .catch((e: unknown) =>
+          this.logger.warn(`Purge ledger of school ${schoolId} not updated: ${String(e)}`),
+        );
+      throw err;
+    }
+  }
 
-    const questions: ActiveLearnersQuestion[] = graph.materials
-      .filter((m) => STUDIED.has(m.kind))
-      .map((m) => ({
-        kind: m.kind as StudiedKind,
-        id: m.id,
-        leafIds: m.kind === 'container' ? leafIdsOf(m.id, graph) : [],
-      }));
-    // Throws when learning cannot answer: nothing is deleted and the event is retried.
-    const active = await this.learners.countActive(
-      questions,
-      new Date(now.getTime() - this.settings.activeDays * DAY_MS),
+  private async purge(
+    schoolId: string,
+    schoolName: string,
+    now: Date,
+  ): Promise<PurgeSchoolMaterialsResult> {
+    const owner = { kind: 'school', schoolId } as const;
+    const graph = await this.store.loadGraph(owner, now);
+    // Throws when learning cannot answer: nothing is deleted and the purge is tried again.
+    const learnerHolds = await learnerHoldsOn(
+      graph.materials,
+      graph,
+      this.learners,
+      now,
+      this.settings.activeDays,
     );
-    const learnerHolds: MaterialHold[] = questions
-      .filter((q) => (active.get(materialKey({ kind: q.kind, id: q.id })) ?? 0) > 0)
-      .map((q) => ({ to: { kind: q.kind, id: q.id }, reason: 'active_learner' }));
 
     const plan = planSchoolPurge(graph, learnerHolds);
 
@@ -93,7 +96,7 @@ export class PurgeSchoolMaterialsHandler implements ICommandHandler<
     );
     if (plan.kept.length > 0) await this.store.snapshotSchoolName(schoolId, schoolName, true);
 
-    const deleted = await this.store.deleteMaterials(schoolId, plan.deleted);
+    const deleted = await this.store.deleteMaterials(owner, plan.deleted);
     await this.store.deleteWorkspaceRows(schoolId);
 
     this.logger.log(
@@ -103,10 +106,4 @@ export class PurgeSchoolMaterialsHandler implements ICommandHandler<
     );
     return { kept: plan.kept.length, obsoleteCourses, deleted };
   }
-}
-
-function countByReason(holds: readonly MaterialHold[]): string {
-  const counts = new Map<string, number>();
-  for (const h of holds) counts.set(h.reason, (counts.get(h.reason) ?? 0) + 1);
-  return [...counts].map(([r, n]) => `${r}=${n}`).join(', ') || 'none';
 }

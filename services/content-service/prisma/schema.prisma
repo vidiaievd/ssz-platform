@@ -1506,6 +1506,23 @@ model Outbox {
   @@map("outbox")
 }
 
+// ─── School purges ────────────────────────────────────────────────────────────
+// A school's purge content has started and not finished (plan 90, phase 5, step 4c).
+// `school.purged` arrives once; the cleanup job runs an unfinished purge again.
+
+model SchoolPurge {
+  schoolId      String    @id @map("school_id") @db.Uuid
+  schoolName    String    @map("school_name") @db.VarChar(200)
+  requestedAt   DateTime  @default(now()) @map("requested_at") @db.Timestamptz
+  lastAttemptAt DateTime  @map("last_attempt_at") @db.Timestamptz
+  attempts      Int       @default(0)
+  lastError     String?   @map("last_error") @db.Text
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz
+
+  @@index([completedAt, lastAttemptAt])
+  @@map("school_purges")
+}
+
 // ─── Idempotency ──────────────────────────────────────────────────────────────
 // processorId scopes idempotency per consumer.
 

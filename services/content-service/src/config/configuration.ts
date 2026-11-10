@@ -52,6 +52,12 @@ export const envSchema = z.object({
   LEARNING_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   // A learner who did nothing in a course for longer no longer keeps it alive (Q5).
   CONTENT_OBSOLETE_ACTIVE_DAYS: z.coerce.number().int().positive().default(90),
+  // The cleanup job: unfinished school purges, then obsolete courses (plan 90, phase 5, step 4c).
+  CONTENT_CLEANUP_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
+  // An obsolete course is left alone this long after its status was set (0 = next run).
+  CONTENT_OBSOLETE_GRACE_HOURS: z.coerce.number().int().min(0).default(24),
+  // An unfinished purge whose last attempt began longer ago is run again.
+  CONTENT_PURGE_RETRY_AFTER_MS: z.coerce.number().int().positive().default(1_800_000),
 
   // Discovery / catalog pagination
   DISCOVERY_DEFAULT_LIMIT: z.coerce.number().int().min(1).max(100).default(20),
@@ -126,6 +132,9 @@ export interface AppConfig {
   };
   schoolPurge: {
     activeDays: number;
+    cleanupIntervalMs: number;
+    obsoleteGraceHours: number;
+    purgeRetryAfterMs: number;
   };
   discovery: {
     pagination: {
@@ -187,6 +196,9 @@ export default (): AppConfig => {
     },
     schoolPurge: {
       activeDays: env.CONTENT_OBSOLETE_ACTIVE_DAYS,
+      cleanupIntervalMs: env.CONTENT_CLEANUP_INTERVAL_MS,
+      obsoleteGraceHours: env.CONTENT_OBSOLETE_GRACE_HOURS,
+      purgeRetryAfterMs: env.CONTENT_PURGE_RETRY_AFTER_MS,
     },
     discovery: {
       pagination: {

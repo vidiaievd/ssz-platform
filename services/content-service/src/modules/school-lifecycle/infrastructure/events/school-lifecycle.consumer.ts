@@ -116,7 +116,8 @@ export class SchoolLifecycleConsumer implements OnModuleInit, OnModuleDestroy {
       });
       channel.ack(msg);
     } catch (err) {
-      // One retry: every command is safe to run again (a purge reads its graph afresh).
+      // One retry: every command is safe to run again (a purge reads its graph afresh). A purge
+      // dropped here stays unfinished in `school_purges`; the cleanup job runs it again (4c).
       const redelivered = msg.fields.redelivered;
       this.logger.error(
         `SchoolLifecycleConsumer: "${eventType}" for school ${schoolId} [${eventId}] failed: ${err instanceof Error ? err.message : String(err)} — ${redelivered ? 'discarding' : 'requeueing'}`,
