@@ -174,6 +174,18 @@ Student seats (plan 90, phase 4): `GET schools/:id/seats` (owner / admin / manag
 reads the plan limit from the `school_seat_limits` projection only. `admin/schools` rows carry `seats { used, limit }` and
 filter `seats=near|over` (near = ≥ 90 % of the limit, not over; over = above it); the card has full `seats`;
 `admin/stats` has `seats { used, limit, schoolsLimited, near, over }` with `{ total, items[≤100], truncated }` lists.
+Seat check (plan 90, phase 4, steps 2–3): a seat is a STUDENT row in `school_members` with `status active`; invitations
+waiting for a seat hold none. The limit is a projection `school_seat_limits` (`max_seats`, `version`, `valid_until`) fed by
+`subscription.entitlements.changed` (workspace payers only; queue `organization_service.subscription.entitlements_changed`;
+a stale snapshot never overwrites a newer one). `ProjectedSeatLimitReader` (port `SEAT_LIMIT_READER`): fresh row → it; none
+or expired → `internal/entitlements` and a write-back; read failed → the expired row, else `{ known: false }`. Domain
+`admitOneStudent(used, limit)` → `ok` / `warning` (within limit + 10 %, rounded up) / `full` (at the ceiling → `409
+SEATS_EXHAUSTED` with `error.seats`). `StudentSeatGate` reads the limit before the lock; `StudentSeatPrismaRepository.claim`
+counts and writes the roster row in one transaction under `pg_advisory_xact_lock(hashtextextended('school-seats:<id>'))`.
+Unknown limit → admit, `seats: null`. Covered paths: `AddMember`, `AcceptInvitation`, `UpdateStudent` (`archived → active`),
+`SendInvitation` (refused at once when full), `ApproveMembership` (409); auto-approval without a seat keeps the request
+`pending` with `blockedReason: 'no_seats'` (column `school_memberships.blocked_reason`) instead of swallowing the error.
+Successful add / approve / accept / PATCH students answer 200 `{ seats }` (not 204). An existing roster above the limit stays.
 
 ### 4. Content Service (NestJS)
 Learning material management: courses → modules → lessons → exercises.
@@ -400,6 +412,14 @@ switching-on grants, whatever the row order; revoking it brings the plan back. `
 `/subscriptions/me` lists in `grants` only the grants that give a key (an off key is `enabled: false` in `features`);
 `validUntil` counts its end; the entitlements event is unchanged. The payer policy `aiEnabled: false` stays the
 "all AI of the school" switch.
+Student seats (plan 90, phase 4, steps 1–2): feature key `seats.students` (kind `seats`, no credits, `limitNames: ['max']`,
+`requiredLimits` — `max` is required on an enabled plan row; audience `workspace` only, a plan or grant for a learner → 422
+`feature_not_for_audience`). Only students; no `seats.teachers`. Seed (plan versions v2): `free_workspace` 5, `tutor_pro` 30,
+`school` 100. Subscribers of older versions have no limit ("existing ones untouched"). A grant with `limits.max` only raises
+the plan's limit; a grant on a plan without a limit does nothing; a switching-off grant on `seats.students` → 422
+`grant_disable_not_applicable`. `studentSeatLimit()` / `resolveStudentSeatLimit()` (`entitlements.ts`) is the one rule for the
+snapshot and for `accounts/lookup`, which answers `seats: { max } | null`. Organization projects the limit from the snapshot.
+`SEED_REVISE=1` turns a drifted seed plan into a new version (no `admin_audit` row, `created_by = seed`).
 Dashboard stats: `GET admin/subscriptions/stats?withinDays=7` (level `support`, `withinDays` 1–90) → `plans[]` (every plan,
 archived too: `subscribers`, `trial`, `byVersion` — a version below `currentVersion` is a subscriber not moved),
 `payers.workspace|user { accounts, withSubscription, withoutSubscription }` (a payer without an account is on the free
