@@ -117,6 +117,16 @@ import { CapabilityResolverService } from './application/services/capability-res
 import { ProfileUpdatedConsumer } from './infrastructure/events/profile-updated.consumer.js';
 import { UserRegisteredConsumer } from './infrastructure/events/user-registered.consumer.js';
 import { UserDeletedConsumer } from './infrastructure/events/user-deleted.consumer.js';
+import { EntitlementsChangedConsumer } from './infrastructure/events/entitlements-changed.consumer.js';
+import { ProjectedSeatLimitReader } from './application/services/projected-seat-limit.reader.js';
+import { SeatLimitPrismaProjection } from '../../infrastructure/persistence/seat-limit.prisma.projection.js';
+import {
+  SEAT_LIMIT_PROJECTION,
+  SEAT_LIMIT_READER,
+  SEAT_LIMIT_SOURCE,
+  type ISeatLimitProjection,
+  type ISeatLimitSource,
+} from '../../shared/application/ports/seat-limit.interface.js';
 import { ProvisionSoloWorkspaceHandler } from './application/commands/provision-solo-workspace/provision-solo-workspace.handler.js';
 import { GetSoloWorkspaceHandler } from './application/queries/get-solo-workspace/get-solo-workspace.handler.js';
 
@@ -226,6 +236,7 @@ const QueryHandlers = [
     ProfileUpdatedConsumer,
     UserRegisteredConsumer,
     UserDeletedConsumer,
+    EntitlementsChangedConsumer,
     ProfileServiceHttpClient,
     {
       provide: DELETED_USER_ERASER,
@@ -264,9 +275,19 @@ const QueryHandlers = [
       provide: PROFILE_SERVICE_PORT,
       useClass: ProfileServiceHttpClient,
     },
+    SubscriptionServiceHttpClient,
     {
       provide: WORKSPACE_ENTITLEMENTS_PORT,
-      useClass: SubscriptionServiceHttpClient,
+      useExisting: SubscriptionServiceHttpClient,
+    },
+    // Plan 90, phase 4: the student seat limit — projection first, subscription-service on a miss.
+    { provide: SEAT_LIMIT_SOURCE, useExisting: SubscriptionServiceHttpClient },
+    { provide: SEAT_LIMIT_PROJECTION, useClass: SeatLimitPrismaProjection },
+    {
+      provide: SEAT_LIMIT_READER,
+      useFactory: (projection: ISeatLimitProjection, source: ISeatLimitSource) =>
+        new ProjectedSeatLimitReader(projection, source),
+      inject: [SEAT_LIMIT_PROJECTION, SEAT_LIMIT_SOURCE],
     },
   ],
 })
