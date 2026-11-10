@@ -45,12 +45,15 @@ export type FeatureKeyLookup = (key: string) => FeatureKeyDefinition | undefined
 
 /**
  * Checks a plan's feature list against the key catalogue: every key known and listed once,
- * credits only on metered keys, limits only the ones the key understands.
+ * credits only on metered keys, limits only the ones the key understands, required limits
+ * present on a key that is on, and a key meant for one audience only on that audience's
+ * plans (when the audience is given).
  */
 export function validatePlanFeatures(
   features: readonly PlanFeature[],
-  lookup: FeatureKeyLookup = featureKeyDefinition,
+  options: { audience?: PlanAudience; lookup?: FeatureKeyLookup } = {},
 ): Result<PlanFeature[], PlanError> {
+  const lookup = options.lookup ?? featureKeyDefinition;
   const seen = new Set<string>();
   const out: PlanFeature[] = [];
   for (const f of features) {
@@ -58,6 +61,9 @@ export function validatePlanFeatures(
     if (!def) return Result.fail({ code: 'unknown_feature_key', featureKey: f.featureKey });
     if (seen.has(f.featureKey)) return Result.fail({ code: 'duplicate_feature_key', featureKey: f.featureKey });
     seen.add(f.featureKey);
+    if (options.audience && def.audience && def.audience !== options.audience) {
+      return Result.fail({ code: 'feature_not_for_audience', featureKey: f.featureKey, audience: options.audience });
+    }
 
     if (f.monthlyCredits !== null) {
       if (def.limitKind !== 'ai_credits') {
@@ -74,6 +80,14 @@ export function validatePlanFeatures(
       }
       if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
         return Result.fail({ code: 'invalid_limit', featureKey: f.featureKey, limit: name });
+      }
+      if (def.limitKind === 'seats' && !Number.isInteger(value)) {
+        return Result.fail({ code: 'invalid_limit', featureKey: f.featureKey, limit: name });
+      }
+    }
+    if (f.enabled) {
+      for (const name of def.requiredLimits ?? []) {
+        if (!(name in f.limits)) return Result.fail({ code: 'limit_required', featureKey: f.featureKey, limit: name });
       }
     }
 
@@ -99,7 +113,7 @@ export class Plan {
     now: Date;
   }): Result<Plan, PlanError> {
     if (!PLAN_CODE.test(input.code)) return Result.fail({ code: 'invalid_plan_code', value: input.code });
-    const features = validatePlanFeatures(input.features);
+    const features = validatePlanFeatures(input.features, { audience: input.audience });
     if (features.isFail) return Result.fail(features.error);
     return Result.ok(
       new Plan({
@@ -147,7 +161,7 @@ export class Plan {
    */
   revise(features: readonly PlanFeature[], by: string, now: Date): Result<PlanVersion, PlanError> {
     if (this.props.status === 'archived') return Result.fail({ code: 'plan_archived', planCode: this.code });
-    const checked = validatePlanFeatures(features);
+    const checked = validatePlanFeatures(features, { audience: this.props.audience });
     if (checked.isFail) return Result.fail(checked.error);
     const next: PlanVersion = {
       version: this.props.current.version + 1,

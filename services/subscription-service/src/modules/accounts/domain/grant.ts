@@ -1,5 +1,6 @@
 import { Result } from '../../../shared/kernel/result.js';
-import { validatePlanFeatures } from '../../plans/domain/plan.js';
+import { featureKeyDefinition } from '../../plans/domain/feature-key.js';
+import { validatePlanFeatures, type PlanAudience } from '../../plans/domain/plan.js';
 import type { AccountError } from './account-errors.js';
 
 /**
@@ -48,6 +49,8 @@ export class Grant {
     featureKey: string;
     /** Omitted = true (switches the key on). */
     enabled?: boolean;
+    /** The audience of the account it is given to; keys meant for the other one are refused. */
+    audience?: PlanAudience;
     monthlyCredits: string | null;
     limits: Record<string, number>;
     startsAt: Date;
@@ -57,11 +60,17 @@ export class Grant {
     now: Date;
   }): Result<Grant, AccountError> {
     // Same key catalogue and credit/limit rules as a plan feature.
-    const checked = validatePlanFeatures([
-      { featureKey: input.featureKey, enabled: true, monthlyCredits: input.monthlyCredits, limits: input.limits },
-    ]);
-    if (checked.isFail) return Result.fail(checked.error);
     const enabled = input.enabled ?? true;
+    // A switching-off grant carries no limits, so the required ones are not asked of it.
+    const checked = validatePlanFeatures(
+      [{ featureKey: input.featureKey, enabled, monthlyCredits: input.monthlyCredits, limits: input.limits }],
+      { audience: input.audience },
+    );
+    if (checked.isFail) return Result.fail(checked.error);
+    // Seats cannot be switched off: the roster a school already has would read as "no seats".
+    if (!enabled && featureKeyDefinition(input.featureKey)?.limitKind === 'seats') {
+      return Result.fail({ code: 'grant_disable_not_applicable', featureKey: input.featureKey });
+    }
     // Switching a key off gives nothing: credits or limits on it would read as an allowance.
     if (!enabled && (input.monthlyCredits !== null || Object.keys(input.limits).length > 0)) {
       return Result.fail({ code: 'grant_disable_with_allowance', featureKey: input.featureKey });

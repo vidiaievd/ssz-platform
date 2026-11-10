@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { ENDING_SOON_LIMIT, type AdminStatsRows } from '../../application/admin-stats.js';
-import type { AccountHistory, AccountOverview, LookupRows } from '../../application/account-views.js';
+import type { AccountHistory, AccountOverview, LookupRows, PlanSeatsRow } from '../../application/account-views.js';
 import type { IAccountReader } from '../../application/ports/account.reader.js';
 import { audienceFor, type BillingAccountType } from '../../domain/billing-account.js';
 import { FREE_PLAN_CODES } from '../../../entitlements/domain/entitlements.js';
+import { SEATS_STUDENTS_KEY } from '../../../plans/domain/feature-key.js';
 import { isCurrent } from '../../domain/subscription.js';
 import { toGrantView, toSubscription, toSubscriptionView, withPlan } from './account.mapper.js';
 
@@ -46,23 +47,42 @@ export class PrismaAccountReader implements IAccountReader {
   }
 
   async lookup(type: BillingAccountType, externalIds: string[], now: Date): Promise<LookupRows> {
+    // Only the seats row of each version: the batch answers a table, not whole plans.
+    const seatsOnly = { where: { featureKey: SEATS_STUDENTS_KEY }, select: { enabled: true, limits: true } } as const;
     const [accounts, free] = await Promise.all([
       this.prisma.billingAccount.findMany({
         where: { type, externalId: { in: externalIds } },
         select: {
           externalId: true,
-          subscriptions: { where: { status: { in: ['trial', 'active'] } }, include: withPlan },
+          subscriptions: {
+            where: { status: { in: ['trial', 'active'] } },
+            include: { ...withPlan, version: { select: { features: seatsOnly } } },
+          },
           grants: {
             where: { revokedAt: null, endsAt: { gt: now } },
-            select: { startsAt: true, endsAt: true, revokedAt: true },
+            select: {
+              featureKey: true,
+              enabled: true,
+              monthlyCredits: true,
+              limits: true,
+              startsAt: true,
+              endsAt: true,
+              revokedAt: true,
+            },
           },
         },
       }),
       this.prisma.plan.findUnique({
         where: { code: FREE_PLAN_CODES[audienceFor(type)] },
-        select: { code: true, name: true, currentVersion: true },
+        select: { id: true, code: true, name: true, currentVersion: true },
       }),
     ]);
+    const freeSeats = free
+      ? await this.prisma.planFeature.findFirst({
+          where: { featureKey: SEATS_STUDENTS_KEY, planVersion: { planId: free.id, version: free.currentVersion } },
+          select: { enabled: true, limits: true },
+        })
+      : null;
     return {
       accounts: accounts.map((a) => ({
         externalId: a.externalId,
@@ -74,10 +94,17 @@ export class PrismaAccountReader implements IAccountReader {
           status: s.status,
           periodStart: s.periodStart,
           periodEnd: s.periodEnd,
+          seats: toSeatsRow(s.version.features[0]),
         })),
-        liveGrants: a.grants,
+        liveGrants: a.grants.map((g) => ({
+          ...g,
+          monthlyCredits: g.monthlyCredits === null ? null : g.monthlyCredits.toString(),
+          limits: g.limits as Record<string, number>,
+        })),
       })),
-      freePlan: free ? { code: free.code, name: free.name, version: free.currentVersion } : null,
+      freePlan: free
+        ? { code: free.code, name: free.name, version: free.currentVersion, seats: toSeatsRow(freeSeats ?? undefined) }
+        : null,
     };
   }
 
@@ -134,4 +161,8 @@ export class PrismaAccountReader implements IAccountReader {
       })),
     };
   }
+}
+
+function toSeatsRow(row: { enabled: boolean; limits: unknown } | undefined): PlanSeatsRow | null {
+  return row ? { enabled: row.enabled, limits: row.limits as Record<string, number> } : null;
 }
