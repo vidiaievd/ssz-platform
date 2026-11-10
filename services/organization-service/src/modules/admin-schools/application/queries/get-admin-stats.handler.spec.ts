@@ -13,7 +13,7 @@ const snapshot: AdminStatsSnapshot = {
   schools: [
     { kind: 'SCHOOL', status: 'active', count: 5 },
     { kind: 'SOLO', status: 'active', count: 3 },
-    { kind: 'SCHOOL', status: 'deleted', count: 1 },
+    { kind: 'SCHOOL', status: 'closed', count: 1 },
   ],
   studentsTotal: 40,
   teachersTotal: 9,
@@ -53,7 +53,7 @@ describe('GetAdminStatsHandler', () => {
     const stats = await handler.execute(new GetAdminStatsQuery(period));
     expect(stats.schools).toEqual({
       total: 9,
-      byStatus: { active: 8, inactive: 0, deleted: 1 },
+      byStatus: { active: 8, suspended: 0, closed: 1, purged: 0 },
       byKind: { SCHOOL: 6, SOLO: 3 },
       createdInPeriod: 2,
     });

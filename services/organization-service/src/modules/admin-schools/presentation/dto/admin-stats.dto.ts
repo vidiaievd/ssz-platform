@@ -15,8 +15,9 @@ export class AdminStatsQueryDto {
 
 export class AdminStatsByStatusDto {
   @ApiProperty({ example: 38 }) active!: number;
-  @ApiProperty({ example: 3 }) inactive!: number;
-  @ApiProperty({ example: 1 }) deleted!: number;
+  @ApiProperty({ example: 2 }) suspended!: number;
+  @ApiProperty({ example: 1 }) closed!: number;
+  @ApiProperty({ example: 0 }) purged!: number;
 }
 
 export class AdminStatsByKindDto {
@@ -25,14 +26,14 @@ export class AdminStatsByKindDto {
 }
 
 export class AdminStatsSchoolsDto {
-  @ApiProperty({ description: 'Every workspace row, deleted ones included', example: 42 }) total!: number;
+  @ApiProperty({ description: 'Every workspace row, closed and purged ones included', example: 42 }) total!: number;
   @ApiProperty({ type: AdminStatsByStatusDto }) byStatus!: AdminStatsByStatusDto;
   @ApiProperty({ type: AdminStatsByKindDto }) byKind!: AdminStatsByKindDto;
   @ApiProperty({ example: 3 }) createdInPeriod!: number;
 }
 
 export class AdminStatsPeopleDto {
-  @ApiProperty({ description: 'Distinct people now, schools not deleted', example: 1280 }) total!: number;
+  @ApiProperty({ description: 'Distinct people now, schools not closed or purged', example: 1280 }) total!: number;
   @ApiProperty({ description: 'Distinct people whose first row falls in the period', example: 112 })
   newInPeriod!: number;
 }

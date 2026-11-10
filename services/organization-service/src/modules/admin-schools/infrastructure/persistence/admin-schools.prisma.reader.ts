@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import {
-  schoolStatus,
   type AdminSchoolCounts,
   type AdminSchoolDetail,
   type AdminSchoolFilter,
@@ -35,8 +34,9 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
           name: true,
           slug: true,
           kind: true,
-          isActive: true,
-          deletedAt: true,
+          status: true,
+          closesAt: true,
+          purgeAt: true,
           ownerId: true,
           city: true,
           createdAt: true,
@@ -52,7 +52,9 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
         name: r.name,
         slug: r.slug,
         kind: r.kind,
-        status: schoolStatus(r.isActive, r.deletedAt),
+        status: r.status,
+        closesAt: r.closesAt,
+        purgeAt: r.purgeAt,
         ownerId: r.ownerId,
         city: r.city,
         createdAt: r.createdAt,
@@ -115,7 +117,11 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
       slug: school.slug,
       kind: school.kind,
       type: school.type,
-      status: schoolStatus(school.isActive, school.deletedAt),
+      status: school.status,
+      statusChangedAt: school.statusChangedAt,
+      statusReason: school.statusReason,
+      closesAt: school.closesAt,
+      purgeAt: school.purgeAt,
       description: school.description,
       avatarUrl: school.avatarUrl,
       contacts: { email: school.contactEmail, website: school.website, city: school.city },
@@ -210,9 +216,7 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
 function whereOf(filter: AdminSchoolFilter): Prisma.SchoolWhereInput {
   const where: Prisma.SchoolWhereInput = {};
   if (filter.kind) where.kind = filter.kind;
-  if (filter.status === 'active') Object.assign(where, { isActive: true, deletedAt: null });
-  if (filter.status === 'inactive') Object.assign(where, { isActive: false, deletedAt: null });
-  if (filter.status === 'deleted') where.deletedAt = { not: null };
+  if (filter.status) where.status = filter.status;
   if (filter.search) {
     where.OR = [
       { name: { contains: filter.search, mode: 'insensitive' } },

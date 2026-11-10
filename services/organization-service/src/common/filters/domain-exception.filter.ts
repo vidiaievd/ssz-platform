@@ -29,6 +29,7 @@ import { InvalidAssistantAccessException } from '../../modules/schools/domain/ex
 import { InvalidAiPrecheckSettingsException } from '../../modules/schools/domain/exceptions/invalid-ai-precheck-settings.exception.js';
 import { FeatureNotEntitledException } from '../../modules/schools/domain/exceptions/feature-not-entitled.exception.js';
 import { SeatsExhaustedException } from '../../modules/schools/domain/exceptions/seats-exhausted.exception.js';
+import { SchoolTransitionNotAllowedException } from '../../modules/school-lifecycle/domain/school-transition-not-allowed.exception.js';
 
 @Catch(
   SchoolNotFoundException,
@@ -40,6 +41,7 @@ import { SeatsExhaustedException } from '../../modules/schools/domain/exceptions
   InvalidAiPrecheckSettingsException,
   FeatureNotEntitledException,
   SeatsExhaustedException,
+  SchoolTransitionNotAllowedException,
   SchoolAlreadyExistsException,
   ForbiddenOperationException,
   MemberAlreadyExistsException,
@@ -71,6 +73,10 @@ export class DomainExceptionFilter implements ExceptionFilter {
         message: exception.message,
         // The school's screen shows "110 / 100" from it (plan 90, phase 4).
         ...(exception instanceof SeatsExhaustedException ? { seats: exception.seats } : {}),
+        // Where the school stands, so the panel can redraw its danger zone (plan 90, phase 5).
+        ...(exception instanceof SchoolTransitionNotAllowedException
+          ? { status: exception.status, transition: exception.transition }
+          : {}),
       },
     });
   }
@@ -100,6 +106,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
     if (exception instanceof FeatureNotEntitledException) {
       return { status: HttpStatus.FORBIDDEN, code: 'FEATURE_NOT_ENTITLED' };
+    }
+    if (exception instanceof SchoolTransitionNotAllowedException) {
+      return { status: HttpStatus.CONFLICT, code: 'SCHOOL_TRANSITION_NOT_ALLOWED' };
     }
     if (exception instanceof SeatsExhaustedException) {
       return { status: HttpStatus.CONFLICT, code: 'SEATS_EXHAUSTED' };

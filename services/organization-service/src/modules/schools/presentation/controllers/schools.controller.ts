@@ -241,10 +241,16 @@ export class SchoolsController {
 
   @Delete(':schoolId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Soft-delete a school (owner only)' })
+  @ApiOperation({
+    summary: 'Delete a school (owner only): it is archived',
+    description:
+      'The school becomes `closed` and is purged after the archive term (6 months); until then only a platform ' +
+      'admin can bring it back.',
+  })
   @ApiResponse({ status: 204 })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'School not found' })
+  @ApiResponse({ status: 409, description: '`SCHOOL_TRANSITION_NOT_ALLOWED` — already closed' })
   async deleteSchool(
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,

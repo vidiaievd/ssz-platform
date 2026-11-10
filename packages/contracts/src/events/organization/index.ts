@@ -22,6 +22,11 @@ export const ORGANIZATION_EVENT_TYPES = {
   STUDENT_REMOVED: 'school.student.removed',
   STUDENT_NUDGED: 'school.student.nudged',
   TUTORING_INVITATION_SENT: 'tutoring.invitation.sent',
+  // School lifecycle (plan 90, phase 5).
+  SCHOOL_SUSPENDED: 'school.suspended',
+  SCHOOL_REACTIVATED: 'school.reactivated',
+  SCHOOL_CLOSED: 'school.closed',
+  SCHOOL_RESTORED: 'school.restored',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -187,6 +192,35 @@ export interface TutoringInvitationSentPayload {
 
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
+// ─── School lifecycle (plan 90, phase 5) ──────────────────────────────────────
+
+/** `active` → `suspended` (read only) → `closed` (archive) → `purged` (tombstone). */
+export type SchoolLifecycleStatus = 'active' | 'suspended' | 'closed' | 'purged';
+
+/** Who moved the school: a platform admin, its owner ("delete school" archives it) or the timer. */
+export type SchoolLifecycleActor = 'admin' | 'owner' | 'system';
+
+/**
+ * One shape for `school.suspended`, `school.reactivated`, `school.closed` and `school.restored`.
+ * The admin's reason stays in the admin trail and is not sent here: owners and learners are told
+ * what happened, not why the platform's staff decided it.
+ */
+export interface SchoolLifecyclePayload {
+  schoolId: string;
+  ownerId: string;
+  name: string;
+  kind: 'SCHOOL' | 'SOLO';
+  status: SchoolLifecycleStatus;
+  previousStatus: SchoolLifecycleStatus;
+  by: SchoolLifecycleActor;
+  /** ISO 8601 — when the status changed. */
+  changedAt: string;
+  /** ISO 8601 — when a suspended school closes by itself; null in any other status. */
+  closesAt: string | null;
+  /** ISO 8601 — when a closed school is purged; null in any other status. */
+  purgeAt: string | null;
+}
+
 export type SchoolCreatedEvent = BaseEvent<SchoolCreatedPayload>;
 export type SchoolMemberAddedEvent = BaseEvent<SchoolMemberAddedPayload>;
 export type SchoolMemberRemovedEvent = BaseEvent<SchoolMemberRemovedPayload>;
@@ -205,6 +239,7 @@ export type GroupAssignedEvent = BaseEvent<GroupAssignedPayload>;
 export type StudentRemovedEvent = BaseEvent<StudentRemovedPayload>;
 export type StudentNudgedEvent = BaseEvent<StudentNudgedPayload>;
 export type TutoringInvitationSentEvent = BaseEvent<TutoringInvitationSentPayload>;
+export type SchoolLifecycleEvent = BaseEvent<SchoolLifecyclePayload>;
 
 export type AnyOrganizationEvent =
   | SchoolCreatedEvent
@@ -224,4 +259,5 @@ export type AnyOrganizationEvent =
   | GroupAssignedEvent
   | StudentRemovedEvent
   | StudentNudgedEvent
-  | TutoringInvitationSentEvent;
+  | TutoringInvitationSentEvent
+  | SchoolLifecycleEvent;

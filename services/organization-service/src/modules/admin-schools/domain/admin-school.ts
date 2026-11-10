@@ -4,22 +4,14 @@
  * commands with a reason (later phases).
  */
 
+import type { SchoolLifecycleStatus } from '@ssz/contracts';
 import type { SeatUsage } from '../../schools/domain/value-objects/seat-policy.vo.js';
 
 export type SchoolKindValue = 'SCHOOL' | 'SOLO';
 
-/**
- * Where a school stands today. `deleted` is a soft-deleted row, `inactive` a row switched
- * off without deleting it. The lifecycle of phase 5 (suspended → closed → purged) will
- * replace this derivation with a stored status.
- */
-export type AdminSchoolStatus = 'active' | 'inactive' | 'deleted';
-export const ADMIN_SCHOOL_STATUSES: readonly AdminSchoolStatus[] = ['active', 'inactive', 'deleted'];
-
-export function schoolStatus(isActive: boolean, deletedAt: Date | null): AdminSchoolStatus {
-  if (deletedAt) return 'deleted';
-  return isActive ? 'active' : 'inactive';
-}
+/** Where a school stands in its lifecycle — the stored `schools.status` (plan 90, phase 5). */
+export type AdminSchoolStatus = SchoolLifecycleStatus;
+export const ADMIN_SCHOOL_STATUSES: readonly AdminSchoolStatus[] = ['active', 'suspended', 'closed', 'purged'];
 
 /** Sort keys; a leading `-` means descending. Ties always break by id, so pages never overlap. */
 export type AdminSchoolSort = 'createdAt' | '-createdAt' | 'name' | '-name';
@@ -33,7 +25,7 @@ export interface AdminSchoolFilter {
   /** Case-insensitive substring of the name or the slug. */
   search?: string;
   kind?: SchoolKindValue;
-  /** No status = every row, soft-deleted ones included: the admin sees what is there. */
+  /** No status = every row, closed and purged ones included: the admin sees what is there. */
   status?: AdminSchoolStatus;
   seats?: AdminSchoolSeatsFilter;
 }
@@ -62,6 +54,10 @@ export interface AdminSchoolListItem {
   slug: string;
   kind: SchoolKindValue;
   status: AdminSchoolStatus;
+  /** When a suspended school closes by itself; null in any other status. */
+  closesAt: Date | null;
+  /** When a closed school is purged; null in any other status. */
+  purgeAt: Date | null;
   ownerId: string;
   city: string | null;
   createdAt: Date;
@@ -96,12 +92,18 @@ export interface AdminSchoolDetail {
   kind: SchoolKindValue;
   type: 'ONLINE' | 'HYBRID';
   status: AdminSchoolStatus;
+  statusChangedAt: Date | null;
+  /** The admin's reason for the current status; null when the owner or the timer moved it. */
+  statusReason: string | null;
+  closesAt: Date | null;
+  purgeAt: Date | null;
   description: string | null;
   avatarUrl: string | null;
   contacts: { email: string | null; website: string | null; city: string | null };
   owner: { userId: string; name: string | null; email: string | null };
   createdAt: Date;
   updatedAt: Date;
+  /** Mirrors the status: when the school was closed (set while `closed` / `purged`). */
   deletedAt: Date | null;
   counts: AdminSchoolCounts & {
     archivedStudents: number;

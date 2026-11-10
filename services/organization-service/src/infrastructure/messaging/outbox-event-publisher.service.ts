@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { BaseEvent } from '@ssz/contracts';
+import type { OutboxRow } from '@ssz/messaging';
 import type { IEventPublisher } from '../../shared/application/ports/event-publisher.interface.js';
 import type { IDomainEvent } from '../../shared/domain/domain-event.interface.js';
 import { PrismaOutboxStore } from './prisma-outbox.store.js';
@@ -33,7 +34,40 @@ const ROUTING_KEYS: Record<string, string> = {
   'tutoring.group.created': 'tutoring.group.created',
   'tutoring.student.added': 'tutoring.student.added',
   'tutoring.student.removed': 'tutoring.student.removed',
+  // School lifecycle (plan 90, phase 5) — written by the lifecycle repository inside its transaction.
+  'school.suspended': 'school.suspended',
+  'school.reactivated': 'school.reactivated',
+  'school.closed': 'school.closed',
+  'school.restored': 'school.restored',
 };
+
+/**
+ * The outbox row for a domain event (organization's envelope), or null when the type has no routing
+ * key. Shared by the publisher and by repositories that write the event inside their own transaction.
+ */
+export function outboxRowOf(event: IDomainEvent): Omit<OutboxRow, 'attempts'> | null {
+  const routingKey = ROUTING_KEYS[event.eventType];
+  if (!routingKey) return null;
+
+  const envelope: BaseEvent<IDomainEvent> = {
+    eventId: event.eventId,
+    eventType: event.eventType,
+    eventVersion: '1.0',
+    occurredAt: event.occurredAt.toISOString(),
+    source: 'organization-service',
+    payload: event,
+  };
+  return {
+    id: randomUUID(),
+    eventId: event.eventId,
+    eventType: event.eventType,
+    exchange: EXCHANGE,
+    routingKey,
+    payload: JSON.stringify(envelope),
+    correlationId: null,
+    occurredAt: event.occurredAt,
+  };
+}
 
 @Injectable()
 export class OutboxEventPublisherService implements IEventPublisher {
@@ -42,32 +76,13 @@ export class OutboxEventPublisherService implements IEventPublisher {
   constructor(private readonly outboxStore: PrismaOutboxStore) {}
 
   async publish(event: IDomainEvent): Promise<void> {
-    const routingKey = ROUTING_KEYS[event.eventType];
-    if (!routingKey) {
+    const row = outboxRowOf(event);
+    if (!row) {
       this.logger.error(
         `No routing key for event type "${event.eventType}" [${event.eventId}] — event dropped, not published`,
       );
       return;
     }
-
-    const envelope: BaseEvent<IDomainEvent> = {
-      eventId: event.eventId,
-      eventType: event.eventType,
-      eventVersion: '1.0',
-      occurredAt: event.occurredAt.toISOString(),
-      source: 'organization-service',
-      payload: event,
-    };
-
-    await this.outboxStore.insertPending({
-      id: randomUUID(),
-      eventId: event.eventId,
-      eventType: event.eventType,
-      exchange: EXCHANGE,
-      routingKey,
-      payload: JSON.stringify(envelope),
-      correlationId: null,
-      occurredAt: event.occurredAt,
-    });
+    await this.outboxStore.insertPending(row);
   }
 }

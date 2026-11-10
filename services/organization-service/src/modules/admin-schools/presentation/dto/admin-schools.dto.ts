@@ -26,7 +26,7 @@ export class ListAdminSchoolsQueryDto {
   @IsIn(KINDS)
   kind?: SchoolKindValue;
 
-  @ApiPropertyOptional({ enum: ADMIN_SCHOOL_STATUSES, description: 'None = every row, soft-deleted ones included' })
+  @ApiPropertyOptional({ enum: ADMIN_SCHOOL_STATUSES, description: 'None = every row, closed and purged ones included' })
   @IsOptional()
   @IsIn(ADMIN_SCHOOL_STATUSES)
   status?: AdminSchoolStatus;
@@ -86,6 +86,10 @@ export class AdminSchoolListItemDto {
   @ApiProperty({ example: 'nordick' }) slug!: string;
   @ApiProperty({ enum: KINDS }) kind!: SchoolKindValue;
   @ApiProperty({ enum: ADMIN_SCHOOL_STATUSES }) status!: AdminSchoolStatus;
+  @ApiProperty({ type: Date, nullable: true, format: 'date-time', description: 'When a suspended school closes by itself' })
+  closesAt!: Date | null;
+  @ApiProperty({ type: Date, nullable: true, format: 'date-time', description: 'When a closed school is purged' })
+  purgeAt!: Date | null;
   @ApiProperty({ description: 'userId of the owner' }) ownerId!: string;
   @ApiProperty({ type: String, nullable: true, example: 'Oslo' }) city!: string | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
@@ -143,13 +147,30 @@ export class AdminSchoolDetailDto {
   @ApiProperty({ enum: KINDS }) kind!: SchoolKindValue;
   @ApiProperty({ enum: ['ONLINE', 'HYBRID'] }) type!: string;
   @ApiProperty({ enum: ADMIN_SCHOOL_STATUSES }) status!: AdminSchoolStatus;
+  @ApiProperty({ type: Date, nullable: true, format: 'date-time' }) statusChangedAt!: Date | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "The admin's reason for the current status; null when the owner or the timer moved it",
+  })
+  statusReason!: string | null;
+  @ApiProperty({ type: Date, nullable: true, format: 'date-time', description: 'When a suspended school closes by itself' })
+  closesAt!: Date | null;
+  @ApiProperty({ type: Date, nullable: true, format: 'date-time', description: 'When a closed school is purged' })
+  purgeAt!: Date | null;
   @ApiProperty({ type: String, nullable: true }) description!: string | null;
   @ApiProperty({ type: String, nullable: true }) avatarUrl!: string | null;
   @ApiProperty({ type: AdminSchoolContactsDto }) contacts!: AdminSchoolContactsDto;
   @ApiProperty({ type: AdminSchoolOwnerDto }) owner!: AdminSchoolOwnerDto;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
-  @ApiProperty({ type: Date, nullable: true, format: 'date-time' }) deletedAt!: Date | null;
+  @ApiProperty({
+    type: Date,
+    nullable: true,
+    format: 'date-time',
+    description: 'Mirrors the status: when the school was closed (set while closed or purged)',
+  })
+  deletedAt!: Date | null;
   @ApiProperty({ type: AdminSchoolDetailCountsDto }) counts!: AdminSchoolDetailCountsDto;
   @ApiProperty({ type: AdminSchoolSeatsDto, description: 'Student seats against the projected plan limit' })
   seats!: AdminSchoolSeatsDto;

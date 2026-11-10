@@ -332,12 +332,12 @@ export class SchoolPrismaRepository implements ISchoolRepository {
           contactEmail: school.contactEmail ?? null,
           city: school.city ?? null,
           type: school.type,
-          isActive: school.isActive,
+          // No `isActive` / `deletedAt`: the lifecycle repository owns them (plan 90, phase 5), and a
+          // stale aggregate saved after a suspension must not open the school again.
           requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
           defaultExplanationLanguage: school.defaultExplanationLanguage ?? null,
           showGroupPositionToStudents: school.showGroupPositionToStudents,
           updatedAt: school.updatedAt,
-          deletedAt: school.deletedAt ?? null,
         },
       });
 

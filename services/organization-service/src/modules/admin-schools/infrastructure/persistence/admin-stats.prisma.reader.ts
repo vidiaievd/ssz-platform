@@ -23,9 +23,7 @@ export class AdminStatsPrismaReader implements IAdminStatsReader {
     const [schools, students, teachers, schoolDays, studentDays, teacherDays, seatTotals, attention] = await Promise.all([
       this.prisma.$queryRaw<{ kind: SchoolKindValue; status: AdminSchoolStatus; count: number }[]>`
         SELECT kind::text AS kind,
-               CASE WHEN "deletedAt" IS NOT NULL THEN 'deleted'
-                    WHEN "isActive" THEN 'active'
-                    ELSE 'inactive' END AS status,
+               status::text AS status,
                count(*)::int AS count
           FROM schools
          GROUP BY 1, 2`,

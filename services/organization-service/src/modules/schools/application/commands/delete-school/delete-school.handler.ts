@@ -1,24 +1,19 @@
-import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { CommandBus, CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { DeleteSchoolCommand } from './delete-school.command.js';
-import {
-  SCHOOL_REPOSITORY,
-  type ISchoolRepository,
-} from '../../../domain/repositories/school.repository.interface.js';
-import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
+import { ChangeSchoolStatusCommand } from '../../../../school-lifecycle/application/commands/change-school-status.command.js';
 
+/**
+ * The owner's "delete school" archives it (plan 90, phase 5): `closed`, purged after the archive term,
+ * brought back only by a platform `super`. `school.closed` goes out with `by: 'owner'`; no admin trail.
+ */
 @CommandHandler(DeleteSchoolCommand)
 export class DeleteSchoolHandler implements ICommandHandler<DeleteSchoolCommand> {
-  constructor(
-    @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
-  ) {}
+  constructor(private readonly commandBus: CommandBus) {}
 
   async execute(command: DeleteSchoolCommand): Promise<void> {
-    const school = await this.schoolRepository.findById(command.schoolId);
-    if (!school) throw new SchoolNotFoundException(command.schoolId);
-
-    school.softDelete(command.actorId); // throws ForbiddenOperationException if not owner
-
-    await this.schoolRepository.save(school);
+    // Not the owner → ForbiddenOperationException (403); already closed → 409.
+    await this.commandBus.execute(
+      new ChangeSchoolStatusCommand(command.schoolId, 'close', { kind: 'owner', userId: command.actorId }, null),
+    );
   }
 }

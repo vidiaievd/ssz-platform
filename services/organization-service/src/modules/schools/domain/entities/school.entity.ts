@@ -278,15 +278,6 @@ export class School extends BaseEntity {
     }
   }
 
-  softDelete(actorId: string): void {
-    if (actorId !== this._ownerId) {
-      throw new ForbiddenOperationException('Only the owner can delete the school');
-    }
-    this._deletedAt = new Date();
-    this._isActive = false;
-    this._updatedAt = new Date();
-  }
-
   isMember(userId: string): boolean {
     return this._members.some((m) => m.userId === userId);
   }

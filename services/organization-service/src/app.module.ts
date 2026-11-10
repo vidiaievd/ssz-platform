@@ -11,6 +11,7 @@ import { AuthModule } from './infrastructure/auth/auth.module.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { RabbitMqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { AdminSchoolsModule } from './modules/admin-schools/admin-schools.module.js';
+import { SchoolLifecycleModule } from './modules/school-lifecycle/school-lifecycle.module.js';
 import { SchoolsModule } from './modules/schools/schools.module.js';
 import { TutoringModule } from './modules/tutoring/tutoring.module.js';
 
@@ -23,6 +24,7 @@ import { TutoringModule } from './modules/tutoring/tutoring.module.js';
     SchoolsModule,
     TutoringModule,
     AdminSchoolsModule,
+    SchoolLifecycleModule,
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env>) => {
