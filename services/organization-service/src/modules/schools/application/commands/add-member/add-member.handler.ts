@@ -86,7 +86,7 @@ export class AddMemberHandler implements ICommandHandler<AddMemberCommand, AddMe
 
     // A learner takes a seat (plan 90, phase 4): the row is written under the school's seat
     // lock, or nothing is written and SEATS_EXHAUSTED goes back. The aggregate's save below
-    // then finds the row and only refreshes it.
+    // then finds the row already there and skips it.
     let seats: SeatUsage | null = null;
     if (command.role === MemberRole.STUDENT) {
       seats = await this.seatGate.claim(command.schoolId, {

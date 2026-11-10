@@ -60,6 +60,14 @@ export class School extends BaseEntity {
   private _isActive: boolean;
   private _deletedAt: Date | undefined;
   private _members: SchoolMember[];
+  /**
+   * Roster changes made through this instance; the repository writes exactly these. Syncing the
+   * whole loaded list instead would let a stale aggregate erase members another request added
+   * after it was read, or bring back members another request removed. Members are never edited
+   * in place, so additions and removals are all there is.
+   */
+  private _addedMemberUserIds = new Set<string>();
+  private _removedMemberUserIds = new Set<string>();
   private _requireTutorReviewForSelfPaced: boolean;
   private _defaultExplanationLanguage: string | undefined;
   private _reviewSettings: ReviewSettings;
@@ -237,6 +245,7 @@ export class School extends BaseEntity {
     }
 
     this._members.push(member);
+    if (!this._removedMemberUserIds.delete(member.userId)) this._addedMemberUserIds.add(member.userId);
     this._updatedAt = new Date();
     this.addDomainEvent(
       new SchoolMemberAddedEvent(eventId, this._id, member.userId, member.role),
@@ -261,6 +270,7 @@ export class School extends BaseEntity {
     const idx = this._members.findIndex((m) => m.userId === userId);
     if (idx !== -1) {
       this._members.splice(idx, 1);
+      if (!this._addedMemberUserIds.delete(userId)) this._removedMemberUserIds.add(userId);
       this._updatedAt = new Date();
       this.addDomainEvent(
         new SchoolMemberRemovedEvent(eventId, this._id, userId),
@@ -314,6 +324,10 @@ export class School extends BaseEntity {
   get deletedAt(): Date | undefined { return this._deletedAt; }
   get isDeleted(): boolean { return this._deletedAt !== undefined; }
   get members(): SchoolMember[] { return [...this._members]; }
+  /** Members added through this instance (not yet stored). */
+  get addedMembers(): SchoolMember[] { return this._members.filter((m) => this._addedMemberUserIds.has(m.userId)); }
+  /** Users removed through this instance. */
+  get removedMemberUserIds(): string[] { return [...this._removedMemberUserIds]; }
   get requireTutorReviewForSelfPaced(): boolean { return this._requireTutorReviewForSelfPaced; }
   get defaultExplanationLanguage(): string | undefined { return this._defaultExplanationLanguage; }
   get reviewSettings(): ReviewSettings { return this._reviewSettings; }

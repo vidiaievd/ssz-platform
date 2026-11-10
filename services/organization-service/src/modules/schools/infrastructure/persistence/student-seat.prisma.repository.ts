@@ -11,7 +11,7 @@ const ACTIVE_STUDENT = { role: 'STUDENT', status: 'active' } as const;
  *
  * `claim` runs in one transaction holding `pg_advisory_xact_lock` keyed by the school: the
  * count and the write happen with no other claim of the same school in between, and the lock
- * goes with the transaction. Other roster writes (the aggregate's upsert, archiving) do not
+ * goes with the transaction. Other roster writes (the aggregate's save, archiving) do not
  * take the lock — they never add a seat.
  */
 @Injectable()
