@@ -113,8 +113,38 @@ describe('adminAuditRowOf (plan 90, step 6)', () => {
     expect(adminAuditRowOf('auth.events', subscriptionEnvelope)).toBeNull();
   });
 
+  it('files organization\'s school lifecycle under organization (plan 90, phase 5)', () => {
+    const orgEnvelope = {
+      ...subscriptionEnvelope,
+      eventId: '5e2a7c9b-1d3f-4b8a-9c0e-2f3a4b5c6d7e',
+      source: 'organization-service',
+      payload: {
+        service: 'organization',
+        actorId: 'a1',
+        actorLevel: 'super',
+        action: 'school.closed',
+        targetType: 'school',
+        targetId: 's1',
+        reason: 'fraud',
+        before: { status: 'active' },
+        after: { status: 'closed' },
+      },
+    };
+    expect(adminAuditRowOf('organization.events', orgEnvelope)).toMatchObject({
+      id: orgEnvelope.eventId,
+      service: 'organization',
+      action: 'school.closed',
+      targetType: 'school',
+      targetId: 's1',
+      after: { status: 'closed' },
+    });
+    // The timer and the owner have no admin level: the row is filed, the level stays empty.
+    const { actorLevel: _l, ...noLevel } = orgEnvelope.payload;
+    expect(adminAuditRowOf('organization.events', { ...orgEnvelope, payload: noLevel })).toMatchObject({ actorLevel: null });
+  });
+
   it('refuses exchanges it does not collect from', () => {
-    expect(adminAuditRowOf('organization.events', { ...authEnvelope, payload: { ...authEnvelope.payload, service: 'organization' } })).toBeNull();
+    expect(adminAuditRowOf('content.events', { ...authEnvelope, payload: { ...authEnvelope.payload, service: 'content' } })).toBeNull();
   });
 
   it('refuses what it cannot file', () => {
