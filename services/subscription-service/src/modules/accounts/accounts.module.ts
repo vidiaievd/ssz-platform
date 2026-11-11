@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PlansModule } from '../plans/plans.module.js';
 import { AssignPlanHandler } from './application/commands/assign-plan/assign-plan.handler.js';
+import { CancelSchoolSubscriptionHandler } from './application/commands/cancel-school-subscription/cancel-school-subscription.handler.js';
 import { CancelSubscriptionHandler } from './application/commands/cancel-subscription/cancel-subscription.handler.js';
 import { CloseUserAccountHandler } from './application/commands/close-user-account/close-user-account.handler.js';
 import { OpenAccountHandler } from './application/commands/open-account/open-account.handler.js';
@@ -29,6 +30,7 @@ import { EntitlementRefreshJob } from './presentation/jobs/entitlement-refresh.j
   providers: [
     AssignPlanHandler,
     CancelSubscriptionHandler,
+    CancelSchoolSubscriptionHandler,
     CloseUserAccountHandler,
     IssueGrantHandler,
     RevokeGrantHandler,

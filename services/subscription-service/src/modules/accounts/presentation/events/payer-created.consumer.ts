@@ -14,10 +14,13 @@ import {
 import type { AppConfig } from '../../../../config/configuration.js';
 import { PROCESSED_EVENTS, type IProcessedEvents } from '../../../../shared/application/ports/processed-events.js';
 import { OpenAccountCommand } from '../../application/commands/open-account/open-account.command.js';
+import { CancelSchoolSubscriptionCommand } from '../../application/commands/cancel-school-subscription/cancel-school-subscription.command.js';
 import { CloseUserAccountCommand } from '../../application/commands/close-user-account/close-user-account.command.js';
 
 const QUEUE = 'subscription-service.payer-created';
 const STUDENT_ROLE = 'student';
+
+type AccountCommand = OpenAccountCommand | CloseUserAccountCommand | CancelSchoolSubscriptionCommand;
 
 interface Envelope {
   eventId?: string;
@@ -28,6 +31,8 @@ interface Envelope {
  * Plan 78 §5: a payer appearing elsewhere opens its account here. `school.created` covers
  * SOLO workspaces too (organization-service provisions one per registering tutor), so a
  * tutor needs no `user` account; a registering student gets one for their own learning.
+ *
+ * `school.closed` (plan 90, phase 5, step 5) ends the school's open subscription, journalled by `system`.
  *
  * `auth.user.deleted` (VoxOrd plan 07, step 3c) closes the learner's account on the same queue,
  * so a registration and a deletion of one user are never handled out of order.
@@ -63,6 +68,7 @@ export class PayerCreatedConsumer implements OnModuleInit, OnModuleDestroy {
         await channel.assertExchange(EXCHANGES.AUTH!, 'topic', { durable: true });
         await channel.assertQueue(QUEUE, { durable: true });
         await channel.bindQueue(QUEUE, EXCHANGES.ORGANIZATION!, ORGANIZATION_EVENT_TYPES.SCHOOL_CREATED);
+        await channel.bindQueue(QUEUE, EXCHANGES.ORGANIZATION!, ORGANIZATION_EVENT_TYPES.SCHOOL_CLOSED);
         await channel.bindQueue(QUEUE, EXCHANGES.AUTH!, AUTH_EVENT_TYPES.USER_REGISTERED);
         await channel.bindQueue(QUEUE, EXCHANGES.AUTH!, AUTH_EVENT_TYPES.USER_DELETED);
         // One at a time: two events for one payer must not race each other's account write.
@@ -100,7 +106,7 @@ export class PayerCreatedConsumer implements OnModuleInit, OnModuleDestroy {
       }
       const command = this.toCommand(eventType, envelope.payload);
       if (command) {
-        const outcome = await this.commands.execute<OpenAccountCommand | CloseUserAccountCommand, string>(command);
+        const outcome = await this.commands.execute<AccountCommand, string>(command);
         this.logger.log(`${eventType} [${eventId}] → ${command.type} ${command.externalId}: ${outcome}`);
       }
       await this.processed.markProcessed(eventId, eventType);
@@ -114,10 +120,15 @@ export class PayerCreatedConsumer implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private toCommand(eventType: string, payload: unknown): OpenAccountCommand | CloseUserAccountCommand | null {
+  private toCommand(eventType: string, payload: unknown): AccountCommand | null {
     if (eventType === ORGANIZATION_EVENT_TYPES.SCHOOL_CREATED) {
       const { schoolId } = (payload ?? {}) as Partial<SchoolCreatedPayload>;
       return schoolId ? new OpenAccountCommand('workspace', schoolId) : null;
+    }
+    if (eventType === ORGANIZATION_EVENT_TYPES.SCHOOL_CLOSED) {
+      // `restored` / `purged` change nothing here: the plan does not come back, a purge has nothing to cancel.
+      const { schoolId } = (payload ?? {}) as { schoolId?: string };
+      return schoolId ? new CancelSchoolSubscriptionCommand(schoolId) : null;
     }
     if (eventType === AUTH_EVENT_TYPES.USER_REGISTERED) {
       const { userId, roles } = (payload ?? {}) as Partial<UserRegisteredPayload>;

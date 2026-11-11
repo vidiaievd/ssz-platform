@@ -6,12 +6,13 @@ export function toAdminActionPerformedEvent(entry: AdminAuditEntry): AdminAction
   const payload: AdminActionPerformedPayload = {
     service: 'subscription',
     actorId: entry.actor.userId,
-    actorLevel: entry.actor.level,
     action: entry.action,
     targetType: entry.targetType,
     targetId: entry.targetId,
     reason: entry.reason,
   };
+  // `system` is not an admin level: the contract's `actorLevel` stays absent for it.
+  if (entry.actor.level !== 'system') payload.actorLevel = entry.actor.level;
   if (entry.before) payload.before = entry.before;
   if (entry.after) payload.after = entry.after;
   return {
