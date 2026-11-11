@@ -87,6 +87,20 @@ export class InternalController {
   }
 
   /**
+   * Where a school stands, for a service that must refuse work in a school which is not `active`
+   * (plan 90, phase 5, step 7: exercise-engine's attempts and review). Any status is answered —
+   * `closed` and `purged` too — and an unknown school is 404.
+   */
+  @Get(':schoolId/status')
+  async getSchoolStatus(
+    @Param('schoolId', ParseUUIDPipe) schoolId: string,
+  ): Promise<{ schoolId: string; status: SchoolStatus }> {
+    const status = await this.schoolRepository.findStatus(schoolId);
+    if (status === null) throw new NotFoundException(`School ${schoolId} not found`);
+    return { schoolId, status };
+  }
+
+  /**
    * Returns all member userIds in a school group.
    * Used by Learning Service for bulk group assignment creation.
    */

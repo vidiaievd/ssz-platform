@@ -1,3 +1,4 @@
+import { SchoolActivityGate } from '../../services/school-activity-gate.js';
 import { Inject, Logger, Optional } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import type { AiFeedback } from '@ssz/contracts';
@@ -191,12 +192,15 @@ export class CheckAttemptHandler implements ICommandHandler<CheckAttemptCommand>
     @Inject(AI_PRECHECK_CLIENT) private readonly ai: IAiPrecheckClient,
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
     @Optional() @Inject(MEDIA_ASSETS) private readonly media: IMediaAssets | null = null,
+    // Plan 90, phase 5, step 7: a school that is not active takes no new work. Optional like the neighbours.
+    @Optional() @Inject(SchoolActivityGate) private readonly schoolGate: SchoolActivityGate | null = null,
   ) {}
 
   async execute(command: CheckAttemptCommand): Promise<Result<CheckAttemptResult, CheckAttemptError>> {
     const attempt = await this.attempts.findById(command.attemptId);
     if (!attempt) return Result.fail({ code: 'ATTEMPT_NOT_FOUND' });
     if (attempt.userId !== command.userId) return Result.fail({ code: 'FORBIDDEN' });
+    await this.schoolGate?.assertExerciseOpen(attempt.exerciseId);
 
     const capability = precheckCapability(attempt.templateCode);
     if (capability === null) return Result.fail({ code: 'UNSUPPORTED_TEMPLATE' });

@@ -21,7 +21,16 @@ export interface SchoolReviewAiPolicy {
   samplePercent: number;
 }
 
+/** A school's lifecycle status (plan 90, phase 5); only `active` takes edits. */
+export type SchoolLifecycleStatus = 'active' | 'suspended' | 'closed' | 'purged';
+
 export interface IOrganizationClient {
+  /**
+   * Where the school stands, or `null` when organization-service does not know it. Throws
+   * OrganizationServiceUnavailableException once the retries run out.
+   */
+  getSchoolStatus(schoolId: string): Promise<SchoolLifecycleStatus | null>;
+
   /**
    * Returns the user's role in the given school, or null if not a member.
    * Throws OrganizationServiceUnavailableException if the service is unreachable

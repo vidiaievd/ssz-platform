@@ -7,6 +7,7 @@ import type { AppConfig } from '../../../../config/configuration.js';
 import type {
   CourseTeacher,
   IOrganizationClient,
+  SchoolLifecycleStatus,
   SchoolMemberRole,
   SchoolReviewAiPolicy,
   SchoolReviewSettings,
@@ -205,6 +206,14 @@ export class HttpOrganizationClient implements IOrganizationClient {
       `getSchoolReviewSettings exhausted ${this.retries + 1} attempts — ${this.describeError(lastError)}`,
     );
     throw new OrganizationServiceUnavailableException(lastError);
+  }
+
+  async getSchoolStatus(schoolId: string): Promise<SchoolLifecycleStatus | null> {
+    const answer = await this.getInternal<{ status: SchoolLifecycleStatus }>(
+      `${this.baseUrl}/api/v1/internal/schools/${schoolId}/status`,
+      'getSchoolStatus',
+    );
+    return answer?.status ?? null;
   }
 
   async getSchoolReviewAiPolicy(schoolId: string): Promise<SchoolReviewAiPolicy | null> {

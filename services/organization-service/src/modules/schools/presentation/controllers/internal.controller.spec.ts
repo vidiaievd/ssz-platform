@@ -82,3 +82,19 @@ describe('InternalController.getMemberRole', () => {
     );
   });
 });
+
+// Plan 90, phase 5, step 7: exercise-engine and content read a school's status to refuse work in it.
+describe('InternalController.getSchoolStatus', () => {
+  const withStatus = (status: string | null) =>
+    new InternalController({} as never, {} as never, {
+      findStatus: jest.fn<() => Promise<string | null>>().mockResolvedValue(status),
+    } as never);
+
+  it.each(['active', 'suspended', 'closed', 'purged'])('answers %s as it is', async (status) => {
+    await expect(withStatus(status).getSchoolStatus(SCHOOL_ID)).resolves.toEqual({ schoolId: SCHOOL_ID, status });
+  });
+
+  it('answers 404 for a school nobody knows', async () => {
+    await expect(withStatus(null).getSchoolStatus(SCHOOL_ID)).rejects.toBeInstanceOf(NotFoundException);
+  });
+});

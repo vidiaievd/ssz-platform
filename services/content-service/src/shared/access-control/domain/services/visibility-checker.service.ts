@@ -7,11 +7,14 @@ import type { AccessibleEntity } from '../types/accessible-entity.js';
 import type { AccessAction } from '../types/access-action.js';
 import type { AccessDecision } from '../types/access-decision.js';
 import { ORGANIZATION_CLIENT } from '../ports/organization-client.port.js';
-import type { IOrganizationClient } from '../ports/organization-client.port.js';
+import type { IOrganizationClient, SchoolLifecycleStatus } from '../ports/organization-client.port.js';
+import { SCHOOL_NOT_ACTIVE_REASON } from '../../presentation/exceptions/access-denied.exception.js';
 import { CONTENT_SHARE_LOOKUP } from '../ports/content-share-lookup.port.js';
 import type { IContentShareLookup } from '../ports/content-share-lookup.port.js';
 import { ENTITLEMENT_LOOKUP } from '../ports/entitlement-lookup.port.js';
 import type { IEntitlementLookup } from '../ports/entitlement-lookup.port.js';
+
+const SCHOOL_STATUS_CACHE_MS = 30_000;
 
 const ALLOW = (reason?: string): AccessDecision => ({ allowed: true, reason });
 const DENY = (reason: string): AccessDecision => ({ allowed: false, reason });
@@ -42,6 +45,8 @@ export function isStaffGrant(decision: AccessDecision): boolean {
 @Injectable()
 export class VisibilityCheckerService {
   private readonly logger = new Logger(VisibilityCheckerService.name);
+
+  private readonly statuses = new Map<string, { status: SchoolLifecycleStatus; at: number }>();
 
   constructor(
     @Inject(ORGANIZATION_CLIENT) private readonly orgClient: IOrganizationClient,
@@ -94,6 +99,13 @@ export class VisibilityCheckerService {
 
     // 2. Platform admin bypasses all checks.
     if (user.isPlatformAdmin) return ALLOW('platform_admin');
+
+    // 2b. A school that is not active is read only (plan 90, phase 5, step 7): nobody edits its
+    // material — not even the author — until it is reactivated or restored. Read straight from
+    // organization-service (the role answer says nothing about the owner or a co-author).
+    if (action === 'edit' && entity.ownerSchoolId !== null) {
+      if ((await this.schoolStatusOf(entity.ownerSchoolId)) !== 'active') return DENY(SCHOOL_NOT_ACTIVE_REASON);
+    }
 
     // 3. Owner always has full access.
     if (user.userId === entity.ownerUserId) return ALLOW('owner');
@@ -180,6 +192,23 @@ export class VisibilityCheckerService {
     }
 
     return DENY('private');
+  }
+
+  /**
+   * Kept 30 s: a status changes rarely and every edit of school material asks. An unreadable
+   * answer lets the edit through — an outage of a neighbour must not stop a teacher's work.
+   */
+  private async schoolStatusOf(schoolId: string): Promise<SchoolLifecycleStatus> {
+    const hit = this.statuses.get(schoolId);
+    if (hit && Date.now() - hit.at < SCHOOL_STATUS_CACHE_MS) return hit.status;
+    try {
+      const status = (await this.orgClient.getSchoolStatus(schoolId)) ?? 'active';
+      this.statuses.set(schoolId, { status, at: Date.now() });
+      return status;
+    } catch (err) {
+      this.logger.warn(`Status of school ${schoolId} unreadable (${String(err)}); not checking it`);
+      return 'active';
+    }
   }
 
   private async checkAccessTier(
