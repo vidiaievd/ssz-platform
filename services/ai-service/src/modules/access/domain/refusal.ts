@@ -4,9 +4,10 @@
  * - `ai_disabled` — the payer switched AI off (`refused_policy`);
  * - `region_not_allowed` — no model of the binding sits in a region the payer allows (`refused_policy`);
  * - `not_entitled` — the payer's tariff does not include this agent (`refused_quota`);
- * - `quota_exhausted` — the period's credits for this agent are spent (`refused_quota`).
+ * - `quota_exhausted` — the period's credits for this agent are spent (`refused_quota`);
+ * - `school_not_active` — the paying school is suspended, closed or purged (plan 90, phase 5; `refused_policy`).
  */
-export type RefusalCode = 'ai_disabled' | 'region_not_allowed' | 'not_entitled' | 'quota_exhausted';
+export type RefusalCode = 'ai_disabled' | 'region_not_allowed' | 'not_entitled' | 'quota_exhausted' | 'school_not_active';
 
 export type RefusalOutcome = 'refused_policy' | 'refused_quota';
 
@@ -15,4 +16,5 @@ export const REFUSAL_OUTCOME: Record<RefusalCode, RefusalOutcome> = {
   region_not_allowed: 'refused_policy',
   not_entitled: 'refused_quota',
   quota_exhausted: 'refused_quota',
+  school_not_active: 'refused_policy',
 };
