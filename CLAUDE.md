@@ -140,6 +140,9 @@ User profiles separated from auth. Student profiles (level, target language, pro
 tutor profiles (qualifications, languages, schedule).
 Follows Clean Architecture.
 Database: `profiles_db`
+Internal `GET internal/profiles/:userId/contact` (`x-service-token`) → `{ userId, email, displayName, uiLocale }` from the
+`user_email_index` projection and the profile; 404 without an address. Used by notification for school-owner letters (plan 90,
+phase 5, step 9).
 
 ### 3. Organization Service (NestJS)
 Schools as entities: creation, teacher invitations, groups/classes management.
@@ -149,10 +152,10 @@ AI pre-check setting (`ai-precheck`, plan 84): `enabled`, `perExerciseLimit`, `p
 Follows Clean Architecture.
 Database: `organizations_db`
 Platform admin reads (plan 90, phase 1; module `modules/admin-schools`; verifier reads `admin_level`; level `support`
-on every route through `AdminLevelGuard` + `@RequireAdminLevel`; no admin journal here until phases 3/5):
-`GET admin/schools?search=&kind=SCHOOL|SOLO&status=active|inactive|deleted&sort=-createdAt|createdAt|name|-name&page=&limit=`
-(limit 1–100, default 25; ties by id) → `{ items, total, page, limit }`. `status` is derived from `isActive` / `deletedAt`
-until phase 5 adds a stored status; without `status` deleted schools are listed too. Row counts `students` (active
+on every route through `AdminLevelGuard` + `@RequireAdminLevel`; its own journal is `admin_audit`, see the school lifecycle below):
+`GET admin/schools?search=&kind=SCHOOL|SOLO&status=active|suspended|closed|purged&sort=-createdAt|createdAt|name|-name&page=&limit=`
+(limit 1–100, default 25; ties by id) → `{ items, total, page, limit }`. `status` is the stored lifecycle status (phase 5;
+`inactive` / `deleted` → 400); without `status` closed and purged schools are listed too. Row counts `students` (active
 STUDENT in roster) and `teachers` (TEACHER) come from one groupBy; the owner is not in the roster and is counted nowhere.
 `GET admin/schools/:id` — card (deleted ones too; non-UUID → 404 without a DB query): contacts, `owner` from
 profile-service (failure → `null`, the card still answers), `counts` (+ `archivedStudents`, `staff`, `pendingApplications`,
@@ -187,6 +190,26 @@ Unknown limit → admit, `seats: null`. Covered paths: `AddMember`, `AcceptInvit
 `pending` with `blockedReason: 'no_seats'` (column `school_memberships.blocked_reason`) instead of swallowing the error.
 Successful add / approve / accept / PATCH students answer 200 `{ seats }` (not 204). An existing roster above the limit stays.
 
+School lifecycle (plan 90, phase 5, steps 1–3): stored `status` `active → suspended → closed → purged` (domain rule
+`SchoolLifecycle`; `isActive` ⇔ `active`; `deletedAt` mirrors `closed`, set on close and cleared on restore). Admin moves
+`POST admin/schools/:id/{suspend,reactivate,close,restore,purge}` `{ reason }`: suspend / reactivate — `admin`; close (at
+once), restore, early purge — `super`; a wrong move → 409 `SCHOOL_TRANSITION_NOT_ALLOWED`, a level too low → 403. The
+owner's `DELETE schools/:id` is a move to `closed` (no admin journal). Each admin move writes `admin_audit` in
+`organizations_db` in the same transaction and publishes `admin.action.performed` through the outbox. Domain events on
+`organization.events`: `school.suspended` / `school.reactivated` / `school.closed` / `school.restored` / `school.purged`
+(payload `SchoolLifecyclePayload`: `status`, `previousStatus`, `by`, `changedAt`, `closesAt`, `purgeAt`). Timer
+(`SCHOOL_LIFECYCLE_INTERVAL_MS`, default 10 min, `pg_try_advisory_xact_lock`, ≤ 50 schools per kind per run):
+`suspended` → `closed` after `SCHOOL_SUSPEND_DAYS` (30); `closed` → `purged` after `SCHOOL_ARCHIVE_DAYS` (183). Purge
+leaves a tombstone row (name, owner, dates; contacts, description, avatar, assistant lists wiped; slug stays taken) and
+deletes groups, invitations, applications, roster, settings and the seat projection. `school.purge.reminder { daysLeft:
+30 | 7 }` goes once each (reset by any status change). `admin/stats` has `lifecycle { closingSoon, purgingSoon }`.
+Not `active` → read only: `ActiveSchoolGuard` + `school-access.policy` answer 409 `SCHOOL_NOT_ACTIVE { status }` on every
+non-GET under a school id (except the owner's `DELETE`); paths without a school id use `School.assertWritable()`; seat
+`claim` reads the status `FOR SHARE`. Public lists and applications are `active` only. `closed`: no staff or student
+role is answered (`members/:userId/role`, `members-batch` → 404); `GET schools/:id` is visible to the owner only.
+`GET internal/schools/:id/status` → `{ schoolId, status }` (any status; unknown → 404). Admin reads answer on the stored
+status (`admin/schools`, card with `closesAt` / `purgeAt`).
+
 ### 4. Content Service (NestJS)
 Learning material management: courses → modules → lessons → exercises.
 Follows Clean Architecture.
@@ -205,6 +228,21 @@ Step 14.3: `nb:kj` and `nb:y` keep only words on which Azure tells the sound fro
 Reference clips (step 13.2c): `prisma/tools/reference-sound-atoms.ts` asks media-service for every drill word and writes
 `sound_reference_clips` (clip or refusal; 503 left for the next run; one word at a time — Azure F0 answers bursts with 429).
 
+School lifecycle (plan 90, phase 5, steps 4a–4c): `containers.maintenance_status` `maintained` / `unmaintained` / `obsolete`,
+`maintenance_source` `author` / `school`, snapshot `owner_school_name` (written on `closed`). `PUT containers/:id/maintenance
+{ status }` (courses only; edit rights; school not active → 409 `SCHOOL_NOT_ACTIVE`; journal `content_audit_log`). `GET
+containers` hides `obsolete` unless `includeObsolete=true` (student progress and upcoming lists pass it); owners still see
+their own. `internal/containers/:id/access-tier` → `{ accessTier, maintenanceStatus }`; learning refuses enrolment in an
+`obsolete` course with 409 `COURSE_OBSOLETE`. Module `school-lifecycle` (queue `content-service.school-lifecycle`, prefetch
+1, `processed_events` key `school-lifecycle`): `closed` → the school's courses `unmaintained` / `school`; `restored` → back to
+`maintained` only what the school set; `purged` → courses that others still hold become `obsolete` / `school`, the rest is
+deleted. Held = active learner (ACTIVE enrolment or open assignment, activity within `CONTENT_OBSOLETE_ACTIVE_DAYS` 90),
+a live `content_share`, or another owner's item pointing inside; whatever a held course reaches is held too. Purge retry:
+table `school_purges`; `ContentCleanupJob` (`CONTENT_CLEANUP_INTERVAL_MS`, 1 h, `pg_try_advisory_xact_lock`) finishes
+unfinished purges (after `CONTENT_PURGE_RETRY_AFTER_MS`, 30 min) and deletes `obsolete` courses older than
+`CONTENT_OBSOLETE_GRACE_HOURS` (24) that nothing holds. Edits of a non-active school's materials → 409 `SCHOOL_NOT_ACTIVE`
+(`VisibilityCheckerService`); reads stay open.
+
 ### 5. Learning Service (NestJS)
 Material assignment, progress tracking, SRS, adaptive review queue.
 Follows Clean Architecture.
@@ -217,6 +255,10 @@ Learner adds a reached atom: `POST srs/atoms/:atomId/add { courseId }` (shadow c
 Sound atoms (plan 86, step 8.3): `SOUND_ATOM` shadow cards, introduced on day 2 of 14; a pronunciation session's ratings
 (`gapResults`, GOOD/HARD/AGAIN → 90/70/0) rate them by the gap's `score`. `atoms_flagged` with source `ai_session` pulls a
 card but never introduces one. Internal: `GET internal/learners/:userId/sound-atoms?language=` (`x-service-token`).
+School lifecycle (plan 90, phase 5, step 8): `SchoolPurgedConsumer` (queue `learning-service.school-purged`, prefetch 1,
+`processed_events` in the same transaction): the school's open enrolments and assignments become `COMPLETED`, **without
+events**; progress, SRS and atom evidence stay. A course kept at purge (`obsolete`) can still be read by its active learners.
+Internal `internal/content/active-learners` is what content asks for the cleanup (plan 90, phase 5, step 4c).
 
 ### 6. Exercise Engine Service (NestJS)
 Exercise generation and validation, scoring logic, LLM integration.
@@ -241,6 +283,11 @@ Q32): the learner's roster school when its `ai-precheck` is on, else the learner
 take; takes carry `sessionId` = the attempt id.
 Step 14.2: diagnostic takes go with `explain: false` (no model call); toneme takes carry the probe as `exerciseId`. Live
 end-to-end run on Azure dev: `infrastructure/scripts/plan-86-session-live.mts`.
+School not active (plan 90, phase 5, step 7): `SchoolActivityGate` (cache 30 s, fail open when organization is down) → 409
+`SCHOOL_NOT_ACTIVE { schoolStatus }` on start, `submit`, `check`, `claim`, `review`, `batch-approve`. The school is the owner
+of the exercise's course (`placement.ownerSchoolId`), not the learner's school: a learner of a suspended school keeps
+practising public courses; for staff and for a hand-in "to review" it is `attempt.schoolId`. Probes (no course) untouched.
+Other attempt mutations (`save-draft`, `check-row`, sound sessions …) have no gate; reads stay open.
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.
@@ -256,6 +303,11 @@ session's take once it is measured (plan 86, step 13.4d).
 Push (FCM), email, in-app notifications. Study reminders.
 Simplified structure acceptable.
 Database: `notifications_db`
+School lifecycle letters to the owner (plan 90, phase 5, step 9): `school.suspended` (with the closing date), `school.closed`
+(with the purge date), `school.restored`, `school.purge.reminder` 30 / 7 days — queue `notification-service.organization`.
+Address and language come from user-profile `GET internal/profiles/:userId/contact` (`x-service-token`): 404 → no letter,
+no error; another failure → one retry. `school.reactivated` sends nothing. Templates in uk / ru / nb / en by `uiLocale`
+(else en). Env `PROFILE_SERVICE_URL`. Log rows `notifications` type `GENERAL`, `templateKey = school-lifecycle-<letter>`.
 
 ### 9. Analytics Service (NestJS)
 Analytics for schools/tutors and students. Aggregation, reports, export.
@@ -272,6 +324,8 @@ DB failure → one requeue. Sources: `auth.events`, `subscription.events` and (p
 Weak grammar rules (plan 85): consumes `exercise.feedback.atoms_flagged` into `weak_rules_daily` (facts keyed by
 day, learner, exercise, atom, source). `GET analytics/groups/:groupId/weak-rules?window=7|30|course` and
 `GET analytics/students/:studentId/weak-rules?window=&courseId=`; learners selected by group membership + course, not by `group_id`.
+Admin journal also reads `organization.events` (queue `analytics-service.admin-audit.organization`, `service: 'organization'`);
+rows from the timer or the owner carry `actorLevel: null`.
 
 ### 10. API Gateway (nginx — exists)
 Request routing, rate limiting, CORS, SSL termination.
@@ -365,6 +419,11 @@ Platform admin (plan 90, phase 3): `PUT admin/ai/payer-policies/:payerType/:paye
 `ai/usage/me` calculation (`FeatureUsage`: max(call ledger, gate counter), the counter is never created); `enabled` is
 the tariff only, `policy.aiEnabled: false` overrides it; an unknown payer = free plan of its audience; tariff or
 ledger unreadable → 503.
+School not active (plan 90, phase 5, step 6): projection `payer_workspace_status` fed by `school.*` (no row = `active`;
+`SchoolStatusConsumer`, queue `ai-service.school-status`; a stale event never overwrites a newer one). A workspace payer that
+is not `active` → refusal `school_not_active` before policy and tariff (`AccessGate`); unreadable status → `gate_unavailable`
+(fail closed). `AssistPayerResolver` then falls back to the learner's own plan; precheck and the sound-session door answer
+`not_available`.
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.
@@ -425,6 +484,21 @@ archived too: `subscribers`, `trial`, `byVersion` — a version below `currentVe
 `payers.workspace|user { accounts, withSubscription, withoutSubscription }` (a payer without an account is on the free
 plan and unknown here, so not counted), `endingSoon.grants` (with `enabled`, scheduled ones too) and
 `endingSoon.subscriptions` (up to 100 each, `truncated`).
+School closed (plan 90, phase 5, step 5): `PayerCreatedConsumer` also takes `school.closed` (workspace payers only). An open
+subscription is cancelled by the same command as `DELETE`, journal `subscription.canceled` with `actor_id = 'system'` and
+`reason = 'school closed'` (the event omits `actorLevel`); grants stay. `school.restored` / `school.purged` do nothing —
+restoring a school does not bring its tariff back; an admin assigns it.
+
+### 14. Scheduling Service (NestJS)
+Lessons, slots, review blocks, absences and exam marks for schools and tutors.
+Database: `scheduling_db`
+School lifecycle (plan 90, phase 5, step 8): `SchoolLifecycleConsumer` (queue `scheduling-service.school-lifecycle`).
+`suspended` / `closed` → lessons from today in `scheduled` / `moved` become `cancelled` (note `School suspended|closed`),
+review blocks from today are removed, a running series is cut at yesterday. `purged` → everything the school has in
+scheduling is deleted, exam marks included — a choice beyond the plan: if exam marks must stay as learner history they
+need anonymising, not deletion. New records in a non-active school → 409 `SCHOOL_NOT_ACTIVE` (creating a slot, replacing
+slots, creating a lesson, booking a review block), checked through `OrgServiceHttpClient.assertSchoolActive`
+(`internal/schools/:id/status`, fail open). Editing existing rows is not gated (the future is already cancelled).
 
 ## API Documentation Strategy
 
