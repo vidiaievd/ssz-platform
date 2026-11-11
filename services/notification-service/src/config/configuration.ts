@@ -62,6 +62,8 @@ export const envSchema = z.object({
   // The schedule knows when a lesson is; this service decides whether to tell the
   // learner about it the evening before.
   SCHEDULING_SERVICE_URL: z.string().optional(),
+  /** Where a school owner's address and language come from (plan 90, phase 5, step 9). */
+  PROFILE_SERVICE_URL: z.string().optional(),
   /** The hour, in UTC, at which tomorrow's lessons are announced. */
   LESSON_REMINDER_HOUR: z.coerce.number().int().min(0).max(23).default(18),
   /** Off by default, like every other job that writes to people. */
@@ -105,6 +107,7 @@ export interface AppConfig {
     hour: number;
     enabled: boolean;
   };
+  profile: { serviceUrl: string | undefined; internalToken: string | undefined };
   email: {
     host: string;
     port: number;
@@ -144,6 +147,7 @@ export default (): AppConfig => {
       hour: env.LESSON_REMINDER_HOUR,
       enabled: env.LESSON_REMINDER_ENABLED,
     },
+    profile: { serviceUrl: env.PROFILE_SERVICE_URL, internalToken: env.INTERNAL_SERVICE_TOKEN },
     email: {
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,

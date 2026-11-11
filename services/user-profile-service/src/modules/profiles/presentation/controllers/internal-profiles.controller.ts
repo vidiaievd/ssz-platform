@@ -7,6 +7,8 @@ import { ProfileNotFoundException } from '../../domain/exceptions/profile-not-fo
 import { GetProfileByUserIdQuery } from '../../application/queries/get-profile-by-user-id/get-profile-by-user-id.query.js';
 import { GetTeachingProfileByUserIdQuery } from '../../../teaching/application/queries/get-teaching-profile-by-user-id/get-teaching-profile-by-user-id.query.js';
 import { TeachingProfileNotFoundException } from '../../../teaching/domain/exceptions/teaching-profile-not-found.exception.js';
+import { GetUserContactQuery } from '../../application/queries/get-user-contact/get-user-contact.query.js';
+import type { UserContact } from '../../application/queries/get-user-contact/get-user-contact.handler.js';
 import type { ProfileDto } from '../../application/dto/profile.dto.js';
 import type { TeachingProfileResponseDto } from '../../../teaching/presentation/dto/teaching-profile.response.dto.js';
 
@@ -45,6 +47,14 @@ export class InternalProfilesController {
       if (err instanceof ProfileNotFoundException) throw new NotFoundException();
       throw err;
     }
+  }
+
+  /** Address + language for service-sent letters (notification-service: school lifecycle mail). 404 when none. */
+  @Get(':userId/contact')
+  async getContact(@Param('userId') userId: string): Promise<UserContact> {
+    const contact: UserContact | null = await this.queryBus.execute(new GetUserContactQuery(userId));
+    if (!contact) throw new NotFoundException();
+    return contact;
   }
 
   @Get(':userId/teaching')
