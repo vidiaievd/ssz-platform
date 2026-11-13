@@ -2,6 +2,7 @@ import { Inject } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import type { AiRegion } from '../../../../registry/domain/registry.types.js';
 import { DEFAULT_POLICY } from '../../../domain/payer-policy.js';
+import type { StoredPayerPolicy } from '../../../domain/payer-policy.js';
 import type { BilledPayerType } from '../../../domain/payer.js';
 import { PAYER_POLICY_REPOSITORY, type IPayerPolicyRepository } from '../../ports/payer-policy.repository.js';
 import { GetPayerPolicyQuery } from './get-payer-policy.query.js';
@@ -18,13 +19,21 @@ export interface EffectivePayerPolicy {
   updatedAt: Date | null;
 }
 
+/** The stored policy, or the default (on, any region) when nothing is stored. */
+export function effectivePayerPolicy(
+  payerType: BilledPayerType,
+  payerId: string,
+  stored: StoredPayerPolicy | null,
+): EffectivePayerPolicy {
+  if (stored) return { ...stored, stored: true };
+  return { payerType, payerId, ...DEFAULT_POLICY, stored: false, updatedBy: null, updatedAt: null };
+}
+
 @QueryHandler(GetPayerPolicyQuery)
 export class GetPayerPolicyHandler implements IQueryHandler<GetPayerPolicyQuery, EffectivePayerPolicy> {
   constructor(@Inject(PAYER_POLICY_REPOSITORY) private readonly policies: IPayerPolicyRepository) {}
 
   async execute({ payerType, payerId }: GetPayerPolicyQuery): Promise<EffectivePayerPolicy> {
-    const stored = await this.policies.get({ type: payerType, id: payerId });
-    if (stored) return { ...stored, stored: true };
-    return { payerType, payerId, ...DEFAULT_POLICY, stored: false, updatedBy: null, updatedAt: null };
+    return effectivePayerPolicy(payerType, payerId, await this.policies.get({ type: payerType, id: payerId }));
   }
 }

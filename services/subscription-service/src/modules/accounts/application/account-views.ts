@@ -26,6 +26,8 @@ export interface SubscriptionView {
 export interface GrantView {
   id: string;
   featureKey: string;
+  /** false = the grant switches the key off. */
+  enabled: boolean;
   monthlyCredits: string | null;
   limits: Record<string, number>;
   startsAt: Date;

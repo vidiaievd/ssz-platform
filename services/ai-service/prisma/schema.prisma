@@ -265,6 +265,30 @@ model Outbox {
   @@map("outbox")
 }
 
+// ─── Admin trail (plan 90, phase 3, step 3) ──────────────────────────────────
+
+/// Every change a platform admin makes here, written in the same transaction as the change
+/// together with its `admin.action.performed` outbox row; analytics files it into the shared journal.
+model AdminAudit {
+  /// = the event's `eventId`.
+  id         String   @id
+  occurredAt DateTime @map("occurred_at")
+  actorId    String   @map("actor_id")
+  actorLevel String   @map("actor_level") @db.VarChar(16)
+  /// `<object>.<verb>`, e.g. `payer_policy.changed`.
+  action     String   @db.VarChar(64)
+  /// `workspace` / `user` — a payer by its id.
+  targetType String   @map("target_type") @db.VarChar(64)
+  targetId   String   @map("target_id") @db.VarChar(128)
+  reason     String   @db.VarChar(500)
+  before     Json?
+  after      Json?
+
+  @@index([occurredAt], map: "admin_audit_occurred_at_idx")
+  @@index([targetType, targetId], map: "admin_audit_target_idx")
+  @@map("admin_audit")
+}
+
 // ─── Access (plan 77, step 9) ────────────────────────────────────────────────
 
 /// A payer's own rules for AI: switched off entirely, or only some data regions. Not a

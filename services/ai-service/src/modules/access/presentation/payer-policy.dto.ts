@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, ValidateIf } from 'class-validator';
+import { IsAdminReason } from '../../../common/dto/admin-reason.js';
 import type { AiRegion } from '../../registry/domain/registry.types.js';
 
 const REGIONS: AiRegion[] = ['eu', 'us', 'global', 'local'];
@@ -24,6 +25,9 @@ export class PutPayerPolicyDto {
   @ArrayMaxSize(REGIONS.length)
   @IsIn(REGIONS, { each: true })
   allowedRegions!: AiRegion[] | null;
+
+  @IsAdminReason()
+  reason!: string;
 }
 
 export class PayerPolicyResponseDto {

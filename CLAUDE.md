@@ -161,6 +161,14 @@ profile-service (failure → `null`, the card still answers), `counts` (+ `archi
 `from > to` → 400) → `{ from, to, schools { total, byStatus, byKind, createdInPeriod }, students, teachers, daily[] }`.
 People are counted once per platform (student = active STUDENT row; teacher = TEACHER row or SOLO owner); `daily` has
 every day of the period, zeros included.
+Admin roster and settings (plan 90, phase 3, step 5; `AdminSchoolRosterPrismaReader`, level `support`, gateway covered by
+`location /api/v1/admin/schools`): `GET admin/schools/:id/members?role=&status=&groupId=&page=&limit=` (limit 1–200,
+default 50; newest first) — `role` `student` / `teacher` / `staff` (`rosterRole` keeps the exact role), `status`
+`active` / `archived`, `groupId` = in the group today (active membership or unfinished teacher assignment; a foreign
+school's group → empty); a row has `groups[]` (`as` student/trial/observer/teacher, `isDefault` = the hidden SOLO group)
+and the denormalised `name` (null before sync). No email, no activity. `GET admin/schools/:id/settings` — review
+policy, `reviewAi`, `assistant`, `aiPrecheck` in one answer, as saved (no tariff check; review effort by template is not
+in). Non-UUID / unknown school → 404 (deleted ones are found).
 
 ### 4. Content Service (NestJS)
 Learning material management: courses → modules → lessons → exercises.
@@ -242,7 +250,8 @@ dedup via `processed_events` key `admin-audit-log`) into `admin_audit_log` (id =
 exchange, never from the payload. `GET api/v1/admin/audit?service=&actorId=&targetType=&targetId=&from=&to=&cursor=`
 (level `support`; newest first, keyset on (`occurredAt`, `id`), `limit` 1–200 default 50, `from` inclusive, `to`
 exclusive; `from > to` or a foreign cursor → 400) → `{ items, nextCursor }`. Malformed message → nack without requeue;
-DB failure → one requeue. This journal is separate from the school activity feed (`audit` module).
+DB failure → one requeue. Sources: `auth.events`, `subscription.events` and (phase 3) `ai.events` (queue `analytics-service.admin-audit.ai`,
+`service: 'ai'`). This journal is separate from the school activity feed (`audit` module).
 Weak grammar rules (plan 85): consumes `exercise.feedback.atoms_flagged` into `weak_rules_daily` (facts keyed by
 day, learner, exercise, atom, source). `GET analytics/groups/:groupId/weak-rules?window=7|30|course` and
 `GET analytics/students/:studentId/weak-rules?window=&courseId=`; learners selected by group membership + course, not by `group_id`.
@@ -329,6 +338,16 @@ layer via `internal/prosody/phrase-marks`; `internal/prosody/word-stresses` (lex
 stresses and per-word `sounds`. The sound atoms `nb:<family>` / `nb:tone` are the analysis vocabulary; `pronunciation_explain@2`
 explains a mistake with the articulation base from content-service. Pitch (F0) and sex-of-voice handling run in the
 `whisper` sidecar (`infrastructure/whisper`).
+Platform admin (plan 90, phase 3): `PUT admin/ai/payer-policies/:payerType/:payerId` requires `reason` (≤ 500) and writes
+`admin_audit` in `ai_db` (`recordAdminAction(tx, entry)`, same transaction; action `payer_policy.changed`, targetType
+`workspace` / `user`, `before` absent when no policy existed — the default was "on, any region") and the event
+`admin.action.performed` on `ai.events` through the outbox (envelope as subscription's). Other admin changes
+(bindings, model test) join the journal in phase 7. `GET admin/ai/usage/:payerType/:payerId` (level `support`) → per AI key
+(`AI_FEATURE_KEYS` in `domain/entitlement.ts` — mirrors subscription's seven `ai.*` keys, add a key in both places):
+`feature`, `enabled`, `used`, `total`, `periodEnd`, `limits`, plus the effective `policy`. The spend is the learner
+`ai/usage/me` calculation (`FeatureUsage`: max(call ledger, gate counter), the counter is never created); `enabled` is
+the tariff only, `policy.aiEnabled: false` overrides it; an unknown payer = free plan of its audience; tariff or
+ledger unreadable → 503.
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.
@@ -370,6 +389,17 @@ Actions: `subscription.assigned` / `subscription.canceled` / `grant.issued` / `g
 Batch read: `POST admin/subscriptions/accounts/lookup { type, ids[] }` (1–200 UUIDs, duplicates answered once) →
 `{ items }` in request order; unknown id → `hasAccount: false` on the free plan, never 404. Rule as in entitlements:
 no account / no open subscription / expired → free plan of the audience.
+Switching a key off (plan 90, phase 3, step 1): a grant has `enabled` (default `true`); `enabled: false` is a switching-off
+grant — no credits, no limits (else 422) — and is applied last, so it turns the key off over the plan and over any
+switching-on grants, whatever the row order; revoking it brings the plan back. `grant.issued` carries `after.enabled`;
+`/subscriptions/me` lists in `grants` only the grants that give a key (an off key is `enabled: false` in `features`);
+`validUntil` counts its end; the entitlements event is unchanged. The payer policy `aiEnabled: false` stays the
+"all AI of the school" switch.
+Dashboard stats: `GET admin/subscriptions/stats?withinDays=7` (level `support`, `withinDays` 1–90) → `plans[]` (every plan,
+archived too: `subscribers`, `trial`, `byVersion` — a version below `currentVersion` is a subscriber not moved),
+`payers.workspace|user { accounts, withSubscription, withoutSubscription }` (a payer without an account is on the free
+plan and unknown here, so not counted), `endingSoon.grants` (with `enabled`, scheduled ones too) and
+`endingSoon.subscriptions` (up to 100 each, `truncated`).
 
 ## API Documentation Strategy
 

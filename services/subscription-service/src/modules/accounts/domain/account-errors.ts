@@ -13,6 +13,7 @@ export type AccountError =
   | { code: 'no_current_subscription' }
   | { code: 'grant_reason_required' }
   | { code: 'invalid_grant_period' }
+  | { code: 'grant_disable_with_allowance'; featureKey: string }
   | { code: 'grant_already_revoked'; grantId: string }
   | { code: 'grant_ended'; grantId: string };
 
@@ -30,6 +31,8 @@ export function describeAccountError(error: AccountError): string {
       return 'A grant needs a reason';
     case 'invalid_grant_period':
       return 'endsAt must be after startsAt and in the future';
+    case 'grant_disable_with_allowance':
+      return `A grant switching ${error.featureKey} off carries no credits or limits`;
     case 'grant_already_revoked':
       return `Grant ${error.grantId} is already revoked`;
     case 'grant_ended':

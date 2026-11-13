@@ -40,6 +40,18 @@ describe('Grant', () => {
     expect(issue({ startsAt: later(5), endsAt: later(35) }).isOk).toBe(true);
   });
 
+  it('switches on by default; switching off carries no credits or limits', () => {
+    expect(issue().value.snapshot.enabled).toBe(true);
+    const off = issue({ enabled: false, monthlyCredits: null });
+    expect(off.isOk).toBe(true);
+    expect(off.value.snapshot).toMatchObject({ enabled: false, monthlyCredits: null, limits: {} });
+    expect(issue({ enabled: false }).error).toEqual({ code: 'grant_disable_with_allowance', featureKey: 'ai.review_direct' });
+    expect(issue({ featureKey: 'ai.student_assist', enabled: false, monthlyCredits: null, limits: { perLearnerMonthlyCredits: 5 } }).error).toEqual({
+      code: 'grant_disable_with_allowance',
+      featureKey: 'ai.student_assist',
+    });
+  });
+
   it('revokes once, and not after it ended', () => {
     const g = issue().value;
     expect(g.revoke('admin2', later(1)).isOk).toBe(true);

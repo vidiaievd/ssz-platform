@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import type { ILedgerUsageReader } from '../../../../ledger/application/ports/ledger-usage.reader.js';
 import type { FeatureEntitlement } from '../../../domain/entitlement.js';
 import type { IEntitlementReader } from '../../ports/entitlement.reader.js';
+import { FeatureUsage } from '../../feature-usage.js';
 import type { IQuotaCounter } from '../../ports/quota-counter.js';
 import { GetMyUsageHandler } from './get-my-usage.handler.js';
 import { GetMyUsageQuery } from './get-my-usage.query.js';
@@ -39,7 +40,7 @@ function setup(opts: {
       return opts.counter ?? null;
     },
   } as unknown as IQuotaCounter;
-  return { handler: new GetMyUsageHandler(entitlements, usage, counter), asked };
+  return { handler: new GetMyUsageHandler(entitlements, new FeatureUsage(usage, counter)), asked };
 }
 
 const read = (handler: GetMyUsageHandler, featureKey = 'ai.review_direct') => handler.execute(new GetMyUsageQuery(LEARNER, featureKey));

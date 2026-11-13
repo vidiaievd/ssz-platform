@@ -80,6 +80,34 @@ describe('adminAuditRowOf (plan 90, step 6)', () => {
     expect(row).toMatchObject({ actorId: null, actorLevel: null });
   });
 
+  it('files ai-service\'s envelope under ai (plan 90, phase 3, step 3)', () => {
+    const aiEnvelope = {
+      ...subscriptionEnvelope,
+      eventId: '3d1f5b7a-9c2e-4a6b-8d0f-1e2a3b4c5d6e',
+      source: 'ai-service',
+      payload: {
+        service: 'ai',
+        actorId: 'a1',
+        actorLevel: 'admin',
+        action: 'payer_policy.changed',
+        targetType: 'workspace',
+        targetId: 's1',
+        reason: 'EU only',
+        before: { aiEnabled: true, allowedRegions: null },
+        after: { aiEnabled: true, allowedRegions: ['eu'] },
+      },
+    };
+    expect(adminAuditRowOf('ai.events', aiEnvelope)).toMatchObject({
+      id: aiEnvelope.eventId,
+      service: 'ai',
+      action: 'payer_policy.changed',
+      targetType: 'workspace',
+      targetId: 's1',
+      after: { aiEnabled: true, allowedRegions: ['eu'] },
+    });
+    expect(adminAuditRowOf('ai.events', subscriptionEnvelope)).toBeNull();
+  });
+
   it('takes the service from the exchange: a payload naming another service is refused', () => {
     expect(adminAuditRowOf('subscription.events', authEnvelope)).toBeNull();
     expect(adminAuditRowOf('auth.events', subscriptionEnvelope)).toBeNull();

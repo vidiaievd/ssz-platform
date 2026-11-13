@@ -63,6 +63,22 @@ export function capabilitiesOfPool(pool: string): string[] {
   return [pool, ...Object.keys(SOLD_UNDER).filter((capability) => SOLD_UNDER[capability] === pool)];
 }
 
+/**
+ * Every AI key a plan may sell — one per quota pool, the keys the gate asks for. Mirrors the
+ * `ai.*` entries of subscription-service's catalog (`plans/domain/feature-key.ts`); a payer's
+ * tariff that does not mention one of them simply does not have it. Adding an agent with a
+ * pool of its own adds its key here and there.
+ */
+export const AI_FEATURE_KEYS = [
+  'ai.review_draft',
+  'ai.review_direct',
+  'ai.student_assist',
+  'ai.practice',
+  'ai.authoring',
+  'ai.voice_review',
+  'ai.voice_review_pronunciation',
+] as const;
+
 /** The subscription key an agent is sold under. */
 export function featureKeyOf(capability: string): string {
   return `ai.${quotaPoolOf(capability)}`;

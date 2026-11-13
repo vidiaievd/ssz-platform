@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Put, UseGuards } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBadRequestResponse,
@@ -10,25 +10,15 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
+import { CurrentAdmin } from '../../../common/decorators/current-admin.decorator.js';
 import { RequireAdminLevel } from '../../../common/decorators/require-admin-level.decorator.js';
 import { AdminLevelGuard } from '../../../common/guards/admin-level.guard.js';
-import type { AuthenticatedUser } from '../../../infrastructure/auth/jwt-verifier.service.js';
+import type { AdminActor } from '../../../shared/application/admin-audit.js';
 import { PutPayerPolicyCommand } from '../application/commands/put-payer-policy/put-payer-policy.command.js';
 import type { EffectivePayerPolicy } from '../application/queries/get-payer-policy/get-payer-policy.handler.js';
 import { GetPayerPolicyQuery } from '../application/queries/get-payer-policy/get-payer-policy.query.js';
-import { BILLED_PAYER_TYPES, type BilledPayerType } from '../domain/payer.js';
+import { PAYER_ID_PARAM, PAYER_TYPE_PARAM, payerType } from './payer-param.js';
 import { PayerPolicyResponseDto, PutPayerPolicyDto } from './payer-policy.dto.js';
-
-const PAYER_TYPE_PARAM = { name: 'payerType', enum: BILLED_PAYER_TYPES, description: 'workspace (school, incl. SOLO) or user' };
-const PAYER_ID_PARAM = { name: 'payerId', format: 'uuid', description: 'schoolId or userId' };
-
-function payerType(value: string): BilledPayerType {
-  if (!(BILLED_PAYER_TYPES as readonly string[]).includes(value)) {
-    throw new BadRequestException(`payerType must be one of: ${BILLED_PAYER_TYPES.join(', ')}`);
-  }
-  return value as BilledPayerType;
-}
 
 /**
  * A payer's own AI rules, until a school's settings screen writes them. The gate reads them
@@ -66,20 +56,27 @@ export class AdminPayerPoliciesController {
     summary: "Set a payer's policy",
     description:
       'aiEnabled: false refuses every agent for the payer. allowedRegions limits which providers its data may reach: ' +
-      'the router steps over models outside them, and a binding with no allowed model is refused (refused_policy).',
+      'the router steps over models outside them, and a binding with no allowed model is refused (refused_policy). ' +
+      '`reason` is required; the change goes to the admin trail as `payer_policy.changed` (before/after).',
   })
   @ApiParam(PAYER_TYPE_PARAM)
   @ApiParam(PAYER_ID_PARAM)
   @ApiOkResponse({ type: PayerPolicyResponseDto })
-  @ApiBadRequestResponse({ description: 'Unknown payer type, malformed id, or an invalid body (empty region list included)' })
+  @ApiBadRequestResponse({ description: 'Unknown payer type, malformed id, or an invalid body (empty region list, missing or blank reason included)' })
   async put(
     @Param('payerType') type: string,
     @Param('payerId', ParseUUIDPipe) id: string,
     @Body() body: PutPayerPolicyDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentAdmin() admin: AdminActor,
   ): Promise<EffectivePayerPolicy> {
     const saved = await this.commandBus.execute(
-      new PutPayerPolicyCommand(payerType(type), id, { aiEnabled: body.aiEnabled, allowedRegions: body.allowedRegions }, user.userId),
+      new PutPayerPolicyCommand(
+        payerType(type),
+        id,
+        { aiEnabled: body.aiEnabled, allowedRegions: body.allowedRegions },
+        admin,
+        body.reason,
+      ),
     );
     return { ...saved, stored: true };
   }

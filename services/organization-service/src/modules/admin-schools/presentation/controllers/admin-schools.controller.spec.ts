@@ -3,6 +3,8 @@ import { NotFoundException } from '@nestjs/common';
 import { AdminSchoolsController } from './admin-schools.controller.js';
 import { GetAdminSchoolQuery } from '../../application/queries/get-admin-school.query.js';
 import { ListAdminSchoolsQuery } from '../../application/queries/list-admin-schools.query.js';
+import { GetAdminSchoolSettingsQuery } from '../../application/queries/get-admin-school-settings.query.js';
+import { ListAdminSchoolMembersQuery } from '../../application/queries/list-admin-school-members.query.js';
 
 const SCHOOL_ID = '11111111-1111-5111-8111-111111111111'; // seeded rows are uuidv5
 
@@ -40,5 +42,37 @@ describe('AdminSchoolsController', () => {
 
     await expect(controller.get('nordick')).rejects.toBeInstanceOf(NotFoundException);
     expect(queryBus.execute).not.toHaveBeenCalled();
+  });
+
+  it('reads a roster page of 50 by default and passes the filters through', async () => {
+    const { queryBus, controller } = setup({ items: [], total: 0, page: 1, limit: 50 });
+
+    await controller.members(SCHOOL_ID, { role: 'staff', status: 'active', groupId: SCHOOL_ID });
+
+    expect(queryBus.execute.mock.calls[0][0]).toEqual(
+      new ListAdminSchoolMembersQuery(SCHOOL_ID, { role: 'staff', status: 'active', groupId: SCHOOL_ID }, 1, 50),
+    );
+  });
+
+  it('turns an unknown school into 404 for the roster and the settings', async () => {
+    const { controller } = setup(null);
+
+    await expect(controller.members(SCHOOL_ID, {})).rejects.toBeInstanceOf(NotFoundException);
+    await expect(controller.settings(SCHOOL_ID)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('answers 404 for roster and settings of a non-id, without touching the database', async () => {
+    const { queryBus, controller } = setup({ items: [] });
+
+    await expect(controller.members('nordick', {})).rejects.toBeInstanceOf(NotFoundException);
+    await expect(controller.settings('nordick')).rejects.toBeInstanceOf(NotFoundException);
+    expect(queryBus.execute).not.toHaveBeenCalled();
+  });
+
+  it('reads the settings of a school', async () => {
+    const { queryBus, controller } = setup({ review: {} });
+
+    await expect(controller.settings(SCHOOL_ID)).resolves.toEqual({ review: {} });
+    expect(queryBus.execute.mock.calls[0][0]).toEqual(new GetAdminSchoolSettingsQuery(SCHOOL_ID));
   });
 });
