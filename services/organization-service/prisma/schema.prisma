@@ -105,6 +105,17 @@ enum StudentStatus {
   @@map("student_status")
 }
 
+/// Where a school stands in its life (plan 90, phase 5): `active` → `suspended` (read only, closes by
+/// itself after `closes_at`) → `closed` (archive, purged after `purge_at`) → `purged` (a tombstone row).
+enum SchoolStatus {
+  active
+  suspended
+  closed
+  purged
+
+  @@map("school_status")
+}
+
 enum InvitationKind {
   register
   onboard_existing
@@ -122,7 +133,21 @@ model School {
   city         String?
   type         SchoolType @default(ONLINE)
   kind         SchoolKind @default(SCHOOL)
+  // Mirrors `status`: true only while `active` (public lists and applications read it).
   isActive     Boolean    @default(true)
+  // Lifecycle (plan 90, phase 5). Only the lifecycle repository writes these five, `isActive` and
+  // `deletedAt`; the aggregate's save never does, so a stale aggregate cannot undo a transition.
+  status          SchoolStatus @default(active)
+  statusChangedAt DateTime?    @map("status_changed_at")
+  // When a suspended school closes by itself; null in every other status.
+  closesAt        DateTime?    @map("closes_at")
+  // When a closed school is purged; null unless closed (an early purge sets it to now).
+  purgeAt         DateTime?    @map("purge_at")
+  statusReason    String?      @map("status_reason") @db.VarChar(500)
+  // When the owner was told the purge is 30 / 7 days away; each is sent once per closure and
+  // cleared by any move out of `closed` (and by a new closure).
+  purgeReminded30At DateTime? @map("purge_reminded_30_at")
+  purgeReminded7At  DateTime? @map("purge_reminded_7_at")
   // School policies
   requireTutorReviewForSelfPaced Boolean @default(false)
   defaultExplanationLanguage     String?
@@ -158,6 +183,8 @@ model School {
   aiPrecheckPerLearnerMonthlyCredits Int?    @map("ai_precheck_per_learner_monthly_credits")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  // Mirrors `status`: set while `closed` or `purged` (the moment it closed), null otherwise. Kept so
+  // every read that hides deleted schools hides closed ones too.
   deletedAt    DateTime?
 
   members             SchoolMember[]
@@ -166,6 +193,7 @@ model School {
   onboardingSettings  SchoolOnboardingSettings?
   memberships         SchoolMembership[]
 
+  @@index([status], map: "schools_status_idx")
   @@map("schools")
 }
 
@@ -537,6 +565,26 @@ model SchoolSeatLimit {
   receivedAt DateTime @default(now()) @map("received_at")
 
   @@map("school_seat_limits")
+}
+
+/// The platform admin's changes to schools (plan 90, phase 5), written in the same transaction as the
+/// change; the id is the `eventId` of the `admin.action.performed` that carries the row to analytics.
+model AdminAudit {
+  id         String   @id
+  occurredAt DateTime @map("occurred_at")
+  actorId    String   @map("actor_id")
+  actorLevel String   @map("actor_level") @db.VarChar(16)
+  /// `school.suspended`, `school.reactivated`, `school.closed`, `school.restored`, `school.purge_requested`.
+  action     String   @db.VarChar(64)
+  targetType String   @map("target_type") @db.VarChar(64)
+  targetId   String   @map("target_id") @db.VarChar(128)
+  reason     String   @db.VarChar(500)
+  before     Json?
+  after      Json?
+
+  @@index([occurredAt], map: "admin_audit_occurred_at_idx")
+  @@index([targetType, targetId], map: "admin_audit_target_idx")
+  @@map("admin_audit")
 }
 
 model ProcessedEvent {

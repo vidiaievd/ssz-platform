@@ -7,6 +7,7 @@ import type { AppConfig } from '../../config/configuration.js';
 import type {
   GetMemberRoleOutput,
   IOrganizationClient,
+  SchoolLifecycleStatus,
   LearnerReviewContext,
 } from '../../shared/application/ports/organization-client.port.js';
 import { OrganizationClientError } from '../../shared/application/ports/organization-client.port.js';
@@ -27,6 +28,22 @@ export class HttpOrganizationClient implements IOrganizationClient {
     this.baseUrl = cfg.baseUrl;
     this.token = config.get<string>('internalServiceToken' as any)!;
     this.timeout = cfg.timeoutMs;
+  }
+
+  async getSchoolStatus(
+    schoolId: string,
+  ): Promise<Result<SchoolLifecycleStatus, OrganizationClientError>> {
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get<{ status: SchoolLifecycleStatus }>(
+          `${this.baseUrl}/api/v1/internal/schools/${schoolId}/status`,
+          { headers: { 'x-internal-token': this.token }, timeout: this.timeout },
+        ),
+      );
+      return Result.ok(data.status);
+    } catch (err) {
+      return this.mapError(err, `getSchoolStatus(${schoolId})`);
+    }
   }
 
   async getMemberRole(

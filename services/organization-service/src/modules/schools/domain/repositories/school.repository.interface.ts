@@ -1,4 +1,5 @@
 import type { School } from '../entities/school.entity.js';
+import type { SchoolStatus } from '../school-access.policy.js';
 import type { ReviewSettings } from '../value-objects/review-settings.vo.js';
 import type { ReviewAiPolicy } from '../value-objects/review-ai-policy.vo.js';
 import type { ReviewEffortMinutes } from '../value-objects/review-effort-minutes.vo.js';
@@ -38,6 +39,8 @@ export interface ISchoolRepository {
   findByName(name: string): Promise<School | null>;
   findByOwnerId(ownerId: string): Promise<School[]>;
   findMemberSchools(userId: string): Promise<School[]>;
+  /** The school's lifecycle status alone, or null for no such school (plan 90, phase 5). */
+  findStatus(schoolId: string): Promise<SchoolStatus | null>;
   findAllActive(): Promise<School[]>;
   findPublicFiltered(filter: PublicSchoolFilter): Promise<PublicSchoolPage>;
   findPublicSchoolDetail(slug: string): Promise<PublicSchoolDetail | null>;

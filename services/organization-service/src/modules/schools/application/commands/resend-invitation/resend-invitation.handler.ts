@@ -53,6 +53,8 @@ export class ResendSchoolInvitationHandler implements ICommandHandler<ResendScho
   }> {
     const school = await this.schoolRepository.findById(command.schoolId);
     if (!school) throw new SchoolNotFoundException(command.schoolId);
+    // Read only unless active (plan 90, phase 5) — the tutor's invitation routes come here too.
+    school.assertWritable();
 
     const actorRole = school.getMemberRole(command.actorId);
     const isOwner = command.actorId === school.ownerId;

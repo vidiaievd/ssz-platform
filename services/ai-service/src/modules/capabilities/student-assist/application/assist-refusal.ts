@@ -9,6 +9,7 @@ const REFUSAL_REASON: Record<RefusalCode, AssistRefusal> = {
   region_not_allowed: 'policy',
   not_entitled: 'no_key',
   quota_exhausted: 'quota',
+  school_not_active: 'policy',
 };
 
 /**

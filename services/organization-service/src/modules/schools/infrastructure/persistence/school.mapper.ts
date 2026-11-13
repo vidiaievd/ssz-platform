@@ -1,5 +1,6 @@
 import { School } from '../../domain/entities/school.entity.js';
 import { SchoolMember } from '../../domain/entities/school-member.entity.js';
+import type { SchoolStatus } from '../../domain/school-access.policy.js';
 import { SchoolType } from '../../domain/value-objects/school-type.vo.js';
 import { SchoolKind } from '../../domain/value-objects/school-kind.vo.js';
 import {
@@ -52,6 +53,10 @@ type PrismaSchool = {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  // Optional: narrower reads leave the lifecycle out and the mirror stands in.
+  status?: string;
+  closesAt?: Date | null;
+  purgeAt?: Date | null;
   members: PrismaSchoolMember[];
 };
 
@@ -106,6 +111,14 @@ export class SchoolMapper {
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt ?? undefined,
+      lifecycle:
+        raw.status === undefined
+          ? undefined
+          : {
+              status: raw.status as SchoolStatus,
+              closesAt: raw.closesAt ?? null,
+              purgeAt: raw.purgeAt ?? null,
+            },
       members,
     });
   }

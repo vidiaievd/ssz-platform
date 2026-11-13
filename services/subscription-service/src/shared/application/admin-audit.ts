@@ -4,8 +4,12 @@ import type { AdminLevel } from '@ssz/contracts';
 /** The platform admin behind a change, as the admin-panel token names them. */
 export interface AdminActor {
   userId: string;
-  level: AdminLevel;
+  /** `system` — a change made by a consumer or a timer, not by a person (plan 90, phase 5). */
+  level: AdminLevel | 'system';
 }
+
+/** The actor of a journal row written by the service itself, e.g. a subscription ended by `school.closed`. */
+export const SYSTEM_ADMIN_ACTOR: AdminActor = { userId: 'system', level: 'system' };
 
 /**
  * Everything an admin can change here. Before/after per action:

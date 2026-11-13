@@ -302,6 +302,8 @@ services:
       # a job that writes to people is turned on deliberately, not by being deployed.
       EXERCISE_SERVICE_URL: http://exercise-engine-service:3006
       ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      # School owner's address and language for lifecycle letters (plan 90, phase 5, step 9)
+      PROFILE_SERVICE_URL: http://user-profile-service:3001
       SCHEDULING_SERVICE_URL: http://scheduling-service:3009
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       REVIEW_DIGEST_ENABLED: ${REVIEW_DIGEST_ENABLED:-false}

@@ -6,6 +6,8 @@ import type { IContainerRepository } from './domain/repositories/container.repos
 
 // Infrastructure — Prisma repositories
 import { PrismaContainerRepository } from './infrastructure/persistence/prisma-container.repository.js';
+import { PrismaContainerCatalogReader } from './infrastructure/persistence/prisma-container-catalog.reader.js';
+import { CONTAINER_CATALOG_READER } from './domain/repositories/container-catalog.reader.interface.js';
 import { PrismaContainerVersionRepository } from './infrastructure/persistence/prisma-container-version.repository.js';
 import { PrismaContainerItemRepository } from './infrastructure/persistence/prisma-container-item.repository.js';
 import { PrismaContainerLocalizationRepository } from './infrastructure/persistence/prisma-container-localization.repository.js';
@@ -21,6 +23,7 @@ import { CONTAINER_SECTION_REPOSITORY } from './domain/repositories/container-se
 // Command handlers
 import { CreateContainerHandler } from './application/commands/create-container/create-container.handler.js';
 import { SetContainerReviewSettingsHandler } from './application/commands/set-review-settings/set-container-review-settings.handler.js';
+import { SetContainerMaintenanceStatusHandler } from './application/commands/set-maintenance-status/set-container-maintenance-status.handler.js';
 import { GetContainerReviewSettingsHandler } from './application/queries/get-review-settings/get-container-review-settings.handler.js';
 import { SetContainerReviewAiPolicyHandler } from './application/commands/set-review-ai-policy/set-container-review-ai-policy.handler.js';
 import { GetContainerReviewAiPolicyHandler } from './application/queries/get-review-ai-policy/get-container-review-ai-policy.handler.js';
@@ -88,6 +91,7 @@ const CommandHandlers = [
   CreateContainerHandler,
   UpdateContainerHandler,
   SetContainerReviewSettingsHandler,
+  SetContainerMaintenanceStatusHandler,
   SetContainerReviewAiPolicyHandler,
   SetContainerCoverageRecipeHandler,
   DeleteContainerHandler,
@@ -145,6 +149,7 @@ const QueryHandlers = [
   providers: [
     // Repository bindings
     { provide: CONTAINER_REPOSITORY, useClass: PrismaContainerRepository },
+    { provide: CONTAINER_CATALOG_READER, useClass: PrismaContainerCatalogReader },
     { provide: CONTAINER_VERSION_REPOSITORY, useClass: PrismaContainerVersionRepository },
     { provide: CONTAINER_ITEM_REPOSITORY, useClass: PrismaContainerItemRepository },
     { provide: CONTAINER_LOCALIZATION_REPOSITORY, useClass: PrismaContainerLocalizationRepository },

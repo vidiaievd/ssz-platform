@@ -4,6 +4,7 @@ import { CreateAssignmentCommand } from '../../../../../src/modules/assignments/
 import {
   ContentNotVisibleForAssigneeError,
   ContentServiceUnavailableError,
+  CourseObsoleteError,
   InsufficientSchoolRoleError,
   InvalidContentRefError,
   OrganizationServiceUnavailableError,
@@ -211,5 +212,44 @@ describe('CreateAssignmentHandler', () => {
       const result = await handler.execute(makeCommand());
       expect(result.isOk).toBe(true);
     }
+  });
+
+  describe('course maintenance status (plan 90, Q5)', () => {
+    const containerCommand = () =>
+      new CreateAssignmentCommand(ASSIGNER_ID, ASSIGNEE_ID, SCHOOL_ID, 'CONTAINER', CONTENT_ID, FUTURE, undefined);
+
+    it('refuses an obsolete course with COURSE_OBSOLETE', async () => {
+      const { handler, repo, contentClient } = makeHandler();
+      (contentClient.getAccessTier as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
+        Result.ok({ accessTier: 'FREE_WITHIN_SCHOOL', maintenanceStatus: 'obsolete' }),
+      );
+
+      const result = await handler.execute(containerCommand());
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(CourseObsoleteError);
+      expect(result.error.message).toBe('COURSE_OBSOLETE');
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('still assigns a maintained course', async () => {
+      const { handler, contentClient } = makeHandler();
+      (contentClient.getAccessTier as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
+        Result.ok({ accessTier: 'FREE_WITHIN_SCHOOL', maintenanceStatus: 'maintained' }),
+      );
+
+      expect((await handler.execute(containerCommand())).isOk).toBe(true);
+    });
+
+    it('reports an unreadable status as the content service being unavailable', async () => {
+      const { handler, contentClient } = makeHandler();
+      (contentClient.getAccessTier as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
+        Result.fail(new ContentClientError('timeout')),
+      );
+
+      const result = await handler.execute(containerCommand());
+
+      expect(result.error).toBeInstanceOf(ContentServiceUnavailableError);
+    });
   });
 });

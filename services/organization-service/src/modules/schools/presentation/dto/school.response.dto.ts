@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { MemberRole } from "../../domain/value-objects/member-role.vo.js";
 import { InvitationStatus } from "../../domain/value-objects/invitation-status.vo.js";
 import { SchoolType } from "../../domain/value-objects/school-type.vo.js";
+import { SchoolLifecycleFieldsDto } from "./school-lifecycle-fields.dto.js";
 
 export class InvitationResponseDto {
   @ApiProperty({ description: 'Invitation UUID' })
@@ -58,7 +59,7 @@ export class SchoolMemberResponseDto {
   @ApiProperty() joinedAt!: Date;
 }
 
-export class SchoolResponseDto {
+export class SchoolResponseDto extends SchoolLifecycleFieldsDto {
   @ApiProperty() id!: string;
   @ApiProperty() name!: string;
   @ApiProperty() slug!: string;
@@ -79,7 +80,7 @@ export class SchoolResponseDto {
   members!: SchoolMemberResponseDto[];
 }
 
-export class SchoolSummaryResponseDto {
+export class SchoolSummaryResponseDto extends SchoolLifecycleFieldsDto {
   @ApiProperty() id!: string;
   @ApiProperty() name!: string;
   @ApiProperty() slug!: string;

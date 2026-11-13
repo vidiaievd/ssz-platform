@@ -6,6 +6,9 @@ export interface ContainerPublishedPayload {
   newVersionId: string;
   previousVersionId: string | null;
   versionNumber: number;
+  /** `ContainerPublishedPayload` in @ssz/contracts: who made the version live, and when (ISO 8601). */
+  publishedBy: string;
+  publishedAt: string;
 }
 
 export class ContainerPublishedEvent implements IDomainEvent {

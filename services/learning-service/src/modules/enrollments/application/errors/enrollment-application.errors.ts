@@ -25,6 +25,14 @@ export class AccessDeniedForContainerError extends EnrollmentApplicationError {
   constructor(tier: string) { super(`Access denied for container with tier: ${tier}`); }
 }
 
+/**
+ * The course is obsolete (plan 90, Q5): no new enrolments, learners already on it carry
+ * on. The message is the code — the error filter passes only `message` to the client.
+ */
+export class CourseObsoleteError extends EnrollmentApplicationError {
+  constructor() { super('COURSE_OBSOLETE'); }
+}
+
 export class ContentServiceUnavailableError extends EnrollmentApplicationError {
   constructor(detail: string) { super(`Content Service unavailable: ${detail}`); }
 }

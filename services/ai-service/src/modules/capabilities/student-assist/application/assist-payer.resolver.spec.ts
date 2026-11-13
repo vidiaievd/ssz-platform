@@ -1,4 +1,5 @@
 import type { AssistContext } from '../domain/assist-answer.js';
+import type { WorkspaceStatus } from '../../../access/domain/workspace-status.js';
 import { AssistPayerResolver } from './assist-payer.resolver.js';
 import type { AssistEnrollment, ClassSession } from './ports/assist-readers.js';
 
@@ -26,7 +27,7 @@ const session: ClassSession = {
   contentLessonId: null,
 };
 
-function setup(over: { enrollment?: AssistEnrollment | null; courseOfAttempt?: string | null; attemptFound?: boolean; members?: string[] | null; session?: ClassSession | null; schoolPays?: boolean } = {}) {
+function setup(over: { enrollment?: AssistEnrollment | null; courseOfAttempt?: string | null; attemptFound?: boolean; members?: string[] | null; session?: ClassSession | null; schoolPays?: boolean; schoolStatus?: WorkspaceStatus } = {}) {
   const enrollments = {
     enrollment: jest.fn().mockResolvedValue(over.enrollment === undefined ? { status: 'active', schoolId: null } : over.enrollment),
   };
@@ -40,8 +41,9 @@ function setup(over: { enrollment?: AssistEnrollment | null; courseOfAttempt?: s
   const classes = { session: jest.fn().mockResolvedValue(over.session === undefined ? session : over.session) };
   const rosters = { members: jest.fn().mockResolvedValue(over.members === undefined ? [USER] : over.members) };
   const standing = { schoolPaysFor: jest.fn().mockResolvedValue(over.schoolPays ?? true) };
-  const resolver = new AssistPayerResolver(enrollments, attempts, classes, rosters, standing);
-  return { resolver, enrollments, attempts, classes, rosters, standing };
+  const workspaces = { get: jest.fn().mockResolvedValue(over.schoolStatus ?? 'active'), save: jest.fn() };
+  const resolver = new AssistPayerResolver(enrollments, attempts, classes, rosters, standing, workspaces);
+  return { resolver, enrollments, attempts, classes, rosters, standing, workspaces };
 }
 
 async function resolve(context: AssistContext, over: Parameters<typeof setup>[0] = {}) {
@@ -149,6 +151,19 @@ describe('AssistPayerResolver — a class', () => {
     const { result } = await resolve({ kind: 'class', lessonId: LESSON, courseId: COURSE }, { enrollment: null });
     expect(result.error).toEqual({ code: 'not_enrolled' });
   });
+});
+
+describe('AssistPayerResolver — a school that is not active (plan 90, phase 5)', () => {
+  it.each<WorkspaceStatus>(['suspended', 'closed', 'purged'])(
+    'sends the learner of a %s school to their own plan, asking the school nothing',
+    async (schoolStatus) => {
+      const unit = await resolve({ kind: 'unit', courseId: COURSE, unitId: UNIT }, { enrollment: { status: 'active', schoolId: SCHOOL }, schoolStatus });
+      expect(unit.result.value.payer).toEqual({ type: 'user', id: USER });
+      expect(unit.standing.schoolPaysFor).not.toHaveBeenCalled();
+      const cls = await resolve({ kind: 'class', lessonId: LESSON }, { schoolStatus });
+      expect(cls.result.value.payer).toEqual({ type: 'user', id: USER });
+    },
+  );
 });
 
 describe('AssistPayerResolver — the shape of the context', () => {

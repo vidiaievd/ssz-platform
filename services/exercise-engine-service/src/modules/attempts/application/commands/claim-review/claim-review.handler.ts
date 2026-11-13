@@ -1,5 +1,6 @@
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
+import { Inject, Optional } from '@nestjs/common';
+import { SchoolActivityGate } from '../../services/school-activity-gate.js';
 import { ClaimReviewCommand } from './claim-review.command.js';
 import {
   ATTEMPT_REPOSITORY,
@@ -21,7 +22,11 @@ export type ClaimReviewError = { code: 'ATTEMPT_NOT_FOUND' } | { code: 'NOT_WAIT
  */
 @CommandHandler(ClaimReviewCommand)
 export class ClaimReviewHandler implements ICommandHandler<ClaimReviewCommand> {
-  constructor(@Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository) {}
+  constructor(
+    @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
+    // Plan 90, phase 5, step 7: a school that is not active takes no new work. Optional like the neighbours.
+    @Optional() @Inject(SchoolActivityGate) private readonly schoolGate: SchoolActivityGate | null = null,
+  ) {}
 
   async execute(command: ClaimReviewCommand): Promise<Result<ReviewLockResult, ClaimReviewError>> {
     const attempt = await this.attempts.findById(command.attemptId);
@@ -30,6 +35,8 @@ export class ClaimReviewHandler implements ICommandHandler<ClaimReviewCommand> {
     if (!attempt || attempt.schoolId !== command.schoolId) {
       return Result.fail({ code: 'ATTEMPT_NOT_FOUND' });
     }
+
+    await this.schoolGate?.assertSchoolOpen(attempt.schoolId);
 
     const claimed = attempt.claimForReview(command.teacherId);
     if (claimed.isFail) {

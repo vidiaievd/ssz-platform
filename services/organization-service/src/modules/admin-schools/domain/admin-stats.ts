@@ -105,6 +105,32 @@ export interface AdminSeatsStats {
   over: AdminSeatsAttention;
 }
 
+/** How far ahead the lifecycle lists look (plan 90, phase 5): due within this many days, or overdue. */
+export const ADMIN_LIFECYCLE_WINDOW_DAYS = 7;
+
+export interface AdminLifecycleAttentionItem {
+  schoolId: string;
+  name: string;
+  slug: string;
+  kind: SchoolKindValue;
+  /** When it closes (`closingSoon`) or is purged (`purgingSoon`); may be past — the timer is next. */
+  at: Date;
+}
+
+export interface AdminLifecycleAttention {
+  total: number;
+  /** Up to `ADMIN_SEATS_ATTENTION_LIMIT`, soonest first. */
+  items: AdminLifecycleAttentionItem[];
+  truncated: boolean;
+}
+
+export interface AdminLifecycleStats {
+  /** Suspended schools that close by themselves within 7 days. */
+  closingSoon: AdminLifecycleAttention;
+  /** Closed schools purged within 7 days (an early purge included). */
+  purgingSoon: AdminLifecycleAttention;
+}
+
 export interface AdminStats {
   from: string;
   to: string;
@@ -119,6 +145,7 @@ export interface AdminStats {
   teachers: { total: number; newInPeriod: number };
   daily: AdminStatsDay[];
   seats: AdminSeatsStats;
+  lifecycle: AdminLifecycleStats;
 }
 
 /** Raw numbers from persistence; the handler shapes them. */
@@ -134,10 +161,13 @@ export interface AdminStatsSnapshot {
     /** Every school at 90 % of its limit or more, most crowded first (the handler caps the lists). */
     attention: (AdminSeatsAttentionItem & { over: boolean })[];
   };
+  /** Every school due within the window, soonest first (the handler caps the lists). */
+  lifecycle: { closingSoon: AdminLifecycleAttentionItem[]; purgingSoon: AdminLifecycleAttentionItem[] };
 }
 
 export interface IAdminStatsReader {
-  snapshot(start: Date, end: Date): Promise<AdminStatsSnapshot>;
+  /** `now` dates the lifecycle window; the period is `start`..`end`. */
+  snapshot(start: Date, end: Date, now: Date): Promise<AdminStatsSnapshot>;
 }
 
 export const ADMIN_STATS_READER = Symbol('IAdminStatsReader');

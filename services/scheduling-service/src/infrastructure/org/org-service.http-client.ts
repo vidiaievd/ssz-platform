@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/configuration.js';
 
@@ -137,6 +137,30 @@ export class OrgServiceHttpClient {
     }
     const body = (await res.json()) as { role?: string };
     return body.role ?? null;
+  }
+
+  /**
+   * Refuses a new timetable entry in a school that is not `active` (plan 90, phase 5, step 8):
+   * 409 `SCHOOL_NOT_ACTIVE { schoolStatus }`. Fails open — a school whose status cannot be read
+   * keeps working; the lifecycle consumer has already cleared its future in any case.
+   */
+  async assertSchoolActive(schoolId: string): Promise<void> {
+    let status: string | null = null;
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/internal/schools/${schoolId}/status`, {
+        headers: this.internalHeaders(),
+      });
+      if (res.ok) status = ((await res.json()) as { status?: string }).status ?? null;
+    } catch (err) {
+      this.logger.warn(`assertSchoolActive failed for school ${schoolId}: ${String(err)}`);
+    }
+    if (status !== null && status !== 'active') {
+      throw new ConflictException({
+        code: 'SCHOOL_NOT_ACTIVE',
+        message: `The school is ${status}: its timetable is read only`,
+        schoolStatus: status,
+      });
+    }
   }
 
   async getSchoolMembers(schoolId: string): Promise<SchoolMemberEntry[]> {

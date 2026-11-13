@@ -4,7 +4,13 @@ import type {
   AdminSchoolStatus,
   SchoolKindValue,
 } from '../../domain/admin-school.js';
-import type { AdminStatsSnapshot, DailyCount, IAdminStatsReader } from '../../domain/admin-stats.js';
+import {
+  ADMIN_LIFECYCLE_WINDOW_DAYS,
+  type AdminLifecycleAttentionItem,
+  type AdminStatsSnapshot,
+  type DailyCount,
+  type IAdminStatsReader,
+} from '../../domain/admin-stats.js';
 
 /**
  * Raw SQL: "first time a person became a student / teacher" and distinct people across
@@ -16,16 +22,16 @@ import type { AdminStatsSnapshot, DailyCount, IAdminStatsReader } from '../../do
 export class AdminStatsPrismaReader implements IAdminStatsReader {
   constructor(private readonly prisma: PrismaService) {}
 
-  async snapshot(start: Date, end: Date): Promise<AdminStatsSnapshot> {
+  async snapshot(start: Date, end: Date, now: Date): Promise<AdminStatsSnapshot> {
     const from = start.toISOString();
     const to = end.toISOString();
+    const horizon = new Date(now.getTime() + ADMIN_LIFECYCLE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-    const [schools, students, teachers, schoolDays, studentDays, teacherDays, seatTotals, attention] = await Promise.all([
+    const [schools, students, teachers, schoolDays, studentDays, teacherDays, seatTotals, attention, closing, purging] =
+      await Promise.all([
       this.prisma.$queryRaw<{ kind: SchoolKindValue; status: AdminSchoolStatus; count: number }[]>`
         SELECT kind::text AS kind,
-               CASE WHEN "deletedAt" IS NOT NULL THEN 'deleted'
-                    WHEN "isActive" THEN 'active'
-                    ELSE 'inactive' END AS status,
+               status::text AS status,
                count(*)::int AS count
           FROM schools
          GROUP BY 1, 2`,
@@ -100,7 +106,20 @@ export class AdminStatsPrismaReader implements IAdminStatsReader {
            AND (COALESCE(u.used, 0) > l.max_seats
                 OR (l.max_seats > 0 AND COALESCE(u.used, 0) * 10 >= l.max_seats * 9))
          ORDER BY COALESCE(u.used, 0)::float / GREATEST(l.max_seats, 1) DESC, s.id`,
+      this.prisma.school.findMany({
+        where: { status: 'suspended', closesAt: { lte: horizon } },
+        orderBy: [{ closesAt: 'asc' }, { id: 'asc' }],
+        select: { id: true, name: true, slug: true, kind: true, closesAt: true },
+      }),
+      this.prisma.school.findMany({
+        where: { status: 'closed', purgeAt: { lte: horizon } },
+        orderBy: [{ purgeAt: 'asc' }, { id: 'asc' }],
+        select: { id: true, name: true, slug: true, kind: true, purgeAt: true },
+      }),
     ]);
+
+    const item = (r: { id: string; name: string; slug: string; kind: SchoolKindValue }, at: Date | null) =>
+      ({ schoolId: r.id, name: r.name, slug: r.slug, kind: r.kind, at: at! }) satisfies AdminLifecycleAttentionItem;
 
     return {
       schools,
@@ -119,6 +138,10 @@ export class AdminStatsPrismaReader implements IAdminStatsReader {
           limit: r.limit,
           over: r.over,
         })),
+      },
+      lifecycle: {
+        closingSoon: closing.map((r) => item(r, r.closesAt)),
+        purgingSoon: purging.map((r) => item(r, r.purgeAt)),
       },
     };
   }

@@ -21,6 +21,9 @@ import { PrismaPayerPolicyRepository } from './infrastructure/prisma-payer-polic
 import { RedisQuotaCounter } from './infrastructure/redis-quota-counter.js';
 import { AdminUsageController } from './presentation/admin-usage.controller.js';
 import { AdminPayerPoliciesController } from './presentation/admin-payer-policies.controller.js';
+import { WORKSPACE_STATUS_STORE } from './application/ports/workspace-status.js';
+import { PrismaWorkspaceStatusStore } from './infrastructure/prisma-workspace-status.store.js';
+import { SchoolStatusConsumer } from './presentation/events/school-status.consumer.js';
 import { EntitlementsChangedConsumer } from './presentation/events/entitlements-changed.consumer.js';
 import { UsageController } from './presentation/usage.controller.js';
 
@@ -66,7 +69,9 @@ import { UsageController } from './presentation/usage.controller.js';
         new ProjectedEntitlementReader(projection, subscriptions),
     },
     EntitlementsChangedConsumer,
+    { provide: WORKSPACE_STATUS_STORE, useClass: PrismaWorkspaceStatusStore },
+    SchoolStatusConsumer,
   ],
-  exports: [AccessGate],
+  exports: [AccessGate, WORKSPACE_STATUS_STORE],
 })
 export class AccessModule {}

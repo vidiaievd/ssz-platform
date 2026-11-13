@@ -67,6 +67,25 @@ enum AccessTier {
   @@map("access_tier")
 }
 
+// Whether a course is still looked after (plan 90, phase 5, Q5). Not a publication
+// state: an `obsolete` course keeps serving the learners it already has.
+enum MaintenanceStatus {
+  MAINTAINED   @map("maintained")
+  UNMAINTAINED @map("unmaintained")
+  OBSOLETE     @map("obsolete")
+
+  @@map("maintenance_status")
+}
+
+// Who set the maintenance status last: the course's author by hand, or the owning
+// school's lifecycle (closed / restored / purged). A school only undoes its own.
+enum MaintenanceSource {
+  AUTHOR @map("author")
+  SCHOOL @map("school")
+
+  @@map("maintenance_source")
+}
+
 enum VersionStatus {
   DRAFT      @map("draft")
   PUBLISHED  @map("published")
@@ -179,6 +198,15 @@ model Container {
   updatedAt                 DateTime        @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt                 DateTime?       @map("deleted_at") @db.Timestamptz
   archivedAt                DateTime?       @map("archived_at") @db.Timestamptz
+  // `unmaintained` stays in the catalogue with a badge; `obsolete` leaves the catalogue
+  // and takes no new enrolments, while its learners carry on (plan 90, phase 5, Q5).
+  maintenanceStatus         MaintenanceStatus  @default(MAINTAINED) @map("maintenance_status")
+  // Null until somebody changes the status for the first time.
+  maintenanceSource         MaintenanceSource? @map("maintenance_source")
+  maintenanceChangedAt      DateTime?          @map("maintenance_changed_at") @db.Timestamptz
+  // The owning school's name as it was when the school closed — the byline outlives
+  // the school (written by the school consumers, plan 90, phase 5, step 4b).
+  ownerSchoolName           String?            @map("owner_school_name") @db.VarChar(200)
 
   versions      ContainerVersion[]
   localizations ContainerLocalization[]
@@ -188,6 +216,7 @@ model Container {
   @@index([visibility])
   @@index([targetLanguage, difficultyLevel])
   @@index([deletedAt, visibility, targetLanguage])
+  @@index([maintenanceStatus])
   @@map("containers")
 }
 
@@ -1475,6 +1504,23 @@ model Outbox {
 
   @@index([publishedAt, createdAt])
   @@map("outbox")
+}
+
+// ─── School purges ────────────────────────────────────────────────────────────
+// A school's purge content has started and not finished (plan 90, phase 5, step 4c).
+// `school.purged` arrives once; the cleanup job runs an unfinished purge again.
+
+model SchoolPurge {
+  schoolId      String    @id @map("school_id") @db.Uuid
+  schoolName    String    @map("school_name") @db.VarChar(200)
+  requestedAt   DateTime  @default(now()) @map("requested_at") @db.Timestamptz
+  lastAttemptAt DateTime  @map("last_attempt_at") @db.Timestamptz
+  attempts      Int       @default(0)
+  lastError     String?   @map("last_error") @db.Text
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz
+
+  @@index([completedAt, lastAttemptAt])
+  @@map("school_purges")
 }
 
 // ─── Idempotency ──────────────────────────────────────────────────────────────

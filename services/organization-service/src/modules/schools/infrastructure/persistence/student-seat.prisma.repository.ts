@@ -3,6 +3,7 @@ import { PrismaService } from '../../../../infrastructure/database/prisma.servic
 import type { SeatDecision } from '../../domain/value-objects/seat-policy.vo.js';
 import type { IStudentSeatRepository, SeatClaim } from '../../domain/repositories/student-seat.repository.interface.js';
 import { MemberAlreadyExistsException } from '../../domain/exceptions/member-already-exists.exception.js';
+import { assertSchoolWritable, type SchoolStatus } from '../../domain/school-access.policy.js';
 
 const ACTIVE_STUDENT = { role: 'STUDENT', status: 'active' } as const;
 
@@ -26,6 +27,11 @@ export class StudentSeatPrismaRepository implements IStudentSeatRepository {
     try {
       return await (this.prisma as any).$transaction(async (tx: any) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`school-seats:${schoolId}`}, 0))`;
+        // Read only unless active (plan 90, phase 5): the row is held so a status move made meanwhile
+        // waits for this claim instead of slipping a learner into a school it just suspended.
+        const rows: Array<{ status: SchoolStatus }> =
+          await tx.$queryRaw`SELECT status::text AS status FROM schools WHERE id = ${schoolId}::uuid FOR SHARE`;
+        if (rows[0]) assertSchoolWritable(schoolId, rows[0].status);
         const used: number = await tx.schoolMember.count({ where: { schoolId, ...ACTIVE_STUDENT } });
         const decision = decide(used);
         if (!decision.admitted) return decision;

@@ -4,15 +4,18 @@ import { SendInvitationCommand } from './send-invitation.command.js';
 import { School } from '../../../domain/entities/school.entity.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { SeatsExhaustedException } from '../../../domain/exceptions/seats-exhausted.exception.js';
+import { SchoolNotActiveException } from '../../../domain/exceptions/school-not-active.exception.js';
+import { SchoolType } from '../../../domain/value-objects/school-type.vo.js';
 
 describe('SendInvitationHandler — student seats (plan 90, phase 4)', () => {
   let invitationRepo: { findActivePendingByEmailAndRole: jest.Mock<() => Promise<null>>; save: jest.Mock };
   let eventPublisher: { publish: jest.Mock };
   let seatGate: { assertRoomForOneMore: jest.Mock<() => Promise<void>> };
   let handler: SendInvitationHandler;
+  let schoolRepo: { findById: jest.Mock<() => Promise<School>> };
 
   beforeEach(() => {
-    const schoolRepo = {
+    schoolRepo = {
       findById: jest.fn(async () =>
         School.create({ id: 's-1', name: 'Test School', slug: 'test-school', ownerId: 'owner-1' }, 'evt-1'),
       ),
@@ -55,5 +58,22 @@ describe('SendInvitationHandler — student seats (plan 90, phase 4)', () => {
   it('staff invitations are not counted against seats', async () => {
     await invite(MemberRole.TEACHER);
     expect(seatGate.assertRoomForOneMore).not.toHaveBeenCalled();
+  });
+
+  // Plan 90, phase 5: a tutor's invitation routes reach this handler without the school in the
+  // path, so the aggregate itself refuses a school that is not active.
+  it('a suspended school sends nothing', async () => {
+    const now = new Date();
+    schoolRepo.findById.mockResolvedValue(
+      School.rehydrate({
+        id: 's-1', name: 'Test School', slug: 'test-school', ownerId: 'owner-1', type: SchoolType.ONLINE,
+        isActive: false, createdAt: now, updatedAt: now, members: [], requireTutorReviewForSelfPaced: false,
+        lifecycle: { status: 'suspended', closesAt: now, purgeAt: null },
+      }),
+    );
+
+    await expect(invite(MemberRole.STUDENT)).rejects.toBeInstanceOf(SchoolNotActiveException);
+    expect(invitationRepo.save).not.toHaveBeenCalled();
+    expect(eventPublisher.publish).not.toHaveBeenCalled();
   });
 });

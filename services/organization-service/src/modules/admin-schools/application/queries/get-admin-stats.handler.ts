@@ -19,7 +19,7 @@ export class GetAdminStatsHandler implements IQueryHandler<GetAdminStatsQuery, A
   constructor(@Inject(ADMIN_STATS_READER) private readonly reader: IAdminStatsReader) {}
 
   async execute({ period }: GetAdminStatsQuery): Promise<AdminStats> {
-    const snapshot = await this.reader.snapshot(period.start, period.end);
+    const snapshot = await this.reader.snapshot(period.start, period.end, new Date());
 
     const byStatus = Object.fromEntries(ADMIN_SCHOOL_STATUSES.map((s) => [s, 0])) as Record<AdminSchoolStatus, number>;
     const byKind: Record<SchoolKindValue, number> = { SCHOOL: 0, SOLO: 0 };
@@ -47,6 +47,10 @@ export class GetAdminStatsHandler implements IQueryHandler<GetAdminStatsQuery, A
         near: attention(snapshot.seats.attention.filter((s) => !s.over)),
         over: attention(snapshot.seats.attention.filter((s) => s.over)),
       },
+      lifecycle: {
+        closingSoon: capped(snapshot.lifecycle.closingSoon),
+        purgingSoon: capped(snapshot.lifecycle.purgingSoon),
+      },
     };
   }
 }
@@ -55,6 +59,14 @@ function attention(rows: AdminStatsSnapshotSeat[]): AdminSeatsAttention {
   return {
     total: rows.length,
     items: rows.slice(0, ADMIN_SEATS_ATTENTION_LIMIT).map(({ over: _over, ...item }) => item),
+    truncated: rows.length > ADMIN_SEATS_ATTENTION_LIMIT,
+  };
+}
+
+function capped<T>(rows: T[]): { total: number; items: T[]; truncated: boolean } {
+  return {
+    total: rows.length,
+    items: rows.slice(0, ADMIN_SEATS_ATTENTION_LIMIT),
     truncated: rows.length > ADMIN_SEATS_ATTENTION_LIMIT,
   };
 }

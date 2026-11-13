@@ -8,7 +8,9 @@ import {
   ParseUUIDPipe,
   Patch,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { ActiveSchoolGuard } from '../guards/active-school.guard.js';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
@@ -28,6 +30,8 @@ import type { MemberRole } from '../../domain/value-objects/member-role.vo.js';
 
 @ApiTags('School Members')
 @ApiBearerAuth('JWT')
+// Writes refused while the school is not active (plan 90, phase 5, step 3).
+@UseGuards(ActiveSchoolGuard)
 @Controller('schools')
 export class SchoolMembersController {
   constructor(

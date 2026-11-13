@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, RequestMethod } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -29,6 +29,8 @@ import { UserDeletedHandler } from './modules/notifications/handlers/user-delete
         const isDev = config.get<AppConfig['app']>('app')?.nodeEnv !== 'production';
         const level = config.get<AppConfig['app']>('app')?.logLevel ?? 'debug';
         return {
+          // Nest 11 / path-to-regexp 8 rejects the library's default '*' route.
+          forRoutes: [{ path: '*path', method: RequestMethod.ALL }],
           pinoHttp: {
             transport: isDev
               ? { target: 'pino-pretty', options: { colorize: true, singleLine: false } }

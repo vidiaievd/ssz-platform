@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, RequestMethod } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
@@ -11,6 +11,7 @@ import { AuthModule } from './infrastructure/auth/auth.module.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { RabbitMqModule } from './infrastructure/messaging/rabbitmq.module.js';
 import { AdminSchoolsModule } from './modules/admin-schools/admin-schools.module.js';
+import { SchoolLifecycleModule } from './modules/school-lifecycle/school-lifecycle.module.js';
 import { SchoolsModule } from './modules/schools/schools.module.js';
 import { TutoringModule } from './modules/tutoring/tutoring.module.js';
 
@@ -23,11 +24,14 @@ import { TutoringModule } from './modules/tutoring/tutoring.module.js';
     SchoolsModule,
     TutoringModule,
     AdminSchoolsModule,
+    SchoolLifecycleModule,
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env>) => {
         const isDev = config.get('NODE_ENV') !== 'production';
         return {
+          // Nest 11 / path-to-regexp 8 rejects the library's default '*' route.
+          forRoutes: [{ path: '*path', method: RequestMethod.ALL }],
           pinoHttp: {
             transport: isDev
               ? { target: 'pino-pretty', options: { colorize: true, singleLine: false } }

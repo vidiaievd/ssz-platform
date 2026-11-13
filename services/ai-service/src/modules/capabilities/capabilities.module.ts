@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AccessModule } from '../access/access.module.js';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/configuration.js';
 import { GatewayModule } from '../gateway/gateway.module.js';
@@ -111,7 +112,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
  * (plan 82), `practice` (plan 84); each agent plan adds its own folder here.
  */
 @Module({
-  imports: [GatewayModule, PronunciationModule],
+  imports: [GatewayModule, PronunciationModule, AccessModule],
   controllers: [
     AdminDiagnosticController,
     AdminReviewDraftController,

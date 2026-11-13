@@ -63,6 +63,7 @@ import { Result } from '../../../../../shared/kernel/result.js';
 import type { Attempt, AttemptReviewAiPolicy, GapVerdict } from '../../../domain/entities/attempt.entity.js';
 import { InvalidAttemptTransitionError } from '../../../domain/exceptions/attempt.errors.js';
 import type { AttemptDomainError } from '../../../domain/exceptions/attempt.errors.js';
+import { SchoolActivityGate } from '../../services/school-activity-gate.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
 import { ReviewerResolver, type Reviewer } from '../../services/reviewer-resolver.js';
 import { ReviewPolicyResolver } from '../../services/review-policy-resolver.js';
@@ -366,6 +367,8 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     // The school's review policy (plan 80, step 3a). Optional likewise; with no binding a
     // school's work goes to its teacher only, as it did before the plan.
     @Optional() @Inject(ReviewPolicyResolver) private readonly reviewPolicies: ReviewPolicyResolver | null = null,
+    // Plan 90, phase 5, step 7: a school that is not active takes no new work. Optional like the neighbours.
+    @Optional() @Inject(SchoolActivityGate) private readonly schoolGate: SchoolActivityGate | null = null,
   ) {}
 
   async execute(
@@ -378,6 +381,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
     if (attempt.userId !== command.userId) {
       return Result.fail({ code: 'FORBIDDEN' });
     }
+    await this.schoolGate?.assertExerciseOpen(attempt.exerciseId);
 
     attempt.addTimeSpent(command.timeSpentSeconds);
     const now = stampReplayedCall(attempt, command.clientTime, this.clock.now());
@@ -491,6 +495,8 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       // Last chance to learn where this belongs: the attempt may have started
       // before the review columns existed, or while a neighbour was down. After
       // this it is a row in someone's queue, and a row nobody can see is lost.
+      // Work for review lands in its school's queue — a school that is not active has none open.
+      await this.schoolGate?.assertSchoolOpen(attempt.schoolId);
       if (!attempt.schoolId || !attempt.containerId || !attempt.groupId) {
         attempt.backfillReviewContext(
           await this.reviewContext.resolve(attempt.userId, attempt.exerciseId),

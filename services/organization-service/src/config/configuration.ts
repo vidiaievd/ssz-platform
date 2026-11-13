@@ -12,6 +12,12 @@ const envSchema = z.object({
   SCHEDULING_SERVICE_URL: z.url().optional(),
   SUBSCRIPTION_SERVICE_URL: z.url().optional(),
   INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
+  // School lifecycle (plan 90, phase 5): days a suspended school waits before it closes, and days a
+  // closed one stays in the archive before it is purged. Shorten on dev to watch the timer.
+  SCHOOL_SUSPEND_DAYS: z.coerce.number().positive().default(30),
+  SCHOOL_ARCHIVE_DAYS: z.coerce.number().positive().default(183),
+  // How often the lifecycle timer looks for schools to close, purge or remind about.
+  SCHOOL_LIFECYCLE_INTERVAL_MS: z.coerce.number().int().min(1000).default(600_000),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -36,4 +42,7 @@ export default (): Env => ({
   SCHEDULING_SERVICE_URL: process.env['SCHEDULING_SERVICE_URL'],
   SUBSCRIPTION_SERVICE_URL: process.env['SUBSCRIPTION_SERVICE_URL'],
   INTERNAL_SERVICE_TOKEN: process.env['INTERNAL_SERVICE_TOKEN'] ?? '',
+  SCHOOL_SUSPEND_DAYS: Number(process.env['SCHOOL_SUSPEND_DAYS'] ?? 30),
+  SCHOOL_ARCHIVE_DAYS: Number(process.env['SCHOOL_ARCHIVE_DAYS'] ?? 183),
+  SCHOOL_LIFECYCLE_INTERVAL_MS: Number(process.env['SCHOOL_LIFECYCLE_INTERVAL_MS'] ?? 600_000),
 });

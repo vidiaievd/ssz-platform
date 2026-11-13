@@ -34,6 +34,7 @@ function activeAssignment(): Assignment {
     cancelledReason: null,
     notes: null,
     deletedAt: null,
+    groupId: null,
   });
 }
 
@@ -58,7 +59,7 @@ function makeConsumer(overrides: {
   enrollmentRepo?: Partial<IEnrollmentRepository>;
   publisher?: Partial<IEventPublisher>;
   cache?: Partial<IContainerItemListCache>;
-}) {
+} = {}) {
   const prisma = {
     processedEvent: {
       findUnique: overrides.processedEvent?.findUnique ?? jest.fn<() => Promise<null>>().mockResolvedValue(null),
@@ -95,8 +96,8 @@ function makeConsumer(overrides: {
   };
 
   const cache: IContainerItemListCache = {
-    get: jest.fn(),
-    set: jest.fn(),
+    get: jest.fn<() => Promise<null>>().mockResolvedValue(null),
+    set: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     invalidate: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     ...overrides.cache,
   };
@@ -160,6 +161,43 @@ describe('ContainerDeletedConsumer', () => {
       });
       expect(channel.ack).toHaveBeenCalledTimes(1);
       expect(channel.nack).not.toHaveBeenCalled();
+    });
+
+    it('reads the id from the envelope content-service really sends (domain event as payload)', async () => {
+      const { consumer, assignmentRepo, enrollmentRepo, cache } = makeConsumer();
+      const channel = makeChannel();
+      const wrapped = {
+        eventId: 'evt-del-002',
+        eventType: 'content.container.deleted',
+        payload: {
+          eventId: 'inner',
+          eventType: 'content.container.deleted',
+          aggregateId: CONTAINER_ID,
+          payload: { containerId: CONTAINER_ID, ownerUserId: 'user-001' },
+        },
+      };
+
+      await (consumer as any).handleMessage(channel, makeMsg(wrapped));
+
+      expect(assignmentRepo.findActiveByContent).toHaveBeenCalledWith('CONTAINER', CONTAINER_ID);
+      expect(enrollmentRepo.findActiveByContainerId).toHaveBeenCalledWith(CONTAINER_ID);
+      expect(cache.invalidate).toHaveBeenCalledWith(CONTAINER_ID);
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+    });
+
+    it('discards an event without a containerId and touches nothing (never "every container")', async () => {
+      const { consumer, assignmentRepo, enrollmentRepo, prisma } = makeConsumer();
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg({ eventId: 'evt-del-003', eventType: 'content.container.deleted', payload: { ownerUserId: 'u' } }),
+      );
+
+      expect(assignmentRepo.findActiveByContent).not.toHaveBeenCalled();
+      expect(enrollmentRepo.findActiveByContainerId).not.toHaveBeenCalled();
+      expect(prisma.processedEvent.create).not.toHaveBeenCalled();
+      expect(channel.nack).toHaveBeenCalledWith(expect.anything(), false, false);
     });
 
     it('skips processing and acks duplicate event (idempotent re-delivery)', async () => {

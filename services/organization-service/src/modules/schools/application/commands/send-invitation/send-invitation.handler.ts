@@ -52,6 +52,8 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
   async execute(command: SendInvitationCommand): Promise<{ invitationId: string; token: string; kind: string; expiresAt: string; deliveryStatus: 'queued' }> {
     const school = await this.schoolRepository.findById(command.schoolId);
     if (!school) throw new SchoolNotFoundException(command.schoolId);
+    // Read only unless active (plan 90, phase 5) — the tutor's invitation routes come here too.
+    school.assertWritable();
 
     const isOwner = command.actorId === school.ownerId;
     const actorRole = school.getMemberRole(command.actorId);

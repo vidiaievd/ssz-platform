@@ -328,6 +328,18 @@ model AiPayerEntitlements {
   @@map("ai_payer_entitlements")
 }
 
+/// A school's lifecycle status as `school.*` events last said it (plan 90, phase 5, step 6). No row = active.
+model PayerWorkspaceStatus {
+  schoolId   String   @id @map("school_id")
+  /// `active` / `suspended` / `closed` / `purged`.
+  status     String   @db.VarChar(16)
+  /// When the event that set it happened; an older event never overwrites a newer one.
+  changedAt  DateTime @map("changed_at")
+  receivedAt DateTime @map("received_at")
+
+  @@map("payer_workspace_status")
+}
+
 // ─── Evals (plan 79, step 1.6) ───────────────────────────────────────────────
 
 /// One run of a candidate model over the teachers' settled drafts (exercise-engine's

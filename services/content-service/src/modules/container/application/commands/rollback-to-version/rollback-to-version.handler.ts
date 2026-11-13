@@ -92,6 +92,8 @@ export class RollbackToVersionHandler implements ICommandHandler<
         newVersionId: version.id,
         previousVersionId,
         versionNumber: version.versionNumber,
+        publishedBy: command.userId,
+        publishedAt: new Date().toISOString(),
       }),
     );
 

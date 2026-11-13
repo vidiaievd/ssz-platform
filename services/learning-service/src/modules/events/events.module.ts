@@ -11,6 +11,7 @@ import { GroupEnrollmentConsumer } from './consumers/group-enrollment.consumer.j
 import { ExerciseReleasedConsumer } from './consumers/exercise-released.consumer.js';
 import { UserDeletedConsumer } from './consumers/user-deleted.consumer.js';
 import { AtomsFlaggedConsumer } from './consumers/atoms-flagged.consumer.js';
+import { SchoolPurgedConsumer } from './consumers/school-purged.consumer.js';
 import { UserErasureModule } from '../user-erasure/user-erasure.module.js';
 
 @Module({
@@ -24,6 +25,7 @@ import { UserErasureModule } from '../user-erasure/user-erasure.module.js';
     ExerciseReleasedConsumer,
     UserDeletedConsumer,
     AtomsFlaggedConsumer,
+    SchoolPurgedConsumer,
   ],
 })
 export class EventsModule {}

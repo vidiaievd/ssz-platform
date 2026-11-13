@@ -52,7 +52,7 @@ export class AdminSchoolsController {
   @ApiOperation({
     summary: 'Every school and SOLO workspace, a page at a time',
     description:
-      'Filters combine with AND; no `status` returns soft-deleted rows too. Counts are roster rows (active ' +
+      'Filters combine with AND; no `status` returns closed and purged rows too. Counts are roster rows (active ' +
       'students, teachers); the owner is in none of them. Admin-panel token, level `support` or higher.',
   })
   @ApiOkResponse({ type: AdminSchoolPageDto })
@@ -71,7 +71,7 @@ export class AdminSchoolsController {
   @Get(':schoolId')
   @ApiOperation({
     summary: "A school's card: contacts, owner, head counts, groups, courses",
-    description: 'Soft-deleted schools are found too (status `deleted`). Admin-panel token, level `support` or higher.',
+    description: 'Closed and purged schools are found too. Admin-panel token, level `support` or higher.',
   })
   @ApiOkResponse({ type: AdminSchoolDetailDto })
   @ApiNotFoundResponse({ description: 'No school with this id' })

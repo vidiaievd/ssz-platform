@@ -6,6 +6,7 @@ import { AssistEnrollmentController } from './assist-enrollment.controller.js';
 import { SrsAtomCardsController } from './srs-atom-cards.controller.js';
 import { LearnerGrammarAtomsController } from './learner-grammar-atoms.controller.js';
 import { LearnerSoundAtomsController } from './learner-sound-atoms.controller.js';
+import { ContentActiveLearnersController } from './content-active-learners.controller.js';
 
 @Module({
   imports: [CqrsModule],
@@ -15,6 +16,7 @@ import { LearnerSoundAtomsController } from './learner-sound-atoms.controller.js
     AssistEnrollmentController,
     LearnerGrammarAtomsController,
     LearnerSoundAtomsController,
+    ContentActiveLearnersController,
   ],
   providers: [InternalAuthGuard],
 })

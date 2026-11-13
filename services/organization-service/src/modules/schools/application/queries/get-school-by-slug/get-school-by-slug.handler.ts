@@ -17,7 +17,8 @@ export class GetSchoolBySlugHandler implements IQueryHandler<GetSchoolBySlugQuer
 
   async execute(query: GetSchoolBySlugQuery): Promise<SchoolDto> {
     const school = await this.schoolRepository.findBySlug(query.slug);
-    if (!school || school.isDeleted) throw new SchoolNotFoundException(query.slug);
+    // A closed school is its owner's to see until the purge, nobody else's (plan 90, phase 5).
+    if (!school || !school.isReadableBy(query.actorId)) throw new SchoolNotFoundException(query.slug);
 
     if (!school.isMember(query.actorId) && school.ownerId !== query.actorId) {
       throw new ForbiddenOperationException('You are not a member of this school');
@@ -35,6 +36,9 @@ export class GetSchoolBySlugHandler implements IQueryHandler<GetSchoolBySlugQuer
       city: school.city,
       type: school.type,
       isActive: school.isActive,
+      status: school.status,
+      closesAt: school.closesAt,
+      purgeAt: school.purgeAt,
       requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
       showGroupPositionToStudents: school.showGroupPositionToStudents,
       defaultExplanationLanguage: school.defaultExplanationLanguage,

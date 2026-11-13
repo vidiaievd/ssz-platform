@@ -2,6 +2,7 @@ import type { FeatureEntitlement } from '../domain/entitlement.js';
 import type { Payer } from '../domain/payer.js';
 import type { PayerPolicy, StoredPayerPolicy } from '../domain/payer-policy.js';
 import type { QuotaKey } from '../domain/quota.js';
+import type { WorkspaceStatus } from '../domain/workspace-status.js';
 import { AccessGate } from './access-gate.js';
 import type { IQuotaCounter } from './ports/quota-counter.js';
 
@@ -53,6 +54,8 @@ function setup(opts: {
   policyFails?: boolean;
   tariffFails?: boolean;
   ledgerSpent?: bigint;
+  schoolStatus?: WorkspaceStatus;
+  statusFails?: boolean;
 }) {
   const asked: string[] = [];
   const counter = new MemoryCounter();
@@ -81,6 +84,13 @@ function setup(opts: {
         return opts.ledgerSpent ?? 0n;
       },
     },
+    {
+      get: async () => {
+        if (opts.statusFails) throw new Error('db down');
+        return opts.schoolStatus ?? 'active';
+      },
+      save: async () => true,
+    },
   );
   return { gate, asked, counter, ledgerReads };
 }
@@ -100,6 +110,23 @@ describe('AccessGate', () => {
     expect(decision.value.allowedRegions).toBeNull();
     expect(decision.value.feature?.enabled).toBe(true);
     expect(asked).toEqual(['ai.review_draft']);
+  });
+
+  it.each<WorkspaceStatus>(['suspended', 'closed', 'purged'])(
+    'refuses a school that is %s — before the policy and the tariff are read',
+    async (schoolStatus) => {
+      const { gate, asked } = setup({ schoolStatus, policyFails: true });
+      expect((await gate.check('diagnostic', SCHOOL)).error).toEqual({ kind: 'refused', code: 'school_not_active' });
+      expect(asked).toEqual([]);
+      expect(await gate.allows('diagnostic', SCHOOL)).toBe(false);
+    },
+  );
+
+  it('does not ask a learner payer about a school, and fails closed when the status cannot be read', async () => {
+    const own = setup({ schoolStatus: 'closed' });
+    expect((await own.gate.check('diagnostic', { type: 'user', id: 'u1' })).isOk).toBe(true);
+    const down = setup({ statusFails: true });
+    expect((await down.gate.check('diagnostic', SCHOOL)).error).toEqual({ kind: 'gate_unavailable' });
   });
 
   it('passes the payer’s regions on to the router', async () => {
