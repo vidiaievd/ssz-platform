@@ -12,12 +12,26 @@ public interface IPasswordHasher
 
 public interface ITokenService
 {
-    string GenerateAccessToken(Guid userId, string email, IEnumerable<string> roles);
+    /// <param name="adminLevel">
+    /// Set only on a session of the admin client (plan 90); written as the <c>admin_level</c> claim.
+    /// </param>
+    string GenerateAccessToken(
+        Guid userId,
+        string email,
+        IEnumerable<string> roles,
+        string? adminLevel = null);
 
     (string rawToken, string tokenHash, string familyId) GenerateRefreshToken();
 
     string GenerateMfaChallengeToken(Guid userId);
     Guid? ValidateMfaChallengeToken(string token);
+
+    /// <summary>
+    /// Plan 90: a short-lived token that only lets a platform administrator without MFA set it
+    /// up from the admin panel — it opens no session.
+    /// </summary>
+    string GenerateMfaSetupToken(Guid userId);
+    Guid? ValidateMfaSetupToken(string token);
 
     string GeneratePasswordResetToken(Guid userId);
     Guid? ValidatePasswordResetToken(string token);

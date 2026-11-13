@@ -1,9 +1,11 @@
 import { ConflictException, Inject, NotFoundException } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { businessError } from '../../../../../common/errors/business-error.js';
+import { adminAuditEntry } from '../../../../../shared/application/admin-audit.js';
 import { describeAccountError } from '../../../domain/account-errors.js';
 import { accountNotFound } from '../../account-lookup.js';
 import type { AccountOverview } from '../../account-views.js';
+import { accountTarget, grantSnapshot } from '../../audit-snapshots.js';
 import { ACCOUNT_READER, type IAccountReader } from '../../ports/account.reader.js';
 import { BILLING_ACCOUNT_REPOSITORY, type IBillingAccountRepository } from '../../ports/billing-account.repository.js';
 import { GRANT_REPOSITORY, type IGrantRepository } from '../../ports/grant.repository.js';
@@ -24,10 +26,20 @@ export class RevokeGrantHandler implements ICommandHandler<RevokeGrantCommand, A
     if (!grant) throw new NotFoundException(`Grant ${command.grantId} not found on this account`);
     const now = new Date();
 
-    const revoked = grant.revoke(command.actorUserId, now);
+    const before = grantSnapshot(grant);
+    const revoked = grant.revoke(command.actor.userId, now);
     if (revoked.isFail) throw businessError(revoked.error, describeAccountError(revoked.error));
 
-    const saved = await this.grants.saveRevocation(grant);
+    const audit = adminAuditEntry({
+      actor: command.actor,
+      action: 'grant.revoked',
+      ...accountTarget(command.type, command.externalId),
+      reason: command.reason,
+      before,
+      after: { grantId: grant.id, revokedAt: now.toISOString() },
+      now,
+    });
+    const saved = await this.grants.saveRevocation(grant, audit);
     if (saved.isFail) throw new ConflictException(`Grant ${command.grantId} was revoked meanwhile`);
     return (await this.reader.overview(command.type, command.externalId, now))!;
   }

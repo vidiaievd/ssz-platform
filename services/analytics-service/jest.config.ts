@@ -29,6 +29,8 @@ const config: Config = {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@ssz/shared-kernel/(.*)$': '<rootDir>/../../packages/shared-kernel/src/$1/index.ts',
     '^@ssz/shared-kernel$': '<rootDir>/../../packages/shared-kernel/src/index.ts',
+    // Values from contracts (admin levels) resolve to source too, as in subscription and ai.
+    '^@ssz/contracts$': '<rootDir>/../../packages/contracts/src/index.ts',
   },
   testMatch: ['<rootDir>/test/**/*.spec.ts'],
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.module.ts', '!src/main.ts', '!src/config/**'],

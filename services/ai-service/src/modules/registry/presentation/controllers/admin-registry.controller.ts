@@ -11,7 +11,8 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
-import { PlatformAdminGuard } from '../../../../common/guards/platform-admin.guard.js';
+import { RequireAdminLevel } from '../../../../common/decorators/require-admin-level.decorator.js';
+import { AdminLevelGuard } from '../../../../common/guards/admin-level.guard.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import { TestModelCommand } from '../../application/commands/test-model/test-model.command.js';
 import type { TestModelResult } from '../../application/commands/test-model/test-model.handler.js';
@@ -32,8 +33,9 @@ import {
 @ApiTags('Admin — model registry')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
-@ApiForbiddenResponse({ description: 'Caller is not platform_admin' })
-@UseGuards(PlatformAdminGuard)
+@ApiForbiddenResponse({ description: 'Caller is not platform_admin of the route\'s admin level (admin-panel session)' })
+@UseGuards(AdminLevelGuard)
+@RequireAdminLevel('support')
 @Controller('admin/ai')
 export class AdminRegistryController {
   constructor(
@@ -63,6 +65,7 @@ export class AdminRegistryController {
     return this.queryBus.execute(new ListModelPricesQuery(id));
   }
 
+  @RequireAdminLevel('admin')
   @Post('models/:id/test')
   @HttpCode(200)
   @ApiOperation({

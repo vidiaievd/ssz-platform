@@ -18,7 +18,7 @@ import type { GiveAssistFeedbackOutcome } from '../application/give-feedback/giv
 import { AssistController } from './assist.controller.js';
 import type { AskAssistantDto, AskAssistantQueryDto } from './assist.dto.js';
 
-const LEARNER: AuthenticatedUser = { userId: 'c8655ecd-0000-4000-8000-000000000001', roles: ['student'], isPlatformAdmin: false };
+const LEARNER: AuthenticatedUser = { userId: 'c8655ecd-0000-4000-8000-000000000001', roles: ['student'], isPlatformAdmin: false, adminLevel: null };
 const COURSE = 'b1000000-0000-4000-8000-000000000001';
 const UNIT = 'b2000000-0000-4000-8000-000000000002';
 const ANSWER = { blocks: [{ type: 'text' as const, text: 'V2.' }], citations: [], suggestions: [] };

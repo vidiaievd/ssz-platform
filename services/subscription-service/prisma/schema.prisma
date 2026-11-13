@@ -192,3 +192,28 @@ model Grant {
   @@index([accountId, endsAt])
   @@map("grants")
 }
+
+// ─── Admin trail (plan 90, phase 1, step 5) ─────────────────────────────────
+
+/// What a platform admin changed here: plans, subscriptions, grants. Written in the same
+/// transaction as the change, together with an `admin.action.performed` outbox row that
+/// shares its id. Never updated or deleted.
+model AdminAudit {
+  /// = the event's `eventId`.
+  id         String   @id
+  occurredAt DateTime @map("occurred_at")
+  actorId    String   @map("actor_id")
+  actorLevel String   @map("actor_level") @db.VarChar(16)
+  /// `<object>.<verb>`, e.g. `subscription.assigned`, `plan.revised`.
+  action     String   @db.VarChar(64)
+  /// `workspace` / `user` (a billing account, by its externalId) or `plan` (by its code).
+  targetType String   @map("target_type") @db.VarChar(64)
+  targetId   String   @map("target_id") @db.VarChar(128)
+  reason     String   @db.VarChar(500)
+  before     Json?
+  after      Json?
+
+  @@index([occurredAt], map: "admin_audit_occurred_at_idx")
+  @@index([targetType, targetId], map: "admin_audit_target_idx")
+  @@map("admin_audit")
+}

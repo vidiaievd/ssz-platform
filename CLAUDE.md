@@ -116,6 +116,24 @@ Registration, login, MFA/TOTP, JWT RS256 (RSA-4096), refresh tokens, session rev
 Argon2id password hashing, AES-256-GCM encryption, Serilog logging.
 Roles: `student`, `tutor`, `school_admin`, `platform_admin`.
 Database: `auth_db`
+Platform admin panel (plan 90, phase 1): admin level `super` / `admin` / `support` in `admin_levels` (only for
+`platform_admin`; first super via `docker exec infrastructure-auth-service-1 dotnet AuthService.API.dll admin bootstrap <email>`).
+Claim `admin_level` appears only in tokens of client `admin` (`ClientTypes.Admin`, lifetime 12 h for platform_admin × admin).
+Panel sign-in only through `api/v1/auth/admin/session/*`: `login` → `{ mfaRequired, challenge }`, or without MFA
+`{ mfaSetupRequired, setup }` with a 10-min token that can only set MFA up (`mfa-setup`, `mfa-setup/confirm`); `mfa`,
+`mfa/backup`, `refresh`, `logout`. Refresh token only in cookie `ssz_admin_rt` (httpOnly, Secure, SameSite=Strict,
+`Path=/api/v1/auth/admin/session`), never in a body. `AdminSessionGate` (role + level + MFA) runs on every one of these,
+including each refresh. Shared `login` / `mfa/challenge` / `mfa/backup` with `clientType: admin` → 400 `ADMIN_SESSION_ROUTES_ONLY`.
+Errors: 403 `ADMIN_ACCESS_DENIED` / `MFA_SETUP_REQUIRED`. Wrong MFA codes count per account for all clients
+(`mfa:attempts:<userId>`): 5 per 15 min → 423; disabling 2FA with a code counts the same way.
+Level management `GET/PUT/DELETE api/v1/auth/admin/admins[/:userId]` — super only; reason required; no self-change
+(400 `ADMIN_SELF_CHANGE`), never the last super (`ADMIN_LAST_SUPER`); revoking clears the role, the level row and
+sessions of client `admin` (web sessions stay).
+Journal: table `admin_audit` in `auth_db` (same transaction; id = eventId) and event `admin.action.performed` on
+`auth.events` (routing key without the `auth.` prefix; envelope `eventType` = `AdminActionPerformedEvent`, numeric
+`version` 1). Payload `{ service: 'auth', actorId?, actorLevel?, action, targetType, targetId, reason?, before?, after? }`;
+actions `admin.granted` / `admin.level_changed` / `admin.revoked`. Published after commit; broker failure is logged only.
+Shared rule and event types live in `packages/contracts` (`AdminLevel`, `adminLevelAtLeast()`, `ADMIN_EVENT_TYPES`).
 
 ### 2. User Profile Service (NestJS)
 User profiles separated from auth. Student profiles (level, target language, progress summary),
@@ -130,6 +148,19 @@ AI pre-check setting (`ai-precheck`, plan 84): `enabled`, `perExerciseLimit`, `p
 (`null` = no limit); `GET/PUT /api/v1/schools/:id/ai-precheck`; internal read `GET internal/schools/:id/ai-precheck`.
 Follows Clean Architecture.
 Database: `organizations_db`
+Platform admin reads (plan 90, phase 1; module `modules/admin-schools`; verifier reads `admin_level`; level `support`
+on every route through `AdminLevelGuard` + `@RequireAdminLevel`; no admin journal here until phases 3/5):
+`GET admin/schools?search=&kind=SCHOOL|SOLO&status=active|inactive|deleted&sort=-createdAt|createdAt|name|-name&page=&limit=`
+(limit 1–100, default 25; ties by id) → `{ items, total, page, limit }`. `status` is derived from `isActive` / `deletedAt`
+until phase 5 adds a stored status; without `status` deleted schools are listed too. Row counts `students` (active
+STUDENT in roster) and `teachers` (TEACHER) come from one groupBy; the owner is not in the roster and is counted nowhere.
+`GET admin/schools/:id` — card (deleted ones too; non-UUID → 404 without a DB query): contacts, `owner` from
+profile-service (failure → `null`, the card still answers), `counts` (+ `archivedStudents`, `staff`, `pendingApplications`,
+`pendingInvitations`), `groups` (with `isDefault`), `courses { count, ids }`; course titles come from content-service.
+`GET admin/stats?from=&to=` — UTC days `YYYY-MM-DD`, both ends inclusive (default: last 30 days ending today; > 366 days,
+`from > to` → 400) → `{ from, to, schools { total, byStatus, byKind, createdInPeriod }, students, teachers, daily[] }`.
+People are counted once per platform (student = active STUDENT row; teacher = TEACHER row or SOLO owner); `daily` has
+every day of the period, zeros included.
 
 ### 4. Content Service (NestJS)
 Learning material management: courses → modules → lessons → exercises.
@@ -205,6 +236,13 @@ Database: `notifications_db`
 Analytics for schools/tutors and students. Aggregation, reports, export.
 Follows Clean Architecture.
 Database: `analytics_db`
+Platform admin journal (plan 90, phase 1, step 6): module `admin-audit` consumes `admin.action.performed` from
+`auth.events` and `subscription.events` (queues `analytics-service.admin-audit.auth` / `.subscription`, prefetch 1,
+dedup via `processed_events` key `admin-audit-log`) into `admin_audit_log` (id = source eventId). `service` comes from the
+exchange, never from the payload. `GET api/v1/admin/audit?service=&actorId=&targetType=&targetId=&from=&to=&cursor=`
+(level `support`; newest first, keyset on (`occurredAt`, `id`), `limit` 1–200 default 50, `from` inclusive, `to`
+exclusive; `from > to` or a foreign cursor → 400) → `{ items, nextCursor }`. Malformed message → nack without requeue;
+DB failure → one requeue. This journal is separate from the school activity feed (`audit` module).
 Weak grammar rules (plan 85): consumes `exercise.feedback.atoms_flagged` into `weak_rules_daily` (facts keyed by
 day, learner, exercise, atom, source). `GET analytics/groups/:groupId/weak-rules?window=7|30|course` and
 `GET analytics/students/:studentId/weak-rules?window=&courseId=`; learners selected by group membership + course, not by `group_id`.
@@ -317,6 +355,21 @@ Follows Clean Architecture.
 Port: `3011`. Database: `subscriptions_db`. Exchange: `subscription.events`. No Redis.
 Internal: `GET /api/v1/internal/entitlements?type=&id=` (`x-internal-token`, not exposed by gateway).
 Gateway routes: `/api/v1/subscriptions/*`, `/api/v1/admin/subscriptions/*` (`platform_admin`).
+Platform admin (plan 90, phase 1): every `admin/*` route is guarded by `AdminLevelGuard` + `@RequireAdminLevel` (reads
+`support`; PUT subscription, grants, revoke, DELETE subscription — `admin`; plan catalog create/patch/versions/archive —
+`super`); a route without a level admits only `super`; `platform_admin` token without `admin_level` → 403
+`ADMIN_LEVEL_REQUIRED`. Actor via `@CurrentAdmin()`.
+Journal: table `admin_audit` in `subscriptions_db` (`actor_id`, `actor_level`, `reason` NOT NULL, `before` / `after` jsonb)
+written by `recordAdminAction(tx, entry)` in the same transaction as the change, plus the outbox row (outbox is plain rows).
+`reason` (non-empty, ≤ 500) is required on PUT subscription, POST grants (it is the grant's reason), POST grants/:id/revoke,
+POST plans, PATCH plans/:code, POST plans/:code/versions, POST plans/:code/archive; DELETE subscription takes `?reason=`.
+Actions: `subscription.assigned` / `subscription.canceled` / `grant.issued` / `grant.revoked` (targetType `workspace` /
+`user`, targetId = schoolId / userId) and `plan.created` / `plan.renamed` / `plan.revised` / `plan.archived` (targetType
+`plan`). Admin events use envelope `eventVersion: '1.0'`, `source: 'subscription-service'` (auth's envelope is numeric
+`version` — readers must accept both).
+Batch read: `POST admin/subscriptions/accounts/lookup { type, ids[] }` (1–200 UUIDs, duplicates answered once) →
+`{ items }` in request order; unknown id → `hasAccount: false` on the free plan, never 404. Rule as in entitlements:
+no account / no open subscription / expired → free plan of the audience.
 
 ## API Documentation Strategy
 

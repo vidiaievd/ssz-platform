@@ -1,6 +1,7 @@
 using AuthService.Application.DTOs;
 using AuthService.Application.Interfaces;
 using AuthService.Application.Options;
+using AuthService.Application.Services;
 using AuthService.Domain.Entities;
 using AuthService.Domain.Exceptions;
 using MediatR;
@@ -114,7 +115,9 @@ public sealed class DisableTwoFactorCommandHandler(
     ITotpService totpService,
     IEncryptionService encryptionService,
     IDomainEventPublisher eventPublisher,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IRateLimitStore rateLimitStore,
+    IOptions<AuthOptions> authOptions)
     : IRequestHandler<DisableTwoFactorCommand>
 {
     public async Task Handle(DisableTwoFactorCommand command, CancellationToken ct)
@@ -127,10 +130,20 @@ public sealed class DisableTwoFactorCommandHandler(
                 "Two-factor authentication is not enabled.",
                 "MFA_NOT_ENABLED");
 
+        // The same count as sign-in: a stolen session must not be able to guess its way to
+        // turning the second factor off.
+        var attempts = new MfaAttempts(rateLimitStore, authOptions.Value, user.Id);
+        await attempts.EnsureNotLockedAsync(ct);
+
         // Require valid TOTP code to confirm intent before disabling
         var secret = encryptionService.Decrypt(user.TotpSecretEncrypted);
         if (!totpService.ValidateCode(secret, command.Code))
+        {
+            await attempts.RecordFailureAsync(ct);
             throw new InvalidTotpCodeException();
+        }
+
+        await attempts.ResetAsync(ct);
 
         user.DisableTwoFactor();
         userRepository.RemoveBackupCodesForUser(user.Id);

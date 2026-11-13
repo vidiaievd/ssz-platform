@@ -15,6 +15,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
+import { IsAdminReason } from '../../../../common/dto/admin-reason.js';
 import { FEATURE_KEYS } from '../../domain/feature-key.js';
 import type { PlanAudience, PlanFeature } from '../../domain/plan.js';
 
@@ -79,6 +80,9 @@ export class CreatePlanDto {
   @ValidateNested({ each: true })
   @Type(() => PlanFeatureDto)
   features!: PlanFeatureDto[];
+
+  @IsAdminReason('New tutor tariff agreed for 2027')
+  reason!: string;
 }
 
 export class RenamePlanDto {
@@ -87,6 +91,9 @@ export class RenamePlanDto {
   @MinLength(1)
   @MaxLength(200)
   name!: string;
+
+  @IsAdminReason('Marketing renamed the tariff')
+  reason!: string;
 }
 
 export class RevisePlanDto {
@@ -102,6 +109,9 @@ export class RevisePlanDto {
   @IsInt()
   @Min(1)
   expectedVersion?: number;
+
+  @IsAdminReason('AI credits raised from 300 to 400 a month')
+  reason!: string;
 }
 
 export class PlanFeatureResponseDto {

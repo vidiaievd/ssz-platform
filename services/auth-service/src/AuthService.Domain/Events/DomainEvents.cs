@@ -113,3 +113,30 @@ public sealed record UserDeletedEvent(
     public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
     public int Version => 1;
 }
+
+/// <summary>
+/// An administrator changed something (plan 90). Published on <c>auth.events</c> with the routing
+/// key <c>admin.action.performed</c>; every service that has admin routes publishes the same
+/// payload, and analytics-service folds them into one journal.
+/// </summary>
+/// <param name="ActorId">Null when the change came from the command line.</param>
+/// <param name="Action">Dotted, e.g. <c>admin.granted</c>.</param>
+/// <param name="Before">Null when the object did not exist; camelCase keys.</param>
+/// <param name="After">Null when the object no longer exists; camelCase keys.</param>
+public sealed record AdminActionPerformedEvent(
+    Guid? ActorId,
+    string? ActorLevel,
+    string Action,
+    string TargetType,
+    string TargetId,
+    string? Reason,
+    IReadOnlyDictionary<string, object?>? Before,
+    IReadOnlyDictionary<string, object?>? After
+) : IDomainEvent
+{
+    public const string ServiceName = "auth";
+
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
+    public int Version => 1;
+}

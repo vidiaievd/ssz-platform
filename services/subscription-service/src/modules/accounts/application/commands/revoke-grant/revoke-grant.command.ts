@@ -1,3 +1,4 @@
+import type { AdminActor } from '../../../../../shared/application/admin-audit.js';
 import type { BillingAccountType } from '../../../domain/billing-account.js';
 
 export class RevokeGrantCommand {
@@ -5,6 +6,7 @@ export class RevokeGrantCommand {
     readonly type: BillingAccountType,
     readonly externalId: string,
     readonly grantId: string,
-    readonly actorUserId: string,
+    readonly actor: AdminActor,
+    readonly reason: string,
   ) {}
 }

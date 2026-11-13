@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../../generated/prisma/client.js';
+import { recordAdminAction } from '../../../../infrastructure/audit/record-admin-action.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import type { AdminAuditEntry } from '../../../../shared/application/admin-audit.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import type { IBillingAccountRepository } from '../../application/ports/billing-account.repository.js';
 import { BillingAccount, type BillingAccountType } from '../../domain/billing-account.js';
@@ -45,7 +47,7 @@ export class PrismaBillingAccountRepository implements IBillingAccountRepository
     });
   }
 
-  async save(account: BillingAccount): Promise<Result<void, 'version_conflict'>> {
+  async save(account: BillingAccount, audit?: AdminAuditEntry): Promise<Result<void, 'version_conflict'>> {
     const changed = account.changedSubscriptions();
     try {
       await this.prisma.$transaction(async (tx) => {
@@ -74,6 +76,7 @@ export class PrismaBillingAccountRepository implements IBillingAccountRepository
             update: { status: s.status, endedAt: s.endedAt, endedBy: s.endedBy },
           });
         }
+        if (audit) await recordAdminAction(tx, audit);
       });
       return Result.ok();
     } catch (err) {

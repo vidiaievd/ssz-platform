@@ -12,16 +12,18 @@ import { BILLING_ACCOUNT_REPOSITORY } from './application/ports/billing-account.
 import { GRANT_REPOSITORY } from './application/ports/grant.repository.js';
 import { GetAccountHistoryHandler } from './application/queries/get-account-history/get-account-history.handler.js';
 import { GetAccountHandler } from './application/queries/get-account/get-account.handler.js';
+import { LookupAccountsHandler } from './application/queries/lookup-accounts/lookup-accounts.handler.js';
 import { PrismaAccountReader } from './infrastructure/persistence/prisma-account.reader.js';
 import { PrismaBillingAccountRepository } from './infrastructure/persistence/prisma-billing-account.repository.js';
 import { PrismaGrantRepository } from './infrastructure/persistence/prisma-grant.repository.js';
+import { AdminAccountsLookupController } from './presentation/controllers/admin-accounts-lookup.controller.js';
 import { AdminAccountsController } from './presentation/controllers/admin-accounts.controller.js';
 import { PayerCreatedConsumer } from './presentation/events/payer-created.consumer.js';
 import { EntitlementRefreshJob } from './presentation/jobs/entitlement-refresh.job.js';
 
 @Module({
   imports: [PlansModule],
-  controllers: [AdminAccountsController],
+  controllers: [AdminAccountsLookupController, AdminAccountsController],
   providers: [
     AssignPlanHandler,
     CancelSubscriptionHandler,
@@ -32,6 +34,7 @@ import { EntitlementRefreshJob } from './presentation/jobs/entitlement-refresh.j
     RefreshDueAccountsHandler,
     GetAccountHandler,
     GetAccountHistoryHandler,
+    LookupAccountsHandler,
     { provide: BILLING_ACCOUNT_REPOSITORY, useClass: PrismaBillingAccountRepository },
     { provide: GRANT_REPOSITORY, useClass: PrismaGrantRepository },
     { provide: ACCOUNT_READER, useClass: PrismaAccountReader },

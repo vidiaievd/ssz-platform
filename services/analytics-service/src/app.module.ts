@@ -21,6 +21,7 @@ import { AiUsageModule } from './modules/ai-usage/ai-usage.module.js';
 import { WeakRulesModule } from './modules/weak-rules/weak-rules.module.js';
 import { ReviewTermsModule } from './modules/review-terms/review-terms.module.js';
 import { UserErasureModule } from './modules/user-erasure/user-erasure.module.js';
+import { AdminAuditModule } from './modules/admin-audit/admin-audit.module.js';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { UserErasureModule } from './modules/user-erasure/user-erasure.module.js
     WeakRulesModule,
     ReviewTermsModule,
     UserErasureModule,
+    AdminAuditModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

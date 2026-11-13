@@ -22,6 +22,95 @@ namespace AuthService.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("AuthService.Domain.Entities.AdminAuditEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("ActorLevel")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("actor_level");
+
+                    b.Property<Guid?>("ActorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_id");
+
+                    b.Property<string>("AfterJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("after");
+
+                    b.Property<string>("BeforeJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("before");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("TargetId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("target_id");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("target_type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("ix_admin_audit_occurred_at");
+
+                    b.HasIndex("TargetType", "TargetId")
+                        .HasDatabaseName("ix_admin_audit_target");
+
+                    b.ToTable("admin_audit", (string)null);
+                });
+
+            modelBuilder.Entity("AuthService.Domain.Entities.AdminLevelAssignment", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("GrantedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("granted_at");
+
+                    b.Property<Guid?>("GrantedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("granted_by");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("level");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("admin_levels", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_admin_levels_level", "level IN ('support', 'admin', 'super')");
+                        });
+                });
+
             modelBuilder.Entity("AuthService.Domain.Entities.BackupCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -279,6 +368,13 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Role = "platform_admin",
+                            ClientType = "admin",
+                            RefreshLifetimeHours = 12,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 16, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
                             Role = "manager_platform",
                             ClientType = "web",
                             RefreshLifetimeHours = 24,
@@ -472,6 +568,15 @@ namespace AuthService.Infrastructure.Persistence.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("user_roles", (string)null);
+                });
+
+            modelBuilder.Entity("AuthService.Domain.Entities.AdminLevelAssignment", b =>
+                {
+                    b.HasOne("AuthService.Domain.Entities.User", null)
+                        .WithOne()
+                        .HasForeignKey("AuthService.Domain.Entities.AdminLevelAssignment", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("AuthService.Domain.Entities.BackupCode", b =>

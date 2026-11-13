@@ -52,3 +52,49 @@ export interface AccountHistory {
   subscriptions: SubscriptionView[];
   grants: GrantView[];
 }
+
+/** Raw rows for one payer in a batch lookup — what the reader found, before anything is decided. */
+export interface LookupAccountRow {
+  externalId: string;
+  /** Rows still marked trial/active; whether one counts now is decided by `isCurrent`. */
+  openSubscriptions: Array<{
+    id: string;
+    planCode: string;
+    planName: string;
+    planVersion: number;
+    status: SubscriptionStatus;
+    periodStart: Date;
+    periodEnd: Date | null;
+  }>;
+  /** Grants not revoked and not ended yet (active or scheduled). */
+  liveGrants: Array<{ startsAt: Date; endsAt: Date; revokedAt: Date | null }>;
+}
+
+export interface LookupPlanRef {
+  code: string;
+  name: string;
+  version: number;
+}
+
+export interface LookupRows {
+  accounts: LookupAccountRow[];
+  /** The current version of the audience's free plan; null when it is not seeded. */
+  freePlan: LookupPlanRef | null;
+}
+
+/** One payer of a batch lookup: what it runs on now, in a table row's worth of fields. */
+export interface AccountLookupItem {
+  externalId: string;
+  /** False = the payer was never seen here; it is on its audience's free plan all the same. */
+  hasAccount: boolean;
+  /** Where `plan` came from: a running subscription, or the audience's free plan as fallback. */
+  source: 'subscription' | 'free_plan';
+  /** Null only when there is no current subscription and the free plan is not seeded. */
+  plan: LookupPlanRef | null;
+  /** The current subscription; null = on the free plan without a subscription row. */
+  subscription: { id: string; status: SubscriptionStatus; periodStart: Date; periodEnd: Date | null } | null;
+  /** Grants counting now. */
+  activeGrants: number;
+  /** Grants that start later. */
+  scheduledGrants: number;
+}

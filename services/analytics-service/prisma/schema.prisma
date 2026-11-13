@@ -685,3 +685,35 @@ model ReviewTermAcceptance {
   @@index([revisedBy, revisedAt])
   @@map("review_term_acceptances")
 }
+
+// ─── Journal: AdminAuditLog ───────────────────────────────────────────────────
+// What platform admins changed, across services — plan 90, phase 1, step 6. Fed by
+// `admin.action.performed` from each service's own exchange (`auth.events`,
+// `subscription.events`; organization and ai later). The source row lives in that service's
+// `admin_audit`, written in the change's transaction; this is the copy the panel searches.
+// `id` is the event's `eventId` (= the source row's id), so a redelivery is a no-op.
+// `service` is the exchange the event came from, not a claim of the payload.
+
+model AdminAuditLog {
+  id         String   @id
+  /// 'auth' | 'subscription' | 'organization' | 'ai'
+  service    String
+  occurredAt DateTime @map("occurred_at")
+  /// Null when no person acted (auth's `admin bootstrap` command).
+  actorId    String?  @map("actor_id")
+  /// 'support' | 'admin' | 'super'
+  actorLevel String?  @map("actor_level")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  reason     String?
+  before     Json?
+  after      Json?
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  @@index([occurredAt(sort: Desc), id(sort: Desc)])
+  @@index([targetType, targetId, occurredAt(sort: Desc)])
+  @@index([actorId, occurredAt(sort: Desc)])
+  @@index([service, occurredAt(sort: Desc)])
+  @@map("admin_audit_log")
+}

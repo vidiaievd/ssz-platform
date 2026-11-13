@@ -10,3 +10,4 @@ export * from './progress-status.js';
 export * from './submission-status.js';
 export * from './revision-decision.js';
 export * from './exercise-template-code.js';
+export * from './admin-level.js';

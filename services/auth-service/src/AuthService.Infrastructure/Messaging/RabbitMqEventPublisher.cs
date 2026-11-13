@@ -147,6 +147,8 @@ public sealed class RabbitMqEventPublisher : IDomainEventPublisher, IDisposable
         EmailVerificationRequestedEvent => "auth.email_verification_requested",
         EmailVerifiedEvent => "auth.email_verified",
         UserDeletedEvent => "auth.user.deleted",
+        // Not `auth.`-prefixed: every service publishes this one event under the same key.
+        AdminActionPerformedEvent => "admin.action.performed",
         _ => null,
     };
 
@@ -200,6 +202,11 @@ public sealed record EventEnvelope
         EmailVerifiedEvent ev => new { ev.UserId, ev.Email },
         // The address goes along: by the time this is read it is already gone from auth.
         UserDeletedEvent ev => new { ev.UserId, ev.Email },
+        AdminActionPerformedEvent ev => new
+        {
+            service = AdminActionPerformedEvent.ServiceName,
+            ev.ActorId, ev.ActorLevel, ev.Action, ev.TargetType, ev.TargetId, ev.Reason, ev.Before, ev.After,
+        },
         _ => new { },
     };
 }

@@ -1,9 +1,11 @@
 import { ConflictException, Inject } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { businessError } from '../../../../../common/errors/business-error.js';
+import { adminAuditEntry } from '../../../../../shared/application/admin-audit.js';
 import { describeAccountError } from '../../../domain/account-errors.js';
 import { accountNotFound } from '../../account-lookup.js';
 import type { AccountOverview } from '../../account-views.js';
+import { accountTarget, subscriptionSnapshot } from '../../audit-snapshots.js';
 import { ACCOUNT_READER, type IAccountReader } from '../../ports/account.reader.js';
 import { BILLING_ACCOUNT_REPOSITORY, type IBillingAccountRepository } from '../../ports/billing-account.repository.js';
 import { CancelSubscriptionCommand } from './cancel-subscription.command.js';
@@ -21,10 +23,18 @@ export class CancelSubscriptionHandler implements ICommandHandler<CancelSubscrip
     if (!account) throw accountNotFound(command.type, command.externalId);
     const now = new Date();
 
-    const canceled = account.cancelSubscription(command.actorUserId, now);
+    const canceled = account.cancelSubscription(command.actor.userId, now);
     if (canceled.isFail) throw businessError(canceled.error, describeAccountError(canceled.error));
 
-    const saved = await this.accounts.save(account);
+    const audit = adminAuditEntry({
+      actor: command.actor,
+      action: 'subscription.canceled',
+      ...accountTarget(command.type, command.externalId),
+      reason: command.reason,
+      before: subscriptionSnapshot(canceled.value),
+      now,
+    });
+    const saved = await this.accounts.save(account, audit);
     if (saved.isFail) throw new ConflictException('The account changed meanwhile; reload and retry');
     return (await this.reader.overview(command.type, command.externalId, now))!;
   }

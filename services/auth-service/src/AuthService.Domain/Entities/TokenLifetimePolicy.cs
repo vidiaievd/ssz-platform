@@ -88,6 +88,8 @@ public static class DefaultTokenLifetimes
     [
         (RoleNames.PlatformAdmin,   ClientTypes.Web,    12),
         (RoleNames.PlatformAdmin,   ClientTypes.Mobile, 12),
+        // Plan 90: the admin panel. Only platform administrators open sessions there.
+        (RoleNames.PlatformAdmin,   ClientTypes.Admin,  12),
         (RoleNames.ManagerPlatform, ClientTypes.Web,    1 * Day),
         (RoleNames.ManagerPlatform, ClientTypes.Mobile, 1 * Day),
         (RoleNames.SchoolAdmin,     ClientTypes.Web,    3 * Day),

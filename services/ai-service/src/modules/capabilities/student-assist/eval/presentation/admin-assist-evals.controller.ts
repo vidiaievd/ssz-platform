@@ -13,7 +13,8 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../../common/decorators/current-user.decorator.js';
-import { PlatformAdminGuard } from '../../../../../common/guards/platform-admin.guard.js';
+import { RequireAdminLevel } from '../../../../../common/decorators/require-admin-level.decorator.js';
+import { AdminLevelGuard } from '../../../../../common/guards/admin-level.guard.js';
 import type { AuthenticatedUser } from '../../../../../infrastructure/auth/jwt-verifier.service.js';
 import { bindingMatch } from '../../../review-draft/eval/application/review-eval-runs.queries.js';
 import type { AssistEvalRun } from '../application/assist-eval-runner.js';
@@ -29,8 +30,9 @@ import { AssistEvalRunDto, AssistEvalRunsDto, AssistEvalRunSummaryDto, RunAssist
 @ApiTags('Admin — student assistant evals')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
-@ApiForbiddenResponse({ description: 'Caller is not platform_admin' })
-@UseGuards(PlatformAdminGuard)
+@ApiForbiddenResponse({ description: 'Caller is not platform_admin of the route\'s admin level (admin-panel session)' })
+@UseGuards(AdminLevelGuard)
+@RequireAdminLevel('support')
 @Controller('admin/ai/evals/student_assist')
 export class AdminAssistEvalsController {
   constructor(
@@ -38,6 +40,7 @@ export class AdminAssistEvalsController {
     private readonly queryBus: QueryBus,
   ) {}
 
+  @RequireAdminLevel('admin')
   @Post('run')
   @HttpCode(202)
   @ApiOperation({

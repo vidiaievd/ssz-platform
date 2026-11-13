@@ -45,6 +45,7 @@ public sealed class AuthController(
         [FromBody] LoginRequest request,
         CancellationToken ct)
     {
+        RefuseAdminClient(request.ClientType);
         var deviceInfo = Request.Headers.UserAgent.ToString();
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var result = await mediator.Send(
@@ -71,6 +72,7 @@ public sealed class AuthController(
         [FromBody] MfaChallengeRequest request,
         CancellationToken ct)
     {
+        RefuseAdminClient(request.ClientType);
         var deviceInfo = Request.Headers.UserAgent.ToString();
         var tokens = await mediator.Send(
             new CompleteMfaLoginCommand(
@@ -90,6 +92,7 @@ public sealed class AuthController(
         [FromBody] BackupCodeLoginRequest request,
         CancellationToken ct)
     {
+        RefuseAdminClient(request.ClientType);
         var deviceInfo = Request.Headers.UserAgent.ToString();
         var tokens = await mediator.Send(
             new LoginWithBackupCodeCommand(
@@ -110,7 +113,7 @@ public sealed class AuthController(
         CancellationToken ct)
     {
         var tokens = await mediator.Send(
-            new RefreshTokenCommand(request.RefreshToken), ct);
+            new RefreshTokenCommand(request.RefreshToken, AdminSession: false), ct);
 
         return Ok(tokens);
     }
@@ -264,5 +267,17 @@ public sealed class AuthController(
     {
         var tokens = await mediator.Send(new VerifyEmailCommand(request.Token), ct);
         return Ok(tokens);
+    }
+
+    /// <summary>
+    /// The admin panel (plan 90) signs in only under /api/v1/auth/admin/session, where its
+    /// refresh token stays in an httpOnly cookie; these routes would hand it out in the body.
+    /// </summary>
+    private static void RefuseAdminClient(string? clientType)
+    {
+        if (ClientTypes.Normalize(clientType) == ClientTypes.Admin)
+            throw new DomainException(
+                "The admin panel signs in under /api/v1/auth/admin/session.",
+                "ADMIN_SESSION_ROUTES_ONLY");
     }
 }

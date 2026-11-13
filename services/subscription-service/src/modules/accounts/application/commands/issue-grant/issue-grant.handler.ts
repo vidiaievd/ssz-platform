@@ -2,9 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { Inject } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { businessError } from '../../../../../common/errors/business-error.js';
+import { adminAuditEntry } from '../../../../../shared/application/admin-audit.js';
 import { describeAccountError } from '../../../domain/account-errors.js';
 import { Grant } from '../../../domain/grant.js';
 import type { AccountOverview } from '../../account-views.js';
+import { accountTarget, grantSnapshot } from '../../audit-snapshots.js';
 import { ACCOUNT_READER, type IAccountReader } from '../../ports/account.reader.js';
 import { BILLING_ACCOUNT_REPOSITORY, type IBillingAccountRepository } from '../../ports/billing-account.repository.js';
 import { GRANT_REPOSITORY, type IGrantRepository } from '../../ports/grant.repository.js';
@@ -32,12 +34,20 @@ export class IssueGrantHandler implements ICommandHandler<IssueGrantCommand, Acc
       startsAt: g.startsAt ?? now,
       endsAt: g.endsAt,
       reason: g.reason,
-      by: command.actorUserId,
+      by: command.actor.userId,
       now,
     });
     if (issued.isFail) throw businessError(issued.error, describeAccountError(issued.error));
 
-    await this.grants.insert(issued.value);
+    const audit = adminAuditEntry({
+      actor: command.actor,
+      action: 'grant.issued',
+      ...accountTarget(command.type, command.externalId),
+      reason: issued.value.snapshot.reason,
+      after: grantSnapshot(issued.value),
+      now,
+    });
+    await this.grants.insert(issued.value, audit);
     return (await this.reader.overview(command.type, command.externalId, now))!;
   }
 }

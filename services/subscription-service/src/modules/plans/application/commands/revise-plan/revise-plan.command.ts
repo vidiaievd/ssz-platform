@@ -1,3 +1,4 @@
+import type { AdminActor } from '../../../../../shared/application/admin-audit.js';
 import type { PlanFeature } from '../../../domain/plan.js';
 
 export class RevisePlanCommand {
@@ -6,6 +7,7 @@ export class RevisePlanCommand {
     readonly features: PlanFeature[],
     /** The version the edit was based on; undefined = whatever is current. */
     readonly expectedVersion: number | undefined,
-    readonly actorUserId: string,
+    readonly actor: AdminActor,
+    readonly reason: string,
   ) {}
 }
