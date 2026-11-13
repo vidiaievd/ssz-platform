@@ -170,6 +170,11 @@ and the denormalised `name` (null before sync). No email, no activity. `GET admi
 policy, `reviewAi`, `assistant`, `aiPrecheck` in one answer, as saved (no tariff check; review effort by template is not
 in). Non-UUID / unknown school → 404 (deleted ones are found).
 
+Student seats (plan 90, phase 4): `GET schools/:id/seats` (owner / admin / manager) → `{ used, limit, ceiling, state }`; panel
+reads the plan limit from the `school_seat_limits` projection only. `admin/schools` rows carry `seats { used, limit }` and
+filter `seats=near|over` (near = ≥ 90 % of the limit, not over; over = above it); the card has full `seats`;
+`admin/stats` has `seats { used, limit, schoolsLimited, near, over }` with `{ total, items[≤100], truncated }` lists.
+
 ### 4. Content Service (NestJS)
 Learning material management: courses → modules → lessons → exercises.
 Follows Clean Architecture.

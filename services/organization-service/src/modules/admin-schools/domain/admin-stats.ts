@@ -75,6 +75,36 @@ export function fillDays(
   }));
 }
 
+/** The attention lists stop at this many schools each; `truncated` says there were more. */
+export const ADMIN_SEATS_ATTENTION_LIMIT = 100;
+
+export interface AdminSeatsAttentionItem {
+  schoolId: string;
+  name: string;
+  slug: string;
+  used: number;
+  limit: number;
+}
+
+export interface AdminSeatsAttention {
+  /** Schools in this state, all of them. */
+  total: number;
+  /** Up to `ADMIN_SEATS_ATTENTION_LIMIT`, the most crowded first. */
+  items: AdminSeatsAttentionItem[];
+  truncated: boolean;
+}
+
+export interface AdminSeatsStats {
+  /** Active learners and seats summed over schools (not deleted) with a numeric limit. */
+  used: number;
+  limit: number;
+  schoolsLimited: number;
+  /** At 90 % of the limit or more, not over it. */
+  near: AdminSeatsAttention;
+  /** More active learners than the limit. */
+  over: AdminSeatsAttention;
+}
+
 export interface AdminStats {
   from: string;
   to: string;
@@ -88,6 +118,7 @@ export interface AdminStats {
   students: { total: number; newInPeriod: number };
   teachers: { total: number; newInPeriod: number };
   daily: AdminStatsDay[];
+  seats: AdminSeatsStats;
 }
 
 /** Raw numbers from persistence; the handler shapes them. */
@@ -96,6 +127,13 @@ export interface AdminStatsSnapshot {
   studentsTotal: number;
   teachersTotal: number;
   daily: { schools: DailyCount[]; students: DailyCount[]; teachers: DailyCount[] };
+  seats: {
+    used: number;
+    limit: number;
+    schoolsLimited: number;
+    /** Every school at 90 % of its limit or more, most crowded first (the handler caps the lists). */
+    attention: (AdminSeatsAttentionItem & { over: boolean })[];
+  };
 }
 
 export interface IAdminStatsReader {

@@ -25,6 +25,16 @@ const snapshot: AdminStatsSnapshot = {
     ],
     teachers: [{ day: '2026-11-03', count: 1 }],
   },
+  seats: {
+    used: 300,
+    limit: 400,
+    schoolsLimited: 3,
+    attention: [
+      { schoolId: 'a', name: 'A', slug: 'a', used: 12, limit: 10, over: true },
+      { schoolId: 'b', name: 'B', slug: 'b', used: 95, limit: 100, over: false },
+      { schoolId: 'c', name: 'C', slug: 'c', used: 9, limit: 10, over: false },
+    ],
+  },
 };
 
 describe('GetAdminStatsHandler', () => {
@@ -58,5 +68,24 @@ describe('GetAdminStatsHandler', () => {
       teachers: { total: 9, newInPeriod: 1 },
     });
     expect(stats.daily.map((d) => d.students)).toEqual([3, 0, 4]);
+  });
+
+  it('splits the attention rows into near and over, and caps each list', async () => {
+    const stats = await handler.execute(new GetAdminStatsQuery(period));
+    expect(stats.seats).toMatchObject({ used: 300, limit: 400, schoolsLimited: 3 });
+    expect(stats.seats.over).toEqual({
+      total: 1,
+      items: [{ schoolId: 'a', name: 'A', slug: 'a', used: 12, limit: 10 }],
+      truncated: false,
+    });
+    expect(stats.seats.near.items.map((i) => i.schoolId)).toEqual(['b', 'c']);
+
+    const many = Array.from({ length: 101 }, (_, i) => ({
+      schoolId: `s${i}`, name: 'S', slug: 's', used: 10, limit: 10, over: false,
+    }));
+    reader.snapshot.mockResolvedValueOnce({ ...snapshot, seats: { ...snapshot.seats, attention: many } });
+    const capped = await handler.execute(new GetAdminStatsQuery(period));
+    expect(capped.seats.near).toMatchObject({ total: 101, truncated: true });
+    expect(capped.seats.near.items).toHaveLength(100);
   });
 });

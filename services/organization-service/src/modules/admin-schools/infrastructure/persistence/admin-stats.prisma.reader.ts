@@ -20,7 +20,7 @@ export class AdminStatsPrismaReader implements IAdminStatsReader {
     const from = start.toISOString();
     const to = end.toISOString();
 
-    const [schools, students, teachers, schoolDays, studentDays, teacherDays] = await Promise.all([
+    const [schools, students, teachers, schoolDays, studentDays, teacherDays, seatTotals, attention] = await Promise.all([
       this.prisma.$queryRaw<{ kind: SchoolKindValue; status: AdminSchoolStatus; count: number }[]>`
         SELECT kind::text AS kind,
                CASE WHEN "deletedAt" IS NOT NULL THEN 'deleted'
@@ -74,6 +74,32 @@ export class AdminStatsPrismaReader implements IAdminStatsReader {
           ) f
          WHERE first_at >= ${from}::timestamp AND first_at < ${to}::timestamp
          GROUP BY 1`,
+      this.prisma.$queryRaw<{ used: number; limit: number; schools_limited: number }[]>`
+        SELECT COALESCE(sum(COALESCE(u.used, 0)), 0)::int AS used,
+               COALESCE(sum(l.max_seats), 0)::int AS "limit",
+               count(*)::int AS schools_limited
+          FROM school_seat_limits l
+          JOIN schools s ON s.id = l.school_id AND s."deletedAt" IS NULL
+          LEFT JOIN (
+            SELECT "schoolId", count(*)::int AS used FROM school_members
+             WHERE role = 'STUDENT' AND status = 'active' GROUP BY 1
+          ) u ON u."schoolId" = l.school_id
+         WHERE l.max_seats IS NOT NULL`,
+      this.prisma.$queryRaw<
+        { school_id: string; name: string; slug: string; used: number; limit: number; over: boolean }[]
+      >`
+        SELECT s.id::text AS school_id, s.name, s.slug, COALESCE(u.used, 0)::int AS used,
+               l.max_seats AS "limit", COALESCE(u.used, 0) > l.max_seats AS over
+          FROM school_seat_limits l
+          JOIN schools s ON s.id = l.school_id AND s."deletedAt" IS NULL
+          LEFT JOIN (
+            SELECT "schoolId", count(*)::int AS used FROM school_members
+             WHERE role = 'STUDENT' AND status = 'active' GROUP BY 1
+          ) u ON u."schoolId" = l.school_id
+         WHERE l.max_seats IS NOT NULL
+           AND (COALESCE(u.used, 0) > l.max_seats
+                OR (l.max_seats > 0 AND COALESCE(u.used, 0) * 10 >= l.max_seats * 9))
+         ORDER BY COALESCE(u.used, 0)::float / GREATEST(l.max_seats, 1) DESC, s.id`,
     ]);
 
     return {
@@ -81,6 +107,19 @@ export class AdminStatsPrismaReader implements IAdminStatsReader {
       studentsTotal: students[0]?.count ?? 0,
       teachersTotal: teachers[0]?.count ?? 0,
       daily: { schools: schoolDays, students: studentDays, teachers: teacherDays },
+      seats: {
+        used: seatTotals[0]?.used ?? 0,
+        limit: seatTotals[0]?.limit ?? 0,
+        schoolsLimited: seatTotals[0]?.schools_limited ?? 0,
+        attention: attention.map((r) => ({
+          schoolId: r.school_id,
+          name: r.name,
+          slug: r.slug,
+          used: r.used,
+          limit: r.limit,
+          over: r.over,
+        })),
+      },
     };
   }
 }

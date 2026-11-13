@@ -9,6 +9,7 @@ import { SCHOOL_REPOSITORY, type ISchoolRepository } from '../../../domain/repos
 import { SCHOOL_MEMBERSHIP_REPOSITORY, type ISchoolMembershipRepository } from '../../../domain/repositories/school-membership.repository.interface.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { AddMemberCommand } from '../add-member/add-member.command.js';
+import type { AddMemberResult } from '../add-member/add-member.handler.js';
 import { ApproveMembershipCommand } from './approve-membership.command.js';
 import { EnrollmentApprovedEvent } from '../../../domain/events/enrollment-approved.event.js';
 import {
@@ -17,7 +18,7 @@ import {
 } from '../../../../../shared/application/ports/event-publisher.interface.js';
 
 @CommandHandler(ApproveMembershipCommand)
-export class ApproveMembershipHandler implements ICommandHandler<ApproveMembershipCommand> {
+export class ApproveMembershipHandler implements ICommandHandler<ApproveMembershipCommand, AddMemberResult> {
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepo: ISchoolRepository,
     @Inject(SCHOOL_MEMBERSHIP_REPOSITORY) private readonly membershipRepo: ISchoolMembershipRepository,
@@ -25,7 +26,7 @@ export class ApproveMembershipHandler implements ICommandHandler<ApproveMembersh
     private readonly commandBus: CommandBus,
   ) {}
 
-  async execute(command: ApproveMembershipCommand): Promise<void> {
+  async execute(command: ApproveMembershipCommand): Promise<AddMemberResult> {
     const school = await this.schoolRepo.findById(command.schoolId);
     if (!school) throw new SchoolNotFoundException(command.schoolId);
 
@@ -47,10 +48,13 @@ export class ApproveMembershipHandler implements ICommandHandler<ApproveMembersh
     // added to groups later, before committing the approval — a roster-add failure
     // must fail the whole approval rather than be silently dropped, otherwise the
     // resulting ENROLLMENT_APPROVED event would misrepresent what actually happened.
+    // No seat left → SEATS_EXHAUSTED (409) and the application stays in the queue (plan 90, phase 4).
+    let added: AddMemberResult = { seats: null };
     if (!school.getMemberRole(membership.studentId)) {
-      await this.commandBus.execute(
-        new AddMemberCommand(command.callerId, command.schoolId, membership.studentId, MemberRole.STUDENT),
-      );
+      added =
+        (await this.commandBus.execute<AddMemberCommand, AddMemberResult | undefined>(
+          new AddMemberCommand(command.callerId, command.schoolId, membership.studentId, MemberRole.STUDENT),
+        )) ?? added;
     }
 
     membership.transitionTo('onboarding');
@@ -59,5 +63,7 @@ export class ApproveMembershipHandler implements ICommandHandler<ApproveMembersh
     await this.eventPublisher.publish(
       new EnrollmentApprovedEvent(randomUUID(), membership.id, school.id, school.name, membership.studentId),
     );
+
+    return added;
   }
 }

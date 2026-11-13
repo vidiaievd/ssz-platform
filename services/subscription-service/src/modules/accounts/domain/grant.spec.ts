@@ -60,4 +60,37 @@ describe('Grant', () => {
     expect(g.revoke('admin2', later(2)).error).toEqual({ code: 'grant_already_revoked', grantId: 'g1' });
     expect(issue().value.revoke('admin', later(31)).error).toEqual({ code: 'grant_ended', grantId: 'g1' });
   });
+
+  describe('seats.students (plan 90, phase 4)', () => {
+    const seats = (over: Partial<Parameters<typeof Grant.issue>[0]> = {}) =>
+      issue({ featureKey: 'seats.students', monthlyCredits: null, limits: { max: 150 }, audience: 'workspace', ...over });
+
+    it('is given to a workspace with a whole max', () => {
+      expect(seats().value.snapshot.limits).toEqual({ max: 150 });
+    });
+
+    it('needs max', () => {
+      expect(seats({ limits: {} }).error).toEqual({ code: 'limit_required', featureKey: 'seats.students', limit: 'max' });
+    });
+
+    it('refuses a fractional max and credits', () => {
+      expect(seats({ limits: { max: 10.5 } }).error).toEqual({ code: 'invalid_limit', featureKey: 'seats.students', limit: 'max' });
+      expect(seats({ monthlyCredits: '5' }).error).toEqual({ code: 'credits_not_applicable', featureKey: 'seats.students' });
+    });
+
+    it('cannot be switched off', () => {
+      expect(seats({ enabled: false, limits: {} }).error).toEqual({
+        code: 'grant_disable_not_applicable',
+        featureKey: 'seats.students',
+      });
+    });
+
+    it('is not for a learner', () => {
+      expect(seats({ audience: 'individual' }).error).toEqual({
+        code: 'feature_not_for_audience',
+        featureKey: 'seats.students',
+        audience: 'individual',
+      });
+    });
+  });
 });

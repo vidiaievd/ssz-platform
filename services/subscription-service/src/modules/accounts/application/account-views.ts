@@ -67,9 +67,25 @@ export interface LookupAccountRow {
     status: SubscriptionStatus;
     periodStart: Date;
     periodEnd: Date | null;
+    /** The `seats.students` row of the version it is on; null = the version has none. */
+    seats: PlanSeatsRow | null;
   }>;
   /** Grants not revoked and not ended yet (active or scheduled). */
-  liveGrants: Array<{ startsAt: Date; endsAt: Date; revokedAt: Date | null }>;
+  liveGrants: Array<{
+    featureKey: string;
+    enabled: boolean;
+    monthlyCredits: string | null;
+    limits: Record<string, number>;
+    startsAt: Date;
+    endsAt: Date;
+    revokedAt: Date | null;
+  }>;
+}
+
+/** A plan version's `seats.students` feature, as far as the seat limit needs it. */
+export interface PlanSeatsRow {
+  enabled: boolean;
+  limits: Record<string, number>;
 }
 
 export interface LookupPlanRef {
@@ -81,7 +97,7 @@ export interface LookupPlanRef {
 export interface LookupRows {
   accounts: LookupAccountRow[];
   /** The current version of the audience's free plan; null when it is not seeded. */
-  freePlan: LookupPlanRef | null;
+  freePlan: (LookupPlanRef & { seats: PlanSeatsRow | null }) | null;
 }
 
 /** One payer of a batch lookup: what it runs on now, in a table row's worth of fields. */
@@ -99,4 +115,6 @@ export interface AccountLookupItem {
   activeGrants: number;
   /** Grants that start later. */
   scheduledGrants: number;
+  /** Student seat limit now (plan with grants on top); null = no limit (plan 90, phase 4). */
+  seats: { max: number } | null;
 }

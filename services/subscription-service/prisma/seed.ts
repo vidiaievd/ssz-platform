@@ -6,7 +6,15 @@
 //    the file is reported, not applied — changing features is a new version through the API;
 //  - nothing absent from the file is deleted.
 //
+// SEED_REVISE=1 opts in to one exception: a plan whose current features differ from the file gets
+// the file's features as a NEW version (name, audience and status are still only reported). It is
+// how a catalogue change made in code reaches a running database (plan 90, phase 4: seat limits)
+// without an admin token. Subscribers stay on their version; the free plans' current version is
+// what payers without a subscription read, so they get it at once. No admin_audit row is written —
+// the version's `created_by` is `seed`.
+//
 // Run: npx prisma db seed   (inside the container: docker compose ... exec subscription-service npx prisma db seed)
+//      SEED_REVISE=1 npx prisma db seed
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -25,6 +33,7 @@ interface SeedPlan {
 }
 
 const SEED_AUTHOR = 'seed';
+const REVISE = process.env['SEED_REVISE'] === '1';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const data = JSON.parse(readFileSync(join(here, 'seed-data/plans.json'), 'utf8')) as { plans: SeedPlan[] };
@@ -101,7 +110,37 @@ async function main(): Promise<void> {
     const drift: string[] = [];
     if (existing.name !== plan.name) drift.push('name');
     if (existing.audience !== plan.audience) drift.push('audience');
-    if (!current || !sameFeatures(current.features, plan.current.features)) drift.push('features');
+    const featuresDrift = !current || !sameFeatures(current.features, plan.current.features);
+    if (featuresDrift && REVISE && existing.status === 'active' && existing.audience === plan.audience) {
+      const next = existing.currentVersion + 1;
+      // Same optimistic guard as the admin API: the plan row moves only from the version read.
+      await prisma.$transaction(async (tx) => {
+        const moved = await tx.plan.updateMany({
+          where: { id: existing.id, currentVersion: existing.currentVersion },
+          data: { currentVersion: next },
+        });
+        if (moved.count !== 1) throw new Error(`plan ${plan.code} changed while seeding — run again`);
+        await tx.planVersion.create({
+          data: {
+            planId: existing.id,
+            version: next,
+            createdBy: SEED_AUTHOR,
+            features: {
+              create: plan.current.features.map((f) => ({
+                featureKey: f.featureKey,
+                enabled: f.enabled,
+                monthlyCredits: f.monthlyCredits,
+                limits: f.limits as Prisma.InputJsonValue,
+              })),
+            },
+          },
+        });
+      });
+      console.log(`plan ${plan.code} revised from the file: v${existing.currentVersion} → v${next}`);
+      if (drift.length === 0) continue;
+    } else if (featuresDrift) {
+      drift.push('features');
+    }
     if (drift.length > 0) {
       console.warn(
         `plan ${plan.code} (v${existing.currentVersion}, ${existing.status}) differs from the file in ` +

@@ -7,6 +7,7 @@ import { EnrollmentApprovedEvent } from '../../../domain/events/enrollment-appro
 import type { ISchoolRepository } from '../../../domain/repositories/school.repository.interface.js';
 import type { ISchoolMembershipRepository } from '../../../domain/repositories/school-membership.repository.interface.js';
 import type { IEventPublisher } from '../../../../../shared/application/ports/event-publisher.interface.js';
+import { SeatsExhaustedException } from '../../../domain/exceptions/seats-exhausted.exception.js';
 
 function makePendingMembership(): SchoolMembership {
   return SchoolMembership.create({
@@ -87,6 +88,30 @@ describe('ApproveMembershipHandler', () => {
       handler.execute(new ApproveMembershipCommand('owner-1', 's-1', 'm-1')),
     ).rejects.toThrow('roster add failed');
 
+    expect(membership.status).toBe('pending');
+    expect(membershipRepo.save).not.toHaveBeenCalled();
+    expect(eventPublisher.publish).not.toHaveBeenCalled();
+  });
+
+  it('answers the seats the learner took', async () => {
+    membershipRepo.findById.mockResolvedValue(makePendingMembership());
+    commandBus.execute.mockResolvedValue({ seats: { used: 101, limit: 100, ceiling: 110, state: 'warning' } });
+
+    await expect(handler.execute(new ApproveMembershipCommand('owner-1', 's-1', 'm-1'))).resolves.toEqual({
+      seats: { used: 101, limit: 100, ceiling: 110, state: 'warning' },
+    });
+  });
+
+  it('no seat → SEATS_EXHAUSTED and the application stays pending (plan 90, phase 4)', async () => {
+    const membership = makePendingMembership();
+    membershipRepo.findById.mockResolvedValue(membership);
+    commandBus.execute.mockRejectedValue(
+      new SeatsExhaustedException('s-1', { used: 110, limit: 100, ceiling: 110, state: 'full' }),
+    );
+
+    await expect(handler.execute(new ApproveMembershipCommand('owner-1', 's-1', 'm-1'))).rejects.toBeInstanceOf(
+      SeatsExhaustedException,
+    );
     expect(membership.status).toBe('pending');
     expect(membershipRepo.save).not.toHaveBeenCalled();
     expect(eventPublisher.publish).not.toHaveBeenCalled();

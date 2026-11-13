@@ -99,10 +99,48 @@ describe('validatePlanFeatures', () => {
   it('refuses credits on a key that is not metered in credits', () => {
     const catalog: FeatureKeyDefinition[] = [{ key: 'scheduling', limitKind: 'switch', limitNames: ['seats'] }];
     const lookup = (k: string) => catalog.find((d) => d.key === k);
-    expect(validatePlanFeatures([feature('scheduling', { monthlyCredits: null, limits: { seats: 5 } })], lookup).isOk).toBe(true);
-    expect(validatePlanFeatures([feature('scheduling')], lookup).error).toEqual({
+    expect(validatePlanFeatures([feature('scheduling', { monthlyCredits: null, limits: { seats: 5 } })], { lookup }).isOk).toBe(true);
+    expect(validatePlanFeatures([feature('scheduling')], { lookup }).error).toEqual({
       code: 'credits_not_applicable',
       featureKey: 'scheduling',
+    });
+  });
+
+  describe('seats.students (plan 90, phase 4)', () => {
+    const seats = (enabled: boolean, limits: Record<string, number>) => ({
+      featureKey: 'seats.students',
+      enabled,
+      monthlyCredits: null,
+      limits,
+    });
+
+    it('takes a whole max on a workspace plan', () => {
+      expect(validatePlanFeatures([seats(true, { max: 30 })], { audience: 'workspace' }).isOk).toBe(true);
+    });
+
+    it('needs max while on, not while off', () => {
+      expect(validatePlanFeatures([seats(true, {})]).error).toEqual({
+        code: 'limit_required',
+        featureKey: 'seats.students',
+        limit: 'max',
+      });
+      expect(validatePlanFeatures([seats(false, {})]).isOk).toBe(true);
+    });
+
+    it('refuses a fractional max', () => {
+      expect(validatePlanFeatures([seats(true, { max: 2.5 })]).error).toEqual({
+        code: 'invalid_limit',
+        featureKey: 'seats.students',
+        limit: 'max',
+      });
+    });
+
+    it('is refused on an individual plan', () => {
+      expect(validatePlanFeatures([seats(true, { max: 5 })], { audience: 'individual' }).error).toEqual({
+        code: 'feature_not_for_audience',
+        featureKey: 'seats.students',
+        audience: 'individual',
+      });
     });
   });
 

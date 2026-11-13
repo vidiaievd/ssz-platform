@@ -4,6 +4,7 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { businessError } from '../../../../../common/errors/business-error.js';
 import { adminAuditEntry } from '../../../../../shared/application/admin-audit.js';
 import { describeAccountError } from '../../../domain/account-errors.js';
+import { audienceFor } from '../../../domain/billing-account.js';
 import { Grant } from '../../../domain/grant.js';
 import type { AccountOverview } from '../../account-views.js';
 import { accountTarget, grantSnapshot } from '../../audit-snapshots.js';
@@ -30,6 +31,7 @@ export class IssueGrantHandler implements ICommandHandler<IssueGrantCommand, Acc
       accountId: account.id,
       featureKey: g.featureKey,
       enabled: g.enabled,
+      audience: audienceFor(command.type),
       monthlyCredits: g.monthlyCredits,
       limits: g.limits,
       startsAt: g.startsAt ?? now,

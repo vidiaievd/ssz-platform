@@ -2,12 +2,17 @@ import { Inject } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { ADMIN_SCHOOL_STATUSES, type AdminSchoolStatus, type SchoolKindValue } from '../../domain/admin-school.js';
 import {
+  ADMIN_SEATS_ATTENTION_LIMIT,
   ADMIN_STATS_READER,
+  type AdminSeatsAttention,
   fillDays,
   type AdminStats,
+  type AdminStatsSnapshot,
   type IAdminStatsReader,
 } from '../../domain/admin-stats.js';
 import { GetAdminStatsQuery } from './get-admin-stats.query.js';
+
+type AdminStatsSnapshotSeat = AdminStatsSnapshot['seats']['attention'][number];
 
 @QueryHandler(GetAdminStatsQuery)
 export class GetAdminStatsHandler implements IQueryHandler<GetAdminStatsQuery, AdminStats> {
@@ -35,6 +40,21 @@ export class GetAdminStatsHandler implements IQueryHandler<GetAdminStatsQuery, A
       students: { total: snapshot.studentsTotal, newInPeriod: sum('students') },
       teachers: { total: snapshot.teachersTotal, newInPeriod: sum('teachers') },
       daily,
+      seats: {
+        used: snapshot.seats.used,
+        limit: snapshot.seats.limit,
+        schoolsLimited: snapshot.seats.schoolsLimited,
+        near: attention(snapshot.seats.attention.filter((s) => !s.over)),
+        over: attention(snapshot.seats.attention.filter((s) => s.over)),
+      },
     };
   }
+}
+
+function attention(rows: AdminStatsSnapshotSeat[]): AdminSeatsAttention {
+  return {
+    total: rows.length,
+    items: rows.slice(0, ADMIN_SEATS_ATTENTION_LIMIT).map(({ over: _over, ...item }) => item),
+    truncated: rows.length > ADMIN_SEATS_ATTENTION_LIMIT,
+  };
 }

@@ -24,6 +24,13 @@ import { SchoolMember } from '../../../domain/entities/school-member.entity.js';
 import { SchoolMembership, type MembershipStatus } from '../../../domain/entities/school-membership.entity.js';
 import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { UserPlatformRoleAssignedEvent } from '../../../domain/events/user-platform-role-assigned.event.js';
+import { StudentSeatGate } from '../../services/student-seat-gate.service.js';
+import type { SeatUsage } from '../../../domain/value-objects/seat-policy.vo.js';
+
+/** `seats` — the school's student seats after a learner joined; null for other roles or an unknown limit. */
+export interface AddMemberResult {
+  seats: SeatUsage | null;
+}
 
 const ROLES_REQUIRING_TUTOR: ReadonlySet<MemberRole> = new Set([MemberRole.TEACHER]);
 
@@ -35,15 +42,16 @@ const TERMINAL_MEMBERSHIP_STATUSES: ReadonlySet<MembershipStatus> = new Set<Memb
 ]);
 
 @CommandHandler(AddMemberCommand)
-export class AddMemberHandler implements ICommandHandler<AddMemberCommand> {
+export class AddMemberHandler implements ICommandHandler<AddMemberCommand, AddMemberResult> {
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
     @Inject(SCHOOL_MEMBERSHIP_REPOSITORY) private readonly membershipRepository: ISchoolMembershipRepository,
     @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
     @Inject(PROFILE_SERVICE_PORT) private readonly profileService: IProfileServicePort,
+    private readonly seatGate: StudentSeatGate,
   ) {}
 
-  async execute(command: AddMemberCommand): Promise<void> {
+  async execute(command: AddMemberCommand): Promise<AddMemberResult> {
     const school = await this.schoolRepository.findById(command.schoolId);
     if (!school) throw new SchoolNotFoundException(command.schoolId);
 
@@ -76,6 +84,21 @@ export class AddMemberHandler implements ICommandHandler<AddMemberCommand> {
 
     school.addMember(member, command.actorId, randomUUID());
 
+    // A learner takes a seat (plan 90, phase 4): the row is written under the school's seat
+    // lock, or nothing is written and SEATS_EXHAUSTED goes back. The aggregate's save below
+    // then finds the row already there and skips it.
+    let seats: SeatUsage | null = null;
+    if (command.role === MemberRole.STUDENT) {
+      seats = await this.seatGate.claim(command.schoolId, {
+        kind: 'insert',
+        memberId: member.id,
+        userId: member.userId,
+        joinedAt: member.joinedAt,
+        name: member.name,
+        avatarUrl: member.avatarUrl,
+      });
+    }
+
     await this.schoolRepository.save(school);
 
     // Keep the enrolment-lifecycle table (school_memberships) in sync with the
@@ -98,6 +121,8 @@ export class AddMemberHandler implements ICommandHandler<AddMemberCommand> {
         new UserPlatformRoleAssignedEvent(randomUUID(), command.userId, 'Tutor'),
       );
     }
+
+    return { seats };
   }
 
   /**

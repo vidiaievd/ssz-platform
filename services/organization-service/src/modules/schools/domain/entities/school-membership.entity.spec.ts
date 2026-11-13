@@ -34,3 +34,20 @@ describe('SchoolMembership transitions', () => {
     expect(m.status).toBe('active');
   });
 });
+
+describe('SchoolMembership blocked reason (plan 90, phase 4)', () => {
+  it('marks a pending application and clears the mark once it moves on', () => {
+    const m = makeMembership();
+    m.markBlocked('no_seats');
+    expect(m.blockedReason).toBe('no_seats');
+
+    m.transitionTo('onboarding');
+    expect(m.blockedReason).toBeUndefined();
+  });
+
+  it('only a pending application can be blocked', () => {
+    const m = makeMembership();
+    m.transitionTo('onboarding');
+    expect(() => m.markBlocked('no_seats')).toThrow();
+  });
+});

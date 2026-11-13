@@ -1,3 +1,4 @@
+import { resolveStudentSeatLimit } from '../../entitlements/domain/entitlements.js';
 import { grantState } from '../domain/grant.js';
 import { isCurrent } from '../domain/subscription.js';
 import type { AccountLookupItem, LookupRows } from './account-views.js';
@@ -19,16 +20,21 @@ export function summariseLookup(ids: readonly string[], rows: LookupRows, now: D
       if (state === 'active') activeGrants += 1;
       else if (state === 'scheduled') scheduledGrants += 1;
     }
+    const free = rows.freePlan;
+    const maxSeats = resolveStudentSeatLimit(current ? current.seats : (free?.seats ?? null), row?.liveGrants ?? [], now);
     return {
       externalId,
       hasAccount: row !== undefined,
       source: current ? 'subscription' : 'free_plan',
-      plan: current ? { code: current.planCode, name: current.planName, version: current.planVersion } : rows.freePlan,
+      plan: current
+        ? { code: current.planCode, name: current.planName, version: current.planVersion }
+        : free && { code: free.code, name: free.name, version: free.version },
       subscription: current
         ? { id: current.id, status: current.status, periodStart: current.periodStart, periodEnd: current.periodEnd }
         : null,
       activeGrants,
       scheduledGrants,
+      seats: maxSeats === null ? null : { max: maxSeats },
     };
   });
 }

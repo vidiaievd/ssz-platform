@@ -1,6 +1,7 @@
 import type { BillingAccountType } from '../../accounts/domain/billing-account.js';
 import { grantState, type GrantProps } from '../../accounts/domain/grant.js';
 import type { SubscriptionStatus } from '../../accounts/domain/subscription.js';
+import { featureKeyDefinition, SEATS_STUDENTS_KEY } from '../../plans/domain/feature-key.js';
 import type { PlanAudience, PlanFeature } from '../../plans/domain/plan.js';
 import { addCredits } from './credits.js';
 import { creditPeriod } from './credit-period.js';
@@ -95,6 +96,9 @@ export interface EntitlementInputs {
  *
  * A grant that switches its key off (plan 90, phase 3) wins over everything else: the plan
  * and any grant switching the same key on. It is applied last, whatever the order of rows.
+ *
+ * Seats (plan 90, phase 4): a grant raises the plan's `max`; on a plan that does not limit
+ * seats it does nothing, since no limit is more than any `max`.
  */
 export function resolveEntitlements(input: EntitlementInputs): Entitlements {
   const { subscription, now } = input;
@@ -113,9 +117,11 @@ export function resolveEntitlements(input: EntitlementInputs): Entitlements {
       switchedOff.push(g.featureKey);
       continue;
     }
-    active.push({ featureKey: g.featureKey, endsAt: g.endsAt });
     const base = features[g.featureKey];
     const baseOn = base?.enabled === true;
+    // A head count the plan does not limit stays unlimited: a grant's `max` there would be a cut.
+    if (!baseOn && featureKeyDefinition(g.featureKey)?.limitKind === 'seats') continue;
+    active.push({ featureKey: g.featureKey, endsAt: g.endsAt });
 
     let credits: string | null;
     if (g.monthlyCredits === null) credits = null;
@@ -168,4 +174,41 @@ function nextChange(input: EntitlementInputs, periodEnd: Date): Date {
     consider(g.endsAt);
   }
   return next;
+}
+
+/**
+ * The student seat limit a payer has now (plan 90, phase 4): `limits.max` of `seats.students`
+ * while the key is on; null = no limit (the plan does not mention the key — older versions,
+ * individual plans — or a key without `max`, which validation does not let in).
+ */
+export function studentSeatLimit(features: Readonly<Record<string, FeatureEntitlement>>): number | null {
+  const f = features[SEATS_STUDENTS_KEY];
+  if (!f?.enabled) return null;
+  const max = f.limits['max'];
+  return typeof max === 'number' ? max : null;
+}
+
+/**
+ * The seat limit from a plan's `seats.students` row and the payer's grants, by the same rules
+ * as the full resolution (a grant only raises the plan's limit). For batch reads that do not
+ * load whole plans.
+ */
+export function resolveStudentSeatLimit(
+  planSeats: Pick<PlanFeature, 'enabled' | 'limits'> | null,
+  grants: EntitlementInputs['grants'],
+  now: Date,
+): number | null {
+  const resolved = resolveEntitlements({
+    account: { type: 'workspace', externalId: '', revision: 0 },
+    subscription: null,
+    freePlan: {
+      code: '',
+      name: '',
+      version: 0,
+      features: planSeats ? [{ featureKey: SEATS_STUDENTS_KEY, monthlyCredits: null, ...planSeats }] : [],
+    },
+    grants: grants.filter((g) => g.featureKey === SEATS_STUDENTS_KEY),
+    now,
+  });
+  return studentSeatLimit(resolved.features);
 }

@@ -9,7 +9,9 @@ import {
   type AdminSchoolPage,
   type AdminSchoolSort,
   type IAdminSchoolsReader,
+  type AdminSchoolSeatsFilter,
 } from '../../domain/admin-school.js';
+import { seatUsage } from '../../../schools/domain/value-objects/seat-policy.vo.js';
 
 const STAFF_ROLES = ['ADMIN', 'MANAGER', 'CONTENT_ADMIN', 'SCHEDULER'] as const;
 
@@ -20,6 +22,7 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
 
   async list(filter: AdminSchoolFilter, sort: AdminSchoolSort, page: number, limit: number): Promise<AdminSchoolPage> {
     const where = whereOf(filter);
+    if (filter.seats) where.id = { in: await this.schoolIdsBySeats(filter.seats) };
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.school.count({ where }),
       this.prisma.school.findMany({
@@ -41,7 +44,8 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
       }),
     ]);
 
-    const counts = await this.rosterCounts(rows.map((r) => r.id));
+    const ids = rows.map((r) => r.id);
+    const [counts, limits] = await Promise.all([this.rosterCounts(ids), this.seatLimits(ids)]);
     return {
       items: rows.map((r) => ({
         id: r.id,
@@ -53,6 +57,7 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
         city: r.city,
         createdAt: r.createdAt,
         counts: counts.get(r.id) ?? { students: 0, teachers: 0 },
+        seats: { used: counts.get(r.id)?.students ?? 0, limit: limits.get(r.id) ?? null },
       })),
       total,
       page,
@@ -64,7 +69,8 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
     const school = await this.prisma.school.findUnique({ where: { id } });
     if (!school) return null;
 
-    const [roster, pendingApplications, pendingInvitations, groups] = await Promise.all([
+    const [limits, roster, pendingApplications, pendingInvitations, groups] = await Promise.all([
+      this.seatLimits([id]),
       this.prisma.schoolMember.groupBy({
         by: ['role', 'status'],
         where: { schoolId: id },
@@ -95,6 +101,8 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
     const tally = (match: (r: (typeof roster)[number]) => boolean) =>
       roster.filter(match).reduce((sum, r) => sum + r._count._all, 0);
 
+    const students = tally((r) => r.role === 'STUDENT' && r.status === 'active');
+
     const courseIds = new Set<string>();
     for (const g of groups) {
       if (g.courseId) courseIds.add(g.courseId);
@@ -116,13 +124,14 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
       updatedAt: school.updatedAt,
       deletedAt: school.deletedAt,
       counts: {
-        students: tally((r) => r.role === 'STUDENT' && r.status === 'active'),
+        students,
         archivedStudents: tally((r) => r.role === 'STUDENT' && r.status === 'archived'),
         teachers: tally((r) => r.role === 'TEACHER'),
         staff: tally((r) => (STAFF_ROLES as readonly string[]).includes(r.role)),
         pendingApplications,
         pendingInvitations,
       },
+      seats: seatUsage(students, limits.get(id) ?? null),
       groups: groups.map((g) => ({
         id: g.id,
         name: g.name,
@@ -134,6 +143,46 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
       })),
       courses: { count: courseIds.size, ids: [...courseIds].sort() },
     };
+  }
+
+  /**
+   * The plan's student limit per school from the local projection (rows past their `validUntil`
+   * still count — a read for the panel is never worth a call to subscription-service). A school
+   * without a row, or with `null`, has no entry: no limit shown.
+   */
+  private async seatLimits(schoolIds: string[]): Promise<Map<string, number>> {
+    if (schoolIds.length === 0) return new Map();
+    // The generated client does not type this model (same as SeatLimitPrismaProjection).
+    const rows = (await (this.prisma as any).schoolSeatLimit.findMany({
+      where: { schoolId: { in: schoolIds }, maxSeats: { not: null } },
+      select: { schoolId: true, maxSeats: true },
+    })) as { schoolId: string; maxSeats: number }[];
+    return new Map(rows.map((r) => [r.schoolId, r.maxSeats]));
+  }
+
+  /** Ids of the schools whose roster stands `near` the limit (≥ 90 %, not over) or `over` it. */
+  private async schoolIdsBySeats(state: AdminSchoolSeatsFilter): Promise<string[]> {
+    const rows =
+      state === 'over'
+        ? await this.prisma.$queryRaw<{ id: string }[]>`
+            SELECT l.school_id::text AS id
+              FROM school_seat_limits l
+              LEFT JOIN (
+                SELECT "schoolId", count(*)::int AS used FROM school_members
+                 WHERE role = 'STUDENT' AND status = 'active' GROUP BY 1
+              ) u ON u."schoolId" = l.school_id
+             WHERE l.max_seats IS NOT NULL AND COALESCE(u.used, 0) > l.max_seats`
+        : await this.prisma.$queryRaw<{ id: string }[]>`
+            SELECT l.school_id::text AS id
+              FROM school_seat_limits l
+              LEFT JOIN (
+                SELECT "schoolId", count(*)::int AS used FROM school_members
+                 WHERE role = 'STUDENT' AND status = 'active' GROUP BY 1
+              ) u ON u."schoolId" = l.school_id
+             WHERE l.max_seats > 0
+               AND COALESCE(u.used, 0) <= l.max_seats
+               AND COALESCE(u.used, 0) * 10 >= l.max_seats * 9`;
+    return rows.map((r) => r.id);
   }
 
   private async rosterCounts(schoolIds: string[]): Promise<Map<string, AdminSchoolCounts>> {

@@ -87,6 +87,7 @@ import { GetReviewAiPolicyHandler } from './application/queries/get-review-ai-po
 import { UpdateReviewAiPolicyHandler } from './application/commands/update-review-ai-policy/update-review-ai-policy.handler.js';
 import { GetReviewEffortMinutesHandler } from './application/queries/get-review-effort-minutes/get-review-effort-minutes.handler.js';
 import { UpdateReviewEffortMinutesHandler } from './application/commands/update-review-effort-minutes/update-review-effort-minutes.handler.js';
+import { GetSchoolSeatsHandler } from './application/queries/get-school-seats/get-school-seats.handler.js';
 import { GetAssistantAccessHandler } from './application/queries/get-assistant-access/get-assistant-access.handler.js';
 import { UpdateAssistantAccessHandler } from './application/commands/update-assistant-access/update-assistant-access.handler.js';
 import { GetAiPrecheckSettingsHandler } from './application/queries/get-ai-precheck-settings/get-ai-precheck-settings.handler.js';
@@ -117,6 +118,19 @@ import { CapabilityResolverService } from './application/services/capability-res
 import { ProfileUpdatedConsumer } from './infrastructure/events/profile-updated.consumer.js';
 import { UserRegisteredConsumer } from './infrastructure/events/user-registered.consumer.js';
 import { UserDeletedConsumer } from './infrastructure/events/user-deleted.consumer.js';
+import { EntitlementsChangedConsumer } from './infrastructure/events/entitlements-changed.consumer.js';
+import { ProjectedSeatLimitReader } from './application/services/projected-seat-limit.reader.js';
+import { StudentSeatGate } from './application/services/student-seat-gate.service.js';
+import { StudentSeatPrismaRepository } from './infrastructure/persistence/student-seat.prisma.repository.js';
+import { STUDENT_SEAT_REPOSITORY } from './domain/repositories/student-seat.repository.interface.js';
+import { SeatLimitPrismaProjection } from '../../infrastructure/persistence/seat-limit.prisma.projection.js';
+import {
+  SEAT_LIMIT_PROJECTION,
+  SEAT_LIMIT_READER,
+  SEAT_LIMIT_SOURCE,
+  type ISeatLimitProjection,
+  type ISeatLimitSource,
+} from '../../shared/application/ports/seat-limit.interface.js';
 import { ProvisionSoloWorkspaceHandler } from './application/commands/provision-solo-workspace/provision-solo-workspace.handler.js';
 import { GetSoloWorkspaceHandler } from './application/queries/get-solo-workspace/get-solo-workspace.handler.js';
 
@@ -191,6 +205,7 @@ const QueryHandlers = [
   GetReviewAiPolicyHandler,
   GetReviewEffortMinutesHandler,
   GetAssistantAccessHandler,
+  GetSchoolSeatsHandler,
   GetAiPrecheckSettingsHandler,
   ListMembershipsHandler,
   GetMyMembershipHandler,
@@ -226,6 +241,7 @@ const QueryHandlers = [
     ProfileUpdatedConsumer,
     UserRegisteredConsumer,
     UserDeletedConsumer,
+    EntitlementsChangedConsumer,
     ProfileServiceHttpClient,
     {
       provide: DELETED_USER_ERASER,
@@ -264,10 +280,23 @@ const QueryHandlers = [
       provide: PROFILE_SERVICE_PORT,
       useClass: ProfileServiceHttpClient,
     },
+    SubscriptionServiceHttpClient,
     {
       provide: WORKSPACE_ENTITLEMENTS_PORT,
-      useClass: SubscriptionServiceHttpClient,
+      useExisting: SubscriptionServiceHttpClient,
     },
+    // Plan 90, phase 4: the student seat limit — projection first, subscription-service on a miss.
+    { provide: SEAT_LIMIT_SOURCE, useExisting: SubscriptionServiceHttpClient },
+    { provide: SEAT_LIMIT_PROJECTION, useClass: SeatLimitPrismaProjection },
+    {
+      provide: SEAT_LIMIT_READER,
+      useFactory: (projection: ISeatLimitProjection, source: ISeatLimitSource) =>
+        new ProjectedSeatLimitReader(projection, source),
+      inject: [SEAT_LIMIT_PROJECTION, SEAT_LIMIT_SOURCE],
+    },
+    // Step 3: the roster's seat check, counted and written under one lock per school.
+    { provide: STUDENT_SEAT_REPOSITORY, useClass: StudentSeatPrismaRepository },
+    StudentSeatGate,
   ],
 })
 export class SchoolsModule {}

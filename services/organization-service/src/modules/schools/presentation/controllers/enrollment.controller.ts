@@ -43,6 +43,7 @@ import {
   MembershipResponseDto,
   OnboardingSettingsResponseDto,
 } from '../dto/enrollment.response.dto.js';
+import { SeatsExhaustedErrorDto, SeatsResultResponseDto } from '../dto/seats.response.dto.js';
 
 function toMembershipResponse(m: SchoolMembership): MembershipResponseDto {
   return {
@@ -56,6 +57,7 @@ function toMembershipResponse(m: SchoolMembership): MembershipResponseDto {
     availability: m.availability,
     ageBand: m.ageBand,
     groupAssignedSeenAt: m.groupAssignedSeenAt,
+    blockedReason: m.blockedReason,
     createdAt: m.createdAt,
     updatedAt: m.updatedAt,
   };
@@ -181,15 +183,17 @@ export class EnrollmentController {
   }
 
   @Post(':schoolId/memberships/:id/approve')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Approve a pending membership → onboarding (OWNER/ADMIN)' })
-  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 200, type: SeatsResultResponseDto, description: 'Seats after the learner joined the roster' })
+  @ApiResponse({ status: 409, type: SeatsExhaustedErrorDto, description: 'SEATS_EXHAUSTED — the application stays pending' })
   async approveMembership(
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<void> {
-    await this.commandBus.execute(new ApproveMembershipCommand(user.sub, schoolId, id));
+  ): Promise<SeatsResultResponseDto> {
+    const { seats } = await this.commandBus.execute(new ApproveMembershipCommand(user.sub, schoolId, id));
+    return { seats };
   }
 
   @Post(':schoolId/memberships/:id/reject')

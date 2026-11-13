@@ -341,16 +341,16 @@ export class SchoolPrismaRepository implements ISchoolRepository {
         },
       });
 
-      // Sync members by upserting what the aggregate holds and removing only what it
-      // dropped. Deleting the whole roster first would take the columns the aggregate
-      // does not carry (status, level) and, through the cascade, every member's
-      // teacher attrs and capability grants with it — one accepted invitation would
-      // quietly reset the rest of the roster.
-      const members = school.members;
-      for (const m of members) {
-        await tx.schoolMember.upsert({
-          where: { schoolId_userId: { schoolId: m.schoolId, userId: m.userId } },
-          create: {
+      // Write only the roster changes made through this aggregate. Syncing the whole loaded list
+      // would let a stale aggregate erase members another request added meanwhile (two learners
+      // added at once wiping each other, past the seat check — plan 90, phase 4) or bring back
+      // members another request removed. Deleting the whole roster first would also take the
+      // columns the aggregate does not carry (status, level) and, through the cascade, teacher
+      // attrs and capability grants. A row already written by the seat claim is skipped.
+      const added = school.addedMembers;
+      if (added.length > 0) {
+        await tx.schoolMember.createMany({
+          data: added.map((m) => ({
             id: m.id,
             schoolId: m.schoolId,
             userId: m.userId,
@@ -358,21 +358,15 @@ export class SchoolPrismaRepository implements ISchoolRepository {
             joinedAt: m.joinedAt,
             name: m.name,
             avatarUrl: m.avatarUrl,
-          },
-          update: {
-            role: m.role,
-            name: m.name,
-            avatarUrl: m.avatarUrl,
-          },
+          })),
+          skipDuplicates: true,
         });
       }
 
-      await tx.schoolMember.deleteMany({
-        where: {
-          schoolId: school.id,
-          ...(members.length > 0 ? { userId: { notIn: members.map((m) => m.userId) } } : {}),
-        },
-      });
+      const removed = school.removedMemberUserIds;
+      if (removed.length > 0) {
+        await tx.schoolMember.deleteMany({ where: { schoolId: school.id, userId: { in: removed } } });
+      }
     });
   }
 }

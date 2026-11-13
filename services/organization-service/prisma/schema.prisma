@@ -466,6 +466,8 @@ model SchoolMembership {
   availability Json?
   ageBand      AgeBand?         @map("age_band")
   groupAssignedSeenAt DateTime? @map("group_assigned_seen_at")
+  // Why a pending application was not auto-approved: 'no_seats' (plan 90, phase 4). Null otherwise.
+  blockedReason String?       @map("blocked_reason") @db.VarChar(32)
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
@@ -522,6 +524,21 @@ model TutoringInvitation {
 }
 
 // Idempotency guard for RabbitMQ event consumers
+// The student seat limit of a school (plan 90, phase 4): a projection of subscription-service's
+// `subscription.entitlements.changed` for workspaces, filled on a miss by a read through its
+// internal API. `max_seats` null = the plan sets no limit. A snapshot replaces the held one
+// when its `version` is higher, or equal with a `valid_until` not earlier (the same revision
+// can be re-sent after time changed it).
+model SchoolSeatLimit {
+  schoolId   String   @id @map("school_id") @db.Uuid
+  maxSeats   Int?     @map("max_seats")
+  version    Int
+  validUntil DateTime @map("valid_until")
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  @@map("school_seat_limits")
+}
+
 model ProcessedEvent {
   id          String   @id @default(uuid()) @db.Uuid
   eventId     String   @unique
