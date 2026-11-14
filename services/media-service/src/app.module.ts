@@ -9,6 +9,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { JwtModule } from './infrastructure/auth/jwt.module.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { RabbitmqModule } from './infrastructure/messaging/rabbitmq.module.js';
+import { AuditModule } from './infrastructure/audit/audit.module.js';
 import { RedisModule } from './infrastructure/cache/redis.module.js';
 import { StorageModule } from './infrastructure/storage/storage.module.js';
 import { AudioModule } from './infrastructure/audio/audio.module.js';
@@ -46,6 +47,7 @@ import { NarrationModule } from './modules/narration/narration.module.js';
     JwtModule,
     PrismaModule,
     RabbitmqModule,
+    AuditModule,
     RedisModule,
     StorageModule,
     AudioModule,

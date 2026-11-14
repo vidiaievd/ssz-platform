@@ -19,11 +19,17 @@ export interface SweepRunRequest {
 /** The four sweeps' reports, as each returns it. */
 export type AnySweepReport = { mode: SweepRunMode } & object;
 
+/** A finished run: its `sweep_runs` row (null when history could not be written) and the report. */
+export interface SweepRunOutcome {
+  runId: string | null;
+  report: AnySweepReport;
+}
+
 const DAY_MS = 86_400_000;
 
 /**
  * Every way a sweep starts goes through here — the nightly job, the operator's internal route and
- * (step 4) the admin panel — so each run leaves one row in `sweep_runs`.
+ * the admin panel (step 4) — so each run leaves one row in `sweep_runs`.
  *
  * History is secondary to the sweep: if its row cannot be written the sweep still runs (logged).
  * A sweep that throws gets its error written and the error is rethrown to the caller.
@@ -31,6 +37,11 @@ const DAY_MS = 86_400_000;
 @Injectable()
 export class SweepRunner {
   private readonly logger = new Logger(SweepRunner.name);
+  /**
+   * Kinds with a run going in this process. Set before the first await, so two callers can never
+   * both pass `tryRun`'s check. The sweeps keep their own guard as well (`skipped`).
+   */
+  private readonly inFlight = new Set<SweepKind>();
 
   constructor(
     private readonly orphanRecordings: SweepOrphanRecordingsService,
@@ -41,21 +52,53 @@ export class SweepRunner {
     private readonly config: ConfigService<AppConfig>,
   ) {}
 
+  /**
+   * Runs whatever else is going: a kind already running answers `skipped` from the sweep itself,
+   * and that answer is recorded too (nightly job, operator routes).
+   */
   async run(kind: SweepKind, request: SweepRunRequest, now: () => Date = () => new Date()): Promise<AnySweepReport> {
+    return (await this.execute(kind, request, now)).report;
+  }
+
+  /**
+   * Runs only when no run of the kind is going in this process; `null` — busy, nothing started and
+   * nothing recorded (the admin panel answers 409 `SWEEP_RUNNING`).
+   */
+  async tryRun(
+    kind: SweepKind,
+    request: SweepRunRequest,
+    now: () => Date = () => new Date(),
+  ): Promise<SweepRunOutcome | null> {
+    if (this.isRunning(kind)) return null;
+    return this.execute(kind, request, now);
+  }
+
+  isRunning(kind: SweepKind): boolean {
+    return this.inFlight.has(kind);
+  }
+
+  private async execute(kind: SweepKind, request: SweepRunRequest, now: () => Date): Promise<SweepRunOutcome> {
     const mode = request.mode ?? this.config.get<AppConfig['orphanSweep']>('orphanSweep')!.mode;
-
-    const runId = await this.startRow(kind, mode, request, now());
-    let report: AnySweepReport;
+    // A second run of a busy kind (nightly, operator) still goes to the sweep, which skips it; only
+    // the first one owns the mark.
+    const owns = !this.inFlight.has(kind);
+    if (owns) this.inFlight.add(kind);
     try {
-      report = await this.sweep(kind, mode);
-    } catch (err) {
-      await this.finishRow(runId, null, err instanceof Error ? err.message : String(err), now());
-      throw err;
-    }
-    await this.finishRow(runId, report as Record<string, unknown>, null, now());
+      const runId = await this.startRow(kind, mode, request, now());
+      let report: AnySweepReport;
+      try {
+        report = await this.sweep(kind, mode);
+      } catch (err) {
+        await this.finishRow(runId, null, err instanceof Error ? err.message : String(err), now());
+        throw err;
+      }
+      await this.finishRow(runId, report as Record<string, unknown>, null, now());
 
-    if (request.trigger === 'nightly') await this.pruneHistory(now());
-    return report;
+      if (request.trigger === 'nightly') await this.pruneHistory(now());
+      return { runId, report };
+    } finally {
+      if (owns) this.inFlight.delete(kind);
+    }
   }
 
   private sweep(kind: SweepKind, mode: SweepRunMode): Promise<AnySweepReport> {

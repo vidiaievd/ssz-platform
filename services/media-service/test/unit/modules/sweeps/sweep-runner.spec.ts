@@ -127,4 +127,74 @@ describe('SweepRunner (plan 90, phase 8, step 3)', () => {
 
     await expect(runner.run('orphan_recordings', { trigger: 'nightly' }, () => NOW)).resolves.toBeDefined();
   });
+
+  describe('tryRun — the admin panel (step 4)', () => {
+    it('answers the run id with the report', async () => {
+      const { runner } = setup();
+
+      await expect(
+        runner.tryRun('orphan_recordings', { trigger: 'admin', mode: 'dry-run', actorId: 'a' }, () => NOW),
+      ).resolves.toEqual({ runId: 'run-1', report: { mode: 'dry-run', scanned: 1 } });
+    });
+
+    it('refuses a kind that is already running, starting and recording nothing', async () => {
+      const { runner, sweeps, runs } = setup();
+      let release!: (value: unknown) => void;
+      sweeps.orphanContent.run.mockReturnValueOnce(new Promise((resolve) => (release = resolve)));
+
+      const first = runner.run('orphan_content', { trigger: 'nightly' }, () => NOW);
+      expect(runner.isRunning('orphan_content')).toBe(true);
+
+      await expect(
+        runner.tryRun('orphan_content', { trigger: 'admin', mode: 'delete', actorId: 'a' }, () => NOW),
+      ).resolves.toBeNull();
+      // Other kinds are free.
+      await expect(
+        runner.tryRun('orphan_recordings', { trigger: 'admin', mode: 'dry-run', actorId: 'a' }, () => NOW),
+      ).resolves.not.toBeNull();
+
+      release({ mode: 'dry-run', scanned: 4 });
+      await first;
+      expect(sweeps.orphanContent.run).toHaveBeenCalledTimes(1);
+      expect(runs.start).toHaveBeenCalledTimes(2);
+      expect(runner.isRunning('orphan_content')).toBe(false);
+    });
+
+    it('marks the kind busy from the call itself, before the history row is written', async () => {
+      const { runner, runs } = setup();
+      runs.start.mockReturnValueOnce(new Promise(() => undefined));
+
+      void runner.tryRun('abandoned_uploads', { trigger: 'admin', mode: 'dry-run', actorId: 'a' }, () => NOW);
+
+      await expect(
+        runner.tryRun('abandoned_uploads', { trigger: 'admin', mode: 'dry-run', actorId: 'b' }, () => NOW),
+      ).resolves.toBeNull();
+    });
+
+    it('frees the kind after a sweep that threw', async () => {
+      const { runner, sweeps } = setup();
+      sweeps.orphanRecordings.run.mockRejectedValueOnce(new Error('db gone'));
+
+      await expect(
+        runner.tryRun('orphan_recordings', { trigger: 'admin', mode: 'dry-run', actorId: 'a' }, () => NOW),
+      ).rejects.toThrow('db gone');
+      expect(runner.isRunning('orphan_recordings')).toBe(false);
+    });
+
+    it('still lets a second nightly or operator run through to the sweep, which skips it', async () => {
+      const { runner, sweeps } = setup();
+      let release!: (value: unknown) => void;
+      sweeps.orphanRecordings.run.mockReturnValueOnce(new Promise((resolve) => (release = resolve)));
+
+      const first = runner.run('orphan_recordings', { trigger: 'nightly' }, () => NOW);
+      const second = runner.run('orphan_recordings', { trigger: 'operator', mode: 'dry-run' }, () => NOW);
+      await second;
+      // The second, non-owning run must not free the mark of the first.
+      expect(runner.isRunning('orphan_recordings')).toBe(true);
+      release({ mode: 'dry-run', scanned: 1 });
+      await first;
+      expect(sweeps.orphanRecordings.run).toHaveBeenCalledTimes(2);
+      expect(runner.isRunning('orphan_recordings')).toBe(false);
+    });
+  });
 });

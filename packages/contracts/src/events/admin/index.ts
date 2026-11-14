@@ -13,7 +13,7 @@ export const ADMIN_EVENT_TYPES = {
 // ─── Payload ──────────────────────────────────────────────────────────────────
 
 /** Service that performed the change and holds its `admin_audit` row. */
-export type AdminAuditService = 'auth' | 'subscription' | 'organization' | 'ai';
+export type AdminAuditService = 'auth' | 'subscription' | 'organization' | 'ai' | 'media';
 
 /**
  * A change a platform admin made, published after the service's `admin_audit` row is committed
