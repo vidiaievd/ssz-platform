@@ -182,8 +182,12 @@ export interface ReviewedIncrement {
   capability: string;
   modelId: string | null;
   promptVersion: string | null;
+  /** The letter's exercise template (plan 90, phase 7, step 10); null when it carries none. */
+  templateCode: string | null;
   /** 1 for a teacher's verdict on a `review_draft` draft; a learner's review adds none. */
   reviews: number;
+  /** 1 for a draft the teacher acted on, of any agent — what the Q2 gate counts. */
+  draftsSettled: number;
   remarks: { accepted: number; edited: number; discarded: number; untouched: number };
   marks: { reviews: number; same: number; different: number; compared: number; deltaSum: number; absDeltaSum: number };
   teacherVerdicts: number;
@@ -210,6 +214,7 @@ export function reviewedIncrements(payload: unknown): ReviewedIncrement[] | null
   if (typeof payload !== 'object' || payload === null) return null;
   const p = payload as Record<string, unknown>;
   const increments: ReviewedIncrement[] = [];
+  const templateCode = templateOf(p);
 
   if (p.aiDraft !== undefined && p.aiDraft !== null) {
     if (!isFoldableDraft(p.aiDraft)) return null;
@@ -217,7 +222,9 @@ export function reviewedIncrements(payload: unknown): ReviewedIncrement[] | null
     const m = d.marks ?? null;
     increments.push({
       ...axesOf(d),
+      templateCode,
       reviews: isLearnerReview(d.capability) ? 0 : 1,
+      draftsSettled: 1,
       remarks: { accepted: d.accepted, edited: d.edited, discarded: d.discarded, untouched: d.untouched },
       marks: {
         reviews: m === null ? 0 : 1,
@@ -236,7 +243,9 @@ export function reviewedIncrements(payload: unknown): ReviewedIncrement[] | null
     if (!isFoldableAiVerdict(p.aiVerdict) || !isOutcome(p.outcome)) return null;
     increments.push({
       ...axesOf(p.aiVerdict),
+      templateCode,
       reviews: 0,
+      draftsSettled: 0,
       remarks: { accepted: 0, edited: 0, discarded: 0, untouched: 0 },
       marks: { reviews: 0, same: 0, different: 0, compared: 0, deltaSum: 0, absDeltaSum: 0 },
       teacherVerdicts: 1,
@@ -248,6 +257,16 @@ export function reviewedIncrements(payload: unknown): ReviewedIncrement[] | null
 
 function axesOf(v: { capability: string; modelId: string | null; promptVersion: string | null }) {
   return { capability: v.capability, modelId: v.modelId, promptVersion: v.promptVersion };
+}
+
+/**
+ * The template the work was done in (plan 90, phase 7, step 10). Every exercise-engine event
+ * the quality folds read carries one; a letter without it still folds, on the "not recorded"
+ * row, rather than being lost to the model's other counts.
+ */
+export function templateOf(payload: Record<string, unknown>): string | null {
+  const code = payload.templateCode;
+  return typeof code === 'string' && code.length > 0 ? code : null;
 }
 
 function isFoldableAiVerdict(value: unknown): value is AttemptReviewedAiVerdict {

@@ -204,6 +204,29 @@ describe('reviewedIncrements', () => {
     ]);
   });
 
+  // Plan 90, phase 7, step 10.
+  it('puts the letter’s template on every increment and counts each acted-on draft once', () => {
+    const increments = reviewedIncrements({
+      templateCode: 'writing_task',
+      outcome: 'returned',
+      aiDraft: { ...tally, capability: 'review_direct' },
+      aiVerdict: modelSaid('approved'),
+    })!;
+    expect(increments.map((i) => [i.templateCode, i.draftsSettled])).toEqual([
+      ['writing_task', 1],
+      ['writing_task', 0],
+    ]);
+    const [draft] = reviewedIncrements({ templateCode: 'short_answer', outcome: 'approved', aiDraft: { ...tally, capability: 'review_draft' } })!;
+    expect(draft).toMatchObject({ templateCode: 'short_answer', reviews: 1, draftsSettled: 1 });
+  });
+
+  it('folds a letter without a template rather than losing it', () => {
+    const [i] = reviewedIncrements({ templateCode: '', outcome: 'approved', aiDraft: { ...tally, capability: 'review_draft' } })!;
+    expect(i.templateCode).toBeNull();
+    const [j] = reviewedIncrements({ outcome: 'approved', aiDraft: { ...tally, capability: 'review_draft' } })!;
+    expect(j.templateCode).toBeNull();
+  });
+
   it('refuses a letter it should read and cannot', () => {
     expect(reviewedIncrements({ outcome: 'approved', aiVerdict: modelSaid('maybe') })).toBeNull();
     expect(reviewedIncrements({ outcome: 'later', aiVerdict: modelSaid('approved') })).toBeNull();
