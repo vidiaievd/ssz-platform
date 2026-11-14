@@ -1,6 +1,6 @@
 import { ApiExtraModels, ApiProperty, ApiPropertyOptional, getSchemaPath, type ApiPropertyOptions } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsOptional, IsUUID } from 'class-validator';
-import { IsAdminReason } from '../../../../common/dto/admin-reason.js';
+import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { ADMIN_REASON_MAX, IsAdminReason } from '../../../../common/dto/admin-reason.js';
 
 const PROVIDER_KINDS = ['anthropic', 'openai', 'openai_compatible', 'azure_openai', 'google', 'whisper_local', 'azure_speech', 'fake'];
 const REGIONS = ['eu', 'us', 'global', 'local'];
@@ -187,6 +187,18 @@ export class CostDto {
 
   @ApiProperty({ example: 'USD' })
   currency!: string;
+}
+
+export class TestModelDto {
+  @ApiPropertyOptional({
+    example: 'New Azure key, checking before the switch',
+    maxLength: ADMIN_REASON_MAX,
+    description: 'Why — optional (a test changes nothing); goes to the admin trail with the `model.tested` entry',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(ADMIN_REASON_MAX)
+  reason?: string;
 }
 
 export class TestModelResponseDto {

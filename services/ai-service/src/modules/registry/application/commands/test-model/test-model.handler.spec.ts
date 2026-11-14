@@ -7,6 +7,7 @@ import { TestModelCommand } from './test-model.command.js';
 import { TestModelHandler } from './test-model.handler.js';
 import { CallRecorder } from '../../../../ledger/application/call-recorder.js';
 import type { AiCallRecord } from '../../../../ledger/domain/ai-call.js';
+import type { AdminAuditEntry, IAdminAuditRecorder } from '../../../../../shared/application/admin-audit.js';
 
 const features = {
   structuredOutput: 'native' as const,
@@ -60,18 +61,29 @@ function found(over: { kind?: any; providerModelId?: string; credentialRef?: str
 }
 
 const written: AiCallRecord[] = [];
+const trailed: AdminAuditEntry[] = [];
+let trailFails = false;
+const trail: IAdminAuditRecorder = {
+  record: async (entry) => {
+    if (trailFails) throw new Error('db down');
+    trailed.push(entry);
+  },
+};
 const noSpool = { push: async () => undefined, drain: async () => null, deadLetter: async () => undefined };
 
 function handler(row: ModelForCall | null, providers: LlmProvider[] = [new FakeLlmProvider()], keySet = false) {
   const registry = { getModelForCall: async () => row } as unknown as IRegistryReader;
   const recorder = new CallRecorder({ record: async (r) => void written.push(r) }, '1000', noSpool);
-  return new TestModelHandler(registry, { isSet: () => keySet }, providers, new SchemaGuard(), recorder);
+  return new TestModelHandler(registry, { isSet: () => keySet }, providers, new SchemaGuard(), recorder, trail);
 }
 
-const command = () => new TestModelCommand('m1', 'admin-1', 'platform_admin');
+const admin = { userId: 'admin-1', level: 'admin' as const };
+const command = (reason: string | null = null) => new TestModelCommand('m1', admin, reason);
 
 beforeEach(() => {
   written.length = 0;
+  trailed.length = 0;
+  trailFails = false;
 });
 
 describe('TestModelHandler', () => {
@@ -145,5 +157,51 @@ describe('TestModelHandler', () => {
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(UnprocessableEntityException);
     expect((err as UnprocessableEntityException).getResponse()).toMatchObject({ missing: ['adapter google'] });
+  });
+
+  describe('admin trail (plan 90, phase 7, step 9)', () => {
+    it('puts a test that ran on the trail as model.tested, pointing at its ledger row', async () => {
+      const result = await handler(found()).execute(command('new key'));
+      expect(trailed).toHaveLength(1);
+      expect(trailed[0]).toMatchObject({
+        actor: admin,
+        action: 'model.tested',
+        targetType: 'model',
+        targetId: 'm1',
+        reason: 'new key',
+        before: null,
+        after: {
+          providerCode: 'fake',
+          providerModelId: 'fake',
+          outcome: 'ok',
+          errorCode: null,
+          latencyMs: result.latencyMs,
+          callId: result.callId,
+        },
+      });
+    });
+
+    it('takes no reason as an empty one', async () => {
+      await handler(found()).execute(command());
+      expect(trailed[0]!.reason).toBe('');
+    });
+
+    it('puts a failed test on the trail with its error code', async () => {
+      await handler(found({ providerModelId: 'fake-auth' })).execute(command());
+      expect(trailed[0]!.after).toMatchObject({ outcome: 'error', errorCode: 'auth' });
+    });
+
+    it('leaves no trail when the test never ran', async () => {
+      await handler(null).execute(command()).catch(() => undefined);
+      await handler(found({ kind: 'anthropic', credentialRef: 'ANTHROPIC_API_KEY' })).execute(command()).catch(() => undefined);
+      expect(trailed).toHaveLength(0);
+    });
+
+    it('still answers with the result when the trail cannot be written', async () => {
+      trailFails = true;
+      const result = await handler(found()).execute(command());
+      expect(result.outcome).toBe('ok');
+      expect(written).toHaveLength(1);
+    });
   });
 });

@@ -17,14 +17,16 @@ export interface AdminActor {
  * - `model.status_changed` (step 7) — `{ providerCode, providerModelId, status }` both sides. Target `model/<id>`.
  * - `breaker.reset` (step 8) — before `{ providerCode, providerModelId, state, reopensInMs, recentFailures }`, after
  *   `{ providerCode, providerModelId, state: 'closed', recentFailures: 0 }`. Target `model/<id>`.
- * Model tests join later in phase 7.
+ * - `model.tested` (step 9) — not a change: no before; after `{ providerCode, providerModelId, outcome, errorCode,
+ *   latencyMs, callId }` (`callId` = the `ai_calls` row). The reason is optional here, so it may be empty.
  */
 export type AiAdminAction =
   | 'payer_policy.changed'
   | 'binding.changed'
   | 'provider.toggled'
   | 'model.status_changed'
-  | 'breaker.reset';
+  | 'breaker.reset'
+  | 'model.tested';
 
 /**
  * A payer by its id (`workspace/<schoolId>`, `user/<userId>`), an agent by its code (`capability/review_draft`),
@@ -40,6 +42,7 @@ export interface AdminAuditEntry {
   action: AiAdminAction;
   targetType: AdminAuditTargetType;
   targetId: string;
+  /** Empty only for an action that is not a change (`model.tested`) and was given no reason. */
   reason: string;
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;

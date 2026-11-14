@@ -50,4 +50,17 @@ describe('toAdminActionPerformedEvent (ai-service)', () => {
     expect(payload).not.toHaveProperty('before');
     expect(payload.after).toEqual({ aiEnabled: false, allowedRegions: null });
   });
+
+  it('leaves out an empty reason (a model test given none)', () => {
+    const entry = adminAuditEntry({
+      actor,
+      action: 'model.tested',
+      targetType: 'model',
+      targetId: 'm1',
+      reason: '  ',
+      after: { outcome: 'ok' },
+      now,
+    });
+    expect(toAdminActionPerformedEvent(entry).payload).not.toHaveProperty('reason');
+  });
 });

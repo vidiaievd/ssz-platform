@@ -1,7 +1,7 @@
 import { ADMIN_EVENT_TYPES, type AdminActionPerformedEvent, type AdminActionPerformedPayload } from '@ssz/contracts';
 import type { AdminAuditEntry } from '../../shared/application/admin-audit.js';
 
-/** The event that carries an `admin_audit` row to analytics; absent values are left out, not sent as null. */
+/** The event that carries an `admin_audit` row to analytics; absent values (an empty reason too) are left out, not sent as null. */
 export function toAdminActionPerformedEvent(entry: AdminAuditEntry): AdminActionPerformedEvent {
   const payload: AdminActionPerformedPayload = {
     service: 'ai',
@@ -10,8 +10,8 @@ export function toAdminActionPerformedEvent(entry: AdminAuditEntry): AdminAction
     action: entry.action,
     targetType: entry.targetType,
     targetId: entry.targetId,
-    reason: entry.reason,
   };
+  if (entry.reason) payload.reason = entry.reason;
   if (entry.before) payload.before = entry.before;
   if (entry.after) payload.after = entry.after;
   return {

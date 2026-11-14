@@ -11,10 +11,8 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { CurrentAdmin } from '../../../../common/decorators/current-admin.decorator.js';
-import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import { RequireAdminLevel } from '../../../../common/decorators/require-admin-level.decorator.js';
 import { AdminLevelGuard } from '../../../../common/guards/admin-level.guard.js';
-import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { AdminActor } from '../../../../shared/application/admin-audit.js';
 import { SetModelStatusCommand } from '../../application/commands/set-model-status/set-model-status.command.js';
 import type { SetModelStatusResult } from '../../application/commands/set-model-status/set-model-status.handler.js';
@@ -37,6 +35,7 @@ import {
   SetModelStatusResponseDto,
   SetProviderEnabledDto,
   SetProviderEnabledResponseDto,
+  TestModelDto,
   TestModelResponseDto,
 } from '../dto/registry.dto.js';
 
@@ -125,12 +124,18 @@ export class AdminRegistryController {
       'Checks the key, the model id and structured output in one go. Runs on a disabled provider ' +
       '(that is what it is for) but not on an unconfigured one. A failed call is a 200 with ' +
       '`outcome: "error"` — the test ran, the failure is its answer. Each test is a ledger row ' +
-      '(capability diagnostic, payer platform). Language models only: a speech model is a 422.',
+      '(capability diagnostic, payer platform) and an admin trail entry `model.tested` (body `{ reason? }`, ' +
+      'reason optional). Language models only: a speech model is a 422.',
   })
   @ApiOkResponse({ type: TestModelResponseDto })
   @ApiNotFoundResponse({ description: 'No such model' })
   @ApiUnprocessableEntityResponse({ description: 'Provider not configured, no adapter for its kind yet, or a speech model' })
-  testModel(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser): Promise<TestModelResult> {
-    return this.commandBus.execute(new TestModelCommand(id, user.userId, 'platform_admin'));
+  testModel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: TestModelDto | undefined,
+    @CurrentAdmin() admin: AdminActor,
+  ): Promise<TestModelResult> {
+    const reason = body?.reason?.trim() || null;
+    return this.commandBus.execute(new TestModelCommand(id, admin, reason));
   }
 }

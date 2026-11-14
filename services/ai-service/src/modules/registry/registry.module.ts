@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { PrismaAdminAuditRecorder } from '../../infrastructure/audit/prisma-admin-audit.recorder.js';
+import { ADMIN_AUDIT_RECORDER } from '../../shared/application/admin-audit.js';
 import { LedgerModule } from '../ledger/ledger.module.js';
 import { ProvidersModule } from '../providers/providers.module.js';
 import { SetModelStatusHandler } from './application/commands/set-model-status/set-model-status.handler.js';
@@ -50,6 +52,7 @@ import { AdminSpendController } from './presentation/controllers/admin-spend.con
     { provide: CREDENTIAL_PRESENCE, useClass: EnvCredentialPresence },
     { provide: BINDING_REPOSITORY, useClass: PrismaBindingRepository },
     { provide: SPEND_READER, useClass: PrismaSpendReader },
+    { provide: ADMIN_AUDIT_RECORDER, useClass: PrismaAdminAuditRecorder },
     CachedBindingSource,
     { provide: BINDING_SOURCE, useExisting: CachedBindingSource },
     { provide: BINDING_CHANGE_NOTIFIER, useExisting: CachedBindingSource },
