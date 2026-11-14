@@ -143,6 +143,35 @@ describe('adminAuditRowOf (plan 90, step 6)', () => {
     expect(adminAuditRowOf('organization.events', { ...orgEnvelope, payload: noLevel })).toMatchObject({ actorLevel: null });
   });
 
+  it('files media\'s manual sweep deletions under media (plan 90, phase 8)', () => {
+    const mediaEnvelope = {
+      ...subscriptionEnvelope,
+      eventId: '7b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e',
+      source: 'media-service',
+      payload: {
+        service: 'media',
+        actorId: 'a1',
+        actorLevel: 'super',
+        action: 'media.sweep.deleted',
+        targetType: 'media_sweep',
+        targetId: 'orphan_recordings',
+        reason: 'disk is full',
+        after: { runId: 'r1', candidates: 3, deleted: 3 },
+      },
+    };
+    expect(adminAuditRowOf('media.events', mediaEnvelope)).toMatchObject({
+      id: mediaEnvelope.eventId,
+      service: 'media',
+      action: 'media.sweep.deleted',
+      targetType: 'media_sweep',
+      targetId: 'orphan_recordings',
+      before: null,
+      after: { runId: 'r1', deleted: 3 },
+    });
+    // Media publishes only on its own exchange; the same payload elsewhere is refused.
+    expect(adminAuditRowOf('ai.events', mediaEnvelope)).toBeNull();
+  });
+
   it('refuses exchanges it does not collect from', () => {
     expect(adminAuditRowOf('content.events', { ...authEnvelope, payload: { ...authEnvelope.payload, service: 'content' } })).toBeNull();
   });

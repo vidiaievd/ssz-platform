@@ -4,16 +4,24 @@ import type { AdminAuditService, AdminLevel } from '@ssz/contracts';
 /**
  * The services whose admin trail this journal collects, by the exchange each publishes on.
  * A row's `service` comes from here, never from the payload: a service can only write its own trail.
- * Ai joined in plan 90, phase 3 (payer policies), organization in phase 5 (school lifecycle).
+ * Ai joined in plan 90, phase 3 (payer policies), organization in phase 5 (school lifecycle),
+ * media in phase 8 (manual sweep deletions).
  */
 export const ADMIN_AUDIT_SOURCES: Readonly<Record<string, AdminAuditService>> = {
   [EXCHANGES.AUTH!]: 'auth',
   [EXCHANGES.SUBSCRIPTION!]: 'subscription',
   [EXCHANGES.AI!]: 'ai',
   [EXCHANGES.ORGANIZATION!]: 'organization',
+  [EXCHANGES.MEDIA!]: 'media',
 };
 
-export const ADMIN_AUDIT_SERVICES: readonly AdminAuditService[] = ['auth', 'subscription', 'organization', 'ai'];
+export const ADMIN_AUDIT_SERVICES: readonly AdminAuditService[] = [
+  'auth',
+  'subscription',
+  'organization',
+  'ai',
+  'media',
+];
 
 /** One row of `admin_audit_log`. */
 export interface AdminAuditRow {
