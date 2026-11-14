@@ -19,6 +19,7 @@ function setup(opts: {
 }) {
   const asked: { featureKey?: string; spent?: unknown[]; counter?: unknown } = {};
   const entitlements: IEntitlementReader = {
+    refresh: async () => undefined,
     getFeature: async (payer, featureKey) => {
       asked.featureKey = featureKey;
       expect(payer).toEqual({ type: 'user', id: LEARNER });

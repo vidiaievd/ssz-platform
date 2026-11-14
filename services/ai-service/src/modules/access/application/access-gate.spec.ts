@@ -71,6 +71,7 @@ function setup(opts: {
       },
     },
     {
+      refresh: async () => undefined,
       getFeature: async (_payer, key) => {
         asked.push(key);
         if (opts.tariffFails) throw new Error('down');

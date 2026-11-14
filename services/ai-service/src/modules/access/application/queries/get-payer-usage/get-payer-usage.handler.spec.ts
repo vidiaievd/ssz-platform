@@ -27,9 +27,17 @@ function setup(opts: {
   policy?: StoredPayerPolicy | null;
   failFeature?: string;
   failLedger?: boolean;
+  failRefresh?: boolean;
 }) {
-  const asked = { features: [] as string[], spent: [] as unknown[][] };
+  const asked = { features: [] as string[], spent: [] as unknown[][], refreshed: 0 };
   const entitlements: IEntitlementReader = {
+    refresh: async (payer) => {
+      expect(payer).toEqual({ type: 'workspace', id: SCHOOL });
+      // Refreshed before any key is read.
+      expect(asked.features).toEqual([]);
+      asked.refreshed++;
+      if (opts.failRefresh) throw new Error('subscription down');
+    },
     getFeature: async (payer, featureKey) => {
       expect(payer).toEqual({ type: 'workspace', id: SCHOOL });
       asked.features.push(featureKey);
@@ -118,5 +126,19 @@ describe('GetPayerUsageHandler', () => {
   it('is unavailable when the tariff or the ledger cannot be read', async () => {
     expect(await setup({ failFeature: 'ai.practice' }).run()).toEqual({ kind: 'unavailable' });
     expect(await setup({ features: { 'ai.practice': on('100') }, failLedger: true }).run()).toEqual({ kind: 'unavailable' });
+  });
+
+  it('refreshes the tariff before reading the keys', async () => {
+    const { run, asked } = setup({ features: { 'ai.practice': on(null) } });
+    await run();
+    expect(asked.refreshed).toBe(1);
+  });
+
+  it('still answers from the projection when the refresh fails', async () => {
+    const { run } = setup({ features: { 'ai.practice': on(null) }, failRefresh: true });
+    const result = await run();
+    expect(result.kind).toBe('usage');
+    if (result.kind !== 'usage') return;
+    expect(result.features.find((f) => f.featureKey === 'ai.practice')?.enabled).toBe(true);
   });
 });

@@ -83,4 +83,31 @@ describe('ProjectedEntitlementReader', () => {
     expect(await t.reader.getFeature(payer, 'ai.practice')).toBeNull();
     expect(await t.reader.getFeature({ type: 'platform', id: 'platform' }, 'ai.review_draft')).toBeNull();
   });
+
+  describe('refresh', () => {
+    it('reads a fresh row through anyway, so a grant shows before its event arrives', async () => {
+      const t = setup(snap(3, '2026-11-01T00:00:00Z', false), snap(4, '2026-11-01T00:00:00Z', true));
+      await t.reader.refresh(payer);
+      expect(t.fetches()).toBe(1);
+      expect((await t.reader.getFeature(payer, 'ai.review_draft'))?.enabled).toBe(true);
+      expect(t.fetches()).toBe(1);
+    });
+
+    it('keeps a newer row already held', async () => {
+      const t = setup(snap(5, '2026-11-01T00:00:00Z', false), snap(4, '2026-11-01T00:00:00Z', true));
+      await t.reader.refresh(payer);
+      expect(t.row()?.version).toBe(5);
+    });
+
+    it('throws when subscription-service cannot be read', async () => {
+      const t = setup(snap(3, '2026-11-01T00:00:00Z'), new Error('down'));
+      await expect(t.reader.refresh(payer)).rejects.toThrow('down');
+    });
+
+    it('does nothing for the platform', async () => {
+      const t = setup(null, new Error('must not be called'));
+      await t.reader.refresh({ type: 'platform', id: 'p' } as never);
+      expect(t.fetches()).toBe(0);
+    });
+  });
 });

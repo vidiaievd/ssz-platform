@@ -40,4 +40,12 @@ export class ProjectedEntitlementReader implements IEntitlementReader {
     }
     return featureOf(snapshot, featureKey);
   }
+
+  async refresh(payer: Payer): Promise<void> {
+    if (payer.type === 'platform') return;
+    const billed = { type: payer.type, id: payer.id };
+    const fetched = await this.subscriptions.fetchEntitlements(billed);
+    // Same rule as the event: a newer snapshot already held is kept.
+    await this.projection.save(billed, fetched);
+  }
 }

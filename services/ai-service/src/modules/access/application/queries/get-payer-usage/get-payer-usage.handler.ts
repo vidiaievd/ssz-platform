@@ -50,6 +50,15 @@ export class GetPayerUsageHandler implements IQueryHandler<GetPayerUsageQuery, P
     const payer: Payer = { type: payerType, id: payerId };
     const policy = effectivePayerPolicy(payerType, payerId, await this.policies.get(payer));
 
+    // The panel reloads this right after a grant or a plan change; the projection only
+    // catches up when the outbox event lands, so read the tariff through first. Failing that,
+    // the projection (or its own read-through) still answers.
+    try {
+      await this.entitlements.refresh(payer);
+    } catch (err) {
+      this.logger.warn({ err, payerType, payerId }, 'Tariff of the payer not refreshed, reading the projection');
+    }
+
     const features: PayerFeatureUsage[] = [];
     try {
       // One key at a time: the first read may fetch a stale tariff through and store it, so
