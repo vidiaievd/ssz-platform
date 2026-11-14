@@ -412,8 +412,8 @@ explains a mistake with the articulation base from content-service. Pitch (F0) a
 Platform admin (plan 90, phase 3): `PUT admin/ai/payer-policies/:payerType/:payerId` requires `reason` (≤ 500) and writes
 `admin_audit` in `ai_db` (`recordAdminAction(tx, entry)`, same transaction; action `payer_policy.changed`, targetType
 `workspace` / `user`, `before` absent when no policy existed — the default was "on, any region") and the event
-`admin.action.performed` on `ai.events` through the outbox (envelope as subscription's). Other admin changes
-(bindings, model test) join the journal in phase 7. `GET admin/ai/usage/:payerType/:payerId` (level `support`) → per AI key
+`admin.action.performed` on `ai.events` through the outbox (envelope as subscription's). Model test joins the journal in
+phase 7, part 2. `GET admin/ai/usage/:payerType/:payerId` (level `support`) → per AI key
 (`AI_FEATURE_KEYS` in `domain/entitlement.ts` — mirrors subscription's seven `ai.*` keys, add a key in both places):
 `feature`, `enabled`, `used`, `total`, `periodEnd`, `limits`, plus the effective `policy`. The spend is the learner
 `ai/usage/me` calculation (`FeatureUsage`: max(call ledger, gate counter), the counter is never created); `enabled` is
@@ -424,6 +424,18 @@ School not active (plan 90, phase 5, step 6): projection `payer_workspace_status
 is not `active` → refusal `school_not_active` before policy and tariff (`AccessGate`); unreadable status → `gate_unavailable`
 (fail closed). `AssistPayerResolver` then falls back to the learner's own plan; precheck and the sound-session door answer
 `not_available`.
+Agent models and platform spend (plan 90, phase 7, part 1): `PUT admin/ai/bindings/:capability` (`super`) requires `reason`
+(≤ 500) and, in the same transaction, writes `admin_audit` (action `binding.changed`, targetType `capability`, `before` /
+`after` = settings + `version`, `before` absent on create, read inside the transaction) and `admin.action.performed` through
+the outbox; `expectedVersion` → 409, an unfit model → 422 with the reasons. `GET admin/ai/spend?from=&to=` (level `support`;
+UTC days `YYYY-MM-DD`, both ends inclusive, default last 30 days, > 366 or `from > to` → 400; module `registry`,
+`PrismaSpendReader` — one `$queryRaw` over `ai_calls` grouped by day, model, capability; domain `platform-spend.ts`) →
+`totals { costByCurrency, calls, failed, unpricedCalls }`, `models[]` (provider, model — `null` if gone from the registry —
+`boundTo[]`, calls, failed, `fallbackCalls`, `unpricedCalls`, tokens in / out / cache, `audioMs`, `characters`,
+`costByCurrency`, `byCapability[]`), `daily[]` (every day, zeros included). Money is a string with six decimals from
+`cost_micros`, never a float; a call without a price counts in `unpricedCalls` and adds no cost; calls without a model (gate
+refusals) are not counted; a bound model with no calls is a zero row. Spend is read from `ai_calls`, not from analytics
+`ai_usage_daily` (no `audio_ms`, `characters` or money there).
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.
