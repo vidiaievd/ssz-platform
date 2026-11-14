@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
+import { IsAdminReason } from '../../../../common/dto/admin-reason.js';
 
 export class PutBindingDto {
   @ApiProperty({ format: 'uuid', description: 'Model that answers first' })
@@ -59,6 +60,8 @@ export class PutBindingDto {
   @IsInt()
   @Min(0)
   expectedVersion?: number;
+  @IsAdminReason('review_draft@3 holds up on the eval run; moving reviews to it')
+  reason!: string;
 }
 
 export class BindingResponseDto {

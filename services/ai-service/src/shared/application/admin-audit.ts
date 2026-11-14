@@ -11,12 +11,14 @@ export interface AdminActor {
  * Everything an admin can change here and put on the trail (plan 90, phase 3). Before/after per action:
  * - `payer_policy.changed` — `{ aiEnabled, allowedRegions }` both sides; before absent = nothing was stored
  *   (the default — on, any region — applied).
- * Bindings and model tests join in phase 7.
+ * - `binding.changed` (plan 90, phase 7, step 1) — the binding's settings and `version` both sides; before
+ *   absent = the write created the binding. Target `capability/<code>`.
+ * Model tests join later in phase 7.
  */
-export type AiAdminAction = 'payer_policy.changed';
+export type AiAdminAction = 'payer_policy.changed' | 'binding.changed';
 
-/** A payer by its id: `workspace/<schoolId>`, `user/<userId>`. */
-export type AdminAuditTargetType = 'workspace' | 'user';
+/** A payer by its id (`workspace/<schoolId>`, `user/<userId>`), or an agent by its code (`capability/review_draft`). */
+export type AdminAuditTargetType = 'workspace' | 'user' | 'capability';
 
 /** One row of `admin_audit`; its id is also the `eventId` of the `admin.action.performed` it sends. */
 export interface AdminAuditEntry {
