@@ -15,9 +15,16 @@ export interface AdminActor {
  *   absent = the write created the binding. Target `capability/<code>`.
  * - `provider.toggled` (plan 90, phase 7, step 7) — `{ code, enabled }` both sides. Target `provider/<id>`.
  * - `model.status_changed` (step 7) — `{ providerCode, providerModelId, status }` both sides. Target `model/<id>`.
+ * - `breaker.reset` (step 8) — before `{ providerCode, providerModelId, state, reopensInMs, recentFailures }`, after
+ *   `{ providerCode, providerModelId, state: 'closed', recentFailures: 0 }`. Target `model/<id>`.
  * Model tests join later in phase 7.
  */
-export type AiAdminAction = 'payer_policy.changed' | 'binding.changed' | 'provider.toggled' | 'model.status_changed';
+export type AiAdminAction =
+  | 'payer_policy.changed'
+  | 'binding.changed'
+  | 'provider.toggled'
+  | 'model.status_changed'
+  | 'breaker.reset';
 
 /**
  * A payer by its id (`workspace/<schoolId>`, `user/<userId>`), an agent by its code (`capability/review_draft`),
@@ -60,3 +67,10 @@ export function adminAuditEntry(input: {
     after: input.after ?? null,
   };
 }
+
+/** Puts one entry on the trail on its own — for a change whose store is not the database (the breaker). */
+export interface IAdminAuditRecorder {
+  record(entry: AdminAuditEntry): Promise<void>;
+}
+
+export const ADMIN_AUDIT_RECORDER = Symbol('ADMIN_AUDIT_RECORDER');

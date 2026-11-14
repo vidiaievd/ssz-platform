@@ -54,6 +54,6 @@ import { AdminSpendController } from './presentation/controllers/admin-spend.con
     { provide: BINDING_SOURCE, useExisting: CachedBindingSource },
     { provide: BINDING_CHANGE_NOTIFIER, useExisting: CachedBindingSource },
   ],
-  exports: [REGISTRY_READER, CREDENTIAL_PRESENCE, BINDING_SOURCE],
+  exports: [REGISTRY_READER, CREDENTIAL_PRESENCE, BINDING_SOURCE, BINDING_REPOSITORY],
 })
 export class RegistryModule {}
