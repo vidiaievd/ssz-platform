@@ -21,6 +21,11 @@ export class AdminUsageFiguresDto {
   credits!: string;
 }
 
+export class AdminUsageCapabilityItemDto extends AdminUsageFiguresDto {
+  @ApiProperty({ example: 'review_draft' })
+  capability!: string;
+}
+
 /** One row of the answer; which key fields are present depends on `groupBy`. */
 export class AdminUsageItemDto extends AdminUsageFiguresDto {
   @ApiPropertyOptional({ description: '`groupBy=capability`', example: 'review_draft' })
@@ -40,6 +45,14 @@ export class AdminUsageItemDto extends AdminUsageFiguresDto {
 
   @ApiPropertyOptional({ description: "`groupBy=week`: the week's last day inside the range", example: '2026-11-14' })
   to?: string;
+
+  @ApiPropertyOptional({
+    type: [AdminUsageCapabilityItemDto],
+    description:
+      '`groupBy=week`: the week split by capability, most credits first (ties by calls, then name); ' +
+      'a capability with no calls that week is left out, so an empty week has `[]`',
+  })
+  byCapability?: AdminUsageCapabilityItemDto[];
 }
 
 export class AdminUsageOthersDto extends AdminUsageFiguresDto {

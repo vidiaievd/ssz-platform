@@ -34,8 +34,10 @@ export interface PayerSums extends AdminUsageSums {
   payerId: string;
 }
 
+/** One day of one capability — the week cut needs both to split each week by agent. */
 export interface DaySums extends AdminUsageSums {
   day: Date;
+  capability: string;
 }
 
 export interface AdminUsageFigures {
@@ -62,6 +64,8 @@ export interface WeekItem extends AdminUsageFigures {
   /** The week's days inside the range — the first and last weeks may be cut by it. */
   from: string;
   to: string;
+  /** The week split by capability, in `cutByCapability` order; a capability with no calls that week is left out. */
+  byCapability: CapabilityItem[];
 }
 
 interface Acc {
@@ -127,16 +131,19 @@ export interface CapabilityCut {
 
 /** One row per capability, most credits first; ties by calls, then by name. */
 export function cutByCapability(rows: readonly CapabilitySums[]): CapabilityCut {
+  return { total: figures(totalOf(rows)), items: capabilityItems(rows) };
+}
+
+function capabilityItems(rows: readonly CapabilitySums[]): CapabilityItem[] {
   const groups = new Map<string, Acc>();
   for (const row of rows) {
     let acc = groups.get(row.capability);
     if (!acc) groups.set(row.capability, (acc = emptyAcc()));
     add(acc, row);
   }
-  const items = [...groups.entries()]
+  return [...groups.entries()]
     .sort(([na, a], [nb, b]) => byCost(a, b) || na.localeCompare(nb))
     .map(([capability, acc]) => ({ capability, ...figures(acc) }));
-  return { total: figures(totalOf(rows)), items };
 }
 
 export interface PayerCut {
@@ -196,10 +203,11 @@ export interface WeekCut {
 
 /**
  * Every ISO week the range touches, in order, zeros included. A week is labelled by its ISO
- * year, so the last days of December can be week 1 of the next year.
+ * year, so the last days of December can be week 1 of the next year. Each week also carries
+ * its split by capability (plan 90, phase 8, step 1) — the same figures, so they add up to the week.
  */
 export function cutByWeek(rows: readonly DaySums[], from: string, to: string): WeekCut {
-  const buckets = new Map<string, { week: string; from: string; to: string; acc: Acc }>();
+  const buckets = new Map<string, { week: string; from: string; to: string; acc: Acc; rows: DaySums[] }>();
   const start = dayToDate(from);
   const end = dayToDate(to);
   for (let day = start; day <= end; day = addDays(day, 1)) {
@@ -207,12 +215,15 @@ export function cutByWeek(rows: readonly DaySums[], from: string, to: string): W
     const text = dateToDay(day);
     const bucket = buckets.get(week);
     if (bucket) bucket.to = text;
-    else buckets.set(week, { week, from: text, to: text, acc: emptyAcc() });
+    else buckets.set(week, { week, from: text, to: text, acc: emptyAcc(), rows: [] });
   }
   for (const row of rows) {
     // Rows come from a query bounded by the same range; one outside it has no bucket to land in.
     const bucket = buckets.get(isoWeek(row.day));
-    if (bucket) add(bucket.acc, row);
+    if (bucket) {
+      add(bucket.acc, row);
+      bucket.rows.push(row);
+    }
   }
   return {
     total: figures(totalOf(rows)),
@@ -221,6 +232,7 @@ export function cutByWeek(rows: readonly DaySums[], from: string, to: string): W
       from: bucket.from,
       to: bucket.to,
       ...figures(bucket.acc),
+      byCapability: capabilityItems(bucket.rows),
     })),
   };
 }

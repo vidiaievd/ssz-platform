@@ -33,7 +33,7 @@ export class AdminUsageController {
 
   @Get()
   @ApiOperation({
-    summary: 'AI spend by capability, by payer (top N) or by ISO week',
+    summary: 'AI spend by capability, by payer (top N) or by ISO week (each week split by capability)',
     description:
       'Calls, credits, unpriced calls and tokens from the daily rollup of `ai.call.completed`. School names ' +
       'come from organization `admin/schools`. Admin-panel token, level `support` or higher.',

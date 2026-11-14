@@ -86,9 +86,9 @@ describe('admin AI usage (plan 90, phase 7, step 12)', () => {
       // 2026-11-01 is a Sunday (W44), 2026-11-14 a Saturday (W46).
       const cut = cutByWeek(
         [
-          { day: new Date('2026-11-01T00:00:00Z'), ...sums({ credits: '1.500000' }) },
-          { day: new Date('2026-11-10T00:00:00Z'), ...sums({ credits: '2.000000' }) },
-          { day: new Date('2026-11-14T00:00:00Z'), ...sums({ credits: '0.250000' }) },
+          { day: new Date('2026-11-01T00:00:00Z'), capability: 'practice', ...sums({ credits: '1.500000' }) },
+          { day: new Date('2026-11-10T00:00:00Z'), capability: 'practice', ...sums({ credits: '2.000000' }) },
+          { day: new Date('2026-11-14T00:00:00Z'), capability: 'practice', ...sums({ credits: '0.250000' }) },
         ],
         '2026-11-01',
         '2026-11-14',
@@ -99,6 +99,51 @@ describe('admin AI usage (plan 90, phase 7, step 12)', () => {
         { week: '2026-W46', from: '2026-11-09', to: '2026-11-14', credits: '2.250000', calls: 2 },
       ]);
       expect(cut.total.credits).toBe('3.750000');
+    });
+
+    it('splits each week by capability with the same figures, leaving out the ones with no calls', () => {
+      const day = (d: string) => new Date(`${d}T00:00:00Z`);
+      const cut = cutByWeek(
+        [
+          // W45: review_draft on two days folds into one row and outspends practice.
+          { day: day('2026-11-02'), capability: 'practice', ...sums({ calls: 4, credits: '1.000000' }) },
+          { day: day('2026-11-03'), capability: 'review_draft', ...sums({ calls: 1, credits: '0.750000' }) },
+          { day: day('2026-11-05'), capability: 'review_draft', ...sums({ calls: 1, credits: '0.750000' }) },
+          // W46: a tie on credits goes to calls, then to the name.
+          { day: day('2026-11-09'), capability: 'student_assist', ...sums({ calls: 2, credits: '0.500000' }) },
+          { day: day('2026-11-09'), capability: 'practice', ...sums({ calls: 3, credits: '0.500000' }) },
+          { day: day('2026-11-10'), capability: 'diagnostic', ...sums({ calls: 3, credits: '0.500000' }) },
+        ],
+        '2026-10-26',
+        '2026-11-14',
+      );
+      const split = cut.items.map((item) => ({
+        week: item.week,
+        byCapability: item.byCapability.map(({ capability, calls, credits }) => ({ capability, calls, credits })),
+      }));
+      expect(split).toEqual([
+        { week: '2026-W44', byCapability: [] },
+        {
+          week: '2026-W45',
+          byCapability: [
+            { capability: 'review_draft', calls: 2, credits: '1.500000' },
+            { capability: 'practice', calls: 4, credits: '1.000000' },
+          ],
+        },
+        {
+          week: '2026-W46',
+          byCapability: [
+            { capability: 'diagnostic', calls: 3, credits: '0.500000' },
+            { capability: 'practice', calls: 3, credits: '0.500000' },
+            { capability: 'student_assist', calls: 2, credits: '0.500000' },
+          ],
+        },
+      ]);
+      // The split adds up to its week, tokens included.
+      const w45 = cut.items[1];
+      expect(w45.calls).toBe(6);
+      expect(w45.credits).toBe('2.500000');
+      expect(w45.byCapability.reduce((n, c) => n + c.tokens.input, 0)).toBe(w45.tokens.input);
     });
   });
 

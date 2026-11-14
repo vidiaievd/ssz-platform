@@ -93,8 +93,12 @@ export class GetAdminAiUsageHandler implements IQueryHandler<GetAdminAiUsageQuer
         return { ...head, ...cut };
       }
       case 'week': {
-        const rows = await this.prisma.aiUsageDaily.groupBy({ by: ['day'], where, _sum: SUM });
-        const cut = cutByWeek(rows.map((row) => ({ day: row.day, ...sums(row) })), query.from, query.to);
+        const rows = await this.prisma.aiUsageDaily.groupBy({ by: ['day', 'capability'], where, _sum: SUM });
+        const cut = cutByWeek(
+          rows.map((row) => ({ day: row.day, capability: row.capability, ...sums(row) })),
+          query.from,
+          query.to,
+        );
         return { ...head, ...cut };
       }
     }
