@@ -173,6 +173,9 @@ and the denormalised `name` (null before sync). No email, no activity. `GET admi
 policy, `reviewAi`, `assistant`, `aiPrecheck` in one answer, as saved (no tariff check; review effort by template is not
 in). Non-UUID / unknown school → 404 (deleted ones are found).
 
+Batch read (plan 90, phase 7, step 17): `GET admin/schools?ids=<uuid>,<uuid>` (1–100 UUIDs of any version, non-UUID or > 100
+→ 400; unknown ids are simply absent; combines with the other filters) — the panel names the schools of the AI spend table.
+
 Student seats (plan 90, phase 4): `GET schools/:id/seats` (owner / admin / manager) → `{ used, limit, ceiling, state }`; panel
 reads the plan limit from the `school_seat_limits` projection only. `admin/schools` rows carry `seats { used, limit }` and
 filter `seats=near|over` (near = ≥ 90 % of the limit, not over; over = above it); the card has full `seats`;
@@ -326,6 +329,19 @@ day, learner, exercise, atom, source). `GET analytics/groups/:groupId/weak-rules
 `GET analytics/students/:studentId/weak-rules?window=&courseId=`; learners selected by group membership + course, not by `group_id`.
 Admin journal also reads `organization.events` (queue `analytics-service.admin-audit.organization`, `service: 'organization'`);
 rows from the timer or the owner carry `actorLevel: null`.
+AI review gate (plan 90, phase 7, step 10): `ai_draft_quality_daily` has `template_code` (old rows `null` = "template not
+recorded", not restorable) and `drafts_settled`; the unique key includes the template (NULLS NOT DISTINCT) — roll the image
+and the migration out together (the old image fails on `ON CONFLICT`). `GET admin/ai/review-gate?from=&to=` (level `support`,
+optional days, default all time) → per (template, model): settled drafts, kept / edited / discarded / untouched, shares,
+learner disputes and teacher-flipped `review_direct` verdicts (reference only); `verdict` `passed` / `failed` / `insufficient`
+/ `not_recorded` on exact counts against `AI_REVIEW_GATE_MIN_DRAFTS` (100), `…_MIN_KEPT` (0.85), `…_MAX_DISCARDED` (0.10).
+The gate is shown only: nothing enforces it, so `ai.review_direct` stays out of every plan (plan 90 §7, Q6).
+AI spend per payer (step 12): `GET admin/ai/usage?from=&to=&groupBy=capability|payer|week&payerType=&limit=` over
+`ai_usage_daily` (level `support`; `from`/`to` both or neither, default last 30 days, ≤ 366; `limit` 1–100, default 20) →
+`{ from, to, groupBy, payerType, total, items }`; `payer` adds `payers` and `others` (everything below the top; top + `others`
+= `total`); money is `credits` as a six-decimal string, sorted by exact micro-credits. Names of schools are not here — the
+panel reads them from organization `admin/schools?ids=`. Both routes need an exact nginx `location =` (`/api/v1/admin/ai/
+review-gate`, `/api/v1/admin/ai/usage`): ai-service owns `admin/ai/usage/:payerType/:payerId` and everything under the gate.
 
 ### 10. API Gateway (nginx — exists)
 Request routing, rate limiting, CORS, SSL termination.
@@ -412,8 +428,8 @@ explains a mistake with the articulation base from content-service. Pitch (F0) a
 Platform admin (plan 90, phase 3): `PUT admin/ai/payer-policies/:payerType/:payerId` requires `reason` (≤ 500) and writes
 `admin_audit` in `ai_db` (`recordAdminAction(tx, entry)`, same transaction; action `payer_policy.changed`, targetType
 `workspace` / `user`, `before` absent when no policy existed — the default was "on, any region") and the event
-`admin.action.performed` on `ai.events` through the outbox (envelope as subscription's). Model test joins the journal in
-phase 7, part 2. `GET admin/ai/usage/:payerType/:payerId` (level `support`) → per AI key
+`admin.action.performed` on `ai.events` through the outbox (envelope as subscription's). Other admin changes join the journal
+in phase 7 (see below). `GET admin/ai/usage/:payerType/:payerId` (level `support`) → per AI key
 (`AI_FEATURE_KEYS` in `domain/entitlement.ts` — mirrors subscription's seven `ai.*` keys, add a key in both places):
 `feature`, `enabled`, `used`, `total`, `periodEnd`, `limits`, plus the effective `policy`. The spend is the learner
 `ai/usage/me` calculation (`FeatureUsage`: max(call ledger, gate counter), the counter is never created); `enabled` is
@@ -436,6 +452,19 @@ UTC days `YYYY-MM-DD`, both ends inclusive, default last 30 days, > 366 or `from
 `cost_micros`, never a float; a call without a price counts in `unpricedCalls` and adds no cost; calls without a model (gate
 refusals) are not counted; a bound model with no calls is a zero row. Spend is read from `ai_calls`, not from analytics
 `ai_usage_daily` (no `audio_ms`, `characters` or money there).
+Providers, breakers, model test (plan 90, phase 7, part 2): `PUT admin/ai/providers/:id { enabled, reason }` and
+`PUT admin/ai/models/:id/status { status, reason }` (`super`, reason ≤ 500, same value → 200 without a write or journal row;
+port `IRegistryWriter`, row under `FOR UPDATE`); journal `provider.toggled` / `model.status_changed` (targetType `provider` /
+`model`, targetId = row uuid) + outbox event. Enabling a provider without a key → 422 with `missing`; the answer carries
+`strandedCapabilities[]` (enabled bindings left with no serving model; the breaker is not counted). `GET admin/ai/breakers`
+(`support`) → `{ settings, storeAvailable, items[] }` per registry model (`state` open / closed / `unknown`, `reopensInMs`,
+`recentFailures`, `bindings[]`), open first; `POST admin/ai/breakers/:modelId/reset { reason }` (`admin`, journal
+`breaker.reset`; a clean breaker → `changed: false`; Redis down or `unknown` → 503 `breaker_store_unavailable`). The admin port
+`IBreakerInspector` is separate from the router's fail-open `ICircuitBreaker`: an unreadable store is `unknown`, never
+"closed". `POST admin/ai/models/:id/test { reason? }` (`admin`; speech / tts → 422) writes `model.tested` (`after { outcome,
+errorCode, latencyMs, callId, providerCode, providerModelId }`; no reason = `''` in `admin_audit`, `null` in the event); a
+journal failure never takes the answer away (the call is already made and paid) — logged only. Eval runs and runs list: see
+the evals above. Gateway `location`s for these are covered by `/api/v1/admin/ai`, except the two analytics routes below.
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.
