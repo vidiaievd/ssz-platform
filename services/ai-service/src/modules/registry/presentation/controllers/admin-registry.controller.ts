@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -127,15 +128,18 @@ export class AdminRegistryController {
       '(capability diagnostic, payer platform) and an admin trail entry `model.tested` (body `{ reason? }`, ' +
       'reason optional). Language models only: a speech model is a 422.',
   })
+  // Declared by hand: the body is optional, and a union type in the signature would hide it from
+  // Swagger and from the validation pipe (an over-long reason slipped through).
+  @ApiBody({ type: TestModelDto, required: false })
   @ApiOkResponse({ type: TestModelResponseDto })
   @ApiNotFoundResponse({ description: 'No such model' })
   @ApiUnprocessableEntityResponse({ description: 'Provider not configured, no adapter for its kind yet, or a speech model' })
   testModel(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: TestModelDto | undefined,
+    @Body() body: TestModelDto,
     @CurrentAdmin() admin: AdminActor,
   ): Promise<TestModelResult> {
-    const reason = body?.reason?.trim() || null;
+    const reason = body.reason?.trim() || null;
     return this.commandBus.execute(new TestModelCommand(id, admin, reason));
   }
 }
