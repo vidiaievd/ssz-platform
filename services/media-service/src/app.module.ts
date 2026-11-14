@@ -18,6 +18,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { AssetsModule } from './modules/assets/assets.module.js';
 import { ProcessingModule } from './modules/processing/processing.module.js';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module.js';
+import { SweepsModule } from './modules/sweeps/sweeps.module.js';
 import { PronunciationModule } from './modules/pronunciation/pronunciation.module.js';
 import { NarrationModule } from './modules/narration/narration.module.js';
 
@@ -55,6 +56,7 @@ import { NarrationModule } from './modules/narration/narration.module.js';
     AssetsModule,
     ProcessingModule,
     MaintenanceModule,
+    SweepsModule,
     PronunciationModule,
     NarrationModule,
   ],

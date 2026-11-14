@@ -118,3 +118,22 @@ model ProcessedEvent {
 
   @@map("processed_events")
 }
+
+// Plan 90, phase 8, step 3: one row per run of a media sweep — nightly, from the admin panel or
+// by an operator. `kind` / `mode` / `trigger` are checked by the domain (`sweep-run.ts`); kept 90 days.
+model SweepRun {
+  id         String    @id @default(uuid())
+  kind       String
+  mode       String
+  trigger    String
+  actorId    String?   @map("actor_id")
+  // The sweep's own report, as it returned it (its shape depends on `kind`).
+  report     Json?
+  error      String?
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+
+  @@index([kind, startedAt])
+  @@index([startedAt])
+  @@map("sweep_runs")
+}

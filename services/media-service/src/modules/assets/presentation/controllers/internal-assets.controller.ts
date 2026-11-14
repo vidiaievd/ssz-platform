@@ -18,22 +18,6 @@ import { InternalAuthGuard } from '../../../../common/guards/internal-auth.guard
 import { DescribeAssetsQuery, type AssetDescription } from '../../application/queries/describe-assets/describe-assets.query.js';
 import { GetPlaybackQuery, type AssetPlayback } from '../../application/queries/get-playback/get-playback.query.js';
 import {
-  SweepOrphanRecordingsService,
-  type SweepReport,
-} from '../../application/services/sweep-orphan-recordings.service.js';
-import {
-  SweepSupersededNarrationsService,
-  type SupersededSweepReport,
-} from '../../application/services/sweep-superseded-narrations.service.js';
-import {
-  SweepAbandonedUploadsService,
-  type AbandonedUploadSweepReport,
-} from '../../application/services/sweep-abandoned-uploads.service.js';
-import {
-  SweepOrphanContentAssetsService,
-  type ContentSweepReport,
-} from '../../application/services/sweep-orphan-content-assets.service.js';
-import {
   BackfillSpeechVariantsService,
   type SpeechBackfillReport,
 } from '../../application/services/backfill-speech-variants.service.js';
@@ -54,6 +38,7 @@ import {
 // Service-to-service routes only — @Public() exempts them from the global JWT guard,
 // InternalAuthGuard demands 'x-internal-token' instead. Not routed by the gateway:
 // nginx has no location for /api/v1/internal/media.
+// The sweep routes (`sweep-*`) live in the sweeps module, which records each run (plan 90, phase 8).
 @ApiTags('internal')
 @ApiHeader({ name: 'x-internal-token', required: true, description: 'Shared service token' })
 @ApiResponse({ status: 401, description: 'Missing or wrong x-internal-token' })
@@ -64,10 +49,6 @@ export class InternalAssetsController {
   constructor(
     private readonly queryBus: QueryBus,
     private readonly commandBus: CommandBus,
-    private readonly sweepOrphans: SweepOrphanRecordingsService,
-    private readonly sweepSuperseded: SweepSupersededNarrationsService,
-    private readonly sweepAbandoned: SweepAbandonedUploadsService,
-    private readonly sweepContent: SweepOrphanContentAssetsService,
     private readonly backfillSpeech: BackfillSpeechVariantsService,
   ) {}
 
@@ -144,60 +125,6 @@ export class InternalAssetsController {
   ): Promise<void> {
     const result: DeleteAssetResult = await this.commandBus.execute(new DeleteAssetCommand(assetId, dto.ownerId));
     if (result.isFail && result.error === 'ASSET_NOT_FOUND') throw new NotFoundException('Asset not found');
-  }
-
-  @Post('sweep-orphans')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Run the orphan-recording sweep now (operator)',
-    description:
-      'Recordings no attempt stands on, older than MEDIA_ORPHAN_MIN_AGE_DAYS. A DRY RUN unless ' +
-      '`dryRun=false` is passed explicitly — the configured mode applies only to the nightly run. ' +
-      'Answers with what was scanned, held, found and deleted.',
-  })
-  @ApiResponse({ status: 200, description: 'SweepReport' })
-  async sweepOrphansNow(@Query('dryRun') dryRun?: string): Promise<SweepReport> {
-    return this.sweepOrphans.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
-  }
-
-  @Post('sweep-superseded')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Run the replaced-narration sweep now (operator)',
-    description:
-      'Lesson assets replaced more than NARRATION_RETENTION_DAYS ago that no lesson body names ' +
-      '(content-service is asked). A DRY RUN unless `dryRun=false` is passed explicitly.',
-  })
-  @ApiResponse({ status: 200, description: 'SupersededSweepReport' })
-  async sweepSupersededNow(@Query('dryRun') dryRun?: string): Promise<SupersededSweepReport> {
-    return this.sweepSuperseded.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
-  }
-
-  @Post('sweep-abandoned-uploads')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Run the abandoned-upload sweep now (operator)',
-    description:
-      'Assets still PENDING_UPLOAD after MEDIA_ORPHAN_MIN_AGE_DAYS — an upload asked for and never ' +
-      'finished. A DRY RUN unless `dryRun=false` is passed explicitly.',
-  })
-  @ApiResponse({ status: 200, description: 'AbandonedUploadSweepReport' })
-  async sweepAbandonedNow(@Query('dryRun') dryRun?: string): Promise<AbandonedUploadSweepReport> {
-    return this.sweepAbandoned.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
-  }
-
-  @Post('sweep-orphan-content')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Run the orphan content-asset sweep now (operator)',
-    description:
-      'Uploaded lesson and exercise assets older than MEDIA_ORPHAN_MIN_AGE_DAYS that nothing in content names ' +
-      '(content-service is asked; replaced narrations are left to their own sweep). A DRY RUN unless ' +
-      '`dryRun=false` is passed explicitly.',
-  })
-  @ApiResponse({ status: 200, description: 'ContentSweepReport' })
-  async sweepOrphanContentNow(@Query('dryRun') dryRun?: string): Promise<ContentSweepReport> {
-    return this.sweepContent.run({ mode: dryRun === 'false' ? 'delete' : 'dry-run' });
   }
 
   @Post('backfill-speech')
