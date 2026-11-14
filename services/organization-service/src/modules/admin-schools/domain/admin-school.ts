@@ -24,6 +24,8 @@ export const ADMIN_SCHOOLS_PAGE_MAX = 100;
 export interface AdminSchoolFilter {
   /** Case-insensitive substring of the name or the slug. */
   search?: string;
+  /** Exactly these schools (a batch read of names, e.g. the AI spend per payer); unknown ids are just absent. */
+  ids?: readonly string[];
   kind?: SchoolKindValue;
   /** No status = every row, closed and purged ones included: the admin sees what is there. */
   status?: AdminSchoolStatus;

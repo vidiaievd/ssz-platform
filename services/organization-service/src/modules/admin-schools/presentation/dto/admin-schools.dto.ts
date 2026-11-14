@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { ArrayMaxSize, ArrayMinSize, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import {
   ADMIN_SCHOOL_SEATS_FILTERS,
   ADMIN_SCHOOL_SORTS,
@@ -13,6 +13,15 @@ import {
 } from '../../domain/admin-school.js';
 
 const KINDS: readonly SchoolKindValue[] = ['SCHOOL', 'SOLO'];
+/** Any UUID version: seeded schools carry v5 ids. */
+const UUID_ANY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** `ids=a,b` (or a repeated `ids=`) → distinct trimmed values; an empty one stays and fails the UUID check. */
+function splitIds({ value }: { value: unknown }): unknown {
+  if (value === undefined) return undefined;
+  const parts = (Array.isArray(value) ? value : [value]).flatMap((v) => String(v).split(','));
+  return [...new Set(parts.map((p) => p.trim()))];
+}
 
 export class ListAdminSchoolsQueryDto {
   @ApiPropertyOptional({ description: 'Case-insensitive part of the name or the slug', example: 'nord' })
@@ -20,6 +29,20 @@ export class ListAdminSchoolsQueryDto {
   @IsString()
   @MaxLength(100)
   search?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      'Comma-separated school ids, 1–100: only these rows (a batch read of names). Unknown ids are absent, not an ' +
+      'error. Combines with the other filters; pass `limit` ≥ the number of ids to get them on one page.',
+    example: '6f1c2a9e-0b7d-4e3a-9c55-1d2e3f4a5b6c,0a1b2c3d-4e5f-5a6b-8c7d-9e0f1a2b3c4d',
+  })
+  @IsOptional()
+  @Transform(splitIds)
+  @ArrayMinSize(1)
+  @ArrayMaxSize(ADMIN_SCHOOLS_PAGE_MAX)
+  @Matches(UUID_ANY, { each: true, message: 'ids must be UUIDs' })
+  ids?: string[];
 
   @ApiPropertyOptional({ enum: KINDS, description: 'SCHOOL = an organisation, SOLO = a private tutor' })
   @IsOptional()

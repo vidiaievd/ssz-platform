@@ -215,6 +215,7 @@ export class AdminSchoolsPrismaReader implements IAdminSchoolsReader {
 
 function whereOf(filter: AdminSchoolFilter): Prisma.SchoolWhereInput {
   const where: Prisma.SchoolWhereInput = {};
+  if (filter.ids) where.id = { in: [...filter.ids] };
   if (filter.kind) where.kind = filter.kind;
   if (filter.status) where.status = filter.status;
   if (filter.search) {
