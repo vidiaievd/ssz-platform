@@ -17,6 +17,8 @@ export interface ModelForCall {
 
 export interface IRegistryReader {
   listProviders(): Promise<ProviderWithModelCount[]>;
+  /** Null when the provider does not exist. */
+  getProvider(providerId: string): Promise<AiProvider | null>;
   listModels(filter: { providerId?: string }, at: Date): Promise<ModelWithCurrentPrice[]>;
   /** Null when the model does not exist. */
   getModelForCall(modelId: string, at: Date): Promise<ModelForCall | null>;

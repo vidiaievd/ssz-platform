@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
@@ -10,10 +10,16 @@ import {
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
+import { CurrentAdmin } from '../../../../common/decorators/current-admin.decorator.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import { RequireAdminLevel } from '../../../../common/decorators/require-admin-level.decorator.js';
 import { AdminLevelGuard } from '../../../../common/guards/admin-level.guard.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
+import type { AdminActor } from '../../../../shared/application/admin-audit.js';
+import { SetModelStatusCommand } from '../../application/commands/set-model-status/set-model-status.command.js';
+import type { SetModelStatusResult } from '../../application/commands/set-model-status/set-model-status.handler.js';
+import { SetProviderEnabledCommand } from '../../application/commands/set-provider-enabled/set-provider-enabled.command.js';
+import type { SetProviderEnabledResult } from '../../application/commands/set-provider-enabled/set-provider-enabled.handler.js';
 import { TestModelCommand } from '../../application/commands/test-model/test-model.command.js';
 import type { TestModelResult } from '../../application/commands/test-model/test-model.handler.js';
 import type { ModelWithCurrentPrice } from '../../application/ports/registry.reader.js';
@@ -27,6 +33,10 @@ import {
   ModelPriceResponseDto,
   ModelResponseDto,
   ProviderResponseDto,
+  SetModelStatusDto,
+  SetModelStatusResponseDto,
+  SetProviderEnabledDto,
+  SetProviderEnabledResponseDto,
   TestModelResponseDto,
 } from '../dto/registry.dto.js';
 
@@ -50,6 +60,27 @@ export class AdminRegistryController {
     return this.queryBus.execute(new ListProvidersQuery());
   }
 
+  @RequireAdminLevel('super')
+  @Put('providers/:id')
+  @ApiOperation({
+    summary: "Switch a provider on or off",
+    description:
+      'Off: the router steps over every model of the provider to the binding\'s fallback; a binding with nothing ' +
+      'else left answers `unavailable` — the answer lists those (`strandedCapabilities`). Takes effect on the next ' +
+      'call. On: only when the provider is configured, else 422 with `missing`. `reason` is required; a flip goes ' +
+      'to the admin trail as `provider.toggled`; asking for the state it already has writes nothing (`changed: false`).',
+  })
+  @ApiOkResponse({ type: SetProviderEnabledResponseDto })
+  @ApiNotFoundResponse({ description: 'No such provider' })
+  @ApiUnprocessableEntityResponse({ description: 'Switching on a provider that is not configured; `missing` lists why' })
+  setProviderEnabled(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: SetProviderEnabledDto,
+    @CurrentAdmin() admin: AdminActor,
+  ): Promise<SetProviderEnabledResult> {
+    return this.commandBus.execute(new SetProviderEnabledCommand(id, body.enabled, admin, body.reason));
+  }
+
   @Get('models')
   @ApiOperation({ summary: 'List models with the price in effect now' })
   @ApiOkResponse({ type: [ModelResponseDto] })
@@ -63,6 +94,26 @@ export class AdminRegistryController {
   @ApiNotFoundResponse({ description: 'No such model' })
   listPrices(@Param('id', ParseUUIDPipe) id: string): Promise<AiModelPrice[]> {
     return this.queryBus.execute(new ListModelPricesQuery(id));
+  }
+
+  @RequireAdminLevel('super')
+  @Put('models/:id/status')
+  @ApiOperation({
+    summary: "Change a model's status",
+    description:
+      '`disabled` takes the model out of every binding at once (the router steps to the fallback) and new bindings ' +
+      'refuse it; `deprecated` is a label, the model still serves; `active` brings it back. The answer lists ' +
+      'bindings left with no model that serves (`strandedCapabilities`). `reason` is required; a change goes to the ' +
+      'admin trail as `model.status_changed`; the same status writes nothing (`changed: false`).',
+  })
+  @ApiOkResponse({ type: SetModelStatusResponseDto })
+  @ApiNotFoundResponse({ description: 'No such model' })
+  setModelStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: SetModelStatusDto,
+    @CurrentAdmin() admin: AdminActor,
+  ): Promise<SetModelStatusResult> {
+    return this.commandBus.execute(new SetModelStatusCommand(id, body.status, admin, body.reason));
   }
 
   @RequireAdminLevel('admin')
