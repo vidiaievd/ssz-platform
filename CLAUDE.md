@@ -134,6 +134,12 @@ Journal: table `admin_audit` in `auth_db` (same transaction; id = eventId) and e
 `version` 1). Payload `{ service: 'auth', actorId?, actorLevel?, action, targetType, targetId, reason?, before?, after? }`;
 actions `admin.granted` / `admin.level_changed` / `admin.revoked`. Published after commit; broker failure is logged only.
 Shared rule and event types live in `packages/contracts` (`AdminLevel`, `adminLevelAtLeast()`, `ADMIN_EVENT_TYPES`).
+Token lifetimes (plan 90, phase 8, step 2): `GET/PUT api/v1/auth/admin/token-lifetimes` — `GET` for any admin level
+(policy `AdminSupport` = role + any `admin_level`), `PUT` `super` only (`AdminOnly` is gone, so a `platform_admin` web token
+without a level gets 403). `PUT { policies, reason }` — `reason` required (≤ 500). One `admin_audit` row per changed
+(role, client) pair (action `token_lifetime.changed`, targetType `token_lifetime`, targetId `<role>:<client>`, `before` /
+`after { hours }`; a new pair has no `before`; a pair with the same value writes nothing and leaves `updatedBy`) in the same
+transaction, then `admin.action.performed` after commit, one event per row. Applies to tokens issued or refreshed afterwards.
 
 ### 2. User Profile Service (NestJS)
 User profiles separated from auth. Student profiles (level, target language, progress summary),
@@ -301,6 +307,20 @@ Reference clips of words (plan 88): `POST media/pronunciation/reference` (author
 with the code as `message`, `NOT_AVAILABLE` / `SYNTHESIS_FAILED` are 503.
 `POST internal/media/assets/:assetId/discard { ownerId }` (`x-internal-token`) — the engine deletes a pronunciation
 session's take once it is measured (plan 86, step 13.4d).
+Sweeps in the admin panel (plan 90, phase 8, steps 3–4; module `sweeps`): four passes `orphan_recordings` /
+`superseded_narrations` / `abandoned_uploads` / `orphan_content`, all run through `SweepRunner` (the nightly worker and
+`internal/media/assets/sweep-*`, trigger `operator`, keep their paths) and written to `sweep_runs` (`kind`, `mode`, `trigger`
+nightly / admin / operator, `actor_id`, `report` jsonb, `error`; 90 days, trimmed after each nightly run; a history write
+failure is only logged). `GET admin/media/sweeps` (level `support`) → per kind `schedule`, `nightlyMode` (env
+`MEDIA_ORPHAN_SWEEP_MODE`, one value for all four — it is not switched from the panel, Q7), `minAgeDays` + `ageBasis`,
+`maxPerRun`, `recentRuns[]` (10, `summary { scanned, kept, candidates, deleted, aborted, skipped }`), plus `historyDays`.
+`POST admin/media/sweeps/:kind/run { dryRun, reason }`: dry-run level `admin`, deleting `super` (the command checks it) and
+`reason` required (400 `REASON_REQUIRED`); synchronous; a pass already running → 409 `SWEEP_RUNNING` (set `inFlight`, set
+before the first `await`; the skipped nightly / operator run is still written as `skipped`). Only a deleting run goes to the
+journal: `admin_audit` + `outbox` in `media_db` (relay from `@ssz/messaging`), event `admin.action.performed` on `media.events`,
+action `media.sweep.deleted`, targetType `media_sweep`, targetId = kind, `after` = report + `runId` (a failed run: `after { error }`).
+The journal is written after the run in its own transaction; a failure is only logged (files are already gone, the answer is 200).
+Gateway: `location /api/v1/admin/media` in all three nginx configs.
 
 ### 8. Notification Service (NestJS)
 Push (FCM), email, in-app notifications. Study reminders.
@@ -329,6 +349,10 @@ day, learner, exercise, atom, source). `GET analytics/groups/:groupId/weak-rules
 `GET analytics/students/:studentId/weak-rules?window=&courseId=`; learners selected by group membership + course, not by `group_id`.
 Admin journal also reads `organization.events` (queue `analytics-service.admin-audit.organization`, `service: 'organization'`);
 rows from the timer or the owner carry `actorLevel: null`.
+Admin journal also reads `media.events` (phase 8, step 5; queue `analytics-service.admin-audit.media`, `service: 'media'`,
+filter `service=media`; no migration, the column is TEXT).
+Weekly AI usage by agent (phase 8, step 1): `admin/ai/usage?groupBy=week` gives each week `byCapability[]` (same figures as
+a row; a capability without calls that week is omitted; one query over `ai_usage_daily`, folded in `admin-usage.ts`).
 AI review gate (plan 90, phase 7, step 10): `ai_draft_quality_daily` has `template_code` (old rows `null` = "template not
 recorded", not restorable) and `drafts_settled`; the unique key includes the template (NULLS NOT DISTINCT) — roll the image
 and the migration out together (the old image fails on `ON CONFLICT`). `GET admin/ai/review-gate?from=&to=` (level `support`,
@@ -529,6 +553,20 @@ School closed (plan 90, phase 5, step 5): `PayerCreatedConsumer` also takes `sch
 subscription is cancelled by the same command as `DELETE`, journal `subscription.canceled` with `actor_id = 'system'` and
 `reason = 'school closed'` (the event omits `actorLevel`); grants stay. `school.restored` / `school.purged` do nothing —
 restoring a school does not bring its tariff back; an admin assigns it.
+Moving subscribers to a plan's current version (plan 90, phase 8, step 6): `POST admin/subscriptions/plans/:code/migrate
+{ toVersion, fromVersions?, dryRun, reason }` (`super`; `toVersion` must be the current one, else 422
+`migration_target_not_current`; archived plan → 422 `plan_archived`; bad sources → 422 `invalid_source_versions`).
+`dryRun: true` → `{ dryRun, total, sources[{ version, subscribers, changes[] }] }` (`changes` from `plans/domain/plan-diff.ts`:
+`added` / `removed` / `changed`; credits compared as numbers; no `reason` needed). A run → `{ dryRun: false, batchId, moved,
+skipped, remaining }`, up to 200 accounts per call; the panel repeats the call, passing the first answer's `batchId`, until
+`remaining` is 0 (`moved = 0` with `remaining > 0` means stop). Per account, its own transaction: the old row is closed
+(`endedBy`), a new one opens on `toVersion` with the same `status`, `periodStart`, `periodEnd` (the start is the credit-month
+anchor, so a move gives no fresh month), the account revision grows, a snapshot goes to the outbox; an account changed in
+between (raced) is `skipped` and taken by the next call. Grants stay. Journal: one `admin_audit` row per account
+(`subscription.migrated`, `before` / `after { planVersion }`, `batchId` in `after`; Q8). Seats below the taken ones: as in
+phase 4, nobody is evicted.
+Archiving the free plan of an audience is refused (422 `free_plan_not_archivable`): new accounts would open without a
+subscription (`no_free_plan`).
 
 ### 14. Scheduling Service (NestJS)
 Lessons, slots, review blocks, absences and exam marks for schools and tutors.
