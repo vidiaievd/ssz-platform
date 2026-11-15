@@ -13,7 +13,8 @@ export type PlanError =
   | { code: 'feature_not_for_audience'; featureKey: string; audience: string }
   | { code: 'invalid_plan_code'; value: string }
   | { code: 'plan_archived'; planCode: string }
-  | { code: 'plan_already_archived'; planCode: string };
+  | { code: 'plan_already_archived'; planCode: string }
+  | { code: 'free_plan_not_archivable'; planCode: string };
 
 export function describePlanError(error: PlanError): string {
   switch (error.code) {
@@ -39,5 +40,7 @@ export function describePlanError(error: PlanError): string {
       return `Plan "${error.planCode}" is archived and cannot be assigned`;
     case 'plan_already_archived':
       return `Plan "${error.planCode}" is already archived`;
+    case 'free_plan_not_archivable':
+      return `Plan "${error.planCode}" is the free plan of its audience and cannot be archived`;
   }
 }
