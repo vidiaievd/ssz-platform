@@ -103,6 +103,43 @@ export class BillingAccount {
     return Result.ok(started);
   }
 
+  /**
+   * Moves the current subscription of `plan` to the plan's current version (plan 90, phase 8):
+   * the row is closed and a new one opened on the same terms — status, start and end. The start
+   * stays because it anchors the monthly credit cycle: a version move is not a new purchase and
+   * must not hand out a fresh month mid-month. Only a current subscription of this plan on an
+   * older version moves; anything else (moved meanwhile, other plan, lapsed) is `not_on_plan_version`.
+   */
+  moveToCurrentVersion(
+    plan: Plan,
+    input: { subscriptionId: string; fromVersions: readonly number[] | null; by: string; now: Date },
+  ): Result<{ before: Subscription; after: Subscription }, AccountError> {
+    const target = plan.versionForAssignment();
+    if (target.isFail) return Result.fail(target.error);
+    const toVersion = target.value.version;
+    const current = this.current(input.now);
+    const movable =
+      current !== null &&
+      current.planId === plan.id &&
+      current.planVersion < toVersion &&
+      (input.fromVersions === null || input.fromVersions.includes(current.planVersion));
+    if (!movable) return Result.fail({ code: 'not_on_plan_version', planCode: plan.code });
+
+    this.closeOpen(input.by, input.now);
+    const moved: Subscription = {
+      ...current,
+      id: input.subscriptionId,
+      planVersion: toVersion,
+      createdBy: input.by,
+      createdAt: input.now,
+      endedAt: null,
+      endedBy: null,
+    };
+    this.props.openSubscriptions = [moved];
+    this.touched.set(moved.id, moved);
+    return Result.ok({ before: current, after: moved });
+  }
+
   /** Ends the current subscription; the account falls back to its audience's free plan (step 4). */
   cancelSubscription(by: string, now: Date): Result<Subscription, AccountError> {
     const current = this.current(now);
