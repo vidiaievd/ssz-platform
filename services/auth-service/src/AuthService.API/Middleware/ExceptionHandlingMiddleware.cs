@@ -59,6 +59,10 @@ public sealed class ExceptionHandlingMiddleware(
                 CreateProblem(ex.Message, ex.Code, StatusCodes.Status423Locked,
                     lockedUntil: ex.LockedUntil)),
 
+            AccountBlockedException ex => (
+                StatusCodes.Status403Forbidden,
+                CreateProblem(ex.Message, ex.Code, StatusCodes.Status403Forbidden)),
+
             AdminAccessDeniedException ex => (
                 StatusCodes.Status403Forbidden,
                 CreateProblem(ex.Message, ex.Code, StatusCodes.Status403Forbidden)),

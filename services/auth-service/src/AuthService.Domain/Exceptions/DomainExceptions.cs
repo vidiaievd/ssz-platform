@@ -29,6 +29,16 @@ public sealed class AccountLockedException : DomainException
         => LockedUntil = lockedUntil;
 }
 
+/// <summary>
+/// The account was blocked by a platform administrator (plan 90, phase 6). Not a 423: there is
+/// nothing to wait for. The reason stays with the administrators.
+/// </summary>
+public sealed class AccountBlockedException : DomainException
+{
+    public AccountBlockedException()
+        : base("This account has been blocked. Please contact support.", "ACCOUNT_BLOCKED") { }
+}
+
 public sealed class InvalidCredentialsException : DomainException
 {
     public InvalidCredentialsException()
